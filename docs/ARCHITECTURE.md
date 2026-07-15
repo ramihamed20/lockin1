@@ -276,3 +276,67 @@ Phase 2 may create the runnable foundation, database configuration, environment 
 
 Phase 2 must not implement the full authentication, education, quiz, community, ranking, subscription, or management features. Those remain in their approved phases.
 
+## Phase 2 Realized Architecture
+
+The confirmed repository structure is:
+
+```text
+Lock-in/
+├── backend/
+│   ├── apps/accounts/
+│   ├── apps/focus/
+│   ├── config/settings/
+│   └── platform_core/{api,events,logging}/
+├── frontend/
+│   ├── src/{api,app,pwa}/
+│   └── src/features/focus/
+├── docs/
+├── scripts/
+├── .github/workflows/ci.yml
+└── compose.yaml
+```
+
+Only Accounts and Focus exist as Django domains in Phase 2. Empty future apps were not generated.
+`platform_core` contains domain-neutral transport, event, and observability primitives; it is not a
+miscellaneous business-logic folder.
+
+### Focus as a first-class bounded domain
+
+Focus owns sessions, ordered session history, completion summaries, and its started/completed
+events. Quiz and Study integrations use a typed context reference and application-service
+validation rather than Focus importing future domain internals. Annotation persistence waits for
+real Document and DocumentVersion foreign keys. The frontend Focus module publishes independent
+ports for renderer, annotation repository, workspace recovery, gestures, keyboard commands,
+sessions, and tool registration. See `FOCUS_MODE.md`.
+
+### Internal event flow
+
+Domain services commit authoritative PostgreSQL state, then publish immutable typed events through
+`transaction.on_commit`. The in-process bus is synchronous and not durable. A transactional outbox
+or queue requires a later approved subscriber with explicit delivery/retry needs. See `EVENTS.md`.
+
+### AI-free extension boundary
+
+No AI domain or dependency exists. Future intelligence reads permission-filtered selectors and
+subscribes to domain events through provider-independent ports. It cannot write authoritative
+grades, progress, Focus history, subscriptions, or moderation decisions. See
+`AI_EXTENSION_POINTS.md`.
+
+### PWA boundary
+
+The generated worker precaches only versioned static shell assets. It has no runtime cache for API
+responses and denies `/api/` from navigation fallback. Updates are prompted and can be deferred by
+future active-quiz/Focus guards.
+
+### Database and test boundary
+
+PostgreSQL 18.4 is the default in local, test, Compose, and CI settings. SQLite exists only behind
+the explicit `LOCKIN_TEST_USE_SQLITE=true` workstation fast-test switch. It is not a supported
+production or normal development database and does not replace PostgreSQL integration evidence.
+
+### Security and observability
+
+Production settings fail closed on secret, database password, and explicit hosts. Secure cookies
+and SSL redirect are production defaults; proxy-header trust is opt-in. Session auth and CSRF
+remain enabled. A validated UUID request ID flows through JSON logs and response headers. Liveness
+does not touch the database; readiness runs `SELECT 1` and returns no database detail on failure.

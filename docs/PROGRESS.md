@@ -4,10 +4,10 @@ Last updated: 2026-07-15
 
 ## Current Status
 
-Phase 1 — Product specification and acceptance criteria  
-State: Complete; awaiting owner approval
+Phase 2 — Project foundation
+State: Implementation and local validation complete; awaiting owner approval
 
-No Phase 2 foundation or application code has started.
+Do not start Phase 3 until the owner explicitly approves it.
 
 ## Phase History
 
@@ -15,37 +15,53 @@ No Phase 2 foundation or application code has started.
 
 Status: Approved by owner.
 
-Completed:
-
-- existing project, pages, features, data models, dependencies, and structure inventoried;
-- relevant Skills selected and applied;
-- current runtime inspected on desktop and mobile;
-- architecture, security, performance, accessibility, and test gaps documented;
-- old project kept intact.
+- Existing pages, features, data, dependencies, responsive behavior, and risks audited.
+- Relevant Skills selected and documented.
+- Old project kept read-only.
 
 ### Phase 1 — Product Specification and Acceptance Criteria
+
+Status: Approved by owner.
+
+- Product register, roles, permissions, feature specifications, acceptance criteria, assumptions,
+  architecture direction, and phase plan documented.
+
+### Phase 2 — Project Foundation
 
 Status: Complete; awaiting owner approval.
 
 Completed:
 
-- official Lock-in identity and product register documented;
-- roles and centralized permission baseline defined;
-- 22 feature specifications written;
-- each feature includes role, user story, permissions, expected behavior, edge cases, acceptance criteria, and required tests;
-- accessibility, performance, capacity, security, reliability, browser, and PWA targets defined;
-- important redesigns include usability reasons;
-- assumptions and behavior not inferable from the reference are documented;
-- modular-monolith architecture direction and infrastructure limits recorded;
-- all required source-of-truth documents created.
+- separate runnable React/TypeScript/Vite/PWA and Django/DRF project foundation;
+- PostgreSQL 18.4 as default local/test/CI database;
+- environment-separated settings and safe example configuration;
+- custom UUID/email User model and initial migrations;
+- versioned API, OpenAPI, JSON logs, request IDs, liveness, and readiness;
+- exact direct dependency pins and npm lockfile;
+- Docker development workflow and PostgreSQL CI job;
+- Focus first-class backend domain and frontend subsystem contracts;
+- explicit internal after-commit domain events;
+- AI-free extension architecture;
+- continuous documentation and owner operations guide;
+- security, accessibility, responsive, PWA, unit, type, build, and browser checks.
 
-## Phase 1 Validation
+## Phase 2 Validation
 
-- Required file existence: passed, 8 of 8.
-- Feature traceability: passed, 22 feature specifications and 154 required field checks.
-- Documentation-only phase boundary: passed; no application/runtime file exists outside docs.
-- Old project unchanged check: passed against the Phase 1 starting hashes.
+- Backend Ruff lint/format: passed.
+- Backend mypy: passed for 46 source files.
+- Django check and migration drift: passed.
+- Backend fast suite: 15 passed, 89.69% coverage.
+- Frontend ESLint and TypeScript: passed.
+- Vitest: 4 passed.
+- Production PWA build: passed; main JavaScript 62.91 KB gzip.
+- Playwright: desktop and Pixel 7 checks passed; direct CLI snapshot had no console errors/warnings.
+- npm install audit: zero known vulnerabilities.
+- Generated service worker: static precache only; `/api/` excluded from navigation fallback.
+
+PostgreSQL-backed CI is configured but not executed on this workstation because Docker,
+PostgreSQL, and `psql` are not installed. SQLite was used only through the explicit fast-test flag.
 
 ## Next Gate
 
-Stop after Phase 1 validation and wait for explicit owner approval before starting Phase 2.
+Owner reviews Phase 2. If approved, Phase 3 may begin authentication and design-system work under
+the approved phase specification. Until then, stop.

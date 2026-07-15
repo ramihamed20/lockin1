@@ -4,51 +4,53 @@ Last updated: 2026-07-15
 
 ## Phase 1
 
-- [x] Convert the approved brief into a product specification.
-- [x] Define users, purpose, product register, brand personality, and anti-references.
-- [x] Define centralized role and permission behavior.
-- [x] Specify all requested product domains.
-- [x] Add edge cases, acceptance criteria, and required tests.
-- [x] Document accessibility and performance targets.
-- [x] Document assumptions and unknown behavior.
-- [x] Record architectural and product decisions.
-- [x] Run documentation validation.
-- [x] Confirm old project working tree is unchanged.
-- [ ] Obtain explicit Phase 2 approval.
+- [x] Complete product specification and acceptance criteria.
+- [x] Obtain explicit Phase 2 approval.
 
-## Phase 2 — Not Started
+## Phase 2
 
-Do not execute these items before approval:
+- [x] Select and document supported runtime/package versions.
+- [x] Create isolated backend and frontend foundation.
+- [x] Configure PostgreSQL as the default local/test/CI database.
+- [x] Add safe environment settings and `.env.example`.
+- [x] Create custom UUID/email user model before initial migrations.
+- [x] Add versioned API, OpenAPI, stable error envelope, health, readiness, and JSON logs.
+- [x] Add Focus session/history/statistics/event foundation.
+- [x] Add Focus frontend renderer/storage/gesture/tool/session extension contracts.
+- [x] Add in-process after-commit domain event architecture.
+- [x] Document AI-free extension points.
+- [x] Add Docker development workflow and owner operations guide.
+- [x] Add Ruff, mypy, pytest, ESLint, TypeScript, Vitest, build, and Playwright commands.
+- [x] Add PostgreSQL CI workflow.
+- [x] Run available local tests, security checks, PWA inspection, and browser validation.
+- [x] Update all source-of-truth documentation.
+- [ ] Run PostgreSQL suite in CI or local Docker when that environment becomes available.
+- [ ] Obtain explicit Phase 3 approval.
 
-- [ ] Select and record supported runtime/package versions from official sources.
-- [ ] Create backend and frontend foundation.
-- [ ] Configure PostgreSQL as the primary local database.
-- [ ] Add safe environment configuration and example file.
-- [ ] Add formatting, linting, type checking, and test commands.
-- [ ] Add a simple reproducible development environment.
-- [ ] Add CI baseline if repository hosting is configured.
-- [ ] Add structured logging and health/readiness endpoints.
-- [ ] Add minimal foundation tests.
-- [ ] Add simple owner-facing start/stop/test documentation.
-- [ ] Create a Phase 2 Git commit after tests and review.
+## Phase 3 — Not Started
+
+Do not execute before owner approval:
+
+- [ ] Create the real design tokens/components and `DESIGN.md` with Impeccable.
+- [ ] Implement registration, verification, login, logout, session, CSRF, and account flows.
+- [ ] Implement application shell, localization foundation, responsive navigation, and auth states.
+- [ ] Add authentication/permission API and E2E tests.
+- [ ] Preserve the Phase 2 Focus/event/AI boundaries.
 
 ## Later Product Inputs
-
-These are not Phase 2 blockers:
 
 - [ ] Real institution/faculty/curriculum data.
 - [ ] Subscription price, currency, grace period, and payment provider.
 - [ ] Legal privacy, retention, terms, and deletion policy.
-- [ ] Email provider.
-- [ ] Push notification provider.
+- [ ] Email and push providers.
 - [ ] Ranking formula and achievement catalog.
-- [ ] Additional anti-cheating ideas.
+- [ ] Additional approved anti-cheating ideas.
 - [ ] Production hosting choice.
 
 ## Guardrails
 
-- Never modify C:\Users\ramih\Desktop\Dentify-Before-Edits.
+- Never modify `C:\Users\ramih\Desktop\Dentify-Before-Edits`.
 - Work one phase at a time.
-- Do not add Redis, Celery, WebSockets, microservices, or other services without prior explanation and approval.
-- Update all source-of-truth documents at the end of every phase.
-- Do not claim the concurrency target until realistic Phase 11 load tests pass.
+- No Redis, Celery, WebSockets, broker, microservice, or AI provider without approved need.
+- Do not claim PostgreSQL or concurrency evidence that was not executed.
+- Keep all source-of-truth documents current after every phase.

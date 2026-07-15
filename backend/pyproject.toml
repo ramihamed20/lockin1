@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=78,<83"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lockin-backend"
+version = "0.1.0"
+description = "Lock-in university learning platform backend"
+readme = "README.md"
+requires-python = ">=3.11,<3.15"
+dependencies = [
+  "Django==5.2.16",
+  "djangorestframework==3.17.1",
+  "drf-spectacular==0.30.0",
+  "gunicorn==26.0.0; platform_system != 'Windows'",
+  "psycopg[binary]==3.3.4",
+]
+
+[project.optional-dependencies]
+dev = [
+  "django-stubs==5.2.9",
+  "djangorestframework-stubs==3.16.9",
+  "mypy==1.20.2",
+  "pytest==9.1.1",
+  "pytest-cov==7.1.0",
+  "pytest-django==4.12.0",
+  "ruff==0.15.21",
+]
+
+[tool.setuptools.packages.find]
+include = ["apps*", "config*", "platform_core*"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+python_files = ["test_*.py"]
+addopts = "--strict-config --strict-markers --cov=apps --cov=platform_core --cov-report=term-missing --cov-fail-under=85"
+markers = [
+  "postgres: requires PostgreSQL-specific behavior",
+]
+
+[tool.coverage.run]
+branch = true
+omit = ["*/migrations/*", "*/tests/*", "manage.py", "config/asgi.py", "config/wsgi.py"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+extend-exclude = ["*/migrations/*"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "DJ"]
+ignore = ["DJ001"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.11"
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+strict = true
+warn_unreachable = true
+exclude = ["/migrations/"]
+
+[[tool.mypy.overrides]]
+module = ["config.settings.*"]
+disable_error_code = ["name-defined", "misc"]
+
+[tool.django-stubs]
+django_settings_module = "config.settings.test"

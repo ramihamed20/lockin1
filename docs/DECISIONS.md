@@ -25,6 +25,17 @@ This file records decisions that change product behavior, architecture, maintena
 | D-015 | No production data migration is currently required | Provisional assumption |
 | D-016 | Source-of-truth documents live in the docs folder and update every phase | Approved by owner |
 | D-017 | DESIGN.md is deferred until Phase 3 has a real design-system foundation | Skill-aligned phase decision |
+| D-018 | Use Django 5.2 LTS and conservative supported frontend majors | Approved Phase 2 implementation |
+| D-019 | Create the custom UUID/email User model before the first migration | Approved Phase 2 implementation |
+| D-020 | Treat Focus as its own backend domain and frontend subsystem | Approved by owner |
+| D-021 | Publish typed internal events after transaction commit | Approved by owner |
+| D-022 | Stay AI-free and expose provider-neutral intelligence boundaries | Approved by owner |
+| D-023 | Cache only static PWA shell assets; never private API responses | Approved security implementation |
+| D-024 | PostgreSQL is default; SQLite is explicit fast-test fallback only | Approved Phase 2 implementation |
+| D-025 | Use same-origin web API/session architecture | Approved architecture implementation |
+| D-026 | Add JSON logs, request IDs, liveness, and readiness | Approved Phase 2 implementation |
+| D-027 | Enforce quality through local commands and PostgreSQL CI | Approved Phase 2 implementation |
+| D-028 | Defer annotation tables until real document-version foreign keys exist | Approved Phase 2 architecture |
 
 ## D-001 — Product Identity
 
@@ -148,6 +159,108 @@ This file records decisions that change product behavior, architecture, maintena
 
 **Consequence:** PRODUCT.md provides strategic design context now. Phase 3 will document the real visual system and explain every material redesign.
 
+## D-018 — Supported Runtime Baseline
+
+**Decision:** Use Python 3.13.14, Django 5.2.16 LTS, PostgreSQL 18.4, Node 24.16.0,
+React 19.2.7, Vite 7.3.6, and TypeScript 6.0.3 as the Phase 2 baseline.
+
+**Reason:** Django 5.2 has the longer LTS window. Vite 8 and TypeScript 7 were newly released, so
+the mature supported previous majors reduce foundation churn.
+
+**Consequence:** Direct dependencies are exact-pinned and the npm tree is locked. Major upgrades
+need a tested dependency decision, not an automatic version bump.
+
+## D-019 — Custom User Before First Migration
+
+**Decision:** Use a UUID-primary-key, normalized email-login User model from migration 0001.
+
+**Reason:** Replacing Django's user model after business migrations is expensive and risky. UUIDs
+also avoid guessable public identifiers.
+
+**Consequence:** Phase 3 registration uses this model and cannot accept client-selected roles.
+
+## D-020 — Focus Bounded Domain
+
+**Decision:** Focus owns sessions, timeline, statistics selectors, events, and frontend workspace
+contracts as a first-class domain/subsystem.
+
+**Reason:** Focus is a flagship product with future study, quiz, achievement, anti-cheating, and AI
+integrations. Treating it as a PDF-page option would create a giant coupled component.
+
+**Consequence:** Full PDF/annotation features remain later work but do not require re-splitting the
+foundation.
+
+## D-021 — Internal After-Commit Events
+
+**Decision:** Domain services publish immutable typed events through an in-process bus only after
+the database transaction commits.
+
+**Reason:** This decouples modules without introducing a queue or distributed failure modes.
+
+**Trade-off:** Delivery is not durable. Authoritative grading, billing, progress, and audit cannot
+depend solely on a best-effort subscriber. A future outbox requires a separately justified need.
+
+## D-022 — AI-Free, AI-Ready
+
+**Decision:** Do not create an AI app or install an AI/provider dependency. Future intelligence
+uses permission-filtered read ports and domain events.
+
+**Reason:** Speculative AI infrastructure adds privacy, cost, and coupling without a current
+feature.
+
+**Consequence:** AI output can recommend or explain but cannot directly write authoritative domain
+state.
+
+## D-023 — PWA Cache Safety
+
+**Decision:** Precache static SPA assets only, deny `/api/` from navigation fallback, prompt for
+updates, and expose an update guard.
+
+**Reason:** Shared caches must not leak or replay user, answer, or submission data. Forced reloads
+can destroy active work.
+
+## D-024 — PostgreSQL and Fast-Test Fallback
+
+**Decision:** PostgreSQL is default everywhere. SQLite may run only when
+`LOCKIN_TEST_USE_SQLITE=true` is explicitly set.
+
+**Reason:** The current workstation has no PostgreSQL/Docker, but Phase 2 still needs executable
+unit feedback. Making the fallback explicit prevents accidental production drift.
+
+**Consequence:** PostgreSQL CI/local Docker evidence is still required for database-specific
+approval.
+
+## D-025 — Same-Origin Web Architecture
+
+**Decision:** The React client calls a fixed same-origin `/api/v1` path and uses Django session/CSRF
+security.
+
+**Reason:** This prevents dynamic credentialed cross-origin requests and avoids unnecessary CORS
+complexity.
+
+## D-026 — Foundation Observability
+
+**Decision:** Use structured JSON logs, validated request UUIDs, liveness, and database readiness.
+
+**Reason:** Production support needs safe correlation and health signals before feature growth.
+
+**Consequence:** Logs carry no request bodies or secrets; readiness returns generic failure detail.
+
+## D-027 — Quality Gates
+
+**Decision:** Gate changes with Ruff, mypy, pytest, ESLint, TypeScript, Vitest, production PWA
+build, Playwright, migration drift, and PostgreSQL CI.
+
+**Reason:** The production-ready goal needs repeatable evidence rather than manual confidence.
+
+## D-028 — Annotation Referential Integrity Timing
+
+**Decision:** Define frontend annotation contracts now but create persistence tables only after
+Content/File/DocumentVersion models exist.
+
+**Reason:** An early unvalidated document UUID would falsely imply referential integrity and create
+a cleanup migration.
+
 ## Decisions Requiring Later Owner Input
 
 - Subscription price, currency, grace policy, and real payment provider.
@@ -157,4 +270,3 @@ This file records decisions that change product behavior, architecture, maintena
 - Ranking formula and achievement catalog.
 - Additional approved anti-cheating ideas.
 - Whether a future multi-institution release needs true tenant isolation.
-

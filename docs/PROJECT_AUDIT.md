@@ -126,3 +126,10 @@ Redis, Celery, WebSockets, and microservices are excluded until a real feature o
 - Browser route and responsive inspection: completed with Playwright.
 - Old project source edits by rebuild work: none.
 
+## Phase 2 Rebuild Note
+
+The audit above remains the read-only reference baseline. Phase 2 created its implementation only
+in `C:\Users\ramih\Desktop\Dentify-Rebuild`. No legacy source was imported or rewritten. The new
+foundation directly addresses the audited SQLite, giant PDF component, unsafe PWA cache, missing
+permission boundary, missing test, and missing observability risks through documented architecture
+and gates; it does not claim the later product features are complete.

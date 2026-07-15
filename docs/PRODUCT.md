@@ -915,6 +915,82 @@ All permission decisions are enforced by the backend. Frontend role checks only 
 
 **Required tests:** Shared state components, form preservation, double-click prevention, API error contract, screen-reader live regions, partial failure, and representative E2E recovery.
 
+## Focus Mode Flagship Addendum
+
+**Roles:** Student uses their own workspace; authorized support/administrators may inspect only the
+minimum audited metadata needed for support. Other users cannot read private annotations or session
+history.
+
+**User story:** As a student, I want a calm professional study workspace centered on my document so
+I can read, write, and resume for hours without the limitations and distractions of a normal web
+page.
+
+**Permissions:** Original document access follows Content/File policy. Focus session history,
+workspace state, and annotations belong to the student. Annotation URLs or identifiers never grant
+document access by themselves.
+
+**Expected behavior:**
+
+- Entering Focus hides dashboard, community, and unrelated navigation; it supports optional
+  fullscreen and restores the previous app/workspace state on exit.
+- PDF behavior includes smooth scrolling, thumbnails, page navigation/jump, lazy visible-page
+  rendering, zoom, pinch/double-tap zoom, pan, last page, last zoom, and memory release for large
+  documents.
+- Planned writing tools include pen, pencil, highlighter, eraser, shape grouping, straight line,
+  arrow, rectangle, circle, text, sticky notes, color, thickness, opacity, undo, redo, and confirmed
+  clear.
+- Pointer behavior distinguishes pen, touch, and mouse. Pressure and tilt are used only when the
+  browser reports them. Finger pan while pen writes is preferred on capable devices.
+- Lock-in may reduce accidental palm input but never claims perfect browser palm rejection.
+- The original PDF remains immutable. Annotations are separate, version-aware records containing
+  owner, document, document version, page, normalized position, tool, color, thickness, opacity,
+  timestamps, revision, and tool payload.
+- Autosave states distinguish saving, server-saved, offline pending, conflict, and failure. Refresh
+  and temporary connection loss recover acknowledged state and carefully scoped pending work.
+- Phone/tablet toolbars adapt without covering most of the page. iPad and Android tablets are
+  first-class targets; phones remain usable rather than exposing a shrunken desktop toolbar.
+- Accessibility includes named native controls, keyboard shortcuts/help, visible focus, proper
+  focus restoration, high contrast, reduced motion, save/page announcements, and accessible text
+  layer/document alternatives where source PDFs allow.
+- Focus sessions, history, summary statistics, progress, quiz/study contexts, achievements,
+  approved anti-cheating, and future recommendations integrate through domain services/events, not
+  direct cross-module model mutation.
+- Future split notes, flashcards, AI explanations/summaries/handwriting, OCR, voice notes, sharing,
+  collaboration, and cross-device sync use documented extension ports and are not current claims.
+
+**Edge cases:**
+
+- Very large or malformed PDF, hundreds of annotations, multi-hour session, and device memory
+  pressure.
+- Document replaced while a session is open; annotations must remain tied to the original version.
+- Offline save followed by another-device edit or account switch.
+- Missing pressure/tilt APIs, pen/touch ambiguity, accidental palm contact, and browser fullscreen
+  restrictions.
+- Screen-reader user needs document text while drawing canvas is inherently visual.
+- PWA update arrives during active Focus/quiz work.
+
+**Acceptance criteria:**
+
+- Focus ships as independently testable subsystems, never one giant component.
+- The document retains the majority of the viewport at supported phone/tablet sizes.
+- Page/zoom restore and annotation coordinates remain correct across responsive/zoom changes.
+- No annotation operation modifies the original PDF.
+- No private annotation or document response enters a shared service-worker cache.
+- Offline/pending UI never reports a server save that was not acknowledged.
+- Pointer capability fallbacks work without false stylus/palm-rejection claims.
+- Accessibility alternatives and keyboard exits remain available in fullscreen and drawing modes.
+- Large-document, long-session, annotation-count, memory, frame-time, and input-latency targets are
+  measured before release.
+
+**Required tests:** Domain lifecycle/permission/constraint/concurrency tests; renderer virtualization
+and cancellation tests; coordinate/undo/autosave state-machine unit tests; accessible toolbar and
+keyboard component tests; refresh/offline/version-conflict E2E; phone/iPad/Android-tablet flows;
+stylus-capability tests where hardware/browser support exists; and representative large-PDF memory
+and input-latency tests.
+
+The Phase 2 implementation provides session/event foundations and frontend ports only. The full
+workspace is not implemented or claimed complete. Detailed architecture lives in `FOCUS_MODE.md`.
+
 ## Cross-Cutting Non-Functional Requirements
 
 ### Performance targets
@@ -1019,4 +1095,3 @@ Phase 1 is complete when:
 - no frontend/backend foundation or business code has been started;
 - documentation validation passes;
 - the owner reviews and explicitly approves Phase 2.
-

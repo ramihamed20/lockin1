@@ -1,0 +1,77 @@
+# Lock-in Internal Domain Events
+
+Last updated: 2026-07-15
+
+## Purpose
+
+Lock-in is a modular monolith. Important business facts are explicit events so analytics,
+notifications, achievements, future recommendations, and later background processing do not force
+domains to call one another's internal models.
+
+The Phase 2 event mechanism is deliberately small:
+
+- immutable typed event objects;
+- event name and schema version owned by the emitting domain;
+- in-process subscribers;
+- publication registered with `transaction.on_commit`;
+- subscriber isolation in normal runtime and strict failures in unit tests;
+- no Redis, Celery, Kafka, RabbitMQ, WebSockets, or separate service.
+
+## Event envelope
+
+Every event carries:
+
+- random event UUID;
+- UTC occurrence time;
+- stable event name;
+- schema version;
+- optional actor, correlation, and causation UUIDs;
+- domain-specific identifiers and facts.
+
+Events contain identifiers and minimum facts, not ORM objects, passwords, tokens, answer keys, raw
+request bodies, or unrestricted personal data.
+
+## Ownership and catalog
+
+| Event | Owning domain | Phase 2 state |
+|---|---|---|
+| `accounts.user_registered` | Accounts | Typed contract exists; emission waits for Phase 3 registration service |
+| `education.lesson_completed` | Progress/Education integration | Reserved contract; not coded yet |
+| `focus.session_started` | Focus | Implemented and emitted after commit |
+| `focus.session_completed` | Focus | Implemented and emitted after commit |
+| `quizzes.attempt_started` | Quizzes | Reserved contract; not coded yet |
+| `quizzes.attempt_autosaved` | Quizzes | Reserved contract; not coded yet |
+| `quizzes.attempt_submitted` | Quizzes | Reserved contract; not coded yet |
+| `rankings.achievement_earned` | Rankings | Reserved contract; not coded yet |
+| `subscriptions.subscription_activated` | Subscriptions | Reserved contract; not coded yet |
+| `moderation.report_created` | Moderation | Reserved contract; not coded yet |
+| `content.content_published` | Content | Reserved contract; not coded yet |
+
+Reserved events are documented instead of placed in a central fake code catalog. A domain defines
+its event only when it implements the authoritative state change.
+
+## Transaction behavior
+
+Domain state changes occur first inside a database transaction. The event is dispatched only after
+that transaction commits. A rolled-back transaction emits nothing.
+
+The current bus is not durable. If the process exits after the commit but before a subscriber
+finishes, the subscriber work can be lost. Therefore subscribers in this phase may enrich
+best-effort process behavior but must not be the only record of authoritative grading, progress,
+billing, or audit state.
+
+## When durability is justified
+
+A transactional outbox and background delivery may be proposed later only when a real subscriber
+requires retry/delivery guarantees. The proposal must identify the event, delivery guarantee,
+idempotency key, retry/dead-letter behavior, measured request impact, and operating cost. That
+proposal comes before any queue or broker is added.
+
+## Subscriber rules
+
+- Subscribe through a domain integration module, not module import side effects hidden in models.
+- Treat each event handler as idempotent when it creates durable data.
+- Recheck permissions when creating user-visible targets such as notification links.
+- Do not let a best-effort subscriber roll back an already committed domain transaction.
+- Use event ID or a domain deduplication key when duplicate effects matter.
+- Add contract, transaction, and duplicate-delivery tests for every durable subscriber.

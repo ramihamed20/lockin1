@@ -4,65 +4,63 @@ Last updated: 2026-07-15
 
 ## Start Here
 
-The rebuild project is documentation-only after Phase 1. Do not assume Phase 2 is approved unless the owner explicitly approves it in the conversation.
+Phase 2 implementation is complete and awaiting owner approval. Do not begin Phase 3 unless the
+owner explicitly approves it in the conversation.
 
-Read these files in order:
+Read in order:
 
-1. PRODUCT.md
-2. DECISIONS.md
-3. ARCHITECTURE.md
-4. PROJECT_AUDIT.md
-5. PROGRESS.md
-6. TODO.md
-7. CHANGELOG.md
+1. `PRODUCT.md`
+2. `DECISIONS.md`
+3. `ARCHITECTURE.md`
+4. `FOCUS_MODE.md`
+5. `EVENTS.md`
+6. `AI_EXTENSION_POINTS.md`
+7. `PHASE_2_FOUNDATION.md`
+8. `PROGRESS.md`
+9. `TODO.md`
+10. `CHANGELOG.md`
 
-## Current Paths
+## Paths
 
-- Rebuild: C:\Users\ramih\Desktop\Dentify-Rebuild
-- Read-only reference: C:\Users\ramih\Desktop\Dentify-Before-Edits
+- Rebuild: `C:\Users\ramih\Desktop\Dentify-Rebuild`
+- Read-only reference: `C:\Users\ramih\Desktop\Dentify-Before-Edits`
 
 Never modify the read-only reference.
 
-## Current Decisions
+## Current implementation
 
-- Product name: Lock-in.
-- Frontend: React, TypeScript, Vite, PWA.
-- Backend: Django and Django REST Framework.
-- Database: PostgreSQL.
-- Architecture: modular monolith.
-- Web authentication direction: Django session cookie plus CSRF.
-- Accessibility target: WCAG 2.2 AA.
-- Launch assumption: one institution, future-ready hierarchy.
-- No Redis, Celery, WebSockets, microservices, or real payment provider without prior justification and approval.
+- Branch: `codex/phase-2-foundation`.
+- Frontend: React 19.2.7, TypeScript 6.0.3, Vite 7.3.6, PWA.
+- Backend: Python 3.13 target, Django 5.2.16 LTS, DRF 3.17.1.
+- Database: PostgreSQL 18.4 default; explicit SQLite fast-test fallback only.
+- Domains implemented: Accounts model foundation and Focus session foundation.
+- Cross-cutting: versioned API, OpenAPI, JSON logs, request IDs, liveness/readiness, internal
+  after-commit events.
+- AI: no implementation; extension contract only.
+- Infrastructure excluded: Redis, Celery, broker, WebSockets, microservices.
 
-## Phase 1 Result
+## Validation snapshot
 
-PRODUCT.md contains 22 feature specifications. Each identifies roles, user story, permissions, expected behavior, edge cases, acceptance criteria, and required tests. Important unknowns are resolved through documented assumptions or deferred configuration.
+- Backend: Ruff/mypy/Django/migration checks passed; 15 tests passed at 89.69% coverage using the
+  explicit workstation fast-test fallback.
+- Frontend: ESLint/TypeScript/Vitest/build passed; 4 unit tests.
+- Browser: Playwright desktop + Pixel 7 passed; direct CLI snapshot showed no console errors or
+  warnings.
+- PWA: static-only precache, `/api/` denied from navigation fallback, main JS 62.91 KB gzip.
+- PostgreSQL CI: configured, not run locally because Docker/PostgreSQL are absent.
 
-No runnable application exists yet.
+## If Phase 3 is approved
 
-## If Phase 2 Is Approved
-
-Before making changes:
-
-1. Re-read the applicable Skills and announce how they apply.
-2. Verify current supported Django, DRF, React, TypeScript, Vite, PostgreSQL, and testing-tool versions using official sources.
-3. Explain the Phase 2 foundation plan in simple language.
-4. List expected files and directories.
-5. Keep feature implementation out of Phase 2.
-
-Expected Phase 2 scope:
-
-- backend/frontend scaffold;
-- PostgreSQL development configuration;
-- safe settings and environment example;
-- formatting, linting, typecheck, and tests;
-- simple reproducible start/stop workflow;
-- CI baseline where hosting is available;
-- logging and health/readiness;
-- foundation documentation and tests.
+1. Re-read and announce the applicable selected Skills.
+2. Run Impeccable context from the rebuild root; `docs/PRODUCT.md` is the product context.
+3. Create the real design foundation and `DESIGN.md` during Phase 3, not before.
+4. Implement authentication/account/API work only within the approved Phase 3 scope.
+5. Keep Focus as a first-class domain and do not place PDF/annotation work into auth components.
+6. Use internal events for completed authoritative state changes, after commit.
+7. Keep AI provider code absent.
+8. Run PostgreSQL-backed tests if Docker/CI becomes available.
+9. Update all source-of-truth documents, test, commit, and stop.
 
 ## Stop Condition
 
-After Phase 2 foundation starts and passes its agreed tests, update all source-of-truth documents, summarize the decisions, create the phase commit, and stop for review. Do not continue to authentication/design-system feature work without Phase 3 approval.
-
+Stop after the Phase 2 commit and wait for owner review.

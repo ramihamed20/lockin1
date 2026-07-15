@@ -2,6 +2,38 @@
 
 All notable rebuild changes are documented here.
 
+## 2026-07-15 — Phase 2
+
+### Added
+
+- Runnable React/TypeScript/Vite/PWA and Django/DRF foundation.
+- PostgreSQL 18.4 development/CI configuration and initial migrations.
+- Custom UUID/email User model.
+- Focus session, timeline, selectors, services, and typed domain events.
+- Focus frontend contracts and extensible tool registry.
+- Internal after-commit event bus.
+- AI extension boundary without AI implementation.
+- Environment-separated secure settings, versioned API, OpenAPI, JSON logs, request IDs, and
+  health/readiness endpoints.
+- Exact direct package pins, npm lockfile, Docker development workflow, CI, and owner operations
+  guide.
+- pytest, Vitest, and Playwright foundation tests.
+
+### Validated
+
+- Backend lint, format, strict type check, Django checks, migrations, and 14 tests.
+- Frontend lint, type check, 4 unit tests, production PWA build, desktop/mobile E2E, and direct
+  Playwright CLI snapshot.
+- No runtime API cache in the generated service worker and zero npm audit findings at install.
+
+### Not Added
+
+- No authentication UI or registration endpoint.
+- No PDF renderer/annotation UI despite establishing Focus extension points.
+- No AI provider or AI feature.
+- No Redis, Celery, WebSockets, broker, or microservice.
+- No production deployment or concurrency claim.
+
 ## 2026-07-15 — Phase 1
 
 ### Added
@@ -38,4 +70,3 @@ All notable rebuild changes are documented here.
 - Skills inventoried and selected.
 - Runtime and responsive behavior inspected.
 - Current architecture, security, performance, accessibility, dependency, and testing risks documented.
-
