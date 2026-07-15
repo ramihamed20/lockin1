@@ -33,9 +33,11 @@ request bodies, or unrestricted personal data.
 
 ## Ownership and catalog
 
-| Event | Owning domain | Phase 2 state |
+| Event | Owning domain | Current state |
 |---|---|---|
-| `accounts.user_registered` | Accounts | Typed contract exists; emission waits for Phase 3 registration service |
+| `accounts.user_registered` | Accounts | Implemented; emitted after committed registration |
+| `accounts.user_email_verified` | Accounts | Implemented; emitted after committed verification |
+| `accounts.user_roles_changed` | Accounts | Implemented; emitted after committed role replacement |
 | `education.lesson_completed` | Progress/Education integration | Reserved contract; not coded yet |
 | `focus.session_started` | Focus | Implemented and emitted after commit |
 | `focus.session_completed` | Focus | Implemented and emitted after commit |

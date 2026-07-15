@@ -340,3 +340,70 @@ Production settings fail closed on secret, database password, and explicit hosts
 and SSL redirect are production defaults; proxy-header trust is opt-in. Session auth and CSRF
 remain enabled. A validated UUID request ID flows through JSON logs and response headers. Liveness
 does not touch the database; readiness runs `SELECT 1` and returns no database detail on failure.
+
+## Phase 3 Realized Architecture
+
+### Account boundary
+
+`apps.accounts` owns account identity, policy acceptance, verification, recovery, email/password
+changes, active browser sessions, roles, account security records, and scoped auth attempts. Views
+validate transport data and delegate state changes to services; selectors produce role-aware
+dashboard projections. Clients cannot send a role during registration/profile updates.
+
+Web authentication remains same-origin Django session authentication. `CsrfEnforcedSessionAuthentication`
+extends the protection to anonymous unsafe endpoints, including registration and login. The SPA
+refreshes CSRF after login rotation and stores neither session IDs nor account link tokens.
+
+One-time link flow:
+
+```text
+random raw token → salted digest stored in PostgreSQL
+        ↓
+single-use link sent by configured email backend
+        ↓
+digest lookup + expiry/used check inside transaction
+        ↓
+authoritative account update + security record
+        ↓ commit
+typed best-effort internal event
+```
+
+### Permission and role boundary
+
+Student capability is implicit. Managed staff groups are moderator, creator, and administrator.
+DRF permissions and service-level invariants are authoritative; UI visibility is only a convenience.
+Role replacement locks the target, prevents removal of the last active administrator, writes a
+security event, and publishes `accounts.user_roles_changed` after commit.
+
+### Throttle boundary
+
+Auth attempts are keyed by a SHA-256 fingerprint of scope, normalized identifier, remote address,
+and application secret. Login failures and sensitive account flows have separate scopes/windows.
+This uses PostgreSQL because Redis is explicitly excluded. It is an abuse-control layer, not a
+complete edge DDoS service; retention and load behavior must be measured before launch.
+
+### Frontend boundary
+
+The frontend now separates `api`, `i18n`, `design-system`, reusable `components`, `layouts`, and
+feature modules for auth, account, dashboard, and admin. Focus remains under
+`features/focus` with its renderer/annotation/workspace/gesture/storage contracts untouched. Account
+pages cannot import Focus internals.
+
+The API client accepts only a same-origin absolute path, always sends credentials same-origin,
+validates the stable error envelope, adds CSRF to unsafe requests, and disables browser request
+caching. Private APIs remain outside the generated service-worker cache.
+
+### Focus and event guardrails reconfirmed
+
+Focus is still a standalone product domain, not a PDF route or account-shell child architecture.
+PDF rendering, annotation engine, gestures, toolbar, autosave, storage, and future extensions remain
+separate ports/subsystems for later implementation.
+
+The event bus remains in-process, synchronous, after-commit, and best-effort. Phase 3 adds real
+account emissions but no message broker, distributed event, outbox, Celery task, or microservice.
+
+### Phase 3 dependency delta
+
+Runtime adds only `react-router-dom` for structural routing. Test tooling adds
+`@axe-core/playwright`. No component library, state manager, form library, icon package, font,
+animation framework, auth token library, Redis client, queue, or AI provider was introduced.

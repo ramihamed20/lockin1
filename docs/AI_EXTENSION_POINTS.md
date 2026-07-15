@@ -2,6 +2,12 @@
 
 Last updated: 2026-07-15
 
+## Phase 3 Status
+
+No AI package, provider, prompt, model, AI endpoint, or generated recommendation was added. The
+new account events and permission-filtered selectors may become future inputs, but security records,
+roles, verification, and dashboard truth remain deterministic and authoritative without AI.
+
 ## Current policy
 
 Phase 2 is AI-free. There is no model provider, prompt framework, vector database, embedding job,

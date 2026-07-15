@@ -5,6 +5,9 @@ SECRET_KEY = "test-only-key"
 ALLOWED_HOSTS = ["testserver", "localhost", "127.0.0.1"]
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+ACCOUNT_POLICY_VERSION = "test-policy-v1"
+PUBLIC_APP_URL = "http://testserver"
+ACCOUNT_LOGIN_ATTEMPT_LIMIT = 5
 
 if env_bool("LOCKIN_TEST_USE_SQLITE", False):
     DATABASES = {  # noqa: F405

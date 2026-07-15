@@ -1,12 +1,20 @@
 # Lock-in Product Specification
 
-Status: Phase 1 specification  
-Product owner: Platform administrator  
+Status: Phase 1 specification; Phase 3 account/design foundation implemented
+Product owner: Platform administrator
 Last updated: 2026-07-15
 
 ## Register
 
 product
+
+## Implementation Note — Phase 3
+
+F-01 through the account/role/dashboard foundation of F-05 are now implemented: responsive shell,
+English/Arabic and RTL, registration/verification, session login/logout, password recovery, profile,
+email/password/session security, additive roles, and basic truthful role-aware dashboards. Learning,
+creator, moderation, and administrator domain metrics remain absent until their authoritative phases;
+the UI does not simulate them. See `PHASE_3_AUTH_DESIGN.md` and `DESIGN.md` for evidence and rationale.
 
 ## Product Identity
 

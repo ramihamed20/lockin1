@@ -36,9 +36,47 @@ switch ($Action) {
             npm ci
             npm run lint
             npm run typecheck
-            npm run test
+            npm run test:coverage
             npm run build
-            npm run test:e2e
+            $Output = Join-Path $Frontend "output\playwright\server"
+            New-Item -ItemType Directory -Force -Path $Output | Out-Null
+            $Node = (Get-Command node).Source
+            $PathKeys = [Environment]::GetEnvironmentVariables().Keys | Where-Object { $_ -ieq "path" }
+            if ($PathKeys.Count -gt 1) {
+                [Environment]::SetEnvironmentVariable("PATH", $null, "Process")
+            }
+            $Server = Start-Process -FilePath $Node `
+                -ArgumentList @(".\node_modules\vite\bin\vite.js", "preview", "--configLoader", "runner", "--host", "127.0.0.1", "--port", "5173", "--strictPort") `
+                -WorkingDirectory $Frontend `
+                -WindowStyle Hidden `
+                -RedirectStandardOutput (Join-Path $Output "stdout.log") `
+                -RedirectStandardError (Join-Path $Output "stderr.log") `
+                -PassThru
+            try {
+                $Ready = $false
+                foreach ($Attempt in 1..30) {
+                    try {
+                        $Response = Invoke-WebRequest -Uri "http://127.0.0.1:5173/login" -UseBasicParsing -TimeoutSec 2
+                        if ($Response.StatusCode -eq 200) {
+                            $Ready = $true
+                            break
+                        }
+                    } catch {
+                        Start-Sleep -Milliseconds 250
+                    }
+                }
+                if (-not $Ready) {
+                    throw "The frontend preview server did not become ready."
+                }
+                $env:PLAYWRIGHT_EXTERNAL_SERVER = "true"
+                & $Node ".\node_modules\@playwright\test\cli.js" test
+                if ($LASTEXITCODE -ne 0) {
+                    throw "Playwright tests failed."
+                }
+            } finally {
+                Remove-Item Env:PLAYWRIGHT_EXTERNAL_SERVER -ErrorAction SilentlyContinue
+                Stop-Process -Id $Server.Id -Force -ErrorAction SilentlyContinue
+            }
         } finally {
             Pop-Location
         }
@@ -56,7 +94,7 @@ switch ($Action) {
         }
         Push-Location $Frontend
         try {
-            npm run test
+            npm run test:coverage
         } finally {
             Pop-Location
         }

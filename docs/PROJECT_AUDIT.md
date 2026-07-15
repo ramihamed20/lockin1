@@ -14,6 +14,7 @@ This document captures the evidence that drives the Lock-in rebuild. The existin
 | Skill | Use in the rebuild |
 |---|---|
 | `impeccable` | Product UX, responsive behavior, accessibility, design-system quality, performance, RTL, and UI audits. |
+| `design-system` | Phase 3 primitive/semantic/component token architecture and component state contracts; announced before use. |
 | `security-best-practices` | Secure-by-default React and Django requirements, permission design, session security, uploads, PWA caching, and production review. |
 | `playwright` | Repeatable browser checks and end-to-end coverage once runnable UI exists. |
 
@@ -133,3 +134,14 @@ in `C:\Users\ramih\Desktop\Dentify-Rebuild`. No legacy source was imported or re
 foundation directly addresses the audited SQLite, giant PDF component, unsafe PWA cache, missing
 permission boundary, missing test, and missing observability risks through documented architecture
 and gates; it does not claim the later product features are complete.
+
+## Phase 3 Rebuild Note
+
+Phase 3 removed the audited active mock-auth, browser bearer-token, missing recovery/verification,
+frontend-only role, in-memory-only throttle, false RTL, and unsafe account-state gaps in the new
+rebuild. The old project remains unchanged. The new implementation uses HttpOnly Django sessions,
+CSRF on every unsafe request, hashed single-use account tokens, database-backed scoped throttles,
+backend role enforcement, real `lang`/`dir`, and accessible desktop/mobile browser validation.
+
+The old dashboard was used only as identity/study-atmosphere evidence. The new dashboard deliberately
+does not reproduce synthetic learning metrics before authoritative education domains exist.

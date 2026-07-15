@@ -36,6 +36,14 @@ This file records decisions that change product behavior, architecture, maintena
 | D-026 | Add JSON logs, request IDs, liveness, and readiness | Approved Phase 2 implementation |
 | D-027 | Enforce quality through local commands and PostgreSQL CI | Approved Phase 2 implementation |
 | D-028 | Defer annotation tables until real document-version foreign keys exist | Approved Phase 2 architecture |
+| D-029 | Use primitive → semantic → component design tokens | Approved Phase 3 implementation |
+| D-030 | Store only digests for expiring single-use account tokens | Approved Phase 3 security implementation |
+| D-031 | Enforce CSRF on all unsafe browser requests, including anonymous auth | Approved Phase 3 security implementation |
+| D-032 | Student is implicit; staff roles are additive backend-managed groups | Approved Phase 3 implementation |
+| D-033 | Use PostgreSQL-backed scoped auth throttles without Redis | Approved Phase 3 implementation |
+| D-034 | Show only authoritative account/role dashboard data in Phase 3 | Approved Phase 3 product implementation |
+| D-035 | One component tree serves English, Arabic, LTR, and RTL | Approved Phase 3 implementation |
+| D-036 | Keep domain events lightweight, in-process, and after-commit | Reconfirmed by owner for Phase 3 |
 
 ## D-001 — Product Identity
 
@@ -260,6 +268,76 @@ Content/File/DocumentVersion models exist.
 
 **Reason:** An early unvalidated document UUID would falsely imply referential integrity and create
 a cleanup migration.
+
+## D-029 — Three-Layer Design Tokens
+
+**Decision:** Build styling from OKLCH primitives through semantic roles to component contracts.
+
+**Reason:** Components should express intent rather than duplicate raw palette values. This supports
+consistent accessibility, responsive states, and future theme evolution without a UI framework.
+
+**Consequence:** New UI consumes semantic/component variables from `DESIGN.md`; ad hoc raw colors
+inside feature components require a documented exception.
+
+## D-030 and D-031 — Account Token and CSRF Model
+
+**Decision:** Email verification, password reset, and email-change links are expiring, single-use,
+and stored only as salted digests. Every unsafe same-origin request requires CSRF, even before login.
+
+**Reason:** A database leak must not reveal usable link credentials, and auth endpoints are not safe
+from cross-site request actions merely because the visitor is anonymous.
+
+**Consequence:** Raw tokens exist only at issuance/email time. The SPA obtains/refreshes CSRF from a
+same-origin endpoint and never stores a session or account token in Web Storage.
+
+## D-032 — Additive Role Model
+
+**Decision:** Every active account has the implicit student role. Moderator, creator, and
+administrator are additive Django groups assigned only by backend-authorized administrators.
+
+**Reason:** Staff are also learners, and additive capabilities avoid destructive mutually exclusive
+role transitions. Backend checks prevent client-selected role escalation.
+
+**Consequence:** The final active administrator cannot be removed, and role changes create an
+authoritative security record plus a best-effort after-commit event.
+
+## D-033 — Database-Backed Account Throttling
+
+**Decision:** Login failures and registration/verification/recovery/email-change requests use scoped,
+hashed database attempt keys and fixed windows.
+
+**Reason:** The approved infrastructure excludes Redis, while in-process memory limits become
+ineffective across multiple application workers. PostgreSQL provides one shared initial authority.
+
+**Trade-off:** High-volume attack traffic writes rows and requires retention cleanup/monitoring. A
+Redis or edge limiter may be proposed later only with measured database pressure and owner approval.
+
+## D-034 — Truthful Phase 3 Dashboard
+
+**Decision:** Display account readiness, session count, roles, and real administrator account totals;
+do not manufacture lesson, quiz, ranking, achievement, or study-progress values.
+
+**Reason:** Empty-but-honest states build more trust than a visually fuller dashboard backed by fake
+data. Learning actions become available with their authoritative domains.
+
+## D-035 — Shared LTR/RTL Component Tree
+
+**Decision:** English and Arabic share catalogs, components, routes, and logical-property CSS.
+
+**Reason:** Separate markup drifts in behavior and accessibility. Direction is document state, not a
+screen-specific visual override.
+
+**Consequence:** Catalog key parity, `html.lang`, `html.dir`, and mobile RTL are automated test gates.
+
+## D-036 — Lightweight Domain Events Reconfirmed
+
+**Decision:** Keep the Phase 2 internal synchronous after-commit bus. Do not add a broker, distributed
+event transport, or background worker in Phase 3.
+
+**Reason:** Registration and role integrations need decoupling, not distributed-system operations.
+
+**Consequence:** Durable security records remain authoritative. Subscribers are best effort; a future
+outbox requires an implemented subscriber with explicit retry/delivery needs.
 
 ## Decisions Requiring Later Owner Input
 

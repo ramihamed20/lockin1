@@ -1,4 +1,4 @@
-# Lock-in Foundation Operations
+# Lock-in Operations
 
 Last updated: 2026-07-15
 
@@ -25,6 +25,16 @@ the approved deployment phase.
 | PostgreSQL | localhost:5432 | Primary application database |
 
 No Redis, task queue, broker, WebSocket service, or microservice is part of this foundation.
+
+## Account configuration
+
+- Set `ACCOUNT_POLICY_VERSION` to the approved terms/privacy version before accepting registrations.
+- Set `PUBLIC_APP_URL` to the HTTPS frontend origin used in verification/reset links.
+- Set `DEFAULT_FROM_EMAIL` and a real `DJANGO_EMAIL_BACKEND`; production rejects console/locmem
+  email backends.
+- Review account link TTLs and scoped throttle windows/limits in `.env.example`.
+- Bootstrap and retain at least one active administrator; the API prevents removal of the last one.
+- Auth throttle rows are operational data. Define retention cleanup and monitoring before launch.
 
 ## Health checks
 
@@ -64,7 +74,7 @@ without that deployment knowledge can cause a long outage and is not a safe foun
 
 ## Current workstation limitation
 
-The Phase 2 workstation has Python 3.11 and Node 24 but no Docker, PostgreSQL server, or `psql`.
+The Phase 3 workstation has Python 3.11 and Node 24 but no Docker, PostgreSQL server, or `psql`.
 Backend unit/integration behavior was verified with the explicit SQLite fast-test switch. The CI
 workflow is configured to run the same migrations and suite against PostgreSQL 18.4. A successful
 remote CI run or a future local Docker run remains required evidence before claiming PostgreSQL

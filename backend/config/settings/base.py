@@ -67,6 +67,20 @@ DATABASES = {
 
 AUTH_USER_MODEL = "accounts.User"
 
+ACCOUNT_POLICY_VERSION = env("ACCOUNT_POLICY_VERSION", "phase3-development")
+ACCOUNT_EMAIL_VERIFICATION_TTL_SECONDS = env_int("ACCOUNT_EMAIL_VERIFICATION_TTL_SECONDS", 86_400)
+ACCOUNT_PASSWORD_RESET_TTL_SECONDS = env_int("ACCOUNT_PASSWORD_RESET_TTL_SECONDS", 3_600)
+ACCOUNT_EMAIL_CHANGE_TTL_SECONDS = env_int("ACCOUNT_EMAIL_CHANGE_TTL_SECONDS", 3_600)
+ACCOUNT_SESSION_AGE_SECONDS = env_int("ACCOUNT_SESSION_AGE_SECONDS", 43_200)
+ACCOUNT_REMEMBER_SESSION_AGE_SECONDS = env_int("ACCOUNT_REMEMBER_SESSION_AGE_SECONDS", 2_592_000)
+ACCOUNT_LOGIN_WINDOW_SECONDS = env_int("ACCOUNT_LOGIN_WINDOW_SECONDS", 900)
+ACCOUNT_LOGIN_ATTEMPT_LIMIT = env_int("ACCOUNT_LOGIN_ATTEMPT_LIMIT", 5)
+ACCOUNT_SENSITIVE_WINDOW_SECONDS = env_int("ACCOUNT_SENSITIVE_WINDOW_SECONDS", 900)
+ACCOUNT_SENSITIVE_REQUEST_LIMIT = env_int("ACCOUNT_SENSITIVE_REQUEST_LIMIT", 5)
+PUBLIC_APP_URL = env("PUBLIC_APP_URL", "http://127.0.0.1:5173")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "Lock-in <no-reply@localhost>")
+EMAIL_BACKEND = env("DJANGO_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -96,7 +110,7 @@ SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.SessionAuthentication",
+        "apps.accounts.authentication.CsrfEnforcedSessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",

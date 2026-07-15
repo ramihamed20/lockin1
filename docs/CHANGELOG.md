@@ -2,6 +2,36 @@
 
 All notable rebuild changes are documented here.
 
+## 2026-07-15 — Phase 3
+
+### Added
+
+- Responsive three-layer design system, accessible primitives, Lock-in monogram, mascot study
+  scene, and production raster PWA icons.
+- English/Arabic catalogs, real `lang`/`dir`, RTL layout, desktop rail, tablet drawer, and mobile nav.
+- Registration, verification, login/logout, recovery, profile, password/email, and session UI/API.
+- Hashed expiring single-use account tokens and database-backed scoped account throttles.
+- Additive student/moderator/creator/administrator roles with backend enforcement and last-admin guard.
+- Truthful role-aware account dashboard and real administrator account totals.
+- Append-oriented account security records and account after-commit domain events.
+- `DESIGN.md` and `PHASE_3_AUTH_DESIGN.md`.
+- Unit/API/browser/accessibility tests for Phase 3 flows.
+
+### Validated
+
+- Backend lint, strict typing, Django checks, migration drift, and 36 tests at 88.93% coverage.
+- Frontend lint, typing, 30 tests at 91.75% statement/83.39% branch coverage, and PWA build.
+- Five Playwright checks passed with one intentional device skip; Axe found no violations.
+- Desktop/mobile/Arabic screenshots and no-horizontal-overflow assertions passed.
+
+### Not Added
+
+- No education/content hierarchy, quiz, community, ranking, subscription, or payment feature.
+- No PDF renderer or annotation engine implementation; Focus remains an independent foundation.
+- No AI provider or AI feature.
+- No Redis, Celery, WebSockets, broker, or microservice.
+- No PostgreSQL or concurrency result beyond configured CI; workstation testing used explicit SQLite.
+
 ## 2026-07-15 — Phase 2
 
 ### Added

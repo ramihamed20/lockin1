@@ -6,8 +6,9 @@ Lock-in is a mobile-first university study platform rebuilt as a modular monolit
 - Django and Django REST Framework;
 - PostgreSQL as the primary development and production database.
 
-Phase 2 provides the runnable foundation only. Authentication screens, the design system,
-education content, quizzes, and the complete Focus workspace belong to later approved phases.
+Phase 3 adds the secure account/role system, English/Arabic responsive design foundation, and
+truthful role-aware account dashboards. Education content, quizzes, community, and the complete
+Focus workspace remain later approved phases.
 
 ## Quick start with containers
 

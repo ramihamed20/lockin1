@@ -1,6 +1,17 @@
 # Lock-in Focus Mode
 
 Last updated: 2026-07-15
+
+## Phase 3 Isolation Check
+
+Phase 3 did not turn Focus into an authenticated PDF page. Account routes, design components, and
+dashboard selectors do not import Focus renderer, annotation, gesture, toolbar, autosave, or storage
+internals. The existing backend Focus domain and frontend subsystem contracts remain independently
+testable and are reserved for their approved implementation phase.
+
+The general application shell may later provide an entry into Focus, but the Focus workspace owns
+its own immersive shell and previous-workspace restoration. Browser palm rejection remains
+capability-dependent and will not be represented as guaranteed.
 Status: Phase 2 architecture and core session domain implemented; workspace features deferred
 
 ## Product definition

@@ -4,10 +4,10 @@ Last updated: 2026-07-15
 
 ## Current Status
 
-Phase 2 — Project foundation
+Phase 3 — Authentication and design system
 State: Implementation and local validation complete; awaiting owner approval
 
-Do not start Phase 3 until the owner explicitly approves it.
+Do not start Phase 4 until the owner explicitly approves it.
 
 ## Phase History
 
@@ -28,7 +28,7 @@ Status: Approved by owner.
 
 ### Phase 2 — Project Foundation
 
-Status: Complete; awaiting owner approval.
+Status: Approved by owner.
 
 Completed:
 
@@ -45,23 +45,38 @@ Completed:
 - continuous documentation and owner operations guide;
 - security, accessibility, responsive, PWA, unit, type, build, and browser checks.
 
-## Phase 2 Validation
+### Phase 3 — Authentication and Design System
 
-- Backend Ruff lint/format: passed.
-- Backend mypy: passed for 46 source files.
-- Django check and migration drift: passed.
-- Backend fast suite: 15 passed, 89.69% coverage.
+Status: Complete; awaiting owner approval.
+
+Completed:
+
+- secure session/CSRF registration, verification, login, reset, email, password, and session flows;
+- additive backend-enforced roles with final-administrator protection;
+- database-backed throttling and append-oriented account security records;
+- English/Arabic catalogs, real document RTL, responsive navigation, and route states;
+- three-layer design tokens, accessible components, branded PWA icons, and design rationale;
+- truthful role-aware account dashboards with no invented study data;
+- implemented account domain events after commit while retaining the lightweight internal bus;
+- preserved independent Focus and AI-free boundaries.
+
+## Phase 3 Validation
+
+- Backend Ruff, strict mypy, Django check, and migration drift: passed.
+- Backend suite: 36 passed; 88.93% coverage.
 - Frontend ESLint and TypeScript: passed.
-- Vitest: 4 passed.
-- Production PWA build: passed; main JavaScript 62.91 KB gzip.
-- Playwright: desktop and Pixel 7 checks passed; direct CLI snapshot had no console errors/warnings.
-- npm install audit: zero known vulnerabilities.
-- Generated service worker: static precache only; `/api/` excluded from navigation fallback.
+- Frontend suite: 30 passed; 91.75% statements and 83.39% branch coverage.
+- Production PWA build: passed; 12 static precache entries; main JS 85.22 KB gzip.
+- Playwright: 5 passed and 1 intentional device-specific skip across desktop and Pixel 7.
+- Axe: no violations in authenticated and Arabic mobile scenarios.
+- Visual and overflow QA: passed for desktop login/dashboard and phone EN/AR registration.
+
+## Workstation Limitation
 
 PostgreSQL-backed CI is configured but not executed on this workstation because Docker,
 PostgreSQL, and `psql` are not installed. SQLite was used only through the explicit fast-test flag.
 
 ## Next Gate
 
-Owner reviews Phase 2. If approved, Phase 3 may begin authentication and design-system work under
-the approved phase specification. Until then, stop.
+Owner reviews Phase 3. If approved, Phase 4 may begin only under its approved education/content
+scope. Until then, stop.
