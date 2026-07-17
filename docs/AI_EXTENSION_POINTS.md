@@ -65,6 +65,10 @@ Before the first AI feature is implemented, its phase must document:
 - Implemented immutable learning-object versions and private file permission boundaries.
 - Implemented generic published academic hierarchy and rebuildable search projection.
 - Implemented permission-filtered progress/dashboard selectors.
+- Implemented immutable question/quiz versions, attempt outcomes, and explainable spaced-review
+  selectors that a future recommendation adapter may consume through permission-filtered contracts.
+- Assessment lifecycle events expose identifiers and eligibility facts without answer keys or
+  private report evidence.
 - Focus session events and summary selector.
 - Content-publication and lesson-completion after-commit events.
 - Internal after-commit event bus.
@@ -72,3 +76,7 @@ Before the first AI feature is implemented, its phase must document:
 - Domain-owned services/selectors instead of cross-module model access.
 
 No extra service is added merely because a future AI feature might use one.
+
+A future AI adapter may recommend study or explain released material, but it must not grade an
+attempt, change authoritative answers, alter deadlines, mutate review history, reveal unreleased
+results, or automatically penalize an integrity signal. Phase 5 remains AI-free.

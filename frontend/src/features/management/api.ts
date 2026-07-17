@@ -78,6 +78,9 @@ export function grantScope(payload: {
   can_create_content: boolean;
   can_review_content: boolean;
   can_publish_content: boolean;
+  can_create_assessments: boolean;
+  can_review_assessments: boolean;
+  can_publish_assessments: boolean;
   can_manage_hierarchy: boolean;
 }) {
   return apiRequest<CreatorScope>("/management/education/scopes", { method: "POST", body: payload });

@@ -90,6 +90,9 @@ function ScopeManager({ users, nodes, scopes, onGranted, onRevoked }: { users: M
         can_create_content: data.get("can_create_content") === "on",
         can_review_content: data.get("can_review_content") === "on",
         can_publish_content: data.get("can_publish_content") === "on",
+        can_create_assessments: data.get("can_create_assessments") === "on",
+        can_review_assessments: data.get("can_review_assessments") === "on",
+        can_publish_assessments: data.get("can_publish_assessments") === "on",
         can_manage_hierarchy: data.get("can_manage_hierarchy") === "on"
       }));
     } catch (error) {
@@ -122,12 +125,23 @@ function ScopeManager({ users, nodes, scopes, onGranted, onRevoked }: { users: M
           <label className="check-control"><input type="checkbox" name="can_create_content" defaultChecked /><span>{t("canCreateContent")}</span></label>
           <label className="check-control"><input type="checkbox" name="can_review_content" /><span>{t("canReviewContent")}</span></label>
           <label className="check-control"><input type="checkbox" name="can_publish_content" /><span>{t("canPublishContent")}</span></label>
+          <label className="check-control"><input type="checkbox" name="can_create_assessments" /><span>{t("canCreateAssessments")}</span></label>
+          <label className="check-control"><input type="checkbox" name="can_review_assessments" /><span>{t("canReviewAssessments")}</span></label>
+          <label className="check-control"><input type="checkbox" name="can_publish_assessments" /><span>{t("canPublishAssessments")}</span></label>
           <label className="check-control"><input type="checkbox" name="can_manage_hierarchy" /><span>{t("canManageHierarchy")}</span></label>
         </fieldset>
         <Button type="submit" disabled={pending || !creators.length}>{t("grantScope")}</Button>
       </form>
       {message ? <p className="inline-error" role="alert">{message}</p> : null}
-      {scopes.length ? <ul className="scope-list">{scopes.map((scope) => <li key={scope.id}><div><strong>{scope.user_name}</strong><span>{scope.node_title}</span></div><span>{[scope.can_create_content && t("createShort"), scope.can_review_content && t("reviewShort"), scope.can_publish_content && t("publishShort"), scope.can_manage_hierarchy && t("hierarchyShort")].filter(Boolean).join(" · ")}</span><Button variant="quiet" disabled={pending} onClick={() => void remove(scope.id)}>{t("revokeScope")}</Button></li>)}</ul> : <EmptyState title={t("noCreatorScopes")}>{t("noCreatorScopesCopy")}</EmptyState>}
+      {scopes.length ? <ul className="scope-list">{scopes.map((scope) => <li key={scope.id}><div><strong>{scope.user_name}</strong><span>{scope.node_title}</span></div><span>{[
+        scope.can_create_content && t("createShort"),
+        scope.can_review_content && t("reviewShort"),
+        scope.can_publish_content && t("publishShort"),
+        scope.can_create_assessments && t("assessmentCreateShort"),
+        scope.can_review_assessments && t("assessmentReviewShort"),
+        scope.can_publish_assessments && t("assessmentPublishShort"),
+        scope.can_manage_hierarchy && t("hierarchyShort")
+      ].filter(Boolean).join(" · ")}</span><Button variant="quiet" disabled={pending} onClick={() => void remove(scope.id)}>{t("revokeScope")}</Button></li>)}</ul> : <EmptyState title={t("noCreatorScopes")}>{t("noCreatorScopesCopy")}</EmptyState>}
     </section>
   );
 }

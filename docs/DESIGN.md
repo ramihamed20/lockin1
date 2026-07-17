@@ -135,3 +135,17 @@ Axe and horizontal-overflow checks pass on the exercised Desktop Chrome and Pixe
 Phase 4 student and management pages are route-split. The production main bundle is 91.34 KB gzip
 and CSS is 6.31 KB gzip. Focus remains a separate later route/subsystem and cannot inflate the
 normal learning bundle until it is actually implemented.
+
+## Phase 5 Assessment Experience
+
+Phase 5 reuses the established primitive, semantic, and component tokens rather than creating a
+parallel quiz theme. The assessment home puts due review before quiz discovery, so the first action
+answers what the student should do now. An active attempt uses a dedicated distraction-reduced shell
+with one question, a question map, authoritative timer, save state, and explicit submission dialog.
+Results return the student to review or the next study action instead of ending at a score.
+
+The assessment UI uses logical CSS properties, native radio groups and fieldsets, keyboard-operable
+controls, managed dialog focus, live save/timer announcements, reduced-motion fallbacks, and a
+semantic heading hierarchy. Desktop Chrome and Pixel 7 Playwright flows passed Axe and horizontal
+overflow checks, including Arabic RTL. The production assessment routes remain split; the measured
+main bundle is 96.41 KB gzip and CSS is 8.51 KB gzip.

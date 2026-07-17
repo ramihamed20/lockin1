@@ -1,6 +1,6 @@
 # Lock-in Decision Log
 
-Last updated: 2026-07-15
+Last updated: 2026-07-17
 
 This file records decisions that change product behavior, architecture, maintenance cost, or phase boundaries. Approved decisions are not silently replaced. A changed decision must record the trade-off and date.
 
@@ -44,6 +44,22 @@ This file records decisions that change product behavior, architecture, maintena
 | D-034 | Show only authoritative account/role dashboard data in Phase 3 | Approved Phase 3 product implementation |
 | D-035 | One component tree serves English, Arabic, LTR, and RTL | Approved Phase 3 implementation |
 | D-036 | Keep domain events lightweight, in-process, and after-commit | Reconfirmed by owner for Phase 3 |
+| D-037 | Use a generic materialized academic tree | Approved Phase 4 implementation |
+| D-038 | Stable learning identity with immutable versions | Approved Phase 4 implementation |
+| D-039 | Deliver managed files through private policy-aware endpoints | Approved Phase 4 security implementation |
+| D-040 | Use a rebuildable search projection | Approved Phase 4 implementation |
+| D-041 | Scope creator capabilities to academic subtrees | Approved Phase 4 implementation |
+| D-042 | Keep dashboard recommendations deterministic and authoritative | Approved Phase 4 implementation |
+| D-043 | Integrate learning content with Focus through context only | Approved Phase 4 implementation |
+| D-044 | Keep Phase 4 infrastructure local to the modular monolith | Approved Phase 4 implementation |
+| D-045 | Stable question and quiz identity with immutable release versions | Approved Phase 5 implementation |
+| D-046 | Grade only immutable server-created attempt snapshots | Approved Phase 5 correctness implementation |
+| D-047 | Server deadline, revisions, locks, and idempotency are authoritative | Approved by owner and implemented |
+| D-048 | Result serializer owns immediate/after-close disclosure | Approved Phase 5 fairness implementation |
+| D-049 | Integrity signals are informational and cannot auto-penalize | Approved Phase 5 implementation |
+| D-050 | Spaced review is deterministic, logged, and replaceable | Approved Phase 5 implementation |
+| D-051 | Achievements/rankings receive eligibility facts only in Phase 5 | Phase-boundary decision |
+| D-052 | Assessment connects to Focus through context, not ownership | Reconfirms standalone Focus boundary |
 
 ## D-001 — Product Identity
 
@@ -435,3 +451,54 @@ broker, WebSockets, or microservices.
 
 **Consequence:** PostgreSQL/load measurements remain a gate before production scaling claims; new
 infrastructure requires a measured proposal and owner approval.
+
+## D-045 and D-046 - Immutable Assessment Releases and Attempts
+
+**Decision:** Questions and quizzes have stable identities with immutable current/published versions;
+attempts grade only a private server-created snapshot of one exact release.
+
+**Reason:** A later edit, reorder, retirement, or private draft must never change a student's active
+or submitted assessment.
+
+**Consequence:** Storage is intentionally duplicated in the attempt snapshot. Historical correctness
+and dispute evidence take priority over deduplication.
+
+## D-047 and D-048 - Server Authority and Disclosure
+
+**Decision:** Server deadlines, row locks, monotonic answer revisions, idempotency receipts, grading,
+and result-release policy are authoritative.
+
+**Reason:** Browser clocks, retries, offline state, and duplicate requests are not sufficiently fair
+or reliable for scored work.
+
+**Consequence:** The client displays server state, may retain a bounded pending UUID payload, and
+must reconcile conflicts. It cannot calculate an official score or reveal a key early.
+
+## D-049 - Evidence Without Automatic Punishment
+
+**Decision:** Visibility, workspace, and connection signals are informational only.
+
+**Reason:** Browser/device behavior is noisy and cannot prove cheating fairly.
+
+**Consequence:** Signals never change score/status. A future anti-cheating change needs an approved
+fairness model, evidence, appeal path, tests, and explicit versioning.
+
+## D-050 - Deterministic Spaced Review
+
+**Decision:** Start with a small bounded-ease interval algorithm and log every transition.
+
+**Reason:** Explainable scheduling is more correct and maintainable than speculative personalization.
+
+**Consequence:** Future analytics or AI may recommend inputs through extension points, but cannot
+silently rewrite authoritative history.
+
+## D-051 and D-052 - Phase and Product Boundaries
+
+**Decision:** Phase 5 emits ranking/achievement eligibility facts but implements neither domain.
+Assessment connects to Focus only through typed context and a dedicated shell.
+
+**Reason:** This preserves the Phase 7 boundary and lets Focus grow independently as a professional
+study product.
+
+**Consequence:** No speculative leaderboard, achievement, Focus session ownership, broker, or AI
+dependency was introduced.

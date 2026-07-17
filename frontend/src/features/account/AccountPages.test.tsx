@@ -30,7 +30,7 @@ describe("account settings", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
     expect(await screen.findByText("ملفك الشخصي محدّث.")).toBeVisible();
-    expect(document.documentElement).toHaveAttribute("dir", "rtl");
+    await waitFor(() => expect(document.documentElement).toHaveAttribute("dir", "rtl"));
   });
 
   it("changes password, requests email confirmation, and revokes another session", async () => {

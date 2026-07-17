@@ -8,46 +8,52 @@ Last updated: 2026-07-17
 - [x] Phase 1 product specification approved.
 - [x] Phase 2 foundation approved.
 - [x] Phase 3 authentication/design system approved.
+- [x] Phase 4 education/content/discovery/progress approved.
 
-## Phase 4 — Complete; Awaiting Review
+## Phase 5 - Complete; Awaiting Review
 
-- [x] Create a discipline-neutral education hierarchy with efficient subtree traversal.
-- [x] Add scoped creator capabilities and backend-enforced management permissions.
-- [x] Add stable learning objects with immutable versions/assets and review/publication workflow.
-- [x] Keep the last published version stable while a replacement revision is prepared.
-- [x] Add private managed PDF/audio upload, validation, Range view, and conditional download.
-- [x] Add rebuildable normalized search projection, filters, pagination, and indexes.
-- [x] Add bookmarks, version-aware progress, lesson completion, resume, and dashboard projection.
-- [x] Rebuild the dashboard as a next-action command center.
-- [x] Add responsive Learn, academic path, learning object, content studio, and hierarchy UI.
-- [x] Preserve the standalone Focus boundary and AI-free architecture.
-- [x] Add real publication and lesson-completion events to the lightweight after-commit bus.
-- [x] Add unit, API, query-count, accessibility, responsive, and browser tests.
+- [x] Add stable question identity, immutable versions/options, validation, and workflow.
+- [x] Add stable/versioned practice, quiz, and mastery definitions with fixed/pool selection.
+- [x] Add immutable randomized attempt snapshots and server-authoritative timing/limits.
+- [x] Add monotonic answer autosave, conflict reconciliation, and bounded reconnect recovery.
+- [x] Add idempotent transactional submission, grading, receipts, and delayed disclosure.
+- [x] Add result review, explanations, evidence-preserving mistake reports, and next actions.
+- [x] Add deterministic spaced review state and append-only transition history.
+- [x] Add informational anti-cheating extension points without automatic penalties.
+- [x] Integrate due review and published quiz/question resources with search/dashboard flows.
+- [x] Preserve stable published releases during replacement drafts.
+- [x] Keep Focus independent through a typed assessment context only.
+- [x] Emit stable assessment events and ranking/achievement eligibility facts only.
+- [x] Add responsive accessible English/Arabic student and creator interfaces.
+- [x] Pass unit, API, query-count, coverage, PWA build, Axe, RTL, and browser regression gates.
 - [x] Update all source-of-truth documentation.
-- [ ] Obtain explicit Phase 5 approval.
+- [ ] Obtain explicit Phase 6 approval.
 
 ## Deferred Evidence / Inputs
 
 - [ ] Run the complete suite against PostgreSQL in CI or a local PostgreSQL environment.
-- [ ] Establish a representative dataset and execute the approved 2,000-concurrent-user load plan.
-- [ ] Integrate a malware scanning provider before production file ingestion; current status remains
-  truthfully `not_configured`.
-- [ ] Supply real institution, college, curriculum, and creator-scope data.
+- [ ] Add a PostgreSQL concurrent-start/autosave/submit integration test with real row locks.
+- [ ] Establish a representative assessment dataset and run the approved load plan in Phase 11.
+- [ ] Integrate a malware scanner before production file ingestion; status is `not_configured`.
+- [ ] Supply real institutions, curricula, question content, and creator scopes.
 - [ ] Select production object storage/CDN and hosting.
-- [ ] Approve legal privacy, retention, terms, and account-deletion policy.
+- [ ] Approve legal privacy, retention, terms, account-deletion, and report-response policy.
 
 ## Later Product Inputs
 
+- [ ] Ranking formula and periods (Phase 7).
+- [ ] Achievement catalog and eligibility policy (Phase 7).
+- [ ] Any additional anti-cheating idea, with fairness/evidence/appeal review before implementation.
 - [ ] Subscription price, currency, grace period, and payment provider.
 - [ ] Email and push providers.
-- [ ] Ranking formula and achievement catalog.
-- [ ] Additional approved anti-cheating ideas.
 
 ## Guardrails
 
 - Never modify `C:\Users\ramih\Desktop\Dentify-Before-Edits`.
-- Work one approved phase at a time.
-- Do not start Phase 5 without explicit owner approval.
-- Add no Redis, Celery, WebSocket, broker, microservice, or AI provider without an implemented and
-  measured need plus prior owner approval.
-- Do not claim PostgreSQL, load, malware-scan, or Focus capabilities that were not executed.
+- Work one approved phase at a time; do not start Phase 6 without explicit approval.
+- Server remains the source of truth for deadlines, attempts, grading, results, and review state.
+- Preserve backward-compatible APIs unless a change is intentionally versioned.
+- Focus remains an independent product module.
+- Add no Redis, Celery, WebSocket, broker, microservice, or AI provider without a proven need and
+  prior owner approval.
+- Do not claim PostgreSQL concurrency, load, malware scan, or Focus features without evidence.

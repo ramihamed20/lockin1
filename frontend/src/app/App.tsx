@@ -25,6 +25,11 @@ const EducationNodePage = lazy(() => import("../features/learning/EducationNodeP
 const LearningObjectPage = lazy(() => import("../features/learning/LearningObjectPage").then((module) => ({ default: module.LearningObjectPage })));
 const ContentStudioPage = lazy(() => import("../features/management/ContentStudioPage").then((module) => ({ default: module.ContentStudioPage })));
 const EducationAdminPage = lazy(() => import("../features/management/EducationAdminPage").then((module) => ({ default: module.EducationAdminPage })));
+const AssessmentHomePage = lazy(() => import("../features/assessment/AssessmentHomePage").then((module) => ({ default: module.AssessmentHomePage })));
+const QuizOverviewPage = lazy(() => import("../features/assessment/QuizOverviewPage").then((module) => ({ default: module.QuizOverviewPage })));
+const AttemptPage = lazy(() => import("../features/assessment/AttemptPage").then((module) => ({ default: module.AttemptPage })));
+const ResultPage = lazy(() => import("../features/assessment/ResultPage").then((module) => ({ default: module.ResultPage })));
+const AssessmentStudioPage = lazy(() => import("../features/assessment/management/AssessmentStudioPage").then((module) => ({ default: module.AssessmentStudioPage })));
 
 function ProtectedRoute() {
   const { status } = useAuth();
@@ -53,6 +58,8 @@ function NotFoundPage() {
 export function App() {
   const { t } = useI18n();
   const pwa = usePwaStatus();
+  const location = useLocation();
+  const assessmentInProgress = location.pathname.startsWith("/assessments/attempts/");
   return (
     <>
       <Suspense fallback={<PageSkeleton label={t("loading")} />}>
@@ -66,15 +73,20 @@ export function App() {
           <Route path="confirm-email" element={<TokenConfirmationPage mode="email-change" />} />
         </Route>
         <Route element={<ProtectedRoute />}>
+          <Route path="assessments/attempts/:attemptId" element={<AttemptPage />} />
           <Route element={<AppShell />}>
             <Route index element={<DashboardPage />} />
             <Route path="learn" element={<LearningHomePage />} />
             <Route path="learn/nodes/:nodeId" element={<EducationNodePage />} />
             <Route path="learn/content/:contentId" element={<LearningObjectPage />} />
+            <Route path="assessments" element={<AssessmentHomePage />} />
+            <Route path="assessments/quizzes/:quizId" element={<QuizOverviewPage />} />
+            <Route path="assessments/results/:resultId" element={<ResultPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="security" element={<SecurityPage />} />
             <Route element={<CreatorRoute />}>
               <Route path="management/content" element={<ContentStudioPage />} />
+              <Route path="management/assessments" element={<AssessmentStudioPage />} />
             </Route>
             <Route element={<AdministratorRoute />}>
               <Route path="admin/people" element={<PeoplePage />} />
@@ -85,7 +97,7 @@ export function App() {
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
       </Suspense>
-      {pwa.updateAvailable ? (
+      {pwa.updateAvailable && !assessmentInProgress ? (
         <aside className="update-notice" aria-live="polite">
           <p>{t("updateReady")}</p>
           <Button onClick={() => void applyPwaUpdate()}>{t("updateNow")}</Button>

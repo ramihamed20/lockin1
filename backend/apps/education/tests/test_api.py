@@ -136,13 +136,9 @@ def test_administrator_manages_hierarchy_and_creator_scopes_through_api() -> Non
     scopes = client.get("/api/v1/management/education/scopes")
     assert scopes.status_code == 200
     assert scopes.json()["scopes"][0]["user_email"] == creator.email
-    revoked = client.delete(
-        f"/api/v1/management/education/scopes/{scope_response.json()['id']}"
-    )
+    revoked = client.delete(f"/api/v1/management/education/scopes/{scope_response.json()['id']}")
     assert revoked.status_code == 204
 
-    missing_public = client.get(
-        "/api/v1/education/nodes/00000000-0000-0000-0000-000000000001"
-    )
+    missing_public = client.get("/api/v1/education/nodes/00000000-0000-0000-0000-000000000001")
     invalid_parent = client.get("/api/v1/education/nodes?parent=not-a-uuid")
     assert missing_public.status_code == invalid_parent.status_code == 404

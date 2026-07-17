@@ -208,3 +208,15 @@ When Focus implementation is approved, its workspace may resolve the context thr
 selectors, request the private version asset through the file policy, and store annotations against
 that immutable version. Renderer, annotation engine, tools, gestures, autosave, recovery, keyboard,
 and mobile adaptation remain independently testable Focus subsystems.
+
+## Phase 5 Assessment Boundary
+
+An assessment attempt may expose only a typed `{context_type: "quiz", context_id: attempt_id}`
+Focus context. The dedicated attempt shell is distraction-reduced assessment UI; it is not a Focus
+workspace and does not own `FocusSession`, PDF rendering, annotations, gestures, toolbars, or Focus
+autosave. Assessment remains authoritative for attempt timing, answers, grading, and submission,
+while a future Focus adapter may observe the typed context without importing assessment internals.
+
+This boundary lets future quiz-integrated Focus sessions and study analytics subscribe through
+explicit contracts and domain events while the renderer, annotation engine, workspace state, and
+offline recovery continue evolving independently.

@@ -4,77 +4,71 @@ Last updated: 2026-07-17
 
 ## Current Status
 
-Phase 4 — Education, content, discovery, and progress
+Phase 5 - Assessment learning ecosystem
 State: implementation and local validation complete; awaiting owner review
 
-Do not start Phase 5 until the owner explicitly approves it.
+Do not start Phase 6 until the owner explicitly approves it.
 
 ## Phase History
 
-### Phase 0 — Repository and Skill Inspection
+### Phase 0 - Repository and Skill Inspection
 
-Status: approved.
+Status: approved. Audited the old application, searched built-in/installed/repository/workspace and
+user-provided Skills, selected the applicable Skills, and kept the reference project read-only.
 
-- Audited the existing application, runtime behavior, responsive behavior, architecture, security,
-  performance, accessibility, and test gaps.
-- Searched built-in, installed, repository, workspace, and user-provided Skill locations.
-- Selected and documented the applicable Skills; kept the old project read-only.
+### Phase 1 - Product Specification
 
-### Phase 1 — Product Specification
+Status: approved. Documented roles, behavior, permissions, accessibility, performance, security,
+architecture, redesign reasons, acceptance criteria, assumptions, and phase boundaries.
 
-Status: approved.
+### Phase 2 - Foundation
 
-- Documented the product, roles, permissions, acceptance criteria, assumptions, architecture,
-  redesign reasons, phase boundaries, and future extension policies.
+Status: approved. Created the isolated React/TypeScript/Vite/PWA and Django/DRF/PostgreSQL modular
+monolith with Focus boundaries, lightweight events, AI-free extension points, and quality gates.
 
-### Phase 2 — Foundation
+### Phase 3 - Authentication and Design System
 
-Status: approved.
+Status: approved. Implemented secure session/CSRF account flows, roles, throttling, security records,
+English/Arabic RTL, design tokens, responsive shell, and truthful account dashboards.
 
-- Created the isolated React/TypeScript/Vite/PWA and Django/DRF/PostgreSQL modular monolith.
-- Added secure settings, versioned API, custom user, observability, CI, Focus foundations,
-  lightweight after-commit events, AI-free extension points, and quality gates.
+### Phase 4 - Education, Content, Discovery, and Progress
 
-### Phase 3 — Authentication and Design System
+Status: approved. Implemented the generic academic tree, immutable learning objects, private files,
+search projection, bookmarks/progress/lesson completion, and next-action learning dashboard.
 
-Status: approved.
-
-- Implemented secure sessions/CSRF, account lifecycle, roles, throttling, security records,
-  English/Arabic RTL, three-layer design tokens, responsive shell, and truthful account dashboards.
-
-### Phase 4 — Education, Content, Discovery, and Progress
+### Phase 5 - Assessment Learning Ecosystem
 
 Status: complete; awaiting owner review.
 
-- Implemented a generic multi-institution academic tree and subtree-scoped creator capabilities.
-- Implemented stable learning objects, immutable versions/assets, draft/review/publication/archive,
-  and continued service of the last published version during later revisions.
-- Implemented private managed PDF/audio files, validation, Range delivery, and download policy.
-- Implemented a rebuildable normalized search projection with filtering and pagination.
-- Implemented bookmarks, version-aware progress, lesson completion, resume, and dashboard selectors.
-- Rebuilt the dashboard as a next-action command center and added responsive student/creator/admin
-  learning routes with loading, empty, error, and permission states.
-- Kept Focus standalone, exposed only a small content-version context contract, and kept AI absent.
-- Added `content.content_published` and `education.lesson_completed` after-commit events.
+- Added versioned questions and quizzes with scoped create/review/publish/retire workflows.
+- Added fixed/pool practice, quizzes, and mastery checks with server rules and immutable snapshots.
+- Added revision-aware autosave, bounded reconnect recovery, server deadlines, attempt limits,
+  idempotent starts/submissions, transactional grading, and delayed result disclosure.
+- Added answer review, explanations, mistake reports, informational integrity signals, and
+  deterministic spaced review with append-only transition logs.
+- Added due-review command center, focused attempt workspace, results journey, creator studio,
+  English/Arabic RTL, mobile/tablet/desktop behavior, and accessible states.
+- Preserved stable published releases while private revisions exist.
+- Kept Focus independent and emitted ranking/achievement eligibility facts without implementing
+  those later domains.
+- Added typed internal assessment events without external infrastructure.
 
-## Phase 4 Validation
+## Phase 5 Validation
 
-- Backend: 71 passed; 85.75% branch-aware coverage.
-- Ruff, strict mypy across 123 source files, Django check, and migration drift: passed.
-- Frontend: 55 passed; 91.35% statements, 82.04% branches, 89.58% functions, 94.41% lines.
+- Backend: 91 tests; 85.30% branch-aware coverage.
+- Ruff check/format, strict mypy across 152 source files, Django check, and migration drift: passed.
+- Frontend: 82 tests; 89.92% statements, 80.39% branches, 87.91% functions, 93.81% lines.
 - ESLint, TypeScript, and production PWA build: passed.
-- Playwright: 9 passed, 1 intentional mobile-only test skip on desktop.
-- Axe: no violations in exercised authenticated, learning, content, and Arabic mobile flows.
-- Responsive overflow: passed on Desktop Chrome and Pixel 7.
-- PWA: 18 static precache entries, no runtime API caching, `/api/` navigation fallback denied.
-- Main bundle: 91.34 KB gzip; Phase 4 pages remain route-split.
+- Playwright regression: 13 passed, 1 intentional desktop skip for a mobile-only assertion.
+- Phase 5 browser slice: 4/4 desktop/mobile; Axe, RTL, autosave, result disclosure, and overflow passed.
+- PWA: 24 static precache entries, no API runtime caching; main JS 96.41 KB gzip.
 
 ## Workstation Limitation
 
-PostgreSQL-backed tests and the 2,000-concurrent-user load target were not executed locally because
-no PostgreSQL/Docker service was available. The suite used only the explicit SQLite test fallback.
-No PostgreSQL or load claim is made.
+PostgreSQL-backed concurrency and 2,000-active-user load tests were not run locally because no
+PostgreSQL/Docker service was available. Local tests used only `LOCKIN_TEST_USE_SQLITE=1`.
+No PostgreSQL concurrency or load claim is made.
 
 ## Next Gate
 
-Owner reviews Phase 4. Stop here; Phase 5 requires explicit approval.
+Owner reviews Phase 5. Stop here; Phase 6 requires explicit approval.

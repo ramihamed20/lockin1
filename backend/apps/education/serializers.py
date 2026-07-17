@@ -86,6 +86,9 @@ class CreatorScopeSerializer(serializers.ModelSerializer[CreatorScope]):
             "can_create_content",
             "can_review_content",
             "can_publish_content",
+            "can_create_assessments",
+            "can_review_assessments",
+            "can_publish_assessments",
             "can_manage_hierarchy",
             "updated_at",
         )
@@ -98,4 +101,7 @@ class CreatorScopeWriteSerializer(StrictSerializer):
     can_create_content = serializers.BooleanField(default=True)
     can_review_content = serializers.BooleanField(default=False)
     can_publish_content = serializers.BooleanField(default=False)
+    can_create_assessments = serializers.BooleanField(default=False)
+    can_review_assessments = serializers.BooleanField(default=False)
+    can_publish_assessments = serializers.BooleanField(default=False)
     can_manage_hierarchy = serializers.BooleanField(default=False)

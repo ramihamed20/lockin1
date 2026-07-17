@@ -210,6 +210,9 @@ class CreatorScopeListView(APIView):
                     can_create_content=bool(data["can_create_content"]),
                     can_review_content=bool(data["can_review_content"]),
                     can_publish_content=bool(data["can_publish_content"]),
+                    can_create_assessments=bool(data["can_create_assessments"]),
+                    can_review_assessments=bool(data["can_review_assessments"]),
+                    can_publish_assessments=bool(data["can_publish_assessments"]),
                     can_manage_hierarchy=bool(data["can_manage_hierarchy"]),
                 ),
             )

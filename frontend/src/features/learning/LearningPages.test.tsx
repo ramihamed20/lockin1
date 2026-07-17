@@ -40,6 +40,24 @@ describe("student learning journey", () => {
     expect(api.searchLearning).toHaveBeenCalledWith("cranial", "");
   });
 
+  it("routes assessment search results without exposing standalone question pages", async () => {
+    api.searchLearning.mockResolvedValue({
+      ...emptyPage,
+      count: 2,
+      results: [
+        { resource_kind: "quiz", resource_id: "quiz-1", content_type: "mastery", title: "Anatomy mastery", summary: "", language: "en", published_at: "2026-07-17" },
+        { resource_kind: "question", resource_id: "question-1", content_type: "single_choice", title: "Facial nerve", summary: "", language: "en", published_at: "2026-07-17" }
+      ]
+    });
+    shell(<LearningHomePage />);
+
+    await screen.findByRole("heading", { name: "What will you master next?" });
+    fireEvent.change(screen.getByLabelText("Search learning"), { target: { value: "nerve" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    expect(await screen.findByRole("link", { name: /Anatomy mastery/ })).toHaveAttribute("href", "/assessments/quizzes/quiz-1");
+    expect(screen.getByRole("link", { name: /Facial nerve/ })).toHaveAttribute("href", "/assessments");
+  });
+
   it("resumes a study recommendation and searches non-document learning locations", async () => {
     api.educationChildren.mockResolvedValue({ ...emptyPage, count: 1, results: [{ ...node, kind: "subject", description: "" }] });
     api.learningDashboard.mockResolvedValue({

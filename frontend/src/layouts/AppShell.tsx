@@ -13,7 +13,8 @@ const icons = {
   security: "M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6zM9 12l2 2 4-5",
   people: "M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8-1a2.5 2.5 0 1 0 0-5M2 20c0-4 2-6 6-6s6 2 6 6m1-6c4 0 6 2 6 6",
   studio: "M4 4h16v12H8l-4 4Zm4 4h8M8 12h5",
-  hierarchy: "M12 4v5M6 20v-5h12v5M6 15v-3h12v3M12 9v3"
+  hierarchy: "M12 4v5M6 20v-5h12v5M6 15v-3h12v3M12 9v3",
+  assessment: "M7 3h10v3H7zM5 6h14v15H5zM8 11l2 2 3-4M8 17h8"
 };
 
 function Icon({ path }: { path: string }) {
@@ -34,9 +35,13 @@ export function AppShell() {
   const navItems = [
     { to: "/", label: t("navDashboard"), icon: icons.dashboard, end: true },
     { to: "/learn", label: t("navLearn"), icon: icons.learn },
+    { to: "/assessments", label: t("navAssessments"), icon: icons.assessment },
     { to: "/profile", label: t("navProfile"), icon: icons.profile },
     { to: "/security", label: t("navSecurity"), icon: icons.security },
-    ...(isCreator ? [{ to: "/management/content", label: t("navContentStudio"), icon: icons.studio }] : []),
+    ...(isCreator ? [
+      { to: "/management/content", label: t("navContentStudio"), icon: icons.studio },
+      { to: "/management/assessments", label: t("navAssessmentStudio"), icon: icons.assessment }
+    ] : []),
     ...(isAdmin ? [
       { to: "/admin/education", label: t("navEducationAdmin"), icon: icons.hierarchy },
       { to: "/admin/people", label: t("navAdmin"), icon: icons.people }

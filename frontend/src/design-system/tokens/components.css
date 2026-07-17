@@ -8,5 +8,8 @@
     --panel-border: 1px solid var(--color-border-subtle);
     --rail-width: 17rem;
     --mobile-nav-height: 4.25rem;
+    --attempt-map-width: 16rem;
+    --attempt-header-height: 5rem;
+    --assessment-option-min-height: 4.25rem;
   }
 }

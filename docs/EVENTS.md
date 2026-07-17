@@ -41,9 +41,12 @@ request bodies, or unrestricted personal data.
 | `education.lesson_completed` | Progress/Education integration | Implemented; emitted after committed first completion |
 | `focus.session_started` | Focus | Implemented and emitted after commit |
 | `focus.session_completed` | Focus | Implemented and emitted after commit |
-| `quizzes.attempt_started` | Quizzes | Reserved contract; not coded yet |
-| `quizzes.attempt_autosaved` | Quizzes | Reserved contract; not coded yet |
-| `quizzes.attempt_submitted` | Quizzes | Reserved contract; not coded yet |
+| `question.published` | Questions | Implemented; exact question/version/node identifiers |
+| `quiz.published` | Assessments | Implemented; exact quiz/version/node/mode identifiers |
+| `quiz.attempt.started` | Assessments | Implemented after committed attempt snapshot |
+| `quiz.attempt.autosaved` | Assessments | Implemented after committed answer revision |
+| `quiz.attempt.submitted` | Assessments | Implemented; result plus eligibility facts |
+| `assessment.report.created` | Assessments | Implemented; report/result/question/category identifiers |
 | `rankings.achievement_earned` | Rankings | Reserved contract; not coded yet |
 | `subscriptions.subscription_activated` | Subscriptions | Reserved contract; not coded yet |
 | `moderation.report_created` | Moderation | Reserved contract; not coded yet |
@@ -51,7 +54,9 @@ request bodies, or unrestricted personal data.
 
 Remaining reserved events are documented instead of placed in a central fake code catalog. A domain
 defines its event only when it implements the authoritative state change. Publication and lesson
-completion became real in Phase 4 and therefore now have domain-owned event classes and tests.
+completion became real in Phase 4. Question, quiz, attempt, and report events became real in Phase 5
+and have domain-owned classes and contract/transaction tests. Assessment events contain no answer
+key, explanation, option text, session token, or unrestricted metadata.
 
 ## Transaction behavior
 

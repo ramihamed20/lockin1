@@ -52,7 +52,17 @@ describe("management API contracts", () => {
     await contentAction(item, "archive");
     await contentAction(item, "reject");
     await contentAction(item, "reject", "Add labels");
-    await grantScope({ user_id: "user-1", node_id: "node-1", can_create_content: true, can_review_content: false, can_publish_content: false, can_manage_hierarchy: false });
+    await grantScope({
+      user_id: "user-1",
+      node_id: "node-1",
+      can_create_content: true,
+      can_review_content: false,
+      can_publish_content: false,
+      can_create_assessments: false,
+      can_review_assessments: false,
+      can_publish_assessments: false,
+      can_manage_hierarchy: false
+    });
 
     expect(apiRequest).toHaveBeenCalledWith("/management/content/content-1/reject", { method: "POST", body: { expected_revision: 3, review_note: "Changes requested." } });
     expect(apiRequest).toHaveBeenCalledWith("/management/content/content-1/reject", { method: "POST", body: { expected_revision: 3, review_note: "Add labels" } });
@@ -64,6 +74,9 @@ describe("management API contracts", () => {
         can_create_content: true,
         can_review_content: false,
         can_publish_content: false,
+        can_create_assessments: false,
+        can_review_assessments: false,
+        can_publish_assessments: false,
         can_manage_hierarchy: false
       }
     });

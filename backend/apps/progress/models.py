@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 from django.conf import settings
 from django.db import models
@@ -6,6 +7,7 @@ from django.db.models import Q
 
 from apps.content.models import LearningObject, LearningObjectVersion
 from apps.education.models import EducationNode
+from apps.questions.models import Question, QuestionVersion
 
 
 class Bookmark(models.Model):
@@ -118,3 +120,90 @@ class LessonProgress(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id}:{self.lesson_id}"
+
+
+class QuestionReview(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="question_reviews",
+    )
+    question = models.ForeignKey(
+        Question,
+        on_delete=models.PROTECT,
+        related_name="review_schedules",
+    )
+    last_question_version = models.ForeignKey(
+        QuestionVersion,
+        on_delete=models.PROTECT,
+        related_name="review_schedules",
+    )
+    due_at = models.DateTimeField()
+    interval_days = models.PositiveIntegerField(default=1)
+    ease_factor = models.DecimalField(
+        max_digits=3,
+        decimal_places=2,
+        default=Decimal("2.50"),
+    )
+    repetitions = models.PositiveSmallIntegerField(default=0)
+    lapses = models.PositiveSmallIntegerField(default=0)
+    last_was_correct = models.BooleanField(default=False)
+    last_reviewed_at = models.DateTimeField()
+    revision = models.PositiveBigIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("due_at", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("user", "question"),
+                name="review_user_question_unique",
+            ),
+            models.CheckConstraint(
+                condition=Q(ease_factor__gte=1.30) & Q(ease_factor__lte=3.00),
+                name="review_ease_factor_valid",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=("user", "due_at"), name="review_user_due_idx"),
+            models.Index(
+                fields=("user", "repetitions", "due_at"),
+                name="review_mastery_due_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.question_id}:{self.due_at.isoformat()}"
+
+
+class QuestionReviewLog(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="question_review_history",
+    )
+    question = models.ForeignKey(Question, on_delete=models.PROTECT)
+    question_version = models.ForeignKey(QuestionVersion, on_delete=models.PROTECT)
+    result_id = models.UUIDField()
+    attempt_question_id = models.UUIDField()
+    was_correct = models.BooleanField()
+    previous_state = models.JSONField(default=dict)
+    new_state = models.JSONField(default=dict)
+    reviewed_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-reviewed_at", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("result_id", "question"),
+                name="review_result_question_unique",
+            )
+        ]
+        indexes = [models.Index(fields=("user", "-reviewed_at"), name="review_history_user_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.result_id}:{self.question_id}:{self.was_correct}"

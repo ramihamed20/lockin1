@@ -1,6 +1,6 @@
 # Lock-in Project Audit
 
-Status: Phase 0 approved  
+Status: Phase 0 baseline approved; rebuild remediation recorded through Phase 5
 Audit date: 2026-07-15  
 Existing reference: `C:\Users\ramih\Desktop\Dentify-Before-Edits`  
 Rebuild destination: `C:\Users\ramih\Desktop\Dentify-Rebuild`
@@ -163,3 +163,21 @@ engineering and evidence fallback remains in force.
 
 The reference project remains unchanged. Phase 4 does not claim that the legacy PDF implementation
 was reused or that the standalone Focus product is implemented.
+
+## Phase 5 Rebuild Note
+
+Phase 5 addresses the audited correctness mismatch, absent durable attempts, missing autosave and
+idempotency, static review mock, and synthetic assessment-state risks. Questions and quizzes now
+have stable identity with immutable versions; attempts snapshot the exact graded material; server
+time, transactions, answer revisions, and idempotency are authoritative; and result-release policy
+prevents early answer-key exposure.
+
+The assessment UX is a guided Study -> Practice -> Review -> Mastery loop, not an isolated quiz
+screen. Focus integration remains a typed context only. Integrity signals are evidence, never an
+automatic penalty. Achievement/ranking implementations remain Phase 7, with only eligibility facts
+emitted now. The old reference project remains untouched.
+
+The selected Skills continued unchanged: `impeccable` guided the focused responsive attempt and
+result journey, `design-system` constrained tokens/components, `security-best-practices` guided
+answer-key, ownership, CSRF, recovery, and PWA boundaries, and `playwright` validated real browser
+behavior. No new applicable Skill was discovered during Phase 5.

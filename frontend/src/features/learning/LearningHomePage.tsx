@@ -9,9 +9,10 @@ import { educationChildren, learningDashboard, searchLearning } from "./api";
 import type { EducationNode, LearningDashboard, Paginated, SearchEntry } from "./types";
 
 function resultPath(result: SearchEntry) {
-  return result.resource_kind === "learning_object"
-    ? `/learn/content/${result.resource_id}`
-    : `/learn/nodes/${result.resource_id}`;
+  if (result.resource_kind === "learning_object") return `/learn/content/${result.resource_id}`;
+  if (result.resource_kind === "quiz") return `/assessments/quizzes/${result.resource_id}`;
+  if (result.resource_kind === "question") return "/assessments";
+  return `/learn/nodes/${result.resource_id}`;
 }
 
 export function LearningHomePage() {

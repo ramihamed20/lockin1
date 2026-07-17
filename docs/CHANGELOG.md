@@ -2,6 +2,49 @@
 
 All notable rebuild changes are documented here.
 
+## 2026-07-17 - Phase 5
+
+### Added
+
+- Versioned question bank with single-choice, true/false, completion-choice, difficulty, language,
+  explanations, options, scoped authoring, review, publication, retirement, and search projection.
+- Versioned practice/quiz/mastery definitions with fixed/pool selection, server timing, retry and
+  availability rules, randomization, result release, pass marks, and eligibility facts.
+- Immutable attempt snapshots, monotonic autosave revisions, bounded reconnect recovery, server
+  deadlines, start/submission idempotency, transactional grading, and submission receipts.
+- Immediate/delayed results, answer review, explanations, evidence-preserving mistake reports, and
+  informational integrity signals without automatic penalties.
+- Deterministic spaced review state/logs and due-review integration into the learning command center.
+- Focused attempt shell, assessment catalog, quiz overview, result journey, and creator assessment
+  studio in responsive English/Arabic UI.
+- Assessment events for publication, start, autosave, submission, and report creation.
+- `PHASE_5_ASSESSMENTS.md`, unit/API/query/accessibility/RTL/browser regression coverage.
+
+### Fixed
+
+- Published question and quiz releases remain student-visible while a replacement draft is edited.
+- Due review remains attached to the published question release while a private draft exists.
+- Search routes quiz results correctly and avoids a standalone student question/key surface.
+- Focused attempt now has a semantic level-one heading discovered by real Axe browser testing.
+
+### Validated
+
+- Backend: 91 tests, 85.30% branch-aware coverage; Ruff, format, strict mypy, Django check, and
+  migration drift passed.
+- Frontend: 82 tests; 89.92% statements, 80.39% branches, 87.91% functions, 93.81% lines; ESLint,
+  TypeScript, and production PWA build passed.
+- Browser: 13 passed and 1 intentional device skip across Desktop Chrome and Pixel 7; Phase 5 was
+  4/4 with Axe, RTL, autosave, submission, disclosure, and overflow assertions.
+- PWA: 24 static precache entries, no API runtime cache; main bundle 96.41 KB gzip.
+
+### Not Added
+
+- No rankings or achievement implementation; only stable eligibility facts for Phase 7.
+- No automated proctoring penalty, webcam, biometric, or invasive anti-cheating behavior.
+- No Focus PDF/annotation implementation and no assessment ownership of Focus sessions.
+- No AI, Redis, Celery, WebSocket, broker, microservice, or speculative worker.
+- No PostgreSQL concurrency or 2,000-user load claim from this workstation.
+
 ## 2026-07-17 — Phase 4
 
 ### Added

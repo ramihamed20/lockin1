@@ -23,6 +23,8 @@ INSTALLED_APPS = [
     "apps.education.apps.EducationConfig",
     "apps.files.apps.FilesConfig",
     "apps.content.apps.ContentConfig",
+    "apps.questions.apps.QuestionsConfig",
+    "apps.assessments.apps.AssessmentsConfig",
     "apps.progress.apps.ProgressConfig",
 ]
 

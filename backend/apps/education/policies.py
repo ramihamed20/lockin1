@@ -43,3 +43,21 @@ def can_publish_content(*, user: User, node: EducationNode) -> bool:
     if is_administrator(user):
         return True
     return _scopes_for_node(user=user, node=node).filter(can_publish_content=True).exists()
+
+
+def can_create_assessments(*, user: User, node: EducationNode) -> bool:
+    if is_administrator(user):
+        return True
+    return _scopes_for_node(user=user, node=node).filter(can_create_assessments=True).exists()
+
+
+def can_review_assessments(*, user: User, node: EducationNode) -> bool:
+    if is_administrator(user):
+        return True
+    return _scopes_for_node(user=user, node=node).filter(can_review_assessments=True).exists()
+
+
+def can_publish_assessments(*, user: User, node: EducationNode) -> bool:
+    if is_administrator(user):
+        return True
+    return _scopes_for_node(user=user, node=node).filter(can_publish_assessments=True).exists()

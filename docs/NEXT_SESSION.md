@@ -4,13 +4,13 @@ Last updated: 2026-07-17
 
 ## Start Here
 
-Phase 4 is implemented, validated locally, and awaiting owner review. Do not begin Phase 5 unless
-the owner explicitly approves it in the conversation.
+Phase 5 is implemented and locally validated. Do not begin Phase 6 unless the owner explicitly
+approves it in the conversation.
 
 Read in order:
 
 1. `PRODUCT.md`
-2. `PHASE_4_EDUCATION_CONTENT.md`
+2. `PHASE_5_ASSESSMENTS.md`
 3. `DECISIONS.md`
 4. `ARCHITECTURE.md`
 5. `DESIGN.md`
@@ -25,40 +25,45 @@ Read in order:
 
 - Rebuild: `C:\Users\ramih\Desktop\Dentify-Rebuild`
 - Read-only reference: `C:\Users\ramih\Desktop\Dentify-Before-Edits`
-- Phase 4 working copy used for validation: `C:\tmp\Lockin-Rebuild-Phase4`
+- Phase 5 isolated validation copy: `C:\tmp\Lockin-Rebuild-Phase5`
 
 Never modify the read-only reference.
 
 ## Current Implementation
 
-- Branch: `codex/phase-4-education-content`.
+- Branch: `codex/phase-5-assessments`.
 - Frontend: React 19.2.7, TypeScript 6.0.3, Vite 7.3.6, static-only PWA cache.
 - Backend: Django 5.2.16 LTS, DRF 3.17.1, modular monolith.
-- Database: PostgreSQL 18.4 default; SQLite only behind `LOCKIN_TEST_USE_SQLITE=1` for local tests.
-- Domains: Accounts, Focus session foundation, Education, Content, Files, Discovery, Progress.
-- Routes: student Learn/path/object, creator Content Studio, administrator Learning Structure.
-- Events: lightweight synchronous after-commit bus; real account, Focus, content publication, and
-  lesson-completion emissions.
-- Focus: standalone product boundary; no Phase 4 PDF/annotation engine claim.
+- Database: PostgreSQL default; SQLite only behind `LOCKIN_TEST_USE_SQLITE=1` for local tests.
+- Domains: Accounts, Focus foundation, Education, Content, Files, Discovery, Progress, Questions,
+  Assessments.
+- Student assessment routes: catalog/review, quiz overview, dedicated attempt, released/delayed result.
+- Creator route: Assessment Studio with question and quiz workflow.
+- Assessment behavior: stable releases, immutable attempt snapshots, server deadlines, revisioned
+  autosave, idempotent submission, transactional grading, delayed disclosure, reports, spaced review.
+- Events: lightweight synchronous after-commit bus; no broker or worker.
+- Focus: independent module; assessment exposes typed context only.
 - AI: no package/provider/endpoint; extension ports only.
-- Excluded: Redis, Celery, WebSockets, broker, microservices.
+- Excluded: achievements/rankings implementation, punitive proctoring, Redis, Celery, WebSockets,
+  broker, microservices.
 
 ## Validation Snapshot
 
-- Backend: 71 tests, 85.75% coverage; Ruff/mypy/Django/migration checks passed.
-- Frontend: 55 tests; 91.35% statements and 82.04% branches; ESLint/TypeScript/build passed.
-- Browser: 9 Playwright passes and 1 intentional device skip on Desktop Chrome/Pixel 7; Axe clear.
-- PWA: 18 static precache entries, no API runtime caching, main JS 91.34 KB gzip.
-- PostgreSQL/load: not run locally; no evidence claim.
+- Backend: 91 tests, 85.30% coverage; Ruff/format/mypy/Django/migration checks passed.
+- Frontend: 82 tests; 89.92% statements, 80.39% branches, 87.91% functions, 93.81% lines.
+- Browser: 13 Playwright passes and 1 intentional device skip; Phase 5 4/4; Axe and RTL clear.
+- PWA: 24 static precache entries, no API runtime cache, main JS 96.41 KB gzip.
+- PostgreSQL concurrency/load: not run locally; no evidence claim.
 
 ## Review Focus
 
-1. Confirm the generic academic hierarchy and scoped creator model match expected operations.
-2. Review the learning-object version and publication workflow.
-3. Review private file/view/download behavior and the truthful absent malware scanner.
-4. Review the Learn journey and command-center dashboard on phone/tablet/desktop.
-5. Confirm Focus remains independent and only receives a versioned context contract.
+1. Confirm question/quiz authoring and publication rules match academic operations.
+2. Review the focused attempt flow, autosave/conflict recovery, deadline, and final confirmation.
+3. Review immediate versus after-close result disclosure and mistake reporting.
+4. Confirm spaced review is explainable and the dashboard gives a useful next action.
+5. Confirm integrity signals are informational and cannot penalize automatically.
+6. Confirm Focus, achievements, rankings, and AI boundaries remain intact.
 
 ## Stop Condition
 
-Stop after the Phase 4 commit and wait for owner approval.
+Stop after the Phase 5 commit and wait for owner approval.

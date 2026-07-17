@@ -100,6 +100,9 @@ class CreatorScope(models.Model):
     can_create_content = models.BooleanField(default=True)
     can_review_content = models.BooleanField(default=False)
     can_publish_content = models.BooleanField(default=False)
+    can_create_assessments = models.BooleanField(default=False)
+    can_review_assessments = models.BooleanField(default=False)
+    can_publish_assessments = models.BooleanField(default=False)
     can_manage_hierarchy = models.BooleanField(default=False)
     granted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -118,6 +121,9 @@ class CreatorScope(models.Model):
                     Q(can_create_content=True)
                     | Q(can_review_content=True)
                     | Q(can_publish_content=True)
+                    | Q(can_create_assessments=True)
+                    | Q(can_review_assessments=True)
+                    | Q(can_publish_assessments=True)
                     | Q(can_manage_hierarchy=True)
                 ),
                 name="edu_scope_has_capability",

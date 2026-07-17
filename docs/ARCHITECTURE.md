@@ -1,7 +1,7 @@
 # Lock-in Architecture
 
-Status: Approved direction; implementation begins only after Phase 2 approval  
-Last updated: 2026-07-15
+Status: Approved modular-monolith direction; implementation recorded through Phase 5
+Last updated: 2026-07-17
 
 ## Goals
 
@@ -478,3 +478,43 @@ but video publication is blocked until its secure delivery product exists.
 No Redis, Celery, WebSocket, broker, microservice, vector store, AI SDK, or background worker was
 added. Domain events remain in-process, synchronous, best-effort, and after-commit. No new frontend
 runtime dependency was required for Phase 4.
+
+## Phase 5 Realized Assessment Architecture
+
+### Question and quiz release model
+
+`apps.questions` and `apps.assessments` use stable aggregate identity plus immutable version rows.
+Each aggregate has separate current and published pointers, so a private draft cannot withdraw the
+last published release. Fixed quizzes bind exact published question versions; pools resolve only
+published versions when the server starts an attempt.
+
+### Attempt consistency boundary
+
+Start locks the user and quiz, validates release/availability/limits, selects questions, stores the
+option order, and snapshots private grading fields. The public serializer omits key and explanation.
+Answer writes lock the attempt and require increasing client revisions. Submission locks user and
+attempt, grades the stored snapshot once, writes result/review transitions/idempotency receipt, and
+publishes the internal event after commit.
+
+The database is authoritative. Browser recovery stores validated UUIDs, revision, and timestamp
+only, then clears after acknowledgement. Service-worker runtime caching for `/api/v1` stays disabled.
+
+### Result, review, and downstream contracts
+
+Result serialization owns release policy. Before release, questions, keys, explanations, score,
+pass state, and counts are withheld. `apps.progress` owns deterministic `QuestionReview` state and
+append-only logs; it follows the published question pointer even while a new draft exists.
+Submission emits eligibility facts for later achievements/rankings without importing those domains.
+
+### Focus and integrity boundaries
+
+Assessments expose typed quiz context and a dedicated attempt shell, but do not create Focus sessions
+or import renderer/annotation/gesture/storage internals. Integrity records use a small allowlist and
+are informational. No automatic score adjustment, submission, or suspension path exists.
+
+### Scale posture
+
+High-cardinality attempt, answer, review, and report lookups have ownership/status/deadline/due-date
+indexes and paginated APIs. Public quiz query counts are regression tested. PostgreSQL concurrency
+and representative load still require evidence. No Redis, Celery, broker, WebSocket, microservice,
+or AI runtime was added.

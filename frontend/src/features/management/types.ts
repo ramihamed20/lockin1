@@ -38,6 +38,9 @@ export type CreatorScope = {
   can_create_content: boolean;
   can_review_content: boolean;
   can_publish_content: boolean;
+  can_create_assessments: boolean;
+  can_review_assessments: boolean;
+  can_publish_assessments: boolean;
   can_manage_hierarchy: boolean;
   updated_at: string;
 };

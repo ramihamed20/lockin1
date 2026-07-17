@@ -31,6 +31,9 @@ class ScopeCapabilities:
     can_create_content: bool = True
     can_review_content: bool = False
     can_publish_content: bool = False
+    can_create_assessments: bool = False
+    can_review_assessments: bool = False
+    can_publish_assessments: bool = False
     can_manage_hierarchy: bool = False
 
 
@@ -257,6 +260,9 @@ def grant_creator_scope(
             capabilities.can_create_content,
             capabilities.can_review_content,
             capabilities.can_publish_content,
+            capabilities.can_create_assessments,
+            capabilities.can_review_assessments,
+            capabilities.can_publish_assessments,
             capabilities.can_manage_hierarchy,
         )
     ):
@@ -268,6 +274,9 @@ def grant_creator_scope(
             "can_create_content": capabilities.can_create_content,
             "can_review_content": capabilities.can_review_content,
             "can_publish_content": capabilities.can_publish_content,
+            "can_create_assessments": capabilities.can_create_assessments,
+            "can_review_assessments": capabilities.can_review_assessments,
+            "can_publish_assessments": capabilities.can_publish_assessments,
             "can_manage_hierarchy": capabilities.can_manage_hierarchy,
             "granted_by": actor,
         },

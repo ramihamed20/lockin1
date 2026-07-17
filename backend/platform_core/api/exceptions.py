@@ -22,6 +22,8 @@ def lockin_exception_handler(exc: Exception, context: dict[str, Any]) -> Respons
         code_value = exc.get_codes()
         if isinstance(code_value, str):
             code = code_value
+        elif isinstance(exc.default_code, str):
+            code = exc.default_code
 
     if isinstance(detail, dict):
         raw_detail = detail.get("detail")

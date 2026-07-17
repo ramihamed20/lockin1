@@ -1,8 +1,8 @@
 # Lock-in Product Specification
 
-Status: Phase 1 specification; Phase 3 account/design foundation implemented
+Status: Phase 1 specification; implementation recorded through Phase 5
 Product owner: Platform administrator
-Last updated: 2026-07-15
+Last updated: 2026-07-17
 
 ## Register
 
@@ -1127,4 +1127,33 @@ account readiness. This is better than a menu because it answers what the studen
 without manufacturing mastery, review, quiz, or achievement data that later domains must own.
 
 Phase 4 acceptance evidence and honest workstation limitations are in
-`PHASE_4_EDUCATION_CONTENT.md`. Phase 5 remains blocked until explicit owner approval.
+`PHASE_4_EDUCATION_CONTENT.md`. This remains the accepted Phase 4 baseline for Phase 5.
+
+## Phase 5 Implementation Record
+
+Phase 5 realizes the approved connected assessment learning ecosystem:
+
+- scoped, versioned single-choice, true/false, and completion-choice question authoring;
+- fixed and question-pool practice, quiz, and mastery configurations;
+- immutable randomized attempt snapshots, server deadlines, attempt limits, and idempotency;
+- revision-aware autosave, validated temporary recovery, reconnection, and final confirmation;
+- transactional grading and immediate/after-close release without early score or key leaks;
+- answer review, explanations, evidence-preserving mistake reports, and spaced review;
+- informational integrity extension points that cannot silently penalize a student;
+- search entries for published questions/quizzes and review signals for the command center;
+- typed Focus context without coupling Focus internals to assessments;
+- achievement/ranking eligibility facts without implementing those Phase 7 domains.
+
+Important redesigns and reasons:
+
+| Redesign | Usability reason |
+|---|---|
+| Due-review command before the catalog | Answers what the student should review now instead of presenting a menu |
+| Dedicated attempt shell | Removes unrelated navigation and keeps timer/save/question state visible |
+| One question plus question map | Reduces cognitive load while retaining navigation and completion awareness |
+| Explicit submission dialog | Prevents accidental irreversible submission and announces unanswered items |
+| Delayed result receipt | Confirms safe submission without leaking conditions before everyone finishes |
+| Result-to-study actions | Continues Study -> Practice -> Review instead of ending at a score |
+
+See `PHASE_5_ASSESSMENTS.md` for invariants, security review, evidence, and limitations. Phase 6 is
+blocked until explicit owner approval.
