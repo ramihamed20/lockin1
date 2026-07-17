@@ -6,6 +6,7 @@ import { Button } from "../../components/Button";
 import { Alert, PageSkeleton } from "../../components/Feedback";
 import { FormField } from "../../components/FormField";
 import { useI18n } from "../../i18n/I18nProvider";
+import { ReportComposer } from "../community/components/ReportComposer";
 import { learningObject, saveLearningProgress, toggleBookmark } from "./api";
 import type { LearningObject, LearningProgress } from "./types";
 
@@ -83,7 +84,11 @@ export function LearningObjectPage() {
           <h1>{version.title}</h1>
           <p>{version.summary}</p>
         </div>
-        <Button variant="secondary" onClick={() => void bookmark()}>{content.is_bookmarked ? t("removeBookmark") : t("addBookmark")}</Button>
+        <div className="learning-object-header__actions">
+          <Link className="button button--secondary" to={`/community/context/learning_object/${content.id}?label=${encodeURIComponent(version.title)}`}>{t("communityDiscussContent")}</Link>
+          <Button variant="secondary" onClick={() => void bookmark()}>{content.is_bookmarked ? t("removeBookmark") : t("addBookmark")}</Button>
+          <ReportComposer targetType="learning_object" targetId={content.id} compact />
+        </div>
       </header>
 
       {failed ? <Alert>{t("learningPartialError")}</Alert> : null}

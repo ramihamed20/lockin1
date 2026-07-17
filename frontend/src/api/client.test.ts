@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, apiPath, apiRequest, getApiHealth, refreshCsrfToken } from "./client";
+import {
+  ApiError,
+  apiEndpointFromUrl,
+  apiPath,
+  apiRequest,
+  getApiHealth,
+  refreshCsrfToken
+} from "./client";
 
 describe("same-origin API client", () => {
   beforeEach(() => vi.stubGlobal("fetch", vi.fn()));
@@ -73,5 +80,13 @@ describe("same-origin API client", () => {
 
   it("rejects protocol-relative API paths", () => {
     expect(() => apiPath("//example.com/escape")).toThrow(/same-origin/i);
+  });
+
+  it("accepts only same-origin pagination links from the configured API", () => {
+    expect(apiEndpointFromUrl("http://localhost:3000/api/v1/community/discussions?cursor=next"))
+      .toBe("/community/discussions?cursor=next");
+    expect(() => apiEndpointFromUrl("https://example.com/api/v1/community/discussions"))
+      .toThrow(/origin/i);
+    expect(() => apiEndpointFromUrl("/unrelated?cursor=next")).toThrow(/configured API/i);
   });
 });

@@ -1,6 +1,6 @@
 # Lock-in Project Audit
 
-Status: Phase 0 baseline approved; rebuild remediation recorded through Phase 5
+Status: Phase 0 baseline approved; rebuild remediation recorded through Phase 6
 Audit date: 2026-07-15  
 Existing reference: `C:\Users\ramih\Desktop\Dentify-Before-Edits`  
 Rebuild destination: `C:\Users\ramih\Desktop\Dentify-Rebuild`
@@ -181,3 +181,22 @@ The selected Skills continued unchanged: `impeccable` guided the focused respons
 result journey, `design-system` constrained tokens/components, `security-best-practices` guided
 answer-key, ownership, CSRF, recovery, and PWA boundaries, and `playwright` validated real browser
 behavior. No new applicable Skill was discovered during Phase 5.
+
+## Phase 6 Rebuild Note
+
+Phase 6 addresses the audited unbounded community, weak report workflow, absent pagination, and
+scattered moderation risks. Community entries now require a valid learning context; creator spaces
+are invitation-only and context-bound; feeds use cursor pagination and query-budget regressions; and
+moderation owns evidence snapshots, assignment, conflict checks, reversible content actions, and an
+append-only audit history.
+
+The redesign deliberately omits standalone social posting and engagement mechanics. That keeps
+discussion attached to study, practice, results, or review and prevents the product from becoming a
+generic feed. Notifications remain an event-subscriber boundary for Phase 7 rather than a direct
+community dependency. Focus and AI boundaries remain unchanged, and the reference project remains
+untouched.
+
+The selected Skills continued unchanged: `impeccable` guided context-first responsive/RTL UX,
+`design-system` preserved the shared token hierarchy, `security-best-practices` guided evidence
+privacy, enumeration resistance, CSRF, safe text, and moderation fairness, and `playwright` validated
+desktop/mobile browser behavior. No new applicable Skill was discovered during Phase 6.

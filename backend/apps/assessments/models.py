@@ -396,6 +396,7 @@ class QuestionIssueReport(models.Model):
         AMBIGUOUS = "ambiguous", "Ambiguous wording"
         OUTDATED = "outdated", "Outdated content"
         TYPO = "typo", "Typographical error"
+        EXPLANATION = "explanation", "Incorrect explanation"
         OTHER = "other", "Other"
 
     class Status(models.TextChoices):

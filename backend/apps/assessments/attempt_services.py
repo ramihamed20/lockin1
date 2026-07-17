@@ -586,7 +586,7 @@ def create_question_issue_report(
             id=result_id,
             attempt__user=user,
         )
-        question = AttemptQuestion.objects.get(
+        question = AttemptQuestion.objects.select_related("question_version__question").get(
             id=attempt_question_id,
             attempt=result.attempt,
         )
@@ -607,6 +607,18 @@ def create_question_issue_report(
         attempt_question=question,
     ).first()
     if existing is not None:
+        from apps.moderation.services import ingest_assessment_report
+
+        ingest_assessment_report(
+            legacy_report_id=existing.id,
+            reporter=user,
+            question_id=question.question_version.question_id,
+            question_version_id=question.question_version_id,
+            question_owner_id=question.question_version.question.owner_id,
+            category=existing.category,
+            description=existing.details,
+            evidence=dict(existing.evidence_snapshot),
+        )
         return existing
     report = QuestionIssueReport.objects.create(
         reporter=user,
@@ -615,6 +627,18 @@ def create_question_issue_report(
         category=category,
         details=details.strip(),
         evidence_snapshot=evidence,
+    )
+    from apps.moderation.services import ingest_assessment_report
+
+    ingest_assessment_report(
+        legacy_report_id=report.id,
+        reporter=user,
+        question_id=question.question_version.question_id,
+        question_version_id=question.question_version_id,
+        question_owner_id=question.question_version.question.owner_id,
+        category=category,
+        description=report.details,
+        evidence=evidence,
     )
     publish_after_commit(
         AssessmentReportCreated(

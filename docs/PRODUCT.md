@@ -1,6 +1,6 @@
 # Lock-in Product Specification
 
-Status: Phase 1 specification; implementation recorded through Phase 5
+Status: Phase 1 specification; implementation recorded through Phase 6
 Product owner: Platform administrator
 Last updated: 2026-07-17
 
@@ -1155,5 +1155,32 @@ Important redesigns and reasons:
 | Delayed result receipt | Confirms safe submission without leaking conditions before everyone finishes |
 | Result-to-study actions | Continues Study -> Practice -> Review instead of ending at a score |
 
-See `PHASE_5_ASSESSMENTS.md` for invariants, security review, evidence, and limitations. Phase 6 is
-blocked until explicit owner approval.
+See `PHASE_5_ASSESSMENTS.md` for invariants, security review, evidence, and limitations.
+
+## Phase 6 Implementation Record
+
+Phase 6 realizes community as a contextual learning capability:
+
+- discussions anchored to discoverable lessons and published learning objects, questions, or quizzes;
+- one-level replies with revisions, idempotency, duplicate controls, tombstones, and cursor pagination;
+- private creator spaces bound to one learning context with invite, role, revocation, and history;
+- reports for community content, questions, answer keys, explanations, and learning objects;
+- immutable evidence, assignment, triage/investigation/final states, duplicate linking, and audit history;
+- reversible remove/restore and discussion lock/unlock actions under existing authorization rules;
+- typed after-commit events for later notifications without implementing a notification domain;
+- contextual entry points from lessons, learning objects, quizzes, and quiz result questions;
+- responsive, accessible English/Arabic community and moderation workflows.
+
+Important redesigns and reasons:
+
+| Redesign | Usability reason |
+|---|---|
+| No composer on the global community feed | Prevents context-free noise and asks the student to discuss something they are learning |
+| Discussion entry inside learning/result surfaces | Avoids leaving the study journey to search for a detached post |
+| One reply level | Keeps academic reasoning readable on phones and avoids deeply nested dead ends |
+| Separate evidence-based moderation workspace | Gives reviewers context and accountability without exposing evidence to students |
+| Creator spaces attached to one learning context | Makes private conversation useful for a lesson/object instead of creating another social feed |
+| No reactions in Phase 6 | Avoids optimizing engagement before a demonstrated learning signal and scalable projection exist |
+
+See `PHASE_6_COMMUNITY.md` for boundaries, invariants, validation, and explicit exclusions. Phase 7
+is blocked until explicit owner approval.

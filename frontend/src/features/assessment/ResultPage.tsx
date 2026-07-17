@@ -108,6 +108,7 @@ export function ResultPage() {
                 })}
               </ul>
               {question.explanation ? <p className="result-explanation"><strong>{t("explanationLabel")}</strong>{question.explanation}</p> : null}
+              <Link className="text-action" to={`/community/context/question/${question.question_id}?label=${encodeURIComponent(question.prompt)}`}>{t("communityDiscussQuestion")}</Link>
               {reportingId === question.id ? (
                 <form className="report-form" onSubmit={(event) => void submitReport(event)}>
                   <SelectField name="category" label={t("reportCategory")} defaultValue="ambiguous">
@@ -129,7 +130,7 @@ export function ResultPage() {
       </section>
       <footer className="result-next">
         <div><p className="eyebrow">{t("nextStudySession")}</p><h2>{t("continueLearningLoop")}</h2></div>
-        <div className="form-actions"><Link className="button button--secondary" to="/learn">{t("studyAction")}</Link><Link className="button button--primary" to="/assessments">{t("practiceAgain")}</Link></div>
+        <div className="form-actions"><Link className="button button--quiet" to={`/community/context/quiz/${result.quiz_id}?label=${encodeURIComponent(result.quiz_title)}`}>{t("communityDiscussResult")}</Link><Link className="button button--secondary" to="/learn">{t("studyAction")}</Link><Link className="button button--primary" to="/assessments">{t("practiceAgain")}</Link></div>
       </footer>
     </div>
   );

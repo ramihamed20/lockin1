@@ -1,8 +1,10 @@
 import { assessmentCatalogs } from "./assessmentCatalogs";
+import { communityCatalogs } from "./communityCatalogs";
 
 export const catalogs = {
   en: {
     ...assessmentCatalogs.en,
+    ...communityCatalogs.en,
     skip: "Skip to content",
     brandHome: "Lock-in home",
     language: "العربية",
@@ -261,6 +263,7 @@ export const catalogs = {
   },
   ar: {
     ...assessmentCatalogs.ar,
+    ...communityCatalogs.ar,
     skip: "انتقل إلى المحتوى",
     brandHome: "صفحة Lock-in الرئيسية",
     language: "English",

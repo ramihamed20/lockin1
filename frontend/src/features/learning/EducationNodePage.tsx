@@ -74,7 +74,10 @@ export function EducationNodePage() {
       {detail.node.kind === "lesson" ? (
         <div className="lesson-completion">
           <div><strong>{lessonComplete ? t("lessonCompleted") : t("finishLesson")}</strong><span>{t("finishLessonCopy")}</span></div>
-          <Button variant={lessonComplete ? "secondary" : "primary"} disabled={lessonComplete} onClick={() => void markLessonComplete()}>{lessonComplete ? t("completed") : t("markComplete")}</Button>
+          <div className="form-actions">
+            <Link className="button button--secondary" to={`/community/context/lesson/${detail.node.id}?label=${encodeURIComponent(detail.node.title)}`}>{t("communityDiscussLesson")}</Link>
+            <Button variant={lessonComplete ? "secondary" : "primary"} disabled={lessonComplete} onClick={() => void markLessonComplete()}>{lessonComplete ? t("completed") : t("markComplete")}</Button>
+          </div>
         </div>
       ) : null}
 

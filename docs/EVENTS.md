@@ -47,9 +47,14 @@ request bodies, or unrestricted personal data.
 | `quiz.attempt.autosaved` | Assessments | Implemented after committed answer revision |
 | `quiz.attempt.submitted` | Assessments | Implemented; result plus eligibility facts |
 | `assessment.report.created` | Assessments | Implemented; report/result/question/category identifiers |
+| `community.discussion.created` | Community | Implemented; discussion author/context/space identifiers |
+| `community.reply.created` | Community | Implemented; reply/parent/discussion/context identifiers |
+| `community.content.changed` | Community | Implemented; edit/delete/moderation action identifiers |
+| `community.space.membership.changed` | Community | Implemented; space/user/action/role identifiers |
 | `rankings.achievement_earned` | Rankings | Reserved contract; not coded yet |
 | `subscriptions.subscription_activated` | Subscriptions | Reserved contract; not coded yet |
-| `moderation.report_created` | Moderation | Reserved contract; not coded yet |
+| `moderation.report.created` | Moderation | Implemented; report/target/reason identifiers |
+| `moderation.action.recorded` | Moderation | Implemented; audit/action/target and conflict identifiers |
 | `content.content_published` | Content | Implemented; includes object/version/node/type after committed publication |
 
 Remaining reserved events are documented instead of placed in a central fake code catalog. A domain
@@ -57,6 +62,11 @@ defines its event only when it implements the authoritative state change. Public
 completion became real in Phase 4. Question, quiz, attempt, and report events became real in Phase 5
 and have domain-owned classes and contract/transaction tests. Assessment events contain no answer
 key, explanation, option text, session token, or unrestricted metadata.
+
+Community and moderation events became real in Phase 6. They contain identifiers and bounded action
+or reason facts; immutable evidence remains inside the permission-protected moderation record. No
+notification subscriber or delivery channel exists yet. Phase 7 may subscribe through an integration
+module without adding a community-to-notification dependency.
 
 ## Transaction behavior
 

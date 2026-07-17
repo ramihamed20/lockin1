@@ -73,6 +73,7 @@ export type Attempt = {
 
 export type AssessmentResultQuestion = {
   id: string;
+  question_id: string;
   position: number;
   prompt: string;
   question_type: AttemptQuestion["question_type"];
@@ -88,6 +89,7 @@ export type AssessmentResultQuestion = {
 export type AssessmentResult = {
   id: string;
   attempt_id: string;
+  quiz_id: string;
   quiz_title: string;
   mode: AssessmentMode;
   attempt_status: "submitted" | "expired";

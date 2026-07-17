@@ -1,7 +1,7 @@
 # Lock-in Design System
 
-Last updated: 2026-07-15
-Status: Phase 3 implemented baseline
+Last updated: 2026-07-17
+Status: Design-system implementation recorded through Phase 6
 
 ## Product scene
 
@@ -149,3 +149,32 @@ controls, managed dialog focus, live save/timer announcements, reduced-motion fa
 semantic heading hierarchy. Desktop Chrome and Pixel 7 Playwright flows passed Axe and horizontal
 overflow checks, including Arabic RTL. The production assessment routes remain split; the measured
 main bundle is 96.41 KB gzip and CSS is 8.51 KB gzip.
+
+## Phase 6 Contextual Community Experience
+
+The community uses the same learning hierarchy and token system rather than a social-media visual
+language. The global feed is for finding active learning conversations; it intentionally omits a
+composer. Creation appears only after the student enters a lesson, learning object, question, or
+quiz context. This turns “post something” into “ask about what I am studying.”
+
+Discussion detail is a restrained reading surface with author/context provenance, one reply level,
+clear revision/tombstone states, and reporting close to the content. Creator spaces display the
+learning context and membership boundary before conversation. Moderation separates queue controls
+from immutable evidence and audit history so decisions stay reviewable without crowding the student
+experience.
+
+### Phase 6 material redesigns
+
+| Redesign | Usability reason |
+|---|---|
+| Generic community composer -> contextual composer | Reduces irrelevant posts and keeps the student inside the learning journey |
+| Deep comment tree -> one reply level | Preserves readable reasoning and touch targets on phones |
+| Social popularity cues -> learning-context provenance | Helps students judge relevance without optimizing attention capture |
+| Scattered report dialogs -> evidence-based moderation workspace | Gives authorized reviewers consistent context, status, and audit history |
+| Global private groups -> context-bound creator spaces | Makes purpose and authority understandable before a student participates |
+
+Community pages use semantic sections/lists, a single main landmark, labeled native controls, live
+status/errors, confirmation for destructive actions, logical CSS properties, visible focus, contrast
+and reduced-motion support. Desktop Chrome and Pixel 7 flows passed Axe, Arabic RTL, and horizontal
+overflow checks. Routes remain split; the production main bundle is 100.36 KB gzip and CSS is 9.96
+KB gzip.

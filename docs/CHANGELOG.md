@@ -2,6 +2,53 @@
 
 All notable rebuild changes are documented here.
 
+## 2026-07-17 - Phase 6
+
+### Added
+
+- Contextual public discussions for lessons, learning objects, questions, and quizzes.
+- One-level replies, revisions, idempotency, duplicate/rate controls, soft-delete tombstones, and
+  stable cursor pagination.
+- Context-bound private creator spaces with email invitations, member/moderator roles, revocation,
+  and append-only membership history.
+- Central moderation reports for discussions, comments, questions, answer keys, explanations, and
+  learning objects with immutable evidence snapshots.
+- Server-authoritative assignment, triage/investigation/final transitions, duplicate linking,
+  conflict-of-interest checks, reversible content actions, and append-only audit history.
+- Backward-compatible assessment issue-report ingestion into the moderation domain.
+- Typed after-commit community and moderation events for later notification subscribers.
+- Contextual community entry points in lesson, learning-object, quiz, result, and result-question UI.
+- Responsive English/Arabic community, discussion, creator-space, and moderation routes.
+- `PHASE_6_COMMUNITY.md` with boundaries, security/fairness invariants, evidence, and exclusions.
+
+### Fixed
+
+- Prevented global moderators from seeing private creator-space report evidence without space scope.
+- Prevented member-invite user lookup before space-management authorization, avoiding enumeration.
+- Made reports and community revision/history records read-only in Django Admin so staff cannot
+  bypass domain revisions, immutable evidence, or audit history.
+- Removed nested main landmarks from community pages and preserved an accessible single-page main.
+- Cached role facts during moderation serialization and preloaded relations to prevent feed N+1s.
+- Kept API cursor links same-origin before the frontend follows them.
+
+### Validated
+
+- Backend: Ruff format/check, strict mypy (176 files), migrations, Django check, and 119 tests passed.
+- Backend branch-aware coverage: 85.62%, above the required 85% gate.
+- Frontend: ESLint, TypeScript, 106 tests, and production PWA build passed.
+- Frontend coverage: 89.71% statements, 80.07% branches, 86.40% functions, 93.72% lines.
+- Browser: 19 passed and 1 intentional desktop skip across Desktop Chrome and Pixel 7; Phase 6
+  community/discussion/moderation flows passed Axe, Arabic RTL, and overflow checks.
+- PWA: 32 static precache entries, no API runtime cache; main JS 100.36 KB gzip, CSS 9.96 KB gzip.
+
+### Not Added
+
+- No generic posts, reactions, followers, direct messages, popularity feed, or study groups.
+- No notification center/delivery, achievements, rankings, subscriptions, or payments.
+- No Focus renderer/annotation implementation and no AI provider/feature.
+- No Redis, Celery, WebSockets, broker, microservice, or background worker.
+- No PostgreSQL concurrency/load claim; local functional validation used explicit SQLite fallback.
+
 ## 2026-07-17 - Phase 5
 
 ### Added

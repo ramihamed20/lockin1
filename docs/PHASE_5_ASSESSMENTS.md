@@ -95,4 +95,5 @@ version. The implementation is replaceable later, but current behavior is explai
 
 ## Stop Condition
 
-Phase 5 is complete and awaiting owner review. Do not begin Phase 6 without explicit approval.
+Phase 5 was approved by the owner. Phase 6 implementation and evidence are recorded separately in
+`PHASE_6_COMMUNITY.md`.

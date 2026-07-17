@@ -102,6 +102,7 @@ const attempt: Attempt = {
 const releasedResult: AssessmentResult = {
   id: "40000000-0000-4000-8000-000000000001",
   attempt_id: attempt.id,
+  quiz_id: quiz.id,
   quiz_title: quiz.version.title,
   mode: "practice",
   attempt_status: "submitted",
@@ -116,6 +117,7 @@ const releasedResult: AssessmentResult = {
   submitted_at: "2026-07-17T10:02:00Z",
   questions: [{
     id: attempt.questions[0]!.id,
+    question_id: "22000000-0000-4000-8000-000000000001",
     position: 1,
     prompt: attempt.questions[0]!.prompt,
     question_type: "single_choice",

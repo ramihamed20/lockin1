@@ -26,6 +26,17 @@ export function apiPath(path: string): string {
   return `${apiBaseUrl}${path}`;
 }
 
+export function apiEndpointFromUrl(url: string): string {
+  const parsed = new URL(url, window.location.origin);
+  if (parsed.origin !== window.location.origin) {
+    throw new Error("Pagination links must remain on the Lock-in origin.");
+  }
+  if (parsed.pathname !== apiBaseUrl && !parsed.pathname.startsWith(`${apiBaseUrl}/`)) {
+    throw new Error("Pagination link does not belong to the configured API.");
+  }
+  return `${parsed.pathname.slice(apiBaseUrl.length) || "/"}${parsed.search}`;
+}
+
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;

@@ -100,6 +100,7 @@ export function QuizOverviewPage() {
         <Button type="submit" fullWidth disabled={pending}>
           {pending ? t("startingAttempt") : reviewOnly ? t("startDueReview") : t("startAssessment")}
         </Button>
+        <Link className="text-action" to={`/community/context/quiz/${item.id}?label=${encodeURIComponent(version.title)}`}>{t("communityDiscussQuiz")}</Link>
       </form>
     </div>
   );

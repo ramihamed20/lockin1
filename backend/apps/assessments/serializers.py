@@ -320,6 +320,7 @@ class AttemptSubmitSerializer(StrictSerializer):
 
 
 class ResultQuestionSerializer(serializers.ModelSerializer[AttemptQuestion]):
+    question_id = serializers.UUIDField(source="question_version.question_id", read_only=True)
     selected_option_ids = serializers.SerializerMethodField()
     correct = serializers.SerializerMethodField()
 
@@ -327,6 +328,7 @@ class ResultQuestionSerializer(serializers.ModelSerializer[AttemptQuestion]):
         model = AttemptQuestion
         fields = (
             "id",
+            "question_id",
             "position",
             "prompt",
             "question_type",
@@ -355,12 +357,14 @@ class AttemptResultSerializer(serializers.ModelSerializer[AttemptResult]):
     quiz_title = serializers.CharField(source="attempt.quiz_version.title", read_only=True)
     mode = serializers.CharField(source="attempt.quiz_version.mode", read_only=True)
     attempt_status = serializers.CharField(source="attempt.status", read_only=True)
+    quiz_id = serializers.UUIDField(source="attempt.quiz_id", read_only=True)
 
     class Meta:
         model = AttemptResult
         fields = (
             "id",
             "attempt_id",
+            "quiz_id",
             "quiz_title",
             "mode",
             "attempt_status",

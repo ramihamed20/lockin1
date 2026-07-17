@@ -15,6 +15,8 @@ const icons = {
   studio: "M4 4h16v12H8l-4 4Zm4 4h8M8 12h5",
   hierarchy: "M12 4v5M6 20v-5h12v5M6 15v-3h12v3M12 9v3",
   assessment: "M7 3h10v3H7zM5 6h14v15H5zM8 11l2 2 3-4M8 17h8"
+  ,community: "M4 5h16v11H9l-5 4Zm4 4h8m-8 3h5"
+  ,moderation: "M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6zM9 12l2 2 4-5"
 };
 
 function Icon({ path }: { path: string }) {
@@ -32,15 +34,20 @@ export function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false);
   const isAdmin = user?.roles.includes("administrator") ?? false;
   const isCreator = isAdmin || (user?.roles.includes("creator") ?? false);
+  const canModerate = isCreator || (user?.roles.includes("moderator") ?? false);
   const navItems = [
     { to: "/", label: t("navDashboard"), icon: icons.dashboard, end: true },
     { to: "/learn", label: t("navLearn"), icon: icons.learn },
     { to: "/assessments", label: t("navAssessments"), icon: icons.assessment },
+    { to: "/community", label: t("navCommunity"), icon: icons.community },
     { to: "/profile", label: t("navProfile"), icon: icons.profile },
     { to: "/security", label: t("navSecurity"), icon: icons.security },
     ...(isCreator ? [
       { to: "/management/content", label: t("navContentStudio"), icon: icons.studio },
       { to: "/management/assessments", label: t("navAssessmentStudio"), icon: icons.assessment }
+    ] : []),
+    ...(canModerate ? [
+      { to: "/moderation", label: t("navModeration"), icon: icons.moderation }
     ] : []),
     ...(isAdmin ? [
       { to: "/admin/education", label: t("navEducationAdmin"), icon: icons.hierarchy },
@@ -88,7 +95,7 @@ export function AppShell() {
         <Outlet />
       </main>
       <nav className="mobile-nav" aria-label={t("mobileNavigation")}>
-        {navItems.slice(0, 3).map((item) => (
+        {navItems.slice(0, 4).map((item) => (
           <NavLink key={item.to} to={item.to} end={item.end ?? false}>
             <Icon path={item.icon} />
             <span>{item.label}</span>

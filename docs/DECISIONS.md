@@ -60,6 +60,12 @@ This file records decisions that change product behavior, architecture, maintena
 | D-050 | Spaced review is deterministic, logged, and replaceable | Approved Phase 5 implementation |
 | D-051 | Achievements/rankings receive eligibility facts only in Phase 5 | Phase-boundary decision |
 | D-052 | Assessment connects to Focus through context, not ownership | Reconfirms standalone Focus boundary |
+| D-053 | Community discussions require a valid learning context | Approved Phase 6 product implementation |
+| D-054 | Creator spaces are private and bound to one learning context | Approved Phase 6 implementation |
+| D-055 | Moderation owns evidence, workflow, fairness, and audit history | Approved Phase 6 architecture |
+| D-056 | Community notifications consume events; no direct dependency | Approved Phase 6 boundary |
+| D-057 | Use cursor feeds, aligned indexes, and query-budget regressions | Approved Phase 6 scale posture |
+| D-058 | Keep social engagement mechanics outside Phase 6 | Product-focus and phase decision |
 
 ## D-001 — Product Identity
 
@@ -502,3 +508,68 @@ study product.
 
 **Consequence:** No speculative leaderboard, achievement, Focus session ownership, broker, or AI
 dependency was introduced.
+
+## D-053 — Contextual Community Only
+
+**Decision:** A discussion must reference a discoverable lesson or a published learning object,
+question, or quiz. The public feed cannot create a context-free post.
+
+**Reason:** Community exists to continue a learning task, not to maximize general engagement.
+
+**Consequence:** New learning content types integrate through the context resolver. A generic social
+feed, follower graph, and standalone status model are not part of the product contract.
+
+## D-054 — Context-Bound Creator Spaces
+
+**Decision:** Creator spaces are invitation-only, owned by an authorized creator/administrator, and
+bound to exactly one learning context with explicit member/moderator records.
+
+**Reason:** Private discussion is useful when its academic purpose and authority are visible.
+
+**Consequence:** Membership revocation is immediate and historical changes remain append-only. A
+space cannot become an unscoped private social group without an intentional future decision.
+
+## D-055 — Moderation as a Separate Evidence Domain
+
+**Decision:** `apps.moderation` owns report evidence snapshots, rate/idempotency controls, assignment,
+workflow transitions, conflict-of-interest checks, duplicates, and append-only audit entries.
+
+**Reason:** Scattering report status and moderator actions through community, assessment, and content
+would weaken fairness, privacy, and long-term maintainability.
+
+**Consequence:** Assessment's existing issue-report API remains compatible but creates the central
+moderation record transactionally. Only community targets permit reversible content actions; other
+domains keep ownership of their content lifecycle.
+
+## D-056 — Event-Driven Notifications Boundary
+
+**Decision:** Community and moderation publish small typed after-commit events. They never import or
+write a notification domain directly.
+
+**Reason:** Replies, mentions, reports, and moderator decisions need future notifications without
+tightly coupling domain state or adding speculative delivery infrastructure.
+
+**Consequence:** Phase 7 may add subscribers and user-visible notification state. The current bus
+remains synchronous, in-process, and best-effort until a real durability requirement is approved.
+
+## D-057 — Database-First Feed Scale
+
+**Decision:** Use stable cursor pagination, query-specific indexes, relation preloading, request role
+fact caching, and query-budget regression tests for community/moderation collections.
+
+**Reason:** The projected data volume does not by itself justify a cache, broker, or microservice,
+but it does justify bounded and measurable database access now.
+
+**Consequence:** PostgreSQL concurrency and representative load remain production evidence gates.
+Redis, Celery, WebSockets, brokers, and microservices were not added.
+
+## D-058 — No Engagement Mechanics Without Learning Value
+
+**Decision:** Reactions, popularity ranking, followers, direct messages, and study groups are outside
+Phase 6. One reply level is the current discussion structure.
+
+**Reason:** These features add noise, abuse surface, projection cost, and moderation complexity before
+there is evidence that they improve learning.
+
+**Consequence:** A later proposal must identify the learning outcome, fairness/moderation contract,
+scale model, accessibility behavior, and phase approval before implementation.

@@ -1,6 +1,6 @@
 # Lock-in Architecture
 
-Status: Approved modular-monolith direction; implementation recorded through Phase 5
+Status: Approved modular-monolith direction; implementation recorded through Phase 6
 Last updated: 2026-07-17
 
 ## Goals
@@ -518,3 +518,55 @@ High-cardinality attempt, answer, review, and report lookups have ownership/stat
 indexes and paginated APIs. Public quiz query counts are regression tested. PostgreSQL concurrency
 and representative load still require evidence. No Redis, Celery, broker, WebSocket, microservice,
 or AI runtime was added.
+
+## Phase 6 Realized Community and Moderation Architecture
+
+### Context boundary
+
+`apps.community` accepts only a typed `lesson`, `learning_object`, `question`, or `quiz` context.
+Resolution verifies discoverability/publication and stores a stable title/route snapshot on the
+discussion or private space. Community never owns education, content, question, quiz, or Focus
+models and does not expose a generic standalone-post path.
+
+### Discussion and creator-space boundary
+
+Discussions and one-level comments use UUID idempotency keys, normalized duplicate digests,
+optimistic revisions, status-consistent tombstones, database-backed rate buckets, and append-only
+revisions. Creator spaces are private context-bound scopes with explicit member/moderator roles,
+immediate revocation, and append-only membership history. Existing account roles remain additive;
+space policy does not duplicate the platform authorization model.
+
+### Moderation boundary
+
+`apps.moderation` is a separate domain. A report stores target identity/version/author/context plus
+an immutable evidence snapshot. The workflow owns rate limiting, duplicate suppression, assignment,
+triage, investigation, final states, optimistic conflicts, conflict-of-interest checks, and audit
+entries. Content mutation is requested through the community service only for community targets;
+question/content reports remain evidence-only until their owning workflow acts.
+
+Private-space visibility is explicit: a platform moderator is not automatically a private-space
+moderator. Serializers cache already-evaluated role facts on the request user and selectors preload
+related users, preventing role and author N+1 queries while preserving policy checks.
+
+### Phase 6 request/data flow
+
+```text
+Learning surface -> contextual community API -> community service -> PostgreSQL state/revision
+                                                       |
+                                                       +-> after-commit community event
+
+Report action -> moderation API -> immutable evidence + workflow/audit -> PostgreSQL
+                                                       |
+                                                       +-> after-commit moderation event
+```
+
+Notifications are not called directly. A later notification integration may subscribe after commit.
+Cursor pagination and indexes align with context/space activity, author/status, duplicate digests,
+membership scopes, report status/priority, assignment, targets, reporters, and private spaces.
+
+### Preserved boundaries and infrastructure delta
+
+Focus remains an independent product; community stores only a learning-context reference. AI remains
+provider-free and unimplemented. No Redis, Celery, WebSocket, broker, microservice, background worker,
+or new frontend runtime dependency was added. PostgreSQL concurrency/load evidence remains a later
+production gate.

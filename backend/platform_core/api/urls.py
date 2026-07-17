@@ -15,4 +15,6 @@ urlpatterns = [
     path("", include("apps.progress.urls")),
     path("", include("apps.questions.urls")),
     path("", include("apps.assessments.urls")),
+    path("", include("apps.community.urls")),
+    path("", include("apps.moderation.urls")),
 ]

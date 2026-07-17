@@ -30,6 +30,10 @@ const QuizOverviewPage = lazy(() => import("../features/assessment/QuizOverviewP
 const AttemptPage = lazy(() => import("../features/assessment/AttemptPage").then((module) => ({ default: module.AttemptPage })));
 const ResultPage = lazy(() => import("../features/assessment/ResultPage").then((module) => ({ default: module.ResultPage })));
 const AssessmentStudioPage = lazy(() => import("../features/assessment/management/AssessmentStudioPage").then((module) => ({ default: module.AssessmentStudioPage })));
+const CommunityPage = lazy(() => import("../features/community/CommunityPage").then((module) => ({ default: module.CommunityPage })));
+const DiscussionPage = lazy(() => import("../features/community/DiscussionPage").then((module) => ({ default: module.DiscussionPage })));
+const SpacePage = lazy(() => import("../features/community/SpacePage").then((module) => ({ default: module.SpacePage })));
+const ModerationPage = lazy(() => import("../features/community/ModerationPage").then((module) => ({ default: module.ModerationPage })));
 
 function ProtectedRoute() {
   const { status } = useAuth();
@@ -48,6 +52,13 @@ function AdministratorRoute() {
 function CreatorRoute() {
   const { user } = useAuth();
   return user?.roles.some((role) => role === "creator" || role === "administrator") ? <Outlet /> : <Navigate to="/" replace />;
+}
+
+function CommunityModeratorRoute() {
+  const { user } = useAuth();
+  return user?.roles.some((role) => ["creator", "moderator", "administrator"].includes(role))
+    ? <Outlet />
+    : <Navigate to="/community" replace />;
 }
 
 function NotFoundPage() {
@@ -82,11 +93,18 @@ export function App() {
             <Route path="assessments" element={<AssessmentHomePage />} />
             <Route path="assessments/quizzes/:quizId" element={<QuizOverviewPage />} />
             <Route path="assessments/results/:resultId" element={<ResultPage />} />
+            <Route path="community" element={<CommunityPage />} />
+            <Route path="community/context/:contextType/:contextId" element={<CommunityPage />} />
+            <Route path="community/discussions/:discussionId" element={<DiscussionPage />} />
+            <Route path="community/spaces/:spaceId" element={<SpacePage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="security" element={<SecurityPage />} />
             <Route element={<CreatorRoute />}>
               <Route path="management/content" element={<ContentStudioPage />} />
               <Route path="management/assessments" element={<AssessmentStudioPage />} />
+            </Route>
+            <Route element={<CommunityModeratorRoute />}>
+              <Route path="moderation" element={<ModerationPage />} />
             </Route>
             <Route element={<AdministratorRoute />}>
               <Route path="admin/people" element={<PeoplePage />} />
