@@ -1,25 +1,14 @@
-from collections.abc import Mapping
-from typing import Any, cast
+from typing import Any
 
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
+from platform_core.api.serializers import StrictSerializer
+
 from .models import AccountSession, User
 from .roles import MANAGED_ROLES, Role, get_user_roles
 from .services import normalize_email
-
-
-class StrictSerializer(serializers.Serializer[Any]):
-    def to_internal_value(self, data: Any) -> dict[str, Any]:
-        if isinstance(data, Mapping):
-            allowed = set(self.fields)
-            unknown = sorted(set(data) - allowed)
-            if unknown:
-                raise serializers.ValidationError(
-                    {"non_field_errors": [f"Unknown field: {name}" for name in unknown]}
-                )
-        return cast(dict[str, Any], super().to_internal_value(data))
 
 
 def _validate_new_password(password: str, *, user: User | None = None) -> str:

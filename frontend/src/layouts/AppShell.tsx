@@ -8,9 +8,12 @@ import { useI18n } from "../i18n/I18nProvider";
 
 const icons = {
   dashboard: "M5 5h6v6H5zM15 5h4v10h-4zM5 15h6v4H5zM15 19v-2h4v2",
+  learn: "M4 5.5A3.5 3.5 0 0 1 7.5 2H11v17H7.5A3.5 3.5 0 0 0 4 22ZM20 5.5A3.5 3.5 0 0 0 16.5 2H13v17h3.5A3.5 3.5 0 0 1 20 22Z",
   profile: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21c0-4 3-6 8-6s8 2 8 6",
   security: "M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6zM9 12l2 2 4-5",
-  people: "M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8-1a2.5 2.5 0 1 0 0-5M2 20c0-4 2-6 6-6s6 2 6 6m1-6c4 0 6 2 6 6"
+  people: "M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8-1a2.5 2.5 0 1 0 0-5M2 20c0-4 2-6 6-6s6 2 6 6m1-6c4 0 6 2 6 6",
+  studio: "M4 4h16v12H8l-4 4Zm4 4h8M8 12h5",
+  hierarchy: "M12 4v5M6 20v-5h12v5M6 15v-3h12v3M12 9v3"
 };
 
 function Icon({ path }: { path: string }) {
@@ -27,11 +30,17 @@ export function AppShell() {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const isAdmin = user?.roles.includes("administrator") ?? false;
+  const isCreator = isAdmin || (user?.roles.includes("creator") ?? false);
   const navItems = [
     { to: "/", label: t("navDashboard"), icon: icons.dashboard, end: true },
+    { to: "/learn", label: t("navLearn"), icon: icons.learn },
     { to: "/profile", label: t("navProfile"), icon: icons.profile },
     { to: "/security", label: t("navSecurity"), icon: icons.security },
-    ...(isAdmin ? [{ to: "/admin/people", label: t("navAdmin"), icon: icons.people }] : [])
+    ...(isCreator ? [{ to: "/management/content", label: t("navContentStudio"), icon: icons.studio }] : []),
+    ...(isAdmin ? [
+      { to: "/admin/education", label: t("navEducationAdmin"), icon: icons.hierarchy },
+      { to: "/admin/people", label: t("navAdmin"), icon: icons.people }
+    ] : [])
   ];
 
   return (

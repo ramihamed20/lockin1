@@ -192,3 +192,19 @@ contact filtering, and finger-panning rules, but product copy must never claim p
 
 Focus Mode is not complete until these measured behaviors exist. Phase 2 only makes them possible
 without forcing a later architectural rewrite.
+
+## Phase 4 Content Integration
+
+Phase 4 now provides the authoritative referential boundary that Phase 2 intentionally deferred:
+stable learning-object UUID, immutable document-version UUID, private managed file, academic node,
+publication policy, and a serialized `focus_context` containing the study context and exact version.
+
+This does not turn the learning-object page into Focus Mode. The Phase 4 PDF surface is a simple
+permission-mediated study fallback with progress/bookmark controls. It does not claim page
+virtualization, annotations, stylus behavior, gestures, thumbnails, autosave, offline recovery, or
+professional Focus performance.
+
+When Focus implementation is approved, its workspace may resolve the context through public content
+selectors, request the private version asset through the file policy, and store annotations against
+that immutable version. Renderer, annotation engine, tools, gestures, autosave, recovery, keyboard,
+and mobile adaptation remain independently testable Focus subsystems.

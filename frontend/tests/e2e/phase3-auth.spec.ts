@@ -24,8 +24,10 @@ test.beforeEach(async ({ page }) => {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ user }) });
     } else if (path.endsWith("/auth/session")) {
       await route.fulfill({ status: authenticated ? 200 : 403, contentType: "application/json", body: JSON.stringify(authenticated ? { user } : { error: { code: "not_authenticated", message: "Authentication required." } }) });
-    } else if (path.endsWith("/dashboard")) {
+    } else if (path === "/api/v1/dashboard") {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ roles: ["student"], account: { email_verified: true, active_sessions: 1, preferred_language: "en" }, workspaces: [] }) });
+    } else if (path === "/api/v1/learning/dashboard") {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ next_item: null, bookmark_count: 0, completed_count: 0, recent_content: [], review_due: [] }) });
     } else if (path.endsWith("/auth/register")) {
       await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ status: "verification_required" }) });
     } else {
@@ -40,8 +42,8 @@ test("sign-in reaches a truthful, accessible student overview", async ({ page },
   await page.getByLabel("Password").fill("secure-password-2026");
   await page.getByRole("button", { name: "Log in" }).click();
 
-  await expect(page.getByRole("heading", { name: "Your Lock-in overview" })).toBeVisible();
-  await expect(page.getByText("Your student workspace is ready. Creator and moderator tools appear only when assigned.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Good to see you, Rami" })).toBeVisible();
+  await expect(page.getByText("Your next study action, progress, and review signals in one calm place.")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);

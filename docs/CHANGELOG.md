@@ -2,6 +2,42 @@
 
 All notable rebuild changes are documented here.
 
+## 2026-07-17 — Phase 4
+
+### Added
+
+- Generic institution-to-lesson academic tree with materialized paths, lifecycle, move protection,
+  and subtree-scoped creator capabilities.
+- Stable learning objects, immutable versions/assets, review/publication/archive, owner transfer,
+  scheduled availability, and stable last-published delivery during later drafts.
+- Private managed PDF/audio upload, MIME/signature/size validation, SHA-256 digest, explicit scan
+  status, Range delivery, and per-version download policy.
+- Rebuildable Unicode-normalized search projection with resource/content filters and pagination.
+- Bookmarks, version-aware progress, lesson completion, resume list, and deterministic next-study
+  dashboard projection.
+- Student Learn/path/object routes, creator Content Studio, administrator Learning Structure, and a
+  next-action command-center dashboard in English/Arabic responsive UI.
+- Real `content.content_published` and `education.lesson_completed` after-commit domain events.
+- `PHASE_4_EDUCATION_CONTENT.md`, query-count regression test, expanded unit/API suites, and Phase 4
+  desktop/mobile browser flows.
+
+### Validated
+
+- Backend: Ruff, strict mypy, Django checks, migrations, and 71 tests at 85.75% coverage.
+- Frontend: ESLint, TypeScript, 55 tests at 91.35% statements/82.04% branches, and PWA build.
+- Playwright: 9 passed and 1 intentional device skip; Axe and no-horizontal-overflow assertions
+  passed on Desktop Chrome and Pixel 7.
+- Static-only PWA cache: 18 entries, no API runtime cache; main JavaScript 91.34 KB gzip.
+- Phase 4 npm installation audit reported zero vulnerabilities.
+
+### Not Added
+
+- No quiz, flashcard, review scheduling, community, ranking, achievement, subscription, or payment.
+- No full Focus PDF renderer, annotation engine, toolbar, gesture, autosave, or storage feature.
+- No AI provider, AI endpoint, vector database, or AI-generated recommendation.
+- No Redis, Celery, WebSocket, broker, microservice, or speculative worker.
+- No local PostgreSQL/load-test claim; the workstation used the explicit SQLite test fallback.
+
 ## 2026-07-15 — Phase 3
 
 ### Added

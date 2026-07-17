@@ -21,6 +21,11 @@ if (!/^\/(?!\/)/.test(configuredBaseUrl)) {
 const apiBaseUrl = configuredBaseUrl.replace(/\/$/, "");
 let csrfToken: string | null = null;
 
+export function apiPath(path: string): string {
+  if (!/^\/(?!\/)/.test(path)) throw new Error("API paths must be same-origin absolute API paths.");
+  return `${apiBaseUrl}${path}`;
+}
+
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
@@ -69,7 +74,9 @@ export async function apiRequest<T>(
   headers.set("Accept", "application/json");
   let body: BodyInit | undefined;
 
-  if (requestBody !== undefined) {
+  if (requestBody instanceof FormData) {
+    body = requestBody;
+  } else if (requestBody !== undefined) {
     headers.set("Content-Type", "application/json");
     body = JSON.stringify(requestBody);
   }
@@ -86,7 +93,7 @@ export async function apiRequest<T>(
   };
   if (body !== undefined) request.body = body;
 
-  const response = await fetch(`${apiBaseUrl}${path}`, request);
+  const response = await fetch(apiPath(path), request);
   if (!response.ok) {
     let payload: ApiErrorPayload = {};
     if ((response.headers.get("content-type") ?? "").includes("application/json")) {

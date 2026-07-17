@@ -1,16 +1,17 @@
 # Lock-in AI Extension Points
 
-Last updated: 2026-07-15
+Last updated: 2026-07-17
 
-## Phase 3 Status
+## Phase 4 Status
 
-No AI package, provider, prompt, model, AI endpoint, or generated recommendation was added. The
-new account events and permission-filtered selectors may become future inputs, but security records,
-roles, verification, and dashboard truth remain deterministic and authoritative without AI.
+No AI package, provider, prompt, model, AI endpoint, vector store, embedding, or generated
+recommendation was added. Phase 4 adds permission-filtered academic/content/search/progress selectors
+and publication/completion events that may become future inputs. The dashboard remains deterministic
+and works without AI.
 
 ## Current policy
 
-Phase 2 is AI-free. There is no model provider, prompt framework, vector database, embedding job,
+The current product is AI-free. There is no model provider, prompt framework, vector database, embedding job,
 AI SDK, AI-generated product decision, or hidden external data transfer.
 
 Lock-in is AI-ready through ordinary clean architecture, not through speculative infrastructure.
@@ -61,8 +62,11 @@ Before the first AI feature is implemented, its phase must document:
 ## Current extension points
 
 - Stable UUID public/domain identifiers.
-- Versioned content and question direction in the architecture.
+- Implemented immutable learning-object versions and private file permission boundaries.
+- Implemented generic published academic hierarchy and rebuildable search projection.
+- Implemented permission-filtered progress/dashboard selectors.
 - Focus session events and summary selector.
+- Content-publication and lesson-completion after-commit events.
 - Internal after-commit event bus.
 - Same-origin versioned API and OpenAPI schema.
 - Domain-owned services/selectors instead of cross-module model access.

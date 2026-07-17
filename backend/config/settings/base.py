@@ -19,6 +19,11 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "apps.accounts.apps.AccountsConfig",
     "apps.focus.apps.FocusConfig",
+    "apps.discovery.apps.DiscoveryConfig",
+    "apps.education.apps.EducationConfig",
+    "apps.files.apps.FilesConfig",
+    "apps.content.apps.ContentConfig",
+    "apps.progress.apps.ProgressConfig",
 ]
 
 MIDDLEWARE = [
@@ -96,7 +101,12 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_URL = "/unserved-media/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+CONTENT_MAX_PDF_BYTES = env_int("CONTENT_MAX_PDF_BYTES", 50 * 1024 * 1024)
+CONTENT_MAX_AUDIO_BYTES = env_int("CONTENT_MAX_AUDIO_BYTES", 100 * 1024 * 1024)
 
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"

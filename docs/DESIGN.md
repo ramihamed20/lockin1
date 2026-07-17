@@ -109,3 +109,29 @@ registration flow, not text direction in isolation.
 - Phase 3 production bundle is 85.22 KB gzip for the main JavaScript and 4.81 KB gzip for CSS.
 - Later heavy domains, especially Focus/PDF, must be route-split before implementation grows the
   main bundle.
+
+## Phase 4 Learning Experience
+
+The dashboard now uses the same restrained visual language for a command-center hierarchy: one
+next-study action, a compact progress summary, recent learning, then account readiness. Learn is a
+journey surface rather than a file browser: search, academic path, and related learning objects stay
+in one reading sequence. Creator/admin pages preserve that structure while exposing workflow and
+authority state progressively.
+
+### Phase 4 material redesigns
+
+| Redesign | Usability reason |
+|---|---|
+| Dashboard account menu → next-study command center | Puts the student's next useful action before secondary account details. |
+| Folder/PDF browsing → path plus related learning objects | Preserves educational context and makes progress/bookmarks natural. |
+| File-oriented detail → learning-object workspace | Treats media as one part of study, with progress and policy visible. |
+| Dense global creator controls → scoped workflow lists | Clarifies who may create/review/publish and reduces accidental authority. |
+| Desktop hierarchy table → responsive progressive editor | Keeps administration usable on tablets/phones without hiding lifecycle state. |
+
+Search and management pages use native fields, labeled selects, semantic lists, alert/status
+regions, reserved-space skeletons, and honest empty states. Logical CSS properties preserve RTL.
+Axe and horizontal-overflow checks pass on the exercised Desktop Chrome and Pixel 7 flows.
+
+Phase 4 student and management pages are route-split. The production main bundle is 91.34 KB gzip
+and CSS is 6.31 KB gzip. Focus remains a separate later route/subsystem and cannot inflate the
+normal learning bundle until it is actually implemented.

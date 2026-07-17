@@ -1,19 +1,19 @@
 # Lock-in Next Session
 
-Last updated: 2026-07-15
+Last updated: 2026-07-17
 
 ## Start Here
 
-Phase 3 implementation is complete and awaiting owner approval. Do not begin Phase 4 unless the
-owner explicitly approves it in the conversation.
+Phase 4 is implemented, validated locally, and awaiting owner review. Do not begin Phase 5 unless
+the owner explicitly approves it in the conversation.
 
 Read in order:
 
 1. `PRODUCT.md`
-2. `DECISIONS.md`
-3. `ARCHITECTURE.md`
-4. `DESIGN.md`
-5. `PHASE_3_AUTH_DESIGN.md`
+2. `PHASE_4_EDUCATION_CONTENT.md`
+3. `DECISIONS.md`
+4. `ARCHITECTURE.md`
+5. `DESIGN.md`
 6. `FOCUS_MODE.md`
 7. `EVENTS.md`
 8. `AI_EXTENSION_POINTS.md`
@@ -25,43 +25,40 @@ Read in order:
 
 - Rebuild: `C:\Users\ramih\Desktop\Dentify-Rebuild`
 - Read-only reference: `C:\Users\ramih\Desktop\Dentify-Before-Edits`
+- Phase 4 working copy used for validation: `C:\tmp\Lockin-Rebuild-Phase4`
 
 Never modify the read-only reference.
 
-## Current implementation
+## Current Implementation
 
-- Branch: `codex/phase-3-auth-design`.
-- Frontend: React 19.2.7, TypeScript 6.0.3, Vite 7.3.6, PWA.
-- Backend: Python 3.13 target, Django 5.2.16 LTS, DRF 3.17.1.
-- Database: PostgreSQL 18.4 default; explicit SQLite fast-test fallback only.
-- Domains implemented: secure Accounts flows/roles and Focus session foundation.
-- Frontend implemented: design system, English/Arabic RTL shell, auth/account/security/admin role
-  screens, and truthful role-aware account dashboard.
-- Cross-cutting: versioned API, OpenAPI, JSON logs, request IDs, liveness/readiness, internal
-  after-commit events.
-- AI: no implementation; extension contract only.
-- Infrastructure excluded: Redis, Celery, broker, WebSockets, microservices.
+- Branch: `codex/phase-4-education-content`.
+- Frontend: React 19.2.7, TypeScript 6.0.3, Vite 7.3.6, static-only PWA cache.
+- Backend: Django 5.2.16 LTS, DRF 3.17.1, modular monolith.
+- Database: PostgreSQL 18.4 default; SQLite only behind `LOCKIN_TEST_USE_SQLITE=1` for local tests.
+- Domains: Accounts, Focus session foundation, Education, Content, Files, Discovery, Progress.
+- Routes: student Learn/path/object, creator Content Studio, administrator Learning Structure.
+- Events: lightweight synchronous after-commit bus; real account, Focus, content publication, and
+  lesson-completion emissions.
+- Focus: standalone product boundary; no Phase 4 PDF/annotation engine claim.
+- AI: no package/provider/endpoint; extension ports only.
+- Excluded: Redis, Celery, WebSockets, broker, microservices.
 
-## Validation snapshot
+## Validation Snapshot
 
-- Backend: Ruff/mypy/Django/migration checks passed; 36 tests passed at 88.93% coverage using the
-  explicit workstation fast-test fallback.
-- Frontend: ESLint/TypeScript/build passed; 30 tests, 91.75% statements and 83.39% branches.
-- Browser: 5 Playwright scenarios passed, 1 device-specific skip; Axe reported no violations.
-- PWA: 12-entry static-only precache, `/api/` denied from navigation fallback, main JS 85.22 KB gzip.
-- PostgreSQL CI: configured, not run locally because Docker/PostgreSQL are absent.
+- Backend: 71 tests, 85.75% coverage; Ruff/mypy/Django/migration checks passed.
+- Frontend: 55 tests; 91.35% statements and 82.04% branches; ESLint/TypeScript/build passed.
+- Browser: 9 Playwright passes and 1 intentional device skip on Desktop Chrome/Pixel 7; Axe clear.
+- PWA: 18 static precache entries, no API runtime caching, main JS 91.34 KB gzip.
+- PostgreSQL/load: not run locally; no evidence claim.
 
-## If Phase 4 is approved
+## Review Focus
 
-1. Re-read and announce the applicable selected Skills.
-2. Re-read the exact Phase 4 scope in `PRODUCT.md` and do not infer later quiz/community work.
-3. Preserve the Phase 3 account/permission API contracts and reuse `DESIGN.md` tokens/components.
-4. Keep Focus as a standalone product domain; do not move PDF/annotation work into content pages.
-5. Keep internal events lightweight and after-commit; add a domain event only with its real state change.
-6. Keep AI provider code absent.
-7. Run PostgreSQL-backed tests if Docker/CI becomes available.
-8. Update all source-of-truth documents, test, commit, and stop.
+1. Confirm the generic academic hierarchy and scoped creator model match expected operations.
+2. Review the learning-object version and publication workflow.
+3. Review private file/view/download behavior and the truthful absent malware scanner.
+4. Review the Learn journey and command-center dashboard on phone/tablet/desktop.
+5. Confirm Focus remains independent and only receives a versioned context contract.
 
 ## Stop Condition
 
-Stop after the Phase 3 commit and wait for owner review.
+Stop after the Phase 4 commit and wait for owner approval.

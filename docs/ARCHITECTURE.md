@@ -407,3 +407,74 @@ account emissions but no message broker, distributed event, outbox, Celery task,
 Runtime adds only `react-router-dom` for structural routing. Test tooling adds
 `@axe-core/playwright`. No component library, state manager, form library, icon package, font,
 animation framework, auth token library, Redis client, queue, or AI provider was introduced.
+
+## Phase 4 Realized Architecture
+
+### Education boundary
+
+`apps.education` owns a generic, variable-depth academic tree. A UUID materialized `path` plus
+`depth` makes descendant filtering, creator-scope containment, and move updates explicit. The model
+supports multiple institutions and disciplines without claiming tenant isolation. Services lock
+affected rows, reject cycles and invalid parent kinds, enforce optimistic revisions, and update the
+discovery projection in the same transaction.
+
+`CreatorScope` grants explicit create/review/publish/manage-hierarchy capabilities at one node and
+its descendants. Backend policy is authoritative; management route visibility is not security.
+
+### Content and file boundaries
+
+`apps.content` owns stable `LearningObject` identity and immutable `LearningObjectVersion` snapshots.
+Assets join versions to `apps.files.ManagedFile`; file storage does not own academic placement or
+publication. Current and published version pointers allow a new draft while the last approved
+version remains stable for students.
+
+Managed files live outside public static/media delivery. Upload services validate size, allowed
+extension, declared MIME, magic bytes, and checksum. Delivery views enforce view/download policy on
+every request and support byte ranges. Malware scan state is explicit and currently
+`not_configured`; production enablement requires a real scanner.
+
+### Discovery boundary
+
+`apps.discovery` is a rebuildable projection, not an authority. Domain services upsert or remove
+`SearchEntry`/`SearchTerm` rows when academic/content publication changes. Unicode NFKC/casefold
+normalization, indexed normalized terms, stable ordering, filters, and DRF pagination form the
+initial scalable search contract. PostgreSQL full-text search can later replace the projection
+adapter without changing the public response or source domains.
+
+### Progress and dashboard boundary
+
+`apps.progress` owns user bookmarks, published-version-bound learning progress, and lesson
+completion. Progress updates use optimistic revision checks; publication changes cannot silently
+reinterpret saved progress against a different document version. Selectors produce resume and
+dashboard read models without letting the dashboard query another domain's private models directly.
+
+The next-action policy is deterministic: resume eligible in-progress work first, then a saved
+eligible object, otherwise present an honest path-selection state. Quiz/review/mastery/achievement
+signals are absent until their owning domains exist.
+
+### Phase 4 request/data flow
+
+```text
+React route → versioned DRF view → serializer → domain service/selector
+                                      ↓
+                   PostgreSQL authority + private file policy
+                                      ↓
+             discovery/read projection + after-commit domain event
+```
+
+All list endpoints paginate. Public content selectors use relation loading and an automated query
+budget regression test. Indexes align with hierarchy traversal, publication, version ordering,
+search, owner/scoped management, bookmarks, resume, and completion history.
+
+### Focus and future-content integration
+
+The content serializer exposes a versioned `focus_context` identifier, not a Focus implementation.
+Focus renderer, annotation engine, gestures, toolbar, autosave, and storage stay under their own
+frontend/backend boundaries. PDF and audio are implemented; future video metadata is anticipated,
+but video publication is blocked until its secure delivery product exists.
+
+### Phase 4 infrastructure delta
+
+No Redis, Celery, WebSocket, broker, microservice, vector store, AI SDK, or background worker was
+added. Domain events remain in-process, synchronous, best-effort, and after-commit. No new frontend
+runtime dependency was required for Phase 4.

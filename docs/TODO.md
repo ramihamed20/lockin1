@@ -1,64 +1,53 @@
 # Lock-in TODO
 
-Last updated: 2026-07-15
+Last updated: 2026-07-17
 
-## Phase 1
+## Completed Gates
 
-- [x] Complete product specification and acceptance criteria.
-- [x] Obtain explicit Phase 2 approval.
+- [x] Phase 0 audit and Skill selection approved.
+- [x] Phase 1 product specification approved.
+- [x] Phase 2 foundation approved.
+- [x] Phase 3 authentication/design system approved.
 
-## Phase 2
+## Phase 4 — Complete; Awaiting Review
 
-- [x] Select and document supported runtime/package versions.
-- [x] Create isolated backend and frontend foundation.
-- [x] Configure PostgreSQL as the default local/test/CI database.
-- [x] Add safe environment settings and `.env.example`.
-- [x] Create custom UUID/email user model before initial migrations.
-- [x] Add versioned API, OpenAPI, stable error envelope, health, readiness, and JSON logs.
-- [x] Add Focus session/history/statistics/event foundation.
-- [x] Add Focus frontend renderer/storage/gesture/tool/session extension contracts.
-- [x] Add in-process after-commit domain event architecture.
-- [x] Document AI-free extension points.
-- [x] Add Docker development workflow and owner operations guide.
-- [x] Add Ruff, mypy, pytest, ESLint, TypeScript, Vitest, build, and Playwright commands.
-- [x] Add PostgreSQL CI workflow.
-- [x] Run available local tests, security checks, PWA inspection, and browser validation.
+- [x] Create a discipline-neutral education hierarchy with efficient subtree traversal.
+- [x] Add scoped creator capabilities and backend-enforced management permissions.
+- [x] Add stable learning objects with immutable versions/assets and review/publication workflow.
+- [x] Keep the last published version stable while a replacement revision is prepared.
+- [x] Add private managed PDF/audio upload, validation, Range view, and conditional download.
+- [x] Add rebuildable normalized search projection, filters, pagination, and indexes.
+- [x] Add bookmarks, version-aware progress, lesson completion, resume, and dashboard projection.
+- [x] Rebuild the dashboard as a next-action command center.
+- [x] Add responsive Learn, academic path, learning object, content studio, and hierarchy UI.
+- [x] Preserve the standalone Focus boundary and AI-free architecture.
+- [x] Add real publication and lesson-completion events to the lightweight after-commit bus.
+- [x] Add unit, API, query-count, accessibility, responsive, and browser tests.
 - [x] Update all source-of-truth documentation.
-- [ ] Run PostgreSQL suite in CI or local Docker when that environment becomes available.
-- [x] Obtain explicit Phase 3 approval.
+- [ ] Obtain explicit Phase 5 approval.
 
-## Phase 3 — Complete; Awaiting Review
+## Deferred Evidence / Inputs
 
-- [x] Create three-layer design tokens/components and `DESIGN.md`.
-- [x] Implement registration, verification, login, logout, session, CSRF, and account flows.
-- [x] Implement password reset, password/email changes, and active-session management.
-- [x] Implement roles, permissions, final-administrator protection, and basic dashboards.
-- [x] Implement English/Arabic catalogs, real RTL, responsive navigation, and states.
-- [x] Add database-backed account throttling and append-oriented security records.
-- [x] Add authentication/permission API, unit, accessibility, and E2E tests.
-- [x] Preserve the Phase 2 Focus/event/AI boundaries.
-- [x] Update all source-of-truth documentation.
-- [ ] Obtain explicit Phase 4 approval.
-
-## Phase 4 — Not Started
-
-Do not execute before owner approval. Re-read the Phase 4 scope in `PRODUCT.md` before creating
-education hierarchy, managed content, or file workflows.
+- [ ] Run the complete suite against PostgreSQL in CI or a local PostgreSQL environment.
+- [ ] Establish a representative dataset and execute the approved 2,000-concurrent-user load plan.
+- [ ] Integrate a malware scanning provider before production file ingestion; current status remains
+  truthfully `not_configured`.
+- [ ] Supply real institution, college, curriculum, and creator-scope data.
+- [ ] Select production object storage/CDN and hosting.
+- [ ] Approve legal privacy, retention, terms, and account-deletion policy.
 
 ## Later Product Inputs
 
-- [ ] Real institution/faculty/curriculum data.
 - [ ] Subscription price, currency, grace period, and payment provider.
-- [ ] Legal privacy, retention, terms, and deletion policy.
 - [ ] Email and push providers.
 - [ ] Ranking formula and achievement catalog.
 - [ ] Additional approved anti-cheating ideas.
-- [ ] Production hosting choice.
 
 ## Guardrails
 
 - Never modify `C:\Users\ramih\Desktop\Dentify-Before-Edits`.
-- Work one phase at a time.
-- No Redis, Celery, WebSockets, broker, microservice, or AI provider without approved need.
-- Do not claim PostgreSQL or concurrency evidence that was not executed.
-- Keep all source-of-truth documents current after every phase.
+- Work one approved phase at a time.
+- Do not start Phase 5 without explicit owner approval.
+- Add no Redis, Celery, WebSocket, broker, microservice, or AI provider without an implemented and
+  measured need plus prior owner approval.
+- Do not claim PostgreSQL, load, malware-scan, or Focus capabilities that were not executed.

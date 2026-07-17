@@ -1,82 +1,80 @@
 # Lock-in Progress
 
-Last updated: 2026-07-15
+Last updated: 2026-07-17
 
 ## Current Status
 
-Phase 3 — Authentication and design system
-State: Implementation and local validation complete; awaiting owner approval
+Phase 4 — Education, content, discovery, and progress
+State: implementation and local validation complete; awaiting owner review
 
-Do not start Phase 4 until the owner explicitly approves it.
+Do not start Phase 5 until the owner explicitly approves it.
 
 ## Phase History
 
 ### Phase 0 — Repository and Skill Inspection
 
-Status: Approved by owner.
+Status: approved.
 
-- Existing pages, features, data, dependencies, responsive behavior, and risks audited.
-- Relevant Skills selected and documented.
-- Old project kept read-only.
+- Audited the existing application, runtime behavior, responsive behavior, architecture, security,
+  performance, accessibility, and test gaps.
+- Searched built-in, installed, repository, workspace, and user-provided Skill locations.
+- Selected and documented the applicable Skills; kept the old project read-only.
 
-### Phase 1 — Product Specification and Acceptance Criteria
+### Phase 1 — Product Specification
 
-Status: Approved by owner.
+Status: approved.
 
-- Product register, roles, permissions, feature specifications, acceptance criteria, assumptions,
-  architecture direction, and phase plan documented.
+- Documented the product, roles, permissions, acceptance criteria, assumptions, architecture,
+  redesign reasons, phase boundaries, and future extension policies.
 
-### Phase 2 — Project Foundation
+### Phase 2 — Foundation
 
-Status: Approved by owner.
+Status: approved.
 
-Completed:
-
-- separate runnable React/TypeScript/Vite/PWA and Django/DRF project foundation;
-- PostgreSQL 18.4 as default local/test/CI database;
-- environment-separated settings and safe example configuration;
-- custom UUID/email User model and initial migrations;
-- versioned API, OpenAPI, JSON logs, request IDs, liveness, and readiness;
-- exact direct dependency pins and npm lockfile;
-- Docker development workflow and PostgreSQL CI job;
-- Focus first-class backend domain and frontend subsystem contracts;
-- explicit internal after-commit domain events;
-- AI-free extension architecture;
-- continuous documentation and owner operations guide;
-- security, accessibility, responsive, PWA, unit, type, build, and browser checks.
+- Created the isolated React/TypeScript/Vite/PWA and Django/DRF/PostgreSQL modular monolith.
+- Added secure settings, versioned API, custom user, observability, CI, Focus foundations,
+  lightweight after-commit events, AI-free extension points, and quality gates.
 
 ### Phase 3 — Authentication and Design System
 
-Status: Complete; awaiting owner approval.
+Status: approved.
 
-Completed:
+- Implemented secure sessions/CSRF, account lifecycle, roles, throttling, security records,
+  English/Arabic RTL, three-layer design tokens, responsive shell, and truthful account dashboards.
 
-- secure session/CSRF registration, verification, login, reset, email, password, and session flows;
-- additive backend-enforced roles with final-administrator protection;
-- database-backed throttling and append-oriented account security records;
-- English/Arabic catalogs, real document RTL, responsive navigation, and route states;
-- three-layer design tokens, accessible components, branded PWA icons, and design rationale;
-- truthful role-aware account dashboards with no invented study data;
-- implemented account domain events after commit while retaining the lightweight internal bus;
-- preserved independent Focus and AI-free boundaries.
+### Phase 4 — Education, Content, Discovery, and Progress
 
-## Phase 3 Validation
+Status: complete; awaiting owner review.
 
-- Backend Ruff, strict mypy, Django check, and migration drift: passed.
-- Backend suite: 36 passed; 88.93% coverage.
-- Frontend ESLint and TypeScript: passed.
-- Frontend suite: 30 passed; 91.75% statements and 83.39% branch coverage.
-- Production PWA build: passed; 12 static precache entries; main JS 85.22 KB gzip.
-- Playwright: 5 passed and 1 intentional device-specific skip across desktop and Pixel 7.
-- Axe: no violations in authenticated and Arabic mobile scenarios.
-- Visual and overflow QA: passed for desktop login/dashboard and phone EN/AR registration.
+- Implemented a generic multi-institution academic tree and subtree-scoped creator capabilities.
+- Implemented stable learning objects, immutable versions/assets, draft/review/publication/archive,
+  and continued service of the last published version during later revisions.
+- Implemented private managed PDF/audio files, validation, Range delivery, and download policy.
+- Implemented a rebuildable normalized search projection with filtering and pagination.
+- Implemented bookmarks, version-aware progress, lesson completion, resume, and dashboard selectors.
+- Rebuilt the dashboard as a next-action command center and added responsive student/creator/admin
+  learning routes with loading, empty, error, and permission states.
+- Kept Focus standalone, exposed only a small content-version context contract, and kept AI absent.
+- Added `content.content_published` and `education.lesson_completed` after-commit events.
+
+## Phase 4 Validation
+
+- Backend: 71 passed; 85.75% branch-aware coverage.
+- Ruff, strict mypy across 123 source files, Django check, and migration drift: passed.
+- Frontend: 55 passed; 91.35% statements, 82.04% branches, 89.58% functions, 94.41% lines.
+- ESLint, TypeScript, and production PWA build: passed.
+- Playwright: 9 passed, 1 intentional mobile-only test skip on desktop.
+- Axe: no violations in exercised authenticated, learning, content, and Arabic mobile flows.
+- Responsive overflow: passed on Desktop Chrome and Pixel 7.
+- PWA: 18 static precache entries, no runtime API caching, `/api/` navigation fallback denied.
+- Main bundle: 91.34 KB gzip; Phase 4 pages remain route-split.
 
 ## Workstation Limitation
 
-PostgreSQL-backed CI is configured but not executed on this workstation because Docker,
-PostgreSQL, and `psql` are not installed. SQLite was used only through the explicit fast-test flag.
+PostgreSQL-backed tests and the 2,000-concurrent-user load target were not executed locally because
+no PostgreSQL/Docker service was available. The suite used only the explicit SQLite test fallback.
+No PostgreSQL or load claim is made.
 
 ## Next Gate
 
-Owner reviews Phase 3. If approved, Phase 4 may begin only under its approved education/content
-scope. Until then, stop.
+Owner reviews Phase 4. Stop here; Phase 5 requires explicit approval.

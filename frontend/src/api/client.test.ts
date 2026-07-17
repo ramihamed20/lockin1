@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, apiRequest, getApiHealth, refreshCsrfToken } from "./client";
+import { ApiError, apiPath, apiRequest, getApiHealth, refreshCsrfToken } from "./client";
 
 describe("same-origin API client", () => {
   beforeEach(() => vi.stubGlobal("fetch", vi.fn()));
@@ -52,5 +52,26 @@ describe("same-origin API client", () => {
 
     vi.mocked(fetch).mockResolvedValueOnce(new Response("Unavailable", { status: 503 }));
     await expect(refreshCsrfToken()).rejects.toThrow(/secure browser session/i);
+  });
+
+  it("uploads FormData without forcing a JSON content type", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ csrf_token: "upload-token" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: "file-1" }), { status: 201 }));
+    await refreshCsrfToken();
+    const body = new FormData();
+    body.set("kind", "pdf");
+    body.set("file", new File(["%PDF-1.4"], "lesson.pdf", { type: "application/pdf" }));
+
+    await apiRequest("/management/files", { method: "POST", body });
+
+    const request = vi.mocked(fetch).mock.calls[1]?.[1];
+    expect(request?.body).toBe(body);
+    expect((request?.headers as Headers).get("Content-Type")).toBeNull();
+    expect((request?.headers as Headers).get("X-CSRFToken")).toBe("upload-token");
+  });
+
+  it("rejects protocol-relative API paths", () => {
+    expect(() => apiPath("//example.com/escape")).toThrow(/same-origin/i);
   });
 });

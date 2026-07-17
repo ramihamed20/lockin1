@@ -14,8 +14,12 @@ node_modules/
 dist/
 coverage/
 .vite/
+backend/media/
+backend/staticfiles/
 .playwright/
 output/playwright/
+playwright-report/
+test-results/
 *.log
 .DS_Store
 Thumbs.db

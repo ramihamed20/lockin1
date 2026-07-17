@@ -348,3 +348,90 @@ outbox requires an implemented subscriber with explicit retry/delivery needs.
 - Ranking formula and achievement catalog.
 - Additional approved anti-cheating ideas.
 - Whether a future multi-institution release needs true tenant isolation.
+
+## D-037 — Generic Materialized Academic Tree
+
+**Decision:** Represent institution through lesson as typed nodes in one variable-depth tree with a
+UUID materialized path and explicit relationship rules.
+
+**Reason:** A fixed dentistry schema or one table per academic level would force migrations when a
+new institution uses a different structure. Materialized paths make subtree reads and scoped
+authority practical for the target size without a new infrastructure component.
+
+**Consequence:** Moves are transactional, update descendants, reject cycles, and require tests. This
+supports multiple institutions structurally but does not claim tenant isolation.
+
+## D-038 — Stable Learning Identity with Immutable Versions
+
+**Decision:** Separate `LearningObject` identity from immutable `LearningObjectVersion` and asset
+snapshots, retaining distinct current and published version pointers.
+
+**Reason:** Bookmarks, progress, Focus annotations, links, and future quiz/flashcard relationships
+need stable identity while publication must not mutate a document students already use.
+
+**Consequence:** A replacement draft can be reviewed without withdrawing the last published version;
+progress remains tied to the exact version studied.
+
+## D-039 — Private Managed File Delivery
+
+**Decision:** Store managed files outside public routing and deliver them only through authenticated,
+policy-aware view/download endpoints with Range support.
+
+**Reason:** A public media URL bypasses publication, availability, ownership, and download policy.
+PDF/audio still need efficient reading and seeking.
+
+**Consequence:** Every delivery performs authorization. Upload validation and checksum are mandatory;
+malware state stays `not_configured` until a real scanner exists.
+
+## D-040 — Rebuildable Search Projection
+
+**Decision:** Search an indexed `SearchEntry`/`SearchTerm` projection populated from authoritative
+education/content services instead of joining every domain per request.
+
+**Reason:** Search must cover heterogeneous current/future resource kinds with stable pagination and
+must be replaceable by PostgreSQL full-text search when measured data justifies it.
+
+**Consequence:** The projection is disposable and rebuildable. Source domains remain authoritative;
+projection synchronization belongs to state-changing services.
+
+## D-041 — Capability-Scoped Content Creation
+
+**Decision:** Creator authority is an explicit set of capabilities rooted at an academic subtree.
+
+**Reason:** A global creator role is too broad for multiple colleges and departments, while deeply
+duplicated per-resource grants are hard to administer.
+
+**Consequence:** The additive creator role permits entry into management, but service policy still
+requires an applicable scope for create/review/publish/hierarchy actions.
+
+## D-042 — Deterministic Dashboard Projection
+
+**Decision:** The dashboard consumes an authoritative progress read model and recommends eligible
+resume work before bookmarks, otherwise a path-selection state.
+
+**Reason:** The command center must help the student act now without inventing future AI, mastery,
+quiz, review, or achievement signals.
+
+**Consequence:** Future recommendation engines may replace the selector through a typed boundary,
+but the deterministic fallback remains available and domain state remains authoritative.
+
+## D-043 — Focus Context, Not Embedded Focus
+
+**Decision:** A learning-object version exposes only a small Focus launch context. The normal
+resource page does not absorb PDF renderer/annotation/gesture/autosave responsibilities.
+
+**Reason:** Focus must grow as a professional study product without coupling content publication to
+one viewer or recreating the legacy giant PDF page.
+
+**Consequence:** Phase 4 can study a private PDF and save progress, but cannot claim Focus features.
+
+## D-044 — Keep Phase 4 Infrastructure Local
+
+**Decision:** Use PostgreSQL indexes, bounded selectors, pagination, request-time transactions, and
+the existing in-process after-commit bus only.
+
+**Reason:** No implemented feature or measured bottleneck currently justifies Redis, Celery, a
+broker, WebSockets, or microservices.
+
+**Consequence:** PostgreSQL/load measurements remain a gate before production scaling claims; new
+infrastructure requires a measured proposal and owner approval.

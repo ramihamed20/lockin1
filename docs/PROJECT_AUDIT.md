@@ -145,3 +145,21 @@ backend role enforcement, real `lang`/`dir`, and accessible desktop/mobile brows
 
 The old dashboard was used only as identity/study-atmosphere evidence. The new dashboard deliberately
 does not reproduce synthetic learning metrics before authoritative education domains exist.
+
+## Phase 4 Rebuild Note
+
+Phase 4 addresses the audited folder-like material navigation, absent hierarchy, absent file
+security, non-paginated discovery, and synthetic progress risks in the isolated rebuild. The new
+education tree is discipline-neutral; learning objects are versioned and interactive; files are
+private and permission-mediated; search is a rebuildable indexed projection; and dashboard values
+come only from authoritative progress/bookmark records.
+
+The four selected Skills remained applicable: `impeccable` shaped the guided responsive learning
+journey and accessibility states, `design-system` constrained token/component use,
+`security-best-practices` guided private file and permission boundaries, and `playwright` validated
+real desktop/mobile behavior. No later-discovered Skill was introduced. No dedicated installed Skill
+was found for Django/DRF/PostgreSQL/PWA/unit/integration/load testing, so the previously documented
+engineering and evidence fallback remains in force.
+
+The reference project remains unchanged. Phase 4 does not claim that the legacy PDF implementation
+was reused or that the standalone Focus product is implemented.

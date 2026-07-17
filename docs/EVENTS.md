@@ -1,6 +1,6 @@
 # Lock-in Internal Domain Events
 
-Last updated: 2026-07-15
+Last updated: 2026-07-17
 
 ## Purpose
 
@@ -38,7 +38,7 @@ request bodies, or unrestricted personal data.
 | `accounts.user_registered` | Accounts | Implemented; emitted after committed registration |
 | `accounts.user_email_verified` | Accounts | Implemented; emitted after committed verification |
 | `accounts.user_roles_changed` | Accounts | Implemented; emitted after committed role replacement |
-| `education.lesson_completed` | Progress/Education integration | Reserved contract; not coded yet |
+| `education.lesson_completed` | Progress/Education integration | Implemented; emitted after committed first completion |
 | `focus.session_started` | Focus | Implemented and emitted after commit |
 | `focus.session_completed` | Focus | Implemented and emitted after commit |
 | `quizzes.attempt_started` | Quizzes | Reserved contract; not coded yet |
@@ -47,10 +47,11 @@ request bodies, or unrestricted personal data.
 | `rankings.achievement_earned` | Rankings | Reserved contract; not coded yet |
 | `subscriptions.subscription_activated` | Subscriptions | Reserved contract; not coded yet |
 | `moderation.report_created` | Moderation | Reserved contract; not coded yet |
-| `content.content_published` | Content | Reserved contract; not coded yet |
+| `content.content_published` | Content | Implemented; includes object/version/node/type after committed publication |
 
-Reserved events are documented instead of placed in a central fake code catalog. A domain defines
-its event only when it implements the authoritative state change.
+Remaining reserved events are documented instead of placed in a central fake code catalog. A domain
+defines its event only when it implements the authoritative state change. Publication and lesson
+completion became real in Phase 4 and therefore now have domain-owned event classes and tests.
 
 ## Transaction behavior
 

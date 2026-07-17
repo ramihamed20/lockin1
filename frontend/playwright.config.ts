@@ -20,7 +20,7 @@ export default defineConfig({
     : {
         webServer: {
           command:
-            "node ./node_modules/vite/bin/vite.js preview --configLoader runner --host 127.0.0.1 --port 5173 --strictPort",
+            `"${process.execPath}" ./node_modules/vite/bin/vite.js preview --configLoader runner --host 127.0.0.1 --port 5173 --strictPort`,
           url: "http://127.0.0.1:5173",
           reuseExistingServer: !process.env.CI,
           timeout: 120_000
