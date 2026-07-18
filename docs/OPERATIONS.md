@@ -75,20 +75,43 @@ Ranking publication is an explicit server operation, not a request-time client c
 the resulting snapshot status/checksum/error audit. No scheduler or worker is installed in Phase 7;
 production scheduling requires an approved operations/deployment decision.
 
+## Commerce configuration and reconciliation
+
+- Keep `PAYMENT_PROVIDER=none` until an implemented, approved production adapter exists.
+- `fake` is test/development only; production settings reject it.
+- Set a random `PAYMENT_FAKE_WEBHOOK_SECRET` of at least 24 characters only in local/test secret
+  storage. Never commit it or expose it through a `VITE_` variable.
+- Keep webhook timestamp tolerance and maximum payload settings bounded. Enforce the same or a
+  tighter request-body limit at the production reverse proxy.
+- Configure `DEFAULT_TRIAL_PLAN_CODE` only to an active published trial plan.
+- Run `python manage.py reconcile_commerce` after database restoration or when monitoring shows a
+  failed/missed normalized provider-event effect. Review failed events before retrying.
+- All commerce Django admin views are read-only. Use domain services or approved operational
+  commands; never patch payment/subscription/entitlement rows manually.
+
+Before paid launch, validate the real provider sandbox, webhook secret rotation/replay behavior,
+refund/dispute flows, amount/currency/exponent matching, tax/receipt/invoice policy, edge payload
+limits, retention, alerts, reconciliation cadence, and PostgreSQL concurrency. No commerce scheduler
+or worker exists in Phase 8.
+
 ## Secrets and logs
 
 - Commit `.env.example`; never commit `.env`.
 - Never place secrets in `VITE_` variables because those values are public in browser bundles.
 - Logs are JSON and include request ID, but code must never log passwords, cookies, tokens, reset
-  links, answer keys, request bodies, or full personal records.
+  links, answer keys, webhook/raw request bodies, provider secrets, full financial payloads, or full
+  personal records.
 - Production hosts cannot contain `*`.
 - Proxy SSL headers are trusted only when explicitly enabled behind a proxy known to strip spoofed
   inbound headers.
 
 ## Current workstation limitation
 
-The Phase 7 workstation has Python 3.11 and Node 24 but no Docker, PostgreSQL server, or `psql`.
+The Phase 8 workstation has Python 3.11 and Node 24 but no Docker, PostgreSQL server, or `psql`.
 Backend unit/integration behavior was verified with the explicit SQLite fast-test switch. The CI
 workflow is configured to run the same migrations and suite against PostgreSQL 18.4. A successful
 remote CI run or a future local Docker run remains required evidence before claiming PostgreSQL
 execution on this workstation.
+
+The signed fake provider validates deterministic local behavior only. It is not evidence for a real
+provider, reverse proxy, network retry, dispute, settlement, or production webhook environment.

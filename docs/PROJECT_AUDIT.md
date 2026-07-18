@@ -225,3 +225,25 @@ hierarchy, `design-system` preserved tokens and states, `security-best-practices
 authority, idempotency, notification routes/counters, and ranking privacy/audit, and `playwright`
 validated real desktop/mobile behavior. The browser review found and corrected a muted-text contrast
 issue. No new applicable Skill was discovered during Phase 7.
+
+## Phase 8 Rebuild Note
+
+Phase 8 replaces the reference application's implicit premium/payment assumptions with explicit,
+server-authoritative commerce evidence and capability access. Catalog, lifecycle, entitlements,
+payments, invoices, refunds, and provider integration now have separate ownership. The client cannot
+submit money/currency/success/access state, and administrators cannot edit financial state through
+Django admin outside domain services.
+
+The billing redesign explains current plan and entitlements before transaction history and does not
+invent a price or enabled checkout. This is safer and clearer than exposing a payment-shaped UI
+without a selected provider, legal policy, or approved product matrix. Existing features remain
+backward compatible until an approved capability gate is applied.
+
+The selected Skills continued unchanged: `impeccable` shaped the transparent responsive/RTL access
+journey, `design-system` preserved shared tokens and states, `security-best-practices` hardened money,
+provider/webhook, idempotency, raw-payload, refund, admin, and production-settings boundaries, and
+`playwright` validated desktop/mobile behavior. No additional applicable Skill was discovered.
+
+The reference project remains unchanged. Local evidence uses SQLite and a signed fake development
+provider; it does not claim PostgreSQL commerce concurrency, provider sandbox, edge webhook, or load
+readiness.

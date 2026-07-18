@@ -196,13 +196,13 @@ class ManagementLearningObjectDetailView(APIView):
 
 class _RevisionActionView(APIView):
     permission_classes = [IsCreatorOrAdministrator]
-    action = staticmethod(submit_for_review)
+    service_action = staticmethod(submit_for_review)
 
     def post(self, request: Request, learning_object_id: UUID) -> Response:
         serializer = RevisionActionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
-            learning_object = self.action(
+            learning_object = self.service_action(
                 actor=_user(request),
                 learning_object_id=learning_object_id,
                 expected_revision=int(serializer.validated_data["expected_revision"]),
@@ -215,15 +215,15 @@ class _RevisionActionView(APIView):
 
 
 class SubmitLearningObjectView(_RevisionActionView):
-    action = staticmethod(submit_for_review)
+    service_action = staticmethod(submit_for_review)
 
 
 class PublishLearningObjectView(_RevisionActionView):
-    action = staticmethod(publish_learning_object)
+    service_action = staticmethod(publish_learning_object)
 
 
 class ArchiveLearningObjectView(_RevisionActionView):
-    action = staticmethod(archive_learning_object)
+    service_action = staticmethod(archive_learning_object)
 
 
 class RejectLearningObjectView(APIView):

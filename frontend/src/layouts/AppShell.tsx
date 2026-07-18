@@ -19,7 +19,8 @@ const icons = {
   community: "M4 5h16v11H9l-5 4Zm4 4h8m-8 3h5",
   moderation: "M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6zM9 12l2 2 4-5",
   progression: "M5 19V9m7 10V5m7 14v-7M3 19h18",
-  notification: "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"
+  notification: "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4",
+  billing: "M4 6h16v12H4zM4 10h16M8 15h3"
 };
 
 function Icon({ path }: { path: string }) {
@@ -46,6 +47,7 @@ export function AppShell() {
     { to: "/progression", label: t("navProgression"), icon: icons.progression },
     { to: "/community", label: t("navCommunity"), icon: icons.community },
     { to: "/notifications", label: t("navNotifications"), icon: icons.notification },
+    { to: "/subscription", label: t("navBilling"), icon: icons.billing },
     { to: "/profile", label: t("navProfile"), icon: icons.profile },
     { to: "/security", label: t("navSecurity"), icon: icons.security },
     ...(isCreator ? [

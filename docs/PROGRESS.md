@@ -4,10 +4,10 @@ Last updated: 2026-07-18
 
 ## Current Status
 
-Phase 7 - Learning motivation and notifications
+Phase 8 - Subscription and entitlement platform
 State: implementation and local validation complete; awaiting owner review
 
-Do not start Phase 8 until the owner explicitly approves it.
+Do not start Phase 9 until the owner explicitly approves it.
 
 ## Phase History
 
@@ -48,7 +48,7 @@ moderation, cursor feeds, permissions, audit, and notification-ready events.
 
 ### Phase 7 - Learning Motivation and Notifications
 
-Status: complete; awaiting owner review.
+Status: approved.
 
 - Added independent XP, achievement, ranking, streak, and notification domains.
 - Added a stateless integration boundary consuming existing after-commit domain events.
@@ -61,15 +61,33 @@ Status: complete; awaiting owner review.
 - Added accessible English/Arabic progression and notification routes with mobile/tablet layouts.
 - Kept Focus independent, AI unimplemented, and infrastructure local to the modular monolith.
 
-## Phase 7 Validation
+### Phase 8 - Subscription and Entitlement Platform
 
-- Backend: 131 tests; 85.90% branch-aware coverage (85% gate passed).
-- Ruff, strict mypy across 234 source files, and migration drift check: passed.
-- Frontend: 116 tests; 90.19% statements, 80.10% branches, 87.14% functions, 94.13% lines.
+Status: complete; awaiting owner review.
+
+- Added independent catalog, subscription, entitlement, payment, invoice, refund, and provider
+  integration domains, with a stateless commerce integration boundary.
+- Made server entitlement decisions the single access-control mechanism; no plan-name flags exist.
+- Added explicit trial/active/grace/expired/cancelled/suspended/refunded lifecycle transitions.
+- Added immutable server-owned price/payment/invoice snapshots and append-only transition evidence.
+- Added administrator-authorized, provider-confirmed, reserved, idempotent refund processing.
+- Added provider abstraction, signed bounded fake webhook verification for test/development only,
+  duplicate/digest protection, verification audit, normalized events, and reconciliation.
+- Added the responsive, accessible English/Arabic **Plan & access** experience.
+- Kept checkout unavailable until a production provider and real price/currency are approved.
+- Preserved backward-compatible feature access; no existing capability was silently made premium.
+
+## Phase 8 Validation
+
+- Backend: 144 tests; 85.78% branch-aware coverage (85% gate passed).
+- Ruff, strict mypy across 331 source files, Django check, and migration drift check: passed.
+- Frontend: 126 tests; 90.39% statements, 80.16% branches, 87.37% functions, 94.32% lines.
 - ESLint, TypeScript, and production PWA build: passed.
-- Playwright regression: 23 passed, 1 intentional desktop skip for a mobile-only assertion.
-- Phase 7 desktop/mobile flows passed Axe, English/Arabic RTL, focus/landmarks, and overflow checks.
-- PWA: 34 static precache entries, no API runtime cache; main JS 102.67 KB gzip, CSS 11.44 KB gzip.
+- Playwright regression: 25 passed, 1 intentional desktop skip for a mobile-only assertion.
+- Phase 8 desktop/mobile flows passed Axe, English/Arabic RTL, focus/landmarks, cancellation,
+  currency-exponent, and overflow checks.
+- OpenAPI generation completes; inherited and Phase 8 APIView description/auth-extension findings
+  remain tracked debt and are not reported as a clean schema-validation pass.
 
 ## Workstation Limitation
 
@@ -79,4 +97,4 @@ because no PostgreSQL/Docker service was available. Local tests explicitly used
 
 ## Next Gate
 
-Owner reviews Phase 7. Stop here; Phase 8 requires explicit approval.
+Owner reviews Phase 8. Stop here; Phase 9 requires explicit approval.

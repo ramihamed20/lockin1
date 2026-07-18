@@ -8,6 +8,8 @@ EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 ACCOUNT_POLICY_VERSION = "test-policy-v1"
 PUBLIC_APP_URL = "http://testserver"
 ACCOUNT_LOGIN_ATTEMPT_LIMIT = 5
+PAYMENT_PROVIDER = "fake"
+PAYMENT_FAKE_WEBHOOK_SECRET = "test-only-fake-webhook-secret"
 
 if env_bool("LOCKIN_TEST_USE_SQLITE", False):
     DATABASES = {  # noqa: F405

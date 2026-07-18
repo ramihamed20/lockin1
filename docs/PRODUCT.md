@@ -1213,3 +1213,34 @@ product module. Freeze/grace/recovery behavior, email/push providers, subscripti
 external event infrastructure are not implemented. See `PHASE_7_MOTIVATION.md` for rules,
 boundaries, security, validation, and explicit exclusions. Phase 8 is blocked until explicit owner
 approval.
+
+## Phase 8 Implementation Record
+
+Phase 8 realizes subscription and access as a transparent learning-support capability rather than a
+checkout funnel:
+
+- independent product catalog, subscription, entitlement, payment, invoice, refund, and provider
+  integration domains;
+- an explicit trial/active/renewal/grace/expiry/cancellation/suspension/refund lifecycle;
+- capability-code entitlements as the only server authorization contract for future paid access;
+- immutable server-owned price, payment, invoice, transition, and refund evidence;
+- signed, bounded, deduplicated provider event ingestion and deterministic reconciliation;
+- an accessible responsive English/Arabic **Plan & access** route showing current plan, dates,
+  active capabilities, honest offers, cancellation confirmation, and financial history.
+
+Important redesigns and reasons:
+
+| Redesign | Usability reason |
+|---|---|
+| Plan & access rather than a checkout landing page | Answers what the student has before presenting commerce |
+| Capability list separate from product name | Makes access understandable when plans change |
+| Honest no-checkout/no-price state | Avoids promising a transaction that is not configured |
+| Combined immutable history | Lets a student reconcile payments, invoices, and refunds in one place |
+| Inline cancellation confirmation | Prevents accidental subscription change and remains keyboard/screen-reader friendly |
+
+The approved trial grants Focus workspace, premium-content access, and downloads through server
+entitlements. AI assistance is defined for future policy but not granted or implemented. No current
+feature was silently restricted because the paid entitlement matrix is not approved. No production
+provider, paid price, promotion, coupon, family/institution membership behavior, Redis, Celery,
+broker, WebSocket, microservice, worker, AI runtime, or Focus internal change was introduced. See
+`PHASE_8_SUBSCRIPTIONS.md` for invariants, security, validation, launch inputs, and exclusions.

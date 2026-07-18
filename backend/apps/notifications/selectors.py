@@ -27,7 +27,7 @@ def preferences_for_user(*, user: User) -> list[dict[str, object]]:
             "category": category,
             "channel": channel,
             "enabled": saved.get((category, channel), True),
-            "required": category == Notification.Category.ACCOUNT,
+            "required": category in (Notification.Category.ACCOUNT, Notification.Category.BILLING),
             "available": channel == NotificationPreference.Channel.IN_APP,
         }
         for category in Notification.Category.values

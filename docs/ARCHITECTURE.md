@@ -641,3 +641,57 @@ Focus remains independent: its completed-session event provides a bounded fact, 
 workspace, PDF engine, annotations, gestures, autosave, and storage remain untouched. AI remains
 provider-independent and unimplemented. No Redis, Celery, WebSocket, broker, microservice, or new
 frontend dependency was added.
+
+## Phase 8 Realized Subscription and Entitlement Architecture
+
+### Seven independent commerce domains
+
+`apps.product_catalog`, `apps.subscriptions`, `apps.entitlements`, `apps.payments`, `apps.invoices`,
+`apps.refunds`, and `apps.provider_integrations` each own their models, services, selectors,
+validation, events, APIs, migrations, admin posture, and tests. `apps.commerce_integrations` wires
+after-commit events and owns no business state.
+
+```text
+Catalog price/version -> server payment snapshot -> provider adapter
+                                                   |
+verified normalized event <- bounded signed webhook+
+        |
+        +-> payment transition -> invoice snapshot -> subscription lifecycle
+                                                        |
+                                                        +-> entitlement grant projection
+                                                                    |
+                                                                    +-> capability decision
+```
+
+Catalog and provider data never grant access directly. Subscription state and plan rules project
+grants, and protected server code asks the entitlement domain for a capability decision. Account
+scope is separate from the user so later family/organization/institution ownership can be modeled
+without rewriting financial evidence or authorization.
+
+### Financial evidence and lifecycle
+
+Prices and financial records use integer minor units with a stored currency exponent. Payment and
+invoice rows snapshot plan version, price, amount, currency, tax behavior, and line descriptions;
+append-only transitions preserve status evidence. Refund requests reserve pending amounts, require
+administrator permission, and are completed only from verified provider facts. Subscription
+transitions are locked, validated, revisioned, idempotent, and retain explicit period/grace/end data.
+
+### Provider and recovery boundary
+
+Provider adapters implement a narrow checkout/refund/webhook protocol. Production fails closed for
+the fake and unknown adapters. Webhooks are bounded before body read, timestamped, HMAC verified,
+schema allowlisted, digested, deduplicated, normalized, audited without raw payload storage, and
+published after commit. `reconcile_commerce` retries normalized events and repairs entitlement
+projections while the event bus remains deliberately lightweight and in-process.
+
+### Frontend, compatibility, and scale posture
+
+The lazy billing feature reads current subscription, capability grants, catalog offers, payments,
+invoices, and refunds. The browser never asserts paid success or derives access. No existing feature
+was newly gated because an owner-approved premium matrix does not exist; future gates use the one
+entitlement service/mixin. Indexed ownership/status/provider/idempotency/date fields and bounded
+pagination support growth without request-time history reconstruction.
+
+Focus remains independent and AI remains unimplemented. No paid provider/price, Redis, Celery,
+WebSocket, broker, microservice, or worker was added. PostgreSQL concurrency, provider sandbox, and
+representative commerce load remain explicit evidence gates.

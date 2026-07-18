@@ -22,4 +22,11 @@ urlpatterns = [
     path("", include("apps.achievements.urls")),
     path("", include("apps.rankings.urls")),
     path("", include("apps.notifications.urls")),
+    path("", include("apps.product_catalog.urls")),
+    path("", include("apps.subscriptions.urls")),
+    path("", include("apps.entitlements.urls")),
+    path("", include("apps.payments.urls")),
+    path("", include("apps.invoices.urls")),
+    path("", include("apps.refunds.urls")),
+    path("", include("apps.provider_integrations.urls")),
 ]

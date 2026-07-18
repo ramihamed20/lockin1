@@ -203,3 +203,26 @@ behavior, and shared English/Arabic component trees. The toolbar/navigation adap
 content on phones or tablets. Playwright caught and corrected insufficient muted metadata contrast;
 the final desktop/mobile flows pass Axe, RTL, and horizontal-overflow checks. Routes remain split;
 the production main bundle is 102.67 KB gzip and CSS is 11.44 KB gzip.
+
+## Phase 8 Plan and Access Experience
+
+Phase 8 uses a quiet account-access hierarchy rather than an aggressive pricing wall. The student
+first sees the current plan, lifecycle state, and relevant date; then the exact capabilities the
+server grants; then honest available offers and immutable payment/invoice/refund history. Checkout
+is not rendered as available while no production provider or paid price exists.
+
+### Phase 8 material redesigns
+
+| Redesign | Usability reason |
+|---|---|
+| Checkout-first billing -> Plan & access | Answers current access before presenting a purchase decision |
+| Plan badge -> explicit capability list | Makes feature availability understandable as products evolve |
+| Fabricated price card -> honest unavailable offer | Prevents a misleading dead-end transaction |
+| Separate transaction pages -> one chronological history | Makes payment, invoice, and refund reconciliation easier |
+| Immediate cancel action -> inline confirmation | Reduces accidental lifecycle changes without modal focus risk |
+
+The route uses established tokens, semantic headings/lists/tables, native buttons, visible focus,
+live loading/error/cancellation status, logical properties, reduced motion, and one English/Arabic
+component tree. Wide financial history becomes a labeled narrow layout without clipping or covering
+the document area. Desktop and mobile Playwright flows pass Axe, RTL, focus/landmarks, and overflow
+checks. The route remains lazy and adds no runtime UI, payment, font, icon, or animation dependency.

@@ -661,3 +661,81 @@ snapshots, in-app notifications, or local recovery command.
 
 **Consequence:** Phase 8 is blocked pending owner approval. PostgreSQL concurrency and representative
 load remain production evidence gates rather than unverified claims.
+
+## D-067 - Independent Commerce Domains
+
+**Decision:** Catalog, subscription, entitlement, payment, invoice, refund, and provider integration
+are separate domains. `commerce_integrations` is a stateless event composition boundary.
+
+**Reason:** These areas have different invariants, audit obligations, and change rates. A billing
+catch-all would couple feature access to provider and financial implementation details.
+
+**Consequence:** Domains communicate through typed services/events and do not mutate each other's
+tables. Future provider replacement does not change subscription or entitlement policy.
+
+## D-068 - Entitlements Are the Access Source of Truth
+
+**Decision:** Protected capabilities ask for a stable entitlement code. Plan codes and client flags
+cannot authorize Focus, premium content, downloads, AI, or later capabilities.
+
+**Reason:** Products, promotions, licenses, and account scopes will evolve independently of feature
+code. Server-owned capability decisions preserve one auditable authorization path.
+
+**Consequence:** Phase 8 seeds capability definitions and trial rules but does not silently gate an
+existing feature. Any later gate needs an approved entitlement matrix and uses the shared service or
+DRF mixin.
+
+## D-069 - Immutable Financial Snapshots and Integer Money
+
+**Decision:** Catalog versions are immutable after publication; payments and invoices snapshot the
+server price. Money uses integer minor units plus a stored currency exponent.
+
+**Reason:** Historical records must not change with catalog edits, and floating-point or assumed
+two-decimal currency arithmetic is unsafe.
+
+**Consequence:** Provider facts must exactly match amount/currency. Supporting a new currency does
+not reinterpret old transactions.
+
+## D-070 - Provider-Confirmed, Idempotent Commerce
+
+**Decision:** The client may select only an active server price. Payment/refund success enters the
+system only through a verified provider event, with stable idempotency and append-only transitions.
+
+**Reason:** Client success, amount, currency, plan, and refund state are attacker-controlled inputs.
+
+**Consequence:** Unexpected financial fields are rejected; duplicate delivery is harmless; pending
+refunds reserve value; provider mismatch and identifier/digest reuse fail closed.
+
+## D-071 - Bounded Provider Webhooks Without Raw Payload Retention
+
+**Decision:** Validate provider, payload size, timestamp, HMAC, exact schema, digest, and duplicate
+identity before normalized event processing. Store verification/process audit but not the raw body.
+
+**Reason:** This limits replay, memory, schema-confusion, secret, and sensitive-retention exposure
+while retaining evidence needed to diagnose delivery.
+
+**Consequence:** Production rejects the fake/unknown provider. Edge and provider sandbox tests remain
+a launch gate. Failed normalized events remain auditable and retryable.
+
+## D-072 - Explicit Lifecycle and Account Scope
+
+**Decision:** Subscription state uses a validated transition graph and explicit periods, grace,
+cancellation, suspension, expiry, and refund state. Subscription ownership uses an account object.
+
+**Reason:** Boolean premium state cannot model renewal or access policy and cannot expand safely to
+family, organization, or institution ownership.
+
+**Consequence:** Individual accounts work now. Other account types are schema extension points only;
+seats, membership, promotions, and license policy require later approval.
+
+## D-073 - Honest Commerce Launch Boundary
+
+**Decision:** Keep checkout disabled until a production provider and approved paid price/currency,
+tax, entitlement, cancellation, refund, and legal policy exist.
+
+**Reason:** Invented pricing or a fake production checkout would mislead students and weaken payment
+integrity.
+
+**Consequence:** The UI explains plan/access and history, shows no fabricated price, and does not
+claim purchases are available. No Redis, Celery, broker, WebSocket, microservice, worker, AI, or
+Focus internal change was added.

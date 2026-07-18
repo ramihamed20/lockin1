@@ -11,38 +11,48 @@ Last updated: 2026-07-18
 - [x] Phase 4 education/content/discovery/progress approved.
 - [x] Phase 5 assessment learning ecosystem approved.
 - [x] Phase 6 contextual community/moderation approved.
+- [x] Phase 7 learning motivation/notifications approved.
 
-## Phase 7 - Complete; Awaiting Review
+## Phase 8 - Complete; Awaiting Review
 
-- [x] Keep achievement, XP, ranking, streak, and notification domains independent.
-- [x] Consume source-domain events through a stateless integration boundary.
-- [x] Make all progression server-authoritative, idempotent, auditable, and rebuildable.
-- [x] Reward bounded meaningful study and exclude raw engagement grinding.
-- [x] Add versioned achievement definitions/evidence/progress/earned records.
-- [x] Add versioned streak policy and deterministic daily recomputation.
-- [x] Add deterministic ranking facts/snapshots, tie rules, audit/checksum, and privacy.
-- [x] Add recipient-owned notifications, counters, safe targets, deduplication, and preferences.
-- [x] Keep email/push modeled but unavailable; add no provider or delivery worker.
-- [x] Add reconciliation for best-effort event recovery.
-- [x] Add accessible, responsive English/Arabic progression and notification workflows.
-- [x] Pass unit/API/coverage/PWA/Axe/RTL/full-browser regression gates.
+- [x] Keep catalog, subscription, entitlement, payment, invoice, refund, and provider domains independent.
+- [x] Make entitlement decisions server-authoritative and independent of plan-name flags.
+- [x] Implement explicit subscription lifecycle, revision, transition, period, and cancellation state.
+- [x] Snapshot server-owned price, amount, currency exponent, payment, invoice, and refund evidence.
+- [x] Add administrator-authorized, provider-confirmed, reserved, idempotent refunds.
+- [x] Add a provider protocol, secure fake development adapter, bounded verified webhooks, and audit.
+- [x] Add commerce event integration and `reconcile_commerce` without external infrastructure.
+- [x] Seed the approved trial and capability definitions without inventing paid prices.
+- [x] Add accessible responsive English/Arabic plan, access, and billing-history workflows.
+- [x] Pass backend/frontend/coverage/PWA/Axe/RTL/full-browser regression gates.
 - [x] Update all source-of-truth documentation.
-- [ ] Obtain explicit Phase 8 approval.
+- [ ] Obtain explicit Phase 9 approval.
 
 ## Deferred Evidence / Inputs
 
 - [ ] Run the complete suite against PostgreSQL in CI or a local PostgreSQL environment.
 - [ ] Add PostgreSQL concurrency tests for XP/evidence idempotency, counters, and ranking publication.
 - [ ] Establish representative million-row XP/notification and ranking datasets for Phase 11 load work.
+- [ ] Run PostgreSQL concurrency tests for payment/refund idempotency, transition locks, webhook
+  deduplication, and entitlement resynchronization.
+- [ ] Run provider sandbox, reverse-proxy payload-limit, replay, and representative commerce load tests.
 - [ ] Schedule and monitor `rebuild_motivation` only through approved operations infrastructure.
+- [ ] Schedule and monitor `reconcile_commerce` only through approved operations infrastructure.
 - [ ] Integrate a malware scanner before production file ingestion; status is `not_configured`.
 - [ ] Supply real institutions, curricula, learning content, questions, and creator scopes.
 - [ ] Select production object storage/CDN and hosting.
 - [ ] Approve legal privacy, retention, ranking identity, notification retention, and moderation policy.
 
+## Paid Launch Inputs
+
+- [ ] Approve the production payment provider and legal/merchant configuration.
+- [ ] Approve paid prices, currencies/exponents, regional availability, tax behavior, and copy.
+- [ ] Approve plan-to-entitlement matrix and any Focus/download/content gates before enforcement.
+- [ ] Approve cancellation, renewal, grace, refund, receipt/invoice, and dispute policies.
+- [ ] Approve promotion/coupon and family/organization/institution membership behavior before adding it.
+
 ## Later Product Inputs
 
-- [ ] Phase 8 subscription price, currency, access/grace policy, and provider interface.
 - [ ] Approve a real email or push provider before enabling those notification channels.
 - [ ] Approve freeze-token, grace-day, and recovery behavior before changing the streak policy.
 - [ ] Approve additional ranking scopes/periods and eligibility rules before seeding them.
@@ -53,8 +63,10 @@ Last updated: 2026-07-18
 ## Guardrails
 
 - Never modify `C:\Users\ramih\Desktop\Dentify-Before-Edits`.
-- Work one approved phase at a time; do not start Phase 8 without explicit approval.
+- Work one approved phase at a time; do not start Phase 9 without explicit approval.
 - Server remains the source of truth for progression, permissions, moderation, grading, and review.
+- Entitlements, not plan flags or client state, remain the source of truth for protected capabilities.
+- Never trust client payment/refund success, amount, currency, price, subscription state, or access.
 - Rankings reward verified learning evidence, not raw activity or popularity.
 - Preserve backward-compatible APIs unless a change is intentionally versioned.
 - Focus remains an independent product module; AI remains provider-independent and unimplemented.

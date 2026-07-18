@@ -2,6 +2,62 @@
 
 All notable rebuild changes are documented here.
 
+## 2026-07-18 - Phase 8
+
+### Added
+
+- Independent product catalog, subscription, entitlement, payment, invoice, refund, and provider
+  integration domains plus a stateless commerce event boundary.
+- Immutable plan versions, regional/versioned prices, integer minor-unit amounts, and currency
+  exponents.
+- Explicit subscription accounts, lifecycle periods, cancellation, revisions, and append-only
+  idempotent transitions.
+- Capability definitions/rules/grants/audit and centralized entitlement decision/service/DRF mixin.
+- Server-owned payment and invoice snapshots with append-only transition evidence.
+- Administrator-authorized, reserved, provider-confirmed, idempotent partial/full refunds.
+- Provider protocol, safe disabled adapter, signed fake development adapter, bounded verified
+  webhook ingestion, deduplication/audit, and `reconcile_commerce`.
+- Required billing notification category and event-driven commerce notifications.
+- Lazy accessible English/Arabic `/subscription` **Plan & access** route and Phase 8 tests.
+- `PHASE_8_SUBSCRIPTIONS.md` with architecture, security, UX reasons, evidence, exclusions, and
+  launch inputs.
+
+### Security and Correctness
+
+- Rejected client-owned amount, currency, success, access, and unexpected financial fields.
+- Required stable idempotency for payment/refund operations and exact provider amount/currency match.
+- Bounded webhook payloads, verified timestamp/HMAC/exact schema, avoided raw-payload storage, and
+  rejected provider-ID digest conflicts.
+- Preserved failed provider processing audit and made repeated success/refund delivery harmless.
+- Prevented over-refund with pending reservations and made all commerce admin records read-only.
+- Made production fail closed for fake/unknown provider configuration.
+- Corrected a DRF Spectacular `action` attribute collision discovered by OpenAPI validation.
+
+### Product and Accessibility
+
+- Explained current plan, lifecycle date, and active capabilities before financial history.
+- Kept checkout visibly unavailable rather than inventing a provider, paid price, or currency.
+- Added inline cancellation confirmation, skeleton/empty/error/retry states, semantic history,
+  logical RTL layout, reduced motion, touch sizing, and mobile/tablet responsiveness.
+- Preserved existing feature access until an owner-approved entitlement matrix exists.
+
+### Validation
+
+- Backend: 144 passed; 85.78% branch-aware coverage; Ruff, strict mypy (331 files), Django check,
+  and migration drift passed. OpenAPI generation completed after fixing its crash; inherited
+  APIView schema-description debt remains tracked.
+- Frontend: 126 passed; 90.39% statements, 80.16% branches, 87.37% functions, 94.32% lines;
+  TypeScript, ESLint, and production PWA build passed.
+- Browser: 25 passed and 1 intentional desktop skip; Phase 8 desktop/mobile passed Axe, RTL,
+  focus/landmarks, cancellation, currency exponent, and overflow checks.
+
+### Boundaries
+
+- No real provider/price/checkout, promotion/coupon, organization/family/institution behavior, AI,
+  or Focus internal change.
+- No Redis, Celery, WebSocket, broker, microservice, or background worker.
+- PostgreSQL concurrency, provider sandbox/edge, and representative load remain evidence gates.
+
 ## 2026-07-18 - Phase 7
 
 ### Added

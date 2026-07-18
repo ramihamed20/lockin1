@@ -278,6 +278,169 @@
   .learning-object-header__actions > * { inline-size: 100%; }
 }
 
+@layer components {
+  .billing-kicker {
+    margin: 0 0 var(--space-2);
+    color: var(--color-primary);
+    font-size: var(--text-xs);
+    font-weight: 820;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .status-chip {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 1.8rem;
+    padding-inline: var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    color: var(--color-text-muted);
+    background: var(--color-surface);
+    font-size: var(--text-xs);
+    font-weight: 780;
+  }
+  .status-chip--trialing,
+  .status-chip--active { border-color: var(--color-success); color: var(--color-success); }
+  .status-chip--grace,
+  .status-chip--pending { border-color: var(--color-secondary); color: var(--color-secondary); }
+  .status-chip--suspended,
+  .status-chip--refunded { border-color: var(--color-danger); color: var(--color-danger); }
+}
+
+@layer layouts {
+  .billing-page { max-inline-size: 78rem; }
+  .billing-heading { max-inline-size: 54rem; }
+  .billing-plan {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(18rem, 0.8fr);
+    align-items: end;
+    gap: var(--space-8);
+    margin-block-start: var(--space-10);
+    padding: clamp(1.5rem, 4vw, 2.5rem);
+    border: 1px solid color-mix(in oklch, var(--color-primary) 38%, var(--color-border));
+    border-inline-start-width: 4px;
+    background: var(--color-bg-subtle);
+  }
+  .billing-plan--empty { grid-template-columns: 1fr; }
+  .billing-plan__identity > p:last-child,
+  .billing-section > header > p,
+  .cancel-confirmation p,
+  .offer-list p,
+  .entitlement-list p {
+    color: var(--color-text-muted);
+    line-height: var(--leading-copy);
+  }
+  .billing-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); }
+  .billing-title-row h2 { margin: 0; font-size: clamp(var(--text-xl), 4vw, var(--text-2xl)); }
+  .billing-plan__dates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; }
+  .billing-plan__dates > div { min-inline-size: 0; padding-inline: var(--space-5); border-inline-start: var(--panel-border); }
+  .billing-plan__dates dt { color: var(--color-text-faint); font-size: var(--text-xs); font-weight: 760; }
+  .billing-plan__dates dd { overflow-wrap: anywhere; margin: var(--space-2) 0 0; font-weight: 760; }
+  .billing-plan > .button { justify-self: start; }
+  .billing-notice {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding: var(--space-3) var(--space-4);
+    border-inline-start: 3px solid var(--color-secondary);
+    color: var(--color-text-muted);
+    background: color-mix(in oklch, var(--color-secondary) 8%, transparent);
+  }
+  .cancel-confirmation {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-6);
+    padding-block-start: var(--space-5);
+    border-block-start: var(--panel-border);
+  }
+  .cancel-confirmation h3,
+  .cancel-confirmation p { margin: 0; }
+  .cancel-confirmation p { margin-block-start: var(--space-2); }
+  .cancel-confirmation__actions { display: flex; flex: 0 0 auto; gap: var(--space-3); }
+
+  .billing-section { margin-block-start: var(--space-12); padding-block-start: var(--space-7); border-block-start: var(--panel-border); }
+  .billing-section > header { display: flex; align-items: end; justify-content: space-between; gap: var(--space-8); }
+  .billing-section > header > div { flex: 0 1 30rem; }
+  .billing-section > header h2 { margin: 0; font-size: var(--text-xl); }
+  .billing-section > header > p { max-inline-size: 38rem; margin: 0; }
+
+  .entitlement-list,
+  .offer-list { padding: 0; margin: var(--space-6) 0 0; list-style: none; }
+  .entitlement-list li {
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-4);
+    padding-block: var(--space-5);
+    border-block-end: var(--panel-border);
+  }
+  .entitlement-list h3,
+  .entitlement-list p { margin: 0; }
+  .entitlement-list p { margin-block-start: var(--space-1); }
+  .entitlement-list small { color: var(--color-text-faint); text-align: end; }
+  .entitlement-check {
+    inline-size: 2rem;
+    block-size: 2rem;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--color-success);
+    border-radius: 50%;
+    color: var(--color-success);
+    font-weight: 850;
+  }
+
+  .offer-list li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-2) var(--space-8);
+    padding-block: var(--space-6);
+    border-block-end: var(--panel-border);
+  }
+  .offer-list h3,
+  .offer-list p { margin: 0; }
+  .offer-list p { margin-block-start: var(--space-2); }
+  .offer-list strong { grid-row: 1; grid-column: 2; font-size: var(--text-xl); text-align: end; }
+  .offer-list strong small { color: var(--color-text-muted); font-size: var(--text-sm); font-weight: 600; }
+  .offer-list > li > span { grid-column: 1 / -1; color: var(--color-text-faint); font-size: var(--text-sm); }
+
+  .billing-table-wrap { overflow-x: auto; margin-block-start: var(--space-6); border-block: var(--panel-border); }
+  .billing-table { inline-size: 100%; border-collapse: collapse; }
+  .billing-table th,
+  .billing-table td { padding: var(--space-4); border-block-end: var(--panel-border); text-align: start; }
+  .billing-table thead th { color: var(--color-text-faint); font-size: var(--text-xs); letter-spacing: 0.07em; text-transform: uppercase; }
+  .billing-table th:last-child,
+  .billing-table td:last-child { text-align: end; }
+  .transaction-summary { display: flex; flex-wrap: wrap; gap: var(--space-6); margin-block-start: var(--space-5); color: var(--color-text-muted); }
+  .transaction-summary strong { margin-inline-start: var(--space-2); color: var(--color-text); }
+}
+
+@media (max-width: 48rem) {
+  .billing-plan { grid-template-columns: 1fr; align-items: stretch; gap: var(--space-6); }
+  .billing-plan__dates > div:first-child { padding-inline-start: 0; border-inline-start: 0; }
+  .billing-section > header,
+  .cancel-confirmation { align-items: stretch; flex-direction: column; }
+  .cancel-confirmation__actions { flex-direction: column; }
+  .cancel-confirmation__actions .button { inline-size: 100%; }
+  .entitlement-list li { grid-template-columns: 2rem minmax(0, 1fr); }
+  .entitlement-list small { grid-column: 2; text-align: start; }
+  .offer-list li { grid-template-columns: 1fr; }
+  .offer-list strong,
+  .offer-list > li > span { grid-column: 1; text-align: start; }
+  .billing-table thead { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .billing-table,
+  .billing-table tbody,
+  .billing-table tr,
+  .billing-table th,
+  .billing-table td { display: block; }
+  .billing-table tr { padding-block: var(--space-3); border-block-end: var(--panel-border); }
+  .billing-table th,
+  .billing-table td { display: flex; justify-content: space-between; gap: var(--space-4); padding: var(--space-2); border: 0; text-align: end; }
+  .billing-table th::before,
+  .billing-table td::before { content: attr(data-label); color: var(--color-text-faint); font-size: var(--text-xs); font-weight: 600; }
+}
+
 @media (max-width: 48rem) {
   .auth-shell { display: block; }
   .auth-header { min-block-size: 4.75rem; padding-inline: var(--space-5); background: linear-gradient(var(--color-bg), transparent); }

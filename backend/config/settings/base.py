@@ -34,6 +34,14 @@ INSTALLED_APPS = [
     "apps.rankings.apps.RankingsConfig",
     "apps.notifications.apps.NotificationsConfig",
     "apps.motivation_integrations.apps.MotivationIntegrationsConfig",
+    "apps.product_catalog.apps.ProductCatalogConfig",
+    "apps.subscriptions.apps.SubscriptionsConfig",
+    "apps.entitlements.apps.EntitlementsConfig",
+    "apps.payments.apps.PaymentsConfig",
+    "apps.invoices.apps.InvoicesConfig",
+    "apps.refunds.apps.RefundsConfig",
+    "apps.provider_integrations.apps.ProviderIntegrationsConfig",
+    "apps.commerce_integrations.apps.CommerceIntegrationsConfig",
 ]
 
 MIDDLEWARE = [
@@ -126,6 +134,12 @@ COMMUNITY_EDIT_RATE_WINDOW_SECONDS = env_int("COMMUNITY_EDIT_RATE_WINDOW_SECONDS
 COMMUNITY_EDIT_RATE_LIMIT = env_int("COMMUNITY_EDIT_RATE_LIMIT", 30)
 MODERATION_REPORT_RATE_WINDOW_SECONDS = env_int("MODERATION_REPORT_RATE_WINDOW_SECONDS", 600)
 MODERATION_REPORT_RATE_LIMIT = env_int("MODERATION_REPORT_RATE_LIMIT", 10)
+
+DEFAULT_TRIAL_PLAN_CODE = env("DEFAULT_TRIAL_PLAN_CODE", "lockin_trial")
+PAYMENT_PROVIDER = env("PAYMENT_PROVIDER", "none")
+PAYMENT_FAKE_WEBHOOK_SECRET = env("PAYMENT_FAKE_WEBHOOK_SECRET", "")
+PAYMENT_WEBHOOK_TOLERANCE_SECONDS = env_int("PAYMENT_WEBHOOK_TOLERANCE_SECONDS", 300)
+PAYMENT_WEBHOOK_MAX_BYTES = env_int("PAYMENT_WEBHOOK_MAX_BYTES", 65_536)
 
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"

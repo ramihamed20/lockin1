@@ -12,6 +12,7 @@ class Notification(models.Model):
         COMMUNITY = "community", "Community"
         MODERATION = "moderation", "Moderation"
         PLATFORM = "platform", "Platform"
+        BILLING = "billing", "Billing"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     recipient = models.ForeignKey(

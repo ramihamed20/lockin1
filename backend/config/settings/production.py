@@ -22,6 +22,13 @@ if EMAIL_BACKEND in {
 }:
     raise ImproperlyConfigured("Production requires a real email backend.")
 
+if PAYMENT_PROVIDER == "fake":  # noqa: F405
+    raise ImproperlyConfigured("The fake payment provider cannot run in production.")
+if PAYMENT_PROVIDER != "none":  # noqa: F405
+    raise ImproperlyConfigured(
+        "No production payment-provider adapter is installed. Keep PAYMENT_PROVIDER=none."
+    )
+
 DATABASES["default"]["PASSWORD"] = require_env("POSTGRES_PASSWORD")  # noqa: F405
 DATABASES["default"]["CONN_MAX_AGE"] = env_int("POSTGRES_CONN_MAX_AGE", 60)  # noqa: F405
 

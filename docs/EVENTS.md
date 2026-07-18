@@ -56,7 +56,15 @@ request bodies, or unrestricted personal data.
 | `achievements.earned` | Achievements | Implemented; exact definition/version/earned-record identifiers |
 | `rankings.snapshot_published` | Rankings | Implemented; definition/snapshot/checksum identifiers |
 | `notifications.created` | Notifications | Implemented; recipient/category/template identifiers only |
-| `subscriptions.subscription_activated` | Subscriptions | Reserved contract; not coded yet |
+| `catalog.plan_published` / `catalog.price_published` | Product Catalog | Implemented; version/price identifiers only |
+| `subscriptions.created` / `subscriptions.status_changed` | Subscriptions | Implemented; lifecycle identifiers and status facts |
+| `subscriptions.cancellation_scheduled` | Subscriptions | Implemented after committed cancellation request |
+| `entitlements.granted` / `entitlements.revoked` | Entitlements | Implemented; capability/grant/source identifiers |
+| `payments.initiated` / `payments.succeeded` / `payments.failed` | Payments | Implemented; server financial identifiers and bounded facts |
+| `payments.refund_state_changed` | Payments | Implemented after refund projection change |
+| `invoices.paid` / `invoices.refund_state_changed` | Invoices | Implemented; invoice/payment identifiers and refund projection |
+| `refunds.requested` / `refunds.succeeded` / `refunds.failed` | Refunds | Implemented; refund/payment identifiers and bounded result facts |
+| `provider_integrations.event_verified` | Provider Integration | Implemented; normalized event identifier/type only |
 | `moderation.report.created` | Moderation | Implemented; report/target/reason identifiers |
 | `moderation.action.recorded` | Moderation | Implemented; audit/action/target and conflict identifiers |
 | `content.content_published` | Content | Implemented; includes object/version/node/type after committed publication |
@@ -87,6 +95,20 @@ domains do not import those consumers.
 | `achievements.earned` | Achievement notification |
 | `xp.awarded` | Ranking fact only when the award is ranking eligible |
 
+Phase 8 adds `apps.commerce_integrations` as a second stateless subscriber composition root.
+Provider verification never mutates catalog, subscription, entitlement, payment, invoice, or refund
+tables directly; the normalized event is routed through public domain services.
+
+| Source event | Current Phase 8 consumers |
+|---|---|
+| `accounts.user_email_verified` | Default trial creation through subscription service |
+| `provider_integrations.event_verified` | Normalized payment/refund processor |
+| `payments.succeeded` | Subscription activation/renewal, invoice creation, billing notification |
+| `payments.failed` | Pending cancellation or active grace/expiry handling, billing notification |
+| `refunds.succeeded` | Payment/invoice projection and full-refund lifecycle/entitlement update |
+| `refunds.failed` | Billing notification |
+| `subscriptions.status_changed` | Subscription-derived entitlement resynchronization and notification |
+
 ## Transaction behavior
 
 Domain state changes occur first inside a database transaction. The event is dispatched only after
@@ -101,6 +123,11 @@ Phase 7's durable effects are idempotent and recoverable. The `rebuild_motivatio
 command scans committed authoritative source records, replays missing evidence/notifications, and
 rebuilds XP balances, streaks, achievement progress, ranking facts, and unread counters. It does not
 regrade assessments or rewrite source-domain history.
+
+Phase 8 durable commerce effects are also idempotent. `reconcile_commerce` reprocesses verified or
+failed normalized provider events and resynchronizes subscription-derived entitlement grants. It
+does not invent provider success, rewrite immutable price/payment/invoice evidence, or call an
+unconfigured provider.
 
 ## When durability is justified
 

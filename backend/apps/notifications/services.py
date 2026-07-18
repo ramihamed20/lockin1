@@ -19,7 +19,7 @@ class NotificationTargetUnavailable(LookupError):
 
 
 def _preference_allows(*, recipient: User, category: str, required: bool) -> bool:
-    if required or category == Notification.Category.ACCOUNT:
+    if required or category in (Notification.Category.ACCOUNT, Notification.Category.BILLING):
         return True
     preference = NotificationPreference.objects.filter(
         user=recipient,
@@ -141,8 +141,11 @@ def set_preferences(*, user: User, preferences: Iterable[dict[str, object]]) -> 
             enabled = bool(item["enabled"])
             if category not in allowed_categories or channel not in allowed_channels:
                 raise ValueError("Unknown notification preference.")
-            if category == Notification.Category.ACCOUNT and not enabled:
-                raise ValueError("Required account messages cannot be disabled.")
+            if (
+                category in (Notification.Category.ACCOUNT, Notification.Category.BILLING)
+                and not enabled
+            ):
+                raise ValueError("Required account and billing messages cannot be disabled.")
             NotificationPreference.objects.update_or_create(
                 user=user,
                 category=category,

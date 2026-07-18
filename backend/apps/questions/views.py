@@ -135,13 +135,13 @@ class ManagementQuestionDetailView(APIView):
 
 class _RevisionActionView(APIView):
     permission_classes = [IsCreatorOrAdministrator]
-    action = staticmethod(submit_question_for_review)
+    service_action = staticmethod(submit_question_for_review)
 
     def post(self, request: Request, question_id: UUID) -> Response:
         serializer = RevisionActionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
-            question = self.action(
+            question = self.service_action(
                 actor=_user(request),
                 question_id=question_id,
                 expected_revision=int(serializer.validated_data["expected_revision"]),
@@ -154,15 +154,15 @@ class _RevisionActionView(APIView):
 
 
 class SubmitQuestionView(_RevisionActionView):
-    action = staticmethod(submit_question_for_review)
+    service_action = staticmethod(submit_question_for_review)
 
 
 class PublishQuestionView(_RevisionActionView):
-    action = staticmethod(publish_question)
+    service_action = staticmethod(publish_question)
 
 
 class RetireQuestionView(_RevisionActionView):
-    action = staticmethod(retire_question)
+    service_action = staticmethod(retire_question)
 
 
 class RejectQuestionView(APIView):
