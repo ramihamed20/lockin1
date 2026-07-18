@@ -21,3 +21,12 @@ class UserRolesChanged(DomainEvent):
     event_name = "accounts.user_roles_changed"
     user_id: UUID
     roles: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class UserStatusChanged(DomainEvent):
+    event_name = "accounts.user_status_changed"
+    user_id: UUID
+    from_status: str
+    to_status: str
+    reason: str

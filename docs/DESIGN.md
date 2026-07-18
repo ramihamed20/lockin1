@@ -226,3 +226,29 @@ live loading/error/cancellation status, logical properties, reduced motion, and 
 component tree. Wide financial history becomes a labeled narrow layout without clipping or covering
 the document area. Desktop and mobile Playwright flows pass Axe, RTL, focus/landmarks, and overflow
 checks. The route remains lazy and adds no runtime UI, payment, font, icon, or animation dependency.
+
+## Phase 9 Operations Experience
+
+Phase 9 uses a quiet operational hierarchy rather than a card wall or a clone of Django Admin. The
+overview answers platform health, content answers publishing/coverage, and support answers account,
+moderation, payment, subscription, notification, and community queues. The user workspace uses a
+searchable list/detail pattern, keeping role and status actions adjacent to identity evidence.
+
+### Phase 9 material redesigns
+
+| Redesign | Usability reason |
+|---|---|
+| One administrator dashboard → overview/content/support routes | Reduces cognitive load and lets roles bookmark the workspace they use |
+| Dense desktop tables → semantic line lists and user list/detail | Preserves labels, touch targets, and action context at narrow widths |
+| Destructive modal-first flow → inline preview/confirm region | Keeps focus/context stable while exposing exact consequences |
+| Hidden analytics derivation → visible period and freshness | Prevents operators from mistaking projections for real-time truth |
+| Infrastructure detail → normalized system status | Communicates actionability without leaking hosts or provider internals |
+
+The route reuses primitive/semantic/component tokens, shared Button/Feedback controls, semantic
+headings/lists/description lists/forms, labeled complementary landmarks, visible focus, reduced
+motion, logical properties, and one English/Arabic tree. Operation tabs scroll within their own
+narrow container without widening the page. Desktop and Pixel 7 Playwright flows pass Axe, Arabic
+RTL, confirmation, and horizontal-overflow checks. Browser review found and corrected a duplicate
+heading and unnamed landmarks. Operations routes remain lazy and add no UI/font/icon dependency.
+The measured production main bundle is 108.32 KB gzip and CSS is 13.96 KB gzip; operations pages
+remain route-split.

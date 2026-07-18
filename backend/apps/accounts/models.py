@@ -139,6 +139,7 @@ class AccountSecurityEvent(models.Model):
         LOGIN_SUCCEEDED = "login_succeeded", "Login succeeded"
         LOGOUT = "logout", "Logout"
         ROLE_CHANGED = "role_changed", "Role changed"
+        STATUS_CHANGED = "status_changed", "Status changed"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="security_events")

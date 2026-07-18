@@ -890,6 +890,12 @@ All permission decisions are enforced by the backend. Frontend role checks only 
 
 **Required tests:** Administrator-only API, configuration validation, audit, bulk preview/partial failure, redaction, analytics freshness, last-admin protection, and responsive E2E.
 
+**Phase 9 implementation:** Complete. Operational permissions are capability-based; dedicated
+overview/content/support/user/audit/report/configuration workspaces consume bounded APIs and UTC
+event projections. Implemented actions and reports require expiring preview confirmation and leave
+append-only redacted evidence. Configuration is typed/versioned and excludes secrets. System health
+is provider-neutral and safe for authorized staff. See `PHASE_9_OPERATIONS.md`.
+
 ### F-22 Loading, Empty, Error, Confirmation, and Recovery States
 
 **Roles:** All.
@@ -1244,3 +1250,37 @@ feature was silently restricted because the paid entitlement matrix is not appro
 provider, paid price, promotion, coupon, family/institution membership behavior, Redis, Celery,
 broker, WebSocket, microservice, worker, AI runtime, or Focus internal change was introduced. See
 `PHASE_8_SUBSCRIPTIONS.md` for invariants, security, validation, launch inputs, and exclusions.
+
+## Phase 9 Implementation Record
+
+Phase 9 realizes operations as focused workspaces backed by evidence, not as a second generic admin
+menu:
+
+- independent administration, analytics, audit, reporting, operational-action, and system-
+  configuration domains;
+- role/capability authorization for Platform Administrator, Support, Content Manager, Moderator,
+  Finance, and Analytics Viewer;
+- durable event facts and UTC daily projections for learning, Focus, community, subscription, and
+  server-confirmed payment trends;
+- append-only redacted administrative evidence with actor, reason, source, before/after, and related
+  entities;
+- bounded preview/confirm workflows for account status actions and CSV reports;
+- typed optimistic configuration that cannot store secrets;
+- safe provider-neutral health, metrics, error-reporting, and structured request telemetry;
+- accessible responsive English/Arabic operations routes using overview/content/support separation
+  and mobile list/detail interaction.
+
+Important redesigns and reasons:
+
+| Redesign | Usability reason |
+|---|---|
+| One overloaded admin dashboard → purpose-specific workspaces | Lets each operational role answer one question without scanning unrelated data |
+| Wide user table → list/detail user workspace | Keeps identity, roles, and action context usable on phones/tablets |
+| Immediate destructive action → preview then explicit confirmation | Exposes target and consequence before server mutation |
+| Live history queries → projected period/freshness metrics | Keeps dashboards fast and honest about recency |
+| Vendor health detail → normalized safe component status | Avoids secret/infrastructure leakage and provider lock-in |
+
+Focus remains independent and contributes only a bounded completed-session fact. AI remains
+unimplemented. No scheduler, worker, Redis, Celery, WebSocket, broker, microservice, BI vendor, or
+monitoring provider was introduced. See `PHASE_9_OPERATIONS.md` for APIs, invariants, validation,
+limitations, and exclusions.

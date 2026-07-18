@@ -247,3 +247,29 @@ provider/webhook, idempotency, raw-payload, refund, admin, and production-settin
 The reference project remains unchanged. Local evidence uses SQLite and a signed fake development
 provider; it does not claim PostgreSQL commerce concurrency, provider sandbox, edge webhook, or load
 readiness.
+
+## Phase 9 Rebuild Note
+
+Phase 9 replaces the reference application's staff-only Django Admin dependence and request-time
+operational guesses with a dedicated, capability-based operations platform. Administration,
+analytics, audit, reporting, operational actions, and system configuration have separate ownership;
+provider-neutral observability remains in the platform core.
+
+Operational dashboards read indexed UTC projections built from domain events. Administrative
+mutations require reasons and append redacted evidence. Dangerous account status changes and CSV
+exports use bounded preview/confirmation flows. Configuration is allowlisted, typed, versioned, and
+cannot hold secrets. Django Admin remains maintenance-only.
+
+The operations redesign uses focused overview/content/support workspaces and mobile list/detail
+flows instead of one overloaded dashboard or wide tables. Browser review found and corrected a
+duplicate heading and unnamed complementary landmarks. Desktop and RTL mobile views then passed
+Axe and overflow checks.
+
+The selected Skills continued unchanged: `impeccable` guided task hierarchy and live accessibility
+review, `design-system` preserved shared tokens/patterns, `security-best-practices` hardened RBAC,
+audit, configuration, reporting, actions, telemetry, and production checks, and `playwright`
+validated full desktop/mobile behavior. No new applicable Skill was discovered.
+
+The reference project remains unchanged. Local evidence does not claim PostgreSQL concurrency,
+representative load, a real BI/monitoring provider, scheduled reports, or database-role enforcement
+of audit immutability.

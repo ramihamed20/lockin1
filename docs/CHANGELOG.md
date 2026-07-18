@@ -2,6 +2,69 @@
 
 All notable rebuild changes are documented here.
 
+## 2026-07-18 - Phase 9
+
+### Added
+
+- Independent administration, analytics, audit, reporting, operational-action, and system-
+  configuration domains plus stateless operational event integration.
+- Operational capability/role catalog, assignments, session/resource discovery, dedicated
+  overview/content/support dashboards, system health, and paginated user directory.
+- Durable idempotent analytics facts, UTC daily metrics/distinct learners, freshness, bounded API,
+  and `rebuild_operational_analytics`.
+- Append-only recursively redacted audit records with actor/action/target/reason/source/correlation/
+  before/after/related evidence.
+- Previewed, confirmed, idempotent account status actions with protection, session termination, and
+  partial-result summaries.
+- Previewed bounded CSV report exports with expiring confirmations, row limits, and row/hash audit.
+- Typed versioned allowlisted non-secret configuration with optimistic concurrency and reason/audit.
+- Provider-neutral metrics/error contracts, structured normalized telemetry, and safe authorized
+  component health.
+- Lazy accessible English/Arabic operations routes for overview, content, support, users, audit,
+  reports, and configuration.
+- `PHASE_9_OPERATIONS.md` with architecture, APIs, security, operations, UX, validation, limitations,
+  and exclusions.
+
+### Security and Correctness
+
+- Required server capabilities on every operational API; product roles cannot self-authorize.
+- Protected the final effective platform administrator and blocked operator self-suspension.
+- Delegated account mutations to the accounts domain and invalidated suspended sessions.
+- Redacted secret-like audit/error context and excluded secrets from system configuration/health.
+- Bounded action targets, report rows/date ranges, preview TTLs, analytics rebuild range, user search,
+  and payload schemas.
+- Rejected unknown report filters and neutralized spreadsheet formula prefixes in CSV exports.
+- Preserved CSRF/session enforcement and added secure same-origin CSV download handling.
+- Production deployment security check passed with strict HTTPS/HSTS test configuration.
+
+### Product and Accessibility
+
+- Split operations into task-specific overview/content/support workspaces rather than one dashboard.
+- Replaced wide user tables with a responsive list/detail workspace and inline confirmations.
+- Exposed analytics period/timezone/freshness and honest `not_configured` provider health.
+- Added skeleton/empty/error/retry/result states, semantic lists/description lists/forms, logical RTL,
+  reduced motion, touch sizing, and labeled landmarks.
+- Browser review found and fixed a duplicate heading and unnamed complementary landmarks.
+
+### Validation
+
+- Backend: 157 passed; 85.64% branch-aware coverage; Ruff lint/format, strict mypy (403 files),
+  migration drift, and production deployment checks passed.
+- OpenAPI generation completed with no Phase 9 view warnings; 96 inherited APIView/operation-id
+  warnings remain tracked and the global schema is not claimed clean.
+- Frontend: 153 passed; 90.87% statements, 80.08% branches, 87.48% functions, 95.16% lines;
+  TypeScript, ESLint, lockfile installation/audit, and production PWA build passed.
+- Browser: 29 passed and 1 intentional desktop skip; Phase 9 desktop/mobile passed Axe, RTL,
+  landmarks, preview/confirmation, and overflow. Screenshots were visually reviewed.
+
+### Boundaries
+
+- Focus remains independent and AI remains unimplemented/provider-independent.
+- No Redis, Celery, WebSocket, broker, microservice, scheduler, worker, BI vendor, or monitoring
+  vendor was added.
+- PostgreSQL concurrency, representative load, production database audit grants, scheduled reports,
+  alerts/providers, and inherited schema warnings remain evidence/debt gates.
+
 ## 2026-07-18 - Phase 8
 
 ### Added

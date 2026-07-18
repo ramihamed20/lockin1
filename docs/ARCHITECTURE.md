@@ -695,3 +695,73 @@ pagination support growth without request-time history reconstruction.
 Focus remains independent and AI remains unimplemented. No paid provider/price, Redis, Celery,
 WebSocket, broker, microservice, or worker was added. PostgreSQL concurrency, provider sandbox, and
 representative commerce load remain explicit evidence gates.
+
+## Phase 9 Realized Operations Architecture
+
+### Independent operational domains
+
+`apps.administration`, `apps.analytics`, `apps.audit`, `apps.reporting`,
+`apps.operational_actions`, and `apps.system_configuration` own their models, services, selectors,
+permissions, APIs, migrations, and tests. `apps.operations_integrations` is a stateless composition
+root for analytics subscribers. Provider-neutral telemetry contracts live in
+`platform_core.observability` because HTTP middleware and health span every domain.
+
+Product roles do not imply unrestricted operations access. Seeded operational roles aggregate
+fine-grained capabilities, and each API checks the smallest required capability. Existing active
+product administrators receive all operational capabilities only as a backward-compatible
+bootstrap path. Role changes require reason/audit and cannot remove the final effective platform
+administrator.
+
+### Projection and action flow
+
+```text
+authoritative domain commit
+        |
+        +-> typed after-commit event
+                  |
+                  +-> idempotent AnalyticsFact(event_id, metric)
+                                  |
+                                  +-> UTC DailyMetric / DailyActiveLearner
+                                                  |
+                                                  +-> bounded dashboard/report selectors
+
+operator request -> capability check -> preview + expiring token
+                                        |
+                                        +-> explicit execute + idempotency
+                                                    |
+                                                    +-> owning domain service
+                                                    +-> append-only redacted audit
+                                                    +-> result summary
+```
+
+Dashboard requests never scan full assessment, progress, Focus, community, or commerce histories.
+Projection rebuilds are bounded and operate from durable facts. The lightweight event bus remains
+in process; no broker is implied.
+
+### Audit, reporting, and configuration boundaries
+
+Audit records are append-only through supported model/queryset paths and recursively redact
+secret-like keys. Reporting catalogs are explicit, filters and rows are bounded, CSV execution
+requires preview confirmation, and output evidence stores row count/hash. Configuration is an
+allowlisted typed versioned catalog with optimistic concurrency and mandatory reason; secrets remain
+in deployment secret storage.
+
+The only Phase 9 operational mutation is account active/suspended state. It delegates to the
+accounts service, protects self/final-admin state, terminates sessions, supports partial summaries,
+and does not create a speculative generic bulk engine.
+
+### Observability and frontend boundary
+
+Request middleware emits normalized route/method/status/duration signals, structured slow-request
+logs, and redacted error context through narrow provider protocols. No-op providers report
+`not_configured`; authorized health output exposes no host, credential, stack, or vendor detail.
+
+The route-split `/operations` feature has separate overview/content/support/user/audit/report/
+configuration pages. The browser receives server-authorized capabilities/resources and never
+derives operational authority. Shared tokens, semantic landmarks, logical properties, English/
+Arabic RTL, and narrow list/detail layouts keep the platform usable without a desktop-only table.
+
+Focus remains independent; only its committed session event is consumed as a bounded fact. AI
+remains unimplemented/provider-independent. No Redis, Celery, WebSocket, broker, microservice,
+scheduler, worker, BI vendor, or monitoring vendor was added. PostgreSQL concurrency and
+representative projection/export/load evidence remain launch gates.

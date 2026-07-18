@@ -109,6 +109,20 @@ tables directly; the normalized event is routed through public domain services.
 | `refunds.failed` | Billing notification |
 | `subscriptions.status_changed` | Subscription-derived entitlement resynchronization and notification |
 
+Phase 9 adds `apps.operations_integrations` as a stateless analytics composition root. It records
+one durable metric fact per `(event_id, metric)` and updates UTC daily projections. Source domains
+do not import analytics or administration.
+
+| Source event | Current Phase 9 projection effects |
+|---|---|
+| `accounts.user_registered` | Registrations and distinct daily active learners |
+| `education.lesson_completed` | Lesson completions and daily active learners |
+| `focus.session_completed` | Focus session count, bounded minutes, and daily active learners |
+| `quiz.attempt.submitted` | Quiz completions, mastery outcomes, and daily active learners |
+| `community.discussion.created` / `community.reply.created` | Contextual contribution counts and daily active learners |
+| `subscriptions.created` | Subscription starts |
+| `payments.succeeded` | Successful payments and server-confirmed gross minor units |
+
 ## Transaction behavior
 
 Domain state changes occur first inside a database transaction. The event is dispatched only after
@@ -128,6 +142,11 @@ Phase 8 durable commerce effects are also idempotent. `reconcile_commerce` repro
 failed normalized provider events and resynchronizes subscription-derived entitlement grants. It
 does not invent provider success, rewrite immutable price/payment/invoice evidence, or call an
 unconfigured provider.
+
+Phase 9 analytics fact writes and projections are idempotent. Projection rebuilds recover derived
+daily rows from committed facts. A process exit before an in-process subscriber records its fact is
+still a known lightweight-bus limitation; a source-domain reconciliation/outbox is justified only
+by measured loss/latency requirements and an approved operating model.
 
 ## When durability is justified
 

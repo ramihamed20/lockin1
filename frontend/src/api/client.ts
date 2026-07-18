@@ -116,6 +116,39 @@ export async function apiRequest<T>(
   return (await response.json()) as T;
 }
 
+export async function apiDownload(
+  path: string,
+  options: Omit<RequestInit, "body"> & { body?: unknown } = {}
+): Promise<{ blob: Blob; filename: string }> {
+  const { body: requestBody, ...requestOptions } = options;
+  const method = requestOptions.method ?? "POST";
+  const headers = new Headers(requestOptions.headers);
+  headers.set("Accept", "text/csv");
+  headers.set("Content-Type", "application/json");
+  if (isUnsafe(method)) {
+    headers.set("X-CSRFToken", csrfToken ?? (await refreshCsrfToken()));
+  }
+  const request: RequestInit = {
+    ...requestOptions,
+    method,
+    headers,
+    credentials: "same-origin",
+    cache: "no-store"
+  };
+  if (requestBody !== undefined) request.body = JSON.stringify(requestBody);
+  const response = await fetch(apiPath(path), request);
+  if (!response.ok) {
+    let payload: ApiErrorPayload = {};
+    if ((response.headers.get("content-type") ?? "").includes("application/json")) {
+      payload = (await response.json()) as ApiErrorPayload;
+    }
+    throw new ApiError(response.status, payload);
+  }
+  const disposition = response.headers.get("content-disposition") ?? "";
+  const match = /filename="([A-Za-z0-9._-]+)"/.exec(disposition);
+  return { blob: await response.blob(), filename: match?.[1] ?? "lockin-report.csv" };
+}
+
 export async function getApiHealth(signal?: AbortSignal): Promise<ApiHealth> {
   const payload = await apiRequest<Partial<ApiHealth>>(
     "/health/live",

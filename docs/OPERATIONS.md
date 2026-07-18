@@ -107,7 +107,7 @@ or worker exists in Phase 8.
 
 ## Current workstation limitation
 
-The Phase 8 workstation has Python 3.11 and Node 24 but no Docker, PostgreSQL server, or `psql`.
+The Phase 9 workstation has Python 3.11 and Node 24 but no Docker, PostgreSQL server, or `psql`.
 Backend unit/integration behavior was verified with the explicit SQLite fast-test switch. The CI
 workflow is configured to run the same migrations and suite against PostgreSQL 18.4. A successful
 remote CI run or a future local Docker run remains required evidence before claiming PostgreSQL
@@ -115,3 +115,32 @@ execution on this workstation.
 
 The signed fake provider validates deterministic local behavior only. It is not evidence for a real
 provider, reverse proxy, network retry, dispute, settlement, or production webhook environment.
+
+## Phase 9 operations platform
+
+Daily staff workflows use `/operations`, not Django Admin. Assign the smallest seeded operational
+role required: Platform Administrator, Support, Content Manager, Moderator, Finance, or Analytics
+Viewer. Role changes, account status changes, report exports, and configuration updates require a
+reason and are recorded in the append-only audit domain.
+
+- Use `/api/v1/operations/system-health` for authorized normalized status. Public liveness/readiness
+  remain minimal and disclose no internal detail.
+- Configure `OBSERVABILITY_SLOW_REQUEST_MS` to the approved slow-request threshold. Default metric
+  and error providers are no-ops and intentionally report `not_configured` until a provider is
+  approved.
+- Run `python manage.py rebuild_operational_analytics --from YYYY-MM-DD --to YYYY-MM-DD` to rebuild
+  UTC daily projections from durable analytics facts. The range is capped at 367 days.
+- Reports are synchronous and bounded by `reporting.max_export_rows`; preview before execution.
+  Scheduling/export delivery requires a later approved worker/scheduler design.
+- Configuration contains only allowlisted typed non-secret values. Deployment secrets remain in the
+  platform secret store/environment, never in operational configuration or `VITE_` variables.
+- Keep audit tables append-only at application and database-role layers. Phase 9 enforces
+  application-level immutability; production database grants remain a deployment gate.
+
+The only implemented operational action is `users.set_status`. Preview target/consequence, provide
+a reason, confirm, and inspect the result summary/audit. The service blocks self-suspension and loss
+of the final administrator, and suspension terminates active sessions.
+
+No Redis, Celery, WebSocket, broker, microservice, BI provider, monitoring provider, scheduler, or
+background worker is installed. PostgreSQL concurrency, representative projection/export/action
+load, alerts, retention, and database grants must be validated before production launch.

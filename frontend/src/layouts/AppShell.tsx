@@ -5,6 +5,7 @@ import { Brand } from "../components/Brand";
 import { Button } from "../components/Button";
 import { useAuth } from "../features/auth/AuthProvider";
 import { notificationApi } from "../features/motivation/api";
+import { useOperationalAccess } from "../features/operations/useOperationalAccess";
 import { useI18n } from "../i18n/I18nProvider";
 
 const icons = {
@@ -20,7 +21,8 @@ const icons = {
   moderation: "M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6zM9 12l2 2 4-5",
   progression: "M5 19V9m7 10V5m7 14v-7M3 19h18",
   notification: "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4",
-  billing: "M4 6h16v12H4zM4 10h16M8 15h3"
+  billing: "M4 6h16v12H4zM4 10h16M8 15h3",
+  operations: "M4 7h16M4 12h16M4 17h16M8 4v6m8 0v5m-8 0v5"
 };
 
 function Icon({ path }: { path: string }) {
@@ -37,6 +39,7 @@ export function AppShell() {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const operationsAllowed = useOperationalAccess();
   const isAdmin = user?.roles.includes("administrator") ?? false;
   const isCreator = isAdmin || (user?.roles.includes("creator") ?? false);
   const canModerate = isCreator || (user?.roles.includes("moderator") ?? false);
@@ -50,6 +53,9 @@ export function AppShell() {
     { to: "/subscription", label: t("navBilling"), icon: icons.billing },
     { to: "/profile", label: t("navProfile"), icon: icons.profile },
     { to: "/security", label: t("navSecurity"), icon: icons.security },
+    ...(operationsAllowed ? [
+      { to: "/operations", label: t("navOperations"), icon: icons.operations }
+    ] : []),
     ...(isCreator ? [
       { to: "/management/content", label: t("navContentStudio"), icon: icons.studio },
       { to: "/management/assessments", label: t("navAssessmentStudio"), icon: icons.assessment }
@@ -94,7 +100,7 @@ export function AppShell() {
           </button>
         </div>
       </header>
-      <aside className={`workspace-rail${menuOpen ? " workspace-rail--open" : ""}`}>
+      <aside aria-label={t("primaryNavigation")} className={`workspace-rail${menuOpen ? " workspace-rail--open" : ""}`}>
         <Brand />
         <nav id="primary-navigation" aria-label={t("primaryNavigation")}>
           {navItems.map((item) => (

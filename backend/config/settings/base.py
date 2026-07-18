@@ -42,11 +42,19 @@ INSTALLED_APPS = [
     "apps.refunds.apps.RefundsConfig",
     "apps.provider_integrations.apps.ProviderIntegrationsConfig",
     "apps.commerce_integrations.apps.CommerceIntegrationsConfig",
+    "apps.audit.apps.AuditConfig",
+    "apps.administration.apps.AdministrationConfig",
+    "apps.system_configuration.apps.SystemConfigurationConfig",
+    "apps.analytics.apps.AnalyticsConfig",
+    "apps.reporting.apps.ReportingConfig",
+    "apps.operational_actions.apps.OperationalActionsConfig",
+    "apps.operations_integrations.apps.OperationsIntegrationsConfig",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "platform_core.logging.middleware.RequestIdMiddleware",
+    "platform_core.observability.middleware.OperationalTelemetryMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -140,6 +148,7 @@ PAYMENT_PROVIDER = env("PAYMENT_PROVIDER", "none")
 PAYMENT_FAKE_WEBHOOK_SECRET = env("PAYMENT_FAKE_WEBHOOK_SECRET", "")
 PAYMENT_WEBHOOK_TOLERANCE_SECONDS = env_int("PAYMENT_WEBHOOK_TOLERANCE_SECONDS", 300)
 PAYMENT_WEBHOOK_MAX_BYTES = env_int("PAYMENT_WEBHOOK_MAX_BYTES", 65_536)
+OBSERVABILITY_SLOW_REQUEST_MS = env_int("OBSERVABILITY_SLOW_REQUEST_MS", 1000)
 
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"

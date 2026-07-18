@@ -1,8 +1,18 @@
 from typing import Any
 
+from rest_framework import status
 from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
+
+
+class RequestRejected(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "The request could not be completed."
+    default_code = "request_rejected"
+
+    def __init__(self, detail: str, *, code: str = "request_rejected") -> None:
+        super().__init__(detail=detail, code=code)
 
 
 def lockin_exception_handler(exc: Exception, context: dict[str, Any]) -> Response | None:

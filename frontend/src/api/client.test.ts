@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ApiError,
+  apiDownload,
   apiEndpointFromUrl,
   apiPath,
   apiRequest,
@@ -88,5 +89,36 @@ describe("same-origin API client", () => {
     expect(() => apiEndpointFromUrl("https://example.com/api/v1/community/discussions"))
       .toThrow(/origin/i);
     expect(() => apiEndpointFromUrl("/unrelated?cursor=next")).toThrow(/configured API/i);
+  });
+
+  it("downloads same-origin CSV responses with a sanitized filename", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response("a,b\n1,2", {
+      status: 200,
+      headers: { "content-type": "text/csv", "content-disposition": 'attachment; filename="audit-1.csv"' }
+    }));
+
+    const result = await apiDownload("/operations/reports/one/execute", {
+      method: "POST",
+      body: { confirmation_token: "confirmation" }
+    });
+
+    expect(result.filename).toBe("audit-1.csv");
+    expect(await result.blob.text()).toContain("1,2");
+    const request = vi.mocked(fetch).mock.calls[0]?.[1];
+    expect(request?.credentials).toBe("same-origin");
+    expect(request?.body).toBe(JSON.stringify({ confirmation_token: "confirmation" }));
+  });
+
+  it("uses a safe download filename and maps JSON download failures", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response("csv", { status: 200 }));
+    await expect(apiDownload("/operations/reports/one/execute", { method: "GET" }))
+      .resolves.toMatchObject({ filename: "lockin-report.csv" });
+
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ error: { code: "expired", message: "Expired" } }), {
+      status: 400,
+      headers: { "content-type": "application/json" }
+    }));
+    await expect(apiDownload("/operations/reports/one/execute"))
+      .rejects.toMatchObject({ status: 400, code: "expired" });
   });
 });

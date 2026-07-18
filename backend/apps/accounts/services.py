@@ -15,7 +15,7 @@ from django.utils.crypto import salted_hmac
 
 from platform_core.events import publish_after_commit
 
-from .events import UserEmailVerified, UserRegistered
+from .events import UserEmailVerified, UserRegistered, UserStatusChanged
 from .models import (
     AccountSecurityEvent,
     AccountSession,
@@ -31,6 +31,58 @@ class AccountTokenError(ValueError):
 
 class AccountStateError(ValueError):
     pass
+
+
+@transaction.atomic
+def set_account_status(*, target: User, actor: User, status: str, reason: str) -> User:
+    from .roles import Role, user_has_role
+
+    if status not in {User.Status.ACTIVE, User.Status.SUSPENDED}:
+        raise AccountStateError(
+            "Only active and suspended account states are operationally managed."
+        )
+    reason = reason.strip()
+    if len(reason) < 8:
+        raise AccountStateError("A reason of at least 8 characters is required.")
+    target = User.objects.select_for_update().get(id=target.id)
+    if target.status == User.Status.DELETED:
+        raise AccountStateError("Deleted accounts cannot be reactivated operationally.")
+    if target.status == status:
+        return target
+    if status == User.Status.SUSPENDED and user_has_role(target, Role.ADMINISTRATOR):
+        other_admin_exists = (
+            User.objects.filter(status=User.Status.ACTIVE, groups__name=Role.ADMINISTRATOR.value)
+            .exclude(id=target.id)
+            .exists()
+            or User.objects.filter(status=User.Status.ACTIVE, is_superuser=True)
+            .exclude(id=target.id)
+            .exists()
+        )
+        if not other_admin_exists:
+            raise AccountStateError("The final active administrator cannot be suspended.")
+    previous = target.status
+    target.status = status
+    target.save(update_fields=("status", "is_active", "updated_at"))
+    if status == User.Status.SUSPENDED:
+        session_keys = list(target.account_sessions.values_list("session_key", flat=True))
+        Session.objects.filter(session_key__in=session_keys).delete()
+        target.account_sessions.all().delete()
+    AccountSecurityEvent.objects.create(
+        user=target,
+        actor=actor,
+        event_type=AccountSecurityEvent.EventType.STATUS_CHANGED,
+        metadata={"from_status": previous, "to_status": status, "reason": reason},
+    )
+    publish_after_commit(
+        UserStatusChanged(
+            user_id=target.id,
+            from_status=previous,
+            to_status=status,
+            reason=reason,
+            actor_id=actor.id,
+        )
+    )
+    return target
 
 
 @dataclass(frozen=True, slots=True)

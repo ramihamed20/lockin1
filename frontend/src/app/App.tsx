@@ -37,6 +37,14 @@ const ModerationPage = lazy(() => import("../features/community/ModerationPage")
 const ProgressionPage = lazy(() => import("../features/motivation/ProgressionPage").then((module) => ({ default: module.ProgressionPage })));
 const NotificationsPage = lazy(() => import("../features/motivation/NotificationsPage").then((module) => ({ default: module.NotificationsPage })));
 const BillingPage = lazy(() => import("../features/billing/BillingPage").then((module) => ({ default: module.BillingPage })));
+const OperationsLayout = lazy(() => import("../features/operations/OperationsLayout").then((module) => ({ default: module.OperationsLayout })));
+const OperationsOverviewPage = lazy(() => import("../features/operations/OperationsOverviewPage").then((module) => ({ default: module.OperationsOverviewPage })));
+const ContentOperationsPage = lazy(() => import("../features/operations/ContentOperationsPage").then((module) => ({ default: module.ContentOperationsPage })));
+const SupportOperationsPage = lazy(() => import("../features/operations/SupportOperationsPage").then((module) => ({ default: module.SupportOperationsPage })));
+const UserOperationsPage = lazy(() => import("../features/operations/UserOperationsPage").then((module) => ({ default: module.UserOperationsPage })));
+const AuditPage = lazy(() => import("../features/operations/AuditPage").then((module) => ({ default: module.AuditPage })));
+const ReportsPage = lazy(() => import("../features/operations/ReportsPage").then((module) => ({ default: module.ReportsPage })));
+const ConfigurationPage = lazy(() => import("../features/operations/ConfigurationPage").then((module) => ({ default: module.ConfigurationPage })));
 
 function ProtectedRoute() {
   const { status } = useAuth();
@@ -105,6 +113,15 @@ export function App() {
             <Route path="subscription" element={<BillingPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="security" element={<SecurityPage />} />
+            <Route path="operations" element={<OperationsLayout />}>
+              <Route index element={<OperationsOverviewPage />} />
+              <Route path="content" element={<ContentOperationsPage />} />
+              <Route path="support" element={<SupportOperationsPage />} />
+              <Route path="users" element={<UserOperationsPage />} />
+              <Route path="audit" element={<AuditPage />} />
+              <Route path="reports" element={<ReportsPage />} />
+              <Route path="configuration" element={<ConfigurationPage />} />
+            </Route>
             <Route element={<CreatorRoute />}>
               <Route path="management/content" element={<ContentStudioPage />} />
               <Route path="management/assessments" element={<AssessmentStudioPage />} />

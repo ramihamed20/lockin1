@@ -23,6 +23,10 @@ class JsonFormatter(logging.Formatter):
             payload["event_name"] = event_name
         if event_id:
             payload["event_id"] = event_id
+        for key in ("route", "method", "status_code", "duration_ms"):
+            value = getattr(record, key, None)
+            if value is not None:
+                payload[key] = value
         if record.exc_info:
             exception_type = record.exc_info[0]
             if exception_type is not None:

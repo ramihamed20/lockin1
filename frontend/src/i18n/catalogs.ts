@@ -2,6 +2,7 @@ import { assessmentCatalogs } from "./assessmentCatalogs";
 import { communityCatalogs } from "./communityCatalogs";
 import { motivationCatalogs } from "./motivationCatalogs";
 import { billingCatalogs } from "./billingCatalogs";
+import { operationsCatalogs } from "./operationsCatalogs";
 
 export const catalogs = {
   en: {
@@ -9,6 +10,7 @@ export const catalogs = {
     ...communityCatalogs.en,
     ...motivationCatalogs.en,
     ...billingCatalogs.en,
+    ...operationsCatalogs.en,
     skip: "Skip to content",
     brandHome: "Lock-in home",
     language: "العربية",
@@ -270,6 +272,7 @@ export const catalogs = {
     ...communityCatalogs.ar,
     ...motivationCatalogs.ar,
     ...billingCatalogs.ar,
+    ...operationsCatalogs.ar,
     skip: "انتقل إلى المحتوى",
     brandHome: "صفحة Lock-in الرئيسية",
     language: "English",

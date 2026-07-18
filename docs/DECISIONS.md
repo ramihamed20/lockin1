@@ -74,6 +74,20 @@ This file records decisions that change product behavior, architecture, maintena
 | D-064 | Resolve safe notification targets and keep future channels unavailable | Approved Phase 7 security boundary |
 | D-065 | Reconcile best-effort subscribers from committed source records | Approved Phase 7 recovery design |
 | D-066 | Keep Phase 7 local to the modular monolith | Approved architecture restraint |
+| D-067 | Keep seven commerce domains independent | Approved Phase 8 architecture |
+| D-068 | Entitlements are the access source of truth | Approved Phase 8 authorization design |
+| D-069 | Snapshot immutable integer-money evidence | Approved Phase 8 financial integrity design |
+| D-070 | Accept commerce success only from verified idempotent provider facts | Approved Phase 8 security design |
+| D-071 | Bound and verify webhooks without raw-payload retention | Approved Phase 8 provider boundary |
+| D-072 | Model explicit subscription lifecycle and account scope | Approved Phase 8 extension design |
+| D-073 | Keep checkout unavailable until paid-launch inputs are approved | Approved Phase 8 product boundary |
+| D-074 | Keep operational domains independent | Approved Phase 9 architecture |
+| D-075 | Use capability-based operational roles | Approved Phase 9 least-privilege design |
+| D-076 | Build analytics from durable event facts and UTC projections | Approved Phase 9 scale design |
+| D-077 | Keep administrative audit append-only and redacted | Approved Phase 9 integrity design |
+| D-078 | Require bounded preview/confirmation for actions and exports | Approved Phase 9 safety design |
+| D-079 | Keep configuration typed, versioned, allowlisted, and non-secret | Approved Phase 9 configuration design |
+| D-080 | Use provider-neutral observability and no new infrastructure | Approved Phase 9 operations boundary |
 
 ## D-001 — Product Identity
 
@@ -739,3 +753,91 @@ integrity.
 **Consequence:** The UI explains plan/access and history, shows no fabricated price, and does not
 claim purchases are available. No Redis, Celery, broker, WebSocket, microservice, worker, AI, or
 Focus internal change was added.
+
+## D-074 - Independent Operational Domains
+
+**Decision:** Administration, analytics, audit, reporting, operational actions, and system
+configuration are separate domains. `operations_integrations` is a stateless event composition
+boundary.
+
+**Reason:** Authorization, projections, evidence, exports, mutations, and configuration have
+different invariants, retention, and change rates. A single admin module would couple unrelated
+operational risk.
+
+**Consequence:** Each domain owns its models/services/selectors/APIs. Django Admin remains an
+internal maintenance surface, not the daily operations product.
+
+## D-075 - Capability-Based Operational Roles
+
+**Decision:** Staff operations access is granted by fine-grained capabilities aggregated into
+operational roles, independently from product roles. Existing active administrators retain a full
+bootstrap fallback.
+
+**Reason:** Support, content, moderation, finance, and analytics responsibilities must not inherit
+unrelated power. Server authority cannot depend on which navigation the client renders.
+
+**Consequence:** Every endpoint checks the smallest capability. Assignments require reason/audit.
+Role-removal and account-suspension execution lock effective administrator rows in stable order,
+and the final effective platform administrator cannot be removed or suspended.
+
+## D-076 - Durable Analytics Facts and UTC Projections
+
+**Decision:** Consume committed domain events into idempotent `(event_id, metric)` facts and serve
+dashboards/reports from UTC daily projections. Distinct daily learners have their own indexed
+projection.
+
+**Reason:** Request-time scans across learning, assessment, Focus, community, and commerce history
+will not scale or provide an honest freshness contract.
+
+**Consequence:** Dashboards expose period/timezone/freshness, rebuild is bounded and deterministic,
+and source domains remain authoritative. The in-process subscriber-loss limitation remains explicit;
+no broker/outbox is added without measured need.
+
+## D-077 - Append-Only Redacted Administrative Audit
+
+**Decision:** Supported application paths cannot update/delete audit records. Every implemented
+administrative mutation records actor, action, target, reason, source, correlation, redacted
+before/after, related entities, and time.
+
+**Reason:** Operations must be traceable without turning the audit store into a secret-retention or
+editable-comment channel.
+
+**Consequence:** Secret-like keys are recursively redacted. Production database-role denial of
+update/delete remains a deployment gate in addition to application enforcement.
+
+## D-078 - Bounded Preview and Confirmation
+
+**Decision:** Dangerous operational actions and report exports create bounded previews with expiring
+confirmation tokens before execution. Implement only actions with a real domain service and product
+need.
+
+**Reason:** Operators need target/consequence/volume evidence before mutation or extract, and long
+synchronous work must not destabilize production.
+
+**Consequence:** Account status changes are idempotent, auditable, protected, and report partial
+results. CSV exports enforce filters/row caps and record row/hash evidence. Scheduling/workers remain
+outside this phase.
+
+## D-079 - Typed Non-Secret Configuration
+
+**Decision:** Operational configuration is an allowlisted catalog of typed, range-validated,
+versioned values with optimistic concurrency and mandatory change reason. It cannot store secrets.
+
+**Reason:** Arbitrary settings blobs create stale overwrites, invalid runtime state, and secret
+leakage through staff APIs.
+
+**Consequence:** New keys require code review/definition. Deployment secrets stay in the approved
+secret store/environment, never the database configuration catalog or frontend variables.
+
+## D-080 - Provider-Neutral Observability, Local Infrastructure
+
+**Decision:** Expose normalized metric and error-reporting protocols, structured safe request logs,
+and authorized health projections with honest no-op providers. Add no monitoring/BI vendor, queue,
+broker, scheduler, or service in Phase 9.
+
+**Reason:** The platform needs stable instrumentation boundaries now, but a vendor choice or
+distributed infrastructure is not justified by implemented volume/evidence.
+
+**Consequence:** Future providers plug into platform contracts without domain imports. Health shows
+`not_configured` rather than a false success. PostgreSQL concurrency, load, alerts, retention, and
+provider validation remain production evidence gates. Phase 10 is blocked pending owner approval.

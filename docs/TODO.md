@@ -12,8 +12,9 @@ Last updated: 2026-07-18
 - [x] Phase 5 assessment learning ecosystem approved.
 - [x] Phase 6 contextual community/moderation approved.
 - [x] Phase 7 learning motivation/notifications approved.
+- [x] Phase 8 subscription/entitlement platform approved.
 
-## Phase 8 - Complete; Awaiting Review
+## Phase 8 - Approved
 
 - [x] Keep catalog, subscription, entitlement, payment, invoice, refund, and provider domains independent.
 - [x] Make entitlement decisions server-authoritative and independent of plan-name flags.
@@ -26,7 +27,22 @@ Last updated: 2026-07-18
 - [x] Add accessible responsive English/Arabic plan, access, and billing-history workflows.
 - [x] Pass backend/frontend/coverage/PWA/Axe/RTL/full-browser regression gates.
 - [x] Update all source-of-truth documentation.
-- [ ] Obtain explicit Phase 9 approval.
+- [x] Obtain explicit Phase 9 approval.
+
+## Phase 9 - Complete; Awaiting Review
+
+- [x] Keep administration, analytics, audit, reporting, operational actions, and configuration
+  independent.
+- [x] Add fine-grained operational capabilities/roles and protect the final platform administrator.
+- [x] Build idempotent event facts and UTC daily projections instead of live history dashboards.
+- [x] Add append-only redacted audit evidence for implemented administrative changes.
+- [x] Add bounded preview/confirm/idempotent account status operations with partial summaries.
+- [x] Add bounded preview/confirm CSV reports with filter, row-limit, hash, and audit evidence.
+- [x] Add allowlisted typed/versioned non-secret system configuration.
+- [x] Add provider-neutral request metrics, structured logging, error reporting, and safe health.
+- [x] Add dedicated responsive English/Arabic operations workspaces and pass Axe/RTL/overflow.
+- [x] Pass backend/frontend/coverage/PWA/full-browser regression gates and update documentation.
+- [ ] Obtain explicit Phase 10 approval.
 
 ## Deferred Evidence / Inputs
 
@@ -36,6 +52,13 @@ Last updated: 2026-07-18
 - [ ] Run PostgreSQL concurrency tests for payment/refund idempotency, transition locks, webhook
   deduplication, and entitlement resynchronization.
 - [ ] Run provider sandbox, reverse-proxy payload-limit, replay, and representative commerce load tests.
+- [ ] Run PostgreSQL concurrency tests for analytics fact idempotency, role/action/configuration locks,
+  report confirmation, and audit immutability.
+- [ ] Build representative projection/report/action datasets and run Phase 11 load tests.
+- [ ] Enforce audit update/delete denial with the production PostgreSQL application role.
+- [ ] Select and validate metrics/error providers, alerts, dashboards, log retention, and privacy.
+- [ ] Schedule analytics/report/reconciliation work only after an approved scheduler/worker design.
+- [ ] Resolve inherited DRF Spectacular APIView and operation-id warnings across pre-Phase-9 APIs.
 - [ ] Schedule and monitor `rebuild_motivation` only through approved operations infrastructure.
 - [ ] Schedule and monitor `reconcile_commerce` only through approved operations infrastructure.
 - [ ] Integrate a malware scanner before production file ingestion; status is `not_configured`.
@@ -63,7 +86,7 @@ Last updated: 2026-07-18
 ## Guardrails
 
 - Never modify `C:\Users\ramih\Desktop\Dentify-Before-Edits`.
-- Work one approved phase at a time; do not start Phase 9 without explicit approval.
+- Work one approved phase at a time; do not start Phase 10 without explicit approval.
 - Server remains the source of truth for progression, permissions, moderation, grading, and review.
 - Entitlements, not plan flags or client state, remain the source of truth for protected capabilities.
 - Never trust client payment/refund success, amount, currency, price, subscription state, or access.

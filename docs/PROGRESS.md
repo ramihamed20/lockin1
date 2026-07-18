@@ -4,10 +4,10 @@ Last updated: 2026-07-18
 
 ## Current Status
 
-Phase 8 - Subscription and entitlement platform
+Phase 9 - Operations platform
 State: implementation and local validation complete; awaiting owner review
 
-Do not start Phase 9 until the owner explicitly approves it.
+Do not start Phase 10 until the owner explicitly approves it.
 
 ## Phase History
 
@@ -63,7 +63,7 @@ Status: approved.
 
 ### Phase 8 - Subscription and Entitlement Platform
 
-Status: complete; awaiting owner review.
+Status: approved.
 
 - Added independent catalog, subscription, entitlement, payment, invoice, refund, and provider
   integration domains, with a stateless commerce integration boundary.
@@ -77,6 +77,25 @@ Status: complete; awaiting owner review.
 - Kept checkout unavailable until a production provider and real price/currency are approved.
 - Preserved backward-compatible feature access; no existing capability was silently made premium.
 
+### Phase 9 - Operations Platform
+
+Status: complete; awaiting owner review.
+
+- Added independent administration, analytics, audit, reporting, operational-action, and system-
+  configuration domains plus a stateless analytics integration boundary.
+- Added capability-based operational roles for platform administration, support, content,
+  moderation, finance, and analytics.
+- Added idempotent durable metric facts, UTC daily projections, distinct active learners, freshness,
+  bounded analytics APIs, and `rebuild_operational_analytics`.
+- Added append-only recursively redacted audit evidence for implemented administrative mutations.
+- Added bounded preview/confirm/idempotent account status actions and CSV report exports.
+- Added typed/versioned optimistic non-secret configuration with reason/audit.
+- Added provider-neutral metrics/error contracts, structured safe telemetry, and authorized system
+  health without infrastructure leakage.
+- Added accessible responsive English/Arabic overview/content/support/user/audit/report/configuration
+  workspaces; Django Admin remains maintenance-only.
+- Kept Focus independent, AI unimplemented, APIs versioned, and infrastructure local.
+
 ## Phase 8 Validation
 
 - Backend: 144 tests; 85.78% branch-aware coverage (85% gate passed).
@@ -89,6 +108,19 @@ Status: complete; awaiting owner review.
 - OpenAPI generation completes; inherited and Phase 8 APIView description/auth-extension findings
   remain tracked debt and are not reported as a clean schema-validation pass.
 
+## Phase 9 Validation
+
+- Backend: 157 tests; 85.64% branch-aware coverage (85% gate passed).
+- Ruff lint/format, strict mypy across 403 source files, migration drift, and production deployment
+  security checks: passed.
+- Frontend: 153 tests; 90.87% statements, 80.08% branches, 87.48% functions, 95.16% lines.
+- ESLint, TypeScript, exact lockfile installation/audit, and production PWA build: passed.
+- Playwright regression: 29 passed, 1 intentional desktop skip for a mobile-only case.
+- Phase 9 desktop/mobile flows passed Axe, Arabic RTL, landmarks, preview/confirmation, and overflow;
+  desktop and RTL mobile screenshots were visually reviewed.
+- OpenAPI generation completed with no Phase 9 view warnings. Ninety-six inherited APIView/
+  operation-id warnings remain tracked, so the global schema is not claimed clean.
+
 ## Workstation Limitation
 
 PostgreSQL-backed concurrency and representative 2,000-active-user load tests were not run locally
@@ -97,4 +129,4 @@ because no PostgreSQL/Docker service was available. Local tests explicitly used
 
 ## Next Gate
 
-Owner reviews Phase 8. Stop here; Phase 9 requires explicit approval.
+Owner reviews Phase 9. Stop here; Phase 10 requires explicit approval.
