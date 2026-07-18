@@ -2,11 +2,13 @@ import logging
 from collections import defaultdict
 from collections.abc import Callable
 from threading import RLock
+from typing import TypeVar, cast
 
 from .base import DomainEvent
 
 logger = logging.getLogger(__name__)
 EventHandler = Callable[[DomainEvent], None]
+EventType = TypeVar("EventType", bound=DomainEvent)
 
 
 class EventDispatchError(RuntimeError):
@@ -25,15 +27,18 @@ class InProcessEventBus:
         self._handlers: defaultdict[type[DomainEvent], list[EventHandler]] = defaultdict(list)
         self._lock = RLock()
 
-    def subscribe(self, event_type: type[DomainEvent], handler: EventHandler) -> Callable[[], None]:
+    def subscribe(
+        self, event_type: type[EventType], handler: Callable[[EventType], None]
+    ) -> Callable[[], None]:
+        stored_handler = cast(EventHandler, handler)
         with self._lock:
-            self._handlers[event_type].append(handler)
+            self._handlers[event_type].append(stored_handler)
 
         def unsubscribe() -> None:
             with self._lock:
                 handlers = self._handlers[event_type]
-                if handler in handlers:
-                    handlers.remove(handler)
+                if stored_handler in handlers:
+                    handlers.remove(stored_handler)
 
         return unsubscribe
 

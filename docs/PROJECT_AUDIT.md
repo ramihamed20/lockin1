@@ -1,7 +1,8 @@
 # Lock-in Project Audit
 
-Status: Phase 0 baseline approved; rebuild remediation recorded through Phase 6
+Status: Phase 0 baseline approved; rebuild remediation recorded through Phase 7
 Audit date: 2026-07-15  
+Last updated: 2026-07-18
 Existing reference: `C:\Users\ramih\Desktop\Dentify-Before-Edits`  
 Rebuild destination: `C:\Users\ramih\Desktop\Dentify-Rebuild`
 
@@ -200,3 +201,27 @@ The selected Skills continued unchanged: `impeccable` guided context-first respo
 `design-system` preserved the shared token hierarchy, `security-best-practices` guided evidence
 privacy, enumeration resistance, CSRF, safe text, and moderation fairness, and `playwright` validated
 desktop/mobile browser behavior. No new applicable Skill was discovered during Phase 6.
+
+## Phase 7 Rebuild Note
+
+Phase 7 replaces the reference application's synthetic leaderboard and loosely coupled badge state
+with authoritative, auditable learning motivation. XP now has an idempotent evidence ledger and
+rebuildable balance; achievements use versioned definitions/evidence; streaks use versioned policy
+and daily facts; rankings publish deterministic checksummed snapshots; notifications own recipient
+state, required/optional preferences, safe targets, and unread counters.
+
+The redesign treats progress as calm learning momentum rather than a point-collection screen. It
+explains what counts, places personal milestones before rankings, exposes ranking freshness/rules
+and privacy, and keeps notifications focused on useful learning/account actions. Reactions and raw
+posting volume do not create repeatable rewards.
+
+The lightweight event bus remains after-commit and in-process. A stateless integration boundary
+subscribes without changing source-domain ownership, and `rebuild_motivation` supplies deterministic
+reconciliation for missed best-effort delivery. Focus remains independent, AI remains unimplemented,
+and no Redis, Celery, broker, WebSocket, microservice, or channel provider was added.
+
+The selected Skills continued unchanged: `impeccable` shaped the calm responsive/RTL information
+hierarchy, `design-system` preserved tokens and states, `security-best-practices` hardened server
+authority, idempotency, notification routes/counters, and ranking privacy/audit, and `playwright`
+validated real desktop/mobile behavior. The browser review found and corrected a muted-text contrast
+issue. No new applicable Skill was discovered during Phase 7.

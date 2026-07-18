@@ -1,7 +1,7 @@
 # Lock-in Design System
 
-Last updated: 2026-07-17
-Status: Design-system implementation recorded through Phase 6
+Last updated: 2026-07-18
+Status: Design-system implementation recorded through Phase 7
 
 ## Product scene
 
@@ -178,3 +178,28 @@ status/errors, confirmation for destructive actions, logical CSS properties, vis
 and reduced-motion support. Desktop Chrome and Pixel 7 flows passed Axe, Arabic RTL, and horizontal
 overflow checks. Routes remain split; the production main bundle is 100.36 KB gzip and CSS is 9.96
 KB gzip.
+
+## Phase 7 Learning Motivation Experience
+
+Phase 7 deliberately avoids a bright badge wall or competitive activity feed. The progression page
+uses a calm hierarchy: personal level and streak, explicit qualifying activities, meaningful
+milestones, then a secondary published ranking with freshness, rules, own position, and privacy.
+The notification page is a quiet action center rather than an engagement inbox.
+
+### Phase 7 material redesigns
+
+| Redesign | Usability reason |
+|---|---|
+| Gamification dashboard -> learning momentum | Keeps the student's goal on study and mastery |
+| Hidden point rules -> adjacent “what counts” card | Makes progression predictable and discourages grinding |
+| Badge grid first -> milestone progress before ranking | Prioritizes intrinsic progress over comparison |
+| Live leaderboard -> published snapshot with freshness | Reduces volatility and makes fairness explainable |
+| Forced identity -> inclusion and display privacy | Gives students control over public representation |
+| Notification stream -> categorized learning actions | Reduces noise and keeps each update useful |
+
+Both routes use the established primitive/semantic/component tokens, logical properties, semantic
+headings/lists/tables/forms, native progress/checkbox/select controls, visible focus, reduced-motion
+behavior, and shared English/Arabic component trees. The toolbar/navigation adapts without covering
+content on phones or tablets. Playwright caught and corrected insufficient muted metadata contrast;
+the final desktop/mobile flows pass Axe, RTL, and horizontal-overflow checks. Routes remain split;
+the production main bundle is 102.67 KB gzip and CSS is 11.44 KB gzip.

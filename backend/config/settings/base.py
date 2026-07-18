@@ -28,6 +28,12 @@ INSTALLED_APPS = [
     "apps.progress.apps.ProgressConfig",
     "apps.community.apps.CommunityConfig",
     "apps.moderation.apps.ModerationConfig",
+    "apps.xp.apps.XpConfig",
+    "apps.streaks.apps.StreaksConfig",
+    "apps.achievements.apps.AchievementsConfig",
+    "apps.rankings.apps.RankingsConfig",
+    "apps.notifications.apps.NotificationsConfig",
+    "apps.motivation_integrations.apps.MotivationIntegrationsConfig",
 ]
 
 MIDDLEWARE = [

@@ -17,4 +17,9 @@ urlpatterns = [
     path("", include("apps.assessments.urls")),
     path("", include("apps.community.urls")),
     path("", include("apps.moderation.urls")),
+    path("", include("apps.xp.urls")),
+    path("", include("apps.streaks.urls")),
+    path("", include("apps.achievements.urls")),
+    path("", include("apps.rankings.urls")),
+    path("", include("apps.notifications.urls")),
 ]

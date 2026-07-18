@@ -1,7 +1,7 @@
 # Lock-in Architecture
 
-Status: Approved modular-monolith direction; implementation recorded through Phase 6
-Last updated: 2026-07-17
+Status: Approved modular-monolith direction; implementation recorded through Phase 7
+Last updated: 2026-07-18
 
 ## Goals
 
@@ -87,7 +87,10 @@ The exact scaffold and names will be confirmed during Phase 2. Empty domains sho
 | Progress | Resume state, completion, review, study activity |
 | Community | Public and creator-space discussions |
 | Moderation | Reports, assignments, moderation actions and correction workflows |
-| Rankings | Metric definitions, snapshots, achievements and earned records |
+| XP | Immutable award ledger, balance projection, idempotency and rebuild |
+| Achievements | Versioned definitions, evidence, progress and earned records |
+| Rankings | Eligible facts, privacy profiles, deterministic audited snapshots |
+| Streaks | Versioned qualifying policies, daily evidence and rebuildable projections |
 | Notifications | In-platform notifications and preferences; future channel contract |
 | Subscriptions | Trial, access state, overrides, provider interface |
 | Analytics | Product aggregates and administrator-facing metrics |
@@ -570,3 +573,71 @@ Focus remains an independent product; community stores only a learning-context r
 provider-free and unimplemented. No Redis, Celery, WebSocket, broker, microservice, background worker,
 or new frontend runtime dependency was added. PostgreSQL concurrency/load evidence remains a later
 production gate.
+
+## Phase 7 Realized Motivation and Notification Architecture
+
+### Five independent domains
+
+`apps.xp`, `apps.achievements`, `apps.rankings`, `apps.streaks`, and `apps.notifications` each own
+their rules, models, services, selectors, events, API, migrations, and tests. There is no shared
+gamification state. Source domains remain authoritative for learning facts and never import these
+engines.
+
+`apps.motivation_integrations` is a stateless composition boundary. Application startup wires typed
+subscribers for existing accounts, education/progress, Focus, assessment, community, and moderation
+events. Handlers use domain source identities as idempotency keys and call only public motivation
+services.
+
+### Evidence, ledger, and projection pattern
+
+```text
+Authoritative domain transaction
+        |
+        +-> after-commit typed event
+                    |
+                    v
+Motivation integration subscriber
+        |
+        +-> append or idempotently upsert domain evidence/transaction
+                    |
+                    +-> rebuildable balance/progress/streak/ranking projection
+                    +-> new after-commit motivation event
+```
+
+XP transactions, achievement evidence, streak activity, and ranking facts are durable evidence.
+Balances and current progress are projections that can be recomputed. Achievement definitions and
+streak policies are versioned. Ranking publication produces auditable snapshots with rules, tie
+strategy, checksum, participant count, timestamps, and failure status rather than a live global
+calculation.
+
+### Best-effort event recovery
+
+The in-process bus remains deliberately non-durable. `rebuild_motivation` scans committed source
+records, recreates missing idempotent evidence/notifications, and rebuilds derived projections. This
+provides an operational recovery path without a transactional outbox or external queue. A durable
+outbox/worker may be proposed only after a concrete delivery or latency requirement is measured and
+approved.
+
+### Notification and privacy boundary
+
+Notifications are recipient-owned records with category/channel preferences, unread counters,
+deduplication, and safe typed targets. Target opening resolves only allowlisted same-origin routes
+and rechecks current context permission. Required account/security messages cannot be disabled.
+Email and push are future channels marked unavailable; no provider or delivery claim exists.
+
+Ranking profiles separately own inclusion and public display mode. APIs expose published server
+snapshots only. There is no client mutation endpoint for XP, streak evidence, earned achievements,
+ranking facts, or snapshots.
+
+### Frontend boundary and scale posture
+
+The lazy `features/motivation` routes consume projection APIs and submit only ranking privacy,
+notification preferences, and recipient read actions. Logical CSS properties and the established
+tokens preserve one accessible English/Arabic mobile-first tree. Indexed ledgers, bounded
+pagination, stored counters, and published snapshots avoid full-history calculations on list
+requests. PostgreSQL concurrency/load evidence remains an explicit production gate.
+
+Focus remains independent: its completed-session event provides a bounded fact, while Focus models,
+workspace, PDF engine, annotations, gestures, autosave, and storage remain untouched. AI remains
+provider-independent and unimplemented. No Redis, Celery, WebSocket, broker, microservice, or new
+frontend dependency was added.

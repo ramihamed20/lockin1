@@ -2,6 +2,64 @@
 
 All notable rebuild changes are documented here.
 
+## 2026-07-18 - Phase 7
+
+### Added
+
+- Independent XP, achievement, ranking, streak, and notification domains.
+- Idempotent XP transaction ledger, balance projection, eligibility metadata, and rebuild service.
+- Versioned achievement definitions/evidence/progress/earned records with five meaningful seeds.
+- Versioned streak policy, qualifying activity evidence, and out-of-order daily recomputation.
+- Ranking facts, privacy profiles, deterministic audited snapshots, tie strategies, checksums, and
+  persisted failed-calculation audit state.
+- Recipient-owned in-app notifications, deduplication, unread counters, safe target resolution,
+  preferences, delivery records, and bounded administrative platform notices.
+- Stateless motivation event integration for accounts, learning, Focus, assessment, community, and
+  moderation facts.
+- `rebuild_motivation` reconciliation command for missed best-effort subscriber effects.
+- Server-authoritative progression/ranking/streak/achievement/notification API routes.
+- Lazy accessible English/Arabic `/progression` and `/notifications` routes with mobile/tablet UI.
+- Phase 7 API/domain/unit tests, frontend tests, and desktop/mobile Playwright coverage.
+- `PHASE_7_MOTIVATION.md` with rules, boundaries, security, design reasons, evidence, and exclusions.
+
+### Security and Correctness
+
+- Exposed no client mutation path for XP, rank, streak evidence, or achievement awards.
+- Deduplicated every durable event effect by authoritative source identity.
+- Bounded Focus/assessment awards and excluded raw engagement-volume rewards.
+- Rechecked current permissions before opening contextual notification targets and rejected unsafe
+  routes.
+- Serialized notification counter updates under a consistent lock order.
+- Preserved ranking calculation failures as audit snapshots and kept public views snapshot-only.
+- Kept required account/security notifications enabled and future email/push channels unavailable.
+
+### Product and Accessibility
+
+- Reframed gamification as calm learning momentum with visible qualifying rules.
+- Placed meaningful milestone progress before competitive ranking information.
+- Added ranking freshness, rule disclosure, own position, inclusion, and display-name privacy.
+- Added useful loading, empty, failure, recovery, read, and unavailable-destination states.
+- Corrected muted notification metadata contrast found during browser accessibility review.
+- Preserved one logical-property English/Arabic component tree, reduced motion, keyboard controls,
+  semantic progress/tables/forms, and responsive no-overflow layouts.
+
+### Validation
+
+- Backend: 131 passed; 85.90% branch-aware coverage; Ruff, strict mypy (234 files), and migration
+  drift checks passed.
+- Frontend: 116 passed; 90.19% statements, 80.10% branches, 87.14% functions, 94.13% lines; ESLint,
+  TypeScript, and production PWA build passed.
+- Browser: 23 passed and 1 intentional desktop skip across desktop/mobile Chromium; Axe, RTL,
+  landmarks/focus, and overflow checks passed.
+- PWA: 34 static precache entries; no private API runtime cache; main JS 102.67 KB gzip.
+
+### Boundaries
+
+- No subscription/payment, real email/push delivery, freeze/grace behavior, AI, or Focus workspace
+  change.
+- No Redis, Celery, WebSocket, broker, microservice, background worker, or new frontend dependency.
+- PostgreSQL concurrency and representative load remain unclaimed local evidence gates.
+
 ## 2026-07-17 - Phase 6
 
 ### Added

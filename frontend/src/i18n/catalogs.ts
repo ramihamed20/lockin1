@@ -1,10 +1,12 @@
 import { assessmentCatalogs } from "./assessmentCatalogs";
 import { communityCatalogs } from "./communityCatalogs";
+import { motivationCatalogs } from "./motivationCatalogs";
 
 export const catalogs = {
   en: {
     ...assessmentCatalogs.en,
     ...communityCatalogs.en,
+    ...motivationCatalogs.en,
     skip: "Skip to content",
     brandHome: "Lock-in home",
     language: "العربية",
@@ -264,6 +266,7 @@ export const catalogs = {
   ar: {
     ...assessmentCatalogs.ar,
     ...communityCatalogs.ar,
+    ...motivationCatalogs.ar,
     skip: "انتقل إلى المحتوى",
     brandHome: "صفحة Lock-in الرئيسية",
     language: "English",

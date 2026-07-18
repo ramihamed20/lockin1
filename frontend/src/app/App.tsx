@@ -34,6 +34,8 @@ const CommunityPage = lazy(() => import("../features/community/CommunityPage").t
 const DiscussionPage = lazy(() => import("../features/community/DiscussionPage").then((module) => ({ default: module.DiscussionPage })));
 const SpacePage = lazy(() => import("../features/community/SpacePage").then((module) => ({ default: module.SpacePage })));
 const ModerationPage = lazy(() => import("../features/community/ModerationPage").then((module) => ({ default: module.ModerationPage })));
+const ProgressionPage = lazy(() => import("../features/motivation/ProgressionPage").then((module) => ({ default: module.ProgressionPage })));
+const NotificationsPage = lazy(() => import("../features/motivation/NotificationsPage").then((module) => ({ default: module.NotificationsPage })));
 
 function ProtectedRoute() {
   const { status } = useAuth();
@@ -97,6 +99,8 @@ export function App() {
             <Route path="community/context/:contextType/:contextId" element={<CommunityPage />} />
             <Route path="community/discussions/:discussionId" element={<DiscussionPage />} />
             <Route path="community/spaces/:spaceId" element={<SpacePage />} />
+            <Route path="progression" element={<ProgressionPage />} />
+            <Route path="notifications" element={<NotificationsPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="security" element={<SecurityPage />} />
             <Route element={<CreatorRoute />}>

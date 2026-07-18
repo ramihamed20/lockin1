@@ -1,6 +1,6 @@
 # Lock-in Decision Log
 
-Last updated: 2026-07-17
+Last updated: 2026-07-18
 
 This file records decisions that change product behavior, architecture, maintenance cost, or phase boundaries. Approved decisions are not silently replaced. A changed decision must record the trade-off and date.
 
@@ -66,6 +66,14 @@ This file records decisions that change product behavior, architecture, maintena
 | D-056 | Community notifications consume events; no direct dependency | Approved Phase 6 boundary |
 | D-057 | Use cursor feeds, aligned indexes, and query-budget regressions | Approved Phase 6 scale posture |
 | D-058 | Keep social engagement mechanics outside Phase 6 | Product-focus and phase decision |
+| D-059 | Separate XP, achievements, rankings, streaks, and notifications | Approved Phase 7 architecture |
+| D-060 | Store authoritative evidence and rebuildable projections | Approved Phase 7 correctness design |
+| D-061 | Reward bounded meaningful learning, never raw engagement volume | Approved Phase 7 product policy |
+| D-062 | Publish deterministic audited ranking snapshots with user privacy | Approved Phase 7 fairness design |
+| D-063 | Version streak policy and daily evidence | Approved Phase 7 extension design |
+| D-064 | Resolve safe notification targets and keep future channels unavailable | Approved Phase 7 security boundary |
+| D-065 | Reconcile best-effort subscribers from committed source records | Approved Phase 7 recovery design |
+| D-066 | Keep Phase 7 local to the modular monolith | Approved architecture restraint |
 
 ## D-001 — Product Identity
 
@@ -573,3 +581,83 @@ there is evidence that they improve learning.
 
 **Consequence:** A later proposal must identify the learning outcome, fairness/moderation contract,
 scale model, accessibility behavior, and phase approval before implementation.
+
+## D-059 — Independent Motivation Domains
+
+**Decision:** XP, achievements, rankings, streaks, and notifications are five independent domains.
+`motivation_integrations` wires events and stores no business state.
+
+**Reason:** Each capability has different rules, scale, audit, privacy, and rebuild requirements. A
+single gamification module would couple unrelated change and make ownership unclear.
+
+**Consequence:** Source domains publish facts and do not import motivation engines. Each domain has
+its own service, selector, event, API, model, migration, and test boundary.
+
+## D-060 and D-061 — Evidence First, Meaningful Rewards Only
+
+**Decision:** XP transactions, achievement evidence, ranking facts, and streak activity are durable,
+idempotent evidence. Derived balances/progress are rebuildable. Awards are bounded and require
+authoritative learning eligibility; raw post volume and reactions earn no repeatable credit.
+
+**Reason:** Correctness and anti-grind fairness require a traceable source for every progression
+change. Engagement volume is easy to manipulate and does not prove learning.
+
+**Consequence:** Duplicate delivery cannot duplicate progression. Corrections and future anti-cheat
+work can audit and recompute state without trusting client history.
+
+## D-062 — Deterministic Audited Ranking Snapshots
+
+**Decision:** Rankings consume only eligible server evidence and publish stored snapshots with an
+explicit tie strategy, rules, checksum, evidence count, freshness, privacy mode, and failure audit.
+
+**Reason:** A fair learning rank must be deterministic, explainable, rebuildable, and stable during
+a student's view. Live request-time global aggregation is harder to audit and scale.
+
+**Consequence:** The client cannot submit score or rank. Students choose inclusion and full-name,
+initials, or anonymous display. Failed calculations remain visible to operators rather than
+silently rolling back their audit record.
+
+## D-063 — Versioned Streak Policy
+
+**Decision:** Store one idempotent activity fact per source and recompute a daily projection under a
+versioned policy containing qualifying activities, timezone, grace, freeze, and recovery fields.
+
+**Reason:** Events can arrive out of order and future freeze/grace rules must not require a schema
+redesign or silently reinterpret prior behavior.
+
+**Consequence:** Current rules use only approved qualifying activities. Freeze tokens, grace, and
+recovery remain disabled until explicit product behavior is approved.
+
+## D-064 — Safe In-App Notifications First
+
+**Decision:** Notifications are recipient-owned, deduplicated, preference-aware records. Opening a
+target resolves an allowlisted same-origin route and rechecks permission. Email and push channel
+contracts exist but are unavailable.
+
+**Reason:** Useful community, moderation, achievement, and account updates need one dependable
+center without creating open redirects, stale authorization, or unimplemented delivery claims.
+
+**Consequence:** Required account/security messages cannot be disabled. Unread counters use a
+consistent lock order. A provider or worker requires a future approved delivery design.
+
+## D-065 — Reconcile the Lightweight Event Bus
+
+**Decision:** Keep the synchronous after-commit bus and add `rebuild_motivation` to reconstruct
+missing evidence/projections from committed authoritative source records.
+
+**Reason:** The current scale does not justify queue infrastructure, but best-effort subscriber loss
+must have a deterministic operational recovery path.
+
+**Consequence:** Subscribers remain idempotent. A transactional outbox or worker can be proposed
+later only with a demonstrated delivery/latency requirement and explicit operational contract.
+
+## D-066 — Phase 7 Infrastructure and Product Boundary
+
+**Decision:** Add no Redis, Celery, broker, WebSocket, microservice, subscription/payment, AI,
+notification provider, or Focus implementation change in Phase 7.
+
+**Reason:** None is required for the implemented synchronous rules, indexed queries, stored
+snapshots, in-app notifications, or local recovery command.
+
+**Consequence:** Phase 8 is blocked pending owner approval. PostgreSQL concurrency and representative
+load remain production evidence gates rather than unverified claims.

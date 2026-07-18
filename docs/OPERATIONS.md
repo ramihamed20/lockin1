@@ -1,6 +1,6 @@
 # Lock-in Operations
 
-Last updated: 2026-07-15
+Last updated: 2026-07-18
 
 ## Owner workflow
 
@@ -62,6 +62,19 @@ PostgreSQL-specific constraints, transactions, indexes, or concurrency behavior.
 HSTS defaults to zero until the real TLS owner and deployment domain are confirmed. Enabling HSTS
 without that deployment knowledge can cause a long outage and is not a safe foundation default.
 
+## Motivation reconciliation and ranking publication
+
+`python manage.py rebuild_motivation` idempotently reconciles committed account, learning, Focus,
+assessment, community, moderation, and achievement records into Phase 7 evidence and projections.
+It rebuilds XP balances, streaks, achievement progress, ranking facts, and unread counters; it does
+not regrade attempts or overwrite source-domain history. Run it after restoring a database or when
+monitoring identifies a missed best-effort subscriber effect. Review its output before publishing a
+new ranking snapshot.
+
+Ranking publication is an explicit server operation, not a request-time client calculation. Keep
+the resulting snapshot status/checksum/error audit. No scheduler or worker is installed in Phase 7;
+production scheduling requires an approved operations/deployment decision.
+
 ## Secrets and logs
 
 - Commit `.env.example`; never commit `.env`.
@@ -74,7 +87,7 @@ without that deployment knowledge can cause a long outage and is not a safe foun
 
 ## Current workstation limitation
 
-The Phase 3 workstation has Python 3.11 and Node 24 but no Docker, PostgreSQL server, or `psql`.
+The Phase 7 workstation has Python 3.11 and Node 24 but no Docker, PostgreSQL server, or `psql`.
 Backend unit/integration behavior was verified with the explicit SQLite fast-test switch. The CI
 workflow is configured to run the same migrations and suite against PostgreSQL 18.4. A successful
 remote CI run or a future local Docker run remains required evidence before claiming PostgreSQL

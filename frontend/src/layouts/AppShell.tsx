@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { Brand } from "../components/Brand";
 import { Button } from "../components/Button";
 import { useAuth } from "../features/auth/AuthProvider";
+import { notificationApi } from "../features/motivation/api";
 import { useI18n } from "../i18n/I18nProvider";
 
 const icons = {
@@ -14,9 +15,11 @@ const icons = {
   people: "M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8-1a2.5 2.5 0 1 0 0-5M2 20c0-4 2-6 6-6s6 2 6 6m1-6c4 0 6 2 6 6",
   studio: "M4 4h16v12H8l-4 4Zm4 4h8M8 12h5",
   hierarchy: "M12 4v5M6 20v-5h12v5M6 15v-3h12v3M12 9v3",
-  assessment: "M7 3h10v3H7zM5 6h14v15H5zM8 11l2 2 3-4M8 17h8"
-  ,community: "M4 5h16v11H9l-5 4Zm4 4h8m-8 3h5"
-  ,moderation: "M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6zM9 12l2 2 4-5"
+  assessment: "M7 3h10v3H7zM5 6h14v15H5zM8 11l2 2 3-4M8 17h8",
+  community: "M4 5h16v11H9l-5 4Zm4 4h8m-8 3h5",
+  moderation: "M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6zM9 12l2 2 4-5",
+  progression: "M5 19V9m7 10V5m7 14v-7M3 19h18",
+  notification: "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"
 };
 
 function Icon({ path }: { path: string }) {
@@ -32,6 +35,7 @@ export function AppShell() {
   const { t, toggleLocale } = useI18n();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const isAdmin = user?.roles.includes("administrator") ?? false;
   const isCreator = isAdmin || (user?.roles.includes("creator") ?? false);
   const canModerate = isCreator || (user?.roles.includes("moderator") ?? false);
@@ -39,7 +43,9 @@ export function AppShell() {
     { to: "/", label: t("navDashboard"), icon: icons.dashboard, end: true },
     { to: "/learn", label: t("navLearn"), icon: icons.learn },
     { to: "/assessments", label: t("navAssessments"), icon: icons.assessment },
+    { to: "/progression", label: t("navProgression"), icon: icons.progression },
     { to: "/community", label: t("navCommunity"), icon: icons.community },
+    { to: "/notifications", label: t("navNotifications"), icon: icons.notification },
     { to: "/profile", label: t("navProfile"), icon: icons.profile },
     { to: "/security", label: t("navSecurity"), icon: icons.security },
     ...(isCreator ? [
@@ -55,12 +61,24 @@ export function AppShell() {
     ] : [])
   ];
 
+  useEffect(() => {
+    const controller = new AbortController();
+    void notificationApi.summary(controller.signal).then((summary) => {
+      if (!controller.signal.aborted) setUnreadCount(summary.unread_count);
+    }).catch(() => undefined);
+    return () => controller.abort();
+  }, [location.pathname]);
+
   return (
     <div className="workspace-shell">
       <a className="skip-link" href="#main-content">{t("skip")}</a>
       <header className="workspace-header">
         <Brand />
         <div className="workspace-header__actions">
+          <Link className="notification-link" to="/notifications" aria-label={`${t("navNotifications")}: ${unreadCount} ${t("unreadNotifications")}`}>
+            <Icon path={icons.notification} />
+            {unreadCount ? <span>{unreadCount > 99 ? "99+" : unreadCount}</span> : null}
+          </Link>
           <Button variant="quiet" onClick={toggleLocale}>{t("language")}</Button>
           <button
             className="menu-trigger"

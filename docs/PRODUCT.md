@@ -1,8 +1,8 @@
 # Lock-in Product Specification
 
-Status: Phase 1 specification; implementation recorded through Phase 6
+Status: Phase 1 specification; implementation recorded through Phase 7
 Product owner: Platform administrator
-Last updated: 2026-07-17
+Last updated: 2026-07-18
 
 ## Register
 
@@ -1182,5 +1182,34 @@ Important redesigns and reasons:
 | Creator spaces attached to one learning context | Makes private conversation useful for a lesson/object instead of creating another social feed |
 | No reactions in Phase 6 | Avoids optimizing engagement before a demonstrated learning signal and scalable projection exist |
 
-See `PHASE_6_COMMUNITY.md` for boundaries, invariants, validation, and explicit exclusions. Phase 7
-is blocked until explicit owner approval.
+See `PHASE_6_COMMUNITY.md` for boundaries, invariants, validation, and explicit exclusions.
+
+## Phase 7 Implementation Record
+
+Phase 7 realizes long-term learning motivation as five connected but independently owned products:
+
+- an idempotent XP ledger and rebuildable balance based on authoritative learning evidence;
+- versioned meaningful achievements with progress and unique earned records;
+- versioned daily streak policy/evidence that handles out-of-order activity deterministically;
+- deterministic, auditable ranking snapshots with transparent rules, ties, freshness, and privacy;
+- an in-app notification center with ownership, safe destinations, unread state, required/optional
+  preferences, deduplication, and future channel contracts;
+- a stateless event integration boundary and reconciliation command instead of source-domain coupling;
+- accessible, responsive English/Arabic progression and notification workflows.
+
+Important redesigns and reasons:
+
+| Redesign | Usability reason |
+|---|---|
+| Learning momentum, not a gamification dashboard | Keeps attention on progress and mastery rather than point collection |
+| Visible “what counts” rules | Makes rewards understandable and discourages meaningless grinding |
+| Milestones before the ranking table | Keeps personal learning primary and competition secondary |
+| Published snapshot freshness and rules | Lets students understand why rank is stable and fair |
+| Ranking opt-in/name privacy | Gives the student control over public representation |
+| Quiet notification action center | Surfaces useful study/account updates without engagement pressure |
+
+Focus contributes only its bounded completed-session event and remains an independently evolvable
+product module. Freeze/grace/recovery behavior, email/push providers, subscriptions/payments, AI, and
+external event infrastructure are not implemented. See `PHASE_7_MOTIVATION.md` for rules,
+boundaries, security, validation, and explicit exclusions. Phase 8 is blocked until explicit owner
+approval.

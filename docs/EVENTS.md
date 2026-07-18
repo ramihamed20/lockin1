@@ -1,6 +1,6 @@
 # Lock-in Internal Domain Events
 
-Last updated: 2026-07-17
+Last updated: 2026-07-18
 
 ## Purpose
 
@@ -51,7 +51,11 @@ request bodies, or unrestricted personal data.
 | `community.reply.created` | Community | Implemented; reply/parent/discussion/context identifiers |
 | `community.content.changed` | Community | Implemented; edit/delete/moderation action identifiers |
 | `community.space.membership.changed` | Community | Implemented; space/user/action/role identifiers |
-| `rankings.achievement_earned` | Rankings | Reserved contract; not coded yet |
+| `xp.awarded` | XP | Implemented; transaction/balance facts after idempotent award |
+| `streaks.updated` | Streaks | Implemented; policy version and recomputed day totals |
+| `achievements.earned` | Achievements | Implemented; exact definition/version/earned-record identifiers |
+| `rankings.snapshot_published` | Rankings | Implemented; definition/snapshot/checksum identifiers |
+| `notifications.created` | Notifications | Implemented; recipient/category/template identifiers only |
 | `subscriptions.subscription_activated` | Subscriptions | Reserved contract; not coded yet |
 | `moderation.report.created` | Moderation | Implemented; report/target/reason identifiers |
 | `moderation.action.recorded` | Moderation | Implemented; audit/action/target and conflict identifiers |
@@ -64,9 +68,24 @@ and have domain-owned classes and contract/transaction tests. Assessment events 
 key, explanation, option text, session token, or unrestricted metadata.
 
 Community and moderation events became real in Phase 6. They contain identifiers and bounded action
-or reason facts; immutable evidence remains inside the permission-protected moderation record. No
-notification subscriber or delivery channel exists yet. Phase 7 may subscribe through an integration
-module without adding a community-to-notification dependency.
+or reason facts; immutable evidence remains inside the permission-protected moderation record.
+
+Phase 7 adds `apps.motivation_integrations` as a stateless subscriber composition root. It consumes
+existing account, lesson, Focus, assessment, community, and moderation facts and calls the public
+service boundary of the owning XP, achievement, ranking, streak, or notification domain. Source
+domains do not import those consumers.
+
+| Source event | Current Phase 7 consumers |
+|---|---|
+| `accounts.user_email_verified` | In-app account notification |
+| `education.lesson_completed` | XP, streak, achievement evidence |
+| `focus.session_completed` | Bounded XP, streak, focus achievement evidence |
+| `quiz.attempt.submitted` | Eligibility-aware XP, ranking fact, achievement and streak evidence |
+| `community.discussion.created` | First contextual-contribution achievement evidence only |
+| `community.reply.created` | Recipient in-app reply notification |
+| `moderation.action.recorded` | Report owner in-app moderator-action notification |
+| `achievements.earned` | Achievement notification |
+| `xp.awarded` | Ranking fact only when the award is ranking eligible |
 
 ## Transaction behavior
 
@@ -77,6 +96,11 @@ The current bus is not durable. If the process exits after the commit but before
 finishes, the subscriber work can be lost. Therefore subscribers in this phase may enrich
 best-effort process behavior but must not be the only record of authoritative grading, progress,
 billing, or audit state.
+
+Phase 7's durable effects are idempotent and recoverable. The `rebuild_motivation` management
+command scans committed authoritative source records, replays missing evidence/notifications, and
+rebuilds XP balances, streaks, achievement progress, ranking facts, and unread counters. It does not
+regrade assessments or rewrite source-domain history.
 
 ## When durability is justified
 
