@@ -1,6 +1,6 @@
 # Lock-in TODO
 
-Last updated: 2026-07-18
+Last updated: 2026-07-19
 
 ## Completed Gates
 
@@ -13,6 +13,7 @@ Last updated: 2026-07-18
 - [x] Phase 6 contextual community/moderation approved.
 - [x] Phase 7 learning motivation/notifications approved.
 - [x] Phase 8 subscription/entitlement platform approved.
+- [x] Phase 9 operations platform approved.
 
 ## Phase 8 - Approved
 
@@ -29,7 +30,7 @@ Last updated: 2026-07-18
 - [x] Update all source-of-truth documentation.
 - [x] Obtain explicit Phase 9 approval.
 
-## Phase 9 - Complete; Awaiting Review
+## Phase 9 - Approved
 
 - [x] Keep administration, analytics, audit, reporting, operational actions, and configuration
   independent.
@@ -42,7 +43,21 @@ Last updated: 2026-07-18
 - [x] Add provider-neutral request metrics, structured logging, error reporting, and safe health.
 - [x] Add dedicated responsive English/Arabic operations workspaces and pass Axe/RTL/overflow.
 - [x] Pass backend/frontend/coverage/PWA/full-browser regression gates and update documentation.
-- [ ] Obtain explicit Phase 10 approval.
+- [x] Obtain explicit Phase 10 approval.
+
+## Phase 10 - Complete; Awaiting Review
+
+- [x] Keep Focus independent from assessment, community, AI, motivation, commerce, and notifications.
+- [x] Add server-authoritative session lifecycle/history and optimistic workspace snapshots.
+- [x] Add version-scoped normalized annotation collections, revisions, idempotency, and recovery.
+- [x] Add a dedicated route-split shell and isolate PDF.js behind one renderer adapter.
+- [x] Add virtual page activation, cancellation, memory release, navigation, zoom, and gestures.
+- [x] Add drawing, markup, shapes, text/sticky notes, undo/redo, and confirmed clearing.
+- [x] Add incremental autosave, offline/local/server truth, conflict handling, and PWA guards.
+- [x] Add keyboard/screen-reader/high-contrast/reduced-motion/RTL responsive behavior.
+- [x] Add bounded future extension slots without speculative features or infrastructure.
+- [x] Pass the complete backend/frontend/PWA/browser validation suite and finish evidence docs.
+- [ ] Obtain explicit approval before the next phase.
 
 ## Deferred Evidence / Inputs
 
@@ -54,6 +69,11 @@ Last updated: 2026-07-18
 - [ ] Run provider sandbox, reverse-proxy payload-limit, replay, and representative commerce load tests.
 - [ ] Run PostgreSQL concurrency tests for analytics fact idempotency, role/action/configuration locks,
   report confirmation, and audit immutability.
+- [ ] Run PostgreSQL concurrent Focus session/workspace/annotation revision and idempotency tests.
+- [ ] Measure Focus with representative hundred-page/image-heavy PDFs, hundreds of annotations,
+  long sessions, offline/reconnect, and bounded browser memory.
+- [ ] Validate real iPad/Apple Pencil and Android stylus pressure/tilt, input latency, finger pan, and
+  browser-specific palm-rejection limits; do not claim capability before evidence.
 - [ ] Build representative projection/report/action datasets and run Phase 11 load tests.
 - [ ] Enforce audit update/delete denial with the production PostgreSQL application role.
 - [ ] Select and validate metrics/error providers, alerts, dashboards, log retention, and privacy.
@@ -86,7 +106,7 @@ Last updated: 2026-07-18
 ## Guardrails
 
 - Never modify `C:\Users\ramih\Desktop\Dentify-Before-Edits`.
-- Work one approved phase at a time; do not start Phase 10 without explicit approval.
+- Work one approved phase at a time; do not start the next phase without explicit approval.
 - Server remains the source of truth for progression, permissions, moderation, grading, and review.
 - Entitlements, not plan flags or client state, remain the source of truth for protected capabilities.
 - Never trust client payment/refund success, amount, currency, price, subscription state, or access.

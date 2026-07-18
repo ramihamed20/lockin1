@@ -1,8 +1,8 @@
 # Lock-in Project Audit
 
-Status: Phase 0 baseline approved; rebuild remediation recorded through Phase 7
+Status: Phase 0 baseline approved; rebuild remediation recorded through Phase 10
 Audit date: 2026-07-15  
-Last updated: 2026-07-18
+Last updated: 2026-07-19
 Existing reference: `C:\Users\ramih\Desktop\Dentify-Before-Edits`  
 Rebuild destination: `C:\Users\ramih\Desktop\Dentify-Rebuild`
 
@@ -273,3 +273,30 @@ validated full desktop/mobile behavior. No new applicable Skill was discovered.
 The reference project remains unchanged. Local evidence does not claim PostgreSQL concurrency,
 representative load, a real BI/monitoring provider, scheduled reports, or database-role enforcement
 of audit immutability.
+
+## Phase 10 Rebuild Note
+
+Phase 10 replaces the reference application's browser-managed PDF surface with an independent Focus
+product. The rebuilt workspace has a private PDF.js adapter, virtual page lifecycle, normalized
+annotations, server-authoritative sessions, optimistic revisioned persistence, idempotent sync,
+and account-scoped crash recovery. The source PDF is immutable and its checksum is covered by API
+tests across annotation saves.
+
+The redesign removes the global shell during study and makes the document dominant. Thumbnails and
+notes become requested panels, phone panels overlay instead of displacing the page, and save state
+truth is always explicit. Browser capabilities are described honestly: pressure/tilt are used when
+reported, finger input pans, and perfect palm rejection is not claimed.
+
+The selected Skills continued unchanged: `impeccable` shaped the low-distraction task hierarchy,
+responsive panels, states, and accessibility; `design-system` preserved the established token
+layers; `security-best-practices` hardened server authority, ownership, idempotency, same-origin
+document loading, bounded validation, and untrusted recovery; and `playwright` governs desktop/
+mobile browser validation. No new applicable Skill was discovered during Phase 10.
+
+Final browser evidence covered the production bundle on Desktop Chrome and Pixel 7, including a
+real PDF, annotation autosave, Arabic RTL, Axe, overflow, and visual review. It corrected responsive
+accessible names, keyboard access to the scrollable document, and mixed-direction title handling.
+
+The original reference at `C:\Users\ramih\Desktop\Dentify-Before-Edits` remains unchanged. Local
+evidence does not claim PostgreSQL concurrent sync, real stylus/palm-rejection behavior, multi-hour
+memory stability, or representative large-textbook performance.

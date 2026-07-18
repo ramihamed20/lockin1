@@ -1,8 +1,8 @@
 # Lock-in Product Specification
 
-Status: Phase 1 specification; implementation recorded through Phase 7
+Status: Phase 1 specification; implementation recorded through Phase 10
 Product owner: Platform administrator
-Last updated: 2026-07-18
+Last updated: 2026-07-19
 
 ## Register
 
@@ -1284,3 +1284,41 @@ Focus remains independent and contributes only a bounded completed-session fact.
 unimplemented. No scheduler, worker, Redis, Celery, WebSocket, broker, microservice, BI vendor, or
 monitoring provider was introduced. See `PHASE_9_OPERATIONS.md` for APIs, invariants, validation,
 limitations, and exclusions.
+
+## Phase 10 Implementation Record
+
+Phase 10 realizes Focus as the primary study workspace rather than an enhanced PDF link:
+
+- a dedicated immersive route outside global navigation;
+- private streamed PDF rendering with virtual page activation and resource cancellation;
+- thumbnails, jump-to-page, zoom, pinch, double-tap, pan, fullscreen, and restoration;
+- pen, pencil, highlighter, eraser, shapes, text, sticky notes, color, thickness, undo/redo, and
+  confirmed page clearing;
+- separate normalized version-aware annotations that never mutate the source PDF;
+- server-timed session lifecycle/history and optimistic workspace/annotation revisions;
+- incremental autosave, account-scoped validated crash recovery, offline truth, and PWA guards;
+- keyboard, screen-reader text/status, high contrast, reduced motion, RTL, and adaptive tablet/
+  phone controls;
+- explicit extension slots without implementing AI, flashcards, timer, OCR, voice, collaboration,
+  shared annotations, or document search.
+
+Important redesigns and reasons:
+
+| Redesign | Usability reason |
+|---|---|
+| Embedded PDF object -> dedicated study shell | Removes unrelated choices and makes the learning object the center of the session |
+| Eager document mindset -> virtual study surface | Keeps long textbooks smooth on mobile/tablet hardware |
+| Renderer-owned drawing -> normalized learning annotations | Preserves notes across zoom, devices, and future renderer changes |
+| Silent debounce -> explicit local/offline/server save states | Lets students know exactly where their work is safe |
+| Desktop sidebar -> adaptive adjacent/overlay panels | Keeps thumbnails and notes reachable without covering most of the document |
+| Claimed tablet behavior -> capability-honest pointer support | Uses pressure/tilt when available without promising impossible browser palm rejection |
+
+Focus remains independent from assessment, community, AI, motivation, commerce, and notifications.
+The generic entitlement decision and authorized content/file resolver live at the API boundary only.
+The redesign uses the existing dark gold/purple identity, but removes cards and dashboard chrome to
+support hours of calm study. See `PHASE_10_FOCUS_WORKSPACE.md` for the detailed architecture,
+security, API, validation, and honest production evidence limits.
+
+Final production-preview validation rendered an actual PDF, synchronized a contextual note, and
+passed keyboard, screen-reader/Axe, desktop, mobile, Arabic RTL, mixed-direction content, and
+horizontal-overflow checks. This remains local browser evidence, not a real-stylus or load claim.

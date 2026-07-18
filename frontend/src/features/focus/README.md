@@ -1,12 +1,13 @@
-# Focus frontend subsystem
+# Focus workspace domain
 
-Phase 2 defines contracts only. It does not ship a PDF viewer or annotation UI.
+Focus is a standalone product module. Its only platform integration is the authenticated Focus API; assessment, community, AI, motivation, billing, and notification modules are not imported here.
 
-The subsystem separates viewport rendering, annotation persistence, workspace-state recovery,
-pointer/gesture interpretation, keyboard commands, tool registration, and focus-session APIs.
-Pointer contracts expose browser-reported pressure and tilt without claiming that browsers can
-guarantee palm rejection. All annotation coordinates are normalized to the PDF page so zoom and
-viewport changes do not rewrite the stored data.
+- `renderer/` owns the PDF.js adapter and page resource cleanup.
+- `viewer/` owns virtual page activation and viewport navigation.
+- `annotations/` owns normalized, renderer-independent annotations and command history.
+- `toolbar/` and `workspace/` own controls, notes, and page navigation.
+- `autosave/` owns incremental server sync and account-scoped IndexedDB recovery.
+- `extensions/` exposes bounded presentation slots. It contains no feature implementations.
+- `contracts/` is the stable boundary shared by all of the above.
 
-The shape chooser is a toolbar grouping; line, arrow, rectangle, and circle remain independently
-registered tools. Later tools can register without modifying a central drawing component.
+The original PDF is never modified. A finger pans the viewport while pen/mouse input can annotate. Pressure and tilt are retained only when browser pointer events report them; browser-level palm rejection is not claimed.

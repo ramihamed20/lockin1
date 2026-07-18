@@ -1,8 +1,34 @@
 # Lock-in Focus Mode
 
-Last updated: 2026-07-15
+Last updated: 2026-07-19
 
-## Phase 3 Isolation Check
+Status: Phase 10 Focus Workspace implemented and locally validated; production device/load evidence
+remains tracked.
+
+## Phase 10 Realization
+
+Focus now has a dedicated lazy `/focus/{document_version_id}` shell outside global navigation, a
+PDF.js adapter, virtual page activation, page/zoom/panel restoration, normalized drawing and note
+annotations, undo/redo, optimistic idempotent autosave, deep-validated IndexedDB recovery,
+server-timed sessions, history, pause/resume/complete/abandon transitions, keyboard shortcuts,
+fullscreen, responsive tablet/phone panels, English/Arabic RTL, high contrast, and reduced motion.
+
+Backend ownership now includes `FocusWorkspaceSnapshot`, version-scoped annotation collections,
+renderer-independent annotations, sync receipts, bounded page pagination, revision conflicts, and
+server timeline duration. The original PDF checksum is invariant across annotation operations.
+Content/file resolution and entitlement enforcement exist only at the API integration boundary;
+Focus models/services do not import assessment, community, AI, motivation, commerce, or
+notification domains.
+
+PDF.js is isolated behind `PdfDocumentAdapter`. Canvases render only near the viewport; obsolete
+render tasks are cancelled and resources are released. Local recovery never claims a server save,
+and session completion is unavailable until pending mutations are acknowledged.
+
+See `PHASE_10_FOCUS_WORKSPACE.md` for current APIs, invariants, module map, security, UX reasons,
+validation, and honest limits. Sections explicitly labeled Phase 2-5 below remain the historical
+architecture record that Phase 10 realized without changing those domain boundaries.
+
+## Phase 3 Isolation Check (historical)
 
 Phase 3 did not turn Focus into an authenticated PDF page. Account routes, design components, and
 dashboard selectors do not import Focus renderer, annotation, gesture, toolbar, autosave, or storage
@@ -12,7 +38,6 @@ testable and are reserved for their approved implementation phase.
 The general application shell may later provide an entry into Focus, but the Focus workspace owns
 its own immersive shell and previous-workspace restoration. Browser palm rejection remains
 capability-dependent and will not be represented as guaranteed.
-Status: Phase 2 architecture and core session domain implemented; workspace features deferred
 
 ## Product definition
 

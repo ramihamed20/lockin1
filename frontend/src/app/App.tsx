@@ -45,6 +45,7 @@ const UserOperationsPage = lazy(() => import("../features/operations/UserOperati
 const AuditPage = lazy(() => import("../features/operations/AuditPage").then((module) => ({ default: module.AuditPage })));
 const ReportsPage = lazy(() => import("../features/operations/ReportsPage").then((module) => ({ default: module.ReportsPage })));
 const ConfigurationPage = lazy(() => import("../features/operations/ConfigurationPage").then((module) => ({ default: module.ConfigurationPage })));
+const FocusWorkspacePage = lazy(() => import("../features/focus/FocusWorkspacePage").then((module) => ({ default: module.FocusWorkspacePage })));
 
 function ProtectedRoute() {
   const { status } = useAuth();
@@ -82,6 +83,7 @@ export function App() {
   const pwa = usePwaStatus();
   const location = useLocation();
   const assessmentInProgress = location.pathname.startsWith("/assessments/attempts/");
+  const focusInProgress = location.pathname.startsWith("/focus/");
   return (
     <>
       <Suspense fallback={<PageSkeleton label={t("loading")} />}>
@@ -96,6 +98,7 @@ export function App() {
         </Route>
         <Route element={<ProtectedRoute />}>
           <Route path="assessments/attempts/:attemptId" element={<AttemptPage />} />
+          <Route path="focus/:documentVersionId" element={<FocusWorkspacePage />} />
           <Route element={<AppShell />}>
             <Route index element={<DashboardPage />} />
             <Route path="learn" element={<LearningHomePage />} />
@@ -138,7 +141,7 @@ export function App() {
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
       </Suspense>
-      {pwa.updateAvailable && !assessmentInProgress ? (
+      {pwa.updateAvailable && !assessmentInProgress && !focusInProgress ? (
         <aside className="update-notice" aria-live="polite">
           <p>{t("updateReady")}</p>
           <Button onClick={() => void applyPwaUpdate()}>{t("updateNow")}</Button>

@@ -18,6 +18,7 @@ backend/media/
 backend/staticfiles/
 .playwright/
 output/playwright/
+frontend/output/
 playwright-report/
 test-results/
 *.log

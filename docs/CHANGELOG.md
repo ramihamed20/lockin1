@@ -2,6 +2,70 @@
 
 All notable rebuild changes are documented here.
 
+## 2026-07-19 - Phase 10
+
+### Added
+
+- Independent Focus workspace/session/annotation persistence with optimistic revisions, idempotent
+  sync receipts, bounded page loads, owner history, and lifecycle actions.
+- Dedicated lazy Focus shell, private same-origin PDF.js renderer/worker, virtual page activation,
+  render cancellation, extracted text, page navigation, zoom, pan, pinch, double-tap, and fullscreen.
+- Renderer-independent normalized pen/pencil/highlighter/shape/text/sticky-note annotations,
+  erasing, colors, thickness, undo/redo, note editing, and confirmed page clearing.
+- Incremental autosave, schema-versioned account/document IndexedDB recovery, PWA/unload guards,
+  offline/local/server/conflict/failure states, and reconnect retry.
+- Adaptive thumbnails/notes panels, keyboard shortcuts/help, high contrast, reduced motion,
+  screen-reader status/text, and English/Arabic RTL layouts.
+- Duplicate-safe bounded future extension slots and `PHASE_10_FOCUS_WORKSPACE.md`.
+
+### Security and Correctness
+
+- Enforced authentication, generic server entitlement, current content access, ownership, page
+  bounds, strict mutation schemas, batch limits, revisions, and idempotency digest integrity.
+- Kept the PDF immutable and verified its checksum is unchanged by annotation sync.
+- Accepted only same-origin private file view URLs in the PDF adapter and kept authenticated files
+  out of Workbox runtime cache.
+- Deep-validated IndexedDB records as untrusted input and stored no credentials, CSRF value, source
+  PDF, assessment answer, or unrestricted payload.
+- Derived active duration from the server activity timeline and rejected client duration.
+- Preserved newer local edits when older sync acknowledgements arrive; supported same-ID undo
+  restoration after soft deletion.
+
+### Product and Accessibility
+
+- Replaced the embedded browser PDF object as the primary study path with an immersive document-
+  first workspace outside global navigation.
+- Kept optional panels bounded/closed and used a mobile overlay so controls do not consume most of
+  the page.
+- Exposed exact save durability states and disabled completion until server acknowledgement.
+- Reserved finger input for pan/gestures, retained browser-reported pen pressure/tilt, and made no
+  perfect palm-rejection claim.
+- Added named native controls, 44px targets, live status, keyboard equivalents, extracted PDF text
+  where available, confirmed clearing, high contrast, reduced motion, and logical RTL.
+- Browser validation corrected responsive controls whose CSS glyphs polluted accessible names,
+  made the PDF scroll region keyboard-focusable, and preserved LTR/RTL content direction inside the
+  surrounding localized interface.
+
+### Validation
+
+- Backend: 165 tests, 85.37% coverage, Ruff/format, strict mypy, Django/migration checks, and 13
+  final Focus regressions passed.
+- Frontend: 158 tests, 90.87% statement and 80.39% branch coverage, ESLint, TypeScript, zero lockfile
+  vulnerabilities, and production PWA build passed.
+- Playwright: 32 passed and 2 intentional desktop skips for mobile-only checks; desktop/mobile Axe,
+  Arabic RTL, real-PDF rendering, annotation autosave, visual review, and overflow passed.
+- Production deployment check exited 0 with no Django security or Focus schema warning; 96 inherited
+  drf-spectacular findings remain tracked.
+
+### Boundaries
+
+- Focus does not import assessment, community, AI, motivation, commerce, payment, or notification
+  domains; content/file and entitlement checks are API integration boundaries only.
+- No AI, collaboration, OCR, voice, flashcards, timer, document search, Redis, Celery, WebSocket,
+  broker, worker, microservice, or speculative infrastructure was added.
+- PostgreSQL concurrency, representative large-document/load/memory evidence, and real stylus
+  device evidence remain explicit production gates.
+
 ## 2026-07-18 - Phase 9
 
 ### Added

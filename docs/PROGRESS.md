@@ -1,13 +1,13 @@
 # Lock-in Progress
 
-Last updated: 2026-07-18
+Last updated: 2026-07-19
 
 ## Current Status
 
-Phase 9 - Operations platform
-State: implementation and local validation complete; awaiting owner review
+Phase 10 - Focus Workspace
+State: complete; awaiting owner review
 
-Do not start Phase 10 until the owner explicitly approves it.
+Do not start the next phase until the owner explicitly approves it.
 
 ## Phase History
 
@@ -79,7 +79,7 @@ Status: approved.
 
 ### Phase 9 - Operations Platform
 
-Status: complete; awaiting owner review.
+Status: approved.
 
 - Added independent administration, analytics, audit, reporting, operational-action, and system-
   configuration domains plus a stateless analytics integration boundary.
@@ -95,6 +95,27 @@ Status: complete; awaiting owner review.
 - Added accessible responsive English/Arabic overview/content/support/user/audit/report/configuration
   workspaces; Django Admin remains maintenance-only.
 - Kept Focus independent, AI unimplemented, APIs versioned, and infrastructure local.
+
+### Phase 10 - Focus Workspace
+
+Status: complete; awaiting owner review.
+
+- Added independent server-authoritative sessions, workspace snapshots, annotation collections,
+  normalized annotation records, idempotent sync receipts, and owner-scoped history.
+- Added explicit pause/resume/complete/abandon lifecycle with server-derived active duration.
+- Added the dedicated lazy Focus shell outside global navigation and a single PDF.js adapter.
+- Added near-viewport page rendering, cancellation/resource release, zoom, pan, pinch, double-tap,
+  page jump, thumbnails, notes, fullscreen, and restoration.
+- Added pen/pencil/highlighter/eraser/shapes/text/sticky notes, normalized SVG composition,
+  undo/redo, colors, thickness, and confirmed clearing.
+- Added incremental optimistic autosave, deep-validated account/version IndexedDB recovery, honest
+  offline/conflict/failure status, unload/PWA guards, and exact-mutation acknowledgement handling.
+- Added keyboard, screen-reader text/status, high contrast, reduced motion, responsive phone/tablet,
+  and English/Arabic RTL behavior.
+- Added bounded extension slots without implementing AI, collaboration, OCR, voice, flashcards,
+  timer, or document search.
+- Kept Focus independent from assessment/community/motivation/commerce/notifications and added no
+  Redis, Celery, WebSocket, broker, worker, microservice, or speculative infrastructure.
 
 ## Phase 8 Validation
 
@@ -121,6 +142,26 @@ Status: complete; awaiting owner review.
 - OpenAPI generation completed with no Phase 9 view warnings. Ninety-six inherited APIView/
   operation-id warnings remain tracked, so the global schema is not claimed clean.
 
+## Phase 10 Validation
+
+- Backend: 165 tests passed; 85.37% branch-aware coverage (85% gate passed).
+- Ruff lint/format, strict mypy across 412 source files, Django checks, and SQLite migration-drift
+  verification passed; the 13 Focus-specific regressions also passed after final API hardening.
+- Production `check --deploy` exited successfully with a strong test-only secret and no Django
+  security or Focus schema warning. The 96 inherited pre-Phase-10 drf-spectacular warnings remain
+  tracked; the global schema is not claimed clean.
+- Frontend: 29 files / 158 tests passed; coverage is 90.87% statements, 80.39% branches, 87.21%
+  functions, and 95.18% lines.
+- ESLint, TypeScript, exact lockfile installation, zero-vulnerability package-lock audit, and the
+  production PWA build passed. The lazy Focus chunk is 448.95 KB (133.56 KB gzip); the 1.23 MB PDF
+  worker is a separate asset and is not Workbox-preloaded.
+- Complete Playwright regression: 32 passed and 2 intentional desktop skips for mobile-only
+  assertions. Phase 10 rendered a real PDF, autosaved a sticky note, restored the notes surface,
+  passed Axe on desktop/mobile/Arabic RTL, and had no page-level horizontal overflow.
+- Desktop and Pixel 7 RTL screenshots were visually reviewed. Browser review found and corrected
+  generated-glyph accessible names, a non-focusable PDF scroll region, and mixed-direction title
+  ellipsis before the final green run.
+
 ## Workstation Limitation
 
 PostgreSQL-backed concurrency and representative 2,000-active-user load tests were not run locally
@@ -129,4 +170,4 @@ because no PostgreSQL/Docker service was available. Local tests explicitly used
 
 ## Next Gate
 
-Owner reviews Phase 9. Stop here; Phase 10 requires explicit approval.
+Owner reviews Phase 10. Stop here; the next phase requires explicit approval.

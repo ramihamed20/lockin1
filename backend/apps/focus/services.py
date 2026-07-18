@@ -8,8 +8,15 @@ from django.utils import timezone
 from apps.accounts.models import User
 from platform_core.events import publish_after_commit
 
-from .events import FocusSessionCompleted, FocusSessionStarted
-from .models import FocusSession, FocusSessionActivity
+from .domain_types import FocusDocumentReference
+from .events import (
+    FocusSessionAbandoned,
+    FocusSessionCompleted,
+    FocusSessionPaused,
+    FocusSessionResumed,
+    FocusSessionStarted,
+)
+from .models import FocusSession, FocusSessionActivity, FocusWorkspaceSnapshot
 
 
 class FocusSessionStateError(ValueError):
@@ -23,12 +30,14 @@ def start_focus_session(
     planned_duration_seconds: int | None = None,
     context_type: str = FocusSession.ContextType.INDEPENDENT,
     context_id: UUID | None = None,
+    client_instance_id: UUID | None = None,
 ) -> FocusSession:
     session = FocusSession(
         user=user,
         planned_duration_seconds=planned_duration_seconds,
         context_type=context_type,
         context_id=context_id,
+        client_instance_id=client_instance_id,
     )
     session.full_clean()
     session.save()
@@ -40,6 +49,169 @@ def start_focus_session(
     )
     publish_after_commit(
         FocusSessionStarted(
+            session_id=session.id,
+            user_id=user.id,
+            context_type=session.context_type,
+            context_id=session.context_id,
+            actor_id=user.id,
+        )
+    )
+    return session
+
+
+@transaction.atomic
+def start_workspace_session(
+    *,
+    user: User,
+    document: FocusDocumentReference,
+    client_instance_id: UUID,
+    planned_duration_seconds: int | None = None,
+) -> tuple[FocusSession, FocusWorkspaceSnapshot, bool]:
+    User.objects.select_for_update().get(id=user.id)
+    existing = (
+        FocusSession.objects.select_for_update()
+        .filter(user=user, client_instance_id=client_instance_id)
+        .first()
+    )
+    if existing is not None:
+        if (
+            existing.context_type != FocusSession.ContextType.STUDY
+            or existing.context_id != document.document_version_id
+        ):
+            raise FocusSessionStateError(
+                "The client session identifier was already used for another workspace."
+            )
+        return existing, existing.workspace, False
+
+    previous = (
+        FocusWorkspaceSnapshot.objects.filter(
+            user=user,
+            document_version_id=document.document_version_id,
+        )
+        .order_by("-updated_at")
+        .first()
+    )
+    session = start_focus_session(
+        user=user,
+        planned_duration_seconds=planned_duration_seconds,
+        context_type=FocusSession.ContextType.STUDY,
+        context_id=document.document_version_id,
+        client_instance_id=client_instance_id,
+    )
+    workspace = FocusWorkspaceSnapshot.objects.create(
+        session=session,
+        user=user,
+        document_id=document.document_id,
+        document_version_id=document.document_version_id,
+        file_id=document.file_id,
+        current_page=previous.current_page if previous is not None else 1,
+        page_count=document.page_count or (previous.page_count if previous is not None else None),
+        zoom=previous.zoom if previous is not None else 1,
+        sidebar=previous.sidebar if previous is not None else FocusWorkspaceSnapshot.Sidebar.CLOSED,
+        active_tool=previous.active_tool if previous is not None else "",
+        layout=previous.layout if previous is not None else {},
+        open_tabs=previous.open_tabs if previous is not None else [],
+    )
+    return session, workspace, True
+
+
+def _append_activity(
+    *,
+    session: FocusSession,
+    activity_type: str,
+    occurred_at: datetime,
+    metadata: dict[str, object] | None = None,
+) -> None:
+    last_sequence = session.timeline.aggregate(last=Max("sequence"))["last"] or 0
+    FocusSessionActivity.objects.create(
+        session=session,
+        sequence=int(last_sequence) + 1,
+        activity_type=activity_type,
+        occurred_at=occurred_at,
+        metadata=metadata or {},
+    )
+
+
+def _active_duration(*, session: FocusSession, until: datetime) -> int:
+    opened_at: datetime | None = None
+    total = 0.0
+    for activity in session.timeline.order_by("sequence"):
+        if activity.activity_type in {
+            FocusSessionActivity.ActivityType.STARTED,
+            FocusSessionActivity.ActivityType.RESUMED,
+        }:
+            opened_at = activity.occurred_at
+        elif (
+            activity.activity_type
+            in {
+                FocusSessionActivity.ActivityType.PAUSED,
+                FocusSessionActivity.ActivityType.COMPLETED,
+                FocusSessionActivity.ActivityType.ABANDONED,
+            }
+            and opened_at is not None
+        ):
+            total += max(0.0, (activity.occurred_at - opened_at).total_seconds())
+            opened_at = None
+    if opened_at is not None:
+        total += max(0.0, (until - opened_at).total_seconds())
+    return int(total)
+
+
+def _owned_locked_session(*, user: User, session_id: UUID) -> FocusSession:
+    try:
+        return FocusSession.objects.select_for_update().get(id=session_id, user=user)
+    except FocusSession.DoesNotExist as error:
+        raise FocusSessionStateError("Focus session was not found.") from error
+
+
+@transaction.atomic
+def pause_focus_session(*, user: User, session_id: UUID) -> FocusSession:
+    session = _owned_locked_session(user=user, session_id=session_id)
+    if session.status == FocusSession.Status.PAUSED:
+        return session
+    if session.status != FocusSession.Status.ACTIVE:
+        raise FocusSessionStateError("Only an active Focus session can be paused.")
+    occurred_at = timezone.now()
+    session.status = FocusSession.Status.PAUSED
+    session.last_activity_at = occurred_at
+    session.revision += 1
+    session.save(update_fields=("status", "last_activity_at", "revision", "updated_at"))
+    _append_activity(
+        session=session,
+        activity_type=FocusSessionActivity.ActivityType.PAUSED,
+        occurred_at=occurred_at,
+    )
+    publish_after_commit(
+        FocusSessionPaused(
+            session_id=session.id,
+            user_id=user.id,
+            context_type=session.context_type,
+            context_id=session.context_id,
+            actor_id=user.id,
+        )
+    )
+    return session
+
+
+@transaction.atomic
+def resume_focus_session(*, user: User, session_id: UUID) -> FocusSession:
+    session = _owned_locked_session(user=user, session_id=session_id)
+    if session.status == FocusSession.Status.ACTIVE:
+        return session
+    if session.status != FocusSession.Status.PAUSED:
+        raise FocusSessionStateError("Only a paused Focus session can be resumed.")
+    occurred_at = timezone.now()
+    session.status = FocusSession.Status.ACTIVE
+    session.last_activity_at = occurred_at
+    session.revision += 1
+    session.save(update_fields=("status", "last_activity_at", "revision", "updated_at"))
+    _append_activity(
+        session=session,
+        activity_type=FocusSessionActivity.ActivityType.RESUMED,
+        occurred_at=occurred_at,
+    )
+    publish_after_commit(
+        FocusSessionResumed(
             session_id=session.id,
             user_id=user.id,
             context_type=session.context_type,
@@ -72,14 +244,22 @@ def complete_focus_session(
 
     session.status = FocusSession.Status.COMPLETED
     session.ended_at = finished_at
+    session.last_activity_at = finished_at
     session.active_duration_seconds = active_duration_seconds
+    session.revision += 1
     session.full_clean()
-    session.save(update_fields=("status", "ended_at", "active_duration_seconds", "updated_at"))
-    last_sequence = session.timeline.aggregate(last=Max("sequence"))["last"] or 0
-    next_sequence = int(last_sequence) + 1
-    FocusSessionActivity.objects.create(
+    session.save(
+        update_fields=(
+            "status",
+            "ended_at",
+            "last_activity_at",
+            "active_duration_seconds",
+            "revision",
+            "updated_at",
+        )
+    )
+    _append_activity(
         session=session,
-        sequence=next_sequence,
         activity_type=FocusSessionActivity.ActivityType.COMPLETED,
         occurred_at=finished_at,
         metadata={"active_duration_seconds": active_duration_seconds},
@@ -92,6 +272,65 @@ def complete_focus_session(
             context_id=session.context_id,
             active_duration_seconds=active_duration_seconds,
             actor_id=session.user_id,
+        )
+    )
+    return session
+
+
+@transaction.atomic
+def complete_owned_focus_session(*, user: User, session_id: UUID) -> FocusSession:
+    session = _owned_locked_session(user=user, session_id=session_id)
+    if session.status == FocusSession.Status.COMPLETED:
+        return session
+    if session.status == FocusSession.Status.ABANDONED:
+        raise FocusSessionStateError("An abandoned focus session cannot be completed.")
+    completed_at = timezone.now()
+    active_duration_seconds = _active_duration(session=session, until=completed_at)
+    return complete_focus_session(
+        session_id=session.id,
+        active_duration_seconds=active_duration_seconds,
+        completed_at=completed_at,
+    )
+
+
+@transaction.atomic
+def abandon_focus_session(*, user: User, session_id: UUID) -> FocusSession:
+    session = _owned_locked_session(user=user, session_id=session_id)
+    if session.status == FocusSession.Status.ABANDONED:
+        return session
+    if session.status == FocusSession.Status.COMPLETED:
+        raise FocusSessionStateError("A completed Focus session cannot be abandoned.")
+    occurred_at = timezone.now()
+    session.status = FocusSession.Status.ABANDONED
+    session.ended_at = occurred_at
+    session.last_activity_at = occurred_at
+    session.active_duration_seconds = _active_duration(session=session, until=occurred_at)
+    session.revision += 1
+    session.full_clean()
+    session.save(
+        update_fields=(
+            "status",
+            "ended_at",
+            "last_activity_at",
+            "active_duration_seconds",
+            "revision",
+            "updated_at",
+        )
+    )
+    _append_activity(
+        session=session,
+        activity_type=FocusSessionActivity.ActivityType.ABANDONED,
+        occurred_at=occurred_at,
+        metadata={"active_duration_seconds": session.active_duration_seconds},
+    )
+    publish_after_commit(
+        FocusSessionAbandoned(
+            session_id=session.id,
+            user_id=user.id,
+            context_type=session.context_type,
+            context_id=session.context_id,
+            active_duration_seconds=session.active_duration_seconds,
+            actor_id=user.id,
         )
     )
     return session

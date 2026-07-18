@@ -1,6 +1,6 @@
 # Lock-in Decision Log
 
-Last updated: 2026-07-18
+Last updated: 2026-07-19
 
 This file records decisions that change product behavior, architecture, maintenance cost, or phase boundaries. Approved decisions are not silently replaced. A changed decision must record the trade-off and date.
 
@@ -840,4 +840,77 @@ distributed infrastructure is not justified by implemented volume/evidence.
 
 **Consequence:** Future providers plug into platform contracts without domain imports. Health shows
 `not_configured` rather than a false success. PostgreSQL concurrency, load, alerts, retention, and
-provider validation remain production evidence gates. Phase 10 is blocked pending owner approval.
+provider validation remain production evidence gates.
+
+## D-081 - Focus Is an Independent Product Domain
+
+**Decision:** Focus owns its sessions, workspace snapshots, annotations, sync, recovery contracts,
+renderer adapter, viewer, toolbar, and extension slots. Only a narrow API integration resolves an
+authorized content version/file and checks the generic `focus.workspace` entitlement.
+
+**Reason:** Importing assessment, community, AI, motivation, or commerce state into the study
+workspace would make its performance and release lifecycle depend on unrelated products.
+
+**Consequence:** Other domains consume Focus events or use explicit future adapters. Focus business
+services do not import their models. No plan-name flag or notification call exists inside Focus.
+
+## D-082 - Renderer-Independent Immutable Annotation Storage
+
+**Decision:** Never modify the PDF. Store owner/version/page annotations separately with normalized
+geometry, typed payload, collection revision, record revision, soft deletion, and idempotent sync.
+
+**Reason:** Source integrity, zoom/device portability, recovery, renderer replacement, and future
+layers require marks to be learning data rather than mutations of document bytes.
+
+**Consequence:** PDF.js types stay in one adapter. The backend validates geometry/tool payloads and
+page bounds. Undo may restore the same soft-deleted UUID, while collisions across collections fail.
+
+## D-083 - Dual-Layer Autosave Truth
+
+**Decision:** Persist a schema-versioned, account/document-scoped, deeply validated IndexedDB
+recovery record before debounced optimistic server sync. Expose local, offline, saving, saved,
+conflict, and failed states separately.
+
+**Reason:** Browsers and connections terminate unexpectedly, but local persistence is not server
+acknowledgement. Conflating them loses work or falsely tells a student it is durable remotely.
+
+**Consequence:** PWA updates and unload receive guards while changes are pending. Sync clears only
+the exact mutation version sent; newer edits survive older acknowledgements. Completion waits for a
+clean server-acknowledged state.
+
+## D-084 - Virtual PDF Rendering Behind an Adapter
+
+**Decision:** Pin PDF.js behind `PdfDocumentAdapter`; activate only near-viewport pages, separately
+track the visible current page, cap render DPR, cancel obsolete tasks, and release page/document
+resources.
+
+**Reason:** Hundreds of pages and image-heavy textbooks cannot be rendered eagerly on phones and
+tablets without memory, latency, and rerender costs.
+
+**Consequence:** Focus can replace or upgrade PDF.js without changing annotation/session contracts.
+The service worker never runtime-caches authenticated PDFs. Representative device memory/input
+latency remains a production evidence gate.
+
+## D-085 - Honest Stylus, Touch, and Accessibility Contract
+
+**Decision:** Pen/mouse may annotate; finger input pans and drives pinch/double-tap. Retain pressure
+and tilt only when Pointer Events report them. Provide keyboard equivalents, extracted text where
+available, high contrast, reduced motion, RTL, live save status, and explicit clear confirmation.
+
+**Reason:** A web PWA can offer a professional workspace but cannot guarantee device palm rejection
+or turn an image-only canvas into inherently accessible document text.
+
+**Consequence:** Product copy makes no perfect palm-rejection claim. Image-only PDFs truthfully state
+that text extraction is unavailable. Real stylus/device testing remains required.
+
+## D-086 - No New Distributed Infrastructure for Focus
+
+**Decision:** Keep Focus sync request/response and session events on the existing modular-monolith
+and after-commit in-process event architecture.
+
+**Reason:** Current incremental batches and session transitions do not demonstrate a need for a
+broker, worker, WebSocket, Redis, Celery, or microservice.
+
+**Consequence:** Collaboration and background document processing are extension points only. Any
+future infrastructure proposal must identify a real feature, delivery guarantee, performance
+measurement, and operating cost before approval.

@@ -1,7 +1,7 @@
 # Lock-in Architecture
 
-Status: Approved modular-monolith direction; implementation recorded through Phase 7
-Last updated: 2026-07-18
+Status: Approved modular-monolith direction; implementation recorded through Phase 10
+Last updated: 2026-07-19
 
 ## Goals
 
@@ -765,3 +765,70 @@ Focus remains independent; only its committed session event is consumed as a bou
 remains unimplemented/provider-independent. No Redis, Celery, WebSocket, broker, microservice,
 scheduler, worker, BI vendor, or monitoring vendor was added. PostgreSQL concurrency and
 representative projection/export/load evidence remain launch gates.
+
+## Phase 10 Realized Focus Workspace Architecture
+
+### Backend ownership
+
+`apps.focus` owns authoritative session state, ordered session activity, workspace snapshots,
+annotation collections, annotations, idempotent sync receipts, validation, selectors, services,
+APIs, and Focus events. Its only content/file dependency is isolated in `integrations.py` and used
+by the API boundary after authentication and generic entitlement authorization.
+
+```text
+authorized document version + private file descriptor
+                         |
+                         v
+client instance -> FocusSession -> FocusWorkspaceSnapshot
+                         |
+                         +-> ordered activity -> server-derived duration -> Focus events
+
+document version -> FocusAnnotationCollection(revision)
+                         |
+                         +-> normalized FocusAnnotation rows
+                         +-> idempotent FocusSyncReceipt
+```
+
+Session/workspace and annotation synchronization use row locks plus expected revisions. Annotation
+batches are bounded to 100 mutations; page loads accept at most ten page numbers and paginate up to
+1,000 records. Indexed owner/version/page/tool/deletion paths support large histories without an
+N+1 list contract. The PDF asset is read through the existing private range-capable file endpoint
+and is never mutated.
+
+### Frontend module graph
+
+```text
+FocusWorkspacePage (orchestration only)
+  +-- renderer/PdfDocumentAdapter ----> PDF.js worker/private file stream
+  +-- viewer/DocumentViewer
+  |      +-- VirtualPdfPage ----------> visible-range canvas + text extraction
+  |      +-- AnnotationLayer ---------> normalized SVG interaction layer
+  +-- annotations/reducer ------------> commands, undo/redo, pending mutations
+  +-- autosave/useFocusAutosave ------> API acknowledgements + PWA guard
+  |      +-- recovery ----------------> validated account/version IndexedDB
+  +-- toolbar/FocusToolbar
+  +-- workspace/FocusSidebar ---------> thumbnails and notes
+  +-- extensions/registry ------------> bounded future UI slots
+```
+
+The route is outside `AppShell` but inside authentication. PDF.js is route-split and its worker is
+a bundled asset. The app update notice is hidden during Focus and the update guard refuses reload
+while mutations are pending. Authenticated API/document responses are not added to Workbox runtime
+cache.
+
+### Conflict and recovery model
+
+Workspace updates use a session snapshot revision. Annotation updates use a collection revision and
+an independent idempotency key/digest. The browser first writes a local recovery record, then sends
+incremental server changes. An acknowledgement clears only sent annotation versions; a later local
+edit remains pending. A 409 produces an explicit conflict state instead of last-write-wins across
+unknown concurrent state.
+
+Focus emits lifecycle events only after commit. Analytics/motivation may consume the bounded
+completed-session fact through existing integration modules, but Focus imports none of those
+domains. AI, collaboration, OCR, voice, flashcards, timer, and document search are unimplemented
+extension points. No new queue, broker, worker, WebSocket, cache service, or microservice exists.
+
+The final production-preview browser gate exercises the real PDF worker rather than a mocked
+renderer. The PDF viewport is keyboard-focusable, responsive icon controls retain localized stable
+names, and content-bearing titles/notes use their own automatic text direction inside RTL chrome.

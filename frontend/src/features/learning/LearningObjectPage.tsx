@@ -85,6 +85,7 @@ export function LearningObjectPage() {
           <p>{version.summary}</p>
         </div>
         <div className="learning-object-header__actions">
+          {version.content_type === "pdf" && primary ? <Link className="button button--primary" to={`/focus/${version.id}`}>{t("openFocusWorkspace")}</Link> : null}
           <Link className="button button--secondary" to={`/community/context/learning_object/${content.id}?label=${encodeURIComponent(version.title)}`}>{t("communityDiscussContent")}</Link>
           <Button variant="secondary" onClick={() => void bookmark()}>{content.is_bookmarked ? t("removeBookmark") : t("addBookmark")}</Button>
           <ReportComposer targetType="learning_object" targetId={content.id} compact />

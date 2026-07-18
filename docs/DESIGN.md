@@ -1,7 +1,7 @@
 # Lock-in Design System
 
-Last updated: 2026-07-18
-Status: Design-system implementation recorded through Phase 7
+Last updated: 2026-07-19
+Status: Design-system implementation recorded through Phase 10
 
 ## Product scene
 
@@ -252,3 +252,36 @@ RTL, confirmation, and horizontal-overflow checks. Browser review found and corr
 heading and unnamed landmarks. Operations routes remain lazy and add no UI/font/icon dependency.
 The measured production main bundle is 108.32 KB gzip and CSS is 13.96 KB gzip; operations pages
 remain route-split.
+
+## Phase 10 Focus Workspace Experience
+
+Focus deliberately removes the dashboard card language. A restrained top bar identifies the
+document and session truth, a compact study toolbar keeps tools discoverable, and the neutral dark
+stage makes the white document the strongest visual object. Gold marks active controls; purple is
+reserved for established secondary identity rather than decorative noise.
+
+### Phase 10 material redesigns
+
+| Redesign | Usability reason |
+|---|---|
+| Global application shell -> dedicated Focus shell | Eliminates navigation/community distraction during study |
+| Browser PDF controls -> consistent Lock-in navigation/zoom | Gives the same keyboard/touch behavior across supported browsers |
+| Always-visible side content -> closed-by-default task panels | Preserves document width and opens thumbnails/notes only when requested |
+| Phone stacked panels -> bounded overlay | Keeps the document present instead of pushing it below controls |
+| Color-only save indicator -> text plus status marker | Makes offline/conflict/server truth understandable without color vision |
+| Animated page chrome -> restrained native scrolling | Reduces fatigue and respects long sessions/reduced motion |
+
+The UI uses existing primitive/semantic/component tokens and logical properties. Every control is a
+native named button/input with a 44px target and visible focus. Save/recovery is announced, clear
+requires confirmation, shortcut help is discoverable, extracted PDF text provides a screen-reader
+alternative where available, and image-only pages state the limitation. High-contrast and
+reduced-motion media preferences have explicit rules. The same English/Arabic tree adapts at
+desktop, tablet, and phone widths without covering most of the page.
+
+PDF.js, its worker, and Focus UI are lazy route assets; authenticated PDF/API responses are not
+runtime-cached. Final measured bundle, Axe, RTL, and overflow evidence is recorded in
+`PHASE_10_FOCUS_WORKSPACE.md` and `PROGRESS.md`.
+
+Production-preview visual QA covered Desktop Chrome and Pixel 7. It corrected CSS-generated glyphs
+that polluted accessible names, added keyboard focus to the scrollable PDF region, and applied
+automatic direction to document/note content so English remains readable inside Arabic chrome.

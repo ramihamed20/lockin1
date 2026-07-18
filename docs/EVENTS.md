@@ -1,6 +1,6 @@
 # Lock-in Internal Domain Events
 
-Last updated: 2026-07-18
+Last updated: 2026-07-19
 
 ## Purpose
 
@@ -40,7 +40,10 @@ request bodies, or unrestricted personal data.
 | `accounts.user_roles_changed` | Accounts | Implemented; emitted after committed role replacement |
 | `education.lesson_completed` | Progress/Education integration | Implemented; emitted after committed first completion |
 | `focus.session_started` | Focus | Implemented and emitted after commit |
+| `focus.session_paused` | Focus | Implemented and emitted after committed pause |
+| `focus.session_resumed` | Focus | Implemented and emitted after committed resume |
 | `focus.session_completed` | Focus | Implemented and emitted after commit |
+| `focus.session_abandoned` | Focus | Implemented and emitted after committed abandon |
 | `question.published` | Questions | Implemented; exact question/version/node identifiers |
 | `quiz.published` | Assessments | Implemented; exact quiz/version/node/mode identifiers |
 | `quiz.attempt.started` | Assessments | Implemented after committed attempt snapshot |
@@ -163,3 +166,15 @@ proposal comes before any queue or broker is added.
 - Do not let a best-effort subscriber roll back an already committed domain transaction.
 - Use event ID or a domain deduplication key when duplicate effects matter.
 - Add contract, transaction, and duplicate-delivery tests for every durable subscriber.
+
+## Phase 10 Focus event boundary
+
+Phase 10 completes the Focus session lifecycle with started, paused, resumed, completed, and
+abandoned after-commit events. Current analytics/motivation consumers continue using only the
+bounded completed-session fact. Pause, resume, and abandon are available for a future approved
+consumer but do not directly call assessment, community, AI, motivation, commerce, or
+notifications.
+
+Workspace autosave and annotation mutations are intentionally not cross-domain events. They are
+high-frequency private Focus state with no implemented subscriber requirement; publishing them
+would add coupling and event volume without a product use case.

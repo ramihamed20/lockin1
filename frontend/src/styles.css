@@ -279,6 +279,171 @@
 }
 
 @layer components {
+  .focus-topbar button,
+  .focus-toolbar button,
+  .focus-navigation button,
+  .focus-sidebar button { min-inline-size: 2.75rem; min-block-size: 2.75rem; }
+  .focus-topbar button:focus-visible,
+  .focus-toolbar button:focus-visible,
+  .focus-navigation button:focus-visible,
+  .focus-sidebar button:focus-visible,
+  .focus-navigation input:focus-visible,
+  .focus-note-list textarea:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+  .focus-back,
+  .focus-text-button,
+  .focus-icon-button,
+  .focus-tool,
+  .focus-navigation button,
+  .focus-sidebar button {
+    border: 0;
+    background: transparent;
+    color: var(--color-text-muted);
+    font: inherit;
+    cursor: pointer;
+  }
+  .focus-back:hover,
+  .focus-text-button:hover,
+  .focus-icon-button:hover:not(:disabled),
+  .focus-tool:hover,
+  .focus-navigation button:hover:not(:disabled),
+  .focus-sidebar button:hover { background: var(--color-surface-hover); color: var(--color-text); }
+  .focus-icon-button { display: inline-grid; place-items: center; border-radius: var(--radius-sm); font-size: var(--text-lg); }
+  .focus-icon-button:disabled,
+  .focus-navigation button:disabled { cursor: not-allowed; opacity: 0.35; }
+  .focus-icon-button--danger { color: var(--color-danger); }
+
+  .focus-toolbar {
+    min-inline-size: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-block-end: 1px solid var(--color-border-subtle);
+    background: var(--color-surface);
+  }
+  .focus-toolbar__tools,
+  .focus-toolbar__settings { display: flex; align-items: center; gap: var(--space-1); }
+  .focus-toolbar__tools { min-inline-size: 0; flex: 1; overflow-x: auto; scrollbar-width: thin; }
+  .focus-tool { min-inline-size: 3.75rem !important; display: grid; justify-items: center; gap: 0.1rem; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); font-size: var(--text-xs); white-space: nowrap; }
+  .focus-tool > span:first-child { color: var(--color-text); font-size: 1.15rem; line-height: 1; }
+  .focus-tool[aria-pressed="true"] { background: color-mix(in oklch, var(--color-primary) 14%, var(--color-surface-raised)); color: var(--color-primary); }
+  .focus-color,
+  .focus-thickness { display: flex; align-items: center; gap: var(--space-2); color: var(--color-text-muted); font-size: var(--text-xs); }
+  .focus-color input { inline-size: 2.75rem; block-size: 2.75rem; padding: 0.25rem; border: 0; border-radius: var(--radius-sm); background: var(--color-bg-subtle); cursor: pointer; }
+  .focus-thickness input { inline-size: 6rem; accent-color: var(--color-primary); }
+
+  .focus-save-state { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--color-text-muted); font-size: var(--text-xs); white-space: nowrap; }
+  .focus-save-state::before { content: ""; inline-size: 0.5rem; block-size: 0.5rem; border-radius: 50%; background: var(--color-success); }
+  .focus-save-state--saving::before,
+  .focus-save-state--local::before { background: var(--color-primary); }
+  .focus-save-state--offline::before,
+  .focus-save-state--conflict::before,
+  .focus-save-state--failed::before { background: var(--color-danger); }
+  .focus-shortcuts,
+  .focus-recovery-notice { display: flex; align-items: center; justify-content: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); border-block-end: 1px solid var(--color-border-subtle); background: var(--color-bg-subtle); color: var(--color-text-muted); font-size: var(--text-sm); }
+  .focus-recovery-notice { color: var(--color-primary); }
+
+  .focus-sidebar { min-block-size: 0; border-inline-end: 1px solid var(--color-border-subtle); background: var(--color-bg-subtle); overflow: hidden; }
+  .focus-sidebar > header { min-block-size: 3.5rem; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding-inline: var(--space-4) var(--space-2); border-block-end: 1px solid var(--color-border-subtle); }
+  .focus-sidebar h2 { margin: 0; font-size: var(--text-sm); }
+  .focus-page-list,
+  .focus-note-list { block-size: calc(100% - 3.5rem); padding: var(--space-3); margin: 0; overflow-y: auto; list-style: none; }
+  .focus-page-list button { inline-size: 100%; display: grid; grid-template-columns: 3.25rem 1fr; align-items: center; gap: var(--space-3); padding: var(--space-2); border-radius: var(--radius-sm); text-align: start; }
+  .focus-page-list button[aria-current="page"] { background: color-mix(in oklch, var(--color-primary) 12%, transparent); color: var(--color-primary); }
+  .focus-page-preview { aspect-ratio: 0.73; display: grid; place-items: center; border: 1px solid var(--color-border); background: oklch(0.9 0.01 90); color: oklch(0.25 0.02 265); font-size: var(--text-xs); }
+  .focus-note-list { display: grid; align-content: start; gap: var(--space-3); }
+  .focus-note-list li { padding: var(--space-3); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-sm); background: var(--color-surface); }
+  .focus-note-list label { display: grid; gap: var(--space-2); color: var(--color-text-faint); font-size: var(--text-xs); }
+  .focus-note-list textarea { inline-size: 100%; resize: vertical; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--field-bg); color: var(--color-text); font: inherit; line-height: var(--leading-copy); }
+  .focus-sidebar__empty { padding: var(--space-5); color: var(--color-text-muted); font-size: var(--text-sm); line-height: var(--leading-copy); }
+
+  .focus-navigation { min-block-size: 3.25rem; display: flex; align-items: center; justify-content: center; gap: var(--space-1); padding: var(--space-1) var(--space-3); border-block-end: 1px solid var(--color-border-subtle); background: var(--color-bg-subtle); }
+  .focus-navigation button { border-radius: var(--radius-sm); font-size: var(--text-sm); }
+  .focus-navigation button[aria-pressed="true"] { color: var(--color-primary); }
+  .focus-navigation label { display: flex; align-items: center; gap: var(--space-2); color: var(--color-text-muted); font-size: var(--text-sm); }
+  .focus-navigation input { inline-size: 4rem; min-block-size: 2.25rem; padding-inline: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text); text-align: center; }
+  .focus-navigation output { min-inline-size: 3.5rem; color: var(--color-text-muted); font-size: var(--text-xs); text-align: center; }
+
+  .focus-document-viewer { position: relative; min-block-size: 0; overflow: auto; overscroll-behavior: contain; background: var(--color-bg); touch-action: pan-x pan-y; scrollbar-color: var(--color-border) transparent; }
+  .focus-document-stack { min-inline-size: min-content; display: grid; justify-items: center; gap: var(--space-6); padding: var(--space-6) var(--space-4); }
+  .focus-pdf-page { inline-size: var(--focus-page-width); block-size: var(--focus-page-height); position: relative; scroll-margin-block-start: var(--space-4); background: white; box-shadow: 0 0.8rem 2.2rem color-mix(in oklch, black 34%, transparent); }
+  .focus-pdf-page__surface,
+  .focus-pdf-page canvas,
+  .focus-pdf-page__placeholder { inline-size: 100%; block-size: 100%; }
+  .focus-pdf-page__surface { position: relative; }
+  .focus-pdf-page canvas { display: block; }
+  .focus-pdf-page__placeholder { background: oklch(0.92 0.008 90); }
+  .focus-annotation-layer { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; overflow: visible; touch-action: pan-x pan-y; }
+  .focus-annotation-layer[data-drawing="disabled"] { pointer-events: none; }
+  .focus-annotation-layer [data-annotation-id] { pointer-events: visiblePainted; }
+  .focus-page-indicator { position: sticky; inset-block-end: var(--space-4); inset-inline-start: 50%; display: table; margin-inline: auto; padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border-subtle); border-radius: 999px; background: color-mix(in oklch, var(--color-surface) 92%, transparent); color: var(--color-text-muted); font-size: var(--text-xs); }
+}
+
+@layer layouts {
+  .focus-workspace { position: fixed; z-index: 100; inset: 0; min-inline-size: 20rem; block-size: 100dvh; display: grid; grid-template-rows: auto auto auto minmax(0, 1fr); overflow: hidden; background: var(--color-bg); color: var(--color-text); }
+  .focus-topbar { min-block-size: 4rem; display: grid; grid-template-columns: minmax(9rem, 1fr) minmax(12rem, 2fr) minmax(16rem, 1fr); align-items: center; gap: var(--space-4); padding: var(--space-2) var(--space-4); border-block-end: 1px solid var(--color-border-subtle); background: var(--color-bg-subtle); }
+  .focus-back { justify-self: start; display: inline-flex; align-items: center; gap: var(--space-2); padding-inline: var(--space-3); border-radius: var(--radius-sm); }
+  [dir="rtl"] .focus-back > span:first-child { transform: rotate(180deg); }
+  .focus-document-title { min-inline-size: 0; text-align: center; }
+  .focus-document-title span { color: var(--color-primary); font-size: var(--text-xs); font-weight: 750; letter-spacing: 0.08em; text-transform: uppercase; }
+  .focus-document-title h1 { overflow: hidden; margin: var(--space-1) 0 0; font-size: var(--text-md); text-overflow: ellipsis; white-space: nowrap; }
+  .focus-session-actions { min-inline-size: 0; display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); }
+  .focus-workspace__body { min-block-size: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); }
+  .focus-sidebar { inline-size: 17rem; }
+  .focus-stage { min-inline-size: 0; min-block-size: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+  .focus-failure { min-block-size: 100dvh; display: grid; place-content: center; justify-items: center; gap: var(--space-5); padding: var(--space-5); }
+}
+
+@media (max-width: 64rem) {
+  .focus-topbar { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .focus-save-state { max-inline-size: 9rem; overflow: hidden; text-overflow: ellipsis; }
+  .focus-thickness > span,
+  .focus-color > span { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+  .focus-sidebar { inline-size: 15rem; }
+}
+
+@media (max-width: 44rem) {
+  .focus-workspace { grid-template-rows: auto auto auto minmax(0, 1fr); }
+  .focus-topbar { min-block-size: 3.5rem; padding-inline: var(--space-2); }
+  .focus-back > span:last-child,
+  .focus-document-title > span,
+  .focus-session-actions > .focus-save-state,
+  .focus-session-actions > .focus-text-button,
+  .focus-session-actions > .focus-icon-button:first-of-type { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+  .focus-session-actions .button { min-inline-size: auto; padding-inline: var(--space-3); }
+  .focus-toolbar { padding-inline: var(--space-2); }
+  .focus-toolbar__settings { gap: 0; }
+  .focus-thickness { display: none; }
+  .focus-color input { inline-size: 2.5rem; block-size: 2.5rem; }
+  .focus-tool { min-inline-size: 3rem !important; }
+  .focus-tool > span:last-child { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+  .focus-workspace__body { position: relative; display: block; }
+  .focus-sidebar { position: absolute; z-index: 4; inset-block: 0; inset-inline-start: 0; inline-size: min(18rem, 78vw); box-shadow: 1rem 0 2rem color-mix(in oklch, black 35%, transparent); }
+  .focus-stage { block-size: 100%; }
+  .focus-navigation { justify-content: flex-start; overflow-x: auto; }
+  .focus-navigation > button:nth-of-type(1),
+  .focus-navigation > button:nth-of-type(2) { font-size: 0; }
+  .focus-navigation > button:nth-of-type(1)::after { content: "▦"; font-size: 1rem; }
+  .focus-navigation > button:nth-of-type(2)::after { content: "▤"; font-size: 1rem; }
+  .focus-shortcuts,
+  .focus-recovery-notice { justify-content: flex-start; overflow-x: auto; white-space: nowrap; }
+  .focus-document-stack { gap: var(--space-4); padding-block: var(--space-4); }
+}
+
+@media (prefers-contrast: more) {
+  .focus-workspace { --color-border-subtle: var(--color-text-muted); }
+  .focus-tool[aria-pressed="true"],
+  .focus-page-list button[aria-current="page"] { outline: 2px solid currentColor; outline-offset: -2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focus-workspace *,
+  .focus-workspace *::before,
+  .focus-workspace *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+
+@layer components {
   .billing-kicker {
     margin: 0 0 var(--space-2);
     color: var(--color-primary);

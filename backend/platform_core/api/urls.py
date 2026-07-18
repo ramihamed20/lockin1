@@ -8,6 +8,7 @@ urlpatterns = [
     path("health/live", live, name="health-live"),
     path("health/ready", ready, name="health-ready"),
     path("", include("apps.accounts.urls")),
+    path("", include("apps.focus.urls")),
     path("", include("apps.education.urls")),
     path("", include("apps.files.urls")),
     path("", include("apps.content.urls")),

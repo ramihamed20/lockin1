@@ -1,70 +1,23 @@
-import type {
-  FocusAnnotation,
-  FocusPointerKind,
-  FocusSessionContext,
-  FocusWorkspaceState,
-  PointerSample
-} from "./types";
+import type { FocusAnnotation, FocusDocument, FocusRecoveryRecord, FocusSession, FocusWorkspaceState } from "./types";
 
-export type AnnotationSaveResult = Readonly<{
-  savedRevision: number;
-  savedAt: string;
-}>;
-
-export interface AnnotationRepository {
-  load(input: {
-    userId: string;
-    documentVersionId: string;
-    pageNumbers: readonly number[];
-    signal?: AbortSignal;
-  }): Promise<readonly FocusAnnotation[]>;
-  save(input: {
-    documentVersionId: string;
-    annotations: readonly FocusAnnotation[];
-    expectedRevision: number;
-    signal?: AbortSignal;
-  }): Promise<AnnotationSaveResult>;
-  remove(input: {
-    documentVersionId: string;
-    annotationIds: readonly string[];
-    expectedRevision: number;
-    signal?: AbortSignal;
-  }): Promise<AnnotationSaveResult>;
-}
-
-export interface WorkspaceStateRepository {
-  load(documentVersionId: string): Promise<FocusWorkspaceState | null>;
-  save(state: FocusWorkspaceState): Promise<void>;
-  clear(documentVersionId: string): Promise<void>;
-}
-
-export interface PdfViewportRenderer {
-  mount(container: HTMLElement): Promise<void>;
-  renderVisiblePages(input: { firstPage: number; lastPage: number; zoom: number }): Promise<void>;
-  releaseOutsideRange(input: { firstPage: number; lastPage: number }): void;
+export interface FocusDocumentRenderer {
+  load(url: string): Promise<{ pageCount: number }>;
+  renderPage(pageNumber: number, canvas: HTMLCanvasElement, scale: number): Promise<{ width: number; height: number; text: string }>;
+  releasePage(pageNumber: number): void;
   destroy(): Promise<void>;
 }
 
-export interface FocusGestureController {
-  classifyPointer(event: PointerEvent): FocusPointerKind;
-  normalizeSample(event: PointerEvent, page: DOMRect): PointerSample;
-  supportsPressure(event: PointerEvent): boolean;
-  supportsTilt(event: PointerEvent): boolean;
+export interface FocusRecoveryStore {
+  load(accountId: string, documentVersionId: string): Promise<FocusRecoveryRecord | null>;
+  save(record: FocusRecoveryRecord): Promise<void>;
+  clear(accountId: string, documentVersionId: string): Promise<void>;
 }
 
-export interface FocusSessionGateway {
-  start(input: {
-    context: FocusSessionContext;
-    plannedDurationSeconds: number | null;
-    signal?: AbortSignal;
-  }): Promise<{ sessionId: string; startedAt: string }>;
-  complete(input: {
-    sessionId: string;
-    activeDurationSeconds: number;
-    signal?: AbortSignal;
-  }): Promise<{ completedAt: string }>;
-}
-
-export interface FocusKeyboardCommands {
-  attach(target: HTMLElement): () => void;
+export interface FocusGateway {
+  getDocument(documentVersionId: string, signal?: AbortSignal): Promise<{ document: FocusDocument; latestWorkspace: FocusWorkspaceState | null; annotationRevision: number }>;
+  startSession(documentVersionId: string, clientInstanceId: string, signal?: AbortSignal): Promise<FocusSession>;
+  saveWorkspace(sessionId: string, state: FocusWorkspaceState, signal?: AbortSignal): Promise<FocusWorkspaceState>;
+  loadAnnotations(documentVersionId: string, pages: readonly number[], signal?: AbortSignal): Promise<{ collectionRevision: number; annotations: readonly FocusAnnotation[] }>;
+  syncAnnotations(documentVersionId: string, expectedRevision: number, upserts: readonly FocusAnnotation[], deletedIds: readonly string[], idempotencyKey: string, signal?: AbortSignal): Promise<{ collectionRevision: number; annotations: readonly FocusAnnotation[]; deletedIds: readonly string[] }>;
+  action(sessionId: string, action: "pause" | "resume" | "complete" | "abandon", signal?: AbortSignal): Promise<FocusSession>;
 }
