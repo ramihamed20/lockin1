@@ -1,4 +1,4 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 
 import { Brand } from "../../components/Brand";
 import { Button } from "../../components/Button";
@@ -6,6 +6,8 @@ import { useI18n } from "../../i18n/I18nProvider";
 
 export function AuthLayout() {
   const { t, toggleLocale } = useI18n();
+  const location = useLocation();
+  if (location.pathname === "/login") return <Outlet />;
   return (
     <div className="auth-shell">
       <a className="skip-link" href="#main-content">
