@@ -111,5 +111,9 @@ def create_managed_file(*, owner: User, upload: UploadedFile, kind: str) -> Mana
         size_bytes=validated.size_bytes,
         checksum_sha256=validated.checksum_sha256,
         validation_status=ManagedFile.ValidationStatus.READY,
-        scan_status=ManagedFile.ScanStatus.NOT_CONFIGURED,
+        scan_status=(
+            ManagedFile.ScanStatus.PENDING
+            if settings.CONTENT_REQUIRE_CLEAN_SCAN
+            else ManagedFile.ScanStatus.NOT_CONFIGURED
+        ),
     )

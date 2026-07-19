@@ -1,6 +1,6 @@
 # Lock-in Product Specification
 
-Status: Phase 1 specification; implementation recorded through Phase 10
+Status: Phase 1 specification; implementation recorded through Phase 11
 Product owner: Platform administrator
 Last updated: 2026-07-19
 
@@ -479,7 +479,8 @@ All permission decisions are enforced by the backend. Frontend role checks only 
 - Duplicate bookmarks are prevented by a unique rule.
 - Progress updates are idempotent or revision-aware.
 - Pagination does not duplicate or omit rows during normal browsing.
-- Search response targets are measured in Phase 11.
+- Phase 11 bounds search query count; production latency targets still require representative
+  staging data and traffic before launch.
 
 **Required tests:** Search filtering, permission leakage, pagination, duplicate bookmark, archive behavior, out-of-order progress, and mobile browse/search E2E.
 
@@ -1017,7 +1018,8 @@ These are launch targets to validate, not claims:
 - Autosave APIs: p95 at or below 500 ms.
 - Final quiz submission: p95 at or below 1.5 seconds while preserving transaction correctness.
 - Server error rate below 1% in target load scenarios, excluding expected client validation/authorization responses.
-- No claim of 2,000 concurrent support before Phase 11 measured load tests.
+- No claim of 2,000 concurrent support until production-equivalent staging load tests pass; Phase 11
+  supplies bounded probe tooling and explicitly records the missing capacity evidence.
 
 ### Capacity and data
 
@@ -1322,3 +1324,19 @@ security, API, validation, and honest production evidence limits.
 Final production-preview validation rendered an actual PDF, synchronized a contextual note, and
 passed keyboard, screen-reader/Axe, desktop, mobile, Arabic RTL, mixed-direction content, and
 horizontal-overflow checks. This remains local browser evidence, not a real-stylus or load claim.
+
+## Phase 11 Production Readiness Record
+
+Phase 11 adds no student-facing capability. It makes the existing product deployable through strict
+configuration, hardened containers/edge, PostgreSQL owner/runtime separation, explicit release and
+preflight, fail-closed uploads/provider edges, backup/restore tooling, measured query/bundle gates,
+required CI, and operator/security documentation.
+
+Product behavior is unchanged: Focus stays independent, server state remains authoritative, private
+content stays private, entitlements remain the only feature-gating truth, and no AI/payment/
+notification provider is invented. Uploads cannot become usable in production until clean scanner
+evidence exists. Monitoring/scanner/hosting/media storage choices remain explicit launch inputs.
+
+The local validation proves code, tests, production build, bundle budgets, and desktop/mobile
+browser behavior. It does not prove PostgreSQL/container execution, 2,000 concurrent active users,
+scanner efficacy, alert delivery, or RPO/RTO; CI and staging gates must provide those facts.

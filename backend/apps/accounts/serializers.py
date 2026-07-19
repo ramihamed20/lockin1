@@ -28,10 +28,7 @@ class RegistrationSerializer(StrictSerializer):
     accept_policies = serializers.BooleanField(write_only=True)
 
     def validate_email(self, value: str) -> str:
-        normalized = normalize_email(value)
-        if User.objects.filter(email=normalized).exists():
-            raise serializers.ValidationError("An account with this email already exists.")
-        return normalized
+        return normalize_email(value)
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         if attrs["password"] != attrs["password_confirm"]:

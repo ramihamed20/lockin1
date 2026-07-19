@@ -2,6 +2,7 @@ import re
 from collections.abc import Iterator
 from uuid import UUID
 
+from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
 from django.http import FileResponse, HttpResponse, StreamingHttpResponse
 from django.http.response import HttpResponseBase
@@ -102,6 +103,15 @@ class ManagedFileDeliveryView(APIView):
         ):
             raise NotFound("File not found.")
         if managed_file.validation_status != ManagedFile.ValidationStatus.READY:
+            raise NotFound("File not found.")
+        blocked_scan_states = {
+            ManagedFile.ScanStatus.QUARANTINED,
+            ManagedFile.ScanStatus.FAILED,
+        }
+        if managed_file.scan_status in blocked_scan_states or (
+            settings.CONTENT_REQUIRE_CLEAN_SCAN
+            and managed_file.scan_status != ManagedFile.ScanStatus.CLEAN
+        ):
             raise NotFound("File not found.")
         try:
             file_object = managed_file.blob.open("rb")

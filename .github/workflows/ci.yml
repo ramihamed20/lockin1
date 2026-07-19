@@ -1,4 +1,4 @@
-name: quality
+name: production-quality-gate
 
 on:
   pull_request:
@@ -8,29 +8,34 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: lockin-quality-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  quality:
+  backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:18.4-alpine
         env:
           POSTGRES_DB: lockin_test
-          POSTGRES_USER: lockin
-          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_USER: lockin_owner
+          POSTGRES_PASSWORD: ci-owner-password
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U lockin -d lockin_test"
+          --health-cmd "pg_isready -U lockin_owner -d lockin_test"
           --health-interval 5s
           --health-timeout 5s
-          --health-retries 12
+          --health-retries 18
     env:
       DJANGO_SETTINGS_MODULE: config.settings.test
       DJANGO_SECRET_KEY: ci-only-django-secret-key-not-for-production
       POSTGRES_DB: lockin_test
-      POSTGRES_USER: lockin
-      POSTGRES_PASSWORD: ci-only-password
+      POSTGRES_USER: lockin_owner
+      POSTGRES_PASSWORD: ci-owner-password
       POSTGRES_HOST: 127.0.0.1
       POSTGRES_PORT: 5432
     steps:
@@ -40,15 +45,10 @@ jobs:
           python-version: "3.13.14"
           cache: pip
           cache-dependency-path: backend/pyproject.toml
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24.16.0"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
       - name: Install backend
         working-directory: backend
         run: python -m pip install -e ".[dev]"
-      - name: Check backend
+      - name: Static analysis and migration drift
         working-directory: backend
         run: |
           python -m ruff check .
@@ -56,20 +56,163 @@ jobs:
           python -m mypy .
           python manage.py makemigrations --check --dry-run
           python manage.py check
-          python -m pytest
-      - name: Install frontend
+      - name: PostgreSQL test suite
+        working-directory: backend
+        run: python -m pytest
+      - name: Create least-privilege runtime role
+        run: >-
+          docker exec "${{ job.services.postgres.id }}"
+          psql --username lockin_owner --dbname lockin_test --set ON_ERROR_STOP=1
+          --command "CREATE ROLE lockin_app LOGIN PASSWORD 'ci-runtime-password'
+          NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS"
+      - name: Production release gate as migration owner
+        working-directory: backend
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.production
+          DJANGO_SECRET_KEY: ci-only-production-secret-key-with-more-than-fifty-characters-0001
+          DJANGO_ALLOWED_HOSTS: lockin.example.test
+          DJANGO_CSRF_TRUSTED_ORIGINS: https://lockin.example.test
+          DJANGO_TRUST_PROXY_SSL_HEADER: "true"
+          PUBLIC_APP_URL: https://lockin.example.test
+          ACCOUNT_POLICY_VERSION: ci-policy-v1
+          DJANGO_EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+          DEFAULT_FROM_EMAIL: Lock-in <no-reply@lockin.example.test>
+          EMAIL_HOST: smtp.example.test
+          EMAIL_HOST_USER: lockin-ci
+          EMAIL_HOST_PASSWORD: ci-email-password
+          EMAIL_USE_TLS: "true"
+          POSTGRES_DB: lockin_test
+          POSTGRES_USER: lockin_owner
+          POSTGRES_PASSWORD: ci-owner-password
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_PORT: 5432
+          POSTGRES_RUNTIME_ROLE: lockin_app
+          POSTGRES_SSLMODE: disable
+          POSTGRES_TRUSTED_PRIVATE_NETWORK: "true"
+          POSTGRES_STATEMENT_TIMEOUT_MS: "0"
+          POSTGRES_LOCK_TIMEOUT_MS: "0"
+          PAYMENT_PROVIDER: none
+        run: python manage.py release
+      - name: Runtime-role PostgreSQL preflight
+        working-directory: backend
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.production
+          DJANGO_SECRET_KEY: ci-only-production-secret-key-with-more-than-fifty-characters-0001
+          DJANGO_ALLOWED_HOSTS: lockin.example.test
+          DJANGO_CSRF_TRUSTED_ORIGINS: https://lockin.example.test
+          DJANGO_TRUST_PROXY_SSL_HEADER: "true"
+          PUBLIC_APP_URL: https://lockin.example.test
+          ACCOUNT_POLICY_VERSION: ci-policy-v1
+          DJANGO_EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+          DEFAULT_FROM_EMAIL: Lock-in <no-reply@lockin.example.test>
+          EMAIL_HOST: smtp.example.test
+          EMAIL_HOST_USER: lockin-ci
+          EMAIL_HOST_PASSWORD: ci-email-password
+          EMAIL_USE_TLS: "true"
+          POSTGRES_DB: lockin_test
+          POSTGRES_USER: lockin_app
+          POSTGRES_PASSWORD: ci-runtime-password
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_PORT: 5432
+          POSTGRES_RUNTIME_ROLE: lockin_app
+          POSTGRES_SSLMODE: disable
+          POSTGRES_TRUSTED_PRIVATE_NETWORK: "true"
+          POSTGRES_STATEMENT_TIMEOUT_MS: "15000"
+          POSTGRES_LOCK_TIMEOUT_MS: "3000"
+          PAYMENT_PROVIDER: none
+        run: python manage.py production_preflight
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.16.0"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install exact frontend lockfile
         working-directory: frontend
         run: npm ci
-      - name: Check frontend
+      - name: Frontend quality and production build
         working-directory: frontend
         run: |
+          npm audit --omit=dev --audit-level=high
           npm run lint
           npm run typecheck
           npm run test:coverage
           npm run build
-      - name: Install Playwright browser
+          npm run check:bundle
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.16.0"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install exact frontend lockfile
+        working-directory: frontend
+        run: npm ci
+      - name: Install Chromium
         working-directory: frontend
         run: npx playwright install --with-deps chromium
-      - name: Browser smoke test
+      - name: Production-bundle browser regression
         working-directory: frontend
         run: npm run test:e2e
+
+  containers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build immutable application images
+        run: |
+          docker build --tag lockin-backend:ci backend
+          docker build --tag lockin-edge:ci frontend
+      - name: Validate Nginx production configuration
+        run: |
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+            -subj "/CN=lockin.example.test" \
+            -keyout /tmp/lockin-ci.key -out /tmp/lockin-ci.crt
+          chmod 644 /tmp/lockin-ci.key /tmp/lockin-ci.crt
+          docker run --rm --entrypoint nginx \
+            --volume /tmp/lockin-ci.crt:/run/tls/fullchain.pem:ro \
+            --volume /tmp/lockin-ci.key:/run/tls/privatekey.pem:ro \
+            lockin-edge:ci -t
+      - name: Validate production Compose contract
+        env:
+          LOCKIN_PUBLIC_HOST: lockin.example.test
+          ACCOUNT_POLICY_VERSION: ci-policy-v1
+          DJANGO_EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+          DEFAULT_FROM_EMAIL: Lock-in <no-reply@lockin.example.test>
+          EMAIL_HOST: smtp.example.test
+          EMAIL_HOST_USER: lockin-ci
+          DJANGO_SECRET_KEY_FILE: /tmp/lockin-django-secret
+          EMAIL_HOST_PASSWORD_FILE: /tmp/lockin-email-secret
+          POSTGRES_OWNER_PASSWORD_FILE: /tmp/lockin-owner-secret
+          POSTGRES_RUNTIME_PASSWORD_FILE: /tmp/lockin-runtime-secret
+          TLS_CERT_PATH: /tmp/lockin-ci.crt
+          TLS_KEY_PATH: /tmp/lockin-ci.key
+        run: docker compose -f compose.production.yaml config --quiet
+
+  quality-gate:
+    if: always()
+    needs: [backend, frontend, browser, containers]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every production gate
+        env:
+          BACKEND_RESULT: ${{ needs.backend.result }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          BROWSER_RESULT: ${{ needs.browser.result }}
+          CONTAINER_RESULT: ${{ needs.containers.result }}
+        run: |
+          test "$BACKEND_RESULT" = success
+          test "$FRONTEND_RESULT" = success
+          test "$BROWSER_RESULT" = success
+          test "$CONTAINER_RESULT" = success

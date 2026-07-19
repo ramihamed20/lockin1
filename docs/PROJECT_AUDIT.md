@@ -1,6 +1,6 @@
 # Lock-in Project Audit
 
-Status: Phase 0 baseline approved; rebuild remediation recorded through Phase 10
+Status: Phase 0 baseline approved; rebuild remediation recorded through Phase 11
 Audit date: 2026-07-15  
 Last updated: 2026-07-19
 Existing reference: `C:\Users\ramih\Desktop\Dentify-Before-Edits`  
@@ -300,3 +300,18 @@ accessible names, keyboard access to the scrollable document, and mixed-directio
 The original reference at `C:\Users\ramih\Desktop\Dentify-Before-Edits` remains unchanged. Local
 evidence does not claim PostgreSQL concurrent sync, real stylus/palm-rejection behavior, multi-hour
 memory stability, or representative large-textbook performance.
+
+## Phase 11 Rebuild Note
+
+Phase 11 closes the largest deployment gaps identified by the reference/rebuild audit: explicit
+production configuration, secret mounts, non-development process managers, TLS edge, private
+database network, separate migration/runtime roles, release/preflight gates, upload scan fail-close,
+backup/restore verification, CI aggregation, and operator runbooks.
+
+The selected `security-best-practices` Skill produced the numbered security findings and hardened
+Django/React/edge defaults. The selected `playwright` Skill governed production-bundle desktop and
+mobile verification with explicit startup and teardown evidence. No later-discovered Skill was used.
+
+The reference remains untouched. This workstation lacks Docker/PostgreSQL/psql, so remote CI and
+staging must still prove container, PostgreSQL release/preflight/concurrency, restore, scanner,
+monitoring, and representative load behavior before launch.

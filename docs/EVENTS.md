@@ -178,3 +178,8 @@ notifications.
 Workspace autosave and annotation mutations are intentionally not cross-domain events. They are
 high-frequency private Focus state with no implemented subscriber requirement; publishing them
 would add coupling and event volume without a product use case.
+## Phase 11 Production Note
+
+Phase 11 adds no business event and no broker/outbox/worker. Release, preflight, backup, health, and
+observability are operational boundaries rather than domain facts. Existing after-commit in-process
+events remain unchanged; provider-neutral logging/metrics never become domain dependencies.

@@ -1,6 +1,6 @@
 # Lock-in Architecture
 
-Status: Approved modular-monolith direction; implementation recorded through Phase 10
+Status: Approved modular-monolith direction; implementation recorded through Phase 11
 Last updated: 2026-07-19
 
 ## Goals
@@ -217,7 +217,8 @@ Before adding a queue such as Celery/Redis, the proposal must identify:
 - Avoid loading full quiz banks when only one attempt snapshot is needed.
 - Use route-level frontend splitting and keep the initial authenticated bundle within the product budget.
 - Add caching only for measured repeated work with defined invalidation.
-- Validate capacity with realistic Locust or k6 scenarios in Phase 11.
+- Validate capacity with realistic authenticated staging scenarios before launch; Phase 11 adds the
+  bounded probe/budgets but makes no unmeasured concurrency claim.
 
 ## Accessibility and Design Architecture
 
@@ -832,3 +833,37 @@ extension points. No new queue, broker, worker, WebSocket, cache service, or mic
 The final production-preview browser gate exercises the real PDF worker rather than a mocked
 renderer. The PDF viewport is keyboard-focusable, responsive icon controls retain localized stable
 names, and content-bearing titles/notes use their own automatic text direction inside RTL chrome.
+
+## Phase 11 Production Architecture
+
+The production deployment keeps the same modular monolith. Nginx is the only public service; it
+terminates TLS, serves the PWA/static assets, applies headers/body/rate limits, and proxies `/api/`
+to Gunicorn. PostgreSQL is internal-only. Django private media remains behind authorization and is
+never mounted into Nginx.
+
+```text
+Internet -> Nginx edge (80/443, TLS, PWA, limits)
+                   |
+                   v
+            Gunicorn / Django
+                   |
+                   v
+       PostgreSQL private data network
+
+migration owner -> one-shot release -> migrate/static/grants
+runtime role    -> one-shot preflight -> privileges/migrations/files/static
+runtime role    -> long-running backend
+```
+
+Production configuration rejects development secrets, wildcard hosts, HTTP app origins, untrusted
+proxy behavior, non-PostgreSQL engines, weak cookie names, fake/unknown payment providers, and
+fail-open scan policy. Secrets may be mounted as files. External PostgreSQL requires approved TLS;
+TLS is disabled only on the declared private Compose network.
+
+The release role owns DDL. Runtime owns bounded CRUD and sequence usage but not schema creation or
+audit mutation. Runtime preflight proves PostgreSQL version/role privileges, migration state, clean
+published files, and collected assets before startup. CI exercises this topology on PostgreSQL 18.4.
+
+Provider-neutral observability remains in-process and synchronous; sinks are unconfigured until
+approved. No queue/cache/broker/scheduler was introduced. See `PHASE_11_PRODUCTION_READINESS.md`,
+`SECURITY_REVIEW.md`, `DEPLOYMENT_CHECKLIST.md`, and `BACKUP_RECOVERY.md`.

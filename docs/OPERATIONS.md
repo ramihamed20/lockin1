@@ -1,6 +1,6 @@
 # Lock-in Operations
 
-Last updated: 2026-07-18
+Last updated: 2026-07-19
 
 ## Owner workflow
 
@@ -12,9 +12,27 @@ With Docker Desktop installed:
 4. open `http://localhost:5173`;
 5. stop with `docker compose down`.
 
-Compose is a local development workflow. Its Django `runserver` command is not the production
-entrypoint. The backend image defaults to Gunicorn and production deployment will be completed in
-the approved deployment phase.
+The default Compose file is a local development workflow. Its Django `runserver` command is not the
+production entrypoint. Phase 11 adds a separate `compose.production.yaml`; never mix its secrets,
+volumes, or commands with local development.
+
+## Production owner workflow
+
+Use `.env.production.example` only as a field inventory. Put real secret values in restrictive
+files/secret-manager mounts and reference their paths from `.env.production`.
+
+The production order is database health -> owner `release` -> runtime `preflight` -> backend
+readiness -> edge. Release applies migrations/static/grants; preflight verifies PostgreSQL version,
+runtime privileges, migration drift, clean published files, and collected static assets. Never run
+the long-running backend with owner credentials or bypass failed preflight.
+
+Use `DEPLOYMENT_CHECKLIST.md` for every release, `BACKUP_RECOVERY.md` for backup/restore, and
+`SECURITY_REVIEW.md` for open launch blockers. The scanner and monitoring/error providers are not
+configured; production file ingestion and launch remain blocked until those controls are proven.
+
+The first production baseline is single-host Compose. PostgreSQL is internal-only; Nginx is the only
+public service; private media is delivered through Django authorization. No Redis, Celery, broker,
+WebSocket, scheduler, or microservice is part of operations.
 
 ## Services
 

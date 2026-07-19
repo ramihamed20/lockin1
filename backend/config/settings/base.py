@@ -1,12 +1,13 @@
 from pathlib import Path
 
-from .env import env, env_int, env_list
+from .env import env, env_bool, env_int, env_list, secret_env
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 
 SECRET_KEY = env("DJANGO_SECRET_KEY", "unsafe-local-only-key")
 DEBUG = False
 ALLOWED_HOSTS: list[str] = []
+ENVIRONMENT = "base"
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -17,6 +18,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "drf_spectacular",
+    "platform_core.apps.PlatformCoreConfig",
     "apps.accounts.apps.AccountsConfig",
     "apps.focus.apps.FocusConfig",
     "apps.discovery.apps.DiscoveryConfig",
@@ -111,8 +113,15 @@ ACCOUNT_SENSITIVE_REQUEST_LIMIT = env_int("ACCOUNT_SENSITIVE_REQUEST_LIMIT", 5)
 PUBLIC_APP_URL = env("PUBLIC_APP_URL", "http://127.0.0.1:5173")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "Lock-in <no-reply@localhost>")
 EMAIL_BACKEND = env("DJANGO_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+EMAIL_HOST = env("EMAIL_HOST")
+EMAIL_PORT = env_int("EMAIL_PORT", 587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = secret_env("EMAIL_HOST_PASSWORD")
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
+EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", False)
+EMAIL_TIMEOUT = env_int("EMAIL_TIMEOUT_SECONDS", 10)
 
-AUTH_PASSWORD_VALIDATORS = [
+AUTH_PASSWORD_VALIDATORS: list[dict[str, object]] = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
@@ -133,6 +142,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CONTENT_MAX_PDF_BYTES = env_int("CONTENT_MAX_PDF_BYTES", 50 * 1024 * 1024)
 CONTENT_MAX_AUDIO_BYTES = env_int("CONTENT_MAX_AUDIO_BYTES", 100 * 1024 * 1024)
+CONTENT_REQUIRE_CLEAN_SCAN = env_bool("CONTENT_REQUIRE_CLEAN_SCAN", False)
 
 COMMUNITY_DISCUSSION_RATE_WINDOW_SECONDS = env_int("COMMUNITY_DISCUSSION_RATE_WINDOW_SECONDS", 300)
 COMMUNITY_DISCUSSION_RATE_LIMIT = env_int("COMMUNITY_DISCUSSION_RATE_LIMIT", 5)
@@ -150,6 +160,13 @@ PAYMENT_WEBHOOK_TOLERANCE_SECONDS = env_int("PAYMENT_WEBHOOK_TOLERANCE_SECONDS",
 PAYMENT_WEBHOOK_MAX_BYTES = env_int("PAYMENT_WEBHOOK_MAX_BYTES", 65_536)
 OBSERVABILITY_SLOW_REQUEST_MS = env_int("OBSERVABILITY_SLOW_REQUEST_MS", 1000)
 
+DATA_UPLOAD_MAX_MEMORY_SIZE = env_int("DJANGO_DATA_UPLOAD_MAX_MEMORY_BYTES", 2_621_440)
+FILE_UPLOAD_MAX_MEMORY_SIZE = env_int("DJANGO_FILE_UPLOAD_MAX_MEMORY_BYTES", 2_621_440)
+DATA_UPLOAD_MAX_NUMBER_FIELDS = env_int("DJANGO_DATA_UPLOAD_MAX_NUMBER_FIELDS", 1_000)
+DATA_UPLOAD_MAX_NUMBER_FILES = env_int("DJANGO_DATA_UPLOAD_MAX_NUMBER_FILES", 10)
+FILE_UPLOAD_PERMISSIONS = 0o640
+FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o750
+
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_HTTPONLY = False
@@ -159,6 +176,7 @@ X_FRAME_OPTIONS = "DENY"
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
+EXPOSE_API_DOCS = True
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [

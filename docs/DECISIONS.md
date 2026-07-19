@@ -88,6 +88,18 @@ This file records decisions that change product behavior, architecture, maintena
 | D-078 | Require bounded preview/confirmation for actions and exports | Approved Phase 9 safety design |
 | D-079 | Keep configuration typed, versioned, allowlisted, and non-secret | Approved Phase 9 configuration design |
 | D-080 | Use provider-neutral observability and no new infrastructure | Approved Phase 9 operations boundary |
+| D-081 | Focus is an independent product domain | Approved Phase 10 architecture |
+| D-082 | Store renderer-independent immutable annotations | Approved Phase 10 architecture |
+| D-083 | Use local-plus-server autosave truth | Approved Phase 10 resilience design |
+| D-084 | Virtualize PDF rendering behind one adapter | Approved Phase 10 performance design |
+| D-085 | Keep stylus and accessibility capability claims honest | Approved Phase 10 UX contract |
+| D-086 | Add no distributed infrastructure for Focus | Approved Phase 10 restraint |
+| D-087 | Use a single-host hardened production topology first | Approved Phase 11 deployment baseline |
+| D-088 | Separate PostgreSQL migration owner and runtime roles | Approved Phase 11 least privilege |
+| D-089 | Fail closed on production secrets, proxy, uploads, and providers | Approved Phase 11 security contract |
+| D-090 | Make release and preflight explicit one-shot gates | Approved Phase 11 deployment safety |
+| D-091 | Gate measured query and bundle budgets without capacity claims | Approved Phase 11 performance policy |
+| D-092 | Require coordinated verified recovery and provider-neutral observability | Approved Phase 11 operations policy |
 
 ## D-001 — Product Identity
 
@@ -914,3 +926,70 @@ broker, worker, WebSocket, Redis, Celery, or microservice.
 **Consequence:** Collaboration and background document processing are extension points only. Any
 future infrastructure proposal must identify a real feature, delivery guarantee, performance
 measurement, and operating cost before approval.
+
+## D-087 - Hardened Single-Host Production Baseline
+
+**Decision:** Deploy the modular monolith initially as a non-root Nginx edge, non-root Gunicorn
+backend, and private PostgreSQL service with durable static/media/database volumes.
+
+**Reason:** This meets the approved product architecture with the fewest operational failure modes.
+The current workload has not demonstrated a need for a distributed cache, worker, broker, or
+microservice.
+
+**Consequence:** The database and private media have no public port/path. Multi-host media/object
+storage and horizontal scale require measured demand and a separately approved storage design.
+
+## D-088 - Separate Migration Owner and Runtime Database Roles
+
+**Decision:** Only a one-shot release task uses the PostgreSQL owner. Preflight and the application
+use a distinct role without schema create, elevated role attributes, or audit mutation.
+
+**Reason:** Migrations need DDL; requests do not. Audit integrity must survive an application bug or
+compromise.
+
+**Consequence:** Deployments fail if the roles match or runtime privilege evidence is unsafe. CI and
+staging must exercise real PostgreSQL grants; SQLite evidence cannot satisfy this gate.
+
+## D-089 - Fail-Closed Production Boundaries
+
+**Decision:** Production rejects weak/missing secrets, wildcard/HTTP origins, untrusted proxy
+headers, non-PostgreSQL storage, fake/unknown payments, public API docs, and non-clean file use.
+
+**Reason:** Development convenience must never become an accidental production default.
+
+**Consequence:** Upload ingestion cannot launch until an approved scanner supplies clean evidence.
+The payment route remains unavailable until an approved adapter exists. Secret values live outside
+source and may be mounted by file.
+
+## D-090 - Explicit Release and Preflight Gates
+
+**Decision:** Migrations/static collection/grants run in `release`; privilege, migration, file, and
+static evidence run in `production_preflight` before backend startup.
+
+**Reason:** Mixing migration authority into every application startup creates races and makes
+rollback/release evidence ambiguous.
+
+**Consequence:** Operators retain the one-shot outputs and never bypass a failed preflight. The
+backend long-running process has no DDL credential.
+
+## D-091 - Evidence-Based Performance Gates
+
+**Decision:** Add stable query-count and gzip bundle budgets plus bounded load-probe tooling, while
+making no 2,000-concurrent-user claim without production-equivalent measurement.
+
+**Reason:** Budgets prevent known regressions; synthetic health traffic cannot prove learning,
+assessment, Focus, or commerce capacity.
+
+**Consequence:** Worker/pool/cache/infrastructure changes require representative latency, query,
+memory, locking, and error evidence. Correctness remains a hard stop condition.
+
+## D-092 - Verified Coordinated Recovery and Provider-Neutral Observability
+
+**Decision:** Treat a recovery point as database + private media + image/config evidence, verify
+restores in isolation, and keep monitoring contracts independent of a vendor.
+
+**Reason:** A database-only backup may reference missing media, and vendor coupling inside business
+domains harms portability/testability.
+
+**Consequence:** RPO/RTO are not claimed until drills measure them. Production launch requires
+approved metrics/error/log sinks and tested alerts without changing domain code.

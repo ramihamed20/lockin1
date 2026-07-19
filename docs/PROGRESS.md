@@ -4,7 +4,7 @@ Last updated: 2026-07-19
 
 ## Current Status
 
-Phase 10 - Focus Workspace
+Phase 11 - Production Readiness
 State: complete; awaiting owner review
 
 Do not start the next phase until the owner explicitly approves it.
@@ -98,7 +98,7 @@ Status: approved.
 
 ### Phase 10 - Focus Workspace
 
-Status: complete; awaiting owner review.
+Status: approved.
 
 - Added independent server-authoritative sessions, workspace snapshots, annotation collections,
   normalized annotation records, idempotent sync receipts, and owner-scoped history.
@@ -116,6 +116,22 @@ Status: complete; awaiting owner review.
   timer, or document search.
 - Kept Focus independent from assessment/community/motivation/commerce/notifications and added no
   Redis, Celery, WebSocket, broker, worker, microservice, or speculative infrastructure.
+
+### Phase 11 - Production Readiness
+
+Status: complete; awaiting owner review.
+
+- Added strict development/test/production configuration and file-mounted secret support.
+- Added non-root production backend/edge images, Nginx TLS/reverse proxy, and hardened Compose.
+- Separated PostgreSQL migration-owner and runtime roles; added release and runtime preflight gates.
+- Made file scan evidence fail closed across upload, publish, delivery, and production startup.
+- Hardened duplicate registration and disabled-provider webhook behavior.
+- Added PostgreSQL backup/restore verification, deployment/rollback runbooks, performance/query/bundle
+  budgets, and a comprehensive numbered security review.
+- Replaced the CI smoke path with required PostgreSQL, dependency audit, full browser, image, Nginx,
+  Compose, release, and preflight gates.
+- Preserved the modular monolith, provider independence, and Focus independence without new runtime
+  infrastructure.
 
 ## Phase 8 Validation
 
@@ -142,32 +158,31 @@ Status: complete; awaiting owner review.
 - OpenAPI generation completed with no Phase 9 view warnings. Ninety-six inherited APIView/
   operation-id warnings remain tracked, so the global schema is not claimed clean.
 
-## Phase 10 Validation
+## Phase 11 Validation
 
-- Backend: 165 tests passed; 85.37% branch-aware coverage (85% gate passed).
-- Ruff lint/format, strict mypy across 412 source files, Django checks, and SQLite migration-drift
-  verification passed; the 13 Focus-specific regressions also passed after final API hardening.
-- Production `check --deploy` exited successfully with a strong test-only secret and no Django
-  security or Focus schema warning. The 96 inherited pre-Phase-10 drf-spectacular warnings remain
-  tracked; the global schema is not claimed clean.
+- Backend: 180 tests passed, 2 PostgreSQL-only tests skipped locally, and 85.14% branch-aware
+  coverage (85% gate passed).
+- Ruff lint/format, strict mypy across 424 source files, Django checks, compile checks, and migration
+  drift verification passed.
+- Production `check --deploy --fail-level ERROR` exited 0. The 96 inherited drf-spectacular warnings
+  and intentional no-preload HSTS warning remain visible and tracked.
 - Frontend: 29 files / 158 tests passed; coverage is 90.87% statements, 80.39% branches, 87.21%
   functions, and 95.18% lines.
-- ESLint, TypeScript, exact lockfile installation, zero-vulnerability package-lock audit, and the
-  production PWA build passed. The lazy Focus chunk is 448.95 KB (133.56 KB gzip); the 1.23 MB PDF
-  worker is a separate asset and is not Workbox-preloaded.
-- Complete Playwright regression: 32 passed and 2 intentional desktop skips for mobile-only
-  assertions. Phase 10 rendered a real PDF, autosaved a sticky note, restored the notes surface,
-  passed Axe on desktop/mobile/Arabic RTL, and had no page-level horizontal overflow.
-- Desktop and Pixel 7 RTL screenshots were visually reviewed. Browser review found and corrected
-  generated-glyph accessible names, a non-focusable PDF scroll region, and mixed-direction title
-  ellipsis before the final green run.
+- ESLint, TypeScript, coverage, and the production PWA build passed. Build time was 5.73s in the
+  isolated copy and 3.73s on the final warm rebuild check; all
+  initial/lazy/PDF-worker/CSS gzip budgets passed after `.mjs` worker measurement was corrected.
+- Complete Playwright regression: 32 passed and 2 intentional project skips across desktop/mobile,
+  Axe, responsive layouts, Arabic RTL, Focus, assessment, and operations.
+- YAML contracts parse. Docker/Nginx/PostgreSQL execution is delegated to mandatory CI because those
+  executables are unavailable on this workstation.
 
 ## Workstation Limitation
 
-PostgreSQL-backed concurrency and representative 2,000-active-user load tests were not run locally
-because no PostgreSQL/Docker service was available. Local tests explicitly used
-`LOCKIN_TEST_USE_SQLITE=true`. No PostgreSQL concurrency or load claim is made.
+PostgreSQL/container execution, dependency network audit, representative concurrency/load, real
+scanner, and real monitoring/alert destinations were not run locally because required services or
+approved providers are unavailable. CI/staging launch gates cover these boundaries. No 2,000-user,
+RPO/RTO, scanner, alerting, or PostgreSQL execution claim is made from local evidence.
 
 ## Next Gate
 
-Owner reviews Phase 10. Stop here; the next phase requires explicit approval.
+Owner reviews Phase 11. Stop here; final UI/UX Polish requires explicit approval.

@@ -14,7 +14,8 @@ class ProviderWebhookView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request: Request, provider: str) -> Response:
-        if provider != "fake":
+        configured_provider = str(settings.PAYMENT_PROVIDER)
+        if configured_provider == "none" or provider != configured_provider:
             return Response({"detail": "Unknown provider."}, status=status.HTTP_404_NOT_FOUND)
         content_length = request.META.get("CONTENT_LENGTH", "")
         if content_length:

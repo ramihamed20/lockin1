@@ -1,6 +1,6 @@
 # Lock-in Runtime and Package Baseline
 
-Last updated: 2026-07-15
+Last updated: 2026-07-19
 
 ## Selected runtime baseline
 
@@ -11,7 +11,9 @@ Last updated: 2026-07-15
 | Django REST Framework | 3.17.1 | Current supported release and compatible with Django 5.2 |
 | drf-spectacular | 0.30.0 | Current schema generator with Django 5.2/DRF 3.17 support |
 | psycopg | 3.3.4 | Current PostgreSQL driver line with binary local-development support |
+| Gunicorn | 26.0.0 | Production WSGI process manager with bounded gthread configuration |
 | PostgreSQL | 18.4 | Current supported PostgreSQL release; used by Compose and CI |
+| Nginx | 1.28.0 | Pinned non-root production edge image for TLS/static/reverse proxy |
 | Node.js | 24.16.0 | Current LTS runtime already available in the workspace |
 | React / React DOM | 19.2.7 | Current stable React release |
 | Vite | 7.3.6 | Mature previous major; Vite 8 was only recently released when Phase 2 began |

@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 import pytest
 from django.conf import settings
 from django.core.management import call_command
+from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -32,6 +33,18 @@ from apps.subscriptions.models import Subscription, SubscriptionAccount
 from platform_core.events import domain_events
 
 pytestmark = pytest.mark.django_db
+
+
+@override_settings(PAYMENT_PROVIDER="none")
+def test_webhook_surface_is_closed_without_a_configured_provider() -> None:
+    client = APIClient()
+    response = client.post(
+        "/api/v1/billing/webhooks/fake",
+        data=b"{}",
+        content_type="application/json",
+    )
+    assert response.status_code == 404
+    assert not WebhookAttempt.objects.exists()
 
 
 def _published_price(*, amount_minor: int = 3_500, currency: str = "USD") -> Price:

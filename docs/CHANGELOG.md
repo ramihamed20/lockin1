@@ -2,6 +2,40 @@
 
 All notable rebuild changes are documented here.
 
+## 2026-07-19 - Phase 11
+
+### Added
+
+- Strict production settings, file-mounted secret handling, deploy checks, release/preflight commands,
+  PostgreSQL owner/runtime grant enforcement, and readiness evidence.
+- Hardened multi-stage backend/edge images, Gunicorn contract, Nginx TLS/reverse proxy/security
+  headers/rate/body limits, PostgreSQL initialization, and production Compose topology.
+- PostgreSQL dump/hash/catalog validation, isolated restore verification, bounded HTTP probe, query
+  budgets, gzip bundle budgets, and PostgreSQL readiness regressions.
+- Required PostgreSQL/release/preflight, dependency audit, full Playwright, image, Nginx, Compose,
+  and final aggregate CI gates.
+- Production security review, deployment checklist, backup/recovery runbook, performance baseline,
+  and Phase 11 implementation record.
+
+### Security and correctness
+
+- Made clean malware-scan evidence mandatory for production upload delivery/publication/startup.
+- Made duplicate registration non-enumerating across model-validation and uniqueness-race paths.
+- Closed provider webhook routes when no matching provider is configured.
+- Added secure `__Host-` cookies, strict HTTPS origins/proxy contract, private API docs, bounded upload
+  memory/request sizes, non-root read-only containers, and least-privilege audit-safe database roles.
+- Preserved visible OpenAPI/HSTS-preload warnings as documented debt/accepted risk instead of
+  globally silencing them.
+
+### Validation
+
+- 180 backend tests passed (2 PostgreSQL-only local skips), 85.14% coverage, and all Ruff/format/
+  strict-mypy/Django/migration/compile gates passed.
+- 158 frontend tests passed with 95.18% line coverage; production build and corrected gzip budgets
+  passed.
+- 32 Playwright tests passed with 2 intentional project skips after explicit preview startup wait.
+- Local Docker/PostgreSQL/network-audit execution remains honestly deferred to mandatory CI/staging.
+
 ## 2026-07-19 - Phase 10
 
 ### Added

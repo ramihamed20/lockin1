@@ -5,6 +5,7 @@ import pytest
 from apps.discovery.models import SearchEntry
 from apps.education.services import ScopeCapabilities, grant_creator_scope
 from apps.education.tests.helpers import create_admin, create_creator, pdf_upload, published_path
+from apps.files.models import ManagedFile
 from apps.files.services import create_managed_file
 
 from ..events import ContentPublished
@@ -63,6 +64,41 @@ def test_publish_creates_search_projection_event_and_immutable_version(
     assert len(received) == 1
     assert isinstance(received[0], ContentPublished)
     assert received[0].learning_object_id == learning_object.id
+
+
+def test_publish_requires_clean_scan_when_production_gate_is_enabled(settings: Any) -> None:
+    settings.CONTENT_REQUIRE_CLEAN_SCAN = True
+    admin = create_admin()
+    _, _, lesson = published_path(admin=admin)
+    managed_file = create_managed_file(owner=admin, upload=pdf_upload(), kind="pdf")
+    learning_object = create_learning_object(
+        actor=admin,
+        data=LearningObjectInput(
+            academic_node=lesson,
+            content_type=LearningObjectVersion.ContentType.PDF,
+            title="Scanned production document",
+            primary_file=managed_file,
+        ),
+    )
+    with pytest.raises(ContentRuleError, match="not safe"):
+        submit_for_review(
+            actor=admin,
+            learning_object_id=learning_object.id,
+            expected_revision=learning_object.revision,
+        )
+    managed_file.scan_status = ManagedFile.ScanStatus.CLEAN
+    managed_file.save(update_fields=("scan_status",))
+    learning_object = submit_for_review(
+        actor=admin,
+        learning_object_id=learning_object.id,
+        expected_revision=learning_object.revision,
+    )
+    published = publish_learning_object(
+        actor=admin,
+        learning_object_id=learning_object.id,
+        expected_revision=learning_object.revision,
+    )
+    assert published.workflow_status == LearningObject.WorkflowStatus.PUBLISHED
 
 
 def test_revising_published_content_keeps_student_release_until_republished() -> None:

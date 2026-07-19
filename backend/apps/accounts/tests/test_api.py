@@ -57,6 +57,19 @@ def test_registration_is_strict_and_creates_unverified_account(settings: Any) ->
     assert token.token_digest != raw_token
 
 
+def test_duplicate_registration_does_not_reveal_account_existence() -> None:
+    client, csrf = csrf_client()
+    first = client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
+    repeated = client.post(
+        "/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf
+    )
+
+    assert first.status_code == repeated.status_code == 201
+    assert first.json() == repeated.json() == {"status": "verification_required"}
+    assert User.objects.count() == 1
+    assert OneTimeToken.objects.filter(kind=OneTimeToken.Kind.EMAIL_VERIFICATION).count() == 1
+
+
 def test_email_verification_token_is_single_use() -> None:
     client, csrf = csrf_client()
     client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)

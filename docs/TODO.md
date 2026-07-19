@@ -14,6 +14,7 @@ Last updated: 2026-07-19
 - [x] Phase 7 learning motivation/notifications approved.
 - [x] Phase 8 subscription/entitlement platform approved.
 - [x] Phase 9 operations platform approved.
+- [x] Phase 10 Focus Workspace approved.
 
 ## Phase 8 - Approved
 
@@ -45,7 +46,7 @@ Last updated: 2026-07-19
 - [x] Pass backend/frontend/coverage/PWA/full-browser regression gates and update documentation.
 - [x] Obtain explicit Phase 10 approval.
 
-## Phase 10 - Complete; Awaiting Review
+## Phase 10 - Approved
 
 - [x] Keep Focus independent from assessment, community, AI, motivation, commerce, and notifications.
 - [x] Add server-authoritative session lifecycle/history and optimistic workspace snapshots.
@@ -57,13 +58,27 @@ Last updated: 2026-07-19
 - [x] Add keyboard/screen-reader/high-contrast/reduced-motion/RTL responsive behavior.
 - [x] Add bounded future extension slots without speculative features or infrastructure.
 - [x] Pass the complete backend/frontend/PWA/browser validation suite and finish evidence docs.
-- [ ] Obtain explicit approval before the next phase.
+- [x] Obtain explicit approval before Phase 11.
+
+## Phase 11 - Complete; Awaiting Review
+
+- [x] Separate development, testing, and strict production settings.
+- [x] Add file-mounted secrets, explicit HTTPS/proxy/email/PostgreSQL contracts, and deploy checks.
+- [x] Add non-root read-only backend/edge images, Nginx TLS/headers/rates/limits, and production Compose.
+- [x] Separate migration-owner/runtime PostgreSQL roles and add release/preflight commands.
+- [x] Make upload scan evidence fail closed and harden account/provider public boundaries.
+- [x] Add query/bundle budgets, PostgreSQL readiness tests, and bounded HTTP probe tooling.
+- [x] Add database backup/restore verification and deployment/recovery/rollback runbooks.
+- [x] Replace CI with required PostgreSQL, dependency, browser, image, Nginx, and Compose gates.
+- [x] Complete the repository-grounded production security review and record residual launch gates.
+- [x] Pass all locally runnable backend/frontend/build/browser validation.
+- [ ] Obtain explicit approval before final UI/UX Polish.
 
 ## Deferred Evidence / Inputs
 
 - [ ] Run the complete suite against PostgreSQL in CI or a local PostgreSQL environment.
 - [ ] Add PostgreSQL concurrency tests for XP/evidence idempotency, counters, and ranking publication.
-- [ ] Establish representative million-row XP/notification and ranking datasets for Phase 11 load work.
+- [ ] Establish representative million-row XP/notification and ranking datasets for staging load work.
 - [ ] Run PostgreSQL concurrency tests for payment/refund idempotency, transition locks, webhook
   deduplication, and entitlement resynchronization.
 - [ ] Run provider sandbox, reverse-proxy payload-limit, replay, and representative commerce load tests.
@@ -74,14 +89,19 @@ Last updated: 2026-07-19
   long sessions, offline/reconnect, and bounded browser memory.
 - [ ] Validate real iPad/Apple Pencil and Android stylus pressure/tilt, input latency, finger pan, and
   browser-specific palm-rejection limits; do not claim capability before evidence.
-- [ ] Build representative projection/report/action datasets and run Phase 11 load tests.
+- [ ] Build representative projection/report/action datasets and run staging load tests.
 - [ ] Enforce audit update/delete denial with the production PostgreSQL application role.
 - [ ] Select and validate metrics/error providers, alerts, dashboards, log retention, and privacy.
 - [ ] Schedule analytics/report/reconciliation work only after an approved scheduler/worker design.
 - [ ] Resolve inherited DRF Spectacular APIView and operation-id warnings across pre-Phase-9 APIs.
 - [ ] Schedule and monitor `rebuild_motivation` only through approved operations infrastructure.
 - [ ] Schedule and monitor `reconcile_commerce` only through approved operations infrastructure.
-- [ ] Integrate a malware scanner before production file ingestion; status is `not_configured`.
+- [ ] Integrate and validate a malware scanner before production file ingestion; production now
+  fails closed with `pending` until clean evidence exists.
+- [ ] Obtain a green remote Phase 11 CI run, including PostgreSQL release/preflight and container jobs.
+- [ ] Run a production-equivalent staging deploy, backup/media restore drill, and record RPO/RTO.
+- [ ] Run representative authenticated/write-heavy load and long-session Focus memory scenarios.
+- [ ] Validate container/image vulnerability policy and real TLS renewal at the deployment target.
 - [ ] Supply real institutions, curricula, learning content, questions, and creator scopes.
 - [ ] Select production object storage/CDN and hosting.
 - [ ] Approve legal privacy, retention, ranking identity, notification retention, and moderation policy.

@@ -137,3 +137,20 @@ def test_audio_validation_and_unknown_kind_rules() -> None:
             upload=SimpleUploadedFile("empty.pdf", b"", content_type="application/pdf"),
             kind="pdf",
         )
+
+
+def test_clean_scan_gate_is_fail_closed_when_enabled(settings: Any) -> None:
+    settings.CONTENT_REQUIRE_CLEAN_SCAN = True
+    admin = create_admin()
+    managed_file = create_managed_file(owner=admin, upload=pdf_upload(), kind="pdf")
+    client = APIClient()
+    client.force_authenticate(admin)
+
+    assert managed_file.scan_status == ManagedFile.ScanStatus.PENDING
+    assert client.get(f"/api/v1/files/{managed_file.id}/view").status_code == 404
+
+    managed_file.scan_status = ManagedFile.ScanStatus.CLEAN
+    managed_file.save(update_fields=("scan_status",))
+    response = client.get(f"/api/v1/files/{managed_file.id}/view")
+    assert response.status_code == 200
+    response.close()

@@ -2,8 +2,12 @@
 
 Last updated: 2026-07-19
 
-Status: Phase 10 Focus Workspace implemented and locally validated; production device/load evidence
-remains tracked.
+Status: Phase 10 Focus Workspace implemented; Phase 11 production build/browser/bundle gates passed;
+real device, PostgreSQL concurrency, long-session memory, and representative load remain tracked.
+
+Phase 11 preserves Focus independence. Nginx serves the route-split PWA/PDF worker while authorized
+PDF bytes remain behind Django; private APIs/documents are not runtime-cached. Focus performance
+budgets and browser regressions are deployment gates, but no new Focus feature was added.
 
 ## Phase 10 Realization
 

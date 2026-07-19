@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite --configLoader runner",
     "build": "tsc -b && vite build --configLoader runner",
+    "check:bundle": "node ./scripts/check-bundle-budget.mjs",
     "preview": "vite preview --configLoader runner",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc -b --pretty false",

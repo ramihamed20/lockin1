@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
@@ -185,7 +186,10 @@ def _validate_reviewable(version: LearningObjectVersion) -> None:
     if primary.managed_file.scan_status in {
         ManagedFile.ScanStatus.QUARANTINED,
         ManagedFile.ScanStatus.FAILED,
-    }:
+    } or (
+        settings.CONTENT_REQUIRE_CLEAN_SCAN
+        and primary.managed_file.scan_status != ManagedFile.ScanStatus.CLEAN
+    ):
         raise ContentRuleError("The primary file is not safe to publish.")
 
 

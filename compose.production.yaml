@@ -1,0 +1,208 @@
+name: lockin-production
+
+x-backend-common: &backend-common
+  build:
+    context: ./backend
+  image: lockin-backend:${LOCKIN_IMAGE_TAG:-local}
+  environment: &backend-environment
+    DJANGO_SETTINGS_MODULE: config.settings.production
+    DJANGO_SECRET_KEY_FILE: /run/secrets/django_secret_key
+    DJANGO_ALLOWED_HOSTS: ${LOCKIN_PUBLIC_HOST:?Set LOCKIN_PUBLIC_HOST}
+    DJANGO_CSRF_TRUSTED_ORIGINS: https://${LOCKIN_PUBLIC_HOST:?Set LOCKIN_PUBLIC_HOST}
+    DJANGO_TRUST_PROXY_SSL_HEADER: "true"
+    DJANGO_SECURE_HSTS_SECONDS: ${DJANGO_SECURE_HSTS_SECONDS:-3600}
+    DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS: ${DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS:-true}
+    DJANGO_SECURE_HSTS_PRELOAD: ${DJANGO_SECURE_HSTS_PRELOAD:-false}
+    DJANGO_LOG_LEVEL: ${DJANGO_LOG_LEVEL:-INFO}
+    PUBLIC_APP_URL: https://${LOCKIN_PUBLIC_HOST:?Set LOCKIN_PUBLIC_HOST}
+    ACCOUNT_POLICY_VERSION: ${ACCOUNT_POLICY_VERSION:?Set ACCOUNT_POLICY_VERSION}
+    DJANGO_EMAIL_BACKEND: ${DJANGO_EMAIL_BACKEND:?Set DJANGO_EMAIL_BACKEND}
+    DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:?Set DEFAULT_FROM_EMAIL}
+    EMAIL_HOST: ${EMAIL_HOST:?Set EMAIL_HOST}
+    EMAIL_PORT: ${EMAIL_PORT:-587}
+    EMAIL_HOST_USER: ${EMAIL_HOST_USER:?Set EMAIL_HOST_USER}
+    EMAIL_HOST_PASSWORD_FILE: /run/secrets/email_host_password
+    EMAIL_USE_TLS: ${EMAIL_USE_TLS:-true}
+    EMAIL_USE_SSL: ${EMAIL_USE_SSL:-false}
+    EMAIL_TIMEOUT_SECONDS: ${EMAIL_TIMEOUT_SECONDS:-10}
+    POSTGRES_DB: ${POSTGRES_DB:-lockin}
+    POSTGRES_HOST: db
+    POSTGRES_PORT: 5432
+    POSTGRES_RUNTIME_ROLE: ${POSTGRES_RUNTIME_ROLE:-lockin_app}
+    POSTGRES_CONN_MAX_AGE: ${POSTGRES_CONN_MAX_AGE:-60}
+    POSTGRES_SSLMODE: ${POSTGRES_SSLMODE:-disable}
+    POSTGRES_TRUSTED_PRIVATE_NETWORK: ${POSTGRES_TRUSTED_PRIVATE_NETWORK:-true}
+    POSTGRES_STATEMENT_TIMEOUT_MS: ${POSTGRES_STATEMENT_TIMEOUT_MS:-15000}
+    POSTGRES_LOCK_TIMEOUT_MS: ${POSTGRES_LOCK_TIMEOUT_MS:-3000}
+    POSTGRES_IDLE_TRANSACTION_TIMEOUT_MS: ${POSTGRES_IDLE_TRANSACTION_TIMEOUT_MS:-30000}
+    CONTENT_MAX_PDF_BYTES: ${CONTENT_MAX_PDF_BYTES:-52428800}
+    CONTENT_MAX_AUDIO_BYTES: ${CONTENT_MAX_AUDIO_BYTES:-104857600}
+    PAYMENT_PROVIDER: none
+    DEFAULT_TRIAL_PLAN_CODE: ${DEFAULT_TRIAL_PLAN_CODE:-lockin_trial}
+    OBSERVABILITY_SLOW_REQUEST_MS: ${OBSERVABILITY_SLOW_REQUEST_MS:-1000}
+  secrets:
+    - django_secret_key
+    - email_host_password
+  networks:
+    - application
+    - data
+  restart: "no"
+  read_only: true
+  tmpfs:
+    - /tmp:size=268435456,mode=1777
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  db:
+    image: postgres:18.4-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lockin}
+      POSTGRES_USER: ${POSTGRES_OWNER_USER:-lockin_owner}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_owner_password
+      POSTGRES_INITDB_ARGS: --data-checksums --auth-host=scram-sha-256
+      LOCKIN_RUNTIME_ROLE: ${POSTGRES_RUNTIME_ROLE:-lockin_app}
+      LOCKIN_RUNTIME_PASSWORD_FILE: /run/secrets/postgres_runtime_password
+    secrets:
+      - postgres_owner_password
+      - postgres_runtime_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 30s
+    volumes:
+      - lockin_postgres_data:/var/lib/postgresql/data
+      - ./deploy/postgres/init-runtime-role.sh:/docker-entrypoint-initdb.d/10-lockin-runtime-role.sh:ro
+    networks:
+      - data
+    stop_grace_period: 60s
+
+  release:
+    <<: *backend-common
+    command: ["python", "manage.py", "release"]
+    environment:
+      <<: *backend-environment
+      POSTGRES_USER: ${POSTGRES_OWNER_USER:-lockin_owner}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_owner_password
+      POSTGRES_STATEMENT_TIMEOUT_MS: 0
+      POSTGRES_LOCK_TIMEOUT_MS: 0
+    secrets:
+      - django_secret_key
+      - email_host_password
+      - postgres_owner_password
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - lockin_static:/app/staticfiles
+
+  preflight:
+    <<: *backend-common
+    command: ["python", "manage.py", "production_preflight"]
+    environment:
+      <<: *backend-environment
+      POSTGRES_USER: ${POSTGRES_RUNTIME_ROLE:-lockin_app}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_runtime_password
+    secrets:
+      - django_secret_key
+      - email_host_password
+      - postgres_runtime_password
+    depends_on:
+      release:
+        condition: service_completed_successfully
+    volumes:
+      - lockin_static:/app/staticfiles:ro
+
+  backend:
+    <<: *backend-common
+    restart: unless-stopped
+    environment:
+      <<: *backend-environment
+      POSTGRES_USER: ${POSTGRES_RUNTIME_ROLE:-lockin_app}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_runtime_password
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-4}
+      GUNICORN_THREADS: ${GUNICORN_THREADS:-2}
+      GUNICORN_TIMEOUT_SECONDS: ${GUNICORN_TIMEOUT_SECONDS:-60}
+      GUNICORN_GRACEFUL_TIMEOUT_SECONDS: ${GUNICORN_GRACEFUL_TIMEOUT_SECONDS:-30}
+      GUNICORN_KEEPALIVE_SECONDS: ${GUNICORN_KEEPALIVE_SECONDS:-5}
+      GUNICORN_MAX_REQUESTS: ${GUNICORN_MAX_REQUESTS:-1000}
+      GUNICORN_MAX_REQUESTS_JITTER: ${GUNICORN_MAX_REQUESTS_JITTER:-100}
+      GUNICORN_FORWARDED_ALLOW_IPS: "*"
+    secrets:
+      - django_secret_key
+      - email_host_password
+      - postgres_runtime_password
+    depends_on:
+      preflight:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import os,urllib.request;
+          request=urllib.request.Request('http://127.0.0.1:8000/api/v1/health/ready',headers={'Host':os.environ['DJANGO_ALLOWED_HOSTS'].split(',')[0],'X-Forwarded-Proto':'https'});
+          urllib.request.urlopen(request,timeout=3).read()
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    volumes:
+      - lockin_media:/app/media
+    stop_grace_period: 45s
+
+  edge:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api/v1
+    image: lockin-edge:${LOCKIN_IMAGE_TAG:-local}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:8080"
+      - "443:8443"
+    volumes:
+      - lockin_static:/srv/lockin/static:ro
+      - ${TLS_CERT_PATH:?Set TLS_CERT_PATH}:/run/tls/fullchain.pem:ro
+      - ${TLS_KEY_PATH:?Set TLS_KEY_PATH}:/run/tls/privatekey.pem:ro
+    networks:
+      - application
+    read_only: true
+    tmpfs:
+      - /tmp:size=67108864,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+
+secrets:
+  django_secret_key:
+    file: ${DJANGO_SECRET_KEY_FILE:?Set DJANGO_SECRET_KEY_FILE}
+  email_host_password:
+    file: ${EMAIL_HOST_PASSWORD_FILE:?Set EMAIL_HOST_PASSWORD_FILE}
+  postgres_owner_password:
+    file: ${POSTGRES_OWNER_PASSWORD_FILE:?Set POSTGRES_OWNER_PASSWORD_FILE}
+  postgres_runtime_password:
+    file: ${POSTGRES_RUNTIME_PASSWORD_FILE:?Set POSTGRES_RUNTIME_PASSWORD_FILE}
+
+volumes:
+  lockin_postgres_data:
+  lockin_static:
+  lockin_media:
+
+networks:
+  application:
+    internal: false
+  data:
+    internal: true

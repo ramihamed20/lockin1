@@ -4,6 +4,8 @@ from uuid import UUID
 from django.conf import settings
 from django.contrib.auth import authenticate, login, update_session_auth_hash
 from django.contrib.sessions.models import Session
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import IntegrityError
 from django.http import HttpRequest
 from django.middleware.csrf import get_token
 from django.utils import timezone
@@ -141,13 +143,20 @@ class RegisterView(APIView):
         _enforce_sensitive_request_limit(
             request=request, scope="registration", identifier=str(data["email"])
         )
-        user, token = register_user(
-            email=str(data["email"]),
-            full_name=str(data["full_name"]),
-            password=str(data["password"]),
-            preferred_language=str(data["preferred_language"]),
-        )
-        _send_verification_email(user=user, raw_token=token.raw_token)
+        try:
+            user, token = register_user(
+                email=str(data["email"]),
+                full_name=str(data["full_name"]),
+                password=str(data["password"]),
+                preferred_language=str(data["preferred_language"]),
+            )
+        except (DjangoValidationError, IntegrityError) as error:
+            if isinstance(error, DjangoValidationError) and "email" not in error.message_dict:
+                raise
+            if not User.objects.filter(email=str(data["email"])).exists():
+                raise
+        else:
+            _send_verification_email(user=user, raw_token=token.raw_token)
         return Response({"status": "verification_required"}, status=status.HTTP_201_CREATED)
 
 

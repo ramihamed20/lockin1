@@ -1,6 +1,13 @@
 # Lock-in AI Extension Points
 
-Last updated: 2026-07-17
+Last updated: 2026-07-19
+
+## Phase 11 Status
+
+Production configuration, containers, observability contracts, CI, and recovery remain AI-free.
+No model/provider secret, SDK, prompt, vector store, embedding, inference route, or background AI
+worker was introduced. Future AI must use these documented provider-neutral boundaries and cannot
+bypass entitlements, content authorization, audit, or Focus ownership.
 
 ## Phase 4 Status
 
