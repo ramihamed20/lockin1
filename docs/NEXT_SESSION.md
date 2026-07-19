@@ -4,7 +4,8 @@ Last updated: 2026-07-19
 
 ## Start Here
 
-Phase 11 Production Readiness is complete and awaiting owner review. Do not begin final UI/UX Polish
+Phase 11 Production Readiness is complete and awaiting owner review. Local demo data is available in
+`DEMO_DATA.md`. Do not begin final UI/UX Polish
 unless the owner explicitly approves it.
 
 Read in order:

@@ -183,6 +183,13 @@ scanner, and real monitoring/alert destinations were not run locally because req
 approved providers are unavailable. CI/staging launch gates cover these boundaries. No 2,000-user,
 RPO/RTO, scanner, alerting, or PostgreSQL execution claim is made from local evidence.
 
+## Development demo dataset
+
+- Added a guarded and idempotent `python manage.py seed_demo` command for local/testing use.
+- It seeds accounts, content, learning/progress/review data, Focus Workspace, contextual community
+  and moderation examples, motivation, notifications, and a subscription entitlement.
+- Its focused SQLite test passes twice in sequence and verifies the production refusal guard.
+
 ## Next Gate
 
 Owner reviews Phase 11. Stop here; final UI/UX Polish requires explicit approval.

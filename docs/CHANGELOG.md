@@ -501,3 +501,6 @@ All notable rebuild changes are documented here.
 - Skills inventoried and selected.
 - Runtime and responsive behavior inspected.
 - Current architecture, security, performance, accessibility, dependency, and testing risks documented.
+# Development demo data
+
+- Added the guarded, idempotent `seed_demo` management command and local demo-data guide.
