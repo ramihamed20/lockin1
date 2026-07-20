@@ -193,3 +193,16 @@ RPO/RTO, scanner, alerting, or PostgreSQL execution claim is made from local evi
 ## Next Gate
 
 Owner reviews Phase 11. Stop here; final UI/UX Polish requires explicit approval.
+
+## Legacy Visual Migration — Slice 1
+
+Status: complete; awaiting owner review before any additional page migration.
+
+- Rebuilt the old Sidebar, Navbar/Topbar, responsive navigation, Login, and Dashboard inside the
+  current React/TypeScript architecture.
+- Preserved Django authentication, role visibility, current route contracts, API services, and
+  server-authoritative learning/progression data.
+- Added the original stylesheet and assets as a visual layer only; no old mock or Supabase code was
+  introduced.
+- Validation: TypeScript, ESLint, 29 Vitest files / 158 tests, production PWA build, and bundle
+  budget check all passed.

@@ -1340,3 +1340,10 @@ evidence exists. Monitoring/scanner/hosting/media storage choices remain explici
 The local validation proves code, tests, production build, bundle budgets, and desktop/mobile
 browser behavior. It does not prove PostgreSQL/container execution, 2,000 concurrent active users,
 scanner efficacy, alert delivery, or RPO/RTO; CI and staging gates must provide those facts.
+
+## Legacy Visual Language
+
+Lock-in now restores the original dark, study-focused visual language through a staged rebuild,
+starting with the shell, sign-in, and dashboard. This is intentionally a presentation migration:
+students keep the current secure, server-backed behavior while every future page is reshaped to feel
+native to the original Sidebar, cards, menus, responsive navigation, and typography.

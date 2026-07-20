@@ -90,3 +90,12 @@ Never modify the reference project.
 ## Stop Condition
 
 Phase 11 is complete. Wait for owner approval before final UI/UX Polish.
+
+## Current Migration Gate — 2026-07-20
+
+The owner approved a visual migration strategy: the old project is the visual reference and the
+current rebuild is the only technical reference. Slice 1 (legacy App Shell, Login, Dashboard) is
+complete and validated. Do not migrate another page until the owner reviews this slice.
+
+Read `LEGACY_UI_MIGRATION.md` first. Preserve the current Django API, session/CSRF auth, routing,
+roles, feature modules, and tests; never copy mockBackend, Supabase, or legacy business logic.

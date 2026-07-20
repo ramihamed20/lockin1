@@ -1,73 +1,254 @@
-import { useEffect, useState } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
-import { Brand } from "../components/Brand";
-import { Button } from "../components/Button";
 import { useAuth } from "../features/auth/AuthProvider";
-import { notificationApi } from "../features/motivation/api";
+import { notificationApi, progressionApi } from "../features/motivation/api";
+import type { NotificationItem, StreakSummary } from "../features/motivation/types";
 import { useOperationalAccess } from "../features/operations/useOperationalAccess";
 import { useI18n } from "../i18n/I18nProvider";
+import { LegacyIcon } from "../legacy/LegacyIcon";
 
-const icons = {
-  dashboard: "M5 5h6v6H5zM15 5h4v10h-4zM5 15h6v4H5zM15 19v-2h4v2",
-  learn: "M4 5.5A3.5 3.5 0 0 1 7.5 2H11v17H7.5A3.5 3.5 0 0 0 4 22ZM20 5.5A3.5 3.5 0 0 0 16.5 2H13v17h3.5A3.5 3.5 0 0 1 20 22Z",
-  profile: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21c0-4 3-6 8-6s8 2 8 6",
-  security: "M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6zM9 12l2 2 4-5",
-  people: "M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8-1a2.5 2.5 0 1 0 0-5M2 20c0-4 2-6 6-6s6 2 6 6m1-6c4 0 6 2 6 6",
-  studio: "M4 4h16v12H8l-4 4Zm4 4h8M8 12h5",
-  hierarchy: "M12 4v5M6 20v-5h12v5M6 15v-3h12v3M12 9v3",
-  assessment: "M7 3h10v3H7zM5 6h14v15H5zM8 11l2 2 3-4M8 17h8",
-  community: "M4 5h16v11H9l-5 4Zm4 4h8m-8 3h5",
-  moderation: "M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6zM9 12l2 2 4-5",
-  progression: "M5 19V9m7 10V5m7 14v-7M3 19h18",
-  notification: "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4",
-  billing: "M4 6h16v12H4zM4 10h16M8 15h3",
-  operations: "M4 7h16M4 12h16M4 17h16M8 4v6m8 0v5m-8 0v5"
+type Theme = "dawn" | "day" | "sunset" | "night";
+type NavigationItem = {
+  to: string;
+  label: string;
+  icon: Parameters<typeof LegacyIcon>[0]["name"];
+  group: string;
+  end?: boolean;
 };
 
-function Icon({ path }: { path: string }) {
+const themeOptions: Array<{ id: Theme; label: string }> = [
+  { id: "dawn", label: "Dawn" },
+  { id: "day", label: "Day" },
+  { id: "sunset", label: "Sunset" },
+  { id: "night", label: "Night" }
+];
+
+function LegacyBrand() {
+  const { t } = useI18n();
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d={path} />
-    </svg>
+    <Link className="brand" to="/" aria-label={t("brandHome")}>
+      <span className="brand-mark">
+        <img src="/assets/logo.jpg" alt="" className="brand-logo-img" />
+      </span>
+      <strong>lock-in</strong>
+    </Link>
+  );
+}
+
+function useLegacyTheme() {
+  const [theme, setTheme] = useState<Theme>(() => {
+    const saved = localStorage.getItem("lockin.theme");
+    return themeOptions.some((option) => option.id === saved) ? saved as Theme : "night";
+  });
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("lockin.theme", theme);
+  }, [theme]);
+
+  return { theme, setTheme };
+}
+
+function firstName(fullName?: string) {
+  return fullName?.trim().split(/\s+/)[0] || "";
+}
+
+function relativeDate(value: string, locale: "en" | "ar") {
+  const difference = Date.now() - new Date(value).getTime();
+  const minutes = Math.max(0, Math.round(difference / 60_000));
+  if (minutes < 2) return locale === "ar" ? "الآن" : "Just now";
+  if (minutes < 60) return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(-minutes, "minute");
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(-hours, "hour");
+  return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(-Math.round(hours / 24), "day");
+}
+
+function StreakCard() {
+  const { locale } = useI18n();
+  const [streak, setStreak] = useState<StreakSummary | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void progressionApi.streak(controller.signal).then((value) => {
+      if (!controller.signal.aborted) setStreak(value);
+    }).catch(() => undefined);
+    return () => controller.abort();
+  }, []);
+
+  const days = streak?.current_days ?? 0;
+  const progress = Math.min(100, Math.round((days / 30) * 100));
+  const dayLabel = locale === "ar" ? "يوم متتالٍ" : days === 1 ? "day streak" : "day streak";
+
+  return (
+    <section className="streak-card" aria-label={locale === "ar" ? "تقدّم المواظبة" : "Streak progress"}>
+      <div><LegacyIcon name="activity" size={18} /> {days > 0 ? (locale === "ar" ? "استمر!" : "Keep going!") : (locale === "ar" ? "ابدأ اليوم!" : "Start today!")}</div>
+      <p>{days} {dayLabel}</p>
+      <span aria-hidden="true"><i style={{ width: `${progress}%` }} /></span>
+      <div className="streak-freeze-row">
+        <small>
+          {streak
+            ? streak.policy.freeze_tokens_enabled
+              ? `${streak.freeze_tokens_available} ${locale === "ar" ? "تجميد متاح" : "freeze available"}`
+              : locale === "ar" ? "راجع سياسة المواظبة" : "Review streak policy"
+            : locale === "ar" ? "جارٍ تحميل المواظبة" : "Loading streak"}
+        </small>
+        <Link to="/progression">{locale === "ar" ? "عرض" : "View"}</Link>
+      </div>
+    </section>
+  );
+}
+
+function NavigationList({ items, onNavigate, tabIndex }: { items: NavigationItem[]; onNavigate?: () => void; tabIndex?: number | undefined }) {
+  return (
+    <nav className="nav-list" aria-label="Primary">
+      {items.map((item, index) => {
+        const showGroup = items[index - 1]?.group !== item.group;
+        return (
+          <div className="nav-entry" key={item.to}>
+            {showGroup ? <span className="nav-section-label">{item.group}</span> : null}
+            <NavLink
+              to={item.to}
+              end={item.end ?? false}
+              className={({ isActive }) => `nav-btn${isActive ? " active" : ""}`}
+              tabIndex={tabIndex}
+              onClick={onNavigate}
+            >
+              <LegacyIcon name={item.icon} />
+              <span>{item.label}</span>
+            </NavLink>
+          </div>
+        );
+      })}
+    </nav>
+  );
+}
+
+function NotificationsMenu({ unreadCount, onCountChange }: { unreadCount: number; onCountChange: (count: number) => void }) {
+  const { locale } = useI18n();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState<NotificationItem[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open || items) return;
+    const controller = new AbortController();
+    void notificationApi.list(controller.signal).then((page) => {
+      if (!controller.signal.aborted) setItems(page.results);
+    }).catch(() => {
+      if (!controller.signal.aborted) setFailed(true);
+    });
+    return () => controller.abort();
+  }, [items, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  async function markAllRead() {
+    await notificationApi.markAllRead();
+    const readAt = new Date().toISOString();
+    setItems((current) => current?.map((item) => ({ ...item, read_at: item.read_at ?? readAt })) ?? current);
+    onCountChange(0);
+  }
+
+  async function openNotification(item: NotificationItem) {
+    try {
+      const response = await notificationApi.open(item.id);
+      setItems((current) => current?.map((candidate) => candidate.id === item.id ? { ...candidate, read_at: candidate.read_at ?? new Date().toISOString() } : candidate) ?? current);
+      if (!item.read_at) onCountChange(Math.max(0, unreadCount - 1));
+      setOpen(false);
+      void navigate(response.route);
+    } catch {
+      setFailed(true);
+    }
+  }
+
+  return (
+    <div className="notifications-menu-wrap" ref={menuRef}>
+      <button className={`icon-btn${unreadCount ? " active" : ""}`} type="button" onClick={() => setOpen((value) => !value)} aria-label={locale === "ar" ? "الإشعارات" : "Notifications"} aria-expanded={open} aria-controls="notifications-menu">
+        <LegacyIcon name="bell" />
+        {unreadCount ? <span className="dot" /> : null}
+      </button>
+      {open ? (
+        <section className="notifications-dropdown" id="notifications-menu" aria-label={locale === "ar" ? "الإشعارات" : "Notifications"}>
+          <header className="notifications-header">
+            <h3>{locale === "ar" ? "الإشعارات" : "Notifications"}</h3>
+            {unreadCount ? <button className="text-link compact" type="button" onClick={() => void markAllRead()}>{locale === "ar" ? "تحديد الكل كمقروء" : "Mark all read"}</button> : null}
+          </header>
+          <div className="notifications-list">
+            {failed ? <p className="notification-item">{locale === "ar" ? "تعذر تحميل الإشعارات." : "Notifications could not be loaded."}</p> : null}
+            {!failed && !items ? <p className="notification-item">{locale === "ar" ? "جارٍ التحميل…" : "Loading…"}</p> : null}
+            {!failed && items?.length === 0 ? <div className="notifications-empty"><LegacyIcon name="bell" size={20} /><p>{locale === "ar" ? "لا توجد إشعارات جديدة" : "All caught up!"}</p></div> : null}
+            {items?.slice(0, 5).map((item) => (
+              <button className={`notification-item${item.read_at ? " read" : " unread"}`} key={item.id} type="button" onClick={() => void openNotification(item)}>
+                <p>{item.title}</p>
+                <div className="notification-meta"><small>{relativeDate(item.created_at, locale)}</small></div>
+              </button>
+            ))}
+          </div>
+          <Link className="notifications-view-all" to="/notifications" onClick={() => setOpen(false)}>{locale === "ar" ? "عرض جميع الإشعارات" : "View all notifications"}</Link>
+        </section>
+      ) : null}
+    </div>
   );
 }
 
 export function AppShell() {
   const { user, logout } = useAuth();
-  const { t, toggleLocale } = useI18n();
+  const { locale, t, toggleLocale } = useI18n();
   const location = useLocation();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const navigate = useNavigate();
   const operationsAllowed = useOperationalAccess();
+  const { theme, setTheme } = useLegacyTheme();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [unreadCount, setUnreadCount] = useState(0);
+  const drawerRef = useRef<HTMLElement>(null);
+  const drawerCloseRef = useRef<HTMLButtonElement>(null);
+  const drawerTriggerRef = useRef<HTMLButtonElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
   const isAdmin = user?.roles.includes("administrator") ?? false;
   const isCreator = isAdmin || (user?.roles.includes("creator") ?? false);
   const canModerate = isCreator || (user?.roles.includes("moderator") ?? false);
-  const navItems = [
-    { to: "/", label: t("navDashboard"), icon: icons.dashboard, end: true },
-    { to: "/learn", label: t("navLearn"), icon: icons.learn },
-    { to: "/assessments", label: t("navAssessments"), icon: icons.assessment },
-    { to: "/progression", label: t("navProgression"), icon: icons.progression },
-    { to: "/community", label: t("navCommunity"), icon: icons.community },
-    { to: "/notifications", label: t("navNotifications"), icon: icons.notification },
-    { to: "/subscription", label: t("navBilling"), icon: icons.billing },
-    { to: "/profile", label: t("navProfile"), icon: icons.profile },
-    { to: "/security", label: t("navSecurity"), icon: icons.security },
-    ...(operationsAllowed ? [
-      { to: "/operations", label: t("navOperations"), icon: icons.operations }
-    ] : []),
+  const navItems = useMemo<NavigationItem[]>(() => [
+    { to: "/", label: t("navDashboard"), icon: "home", group: locale === "ar" ? "الدراسة" : "Study", end: true },
+    { to: "/learn", label: t("navLearn"), icon: "book-open", group: locale === "ar" ? "الدراسة" : "Study" },
+    { to: "/assessments", label: t("navAssessments"), icon: "help", group: locale === "ar" ? "الدراسة" : "Study" },
+    { to: "/progression", label: t("navProgression"), icon: "activity", group: locale === "ar" ? "المراجعة" : "Review" },
+    { to: "/notifications", label: t("navNotifications"), icon: "bell", group: locale === "ar" ? "المراجعة" : "Review" },
+    { to: "/community", label: t("navCommunity"), icon: "messages", group: locale === "ar" ? "المجتمع" : "Community" },
+    { to: "/subscription", label: t("navBilling"), icon: "trophy", group: locale === "ar" ? "الحساب" : "Account" },
+    { to: "/profile", label: t("navProfile"), icon: "user", group: locale === "ar" ? "الحساب" : "Account" },
+    { to: "/security", label: t("navSecurity"), icon: "shield", group: locale === "ar" ? "الحساب" : "Account" },
+    ...(operationsAllowed ? [{ to: "/operations", label: t("navOperations"), icon: "settings" as const, group: locale === "ar" ? "الإدارة" : "Management" }] : []),
     ...(isCreator ? [
-      { to: "/management/content", label: t("navContentStudio"), icon: icons.studio },
-      { to: "/management/assessments", label: t("navAssessmentStudio"), icon: icons.assessment }
+      { to: "/management/content", label: t("navContentStudio"), icon: "file" as const, group: locale === "ar" ? "الإدارة" : "Management" },
+      { to: "/management/assessments", label: t("navAssessmentStudio"), icon: "help" as const, group: locale === "ar" ? "الإدارة" : "Management" }
     ] : []),
-    ...(canModerate ? [
-      { to: "/moderation", label: t("navModeration"), icon: icons.moderation }
-    ] : []),
+    ...(canModerate ? [{ to: "/moderation", label: t("navModeration"), icon: "shield" as const, group: locale === "ar" ? "الإدارة" : "Management" }] : []),
     ...(isAdmin ? [
-      { to: "/admin/education", label: t("navEducationAdmin"), icon: icons.hierarchy },
-      { to: "/admin/people", label: t("navAdmin"), icon: icons.people }
+      { to: "/admin/education", label: t("navEducationAdmin"), icon: "book-open" as const, group: locale === "ar" ? "الإدارة" : "Management" },
+      { to: "/admin/people", label: t("navAdmin"), icon: "user" as const, group: locale === "ar" ? "الإدارة" : "Management" }
     ] : [])
-  ];
+  ], [canModerate, isAdmin, isCreator, locale, operationsAllowed, t]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -77,57 +258,155 @@ export function AppShell() {
     return () => controller.abort();
   }, [location.pathname]);
 
+  useEffect(() => {
+    document.getElementById("main-content")?.focus({ preventScroll: true });
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "/" && !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName ?? "")) {
+        event.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  useEffect(() => {
+    if (!profileOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!profileRef.current?.contains(event.target as Node)) setProfileOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setProfileOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [profileOpen]);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const drawerTrigger = drawerTriggerRef.current;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setDrawerOpen(false);
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(drawerRef.current?.querySelectorAll<HTMLElement>("a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex='-1'])") ?? []);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKeyDown);
+    window.setTimeout(() => drawerCloseRef.current?.focus(), 0);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+      window.setTimeout(() => drawerTrigger?.focus(), 0);
+    };
+  }, [drawerOpen]);
+
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!search.trim()) return;
+    void navigate(`/learn?search=${encodeURIComponent(search.trim())}`);
+    setSearch("");
+    searchRef.current?.blur();
+  }
+
+  const drawerTabIndex = drawerOpen ? undefined : -1;
+  const mobileItems = navItems.filter((item) => ["/", "/learn", "/assessments", "/progression", "/community"].includes(item.to));
+
   return (
-    <div className="workspace-shell">
+    <>
       <a className="skip-link" href="#main-content">{t("skip")}</a>
-      <header className="workspace-header">
-        <Brand />
-        <div className="workspace-header__actions">
-          <Link className="notification-link" to="/notifications" aria-label={`${t("navNotifications")}: ${unreadCount} ${t("unreadNotifications")}`}>
-            <Icon path={icons.notification} />
-            {unreadCount ? <span>{unreadCount > 99 ? "99+" : unreadCount}</span> : null}
-          </Link>
-          <Button variant="quiet" onClick={toggleLocale}>{t("language")}</Button>
-          <button
-            className="menu-trigger"
-            type="button"
-            aria-expanded={menuOpen}
-            aria-controls="primary-navigation"
-            aria-label={menuOpen ? t("closeMenu") : t("openMenu")}
-            onClick={() => setMenuOpen((open) => !open)}
-          >
-            <span /><span /><span />
-          </button>
+      <div className="app-shell">
+        <aside className="sidebar" aria-label={t("primaryNavigation")}>
+          <LegacyBrand />
+          <NavigationList items={navItems} />
+          <StreakCard />
+        </aside>
+
+        <div className="content-frame">
+          <header className="topbar">
+            <button className="icon-btn mobile-menu" ref={drawerTriggerRef} type="button" onClick={() => setDrawerOpen(true)} aria-label={t("openMenu")} aria-expanded={drawerOpen} aria-controls="mobile-drawer">
+              <LegacyIcon name="menu" />
+            </button>
+            <div className="page-title">
+              <h1>{`${t("dashboardGreeting")}, ${firstName(user?.full_name)}`}</h1>
+              <p>{t("dashboardCommandCopy")}</p>
+            </div>
+            <form className="search-box" role="search" onSubmit={submitSearch}>
+              <LegacyIcon name="search" size={18} />
+              <input ref={searchRef} type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={locale === "ar" ? "ابحث في Lock-in (/)" : "Search Lock-in (/)"} aria-label={locale === "ar" ? "البحث في Lock-in" : "Search Lock-in"} />
+            </form>
+            <button className="icon-btn" type="button" onClick={() => setTheme(theme === "night" ? "day" : "night")} aria-label={theme === "night" ? (locale === "ar" ? "استخدام المظهر النهاري" : "Use day theme") : (locale === "ar" ? "استخدام المظهر الليلي" : "Use night theme")}>
+              <LegacyIcon name={theme === "night" ? "sun" : "moon"} />
+            </button>
+            <button className="icon-btn" type="button" onClick={toggleLocale} aria-label={locale === "ar" ? "Use English" : "استخدم العربية"}>
+              <LegacyIcon name="globe" />
+            </button>
+            <NotificationsMenu unreadCount={unreadCount} onCountChange={setUnreadCount} />
+            <div className="profile-menu-wrap" ref={profileRef}>
+              <button className="avatar-btn" type="button" onClick={() => setProfileOpen((value) => !value)} aria-label={locale === "ar" ? "فتح قائمة الملف الشخصي" : "Open profile menu"} aria-expanded={profileOpen} aria-controls="profile-menu">
+                <img src="/assets/mascot-study.png" alt="" />
+              </button>
+              {profileOpen ? (
+                <div className="profile-menu" id="profile-menu" role="menu" aria-label={locale === "ar" ? "قائمة الملف الشخصي" : "Profile menu"}>
+                  <strong>{user?.full_name}</strong>
+                  <small>{user?.email}</small>
+                  <Link to="/profile" role="menuitem" onClick={() => setProfileOpen(false)}><LegacyIcon name="user" size={17} /> {t("navProfile")}</Link>
+                  <Link to="/progression" role="menuitem" onClick={() => setProfileOpen(false)}><LegacyIcon name="award" size={17} /> {t("navProgression")}</Link>
+                  <Link to="/security" role="menuitem" onClick={() => setProfileOpen(false)}><LegacyIcon name="settings" size={17} /> {t("navSecurity")}</Link>
+                  <button role="menuitem" type="button" onClick={() => void logout()}><LegacyIcon name="log-out" size={17} /> {t("logout")}</button>
+                </div>
+              ) : null}
+            </div>
+          </header>
+          <main className="page-shell" id="main-content" tabIndex={-1} aria-label="Lock-in page content">
+            <Outlet />
+          </main>
         </div>
-      </header>
-      <aside aria-label={t("primaryNavigation")} className={`workspace-rail${menuOpen ? " workspace-rail--open" : ""}`}>
-        <Brand />
-        <nav id="primary-navigation" aria-label={t("primaryNavigation")}>
-          {navItems.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.end ?? false} onClick={() => setMenuOpen(false)}>
-              <Icon path={item.icon} />
+
+        <nav className="bottom-nav" aria-label={t("mobileNavigation")}>
+          {mobileItems.map((item) => (
+            <NavLink key={item.to} to={item.to} end={item.end ?? false} className={({ isActive }) => isActive ? "active" : ""}>
+              <LegacyIcon name={item.icon} size={20} />
               <span>{item.label}</span>
             </NavLink>
           ))}
         </nav>
-        <div className="workspace-rail__account">
-          <span className="avatar" aria-hidden="true">{user?.full_name.slice(0, 1).toUpperCase()}</span>
-          <div><strong>{user?.full_name}</strong><small>{user?.email}</small></div>
-          <Button variant="quiet" onClick={() => void logout()}>{t("logout")}</Button>
-        </div>
-      </aside>
-      <div className="route-announcer sr-only" aria-live="polite">{location.pathname}</div>
-      <main id="main-content" className="workspace-main" tabIndex={-1}>
-        <Outlet />
-      </main>
-      <nav className="mobile-nav" aria-label={t("mobileNavigation")}>
-        {navItems.slice(0, 4).map((item) => (
-          <NavLink key={item.to} to={item.to} end={item.end ?? false}>
-            <Icon path={item.icon} />
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
-      </nav>
-    </div>
+
+        <div className={`drawer-backdrop${drawerOpen ? " open" : ""}`} onClick={() => setDrawerOpen(false)} />
+        <aside className={`mobile-drawer${drawerOpen ? " open" : ""}`} id="mobile-drawer" ref={drawerRef} aria-label={t("mobileNavigation")} aria-hidden={drawerOpen ? undefined : "true"} aria-modal={drawerOpen ? "true" : undefined} role="dialog">
+          <div className="drawer-head">
+            <LegacyBrand />
+            <button className="icon-btn" ref={drawerCloseRef} type="button" onClick={() => setDrawerOpen(false)} aria-label={t("closeMenu")} tabIndex={drawerTabIndex}>
+              <LegacyIcon name="x" />
+            </button>
+          </div>
+          <section className="drawer-theme-selector" aria-label={locale === "ar" ? "اختيار المظهر" : "Theme selector"}>
+            <div><p className="nav-section-label">{locale === "ar" ? "المظهر" : "Theme"}</p><strong>{themeOptions.find((option) => option.id === theme)?.label}</strong></div>
+            <div className="drawer-theme-options">
+              {themeOptions.map((option) => <button key={option.id} type="button" className={theme === option.id ? "active" : ""} onClick={() => setTheme(option.id)} aria-pressed={theme === option.id} tabIndex={drawerTabIndex}><span aria-hidden="true" />{option.label}</button>)}
+            </div>
+          </section>
+          <NavigationList items={navItems} onNavigate={() => setDrawerOpen(false)} tabIndex={drawerTabIndex} />
+        </aside>
+      </div>
+    </>
   );
 }

@@ -867,3 +867,10 @@ published files, and collected assets before startup. CI exercises this topology
 Provider-neutral observability remains in-process and synchronous; sinks are unconfigured until
 approved. No queue/cache/broker/scheduler was introduced. See `PHASE_11_PRODUCTION_READINESS.md`,
 `SECURITY_REVIEW.md`, `DEPLOYMENT_CHECKLIST.md`, and `BACKUP_RECOVERY.md`.
+
+## Legacy Visual Composition Boundary
+
+`frontend/src/legacy/legacy.css` and `frontend/public/assets` provide presentation only. Typed
+components in the existing feature/layout modules compose that presentation with current API hooks,
+authentication, routing, authorization, and state. This keeps the visual migration reversible and
+prevents a dependency from any backend domain on the legacy design reference.

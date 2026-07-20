@@ -504,3 +504,16 @@ All notable rebuild changes are documented here.
 # Development demo data
 
 - Added the guarded, idempotent `seed_demo` management command and local demo-data guide.
+
+## 2026-07-20 — Legacy UI Migration, Slice 1
+
+### Changed
+
+- Rebuilt the legacy App Shell, Login, and Dashboard on current React/TypeScript/Django contracts.
+- Added the complete legacy visual stylesheet and public assets without importing legacy runtime
+  code.
+- Updated application and dashboard route tests for the real progression/notification API calls.
+
+### Validation
+
+- TypeScript, ESLint, 158 Vitest tests, production PWA build, and gzip bundle budget passed.

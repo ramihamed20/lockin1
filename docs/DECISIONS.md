@@ -993,3 +993,16 @@ domains harms portability/testability.
 
 **Consequence:** RPO/RTO are not claimed until drills measure them. Production launch requires
 approved metrics/error/log sinks and tested alerts without changing domain code.
+
+## D-093 - Legacy Visual Layer, Current Application Core
+
+**Decision:** Rebuild the legacy visual language as typed React components and an imported legacy
+stylesheet on top of the current frontend architecture. The reference frontend remains read-only
+and supplies no runtime code, data access, or state management.
+
+**Reason:** The desired outcome is the proven current platform behavior with the original product
+appearance, not a rollback to mock data, Supabase, or obsolete routing/security patterns.
+
+**Consequence:** Every migration slice keeps the current Django API, session/CSRF auth, route and
+permission boundaries, tests, and PWA behavior. New current-only domains must use the legacy visual
+language while remaining owned by their existing feature modules.

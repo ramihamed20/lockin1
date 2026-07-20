@@ -12,6 +12,8 @@ vi.mock("../../api/client", () => ({ apiRequest, refreshCsrfToken: vi.fn() }));
 const admin = { id: "a1", email: "admin@example.com", full_name: "Admin User", preferred_language: "en", status: "active", is_email_verified: true, roles: ["student", "administrator"], date_joined: "2026-07-15T00:00:00Z" };
 const summary = { roles: ["student", "administrator"], account: { email_verified: true, active_sessions: 2, preferred_language: "en" }, workspaces: ["administrator"], administration: { total: 10, verified: 8, suspended: 1 } };
 const learning = { next_item: { learning_object_id: "content-1", title: "Oral anatomy", content_type: "pdf", reason: "resume", completion_percent: 35 }, bookmark_count: 4, completed_count: 7, recent_content: [], review_due: [] };
+const xp = { total_points: 120, ranking_points: 120, transaction_count: 2, level: 2, level_progress: 20, level_target: 100, last_awarded_at: null };
+const streak = { current_days: 3, longest_days: 5, last_qualified_on: null, freeze_tokens_available: 0, policy: { title: "Default", version: 1, qualifying_activity_types: [], grace_days: 0, freeze_tokens_enabled: false } };
 
 function renderDashboard() {
   return render(<MemoryRouter><I18nProvider><AuthProvider><DashboardPage /></AuthProvider></I18nProvider></MemoryRouter>);
@@ -24,13 +26,15 @@ describe("role-aware dashboard", () => {
     apiRequest.mockImplementation((path: string) => {
       if (path === "/auth/session") return Promise.resolve({ user: admin });
       if (path === "/learning/dashboard") return Promise.resolve(learning);
+      if (path === "/progression/xp") return Promise.resolve(xp);
+      if (path === "/progression/streak") return Promise.resolve(streak);
       return Promise.resolve(summary);
     });
     renderDashboard();
     expect(await screen.findByRole("heading", { name: "Platform accounts" })).toBeVisible();
     expect(screen.getByText("10")).toBeVisible();
     expect(screen.getByRole("heading", { name: "Oral anatomy" })).toBeVisible();
-    expect(screen.getByText("35% complete")).toBeVisible();
+    expect(screen.getByText("35%", { exact: true })).toBeVisible();
   });
 
   it("recovers after a summary request fails", async () => {
@@ -38,8 +42,13 @@ describe("role-aware dashboard", () => {
     apiRequest.mockImplementation((path: string) => {
       if (path === "/auth/session") return Promise.resolve({ user: admin });
       if (path === "/learning/dashboard") return Promise.resolve(learning);
-      attempts += 1;
-      return attempts === 1 ? Promise.reject(new Error("offline")) : Promise.resolve(summary);
+      if (path === "/progression/xp") return Promise.resolve(xp);
+      if (path === "/progression/streak") return Promise.resolve(streak);
+      if (path === "/dashboard") {
+        attempts += 1;
+        return attempts === 1 ? Promise.reject(new Error("offline")) : Promise.resolve(summary);
+      }
+      return Promise.resolve({ unread_count: 0 });
     });
     renderDashboard();
     fireEvent.click(await screen.findByRole("button", { name: "Try again" }));

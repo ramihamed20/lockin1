@@ -137,3 +137,12 @@ Last updated: 2026-07-19
   need and prior owner approval.
 - Do not claim PostgreSQL concurrency, load, malware scan, email/push delivery, or Focus features
   without evidence.
+
+## Legacy UI Migration
+
+- [x] Preserve the current frontend as a backup before visual migration.
+- [x] Rebuild the legacy App Shell, Login, and Dashboard using current services and API contracts.
+- [x] Import the complete legacy stylesheet/assets without legacy runtime code.
+- [x] Validate with TypeScript, ESLint, 158 Vitest tests, production build, and bundle budget.
+- [ ] Obtain owner review before migrating the next page.
+- [ ] Rebuild remaining pages one bounded slice at a time in the legacy visual language.

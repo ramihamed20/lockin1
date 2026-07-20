@@ -31,6 +31,15 @@ const user = {
 };
 const emptyPage = { count: 0, next: null, previous: null, results: [] };
 const learningSummary = { next_item: null, bookmark_count: 0, completed_count: 0, recent_content: [], review_due: [] };
+const xpSummary = { total_points: 0, ranking_points: 0, transaction_count: 0, level: 1, level_progress: 0, level_target: 100, last_awarded_at: null };
+const streakSummary = { current_days: 0, longest_days: 0, last_qualified_on: null, freeze_tokens_available: 0, policy: { title: "Default", version: 1, qualifying_activity_types: [], grace_days: 0, freeze_tokens_enabled: false } };
+
+function shellResponse(path: string) {
+  if (path === "/notifications/summary") return Promise.resolve({ unread_count: 0 });
+  if (path === "/progression/xp") return Promise.resolve(xpSummary);
+  if (path === "/progression/streak") return Promise.resolve(streakSummary);
+  return null;
+}
 
 function renderApp(path: string) {
   return render(
@@ -63,6 +72,8 @@ describe("Lock-in application routes", () => {
 
   it("signs in and presents only truthful account readiness data", async () => {
     apiRequest.mockImplementation((path: string) => {
+      const shell = shellResponse(path);
+      if (shell) return shell;
       if (path === "/auth/session") return Promise.reject(new Error("anonymous"));
       if (path === "/auth/login") return Promise.resolve({ user });
       if (path === "/dashboard") {
@@ -83,8 +94,8 @@ describe("Lock-in application routes", () => {
     fireEvent.click(screen.getByRole("button", { name: "Log in" }));
 
     expect(await screen.findByRole("heading", { name: "Good to see you, Rami" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Choose where to begin" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Account ready" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "Choose where to begin" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "Account ready" })).toBeVisible();
     await waitFor(() => expect(refreshCsrfToken).toHaveBeenCalledOnce());
   });
 
@@ -106,6 +117,8 @@ describe("Lock-in application routes", () => {
 
   it("loads the route-split student learning journey", async () => {
     apiRequest.mockImplementation((path: string) => {
+      const shell = shellResponse(path);
+      if (shell) return shell;
       if (path === "/auth/session") return Promise.resolve({ user });
       if (path === "/learning/dashboard") return Promise.resolve(learningSummary);
       if (path === "/education/nodes") return Promise.resolve(emptyPage);
@@ -114,12 +127,14 @@ describe("Lock-in application routes", () => {
     renderApp("/learn");
 
     expect(await screen.findByRole("heading", { name: "What will you master next?" })).toBeVisible();
-    expect(screen.getByRole("search")).toBeVisible();
+    expect(screen.getByLabelText("Search learning")).toBeVisible();
   });
 
   it("loads the creator content studio but blocks a student from it", async () => {
     const creator = { ...user, roles: ["student", "creator"] };
     apiRequest.mockImplementation((path: string) => {
+      const shell = shellResponse(path);
+      if (shell) return shell;
       if (path === "/auth/session") return Promise.resolve({ user: creator });
       if (path.startsWith("/management/content")) return Promise.resolve(emptyPage);
       if (path.startsWith("/management/education/nodes")) return Promise.resolve(emptyPage);
@@ -130,6 +145,8 @@ describe("Lock-in application routes", () => {
     creatorView.unmount();
 
     apiRequest.mockImplementation((path: string) => {
+      const shell = shellResponse(path);
+      if (shell) return shell;
       if (path === "/auth/session") return Promise.resolve({ user });
       if (path === "/dashboard") return Promise.resolve({ roles: ["student"], account: { email_verified: true, active_sessions: 1, preferred_language: "en" } });
       if (path === "/learning/dashboard") return Promise.resolve(learningSummary);
@@ -137,12 +154,15 @@ describe("Lock-in application routes", () => {
     });
     renderApp("/management/content");
     expect(await screen.findByRole("heading", { name: "Good to see you, Rami" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "Choose where to begin" })).toBeVisible();
     expect(screen.queryByRole("heading", { name: "Content studio" })).not.toBeInTheDocument();
   });
 
   it("loads administrator hierarchy management", async () => {
     const administrator = { ...user, roles: ["student", "administrator"] };
     apiRequest.mockImplementation((path: string) => {
+      const shell = shellResponse(path);
+      if (shell) return shell;
       if (path === "/auth/session") return Promise.resolve({ user: administrator });
       if (path.startsWith("/management/education/nodes")) return Promise.resolve(emptyPage);
       if (path.startsWith("/admin/users")) return Promise.resolve(emptyPage);

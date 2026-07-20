@@ -10,11 +10,11 @@ import { AuthLayout } from "../features/auth/AuthLayout";
 import { useAuth } from "../features/auth/AuthProvider";
 import {
   ForgotPasswordPage,
-  LoginPage,
   RegisterPage,
   ResetPasswordPage,
   TokenConfirmationPage
 } from "../features/auth/AuthPages";
+import { LegacyLoginPage } from "../features/auth/LegacyLoginPage";
 import { DashboardPage } from "../features/dashboard/DashboardPage";
 import { useI18n } from "../i18n/I18nProvider";
 import { AppShell } from "../layouts/AppShell";
@@ -89,7 +89,7 @@ export function App() {
       <Suspense fallback={<PageSkeleton label={t("loading")} />}>
       <Routes>
         <Route element={<AuthLayout />}>
-          <Route path="login" element={<LoginPage />} />
+          <Route path="login" element={<LegacyLoginPage />} />
           <Route path="register" element={<RegisterPage />} />
           <Route path="forgot-password" element={<ForgotPasswordPage />} />
           <Route path="reset-password" element={<ResetPasswordPage />} />

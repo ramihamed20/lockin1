@@ -7,6 +7,7 @@ import { AuthProvider } from "./features/auth/AuthProvider";
 import { I18nProvider } from "./i18n/I18nProvider";
 import { initializePwa } from "./pwa/update";
 import "./styles.css";
+import "./legacy/legacy.css";
 
 initializePwa();
 
