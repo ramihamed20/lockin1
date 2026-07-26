@@ -32,3 +32,6 @@ test-results/
 Thumbs.db
 .idea/
 .vscode/
+.claude/settings.local.json
+.claude/skills/impeccable/
+.impeccable/
