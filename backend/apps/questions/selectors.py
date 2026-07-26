@@ -4,7 +4,7 @@ from django.db.models import Q, QuerySet
 
 from apps.accounts.models import User
 from apps.education.models import CreatorScope
-from apps.education.policies import is_administrator
+from apps.education.policies import is_assessment_administrator
 
 from .models import Question
 
@@ -38,7 +38,7 @@ def manageable_questions(*, user: User) -> QuerySet[Question]:
         "current_version__academic_node",
         "published_version__academic_node",
     ).prefetch_related("current_version__options")
-    if is_administrator(user):
+    if is_assessment_administrator(user):
         return queryset.order_by("-updated_at", "id")
     scope_paths = list(
         CreatorScope.objects.filter(

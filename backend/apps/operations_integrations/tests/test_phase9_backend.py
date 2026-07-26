@@ -1,5 +1,7 @@
+import io
 from datetime import UTC, datetime
 from uuid import uuid4
+from zipfile import ZipFile
 
 import pytest
 from rest_framework.test import APIClient
@@ -308,6 +310,32 @@ def test_report_filters_are_strict_and_user_csv_blocks_formula_injection() -> No
     )
     assert response.status_code == 200
     assert b"'=2+2" in response.content
+
+
+def test_report_can_be_exported_as_a_safe_excel_workbook() -> None:
+    admin = _admin()
+    create_user(email="excel@example.com", full_name="=unsafe-formula")
+    client = APIClient()
+    client.force_authenticate(admin)
+
+    preview = client.post(
+        "/api/v1/operations/reports/previews",
+        {"report_code": "user_directory", "filters": {}, "output_format": "xlsx"},
+        format="json",
+    )
+    assert preview.status_code == 201
+    response = client.post(
+        f"/api/v1/operations/reports/{preview.json()['id']}/execute",
+        {"confirmation_token": preview.json()["confirmation_token"]},
+        format="json",
+    )
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith(
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    assert response.content[:2] == b"PK"
+    with ZipFile(io.BytesIO(response.content)) as workbook:
+        assert b"'=unsafe-formula" in workbook.read("xl/worksheets/sheet1.xml")
 
 
 def test_final_effective_platform_administrator_cannot_be_suspended() -> None:

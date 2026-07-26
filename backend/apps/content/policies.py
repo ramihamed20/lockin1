@@ -3,7 +3,7 @@ from datetime import datetime
 from django.utils import timezone
 
 from apps.accounts.models import User
-from apps.education.policies import can_create_content, is_administrator
+from apps.education.policies import can_create_content, is_content_administrator
 from apps.files.models import ManagedFile
 
 from .models import LearningObject, LearningObjectAsset, LearningObjectVersion
@@ -31,14 +31,14 @@ def can_edit_learning_object(*, user: User, learning_object: LearningObject) -> 
     version = learning_object.current_version
     if version is None:
         return False
-    return is_administrator(user) or (
+    return is_content_administrator(user) or (
         learning_object.owner_id == user.id
         and can_create_content(user=user, node=version.academic_node)
     )
 
 
 def can_access_managed_file(*, user: User, managed_file: ManagedFile, download: bool) -> bool:
-    if is_administrator(user) or managed_file.owner_id == user.id:
+    if is_content_administrator(user) or managed_file.owner_id == user.id:
         return True
     assets = LearningObjectAsset.objects.filter(
         managed_file=managed_file,

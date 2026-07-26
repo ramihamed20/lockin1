@@ -141,10 +141,10 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
 
 
 ROLE_NAMES = {
-    "platform_administrator": "Platform Administrator",
+    "platform_administrator": "Super Admin",
     "support": "Support",
-    "content_manager": "Content Manager",
+    "content_manager": "Content Admin",
     "moderator": "Moderator",
-    "finance": "Finance",
+    "finance": "Finance Admin",
     "analytics_viewer": "Analytics Viewer",
 }

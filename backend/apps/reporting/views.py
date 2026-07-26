@@ -44,7 +44,7 @@ class ReportPreviewView(APIView):
         data = cast(dict[str, Any], serializer.validated_data)
         try:
             export, token = preview_report(
-                user=_user(request), report_code=data["report_code"], filters=data["filters"]
+                user=_user(request), report_code=data["report_code"], filters=data["filters"], output_format=data["output_format"]
             )
         except ReportingError as error:
             raise RequestRejected(str(error), code="report_preview_rejected") from error
@@ -59,14 +59,14 @@ class ReportExecuteView(APIView):
 
     @extend_schema(
         request=ReportExecuteSerializer,
-        responses={(200, "text/csv"): OpenApiTypes.BINARY},
+        responses={(200, "application/octet-stream"): OpenApiTypes.BINARY},
     )
     def post(self, request: Request, export_id: str) -> HttpResponse:
         serializer = ReportExecuteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         token = cast(dict[str, Any], serializer.validated_data)["confirmation_token"]
         try:
-            export, content = execute_report(
+            export, content, content_type, extension = execute_report(
                 export_id=export_id,
                 confirmation_token=token,
                 user=_user(request),
@@ -74,9 +74,9 @@ class ReportExecuteView(APIView):
             )
         except ReportingError as error:
             raise RequestRejected(str(error), code="report_execution_rejected") from error
-        response = HttpResponse(content, content_type="text/csv; charset=utf-8")
+        response = HttpResponse(content, content_type=content_type)
         response["Content-Disposition"] = (
-            f'attachment; filename="{export.report_code}-{export.id}.csv"'
+            f'attachment; filename="{export.report_code}-{export.id}.{extension}"'
         )
         response["X-Content-Type-Options"] = "nosniff"
         return response

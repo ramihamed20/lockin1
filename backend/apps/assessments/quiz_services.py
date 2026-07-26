@@ -14,7 +14,7 @@ from apps.education.policies import (
     can_create_assessments,
     can_publish_assessments,
     can_review_assessments,
-    is_administrator,
+    is_assessment_administrator,
 )
 from apps.questions.models import Question, QuestionVersion
 from apps.questions.selectors import published_questions
@@ -79,7 +79,7 @@ def resolve_question_versions(
         if (
             question.workflow_status != Question.WorkflowStatus.PUBLISHED
             and question.owner_id != actor.id
-            and not is_administrator(actor)
+            and not is_assessment_administrator(actor)
         ):
             raise QuizRuleError("An unpublished question is not available to this creator.")
         if not version.academic_node.path.startswith(academic_node.path):

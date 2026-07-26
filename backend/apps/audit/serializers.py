@@ -19,6 +19,7 @@ class AuditRecordSerializer(serializers.ModelSerializer[AuditRecord]):
             "reason",
             "source",
             "correlation_id",
+            "ip_address",
             "previous_state",
             "new_state",
             "related_entities",

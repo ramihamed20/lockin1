@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.education.models import CreatorScope
-from apps.education.policies import is_administrator
+from apps.education.policies import is_assessment_administrator
 
 from .models import Attempt, Quiz
 
@@ -39,7 +39,7 @@ def manageable_quizzes(*, user: User) -> QuerySet[Quiz]:
         "current_version__academic_node",
         "published_version__academic_node",
     ).prefetch_related("current_version__question_links__question_version")
-    if is_administrator(user):
+    if is_assessment_administrator(user):
         return queryset.order_by("-updated_at", "id")
     scope_paths = list(
         CreatorScope.objects.filter(

@@ -7,7 +7,12 @@ from apps.accounts.models import User
 from apps.accounts.roles import Role, user_has_role
 from apps.audit.services import record_audit
 
-from .models import OperationalRole, OperationalRoleAssignment
+from .models import (
+    OperationalCapability,
+    OperationalCapabilityAssignment,
+    OperationalRole,
+    OperationalRoleAssignment,
+)
 
 
 class OperationalRoleError(ValueError):
@@ -120,3 +125,49 @@ def lock_effective_platform_administrators() -> tuple[UUID, ...]:
         .order_by("id")
         .values_list("id", flat=True)
     )
+
+
+@transaction.atomic
+def replace_operational_capabilities(
+    *, target: User, actor: User, capability_codes: Iterable[str], reason: str, source: str
+) -> tuple[str, ...]:
+    """Replace exceptional direct grants; normal access should use role bundles."""
+    normalized = frozenset(capability_codes)
+    capabilities = {
+        capability.code: capability
+        for capability in OperationalCapability.objects.filter(code__in=normalized)
+    }
+    if set(capabilities) != set(normalized):
+        raise OperationalRoleError("One or more operational capabilities are unknown.")
+    clean_reason = reason.strip()
+    if len(clean_reason) < 8:
+        raise OperationalRoleError("A reason of at least 8 characters is required.")
+    target = User.objects.select_for_update().get(id=target.id)
+    previous = tuple(
+        OperationalCapabilityAssignment.objects.filter(user=target)
+        .order_by("capability_id")
+        .values_list("capability_id", flat=True)
+    )
+    OperationalCapabilityAssignment.objects.filter(user=target).exclude(
+        capability_id__in=normalized
+    ).delete()
+    for capability in capabilities.values():
+        OperationalCapabilityAssignment.objects.update_or_create(
+            user=target,
+            capability=capability,
+            defaults={"granted_by": actor, "reason": clean_reason},
+        )
+    current = tuple(sorted(normalized))
+    record_audit(
+        actor=actor,
+        action="administration.operational_capabilities.replaced",
+        domain="administration",
+        target_type="accounts.user",
+        target_id=str(target.id),
+        reason=clean_reason,
+        source=source,
+        previous_state={"capabilities": previous},
+        new_state={"capabilities": current},
+        related_entities=[{"type": "accounts.user", "id": str(target.id)}],
+    )
+    return current

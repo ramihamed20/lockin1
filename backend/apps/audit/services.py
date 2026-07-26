@@ -3,6 +3,7 @@ from typing import Any
 from uuid import UUID
 
 from apps.accounts.models import User
+from platform_core.logging.context import remote_address_context, request_id_context
 
 from .models import AuditRecord
 
@@ -55,7 +56,16 @@ def record_audit(
     related_entities: Sequence[Mapping[str, Any]] = (),
     metadata: Mapping[str, Any] | None = None,
     correlation_id: UUID | None = None,
+    ip_address: str | None = None,
 ) -> AuditRecord:
+    resolved_correlation_id = correlation_id
+    if resolved_correlation_id is None:
+        raw_request_id = request_id_context.get()
+        try:
+            resolved_correlation_id = UUID(raw_request_id) if raw_request_id else None
+        except ValueError:
+            resolved_correlation_id = None
+    resolved_ip = ip_address if ip_address is not None else remote_address_context.get()
     return AuditRecord.objects.create(
         actor=actor,
         action=action[:120],
@@ -64,7 +74,8 @@ def record_audit(
         target_id=target_id[:100],
         reason=reason.strip()[:500],
         source=source[:80],
-        correlation_id=correlation_id,
+        correlation_id=resolved_correlation_id,
+        ip_address=resolved_ip or None,
         previous_state=sanitize_audit_value(previous_state or {}),
         new_state=sanitize_audit_value(new_state or {}),
         related_entities=sanitize_audit_value(related_entities),

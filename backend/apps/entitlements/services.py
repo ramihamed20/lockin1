@@ -224,6 +224,22 @@ def grant_manual_entitlement(
     return grant, True
 
 
+@transaction.atomic
+def revoke_manual_entitlement(
+    *, grant_id: UUID, actor: User, reason_code: str
+) -> EntitlementGrant:
+    """Revoke one manual override while keeping its immutable grant history."""
+    normalized_reason = reason_code.strip()[:80]
+    if not normalized_reason:
+        raise ValueError("An entitlement revocation reason is required.")
+    grant = EntitlementGrant.objects.select_for_update().get(id=grant_id)
+    if grant.source_type != EntitlementGrant.SourceType.MANUAL:
+        raise ValueError("Only a manual entitlement override can be revoked here.")
+    if grant.status == EntitlementGrant.Status.REVOKED:
+        return grant
+    return _revoke_locked(grant=grant, reason_code=normalized_reason, actor=actor)
+
+
 def entitlement_decision(
     *, user: User, entitlement_code: str, at: datetime | None = None
 ) -> EntitlementDecision:

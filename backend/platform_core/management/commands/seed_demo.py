@@ -8,6 +8,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.core.management import BaseCommand, CommandError, call_command
 from django.db import transaction
 from django.utils import timezone
@@ -27,6 +28,39 @@ DEMO_ACCOUNTS = (
 
 def stable_uuid(value: str) -> uuid.UUID:
     return uuid.uuid5(uuid.NAMESPACE_URL, f"https://lockin.local/demo/{value}")
+
+
+def demo_pdf_payload(number: int) -> bytes:
+    """Build a small, valid single-page PDF for the local Focus workspace."""
+    stream = (
+        f"BT\n/F1 20 Tf\n72 720 Td\n(Lock-in demo study guide {number}) Tj\nET\n"
+    ).encode("ascii")
+    objects = (
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+        b"/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        b"<< /Length " + str(len(stream)).encode("ascii") + b" >>\nstream\n" + stream + b"endstream",
+    )
+    document = bytearray(b"%PDF-1.4\n")
+    offsets: list[int] = []
+    for index, value in enumerate(objects, 1):
+        offsets.append(len(document))
+        document.extend(f"{index} 0 obj\n".encode("ascii"))
+        document.extend(value)
+        document.extend(b"\nendobj\n")
+    xref_offset = len(document)
+    document.extend(f"xref\n0 {len(objects) + 1}\n".encode("ascii"))
+    document.extend(b"0000000000 65535 f \n")
+    for offset in offsets:
+        document.extend(f"{offset:010d} 00000 n \n".encode("ascii"))
+    document.extend(
+        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_offset}\n%%EOF\n".encode(
+            "ascii"
+        )
+    )
+    return bytes(document)
 
 
 class Command(BaseCommand):
@@ -123,19 +157,22 @@ class Command(BaseCommand):
         replace_managed_roles(target=creator, actor=admin, roles={Role.CREATOR})
 
         def node(parent, kind, slug, title, position):
-            path = slug if parent is None else f"{parent.path}/{slug}"
-            obj, _ = EducationNode.objects.update_or_create(
-                path=path,
-                defaults={
-                    "parent": parent,
-                    "kind": kind,
-                    "slug": slug,
-                    "title": title,
-                    "position": position,
-                    "status": EducationNode.Status.PUBLISHED,
-                    "is_discoverable": True,
-                },
-            )
+            # Production hierarchy paths use stable node UUID segments with a
+            # leading and trailing slash. Looking up demo rows by their
+            # parent/slug also repairs legacy demo rows that used title slugs
+            # for ``path`` while preserving all objects that reference them.
+            obj = EducationNode.objects.filter(parent=parent, slug=slug).first()
+            if obj is None:
+                obj = EducationNode(parent=parent, kind=kind, slug=slug)
+            obj.kind = kind
+            obj.title = title
+            obj.position = position
+            obj.status = EducationNode.Status.PUBLISHED
+            obj.is_discoverable = True
+            obj.depth = 0 if parent is None else parent.depth + 1
+            obj.path = f"/{obj.id}/" if parent is None else f"{parent.path}{obj.id}/"
+            obj.full_clean()
+            obj.save()
             return obj
 
         institution = node(
@@ -179,8 +216,48 @@ class Command(BaseCommand):
                         )
                     )
 
+        def demo_file(index: int) -> ManagedFile:
+            payload = demo_pdf_payload(index + 1)
+            digest = hashlib.sha256(payload).hexdigest()
+            managed, _ = ManagedFile.objects.get_or_create(
+                owner=creator,
+                original_name=f"lockin-demo-{index + 1}.pdf",
+                defaults={
+                    "kind": "pdf",
+                    "content_type": "application/pdf",
+                    "size_bytes": len(payload),
+                    "checksum_sha256": digest,
+                    "validation_status": "ready",
+                    "scan_status": "not_configured",
+                    "blob": ContentFile(payload, name=f"lockin-demo-{index + 1}.pdf"),
+                },
+            )
+            if not managed.blob.name or not managed.blob.storage.exists(managed.blob.name):
+                managed.blob.save(
+                    f"lockin-demo-{index + 1}.pdf", ContentFile(payload), save=False
+                )
+                managed.kind = "pdf"
+                managed.content_type = "application/pdf"
+                managed.size_bytes = len(payload)
+                managed.checksum_sha256 = digest
+                managed.validation_status = "ready"
+                managed.scan_status = "not_configured"
+                managed.save(
+                    update_fields=(
+                        "blob",
+                        "kind",
+                        "content_type",
+                        "size_bytes",
+                        "checksum_sha256",
+                        "validation_status",
+                        "scan_status",
+                    )
+                )
+            return managed
+
         documents = []
         for index, lesson in enumerate(lessons):
+            managed = demo_file(index)
             title = f"{lesson.title} — Study Guide"
             version = (
                 LearningObjectVersion.objects.filter(title=title, created_by=creator)
@@ -188,25 +265,6 @@ class Command(BaseCommand):
                 .first()
             )
             if not version:
-                payload = (
-                    b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
-                    b"2 0 obj<</Type/Pages/Count 0>>endobj\n"
-                    b"trailer<</Root 1 0 R>>\n%%EOF"
-                )
-                digest = hashlib.sha256(payload + str(index).encode()).hexdigest()
-                managed, _ = ManagedFile.objects.get_or_create(
-                    owner=creator,
-                    original_name=f"lockin-demo-{index + 1}.pdf",
-                    defaults={
-                        "kind": "pdf",
-                        "content_type": "application/pdf",
-                        "size_bytes": len(payload),
-                        "checksum_sha256": digest,
-                        "validation_status": "ready",
-                        "scan_status": "not_configured",
-                        "blob": f"demo/lockin-demo-{index + 1}.pdf",
-                    },
-                )
                 obj = LearningObject.objects.create(
                     owner=creator, workflow_status="published", published_at=now
                 )

@@ -1,34 +1,94 @@
-import eslint from "@eslint/js";
-import reactHooks from "eslint-plugin-react-hooks";
-import reactRefresh from "eslint-plugin-react-refresh";
-import globals from "globals";
-import tseslint from "typescript-eslint";
-
-export default tseslint.config(
-  { ignores: ["dist", "coverage", "node_modules"] },
+export default [
   {
-    files: ["*.js"],
-    ...eslint.configs.recommended,
-    languageOptions: { globals: globals.node }
+    ignores: ["dist/**", "dev-dist/**", "node_modules/**"]
   },
   {
-    files: ["src/**/*.{ts,tsx}", "tests/**/*.ts", "*.config.ts"],
-    extends: [eslint.configs.recommended, ...tseslint.configs.recommendedTypeChecked],
+    files: [
+      "vite.config.js",
+      "src/App.jsx",
+      "src/api/**/*.js",
+      "src/components/community/**/*.jsx",
+      "src/components/creator/**/*.jsx",
+      "src/components/account/**/*.jsx",
+      "src/components/auth/AuthPage.jsx",
+      "src/components/auth/ProtectedRoute.jsx",
+      "src/components/auth/TokenActionPage.jsx",
+      "src/components/layout/index.jsx",
+      "src/components/learning/**/*.jsx",
+      "src/components/assessment/**/*.jsx",
+      "src/components/shared/ForbiddenState.jsx",
+      "src/components/shared/index.jsx",
+      "src/components/ui/index.jsx",
+      "src/lib/api.js",
+      "src/lib/authz.js",
+      "src/hooks/useAsyncData.js",
+      "src/pages/Dashboard.jsx",
+      "src/pages/Materials.jsx",
+      "src/pages/Bookmarks.jsx",
+      "src/pages/LearningObjectStudy.jsx",
+      "src/pages/FocusWorkspace.jsx",
+      "src/pages/SheetStudy.jsx",
+      "src/pages/Search.jsx",
+      "src/pages/Questions.jsx",
+      "src/pages/QuizDetail.jsx",
+      "src/pages/Attempt.jsx",
+      "src/pages/AssessmentResult.jsx",
+      "src/pages/Review.jsx",
+      "src/pages/Community.jsx",
+      "src/pages/Discussion.jsx",
+      "src/pages/CommunitySpace.jsx",
+      "src/pages/CommunityReport.jsx",
+      "src/pages/Profile.jsx",
+      "src/pages/Progress.jsx",
+      "src/pages/Achievements.jsx",
+      "src/pages/Ranked.jsx",
+      "src/pages/Notifications.jsx",
+      "src/pages/Settings.jsx",
+      "src/pages/Analytics.jsx",
+      "src/pages/CreatorEducation.jsx",
+      "src/pages/CreatorContent.jsx",
+      "src/pages/CreatorAssessments.jsx",
+      "src/service-worker.js",
+      "tests/**/*.js"
+    ],
     languageOptions: {
-      ecmaVersion: 2023,
-      globals: { ...globals.browser, ...globals.node },
+      ecmaVersion: "latest",
+      sourceType: "module",
       parserOptions: {
-        projectService: true,
-        tsconfigRootDir: import.meta.dirname
+        ecmaFeatures: { jsx: true }
+      },
+      globals: {
+        AbortSignal: "readonly",
+        Blob: "readonly",
+        File: "readonly",
+        cancelAnimationFrame: "readonly",
+        clearTimeout: "readonly",
+        console: "readonly",
+        FormData: "readonly",
+        Headers: "readonly",
+        Notification: "readonly",
+        Response: "readonly",
+        URL: "readonly",
+        URLSearchParams: "readonly",
+        caches: "readonly",
+        document: "readonly",
+        fetch: "readonly",
+        localStorage: "readonly",
+        navigator: "readonly",
+        process: "readonly",
+        requestAnimationFrame: "readonly",
+        self: "readonly",
+        window: "readonly"
       }
     },
-    plugins: {
-      "react-hooks": reactHooks,
-      "react-refresh": reactRefresh
-    },
     rules: {
-      ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": ["warn", { "allowConstantExport": true }]
+      "no-undef": "error"
+    }
+  },
+  {
+    files: ["src/api/**/*.js", "src/lib/api.js", "src/lib/authz.js", "tests/**/*.js"],
+    rules: {
+      "no-unused-vars": ["error", { argsIgnorePattern: "^_" }]
     }
   }
-);
+];

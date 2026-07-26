@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 
 from django.http import HttpRequest, HttpResponse
 
-from .context import reset_request_id, set_request_id
+from .context import reset_remote_address, reset_request_id, set_remote_address, set_request_id
 
 
 def _safe_request_id(raw_value: str | None) -> str:
@@ -23,9 +23,11 @@ class RequestIdMiddleware:
         request_id = _safe_request_id(request.headers.get("X-Request-ID"))
         request.META["LOCKIN_REQUEST_ID"] = request_id
         token = set_request_id(request_id)
+        remote_token = set_remote_address(request.META.get("REMOTE_ADDR"))
         try:
             response = self.get_response(request)
             response["X-Request-ID"] = request_id
             return response
         finally:
+            reset_remote_address(remote_token)
             reset_request_id(token)

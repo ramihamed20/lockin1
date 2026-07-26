@@ -29,6 +29,7 @@ class AuditRecord(models.Model):
     reason = models.CharField(max_length=500)
     source = models.CharField(max_length=80)
     correlation_id = models.UUIDField(null=True, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
     previous_state = models.JSONField(default=dict, blank=True)
     new_state = models.JSONField(default=dict, blank=True)
     related_entities = models.JSONField(default=list, blank=True)

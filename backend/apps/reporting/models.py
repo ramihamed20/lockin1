@@ -5,6 +5,9 @@ from django.db import models
 
 
 class ReportExport(models.Model):
+    class OutputFormat(models.TextChoices):
+        CSV = "csv", "CSV"
+        XLSX = "xlsx", "Excel workbook"
     class Status(models.TextChoices):
         PREVIEWED = "previewed", "Previewed"
         COMPLETED = "completed", "Completed"
@@ -13,6 +16,9 @@ class ReportExport(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     report_code = models.CharField(max_length=60)
+    output_format = models.CharField(
+        max_length=8, choices=OutputFormat.choices, default=OutputFormat.CSV
+    )
     requested_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="report_exports"
     )

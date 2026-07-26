@@ -2,6 +2,8 @@ from uuid import UUID
 
 from apps.accounts.models import User
 from apps.accounts.roles import Role
+from apps.administration.catalog import Capability
+from apps.administration.permissions import has_operational_capability
 from apps.community.models import CommunitySpace, SpaceMembership
 
 from .models import Report
@@ -46,7 +48,11 @@ def moderated_private_space_ids(*, user: User) -> list[UUID]:
 
 
 def can_access_moderation_tools(*, user: User) -> bool:
-    return is_moderator(user) or bool(moderated_private_space_ids(user=user))
+    return (
+        is_moderator(user)
+        or has_operational_capability(user, Capability.MODERATION_VIEW)
+        or bool(moderated_private_space_ids(user=user))
+    )
 
 
 def can_manage_report(*, user: User, report: Report) -> bool:
@@ -54,6 +60,8 @@ def can_manage_report(*, user: User, report: Report) -> bool:
         return True
     if has_report_conflict(user=user, report=report):
         return False
+    if has_operational_capability(user, Capability.MODERATION_MANAGE):
+        return True
     if report.private_space_id is None:
         return is_moderator(user)
     return report.private_space_id in moderated_private_space_ids(user=user)

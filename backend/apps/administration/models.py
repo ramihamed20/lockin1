@@ -55,3 +55,40 @@ class OperationalRoleAssignment(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id}:{self.role_id}"
+
+
+class OperationalCapabilityAssignment(models.Model):
+    """Explicit, exceptional capability grants outside the standard role bundles."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="operational_capability_assignments",
+    )
+    capability = models.ForeignKey(
+        OperationalCapability,
+        on_delete=models.PROTECT,
+        related_name="assignments",
+    )
+    granted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="operational_capabilities_granted",
+    )
+    reason = models.CharField(max_length=500)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("user_id", "capability_id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("user", "capability"), name="administration_user_capability_unique"
+            )
+        ]
+        indexes = [models.Index(fields=("capability", "user"), name="admin_capability_user_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.capability_id}"

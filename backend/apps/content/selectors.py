@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.education.models import CreatorScope
-from apps.education.policies import is_administrator
+from apps.education.policies import is_content_administrator
 
 from .models import LearningObject
 
@@ -48,7 +48,7 @@ def manageable_learning_objects(*, user: User) -> QuerySet[LearningObject]:
         "current_version__academic_node",
         "published_version__academic_node",
     ).prefetch_related("current_version__assets__managed_file")
-    if is_administrator(user):
+    if is_content_administrator(user):
         return queryset.order_by("-updated_at", "id")
     scope_paths = list(
         CreatorScope.objects.filter(user=user).values_list("node__path", flat=True).distinct()

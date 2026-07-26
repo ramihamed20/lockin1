@@ -171,6 +171,75 @@ def apply_provider_payment_state(
 
 
 @transaction.atomic
+def apply_admin_reconciled_payment_state(
+    *,
+    payment_id: UUID,
+    to_status: str,
+    provider_reference: str,
+    correction_id: UUID,
+    effective_at: datetime,
+) -> PaymentTransitionResult:
+    """Apply a dual-controlled correction using the ordinary payment rules.
+
+    This path is deliberately separate from provider webhooks.  It is only
+    called after a second administrator approved documented provider evidence.
+    """
+    payment = (
+        Payment.objects.select_for_update()
+        .select_related("account", "subscription")
+        .get(id=payment_id)
+    )
+    idempotency_key = f"admin-correction:{correction_id}"
+    if PaymentTransition.objects.filter(payment=payment, idempotency_key=idempotency_key).exists():
+        return PaymentTransitionResult(payment=payment, changed=False)
+    if not provider_reference.strip():
+        raise ValueError("A verified provider reference is required for payment reconciliation.")
+    validate_payment_transition(from_status=payment.status, to_status=to_status)
+    from_status = payment.status
+    payment.status = to_status
+    payment.failure_code = "" if to_status == Payment.Status.SUCCEEDED else payment.failure_code
+    payment.revision += 1
+    if to_status == Payment.Status.SUCCEEDED:
+        payment.succeeded_at = effective_at
+    elif to_status == Payment.Status.FAILED:
+        payment.failed_at = effective_at
+    payment.save()
+    PaymentTransition.objects.create(
+        payment=payment,
+        from_status=from_status,
+        to_status=to_status,
+        source=PaymentTransition.Source.RECONCILIATION,
+        reason_code="dual_controlled_admin_reconciliation",
+        idempotency_key=idempotency_key,
+        source_reference=provider_reference.strip()[:180],
+        effective_at=effective_at,
+        metadata={"correction_id": str(correction_id)},
+    )
+    if to_status == Payment.Status.SUCCEEDED:
+        publish_after_commit(
+            PaymentSucceeded(
+                payment_id=payment.id,
+                subscription_id=payment.subscription_id,
+                user_id=payment.account.primary_user_id,
+                amount_minor=payment.amount_minor,
+                currency=payment.currency,
+                effective_at=effective_at,
+            )
+        )
+    elif to_status == Payment.Status.FAILED:
+        publish_after_commit(
+            PaymentFailed(
+                payment_id=payment.id,
+                subscription_id=payment.subscription_id,
+                user_id=payment.account.primary_user_id,
+                failure_code=payment.failure_code,
+                effective_at=effective_at,
+            )
+        )
+    return PaymentTransitionResult(payment=payment, changed=True)
+
+
+@transaction.atomic
 def apply_successful_refund(*, payment_id: UUID, amount_minor: int, refund_id: UUID) -> Payment:
     payment = Payment.objects.select_for_update().select_related("account").get(id=payment_id)
     transition_key = f"refund:{refund_id}"

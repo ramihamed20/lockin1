@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from apps.accounts.models import User
 from apps.accounts.roles import Role, user_has_role
 
-from .models import OperationalRoleAssignment
+from .models import OperationalCapabilityAssignment, OperationalRoleAssignment
 
 
 def operational_capabilities(user: User) -> frozenset[str]:
@@ -17,11 +17,13 @@ def operational_capabilities(user: User) -> frozenset[str]:
         from .catalog import CAPABILITIES
 
         return frozenset(item.code for item in CAPABILITIES)
-    return frozenset(
-        OperationalRoleAssignment.objects.filter(user=user).values_list(
-            "role__capabilities__code", flat=True
-        )
+    role_capabilities = OperationalRoleAssignment.objects.filter(user=user).values_list(
+        "role__capabilities__code", flat=True
     )
+    direct_capabilities = OperationalCapabilityAssignment.objects.filter(user=user).values_list(
+        "capability_id", flat=True
+    )
+    return frozenset((*role_capabilities, *direct_capabilities))
 
 
 def has_operational_capability(user: User, capability: str) -> bool:

@@ -3,6 +3,8 @@ from uuid import UUID
 from django.db.models import Q, QuerySet
 
 from apps.accounts.models import User
+from apps.administration.catalog import Capability
+from apps.administration.permissions import has_operational_capability
 
 from .models import ModerationAuditEntry, Report
 from .policies import is_administrator, is_moderator, moderated_private_space_ids
@@ -10,7 +12,7 @@ from .policies import is_administrator, is_moderator, moderated_private_space_id
 
 def reports_for_user(*, user: User) -> QuerySet[Report]:
     queryset = Report.objects.select_related("reporter", "assigned_to", "duplicate_of")
-    if is_administrator(user):
+    if is_administrator(user) or has_operational_capability(user, Capability.MODERATION_VIEW):
         return queryset.order_by("-created_at", "-id")
     private_spaces = moderated_private_space_ids(user=user)
     manageable = Q(private_space_id__in=private_spaces)
@@ -26,7 +28,7 @@ def report_for_user(*, user: User, report_id: UUID) -> Report:
 
 def audit_for_user(*, user: User) -> QuerySet[ModerationAuditEntry]:
     queryset = ModerationAuditEntry.objects.select_related("actor", "report")
-    if is_administrator(user):
+    if is_administrator(user) or has_operational_capability(user, Capability.MODERATION_VIEW):
         return queryset.order_by("-created_at", "-id")
     private_spaces = moderated_private_space_ids(user=user)
     return (

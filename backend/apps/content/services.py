@@ -13,7 +13,7 @@ from apps.education.policies import (
     can_create_content,
     can_publish_content,
     can_review_content,
-    is_administrator,
+    is_content_administrator,
 )
 from apps.files.models import ManagedFile
 from platform_core.events import publish_after_commit
@@ -58,7 +58,7 @@ def _validate_input(*, actor: User, data: LearningObjectInput) -> None:
         return
     if data.primary_file is None:
         raise ContentRuleError("A primary file is required for PDF and audio content.")
-    if not is_administrator(actor) and data.primary_file.owner_id != actor.id:
+    if not is_content_administrator(actor) and data.primary_file.owner_id != actor.id:
         raise ContentRuleError("You cannot attach another creator's file.")
     if data.primary_file.validation_status != ManagedFile.ValidationStatus.READY:
         raise ContentRuleError("The selected file did not pass validation.")
@@ -337,7 +337,7 @@ def transfer_learning_object(
     new_owner: User,
     expected_revision: int,
 ) -> LearningObject:
-    if not is_administrator(actor):
+    if not is_content_administrator(actor):
         raise ContentRuleError("Only administrators can transfer content ownership.")
     learning_object = LearningObject.objects.select_for_update().get(id=learning_object_id)
     _ensure_revision(learning_object=learning_object, expected_revision=expected_revision)

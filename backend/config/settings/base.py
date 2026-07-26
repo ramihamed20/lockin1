@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "apps.reporting.apps.ReportingConfig",
     "apps.operational_actions.apps.OperationalActionsConfig",
     "apps.operations_integrations.apps.OperationsIntegrationsConfig",
+    "apps.admin_control.apps.AdminControlConfig",
 ]
 
 MIDDLEWARE = [
@@ -62,6 +63,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "platform_core.maintenance.middleware.MaintenanceModeMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]

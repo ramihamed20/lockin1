@@ -15,7 +15,7 @@ from apps.discovery.indexing import (
 )
 
 from .models import CreatorScope, EducationNode
-from .policies import can_manage_hierarchy, is_administrator
+from .policies import can_manage_hierarchy, is_content_administrator, is_administrator
 
 
 class EducationRuleError(ValueError):
@@ -106,7 +106,7 @@ def create_node(
     position: int = 0,
 ) -> EducationNode:
     if not can_manage_hierarchy(user=actor, node=parent) and not (
-        parent is None and is_administrator(actor)
+        parent is None and is_content_administrator(actor)
     ):
         raise EducationRuleError("You cannot manage this hierarchy location.")
     node = EducationNode(

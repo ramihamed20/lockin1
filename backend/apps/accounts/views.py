@@ -61,6 +61,7 @@ from .services import (
     touch_account_session,
     verify_email,
 )
+from apps.system_configuration.services import get_configuration_value
 
 
 class TooManyAccountRequests(APIException):
@@ -79,6 +80,12 @@ class RequestRejected(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
     default_detail = "The request could not be completed."
     default_code = "request_rejected"
+
+
+class RegistrationUnavailable(APIException):
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    default_detail = "New registrations are temporarily unavailable."
+    default_code = "registration_unavailable"
 
 
 def _user(request: Request) -> User:
@@ -137,6 +144,8 @@ class RegisterView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request: Request) -> Response:
+        if not bool(get_configuration_value("registration.enabled")):
+            raise RegistrationUnavailable()
         serializer = RegistrationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data

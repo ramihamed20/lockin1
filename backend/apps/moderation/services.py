@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.accounts.roles import Role, user_has_role
+from apps.audit.services import record_audit
 from platform_core.events import publish_after_commit
 
 from .events import ModerationReportCreated, ModeratorActionRecorded
@@ -219,6 +220,17 @@ def _record_action(
         target_id=target_id,
         report=report,
         reason=reason,
+        metadata=metadata or {},
+    )
+    record_audit(
+        actor=actor,
+        action=f"moderation.{action}",
+        domain="moderation",
+        target_type=target_type,
+        target_id=str(target_id),
+        reason=reason or action.replace("_", " "),
+        source="moderation.service",
+        new_state={"moderation_audit_id": str(entry.id), "action": action},
         metadata=metadata or {},
     )
     publish_after_commit(
