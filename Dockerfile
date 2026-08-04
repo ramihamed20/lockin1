@@ -2,7 +2,7 @@
 FROM node:24.16.0-bookworm-slim AS frontend-build
 
 WORKDIR /frontend
-COPY frontend/package.json frontend/pnpm-lock.yaml ./
+COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
 # Install the package-manager version declared by the frontend explicitly. This
 # avoids Corepack signature/key drift in hosted Docker builders.
 RUN npm install --global pnpm@11.9.0 --loglevel=error
