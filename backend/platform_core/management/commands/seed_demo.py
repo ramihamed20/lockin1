@@ -10,7 +10,6 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.management import BaseCommand, CommandError, call_command
-from django.db import transaction
 from django.utils import timezone
 
 DEMO_ACCOUNTS = (
@@ -71,8 +70,10 @@ class Command(BaseCommand):
             raise CommandError(
                 "seed_demo is available only in the development or public demo environment."
             )
-        with transaction.atomic():
-            data = self._seed()
+        # This command deliberately writes an idempotent public demo dataset.
+        # Keeping every record in one transaction blocks sign-in for the whole
+        # seed on a hosted database, so persist each operation normally instead.
+        data = self._seed()
         self.stdout.write(self.style.SUCCESS("Lock-in demo data is ready."))
         self.stdout.write("\nCredentials (development only):")
         for email, password, _, _, _ in DEMO_ACCOUNTS:
