@@ -2,7 +2,9 @@ FROM node:24.16.0-alpine AS frontend-build
 
 WORKDIR /frontend
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
-RUN corepack enable && pnpm install --frozen-lockfile
+# Install the package-manager version declared by the frontend explicitly.  This
+# avoids Corepack signature/key drift in hosted Docker builders.
+RUN npm install --global pnpm@11.9.0 && pnpm install --frozen-lockfile
 COPY frontend ./
 ARG VITE_API_BASE_URL=/api/v1
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
