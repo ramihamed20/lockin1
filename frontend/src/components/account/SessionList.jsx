@@ -51,7 +51,7 @@ export function SessionList({ onCurrentSessionRevoked, refreshKey = 0 }) {
   }
 
   return (
-    <article className="panel profile-security-panel">
+    <article className="panel account-security-panel">
       <div className="panel-title"><div><p className="eyebrow">Account security</p><h2>Active sessions</h2></div><button className="icon-btn" type="button" onClick={() => void load()} disabled={loading} aria-label="Refresh active sessions"><Icon name="reset" size={17} /></button></div>
       {loading && <p className="muted">Loading active sessions…</p>}
       {error && <p className="form-alert error" role="alert">{error.message}</p>}

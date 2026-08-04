@@ -4,6 +4,8 @@ import { Icon } from "../../lib/icons.jsx";
 import { motivationApi } from "../../api/motivation.js";
 import { isApiError } from "../../api/client.js";
 import { isKnownNotificationRoute } from "../../lib/notificationRoutes.js";
+import { notificationPresentation } from "../../lib/notificationPresentation.js";
+import { PROGRESSION_UPDATED_EVENT } from "../../lib/progressionEvents.js";
 import { navItems, themeOptions } from "../../lib/constants.js";
 import { assets } from "../../lib/constants.js";
 import { assetPath, greeting } from "../../lib/utils.js";
@@ -17,7 +19,7 @@ export function Brand() {
   return (
     <div className="brand">
       <span className="brand-mark">
-        <img src={assetPath("/assets/logo.jpg")} alt="Lock-in Logo" className="brand-logo-img" />
+        <img src={assetPath("/assets/lock-in-logo.jpg")} alt="Lock-in Logo" className="brand-logo-img" />
       </span>
       <strong>lock-in</strong>
     </div>
@@ -95,23 +97,54 @@ export function StreakCard() {
 
   useEffect(() => {
     let active = true;
-    motivationApi.streakSummary()
-      .then((data) => { if (active) setState({ loading: false, error: "", data }); })
-      .catch((error) => { if (active) setState({ loading: false, error: error.message || "Streak unavailable", data: null }); });
-    return () => { active = false; };
+    const loadStreak = () => {
+      motivationApi.streakSummary()
+        .then((data) => { if (active) setState({ loading: false, error: "", data }); })
+        .catch((error) => { if (active) setState({ loading: false, error: error.message || "Streak unavailable", data: null }); });
+    };
+    const refreshWhenVisible = () => {
+      if (!document.hidden) loadStreak();
+    };
+    loadStreak();
+    window.addEventListener(PROGRESSION_UPDATED_EVENT, loadStreak);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      active = false;
+      window.removeEventListener(PROGRESSION_UPDATED_EVENT, loadStreak);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, []);
 
   if (state.loading) {
+    return <div className="streak-card" aria-busy="true"><div className="streak-card-heading"><Icon name="flame" size={18} /> Study streak</div><strong className="streak-card-value">— <small>days</small></strong><p>Loading your progress…</p><span className="streak-card-track"><i style={{ width: "0%" }} /></span></div>;
+  }
+
+  if (state.loading && state.data) {
     return <div className="streak-card" aria-busy="true"><div><Icon name="activity" size={18} /> Server-managed progress</div><p>Loading streak…</p><span><i style={{ width: "0%" }} /></span></div>;
   }
 
   if (state.error || !state.data) {
+    return <Link className="streak-card streak-card--unavailable" to="/lock-in"><div className="streak-card-heading"><Icon name="flame" size={18} /> Study streak</div><strong className="streak-card-value">— <small>days</small></strong><p>Unable to load your streak.</p><span className="streak-card-track"><i style={{ width: "0%" }} /></span><small className="streak-card-note">Start Lock In and try again.</small></Link>;
+  }
+
+  if ((state.error || !state.data) && state.data) {
     return <div className="streak-card"><div><Icon name="activity" size={18} /> Server-managed progress</div><p>Streak unavailable</p><span><i style={{ width: "0%" }} /></span><small>{state.error || "Django did not return a streak summary."}</small></div>;
   }
 
   const currentDays = Number(state.data.current_days) || 0;
   const longestDays = Number(state.data.longest_days) || 0;
   const personalBestPercent = longestDays > 0 ? Math.min(100, Math.round((currentDays / longestDays) * 100)) : 0;
+  if (state.data) {
+    return (
+      <Link className={`streak-card ${currentDays ? "streak-card--active" : "streak-card--ready"}`} to="/lock-in" aria-label={`${currentDays} day study streak. Open Lock In.`}>
+        <div className="streak-card-heading"><Icon name="flame" size={18} /> Study streak</div>
+        <strong className="streak-card-value">{currentDays} <small>day{currentDays === 1 ? "" : "s"}</small></strong>
+        <p>{currentDays ? "Your learning streak is active today." : "Complete a meaningful session today to begin."}</p>
+        <span className="streak-card-track"><i style={{ width: `${personalBestPercent}%` }} /></span>
+        <small className="streak-card-note">Best {longestDays} day{longestDays === 1 ? "" : "s"} · {currentDays ? "Keep it going" : "Start Lock In"}</small>
+      </Link>
+    );
+  }
   return (
     <div className="streak-card" aria-label="Server managed streak summary">
       <div><Icon name="activity" size={18} /> Server-managed progress</div>
@@ -159,7 +192,7 @@ export function BottomNav() {
 
 // --- Topbar ---
 
-export function Topbar({ user, theme, onThemeChange, onLogout, onMenu, menuOpen, menuButtonRef, onDropdownOpenChange, notificationVersion, onNotificationsChanged }) {
+export function Topbar({ user, theme, onThemeChange, onLogout, onMenu, menuOpen, menuButtonRef, onDropdownOpenChange, notificationVersion, onNotificationsChanged, storeCartCount = 0, lockBalance = 1250 }) {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -173,6 +206,7 @@ export function Topbar({ user, theme, onThemeChange, onLogout, onMenu, menuOpen,
   const notificationsRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
+  const isStoreRoute = location.pathname === "/store";
 
   useEffect(() => {
     setOpen(false);
@@ -311,7 +345,7 @@ export function Topbar({ user, theme, onThemeChange, onLogout, onMenu, menuOpen,
   }
 
   return (
-    <header className="topbar">
+    <header className={`topbar ${isStoreRoute ? "store-topbar" : ""}`}>
       <button className="icon-btn mobile-menu" ref={menuButtonRef} onClick={onMenu} aria-label="Open navigation" aria-expanded={menuOpen} aria-controls="mobile-drawer">
         <Icon name="menu" />
       </button>
@@ -334,6 +368,16 @@ export function Topbar({ user, theme, onThemeChange, onLogout, onMenu, menuOpen,
       <button className="icon-btn" onClick={() => onThemeChange(theme === "night" ? "day" : "night")} aria-label="Toggle theme">
         <Icon name={theme === "night" ? "sun" : "moon"} />
       </button>
+      {isStoreRoute && <>
+        <div className="store-balance" aria-label={`${lockBalance.toLocaleString()} LOCK available`}>
+          <Icon name="coins" size={18} />
+          <strong>{lockBalance.toLocaleString()}</strong><span>LOCK</span>
+        </div>
+        <button className="icon-btn store-header-cart" type="button" onClick={() => window.dispatchEvent(new window.CustomEvent("lock-in:open-store-cart"))} aria-label={`Open cart, ${storeCartCount} item${storeCartCount === 1 ? "" : "s"}`}>
+          <Icon name="shopping-bag" />
+          {storeCartCount > 0 && <span className="store-cart-count">{storeCartCount}</span>}
+        </button>
+      </>}
       
       <div className="notifications-menu-wrap" ref={notificationsRef}>
         <button 
@@ -348,19 +392,18 @@ export function Topbar({ user, theme, onThemeChange, onLogout, onMenu, menuOpen,
         {notificationsOpen && (
           <div className="notifications-dropdown" id="notifications-menu" role="menu">
             <div className="notifications-header">
-              <h3>Notifications</h3>
+              <div><p>Inbox</p><h3>Notifications</h3></div>
               {unreadCount > 0 && <button className="text-link" type="button" onClick={() => { void handleMarkAllRead(); }} disabled={notificationBusy === "all"}>{notificationBusy === "all" ? "Marking…" : "Mark all read"}</button>}
             </div>
             <div className="notifications-list">
               {notificationsLoading ? <div className="notifications-empty"><Icon name="bell" size={20} /><p>Loading server notifications…</p></div> : notificationError ? <div className="notifications-empty"><Icon name="alert-triangle" size={20} /><p>{notificationError}</p></div> : notifications.length > 0 ? (
-                notifications.map((n) => (
-                  <div key={n.id} className={`notification-item ${n.read_at ? "read" : "unread"}`} role="menuitem" tabIndex={0} aria-disabled={notificationBusy === n.id} onClick={() => { void handleNotification(n); }} onKeyDown={(event) => { if ((event.key === "Enter" || event.key === " ") && notificationBusy !== n.id) { event.preventDefault(); void handleNotification(n); } }}>
-                    <p>{n.title}</p>
-                    <div className="notification-meta">
-                      <small>{notificationBusy === n.id ? "Opening…" : n.body}</small>
-                    </div>
-                  </div>
-                ))
+                notifications.map((n) => {
+                  const presentation = notificationPresentation(n.category);
+                  return <button key={n.id} className={`notification-item notification-item--${presentation.tone} ${n.read_at ? "read" : "unread"}`} type="button" role="menuitem" disabled={notificationBusy === n.id} onClick={() => { void handleNotification(n); }}>
+                    <span className="notification-item-icon"><Icon name={presentation.icon} size={17} /></span>
+                    <span className="notification-item-copy"><span className="notification-item-heading"><strong>{n.title}</strong>{!n.read_at && <i aria-label="Unread" />}</span><small>{notificationBusy === n.id ? "Opening…" : n.body}</small><em>{presentation.label}</em></span>
+                  </button>;
+                })
               ) : (
                 <div className="notifications-empty">
                   <Icon name="sparkles" size={20} />
@@ -382,7 +425,6 @@ export function Topbar({ user, theme, onThemeChange, onLogout, onMenu, menuOpen,
             <strong>{user.name}</strong>
             <small>{user.email}</small>
             <Link to="/profile" role="menuitem" onClick={() => setOpen(false)}><Icon name="user" size={17} /> My Profile</Link>
-            <Link to="/achievements" role="menuitem" onClick={() => setOpen(false)}><Icon name="award" size={17} /> Achievements</Link>
             <Link to="/settings" role="menuitem" onClick={() => setOpen(false)}><Icon name="settings" size={17} /> Settings</Link>
             <button role="menuitem" onClick={logoutFromMenu}><Icon name="logout" size={17} /> Logout</button>
           </div>
@@ -394,9 +436,10 @@ export function Topbar({ user, theme, onThemeChange, onLogout, onMenu, menuOpen,
 
 // --- Shell ---
 
-export function Shell({ children, user, operationsSession, theme, onThemeChange, onLogout, notificationVersion, onNotificationsChanged }) {
+export function Shell({ children, user, operationsSession, theme, onThemeChange, onLogout, notificationVersion, onNotificationsChanged, storeCartCount, lockBalance }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [dropdownActive, setDropdownActive] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const drawerRef = useRef(null);
   const drawerCloseRef = useRef(null);
   const drawerTriggerRef = useRef(null);
@@ -445,10 +488,48 @@ export function Shell({ children, user, operationsSession, theme, onThemeChange,
     };
   }, [drawerOpen]);
 
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return undefined;
+
+    let frame = 0;
+    const updateKeyboardState = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        // Browser controls can change the visual viewport by a few pixels.
+        // A large layout-to-visual viewport delta, without page zoom, is the
+        // reliable cross-browser signal for an on-screen keyboard.
+        const layoutHeight = document.documentElement.clientHeight;
+        const viewportDelta = layoutHeight - viewport.height - viewport.offsetTop;
+        const scale = typeof viewport.scale === "number" ? viewport.scale : 1;
+        const isPageZoomed = Math.abs(scale - 1) > 0.01;
+        setKeyboardOpen(!isPageZoomed && viewportDelta > 150);
+      });
+    };
+
+    updateKeyboardState();
+    viewport.addEventListener("resize", updateKeyboardState);
+    viewport.addEventListener("scroll", updateKeyboardState);
+    window.addEventListener("resize", updateKeyboardState);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      viewport.removeEventListener("resize", updateKeyboardState);
+      viewport.removeEventListener("scroll", updateKeyboardState);
+      window.removeEventListener("resize", updateKeyboardState);
+    };
+  }, []);
+
+  // Lock In Mode is a real immersive route, not an overlay. Keep the shared
+  // shell mounted so authentication and route state remain intact, but do not
+  // render any normal product navigation around the session.
+  if (location.pathname === "/lock-in" || location.pathname.startsWith("/lock-in/") || location.pathname.startsWith("/focus/") || location.pathname.endsWith("/workspace")) {
+    return children;
+  }
+
   return (
     <>
       <a className="skip-link" href="#main-content">Skip to content</a>
-      <div className="app-shell">
+      <div className={`app-shell ${keyboardOpen ? "keyboard-open" : ""}`}>
         <Sidebar user={user} operationsSession={operationsSession} />
         <div className="content-frame">
           <Topbar
@@ -462,6 +543,8 @@ export function Shell({ children, user, operationsSession, theme, onThemeChange,
             onDropdownOpenChange={setDropdownActive}
             notificationVersion={notificationVersion}
             onNotificationsChanged={onNotificationsChanged}
+            storeCartCount={storeCartCount}
+            lockBalance={lockBalance}
           />
           <main className="page-shell" id="main-content" tabIndex={-1} aria-label="Dentify page content">{children}</main>
         </div>

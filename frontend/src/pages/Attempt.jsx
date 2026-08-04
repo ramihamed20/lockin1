@@ -9,6 +9,7 @@ import { AttemptQuestionCard } from "../components/assessment/AttemptQuestionCar
 import { AttemptTimer } from "../components/assessment/AttemptTimer.jsx";
 import { ErrorPanel, LoadingPanel, Page, ProgressLine } from "../components/ui/index.jsx";
 import { Icon } from "../lib/icons.jsx";
+import { notifyProgressionUpdated } from "../lib/progressionEvents.js";
 
 function updateQuestion(attempt, questionId, answer) {
   const acknowledgedRevision = Number(answer?.server_revision);
@@ -110,6 +111,7 @@ export default function Attempt() {
     setSubmitError(null);
     try {
       const result = await assessmentsApi.submitAttempt(attempt.id, submitKey.current);
+      notifyProgressionUpdated();
       setSubmitOpen(false);
       navigate(`/questions/results/${result.id}`, { replace: true });
     } catch (error) {

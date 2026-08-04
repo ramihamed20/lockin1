@@ -24,8 +24,12 @@ import { setSessionMarker } from "./api/client.js";
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
 const Materials = lazy(() => import("./pages/Materials.jsx"));
 const MaterialSheets = lazy(() => import("./pages/Materials.jsx").then((m) => ({ default: m.MaterialSheets })));
+const CatalogMaterialSheets = lazy(() => import("./pages/Materials.jsx").then((m) => ({ default: m.CatalogMaterialSheets })));
+const CatalogSheetStudy = lazy(() => import("./pages/Materials.jsx").then((m) => ({ default: m.CatalogSheetStudy })));
+const CatalogFocusWorkspace = lazy(() => import("./pages/CatalogFocusWorkspace.jsx"));
 const LearningObjectStudy = lazy(() => import("./pages/LearningObjectStudy.jsx"));
 const FocusWorkspace = lazy(() => import("./pages/FocusWorkspace.jsx"));
+const LockInMode = lazy(() => import("./pages/LockInMode.jsx"));
 const Search = lazy(() => import("./pages/Search.jsx"));
 const Questions = lazy(() => import("./pages/Questions.jsx"));
 const QuizDetail = lazy(() => import("./pages/QuizDetail.jsx"));
@@ -38,11 +42,11 @@ const Discussion = lazy(() => import("./pages/Discussion.jsx"));
 const CommunitySpace = lazy(() => import("./pages/CommunitySpace.jsx"));
 const CommunityReport = lazy(() => import("./pages/CommunityReport.jsx"));
 const Ranked = lazy(() => import("./pages/Ranked.jsx"));
-const Analytics = lazy(() => import("./pages/Analytics.jsx"));
 const Bookmarks = lazy(() => import("./pages/Bookmarks.jsx"));
 const Progress = lazy(() => import("./pages/Progress.jsx"));
 const Achievements = lazy(() => import("./pages/Achievements.jsx"));
 const Notifications = lazy(() => import("./pages/Notifications.jsx"));
+const Store = lazy(() => import("./pages/Store.jsx"));
 const Profile = lazy(() => import("./pages/Profile.jsx"));
 const Settings = lazy(() => import("./pages/Settings.jsx"));
 const CreatorEducation = lazy(() => import("./pages/CreatorEducation.jsx"));
@@ -74,8 +78,12 @@ function App() {
   const [sessionAttempt, setSessionAttempt] = useState(0);
   const [sessionNotice, setSessionNotice] = useState("");
   const [notificationVersion, setNotificationVersion] = useState(0);
+  const [storeCartCount, setStoreCartCount] = useState(0);
+  const [lockBalance, setLockBalance] = useState(1250);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const activeTheme = themeSettings.autoTheme ? autoThemeForDate(themeClock) : themeSettings.theme;
+  const inLockInMode = location.pathname === "/lock-in" || location.pathname.startsWith("/lock-in/");
+  const inFocusWorkspace = location.pathname.startsWith("/focus/") || location.pathname.endsWith("/workspace");
 
   const clearOperationsSession = useCallback(() => {
     operationsRequestRef.current += 1;
@@ -100,6 +108,13 @@ function App() {
   }, []);
 
   const clearAuthenticatedUi = useCallback(() => {
+    // Lock In uses only a per-user return-route hint locally; authoritative
+    // session data remains in Django. Never carry that hint into another user.
+    try {
+      Object.keys(window.sessionStorage)
+        .filter((key) => key.startsWith("lock-in.return."))
+        .forEach((key) => window.sessionStorage.removeItem(key));
+    } catch { /* Storage may be unavailable in privacy-restricted browsers. */ }
     setSessionMarker(false);
     setUser(null);
     clearOperationsSession();
@@ -283,7 +298,7 @@ function App() {
 
   return (
     <>
-      <Shell user={user} operationsSession={operationsSession} theme={activeTheme} onThemeChange={setManualTheme} onLogout={handleLogout} notificationVersion={notificationVersion} onNotificationsChanged={() => setNotificationVersion((version) => version + 1)}>
+      <Shell user={user} operationsSession={operationsSession} theme={activeTheme} onThemeChange={setManualTheme} onLogout={handleLogout} notificationVersion={notificationVersion} onNotificationsChanged={() => setNotificationVersion((version) => version + 1)} storeCartCount={storeCartCount} lockBalance={lockBalance}>
         <ErrorBoundary>
         <Suspense fallback={<LoadingPanel />}>
           <Routes>
@@ -291,10 +306,15 @@ function App() {
                 <Route path="/" element={<Dashboard themeSettings={themeSettings} activeTheme={activeTheme} user={user} deferredPrompt={deferredPrompt} onClearInstallPrompt={() => setDeferredPrompt(null)} />} />
                 <Route path="/dashboard" element={<Dashboard themeSettings={themeSettings} activeTheme={activeTheme} user={user} deferredPrompt={deferredPrompt} onClearInstallPrompt={() => setDeferredPrompt(null)} />} />
                 <Route path="/materials" element={<Materials />} />
+                <Route path="/materials/catalog/:materialSlug" element={<CatalogMaterialSheets />} />
+                <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug" element={<CatalogSheetStudy />} />
+                <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug/workspace" element={<CatalogFocusWorkspace />} />
                 <Route path="/materials/objects/:learningObjectId" element={<LearningObjectStudy />} />
                 <Route path="/materials/:materialId" element={<MaterialSheets />} />
                 <Route path="/materials/:materialId/sheets/:sheetId" element={<LearningObjectStudy />} />
                 <Route path="/focus/:documentVersionId" element={<FocusWorkspace />} />
+                <Route path="/lock-in" element={<LockInMode user={user} />} />
+                <Route path="/lock-in/:sessionId" element={<LockInMode user={user} />} />
                 <Route path="/search" element={<Search />} />
                 <Route path="/questions" element={<Questions />} />
                 <Route path="/questions/quizzes/:quizId" element={<QuizDetail />} />
@@ -307,16 +327,16 @@ function App() {
                 <Route path="/community/spaces/:spaceId" element={<CommunitySpace />} />
                 <Route path="/community/reports/:reportId" element={<CommunityReport />} />
                 <Route path="/ranked" element={<Ranked />} />
-                <Route path="/analytics" element={<Analytics />} />
                 <Route path="/bookmarks" element={<Bookmarks />} />
                 <Route path="/progress" element={<Progress />} />
                 <Route path="/progression" element={<Progress />} />
                 <Route path="/achievements" element={<Achievements />} />
                 <Route path="/notifications" element={<Notifications onNotificationsChanged={() => setNotificationVersion((version) => version + 1)} />} />
-                <Route path="/profile" element={<Profile user={user} onUserUpdate={setUser} onSignedOut={clearAuthenticatedUi} />} />
-                <Route path="/security" element={<Profile user={user} onUserUpdate={setUser} onSignedOut={clearAuthenticatedUi} />} />
+                <Route path="/store" element={<Store onLockBalanceChange={setLockBalance} onCartCountChange={setStoreCartCount} />} />
+                <Route path="/profile" element={<Profile user={user} onUserUpdate={setUser} />} />
+                <Route path="/security" element={<Navigate to="/settings" replace />} />
                 <Route path="/subscription" element={<DeferredWorkspace message="Subscription details are not available from the current Django API integration." />} />
-                <Route path="/settings" element={<Settings settings={themeSettings} activeTheme={activeTheme} reminderSettings={reminderSettings} onReminderSettingsChange={setReminderSettings} onSettingsChange={updateThemeSettings} />} />
+                <Route path="/settings" element={<Settings user={user} settings={themeSettings} activeTheme={activeTheme} reminderSettings={reminderSettings} onReminderSettingsChange={setReminderSettings} onSettingsChange={updateThemeSettings} onSignedOut={clearAuthenticatedUi} />} />
                 <Route path="/admin/*" element={<OperationsAdmin operationsSession={operationsSession} />} />
                 <Route path="/creator" element={<CreatorRoute user={user} operationsSession={operationsSession}><Navigate to={operationsSession?.capabilities?.includes("content.manage") || user.roles?.includes("creator") || user.roles?.includes("administrator") ? "/creator/education" : "/creator/questions"} replace /></CreatorRoute>} />
                 <Route path="/creator/education" element={<CreatorRoute user={user} operationsSession={operationsSession}><CreatorEducation /></CreatorRoute>} />
@@ -334,8 +354,8 @@ function App() {
           </Suspense>
         </ErrorBoundary>
       </Shell>
-      {reminderToast && <ReminderToast message={reminderToast} onDismiss={() => setReminderToast("")} />}
-      {sessionNotice && <ReminderToast title="Session" icon="alert-triangle" message={sessionNotice} onDismiss={() => setSessionNotice("")} />}
+      {!inLockInMode && !inFocusWorkspace && reminderToast && <ReminderToast message={reminderToast} onDismiss={() => setReminderToast("")} />}
+      {!inLockInMode && !inFocusWorkspace && sessionNotice && <ReminderToast title="Session" icon="alert-triangle" message={sessionNotice} onDismiss={() => setSessionNotice("")} />}
     </>
   );
 }

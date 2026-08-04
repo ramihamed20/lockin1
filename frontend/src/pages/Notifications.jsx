@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motivationApi } from "../api/motivation.js";
 import { isApiError } from "../api/client.js";
 import { isKnownNotificationRoute } from "../lib/notificationRoutes.js";
+import { notificationPresentation } from "../lib/notificationPresentation.js";
 import { Icon } from "../lib/icons.jsx";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
@@ -104,27 +105,43 @@ export default function Notifications({ onNotificationsChanged }) {
   }
 
   return (
-    <Page title="Notifications" subtitle="Server-delivered activity for your account. Open a notification to mark it read and follow its Django-provided destination.">
-      <section className="panel dashboard-review-card">
-        <div className="panel-title"><div><p className="eyebrow">Inbox</p><h2>{feed.data.summary.unread_count || 0} unread</h2></div><span><Icon name="bell" size={16} /></span></div>
-        <div className="focus-timer-actions">
+    <Page title="Notifications" subtitle="Stay on top of your account, learning progress, and important Lock In updates.">
+      <section className="panel notifications-inbox-card">
+        <header className="notifications-inbox-header">
+          <div className="notifications-inbox-title">
+            <span className="notifications-inbox-icon"><Icon name="bell" size={19} /></span>
+            <div><p className="eyebrow">Inbox</p><h2>Activity for you</h2><p>Important updates from Lock In, organized by what they relate to.</p></div>
+          </div>
+          <div className="notifications-inbox-actions">
+            <span className={`notifications-unread-summary ${feed.data.summary.unread_count ? "has-unread" : ""}`}><i />{feed.data.summary.unread_count || 0} unread</span>
+            {feed.data.summary.unread_count > 0 && <button className="btn btn-soft compact" type="button" onClick={() => { void markAllRead(); }} disabled={busyId === "all"}>{busyId === "all" ? "Marking…" : "Mark all read"}</button>}
+          </div>
+        </header>
+        <div className="notification-filter-actions" aria-label="Notification filter">
           <button className={`btn btn-soft ${!unreadOnly ? "active" : ""}`} type="button" aria-pressed={!unreadOnly} onClick={() => setUnreadOnly(false)}>All</button>
           <button className={`btn btn-soft ${unreadOnly ? "active" : ""}`} type="button" aria-pressed={unreadOnly} onClick={() => setUnreadOnly(true)}>Unread</button>
-          <button className="btn btn-soft" type="button" onClick={() => { void markAllRead(); }} disabled={!feed.data.summary.unread_count || busyId === "all"}>{busyId === "all" ? "Marking…" : "Mark all read"}</button>
         </div>
         {actionError && <ErrorPanel message={actionError} onRetry={feed.reload} />}
         {!notifications.length ? <EmptyState title={unreadOnly ? "No unread notifications" : "No notifications yet"} text={unreadOnly ? "Django has no unread notifications for this account." : "New server notifications will appear here."} /> : (
-          <div className="list-panel">
-            {notifications.map((notification) => (
-              <article className="list-row" key={notification.id}>
-                <span className="stat-icon"><Icon name={notification.read_at ? "bell" : "sparkles"} /></span>
-                <div><h2>{notification.title}</h2><p>{notification.body}</p><small className="muted">{notification.category} · {dateLabel(notification.created_at)}</small></div>
-                <button className="btn btn-soft" type="button" disabled={busyId === notification.id} onClick={() => { void openNotification(notification); }}>{busyId === notification.id ? "Opening…" : notification.has_target ? "Open" : notification.read_at ? "Read" : "Mark read"}</button>
-              </article>
-            ))}
+          <div className="notification-feed">
+            {notifications.map((notification) => {
+              const presentation = notificationPresentation(notification.category);
+              const isRead = Boolean(notification.read_at);
+              const isBusy = busyId === notification.id;
+              const canMarkRead = !isRead || notification.has_target;
+              return <article className={`notification-feed-item notification-tone-${presentation.tone} ${isRead ? "is-read" : "is-unread"}`} key={notification.id}>
+                <span className="notification-category-icon" aria-label={`${presentation.label} notification`}><Icon name={presentation.icon} size={19} /></span>
+                <div className="notification-feed-content">
+                  <div className="notification-feed-meta"><span>{presentation.label}</span>{!isRead && <b>New</b>}<time dateTime={notification.created_at}>{dateLabel(notification.created_at)}</time></div>
+                  <h2>{notification.title}</h2>
+                  <p>{notification.body}</p>
+                </div>
+                <button className="btn btn-soft compact" type="button" disabled={isBusy || !canMarkRead} onClick={() => { void openNotification(notification); }}>{isBusy ? "Opening…" : notification.has_target ? "Open" : isRead ? "Read" : "Mark read"}</button>
+              </article>;
+            })}
           </div>
         )}
-        {nextCursor && <button className="btn btn-soft" type="button" disabled={loadingMore} onClick={() => { void loadMore(); }}>{loadingMore ? "Loading…" : "Load more"}</button>}
+        {nextCursor && <button className="btn btn-soft compact notification-load-more" type="button" disabled={loadingMore} onClick={() => { void loadMore(); }}>{loadingMore ? "Loading…" : "Load more"}</button>}
       </section>
     </Page>
   );

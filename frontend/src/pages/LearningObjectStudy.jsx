@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { educationApi, learningApi } from "../api/learning.js";
 import { progressApi } from "../api/progress.js";
 import { Icon } from "../lib/icons.jsx";
@@ -35,6 +35,7 @@ async function loadLearningObject(learningObjectId) {
 
 export default function LearningObjectStudy() {
   const { learningObjectId, sheetId } = useParams();
+  const location = useLocation();
   // Older links used `sheets/:sheetId`; the Django contract identifies the
   // same server resource as a learning object. Resolve either URL without
   // preserving the legacy page's mock study state.
@@ -75,6 +76,7 @@ export default function LearningObjectStudy() {
             <div className="focus-timer-actions">
               {viewUrl ? <a className="btn btn-primary" href={viewUrl} target="_blank" rel="noreferrer"><Icon name="eye" size={16} /> Open secure viewer</a> : <button className="btn btn-primary" type="button" disabled>Viewer unavailable</button>}
               {focusDocumentVersionId ? <Link className="btn btn-soft" to={`/focus/${focusDocumentVersionId}`}><Icon name="expand" size={16} /> Open Focus workspace</Link> : <button className="btn btn-soft" type="button" disabled>Focus unavailable</button>}
+              <Link className="btn btn-soft" to="/lock-in" state={{ preselectedDocumentVersionId: focusDocumentVersionId, returnTo: location.pathname, scrollY: window.scrollY }}><Icon name="clock" size={16} /> Enter Lock In Mode</Link>
               {downloadUrl ? <a className="btn btn-soft" href={downloadUrl}><Icon name="arrow-up-right" size={16} /> Download</a> : <button className="btn btn-soft" type="button" disabled>Download unavailable</button>}
               <BookmarkButton learningObjectId={learningObject.id} isBookmarked={isBookmarked} onChanged={setIsBookmarked} />
               <Link className="btn btn-soft" to={`/community/context/learning_object/${learningObject.id}`}><Icon name="messages" size={16} /> Discuss material</Link>

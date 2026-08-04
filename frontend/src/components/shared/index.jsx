@@ -7,7 +7,7 @@ export function FullScreenState({ message, actionLabel, onAction }) {
   return (
     <main className="screen-state">
       <span className="brand-mark">
-        <img src={assetPath("/assets/logo.jpg")} alt="Lock-in Logo" className="brand-logo-img" />
+        <img src={assetPath("/assets/lock-in-logo.jpg")} alt="Lock-in Logo" className="brand-logo-img" />
       </span>
       <p>{message}</p>
       {actionLabel && onAction && <button className="btn btn-soft" type="button" onClick={onAction}>{actionLabel}</button>}

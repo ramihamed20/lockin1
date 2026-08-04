@@ -9,11 +9,10 @@ export const navItems = [
   { path: "/questions", label: "Questions", icon: "help", group: "Study" },
   { path: "/review", label: "Review", icon: "target", group: "Review" },
   { path: "/bookmarks", label: "Bookmarks", icon: "bookmark", group: "Review" },
+  { path: "/store", label: "Store", icon: "shopping-bag", group: "Personal" },
   { path: "/community", label: "Community", icon: "messages", group: "Social" },
   { path: "/ranked", label: "Ranked", icon: "trophy", group: "Social" },
-  { path: "/analytics", label: "Analytics", icon: "analytics", group: "Personal" },
-  { path: "/progress", label: "Progress", icon: "activity", group: "Personal" },
-  { path: "/achievements", label: "Achievements", icon: "award", group: "Personal" }
+  { path: "/progress", label: "Progress", icon: "activity", group: "Personal" }
 ];
 
 export const quotes = [

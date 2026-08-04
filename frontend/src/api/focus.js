@@ -18,6 +18,7 @@ function pagePayload(payload, message) {
 }
 
 const SESSION_ACTIONS = new Set(["pause", "resume", "complete", "abandon"]);
+const LOCK_IN_ACTIONS = new Set(["pause", "resume", "complete", "abandon", "start-break", "end-break"]);
 const SIDEBARS = new Set(["closed", "thumbnails", "notes"]);
 const WORKSPACE_TOOLS = new Set(["", "pen", "pencil", "highlighter", "eraser", "line", "arrow", "rectangle", "circle", "text", "sticky-note"]);
 
@@ -63,6 +64,115 @@ export const focusApi = {
     return objectPayload(
       await request(`/focus/sessions/${sessionId}/${action}`, { method: "POST", body: {} }),
       "The Focus session action response was incomplete."
+    );
+  },
+
+  async getLockIn() {
+    return objectPayload(
+      await request("/focus/lock-in"),
+      "The Lock In setup response was incomplete."
+    );
+  },
+
+  async startLockIn({ documentVersionId = null, clientInstanceId, sessionType, plannedDurationSeconds = null, breakDurationSeconds = null, teamId = null, teamName = "", goal = "", topic = "", note = "", tasks = [] }) {
+    if (typeof clientInstanceId !== "string" || !clientInstanceId || typeof sessionType !== "string") {
+      throw new ApiError(0, null, "A stable session ID and session type are required.", "invalid_request");
+    }
+    const body = {
+      client_instance_id: clientInstanceId,
+      session_type: sessionType,
+      goal,
+      topic,
+      note,
+      tasks
+    };
+    if (teamId) body.team_id = teamId;
+    if (teamName) body.team_name = teamName;
+    if (documentVersionId) body.document_version_id = documentVersionId;
+    if (plannedDurationSeconds != null) body.planned_duration_seconds = plannedDurationSeconds;
+    if (breakDurationSeconds != null) body.break_duration_seconds = breakDurationSeconds;
+    return objectPayload(
+      await request("/focus/lock-in", { method: "POST", body }),
+      "The Lock In session response was incomplete."
+    );
+  },
+
+  async getLockInSession(sessionId) {
+    return objectPayload(
+      await request(`/focus/lock-in/${sessionId}`),
+      "The Lock In session could not be recovered."
+    );
+  },
+
+  async listLockInTeams() {
+    return objectPayload(
+      await request("/focus/lock-in/teams"),
+      "The Lock In teams response was incomplete."
+    );
+  },
+
+  async createLockInTeam(name) {
+    return objectPayload(
+      await request("/focus/lock-in/teams", { method: "POST", body: { name } }),
+      "The study team could not be created."
+    );
+  },
+
+  async joinLockInTeam(inviteCode) {
+    return objectPayload(
+      await request("/focus/lock-in/teams/join", { method: "POST", body: { invite_code: inviteCode } }),
+      "The study team could not be joined."
+    );
+  },
+
+  async getLockInTeamMessages(teamId) {
+    return objectPayload(
+      await request(`/focus/lock-in/teams/${teamId}/messages`),
+      "The study team messages could not be loaded."
+    );
+  },
+
+  async sendLockInTeamMessage(teamId, body) {
+    return objectPayload(
+      await request(`/focus/lock-in/teams/${teamId}/messages`, { method: "POST", body: { body } }),
+      "The study team message could not be sent."
+    );
+  },
+
+  async lockInAction(sessionId, action) {
+    if (!LOCK_IN_ACTIONS.has(action)) {
+      throw new ApiError(0, null, "This Lock In action is not supported.", "invalid_request");
+    }
+    return objectPayload(
+      await request(`/focus/lock-in/${sessionId}/${action}`, { method: "POST", body: {} }),
+      "The Lock In session could not be updated."
+    );
+  },
+
+  async updateLockInNote(sessionId, { body, expectedRevision = null }) {
+    return objectPayload(
+      await request(`/focus/lock-in/${sessionId}/note`, {
+        method: "PATCH",
+        body: { body, expected_revision: expectedRevision }
+      }),
+      "The session note could not be saved."
+    );
+  },
+
+  async addLockInTask(sessionId, { clientTaskId, title }) {
+    return objectPayload(
+      await request(`/focus/lock-in/${sessionId}/tasks`, {
+        method: "POST",
+        body: { client_task_id: clientTaskId, title }
+      }),
+      "The session task could not be saved."
+    );
+  },
+
+  async toggleLockInTask(sessionId, taskId) {
+    return objectPayload(
+      await request(`/focus/lock-in/${sessionId}/tasks/${taskId}/toggle`, { method: "POST", body: {} }),
+      "The session task could not be updated."
     );
   },
 

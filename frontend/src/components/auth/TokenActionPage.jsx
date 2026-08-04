@@ -87,7 +87,7 @@ export function TokenActionPage({ type, onAccountChanged }) {
       <div className="auth-bg-orbs" aria-hidden="true"><span className="auth-orb auth-orb-1" /><span className="auth-orb auth-orb-2" /><span className="auth-orb auth-orb-3" /></div>
       <section className="auth-card" aria-label="Account confirmation">
         <div className="auth-panel"><div className="auth-panel-inner">
-          <div className="auth-brand"><div className="auth-brand-logo"><span className="auth-brand-mark"><img src={assetPath("/assets/logo.jpg")} alt="Lock-in Logo" className="brand-logo-img" /></span></div><span className="auth-brand-badge">Account security</span></div>
+          <div className="auth-brand"><div className="auth-brand-logo"><span className="auth-brand-mark"><img src={assetPath("/assets/lock-in-logo.jpg")} alt="Lock-in Logo" className="brand-logo-img" /></span></div><span className="auth-brand-badge">Account security</span></div>
           <div className="auth-header"><h1 className="auth-title">{title}</h1><p className="auth-subtitle">{subtitle}</p></div>
           <form className="auth-form" onSubmit={submit}>
             {isReset && <>

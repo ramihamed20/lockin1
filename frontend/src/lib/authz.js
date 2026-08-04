@@ -9,8 +9,8 @@ const CURRENT_AUTHENTICATED_ROUTES = new Set([
   "/review",
   "/community",
   "/ranked",
-  "/analytics",
   "/bookmarks",
+  "/store",
   "/progress",
   "/progression",
   "/achievements",
@@ -96,8 +96,11 @@ export function canAccessRoute(userOrSession, path, operationsSession) {
 
   if (CURRENT_AUTHENTICATED_ROUTES.has(currentPath)) return true;
   return (
-    /^\/materials\/(?:objects\/[^/]+|[^/]+(?:\/sheets\/[^/]+)?)$/.test(currentPath) ||
+    /^\/materials\/(?:catalog\/[^/]+(?:\/sheets\/[^/]+(?:\/workspace)?)?|objects\/[^/]+|[^/]+(?:\/sheets\/[^/]+)?)$/.test(currentPath) ||
     /^\/focus\/[^/]+$/.test(currentPath) ||
+    // This client-side route guard only establishes authentication. Django's
+    // Focus API remains the authority for Lock In entitlement decisions.
+    /^\/lock-in(?:\/[^/]+)?$/.test(currentPath) ||
     /^\/questions\/(?:quizzes|attempts|results)\/[^/]+$/.test(currentPath) ||
     /^\/community\/(?:discussions|spaces|reports)\/[^/]+$/.test(currentPath) ||
     /^\/community\/context\/(?:lesson|learning_object|question|quiz)\/[^/]+$/.test(currentPath)

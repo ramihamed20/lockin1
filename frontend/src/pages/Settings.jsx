@@ -1,15 +1,21 @@
 import { useEffect, useState } from "react";
+import { accountsApi } from "../api/accounts.js";
 import { motivationApi } from "../api/motivation.js";
+import { PRODUCT_ROLES } from "../api/contracts.js";
 import { Icon } from "../lib/icons.jsx";
+import { hasProductRole } from "../lib/authz.js";
 import { characterOptions, themeOptions } from "../lib/constants.js";
 import { normalizeThemeSettings, normalizeReminderSettings, themePreview } from "../lib/utils.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
+import { AccountFieldErrors } from "../components/account/AccountFormErrors.jsx";
+import { SessionList } from "../components/account/SessionList.jsx";
 import { Page, ErrorPanel } from "../components/ui/index.jsx";
 
-export default function Settings({ settings, activeTheme, reminderSettings, onReminderSettingsChange, onSettingsChange }) {
+export default function Settings({ user, settings, activeTheme, reminderSettings, onReminderSettingsChange, onSettingsChange, onSignedOut }) {
   const [saving, setSaving] = useState("");
   const [error, setError] = useState("");
   const [reminderError, setReminderError] = useState("");
+  const isAdministrator = hasProductRole(user, PRODUCT_ROLES.ADMINISTRATOR);
 
   async function saveSettings(nextSettings, source) {
     const normalized = normalizeThemeSettings(nextSettings);
@@ -159,14 +165,63 @@ export default function Settings({ settings, activeTheme, reminderSettings, onRe
           <p className="save-hint">Dentify will ping once per day after the selected time while the app is open.</p>
         </article>
 
-        <NotificationPreferences />
-        <section className="settings-panel compact">
-          <div className="settings-row"><div><h2>API mode</h2><p>Connected to the Django backend.</p></div><span className="pill success">Live</span></div>
+        <section className="settings-account-management" aria-labelledby="account-management-heading">
+          <div className="settings-account-heading">
+            <div>
+              <p className="eyebrow">Account</p>
+              <h2 id="account-management-heading">Account & security</h2>
+              <p>Manage your password, sign-in methods, and active devices.</p>
+            </div>
+            <span className="pill success">Protected</span>
+          </div>
+          <div className="account-management-grid">
+            <PasswordCard />
+            <ConnectedAccountsCard email={user?.email} />
+            <SessionList onCurrentSessionRevoked={onSignedOut} />
+          </div>
         </section>
+
+        {isAdministrator && <NotificationPreferences />}
+        {isAdministrator && <section className="settings-panel compact">
+          <div className="settings-row"><div><h2>API mode</h2><p>Connected to the Django backend.</p></div><span className="pill success">Live</span></div>
+        </section>}
         {saving && <p className="save-hint">Saving theme settings...</p>}
       </section>
     </Page>
   );
+}
+
+function PasswordCard() {
+  const [form, setForm] = useState({ currentPassword: "", password: "", passwordConfirm: "" });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [message, setMessage] = useState("");
+
+  async function submit(event) {
+    event.preventDefault();
+    if (form.password !== form.passwordConfirm) {
+      setError({ message: "New passwords do not match.", fields: { new_password_confirm: ["New passwords do not match."] } });
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    setMessage("");
+    try {
+      await accountsApi.changePassword(form.currentPassword, form.password, form.passwordConfirm);
+      setForm({ currentPassword: "", password: "", passwordConfirm: "" });
+      setMessage("Your password has been updated.");
+    } catch (requestError) {
+      setError(requestError);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return <article className="panel account-management-card"><div className="panel-title"><div><p className="eyebrow">Account security</p><h2>Change password</h2></div><Icon name="lock" size={18} /></div><form className="account-password-form" onSubmit={submit}><label className="field"><span>Current password</span><input type="password" autoComplete="current-password" value={form.currentPassword} onChange={(event) => setForm({ ...form, currentPassword: event.target.value })} required /><AccountFieldErrors error={error} field="current_password" /></label><label className="field"><span>New password</span><input type="password" autoComplete="new-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required /><AccountFieldErrors error={error} field="new_password" /></label><label className="field"><span>Confirm new password</span><input type="password" autoComplete="new-password" value={form.passwordConfirm} onChange={(event) => setForm({ ...form, passwordConfirm: event.target.value })} required /><AccountFieldErrors error={error} field="new_password_confirm" /></label><AccountFieldErrors error={error} /><div className="account-password-actions"><span>{message}</span><button className="btn btn-primary compact" type="submit" disabled={saving}>{saving ? "Updating…" : "Update password"}</button></div></form></article>;
+}
+
+function ConnectedAccountsCard({ email }) {
+  return <article className="panel account-management-card"><div className="panel-title"><div><p className="eyebrow">Sign-in methods</p><h2>Connected accounts</h2></div><Icon name="user" size={18} /></div><div className="account-auth-methods"><div className="account-auth-method primary"><span><Icon name="lock" size={16} /></span><div><strong>Email & password</strong><small>{email || "Primary Lock In sign-in"}</small></div><b>Primary</b></div><div className="account-auth-method"><span><Icon name="globe" size={16} /></span><div><strong>Google</strong><small>Provider linking is not enabled yet.</small></div><b>Not connected</b></div><div className="account-auth-method"><span><Icon name="user" size={16} /></span><div><strong>Apple</strong><small>Provider linking is not enabled yet.</small></div><b>Not connected</b></div></div></article>;
 }
 
 function NotificationPreferences() {

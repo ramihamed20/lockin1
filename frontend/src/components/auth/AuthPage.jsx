@@ -181,7 +181,7 @@ export function AuthPage({ onAuthed }) {
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <div className="auth-brand-logo">
                   <span className="auth-brand-mark">
-                    <img src={assetPath("/assets/logo.jpg")} alt="Lock-in Logo" className="brand-logo-img" />
+                    <img src={assetPath("/assets/lock-in-logo.jpg")} alt="Lock-in Logo" className="brand-logo-img" />
                   </span>
                 </div>
                 <span className="auth-brand-badge">{t[lang].brandBadge}</span>

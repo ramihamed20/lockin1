@@ -1,6 +1,7 @@
 import { memo } from "react";
 import {
   Activity,
+  AlertTriangle,
   Award,
   BarChart3,
   Bell,
@@ -32,6 +33,7 @@ import {
   RotateCcw,
   Save,
   Search,
+  ShieldAlert,
   Settings,
   Sparkles,
   Sun,
@@ -61,7 +63,19 @@ import {
   ArrowUpRight,
   Move,
   Scissors,
-  Type
+  Type,
+  ShoppingBag,
+  Gift,
+  Palette,
+  Shirt,
+  Headphones,
+  Image,
+  MousePointer,
+  Sticker,
+  Volume2,
+  WandSparkles,
+  PackageOpen,
+  CircleDollarSign
 } from "lucide-react";
 
 const icons = {
@@ -75,6 +89,7 @@ const icons = {
   "arrow-left": ArrowLeft,
   expand: Maximize2,
   activity: Activity,
+  "alert-triangle": AlertTriangle,
   analytics: BarChart3,
   award: Award,
   bell: Bell,
@@ -106,6 +121,7 @@ const icons = {
   reset: RotateCcw,
   save: Save,
   search: Search,
+  "shield-alert": ShieldAlert,
   settings: Settings,
   sparkles: Sparkles,
   sun: Sun,
@@ -126,11 +142,22 @@ const icons = {
   "arrow-up-right": ArrowUpRight,
   move: Move,
   scissors: Scissors,
-  type: Type
+  type: Type,
+  "shopping-bag": ShoppingBag,
+  gift: Gift,
+  palette: Palette,
+  shirt: Shirt,
+  headphones: Headphones,
+  image: Image,
+  cursor: MousePointer,
+  sticker: Sticker,
+  volume: Volume2,
+  wand: WandSparkles,
+  package: PackageOpen,
+  coins: CircleDollarSign
 };
 
 export const Icon = memo(function Icon({ name, size = 20, strokeWidth = 1.9, ...props }) {
   const Component = icons[name] || CircleHelp;
   return <Component aria-hidden="true" size={size} strokeWidth={strokeWidth} {...props} />;
 });
-
