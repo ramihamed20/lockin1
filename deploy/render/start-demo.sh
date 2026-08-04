@@ -10,7 +10,8 @@ python manage.py migrate --noinput
 python manage.py collectstatic --noinput
 
 if [ "${LOCKIN_DEMO_SEED:-true}" = "true" ]; then
-  python manage.py seed_demo
+  echo "Preparing Lock-in demo data in the background."
+  python manage.py seed_demo &
 fi
 
 exec gunicorn --config config/gunicorn.py config.wsgi:application
