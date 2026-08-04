@@ -204,7 +204,7 @@ class CampaignDispatchSerializer(StrictSerializer):
 
 
 class PlanPriceInputSerializer(StrictSerializer):
-    code = serializers.RegexField(r"^[a-z0-9][a-z0-9-]{1,78}$")
+    code = serializers.RegexField(r"^[a-z0-9]+(?:_[a-z0-9]+)*$", max_length=79)
     amount_minor = serializers.IntegerField(min_value=1)
     currency = serializers.RegexField(r"^[A-Za-z]{3}$")
     currency_exponent = serializers.IntegerField(min_value=0, max_value=4, default=2)
@@ -221,7 +221,7 @@ class PlanEntitlementInputSerializer(StrictSerializer):
 
 class PlanVersionCreateSerializer(StrictSerializer):
     product_id = serializers.UUIDField()
-    plan_code = serializers.RegexField(r"^[a-z0-9][a-z0-9-]{1,58}$")
+    plan_code = serializers.RegexField(r"^[a-z0-9]+(?:_[a-z0-9]+)*$", max_length=59)
     title = serializers.CharField(min_length=1, max_length=120, trim_whitespace=True)
     description = serializers.CharField(max_length=320, trim_whitespace=True, required=False, allow_blank=True)
     audience = serializers.ChoiceField(choices=("individual", "family", "organization", "institution"), default="individual")

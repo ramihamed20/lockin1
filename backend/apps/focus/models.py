@@ -8,12 +8,93 @@ from django.db.models import F, Q
 from django.utils import timezone
 
 
+def focus_team_invite_code() -> str:
+    """A short shareable code; uniqueness is also enforced by the database."""
+    return uuid.uuid4().hex[:8].upper()
+
+
+class FocusTeam(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=80)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="owned_focus_teams"
+    )
+    invite_code = models.CharField(max_length=12, unique=True, db_index=True, default=focus_team_invite_code)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-updated_at", "name")
+
+    def clean(self) -> None:
+        super().clean()
+        self.name = self.name.strip()
+        if not self.name:
+            raise ValidationError({"name": "A team name is required."})
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class FocusTeamMembership(models.Model):
+    class Role(models.TextChoices):
+        OWNER = "owner", "Owner"
+        MEMBER = "member", "Member"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    team = models.ForeignKey(FocusTeam, on_delete=models.CASCADE, related_name="memberships")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="focus_team_memberships"
+    )
+    role = models.CharField(max_length=12, choices=Role.choices, default=Role.MEMBER)
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("joined_at", "id")
+        constraints = [
+            models.UniqueConstraint(fields=("team", "user"), name="focus_team_member_unique")
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.team_id}:{self.user_id}"
+
+
+class FocusTeamMessage(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    team = models.ForeignKey(FocusTeam, on_delete=models.CASCADE, related_name="messages")
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="focus_team_messages"
+    )
+    body = models.CharField(max_length=1000)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ("created_at", "id")
+        indexes = [models.Index(fields=("team", "-created_at"), name="focus_team_message_idx")]
+
+    def clean(self) -> None:
+        super().clean()
+        self.body = self.body.strip()
+        if not self.body:
+            raise ValidationError({"body": "A message is required."})
+
+    def __str__(self) -> str:
+        return f"{self.team_id}:{self.author_id}:{self.created_at.isoformat()}"
+
+
 class FocusSession(models.Model):
     class Status(models.TextChoices):
         ACTIVE = "active", "Active"
         PAUSED = "paused", "Paused"
+        ON_BREAK = "on_break", "On break"
         COMPLETED = "completed", "Completed"
         ABANDONED = "abandoned", "Abandoned"
+
+    class SessionType(models.TextChoices):
+        TIMED = "timed", "Timed"
+        OPEN_ENDED = "open_ended", "Open ended"
+        MATERIAL = "material", "Material based"
+        TASK = "task", "Task based"
 
     class ContextType(models.TextChoices):
         INDEPENDENT = "independent", "Independent"
@@ -34,6 +115,20 @@ class FocusSession(models.Model):
     last_activity_at = models.DateTimeField(default=timezone.now)
     ended_at = models.DateTimeField(null=True, blank=True)
     planned_duration_seconds = models.PositiveIntegerField(null=True, blank=True)
+    break_duration_seconds = models.PositiveIntegerField(null=True, blank=True)
+    session_type = models.CharField(
+        max_length=16, choices=SessionType.choices, default=SessionType.TIMED
+    )
+    team_name = models.CharField(max_length=80, blank=True)
+    team = models.ForeignKey(
+        FocusTeam,
+        on_delete=models.SET_NULL,
+        related_name="sessions",
+        null=True,
+        blank=True,
+    )
+    goal = models.CharField(max_length=280, blank=True)
+    topic = models.CharField(max_length=280, blank=True)
     active_duration_seconds = models.PositiveIntegerField(default=0)
     revision = models.PositiveBigIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -68,7 +163,7 @@ class FocusSession(models.Model):
             ),
             models.CheckConstraint(
                 condition=(
-                    Q(status__in=("active", "paused"), ended_at__isnull=True)
+                    Q(status__in=("active", "paused", "on_break"), ended_at__isnull=True)
                     | Q(status__in=("completed", "abandoned"), ended_at__isnull=False)
                 ),
                 name="focus_status_end_consistent",
@@ -91,6 +186,8 @@ class FocusSessionActivity(models.Model):
         STARTED = "started", "Started"
         PAUSED = "paused", "Paused"
         RESUMED = "resumed", "Resumed"
+        BREAK_STARTED = "break_started", "Break started"
+        BREAK_ENDED = "break_ended", "Break ended"
         COMPLETED = "completed", "Completed"
         ABANDONED = "abandoned", "Abandoned"
 
@@ -112,6 +209,47 @@ class FocusSessionActivity(models.Model):
 
     def __str__(self) -> str:
         return f"{self.session_id}:{self.sequence}:{self.activity_type}"
+
+
+class FocusSessionNote(models.Model):
+    """The latest durable session note. Its revision makes autosave conflict-safe."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    session = models.OneToOneField(
+        FocusSession, on_delete=models.CASCADE, related_name="session_note"
+    )
+    body = models.TextField(blank=True)
+    revision = models.PositiveBigIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return f"{self.session_id}:{self.revision}"
+
+
+class FocusSessionTask(models.Model):
+    """A small, user-owned task list kept with a Focus session."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    session = models.ForeignKey(FocusSession, on_delete=models.CASCADE, related_name="tasks")
+    client_task_id = models.UUIDField(null=True, blank=True)
+    title = models.CharField(max_length=280)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("created_at", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("session", "client_task_id"),
+                condition=Q(client_task_id__isnull=False),
+                name="focus_session_client_task_unique",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.session_id}:{self.title}"
 
 
 class FocusWorkspaceSnapshot(models.Model):

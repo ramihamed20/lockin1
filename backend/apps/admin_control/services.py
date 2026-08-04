@@ -822,7 +822,7 @@ def entitlement_inspection(*, user: User) -> dict[str, object]:
     grants = list(
         EntitlementGrant.objects.filter(user=user)
         .select_related("entitlement")
-        .order_by("-created_at")
+        .order_by("-granted_at")
     )
     definitions = EntitlementDefinition.objects.filter(is_active=True).order_by("code")
     decisions = [

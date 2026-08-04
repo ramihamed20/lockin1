@@ -1,0 +1,17 @@
+.git
+.github
+.venv
+venv
+node_modules
+**/node_modules
+**/dist
+**/dev-dist
+**/__pycache__
+**/*.pyc
+backend/.lockin-demo.sqlite3
+backend/lockin_backend.egg-info
+frontend/output
+playwright-report
+test-results
+backups
+secrets

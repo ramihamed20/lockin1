@@ -67,8 +67,10 @@ class Command(BaseCommand):
     help = "Create safe, idempotent local development data. Refuses production settings."
 
     def handle(self, *args, **options):
-        if getattr(settings, "ENVIRONMENT", "") == "production" or not settings.DEBUG:
-            raise CommandError("seed_demo is available only with DEBUG=True outside production.")
+        if getattr(settings, "ENVIRONMENT", "") not in {"development", "development-demo", "demo"}:
+            raise CommandError(
+                "seed_demo is available only in the development or public demo environment."
+            )
         with transaction.atomic():
             data = self._seed()
         self.stdout.write(self.style.SUCCESS("Lock-in demo data is ready."))
@@ -701,7 +703,7 @@ class Command(BaseCommand):
             kind="individual",
             defaults={"display_name": "Maya Student", "status": "active"},
         )
-        Subscription.objects.update_or_create(
+        subscription, _ = Subscription.objects.update_or_create(
             account=account,
             status__in=["trialing", "active", "grace", "suspended"],
             defaults={
@@ -713,18 +715,21 @@ class Command(BaseCommand):
                 "status_reason": "demo subscription",
             },
         )
-        entitlement = EntitlementDefinition.objects.filter(code="focus-workspace").first()
+        # Keep demo subscriptions aligned with the API's authoritative
+        # entitlement identifier. The old hyphenated value never matched the
+        # catalog definition, leaving an entitled demo student unable to open
+        # Focus or Lock In Mode.
+        entitlement = EntitlementDefinition.objects.filter(code="focus.workspace").first()
         if entitlement:
             EntitlementGrant.objects.get_or_create(
-                subject_user=primary,
+                user=primary,
                 entitlement=entitlement,
-                source_key="demo-plus-access",
+                source_type=EntitlementGrant.SourceType.SUBSCRIPTION,
+                source_id=subscription.id,
                 defaults={
-                    "source_type": "subscription",
+                    "status": EntitlementGrant.Status.ACTIVE,
                     "starts_at": now - timedelta(days=10),
                     "ends_at": now + timedelta(days=20),
-                    "is_active": True,
-                    "metadata": {"demo": True},
                 },
             )
 

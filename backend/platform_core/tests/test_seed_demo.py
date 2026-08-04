@@ -5,6 +5,7 @@ from django.test import TestCase, override_settings
 
 from apps.accounts.models import User
 from apps.content.models import LearningObjectVersion
+from apps.entitlements.services import entitlement_decision
 from apps.focus.models import FocusSession
 from apps.notifications.models import Notification
 from apps.questions.models import QuestionVersion
@@ -36,6 +37,7 @@ class SeedDemoCommandTests(TestCase):
         self.assertTrue(User.objects.get(email="developer@lockin.local").is_staff)
         self.assertFalse(User.objects.get(email="creator@lockin.local").is_staff)
         student = User.objects.get(email="student@lockin.local")
+        self.assertTrue(entitlement_decision(user=student, entitlement_code="focus.workspace").allowed)
         self.assertTrue(student.lesson_progress.exists())
         self.assertTrue(student.xp_transactions.exists())
         self.assertTrue(FocusSession.objects.filter(user=student).exists())

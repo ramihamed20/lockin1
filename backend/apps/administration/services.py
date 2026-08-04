@@ -142,6 +142,7 @@ def replace_operational_capabilities(
     clean_reason = reason.strip()
     if len(clean_reason) < 8:
         raise OperationalRoleError("A reason of at least 8 characters is required.")
+    caller_target = target
     target = User.objects.select_for_update().get(id=target.id)
     previous = tuple(
         OperationalCapabilityAssignment.objects.filter(user=target)
@@ -170,4 +171,9 @@ def replace_operational_capabilities(
         new_state={"capabilities": current},
         related_entities=[{"type": "accounts.user", "id": str(target.id)}],
     )
+    # Authorization checks cache capabilities for the life of a request. A
+    # mutation must invalidate both the locked instance and the caller's
+    # instance so a follow-up check cannot observe stale grants.
+    target.__dict__.pop("_operational_capability_cache", None)
+    caller_target.__dict__.pop("_operational_capability_cache", None)
     return current

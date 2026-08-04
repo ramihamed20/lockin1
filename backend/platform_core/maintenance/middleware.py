@@ -12,11 +12,17 @@ class MaintenanceModeMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):  # type: ignore[no-untyped-def]
+        # Health and authentication endpoints must remain independently
+        # available even when configuration storage is unavailable. Checking
+        # the exemption first keeps liveness probe query-free and lets the
+        # readiness view own its database error response.
+        if request.path.startswith(self._EXEMPT_PREFIXES):
+            return self.get_response(request)
         try:
             enabled = bool(get_configuration_value("platform.maintenance_mode"))
         except ConfigurationError:
             enabled = False
-        if not enabled or request.path.startswith(self._EXEMPT_PREFIXES):
+        if not enabled:
             return self.get_response(request)
         user = getattr(request, "user", None)
         is_recovery_admin = bool(

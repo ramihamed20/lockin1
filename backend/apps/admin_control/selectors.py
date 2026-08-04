@@ -306,8 +306,17 @@ def serialize_user_detail(user: User) -> dict[str, Any]:
         "entitlement_history": list(
             EntitlementGrant.objects.filter(user=user)
             .select_related("entitlement")
-            .order_by("-created_at")
-            .values("id", "entitlement__code", "source_type", "status", "starts_at", "ends_at", "revoked_at")
+            .order_by("-granted_at")
+            .values(
+                "id",
+                "entitlement__code",
+                "source_type",
+                "status",
+                "starts_at",
+                "ends_at",
+                "granted_at",
+                "revoked_at",
+            )
         ),
         "audit_events": list(
             AuditRecord.objects.filter(target_type="accounts.user", target_id=str(user.id))

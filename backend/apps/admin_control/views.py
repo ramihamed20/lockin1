@@ -6,7 +6,7 @@ from uuid import UUID
 
 from django.db import transaction
 from rest_framework import status
-from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -314,7 +314,12 @@ class AdminSubscriptionActionView(APIView):
             )
         except (Subscription.DoesNotExist, AdminControlError, ValueError) as error:
             _raise(error, code="subscription_action_rejected")
-        return Response(serialize_subscription(subscription, detailed=True))
+        result = serialize_subscription(subscription, detailed=True)
+        result["admin_events"] = SubscriptionAdminEventSerializer(
+            result["admin_events"], many=True
+        ).data
+        result["notes"] = AdminInternalNoteSerializer(result["notes"], many=True).data
+        return Response(result)
 
 
 class AdminUserDetailView(APIView):

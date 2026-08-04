@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import User
+from apps.accounts.permissions import IsAdministrator
 from apps.accounts.roles import Role, user_has_role
 
 from .models import Notification
@@ -78,6 +79,8 @@ class NotificationOpenView(APIView):
 
 
 class NotificationPreferenceView(APIView):
+    permission_classes = [IsAdministrator]
+
     def get(self, request: Request) -> Response:
         assert isinstance(request.user, User)
         return Response(preferences_for_user(user=request.user))
