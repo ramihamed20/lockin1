@@ -53,8 +53,9 @@ DATABASES["default"].update(  # noqa: F405
         "OPTIONS": {
             "sslmode": env("POSTGRES_SSLMODE", "require"),
             "options": (
-                "-c application_name=lockin-demo -c statement_timeout=15000 "
-                "-c lock_timeout=3000"
+                "-c application_name=lockin-demo "
+                f"-c statement_timeout={env_int('POSTGRES_STATEMENT_TIMEOUT_MS', 60000)} "
+                f"-c lock_timeout={env_int('POSTGRES_LOCK_TIMEOUT_MS', 5000)}"
             ),
         },
     }
