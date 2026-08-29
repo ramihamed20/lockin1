@@ -1,0 +1,13 @@
+FROM node:24.16.0-bookworm-slim
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN npm install --global pnpm@11.19.0 --loglevel=error \
+    && pnpm install --frozen-lockfile --reporter=append-only
+
+COPY . .
+
+EXPOSE 5050
+
+CMD ["pnpm", "dev"]

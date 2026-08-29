@@ -1,0 +1,4 @@
+# Lock-in is an authenticated learning workspace. Do not index the login shell,
+# private application routes, or API responses.
+User-agent: *
+Disallow: /
