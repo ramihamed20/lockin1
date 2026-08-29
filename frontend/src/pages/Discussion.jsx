@@ -6,9 +6,9 @@ import { generateIdempotencyKey } from "../api/pagination.js";
 import { Icon } from "../lib/icons.jsx";
 import { relativeTime } from "../lib/utils.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
-import { BreadcrumbBar, EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
+import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
-import { CommunityContextLink, MutationNotice, ReportComposer, contextPath, fieldError } from "../components/community/index.jsx";
+import { MutationNotice, ReportComposer, contextPath, fieldError } from "../components/community/index.jsx";
 
 function mergeById(current, next) {
   const ids = new Set(current.map((item) => item.id));
@@ -145,7 +145,7 @@ export default function Discussion({ user }) {
       const freshDiscussion = await communityApi.getDiscussion(discussion.id);
       setDiscussion(freshDiscussion);
       setReplyingTo("");
-      setActionMessage("Your reply was saved by Django.");
+      setActionMessage("Your reply was saved.");
       onDone?.();
     } catch (error) {
       handleMutationError(error, "This discussion changed elsewhere. The latest server version is loading.");
@@ -178,8 +178,7 @@ export default function Discussion({ user }) {
   const contextUrl = contextPath(discussion.context_type, discussion.context_id);
 
   return (
-    <Page title={discussion.title || "Discussion unavailable"} subtitle="A contextual discussion and replies stored by Django.">
-      <BreadcrumbBar items={[["Community", "/community"], [discussion.context_title || "Learning context", contextUrl]]} current={discussion.title || "Unavailable discussion"} />
+    <Page title={discussion.title || "Discussion unavailable"} subtitle="A contextual discussion and its replies.">
       <MutationNotice error={actionError} message={actionMessage} onRetry={detail.reload} />
       <section className="community-top">
         <article className="panel community-composer">
@@ -194,9 +193,9 @@ export default function Discussion({ user }) {
               {!deleted && discussion.author?.id !== user?.id && <ReportComposer targetType="discussion" targetId={discussion.id} onCreated={(report) => setActionMessage(`Report submitted. Its current status is ${report.status}.`)} />}
             </div>
           </> : <form className="composer-form" onSubmit={saveDiscussion}>
-            <label className="field"><span>Discussion title</span><input value={discussionDraft.title} maxLength="220" required onChange={(event) => setDiscussionDraft((current) => ({ ...current, title: event.target.value }))} /></label>
+            <label className="field"><span>Discussion title</span><input value={discussionDraft.title} maxLength={220} required onChange={(event) => setDiscussionDraft((current) => ({ ...current, title: event.target.value }))} /></label>
             {fieldError(actionError, "title") && <p className="inline-error">{fieldError(actionError, "title")}</p>}
-            <label className="field"><span>Discussion text</span><textarea value={discussionDraft.body} maxLength="10000" required onChange={(event) => setDiscussionDraft((current) => ({ ...current, body: event.target.value }))} /></label>
+            <label className="field"><span>Discussion text</span><textarea value={discussionDraft.body} maxLength={10000} required onChange={(event) => setDiscussionDraft((current) => ({ ...current, body: event.target.value }))} /></label>
             {fieldError(actionError, "body") && <p className="inline-error">{fieldError(actionError, "body")}</p>}
             <div className="focus-timer-actions"><button className="btn btn-primary" type="submit" disabled={pending === "discussion"}>{pending === "discussion" ? "Saving…" : "Save changes"}</button><button className="btn btn-soft" type="button" disabled={pending === "discussion"} onClick={() => setEditingDiscussion(false)}>Cancel</button></div>
           </form>}
@@ -206,16 +205,16 @@ export default function Discussion({ user }) {
       <section className="panel community-post-list">
         <div className="panel-title"><h2>Replies</h2><span>{discussion.comment_count || 0}</span></div>
         {canReply && <CommentComposer onSubmit={createComment} pending={pending === "comment-create"} />}
-        {!canReply && <p className="save-hint">This discussion is not accepting replies. Django controls whether a discussion is active.</p>}
-        {threads.length ? threads.map(({ root, replies }) => <CommentThread key={root.id} comment={root} replies={replies} canReply={canReply} user={user} editingCommentId={editingCommentId} commentDraft={commentDraft} setCommentDraft={setCommentDraft} setEditingCommentId={setEditingCommentId} replyingTo={replyingTo} setReplyingTo={setReplyingTo} pending={pending} actionError={actionError} onSave={saveComment} onDelete={(comment) => setConfirmDelete({ type: "comment", id: comment.id, revision: comment.revision })} onCreateReply={createComment} onReport={(report) => setActionMessage(`Report submitted. Its current status is ${report.status}.`)} />) : <EmptyState title="No replies yet" text="Django has no visible replies for this discussion." />}
+        {!canReply && <p className="save-hint">This discussion is not accepting replies.</p>}
+        {threads.length ? threads.map(({ root, replies }) => <CommentThread key={root.id} comment={root} replies={replies} canReply={canReply} user={user} editingCommentId={editingCommentId} commentDraft={commentDraft} setCommentDraft={setCommentDraft} setEditingCommentId={setEditingCommentId} replyingTo={replyingTo} setReplyingTo={setReplyingTo} pending={pending} actionError={actionError} onSave={saveComment} onDelete={(comment) => setConfirmDelete({ type: "comment", id: comment.id, revision: comment.revision })} onCreateReply={createComment} onReport={(report) => setActionMessage(`Report submitted. Its current status is ${report.status}.`)} />) : <EmptyState title="No replies yet" text="No replies are visible to your account." />}
         {nextCursor && <button className="btn btn-soft" type="button" disabled={loadingMore} onClick={() => { void loadMore(); }}>{loadingMore ? "Loading…" : "Load more replies"}</button>}
       </section>
-      <ConfirmDialog open={Boolean(confirmDelete)} title={confirmDelete?.type === "discussion" ? "Delete this discussion?" : "Delete this reply?"} message="Django will retain a tombstone instead of exposing the removed text." confirmLabel={pending ? "Removing…" : "Delete"} onConfirm={() => { void removeTarget(); }} onCancel={() => !pending && setConfirmDelete(null)} />
+      <ConfirmDialog open={Boolean(confirmDelete)} title={confirmDelete?.type === "discussion" ? "Delete this discussion?" : "Delete this reply?"} message="Lock-in will retain a tombstone instead of exposing the removed text." confirmLabel={pending ? "Removing…" : "Delete"} onConfirm={() => { void removeTarget(); }} onCancel={() => !pending && setConfirmDelete(null)} />
     </Page>
   );
 }
 
-function CommentComposer({ onSubmit, parentId = null, onCancel, pending = false }) {
+function CommentComposer({ onSubmit, parentId = null, onCancel = null, pending = false }) {
   const [body, setBody] = useState("");
   const [error, setError] = useState(null);
   const [clientRequestId, setClientRequestId] = useState(generateIdempotencyKey);
@@ -230,9 +229,9 @@ function CommentComposer({ onSubmit, parentId = null, onCancel, pending = false 
     }
   }
 
-  return <form className="composer-form" onSubmit={submit}><label className="field"><span>{parentId ? "Reply" : "Add a reply"}</span><textarea value={body} maxLength="6000" required onChange={(event) => setBody(event.target.value)} placeholder="Write a respectful, context-specific reply..." /></label><MutationNotice error={error} />{onCancel ? <div className="focus-timer-actions"><button className="btn btn-primary" type="submit" disabled={pending}>{pending ? "Saving…" : "Reply"}</button><button className="btn btn-soft" type="button" disabled={pending} onClick={onCancel}>Cancel</button></div> : <button className="btn btn-primary" type="submit" disabled={pending}>{pending ? "Saving…" : "Post reply"}</button>}</form>;
+  return <form className="composer-form" onSubmit={submit}><label className="field"><span>{parentId ? "Reply" : "Add a reply"}</span><textarea value={body} maxLength={6000} required onChange={(event) => setBody(event.target.value)} placeholder="Write a respectful, context-specific reply..." /></label><MutationNotice error={error} />{onCancel ? <div className="focus-timer-actions"><button className="btn btn-primary" type="submit" disabled={pending}>{pending ? "Saving…" : "Reply"}</button><button className="btn btn-soft" type="button" disabled={pending} onClick={onCancel}>Cancel</button></div> : <button className="btn btn-primary" type="submit" disabled={pending}>{pending ? "Saving…" : "Post reply"}</button>}</form>;
 }
 
 function CommentThread({ comment, replies, canReply, user, editingCommentId, commentDraft, setCommentDraft, setEditingCommentId, replyingTo, setReplyingTo, pending, actionError, onSave, onDelete, onCreateReply, onReport }) {
-  return <article className="community-post"><div className="post-avatar">{authorName(comment.author).slice(0, 1).toUpperCase()}</div><div><div className="post-meta"><strong>{authorName(comment.author)}</strong><small>{metaTime(comment.updated_at || comment.created_at)}</small><span>Revision {comment.revision}</span></div>{editingCommentId === comment.id ? <form className="composer-form" onSubmit={(event) => { event.preventDefault(); void onSave(comment.id); }}><label className="field"><span>Edit reply</span><textarea value={commentDraft} maxLength="6000" required onChange={(event) => setCommentDraft(event.target.value)} /></label>{fieldError(actionError, "body") && <p className="inline-error">{fieldError(actionError, "body")}</p>}<div className="focus-timer-actions"><button className="btn btn-primary" type="submit" disabled={pending === comment.id}>{pending === comment.id ? "Saving…" : "Save"}</button><button className="btn btn-soft" type="button" disabled={pending === comment.id} onClick={() => setEditingCommentId("")}>Cancel</button></div></form> : <><p>{comment.body || "The author or a moderator removed this reply. Its original text is not displayed."}</p><div className="post-actions">{canReply && comment.body && !comment.parent_id && <button className="btn btn-soft compact" type="button" onClick={() => setReplyingTo(comment.id)}>Reply</button>}{comment.can_edit && comment.body && <button className="btn btn-soft compact" type="button" onClick={() => { setEditingCommentId(comment.id); setCommentDraft(comment.body); }}>Edit</button>}{comment.can_delete && comment.body && <button className="btn btn-danger compact" type="button" disabled={pending === comment.id} onClick={() => onDelete(comment)}>Delete</button>}{comment.body && comment.author?.id !== user?.id && <ReportComposer targetType="comment" targetId={comment.id} onCreated={onReport} />}</div></>}{replyingTo === comment.id && <CommentComposer parentId={comment.id} pending={pending === "comment-create"} onSubmit={onCreateReply} onCancel={() => setReplyingTo("")} />}{replies.length ? <div className="list-panel">{replies.map((reply) => <CommentThread key={reply.id} comment={reply} replies={[]} canReply={false} user={user} editingCommentId={editingCommentId} commentDraft={commentDraft} setCommentDraft={setCommentDraft} setEditingCommentId={setEditingCommentId} replyingTo="" setReplyingTo={setReplyingTo} pending={pending} actionError={actionError} onSave={onSave} onDelete={onDelete} onCreateReply={onCreateReply} onReport={onReport} />)}</div> : null}</div></article>;
+  return <article className="community-post"><div className="post-avatar">{authorName(comment.author).slice(0, 1).toUpperCase()}</div><div><div className="post-meta"><strong>{authorName(comment.author)}</strong><small>{metaTime(comment.updated_at || comment.created_at)}</small><span>Revision {comment.revision}</span></div>{editingCommentId === comment.id ? <form className="composer-form" onSubmit={(event) => { event.preventDefault(); void onSave(comment.id); }}><label className="field"><span>Edit reply</span><textarea value={commentDraft} maxLength={6000} required onChange={(event) => setCommentDraft(event.target.value)} /></label>{fieldError(actionError, "body") && <p className="inline-error">{fieldError(actionError, "body")}</p>}<div className="focus-timer-actions"><button className="btn btn-primary" type="submit" disabled={pending === comment.id}>{pending === comment.id ? "Saving…" : "Save"}</button><button className="btn btn-soft" type="button" disabled={pending === comment.id} onClick={() => setEditingCommentId("")}>Cancel</button></div></form> : <><p>{comment.body || "The author or a moderator removed this reply. Its original text is not displayed."}</p><div className="post-actions">{canReply && comment.body && !comment.parent_id && <button className="btn btn-soft compact" type="button" onClick={() => setReplyingTo(comment.id)}>Reply</button>}{comment.can_edit && comment.body && <button className="btn btn-soft compact" type="button" onClick={() => { setEditingCommentId(comment.id); setCommentDraft(comment.body); }}>Edit</button>}{comment.can_delete && comment.body && <button className="btn btn-danger compact" type="button" disabled={pending === comment.id} onClick={() => onDelete(comment)}>Delete</button>}{comment.body && comment.author?.id !== user?.id && <ReportComposer targetType="comment" targetId={comment.id} onCreated={onReport} />}</div></>}{replyingTo === comment.id && <CommentComposer parentId={comment.id} pending={pending === "comment-create"} onSubmit={onCreateReply} onCancel={() => setReplyingTo("")} />}{replies.length ? <div className="list-panel">{replies.map((reply) => <CommentThread key={reply.id} comment={reply} replies={[]} canReply={false} user={user} editingCommentId={editingCommentId} commentDraft={commentDraft} setCommentDraft={setCommentDraft} setEditingCommentId={setEditingCommentId} replyingTo="" setReplyingTo={setReplyingTo} pending={pending} actionError={actionError} onSave={onSave} onDelete={onDelete} onCreateReply={onCreateReply} onReport={onReport} />)}</div> : null}</div></article>;
 }

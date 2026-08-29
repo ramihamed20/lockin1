@@ -22,7 +22,7 @@ async function loadCommunityHome() {
   return { discussionFeed, spaceFeed, reportFeed };
 }
 
-export default function Community({ user }) {
+export default function Community() {
   const home = useAsyncData(loadCommunityHome, []);
   const [discussions, setDiscussions] = useState([]);
   const [nextDiscussionCursor, setNextDiscussionCursor] = useState(null);
@@ -79,7 +79,7 @@ export default function Community({ user }) {
         <article className="panel community-composer">
           <p className="eyebrow">Contextual learning</p>
           <h2>Start with a published material or quiz.</h2>
-          <p className="muted">Django does not support unaffiliated public posts, likes, tags, or announcements. Choose a learning context before starting a discussion.</p>
+          <p className="muted">Public posts, likes, tags and announcements are not part of the community. Choose a learning context to start a discussion.</p>
           <div className="focus-timer-actions"><Link className="btn btn-primary" to="/materials"><Icon name="book-open" size={17} /> Browse materials</Link><Link className="btn btn-soft" to="/questions"><Icon name="help" size={17} /> Browse quizzes</Link></div>
         </article>
         <article className="panel announcement-panel">
@@ -103,7 +103,7 @@ export default function Community({ user }) {
         </article>
         <aside className="community-rail">
           <article className="study-buddy-card">
-            <div><p className="eyebrow">Creator spaces</p><h2>Private study spaces</h2><p>Only spaces visible to your account are shown. Django determines membership and management rights.</p></div>
+            <div><p className="eyebrow">Creator spaces</p><h2>Private study spaces</h2><p>Only spaces visible to your account are shown. Membership and management rights decide what you see.</p></div>
             <div className="announcement-list">
               {spaces.length ? spaces.map((space) => <Link className="announcement-item" key={space.id} to={`/community/spaces/${space.id}`}><span className="stat-icon"><Icon name="lock" /></span><div><h3>{space.title}</h3><p>{space.context_title || "Learning context"}</p><small>{space.member_count || 0} members</small></div></Link>) : <p className="muted">No creator spaces are visible to this account.</p>}
             </div>
@@ -120,7 +120,7 @@ export function CommunityContext({ user }) {
   const validContext = COMMUNITY_CONTEXT_TYPES.includes(contextType) && Boolean(contextId);
   const context = useAsyncData(
     async () => {
-      if (!validContext) throw new Error("This community context is not supported by the Django API.");
+      if (!validContext) throw new Error("This community context is not supported.");
       const [discussionFeed, spaceFeed] = await Promise.all([
         communityApi.listDiscussions({ contextType, contextId }),
         communityApi.listSpaces()
@@ -164,11 +164,11 @@ export function CommunityContext({ user }) {
   if (context.error) return <ErrorPanel message={context.error} onRetry={context.reload} />;
 
   return (
-    <Page title="Community" subtitle="A Django-validated conversation for one learning context.">
+    <Page title="Community" subtitle="A conversation tied to one published learning context.">
       <Link className="back-link" to="/community"><Icon name="chevron-left" size={16} /> Community</Link>
       {message && <ErrorPanel message={message} onRetry={context.reload} />}
       <section className="community-top">
-        <article className="panel community-composer"><p className="eyebrow">{contextType.replaceAll("_", " ")}</p><h2>{contextTitle}</h2><p className="muted">Keep this discussion tied to the published learning context that Django validated.</p><DiscussionComposer contextType={contextType} contextId={contextId} onCreated={(created) => setDiscussions((current) => [created, ...current])} /></article>
+        <article className="panel community-composer"><p className="eyebrow">{contextType.replaceAll("_", " ")}</p><h2>{contextTitle}</h2><p className="muted">Keep this discussion tied to its published learning context.</p><DiscussionComposer contextType={contextType} contextId={contextId} onCreated={(created) => setDiscussions((current) => [created, ...current])} /></article>
         <article className="panel announcement-panel"><div className="panel-title"><h2>Creator-led spaces</h2><span>{spaces.length}</span></div><div className="announcement-list">{spaces.length ? spaces.map((space) => <Link className="announcement-item" key={space.id} to={`/community/spaces/${space.id}`}><span className="stat-icon"><Icon name="lock" /></span><div><h3>{space.title}</h3><p>{space.description || "Private study space"}</p><small>{space.member_count || 0} members</small></div></Link>) : <p className="muted">No private spaces are visible for this context.</p>}</div>{canCreateSpace && <SpaceComposer contextType={contextType} contextId={contextId} onCreated={(space) => setSpaces((current) => [space, ...current])} />}</article>
       </section>
       <section className="panel community-post-list"><div className="panel-title"><h2>Context discussions</h2><span>{discussions.length}</span></div>{discussions.length ? discussions.map((discussion) => <DiscussionCard key={discussion.id} discussion={discussion} />) : <EmptyState title="No context discussions" text="Start the first server-validated conversation for this learning context." />}{nextDiscussionCursor && <button className="btn btn-soft" type="button" disabled={loadingMore} onClick={() => { void loadMore(); }}>{loadingMore ? "Loading…" : "Load more discussions"}</button>}</section>

@@ -22,6 +22,8 @@ function pagePath(path, options = {}) {
     page_size: options.pageSize || 25,
     q: options.query?.trim(),
     status: options.status,
+    role: options.role,
+    ordering: options.ordering,
     without_subscription: options.withoutSubscription ? "true" : ""
   });
 }
@@ -35,6 +37,7 @@ function reason(value) {
 /** Real, same-origin Django administration endpoints only. */
 export const adminControlApi = {
   overview: () => request("/operations/dashboards/overview"),
+  /** @param {{from?: string, to?: string}} [options] */
   analytics: ({ from, to } = {}) => request("/operations/admin/analytics/dashboard" + buildQueryString({ from, to })),
   systemHealth: () => request("/operations/system-health"),
   configurations: () => request("/operations/configuration"),
@@ -49,6 +52,46 @@ export const adminControlApi = {
     });
   },
   audit: (options = {}) => request("/operations/audit" + buildQueryString({ page: options.page || 1, page_size: options.pageSize || 25, action: options.action, domain: options.domain })),
+
+  contentSubjects: (options = {}) => request("/operations/admin/content/subjects" + buildQueryString({ q: options.query?.trim() })),
+  subjectSheets(subjectId, options = {}) {
+    return request(`/operations/admin/content/subjects/${id(subjectId, "subject identifier")}/sheets` + buildQueryString({ q: options.query?.trim(), status: options.status }));
+  },
+  createSheet(subjectId, body) {
+    return request(`/operations/admin/content/subjects/${id(subjectId, "subject identifier")}/sheets`, { method: "POST", body });
+  },
+  updateSheet(sheetId, body) {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}`, { method: "PATCH", body });
+  },
+  sheetAction(sheetId, body) {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/actions`, { method: "POST", body });
+  },
+  replaceSheetPdf(sheetId, body) {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/pdf`, { method: "POST", body });
+  },
+  removeSheetPdf(sheetId, expectedRevision) {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/pdf`, { method: "DELETE", body: { expected_revision: Number(expectedRevision) } });
+  },
+  deleteSheet(sheetId) {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}`, { method: "DELETE" });
+  },
+  sheetQuestions(sheetId, options = {}) {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/questions` + buildQueryString({ q: options.query?.trim(), status: options.status, type: options.type, difficulty: options.difficulty, topic: options.topic }));
+  },
+  validateQuestionImport(sheetId, payload) {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/questions/validate`, { method: "POST", body: { payload } });
+  },
+  importQuestions(sheetId, payload, publish = false) {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/questions/import`, { method: "POST", body: { payload, publish: publish === true } });
+  },
+  bulkQuestions(questionIds, action, targetSheetId = null) {
+    return request("/operations/admin/content/questions/bulk", { method: "POST", body: { question_ids: questionIds.map((value) => id(value, "question identifier")), action, target_sheet_id: targetSheetId ? id(targetSheetId, "target sheet identifier") : null } });
+  },
+  importHistory: (status = "") => request("/operations/admin/content/imports" + buildQueryString({ status })),
+  undoImport(batchId) {
+    const cleanId = id(batchId, "import batch identifier");
+    return request(`/operations/admin/content/imports/${cleanId}/undo`, { method: "POST", body: { confirmation: `question_import_${cleanId}` } });
+  },
 
   users: (options = {}) => request(pagePath("/operations/users", options)).then((data) => page(data, "The user list response was incomplete.")),
   user: (userId) => request(`/operations/admin/users/${id(userId, "user identifier")}`),
@@ -73,6 +116,18 @@ export const adminControlApi = {
 
   purchases: (options = {}) => request(pagePath("/operations/admin/purchases", options)).then((data) => page(data, "The purchase list response was incomplete.")),
   purchase: (paymentId) => request(`/operations/admin/purchases/${id(paymentId, "purchase identifier")}`),
+  reviewManualPayment(paymentId, decision, reviewReason) {
+    const cleanReason = typeof reviewReason === "string" ? reviewReason.trim() : "";
+    if (!['approve', 'reject'].includes(decision) || cleanReason.length < 3) {
+      throw new ApiError(0, null, "A valid review decision and reason are required.", "invalid_request");
+    }
+    return request(`/operations/admin/purchases/${id(paymentId, "purchase identifier")}/manual-review`, {
+      method: "POST",
+      body: { decision, reason: cleanReason },
+      idempotencyKey: generateIdempotencyKey()
+    });
+  },
+  /** @param {string} paymentId @param {{amountMinor?: number|string, refundReason?: string, idempotencyKey?: string}} [options] */
   refund(paymentId, { amountMinor, refundReason, idempotencyKey } = {}) {
     return request(`/operations/admin/purchases/${id(paymentId, "purchase identifier")}/refunds`, {
       method: "POST",
@@ -105,6 +160,12 @@ export const adminControlApi = {
     });
   },
   plans: () => request("/operations/admin/plans"),
+  createPlanVersion(body) {
+    return request("/operations/admin/plans", {
+      method: "POST",
+      body: { ...body, reason: reason(body.reason) }
+    });
+  },
   planAction(planId, body) {
     return request(`/operations/admin/plans/${id(planId, "plan identifier")}/actions`, { method: "POST", body: { ...body, reason: reason(body.reason) } });
   },

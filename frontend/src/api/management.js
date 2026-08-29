@@ -79,7 +79,8 @@ function writeContent(data) {
     metadata: data.metadata && typeof data.metadata === "object" && !Array.isArray(data.metadata) ? data.metadata : {},
     available_from: data.availableFrom || null,
     available_until: data.availableUntil || null,
-    primary_file_id: data.primaryFileId ? uuid(data.primaryFileId, "primary file identifier") : null
+    primary_file_id: data.primaryFileId ? uuid(data.primaryFileId, "primary file identifier") : null,
+    ...(data.position == null || data.position === "" ? {} : { position: Number(data.position) })
   };
 }
 
@@ -89,9 +90,12 @@ function writeQuestion(data) {
     : [];
   return {
     academic_node_id: uuid(data.academicNodeId, "education node identifier"),
+    ...(data.sourceLearningObjectId ? { source_learning_object_id: uuid(data.sourceLearningObjectId, "source sheet identifier") } : {}),
     question_type: compact(data.questionType),
     prompt: compact(data.prompt),
     ...optionalText("explanation", data.explanation),
+    ...optionalText("topic", data.topic),
+    ...(data.sourcePage == null || data.sourcePage === "" ? {} : { source_page: Number(data.sourcePage) }),
     difficulty: compact(data.difficulty),
     language: compact(data.language) || "en",
     metadata: data.metadata && typeof data.metadata === "object" && !Array.isArray(data.metadata) ? data.metadata : {},
@@ -145,7 +149,7 @@ function lifecycleEndpoint(domain, id, action) {
   };
   const roots = { content: "/management/content", question: "/management/questions", quiz: "/management/quizzes" };
   if (!allowed[domain]?.includes(action) || !roots[domain]) {
-    throw new ApiError(0, null, "This workflow action is not supported by Django.", "invalid_request");
+    throw new ApiError(0, null, "This workflow action is not supported.", "invalid_request");
   }
   return `${roots[domain]}/${uuid(id, `${domain} identifier`)}/${action}`;
 }
@@ -258,7 +262,7 @@ export const managementApi = {
 
 export const EDUCATION_NODE_KINDS = Object.freeze(["institution", "college", "department", "academic_year", "semester", "subject", "unit", "lesson"]);
 export const CONTENT_TYPES = Object.freeze(["pdf", "audio", "video"]);
-export const QUESTION_TYPES = Object.freeze(["single_choice", "true_false", "completion_choice"]);
+export const QUESTION_TYPES = Object.freeze(["single_choice", "true_false", "completion_choice", "multiple_select"]);
 export const DIFFICULTIES = Object.freeze(["easy", "medium", "hard"]);
 export const QUIZ_MODES = Object.freeze(["quiz", "practice", "mastery"]);
 export const QUIZ_SELECTION_MODES = Object.freeze(["fixed", "pool"]);

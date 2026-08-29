@@ -62,7 +62,7 @@ export function DiscussionCard({ discussion, compact = false }) {
   );
 }
 
-export function MutationNotice({ error, message, onRetry }) {
+export function MutationNotice({ error = null, message = "", onRetry = null }) {
   if (!error && !message) return null;
   if (error) {
     return <p className="form-alert error" role="alert">{error.message || "This action could not be completed."}{onRetry && <button className="text-link" type="button" onClick={onRetry}>Try again</button>}</p>;
@@ -103,9 +103,9 @@ export function DiscussionComposer({ contextType, contextId, spaceId = null, onC
 
   return (
     <form className="composer-form" onSubmit={submit}>
-      <label className="field"><span>Discussion title</span><input value={title} maxLength="220" required onChange={(event) => setTitle(event.target.value)} aria-describedby={fieldError(error, "title") ? "discussion-title-error" : undefined} /></label>
+      <label className="field"><span>Discussion title</span><input value={title} maxLength={220} required onChange={(event) => setTitle(event.target.value)} aria-describedby={fieldError(error, "title") ? "discussion-title-error" : undefined} /></label>
       {fieldError(error, "title") && <p className="inline-error" id="discussion-title-error">{fieldError(error, "title")}</p>}
-      <label className="field"><span>Question or study note</span><textarea value={body} maxLength="10000" required onChange={(event) => setBody(event.target.value)} placeholder="Ask about this learning context or share a study note..." aria-describedby={fieldError(error, "body") ? "discussion-body-error" : undefined} /></label>
+      <label className="field"><span>Question or study note</span><textarea value={body} maxLength={10000} required onChange={(event) => setBody(event.target.value)} placeholder="Ask about this learning context or share a study note..." aria-describedby={fieldError(error, "body") ? "discussion-body-error" : undefined} /></label>
       {fieldError(error, "body") && <p className="inline-error" id="discussion-body-error">{fieldError(error, "body")}</p>}
       <MutationNotice error={error} />
       <button className="btn btn-primary" type="submit" disabled={pending}>{pending ? "Posting…" : "Start discussion"}</button>
@@ -144,9 +144,9 @@ export function SpaceComposer({ contextType, contextId, onCreated }) {
 
   return (
     <form className="composer-form" onSubmit={submit}>
-      <label className="field"><span>Private space name</span><input value={title} maxLength="180" required onChange={(event) => setTitle(event.target.value)} /></label>
+      <label className="field"><span>Private space name</span><input value={title} maxLength={180} required onChange={(event) => setTitle(event.target.value)} /></label>
       {fieldError(error, "title") && <p className="inline-error">{fieldError(error, "title")}</p>}
-      <label className="field"><span>Description (optional)</span><textarea value={description} maxLength="4000" onChange={(event) => setDescription(event.target.value)} /></label>
+      <label className="field"><span>Description (optional)</span><textarea value={description} maxLength={4000} onChange={(event) => setDescription(event.target.value)} /></label>
       {fieldError(error, "description") && <p className="inline-error">{fieldError(error, "description")}</p>}
       <MutationNotice error={error} />
       <div className="focus-timer-actions"><button className="btn btn-primary" type="submit" disabled={pending}>{pending ? "Creating…" : "Create private space"}</button><button className="btn btn-soft" type="button" disabled={pending} onClick={() => setOpen(false)}>Cancel</button></div>
@@ -185,7 +185,7 @@ export function ReportComposer({ targetType, targetId, onCreated }) {
     <form className="composer-form" onSubmit={submit}>
       <label className="field"><span>Reason</span><select value={reason} onChange={(event) => setReason(event.target.value)}>{REPORT_REASONS.map((option) => <option value={option} key={option}>{humanize(option)}</option>)}</select></label>
       {fieldError(error, "reason") && <p className="inline-error">{fieldError(error, "reason")}</p>}
-      <label className="field"><span>What happened?</span><textarea value={description} minLength="10" maxLength="4000" required onChange={(event) => setDescription(event.target.value)} /></label>
+      <label className="field"><span>What happened?</span><textarea value={description} minLength={10} maxLength={4000} required onChange={(event) => setDescription(event.target.value)} /></label>
       {fieldError(error, "description") && <p className="inline-error">{fieldError(error, "description")}</p>}
       <MutationNotice error={error} />
       <div className="focus-timer-actions"><button className="btn btn-primary" type="submit" disabled={pending}>{pending ? "Sending…" : "Send report"}</button><button className="btn btn-soft" type="button" disabled={pending} onClick={() => setOpen(false)}>Cancel</button></div>
@@ -254,7 +254,7 @@ export function SpaceMemberForm({ spaceId, onChanged }) {
         <button className="btn btn-primary" type="submit" disabled={pending}>{pending ? "Saving…" : "Add member"}</button>
       </form>
       {addedMember?.user_id && <div className="focus-timer-actions"><span className="pill">Member added</span><button className="btn btn-danger compact" type="button" disabled={pending} onClick={() => { void revokeNewest(); }}><Icon name="x" size={15} /> Revoke recent invite</button></div>}
-      <p className="save-hint">Django does not expose a members-list endpoint. You can revoke the member added in this session; existing memberships remain server-managed.</p>
+      <p className="save-hint">The full member list is not available here. You can revoke a member you added in this session; existing memberships are managed for you.</p>
     </div>
   );
 }

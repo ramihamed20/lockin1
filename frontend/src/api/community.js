@@ -265,6 +265,43 @@ export const moderationApi = {
       }),
       "The moderation-report response was incomplete."
     );
+  },
+
+  async assignReport(reportId, { expectedRevision, assigneeId }) {
+    const id = uuid(reportId, "report identifier");
+    return reportPayload(
+      await request(`/moderation/reports/${id}/assign`, {
+        method: "POST",
+        body: {
+          expected_revision: expectedRevision,
+          assignee_id: uuid(assigneeId, "assignee identifier")
+        }
+      }),
+      "The assigned moderation-report response was incomplete."
+    );
+  },
+
+  async transitionReport(reportId, { expectedRevision, status, resolutionNotes = "", duplicateOfId = null, contentAction = null }) {
+    const id = uuid(reportId, "report identifier");
+    const duplicate = compactText(duplicateOfId);
+    return reportPayload(
+      await request(`/moderation/reports/${id}/transition`, {
+        method: "POST",
+        body: {
+          expected_revision: expectedRevision,
+          status: compactText(status),
+          resolution_notes: compactText(resolutionNotes),
+          duplicate_of_id: duplicate ? uuid(duplicate, "original report identifier") : null,
+          content_action: compactText(contentAction) || null
+        }
+      }),
+      "The moderated report response was incomplete."
+    );
+  },
+
+  async listAudit({ cursor = null, pageSize = REPORT_PAGE_SIZE } = {}) {
+    const payload = await request("/moderation/audit" + buildQueryString({ cursor, page_size: pageSize }));
+    return cursorPayload(payload, "/moderation/audit", "The moderation-audit response was incomplete.");
   }
 };
 

@@ -3,6 +3,7 @@ import { motivationApi } from "../api/motivation.js";
 import { Icon } from "../lib/icons.jsx";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
+import { formatDateTime, formatNumber } from "../lib/i18n.js";
 
 async function loadRanked() {
   const [ranking, profile] = await Promise.all([
@@ -14,8 +15,8 @@ async function loadRanked() {
 
 function snapshotLabel(snapshot) {
   if (!snapshot?.generated_at) return "No published snapshot";
-  const date = new Date(snapshot.generated_at);
-  return Number.isNaN(date.getTime()) ? "Published snapshot" : `Updated ${date.toLocaleString()}`;
+  const formatted = formatDateTime(snapshot.generated_at);
+  return formatted === "—" ? "Published snapshot" : `Updated ${formatted}`;
 }
 
 export default function Ranked() {
@@ -55,18 +56,18 @@ export default function Ranked() {
   }
 
   return (
-    <Page title="Ranked" subtitle="Django-published learning rankings and your server-saved privacy choice.">
+    <Page title="Ranked" subtitle="Published learning rankings and your saved privacy choice.">
       <section className="ranked-hero">
         <div>
           <p className="eyebrow">Current ranking</p>
           <h2>{definition?.title || "No ranking published"}</h2>
-          <p>{definition ? `${definition.period?.replaceAll("_", " ") || "Current"} · ${definition.tie_strategy || "server ranking rules"}` : "Django has not published a ranking snapshot for this definition yet."}</p>
+          <p>{definition ? `${definition.period?.replaceAll("_", " ") || "Current"} · ${definition.tie_strategy || "server ranking rules"}` : "No ranking snapshot has been published for this definition yet."}</p>
           {ranking.snapshot && <span className="pill success"><Icon name="trophy" size={16} /> {snapshotLabel(ranking.snapshot)}</span>}
         </div>
         <div className="rank-user-card">
           <span>Your Rank</span>
           <strong>{ownEntry ? `#${ownEntry.position}` : "—"}</strong>
-          <p>{ownEntry ? `${Number(ownEntry.score || 0).toLocaleString()} points · ${ownEntry.evidence_count || 0} evidence items` : "No position in this snapshot"}</p>
+          <p>{ownEntry ? `${formatNumber(ownEntry.score || 0)} points · ${formatNumber(ownEntry.evidence_count || 0)} evidence items` : "No position in this snapshot"}</p>
         </div>
       </section>
 
@@ -90,13 +91,13 @@ function Leaderboard({ entries }) {
   return (
     <article className="panel leaderboard-card">
       <div className="panel-title"><div><p className="eyebrow">Published entries</p><h2>Leaderboard</h2></div><span><Icon name="medal" size={16} /></span></div>
-      {!entries.length ? <EmptyState title="No published entries" text="Django has not published participant entries for this ranking yet." /> : (
+      {!entries.length ? <EmptyState title="No published entries" text="No participant entries have been published for this ranking yet." /> : (
         <div className="rank-list">
           {entries.map((entry) => (
             <div className="rank-row" key={`${entry.position}-${entry.display_name}`}>
               <span className="rank-place">{entry.position}</span>
               <div><strong>{entry.display_name}</strong><small>{entry.is_me ? "You" : `${entry.evidence_count || 0} evidence items`}</small></div>
-              <p>{Number(entry.score || 0).toLocaleString()}<b> pts</b></p>
+              <p>{formatNumber(entry.score || 0)}<b> pts</b></p>
             </div>
           ))}
         </div>

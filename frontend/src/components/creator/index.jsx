@@ -13,7 +13,7 @@ export function creatorRoleAllowed(user, operationsSession = null) {
 
 export function CreatorRoute({ user, operationsSession = null, children }) {
   if (!creatorRoleAllowed(user, operationsSession)) {
-    return <ErrorPanel message="This content workspace requires a Django creator, content administrator, or product administrator role." />;
+    return <ErrorPanel message="This content workspace requires a creator, content administrator or product administrator role." />;
   }
   return children;
 }
@@ -26,11 +26,11 @@ export function CreatorTabs() {
     ["/creator/questions", "Questions", "help"],
     ["/creator/quizzes", "Quizzes", "target"]
   ];
-  return <nav className="tabs-row" aria-label="Creator studio">{items.map(([path, label, icon]) => <Link key={path} to={path} className={location.pathname === path || (path !== "/creator/education" && location.pathname.startsWith(path + "/")) ? "active" : ""}><Icon name={icon} size={16} />&nbsp;{label}</Link>)}</nav>;
+  return <nav className="tabs-row creator-tabs" aria-label="Creator studio">{items.map(([path, label, icon]) => <Link key={path} to={path} className={location.pathname === path || (path !== "/creator/education" && location.pathname.startsWith(path + "/")) ? "active" : ""}><Icon name={icon} size={16} />&nbsp;{label}</Link>)}</nav>;
 }
 
-export function CreatorNotice({ error, message, onRetry }) {
-  if (error) return <ErrorPanel message={error.message || error || "Django could not complete this creator action."} onRetry={onRetry} />;
+export function CreatorNotice({ error = null, message = "", onRetry = null }) {
+  if (error) return <ErrorPanel message={error.message || error || "This creator action could not be completed."} onRetry={onRetry} />;
   return message ? <p className="form-alert success" role="status">{message}</p> : null;
 }
 
@@ -78,13 +78,13 @@ export function FileUploadField({ kind, uploadedFile, onUploaded }) {
   }
 
   return <section className="settings-panel compact">
-    <div className="panel-title"><div><h2>Primary {kind.toUpperCase()} file</h2><p className="muted">Django validates and scans this file before it may be published.</p></div><Icon name="file" size={20} /></div>
+    <div className="panel-title"><div><h2>Primary {kind.toUpperCase()} file</h2><p className="muted">This file is validated and scanned before it can be published.</p></div><Icon name="file" size={20} /></div>
     <label className="field" htmlFor={inputId}><span>Choose {kind} file</span><input id={inputId} type="file" accept={kind === "pdf" ? "application/pdf" : "audio/*"} onChange={(event) => setFile(event.target.files?.[0] || null)} /></label>
     {file && <p className="save-hint">Selected: {file.name}</p>}
     <CreatorNotice error={error} />
-    <div className="focus-timer-actions"><button className="btn btn-soft" type="button" disabled={!file || pending} onClick={() => { void upload(); }}>{pending ? "Uploading…" : "Upload to Django"}</button></div>
+    <div className="focus-timer-actions"><button className="btn btn-soft" type="button" disabled={!file || pending} onClick={() => { void upload(); }}>{pending ? "Uploading…" : "Upload"}</button></div>
     {uploadedFile && <div className="settings-row"><div><h2>{uploadedFile.original_name || "Uploaded file"}</h2><p>{humanize(uploadedFile.validation_status)} validation · {humanize(uploadedFile.scan_status)} scan</p></div><WorkflowStatus status={safeFile(uploadedFile) ? "ready" : uploadedFile.validation_status} /></div>}
-    {uploadedFile && !safeFile(uploadedFile) && <p className="save-hint">This file cannot be attached while Django reports it as rejected, quarantined, or failed.</p>}
+    {uploadedFile && !safeFile(uploadedFile) && <p className="save-hint">This file cannot be attached while it is rejected, quarantined or failed.</p>}
   </section>;
 }
 
@@ -108,7 +108,7 @@ export function QuestionOptionsEditor({ options, onChange, error }) {
     <div className="panel-title"><h2>Answer options</h2><span>{options.length}/12</span></div>
     {options.map((option, index) => <div className="settings-row" key={`option-${index}`}>
       <label className="check-row"><input type="radio" name="creator-correct-option" checked={option.isCorrect === true} onChange={() => markCorrect(index)} /><span>Correct</span></label>
-      <label className="field"><span>Option {index + 1}</span><input value={option.text} maxLength="2000" required onChange={(event) => update(index, { text: event.target.value })} /></label>
+      <label className="field"><span>Option {index + 1}</span><input value={option.text} maxLength={2000} required onChange={(event) => update(index, { text: event.target.value })} /></label>
       <button className="icon-btn danger" type="button" aria-label={`Remove option ${index + 1}`} disabled={options.length <= 2} onClick={() => removeOption(index)}><Icon name="trash" size={16} /></button>
     </div>)}
     <FieldError error={error} field="options" />
@@ -118,11 +118,11 @@ export function QuestionOptionsEditor({ options, onChange, error }) {
 
 export function QuizQuestionPicker({ questions, selectedIds, onChange, selectionMode, error }) {
   const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
-  if (selectionMode !== "fixed") return <p className="save-hint">Pool selection uses Django's published question pool and its selected difficulty filters. No fixed question identifiers are sent.</p>;
+  if (selectionMode !== "fixed") return <p className="save-hint">Pool selection uses the published question pool and its selected difficulty filters. No fixed question identifiers are sent.</p>;
   function toggle(id) {
     onChange(selected.has(id) ? selectedIds.filter((value) => value !== id) : [...selectedIds, id]);
   }
-  return <section className="composer-form"><div className="panel-title"><h2>Fixed questions</h2><span>{selectedIds.length} selected</span></div>{questions.length ? questions.map((question) => <label className="settings-row" key={question.id}><span className="stat-icon"><Icon name="help" /></span><div><h2>{question.current_version?.prompt || "Question"}</h2><p>{question.current_version?.academic_node_title || "Education scope"} · {humanize(question.workflow_status)}</p></div><input type="checkbox" checked={selected.has(question.id)} onChange={() => toggle(question.id)} /></label>) : <p className="save-hint">Django returned no visible management questions. Create or publish the required questions first.</p>}<FieldError error={error} field="question_ids" /></section>;
+  return <section className="composer-form"><div className="panel-title"><h2>Fixed questions</h2><span>{selectedIds.length} selected</span></div>{questions.length ? questions.map((question) => <label className="settings-row" key={question.id}><span className="stat-icon"><Icon name="help" /></span><div><h2>{question.current_version?.prompt || "Question"}</h2><p>{question.current_version?.academic_node_title || "Education scope"} · {humanize(question.workflow_status)}</p></div><input type="checkbox" checked={selected.has(question.id)} onChange={() => toggle(question.id)} /></label>) : <p className="save-hint">No management questions are visible to your account. Create or publish the required questions first.</p>}<FieldError error={error} field="question_ids" /></section>;
 }
 
 export function localDateTime(value) {
@@ -161,7 +161,7 @@ export function LifecycleActions({ domain, record, isAdministrator = false, onUp
       setTransferOpen(false);
       setReviewNote("");
       setOwnerId("");
-      setMessage(`Django recorded this ${humanize(action)} action.`);
+      setMessage(`This ${humanize(action)} action was recorded.`);
       onUpdated?.(updated);
     } catch (requestError) {
       setError(requestError);
@@ -173,7 +173,7 @@ export function LifecycleActions({ domain, record, isAdministrator = false, onUp
   }
 
   const status = record?.workflow_status;
-  return <section className="composer-form"><div className="panel-title"><h2>Server workflow</h2><WorkflowStatus status={status} /></div><p className="save-hint">Django verifies creator scope, review/publish authority, ownership, and the latest revision for every action.</p>
+  return <section className="composer-form"><div className="panel-title"><h2>Server workflow</h2><WorkflowStatus status={status} /></div><p className="save-hint">Every action is checked against your creator scope, publishing authority, ownership, and the latest revision.</p>
     <CreatorNotice error={error} message={message} />
     <div className="focus-timer-actions">
       {(status === "draft" || status === "rejected") && <button className="btn btn-soft" type="button" disabled={Boolean(pending)} onClick={() => { void run("submit"); }}>{pending === "submit" ? "Submitting…" : "Submit for review"}</button>}
@@ -182,8 +182,8 @@ export function LifecycleActions({ domain, record, isAdministrator = false, onUp
       {status === "published" && <button className="btn btn-danger" type="button" disabled={Boolean(pending)} onClick={() => setConfirmAction(domain === "content" ? "archive" : "retire")}>{retireLabel}</button>}
       {domain === "content" && isAdministrator && <button className="btn btn-soft" type="button" disabled={Boolean(pending)} onClick={() => setTransferOpen((open) => !open)}>Transfer owner</button>}
     </div>
-    {rejectOpen && <form className="composer-form" onSubmit={(event) => { event.preventDefault(); void run("reject", { reviewNote }); }}><label className="field"><span>Required review note</span><textarea value={reviewNote} maxLength="4000" required onChange={(event) => setReviewNote(event.target.value)} /></label><FieldError error={error} field="review_note" /><div className="focus-timer-actions"><button className="btn btn-danger" type="submit" disabled={Boolean(pending)}>{pending === "reject" ? "Rejecting…" : "Reject"}</button><button className="btn btn-soft" type="button" disabled={Boolean(pending)} onClick={() => setRejectOpen(false)}>Cancel</button></div></form>}
-    {transferOpen && <form className="composer-form" onSubmit={(event) => { event.preventDefault(); void run("transfer", { ownerId }); }}><label className="field"><span>New owner user identifier</span><input value={ownerId} required onChange={(event) => setOwnerId(event.target.value)} /></label><p className="save-hint">Django exposes no general user picker in this phase; this administrator-only endpoint requires the exact server user identifier.</p><FieldError error={error} field="owner_id" /><div className="focus-timer-actions"><button className="btn btn-primary" type="submit" disabled={Boolean(pending)}>{pending === "transfer" ? "Transferring…" : "Transfer owner"}</button><button className="btn btn-soft" type="button" disabled={Boolean(pending)} onClick={() => setTransferOpen(false)}>Cancel</button></div></form>}
-    <ConfirmDialog open={Boolean(confirmAction)} title={`${retireLabel} this ${domain}?`} message="Django will apply this workflow change only if your scope and revision are current." confirmLabel={pending ? "Working…" : retireLabel} onCancel={() => !pending && setConfirmAction("")} onConfirm={() => { void run(confirmAction); }} />
+    {rejectOpen && <form className="composer-form" onSubmit={(event) => { event.preventDefault(); void run("reject", { reviewNote }); }}><label className="field"><span>Required review note</span><textarea value={reviewNote} maxLength={4000} required onChange={(event) => setReviewNote(event.target.value)} /></label><FieldError error={error} field="review_note" /><div className="focus-timer-actions"><button className="btn btn-danger" type="submit" disabled={Boolean(pending)}>{pending === "reject" ? "Rejecting…" : "Reject"}</button><button className="btn btn-soft" type="button" disabled={Boolean(pending)} onClick={() => setRejectOpen(false)}>Cancel</button></div></form>}
+    {transferOpen && <form className="composer-form" onSubmit={(event) => { event.preventDefault(); void run("transfer", { ownerId }); }}><label className="field"><span>New owner user identifier</span><input value={ownerId} required onChange={(event) => setOwnerId(event.target.value)} /></label><p className="save-hint">There is no user picker yet, so this administrator-only action needs the exact user identifier.</p><FieldError error={error} field="owner_id" /><div className="focus-timer-actions"><button className="btn btn-primary" type="submit" disabled={Boolean(pending)}>{pending === "transfer" ? "Transferring…" : "Transfer owner"}</button><button className="btn btn-soft" type="button" disabled={Boolean(pending)} onClick={() => setTransferOpen(false)}>Cancel</button></div></form>}
+    <ConfirmDialog open={Boolean(confirmAction)} title={`${retireLabel} this ${domain}?`} message="Lock-in will apply this workflow change only if your scope and revision are current." confirmLabel={pending ? "Working…" : retireLabel} onCancel={() => !pending && setConfirmAction("")} onConfirm={() => { void run(confirmAction); }} />
   </section>;
 }
