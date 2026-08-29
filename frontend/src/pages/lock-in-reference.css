@@ -8,7 +8,7 @@
   --lockin-muted: #9aa7c1;
   box-sizing: border-box;
   min-height: 100vh;
-  min-height: 100dvh;
+  min-height: var(--app-viewport-height, 100dvh);
   padding: max(20px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
   overflow-x: clip;
   color: #edf1fb;
@@ -81,7 +81,7 @@
 .lockin-reference-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1.92fr) minmax(330px, 0.95fr);
-  min-height: min(840px, calc(100dvh - 145px));
+  min-height: min(840px, calc(var(--app-viewport-height, 100dvh) - 145px));
   margin-top: 18px;
   gap: 16px;
 }
@@ -231,7 +231,7 @@
 
 /* Lock In uses the same document-reader language and controls as Focus Workspace. */
 .lockin-reference-workspace {
-  height: min(840px, calc(100dvh - 167px));
+  height: min(840px, calc(var(--app-viewport-height, 100dvh) - 167px));
   min-height: 0;
 }
 .lockin-reference-workspace.is-side-closed { grid-template-columns: minmax(0, 1fr); }
@@ -267,10 +267,9 @@
 
 .lockin-workspace-fullscreen-sidebar {
   position: fixed;
-  z-index: 30;
-  top: max(8px, env(safe-area-inset-top));
-  right: max(8px, env(safe-area-inset-right));
-  bottom: max(8px, env(safe-area-inset-bottom));
+  z-index: var(--z-drawer);
+  inset-block: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-bottom));
+  inset-inline-end: max(8px, env(safe-area-inset-right));
   width: min(370px, calc(100% - 16px));
   min-height: 0;
 }
@@ -402,10 +401,11 @@
 
 .lockin-reference-viewer:fullscreen,
 .lockin-reference-viewer.is-document-fullscreen {
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
   min-height: 0;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
   grid-template-rows: 48px minmax(0, 1fr);
   border: 0;
   border-radius: 0;
@@ -443,8 +443,8 @@
 @media (max-width: 700px) {
   .lockin-reference-viewer.workspace-v2-reader {
     grid-template-rows: 52px 54px minmax(0, 1fr);
-    height: min(650px, calc(100dvh - 24px));
-    min-height: min(650px, calc(100dvh - 24px));
+    height: min(650px, calc(var(--app-viewport-height, 100dvh) - 24px));
+    min-height: min(650px, calc(var(--app-viewport-height, 100dvh) - 24px));
     padding: 0;
     border-radius: 15px;
   }
@@ -479,7 +479,7 @@
 .lock-in-screen.lockin-team-hub,
 .lock-in-screen.lockin-setup-reference {
   min-height: 100vh;
-  min-height: 100dvh;
+  min-height: var(--app-viewport-height, 100dvh);
   padding: max(22px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(22px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
   overflow-x: clip;
   color: #edf1fb;
@@ -650,4 +650,278 @@
   .lockin-team-rankings li > small { font-size: .7rem; }
   .lockin-duration-picker > div { gap: 6px; }
   .lockin-duration-picker button { min-height: 55px; font-size: .9rem; }
+}
+
+.lockin-reference-progress-accent {
+  background: linear-gradient(90deg, var(--lockin-accent, #8172ed), var(--lockin-accent-hover, #d16dcc)) !important;
+}
+
+.lockin-reference-progress-team {
+  background: linear-gradient(90deg, var(--lockin-progress-start, #f3b55e), var(--lockin-accent, #8b6df0), var(--lockin-accent-hover, #a766df)) !important;
+}
+
+/* Theme-responsive Lock In chrome. Existing dark literals remain the Night fallbacks above. */
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.lock-in-screen.lockin-reference, .lock-in-screen.lockin-team-hub, .lock-in-screen.lockin-setup-reference) {
+  --lockin-bg: var(--bg);
+  --lockin-surface: var(--surface);
+  --lockin-surface-soft: var(--surface-2);
+  --lockin-elevated: var(--surface-elevated);
+  --lockin-stroke: var(--border);
+  --lockin-text: var(--text);
+  --lockin-muted: var(--muted);
+  --lockin-soft: var(--soft);
+  --lockin-control-bg: var(--surface-2);
+  --lockin-control-hover: var(--interactive-hover);
+  --lockin-control-text: var(--text);
+  --lockin-quiet-text: var(--muted);
+  --lockin-accent: var(--accent);
+  --lockin-accent-hover: var(--accent-hover);
+  --lockin-on-accent: var(--button-text);
+  --lockin-focus: var(--accent);
+  --lockin-ring-offset: var(--surface);
+  --lockin-progress-track: var(--bg-2);
+  --lockin-progress-indicator: var(--accent);
+  --lockin-progress-start: var(--accent);
+  --lockin-progress-end: var(--accent-hover);
+  --lockin-progress-rest: var(--bg-2);
+  --lockin-member-active: var(--green);
+  --lockin-member-idle: var(--disabled-text);
+  color: var(--lockin-text);
+  background: radial-gradient(circle at 50% -24%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 38%), var(--lockin-bg);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.lockin-reference-back, .lockin-reference-pause, .lockin-reference-side-close, .lockin-team-back, .lockin-setup-back) {
+  color: var(--lockin-muted);
+  border-color: var(--lockin-stroke);
+  background: var(--lockin-control-bg);
+  box-shadow: 0 10px 26px var(--shadow-color);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.lockin-reference-back, .lockin-reference-pause, .lockin-reference-side-close, .lockin-team-back, .lockin-setup-back):hover {
+  color: var(--accent-text);
+  background: var(--lockin-control-hover);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.lockin-reference-brand-title, .lockin-reference-stat-card strong, .lockin-reference-file, .lockin-reference-side-title, .lockin-reference-member-copy strong, .lockin-reference-chat-heading, .lockin-reference-utility h2, .lockin-reference-tasks strong, .lockin-team-identity h1, .lockin-team-metric > strong, .lockin-team-panel h2, .lockin-team-place, .lockin-team-next-reward strong, .lockin-team-activity-row p strong, .lockin-my-team-current strong, .lockin-setup-shell > header h1) {
+  color: var(--lockin-text);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.lockin-reference-brand-copy p, .lockin-reference-stat-card small, .lockin-reference-stat-card span, .lockin-reference-side-title span, .lockin-reference-member-status, .lockin-reference-member-percent, .lockin-reference-message-meta, .lockin-reference-utility p, .lockin-reference-note-status, .lockin-reference-task, .lockin-reference-personal p, .lockin-reference-invite, .lockin-reference-chat-empty, .lockin-team-members, .lockin-team-metric > span, .lockin-team-metric p, .lockin-team-metric > strong small, .lockin-team-tabs button, .lockin-team-rankings li > small, .lockin-team-next-reward span, .lockin-team-next-reward small, .lockin-team-activity-row p, .lockin-team-activity-row p small, .lockin-my-teams h2 span, .lockin-my-team-current p, .lockin-team-empty, .lockin-team-activity header > span, .lockin-team-reward-card p, .lockin-team-tip p, .lockin-setup-intro, .lockin-setup-reference .field small, .lockin-duration-picker button small) {
+  color: var(--lockin-muted);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.lockin-reference-brand-title svg, .lockin-setup-shell > header span, .lockin-team-activity > header button, .lockin-reference-note-status button, .lockin-reference-task svg, .lockin-team-tip > svg, .lockin-team-reward-card header > svg) {
+  color: var(--accent-text);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.lockin-reference-stat-card, .lockin-reference-side, .lockin-team-topbar, .lockin-team-panel, .lockin-setup-shell) {
+  border-color: var(--lockin-stroke);
+  background: var(--lockin-surface);
+  box-shadow: 0 18px 46px var(--shadow-color), var(--inner-border);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-reference-ring::after {
+  background: var(--lockin-surface-soft);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-reference-file svg {
+  color: var(--danger);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.lockin-reference-workspace, .lockin-reference-viewer.workspace-v2-reader, .lockin-reference-viewer.is-document-fullscreen) {
+  border-color: var(--lockin-stroke);
+  background: var(--workspace-stage);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-reference-viewer.workspace-v2-reader {
+  --workspace-violet: var(--accent);
+  --workspace-violet-bright: var(--accent-hover);
+  --workspace-panel: var(--surface);
+  --workspace-border: var(--border);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.lockin-reference-page, .lockin-reference-fit) {
+  color: var(--lockin-muted);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-reference-page strong {
+  color: var(--lockin-text);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-reference-fit.is-attention {
+  color: var(--accent-text);
+  background: var(--accent-subtle);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-workspace-search {
+  color: var(--accent-text);
+  border-color: var(--accent-border);
+  background: var(--lockin-elevated);
+  box-shadow: 0 14px 34px var(--shadow-color);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-workspace-search input {
+  color: var(--lockin-text);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-workspace-search button {
+  color: var(--lockin-on-accent);
+  background: var(--accent);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-workspace-search button:last-child {
+  color: var(--lockin-muted);
+  background: transparent;
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.lockin-reference-annotation-dock, .lockin-reference-utility) {
+  color: var(--lockin-text);
+  border-color: var(--lockin-stroke);
+  background: var(--lockin-elevated);
+  box-shadow: 0 12px 28px var(--shadow-color);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-reference-tool {
+  color: var(--lockin-muted);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-reference-tool:hover,
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-reference-tool[aria-pressed="true"] {
+  color: var(--lockin-on-accent);
+  background: var(--accent);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-reference-member {
+  border-color: var(--border-subtle);
+  background: var(--lockin-elevated);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-reference-avatar {
+  color: var(--lockin-text);
+  border-color: var(--lockin-stroke);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-reference-avatar--teal { background: color-mix(in srgb, var(--green) 20%, var(--surface)); }
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-reference-avatar--gold { background: color-mix(in srgb, var(--highlight) 20%, var(--surface)); }
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-reference-avatar--violet { background: var(--accent-subtle); }
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-reference-avatar--slate { background: var(--surface-2); }
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-reference-chat {
+  border-color: var(--border-subtle);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-reference-message-meta strong {
+  color: var(--lockin-text);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-reference-bubble {
+  color: var(--lockin-text);
+  background: var(--lockin-control-bg);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-reference-message--mine .lockin-reference-bubble {
+  color: var(--accent-text);
+  background: var(--accent-subtle);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.lockin-reference-chat-form input, .lockin-reference-utility-note, .lockin-reference-add-task input, .lockin-team-join input, .lockin-setup-reference .field input, .lockin-setup-reference .field select) {
+  color: var(--lockin-text);
+  border-color: var(--lockin-stroke);
+  background: var(--lockin-elevated);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.lockin-reference-chat-form input, .lockin-reference-utility-note, .lockin-reference-add-task input, .lockin-team-join input, .lockin-setup-reference .field input)::placeholder {
+  color: var(--text-placeholder);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.lockin-reference-chat-form input, .lockin-reference-utility-note, .lockin-reference-add-task input, .lockin-team-join input, .lockin-setup-reference .field input, .lockin-setup-reference .field select):focus {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.lockin-reference-send, .lockin-reference-add-task button, .lockin-team-cta, .lockin-team-create, .lockin-team-join button, .lockin-setup-start) {
+  color: var(--lockin-on-accent);
+  background: var(--accent);
+  box-shadow: 0 8px 16px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.lockin-reference-utility-action, .lockin-team-secondary-action, .lockin-team-resume, .lockin-duration-picker button) {
+  color: var(--lockin-text);
+  border-color: var(--lockin-stroke);
+  background: var(--lockin-control-bg);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.lockin-reference-utility-action, .lockin-team-secondary-action, .lockin-team-resume, .lockin-duration-picker button):hover {
+  background: var(--lockin-control-hover);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.lockin-reference-utility-action--danger, .lockin-reference-error, .lockin-reference-chat-error, .lockin-team-join p) {
+  color: var(--danger);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-reference-error {
+  border-color: color-mix(in srgb, var(--danger) 32%, var(--border));
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-reference-task:hover {
+  background: var(--interactive-hover);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-reference-task--complete {
+  color: var(--disabled-text);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.lockin-workspace-sidebar-backdrop, .lockin-reference-side-backdrop) {
+  background: var(--overlay);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.lockin-team-identity, .lockin-team-metric, .lockin-team-tabs, .lockin-team-activity-row, .lockin-team-next-reward) {
+  border-color: var(--border-subtle);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.lockin-team-mark, .lockin-team-reward-icon) {
+  color: var(--accent-text);
+  background: var(--accent-subtle);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-team-avatar-stack .lockin-reference-avatar {
+  border-color: var(--lockin-surface);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.lockin-team-tabs button[aria-selected="true"], .lockin-team-rankings li.is-current) {
+  color: var(--accent-text);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-team-tabs button[aria-selected="true"]::after {
+  background: var(--accent);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-team-rankings li {
+  color: var(--lockin-text);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-team-rankings li.is-current {
+  border-color: var(--accent-border);
+  background: var(--accent-subtle);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-team-activity-row em {
+  color: var(--green);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-my-team-current {
+  border-color: var(--lockin-stroke);
+  background: var(--lockin-elevated);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .lockin-duration-picker button.active {
+  color: var(--accent-text);
+  border-color: var(--accent-border);
+  background: var(--accent-subtle);
+}
+
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.lockin-setup-reference .field, .lockin-duration-picker legend) {
+  color: var(--lockin-text);
 }
