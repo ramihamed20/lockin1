@@ -2,14 +2,27 @@ import { Icon } from "../../lib/icons.jsx";
 import { SessionConfetti } from "../ui/index.jsx";
 import { assetPath } from "../../lib/utils.js";
 export { ForbiddenState } from "./ForbiddenState.jsx";
+export { PwaUpdatePrompt } from "./PwaUpdatePrompt.jsx";
 
-export function FullScreenState({ message, actionLabel, onAction }) {
+export function FullScreenState({ message, actionLabel = "", onAction = null, startup = false }) {
   return (
-    <main className="screen-state">
-      <span className="brand-mark">
-        <img src={assetPath("/assets/lock-in-logo.jpg")} alt="Lock-in Logo" className="brand-logo-img" />
+    <main
+      className={`screen-state startup-shell startup-shell--${startup ? "continuation" : "settled"}`}
+      aria-busy={startup || undefined}
+    >
+      <span className="startup-emblem" aria-hidden="true">
+        <span className="startup-halo" />
+        <span className="startup-logo-frame">
+          <img
+            src={assetPath("/icons/lockin-light-192-v2.png")}
+            alt=""
+            width="96"
+            height="96"
+            className="startup-logo"
+          />
+        </span>
       </span>
-      <p>{message}</p>
+      <p className="startup-message" role="status" aria-live="polite">{message}</p>
       {actionLabel && onAction && <button className="btn btn-soft" type="button" onClick={onAction}>{actionLabel}</button>}
     </main>
   );

@@ -5,23 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="dark light" />
     <meta name="theme-color" content="#070b16" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Lock-in" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <title>Lock-in — Smart Dental Study Platform</title>
-    <meta name="description" content="Lock-in is a modern dental study platform with spaced repetition, question practice, analytics, and community tools for dental students." />
-    <meta property="og:title" content="Lock-in — Smart Dental Study Platform" />
-    <meta property="og:description" content="Master dental sciences with focused study sessions, spaced review, and progress analytics." />
+    <link id="app-apple-touch-icon" rel="apple-touch-icon" sizes="180x180" href="/icons/lockin-light-180-v2.png" />
+    <title>Lock-in — Private Dental Study Workspace</title>
+    <meta name="description" content="Lock-in is a private study workspace for authenticated dental students." />
+    <meta name="robots" content="noindex, nofollow, noarchive" />
+    <meta property="og:title" content="Lock-in — Private Dental Study Workspace" />
+    <meta property="og:description" content="A private study workspace for authenticated dental students." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="preload" as="image" href="%BASE_URL%icons/lockin-light-192-v2.png" fetchpriority="high" />
+    <link rel="stylesheet" href="%BASE_URL%startup.css" />
+    <link id="app-favicon-32" rel="icon" type="image/png" sizes="32x32" href="/icons/lockin-light-32-v2.png" />
+    <link id="app-favicon-16" rel="icon" type="image/png" sizes="16x16" href="/icons/lockin-light-16-v2.png" />
+    <link id="app-shortcut-icon" rel="shortcut icon" type="image/png" href="/icons/lockin-light-32-v2.png" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main class="startup-shell" aria-label="Opening Lock-in" aria-busy="true">
+        <span class="startup-emblem" aria-hidden="true">
+          <span class="startup-halo"></span>
+          <span class="startup-logo-frame">
+            <img class="startup-logo" src="%BASE_URL%icons/lockin-light-192-v2.png" alt="" width="96" height="96" decoding="sync" fetchpriority="high" />
+          </span>
+        </span>
+        <p class="startup-message" role="status">Opening your study room...</p>
+      </main>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
