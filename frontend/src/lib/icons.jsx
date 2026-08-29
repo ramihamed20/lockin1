@@ -7,6 +7,7 @@ import {
   Bell,
   Bookmark,
   BookOpen,
+  Brain,
   Calendar,
   CheckCircle2,
   ChevronLeft,
@@ -16,10 +17,12 @@ import {
   Eye,
   EyeOff,
   Globe,
+  FileQuestion,
   FileText,
   Flame,
   Home,
   Layers,
+  ListChecks,
   LockKeyhole,
   LogOut,
   Megaphone,
@@ -34,6 +37,7 @@ import {
   Save,
   Search,
   ShieldAlert,
+  Shuffle,
   Settings,
   Sparkles,
   Sun,
@@ -59,6 +63,7 @@ import {
   Shapes,
   Circle,
   Square,
+  Snowflake,
   Triangle,
   ArrowUpRight,
   Move,
@@ -95,6 +100,7 @@ const icons = {
   bell: Bell,
   bookmark: Bookmark,
   "book-open": BookOpen,
+  brain: Brain,
   calendar: Calendar,
   check: CheckCircle2,
   "chevron-left": ChevronLeft,
@@ -104,10 +110,12 @@ const icons = {
   eye: Eye,
   "eye-off": EyeOff,
   globe: Globe,
+  "file-question": FileQuestion,
   file: FileText,
   flame: Flame,
   home: Home,
   layers: Layers,
+  "list-checks": ListChecks,
   lock: LockKeyhole,
   logout: LogOut,
   megaphone: Megaphone,
@@ -122,6 +130,7 @@ const icons = {
   save: Save,
   search: Search,
   "shield-alert": ShieldAlert,
+  shuffle: Shuffle,
   settings: Settings,
   sparkles: Sparkles,
   sun: Sun,
@@ -138,6 +147,7 @@ const icons = {
   shapes: Shapes,
   circle: Circle,
   square: Square,
+  snowflake: Snowflake,
   triangle: Triangle,
   "arrow-up-right": ArrowUpRight,
   move: Move,
@@ -157,7 +167,23 @@ const icons = {
   coins: CircleDollarSign
 };
 
+/** @typedef {import("lucide-react").LucideProps & {name: string}} IconProps */
+/**
+ * Icons whose meaning is tied to the reading direction, so they have to face
+ * the other way in Arabic. "Next" is on the left in an RTL layout, and a
+ * chevron still pointing right sends the reader back where they came from.
+ *
+ * Everything else keeps its orientation: a flame, a clock or a trophy does not
+ * turn around because the text does. Rotational icons are deliberately absent -
+ * undo and redo describe a direction in time rather than in the page.
+ */
+const MIRRORED_IN_RTL = new Set(["chevron-left", "chevron-right", "arrow-left", "arrow-up-right", "logout"]);
+
+/** @type {import("react").NamedExoticComponent<IconProps>} */
 export const Icon = memo(function Icon({ name, size = 20, strokeWidth = 1.9, ...props }) {
   const Component = icons[name] || CircleHelp;
-  return <Component aria-hidden="true" size={size} strokeWidth={strokeWidth} {...props} />;
+  // The flip itself is a stylesheet rule, so it follows the direction of the
+  // element the icon actually sits in rather than a locale read at render time.
+  const mirrored = MIRRORED_IN_RTL.has(name) ? "" : undefined;
+  return <Component aria-hidden="true" size={size} strokeWidth={strokeWidth} data-mirror-rtl={mirrored} {...props} />;
 });

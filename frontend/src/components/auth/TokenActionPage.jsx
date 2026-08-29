@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Icon } from "../../lib/icons.jsx";
 import { authApi } from "../../lib/api.js";
@@ -38,6 +38,11 @@ export function TokenActionPage({ type, onAccountChanged }) {
   const [loading, setLoading] = useState(false);
   const isReset = type === "reset-password";
   const flow = FLOW[type];
+  const pageTitle = isReset ? "Reset your password" : flow.title;
+
+  useEffect(() => {
+    document.title = `${pageTitle} — Lock-in`;
+  }, [pageTitle]);
 
   async function submit(event) {
     event.preventDefault();
@@ -87,12 +92,12 @@ export function TokenActionPage({ type, onAccountChanged }) {
       <div className="auth-bg-orbs" aria-hidden="true"><span className="auth-orb auth-orb-1" /><span className="auth-orb auth-orb-2" /><span className="auth-orb auth-orb-3" /></div>
       <section className="auth-card" aria-label="Account confirmation">
         <div className="auth-panel"><div className="auth-panel-inner">
-          <div className="auth-brand"><div className="auth-brand-logo"><span className="auth-brand-mark"><img src={assetPath("/assets/lock-in-logo.jpg")} alt="Lock-in Logo" className="brand-logo-img" /></span></div><span className="auth-brand-badge">Account security</span></div>
+          <div className="auth-brand"><div className="auth-brand-logo"><span className="auth-brand-mark"><img src={assetPath("/icons/lockin-light-192-v2.png")} alt="Lock-in Logo" className="brand-logo-img" /></span></div><span className="auth-brand-badge">Account security</span></div>
           <div className="auth-header"><h1 className="auth-title">{title}</h1><p className="auth-subtitle">{subtitle}</p></div>
           <form className="auth-form" onSubmit={submit}>
             {isReset && <>
-              <label className="auth-field-group" htmlFor="reset-password"><span className="auth-field-label">New password</span><div className="auth-input-wrap"><span className="auth-input-icon" aria-hidden="true"><Icon name="lock" size={18} /></span><input id="reset-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} required /></div><AccountFieldErrors error={error} field="new_password" /></label>
-              <label className="auth-field-group" htmlFor="reset-password-confirm"><span className="auth-field-label">Confirm new password</span><div className="auth-input-wrap"><span className="auth-input-icon" aria-hidden="true"><Icon name="lock" size={18} /></span><input id="reset-password-confirm" type="password" value={passwordConfirm} onChange={(event) => setPasswordConfirm(event.target.value)} required /></div><AccountFieldErrors error={error} field="new_password_confirm" /></label>
+              <label className="auth-field-group" htmlFor="reset-password"><span className="auth-field-label">New password</span><div className="auth-input-wrap"><span className="auth-input-icon" aria-hidden="true"><Icon name="lock" size={18} /></span><input id="reset-password" type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></div><AccountFieldErrors error={error} field="new_password" /></label>
+              <label className="auth-field-group" htmlFor="reset-password-confirm"><span className="auth-field-label">Confirm new password</span><div className="auth-input-wrap"><span className="auth-input-icon" aria-hidden="true"><Icon name="lock" size={18} /></span><input id="reset-password-confirm" type="password" autoComplete="new-password" value={passwordConfirm} onChange={(event) => setPasswordConfirm(event.target.value)} required /></div><AccountFieldErrors error={error} field="new_password_confirm" /></label>
             </>}
             <AccountFormAlert error={error} message={message} />
             {!message && <button className="auth-submit-btn" type="submit" disabled={loading}>{loading ? "Please wait..." : action}<Icon name="chevron-right" size={18} /></button>}

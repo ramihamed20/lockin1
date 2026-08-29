@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { assessmentsApi } from "../api/assessments.js";
 import { isApiError } from "../api/client.js";
 import { generateIdempotencyKey } from "../api/pagination.js";
@@ -8,8 +8,8 @@ import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
 import { AttemptQuestionCard } from "../components/assessment/AttemptQuestionCard.jsx";
 import { AttemptTimer } from "../components/assessment/AttemptTimer.jsx";
 import { ErrorPanel, LoadingPanel, Page, ProgressLine } from "../components/ui/index.jsx";
-import { Icon } from "../lib/icons.jsx";
 import { notifyProgressionUpdated } from "../lib/progressionEvents.js";
+import { useI18n } from "../components/I18nProvider.jsx";
 
 function updateQuestion(attempt, questionId, answer) {
   const acknowledgedRevision = Number(answer?.server_revision);
@@ -20,14 +20,20 @@ function updateQuestion(attempt, questionId, answer) {
   };
 }
 
-function errorText(error) {
+function errorText(error, t) {
   if (!error) return "";
   const field = error.fields && Object.values(error.fields).flat().find((value) => typeof value === "string");
-  return field || error.message || "The server could not save your answer.";
+  return field || error.message || t("assessment.saveError");
+}
+
+function returnPath(state) {
+  return typeof state?.returnTo === "string" && state.returnTo.startsWith("/questions") ? state.returnTo : "/questions";
 }
 
 export default function Attempt() {
+  const { t } = useI18n();
   const { attemptId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const detail = useAsyncData(() => assessmentsApi.getAttempt(attemptId), [attemptId]);
   const [attempt, setAttempt] = useState(null);
@@ -39,6 +45,7 @@ export default function Attempt() {
   const activityStarted = useRef(false);
   const submitKey = useRef(null);
   const deadlineRefresh = useRef(false);
+  const returnTo = returnPath(location.state);
 
   useEffect(() => {
     activityStarted.current = false;
@@ -70,26 +77,22 @@ export default function Attempt() {
       }).catch(() => null);
     }
     void record("workspace_entered");
-    function visibilityChange() {
-      void record(document.hidden ? "page_hidden" : "page_visible");
-    }
+    function visibilityChange() { void record(document.hidden ? "page_hidden" : "page_visible"); }
     document.addEventListener("visibilitychange", visibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", visibilityChange);
-      void record("workspace_exited");
-    };
+    return () => { document.removeEventListener("visibilitychange", visibilityChange); void record("workspace_exited"); };
   }, [attempt?.status, attemptId]);
 
   async function selectOption(question, optionId) {
     if (!attempt || attempt.status !== "active") return;
     const previous = question.answer;
+    const previousIds = Array.isArray(previous?.selected_option_ids) ? previous.selected_option_ids : [];
+    const selectedOptionIds = question.question_type === "multiple_select"
+      ? previousIds.includes(optionId) ? previousIds.filter((id) => id !== optionId) : [...previousIds, optionId]
+      : [optionId];
     const nextRevision = Number(previous?.client_revision || 0) + 1;
     setAnswerStates((current) => ({ ...current, [question.id]: { saving: true, error: "", conflict: false } }));
     try {
-      const answer = await assessmentsApi.saveAnswer(attempt.id, question.id, {
-        selectedOptionIds: [optionId],
-        clientRevision: nextRevision
-      });
+      const answer = await assessmentsApi.saveAnswer(attempt.id, question.id, { selectedOptionIds, clientRevision: nextRevision });
       setAttempt((current) => current ? updateQuestion(current, question.id, answer) : current);
       setAnswerStates((current) => ({ ...current, [question.id]: { saving: false, error: "", conflict: false } }));
     } catch (error) {
@@ -98,7 +101,7 @@ export default function Attempt() {
         setAttempt((current) => current ? updateQuestion(current, question.id, currentAnswer) : current);
         setAnswerStates((current) => ({ ...current, [question.id]: { saving: false, error: "", conflict: true } }));
       } else {
-        setAnswerStates((current) => ({ ...current, [question.id]: { saving: false, error: errorText(error), conflict: false } }));
+        setAnswerStates((current) => ({ ...current, [question.id]: { saving: false, error: errorText(error, t), conflict: false } }));
         if (isApiError(error) && error.code === "attempt_closed") detail.reload();
       }
     }
@@ -113,7 +116,7 @@ export default function Attempt() {
       const result = await assessmentsApi.submitAttempt(attempt.id, submitKey.current);
       notifyProgressionUpdated();
       setSubmitOpen(false);
-      navigate(`/questions/results/${result.id}`, { replace: true });
+      navigate(`/questions/results/${result.id}`, { replace: true, state: { returnTo } });
     } catch (error) {
       setSubmitError(error);
     } finally {
@@ -131,28 +134,29 @@ export default function Attempt() {
   const closed = attempt.status !== "active";
 
   if (closed) {
-    return (
-      <Page title={attempt.quiz_title || "Assessment"} subtitle="This attempt is no longer active; Django has the final status.">
-        <section className="session-result"><article className="result-hero"><div><p className="eyebrow">Attempt {attempt.status}</p><h2>{attempt.status === "expired" ? "Time window closed" : "Attempt submitted"}</h2><p>The server has closed this attempt. Open the result only when the backend provides one.</p></div></article><div className="result-actions">{attempt.result_id && <Link className="btn btn-primary" to={`/questions/results/${attempt.result_id}`}>Open result</Link>}<Link className="btn btn-soft" to="/questions">Back to quizzes</Link></div></section>
-      </Page>
-    );
+    return <Page title={attempt.quiz_title || t("assessment.assessment")} subtitle={t("assessment.attemptClosedSubtitle")}><section className="session-result"><article className="result-hero"><div><p className="eyebrow" dir="auto">{t("assessment.attemptStatus", { status: attempt.status })}</p><h2>{t(attempt.status === "expired" ? "assessment.timeClosed" : "assessment.attemptSubmitted")}</h2><p>{t("assessment.attemptClosedBody")}</p></div></article><div className="result-actions">{attempt.result_id && <Link className="btn btn-primary" to={`/questions/results/${attempt.result_id}`} state={{ returnTo }}>{t("assessment.openResult")}</Link>}<Link className="btn btn-soft" to={returnTo}>{t("assessment.exit")}</Link></div></section></Page>;
   }
 
-  if (!currentQuestion) return <ErrorPanel message="The server returned an attempt without questions." onRetry={detail.reload} />;
+  if (!currentQuestion) return <ErrorPanel message={t("assessment.noQuestions")} onRetry={detail.reload} />;
   const currentState = answerStates[currentQuestion.id] || {};
   const progress = questions.length ? Math.round(((activeIndex + 1) / questions.length) * 100) : 0;
+  const finalQuestion = activeIndex === questions.length - 1;
 
   return (
-    <Page title={attempt.quiz_title || "Assessment"} subtitle="Answers save to Django as you select them. Correct answers and scores remain hidden until the server releases the result.">
+    <Page title={attempt.quiz_title || t("assessment.assessment")} subtitle={t("assessment.attemptSubtitle")}>
       <section className="session-panel">
-        <div className="session-top"><div><p className="eyebrow">Question {activeIndex + 1} of {questions.length}</p><h2>{attempt.mode} attempt</h2></div><Link className="btn btn-soft" to="/questions">Exit</Link></div>
+        <div className="session-top session-quiz-header"><div><p className="eyebrow" dir="auto">{attempt.quiz_title || t("assessment.quiz")}</p><h2 dir="auto">{t("assessment.questionOf", { index: activeIndex + 1, total: questions.length })}</h2></div><Link className="btn btn-soft" to={returnTo}>{t("assessment.exitQuiz")}</Link></div>
         <ProgressLine value={progress} />
-        <div className="session-metrics"><span><strong>{answeredCount}</strong> saved answers</span><span><strong>{Math.max(0, questions.length - answeredCount)}</strong> remaining</span><span><strong>r{attempt.server_revision}</strong> server revision</span><AttemptTimer deadlineAt={attempt.deadline_at} serverTime={attempt.server_time} onDeadline={() => { if (!deadlineRefresh.current) { deadlineRefresh.current = true; detail.reload(); } }} /></div>
+        <div className="quiz-explanation-hint"><button className="btn btn-soft compact" type="button" disabled aria-describedby="quiz-explanation-availability">{t("assessment.explainQuestion")}</button><span id="quiz-explanation-availability">{t("assessment.explainAvailability")}</span></div>
         <AttemptQuestionCard question={currentQuestion} saving={currentState.saving} error={currentState.error} conflict={currentState.conflict} disabled={false} onSelect={(optionId) => void selectOption(currentQuestion, optionId)} />
-        {submitError && <p className="inline-error" role="alert">{errorText(submitError)}</p>}
-        <div className="session-actions"><div className="focus-timer-actions"><button className="btn btn-soft" type="button" onClick={() => setActiveIndex((index) => Math.max(0, index - 1))} disabled={activeIndex === 0}>Previous</button><button className="btn btn-soft" type="button" onClick={() => setActiveIndex((index) => Math.min(questions.length - 1, index + 1))} disabled={activeIndex === questions.length - 1}>Next</button></div><button className="btn btn-primary" type="button" onClick={() => setSubmitOpen(true)}>Submit attempt</button></div>
+        <details className="attempt-metadata">
+          <summary>{t("assessment.quizProgress")} <span dir="auto">{t("assessment.answeredOf", { answered: answeredCount, total: questions.length })}</span></summary>
+          <div className="session-metrics"><span dir="auto"><strong>{answeredCount}</strong> {t("assessment.savedAnswers")}</span><span dir="auto"><strong>{Math.max(0, questions.length - answeredCount)}</strong> {t("assessment.remaining")}</span><span dir="auto"><strong>r{attempt.server_revision}</strong> {t("assessment.revision")}</span><AttemptTimer deadlineAt={attempt.deadline_at} serverTime={attempt.server_time} onDeadline={() => { if (!deadlineRefresh.current) { deadlineRefresh.current = true; detail.reload(); } }} /></div>
+        </details>
+        {submitError && <p className="inline-error" role="alert" dir="auto">{errorText(submitError, t)}</p>}
+        <div className="session-actions quiz-navigation"><button className="btn btn-soft" type="button" onClick={() => setActiveIndex((index) => Math.max(0, index - 1))} disabled={activeIndex === 0}>{t("common.previous")}</button>{finalQuestion ? <button className="btn btn-primary" type="button" onClick={() => setSubmitOpen(true)}>{t("assessment.submitQuiz")}</button> : <button className="btn btn-primary" type="button" onClick={() => setActiveIndex((index) => Math.min(questions.length - 1, index + 1))}>{t("common.next")}</button>}</div>
       </section>
-      <ConfirmDialog open={submitOpen} title="Submit this attempt?" message={`Django will grade the ${answeredCount} saved answer${answeredCount === 1 ? "" : "s"} and record any remaining questions as unanswered.`} confirmLabel={submitting ? "Submitting…" : "Submit"} onConfirm={() => void submitAttempt()} onCancel={() => !submitting && setSubmitOpen(false)} />
+      <ConfirmDialog open={submitOpen} title={t("assessment.submitTitle")} message={t("assessment.submitMessage", { count: answeredCount })} confirmLabel={t(submitting ? "assessment.submitting" : "assessment.submitQuiz")} onConfirm={() => void submitAttempt()} onCancel={() => !submitting && setSubmitOpen(false)} />
     </Page>
   );
 }

@@ -1,3 +1,5 @@
+import { isHtmlErrorMessage, normalizeUserError } from "../lib/errors.js";
+
 const configuredBasePath = import.meta.env?.VITE_API_BASE_URL || "/api/v1";
 const SESSION_MARKER_KEY = "lock-in.session";
 const CSRF_COOKIE_NAMES = ["__Host-lockin_csrf", "csrftoken"];
@@ -16,6 +18,7 @@ const CSRF_COOKIE_NAMES = ["__Host-lockin_csrf", "csrftoken"];
 
 const unauthorizedSubscribers = new Set();
 let cachedCsrfToken = "";
+let pendingCsrfToken = null;
 
 function runtimeOrigin() {
   return typeof window === "undefined" ? "http://lock-in.invalid" : window.location.origin;
@@ -133,12 +136,13 @@ export class ApiError extends Error {
       ? Object.values(fields).flat().find((value) => typeof value === "string" && value)
       : "";
     const detail = detailMessage(payload);
-    super(
+    super(normalizeUserError(
       (error && typeof error.message === "string" && error.message) ||
         fieldMessage ||
         detail ||
-        fallbackMessage
-    );
+        fallbackMessage,
+      fallbackMessage
+    ));
     this.name = "ApiError";
     this.status = status;
     this.code = (error && typeof error.code === "string" && error.code) || fallbackCode;
@@ -171,6 +175,7 @@ export function setSessionMarker(active) {
 
 export function clearCsrfToken() {
   cachedCsrfToken = "";
+  pendingCsrfToken = null;
 }
 
 function notifyUnauthorized() {
@@ -184,7 +189,9 @@ function notifyUnauthorized() {
  */
 export function onUnauthorized(subscriber) {
   unauthorizedSubscribers.add(subscriber);
-  return () => unauthorizedSubscribers.delete(subscriber);
+  return () => {
+    unauthorizedSubscribers.delete(subscriber);
+  };
 }
 
 async function readErrorPayload(response) {
@@ -194,7 +201,11 @@ async function readErrorPayload(response) {
   }
 
   const text = await response.text().catch(() => "");
-  return text ? { error: { message: text } } : null;
+  if (!text) return null;
+  if (contentType.includes("text/html") || isHtmlErrorMessage(text)) {
+    return { error: { message: "The server could not complete this request.", code: "server_html_error" } };
+  }
+  return { error: { message: normalizeUserError(text, "The server could not complete this request.") } };
 }
 
 async function fetchCsrfToken() {
@@ -224,12 +235,24 @@ async function fetchCsrfToken() {
     );
   }
 
-  cachedCsrfToken = token;
   return token;
 }
 
 export async function ensureCsrfToken() {
-  return cachedCsrfToken || readCsrfCookie() || fetchCsrfToken();
+  const availableToken = cachedCsrfToken || readCsrfCookie();
+  if (availableToken) return availableToken;
+  if (pendingCsrfToken) return pendingCsrfToken;
+
+  const request = fetchCsrfToken()
+    .then((token) => {
+      if (pendingCsrfToken === request) cachedCsrfToken = token;
+      return token;
+    })
+    .finally(() => {
+      if (pendingCsrfToken === request) pendingCsrfToken = null;
+    });
+  pendingCsrfToken = request;
+  return request;
 }
 
 async function parseResponse(response, responseType) {
@@ -255,7 +278,9 @@ async function parseResponse(response, responseType) {
  * Makes a same-origin request inside the configured Django API path.
  * @param {string} path
  * @param {ApiRequestOptions} [options]
- * @returns {Promise<unknown>}
+ * The API modules perform endpoint-specific validation where a strict shape is
+ * security- or workflow-critical. Unspecified JSON remains dynamic in this JS client.
+ * @returns {Promise<any>}
  */
 export async function request(path, options = {}) {
   const method = (options.method || "GET").toUpperCase();

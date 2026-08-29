@@ -1,89 +1,124 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { authApi, isApiError, onUnauthorized } from "./lib/api.js";
 import {
   autoThemeForDate,
+  assetPath,
   normalizeThemeSettings,
-  normalizeReminderSettings,
   parseReminderTime,
   readLocalThemeSettings,
   readReminderSettings,
   reminderKey,
   todayStamp
 } from "./lib/utils.js";
+import { appIconOptions } from "./lib/constants.js";
 import { Shell } from "./components/layout/index.jsx";
 import { AuthPage } from "./components/auth/AuthPage.jsx";
 import { FullScreenState, ReminderToast } from "./components/shared/index.jsx";
-import { ErrorPanel, LoadingPanel } from "./components/ui/index.jsx";
+import { bootFailureMessage, bootRetryDelayMs, shouldRetryBootAutomatically } from "./lib/sessionBootstrap.js";
+import { LoadingPanel } from "./components/ui/index.jsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.jsx";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute.jsx";
 import { TokenActionPage } from "./components/auth/TokenActionPage.jsx";
 import { setSessionMarker } from "./api/client.js";
+import { lazyWithRecovery } from "./lib/lazyWithRecovery.js";
+import { useVisibleNow } from "./hooks/useVisibleNow.js";
+import { useI18n } from "./components/I18nProvider.jsx";
+import { NotFoundPage } from "./components/ui/index.jsx";
+import { PublicInfoPage } from "./components/PublicInfoPage.jsx";
 
 // --- Lazy-loaded pages ---
-const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
-const Materials = lazy(() => import("./pages/Materials.jsx"));
-const MaterialSheets = lazy(() => import("./pages/Materials.jsx").then((m) => ({ default: m.MaterialSheets })));
-const CatalogMaterialSheets = lazy(() => import("./pages/Materials.jsx").then((m) => ({ default: m.CatalogMaterialSheets })));
-const CatalogSheetStudy = lazy(() => import("./pages/Materials.jsx").then((m) => ({ default: m.CatalogSheetStudy })));
-const CatalogFocusWorkspace = lazy(() => import("./pages/CatalogFocusWorkspace.jsx"));
-const LearningObjectStudy = lazy(() => import("./pages/LearningObjectStudy.jsx"));
-const FocusWorkspace = lazy(() => import("./pages/FocusWorkspace.jsx"));
-const LockInMode = lazy(() => import("./pages/LockInMode.jsx"));
-const Search = lazy(() => import("./pages/Search.jsx"));
-const Questions = lazy(() => import("./pages/Questions.jsx"));
-const QuizDetail = lazy(() => import("./pages/QuizDetail.jsx"));
-const Attempt = lazy(() => import("./pages/Attempt.jsx"));
-const AssessmentResult = lazy(() => import("./pages/AssessmentResult.jsx"));
-const Review = lazy(() => import("./pages/Review.jsx"));
-const Community = lazy(() => import("./pages/Community.jsx"));
-const CommunityContext = lazy(() => import("./pages/Community.jsx").then((module) => ({ default: module.CommunityContext })));
-const Discussion = lazy(() => import("./pages/Discussion.jsx"));
-const CommunitySpace = lazy(() => import("./pages/CommunitySpace.jsx"));
-const CommunityReport = lazy(() => import("./pages/CommunityReport.jsx"));
-const Ranked = lazy(() => import("./pages/Ranked.jsx"));
-const Bookmarks = lazy(() => import("./pages/Bookmarks.jsx"));
-const Progress = lazy(() => import("./pages/Progress.jsx"));
-const Achievements = lazy(() => import("./pages/Achievements.jsx"));
-const Notifications = lazy(() => import("./pages/Notifications.jsx"));
-const Store = lazy(() => import("./pages/Store.jsx"));
-const Profile = lazy(() => import("./pages/Profile.jsx"));
-const Settings = lazy(() => import("./pages/Settings.jsx"));
-const CreatorEducation = lazy(() => import("./pages/CreatorEducation.jsx"));
-const CreatorContent = lazy(() => import("./pages/CreatorContent.jsx"));
-const CreatorContentDetail = lazy(() => import("./pages/CreatorContent.jsx").then((module) => ({ default: module.CreatorContentDetail })));
-const CreatorQuestions = lazy(() => import("./pages/CreatorAssessments.jsx").then((module) => ({ default: module.CreatorQuestions })));
-const CreatorQuestionDetail = lazy(() => import("./pages/CreatorAssessments.jsx").then((module) => ({ default: module.CreatorQuestionDetail })));
-const CreatorQuizzes = lazy(() => import("./pages/CreatorAssessments.jsx").then((module) => ({ default: module.CreatorQuizzes })));
-const CreatorQuizDetail = lazy(() => import("./pages/CreatorAssessments.jsx").then((module) => ({ default: module.CreatorQuizDetail })));
-const CreatorRoute = lazy(() => import("./components/creator/index.jsx").then((module) => ({ default: module.CreatorRoute })));
-const OperationsAdmin = lazy(() => import("./pages/OperationsAdmin.jsx"));
+const Dashboard = lazyWithRecovery(() => import("./pages/Dashboard.jsx"));
+const StudyPlan = lazyWithRecovery(() => import("./pages/StudyPlan.jsx"));
+const Materials = lazyWithRecovery(() => import("./pages/Materials.jsx"));
+const MaterialSheets = lazyWithRecovery(() => import("./pages/Materials.jsx").then((m) => ({ default: m.MaterialSheets })));
+const CatalogMaterialSheets = lazyWithRecovery(() => import("./pages/Materials.jsx").then((m) => ({ default: m.CatalogMaterialSheets })));
+const CatalogSheetStudy = lazyWithRecovery(() => import("./pages/Materials.jsx").then((m) => ({ default: m.CatalogSheetStudy })));
+const CatalogFocusWorkspace = lazyWithRecovery(() => import("./pages/CatalogFocusWorkspace.jsx"));
+const LearningObjectStudy = lazyWithRecovery(() => import("./pages/LearningObjectStudy.jsx"));
+const LockInComingSoon = lazyWithRecovery(() => import("./pages/LockInComingSoon.jsx"));
+const Search = lazyWithRecovery(() => import("./pages/Search.jsx"));
+const Questions = lazyWithRecovery(() => import("./pages/Questions.jsx"));
+const QuestionCategory = lazyWithRecovery(() => import("./pages/Questions.jsx").then((module) => ({ default: module.QuestionCategory })));
+const QuestionSubjectQuizzes = lazyWithRecovery(() => import("./pages/Questions.jsx").then((module) => ({ default: module.QuestionSubjectQuizzes })));
+const DemoQuiz = lazyWithRecovery(() => import("./pages/Questions.jsx").then((module) => ({ default: module.DemoQuiz })));
+const QuizDetail = lazyWithRecovery(() => import("./pages/QuizDetail.jsx"));
+const Attempt = lazyWithRecovery(() => import("./pages/Attempt.jsx"));
+const AssessmentResult = lazyWithRecovery(() => import("./pages/AssessmentResult.jsx"));
+const Review = lazyWithRecovery(() => import("./pages/Review.jsx"));
+const ReviewBank = lazyWithRecovery(() => import("./pages/Review.jsx").then((module) => ({ default: module.ReviewBank })));
+const SubjectReviewSession = lazyWithRecovery(() => import("./pages/Review.jsx").then((module) => ({ default: module.SubjectReviewSession })));
+const WeeklyRecall = lazyWithRecovery(() => import("./pages/Review.jsx").then((module) => ({ default: module.WeeklyRecall })));
+const Community = lazyWithRecovery(() => import("./pages/Community.jsx"));
+const CommunityContext = lazyWithRecovery(() => import("./pages/Community.jsx").then((module) => ({ default: module.CommunityContext })));
+const Discussion = lazyWithRecovery(() => import("./pages/Discussion.jsx"));
+const CommunitySpace = lazyWithRecovery(() => import("./pages/CommunitySpace.jsx"));
+const CommunityReport = lazyWithRecovery(() => import("./pages/CommunityReport.jsx"));
+const Ranked = lazyWithRecovery(() => import("./pages/Ranked.jsx"));
+const Bookmarks = lazyWithRecovery(() => import("./pages/Bookmarks.jsx"));
+const Progress = lazyWithRecovery(() => import("./pages/Progress.jsx"));
+const Achievements = lazyWithRecovery(() => import("./pages/Achievements.jsx"));
+const Notifications = lazyWithRecovery(() => import("./pages/Notifications.jsx"));
+const Store = lazyWithRecovery(() => import("./pages/Store.jsx"));
+const Profile = lazyWithRecovery(() => import("./pages/Profile.jsx"));
+const Settings = lazyWithRecovery(() => import("./pages/Settings.jsx"));
+const CreatorEducation = lazyWithRecovery(() => import("./pages/CreatorEducation.jsx"));
+const CreatorContent = lazyWithRecovery(() => import("./pages/CreatorContent.jsx"));
+const CreatorContentDetail = lazyWithRecovery(() => import("./pages/CreatorContent.jsx").then((module) => ({ default: module.CreatorContentDetail })));
+const CreatorQuestions = lazyWithRecovery(() => import("./pages/CreatorAssessments.jsx").then((module) => ({ default: module.CreatorQuestions })));
+const CreatorQuestionDetail = lazyWithRecovery(() => import("./pages/CreatorAssessments.jsx").then((module) => ({ default: module.CreatorQuestionDetail })));
+const CreatorQuizzes = lazyWithRecovery(() => import("./pages/CreatorAssessments.jsx").then((module) => ({ default: module.CreatorQuizzes })));
+const CreatorQuizDetail = lazyWithRecovery(() => import("./pages/CreatorAssessments.jsx").then((module) => ({ default: module.CreatorQuizDetail })));
+const CreatorRoute = lazyWithRecovery(() => import("./components/creator/index.jsx").then((module) => ({ default: module.CreatorRoute })));
+const OperationsAdmin = lazyWithRecovery(() => import("./pages/OperationsAdmin.jsx"));
 
-function DeferredWorkspace({ message }) {
-  return <ErrorPanel message={message} />;
+const THEME_META_COLORS = {
+  light: "#F4F5F7",
+  day: "#F4F5F7",
+  dawn: "#F3F1EC",
+  sunset: "#F3ECEA",
+  night: "#070B16"
+};
+const Subscription = lazyWithRecovery(() => import("./pages/Subscription.jsx"));
+const WelcomeOnboarding = lazyWithRecovery(() => import("./pages/WelcomeOnboarding.jsx"));
+const Moderation = lazyWithRecovery(() => import("./pages/Moderation.jsx"));
+
+function mergeRemoteThemeSettings(remoteSettings, currentSettings) {
+  return normalizeThemeSettings({
+    ...remoteSettings,
+    // App icon selection is a device preference. The current profile endpoint
+    // does not store it, so retain the locally selected icon across sign-in.
+    appIcon: remoteSettings?.appIcon || currentSettings?.appIcon
+  });
 }
 
 function App() {
   const location = useLocation();
+  const { setLocale } = useI18n();
   const [themeSettings, setThemeSettings] = useState(readLocalThemeSettings);
-  const [themeClock, setThemeClock] = useState(() => new Date());
-  const [reminderClock, setReminderClock] = useState(() => new Date());
   const [reminderSettings, setReminderSettings] = useState(() => readReminderSettings());
+  const clockTick = useVisibleNow(themeSettings.autoTheme || reminderSettings.enabled, 60_000);
   const [reminderToast, setReminderToast] = useState("");
   const [user, setUser] = useState(null);
   const [operationsSession, setOperationsSession] = useState(null);
   const operationsRequestRef = useRef(0);
   const [booting, setBooting] = useState(true);
   const [bootError, setBootError] = useState(null);
+  const [bootRetrying, setBootRetrying] = useState(false);
+  const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine !== false);
+  const bootRetryAttemptsRef = useRef(0);
+  const bootErrorRef = useRef(null);
+  const bootingRef = useRef(true);
   const [sessionAttempt, setSessionAttempt] = useState(0);
   const [sessionNotice, setSessionNotice] = useState("");
   const [notificationVersion, setNotificationVersion] = useState(0);
   const [storeCartCount, setStoreCartCount] = useState(0);
   const [lockBalance, setLockBalance] = useState(1250);
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const activeTheme = themeSettings.autoTheme ? autoThemeForDate(themeClock) : themeSettings.theme;
+  const activeTheme = themeSettings.autoTheme
+    ? autoThemeForDate(new Date(clockTick))
+    : themeSettings.theme;
   const inLockInMode = location.pathname === "/lock-in" || location.pathname.startsWith("/lock-in/");
-  const inFocusWorkspace = location.pathname.startsWith("/focus/") || location.pathname.endsWith("/workspace");
+  const inFocusWorkspace = location.pathname.endsWith("/workspace");
 
   const clearOperationsSession = useCallback(() => {
     operationsRequestRef.current += 1;
@@ -99,7 +134,7 @@ function App() {
         setOperationsSession(nextOperationsSession);
       }
       return nextOperationsSession;
-    } catch (error) {
+    } catch {
       // Students and other non-operational users correctly receive 403. A
       // missing or failed capability response must never grant fallback access.
       if (operationsRequestRef.current === requestId) setOperationsSession(null);
@@ -124,7 +159,7 @@ function App() {
     try {
       const nextUser = await authApi.me();
       setUser(nextUser);
-      setThemeSettings(normalizeThemeSettings(nextUser.themeSettings));
+      setThemeSettings((current) => mergeRemoteThemeSettings(nextUser.themeSettings, current));
       await loadOperationsSession();
       return nextUser;
     } catch (error) {
@@ -137,34 +172,42 @@ function App() {
   }, [clearAuthenticatedUi, loadOperationsSession]);
 
   useEffect(() => {
-    const handleBeforeInstallPrompt = (event) => {
-      event.preventDefault();
-      setDeferredPrompt(event);
-    };
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-    };
-  }, []);
-
-  useEffect(() => {
     document.documentElement.dataset.theme = activeTheme;
     document.documentElement.dataset.character = themeSettings.character;
+    document.documentElement.dataset.appIcon = themeSettings.appIcon;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEME_META_COLORS[activeTheme] || THEME_META_COLORS.night);
     localStorage.setItem("lock-in.theme", activeTheme);
     localStorage.setItem("lock-in.theme.settings", JSON.stringify(themeSettings));
   }, [activeTheme, themeSettings]);
 
   useEffect(() => {
-    if (!themeSettings.autoTheme) return undefined;
-    setThemeClock(new Date());
-    let timer = null;
-    function start() { timer = window.setInterval(() => setThemeClock(new Date()), 60000); }
-    function stop() { if (timer) { window.clearInterval(timer); timer = null; } }
-    function onVisibility() { document.hidden ? stop() : start(); }
-    start();
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => { stop(); document.removeEventListener("visibilitychange", onVisibility); };
-  }, [themeSettings.autoTheme]);
+    const selectedIcon = appIconOptions.find((option) => option.id === themeSettings.appIcon) || appIconOptions[0];
+    const setIconHref = (id, path) => {
+      const link = document.getElementById(id);
+      if (link) link.setAttribute("href", assetPath(path));
+    };
+
+    setIconHref("app-apple-touch-icon", selectedIcon.appleTouchIcon);
+    setIconHref("app-favicon-32", selectedIcon.favicon);
+    setIconHref("app-favicon-16", selectedIcon.favicon16);
+    setIconHref("app-shortcut-icon", selectedIcon.favicon);
+  }, [themeSettings.appIcon]);
+
+  useEffect(() => {
+    if (user?.preferredLanguage) {
+      setLocale(user.preferredLanguage === "ar" ? "ar" : "en");
+    }
+  }, [setLocale, user?.preferredLanguage]);
+
+  useEffect(() => {
+    if (!booting && user && new URLSearchParams(window.location.search).has("oauth")) {
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${window.location.pathname}${window.location.hash}`
+      );
+    }
+  }, [booting, user]);
 
   useEffect(() => {
     setReminderSettings(readReminderSettings(user?.email));
@@ -175,18 +218,8 @@ function App() {
   }, [user?.email, reminderSettings]);
 
   useEffect(() => {
-    let timer = null;
-    function start() { timer = window.setInterval(() => setReminderClock(new Date()), 60000); }
-    function stop() { if (timer) { window.clearInterval(timer); timer = null; } }
-    function onVisibility() { document.hidden ? stop() : start(); }
-    start();
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => { stop(); document.removeEventListener("visibilitychange", onVisibility); };
-  }, []);
-
-  useEffect(() => {
     if (!reminderSettings.enabled) return;
-    const now = reminderClock;
+    const now = new Date(clockTick);
     const { hours, minutes } = parseReminderTime(reminderSettings.time);
     const target = new Date(now);
     target.setHours(hours, minutes, 0, 0);
@@ -198,13 +231,57 @@ function App() {
     if (window.Notification && Notification.permission === "granted") {
       new Notification("Lock-in study reminder", { body: message });
     }
-  }, [reminderClock, reminderSettings]);
+  }, [clockTick, reminderSettings]);
 
   useEffect(() => onUnauthorized(() => {
     clearAuthenticatedUi();
+    bootRetryAttemptsRef.current = 0;
     setBootError(null);
     setBooting(false);
   }), [clearAuthenticatedUi]);
+
+  useEffect(() => {
+    bootErrorRef.current = bootError;
+    bootingRef.current = booting;
+  }, [bootError, booting]);
+
+  const retryBootstrap = useCallback(() => {
+    // One bootstrap at a time. A queued retry would race the in-flight request
+    // and could resolve against a session that has already been replaced.
+    if (bootingRef.current) return;
+    bootRetryAttemptsRef.current = 0;
+    setBootRetrying(false);
+    setSessionAttempt((attempt) => attempt + 1);
+  }, []);
+
+  // A transient failure retries a bounded number of times behind a short
+  // backoff before the reader is asked to do anything.
+  useEffect(() => {
+    if (!bootError) return undefined;
+    if (!shouldRetryBootAutomatically(bootError, { online, attempts: bootRetryAttemptsRef.current })) {
+      setBootRetrying(false);
+      return undefined;
+    }
+    const attempt = bootRetryAttemptsRef.current + 1;
+    bootRetryAttemptsRef.current = attempt;
+    setBootRetrying(true);
+    const timer = window.setTimeout(() => setSessionAttempt((value) => value + 1), bootRetryDelayMs(attempt));
+    return () => window.clearTimeout(timer);
+  }, [bootError, online]);
+
+  useEffect(() => {
+    const goOnline = () => {
+      setOnline(true);
+      if (bootErrorRef.current && !bootingRef.current) retryBootstrap();
+    };
+    const goOffline = () => setOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, [retryBootstrap]);
 
   useEffect(() => {
     let active = true;
@@ -215,8 +292,9 @@ function App() {
       .me()
       .then(async (nextUser) => {
         if (!active) return;
+        bootRetryAttemptsRef.current = 0;
         setUser(nextUser);
-        setThemeSettings(normalizeThemeSettings(nextUser.themeSettings));
+        setThemeSettings((current) => mergeRemoteThemeSettings(nextUser.themeSettings, current));
         await loadOperationsSession();
       })
       .catch((error) => {
@@ -224,6 +302,7 @@ function App() {
         // GET /auth/session is authentication-specific: this Django setup uses
         // 403 for anonymous sessions and 401 for expired session credentials.
         if (isApiError(error) && (error.status === 401 || error.status === 403)) {
+          bootRetryAttemptsRef.current = 0;
           setUser(null);
           return;
         }
@@ -241,7 +320,7 @@ function App() {
   function applyAuthedUser(nextUser) {
     setSessionNotice("");
     setUser(nextUser);
-    setThemeSettings(normalizeThemeSettings(nextUser.themeSettings));
+    setThemeSettings((current) => mergeRemoteThemeSettings(nextUser.themeSettings, current));
     clearOperationsSession();
     void loadOperationsSession();
   }
@@ -272,13 +351,18 @@ function App() {
     }
   }, [clearAuthenticatedUi]);
 
-  if (booting) return <FullScreenState message="Opening your study room..." />;
+  if (["/terms", "/privacy", "/support"].includes(location.pathname)) {
+    return <PublicInfoPage page={location.pathname.slice(1)} />;
+  }
+
+  if (booting) return <FullScreenState message="Opening your study room..." startup />;
   if (bootError) {
     return (
       <FullScreenState
-        message={bootError.message || "We could not reach your session. Please try again."}
-        actionLabel="Try again"
-        onAction={() => setSessionAttempt((attempt) => attempt + 1)}
+        message={bootFailureMessage(bootError, { online, retrying: bootRetrying })}
+        actionLabel={bootRetrying ? "" : "Try again"}
+        onAction={bootRetrying ? null : retryBootstrap}
+        startup={bootRetrying}
       />
     );
   }
@@ -296,6 +380,25 @@ function App() {
     return <AuthPage onAuthed={applyAuthedUser} />;
   }
 
+  if (user.onboardingRequired) {
+    return (
+      <AuthPage
+        key={user.usernameRequired ? "username" : user.requiredProfileFields.join("-")}
+        completionUser={user}
+        onAuthed={applyAuthedUser}
+        onSignOut={handleLogout}
+      />
+    );
+  }
+
+  if (user.welcomeRequired) {
+    return (
+      <Suspense fallback={<LoadingPanel />}>
+        <WelcomeOnboarding onUserUpdate={setUser} />
+      </Suspense>
+    );
+  }
+
   return (
     <>
       <Shell user={user} operationsSession={operationsSession} theme={activeTheme} onThemeChange={setManualTheme} onLogout={handleLogout} notificationVersion={notificationVersion} onNotificationsChanged={() => setNotificationVersion((version) => version + 1)} storeCartCount={storeCartCount} lockBalance={lockBalance}>
@@ -303,25 +406,32 @@ function App() {
         <Suspense fallback={<LoadingPanel />}>
           <Routes>
               <Route element={<ProtectedRoute user={user} operationsSession={operationsSession} />}>
-                <Route path="/" element={<Dashboard themeSettings={themeSettings} activeTheme={activeTheme} user={user} deferredPrompt={deferredPrompt} onClearInstallPrompt={() => setDeferredPrompt(null)} />} />
-                <Route path="/dashboard" element={<Dashboard themeSettings={themeSettings} activeTheme={activeTheme} user={user} deferredPrompt={deferredPrompt} onClearInstallPrompt={() => setDeferredPrompt(null)} />} />
+                <Route path="/" element={<Dashboard themeSettings={themeSettings} activeTheme={activeTheme} />} />
+                <Route path="/dashboard" element={<Dashboard themeSettings={themeSettings} activeTheme={activeTheme} />} />
+                <Route path="/study-plan" element={<StudyPlan />} />
                 <Route path="/materials" element={<Materials />} />
+                <Route path="/materials/catalog" element={<NotFoundPage variant="material-catalog" />} />
                 <Route path="/materials/catalog/:materialSlug" element={<CatalogMaterialSheets />} />
                 <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug" element={<CatalogSheetStudy />} />
-                <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug/workspace" element={<CatalogFocusWorkspace />} />
+                <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug/workspace" element={<CatalogFocusWorkspace user={user} />} />
                 <Route path="/materials/objects/:learningObjectId" element={<LearningObjectStudy />} />
                 <Route path="/materials/:materialId" element={<MaterialSheets />} />
                 <Route path="/materials/:materialId/sheets/:sheetId" element={<LearningObjectStudy />} />
-                <Route path="/focus/:documentVersionId" element={<FocusWorkspace />} />
-                <Route path="/lock-in" element={<LockInMode user={user} />} />
-                <Route path="/lock-in/:sessionId" element={<LockInMode user={user} />} />
+                <Route path="/lock-in" element={<LockInComingSoon />} />
+                <Route path="/lock-in/:sessionId" element={<LockInComingSoon />} />
                 <Route path="/search" element={<Search />} />
                 <Route path="/questions" element={<Questions />} />
+                <Route path="/questions/categories/:categoryId" element={<QuestionCategory />} />
+                <Route path="/questions/categories/:categoryId/subjects/:subjectId" element={<QuestionSubjectQuizzes />} />
+                <Route path="/questions/demo/:materialSlug/:sheetSlug" element={<DemoQuiz />} />
                 <Route path="/questions/quizzes/:quizId" element={<QuizDetail />} />
                 <Route path="/questions/attempts/:attemptId" element={<Attempt />} />
                 <Route path="/questions/results/:resultId" element={<AssessmentResult />} />
                 <Route path="/review" element={<Review />} />
-                <Route path="/community" element={<Community user={user} />} />
+                <Route path="/review/bank" element={<ReviewBank />} />
+                <Route path="/review/bank/:subjectKey" element={<SubjectReviewSession />} />
+                <Route path="/review/weekly" element={<WeeklyRecall />} />
+                <Route path="/community" element={<Community />} />
                 <Route path="/community/context/:contextType/:contextId" element={<CommunityContext user={user} />} />
                 <Route path="/community/discussions/:discussionId" element={<Discussion user={user} />} />
                 <Route path="/community/spaces/:spaceId" element={<CommunitySpace />} />
@@ -335,21 +445,21 @@ function App() {
                 <Route path="/store" element={<Store onLockBalanceChange={setLockBalance} onCartCountChange={setStoreCartCount} />} />
                 <Route path="/profile" element={<Profile user={user} onUserUpdate={setUser} />} />
                 <Route path="/security" element={<Navigate to="/settings" replace />} />
-                <Route path="/subscription" element={<DeferredWorkspace message="Subscription details are not available from the current Django API integration." />} />
-                <Route path="/settings" element={<Settings user={user} settings={themeSettings} activeTheme={activeTheme} reminderSettings={reminderSettings} onReminderSettingsChange={setReminderSettings} onSettingsChange={updateThemeSettings} onSignedOut={clearAuthenticatedUi} />} />
+                <Route path="/subscription" element={<Subscription />} />
+                <Route path="/settings" element={<Settings user={user} onUserUpdate={setUser} settings={themeSettings} activeTheme={activeTheme} reminderSettings={reminderSettings} onReminderSettingsChange={setReminderSettings} onSettingsChange={updateThemeSettings} onSignedOut={clearAuthenticatedUi} />} />
                 <Route path="/admin/*" element={<OperationsAdmin operationsSession={operationsSession} />} />
                 <Route path="/creator" element={<CreatorRoute user={user} operationsSession={operationsSession}><Navigate to={operationsSession?.capabilities?.includes("content.manage") || user.roles?.includes("creator") || user.roles?.includes("administrator") ? "/creator/education" : "/creator/questions"} replace /></CreatorRoute>} />
                 <Route path="/creator/education" element={<CreatorRoute user={user} operationsSession={operationsSession}><CreatorEducation /></CreatorRoute>} />
-                <Route path="/creator/content" element={<CreatorRoute user={user} operationsSession={operationsSession}><CreatorContent user={user} /></CreatorRoute>} />
+                <Route path="/creator/content" element={<CreatorRoute user={user} operationsSession={operationsSession}><CreatorContent /></CreatorRoute>} />
                 <Route path="/creator/content/:contentId" element={<CreatorRoute user={user} operationsSession={operationsSession}><CreatorContentDetail user={user} operationsSession={operationsSession} /></CreatorRoute>} />
                 <Route path="/creator/questions" element={<CreatorRoute user={user} operationsSession={operationsSession}><CreatorQuestions /></CreatorRoute>} />
                 <Route path="/creator/questions/:questionId" element={<CreatorRoute user={user} operationsSession={operationsSession}><CreatorQuestionDetail /></CreatorRoute>} />
                 <Route path="/creator/quizzes" element={<CreatorRoute user={user} operationsSession={operationsSession}><CreatorQuizzes /></CreatorRoute>} />
                 <Route path="/creator/quizzes/:quizId" element={<CreatorRoute user={user} operationsSession={operationsSession}><CreatorQuizDetail /></CreatorRoute>} />
-                <Route path="/moderation/*" element={<DeferredWorkspace message="Moderation tools will be connected in their scheduled phase." />} />
+                <Route path="/moderation/*" element={<Moderation user={user} />} />
                 <Route path="/operations/*" element={<OperationsAdmin operationsSession={operationsSession} />} />
               </Route>
-              <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<NotFoundPage />} />
           </Routes>
           </Suspense>
         </ErrorBoundary>

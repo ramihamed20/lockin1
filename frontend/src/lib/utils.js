@@ -1,4 +1,5 @@
 import {
+  appIconOptions,
   defaultThemeSettings,
   focusDurations,
   onboardingDefaults,
@@ -15,8 +16,17 @@ export function assetPath(path) {
   return `${prefix}${cleanPath}`;
 }
 
+/**
+ * Keeps custom CSS variables type-safe at React style boundaries.
+ * @param {Record<`--${string}`, string | number>} values
+ * @returns {import("react").CSSProperties}
+ */
+export function cssVars(values) {
+  return /** @type {import("react").CSSProperties} */ (values);
+}
+
 export function themePreview(character, theme) {
-  return assetPath(`/assets/themes/${character}-${theme}.png`);
+  return assetPath(`/assets/themes/${character}-${theme}-640.webp`);
 }
 
 export function autoThemeForDate(date = new Date()) {
@@ -30,7 +40,8 @@ export function autoThemeForDate(date = new Date()) {
 export function normalizeThemeSettings(settings = {}) {
   const character = ["black", "white"].includes(settings.character) ? settings.character : defaultThemeSettings.character;
   const theme = ["dawn", "day", "sunset", "night"].includes(settings.theme) ? settings.theme : defaultThemeSettings.theme;
-  return { character, theme, autoTheme: Boolean(settings.autoTheme) };
+  const appIcon = appIconOptions.some((option) => option.id === settings.appIcon) ? settings.appIcon : defaultThemeSettings.appIcon;
+  return { character, theme, autoTheme: Boolean(settings.autoTheme), appIcon };
 }
 
 export function readLocalThemeSettings() {

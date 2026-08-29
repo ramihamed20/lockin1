@@ -3,7 +3,7 @@ export function fieldMessages(error, field) {
   return error.fields[field].filter((message) => typeof message === "string" && message);
 }
 
-export function AccountFieldErrors({ error, field }) {
+export function AccountFieldErrors({ error, field = "" }) {
   const messages = fieldMessages(error, field);
   if (!messages.length) return null;
   return (
@@ -13,7 +13,7 @@ export function AccountFieldErrors({ error, field }) {
   );
 }
 
-export function AccountFormAlert({ error, message }) {
+export function AccountFormAlert({ error = null, message = "" }) {
   if (error) return <p className="form-alert error" role="alert">{error.message}</p>;
   return message ? <p className="form-alert success" role="status">{message}</p> : null;
 }

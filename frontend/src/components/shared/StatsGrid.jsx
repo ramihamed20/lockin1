@@ -1,20 +1,26 @@
 import { Link } from "react-router-dom";
 import { Icon } from "../../lib/icons.jsx";
+import { useI18n } from "../I18nProvider.jsx";
 
 const DEFAULT_VARIANTS = ["emerald", "indigo", "rose", "amber", "cyan"];
 
-export function StatsGrid({ stats, cards: suppliedCards, className = "" }) {
+export function StatsGrid({ stats = null, cards: suppliedCards = null, className = "" }) {
+  const { t } = useI18n();
   const rawCards = Array.isArray(suppliedCards)
     ? suppliedCards
     : [
-      ["Materials", stats?.materialsCompleted ?? "—", "file", "completed"],
-      ["Questions", stats?.questionsSolved ?? "—", "help", "solved"],
-      ["Accuracy", typeof stats?.accuracy === "number" ? `${stats.accuracy}%` : "—", "check", "correct"],
-      ["Due Review", stats?.dueReviewCount || 0, "target", "ready"],
-      ["Saved", stats?.savedItems ?? "—", "bookmark", "items"]
+      [t("stats.materials"), stats?.materialsCompleted ?? "—", "file", t("stats.materialsSub")],
+      [t("stats.questions"), stats?.questionsSolved ?? "—", "help", t("stats.questionsSub")],
+      [t("stats.accuracy"), typeof stats?.accuracy === "number" ? `${stats.accuracy}%` : "—", "check", t("stats.accuracySub")],
+      [t("stats.dueReview"), stats?.dueReviewCount || 0, "target", t("stats.dueReviewSub")],
+      [t("stats.saved"), stats?.savedItems ?? "—", "bookmark", t("stats.savedSub")]
     ];
 
   const handleMouseMove = (e) => {
+    // Touch browsers can synthesize compatibility mouse events after a tap.
+    // The spotlight is a desktop-only affordance, so avoid a synchronous
+    // layout read on Android/iOS where it is never visible.
+    if (typeof window === "undefined" || !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
@@ -23,7 +29,7 @@ export function StatsGrid({ stats, cards: suppliedCards, className = "" }) {
   };
 
   return (
-    <section className={`stats-grid ${className}`.trim()} aria-label="Study summary">
+    <section className={`stats-grid ${className}`.trim()} aria-label={t("stats.summary")}>
       {rawCards.map((entry, index) => {
         const card = Array.isArray(entry)
           ? { label: entry[0], value: entry[1], icon: entry[2], sub: entry[3] }
@@ -40,7 +46,7 @@ export function StatsGrid({ stats, cards: suppliedCards, className = "" }) {
             </span>
             <div className="stat-card-copy">
               <div className="stat-card-top-row">
-                <strong className="stat-card-value">{value}</strong>
+                <strong className="stat-card-value" dir="auto">{value}</strong>
                 {badge && (
                   <span className={`stat-card-badge ${pulse ? "pulse" : ""}`.trim()}>
                     <span className="badge-dot" aria-hidden="true" />
@@ -49,8 +55,8 @@ export function StatsGrid({ stats, cards: suppliedCards, className = "" }) {
                 )}
               </div>
               <div className="stat-card-meta">
-                <span className="stat-card-label">{label}</span>
-                {sub && <small className="stat-card-sub">{sub}</small>}
+                <span className="stat-card-label" dir="auto">{label}</span>
+                {sub && <small className="stat-card-sub" dir="auto">{sub}</small>}
               </div>
             </div>
 
@@ -74,7 +80,7 @@ export function StatsGrid({ stats, cards: suppliedCards, className = "" }) {
               <Link
                 className="stat-card-action"
                 to={to}
-                aria-label={actionLabel || `Open ${label}: ${value} ${sub || ""}`}
+                aria-label={actionLabel || t("stats.openCard", { label, value, sub: sub || "" })}
               >
                 {cardContent}
               </Link>
@@ -87,4 +93,3 @@ export function StatsGrid({ stats, cards: suppliedCards, className = "" }) {
     </section>
   );
 }
-

@@ -5,7 +5,21 @@ import {
   request,
   setSessionMarker
 } from "./client.js";
-import { normalizeSessionResponse, normalizeUser } from "./contracts.js";
+import { normalizeCohort, normalizeSessionResponse, normalizeUser } from "./contracts.js";
+
+const OAUTH_AUTHORIZATION_ORIGINS = Object.freeze({
+  google: "https://accounts.google.com",
+  apple: "https://appleid.apple.com"
+});
+
+export function isTrustedOAuthAuthorizationUrl(provider, value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && url.origin === OAUTH_AUTHORIZATION_ORIGINS[provider];
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Keeps the replacement's existing user prop shape while deriving it only
@@ -18,9 +32,16 @@ export function toAppUser(user) {
   return {
     id: normalized.id,
     email: normalized.email,
+    username: normalized.username,
     name: normalized.full_name,
     roles: normalized.roles,
     preferredLanguage: normalized.preferred_language,
+    cohort: normalized.cohort,
+    onboardingRequired: normalized.onboarding_required,
+    requiredProfileFields: normalized.required_profile_fields,
+    usernameRequired: normalized.username_required,
+    welcomeRequired: normalized.welcome_required,
+    welcomeCompletedAt: normalized.welcome_completed_at,
     emailVerified: normalized.is_email_verified,
     status: normalized.status,
     dateJoined: normalized.date_joined
@@ -56,7 +77,7 @@ export const accountsApi = {
     return user;
   },
 
-  async register({ fullName, email, password, passwordConfirm, preferredLanguage, acceptPolicies }) {
+  async register({ fullName, email, password, passwordConfirm, preferredLanguage, cohortId, acceptPolicies }) {
     return request("/auth/register", {
       method: "POST",
       body: {
@@ -65,9 +86,57 @@ export const accountsApi = {
         password,
         password_confirm: passwordConfirm,
         preferred_language: preferredLanguage,
+        cohort_id: cohortId,
         accept_policies: acceptPolicies
       }
     });
+  },
+
+  async listCohorts() {
+    const payload = await request("/auth/cohorts");
+    const source = payload && typeof payload === "object"
+      ? /** @type {{cohorts?: unknown}} */ (payload)
+      : null;
+    if (!source || !Array.isArray(source.cohorts)) {
+      throw new ApiError(500, payload, "The cohort list was incomplete.", "invalid_response");
+    }
+    return source.cohorts.map(normalizeCohort).filter(Boolean);
+  },
+
+  async oauthProviders() {
+    const payload = await request("/auth/oauth/providers");
+    const source = payload && typeof payload === "object"
+      ? /** @type {{providers?: unknown}} */ (payload)
+      : null;
+    const providers = source?.providers && typeof source.providers === "object"
+      ? /** @type {Record<string, unknown>} */ (source.providers)
+      : null;
+    if (!providers) {
+      throw new ApiError(500, payload, "The sign-in provider status was incomplete.", "invalid_response");
+    }
+    return { google: providers.google === true, apple: providers.apple === true };
+  },
+
+  async startOAuth(provider, { intent, preferredLanguage, remember, acceptPolicies }) {
+    if (!(provider in OAUTH_AUTHORIZATION_ORIGINS)) {
+      throw new ApiError(400, null, "This sign-in provider is not supported.", "unsupported_provider");
+    }
+    const payload = await request(`/auth/oauth/${provider}/start`, {
+      method: "POST",
+      body: {
+        intent,
+        preferred_language: preferredLanguage,
+        remember_me: Boolean(remember),
+        accept_policies: Boolean(acceptPolicies)
+      }
+    });
+    const authorizationUrl = payload && typeof payload === "object"
+      ? /** @type {{authorization_url?: unknown}} */ (payload).authorization_url
+      : null;
+    if (typeof authorizationUrl !== "string" || !isTrustedOAuthAuthorizationUrl(provider, authorizationUrl)) {
+      throw new ApiError(500, payload, "The sign-in redirect was invalid.", "invalid_oauth_redirect");
+    }
+    return authorizationUrl;
   },
 
   verifyEmail: (token) => request("/auth/verify-email", { method: "POST", body: { token } }),
@@ -111,10 +180,12 @@ export const accountsApi = {
     return userFromPayload(await request("/account/profile"), "The profile response was incomplete.");
   },
 
-  async updateProfile({ fullName, preferredLanguage }) {
+  async updateProfile({ username = undefined, fullName = undefined, preferredLanguage = undefined, cohortId = undefined }) {
     const body = {};
+    if (typeof username === "string") body.username = username;
     if (typeof fullName === "string") body.full_name = fullName;
     if (typeof preferredLanguage === "string") body.preferred_language = preferredLanguage;
+    if (typeof cohortId === "string") body.cohort_id = cohortId;
     return userFromPayload(
       await request("/account/profile", {
         method: "PATCH",
@@ -153,4 +224,11 @@ export const accountsApi = {
     return source.sessions;
   },
   revokeSession: (sessionId) => request(`/account/sessions/${sessionId}`, { method: "DELETE" })
+};
+
+accountsApi.completeWelcome = async function completeWelcome() {
+  return userFromPayload(
+    await request("/account/welcome/complete", { method: "POST", body: {} }),
+    "The welcome response was incomplete."
+  );
 };

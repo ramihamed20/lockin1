@@ -9,10 +9,17 @@ export const PRODUCT_ROLES = Object.freeze({
  * @typedef {{
  *   id: string,
  *   email: string,
+ *   username: string,
  *   full_name: string,
  *   preferred_language: "en"|"ar"|string,
  *   status: string,
  *   is_email_verified: boolean,
+ *   cohort: ReturnType<typeof normalizeCohort>,
+ *   onboarding_required: boolean,
+ *   required_profile_fields: string[],
+ *   username_required: boolean,
+ *   welcome_required: boolean,
+ *   welcome_completed_at: string|null,
  *   roles: string[],
  *   date_joined: string|null
  * }} UserContract
@@ -24,6 +31,29 @@ function stringOrEmpty(value) {
 
 function stringList(value) {
   return Array.isArray(value) ? value.filter((item) => typeof item === "string") : [];
+}
+
+/** @param {unknown} payload */
+export function normalizeCohort(payload) {
+  if (!payload || typeof payload !== "object") return null;
+  const source = /** @type {Record<string, unknown>} */ (payload);
+  const id = stringOrEmpty(source.id);
+  if (!id) return null;
+  const programSource = source.program && typeof source.program === "object"
+    ? /** @type {Record<string, unknown>} */ (source.program)
+    : {};
+  return {
+    id,
+    code: stringOrEmpty(source.code),
+    name_en: stringOrEmpty(source.name_en),
+    name_ar: stringOrEmpty(source.name_ar),
+    program: {
+      id: stringOrEmpty(programSource.id),
+      code: stringOrEmpty(programSource.code),
+      name_en: stringOrEmpty(programSource.name_en),
+      name_ar: stringOrEmpty(programSource.name_ar)
+    }
+  };
 }
 
 /**
@@ -40,10 +70,18 @@ export function normalizeUser(payload) {
   return {
     id,
     email: stringOrEmpty(source.email),
+    username: stringOrEmpty(source.username),
     full_name: stringOrEmpty(source.full_name),
     preferred_language: stringOrEmpty(source.preferred_language),
     status: stringOrEmpty(source.status),
     is_email_verified: source.is_email_verified === true,
+    cohort: normalizeCohort(source.cohort),
+    onboarding_required: source.onboarding_required === true,
+    required_profile_fields: stringList(source.required_profile_fields),
+    username_required: source.username_required === true,
+    welcome_required: source.welcome_required === true,
+    welcome_completed_at:
+      typeof source.welcome_completed_at === "string" ? source.welcome_completed_at : null,
     roles: stringList(source.roles),
     date_joined: typeof source.date_joined === "string" ? source.date_joined : null
   };

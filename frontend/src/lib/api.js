@@ -10,65 +10,6 @@ import {
 import { accountsApi } from "../api/accounts.js";
 import { normalizeOperationsSession } from "../api/contracts.js";
 
-function compatibilityBody(body) {
-  if (typeof body === "string") {
-    try {
-      return JSON.parse(body);
-    } catch {
-      throw new ApiError(0, null, "This action has an invalid JSON payload.", "invalid_request");
-    }
-  }
-  return body && typeof body === "object" ? body : {};
-}
-
-export class UnsupportedFeatureError extends ApiError {
-  constructor(feature) {
-    super(
-      501,
-      {
-        error: {
-          code: "feature_unavailable",
-          message: feature + " is not available from the current Django API integration.",
-          fields: null,
-          request_id: null
-        }
-      },
-      "This feature is not available.",
-      "feature_unavailable"
-    );
-    this.name = "UnsupportedFeatureError";
-  }
-}
-
-function unavailable(feature) {
-  throw new UnsupportedFeatureError(feature);
-}
-
-/**
- * Legacy UI compatibility boundary. Domain mappings are deliberately deferred
- * to their scheduled phases instead of returning fabricated success data.
- * @param {string} path
- * @param {{method?: string, body?: unknown}} [options]
- */
-export async function api(path, options = {}) {
-  const method = (options.method || "GET").toUpperCase();
-
-  if (path === "/api/profile" && method === "PUT") {
-    const payload = compatibilityBody(options.body);
-    return accountsApi.updateProfile({
-      fullName: payload.name,
-      preferredLanguage: payload.preferredLanguage
-    });
-  }
-
-  if (path === "/api/profile/password" && method === "PUT") {
-    const payload = compatibilityBody(options.body);
-    return accountsApi.changePassword(payload.currentPassword, payload.newPassword, payload.newPassword);
-  }
-
-  unavailable("This screen");
-}
-
 export const authApi = {
   me: () => accountsApi.currentSession(),
 
@@ -89,6 +30,11 @@ export const authApi = {
   login: (payload) => accountsApi.login(payload),
 
   register: (payload) => accountsApi.register(payload),
+  listCohorts: () => accountsApi.listCohorts(),
+  oauthProviders: () => accountsApi.oauthProviders(),
+  startOAuth: (provider, payload) => accountsApi.startOAuth(provider, payload),
+  updateProfile: (payload) => accountsApi.updateProfile(payload),
+  completeWelcome: () => accountsApi.completeWelcome(),
 
   requestPasswordReset: (email) => accountsApi.requestPasswordReset(email),
   resendVerification: (email) => accountsApi.resendVerification(email),

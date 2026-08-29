@@ -1,28 +1,34 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { educationApi, learningApi } from "../api/learning.js";
 import { Icon } from "../lib/icons.jsx";
-import { MATERIAL_CATALOG, getCatalogMaterial, getCatalogSheet } from "../lib/materialCatalog.js";
+import { MATERIAL_CATALOG, getCatalogMaterial, getCatalogSheet, rememberLastOpenedCatalogSheet } from "../lib/materialCatalog.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
-import { BreadcrumbBar, EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
+import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
 import { LearningObjectCard } from "../components/learning/LearningObjectCard.jsx";
 import { PaginationControls } from "../components/learning/PaginationControls.jsx";
+import { CatalogSheetCard } from "../components/learning/CatalogSheetCard.jsx";
+import { CatalogTile } from "../components/learning/CatalogTile.jsx";
+import { useI18n } from "../components/I18nProvider.jsx";
 
-const CONTENT_TYPE_OPTIONS = [
-  ["", "All content types"],
-  ["pdf", "PDF documents"],
-  ["audio", "Audio"],
-  ["video", "Video"]
+const CONTENT_TYPE_KEYS = [
+  ["", "materials.allContentTypes"],
+  ["pdf", "materials.pdfDocuments"],
+  ["audio", "materials.audio"],
+  ["video", "materials.video"]
 ];
 
-function nodeKindLabel(kind) {
-  return typeof kind === "string" ? kind.replaceAll("_", " ") : "Study area";
+/** Published kinds arrive from the catalogue as their own labels; only the
+ * fallback is ours to translate. */
+function nodeKindLabel(kind, t) {
+  return typeof kind === "string" ? kind.replaceAll("_", " ") : t("materials.studyArea");
 }
 
 export default function Materials() {
+  const { t } = useI18n();
   return (
-    <Page title="Materials" subtitle="Choose a subject, then open one of its study sheets.">
-      <section className="material-grid" aria-label="Study materials">
+    <Page title="Materials">
+      <section className="material-grid catalog-material-grid" aria-label={t("materials.catalogLabel")}>
         {MATERIAL_CATALOG.map((material) => <CatalogMaterialCard key={material.slug} material={material} />)}
       </section>
     </Page>
@@ -30,37 +36,22 @@ export default function Materials() {
 }
 
 function CatalogMaterialCard({ material }) {
-  return (
-    <article className="material-card">
-      <div className="card-head">
-        <div><h2>{material.title}</h2><p>Three study sheets are ready to open.</p></div>
-        <span className="stat-icon"><Icon name="book-open" /></span>
-      </div>
-      <div className="progress-meta"><span>Study material</span><strong>{material.sheets.length} sheets</strong></div>
-      <Link className="btn btn-soft" to={`/materials/catalog/${material.slug}`}>Open sheets</Link>
-    </article>
-  );
+  const { t } = useI18n();
+  return <CatalogTile title={material.title} meta={t("materials.sheetCount", { count: material.sheets.length })} icon="book-open" to={`/materials/catalog/${material.slug}`} />;
 }
 
 export function CatalogMaterialSheets() {
   const { materialSlug } = useParams();
+  const { t } = useI18n();
   const material = getCatalogMaterial(materialSlug);
 
-  if (!material) return <Page title="Material not found"><ErrorPanel message="This material is not available in your study list." /></Page>;
+  if (!material) return <Page title={t("materials.notFoundTitle")}><ErrorPanel message={t("materials.notFoundText")} /></Page>;
 
   return (
-    <Page title={material.title} subtitle="Choose a sheet to continue studying.">
-      <BreadcrumbBar items={[["Materials", "/materials"]]} current={material.title} />
-      <section className="sheet-grid" aria-label={`${material.title} sheets`}>
+    <Page title={material.title}>
+      <section className="sheet-grid catalog-sheet-grid" aria-label={t("materials.sheetsOf", { name: material.title })}>
         {material.sheets.map((sheet) => (
-          <article className="sheet-card" key={sheet.slug}>
-            <div className="card-head">
-              <div><span className="pill">Sheet {sheet.number}</span><h2>{sheet.title}</h2><p>{sheet.summary}</p></div>
-              <span className="stat-icon"><Icon name="file" /></span>
-            </div>
-            <div className="progress-meta"><span>Study sheet</span><strong>Ready</strong></div>
-            <Link className="btn btn-primary" to={`/materials/catalog/${material.slug}/sheets/${sheet.slug}`}>Open sheet</Link>
-          </article>
+          <CatalogSheetCard key={sheet.slug} material={material} sheet={sheet} to={`/materials/catalog/${material.slug}/sheets/${sheet.slug}`} />
         ))}
       </section>
     </Page>
@@ -70,50 +61,51 @@ export function CatalogMaterialSheets() {
 export function CatalogSheetStudy() {
   const { materialSlug, sheetSlug } = useParams();
   const location = useLocation();
+  const { t } = useI18n();
   const { material, sheet } = getCatalogSheet(materialSlug, sheetSlug);
 
-  if (!material || !sheet) return <Page title="Sheet not found"><ErrorPanel message="This study sheet is not available in your materials." /></Page>;
+  useEffect(() => {
+    rememberLastOpenedCatalogSheet(materialSlug, sheetSlug);
+  }, [materialSlug, sheetSlug]);
+
+  if (!material || !sheet) return <Page title={t("materials.sheetNotFoundTitle")}><ErrorPanel message={t("materials.sheetNotFoundText")} /></Page>;
 
   return (
-    <Page title={sheet.title} subtitle={`${material.title} · Sheet ${sheet.number}`}>
-      <BreadcrumbBar items={[["Materials", "/materials"], [material.title, `/materials/catalog/${material.slug}`]]} current={`Sheet ${sheet.number}`} />
-      <section className="dashboard-main catalog-sheet-layout catalog-sheet-layout--actions-only">
-        <aside className="dashboard-right">
-          <article className="panel study-table-card catalog-sheet-actions">
-            <div className="panel-title"><div><p className="eyebrow">Focus workspace</p><h2>Ready to focus?</h2></div><span><Icon name="expand" size={18} /></span></div>
-            <p className="muted">Open Lock In Mode for a server-saved focus session, timer, notes, and safe return to this sheet.</p>
-            <div className="focus-timer-actions" aria-label="Study actions">
-              <Link className="btn btn-soft" to={`/materials/catalog/${material.slug}/sheets/${sheet.slug}/workspace`} state={{ returnTo: location.pathname, scrollY: window.scrollY }}><Icon name="expand" size={16} /> Open Focus Workspace</Link>
-              <Link className="btn btn-soft" to="/lock-in" state={{ returnTo: location.pathname, scrollY: window.scrollY }}><Icon name="clock" size={16} /> Enter Lock In Mode</Link>
-              <button className="btn btn-soft" type="button" disabled aria-describedby="catalog-sheet-file-status"><Icon name="save" size={16} /> Save progress</button>
-              <button className="btn btn-soft" type="button" disabled aria-describedby="catalog-sheet-file-status"><Icon name="arrow-up-right" size={16} /> Download</button>
-              <button className="btn btn-soft" type="button" disabled aria-describedby="catalog-sheet-file-status"><Icon name="bookmark" size={16} /> Bookmark</button>
-              <button className="btn btn-soft" type="button" disabled aria-describedby="catalog-sheet-file-status"><Icon name="messages" size={16} /> Discuss material</button>
-            </div>
-            <p className="save-hint" id="catalog-sheet-file-status">Saving, downloading, bookmarking, and discussion become available when this visual sheet is attached to its published Django file.</p>
-            <Link className="btn btn-soft" to={`/materials/catalog/${material.slug}`}>Back to sheets</Link>
-          </article>
-        </aside>
+    <Page title={sheet.title}>
+      <section className="catalog-sheet-entry">
+        <article className="panel catalog-sheet-actions">
+          <div className="catalog-sheet-entry-heading">
+            <span className="catalog-sheet-entry-icon"><Icon name="file" size={22} /></span>
+            <div><h2>{sheet.title}</h2>{sheet.pageCount && <p id="catalog-sheet-file-status" dir="auto">{t("materials.pageCount", { count: sheet.pageCount })}</p>}</div>
+          </div>
+          <Link className="btn btn-primary catalog-sheet-focus-action" to={`/materials/catalog/${material.slug}/sheets/${sheet.slug}/workspace`} state={{ returnTo: location.pathname, scrollY: window.scrollY }}><Icon name="expand" size={17} /> {t("materials.openWorkspace")}</Link>
+        </article>
+        <article className="catalog-lockin-card" aria-label={t("materials.lockInSoonLabel")}>
+          <span><Icon name="lock" size={18} /></span><div><strong>{t("materials.lockInMode")}</strong><small>{t("common.soon")}</small></div>
+        </article>
+        <Link className="btn btn-soft compact catalog-sheet-back" to={`/materials/catalog/${material.slug}`}><Icon name="arrow-left" size={16} /> {t("materials.backToSheets")}</Link>
       </section>
     </Page>
   );
 }
 
 export function MaterialCard({ node }) {
+  const { t } = useI18n();
   return (
     <article className="material-card">
       <div className="card-head">
-        <div><h2>{node.title}</h2><p>{node.description || "Browse published study material in this academic area."}</p></div>
+        <div><h2 dir="auto">{node.title}</h2><p dir="auto">{node.description || t("materials.areaFallbackSummary")}</p></div>
         <span className="stat-icon"><Icon name="layers" /></span>
       </div>
-      <div className="progress-meta"><span>{nodeKindLabel(node.kind)}</span><strong>Browse</strong></div>
-      <Link className="btn btn-soft" to={`/materials/${node.id}`}>Open materials</Link>
+      <div className="progress-meta"><span dir="auto">{nodeKindLabel(node.kind, t)}</span><strong>{t("materials.browse")}</strong></div>
+      <Link className="btn btn-soft" to={`/materials/${node.id}`}>{t("materials.openArea")}</Link>
     </article>
   );
 }
 
 export function MaterialSheets() {
   const { materialId } = useParams();
+  const { t } = useI18n();
   const [childPage, setChildPage] = useState(1);
   const [objectPage, setObjectPage] = useState(1);
   const [contentType, setContentType] = useState("");
@@ -143,29 +135,22 @@ export function MaterialSheets() {
   if (node.error) return <ErrorPanel message={node.error} />;
 
   const currentNode = node.data.node;
-  const breadcrumbs = [
-    ["Materials", "/materials"],
-    ...node.data.breadcrumbs.map((item) => [item.title, `/materials/${item.id}`])
-  ];
-
   return (
-    <Page title={currentNode.title} subtitle="Browse the published learning objects and continue from server-saved progress.">
-      <BreadcrumbBar items={breadcrumbs.slice(0, -1)} current={currentNode.title} />
-
+    <Page title={currentNode.title} subtitle={t("materials.areaSubtitle")}>
       <section className="material-grid">
         {children.loading && <LoadingPanel />}
         {children.error && <ErrorPanel message={children.error} />}
         {!children.loading && !children.error && children.data.results.map((child) => <MaterialCard key={child.id} node={child} />)}
       </section>
-      {!children.loading && !children.error && !children.data.results.length && <p className="muted">No further published study areas are available below this point.</p>}
-      {!children.loading && !children.error && <PaginationControls page={childPage} pageData={children.data} onPageChange={setChildPage} label="Child study-area pages" />}
+      {!children.loading && !children.error && !children.data.results.length && <p className="muted">{t("materials.noChildAreas")}</p>}
+      {!children.loading && !children.error && <PaginationControls page={childPage} pageData={children.data} onPageChange={setChildPage} label={t("materials.childPages")} />}
 
       <section className="panel study-table-card">
-        <div className="panel-title"><div><p className="eyebrow">Published materials</p><h2>{currentNode.title}</h2></div></div>
+        <div className="panel-title"><div><p className="eyebrow">{t("materials.published")}</p><h2 dir="auto">{currentNode.title}</h2></div></div>
         <label className="field">
-          <span>Content type</span>
+          <span>{t("materials.contentType")}</span>
           <select value={contentType} onChange={(event) => changeContentType(event.target.value)}>
-            {CONTENT_TYPE_OPTIONS.map(([value, label]) => <option value={value} key={value}>{label}</option>)}
+            {CONTENT_TYPE_KEYS.map(([value, labelKey]) => <option value={value} key={value}>{t(labelKey)}</option>)}
           </select>
         </label>
       </section>
@@ -173,7 +158,7 @@ export function MaterialSheets() {
       {learningObjects.loading && <LoadingPanel />}
       {learningObjects.error && <ErrorPanel message={learningObjects.error} />}
       {!learningObjects.loading && !learningObjects.error && !learningObjects.data.results.length && (
-        <EmptyState title="No matching materials" text="There are no published learning objects for this filter yet." />
+        <EmptyState title={t("materials.noMatchTitle")} text={t("materials.noMatchText")} />
       )}
       {!learningObjects.loading && !learningObjects.error && learningObjects.data.results.length > 0 && (
         <section className="sheet-grid">
@@ -182,7 +167,7 @@ export function MaterialSheets() {
           ))}
         </section>
       )}
-      {!learningObjects.loading && !learningObjects.error && <PaginationControls page={objectPage} pageData={learningObjects.data} onPageChange={setObjectPage} label="Learning-object pages" />}
+      {!learningObjects.loading && !learningObjects.error && <PaginationControls page={objectPage} pageData={learningObjects.data} onPageChange={setObjectPage} label={t("materials.objectPages")} />}
     </Page>
   );
 }

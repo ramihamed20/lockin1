@@ -3,6 +3,7 @@ import { PRODUCT_ROLES } from "../api/contracts.js";
 const CURRENT_AUTHENTICATED_ROUTES = new Set([
   "/",
   "/dashboard",
+  "/study-plan",
   "/materials",
   "/search",
   "/questions",
@@ -39,7 +40,7 @@ export const ROUTE_ACCESS_CONFIG = Object.freeze([
   { path: "/creator/education", productRoles: [PRODUCT_ROLES.CREATOR, PRODUCT_ROLES.ADMINISTRATOR], capabilities: ["content.manage"] },
   { path: "/creator/content", productRoles: [PRODUCT_ROLES.CREATOR, PRODUCT_ROLES.ADMINISTRATOR], capabilities: ["content.manage"] },
   { path: "/creator", productRoles: [PRODUCT_ROLES.CREATOR, PRODUCT_ROLES.ADMINISTRATOR], capabilities: ["content.manage", "assessments.manage"] },
-  { path: "/moderation", productRole: PRODUCT_ROLES.MODERATOR }
+  { path: "/moderation", productRoles: [PRODUCT_ROLES.MODERATOR, PRODUCT_ROLES.ADMINISTRATOR], capabilities: ["moderation.view"] }
 ]);
 
 function routePath(path) {
@@ -88,20 +89,23 @@ export function canAccessRoute(userOrSession, path, operationsSession) {
 
   const configuredRoute = ROUTE_ACCESS_CONFIG.find((config) => routeMatches(config, currentPath));
   if (configuredRoute) {
-    if (configuredRoute.productRole) return hasProductRole(user, configuredRoute.productRole);
+    if (configuredRoute.productRole && hasProductRole(user, configuredRoute.productRole)) return true;
     if (Array.isArray(configuredRoute.productRoles) && configuredRoute.productRoles.some((role) => hasProductRole(user, role))) return true;
-    if (Array.isArray(configuredRoute.capabilities)) return configuredRoute.capabilities.some((capability) => hasOperationalCapability(operationsSession, capability));
-    return hasOperationalCapability(operationsSession, configuredRoute.capability);
+    if (Array.isArray(configuredRoute.capabilities) && configuredRoute.capabilities.some((capability) => hasOperationalCapability(operationsSession, capability))) return true;
+    if (configuredRoute.capability && hasOperationalCapability(operationsSession, configuredRoute.capability)) return true;
+    return false;
   }
 
   if (CURRENT_AUTHENTICATED_ROUTES.has(currentPath)) return true;
   return (
     /^\/materials\/(?:catalog\/[^/]+(?:\/sheets\/[^/]+(?:\/workspace)?)?|objects\/[^/]+|[^/]+(?:\/sheets\/[^/]+)?)$/.test(currentPath) ||
-    /^\/focus\/[^/]+$/.test(currentPath) ||
     // This client-side route guard only establishes authentication. Django's
     // Focus API remains the authority for Lock In entitlement decisions.
     /^\/lock-in(?:\/[^/]+)?$/.test(currentPath) ||
+    /^\/review\/(?:bank(?:\/[^/]+)?|weekly)$/.test(currentPath) ||
     /^\/questions\/(?:quizzes|attempts|results)\/[^/]+$/.test(currentPath) ||
+    /^\/questions\/categories\/[^/]+(?:\/subjects\/[^/]+)?$/.test(currentPath) ||
+    /^\/questions\/demo\/[^/]+\/[^/]+$/.test(currentPath) ||
     /^\/community\/(?:discussions|spaces|reports)\/[^/]+$/.test(currentPath) ||
     /^\/community\/context\/(?:lesson|learning_object|question|quiz)\/[^/]+$/.test(currentPath)
   );
