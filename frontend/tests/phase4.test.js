@@ -63,22 +63,19 @@ test("Focus requests use Django's entitlement, workspace revision, and annotatio
   assert.equal(calls.filter((call) => ["POST", "PATCH"].includes(call.method)).every((call) => call.csrf === "csrf-value"), true);
 });
 
-test("Focus is authenticated-route guarded, uses the real route, and does not introduce a private-data cache", async () => {
+test("the retired document-version Focus viewer has no route or internal entry point", async () => {
   const student = { id: "student", roles: ["student"] };
-  assert.equal(canAccessRoute(student, "/focus/version"), true);
+  assert.equal(canAccessRoute(student, "/focus/version"), false);
   assert.equal(canAccessRoute(student, "/focus/version/extra"), false);
-  const [app, learningObject, workspace, worker] = await Promise.all([
+  const [app, dashboard, learningObject, worker] = await Promise.all([
     readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/pages/Dashboard.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/LearningObjectStudy.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/pages/FocusWorkspace.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/service-worker.js", import.meta.url), "utf8")
   ]);
-  assert.match(app, /path="\/focus\/:documentVersionId"/);
-  assert.match(learningObject, /focus_context/);
-  assert.match(workspace, /focusApi\.syncAnnotations/);
-  assert.match(workspace, /expectedCollectionRevision/);
-  assert.match(workspace, /action === "complete" \|\| action === "abandon"/);
-  assert.match(workspace, /const annotationsSaved = await syncAnnotations\(\);\s*if \(!annotationsSaved\) return;/);
-  assert.doesNotMatch(workspace, /\/api\/sheets|xpAwarded|correctAnswer/);
+  assert.doesNotMatch(app, /const FocusWorkspace|import\("\.\/pages\/FocusWorkspace\.jsx"\)|path="\/focus\//);
+  assert.doesNotMatch(dashboard, /focus_document_version_id|`\/focus\//);
+  assert.doesNotMatch(learningObject, /focus_context|<Navigate/);
+  assert.match(app, /path="\/materials\/catalog\/:materialSlug\/sheets\/:sheetSlug\/workspace"/);
   assert.doesNotMatch(worker, /cache\.put\([^\n]*api/i);
 });

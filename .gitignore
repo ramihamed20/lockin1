@@ -22,7 +22,9 @@ coverage/
 backend/media/
 backend/staticfiles/
 backend/.lockin-demo.sqlite3
+backend/e2e.sqlite3
 .playwright/
+.playwright-cli/
 output/playwright/
 frontend/output/
 playwright-report/
@@ -35,3 +37,11 @@ Thumbs.db
 .claude/settings.local.json
 .claude/skills/impeccable/
 .impeccable/
+
+# Local scratch run area: a stale duplicate of the frontend tree (28 Aug) plus
+# build output and a local static server. Never part of a checkout.
+/local-run/
+
+# Runtime logs and local demo databases.
+backend/.local-logs/
+*.sqlite3

@@ -71,7 +71,7 @@ test("operations console navigation fails closed without the overview capability
   assert.equal(canAccessRoute(user, "/operations/admin/overview", { capabilities: ["overview.view"] }), true);
 });
 
-test("operations console follows the shared hidden visual-page-heading default", async () => {
+test("Creator Studio follows the shared hidden visual-page-heading default", async () => {
   const [pageComponent, operationsPage] = await Promise.all([
     readFile(new URL("../src/components/ui/index.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/OperationsAdmin.jsx", import.meta.url), "utf8")
@@ -79,8 +79,21 @@ test("operations console follows the shared hidden visual-page-heading default",
 
   assert.match(pageComponent, /showHeading\s*=\s*false/);
   assert.match(pageComponent, /showHeading\s*&&\s*<header className="section-heading">/);
-  assert.match(operationsPage, /<Page title="Operations console" showHeading=\{false\}>/);
-  assert.doesNotMatch(operationsPage, /Operations console" subtitle=/);
+  assert.match(operationsPage, /<Page title="Creator Studio" showHeading=\{false\}>/);
+  assert.doesNotMatch(operationsPage, /Creator Studio" subtitle=/);
+});
+
+test("student directory filters stay server-side", async () => {
+  setup();
+  let calledUrl = "";
+  globalThis.fetch = async (url) => {
+    calledUrl = String(url);
+    return response({ count: 0, next: null, previous: null, results: [] });
+  };
+
+  await adminControlApi.users({ query: "founder", status: "active", role: "creator", ordering: "full_name" });
+
+  assert.equal(calledUrl, "/api/v1/operations/users?page=1&page_size=25&q=founder&status=active&role=creator&ordering=full_name");
 });
 
 test("configuration changes use Django's versioned PATCH contract and content access remains capability-gated", async () => {

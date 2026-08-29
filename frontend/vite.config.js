@@ -2,8 +2,18 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
+function normalizeBasePath(value) {
+  const basePath = String(value || "/").trim();
+  if (!basePath.startsWith("/") || basePath.startsWith("//") || /[?#\\]/.test(basePath)) {
+    throw new Error("VITE_BASE_PATH must be a same-origin absolute path without a query or hash.");
+  }
+  return basePath.endsWith("/") ? basePath : `${basePath}/`;
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
+  const appVersion = env.VITE_APP_VERSION || process.env.GITHUB_SHA || "local";
+  const basePath = normalizeBasePath(env.VITE_BASE_PATH || "/");
   // This value is used only by Vite's development proxy. Browser requests stay
   // same-origin at /api/v1, so session cookies are never sent by the browser to
   // this target directly.
@@ -11,37 +21,57 @@ export default defineConfig(({ mode }) => {
   const djangoOrigin = new URL(djangoProxyTarget).origin;
 
   return {
-  base: process.env.GITHUB_ACTIONS ? "/test-dinta/" : "/",
+  base: basePath,
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion)
+  },
   plugins: [
     react(),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
+      injectRegister: null,
       strategies: "injectManifest",
       srcDir: "src",
       filename: "service-worker.js",
-      includeAssets: ["assets/favicon.svg", "apple-touch-icon.png", "maskable-icon.png"],
+      includeAssets: [
+        "icons/lockin-light-16-v2.png",
+        "icons/lockin-light-32-v2.png",
+        "icons/lockin-light-180-v2.png",
+        "icons/lockin-light-192-v2.png",
+        "icons/lockin-light-512-v2.png",
+        "icons/lockin-light-maskable-512-v2.png",
+        "startup.css"
+      ],
       manifest: {
+        id: basePath,
         name: "Lock-in Study Workspace",
         short_name: "Lock-in",
         description: "Modern study space for dental students.",
+        lang: "en",
         theme_color: "#070b16",
         background_color: "#070b16",
         display: "standalone",
-        orientation: "portrait",
-        start_url: process.env.GITHUB_ACTIONS ? "/test-dinta/" : "/",
+        display_override: ["standalone", "minimal-ui"],
+        orientation: "any",
+        start_url: basePath,
+        scope: basePath,
+        categories: ["education", "productivity"],
+        prefer_related_applications: false,
         icons: [
           {
-            src: "pwa-192x192.png",
+            src: "icons/lockin-light-192-v2.png",
             sizes: "192x192",
-            type: "image/png"
+            type: "image/png",
+            purpose: "any"
           },
           {
-            src: "pwa-512x512.png",
+            src: "icons/lockin-light-512-v2.png",
             sizes: "512x512",
-            type: "image/png"
+            type: "image/png",
+            purpose: "any"
           },
           {
-            src: "maskable-icon.png",
+            src: "icons/lockin-light-maskable-512-v2.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable"
@@ -49,13 +79,22 @@ export default defineConfig(({ mode }) => {
         ]
       },
       injectManifest: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg}"]
+        injectionPoint: "self.__WB_MANIFEST",
+        // Keep installation lightweight: only the application entry shell is
+        // precached. Lazy routes and visual media are cached after first use.
+        globPatterns: [
+          "index.html",
+          "manifest.webmanifest",
+          "assets/index-*.js",
+          "assets/index-*.css"
+        ]
       }
     })
   ],
   server: {
     host: "0.0.0.0",
     port: 5050,
+    allowedHosts: [".trycloudflare.com"],
     proxy: {
       "/api/v1": {
         target: djangoProxyTarget,

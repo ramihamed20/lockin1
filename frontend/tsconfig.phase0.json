@@ -7,22 +7,10 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "skipLibCheck": true
   },
-  "include": [
-    "src/api/client.js",
-    "src/api/accounts.js",
-    "src/api/learning.js",
-    "src/api/progress.js",
-    "src/api/assessments.js",
-    "src/api/focus.js",
-    "src/api/motivation.js",
-    "src/api/community.js",
-    "src/api/management.js",
-    "src/api/contracts.js",
-    "src/api/pagination.js",
-    "src/lib/authz.js",
-    "src/api/vite-env.d.ts"
-  ]
+  "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.d.ts"],
+  "exclude": ["src/service-worker.js"]
 }

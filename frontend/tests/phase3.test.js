@@ -82,8 +82,9 @@ test("phase 3 routes are guarded and question/answer leakage is absent from acti
   assert.equal(canAccessRoute(student, "/questions/attempts/attempt"), true);
   assert.equal(canAccessRoute(student, "/questions/results/result"), true);
   assert.equal(canAccessRoute(student, "/questions/attempts/attempt/extra"), false);
-  const [app, questions, attempt, result, review, worker] = await Promise.all([
+  const [app, dashboard, questions, attempt, result, review, worker] = await Promise.all([
     readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/pages/Dashboard.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/Questions.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/Attempt.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/AssessmentResult.jsx", import.meta.url), "utf8"),
@@ -98,7 +99,12 @@ test("phase 3 routes are guarded and question/answer leakage is absent from acti
   assert.match(attempt, /error\.fields\?\.current_answer/);
   assert.match(attempt, /error\.code === "attempt_closed"/);
   assert.match(result, /if \(!data\.released\)/);
-  assert.match(review, /assessmentsApi\.getReviewQueue/);
-  assert.doesNotMatch(review, /\/api\/review|advanced\/mistakes|completeReviewItem/);
+  assert.match(app, /path="\/review\/bank"/);
+  assert.match(app, /path="\/review\/bank\/:subjectKey"/);
+  assert.match(app, /path="\/review\/weekly"/);
+  assert.match(dashboard, /reviewApi\.getQueue/);
+  assert.match(review, /reviewApi\.getBank/);
+  assert.match(review, /reviewApi\.answerItem/);
+  assert.match(review, /reviewApi\.answerWeeklyRecall/);
   assert.doesNotMatch(worker, /cache\.put\([^\n]*api/i);
 });

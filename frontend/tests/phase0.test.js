@@ -100,6 +100,28 @@ test("bootstraps CSRF and sends the header only to the internal API path", async
   assert.equal(calls[1].options.headers.get("Content-Type"), "application/json");
 });
 
+test("shares one CSRF bootstrap across concurrent unsafe requests", async () => {
+  setupBrowserState();
+  let bootstrapCalls = 0;
+  globalThis.fetch = async (url) => {
+    if (String(url).endsWith("/auth/csrf")) {
+      bootstrapCalls += 1;
+      await new Promise((resolve) => globalThis.setTimeout(resolve, 5));
+      return jsonResponse({ csrf_token: "shared-csrf-value" });
+    }
+    return jsonResponse({ ok: true });
+  };
+
+  const [first, second] = await Promise.all([
+    ensureCsrfToken(),
+    ensureCsrfToken()
+  ]);
+
+  assert.equal(first, "shared-csrf-value");
+  assert.equal(second, "shared-csrf-value");
+  assert.equal(bootstrapCalls, 1);
+});
+
 test("fails closed when CSRF bootstrap returns no token", async () => {
   setupBrowserState();
   let calls = 0;

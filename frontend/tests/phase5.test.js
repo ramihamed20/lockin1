@@ -95,14 +95,15 @@ test("Phase 5 routes use server values and keep unsupported client authority dis
   assert.equal(isKnownNotificationRoute("/community/discussions/00000000-0000-4000-8000-000000000001"), true);
   assert.equal(isKnownNotificationRoute("https://untrusted.invalid/"), false);
   assert.equal(isKnownNotificationRoute("/operations/analytics"), false);
-  const [app, notifications, layout, progress, achievements, ranked, analytics, worker] = await Promise.all([
+  const [app, notifications, layout, progress, achievements, ranked, operationsAdmin, adminControl, worker] = await Promise.all([
     readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/Notifications.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/layout/index.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/Progress.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/Achievements.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/Ranked.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/pages/Analytics.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/pages/OperationsAdmin.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/api/adminControl.js", import.meta.url), "utf8"),
     readFile(new URL("../src/service-worker.js", import.meta.url), "utf8")
   ]);
   assert.match(app, /path="\/notifications"/);
@@ -113,12 +114,14 @@ test("Phase 5 routes use server values and keep unsupported client authority dis
   assert.match(layout, /isKnownNotificationRoute/);
   assert.match(layout, /error\.status === 410/);
   assert.match(layout, /motivationApi\.notificationSummary/);
-  assert.match(layout, /No consume action is available/);
+  assert.match(layout, /Protect your streak for 1 week/);
   assert.match(progress, /motivationApi\.xpLedger/);
   assert.match(achievements, /motivationApi\.achievements/);
   assert.match(ranked, /motivationApi\.updateRankingProfile/);
   assert.doesNotMatch(progress + achievements + ranked + layout, /awardXp|consumeFreeze|xpAwarded|featured\?\.name \|\| "Lina A\."/);
-  assert.doesNotMatch(analytics, /operations\/analytics|api\("\/api\/analytics"/);
+  assert.match(operationsAdmin, /adminControlApi\.analytics\(\)/);
+  assert.match(adminControl, /operations\/admin\/analytics\/dashboard/);
+  assert.doesNotMatch(operationsAdmin + adminControl, /api\("\/api\/analytics"/);
   assert.doesNotMatch(worker, /cache\.put\([^\n]*api/i);
 });
 

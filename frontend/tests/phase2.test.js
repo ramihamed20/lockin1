@@ -3,6 +3,7 @@ import test from "node:test";
 import { readFile } from "node:fs/promises";
 import { dashboardApi, discoveryApi, educationApi, learningApi } from "../src/api/learning.js";
 import { progressApi } from "../src/api/progress.js";
+import { studyPlanApi } from "../src/api/studyPlan.js";
 import { __testing } from "../src/api/client.js";
 import { canAccessRoute } from "../src/lib/authz.js";
 
@@ -100,8 +101,10 @@ test("phase 2 routes use direct server file links and remove fabricated dashboar
   assert.match(app, /path="\/search"/);
   assert.match(study, /\^\/api\/v1\/files\//);
   assert.doesNotMatch(study, /request\(/);
-  assert.doesNotMatch(dashboard, /\/api\/study-plan/);
-  assert.match(dashboard, /does not award progress, XP, or completion/);
+  assert.match(app, /path="\/study-plan"/);
+  assert.doesNotMatch(dashboard, /Build your study week/);
+  assert.doesNotMatch(dashboard, /Focus session|FocusTimerCard/);
+  assert.match(dashboard, /to=\{path\}/);
   assert.match(topbar, /navigate\(`\/search\?q=/);
   assert.match(authz, /"\/search"/);
   assert.doesNotMatch(worker, /cache\.put\([^\n]*api/i);
@@ -110,7 +113,31 @@ test("phase 2 routes use direct server file links and remove fabricated dashboar
 test("authenticated student routes include search and the learning-object reader only", () => {
   const student = { id: "student", roles: ["student"] };
   assert.equal(canAccessRoute(student, "/search"), true);
+  assert.equal(canAccessRoute(student, "/study-plan"), true);
   assert.equal(canAccessRoute(student, "/materials/objects/object-id"), true);
   assert.equal(canAccessRoute(student, "/materials/node-id/sheets/sheet-id"), true);
   assert.equal(canAccessRoute(student, "/materials/objects/object-id/extra"), false);
+});
+
+test("study plan requests use the authenticated Django API", async () => {
+  setup();
+  const calls = [];
+  globalThis.fetch = async (url, options = {}) => {
+    calls.push({ url, method: options.method, body: options.body ? JSON.parse(options.body) : undefined });
+    if (options.method === "DELETE") return new Response(null, { status: 204 });
+    if (options.method === "GET") return response({ count: 0, summary: {}, results: [] });
+    return response({ id: "task", title: "Review anatomy" }, options.method === "POST" ? 201 : 200);
+  };
+
+  await studyPlanApi.getPlan({ from: "2026-08-17", to: "2026-08-23" });
+  await studyPlanApi.createItem({ title: "Review anatomy", subject: "Anatomy", scheduledDate: "2026-08-22", durationMinutes: 25 });
+  await studyPlanApi.updateItem("task", { status: "completed" });
+  await studyPlanApi.deleteItem("task");
+
+  assert.deepEqual(calls, [
+    { url: "/api/v1/study-plan?from=2026-08-17&to=2026-08-23", method: "GET", body: undefined },
+    { url: "/api/v1/study-plan/items", method: "POST", body: { title: "Review anatomy", subject: "Anatomy", scheduled_date: "2026-08-22", duration_minutes: 25 } },
+    { url: "/api/v1/study-plan/items/task", method: "PATCH", body: { status: "completed" } },
+    { url: "/api/v1/study-plan/items/task", method: "DELETE", body: undefined }
+  ]);
 });

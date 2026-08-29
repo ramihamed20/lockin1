@@ -233,13 +233,17 @@ have been 95/95 consistently.
 `e2e/focus-workspace.spec.js` (seeds `zoomFitBasis`), `tests/workspace-storage.test.js` (backup shape),
 `tests/materials-catalog.test.js` (measured toolbar height instead of a hardcoded row)
 
-> ⚠️ **`frontend/src/workspace/**` is untracked in git.** Changes there will not appear in a commit unless
-> the directory is `git add`-ed. Verify before committing.
+> ✅ **Tracking fixed (commit `0c996b5`).** `frontend/e2e/`, `frontend/src/workspace/`, 16 unit test files,
+> `playwright.config.js`, `tsconfig.worker.json`, `scripts/`, `frontend/public/` and `backend/apps/` had
+> never been `git add`-ed — 252 files in total, so a fresh clone contained none of them and could not start
+> the suite. They are tracked now (`git ls-files` 753 → 1005). `local-run/` (a stale 28 Aug duplicate of the
+> frontend tree plus build output), `backend/.local-logs/` and `*.sqlite3` are gitignored instead.
 >
-> ⚠️ **`frontend/e2e/` is untracked too — the whole directory.** `git ls-files frontend/e2e` returns nothing,
-> so *every* Playwright spec is uncommitted, including the P0 regression guards this document lists as new
-> work (`responsive-p0-regressions.spec.js`, `touch-targets.spec.js`) and everything the P2 pass added.
-> The suite runs locally and would find no tests in a fresh clone. `git add frontend/e2e` before committing.
+> ⚠️ **The branch tip still does not build.** The commit added only files that were untracked. The other half
+> of the P0/P1/P2 work lives in **191 modified tracked files** (`App.jsx`, `layout/index.jsx`, `styles.css`,
+> `constants.js`, `icons.jsx`, every translated page…) plus **9 working-tree deletions**, all still
+> uncommitted. A fresh checkout of HEAD has every file but pairs current tests with pre-fix sources: the unit
+> suite finds 168 tests and **24 fail**. Commit the working tree to close that gap.
 
 ### Added by the P2 pass
 

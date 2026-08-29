@@ -88,64 +88,25 @@ test("Lock In team creation, joining, and chat use Django endpoints", async () =
   ]);
 });
 
-test("Lock In is an immersive route with exit protection and no normal shell navigation", async () => {
-  const [app, layout, screen, styles, referenceStyles, dashboard] = await Promise.all([
+test("Lock In is presented as coming soon without exposing the active workspace route", async () => {
+  const [app, layout, comingSoon, styles, dashboard, catalogue] = await Promise.all([
     readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/layout/index.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/pages/LockInMode.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/pages/LockInComingSoon.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/styles.css", import.meta.url), "utf8"),
-    readFile(new URL("../src/pages/lock-in-reference.css", import.meta.url), "utf8"),
-    readFile(new URL("../src/pages/Dashboard.jsx", import.meta.url), "utf8")
+    readFile(new URL("../src/pages/Dashboard.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/lib/i18n.js", import.meta.url), "utf8")
   ]);
 
-  assert.match(app, /path="\/lock-in" element={<LockInMode/);
-  assert.match(app, /path="\/lock-in\/:sessionId" element={<LockInMode/);
+  assert.match(app, /path="\/lock-in" element={<LockInComingSoon/);
+  assert.match(app, /path="\/lock-in\/:sessionId" element={<LockInComingSoon/);
   assert.match(layout, /location\.pathname === "\/lock-in"/);
-  assert.match(screen, /beforeunload/);
-  assert.match(screen, /start-break/);
-  assert.match(screen, /updateLockInNote/);
-  assert.match(screen, /ReferenceActiveSession/);
-  assert.match(screen, /TeamHub/);
-  assert.match(screen, /LiveTeamHub/);
-  assert.match(screen, /createLockInTeam/);
-  assert.match(screen, /LiveTeamPanel/);
-  assert.match(screen, /ReferencePdfViewer/);
-  assert.match(screen, /LOCK_IN_VIEWER_TOOLS/);
-  assert.match(screen, /workspace-v2-toolbar lockin-workspace-tools/);
-  assert.match(screen, /workspace-v2-annotation-layer/);
-  assert.match(screen, /focusApi\.getAnnotations/);
-  assert.match(screen, /focusApi\.syncAnnotations/);
-  assert.match(screen, /Show document only/);
-  assert.match(screen, /requestFullscreen/);
-  assert.match(screen, /onNotes=\{openSessionTools\}/);
-  assert.match(screen, /Open Lock In sidebar/);
-  assert.match(screen, /Hide team sidebar/);
-  assert.match(screen, /sidebarContent=\{documentOnly/);
-  assert.match(screen, /fullscreenTools=\{documentOnly/);
-  assert.match(screen, /lockin-reference-workspace\$\{sidebarOpen && !documentOnly \? "" : " is-side-closed"\}/);
-  assert.match(screen, /ReferenceSetup/);
-  assert.match(screen, /Create Team/);
-  assert.match(screen, /Lock In Together/);
-  const setupStart = screen.indexOf("function ReferenceSetup");
-  const setupEnd = screen.indexOf("function ResumeCard", setupStart);
-  const themedSetup = screen.slice(setupStart, setupEnd);
-  assert.match(themedSetup, /Team name/);
-  assert.doesNotMatch(themedSetup, /Study goal|Optional break|Chapter or topic/);
-  assert.match(screen, /Your Team/);
-  assert.match(screen, /Team Chat/);
-  assert.match(screen, /useLiveSessionTiming/);
-  assert.match(screen, /Return to where you were/);
-  assert.match(styles, /min-height: 100dvh/);
-  assert.match(styles, /safe-area-inset-bottom/);
-  assert.match(referenceStyles, /min-height: 100dvh/);
-  assert.match(referenceStyles, /safe-area-inset-bottom/);
-  assert.match(referenceStyles, /lockin-reference-workspace/);
-  assert.match(referenceStyles, /lockin-reference-viewer\.workspace-v2-reader/);
-  assert.match(referenceStyles, /lockin-workspace-pan-layer/);
-  assert.match(referenceStyles, /lockin-reference-viewer:fullscreen/);
-  assert.match(referenceStyles, /lockin-reference-workspace\.is-side-closed/);
-  assert.match(referenceStyles, /lockin-workspace-fullscreen-sidebar/);
-  assert.match(referenceStyles, /lockin-reference-side-backdrop/);
-  assert.match(dashboard, /Enter Lock In Mode/);
-  assert.doesNotMatch(dashboard, /This timer stays on this device/);
+  // The wording lives in the message catalogue now, so both halves are checked:
+  // the page asks for the key, and English still reads the way it did.
+  assert.match(comingSoon, /t\("lockIn\.comingSoon"\)/);
+  assert.match(catalogue, /"lockIn\.comingSoon": "Coming soon"/);
+  assert.match(comingSoon, /t\("lockIn\.openStudyPlan"\)/);
+  assert.match(catalogue, /"lockIn\.openStudyPlan": "Open Study Plan"/);
+  assert.match(styles, /\.lock-in-coming-soon/);
+  assert.doesNotMatch(dashboard, /Focus session|FocusTimerCard|Enter Lock In Mode/);
 });

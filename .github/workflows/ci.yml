@@ -51,6 +51,7 @@ jobs:
       - name: Static analysis and migration drift
         working-directory: backend
         run: |
+          python -m pip_audit . --strict
           python -m ruff check .
           python -m ruff format --check .
           python -m mypy .
@@ -127,43 +128,49 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
       - uses: actions/setup-node@v4
         with:
           node-version: "24.16.0"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
       - name: Install exact frontend lockfile
         working-directory: frontend
-        run: npm ci
+        run: pnpm install --frozen-lockfile
       - name: Frontend quality and production build
         working-directory: frontend
         run: |
-          npm audit --omit=dev --audit-level=high
-          npm run lint
-          npm run typecheck
-          npm run test:coverage
-          npm run build
-          npm run check:bundle
+          pnpm audit --prod --audit-level=high
+          pnpm run lint
+          pnpm run typecheck
+          pnpm test
+          pnpm run build
+          pnpm run check:bundle
 
   browser:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
       - uses: actions/setup-node@v4
         with:
           node-version: "24.16.0"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
       - name: Install exact frontend lockfile
         working-directory: frontend
-        run: npm ci
+        run: pnpm install --frozen-lockfile
       - name: Install Chromium
         working-directory: frontend
-        run: npx playwright install --with-deps chromium
+        run: pnpm exec playwright install --with-deps chromium
       - name: Production-bundle browser regression
         working-directory: frontend
-        run: npm run test:e2e
+        run: pnpm run build && pnpm run test:e2e
 
   containers:
     runs-on: ubuntu-latest
@@ -173,7 +180,14 @@ jobs:
       - name: Build immutable application images
         run: |
           docker build --tag lockin-backend:ci backend
-          docker build --tag lockin-edge:ci frontend
+          docker build \
+            --build-arg VITE_APP_VERSION=${{ github.sha }} \
+            --build-arg VITE_SUPPORT_EMAIL=support@lockin.example.test \
+            --build-arg VITE_LEGAL_ENTITY="Lock-in CI" \
+            --build-arg VITE_LEGAL_ADDRESS="CI test address" \
+            --build-arg VITE_LEGAL_JURISDICTION="CI test jurisdiction" \
+            --build-arg VITE_POLICY_VERSION=ci-policy-v1 \
+            --tag lockin-edge:ci frontend
       - name: Validate Nginx production configuration
         run: |
           openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
@@ -186,7 +200,12 @@ jobs:
             lockin-edge:ci -t
       - name: Validate production Compose contract
         env:
+          LOCKIN_IMAGE_TAG: ci
           LOCKIN_PUBLIC_HOST: lockin.example.test
+          LOCKIN_SUPPORT_EMAIL: support@lockin.example.test
+          LOCKIN_LEGAL_ENTITY: Lock-in CI
+          LOCKIN_LEGAL_ADDRESS: CI test address
+          LOCKIN_LEGAL_JURISDICTION: CI test jurisdiction
           ACCOUNT_POLICY_VERSION: ci-policy-v1
           DJANGO_EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
           DEFAULT_FROM_EMAIL: Lock-in <no-reply@lockin.example.test>
