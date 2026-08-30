@@ -127,12 +127,13 @@ test("Phase 6 rejects incomplete contexts, invalid identifiers, and unrecognized
 });
 
 test("Phase 6 screens remove generic fake community data and keep reporting non-moderatorial", async () => {
-  const [community, discussion, space, report, app] = await Promise.all([
+  const [community, discussion, space, report, app, catalogue] = await Promise.all([
     readFile(new URL("../src/pages/Community.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/Discussion.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/CommunitySpace.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/CommunityReport.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/App.jsx", import.meta.url), "utf8")
+    readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/lib/i18n.js", import.meta.url), "utf8")
   ]);
   assert.match(community, /communityApi\.listDiscussions/);
   assert.match(community, /import \{[^}]*DiscussionComposer[^}]*\} from "\.\.\/components\/community\/index\.jsx"/);
@@ -140,7 +141,8 @@ test("Phase 6 screens remove generic fake community data and keep reporting non-
   assert.match(discussion, /clientRequestId/);
   assert.match(discussion, /ReportComposer/);
   assert.match(space, /space\.can_manage/);
-  assert.match(report, /does not display moderation evidence or moderation controls/);
+  assert.ok(report.includes('t("community.reportNote")'), "CommunityReport asks for the reportNote key");
+  assert.match(catalogue, /does not display moderation evidence or moderation controls/);
   assert.match(app, /path="\/community\/context\/:contextType\/:contextId"/);
   assert.doesNotMatch(community + discussion + space, /api\(\s*["']\/api\/community|post\.likes|Doctor Announcements/);
   assert.doesNotMatch(report, /evidence_snapshot|transition|assign/);

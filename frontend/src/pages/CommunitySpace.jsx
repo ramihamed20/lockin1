@@ -5,6 +5,7 @@ import { Icon } from "../lib/icons.jsx";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
 import { CommunityContextLink, DiscussionCard, DiscussionComposer, SpaceMemberForm } from "../components/community/index.jsx";
+import { useI18n } from "../components/I18nProvider.jsx";
 
 function mergeById(current, next) {
   const ids = new Set(current.map((item) => item.id));
@@ -20,6 +21,7 @@ async function loadSpace(spaceId) {
 }
 
 export default function CommunitySpace() {
+  const { t } = useI18n();
   const { spaceId = "" } = useParams();
   const spaceData = useAsyncData(() => loadSpace(spaceId), [spaceId]);
   const [space, setSpace] = useState(null);
@@ -45,34 +47,34 @@ export default function CommunitySpace() {
       setDiscussions((current) => mergeById(current, page.results));
       setNextCursor(page.nextCursor);
     } catch (error) {
-      setActionError(error.message || "More space discussions could not be loaded.");
+      setActionError(error.message || t("community.spaceMoreError"));
     } finally {
       setLoadingMore(false);
     }
   }
 
   if (spaceData.loading) return <LoadingPanel />;
-  if (spaceData.error || !space) return <ErrorPanel message={spaceData.error || "This creator space could not be loaded."} onRetry={spaceData.reload} />;
+  if (spaceData.error || !space) return <ErrorPanel message={spaceData.error || t("community.spaceLoadError")} onRetry={spaceData.reload} />;
 
   return (
-    <Page title={space.title} subtitle="A creator space with private membership and contextual discussion.">
+    <Page title={space.title} subtitle={t("community.spaceSubtitle")}>
       {actionError && <ErrorPanel message={actionError} onRetry={spaceData.reload} />}
       <section className="community-top">
         <article className="panel community-composer">
-          <p className="eyebrow">Private creator space</p>
-          <h2>{space.title}</h2>
-          <p>{space.description || "A server-controlled private learning space."}</p>
-          <div className="post-meta"><span>{space.member_count || 0} members</span><span>{space.membership_role || "visible member"}</span><small>{space.status}</small></div>
-          <CommunityContextLink contextType={space.context_type} contextId={space.context_id} className="btn btn-soft"><Icon name="book-open" size={16} /> View learning context</CommunityContextLink>
+          <p className="eyebrow">{t("community.privateCreatorSpace")}</p>
+          <h2 dir="auto">{space.title}</h2>
+          <p dir="auto">{space.description || t("community.spaceFallbackDesc")}</p>
+          <div className="post-meta"><span dir="auto">{t("community.memberCount", { count: space.member_count || 0 })}</span><span dir="auto">{space.membership_role || t("community.visibleMember")}</span><small dir="auto">{space.status}</small></div>
+          <CommunityContextLink contextType={space.context_type} contextId={space.context_id} className="btn btn-soft"><Icon name="book-open" size={16} /> {t("community.viewLearningContext")}</CommunityContextLink>
         </article>
         <article className="panel announcement-panel">
-          <div className="panel-title"><h2>Start a space discussion</h2><span><Icon name="messages" size={16} /></span></div>
-          {space.status === "active" ? <DiscussionComposer contextType={space.context_type} contextId={space.context_id} spaceId={space.id} onCreated={(created) => setDiscussions((current) => [created, ...current])} /> : <p className="save-hint">This space is not accepting new discussions. Its moderators set that.</p>}
+          <div className="panel-title"><h2>{t("community.startSpaceDiscussion")}</h2><span><Icon name="messages" size={16} /></span></div>
+          {space.status === "active" ? <DiscussionComposer contextType={space.context_type} contextId={space.context_id} spaceId={space.id} onCreated={(created) => setDiscussions((current) => [created, ...current])} /> : <p className="save-hint">{t("community.spaceClosed")}</p>}
         </article>
       </section>
       <section className="community-grid">
-        <article className="panel community-post-list"><div className="panel-title"><h2>Space discussions</h2><span>{discussions.length}</span></div>{discussions.length ? discussions.map((discussion) => <DiscussionCard key={discussion.id} discussion={discussion} />) : <EmptyState title="No space discussions" text="No discussions in this space are visible to you yet." />}{nextCursor && <button className="btn btn-soft" type="button" disabled={loadingMore} onClick={() => { void loadMore(); }}>{loadingMore ? "Loading…" : "Load more discussions"}</button>}</article>
-        {space.can_manage && <aside className="community-rail"><article className="study-buddy-card"><div><p className="eyebrow">Space membership</p><h2>Invite a member</h2><p>This checks your space management permission and resolves the supplied university email without exposing a user directory.</p></div><SpaceMemberForm spaceId={space.id} onChanged={spaceData.reload} /></article></aside>}
+        <article className="panel community-post-list"><div className="panel-title"><h2>{t("community.spaceDiscussions")}</h2><span>{discussions.length}</span></div>{discussions.length ? discussions.map((discussion) => <DiscussionCard key={discussion.id} discussion={discussion} />) : <EmptyState title={t("community.noSpaceDiscussionsTitle")} text={t("community.noSpaceDiscussionsText")} />}{nextCursor && <button className="btn btn-soft" type="button" disabled={loadingMore} onClick={() => { void loadMore(); }}>{t(loadingMore ? "notifications.loadingMore" : "community.loadMoreDiscussions")}</button>}</article>
+        {space.can_manage && <aside className="community-rail"><article className="study-buddy-card"><div><p className="eyebrow">{t("community.spaceMembership")}</p><h2>{t("community.inviteMember")}</h2><p>{t("community.inviteNote")}</p></div><SpaceMemberForm spaceId={space.id} onChanged={spaceData.reload} /></article></aside>}
       </section>
     </Page>
   );

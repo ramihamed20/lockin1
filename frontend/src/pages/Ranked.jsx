@@ -4,6 +4,7 @@ import { Icon } from "../lib/icons.jsx";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
 import { formatDateTime, formatNumber } from "../lib/i18n.js";
+import { useI18n } from "../components/I18nProvider.jsx";
 
 async function loadRanked() {
   const [ranking, profile] = await Promise.all([
@@ -13,13 +14,14 @@ async function loadRanked() {
   return { ranking, profile };
 }
 
-function snapshotLabel(snapshot) {
-  if (!snapshot?.generated_at) return "No published snapshot";
+function snapshotLabel(snapshot, t) {
+  if (!snapshot?.generated_at) return t("ranked.noSnapshot");
   const formatted = formatDateTime(snapshot.generated_at);
-  return formatted === "—" ? "Published snapshot" : `Updated ${formatted}`;
+  return formatted === "—" ? t("ranked.publishedSnapshot") : t("ranked.updatedOn", { date: formatted });
 }
 
 export default function Ranked() {
+  const { t } = useI18n();
   const ranked = useAsyncData(loadRanked, []);
   const [profile, setProfile] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -49,37 +51,37 @@ export default function Ranked() {
       setProfile(updated);
       ranked.reload();
     } catch (error) {
-      setSaveError(error.message || "Ranking privacy could not be saved.");
+      setSaveError(error.message || t("ranked.saveError"));
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <Page title="Ranked" subtitle="Published learning rankings and your saved privacy choice.">
+    <Page title="Ranked" subtitle={t("ranked.subtitle")}>
       <section className="ranked-hero">
         <div>
-          <p className="eyebrow">Current ranking</p>
-          <h2>{definition?.title || "No ranking published"}</h2>
-          <p>{definition ? `${definition.period?.replaceAll("_", " ") || "Current"} · ${definition.tie_strategy || "server ranking rules"}` : "No ranking snapshot has been published for this definition yet."}</p>
-          {ranking.snapshot && <span className="pill success"><Icon name="trophy" size={16} /> {snapshotLabel(ranking.snapshot)}</span>}
+          <p className="eyebrow">{t("ranked.currentRanking")}</p>
+          <h2 dir="auto">{definition?.title || t("ranked.noRankingPublished")}</h2>
+          <p dir="auto">{definition ? `${definition.period?.replaceAll("_", " ") || t("ranked.current")} · ${definition.tie_strategy || t("ranked.rankingRules")}` : t("ranked.noSnapshotYet")}</p>
+          {ranking.snapshot && <span className="pill success" dir="auto"><Icon name="trophy" size={16} /> {snapshotLabel(ranking.snapshot, t)}</span>}
         </div>
         <div className="rank-user-card">
-          <span>Your Rank</span>
-          <strong>{ownEntry ? `#${ownEntry.position}` : "—"}</strong>
-          <p>{ownEntry ? `${formatNumber(ownEntry.score || 0)} points · ${formatNumber(ownEntry.evidence_count || 0)} evidence items` : "No position in this snapshot"}</p>
+          <span>{t("ranked.yourRank")}</span>
+          <strong dir="auto">{ownEntry ? `#${ownEntry.position}` : "—"}</strong>
+          <p dir="auto">{ownEntry ? t("ranked.pointsEvidence", { points: formatNumber(ownEntry.score || 0), evidence: formatNumber(ownEntry.evidence_count || 0) }) : t("ranked.noPosition")}</p>
         </div>
       </section>
 
       <section className="dashboard-main">
         <Leaderboard entries={Array.isArray(ranking.entries) ? ranking.entries : []} />
         <article className="settings-panel">
-          <div className="panel-title"><div><p className="eyebrow">Ranking privacy</p><h2>Visibility</h2></div><span><Icon name="eye" size={16} /></span></div>
+          <div className="panel-title"><div><p className="eyebrow">{t("ranked.privacy")}</p><h2>{t("ranked.visibility")}</h2></div><span><Icon name="eye" size={16} /></span></div>
           {saveError && <ErrorPanel message={saveError} />}
           {profile && <form className="password-form" onSubmit={saveProfile}>
-            <label className="form-row"><span>Include my server score</span><input type="checkbox" checked={profile.included === true} onChange={(event) => setProfile((current) => ({ ...current, included: event.target.checked }))} /></label>
-            <label className="field"><span>How others see me</span><select value={profile.display_mode || "initials"} onChange={(event) => setProfile((current) => ({ ...current, display_mode: event.target.value }))}><option value="full_name">Full name</option><option value="initials">Initials</option><option value="anonymous">Anonymous learner</option></select></label>
-            <button className="btn btn-primary" type="submit" disabled={saving}>{saving ? "Saving…" : "Save visibility"}</button>
+            <label className="form-row"><span>{t("ranked.includeScore")}</span><input type="checkbox" checked={profile.included === true} onChange={(event) => setProfile((current) => ({ ...current, included: event.target.checked }))} /></label>
+            <label className="field"><span>{t("ranked.howOthersSee")}</span><select value={profile.display_mode || "initials"} onChange={(event) => setProfile((current) => ({ ...current, display_mode: event.target.value }))}><option value="full_name">{t("ranked.fullName")}</option><option value="initials">{t("ranked.initials")}</option><option value="anonymous">{t("ranked.anonymous")}</option></select></label>
+            <button className="btn btn-primary" type="submit" disabled={saving}>{t(saving ? "profile.saving" : "ranked.saveVisibility")}</button>
           </form>}
         </article>
       </section>
@@ -88,16 +90,17 @@ export default function Ranked() {
 }
 
 function Leaderboard({ entries }) {
+  const { t } = useI18n();
   return (
     <article className="panel leaderboard-card">
-      <div className="panel-title"><div><p className="eyebrow">Published entries</p><h2>Leaderboard</h2></div><span><Icon name="medal" size={16} /></span></div>
-      {!entries.length ? <EmptyState title="No published entries" text="No participant entries have been published for this ranking yet." /> : (
+      <div className="panel-title"><div><p className="eyebrow">{t("ranked.publishedEntries")}</p><h2>{t("ranked.leaderboard")}</h2></div><span><Icon name="medal" size={16} /></span></div>
+      {!entries.length ? <EmptyState title={t("ranked.noEntriesTitle")} text={t("ranked.noEntriesText")} /> : (
         <div className="rank-list">
           {entries.map((entry) => (
             <div className="rank-row" key={`${entry.position}-${entry.display_name}`}>
               <span className="rank-place">{entry.position}</span>
-              <div><strong>{entry.display_name}</strong><small>{entry.is_me ? "You" : `${entry.evidence_count || 0} evidence items`}</small></div>
-              <p>{formatNumber(entry.score || 0)}<b> pts</b></p>
+              <div><strong dir="auto">{entry.display_name}</strong><small dir="auto">{entry.is_me ? t("ranked.you") : t("ranked.evidenceItems", { count: entry.evidence_count || 0 })}</small></div>
+              <p dir="auto">{formatNumber(entry.score || 0)}<b> {t("ranked.pts")}</b></p>
             </div>
           ))}
         </div>
