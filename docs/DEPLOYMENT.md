@@ -588,7 +588,29 @@ observability webhook token the same way.
   `POSTGRES_PORT`, and `POSTGRES_SSLMODE=require`, and put the provider's
   passwords in the owner and runtime secret files.
 
-### 5. Start the deployment
+### 5. Rehearse the edge before the first boot
+
+Put the TLS certificate and key in place first, owned as step 7 describes; the
+rehearsal reads them the same way the deployment will.
+
+The edge is the one container whose security settings can stop it starting:
+read-only root, every capability dropped, and a single tmpfs for writes. Neither
+a build nor `nginx -t` exercises any of that. Prove it on this host before it
+matters:
+
+```bash
+scripts/ci/edge-smoke.sh "$LOCKIN_IMAGE_REPOSITORY-edge:$LOCKIN_IMAGE_TAG"
+```
+
+It starts the real image with the production security options against a stub
+upstream, and asserts the container stays up, runs as uid 10001, attempts no
+chown, keeps its temporary paths writable, reads the private key, serves
+`/healthz` on both listeners, proxies `/api/v1/health/ready`, serves the SPA,
+and keeps `/admin/` closed. CI runs the same script on every change, so this is
+a confirmation rather than a discovery — but it is a cheap one, and it uses this
+host's kernel and Docker version rather than the runner's.
+
+### 6. Start the deployment
 
 Images come from the registry CI published them to. The VPS never builds: a
 frontend build peaks near 2 GB, which this host cannot spare beside PostgreSQL
@@ -612,7 +634,7 @@ The launch shape starts no `file-scan-worker`. Add it to the last line, and
 `file-scanning` to `COMPOSE_PROFILES`, only together with
 `CONTENT_REQUIRE_CLEAN_SCAN=true`.
 
-### 6. Reverse proxy and HTTPS
+### 7. Reverse proxy and HTTPS
 
 The `edge` service is the reverse proxy. It terminates TLS on 443, redirects 80
 to 443, serves the SPA and collected static assets, proxies `/api/` to the
@@ -624,6 +646,31 @@ Provide the certificate through `TLS_CERT_PATH` and `TLS_KEY_PATH`. With
 Cloudflare in front, an Origin CA certificate with Full (strict) mode is the
 straightforward choice; a Let's Encrypt certificate renewed on the host works
 equally well as long as the renewal hook reloads the edge container.
+
+**The certificate and key must be readable by uid 10001.** The edge runs
+unprivileged, so the nginx master that reads them at start-up is uid 10001, not
+root. A key left as root-owned `0600` cannot be read, and the container exits
+before it binds a port:
+
+```bash
+sudo chown 10001:10001 "$TLS_CERT_PATH" "$TLS_KEY_PATH"
+sudo chmod 0644 "$TLS_CERT_PATH"
+sudo chmod 0640 "$TLS_KEY_PATH"
+```
+
+Do the same in the certificate renewal hook, before it reloads the edge — a
+renewal that restores root ownership breaks the next restart rather than the
+current one, which is a considerably worse failure to debug.
+
+Why unprivileged: nginx creates its temporary-path directories at start-up and,
+under a root master with a `user` directive, chowns each one to that user. The
+edge runs with `cap_drop: ALL`, so that chown has no CAP_CHOWN to draw on, and
+its `/tmp` is a fresh tmpfs on every boot, so the directories never already
+exist and the chown always runs. A root nginx master therefore cannot start in
+this container at all. Running the master as uid 10001 removes the operation
+instead of the restriction: nginx leaves the configured user unset when it is
+not root, and skips the chown entirely. Both listeners are above 1024, so
+binding needs no capability either.
 
 Keep `frontend/nginx/cloudflare-real-ip.conf` in step with Cloudflare's published
 ranges, and restrict the firewall so 80/443 accept only Cloudflare addresses:
@@ -638,7 +685,7 @@ sudo ufw enable
 No database, ClamAV, or application port is published. The only ports reachable
 from the internet are 80, 443, and the allowlisted SSH port.
 
-### 7. Deploy an update
+### 8. Deploy an update
 
 CI builds and pushes an image for every commit on `main` and prints the exact
 tag. Deploying is pulling that tag — there is no build step on the host.
@@ -940,5 +987,8 @@ container log as an archive.
 | Input validation | DRF serializers, plus signature and MIME checks on every upload |
 | Database least privilege | Separate owner and runtime roles, verified by preflight |
 | No public database or internal service | Internal Docker network, no published ports |
-| Malware scanning | ClamAV, with delivery closed until a clean scan exists |
+| Malware scanning | Opt-in `file-scanning` profile; off at launch because only trusted administrators can upload |
 | Private file access | Entitlement-checked API delivery; no public bucket, no `/media/` route |
+| Unprivileged runtime | Backend, workers and edge all run as uid 10001; no container has a root process |
+| Container hardening | Read-only roots, `cap_drop: ALL`, `no-new-privileges`, writes only through declared tmpfs |
+| Start-up under those settings | `scripts/ci/edge-smoke.sh` and `scripts/ci/docker-smoke.sh`, both gated in CI |

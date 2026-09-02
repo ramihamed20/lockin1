@@ -41,11 +41,37 @@ RUN pnpm build
 
 FROM nginx:1.27-alpine
 
+# The edge runs unprivileged, which is a correctness requirement and not only a
+# hardening preference.
+#
+# nginx creates its temporary-path directories at start-up. When the master runs
+# as root with a `user` directive set, it then chowns each one to that user --
+# and that chown needs CAP_CHOWN, which the production container drops with
+# `cap_drop: ALL`. On the container's freshly mounted tmpfs the directories never
+# already exist, so the chown always runs, fails with EPERM, and nginx exits
+# before it ever binds a port. A read-only root filesystem with all capabilities
+# dropped therefore cannot run a root nginx master at all.
+#
+# Running the master unprivileged removes the operation rather than the
+# restriction: nginx leaves the configured user unset when it is not root
+# (src/core/nginx.c), and ngx_create_paths() skips the chown entirely for an
+# unset user (src/core/ngx_file.c). Nothing needs CAP_CHOWN, and nothing needs
+# to be granted back.
+#
+# 10001 is the same identity the backend and single-host images use, so the
+# collected-static volume is readable and there is one uid to grant on the host.
+# BusyBox adduser/addgroup, so short flags only: the GNU long options the
+# Debian-based images use are not recognised here.
+RUN addgroup -S -g 10001 lockin \
+    && adduser -S -u 10001 -G lockin -H -D lockin
+
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
 COPY nginx/cloudflare-real-ip.conf /etc/nginx/conf.d/00-cloudflare-real-ip.conf
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 
+# Both listeners are above 1024, so binding needs no capability either.
+USER 10001:10001
 EXPOSE 8080 8443
 
 CMD ["nginx", "-g", "daemon off;"]

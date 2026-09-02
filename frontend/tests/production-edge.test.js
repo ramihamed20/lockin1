@@ -32,6 +32,27 @@ test("private file responses stream instead of buffering into the edge tmpfs", a
   assert.match(server, /proxy_read_timeout 300s;/);
 });
 
+test("the edge runs unprivileged so it never needs CAP_CHOWN at start-up", async () => {
+  const [dockerfile, nginx, compose] = await Promise.all([
+    readFile(new URL("../Dockerfile", import.meta.url), "utf8"),
+    readFile(new URL("../nginx/nginx.conf", import.meta.url), "utf8"),
+    readFile(new URL("../../compose.production.yaml", import.meta.url), "utf8")
+  ]);
+
+  // nginx chowns its temporary-path directories at start-up when a root master
+  // has a `user` directive set. The production container drops CAP_CHOWN, and
+  // its /tmp is a fresh tmpfs on every boot, so that chown would always run and
+  // always fail. Running the master unprivileged removes the operation: nginx
+  // leaves the user unset when it is not root, and skips the chown entirely.
+  assert.match(dockerfile, /^USER 10001:10001$/m);
+  assert.doesNotMatch(nginx, /^\s*user\s+\w+;/m);
+
+  // The settings that make the above load-bearing rather than decorative.
+  assert.match(compose, /read_only: true/);
+  assert.match(compose, /cap_drop:\s*\n\s*- ALL/);
+  assert.match(compose, /\/tmp:size=67108864,mode=1777/);
+});
+
 test("the deployment fits a 4 GB host and states its scanning decision", async () => {
   const [compose, environment] = await Promise.all([
     readFile(new URL("../../compose.production.yaml", import.meta.url), "utf8"),

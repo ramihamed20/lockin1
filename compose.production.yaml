@@ -367,10 +367,18 @@ services:
       - "443:8443"
     volumes:
       - lockin_static:/srv/lockin/static:ro
+      # Both must be readable by uid 10001, the unprivileged user the image
+      # runs as. A root-owned 0600 key cannot be read and the edge will not
+      # start; see docs/DEPLOYMENT.md, "Reverse proxy and HTTPS".
       - ${TLS_CERT_PATH:?Set TLS_CERT_PATH}:/run/tls/fullchain.pem:ro
       - ${TLS_KEY_PATH:?Set TLS_KEY_PATH}:/run/tls/privatekey.pem:ro
     networks:
       - application
+    # The image runs nginx unprivileged specifically so these three settings can
+    # hold together. A root nginx master would chown its temporary-path
+    # directories at start-up and fail, because cap_drop removes CAP_CHOWN and
+    # the tmpfs below is empty on every boot. scripts/ci/edge-smoke.sh starts the
+    # image with exactly these options so the combination stays proven.
     read_only: true
     tmpfs:
       - /tmp:size=67108864,mode=1777

@@ -267,6 +267,29 @@ jobs:
       - name: Start the image and assert the production start-up contract
         run: scripts/ci/docker-smoke.sh lockin-app:ci
 
+  edge-runtime:
+    # The Compose edge runs read-only, with every capability dropped, and with
+    # one tmpfs for writes. Neither "docker build" nor "nginx -t" exercises any
+    # of that, and the failure mode it hides is a container that never binds a
+    # port on first boot. This job starts the real image with those exact
+    # settings and asserts it serves.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the edge image
+        run: |
+          docker build \
+            --build-arg VITE_APP_VERSION=${{ github.sha }} \
+            --build-arg VITE_SUPPORT_EMAIL=support@lockin.example.test \
+            --build-arg VITE_LEGAL_ENTITY="Lock-in CI" \
+            --build-arg VITE_LEGAL_ADDRESS="CI test address" \
+            --build-arg VITE_LEGAL_JURISDICTION="CI test jurisdiction" \
+            --build-arg VITE_POLICY_VERSION=ci-policy-v1 \
+            --tag lockin-edge:ci frontend
+      - name: Start the edge under the production security settings
+        run: scripts/ci/edge-smoke.sh lockin-edge:ci
+
   publish:
     # Production images are built and published here, never on the
     # deployment host. A frontend build peaks near 2 GB, which a 4 GB
@@ -278,7 +301,7 @@ jobs:
     # Set them as repository variables before the first publish; the
     # frontend image refuses to build on placeholders.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [backend, frontend, browser, containers, container-runtime]
+    needs: [backend, frontend, browser, containers, container-runtime, edge-runtime]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -315,7 +338,7 @@ jobs:
 
   quality-gate:
     if: always()
-    needs: [backend, frontend, browser, containers, container-runtime]
+    needs: [backend, frontend, browser, containers, container-runtime, edge-runtime]
     runs-on: ubuntu-latest
     steps:
       - name: Require every production gate
@@ -325,6 +348,7 @@ jobs:
           BROWSER_RESULT: ${{ needs.browser.result }}
           CONTAINER_RESULT: ${{ needs.containers.result }}
           CONTAINER_RUNTIME_RESULT: ${{ needs['container-runtime'].result }}
+          EDGE_RUNTIME_RESULT: ${{ needs['edge-runtime'].result }}
         run: |
           test "$BACKEND_RESULT" = success
           test "$FRONTEND_RESULT" = success
@@ -332,3 +356,6 @@ jobs:
           test "$CONTAINER_RESULT" = success
           # A deployment is not production-ready until the image has started in CI.
           test "$CONTAINER_RUNTIME_RESULT" = success
+          # ... and not until the edge has started under the security settings
+          # production actually applies to it.
+          test "$EDGE_RUNTIME_RESULT" = success
