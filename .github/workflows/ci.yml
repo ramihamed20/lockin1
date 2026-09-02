@@ -99,6 +99,17 @@ jobs:
           OBSERVABILITY_STATSD_HOST: 127.0.0.1
           OBSERVABILITY_ERROR_WEBHOOK_URL: https://monitoring.example.test/v1/errors
           OBSERVABILITY_ERROR_WEBHOOK_TOKEN: ci-only-observability-token
+          # Production refuses a filesystem media backend without an explicit
+          # exception, so the gate has to declare the storage contract it is
+          # validating. No bucket is contacted: release runs check, migrate and
+          # collectstatic, and collectstatic writes through the staticfiles
+          # backend, not the default one.
+          STORAGE_BACKEND: s3
+          STORAGE_BUCKET_NAME: lockin-ci
+          STORAGE_ENDPOINT_URL: https://ci.example.test
+          STORAGE_REGION: auto
+          STORAGE_ACCESS_KEY_ID: ci-only-storage-key
+          STORAGE_SECRET_ACCESS_KEY: ci-only-storage-secret
         run: python manage.py release
       - name: Runtime-role PostgreSQL preflight
         working-directory: backend
@@ -134,6 +145,15 @@ jobs:
           OBSERVABILITY_ERROR_WEBHOOK_URL: https://monitoring.example.test/v1/errors
           OBSERVABILITY_ERROR_WEBHOOK_TOKEN: ci-only-observability-token
           CONTENT_REQUIRE_CLEAN_SCAN: "true"
+          # As in the release gate above: the storage contract is declared, and
+          # preflight reads no object. It runs check --deploy, database
+          # evidence, the migration plan and a scan-state count.
+          STORAGE_BACKEND: s3
+          STORAGE_BUCKET_NAME: lockin-ci
+          STORAGE_ENDPOINT_URL: https://ci.example.test
+          STORAGE_REGION: auto
+          STORAGE_ACCESS_KEY_ID: ci-only-storage-key
+          STORAGE_SECRET_ACCESS_KEY: ci-only-storage-secret
         run: |
           # Both enforcement modes must boot and pass preflight. Running
           # without the scan gate is a supported production configuration,
