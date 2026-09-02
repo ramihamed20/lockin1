@@ -102,6 +102,8 @@ This file records decisions that change product behavior, architecture, maintena
 | D-092 | Require coordinated verified recovery and provider-neutral observability | Approved Phase 11 operations policy |
 | D-094 | DATABASE_URL is the portable database contract, with POSTGRES_* overrides | Approved deployment direction |
 | D-095 | Private files live in provider-neutral object storage, delivered only through the API | Approved deployment direction |
+| D-096 | A deployment is production-ready only once the image has started and served in CI | Approved release gate |
+| D-097 | ClamAV decides the hosting shape; Phase 1 runs on the VPS | Approved deployment direction |
 
 ## D-001 — Product Identity
 
@@ -1038,3 +1040,30 @@ checked.
 environment values. Because every read is proxied, the read path issues ranged GETs instead of using
 the storage library file object, which would otherwise stage a whole object per request. No
 deployment may expose a `/media/` route or a public bucket.
+
+## D-096 - Starting the Image Is Part of the Gate
+
+**Decision:** Require CI to build the production image, start it, and prove it drops privileges, passes
+release and preflight, and serves a request before any change is considered production-ready.
+
+**Reason:** A green unit suite says nothing about whether the container runs. Every failure this gate
+catches — a missing writable path for an unprivileged nginx, an entry point that exits, a preflight
+that cannot reach its database — is invisible to the test suite and fatal on deploy.
+
+**Consequence:** The quality gate fails when the runtime job fails, so an image that has never
+started cannot ship. The job also exercises the generic S3 backend against MinIO, which proves the
+storage path before any provider credential exists.
+
+## D-097 - ClamAV Sets the Hosting Shape
+
+**Decision:** Run Phase 1 on the VPS rather than a managed container host, keeping Supabase and
+Cloudflare R2 for managed data and files. If a managed host is later required, use Fly.io.
+
+**Reason:** Malware scanning is mandatory and fail-closed, and ClamAV is the largest memory consumer
+in the architecture: about 1.6 GB resident and 2.4 GB during its daily reload. On a managed host that
+is a separate paid 4 GB instance, which makes managed hosting cost several times the VPS while
+delivering less control and still requiring the Phase 2 migration.
+
+**Consequence:** The deployment starts on the architecture it will keep, so there is no second
+migration. On 8 GB the scanner needs room: either keep PostgreSQL managed, or build ClamAV with
+CLAMAV_CONCURRENT_RELOAD=false. The reasoning and the figures behind it are in docs/HOSTING.md.

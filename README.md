@@ -49,9 +49,16 @@ owner release/runtime preflight, frontend dependency audit/lint/type/coverage/bu
 desktop/mobile Playwright suite, image builds, Nginx validation, Compose validation, and an aggregate
 fail-closed quality gate.
 
+It also starts the production image. The `container-runtime` job brings up PostgreSQL and an
+S3-compatible store, runs the image against them, and asserts that it drops privileges, completes the
+release and preflight steps, serves a request through Nginx, and round-trips an object through the
+generic S3 backend. The quality gate fails if that job fails, so an image that has never started
+cannot be released. Run it locally with `scripts/ci/docker-smoke.sh`.
+
 ## Production deployment
 
-`docs/DEPLOYMENT.md` is the deployment contract. It covers both supported shapes and the
+`docs/HOSTING.md` records which host to deploy on and why. `docs/DEPLOYMENT.md` is the deployment
+contract. It covers both supported shapes and the
 migration between them:
 
 - **Managed container host**: the root `Dockerfile` builds one image with the SPA, the Django API

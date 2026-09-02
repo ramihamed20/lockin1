@@ -10,7 +10,15 @@ The deployment shapes themselves, and the migration between them, are described 
 ## Before the maintenance window
 
 - [ ] Green CI for the exact commit: backend/PostgreSQL, frontend/audit/build/budget, Playwright,
-  containers/Nginx/Compose, and final quality gate.
+  containers/Nginx/Compose, the container-runtime job, and the final quality gate.
+- [ ] The container-runtime job passed for this commit. It is the only evidence that the image
+  starts, runs unprivileged, completes release and preflight, and serves a request. A deployment
+  whose image has never started in CI is not production-ready.
+- [ ] `validate_object_storage` passed against the target bucket, with `anonymous_access` refused
+  and `ranged_reads` true. See docs/DEPLOYMENT.md, Staging validation for a storage provider.
+- [ ] ClamAV verified per docs/DEPLOYMENT.md: reachable from the worker on 3310, unreachable from
+  the public internet by explicit test, EICAR quarantined, signature volume persistent, sized for
+  the reload peak.
 - [ ] Immutable backend/edge image tags and digests recorded; no `latest` tag.
 - [ ] `.env.production` reviewed against `.env.production.example`; no secret values in the file.
 - [ ] Django, SMTP, PostgreSQL owner/runtime, and TLS secrets exist with restrictive host permissions.

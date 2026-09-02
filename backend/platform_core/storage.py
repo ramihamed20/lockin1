@@ -45,6 +45,12 @@ class ManagedObject:
         self._handle = handle
         self._remote = remote
 
+    @property
+    def uses_ranged_reads(self) -> bool:
+        """True when reads are served by provider byte ranges rather than a local seek."""
+
+        return self._remote is not None
+
     def stream(
         self,
         *,

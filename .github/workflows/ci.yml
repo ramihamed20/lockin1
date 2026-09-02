@@ -201,11 +201,6 @@ jobs:
             --build-arg VITE_POLICY_VERSION=ci-policy-v1 \
             --tag lockin-edge:ci frontend
           docker build --tag lockin-clamav:ci deploy/clamav
-      - name: Build the single-image container-host deployment
-        run: docker build --tag lockin-app:ci .
-      - name: Validate the container-host Nginx template as the unprivileged user
-        run: |
-          docker run --rm --entrypoint sh lockin-app:ci -c 'PORT=10000 LOCKIN_MAX_BODY_SIZE=92m envsubst "${PORT} ${LOCKIN_MAX_BODY_SIZE}" < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -t -g "pid /tmp/nginx.pid; error_log /dev/stderr warn;"'
       - name: Validate Nginx production configuration
         run: |
           openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
@@ -245,9 +240,22 @@ jobs:
           docker compose -f compose.production.yaml --profile bundled-db config --quiet
           docker compose -f compose.production.yaml config --quiet
 
+  container-runtime:
+    # Building an image proves nothing about whether it runs. This job is the
+    # gate that makes "production-ready" mean the container has actually
+    # started, dropped privileges, passed preflight and served a request.
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the production image
+        run: docker build --tag lockin-app:ci .
+      - name: Start the image and assert the production start-up contract
+        run: scripts/ci/docker-smoke.sh lockin-app:ci
+
   quality-gate:
     if: always()
-    needs: [backend, frontend, browser, containers]
+    needs: [backend, frontend, browser, containers, container-runtime]
     runs-on: ubuntu-latest
     steps:
       - name: Require every production gate
@@ -256,8 +264,11 @@ jobs:
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           BROWSER_RESULT: ${{ needs.browser.result }}
           CONTAINER_RESULT: ${{ needs.containers.result }}
+          CONTAINER_RUNTIME_RESULT: ${{ needs['container-runtime'].result }}
         run: |
           test "$BACKEND_RESULT" = success
           test "$FRONTEND_RESULT" = success
           test "$BROWSER_RESULT" = success
           test "$CONTAINER_RESULT" = success
+          # A deployment is not production-ready until the image has started in CI.
+          test "$CONTAINER_RUNTIME_RESULT" = success

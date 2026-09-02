@@ -28,6 +28,7 @@ class _Counters:
         self.copied = 0
         self.skipped_present = 0
         self.missing_source = 0
+        self.missing_destination = 0
         self.unnamed = 0
         self.bytes_copied = 0
         self.verified = 0
@@ -39,6 +40,7 @@ class _Counters:
             "copied": self.copied,
             "skipped_present": self.skipped_present,
             "missing_source": self.missing_source,
+            "missing_destination": self.missing_destination,
             "unnamed": self.unnamed,
             "bytes_copied": self.bytes_copied,
             "verified": self.verified,
@@ -55,6 +57,9 @@ def _checksum(handle: Any) -> str:
 
 class Command(BaseCommand):
     help = "Copy managed files from the local media root into the configured object storage."
+
+    # Re-runnable by construction: object names never change, an already present
+    # object is skipped, and an interrupted run simply resumes where it stopped.
 
     def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument(
@@ -84,6 +89,14 @@ class Command(BaseCommand):
             help="Stop after this many files. 0 processes every file.",
         )
         parser.add_argument(
+            "--verify-only",
+            action="store_true",
+            help=(
+                "Copy nothing. Confirm every recorded object is present in the destination and "
+                "matches its SHA-256, which is the check to run after a full migration."
+            ),
+        )
+        parser.add_argument(
             "--allow-filesystem-destination",
             action="store_true",
             help="Permit a filesystem destination, for rehearsing the copy locally.",
@@ -102,7 +115,9 @@ class Command(BaseCommand):
                 "--allow-filesystem-destination to rehearse."
             )
         media_root = Path(options["media_root"] or settings.MEDIA_ROOT)
-        if not media_root.is_dir():
+        # Verification reads only the destination, so a source that has already
+        # been decommissioned must not block it.
+        if not options["verify_only"] and not media_root.is_dir():
             raise CommandError(f"The source media root {media_root} does not exist.")
         source = FileSystemStorage(location=str(media_root))
 
@@ -128,6 +143,10 @@ class Command(BaseCommand):
             raise CommandError(
                 f"{len(counters.mismatched)} object(s) failed checksum verification."
             )
+        if counters.missing_destination:
+            raise CommandError(
+                f"{counters.missing_destination} object(s) are missing from the destination."
+            )
 
     def _migrate_one(
         self,
@@ -141,6 +160,13 @@ class Command(BaseCommand):
         name = managed_file.blob.name
         if not name:
             counters.unnamed += 1
+            return
+        if options["verify_only"]:
+            if not destination.exists(name):
+                counters.missing_destination += 1
+                self.stderr.write(f"missing destination object for {managed_file.id}: {name}")
+                return
+            self._verify(managed_file=managed_file, destination=destination, counters=counters)
             return
         if not source.exists(name):
             counters.missing_source += 1

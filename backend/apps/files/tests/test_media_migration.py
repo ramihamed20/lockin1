@@ -161,3 +161,58 @@ def test_a_missing_source_directory_is_refused(settings: Any, tmp_path: Path) ->
             "--allow-filesystem-destination",
             stdout=StringIO(),
         )
+
+
+def test_verify_only_confirms_every_object_reached_the_destination(
+    media_roots: tuple[Path, Path], settings: Any
+) -> None:
+    source, destination = media_roots
+    _stored_files(settings, source, destination)
+    _migrate(source)
+
+    evidence = _migrate(source, "--verify-only")
+
+    assert evidence["verified"] == 3
+    assert evidence["copied"] == 0
+    assert evidence["missing_destination"] == 0
+
+
+def test_verify_only_fails_when_an_object_never_arrived(
+    media_roots: tuple[Path, Path], settings: Any
+) -> None:
+    source, destination = media_roots
+    files = _stored_files(settings, source, destination)
+    _migrate(source)
+    (destination / files[0].blob.name).unlink()
+
+    with pytest.raises(CommandError, match="missing from the destination"):
+        _migrate(source, "--verify-only")
+
+
+def test_verify_only_does_not_need_the_source_to_still_exist(
+    media_roots: tuple[Path, Path], settings: Any, tmp_path: Path
+) -> None:
+    source, destination = media_roots
+    _stored_files(settings, source, destination)
+    _migrate(source)
+
+    # The local volume is decommissioned after a migration; verification of what
+    # is already in object storage must still work.
+    evidence = _migrate(tmp_path / "decommissioned", "--verify-only")
+
+    assert evidence["verified"] == 3
+
+
+def test_an_interrupted_migration_resumes_without_recopying(
+    media_roots: tuple[Path, Path], settings: Any
+) -> None:
+    source, destination = media_roots
+    _stored_files(settings, source, destination)
+
+    first_batch = _migrate(source, "--limit", "1")
+    resumed = _migrate(source, "--verify-checksum")
+
+    assert first_batch["copied"] == 1
+    assert resumed["copied"] == 2
+    assert resumed["skipped_present"] == 1
+    assert _migrate(source, "--verify-only")["verified"] == 3

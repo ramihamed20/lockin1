@@ -8,6 +8,7 @@ S3-compatible object storage. Phase 2 runs the same source on a VPS with Docker
 Compose. Moving between them changes infrastructure and environment values; it
 does not change application code, authentication, or the frontend's API calls.
 
+- Which host to deploy on, and why: `docs/HOSTING.md`.
 - Release evidence and sign-off: `docs/DEPLOYMENT_CHECKLIST.md`.
 - Backup and restore contract: `docs/BACKUP_RECOVERY.md`.
 - Day-2 operations: `docs/OPERATIONS.md`.
@@ -158,6 +159,220 @@ Consequences to keep in mind:
 4. Enable object versioning or a lifecycle rule if your recovery plan expects to
    restore a deleted object; see `docs/BACKUP_RECOVERY.md`.
 
+### Cloudflare R2: the exact values
+
+R2 is reached through the generic S3 backend. Nothing below is R2-specific in
+the application; these are the same names any provider uses.
+
+| Variable | Value for R2 | Notes |
+| --- | --- | --- |
+| `STORAGE_BACKEND` | `s3` | Selects the S3-compatible backend |
+| `STORAGE_BUCKET_NAME` | your bucket name | One bucket per environment |
+| `STORAGE_ENDPOINT_URL` | `https://<account-id>.r2.cloudflarestorage.com` | The account id from the R2 dashboard, not the public `r2.dev` URL |
+| `STORAGE_REGION` | `auto` | R2 has one region, and `auto` is what its S3 API expects |
+| `STORAGE_ACCESS_KEY_ID` | R2 API token access key id | Scope the token to this one bucket |
+| `STORAGE_SECRET_ACCESS_KEY` | R2 API token secret | On the VPS use `STORAGE_SECRET_ACCESS_KEY_FILE` |
+| `STORAGE_ADDRESSING_STYLE` | `virtual` | The default; only self-hosted gateways need `path` |
+
+Deliberately left unset: `STORAGE_PUBLIC_BASE_URL`. Do not enable R2's public
+`r2.dev` domain, and do not attach a public custom domain to this bucket.
+Private study material is delivered by the API, and a public bucket URL would
+route around the entitlement and clean-scan checks.
+
+Creating the token: R2 → Manage API Tokens → Create Token, permission **Object
+Read & Write**, scoped to **this bucket only**. An account-wide token would let
+a compromised application container reach every other bucket in the account.
+
+### Staging validation for a storage provider
+
+Run this against a staging bucket before any real file is written, and again
+whenever you change provider. The procedure is identical for R2, MinIO, S3 and
+B2, because the application has no provider-specific code.
+
+Steps 1, 2, 3, 5 and 7 are automated. The command writes a 5 MiB probe object,
+exercises the guarantees the delivery path depends on, and removes it:
+
+```bash
+docker compose --env-file .env.production -f compose.production.yaml run --rm backend python manage.py validate_object_storage
+```
+
+On a container host, run the same command inside the running web service. It
+prints one JSON evidence line, and every field must read as below.
+
+| Field | Required value | What it proves |
+| --- | --- | --- |
+| `ranged_reads` | `true` | Reads are served by provider byte ranges (step 3) |
+| `partial_read_without_full_download` | `true` | The first 4 KiB arrive without fetching all 5 MiB (step 3) |
+| `full_stream_checksum_matches` | `true` | Upload and streamed read are byte-identical (steps 1, 2) |
+| `ranged_read_matches` | `true` | A mid-object range returns exactly the right window (step 2) |
+| `anonymous_access` | `refused_403`, or another 4xx | The bucket is not publicly readable (step 5) |
+| `deleted` | `true` | The probe object was removed (step 7) |
+
+The command fails closed rather than warning. An unsigned object URL, an
+anonymously readable object, a provider that renames objects on write, or a
+checksum mismatch each abort with a non-zero exit.
+
+Steps 4 and 6 need a running application and two accounts, because they test
+authorization rather than storage. With a PDF already published to a course:
+
+```bash
+# 4. An entitled student reads the file through the protected route.
+curl --fail --cookie "$STUDENT_COOKIE_JAR" -o /dev/null -w '%{http_code}\n' "https://$LOCKIN_PUBLIC_HOST/api/v1/files/$FILE_ID/view"
+```
+
+```bash
+# 4b. Byte ranges work through the API, which is what the PDF reader relies on.
+curl --cookie "$STUDENT_COOKIE_JAR" -H 'Range: bytes=1024-2047' -o /dev/null -w '%{http_code} %{size_download}\n' "https://$LOCKIN_PUBLIC_HOST/api/v1/files/$FILE_ID/view"
+```
+
+```bash
+# 6. An unauthenticated caller must be refused.
+curl -o /dev/null -w '%{http_code}\n' "https://$LOCKIN_PUBLIC_HOST/api/v1/files/$FILE_ID/view"
+```
+
+```bash
+# 6b. A signed-in account without the entitlement must also be refused.
+curl --cookie "$OUTSIDER_COOKIE_JAR" -o /dev/null -w '%{http_code}\n' "https://$LOCKIN_PUBLIC_HOST/api/v1/files/$FILE_ID/view"
+```
+
+Expected: `200` for step 4, `206` with a `size_download` of `1024` for 4b, and
+`404` for both requests in step 6. The route answers `404` rather than `403` on
+purpose, so an outsider cannot use the response to confirm that a file exists.
+
+CI runs the automated half of this on every change, against MinIO, inside the
+real production image — so the generic S3 path is proven before any R2
+credential is involved.
+
+## Required production services
+
+Production depends on three services that are not the application. None of them
+can be turned off from configuration: the settings module refuses to start
+without the first two, and the third governs whether files can be delivered at
+all. That is deliberate — each one is a safeguard whose absence is silent.
+
+### ClamAV — mandatory
+
+**Why.** `CONTENT_REQUIRE_CLEAN_SCAN` is hard-wired to `True` in production. A
+managed file is delivered only once it carries clean-scan evidence, and
+production preflight fails if any published file lacks it. Without a reachable
+scanner, uploads are accepted but never become deliverable: file ingestion
+effectively closes. That is the fail-closed behaviour you want — the alternative
+is serving a student a PDF nobody inspected — but it means ClamAV is load-bearing,
+not optional.
+
+**Cost.** Free software; the cost is memory. The loaded signature set needs about
+1.6 GB, and the daily concurrent reload briefly holds two copies — roughly
+2.4 GB. Plan **4 GB** for the scanner, or set the `CLAMAV_CONCURRENT_RELOAD=false`
+build argument to halve the peak at the cost of blocking scans during the reload
+(the worker retries with backoff, so it is safe, just slower once a day).
+
+### Error webhook — mandatory
+
+**Why.** `OBSERVABILITY_ERROR_WEBHOOK_URL` receives a redacted exception envelope:
+type, request id, route, and trimmed stack frames — never bodies, credentials or
+user data. Without it, a production exception exists only in a log line nobody
+is watching. Production validates that the URL is HTTPS and that the token is a
+dedicated secret of at least 20 characters.
+
+**Low-cost option for Phase 1.** A Cloudflare Worker, which you already have an
+account for and which is free at this volume. It verifies the bearer token and
+forwards to email, Slack, or an issue tracker:
+
+```js
+export default {
+  async fetch(request, env) {
+    if (request.headers.get("Authorization") !== `Bearer ${env.LOCKIN_TOKEN}`) {
+      return new Response("forbidden", { status: 403 });
+    }
+    const event = await request.json();
+    await fetch(env.FORWARD_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(event),
+    });
+    return new Response(null, { status: 204 });
+  },
+};
+```
+
+Sentry works too, through a small adapter, if you want grouping and history.
+
+### StatsD — mandatory
+
+**Why.** `OBSERVABILITY_STATSD_HOST` receives request timing, slow-request
+markers above `OBSERVABILITY_SLOW_REQUEST_MS`, and domain counters. It is how
+you see a degradation that never raises an exception — a query that got slower,
+a scan queue that stopped draining. Metrics are sent over UDP, fire-and-forget:
+an unreachable collector never fails a request, which is also why an unreachable
+collector is easy not to notice.
+
+**Low-cost option for Phase 1.** Run `prom/statsd-exporter` as a private
+companion (tens of MB of memory), and scrape it from Grafana Cloud's free tier
+or a local Prometheus. On the VPS that is one more Compose service on the
+internal network; nothing is exposed publicly.
+
+### The trade-off, stated plainly
+
+ClamAV is the component that decides whether managed container hosting is
+sensible. It is the largest single memory consumer in the whole architecture —
+larger than the application — and it must run continuously on a private network
+with a persistent volume for its signature database. On a VPS it is a Compose
+service with a memory limit. On a managed host it is a separate paid instance
+sized for 4 GB, which is what makes the Phase 1 economics turn (see
+`docs/HOSTING.md`).
+
+If a host cannot run ClamAV reliably, the safe response is **not** to disable
+scanning. It is to move the deployment to a host that can. Setting
+`CONTENT_REQUIRE_CLEAN_SCAN` false is not available in production settings, and
+should stay that way.
+
+## ClamAV architecture
+
+The simplest production architecture is a single private companion service that
+the file-scan worker talks to over TCP 3310, and that nothing else can reach.
+
+```
+file-scan-worker ──clamd INSTREAM, TCP 3310──► clamav
+      │                                          │
+      │                                    signature volume
+      ▼                                    (freshclam, daily)
+  object storage                           no public address
+```
+
+**Properties this architecture must have.**
+
+- **Never publicly exposed.** clamd has no authentication whatsoever: anything
+  that can open TCP 3310 can submit files and read verdicts. On the VPS it sits
+  on the `data` network, which is `internal: true`, with no published port. On a
+  managed host it must be a private service with no public address.
+- **Only the worker talks to it.** The web service does not scan; it records an
+  upload as pending and returns. Scanning is asynchronous by design, so a slow
+  scan cannot slow a request.
+- **A persistent volume for signatures.** Without it, every restart re-downloads
+  roughly 1 GB from the ClamAV mirrors and the service is unavailable for
+  minutes while it does.
+- **Sized for the reload.** See the memory numbers above.
+- **`StreamMaxLength` raised to 100 MB.** clamd's default is 25 MiB, which would
+  silently refuse the 90 MB audio uploads the application accepts.
+  `deploy/clamav/Dockerfile` sets this and asserts it at build time.
+
+On the VPS this is already configured in `compose.production.yaml`: the `clamav`
+service, the `lockin_clamav_signatures` volume, `mem_limit: 4g`, and the
+internal `data` network.
+
+**On a managed container host**, create it as a private service from
+`deploy/clamav`, with a persistent disk mounted at `/var/lib/clamav`, sized for
+4 GB of memory, with no public URL. Then set `FILE_SCAN_HOST` on the web service
+and both workers to its private hostname. Verify before launch:
+
+- The scanner is reachable from the worker on 3310 over the private network.
+- It is **not** reachable from the public internet. Test this explicitly; do not
+  assume it from the absence of a public URL in the dashboard.
+- A test upload transitions from `pending` to `clean`, and the EICAR test string
+  transitions to `quarantined`.
+
+Provider support for this shape is assessed in `docs/HOSTING.md`.
+
 ## Phase 1 — deploy to a managed container host
 
 The root `Dockerfile` builds one image containing the SPA, the Django API, and
@@ -177,11 +392,10 @@ Passing a command instead turns the same image into a worker.
    `replace-` must be replaced. Generate `DJANGO_SECRET_KEY` (50+ characters) and
    `PAYMENT_CODE_ENCRYPTION_KEY` (32+ characters) with the platform's secret
    generator, not by hand.
-5. **Create the ClamAV private service** from `deploy/clamav`, reachable only on
-   the platform's private network, and set `FILE_SCAN_HOST`/`FILE_SCAN_PORT` on
-   every service that touches files. Production requires clean-scan evidence
-   before it will deliver a file; without a reachable scanner, file delivery
-   stays closed.
+5. **Create the ClamAV private service** from `deploy/clamav`, following
+   [ClamAV architecture](#clamav-architecture). It must have a persistent disk,
+   4 GB of memory, and no public address. Set `FILE_SCAN_HOST`/`FILE_SCAN_PORT`
+   on the web service and both workers.
 6. **Create the worker services**, both from the same image and the same
    environment, with `LOCKIN_RUN_RELEASE=false` and `LOCKIN_RUN_PREFLIGHT=false`:
 
@@ -362,42 +576,121 @@ Run `release` then `preflight` before serving traffic. `release` reapplies the
 runtime grants on the restored schema, and `preflight` proves the serving role
 has no schema or audit-mutation privileges on the new server.
 
-## Migrating private files to object storage
+## Migrating existing private files to object storage
 
-Deployments that still hold files on a local volume move them with one
-re-runnable command. Object names do not change, so no database migration is
-involved and the rollback is to point `STORAGE_BACKEND` back at the filesystem
-while the local media is still intact.
+Roughly 2–3 GB of PDFs currently sit on a local volume. This runbook moves them
+without a maintenance window and without a database migration.
 
-1. Create the bucket and token, and set the `STORAGE_*` values on the running
-   deployment **without restarting it yet**.
-2. Rehearse:
+Why it is safe to interrupt and re-run: the object name never changes, so the
+database needs no update and the operation is addressed by name rather than by
+position. An object already present at the destination is skipped, so a run that
+is killed halfway resumes where it stopped. Nothing is deleted from the source,
+so the rollback is a configuration change while the local files are still there.
 
-   ```bash
-   docker compose --env-file .env.production -f compose.production.yaml run --rm backend python manage.py migrate_managed_files --dry-run
-   ```
+Set `STORAGE_*` on the deployment **without restarting it** for steps 1–5. The
+running application keeps serving from local storage; the command below talks to
+the bucket in a separate one-shot container.
 
-3. Copy, verifying every object against its recorded SHA-256:
+Below, `RUN` is the one-shot container the commands execute in:
 
-   ```bash
-   docker compose --env-file .env.production -f compose.production.yaml run --rm backend python manage.py migrate_managed_files --verify-checksum
-   ```
+```bash
+RUN="docker compose --env-file .env.production -f compose.production.yaml run --rm backend python manage.py"
+```
 
-   For 2–3 GB this is minutes, not hours. The command streams, so it never
-   stages a whole object in memory; `--limit` bounds a first batch, and re-runs
-   skip what is already present.
+On a container host, replace it with an exec into the running web service.
 
-4. Read the JSON summary. `missing_source` and `mismatched` must both be zero
-   before you continue. The command exits non-zero if any checksum failed.
-5. Restart the web and worker services with `STORAGE_BACKEND=s3`.
-6. Verify in the running application: open a PDF, download it, and seek inside an
-   audio file. Check that an unauthenticated request to the same file id is
-   refused.
-7. Keep the old volume for one full backup cycle before deleting it.
+### 1. Dry run — count the work, write nothing
 
-Once files are in the bucket, the VPS migration does not touch them. The bucket
-is reached over the public internet from either shape, so the same
-`STORAGE_ENDPOINT_URL` keeps working.
+```bash
+$RUN migrate_managed_files --dry-run
+```
+
+Read `examined` and `copied` against what you expect, and confirm
+`missing_source` is `0`. A non-zero `missing_source` means the database
+references files the volume no longer has; investigate before continuing,
+because those rows will still be broken after the migration.
+
+### 2. A small batch first
+
+```bash
+$RUN migrate_managed_files --limit 10 --verify-checksum
+```
+
+This proves credentials, permissions, network path and checksums against real
+data. `copied` should be `10`, `verified` `10`, `mismatched` empty.
+
+### 3. Verify the batch independently
+
+```bash
+$RUN migrate_managed_files --verify-only --limit 10
+```
+
+`--verify-only` reads the destination and compares each object against the
+SHA-256 recorded at upload. It writes nothing.
+
+### 4. The full migration
+
+```bash
+$RUN migrate_managed_files --verify-checksum
+```
+
+The first ten are skipped as already present. Expect a few minutes for 2–3 GB.
+The command streams object by object, so memory use is flat regardless of total
+size. If it is interrupted, run the same command again.
+
+### 5. Verify everything
+
+```bash
+$RUN migrate_managed_files --verify-only
+```
+
+Required before switching over: `mismatched` empty and `missing_destination` `0`.
+The command exits non-zero if either fails, so it is safe to use as a gate in a
+script.
+
+### 6. Switch the application over
+
+Set `STORAGE_BACKEND=s3` and restart the web service and both workers. Then
+confirm with real traffic: open a PDF, download one, seek inside an audio file,
+and check that an unauthenticated request for the same file id is refused.
+
+```bash
+$RUN validate_object_storage
+```
+
+### 7. Keep the old volume
+
+Keep it for at least one full backup cycle. It is the rollback, and it is also
+the only remaining copy of anything the checksums could not verify.
+
+### Rolling back to local storage
+
+Only possible while the local volume is intact, which is why step 7 matters.
+
+```bash
+# 1. Point the deployment back at the filesystem.
+#    Production refuses local media unless the exception is explicit.
+STORAGE_BACKEND=filesystem
+STORAGE_ALLOW_LOCAL_MEDIA=true
+```
+
+```bash
+# 2. Restart the web service and both workers.
+docker compose --env-file .env.production -f compose.production.yaml up -d backend operations-scheduler file-scan-worker
+```
+
+Nothing else changes: object names are identical in both places, so no row is
+rewritten and no file is renamed. Files uploaded *after* the switch to object
+storage exist only in the bucket, so copy them back before rolling back if
+uploads have happened since:
+
+```bash
+$RUN migrate_managed_files --verify-only
+```
+
+Run that first to list what the bucket holds; anything reported as present that
+predates the volume is what you would lose. In practice, roll back promptly or
+not at all.
 
 ## Migration guide: container host + managed services to VPS + Docker
 
