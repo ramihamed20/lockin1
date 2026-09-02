@@ -1059,6 +1059,12 @@ storage path before any provider credential exists.
 **Decision:** Run Phase 1 on the VPS rather than a managed container host, keeping Supabase and
 Cloudflare R2 for managed data and files. If a managed host is later required, use Fly.io.
 
+**Superseded for the initial launch.** Scanning is no longer mandatory in code; it is a stated
+configuration, and the launch runs without it because uploads are restricted to trusted
+administrators. Without ClamAV the deployment fits a 2 vCPU / 4 GB host, so the sizing below
+applies from the day scanning is enabled, not before. See `docs/DEPLOYMENT.md` and
+`docs/PRODUCTION_READINESS_HISTORY.md`.
+
 **Reason:** Malware scanning is mandatory and fail-closed, and ClamAV is the largest memory consumer
 in the architecture: about 1.6 GB resident and 2.4 GB during its daily reload. On a managed host that
 is a separate paid 4 GB instance, which makes managed hosting cost several times the VPS while

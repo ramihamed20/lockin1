@@ -138,7 +138,14 @@ and deploy/preflight checks.
 
 Severity: Medium
 
-Status: Open launch blocker
+Status: Accepted for the initial launch, with the upload surface as the control.
+Enforcement is now a stated configuration rather than a constant: production
+reads `CONTENT_REQUIRE_CLEAN_SCAN` from the environment and defaults to
+enforcing it. The launch runs with it off because managed-file uploads are
+restricted to creators and administrators, so unprivileged accounts cannot
+introduce a file at all. The rule below still governs any deployment whose
+uploads are open to ordinary users. See "Malware scanning" in
+`docs/DEPLOYMENT.md` for the decision and what it costs.
 
 Rule: untrusted uploads must not become active without malware evidence.
 
@@ -150,7 +157,7 @@ override would bypass evidence. Lock-in must not accept production uploads until
 
 Required fix: approve a scanner/provider-independent workflow, authenticate its result, bind the
 result to checksum/file identity, record timestamp/engine/version, test malicious/timeout/retry
-behavior, and alert on backlog. Do not weaken `CONTENT_REQUIRE_CLEAN_SCAN`.
+behavior, and alert on backlog. Do not weaken `CONTENT_REQUIRE_CLEAN_SCAN` beyond the stated launch decision recorded above, and never while uploads are open to unprivileged accounts.
 
 ## SEC-007 - Observability provider code is configured; alert delivery is unverified
 
