@@ -189,6 +189,17 @@ jobs:
 
   browser:
     runs-on: ubuntu-latest
+    # Chromium and its system dependencies ship inside this image, so the job
+    # downloads neither. `playwright install --with-deps chromium` stalled
+    # indefinitely right after its 167 MB download reported 100%, twice in a
+    # row, and carried the job to its 30-minute timeout both times -- a step
+    # that completes in about three minutes when it is healthy.
+    #
+    # The tag must track the pinned @playwright/test version exactly: the
+    # library refuses browsers it did not expect, and the image is the thing
+    # supplying them. Bump both together, never one alone.
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -203,9 +214,6 @@ jobs:
       - name: Install exact frontend lockfile
         working-directory: frontend
         run: pnpm install --frozen-lockfile
-      - name: Install Chromium
-        working-directory: frontend
-        run: pnpm exec playwright install --with-deps chromium
       - name: Production-bundle browser regression
         working-directory: frontend
         run: pnpm run build && pnpm run test:e2e
