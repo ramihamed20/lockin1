@@ -224,7 +224,11 @@ def set_node_status(
     expected_revision: int,
     status: str,
 ) -> EducationNode:
-    node = EducationNode.objects.select_for_update().select_related("parent").get(id=node_id)
+    node = (
+        EducationNode.objects.select_for_update(of=("self",))
+        .select_related("parent")
+        .get(id=node_id)
+    )
     if not can_manage_hierarchy(user=actor, node=node):
         raise EducationRuleError("You cannot manage this hierarchy node.")
     _ensure_revision(node=node, expected_revision=expected_revision)

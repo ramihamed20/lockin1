@@ -226,7 +226,9 @@ def edit_discussion(
     *, actor: User, discussion_id: UUID, expected_revision: int, title: str, body: str
 ) -> Discussion:
     discussion = (
-        Discussion.objects.select_for_update().select_related("space").get(id=discussion_id)
+        Discussion.objects.select_for_update(of=("self",))
+        .select_related("space")
+        .get(id=discussion_id)
     )
     if not can_edit_discussion(user=actor, discussion=discussion):
         raise CommunityRuleError("You cannot edit this discussion.")
@@ -266,7 +268,9 @@ def delete_own_discussion(
     *, actor: User, discussion_id: UUID, expected_revision: int
 ) -> Discussion:
     discussion = (
-        Discussion.objects.select_for_update().select_related("space").get(id=discussion_id)
+        Discussion.objects.select_for_update(of=("self",))
+        .select_related("space")
+        .get(id=discussion_id)
     )
     if discussion.author_id != actor.id or discussion.status != Discussion.Status.ACTIVE:
         raise CommunityRuleError("You cannot delete this discussion.")
@@ -319,7 +323,9 @@ def create_comment(
         return existing
     try:
         discussion = (
-            Discussion.objects.select_for_update().select_related("space").get(id=discussion_id)
+            Discussion.objects.select_for_update(of=("self",))
+            .select_related("space")
+            .get(id=discussion_id)
         )
     except Discussion.DoesNotExist as error:
         raise CommunityRuleError("Discussion not found.") from error
@@ -383,7 +389,7 @@ def create_comment(
 @transaction.atomic
 def edit_comment(*, actor: User, comment_id: UUID, expected_revision: int, body: str) -> Comment:
     comment = (
-        Comment.objects.select_for_update()
+        Comment.objects.select_for_update(of=("self",))
         .select_related("discussion", "discussion__space")
         .get(id=comment_id)
     )
@@ -564,7 +570,9 @@ def moderate_content(
         raise CommunityRuleError("A moderation reason between 10 and 4000 characters is required.")
     if target_type == "discussion":
         discussion_target = (
-            Discussion.objects.select_for_update().select_related("space").get(id=target_id)
+            Discussion.objects.select_for_update(of=("self",))
+            .select_related("space")
+            .get(id=target_id)
         )
         if not can_remove_discussion(user=actor, discussion=discussion_target):
             raise CommunityRuleError("You cannot moderate this discussion.")
@@ -609,7 +617,7 @@ def moderate_content(
         owner_id = discussion_target.author_id
     elif target_type == "comment":
         comment_target = (
-            Comment.objects.select_for_update()
+            Comment.objects.select_for_update(of=("self",))
             .select_related("discussion", "discussion__space")
             .get(id=target_id)
         )

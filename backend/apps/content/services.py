@@ -133,7 +133,7 @@ def revise_learning_object(
     data: LearningObjectInput,
 ) -> LearningObject:
     learning_object = (
-        LearningObject.objects.select_for_update()
+        LearningObject.objects.select_for_update(of=("self",))
         .select_related("current_version", "published_version")
         .get(id=learning_object_id)
     )
@@ -211,7 +211,7 @@ def submit_for_review(
     *, actor: User, learning_object_id: UUID, expected_revision: int
 ) -> LearningObject:
     learning_object = (
-        LearningObject.objects.select_for_update()
+        LearningObject.objects.select_for_update(of=("self",))
         .select_related("current_version__academic_node")
         .get(id=learning_object_id)
     )
@@ -238,7 +238,7 @@ def reject_learning_object(
     *, actor: User, learning_object_id: UUID, expected_revision: int, review_note: str
 ) -> LearningObject:
     learning_object = (
-        LearningObject.objects.select_for_update()
+        LearningObject.objects.select_for_update(of=("self",))
         .select_related("current_version__academic_node")
         .get(id=learning_object_id)
     )
@@ -262,7 +262,7 @@ def publish_learning_object(
     *, actor: User, learning_object_id: UUID, expected_revision: int
 ) -> LearningObject:
     learning_object = (
-        LearningObject.objects.select_for_update()
+        LearningObject.objects.select_for_update(of=("self",))
         .select_related("current_version__academic_node")
         .get(id=learning_object_id)
     )
@@ -318,7 +318,7 @@ def archive_learning_object(
     *, actor: User, learning_object_id: UUID, expected_revision: int
 ) -> LearningObject:
     learning_object = (
-        LearningObject.objects.select_for_update()
+        LearningObject.objects.select_for_update(of=("self",))
         .select_related("current_version__academic_node")
         .get(id=learning_object_id)
     )

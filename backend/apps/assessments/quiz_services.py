@@ -202,7 +202,7 @@ def create_quiz(*, actor: User, data: QuizInput) -> Quiz:
 @transaction.atomic
 def revise_quiz(*, actor: User, quiz_id: UUID, expected_revision: int, data: QuizInput) -> Quiz:
     quiz = (
-        Quiz.objects.select_for_update()
+        Quiz.objects.select_for_update(of=("self",))
         .select_related("current_version", "published_version")
         .get(id=quiz_id)
     )
@@ -240,7 +240,7 @@ def revise_quiz(*, actor: User, quiz_id: UUID, expected_revision: int, data: Qui
 @transaction.atomic
 def submit_quiz_for_review(*, actor: User, quiz_id: UUID, expected_revision: int) -> Quiz:
     quiz = (
-        Quiz.objects.select_for_update()
+        Quiz.objects.select_for_update(of=("self",))
         .select_related("current_version__academic_node")
         .get(id=quiz_id)
     )
@@ -261,7 +261,7 @@ def submit_quiz_for_review(*, actor: User, quiz_id: UUID, expected_revision: int
 @transaction.atomic
 def reject_quiz(*, actor: User, quiz_id: UUID, expected_revision: int, review_note: str) -> Quiz:
     quiz = (
-        Quiz.objects.select_for_update()
+        Quiz.objects.select_for_update(of=("self",))
         .select_related("current_version__academic_node")
         .get(id=quiz_id)
     )
@@ -310,7 +310,7 @@ def _validate_publishable(version: QuizVersion) -> None:
 @transaction.atomic
 def publish_quiz(*, actor: User, quiz_id: UUID, expected_revision: int) -> Quiz:
     quiz = (
-        Quiz.objects.select_for_update()
+        Quiz.objects.select_for_update(of=("self",))
         .select_related("current_version__academic_node")
         .get(id=quiz_id)
     )
@@ -364,7 +364,7 @@ def publish_quiz(*, actor: User, quiz_id: UUID, expected_revision: int) -> Quiz:
 @transaction.atomic
 def retire_quiz(*, actor: User, quiz_id: UUID, expected_revision: int) -> Quiz:
     quiz = (
-        Quiz.objects.select_for_update()
+        Quiz.objects.select_for_update(of=("self",))
         .select_related("current_version__academic_node")
         .get(id=quiz_id)
     )

@@ -153,7 +153,7 @@ def revise_question(
     data: QuestionInput,
 ) -> Question:
     question = (
-        Question.objects.select_for_update()
+        Question.objects.select_for_update(of=("self",))
         .select_related("current_version", "published_version")
         .get(id=question_id)
     )
@@ -196,7 +196,7 @@ def submit_question_for_review(
     *, actor: User, question_id: UUID, expected_revision: int
 ) -> Question:
     question = (
-        Question.objects.select_for_update()
+        Question.objects.select_for_update(of=("self",))
         .select_related("current_version__academic_node")
         .get(id=question_id)
     )
@@ -226,7 +226,7 @@ def reject_question(
     review_note: str,
 ) -> Question:
     question = (
-        Question.objects.select_for_update()
+        Question.objects.select_for_update(of=("self",))
         .select_related("current_version__academic_node")
         .get(id=question_id)
     )
@@ -248,7 +248,7 @@ def reject_question(
 @transaction.atomic
 def publish_question(*, actor: User, question_id: UUID, expected_revision: int) -> Question:
     question = (
-        Question.objects.select_for_update()
+        Question.objects.select_for_update(of=("self",))
         .select_related("current_version__academic_node")
         .prefetch_related("current_version__options")
         .get(id=question_id)
@@ -303,7 +303,7 @@ def publish_question(*, actor: User, question_id: UUID, expected_revision: int) 
 @transaction.atomic
 def retire_question(*, actor: User, question_id: UUID, expected_revision: int) -> Question:
     question = (
-        Question.objects.select_for_update()
+        Question.objects.select_for_update(of=("self",))
         .select_related("current_version__academic_node")
         .get(id=question_id)
     )

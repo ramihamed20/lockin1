@@ -192,7 +192,7 @@ def bulk_question_action(
     target_sheet: LearningObject | None = None,
 ) -> dict[str, object]:
     questions = list(
-        Question.objects.select_for_update()
+        Question.objects.select_for_update(of=("self",))
         .filter(id__in=question_ids)
         .select_related("current_version__academic_node")
         .prefetch_related("current_version__options")

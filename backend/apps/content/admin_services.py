@@ -278,7 +278,7 @@ def unpublish_sheet(*, actor: User, sheet_id: UUID, expected_revision: int) -> L
 @transaction.atomic
 def delete_pdf(*, actor: User, sheet_id: UUID, expected_revision: int) -> LearningObject:
     sheet = (
-        LearningObject.objects.select_for_update()
+        LearningObject.objects.select_for_update(of=("self",))
         .select_related("current_version")
         .get(id=sheet_id)
     )

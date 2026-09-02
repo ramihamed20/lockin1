@@ -46,6 +46,24 @@ Use health only to validate edge/application overhead. It is not representative 
 Authenticated search, dashboard, Focus autosave, quiz autosave/submit, community, notification, and
 operations/report workloads require seeded staging scenarios and explicit test accounts.
 
+## Testing limitation: SQLite does not exercise row locking
+
+`LOCKIN_TEST_USE_SQLITE=true` runs the suite without a PostgreSQL service, and
+it is not equivalent. SQLite reports `has_select_for_update = False`, so Django
+discards every `select_for_update()` rather than emitting it. A green SQLite run
+carries no information about locking, and it cannot detect a query PostgreSQL
+refuses outright.
+
+That is not hypothetical. Thirty call sites combined `select_for_update()` with
+`select_related()` across a nullable foreign key, which Django compiles to a
+LEFT OUTER JOIN and PostgreSQL rejects with "FOR UPDATE cannot be applied to the
+nullable side of an outer join". Every one passed on SQLite. They surfaced the
+first time the PostgreSQL suite actually ran in CI, as 123 failures.
+
+**PostgreSQL CI is the authoritative test for database locking behaviour.** Any
+change to `select_for_update()`, to `select_related()` over a nullable relation,
+or to transaction boundaries is unverified until that job is green.
+
 ## Missing capacity evidence
 
 This workstation has no Docker/PostgreSQL service. No 2,000-concurrent-active-user claim is made.

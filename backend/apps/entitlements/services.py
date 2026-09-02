@@ -45,7 +45,7 @@ def _snapshot(grant: EntitlementGrant) -> dict[str, object]:
 @transaction.atomic
 def sync_subscription_entitlements(*, subscription_id: UUID) -> list[EntitlementGrant]:
     subscription = (
-        Subscription.objects.select_for_update()
+        Subscription.objects.select_for_update(of=("self",))
         .select_related("account__primary_user", "plan_version")
         .get(id=subscription_id)
     )

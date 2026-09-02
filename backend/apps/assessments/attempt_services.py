@@ -69,7 +69,7 @@ def _sample(items: list[T], count: int) -> list[T]:
 def _active_quiz_for_update(*, quiz_id: UUID) -> tuple[Quiz, QuizVersion]:
     try:
         quiz = (
-            Quiz.objects.select_for_update()
+            Quiz.objects.select_for_update(of=("self",))
             .select_related("published_version__academic_node")
             .get(
                 id=quiz_id,

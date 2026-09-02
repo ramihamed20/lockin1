@@ -1107,7 +1107,7 @@ def change_plan_lifecycle(
 ) -> Plan:
     clean_reason = _require_reason(reason)
     plan = (
-        Plan.objects.select_for_update()
+        Plan.objects.select_for_update(of=("self",))
         .select_related("product", "current_version")
         .get(id=plan_id)
     )
