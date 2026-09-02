@@ -2,6 +2,16 @@
 
 Last updated: 2026-09-02
 
+> **Superseded for the initial launch.** This analysis assumes malware scanning
+> is mandatory, which is what makes ClamAV — and therefore 8 GB — load-bearing in
+> everything below. The launch runs with `CONTENT_REQUIRE_CLEAN_SCAN=false` and
+> no scanner, because managed-file uploads are restricted to trusted
+> administrators; see "Malware scanning" in `docs/DEPLOYMENT.md`. Without ClamAV
+> the whole deployment fits a **2 vCPU / 4 GB / 40 GB VPS**.
+>
+> Everything below stays the reference for the day scanning is enabled, which is
+> the day the memory budget changes and the hosting question reopens.
+
 ## Recommendation
 
 **Deploy Phase 1 on the VPS directly**, keeping Supabase for PostgreSQL and

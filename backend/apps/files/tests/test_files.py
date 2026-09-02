@@ -245,6 +245,118 @@ def test_clean_scan_gate_is_fail_closed_when_enabled(settings: Any) -> None:
     response.close()
 
 
+def test_launch_shape_publishes_and_delivers_without_a_scanner(settings: Any) -> None:
+    """CONTENT_REQUIRE_CLEAN_SCAN=false: the initial launch runs with no scanner.
+
+    Uploads are the control surface, so the whole authorship-to-delivery path
+    must work end to end while no scan evidence exists anywhere.
+    """
+
+    settings.CONTENT_REQUIRE_CLEAN_SCAN = False
+    admin = create_admin()
+    student = create_user(with_trial=True)
+    _, _, lesson = published_path(admin=admin)
+    managed_file = create_managed_file(
+        owner=admin,
+        upload=pdf_upload(name="launch.pdf"),
+        kind="pdf",
+    )
+    # No scanner ran, and none is expected to.
+    assert managed_file.scan_status == ManagedFile.ScanStatus.NOT_CONFIGURED
+
+    learning_object = create_learning_object(
+        actor=admin,
+        data=LearningObjectInput(
+            academic_node=lesson,
+            content_type=LearningObjectVersion.ContentType.PDF,
+            title="Launch study guide",
+            primary_file=managed_file,
+        ),
+    )
+    learning_object = submit_for_review(
+        actor=admin,
+        learning_object_id=learning_object.id,
+        expected_revision=learning_object.revision,
+    )
+    learning_object = publish_learning_object(
+        actor=admin,
+        learning_object_id=learning_object.id,
+        expected_revision=learning_object.revision,
+    )
+    assert learning_object.workflow_status == "published"
+
+    client = APIClient()
+    client.force_authenticate(student)
+    response = client.get(f"/api/v1/files/{managed_file.id}/view")
+
+    assert response.status_code == 200
+    response.close()
+
+
+def test_unscanned_mode_still_refuses_uploads_from_unprivileged_accounts(
+    settings: Any,
+) -> None:
+    """Disabling the scan gate must not widen who may introduce a file."""
+
+    settings.CONTENT_REQUIRE_CLEAN_SCAN = False
+    create_admin()
+    student = create_user(with_trial=True)
+    client = APIClient()
+    client.force_authenticate(student)
+
+    refused_pdf = client.post(
+        "/api/v1/management/files",
+        {"kind": "pdf", "file": pdf_upload(name="student.pdf")},
+        format="multipart",
+    )
+    refused_avatar = client.post(
+        "/api/v1/management/files",
+        {"kind": "avatar", "file": pdf_upload(name="student.pdf")},
+        format="multipart",
+    )
+    anonymous = APIClient().post(
+        "/api/v1/management/files",
+        {"kind": "pdf", "file": pdf_upload(name="anonymous.pdf")},
+        format="multipart",
+    )
+
+    assert refused_pdf.status_code == 403
+    assert refused_avatar.status_code == 403
+    assert anonymous.status_code in {401, 403}
+    assert not ManagedFile.objects.exists()
+
+
+def test_unscanned_mode_keeps_quarantined_and_failed_files_undeliverable(
+    settings: Any,
+) -> None:
+    """Turning enforcement off never resurrects a file a scanner already condemned."""
+
+    settings.CONTENT_REQUIRE_CLEAN_SCAN = False
+    admin = create_admin()
+    client = APIClient()
+    client.force_authenticate(admin)
+
+    for blocked in (ManagedFile.ScanStatus.QUARANTINED, ManagedFile.ScanStatus.FAILED):
+        managed_file = create_managed_file(owner=admin, upload=pdf_upload(), kind="pdf")
+        managed_file.scan_status = blocked
+        managed_file.save(update_fields=("scan_status",))
+
+        assert client.get(f"/api/v1/files/{managed_file.id}/view").status_code == 404
+
+
+def test_unscanned_mode_keeps_private_files_private(settings: Any) -> None:
+    """Entitlement remains the gate on delivery when scan evidence is absent."""
+
+    settings.CONTENT_REQUIRE_CLEAN_SCAN = False
+    admin = create_admin()
+    student = create_user(with_trial=True)
+    unpublished = create_managed_file(owner=admin, upload=pdf_upload(), kind="pdf")
+    client = APIClient()
+    client.force_authenticate(student)
+
+    assert client.get(f"/api/v1/files/{unpublished.id}/view").status_code == 404
+
+
 class _CleanScanner:
     def scan(self, file_object: Any) -> ScanResult:
         assert file_object.read(5) == b"%PDF-"

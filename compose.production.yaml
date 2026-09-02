@@ -1,9 +1,26 @@
 name: lockin-production
 
+# Every container logs to stdout, so without a cap the JSON log files grow until
+# they fill the host disk. Three 10 MB files per service is the whole budget.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 x-backend-common: &backend-common
+  # Images are built and published by CI. The VPS pulls an immutable tag and
+  # never builds: a Vite build peaks near 2 GB, which a 4 GB application host
+  # cannot spare. Point LOCKIN_IMAGE_REPOSITORY at the registry to pull from;
+  # the default keeps the local names that CI and local builds use.
   build:
     context: ./backend
-  image: lockin-backend:${LOCKIN_IMAGE_TAG:?Set LOCKIN_IMAGE_TAG}
+  image: ${LOCKIN_IMAGE_REPOSITORY:-lockin}-backend:${LOCKIN_IMAGE_TAG:?Set LOCKIN_IMAGE_TAG}
+  # "always" is what stops the host from silently building: without it, an "up"
+  # that follows a failed pull falls back to the build section above. Set
+  # LOCKIN_PULL_POLICY=missing only to run images you built on this machine.
+  pull_policy: ${LOCKIN_PULL_POLICY:-always}
+  logging: *logging
   environment: &backend-environment
     DJANGO_SETTINGS_MODULE: config.settings.production
     DJANGO_SECRET_KEY_FILE: /run/secrets/django_secret_key
@@ -52,6 +69,10 @@ x-backend-common: &backend-common
     STORAGE_ALLOW_LOCAL_MEDIA: ${STORAGE_ALLOW_LOCAL_MEDIA:-false}
     CONTENT_MAX_PDF_BYTES: ${CONTENT_MAX_PDF_BYTES:-52428800}
     CONTENT_MAX_AUDIO_BYTES: ${CONTENT_MAX_AUDIO_BYTES:-94371840}
+    # Deliberately has no default: whether managed files require clean scan
+    # evidence is a decision each deployment has to state. Set it false only
+    # while the file-scanning profile is stopped, and true together with it.
+    CONTENT_REQUIRE_CLEAN_SCAN: ${CONTENT_REQUIRE_CLEAN_SCAN:?Set CONTENT_REQUIRE_CLEAN_SCAN}
     FILE_SCAN_HOST: ${FILE_SCAN_HOST:-clamav}
     FILE_SCAN_PORT: ${FILE_SCAN_PORT:-3310}
     FILE_SCAN_CONNECT_TIMEOUT_SECONDS: ${FILE_SCAN_CONNECT_TIMEOUT_SECONDS:-5}
@@ -116,9 +137,17 @@ x-backend-common: &backend-common
 
 services:
   clamav:
+    # Opt-in, and off for the initial launch. Activate with
+    # COMPOSE_PROFILES=file-scanning together with CONTENT_REQUIRE_CLEAN_SCAN=true;
+    # the scanning architecture is intact and enabling it is configuration only.
+    # It needs about 1.6 GB resident and 2.4 GB during the daily signature
+    # reload, so it does not fit beside the application on a 4 GB host.
+    profiles: ["file-scanning"]
     build:
       context: ./deploy/clamav
-    image: lockin-clamav:${LOCKIN_IMAGE_TAG:?Set LOCKIN_IMAGE_TAG}
+    image: ${LOCKIN_IMAGE_REPOSITORY:-lockin}-clamav:${LOCKIN_IMAGE_TAG:?Set LOCKIN_IMAGE_TAG}
+    pull_policy: ${LOCKIN_PULL_POLICY:-always}
+    logging: *logging
     restart: unless-stopped
     environment:
       CLAMD_STARTUP_TIMEOUT: 1800
@@ -138,6 +167,12 @@ services:
     # point POSTGRES_HOST/POSTGRES_PORT at a managed PostgreSQL instance.
     profiles: ["bundled-db"]
     image: postgres:18.4-alpine
+    logging: *logging
+    # Docker's 64 MB default is too small for PostgreSQL's dynamic shared
+    # memory, and parallel query workers fail with "could not resize shared
+    # memory segment" when they exhaust it.
+    shm_size: 256mb
+    mem_limit: 1g
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-lockin}
@@ -165,6 +200,7 @@ services:
   release:
     <<: *backend-common
     command: ["python", "manage.py", "release"]
+    mem_limit: 768m
     environment:
       <<: *backend-environment
       POSTGRES_USER: ${POSTGRES_OWNER_USER:-lockin_owner}
@@ -189,6 +225,7 @@ services:
   preflight:
     <<: *backend-common
     command: ["python", "manage.py", "production_preflight"]
+    mem_limit: 512m
     environment:
       <<: *backend-environment
       POSTGRES_USER: ${POSTGRES_RUNTIME_ROLE:-lockin_app}
@@ -208,13 +245,22 @@ services:
 
   backend:
     <<: *backend-common
+    # An explicit ceiling keeps a runaway worker from taking the host down with
+    # it. Without limits the kernel picks the OOM victim, and on this host that
+    # is as likely to be PostgreSQL as the process at fault.
+    mem_limit: 1536m
     restart: unless-stopped
     environment:
       <<: *backend-environment
       POSTGRES_USER: ${POSTGRES_RUNTIME_ROLE:-lockin_app}
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_runtime_password
-      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-4}
-      GUNICORN_THREADS: ${GUNICORN_THREADS:-2}
+      # Sized for a 2 vCPU / 4 GB host that also runs PostgreSQL. Threads carry
+      # the streamed private-file downloads, which hold a thread for the length
+      # of the client transfer, so they are deliberately far above the worker
+      # count: the work is I/O, not CPU.
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-3}
+      GUNICORN_THREADS: ${GUNICORN_THREADS:-8}
+      GUNICORN_PRELOAD_APP: ${GUNICORN_PRELOAD_APP:-true}
       GUNICORN_TIMEOUT_SECONDS: ${GUNICORN_TIMEOUT_SECONDS:-60}
       GUNICORN_GRACEFUL_TIMEOUT_SECONDS: ${GUNICORN_GRACEFUL_TIMEOUT_SECONDS:-30}
       GUNICORN_KEEPALIVE_SECONDS: ${GUNICORN_KEEPALIVE_SECONDS:-5}
@@ -251,6 +297,7 @@ services:
   operations-scheduler:
     <<: *backend-common
     command: ["python", "manage.py", "run_operations_scheduler"]
+    mem_limit: 512m
     restart: unless-stopped
     environment:
       <<: *backend-environment
@@ -269,8 +316,11 @@ services:
     stop_grace_period: 30s
 
   file-scan-worker:
+    # Starts only with the scanner it feeds. See the clamav service above.
+    profiles: ["file-scanning"]
     <<: *backend-common
     command: ["python", "manage.py", "run_file_scanner"]
+    mem_limit: 512m
     restart: unless-stopped
     environment:
       <<: *backend-environment
@@ -304,7 +354,10 @@ services:
         VITE_LEGAL_ADDRESS: ${LOCKIN_LEGAL_ADDRESS:?Set LOCKIN_LEGAL_ADDRESS}
         VITE_LEGAL_JURISDICTION: ${LOCKIN_LEGAL_JURISDICTION:?Set LOCKIN_LEGAL_JURISDICTION}
         VITE_POLICY_VERSION: ${ACCOUNT_POLICY_VERSION:?Set ACCOUNT_POLICY_VERSION}
-    image: lockin-edge:${LOCKIN_IMAGE_TAG:?Set LOCKIN_IMAGE_TAG}
+    image: ${LOCKIN_IMAGE_REPOSITORY:-lockin}-edge:${LOCKIN_IMAGE_TAG:?Set LOCKIN_IMAGE_TAG}
+    pull_policy: ${LOCKIN_PULL_POLICY:-always}
+    logging: *logging
+    mem_limit: 256m
     restart: unless-stopped
     depends_on:
       backend:

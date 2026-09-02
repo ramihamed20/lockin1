@@ -1,3 +1,4 @@
+import json
 from io import StringIO
 from pathlib import Path
 from typing import Any
@@ -57,11 +58,26 @@ def test_production_checks_report_fail_open_configuration() -> None:
     assert identifiers == {
         "lockin.E001",
         "lockin.E002",
-        "lockin.E003",
+        # Running without the scan gate is a stated deployment decision rather
+        # than a fail-open defect, so it reports as a warning.
+        "lockin.W003",
         "lockin.E004",
         "lockin.E005",
         "lockin.E006",
     }
+
+
+@pytest.mark.filterwarnings("ignore:Overriding setting DATABASES can lead to unexpected behavior")
+def test_disabled_clean_scan_enforcement_warns_without_blocking_boot() -> None:
+    """The deploy gate runs at fail_level=ERROR, so a warning must not stop it."""
+
+    with override_settings(**(secure_settings() | {"CONTENT_REQUIRE_CLEAN_SCAN": False})):
+        messages = production_security_checks(None)
+
+    assert [message.id for message in messages] == ["lockin.W003"]
+    assert not any(message.is_serious() for message in messages)
+    # The operator is told how to turn enforcement back on, not just that it is off.
+    assert "CONTENT_REQUIRE_CLEAN_SCAN=true" in str(messages[0].hint)
 
 
 def test_secret_environment_supports_file_or_direct_value(
@@ -151,8 +167,57 @@ def test_production_preflight_emits_machine_readable_success_evidence(tmp_path: 
         call_command("production_preflight", stdout=output)
 
     check.assert_called_once_with("check", deploy=True, fail_level="ERROR")
-    assert '"status": "ready"' in output.getvalue()
-    assert '"unsafe_published_files": 0' in output.getvalue()
+    report = json.loads(output.getvalue())
+    assert report["status"] == "ready"
+    assert report["clean_scan_enforced"] is True
+    assert report["unsafe_published_files"] == 0
+
+
+def test_production_preflight_records_intentionally_disabled_scanning(tmp_path: Path) -> None:
+    """Preflight must pass, and say so in its evidence, when scanning is off."""
+
+    (tmp_path / "app.css").write_text("/* collected */", encoding="utf-8")
+    output = StringIO()
+    evidence = DatabaseEvidence(
+        vendor="postgresql",
+        server_version=180_004,
+        current_role="lockin_runtime",
+        elevated_role=False,
+        schema_create=False,
+        audit_mutation=False,
+    )
+    managed_file = MagicMock()
+    executor = MagicMock()
+    executor.return_value.loader.graph.leaf_nodes.return_value = []
+    executor.return_value.migration_plan.return_value = []
+
+    with (
+        override_settings(
+            ENVIRONMENT="production",
+            CONTENT_REQUIRE_CLEAN_SCAN=False,
+            STATIC_ROOT=tmp_path,
+        ),
+        patch("platform_core.management.commands.production_preflight.call_command"),
+        patch(
+            "platform_core.management.commands.production_preflight.collect_database_evidence",
+            return_value=evidence,
+        ),
+        patch(
+            "platform_core.management.commands.production_preflight.MigrationExecutor",
+            executor,
+        ),
+        patch(
+            "platform_core.management.commands.production_preflight.ManagedFile",
+            managed_file,
+        ),
+    ):
+        call_command("production_preflight", stdout=output)
+
+    report = json.loads(output.getvalue())
+    assert report["status"] == "ready"
+    assert report["clean_scan_enforced"] is False
+    # Scan evidence is not collected where it is not enforced.
+    managed_file.objects.exclude.assert_not_called()
 
 
 def test_runtime_grants_are_complete_and_keep_missing_audit_table_safe() -> None:

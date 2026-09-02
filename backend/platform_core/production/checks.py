@@ -2,11 +2,15 @@ from collections.abc import Iterable
 
 from django.apps import AppConfig
 from django.conf import settings
-from django.core.checks import CheckMessage, Error, Tags, register
+from django.core.checks import CheckMessage, Error, Tags, Warning, register
 
 
 def _error(message: str, *, identifier: str, hint: str) -> Error:
     return Error(message, hint=hint, id=identifier)
+
+
+def _warning(message: str, *, identifier: str, hint: str) -> Warning:
+    return Warning(message, hint=hint, id=identifier)
 
 
 @register(Tags.security, deploy=True)
@@ -36,11 +40,19 @@ def production_security_checks(
             )
         )
     if not settings.CONTENT_REQUIRE_CLEAN_SCAN:
+        # A warning, not an error: a deployment may deliberately run without a
+        # scanner when uploads are restricted to trusted operators, and boot
+        # must not fail on a stated decision. It stays visible on every release
+        # and preflight run so the decision is never silently inherited.
         messages.append(
-            _error(
+            _warning(
                 "Production file delivery does not require a clean scan state.",
-                identifier="lockin.E003",
-                hint="Require clean scan evidence before publishing or delivering managed files.",
+                identifier="lockin.W003",
+                hint=(
+                    "Intentional only while managed-file uploads are restricted to trusted "
+                    "administrators. Set CONTENT_REQUIRE_CLEAN_SCAN=true and start the "
+                    "file-scanning Compose profile to enforce clean scan evidence."
+                ),
             )
         )
     if settings.SECURE_PROXY_SSL_HEADER != ("HTTP_X_FORWARDED_PROTO", "https"):

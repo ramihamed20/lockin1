@@ -38,18 +38,24 @@ class Command(BaseCommand):
         unapplied = executor.migration_plan(executor.loader.graph.leaf_nodes())
         if unapplied:
             raise CommandError(f"There are {len(unapplied)} unapplied migration operations.")
-        unsafe_files = (
-            ManagedFile.objects.exclude(scan_status=ManagedFile.ScanStatus.CLEAN)
-            # The exact published-version relation is authoritative even while
-            # a newer current version is in draft/review.
-            .filter(learning_object_assets__version__published_for__archived_at__isnull=True)
-            .distinct()
-            .count()
-        )
-        if settings.CONTENT_REQUIRE_CLEAN_SCAN and unsafe_files:
-            raise CommandError(
-                f"There are {unsafe_files} published files without clean scan evidence."
+        # Scan evidence is only meaningful where the deployment enforces it.
+        # When enforcement is off the count is not collected, and the evidence
+        # below records that the deployment stated the decision.
+        clean_scan_enforced = bool(settings.CONTENT_REQUIRE_CLEAN_SCAN)
+        unsafe_files = 0
+        if clean_scan_enforced:
+            unsafe_files = (
+                ManagedFile.objects.exclude(scan_status=ManagedFile.ScanStatus.CLEAN)
+                # The exact published-version relation is authoritative even while
+                # a newer current version is in draft/review.
+                .filter(learning_object_assets__version__published_for__archived_at__isnull=True)
+                .distinct()
+                .count()
             )
+            if unsafe_files:
+                raise CommandError(
+                    f"There are {unsafe_files} published files without clean scan evidence."
+                )
         static_root = Path(settings.STATIC_ROOT)
         if not static_root.is_dir() or not any(static_root.iterdir()):
             raise CommandError("Collected static assets are missing.")
@@ -59,6 +65,7 @@ class Command(BaseCommand):
             "environment": settings.ENVIRONMENT,
             "database": evidence_as_dict(database),
             "unapplied_migrations": 0,
+            "clean_scan_enforced": clean_scan_enforced,
             "unsafe_published_files": unsafe_files,
             "static_assets": "present",
         }

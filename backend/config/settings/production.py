@@ -198,19 +198,34 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS
 SECURE_HSTS_PRELOAD = env_bool("DJANGO_SECURE_HSTS_PRELOAD", False)
 SECURE_REFERRER_POLICY = "no-referrer"
 EXPOSE_API_DOCS = False
-CONTENT_REQUIRE_CLEAN_SCAN = True
-if not FILE_SCAN_HOST:  # noqa: F405
-    raise ImproperlyConfigured("FILE_SCAN_HOST is required when clean scans are enforced.")
-if not 1 <= FILE_SCAN_PORT <= 65_535:  # noqa: F405
-    raise ImproperlyConfigured("FILE_SCAN_PORT must be a valid TCP port.")
-if not 1 <= FILE_SCAN_MAX_ATTEMPTS <= 10:  # noqa: F405
-    raise ImproperlyConfigured("FILE_SCAN_MAX_ATTEMPTS must be between 1 and 10.")
-scan_read_timeout = FILE_SCAN_READ_TIMEOUT_SECONDS  # noqa: F405
-scan_claim_timeout = FILE_SCAN_CLAIM_TIMEOUT_SECONDS  # noqa: F405
-if scan_read_timeout < 1 or scan_claim_timeout <= scan_read_timeout:
-    raise ImproperlyConfigured(
-        "FILE_SCAN_CLAIM_TIMEOUT_SECONDS must exceed the scanner read timeout."
-    )
+# Malware scanning is a deployment decision, not a code constant.
+#
+# The default stays secure: enforcement is on unless a deployment explicitly
+# turns it off. A deployment may turn it off when the upload surface itself is
+# the control -- managed-file uploads are restricted to creators and
+# administrators by ``IsCreatorOrAdministrator``, so unprivileged accounts
+# cannot introduce a file to scan in the first place. The initial launch runs
+# this way; see docs/DEPLOYMENT.md, "Malware scanning".
+#
+# Nothing else changes when this is off. Upload authorisation, entitlement
+# checks in ``can_access_managed_file``, and the proxied /api/v1/files/
+# delivery path are all independent of it, and quarantined or failed files stay
+# undeliverable either way. Re-enabling is configuration only: set this true and
+# start the file-scanning Compose profile.
+CONTENT_REQUIRE_CLEAN_SCAN = env_bool("CONTENT_REQUIRE_CLEAN_SCAN", True)
+if CONTENT_REQUIRE_CLEAN_SCAN:
+    if not FILE_SCAN_HOST:  # noqa: F405
+        raise ImproperlyConfigured("FILE_SCAN_HOST is required when clean scans are enforced.")
+    if not 1 <= FILE_SCAN_PORT <= 65_535:  # noqa: F405
+        raise ImproperlyConfigured("FILE_SCAN_PORT must be a valid TCP port.")
+    if not 1 <= FILE_SCAN_MAX_ATTEMPTS <= 10:  # noqa: F405
+        raise ImproperlyConfigured("FILE_SCAN_MAX_ATTEMPTS must be between 1 and 10.")
+    scan_read_timeout = FILE_SCAN_READ_TIMEOUT_SECONDS  # noqa: F405
+    scan_claim_timeout = FILE_SCAN_CLAIM_TIMEOUT_SECONDS  # noqa: F405
+    if scan_read_timeout < 1 or scan_claim_timeout <= scan_read_timeout:
+        raise ImproperlyConfigured(
+            "FILE_SCAN_CLAIM_TIMEOUT_SECONDS must exceed the scanner read timeout."
+        )
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {

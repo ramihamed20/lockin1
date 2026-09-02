@@ -48,7 +48,8 @@ VPS firewall (443/80 from Cloudflare ranges only; SSH separately allowlisted)
 Docker Compose
   +-- edge      nginx, terminates TLS, serves the SPA and static assets
   +-- backend   Gunicorn, private application network
-  +-- operations-scheduler, file-scan-worker, clamav
+  +-- operations-scheduler
+  +-- file-scan-worker, clamav   (file-scanning profile; not started at launch)
   +-- db        PostgreSQL, on an internal network with no published port
         |
 S3-compatible object storage (unchanged by the migration)
@@ -245,26 +246,71 @@ credential is involved.
 
 ## Required production services
 
-Production depends on three services that are not the application. None of them
-can be turned off from configuration: the settings module refuses to start
-without the first two, and the third governs whether files can be delivered at
-all. That is deliberate — each one is a safeguard whose absence is silent.
+Production depends on two services that are not the application, and neither can
+be turned off from configuration: the settings module refuses to start without
+them. A third, the malware scanner, is a stated deployment decision rather than a
+constant — see below.
 
-### ClamAV — mandatory
+### Malware scanning — a stated decision, disabled for the initial launch
 
-**Why.** `CONTENT_REQUIRE_CLEAN_SCAN` is hard-wired to `True` in production. A
-managed file is delivered only once it carries clean-scan evidence, and
-production preflight fails if any published file lacks it. Without a reachable
-scanner, uploads are accepted but never become deliverable: file ingestion
-effectively closes. That is the fail-closed behaviour you want — the alternative
-is serving a student a PDF nobody inspected — but it means ClamAV is load-bearing,
-not optional.
+`CONTENT_REQUIRE_CLEAN_SCAN` governs whether a managed file must carry
+clean-scan evidence before it can be published or delivered. Production reads it
+from the environment and **defaults to enforcing it**; a deployment that wants it
+off has to say so.
 
-**Cost.** Free software; the cost is memory. The loaded signature set needs about
-1.6 GB, and the daily concurrent reload briefly holds two copies — roughly
-2.4 GB. Plan **4 GB** for the scanner, or set the `CLAMAV_CONCURRENT_RELOAD=false`
-build argument to halve the peak at the cost of blocking scans during the reload
-(the worker retries with backoff, so it is safe, just slower once a day).
+**The initial launch runs with it off (`CONTENT_REQUIRE_CLEAN_SCAN=false`), and
+starts neither ClamAV nor the file-scan worker.** The reason is that the upload
+surface is itself the control:
+
+- `ManagedFileUploadView` is gated by `IsCreatorOrAdministrator`. Students and
+  every other unprivileged account are refused before a file is ever stored —
+  including avatars. There is no other route by which a managed file enters the
+  system.
+- Only trusted administrators upload study material, so every stored object has a
+  known, accountable origin.
+- ClamAV needs roughly 1.6 GB resident and 2.4 GB during its daily signature
+  reload. On a 4 GB host that is more memory than the entire rest of the
+  deployment, and it cannot be made to fit beside PostgreSQL and the application.
+
+**What does not change when it is off.** Nothing else in the file path moves with
+this flag, and this is worth being precise about, because the flag is easy to
+mistake for a general relaxation:
+
+- Upload authorisation is unchanged. Unprivileged accounts still cannot upload.
+- `can_access_managed_file` and every entitlement check are unchanged. A student
+  still only reaches a file they are entitled to.
+- Delivery still goes through the API at `/api/v1/files/`, never a public bucket
+  URL. Objects stay private in the bucket.
+- Files already marked `quarantined` or `failed` stay undeliverable in both
+  modes. Turning enforcement off never resurrects a condemned file.
+- The only difference is that a file with no scan evidence at all
+  (`not_configured`) is deliverable rather than withheld.
+
+**What it costs.** A malicious PDF uploaded by a compromised administrator
+account would not be caught at ingestion. That is the risk being accepted, and it
+is bounded by how few accounts can upload.
+
+**Re-enabling is configuration only.** The scanning architecture — the ClamAV
+image, the worker, the retry and quarantine model, the operator override — is
+intact and covered by tests. To turn it on:
+
+```bash
+# in .env.production
+CONTENT_REQUIRE_CLEAN_SCAN=true
+COMPOSE_PROFILES=bundled-db,file-scanning
+```
+
+Change both together. Enforcement without a scanner leaves every upload `pending`
+and undeliverable; a scanner without enforcement just burns memory. The settings
+module refuses to start if enforcement is on and `FILE_SCAN_HOST` is empty, and
+`manage.py check --deploy` reports `lockin.W003` on every release while
+enforcement is off, so the decision is never silently inherited.
+
+Sizing when you do enable it: plan **4 GB for the scanner alone**, or set the
+`CLAMAV_CONCURRENT_RELOAD=false` build argument to halve the peak at the cost of
+blocking scans during the daily reload (the worker retries with backoff, so it is
+safe, just slower once a day). In practice that means moving the scanner, the
+database, or both off this VPS first.
 
 ### Error webhook — mandatory
 
@@ -313,20 +359,32 @@ internal network; nothing is exposed publicly.
 
 ### The trade-off, stated plainly
 
-ClamAV is the component that decides whether managed container hosting is
-sensible. It is the largest single memory consumer in the whole architecture —
-larger than the application — and it must run continuously on a private network
-with a persistent volume for its signature database. On a VPS it is a Compose
-service with a memory limit. On a managed host it is a separate paid instance
-sized for 4 GB, which is what makes the Phase 1 economics turn (see
-`docs/HOSTING.md`).
+ClamAV is the component that decides how the deployment is sized and where it can
+run. It is the largest single memory consumer in the whole architecture — larger
+than the application — and it must run continuously on a private network with a
+persistent volume for its signature database. On a VPS it is a Compose service
+with a memory limit. On a managed host it is a separate paid instance sized for
+4 GB, which is what makes the Phase 1 economics turn (see `docs/HOSTING.md`).
 
-If a host cannot run ClamAV reliably, the safe response is **not** to disable
-scanning. It is to move the deployment to a host that can. Setting
-`CONTENT_REQUIRE_CLEAN_SCAN` false is not available in production settings, and
-should stay that way.
+Where a host cannot run it, there are two honest responses, and which one applies
+depends entirely on who can upload:
+
+- **If uploads are open to ordinary users, move to a host that can run it.**
+  Untrusted input reaching storage unscanned is not a trade to make.
+- **If uploads are restricted to trusted operators**, as they are here — see
+  "Malware scanning" above — running without it is a defensible decision, because
+  the authorisation on the upload endpoint is doing the work the scanner would
+  otherwise do at ingestion. State it with `CONTENT_REQUIRE_CLEAN_SCAN=false` and
+  keep the profile stopped.
+
+What is not defensible in either case is enabling enforcement with no scanner
+reachable, or widening upload permissions while scanning is off.
 
 ## ClamAV architecture
+
+This is the architecture the `file-scanning` profile starts. It is not running in
+the launch shape; it is kept intact and documented so that enabling it later is a
+configuration change rather than a rebuild.
 
 The simplest production architecture is a single private companion service that
 the file-scan worker talks to over TCP 3310, and that nothing else can reach.
@@ -418,7 +476,13 @@ instance beyond the first, so only one process per deploy runs migrations.
 
 ## Phase 2 — deploy to a VPS
 
-Target: 4 vCPU, 8 GB RAM, 100 GB SSD, Linux, root access.
+**Minimum for the launch shape** (no malware scanner, bundled PostgreSQL,
+private media in object storage): **2 vCPU, 4 GB RAM, 40 GB SSD**, Linux, root
+access. Expect roughly 1.3 GB resident at idle and 1.5-2.1 GB under early
+traffic, leaving the remainder as page cache for PostgreSQL.
+
+**Add 4 GB of RAM before enabling the file-scanning profile.** ClamAV alone needs
+more memory than everything else here combined.
 
 ### 1. Install Docker
 
@@ -427,6 +491,66 @@ curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker "$USER"
 docker compose version
 ```
+
+### 1b. Add swap
+
+4 GB with no swap gives the kernel no room to manoeuvre: a single spike — a
+signature-verification burst, a large `pg_dump`, an unusually heavy scheduled
+job — turns into an OOM kill, and the victim is chosen by the kernel, not by
+you. 2 GB of swap absorbs those spikes. It is not there to be used routinely;
+if the system swaps steadily, the host is undersized.
+
+```bash
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+# Prefer reclaiming page cache over swapping application memory.
+echo 'vm.swappiness=10' | sudo tee /etc/sysctl.d/99-lockin-swap.conf
+sudo sysctl --system
+free -h
+```
+
+The Compose file also sets an explicit `mem_limit` on every service. Those are
+ceilings that stop a runaway process from taking the host down with it; they sum
+to more than 4 GB deliberately, because they are limits rather than
+reservations, and swap covers the rare case where several approach theirs at
+once.
+
+### 1c. Tune PostgreSQL for 4 GB
+
+The `postgres` defaults assume a machine that is not also running the
+application. These values suit a 4 GB host shared with Gunicorn, and are applied
+by appending a `command:` to the `db` service or by editing `postgresql.conf` in
+the data volume:
+
+| Setting | Value | Why |
+| --- | --- | --- |
+| `shared_buffers` | `512MB` | Up from the 128 MB default; still leaves room for the application and page cache. |
+| `effective_cache_size` | `1536MB` | A planner hint, not an allocation. Tells the planner what the OS is likely caching. |
+| `work_mem` | `8MB` | Per sort or hash node. Modest, because a complex query can use several at once. |
+| `maintenance_work_mem` | `128MB` | Makes `VACUUM` and index builds finish rather than crawl. |
+| `max_connections` | `50` | The application opens at most ~30 (3 workers x 8 threads, plus the scheduler). Lower is safer than the 100 default. |
+| `max_parallel_workers_per_gather` | `1` | Two cores are shared with the application; wide parallelism costs more than it returns. |
+| `random_page_cost` | `1.1` | SSD-backed storage, so random reads are not 4x sequential. |
+
+```yaml
+  db:
+    command: >-
+      postgres
+      -c shared_buffers=512MB
+      -c effective_cache_size=1536MB
+      -c work_mem=8MB
+      -c maintenance_work_mem=128MB
+      -c max_connections=50
+      -c max_parallel_workers_per_gather=1
+      -c random_page_cost=1.1
+```
+
+`shm_size: 256mb` is already set on the service: PostgreSQL's parallel workers
+allocate dynamic shared memory, and Docker's 64 MB default makes them fail with
+"could not resize shared memory segment".
 
 ### 2. Get the source and the configuration
 
@@ -466,15 +590,27 @@ observability webhook token the same way.
 
 ### 5. Start the deployment
 
+Images come from the registry CI published them to. The VPS never builds: a
+frontend build peaks near 2 GB, which this host cannot spare beside PostgreSQL
+and a running application, and a host build makes the deployed artefact
+unreproducible. Set `LOCKIN_IMAGE_REPOSITORY` and `LOCKIN_IMAGE_TAG` in
+`.env.production` to the values the CI publish job printed, then:
+
 ```bash
+docker compose --env-file .env.production -f compose.production.yaml pull
 docker compose --env-file .env.production -f compose.production.yaml up -d db
 docker compose --env-file .env.production -f compose.production.yaml run --rm release
 docker compose --env-file .env.production -f compose.production.yaml run --rm preflight
-docker compose --env-file .env.production -f compose.production.yaml up -d backend operations-scheduler file-scan-worker edge
+docker compose --env-file .env.production -f compose.production.yaml up -d backend operations-scheduler edge
 ```
 
-Omit the first line when using a managed database. `release` and `preflight` must
-each exit 0; retain the preflight JSON as release evidence.
+Omit the `up -d db` line when using a managed database. `release` and `preflight`
+must each exit 0; retain the preflight JSON as release evidence — it now records
+`clean_scan_enforced`, so the scanning decision is part of the release record.
+
+The launch shape starts no `file-scan-worker`. Add it to the last line, and
+`file-scanning` to `COMPOSE_PROFILES`, only together with
+`CONTENT_REQUIRE_CLEAN_SCAN=true`.
 
 ### 6. Reverse proxy and HTTPS
 
@@ -504,15 +640,24 @@ from the internet are 80, 443, and the allowlisted SSH port.
 
 ### 7. Deploy an update
 
+CI builds and pushes an image for every commit on `main` and prints the exact
+tag. Deploying is pulling that tag — there is no build step on the host.
+
 ```bash
 cd /srv/lockin
 git fetch --all && git checkout <release-tag>
-export LOCKIN_IMAGE_TAG=$(git rev-parse --short HEAD)
-docker compose --env-file .env.production -f compose.production.yaml build
+# The tag CI published, not a local git hash, and never "latest".
+export LOCKIN_IMAGE_TAG=<sha-from-the-ci-publish-job>
+docker compose --env-file .env.production -f compose.production.yaml pull
 docker compose --env-file .env.production -f compose.production.yaml run --rm release
 docker compose --env-file .env.production -f compose.production.yaml run --rm preflight
-docker compose --env-file .env.production -f compose.production.yaml up -d backend operations-scheduler file-scan-worker edge
+docker compose --env-file .env.production -f compose.production.yaml up -d backend operations-scheduler edge
 ```
+
+Before the first publish, set the repository variables the frontend image needs:
+`LOCKIN_SUPPORT_EMAIL`, `LOCKIN_LEGAL_ENTITY`, `LOCKIN_LEGAL_ADDRESS`,
+`LOCKIN_LEGAL_JURISDICTION`, `ACCOUNT_POLICY_VERSION`. They are public build
+inputs, not secrets, and the image refuses to build on placeholders.
 
 Never use a `latest` tag. Record the image digests you deployed; rollback is
 redeploying the previous digests, and a database rollback needs the decision
@@ -675,8 +820,9 @@ STORAGE_ALLOW_LOCAL_MEDIA=true
 ```
 
 ```bash
-# 2. Restart the web service and both workers.
-docker compose --env-file .env.production -f compose.production.yaml up -d backend operations-scheduler file-scan-worker
+# 2. Restart the web service and the scheduler (add file-scan-worker only if
+#    the file-scanning profile is enabled).
+docker compose --env-file .env.production -f compose.production.yaml up -d backend operations-scheduler
 ```
 
 Nothing else changes: object names are identical in both places, so no row is
@@ -759,6 +905,28 @@ built to answer:
 
 Secrets are redacted before a record is emitted, and `DEBUG` is hard-wired off in
 production, so a stack trace never reaches a client.
+
+### Rotation
+
+The log stream is also the fastest way to fill the deployment disk. Three lines
+per request across nginx, Gunicorn and the application is roughly 600 bytes, so a
+million requests a day writes close to a gigabyte a day into Docker's JSON log
+files, which have no size limit of their own.
+
+Every service therefore caps its own logs in `compose.production.yaml`:
+
+```yaml
+logging:
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+```
+
+That bounds the whole deployment to well under 300 MB of logs. It also bounds how
+far back `docker compose logs` reaches, so ship anything you need to keep for
+longer to the error webhook or an off-host collector rather than relying on the
+container log as an archive.
 
 ## Security summary
 

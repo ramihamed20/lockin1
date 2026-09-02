@@ -133,7 +133,13 @@ jobs:
           OBSERVABILITY_STATSD_HOST: 127.0.0.1
           OBSERVABILITY_ERROR_WEBHOOK_URL: https://monitoring.example.test/v1/errors
           OBSERVABILITY_ERROR_WEBHOOK_TOKEN: ci-only-observability-token
-        run: python manage.py production_preflight
+          CONTENT_REQUIRE_CLEAN_SCAN: "true"
+        run: |
+          # Both enforcement modes must boot and pass preflight. Running
+          # without the scan gate is a supported production configuration,
+          # so it is gated here rather than discovered on the VPS.
+          python manage.py production_preflight
+          CONTENT_REQUIRE_CLEAN_SCAN=false python manage.py production_preflight
 
   frontend:
     runs-on: ubuntu-latest
@@ -234,11 +240,19 @@ jobs:
           POSTGRES_RUNTIME_PASSWORD_FILE: /tmp/lockin-runtime-secret
           TLS_CERT_PATH: /tmp/lockin-ci.crt
           TLS_KEY_PATH: /tmp/lockin-ci.key
+          CONTENT_REQUIRE_CLEAN_SCAN: "false"
         run: |
           # Both database shapes must stay valid: the bundled container and a
           # managed provider reached over POSTGRES_HOST.
           docker compose -f compose.production.yaml --profile bundled-db config --quiet
           docker compose -f compose.production.yaml config --quiet
+          # The launch shape starts no scanner, so the default profile set
+          # must not carry one; the opt-in profile must still resolve it.
+          if docker compose -f compose.production.yaml config --services | grep -qx clamav; then
+            echo "clamav must stay behind the file-scanning profile" >&2
+            exit 1
+          fi
+          docker compose -f compose.production.yaml --profile file-scanning config --services | grep -qx clamav
 
   container-runtime:
     # Building an image proves nothing about whether it runs. This job is the
@@ -252,6 +266,52 @@ jobs:
         run: docker build --tag lockin-app:ci .
       - name: Start the image and assert the production start-up contract
         run: scripts/ci/docker-smoke.sh lockin-app:ci
+
+  publish:
+    # Production images are built and published here, never on the
+    # deployment host. A frontend build peaks near 2 GB, which a 4 GB
+    # application VPS cannot spare beside PostgreSQL and a running
+    # application, and building on the host also makes the deployed
+    # artefact unreproducible.
+    #
+    # The legal and support values are public build inputs, not secrets.
+    # Set them as repository variables before the first publish; the
+    # frontend image refuses to build on placeholders.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [backend, frontend, browser, containers, container-runtime]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    env:
+      REPOSITORY: ghcr.io/${{ github.repository_owner }}/lockin
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sign in to the container registry
+        run: >-
+          echo "${{ secrets.GITHUB_TOKEN }}"
+          | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+      - name: Build and push the immutable release tag
+        run: |
+          set -eu
+          TAG="${GITHUB_SHA}"
+          docker build --tag "${REPOSITORY}-backend:${TAG}" backend
+          docker build \
+            --build-arg VITE_APP_VERSION="${TAG}" \
+            --build-arg VITE_SUPPORT_EMAIL="${{ vars.LOCKIN_SUPPORT_EMAIL }}" \
+            --build-arg VITE_LEGAL_ENTITY="${{ vars.LOCKIN_LEGAL_ENTITY }}" \
+            --build-arg VITE_LEGAL_ADDRESS="${{ vars.LOCKIN_LEGAL_ADDRESS }}" \
+            --build-arg VITE_LEGAL_JURISDICTION="${{ vars.LOCKIN_LEGAL_JURISDICTION }}" \
+            --build-arg VITE_POLICY_VERSION="${{ vars.ACCOUNT_POLICY_VERSION }}" \
+            --tag "${REPOSITORY}-edge:${TAG}" frontend
+          # The scanner image is published with every release so that
+          # enabling the file-scanning profile stays a configuration change.
+          docker build --tag "${REPOSITORY}-clamav:${TAG}" deploy/clamav
+          docker push "${REPOSITORY}-backend:${TAG}"
+          docker push "${REPOSITORY}-edge:${TAG}"
+          docker push "${REPOSITORY}-clamav:${TAG}"
+          echo "Deploy with LOCKIN_IMAGE_REPOSITORY=${REPOSITORY} LOCKIN_IMAGE_TAG=${TAG}"
 
   quality-gate:
     if: always()

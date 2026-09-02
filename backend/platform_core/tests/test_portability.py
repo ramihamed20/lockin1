@@ -305,6 +305,7 @@ PRODUCTION_ENVIRONMENT = {
     "OBSERVABILITY_STATSD_HOST": "metrics.example.ly",
     "OBSERVABILITY_ERROR_WEBHOOK_URL": "https://monitoring.example.ly/v1/errors",
     "OBSERVABILITY_ERROR_WEBHOOK_TOKEN": "d" * 32,
+    "CONTENT_REQUIRE_CLEAN_SCAN": "true",
     "FILE_SCAN_HOST": "clamav.internal",
     "STORAGE_BACKEND": "s3",
     "STORAGE_BUCKET_NAME": "lockin-media",
@@ -320,8 +321,18 @@ PROBE = (
     "'host': d['HOST'], 'user': d['USER'], 'password': d['PASSWORD'], 'name': d['NAME'],"
     "'port': d['PORT'], 'sslmode': d['OPTIONS']['sslmode'],"
     "'runtime_role': s.DATABASE_RUNTIME_ROLE,"
+    "'clean_scan': s.CONTENT_REQUIRE_CLEAN_SCAN,"
     "'storage': s.STORAGES['default']['BACKEND']}))"
 )
+
+MANAGED_DATABASE_URL = (
+    "postgresql://lockin_app:runtime-pass@db.example.supabase.co:5432/postgres?sslmode=require"
+)
+
+
+# Sentinel for "remove this name from the environment entirely", which is not
+# the same as setting it empty.
+_UNSET = "__lockin_env_unset__"
 
 
 def _boot_production(**overrides: str) -> subprocess.CompletedProcess[str]:
@@ -330,10 +341,15 @@ def _boot_production(**overrides: str) -> subprocess.CompletedProcess[str]:
     environment = {
         name: value
         for name, value in os.environ.items()
-        if not name.startswith(("DJANGO_", "POSTGRES_", "STORAGE_", "DATABASE_", "LOCKIN_"))
+        if not name.startswith(
+            ("DJANGO_", "POSTGRES_", "STORAGE_", "DATABASE_", "LOCKIN_", "CONTENT_", "FILE_SCAN_")
+        )
     }
     environment.update(PRODUCTION_ENVIRONMENT)
-    environment.update(overrides)
+    environment.update({name: value for name, value in overrides.items() if value != _UNSET})
+    for name, value in overrides.items():
+        if value == _UNSET:
+            environment.pop(name, None)
     backend_root = Path(__file__).resolve().parents[2]
     return subprocess.run(  # noqa: S603 - fixed interpreter and argument list
         [sys.executable, "-c", PROBE],
@@ -443,3 +459,53 @@ def test_production_refuses_anonymously_readable_objects() -> None:
 
     assert result.returncode != 0
     assert "STORAGE_QUERYSTRING_AUTH" in result.stderr
+
+
+def test_production_enforces_clean_scans_unless_told_otherwise() -> None:
+    """The secure default survives: an unset flag still enforces the scan gate."""
+
+    result = _boot_production(DATABASE_URL=MANAGED_DATABASE_URL, CONTENT_REQUIRE_CLEAN_SCAN=_UNSET)
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["clean_scan"] is True
+
+
+def test_production_boots_with_clean_scan_enforcement_explicitly_disabled() -> None:
+    """The launch shape: no scanner configured at all, and the application boots.
+
+    Uploads are restricted to creators and administrators, so the upload surface
+    is the control. Nothing about that authorisation moves with this flag.
+    """
+
+    result = _boot_production(
+        DATABASE_URL=MANAGED_DATABASE_URL,
+        CONTENT_REQUIRE_CLEAN_SCAN="false",
+        FILE_SCAN_HOST="",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["clean_scan"] is False
+
+
+def test_enforced_clean_scans_still_require_a_reachable_scanner() -> None:
+    """Turning the gate on without a scanner is a configuration error, not a silent pass."""
+
+    result = _boot_production(
+        DATABASE_URL=MANAGED_DATABASE_URL,
+        CONTENT_REQUIRE_CLEAN_SCAN="true",
+        FILE_SCAN_HOST="",
+    )
+
+    assert result.returncode != 0
+    assert "FILE_SCAN_HOST is required" in result.stderr
+
+
+def test_clean_scan_enforcement_rejects_an_ambiguous_value() -> None:
+    """A typo must fail closed rather than resolve to "off"."""
+
+    result = _boot_production(
+        DATABASE_URL=MANAGED_DATABASE_URL, CONTENT_REQUIRE_CLEAN_SCAN="disabled"
+    )
+
+    assert result.returncode != 0
+    assert "CONTENT_REQUIRE_CLEAN_SCAN must be a boolean" in result.stderr
