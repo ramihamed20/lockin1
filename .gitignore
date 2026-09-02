@@ -43,6 +43,10 @@ Thumbs.db
 # build output and a local static server. Never part of a checkout.
 /local-run/
 
+# Audit and second-opinion output. Holds private managed media and database
+# extracts copied out of a running environment: review evidence, never source.
+/audit-artifacts/
+
 # Runtime logs and local demo databases.
 backend/.local-logs/
 *.sqlite3
