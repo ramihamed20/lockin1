@@ -213,7 +213,13 @@ jobs:
             -subj "/CN=lockin.example.test" \
             -keyout /tmp/lockin-ci.key -out /tmp/lockin-ci.crt
           chmod 644 /tmp/lockin-ci.key /tmp/lockin-ci.crt
+          # nginx resolves a literal proxy_pass hostname while it parses the
+          # configuration, so "backend" has to resolve for a syntax check to
+          # complete. There is no upstream here and none is needed: this step
+          # lints the configuration, and edge-runtime is what proves the proxy
+          # actually carries a request.
           docker run --rm --entrypoint nginx \
+            --add-host backend:127.0.0.1 \
             --volume /tmp/lockin-ci.crt:/run/tls/fullchain.pem:ro \
             --volume /tmp/lockin-ci.key:/run/tls/privatekey.pem:ro \
             lockin-edge:ci -t
