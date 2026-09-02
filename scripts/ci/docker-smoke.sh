@@ -157,9 +157,16 @@ docker run --detach --name "$app_container" --network "$network" \
     --env "OBSERVABILITY_ERROR_WEBHOOK_TOKEN=$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')" \
     "$image" > /dev/null
 
-# The entry point runs release then preflight before binding, so readiness here
-# means the whole production start-up contract completed.
-await "the application" 60 curl --silent --fail --max-time 5 "http://127.0.0.1:$published_port/healthz"
+# Two conditions, because they are genuinely different. nginx answers /healthz
+# out of its own configuration, so it goes up as soon as the edge starts and
+# says nothing about the application: the entry point starts nginx and only
+# then execs gunicorn. Treating the first as "ready" raced the API assertions
+# against a socket that was not bound yet.
+await "the edge" 60 curl --silent --fail --max-time 5 "http://127.0.0.1:$published_port/healthz"
+# This one has to reach Django through nginx, so it is the point at which
+# release and preflight have completed and gunicorn is serving.
+await "the application API" 60 request --fail --output /dev/null \
+    "http://127.0.0.1:$published_port/api/v1/health/ready"
 
 log "assertions"
 
