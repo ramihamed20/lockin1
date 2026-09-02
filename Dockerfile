@@ -29,6 +29,23 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends nginx gettext-base \
     && rm -rf /var/lib/apt/lists/* /etc/nginx/sites-enabled/default
 
+# Debian ships an nginx.conf written for a root master: it declares `user
+# www-data` and `pid /run/nginx.pid`. Neither survives contact with this image,
+# where the master runs as uid 10001.
+#
+# The pid path is the one that breaks the build outright. /run is not writable
+# by that user, and the entry point used to redirect it with `nginx -g "pid
+# /tmp/nginx.pid;"` -- but nginx rejects a duplicate `pid` directive, so the
+# override has to replace the declaration rather than sit beside it.
+#
+# The user directive is only a warning (a non-root master ignores it), but
+# removing it states the intent and keeps the start-up log clean.
+RUN sed -ri 's|^\s*user\s+[^;]+;|# user directive removed: this master runs unprivileged|' \
+        /etc/nginx/nginx.conf \
+    && sed -ri 's|^\s*pid\s+[^;]+;|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf \
+    && grep -qx 'pid /tmp/nginx.pid;' /etc/nginx/nginx.conf \
+    && ! grep -qE '^\s*user\s+[^;]+;' /etc/nginx/nginx.conf
+
 RUN addgroup --system --gid 10001 lockin \
     && adduser --system --uid 10001 --ingroup lockin --home /home/lockin lockin
 

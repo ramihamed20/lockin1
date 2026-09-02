@@ -10,8 +10,11 @@ set -eu
 : "${PORT:=10000}"
 : "${DJANGO_SETTINGS_MODULE:=config.settings.production}"
 : "${LOCKIN_MAX_BODY_SIZE:=92m}"
-# nginx runs unprivileged, so its pid and temp paths must be writable.
-NGINX_DIRECTIVES="pid /tmp/nginx.pid; error_log /dev/stderr warn;"
+# nginx runs unprivileged, so its pid and temp paths must be writable. The pid
+# path is set in the image instead of here: nginx rejects a duplicate `pid`
+# directive, and Debian's nginx.conf already declares one. error_log may be
+# repeated, so this one still stands beside the file's own.
+NGINX_DIRECTIVES="error_log /dev/stderr warn;"
 export PORT DJANGO_SETTINGS_MODULE LOCKIN_MAX_BODY_SIZE
 
 if [ "$#" -gt 0 ]; then
