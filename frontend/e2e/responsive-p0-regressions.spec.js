@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
 /**
  * Guards for the blocking findings of the phone/iPad responsive audit. Each
@@ -36,6 +37,9 @@ async function mockStudent(page, { language = "en" } = {}) {
       await route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ error: { code: "permission_denied", message: "Student account" } }) });
       return;
     }
+    // The workspace sits behind the subscription gate, so the access contract
+    // has to answer before the reader renders.
+    if (await fulfillAccessContract(route, pathname)) return;
     if (route.request().method() === "GET") {
       await route.fulfill({ contentType: "application/json", body: JSON.stringify({ count: 0, results: [] }) });
       return;
@@ -134,9 +138,12 @@ for (const viewport of LANDSCAPE_TABLETS) {
 
 // P0: fifteen 44px controls were laid out in a single scrolling strip about
 // 240px wide, so seven of them - undo and redo among them - sat off screen
-// behind a scroller with no scrollbar and no fade.
+// behind a scroller with no scrollbar and no fade. The toolbar still holds one
+// line, but the tools now live in a rail that scrolls sideways and fades the
+// edge that hides more: exit and the workspace actions stay pinned outside it,
+// and anything the rail hides has to be reachable by scrolling it.
 for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 430, height: 932 }]) {
-  test(`every workspace control is on screen at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+  test(`every workspace control is reachable at ${viewport.width}x${viewport.height}`, async ({ page }) => {
     test.setTimeout(60_000);
     await mockStudent(page);
     await page.setViewportSize(viewport);
@@ -146,13 +153,29 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
 
     const toolbar = await page.evaluate((size) => {
       const nav = document.querySelector(".workspace-v2-toolbar");
+      const rail = nav.querySelector(".workspace-v2-toolbar-scroll");
       const controls = [...nav.querySelectorAll("button")];
+      const escaped = (bounds) => bounds.bottom > size.height + 1 || bounds.top < -1;
       return {
         total: controls.length,
-        offScreen: controls
+        rows: new Set(controls.map((control) => Math.round(control.getBoundingClientRect().top))).size,
+        // A pinned control has nowhere to scroll to, so it must be on screen.
+        pinnedOffScreen: controls
+          .filter((control) => !rail.contains(control))
           .filter((control) => {
             const bounds = control.getBoundingClientRect();
-            return bounds.right > size.width + 1 || bounds.left < -1 || bounds.bottom > size.height + 1 || bounds.top < -1;
+            return escaped(bounds) || bounds.right > size.width + 1 || bounds.left < -1;
+          })
+          .map((control) => control.getAttribute("aria-label")),
+        // A railed control may sit outside the viewport horizontally, never
+        // vertically, and never outside the rail's own scrollable track.
+        railedOutOfTrack: controls
+          .filter((control) => rail.contains(control))
+          .filter((control) => {
+            const bounds = control.getBoundingClientRect();
+            const track = rail.getBoundingClientRect();
+            const start = bounds.left - track.left + rail.scrollLeft;
+            return escaped(bounds) || start < -1 || start + bounds.width > rail.scrollWidth + 1;
           })
           .map((control) => control.getAttribute("aria-label")),
         underTouchSize: controls
@@ -161,19 +184,37 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
             return bounds.width < 44 || bounds.height < 44;
           })
           .map((control) => control.getAttribute("aria-label")),
+        railFades: rail.style.getPropertyValue("--workspace-fade-right").trim(),
+        railScrollsSideways: rail.scrollWidth > rail.clientWidth + 1,
         // The surfaces that hang below the toolbar follow its measured height.
         publishedHeight: getComputedStyle(document.querySelector(".workspace-v2")).getPropertyValue("--workspace-toolbar-height").trim(),
         actualHeight: `${Math.round(nav.getBoundingClientRect().height)}px`
       };
     }, viewport);
 
-    expect(toolbar.offScreen, "workspace controls are off screen").toEqual([]);
+    expect(toolbar.pinnedOffScreen, "pinned workspace controls are off screen").toEqual([]);
+    expect(toolbar.railedOutOfTrack, "railed controls are unreachable").toEqual([]);
     expect(toolbar.underTouchSize, "workspace controls are under the touch minimum").toEqual([]);
     expect(toolbar.total).toBeGreaterThanOrEqual(15);
+    expect(toolbar.rows, "the toolbar wrapped to a second row").toBe(1);
+    expect(toolbar.railScrollsSideways, "a phone cannot hold the whole rail").toBe(true);
+    expect(toolbar.railFades, "the hidden edge of the rail is not faded").not.toBe("0px");
     expect(toolbar.publishedHeight).toBe(toolbar.actualHeight);
 
-    await expect(page.getByRole("button", { name: /^Undo/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /^Redo/ })).toBeVisible();
+    // Undo and redo are attached and reach the viewport once the rail is scrolled.
+    const historyReachable = await page.evaluate(() => {
+      const rail = document.querySelector(".workspace-v2-toolbar-scroll");
+      // The rail scrolls smoothly by default, so the jump has to be instant to
+      // be measurable in the same frame.
+      rail.scrollTo({ left: rail.scrollWidth, behavior: "instant" });
+      return ["Undo", "Redo"].map((name) => {
+        const button = [...rail.querySelectorAll("button")].find((node) => node.getAttribute("aria-label")?.startsWith(name));
+        const bounds = button.getBoundingClientRect();
+        const track = rail.getBoundingClientRect();
+        return bounds.left >= track.left - 1 && bounds.right <= track.right + 1;
+      });
+    });
+    expect(historyReachable, "undo and redo cannot be scrolled into the rail").toEqual([true, true]);
   });
 }
 

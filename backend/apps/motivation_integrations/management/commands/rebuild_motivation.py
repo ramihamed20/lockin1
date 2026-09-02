@@ -151,12 +151,14 @@ class Command(BaseCommand):
             )
             count += 1
         for user in User.objects.filter(email_verified_at__isnull=False).iterator(chunk_size=1_000):
-            assert user.email_verified_at is not None
+            verified_at = user.email_verified_at
+            if verified_at is None:
+                continue
             _email_verified(
                 UserEmailVerified(
                     user_id=user.id,
                     actor_id=user.id,
-                    occurred_at=user.email_verified_at,
+                    occurred_at=verified_at,
                 )
             )
             count += 1

@@ -5,6 +5,7 @@ from typing import Any, cast
 from uuid import UUID
 
 from django.db import transaction
+from django.db.models import QuerySet
 from rest_framework import status
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.request import Request
@@ -16,6 +17,7 @@ from apps.administration.catalog import Capability
 from apps.administration.permissions import HasOperationalCapability, has_operational_capability
 from apps.administration.services import OperationalRoleError, replace_operational_capabilities
 from apps.entitlements.models import EntitlementGrant
+from apps.payments.manual_services import ManualPaymentError, review_manual_recharge
 from apps.payments.models import Payment
 from apps.product_catalog.models import Plan, Product
 from apps.provider_integrations.services import create_refund_request
@@ -23,6 +25,7 @@ from apps.refunds.services import request_refund
 from apps.subscriptions.models import Subscription
 from platform_core.api.exceptions import RequestRejected
 from platform_core.api.pagination import LockinPagination
+from platform_core.network import client_ip
 
 from .models import AdminInternalNote, NotificationCampaign, PaymentStatusCorrection
 from .selectors import (
@@ -36,19 +39,20 @@ from .selectors import (
 )
 from .serializers import (
     AddNoteSerializer,
-    AdminRefundSerializer,
     AdminInternalNoteSerializer,
+    AdminRefundSerializer,
     CampaignDispatchSerializer,
     EntitlementOverrideSerializer,
     EntitlementRevokeSerializer,
+    ManualPaymentReviewSerializer,
     NotificationCampaignCreateSerializer,
     NotificationCampaignSerializer,
     OperationalCapabilityUpdateSerializer,
-    PlanActionSerializer,
-    PlanVersionCreateSerializer,
     PaymentCorrectionRequestSerializer,
     PaymentCorrectionReviewSerializer,
     PaymentStatusCorrectionSerializer,
+    PlanActionSerializer,
+    PlanVersionCreateSerializer,
     SubscriptionActionSerializer,
     SubscriptionAdminEventSerializer,
     UserActionSerializer,
@@ -56,8 +60,8 @@ from .serializers import (
 from .services import (
     AdminControlError,
     add_internal_note,
-    change_user_status,
     change_plan_lifecycle,
+    change_user_status,
     create_admin_plan_version,
     create_notification_campaign,
     dispatch_notification_campaign,
@@ -65,12 +69,12 @@ from .services import (
     force_user_logout,
     grant_access_override,
     manage_subscription,
-    revoke_access_override,
     request_payment_status_correction,
     review_payment_status_correction,
+    revoke_access_override,
+    serialize_plan,
     set_product_roles,
     set_user_verification,
-    serialize_plan,
     trigger_password_reset,
 )
 
@@ -85,7 +89,7 @@ def _request_context(request: Request) -> tuple[UUID | None, str]:
         correlation_id = UUID(str(raw_request_id)) if raw_request_id else None
     except ValueError:
         correlation_id = None
-    return correlation_id, str(request.META.get("REMOTE_ADDR", ""))[:64]
+    return correlation_id, client_ip(request)[:64]
 
 
 def _idempotency_key(request: Request) -> str:
@@ -109,7 +113,9 @@ def _note_capabilities(target_type: str) -> tuple[str, str]:
     try:
         return _NOTE_CAPABILITIES[target_type]
     except KeyError as error:
-        raise RequestRejected("This target type does not support administrative notes.", code="invalid_note_target") from error
+        raise RequestRejected(
+            "This target type does not support administrative notes.", code="invalid_note_target"
+        ) from error
 
 
 class AdminPurchaseListView(APIView):
@@ -118,8 +124,15 @@ class AdminPurchaseListView(APIView):
 
     def get(self, request: Request) -> Response:
         status_filter = request.query_params.get("status", "")[:24]
-        if status_filter and status_filter not in Payment.Status.values:
-            raise RequestRejected("The payment status filter is invalid.", code="invalid_payment_status")
+        if status_filter and status_filter not in {
+            *Payment.Status.values,
+            "pending_review",
+            "approved",
+            "rejected",
+        }:
+            raise RequestRejected(
+                "The payment status filter is invalid.", code="invalid_payment_status"
+            )
         records = admin_purchases(
             query=request.query_params.get("q", "")[:100], status=status_filter
         )
@@ -137,7 +150,39 @@ class AdminPurchaseDetailView(APIView):
             payment = admin_purchases().get(id=payment_id)
         except Payment.DoesNotExist as error:
             raise NotFound("Purchase not found.") from error
-        data = serialize_purchase(payment, detailed=True)
+        data = serialize_purchase(
+            payment,
+            detailed=True,
+            reveal_recharge_code=has_operational_capability(
+                _user(request), Capability.PAYMENTS_MANAGE
+            ),
+        )
+        data["notes"] = AdminInternalNoteSerializer(data["notes"], many=True).data
+        data["status_corrections"] = PaymentStatusCorrectionSerializer(
+            data["status_corrections"], many=True
+        ).data
+        return Response(data)
+
+
+class AdminManualPaymentReviewView(APIView):
+    permission_classes = [HasOperationalCapability]
+    required_capability = Capability.PAYMENTS_MANAGE
+
+    def post(self, request: Request, payment_id: UUID) -> Response:
+        serializer = ManualPaymentReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            review_manual_recharge(
+                payment_id=payment_id,
+                actor=_user(request),
+                decision=str(serializer.validated_data["decision"]),
+                reason=str(serializer.validated_data["reason"]),
+                idempotency_key=_idempotency_key(request),
+            )
+            payment = admin_purchases().get(id=payment_id)
+        except (ManualPaymentError, Payment.DoesNotExist) as error:
+            _raise(error, code="manual_payment_review_rejected")
+        data = serialize_purchase(payment, detailed=True, reveal_recharge_code=True)
         data["notes"] = AdminInternalNoteSerializer(data["notes"], many=True).data
         data["status_corrections"] = PaymentStatusCorrectionSerializer(
             data["status_corrections"], many=True
@@ -182,7 +227,11 @@ class AdminPurchaseRefundView(APIView):
                         source="admin_control.api",
                         correlation_id=correlation_id,
                         ip_address=ip_address,
-                        new_state={"refund_id": str(refund.id), "amount_minor": amount, "created": True},
+                        new_state={
+                            "refund_id": str(refund.id),
+                            "amount_minor": amount,
+                            "created": True,
+                        },
                     )
         except (Payment.DoesNotExist, ValueError) as error:
             _raise(error, code="refund_request_rejected")
@@ -221,7 +270,9 @@ class AdminPurchaseCorrectionRequestView(APIView):
             )
         except (Payment.DoesNotExist, AdminControlError, ValueError) as error:
             _raise(error, code="payment_correction_request_rejected")
-        return Response(PaymentStatusCorrectionSerializer(correction).data, status=status.HTTP_201_CREATED)
+        return Response(
+            PaymentStatusCorrectionSerializer(correction).data, status=status.HTTP_201_CREATED
+        )
 
 
 class AdminPurchaseCorrectionReviewView(APIView):
@@ -256,7 +307,9 @@ class AdminSubscriptionListView(APIView):
         status_filter = request.query_params.get("status", "")[:16]
         missing_only = request.query_params.get("without_subscription") == "true"
         if status_filter and status_filter not in Subscription.Status.values:
-            raise RequestRejected("The subscription status filter is invalid.", code="invalid_subscription_status")
+            raise RequestRejected(
+                "The subscription status filter is invalid.", code="invalid_subscription_status"
+            )
         records = admin_subscriptions(
             query=request.query_params.get("q", "")[:100],
             status=status_filter,
@@ -265,13 +318,20 @@ class AdminSubscriptionListView(APIView):
         paginator = LockinPagination()
         page = paginator.paginate_queryset(records, request, view=self)
         if missing_only:
+            users = cast(list[User], page or [])
             return paginator.get_paginated_response(
                 [
-                    {"user": {"id": item.id, "email": item.email, "full_name": item.full_name}, "subscription": None}
-                    for item in (page or [])
+                    {
+                        "user": {"id": item.id, "email": item.email, "full_name": item.full_name},
+                        "subscription": None,
+                    }
+                    for item in users
                 ]
             )
-        return paginator.get_paginated_response([serialize_subscription(item) for item in (page or [])])
+        subscriptions = cast(list[Subscription], page or [])
+        return paginator.get_paginated_response(
+            [serialize_subscription(item) for item in subscriptions]
+        )
 
 
 class AdminSubscriptionDetailView(APIView):
@@ -280,11 +340,13 @@ class AdminSubscriptionDetailView(APIView):
 
     def get(self, request: Request, subscription_id: UUID) -> Response:
         try:
-            subscription = admin_subscriptions().get(id=subscription_id)
+            subscription = cast(Subscription, admin_subscriptions().get(id=subscription_id))
         except Subscription.DoesNotExist as error:
             raise NotFound("Subscription not found.") from error
         data = serialize_subscription(subscription, detailed=True)
-        data["admin_events"] = SubscriptionAdminEventSerializer(data["admin_events"], many=True).data
+        data["admin_events"] = SubscriptionAdminEventSerializer(
+            data["admin_events"], many=True
+        ).data
         data["notes"] = AdminInternalNoteSerializer(data["notes"], many=True).data
         return Response(data)
 
@@ -328,7 +390,9 @@ class AdminUserDetailView(APIView):
 
     def get(self, request: Request, user_id: UUID) -> Response:
         try:
-            target = User.objects.prefetch_related("groups", "operational_role_assignments__role").get(id=user_id)
+            target = User.objects.prefetch_related(
+                "groups", "operational_role_assignments__role"
+            ).get(id=user_id)
         except User.DoesNotExist as error:
             raise NotFound("User not found.") from error
         data = serialize_user_detail(target)
@@ -353,31 +417,103 @@ class AdminUserActionView(APIView):
         correlation_id, ip_address = _request_context(request)
         try:
             if action == "suspend":
-                change_user_status(target=target, status=User.Status.SUSPENDED, actor=actor, reason=str(data["reason"]), source="admin_control.api", correlation_id=correlation_id, ip_address=ip_address)
+                change_user_status(
+                    target=target,
+                    status=User.Status.SUSPENDED,
+                    actor=actor,
+                    reason=str(data["reason"]),
+                    source="admin_control.api",
+                    correlation_id=correlation_id,
+                    ip_address=ip_address,
+                )
             elif action == "reactivate":
-                change_user_status(target=target, status=User.Status.ACTIVE, actor=actor, reason=str(data["reason"]), source="admin_control.api", correlation_id=correlation_id, ip_address=ip_address)
+                change_user_status(
+                    target=target,
+                    status=User.Status.ACTIVE,
+                    actor=actor,
+                    reason=str(data["reason"]),
+                    source="admin_control.api",
+                    correlation_id=correlation_id,
+                    ip_address=ip_address,
+                )
             elif action == "soft_delete":
-                change_user_status(target=target, status=User.Status.DELETED, actor=actor, reason=str(data["reason"]), source="admin_control.api", correlation_id=correlation_id, ip_address=ip_address)
+                change_user_status(
+                    target=target,
+                    status=User.Status.DELETED,
+                    actor=actor,
+                    reason=str(data["reason"]),
+                    source="admin_control.api",
+                    correlation_id=correlation_id,
+                    ip_address=ip_address,
+                )
             elif action == "verify_email":
-                set_user_verification(target=target, verified=True, actor=actor, reason=str(data["reason"]), source="admin_control.api", correlation_id=correlation_id, ip_address=ip_address)
+                set_user_verification(
+                    target=target,
+                    verified=True,
+                    actor=actor,
+                    reason=str(data["reason"]),
+                    source="admin_control.api",
+                    correlation_id=correlation_id,
+                    ip_address=ip_address,
+                )
             elif action == "unverify_email":
-                set_user_verification(target=target, verified=False, actor=actor, reason=str(data["reason"]), source="admin_control.api", correlation_id=correlation_id, ip_address=ip_address)
+                set_user_verification(
+                    target=target,
+                    verified=False,
+                    actor=actor,
+                    reason=str(data["reason"]),
+                    source="admin_control.api",
+                    correlation_id=correlation_id,
+                    ip_address=ip_address,
+                )
             elif action == "logout_all":
-                force_user_logout(target=target, actor=actor, reason=str(data["reason"]), source="admin_control.api", correlation_id=correlation_id, ip_address=ip_address)
+                force_user_logout(
+                    target=target,
+                    actor=actor,
+                    reason=str(data["reason"]),
+                    source="admin_control.api",
+                    correlation_id=correlation_id,
+                    ip_address=ip_address,
+                )
             elif action == "logout_session":
-                force_user_logout(target=target, actor=actor, session_id=data["session_id"], reason=str(data["reason"]), source="admin_control.api", correlation_id=correlation_id, ip_address=ip_address)
+                force_user_logout(
+                    target=target,
+                    actor=actor,
+                    session_id=data["session_id"],
+                    reason=str(data["reason"]),
+                    source="admin_control.api",
+                    correlation_id=correlation_id,
+                    ip_address=ip_address,
+                )
             elif action == "password_reset":
-                trigger_password_reset(target=target, actor=actor, reason=str(data["reason"]), source="admin_control.api", correlation_id=correlation_id, ip_address=ip_address)
+                trigger_password_reset(
+                    target=target,
+                    actor=actor,
+                    reason=str(data["reason"]),
+                    source="admin_control.api",
+                    correlation_id=correlation_id,
+                    ip_address=ip_address,
+                )
             elif action == "replace_product_roles":
                 if not has_operational_capability(actor, Capability.ROLES_MANAGE):
                     raise PermissionDenied("The required operational permission is not assigned.")
-                set_product_roles(target=target, role_codes=data["roles"], actor=actor, reason=str(data["reason"]), source="admin_control.api", correlation_id=correlation_id, ip_address=ip_address)
+                set_product_roles(
+                    target=target,
+                    role_codes=data["roles"],
+                    actor=actor,
+                    reason=str(data["reason"]),
+                    source="admin_control.api",
+                    correlation_id=correlation_id,
+                    ip_address=ip_address,
+                )
             else:
                 raise AdminControlError("The requested user action is not supported.")
         except (AdminControlError, ValueError) as error:
             _raise(error, code="user_action_rejected")
         target.refresh_from_db()
-        return Response({"id": target.id, "status": target.status, "email_verified": target.is_email_verified})
+        return Response(
+            {"id": target.id, "status": target.status, "email_verified": target.is_email_verified}
+        )
 
 
 class AdminUserCapabilitiesView(APIView):
@@ -392,7 +528,9 @@ class AdminUserCapabilitiesView(APIView):
         from apps.administration.catalog import CAPABILITIES
         from apps.administration.models import OperationalCapabilityAssignment
 
-        assignments = OperationalCapabilityAssignment.objects.filter(user=target).select_related("capability")
+        assignments = OperationalCapabilityAssignment.objects.filter(user=target).select_related(
+            "capability"
+        )
         return Response(
             {
                 "catalog": [
@@ -400,7 +538,11 @@ class AdminUserCapabilitiesView(APIView):
                     for item in CAPABILITIES
                 ],
                 "direct_capabilities": [
-                    {"code": item.capability_id, "reason": item.reason, "created_at": item.created_at}
+                    {
+                        "code": item.capability_id,
+                        "reason": item.reason,
+                        "created_at": item.created_at,
+                    }
                     for item in assignments
                 ],
             }
@@ -463,7 +605,9 @@ class AdminTargetNoteView(APIView):
         ).select_related("author")
         paginator = LockinPagination()
         page = paginator.paginate_queryset(notes, request, view=self)
-        return paginator.get_paginated_response(AdminInternalNoteSerializer(page or [], many=True).data)
+        return paginator.get_paginated_response(
+            AdminInternalNoteSerializer(cast(list[AdminInternalNote], page or []), many=True).data
+        )
 
     def post(self, request: Request, target_type: str, target_id: str) -> Response:
         _, manage_capability = _note_capabilities(target_type)
@@ -501,10 +645,11 @@ class AdminEntitlementInspectionView(APIView):
         from apps.entitlements.serializers import EntitlementGrantSerializer
 
         result = entitlement_inspection(user=user)
+        grants = cast(QuerySet[EntitlementGrant], result["grants"])
         return Response(
             {
                 "user": {"id": user.id, "email": user.email, "full_name": user.full_name},
-                "grants": EntitlementGrantSerializer(result["grants"], many=True).data,
+                "grants": EntitlementGrantSerializer(grants, many=True).data,
                 "effective_permissions": result["effective_permissions"],
             }
         )
@@ -573,12 +718,23 @@ class AdminAnalyticsDashboardView(APIView):
     def get(self, request: Request) -> Response:
         try:
             today = datetime.now(UTC).date()
-            start = datetime.strptime(request.query_params.get("from", ""), "%Y-%m-%d").date() if request.query_params.get("from") else today - timedelta(days=29)
-            end = datetime.strptime(request.query_params.get("to", ""), "%Y-%m-%d").date() if request.query_params.get("to") else today
+            start = (
+                datetime.strptime(request.query_params.get("from", ""), "%Y-%m-%d").date()
+                if request.query_params.get("from")
+                else today - timedelta(days=29)
+            )
+            end = (
+                datetime.strptime(request.query_params.get("to", ""), "%Y-%m-%d").date()
+                if request.query_params.get("to")
+                else today
+            )
         except ValueError as error:
             _raise(error, code="analytics_period_invalid")
         if end < start or (end - start) > timedelta(days=366):
-            raise RequestRejected("Analytics periods must cover between 1 and 367 days.", code="analytics_period_invalid")
+            raise RequestRejected(
+                "Analytics periods must cover between 1 and 367 days.",
+                code="analytics_period_invalid",
+            )
         return Response(operational_analytics(start=start, end=end))
 
 
@@ -589,7 +745,9 @@ class AdminNotificationCampaignListView(APIView):
     def get(self, request: Request) -> Response:
         paginator = LockinPagination()
         page = paginator.paginate_queryset(campaigns(), request, view=self)
-        return paginator.get_paginated_response(NotificationCampaignSerializer(page or [], many=True).data)
+        return paginator.get_paginated_response(
+            NotificationCampaignSerializer(page or [], many=True).data
+        )
 
     def post(self, request: Request) -> Response:
         if not has_operational_capability(_user(request), Capability.NOTIFICATIONS_MANAGE):
@@ -615,7 +773,9 @@ class AdminNotificationCampaignListView(APIView):
             )
         except AdminControlError as error:
             _raise(error, code="notification_campaign_rejected")
-        return Response(NotificationCampaignSerializer(campaign).data, status=status.HTTP_201_CREATED)
+        return Response(
+            NotificationCampaignSerializer(campaign).data, status=status.HTTP_201_CREATED
+        )
 
 
 class AdminNotificationCampaignDispatchView(APIView):
@@ -653,7 +813,9 @@ class AdminPlanListView(APIView):
         return Response(
             {
                 "products": list(
-                    Product.objects.values("id", "code", "title", "description", "status").order_by("code")
+                    Product.objects.values("id", "code", "title", "description", "status").order_by(
+                        "code"
+                    )
                 ),
                 "results": [serialize_plan(plan) for plan in plans],
             }

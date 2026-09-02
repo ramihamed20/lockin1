@@ -116,6 +116,7 @@ def test_dashboard_prefers_resume_over_bookmark() -> None:
 
     assert dashboard["next_item"] == {
         "learning_object_id": content.id,
+        "focus_document_version_id": content.published_version_id,
         "title": "Cranial nerves guide",
         "content_type": "pdf",
         "reason": "resume",

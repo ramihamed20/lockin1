@@ -80,11 +80,17 @@ test("anonymous Django session 403 clears only the local UI marker", async () =>
 });
 
 test("account token routes and direct privileged-route guards are attached to the live app", async () => {
-  const app = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
+  const [app, tokenAction] = await Promise.all([
+    readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/auth/TokenActionPage.jsx", import.meta.url), "utf8")
+  ]);
   assert.match(app, /"\/verify-email", "\/confirm-email", "\/reset-password"/);
   assert.match(app, /path="\/admin\/\*"/);
   assert.match(app, /path="\/operations\/\*"/);
   assert.match(app, /onSignedOut=\{clearAuthenticatedUi\}/);
+  assert.match(tokenAction, /searchParams\.has\("token"\)/);
+  assert.match(tokenAction, /navigate\(`\/\$\{type\}`,[\s\S]*replace: true/);
+  assert.doesNotMatch(tokenAction, /localStorage[^\n]*token|sessionStorage[^\n]*token/);
 });
 
 test("student dashboard follows the shared hidden visual-page-heading default and retains its document title", async () => {

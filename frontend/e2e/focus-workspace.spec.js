@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
+import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
 const WORKSPACE_ROUTE = "/#/materials/catalog/oral-histology/sheets/sheet-4/workspace";
 const SHARED_TEST_SHEET_ROUTE = "/#/materials/catalog/microbiology/sheets/sheet-1/workspace";
@@ -39,6 +40,9 @@ async function mockAuthenticatedWorkspace(page) {
       });
       return;
     }
+    // The workspace sits behind the subscription gate, so the access contract
+    // has to answer before the reader renders.
+    if (await fulfillAccessContract(route, pathname)) return;
     if (pathname === "/api/v1/focus/lock-in" && route.request().method() === "GET") {
       await route.fulfill({ contentType: "application/json", body: JSON.stringify({ active_session: null }) });
       return;
@@ -238,7 +242,7 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await expect(highlighterOptions.getByRole("slider", { name: "Thickness" })).toBeVisible();
   await expect(highlighterOptions.getByRole("slider", { name: "Opacity" })).toBeVisible();
   await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-ipad-portrait-834x1194.png`, fullPage: false });
-  await page.getByRole("button", { name: "Close Highlight options" }).click();
+  await page.locator('[data-workspace-tool="highlighter"]').click();
 
   const lassoTool = page.locator('[data-workspace-tool="select"]');
   await lassoTool.click();
@@ -247,7 +251,7 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await expect(lassoOptions).toBeVisible();
   await expect(lassoOptions.locator(".workspace-v2-colors")).toHaveCount(0);
   await expect(lassoOptions.getByRole("button", { name: "Freeform lasso" })).toBeVisible();
-  await page.getByRole("button", { name: "Close Lasso options" }).click();
+  await lassoTool.click();
 
   const shapeTool = page.locator('[data-workspace-tool="shapes"]');
   await shapeTool.click();
@@ -256,7 +260,7 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await expect(shapeOptions.getByRole("button", { name: "Rectangle" })).toBeVisible();
   await expect(shapeOptions.getByRole("button", { name: "Circle" })).toBeVisible();
   await expect(shapeOptions.getByRole("button", { name: "Triangle" })).toBeVisible();
-  await page.getByRole("button", { name: "Close Shape options" }).click();
+  await shapeTool.click();
 
   await expectViewportOwnedWorkspace(page, 844, 390);
   await expect(page.locator(".workspace-v2-toolbar")).toBeVisible();
@@ -313,7 +317,7 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await expect(penOptions.getByRole("slider", { name: "Thickness" })).toHaveValue("9");
   await expect(penOptions.getByRole("slider", { name: "Opacity" })).toHaveValue("0.55");
   await expect(page.locator('[data-workspace-tool="text"]')).toHaveCount(0);
-  await page.getByRole("button", { name: "Close Pen options" }).click();
+  await page.locator('[data-workspace-tool="pen"]').click();
   const bookmark = page.getByRole("button", { name: "Save to Bookmarks" });
   await bookmark.click();
   await expect(page.getByRole("button", { name: "Remove from Bookmarks" })).toHaveAttribute("aria-pressed", "true");

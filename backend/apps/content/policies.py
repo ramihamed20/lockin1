@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from django.db.models import F
 from django.utils import timezone
 
 from apps.accounts.models import User
@@ -38,11 +39,15 @@ def can_edit_learning_object(*, user: User, learning_object: LearningObject) -> 
 
 
 def can_access_managed_file(*, user: User, managed_file: ManagedFile, download: bool) -> bool:
+    if managed_file.kind == ManagedFile.Kind.AVATAR:
+        return user.is_authenticated and not download
     if is_content_administrator(user) or managed_file.owner_id == user.id:
         return True
     assets = LearningObjectAsset.objects.filter(
         managed_file=managed_file,
-        version__published_for__archived_at__isnull=True,
+        version__learning_object__archived_at__isnull=True,
+        version__learning_object__published_version__isnull=False,
+        version_id=F("version__learning_object__published_version_id"),
         version__academic_node__is_discoverable=True,
     ).select_related("version")
     for asset in assets:

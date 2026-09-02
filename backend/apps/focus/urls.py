@@ -1,6 +1,9 @@
 from django.urls import path
 
 from .views import (
+    ActiveStudyContinueView,
+    ActiveStudyQuizView,
+    ActiveStudyStartView,
     FocusAnnotationsView,
     FocusDocumentView,
     FocusSessionActionView,
@@ -10,16 +13,19 @@ from .views import (
     LockInBootstrapView,
     LockInNoteView,
     LockInSessionView,
+    LockInTasksView,
+    LockInTaskToggleView,
     LockInTeamJoinView,
     LockInTeamMessagesView,
     LockInTeamsView,
-    LockInTaskToggleView,
-    LockInTasksView,
 )
 
 app_name = "focus"
 
 urlpatterns = [
+    path("focus/active-study/start", ActiveStudyStartView.as_view()),
+    path("focus/active-study/<uuid:run_id>/quiz", ActiveStudyQuizView.as_view()),
+    path("focus/active-study/<uuid:run_id>/continue", ActiveStudyContinueView.as_view()),
     path("focus/documents/<uuid:document_version_id>", FocusDocumentView.as_view()),
     path(
         "focus/documents/<uuid:document_version_id>/annotations",

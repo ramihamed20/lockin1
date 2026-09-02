@@ -13,7 +13,8 @@ from rest_framework.views import APIView
 from apps.accounts.models import User
 from apps.education.models import EducationNode
 from apps.education.permissions import IsCreatorOrAdministrator
-from apps.progress.selectors import due_question_reviews
+from apps.review.selectors import latest_mistakes
+from apps.review.serializers import mistake_event_payload
 
 from .attempt_services import (
     AttemptClosedError,
@@ -51,7 +52,6 @@ from .serializers import (
     AttemptSubmitSerializer,
     QuestionIssueReportSerializer,
     QuestionIssueReportWriteSerializer,
-    QuestionReviewSerializer,
     QuizManagementSerializer,
     QuizPublicSerializer,
     QuizUpdateSerializer,
@@ -396,26 +396,10 @@ class QuestionIssueReportView(APIView):
 
 class ReviewQueueView(APIView):
     def get(self, request: Request) -> Response:
-        reviews = due_question_reviews(user=_user(request))[:100]
-        payload = [
-            {
-                "question_id": review.question_id,
-                "prompt": review.question.published_version.prompt,
-                "academic_node_id": review.question.published_version.academic_node_id,
-                "academic_node_title": review.question.published_version.academic_node.title,
-                "difficulty": review.question.published_version.difficulty,
-                "due_at": review.due_at,
-                "interval_days": review.interval_days,
-                "repetitions": review.repetitions,
-                "lapses": review.lapses,
-                "mastery_state": "mastered" if review.repetitions >= 4 else "learning",
-            }
-            for review in reviews
-            if review.question.published_version is not None
-        ]
+        mistakes = list(latest_mistakes(user=_user(request), limit=4))
         return Response(
             {
-                "count": len(payload),
-                "results": QuestionReviewSerializer(payload, many=True).data,
+                "count": len(mistakes),
+                "results": [mistake_event_payload(item) for item in mistakes],
             }
         )

@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import secrets
 
+from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
@@ -53,5 +54,5 @@ def decrypt_recharge_code(ciphertext: str) -> str:
             payload[:12], payload[12:], b"lockin.manual-payment.v1"
         )
         return normalize_recharge_code(value.decode())
-    except (ValueError, UnicodeDecodeError) as error:
+    except (InvalidTag, ValueError, UnicodeDecodeError) as error:
         raise RechargeCodeError("The encrypted recharge code could not be read safely.") from error

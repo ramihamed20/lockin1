@@ -26,6 +26,8 @@ import { useVisibleNow } from "./hooks/useVisibleNow.js";
 import { useI18n } from "./components/I18nProvider.jsx";
 import { NotFoundPage } from "./components/ui/index.jsx";
 import { PublicInfoPage } from "./components/PublicInfoPage.jsx";
+import { SubscriptionSessionProvider } from "./lib/SubscriptionSessionContext.jsx";
+import { clearSubscriptionSnapshots } from "./lib/subscriptionSession.js";
 
 // --- Lazy-loaded pages ---
 const Dashboard = lazyWithRecovery(() => import("./pages/Dashboard.jsx"));
@@ -36,7 +38,7 @@ const CatalogMaterialSheets = lazyWithRecovery(() => import("./pages/Materials.j
 const CatalogSheetStudy = lazyWithRecovery(() => import("./pages/Materials.jsx").then((m) => ({ default: m.CatalogSheetStudy })));
 const CatalogFocusWorkspace = lazyWithRecovery(() => import("./pages/CatalogFocusWorkspace.jsx"));
 const LearningObjectStudy = lazyWithRecovery(() => import("./pages/LearningObjectStudy.jsx"));
-const LockInComingSoon = lazyWithRecovery(() => import("./pages/LockInComingSoon.jsx"));
+const LockInMode = lazyWithRecovery(() => import("./pages/LockInMode.jsx"));
 const Search = lazyWithRecovery(() => import("./pages/Search.jsx"));
 const Questions = lazyWithRecovery(() => import("./pages/Questions.jsx"));
 const QuestionCategory = lazyWithRecovery(() => import("./pages/Questions.jsx").then((module) => ({ default: module.QuestionCategory })));
@@ -109,11 +111,12 @@ function App() {
   const bootRetryAttemptsRef = useRef(0);
   const bootErrorRef = useRef(null);
   const bootingRef = useRef(true);
+  const oauthSessionBootRef = useRef(new URLSearchParams(window.location.search).has("oauth"));
   const [sessionAttempt, setSessionAttempt] = useState(0);
   const [sessionNotice, setSessionNotice] = useState("");
   const [notificationVersion, setNotificationVersion] = useState(0);
   const [storeCartCount, setStoreCartCount] = useState(0);
-  const [lockBalance, setLockBalance] = useState(1250);
+  const [lockBalance, setLockBalance] = useState(0);
   const activeTheme = themeSettings.autoTheme
     ? autoThemeForDate(new Date(clockTick))
     : themeSettings.theme;
@@ -151,6 +154,7 @@ function App() {
         .forEach((key) => window.sessionStorage.removeItem(key));
     } catch { /* Storage may be unavailable in privacy-restricted browsers. */ }
     setSessionMarker(false);
+    clearSubscriptionSnapshots();
     setUser(null);
     clearOperationsSession();
   }, [clearOperationsSession]);
@@ -158,6 +162,7 @@ function App() {
   const refreshActiveAccount = useCallback(async () => {
     try {
       const nextUser = await authApi.me();
+      clearSubscriptionSnapshots();
       setUser(nextUser);
       setThemeSettings((current) => mergeRemoteThemeSettings(nextUser.themeSettings, current));
       await loadOperationsSession();
@@ -293,6 +298,7 @@ function App() {
       .then(async (nextUser) => {
         if (!active) return;
         bootRetryAttemptsRef.current = 0;
+        if (oauthSessionBootRef.current) clearSubscriptionSnapshots();
         setUser(nextUser);
         setThemeSettings((current) => mergeRemoteThemeSettings(nextUser.themeSettings, current));
         await loadOperationsSession();
@@ -317,8 +323,9 @@ function App() {
     };
   }, [loadOperationsSession, sessionAttempt]);
 
-  function applyAuthedUser(nextUser) {
+  function applyAuthedUser(nextUser, { newSession = false } = {}) {
     setSessionNotice("");
+    if (newSession) clearSubscriptionSnapshots();
     setUser(nextUser);
     setThemeSettings((current) => mergeRemoteThemeSettings(nextUser.themeSettings, current));
     clearOperationsSession();
@@ -393,15 +400,18 @@ function App() {
 
   if (user.welcomeRequired) {
     return (
-      <Suspense fallback={<LoadingPanel />}>
-        <WelcomeOnboarding onUserUpdate={setUser} />
-      </Suspense>
+      <SubscriptionSessionProvider key={user.id} user={user}>
+        <Suspense fallback={<LoadingPanel />}>
+          <WelcomeOnboarding onUserUpdate={setUser} />
+        </Suspense>
+      </SubscriptionSessionProvider>
     );
   }
 
   return (
-    <>
-      <Shell user={user} operationsSession={operationsSession} theme={activeTheme} onThemeChange={setManualTheme} onLogout={handleLogout} notificationVersion={notificationVersion} onNotificationsChanged={() => setNotificationVersion((version) => version + 1)} storeCartCount={storeCartCount} lockBalance={lockBalance}>
+    <SubscriptionSessionProvider key={user.id} user={user}>
+      <>
+      <Shell user={user} operationsSession={operationsSession} theme={activeTheme} onThemeChange={setManualTheme} onLogout={handleLogout} notificationVersion={notificationVersion} onNotificationsChanged={() => setNotificationVersion((version) => version + 1)} storeCartCount={storeCartCount} lockBalance={lockBalance} storeCommerceEnabled={false}>
         <ErrorBoundary>
         <Suspense fallback={<LoadingPanel />}>
           <Routes>
@@ -417,8 +427,8 @@ function App() {
                 <Route path="/materials/objects/:learningObjectId" element={<LearningObjectStudy />} />
                 <Route path="/materials/:materialId" element={<MaterialSheets />} />
                 <Route path="/materials/:materialId/sheets/:sheetId" element={<LearningObjectStudy />} />
-                <Route path="/lock-in" element={<LockInComingSoon />} />
-                <Route path="/lock-in/:sessionId" element={<LockInComingSoon />} />
+                <Route path="/lock-in" element={<LockInMode user={user} />} />
+                <Route path="/lock-in/:sessionId" element={<LockInMode user={user} />} />
                 <Route path="/search" element={<Search />} />
                 <Route path="/questions" element={<Questions />} />
                 <Route path="/questions/categories/:categoryId" element={<QuestionCategory />} />
@@ -442,7 +452,7 @@ function App() {
                 <Route path="/progression" element={<Progress />} />
                 <Route path="/achievements" element={<Achievements />} />
                 <Route path="/notifications" element={<Notifications onNotificationsChanged={() => setNotificationVersion((version) => version + 1)} />} />
-                <Route path="/store" element={<Store onLockBalanceChange={setLockBalance} onCartCountChange={setStoreCartCount} />} />
+                <Route path="/store" element={<Store commerceEnabled={false} onLockBalanceChange={setLockBalance} onCartCountChange={setStoreCartCount} />} />
                 <Route path="/profile" element={<Profile user={user} onUserUpdate={setUser} />} />
                 <Route path="/security" element={<Navigate to="/settings" replace />} />
                 <Route path="/subscription" element={<Subscription />} />
@@ -466,7 +476,8 @@ function App() {
       </Shell>
       {!inLockInMode && !inFocusWorkspace && reminderToast && <ReminderToast message={reminderToast} onDismiss={() => setReminderToast("")} />}
       {!inLockInMode && !inFocusWorkspace && sessionNotice && <ReminderToast title="Session" icon="alert-triangle" message={sessionNotice} onDismiss={() => setSessionNotice("")} />}
-    </>
+      </>
+    </SubscriptionSessionProvider>
   );
 }
 

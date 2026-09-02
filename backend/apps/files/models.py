@@ -14,6 +14,7 @@ class ManagedFile(models.Model):
     class Kind(models.TextChoices):
         PDF = "pdf", "PDF document"
         AUDIO = "audio", "Audio"
+        AVATAR = "avatar", "Profile avatar"
 
     class ValidationStatus(models.TextChoices):
         READY = "ready", "Validated"
@@ -22,6 +23,7 @@ class ManagedFile(models.Model):
     class ScanStatus(models.TextChoices):
         NOT_CONFIGURED = "not_configured", "Scanner not configured"
         PENDING = "pending", "Pending scan"
+        SCANNING = "scanning", "Scan in progress"
         CLEAN = "clean", "Clean"
         QUARANTINED = "quarantined", "Quarantined"
         FAILED = "failed", "Scan failed"
@@ -48,6 +50,14 @@ class ManagedFile(models.Model):
         choices=ScanStatus.choices,
         default=ScanStatus.NOT_CONFIGURED,
     )
+    scan_attempts = models.PositiveSmallIntegerField(default=0)
+    scan_requested_at = models.DateTimeField(null=True, blank=True)
+    scan_started_at = models.DateTimeField(null=True, blank=True)
+    scan_completed_at = models.DateTimeField(null=True, blank=True)
+    scan_next_attempt_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    scan_engine = models.CharField(max_length=80, blank=True)
+    scan_signature = models.CharField(max_length=160, blank=True)
+    scan_error_code = models.CharField(max_length=80, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -57,6 +67,10 @@ class ManagedFile(models.Model):
             models.Index(
                 fields=("validation_status", "scan_status"),
                 name="files_processing_idx",
+            ),
+            models.Index(
+                fields=("scan_status", "scan_next_attempt_at", "created_at"),
+                name="files_scan_queue_idx",
             ),
         ]
 

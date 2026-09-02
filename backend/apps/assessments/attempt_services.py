@@ -10,10 +10,11 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.accounts.models import User
-from apps.progress.selectors import due_question_reviews
-from apps.progress.services import record_question_outcome
 from apps.questions.models import QuestionVersion
 from apps.questions.selectors import published_questions
+from apps.review.contracts import QuestionAttemptEvent
+from apps.review.models import ReviewItem
+from apps.review.services import record_question_attempt, subject_for_node
 from platform_core.events import publish_after_commit
 
 from .events import (
@@ -107,16 +108,22 @@ def _selected_versions(
         )
         selected = [link.question_version for link in links]
     elif review_only:
-        reviews = due_question_reviews(
+        reviews = ReviewItem.objects.filter(
             user=user,
-            academic_path=version.academic_node.path,
+            state=ReviewItem.State.ACTIVE,
+            question__retired_at__isnull=True,
+            question__published_version__isnull=False,
+            question__published_version__academic_node__is_discoverable=True,
+            question__published_version__academic_node__path__startswith=(
+                version.academic_node.path
+            ),
         )
         if difficulties:
             reviews = reviews.filter(question__published_version__difficulty__in=difficulties)
         selected = [
             review.question.published_version
-            for review in reviews[:requested_count]
-            if review.question.published_version is not None
+            for review in reviews.order_by("-mistake_count", "last_mistake_at")[:requested_count]
+            if review.question is not None and review.question.published_version is not None
         ]
         if not selected:
             raise AttemptRuleError("There are no due review questions in this scope.")
@@ -323,7 +330,12 @@ def save_answer(
         raise AttemptRuleError("Attempt question not found.") from error
 
     selected = [str(option_id) for option_id in selected_option_ids]
-    if len(selected) > 1 or len(set(selected)) != len(selected):
+    if len(set(selected)) != len(selected):
+        raise AttemptRuleError("Selected options must be unique.")
+    if (
+        attempt_question.question_type != QuestionVersion.QuestionType.MULTIPLE_SELECT
+        and len(selected) > 1
+    ):
         raise AttemptRuleError("This question accepts at most one selected option.")
     available_ids = {str(option["id"]) for option in attempt_question.option_snapshot}
     if set(selected) - available_ids:
@@ -382,7 +394,7 @@ def _finalize_attempt(*, attempt: Attempt, submitted_at: datetime, expired: bool
         return existing
     questions = list(
         AttemptQuestion.objects.filter(attempt=attempt)
-        .select_related("question_version__question")
+        .select_related("question_version__question", "question_version__academic_node")
         .prefetch_related("answer")
         .order_by("position")
     )
@@ -421,14 +433,37 @@ def _finalize_attempt(*, attempt: Attempt, submitted_at: datetime, expired: bool
         achievement_eligible=version.achievement_eligible,
         submitted_at=submitted_at,
     )
+    source_type_by_mode: dict[str, str] = {
+        QuizVersion.Mode.QUIZ: ReviewItem.SourceType.QUIZ,
+        QuizVersion.Mode.PRACTICE: ReviewItem.SourceType.PRACTICE,
+        QuizVersion.Mode.MASTERY: ReviewItem.SourceType.MIX,
+    }
+    source_type = source_type_by_mode[version.mode]
+    subject = subject_for_node(version.academic_node)
     for question, correct in outcomes:
-        record_question_outcome(
-            user=attempt.user,
-            question_version=question.question_version,
-            result_id=result.id,
-            attempt_question_id=question.id,
-            was_correct=correct,
-            reviewed_at=submitted_at,
+        answer = getattr(question, "answer", None)
+        selected_ids, _, _ = _answer_payload(answer)
+        record_question_attempt(
+            event=QuestionAttemptEvent(
+                user=attempt.user,
+                event_key=f"assessment-result:{result.id}:question:{question.question_version.question_id}",
+                canonical_key=f"question:{question.question_version.question_id}",
+                subject_key=f"node:{subject.id}",
+                subject_label=subject.title,
+                source_type=source_type,
+                source_id=str(attempt.quiz_id),
+                source_label=version.title,
+                source_question_index=question.position,
+                prompt=question.prompt,
+                explanation=question.explanation,
+                options=tuple(dict(option) for option in question.option_snapshot),
+                selected_option_ids=tuple(selected_ids),
+                correct_option_ids=tuple(str(value) for value in question.correct_option_ids),
+                is_correct=correct,
+                answered_at=submitted_at,
+                question_version=question.question_version,
+                subject=subject,
+            )
         )
     publish_after_commit(
         QuizAttemptSubmitted(

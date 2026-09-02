@@ -74,6 +74,13 @@ function NonFocusStudyEntry({ learningObject, version, progress, progressError, 
           <div className="study-entry__actions" aria-label="Material actions">
             {viewUrl ? <a className="btn btn-primary" href={viewUrl} target="_blank" rel="noreferrer"><Icon name="eye" size={16} /> Open material</a> : <button className="btn btn-primary" type="button" disabled>Viewer unavailable</button>}
             {downloadUrl && <a className="btn btn-soft" href={downloadUrl}><Icon name="arrow-up-right" size={16} /> Download</a>}
+            {/* Lock In can already open its setup form on a chosen material,
+                but nothing handed it one: the setup always started on
+                "Independent study" even when the student arrived from a
+                specific version. The version travels in router state, and Lock
+                In falls back to that empty selection if it is not one of the
+                materials the session offers. */}
+            <Link className="btn btn-soft" to="/lock-in" state={{ preselectedDocumentVersionId: version.id }}><Icon name="target" size={16} /> Study in Lock In</Link>
             <BookmarkButton learningObjectId={learningObject.id} isBookmarked={isBookmarked} onChanged={setIsBookmarked} />
             <Link className="btn btn-soft" to={`/community/context/learning_object/${learningObject.id}`}><Icon name="messages" size={16} /> Discuss</Link>
           </div>

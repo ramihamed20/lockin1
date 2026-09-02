@@ -37,7 +37,9 @@ class SeedDemoCommandTests(TestCase):
         self.assertTrue(User.objects.get(email="developer@lockin.local").is_staff)
         self.assertFalse(User.objects.get(email="creator@lockin.local").is_staff)
         student = User.objects.get(email="student@lockin.local")
-        self.assertTrue(entitlement_decision(user=student, entitlement_code="focus.workspace").allowed)
+        self.assertTrue(
+            entitlement_decision(user=student, entitlement_code="focus.workspace").allowed
+        )
         self.assertTrue(student.lesson_progress.exists())
         self.assertTrue(student.xp_transactions.exists())
         self.assertTrue(FocusSession.objects.filter(user=student).exists())

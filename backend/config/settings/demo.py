@@ -1,11 +1,17 @@
 """Public demonstration settings for a disposable, seeded Lock-in environment."""
 
-from urllib.parse import unquote, urlparse
+from urllib.parse import urlparse
 
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F403
-from .env import env, env_bool, env_int, env_list, require_env, require_secret_env
+from .database import (
+    connection_max_age,
+    database_options,
+    resolve_database_target,
+    resolve_sslmode,
+)
+from .env import env, env_bool, env_int, env_list, require_env, require_secret_env, secret_env
 
 DEBUG = False
 ENVIRONMENT = "demo"
@@ -32,32 +38,24 @@ if not CSRF_TRUSTED_ORIGINS or any(
 ):
     raise ImproperlyConfigured("DJANGO_CSRF_TRUSTED_ORIGINS must contain HTTPS origins only.")
 
-database_url = require_secret_env("DATABASE_URL")
-parsed_database = urlparse(database_url)
-if (
-    parsed_database.scheme not in {"postgres", "postgresql"}
-    or not parsed_database.hostname
-    or not parsed_database.path
-):
-    raise ImproperlyConfigured("DATABASE_URL must be a valid PostgreSQL connection URL.")
-
+if not secret_env("DATABASE_URL"):
+    raise ImproperlyConfigured("The demo requires DATABASE_URL for its managed database.")
+database_target = resolve_database_target()
 DATABASES["default"].update(  # noqa: F405
     {
-        "NAME": unquote(parsed_database.path.lstrip("/")),
-        "USER": unquote(parsed_database.username or ""),
-        "PASSWORD": unquote(parsed_database.password or ""),
-        "HOST": parsed_database.hostname,
-        "PORT": str(parsed_database.port or 5432),
-        "CONN_MAX_AGE": env_int("POSTGRES_CONN_MAX_AGE", 60),
+        "NAME": database_target.name,
+        "USER": database_target.user,
+        "PASSWORD": database_target.password,
+        "HOST": database_target.host,
+        "PORT": database_target.port,
+        "CONN_MAX_AGE": connection_max_age(60),
         "CONN_HEALTH_CHECKS": True,
-        "OPTIONS": {
-            "sslmode": env("POSTGRES_SSLMODE", "require"),
-            "options": (
-                "-c application_name=lockin-demo "
-                f"-c statement_timeout={env_int('POSTGRES_STATEMENT_TIMEOUT_MS', 60000)} "
-                f"-c lock_timeout={env_int('POSTGRES_LOCK_TIMEOUT_MS', 5000)}"
-            ),
-        },
+        "OPTIONS": database_options(
+            application_name="lockin-demo",
+            sslmode=resolve_sslmode(database_target, default="require"),
+            statement_timeout_ms=env_int("POSTGRES_STATEMENT_TIMEOUT_MS", 60000),
+            lock_timeout_ms=env_int("POSTGRES_LOCK_TIMEOUT_MS", 5000),
+        ),
     }
 )
 

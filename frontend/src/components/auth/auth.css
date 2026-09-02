@@ -1,3 +1,4 @@
+@layer app {
 .auth-v2 {
   --auth-base: #060a14;
   --auth-surface: #0b1020;
@@ -10,8 +11,11 @@
   --auth-muted: #a6b0c4;
   --auth-quiet: #7f8aa1;
   --auth-gold: #f0be3c;
+  /* Authentication paints outside the application shell but answers to the
+     same viewport authority, so the sign-in screen and the shell it leads to
+     are exactly the same height. */
   min-height: 100vh;
-  min-height: 100dvh;
+  min-height: var(--app-viewport-height, 100dvh);
   color-scheme: dark;
   overflow-x: clip;
   overflow-y: auto;
@@ -53,7 +57,7 @@
 .auth-v2-language select { min-height: 38px; border: 0; outline: 0; background: transparent; color: var(--auth-ink); font: 600 13px/1 inherit; cursor: pointer; }
 .auth-v2-stage {
   width: min(1120px, 100%);
-  min-height: min(720px, calc(100dvh - 110px));
+  min-height: min(720px, calc(var(--app-viewport-height, 100dvh) - 110px));
   margin: 0 auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -132,8 +136,8 @@
 }
 .auth-v2-social-button > :first-child { grid-column: 1; }
 .auth-v2-social-button > span:last-child { grid-column: 2; }
-.auth-v2-social-button:hover:not(:disabled) { border-color: var(--auth-border-strong); background: var(--auth-control-hover); transform: translateY(-1px); }
-.auth-v2-social-button:active:not(:disabled) { transform: translateY(0); }
+.auth-v2-social-button:hover:where(html.ix-hover *):not(:disabled) { border-color: var(--auth-border-strong); background: var(--auth-control-hover); transform: translateY(-1px); }
+.auth-v2-social-button:active:where([data-ix-pressed]):not(:disabled) { transform: translateY(0); }
 .auth-v2-social-button:disabled { cursor: not-allowed; opacity: .54; background: var(--auth-surface); }
 .auth-v2-apple { color: var(--auth-ink); }
 .auth-v2-divider { display: flex; align-items: center; gap: 12px; margin: 9px 0 2px; color: var(--auth-quiet); font-size: 11px; font-weight: 700; text-transform: uppercase; }
@@ -155,17 +159,17 @@
 }
 .auth-v2 select:not(.auth-v2-language select) option { color: var(--auth-ink); background: var(--auth-control); }
 .auth-v2 input::placeholder { color: #8e9ab0; opacity: 1; }
-.auth-v2 input:not([type="checkbox"]):hover, .auth-v2 select:hover { border-color: var(--auth-border-strong); }
+.auth-v2 input:not([type="checkbox"]):hover:where(html.ix-hover *), .auth-v2 select:hover:where(html.ix-hover *) { border-color: var(--auth-border-strong); }
 .auth-v2 input:not([type="checkbox"]):focus, .auth-v2 select:focus { border-color: var(--auth-gold); box-shadow: 0 0 0 3px rgba(240, 190, 60, .18); }
 .auth-v2 input:disabled, .auth-v2 select:disabled { cursor: not-allowed; color: var(--auth-quiet); background: var(--auth-surface); }
 .auth-v2-email { direction: ltr; text-align: left; }
 .auth-v2-input-shell { position: relative; }
 .auth-v2-password-shell input { padding-inline-end: 48px !important; }
 .auth-v2-password-toggle { position: absolute; inset-block: 3px; inset-inline-end: 3px; width: 43px; display: grid; place-items: center; border: 0; border-radius: 9px; color: var(--auth-muted); background: transparent; cursor: pointer; }
-.auth-v2-password-toggle:hover { color: var(--auth-ink); background: var(--auth-control-hover); }
+.auth-v2-password-toggle:hover:where(html.ix-hover *) { color: var(--auth-ink); background: var(--auth-control-hover); }
 .auth-v2-options { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 30px; }
 .auth-v2-options > button, .auth-v2-text-action, .auth-v2-switch button { min-height: 40px; padding: 4px; border: 0; color: #c5a053; background: transparent; font: 650 13px/1.2 inherit; cursor: pointer; }
-.auth-v2-options > button:hover, .auth-v2-text-action:hover, .auth-v2-switch button:hover { color: var(--auth-gold); text-decoration: underline; text-underline-offset: 3px; }
+.auth-v2-options > button:hover:where(html.ix-hover *), .auth-v2-text-action:hover:where(html.ix-hover *), .auth-v2-switch button:hover:where(html.ix-hover *) { color: var(--auth-gold); text-decoration: underline; text-underline-offset: 3px; }
 .auth-v2-check { min-height: 40px; display: flex; align-items: center; gap: 9px; color: var(--auth-muted); font-size: 13px; cursor: pointer; }
 .auth-v2-check input { width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--auth-gold); }
 .auth-v2-policy { align-items: flex-start; line-height: 1.55; }
@@ -186,8 +190,8 @@
   cursor: pointer;
   transition: background-color .16s ease, transform .16s ease, box-shadow .16s ease;
 }
-.auth-v2-primary:hover:not(:disabled) { background: #ffd86e; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0, 0, 0, .2); }
-.auth-v2-primary:active:not(:disabled) { transform: translateY(0); }
+.auth-v2-primary:hover:where(html.ix-hover *):not(:disabled) { background: #ffd86e; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0, 0, 0, .2); }
+.auth-v2-primary:active:where([data-ix-pressed]):not(:disabled) { transform: translateY(0); }
 .auth-v2-primary:disabled { cursor: not-allowed; opacity: .58; box-shadow: none; }
 .auth-v2-spinner { width: 18px; height: 18px; border: 2px solid #56637b; border-top-color: var(--auth-gold); border-radius: 50%; animation: auth-v2-spin .7s linear infinite; }
 .auth-v2-spinner-light { border-color: rgba(17,24,39,.32); border-top-color: #111827; }
@@ -205,7 +209,7 @@
 .auth-v2-switch button { display: inline-flex; align-items: center; gap: 3px; }
 .auth-v2 button:focus-visible, .auth-v2 a:focus-visible, .auth-v2 select:focus-visible, .auth-v2 input:focus-visible { outline: 3px solid rgba(240, 190, 60, .5); outline-offset: 2px; }
 @media (max-width: 1100px) and (min-width: 700px) {
-  .auth-v2-stage { min-height: min(680px, calc(100dvh - 102px)); grid-template-columns: minmax(0, 1fr); }
+  .auth-v2-stage { min-height: min(680px, calc(var(--app-viewport-height, 100dvh) - 102px)); grid-template-columns: minmax(0, 1fr); }
   .auth-v2-story { padding: 30px 26px; }
   .auth-v2-story-mark { width: 44px; height: 44px; border-radius: 13px; }
   .auth-v2-story-copy { max-width: 290px; }
@@ -249,4 +253,6 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .auth-v2 *, .auth-v2 *::before, .auth-v2 *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}
+
 }

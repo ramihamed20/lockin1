@@ -1,25 +1,16 @@
 from datetime import UTC, datetime, timedelta
+from io import StringIO
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
 from django.contrib.auth.models import Group
+from django.core.management import call_command
 from rest_framework.test import APIClient
 
-from apps.accounts.roles import Role
 from apps.accounts.models import AccountSession
+from apps.accounts.roles import Role
 from apps.accounts.tests.helpers import create_user
-from apps.administration.catalog import Capability
-from apps.administration.models import OperationalCapability, OperationalCapabilityAssignment
-from apps.administration.permissions import has_operational_capability
-from apps.administration.services import replace_operational_capabilities
-from apps.audit.models import AuditRecord
-from apps.entitlements.models import EntitlementDefinition, EntitlementGrant
-from apps.notifications.models import Notification
-from apps.product_catalog.models import Plan, PlanVersion, Price, Product
-from apps.payments.models import Payment
-from apps.payments.services import create_payment
-from apps.subscriptions.models import Subscription, SubscriptionAccount
-
 from apps.admin_control.models import NotificationCampaign, SubscriptionAdminEvent
 from apps.admin_control.services import (
     AdminControlError,
@@ -29,10 +20,21 @@ from apps.admin_control.services import (
     dispatch_notification_campaign,
     grant_access_override,
     manage_subscription,
-    revoke_access_override,
     request_payment_status_correction,
     review_payment_status_correction,
+    revoke_access_override,
 )
+from apps.administration.catalog import Capability
+from apps.administration.models import OperationalCapability, OperationalCapabilityAssignment
+from apps.administration.permissions import has_operational_capability
+from apps.administration.services import replace_operational_capabilities
+from apps.audit.models import AuditRecord
+from apps.entitlements.models import EntitlementDefinition, EntitlementGrant
+from apps.notifications.models import Notification
+from apps.payments.models import Payment
+from apps.payments.services import create_payment
+from apps.product_catalog.models import Plan, PlanVersion, Price, Product
+from apps.subscriptions.models import Subscription, SubscriptionAccount
 
 pytestmark = pytest.mark.django_db
 
@@ -43,7 +45,9 @@ def _admin():
 
 def _subscription(user):
     product = Product.objects.create(code=f"product-{uuid4().hex[:8]}", title="Operations plan")
-    plan = Plan.objects.create(product=product, code=f"plan-{uuid4().hex[:8]}", status=Plan.Status.ACTIVE)
+    plan = Plan.objects.create(
+        product=product, code=f"plan-{uuid4().hex[:8]}", status=Plan.Status.ACTIVE
+    )
     version = PlanVersion.objects.create(
         plan=plan,
         version=1,
@@ -95,9 +99,12 @@ def test_subscription_extension_is_idempotent_and_audited() -> None:
     subscription.refresh_from_db()
     assert subscription.current_period_ends_at == extended_to
     assert SubscriptionAdminEvent.objects.filter(subscription=subscription).count() == 1
-    assert AuditRecord.objects.filter(
-        action="administration.subscription.extend", target_id=str(subscription.id)
-    ).count() == 1
+    assert (
+        AuditRecord.objects.filter(
+            action="administration.subscription.extend", target_id=str(subscription.id)
+        ).count()
+        == 1
+    )
 
 
 def test_manual_focus_override_has_immutable_audit_and_can_be_revoked() -> None:
@@ -152,8 +159,12 @@ def test_campaign_delivers_real_in_app_notifications_and_audits() -> None:
     )
 
     assert completed.status == NotificationCampaign.Status.COMPLETED
-    assert Notification.objects.filter(recipient=recipient, data__campaign_id=str(campaign.id)).exists()
-    assert AuditRecord.objects.filter(action="administration.notification_campaign.dispatched").exists()
+    assert Notification.objects.filter(
+        recipient=recipient, data__campaign_id=str(campaign.id)
+    ).exists()
+    assert AuditRecord.objects.filter(
+        action="administration.notification_campaign.dispatched"
+    ).exists()
 
 
 def test_payment_correction_requires_a_different_admin_and_audits_the_change() -> None:
@@ -223,7 +234,9 @@ def test_direct_operational_capabilities_are_backend_enforced_and_audited() -> N
     assert has_operational_capability(target, Capability.USERS_VIEW)
     assert not has_operational_capability(target, Capability.PAYMENTS_MANAGE)
     assert OperationalCapabilityAssignment.objects.filter(user=target).exists()
-    assert AuditRecord.objects.filter(action="administration.operational_capabilities.replaced").exists()
+    assert AuditRecord.objects.filter(
+        action="administration.operational_capabilities.replaced"
+    ).exists()
 
 
 def test_direct_capability_cache_is_invalidated_after_an_operational_change() -> None:
@@ -262,6 +275,10 @@ def test_admin_control_routes_deny_students_and_return_real_analytics() -> None:
     assert response.status_code == 200
     assert response.json()["period"]["timezone"] == "UTC"
     assert "revenue" in response.json()
+    assert "online_now" in response.json()["users"]
+    assert "seen_today" in response.json()["users"]
+    assert "focus_activity" in response.json()["learning"]
+    assert "most_active_subjects" in response.json()["learning"]
 
 
 def test_content_and_assessment_capabilities_are_enforced_per_management_surface() -> None:
@@ -279,8 +296,10 @@ def test_content_and_assessment_capabilities_are_enforced_per_management_surface
         capability=assessment_capability,
         reason="Assessment operations coverage.",
     )
-    content_client = APIClient(); content_client.force_authenticate(content_operator)
-    assessment_client = APIClient(); assessment_client.force_authenticate(assessment_operator)
+    content_client = APIClient()
+    content_client.force_authenticate(content_operator)
+    assessment_client = APIClient()
+    assessment_client.force_authenticate(assessment_operator)
 
     assert content_client.get("/api/v1/management/content").status_code == 200
     assert content_client.get("/api/v1/management/questions").status_code == 403
@@ -296,18 +315,31 @@ def test_configuration_patch_is_permissioned_versioned_and_audited() -> None:
         capability=OperationalCapability.objects.get(code=Capability.CONFIGURATION_VIEW),
         reason="Read the non-secret platform configuration.",
     )
-    admin_client = APIClient(); admin_client.force_authenticate(admin)
-    reader_client = APIClient(); reader_client.force_authenticate(reader)
+    admin_client = APIClient()
+    admin_client.force_authenticate(admin)
+    reader_client = APIClient()
+    reader_client.force_authenticate(reader)
     entry = admin_client.get("/api/v1/operations/configuration").json()["results"][0]
 
-    assert reader_client.patch(
-        f"/api/v1/operations/configuration/{entry['key']}",
-        {"value": entry["value"], "expected_version": entry["version"], "reason": "Attempt unauthorized configuration update."},
-        format="json",
-    ).status_code == 403
+    assert (
+        reader_client.patch(
+            f"/api/v1/operations/configuration/{entry['key']}",
+            {
+                "value": entry["value"],
+                "expected_version": entry["version"],
+                "reason": "Attempt unauthorized configuration update.",
+            },
+            format="json",
+        ).status_code
+        == 403
+    )
     response = admin_client.patch(
         f"/api/v1/operations/configuration/{entry['key']}",
-        {"value": entry["value"], "expected_version": entry["version"], "reason": "Confirm typed configuration control path."},
+        {
+            "value": entry["value"],
+            "expected_version": entry["version"],
+            "reason": "Confirm typed configuration control path.",
+        },
         format="json",
     )
     assert response.status_code == 200
@@ -317,7 +349,9 @@ def test_configuration_patch_is_permissioned_versioned_and_audited() -> None:
 
 def test_admin_api_persists_purchase_subscription_user_note_and_entitlement_workflows() -> None:
     admin = _admin()
-    reviewer = create_user(email="api-payment-reviewer@example.com", is_superuser=True, is_staff=True)
+    reviewer = create_user(
+        email="api-payment-reviewer@example.com", is_superuser=True, is_staff=True
+    )
     target = create_user(email="api-admin-target@example.com")
     subscription = _subscription(target)
     price = Price.objects.create(
@@ -345,11 +379,14 @@ def test_admin_api_persists_purchase_subscription_user_note_and_entitlement_work
     assert client.get(f"/api/v1/operations/admin/purchases/{payment.id}").status_code == 200
     # This exercises the defensive error path that must return a stable 400
     # instead of leaking a server error when an unsafe refund retry is sent.
-    assert client.post(
-        f"/api/v1/operations/admin/purchases/{payment.id}/refunds",
-        {"amount_minor": 1, "reason": "Verify idempotency header validation."},
-        format="json",
-    ).status_code == 400
+    assert (
+        client.post(
+            f"/api/v1/operations/admin/purchases/{payment.id}/refunds",
+            {"amount_minor": 1, "reason": "Verify idempotency header validation."},
+            format="json",
+        ).status_code
+        == 400
+    )
     requested = client.post(
         f"/api/v1/operations/admin/purchases/{payment.id}/corrections",
         {
@@ -370,7 +407,9 @@ def test_admin_api_persists_purchase_subscription_user_note_and_entitlement_work
     assert reviewed.status_code == 200
 
     assert client.get("/api/v1/operations/admin/subscriptions").status_code == 200
-    assert client.get(f"/api/v1/operations/admin/subscriptions/{subscription.id}").status_code == 200
+    assert (
+        client.get(f"/api/v1/operations/admin/subscriptions/{subscription.id}").status_code == 200
+    )
     extended_to = datetime.now(UTC) + timedelta(days=20)
     changed = client.post(
         f"/api/v1/operations/admin/subscriptions/{subscription.id}/actions",
@@ -386,92 +425,148 @@ def test_admin_api_persists_purchase_subscription_user_note_and_entitlement_work
     assert changed.status_code == 200
 
     assert client.get(f"/api/v1/operations/admin/users/{target.id}").status_code == 200
-    assert client.post(
-        f"/api/v1/operations/admin/users/{target.id}/actions",
-        {"action": "verify_email", "reason": "Confirm verified account contact after support review."},
-        format="json",
-    ).status_code == 200
-    assert client.post(
-        f"/api/v1/operations/admin/users/{target.id}/actions",
-        {"action": "unverify_email", "reason": "Recheck account contact before final verification."},
-        format="json",
-    ).status_code == 200
-    assert client.post(
-        f"/api/v1/operations/admin/users/{target.id}/actions",
-        {"action": "suspend", "reason": "Temporarily suspend the account for a verified review."},
-        format="json",
-    ).status_code == 200
-    assert client.post(
-        f"/api/v1/operations/admin/users/{target.id}/actions",
-        {"action": "reactivate", "reason": "Restore access after the verified account review."},
-        format="json",
-    ).status_code == 200
-    assert client.post(
-        f"/api/v1/operations/admin/users/{target.id}/actions",
-        {"action": "verify_email", "reason": "Restore verified contact before issuing account recovery."},
-        format="json",
-    ).status_code == 200
-    assert client.post(
-        f"/api/v1/operations/admin/users/{target.id}/actions",
-        {"action": "logout_all", "reason": "Clear active sessions after the account review."},
-        format="json",
-    ).status_code == 200
+    assert (
+        client.post(
+            f"/api/v1/operations/admin/users/{target.id}/actions",
+            {
+                "action": "verify_email",
+                "reason": "Confirm verified account contact after support review.",
+            },
+            format="json",
+        ).status_code
+        == 200
+    )
+    assert (
+        client.post(
+            f"/api/v1/operations/admin/users/{target.id}/actions",
+            {
+                "action": "unverify_email",
+                "reason": "Recheck account contact before final verification.",
+            },
+            format="json",
+        ).status_code
+        == 200
+    )
+    assert (
+        client.post(
+            f"/api/v1/operations/admin/users/{target.id}/actions",
+            {
+                "action": "suspend",
+                "reason": "Temporarily suspend the account for a verified review.",
+            },
+            format="json",
+        ).status_code
+        == 200
+    )
+    assert (
+        client.post(
+            f"/api/v1/operations/admin/users/{target.id}/actions",
+            {"action": "reactivate", "reason": "Restore access after the verified account review."},
+            format="json",
+        ).status_code
+        == 200
+    )
+    assert (
+        client.post(
+            f"/api/v1/operations/admin/users/{target.id}/actions",
+            {
+                "action": "verify_email",
+                "reason": "Restore verified contact before issuing account recovery.",
+            },
+            format="json",
+        ).status_code
+        == 200
+    )
+    assert (
+        client.post(
+            f"/api/v1/operations/admin/users/{target.id}/actions",
+            {"action": "logout_all", "reason": "Clear active sessions after the account review."},
+            format="json",
+        ).status_code
+        == 200
+    )
     session = AccountSession.objects.create(
         user=target,
         session_key=f"admin-{uuid4().hex[:30]}",
         device_label="Regression browser",
         expires_at=datetime.now(UTC) + timedelta(days=1),
     )
-    assert client.post(
-        f"/api/v1/operations/admin/users/{target.id}/actions",
-        {
-            "action": "logout_session",
-            "session_id": str(session.id),
-            "reason": "Revoke the selected session after the account review.",
-        },
-        format="json",
-    ).status_code == 200
-    assert client.post(
-        f"/api/v1/operations/admin/users/{target.id}/actions",
-        {"action": "password_reset", "reason": "Issue the approved password reset instruction."},
-        format="json",
-    ).status_code == 200
-    assert client.post(
-        f"/api/v1/operations/admin/users/{target.id}/actions",
-        {
-            "action": "replace_product_roles",
-            "roles": ["creator"],
-            "reason": "Assign the verified creator role for this account.",
-        },
-        format="json",
-    ).status_code == 200
+    assert (
+        client.post(
+            f"/api/v1/operations/admin/users/{target.id}/actions",
+            {
+                "action": "logout_session",
+                "session_id": str(session.id),
+                "reason": "Revoke the selected session after the account review.",
+            },
+            format="json",
+        ).status_code
+        == 200
+    )
+    assert (
+        client.post(
+            f"/api/v1/operations/admin/users/{target.id}/actions",
+            {
+                "action": "password_reset",
+                "reason": "Issue the approved password reset instruction.",
+            },
+            format="json",
+        ).status_code
+        == 200
+    )
+    assert (
+        client.post(
+            f"/api/v1/operations/admin/users/{target.id}/actions",
+            {
+                "action": "replace_product_roles",
+                "roles": ["creator"],
+                "reason": "Assign the verified creator role for this account.",
+            },
+            format="json",
+        ).status_code
+        == 200
+    )
     assert client.get(f"/api/v1/operations/admin/users/{target.id}/capabilities").status_code == 200
     capabilities = client.patch(
         f"/api/v1/operations/admin/users/{target.id}/capabilities",
-        {"capabilities": [Capability.USERS_VIEW], "reason": "Grant temporary directory support access."},
+        {
+            "capabilities": [Capability.USERS_VIEW],
+            "reason": "Grant temporary directory support access.",
+        },
         format="json",
     )
     assert capabilities.status_code == 200
     assert client.get("/api/v1/operations/admin/roles").status_code == 200
     note = client.post(
         f"/api/v1/operations/admin/notes/accounts.user/{target.id}",
-        {"body": "Support review completed.", "reason": "Record the verified account-support outcome."},
+        {
+            "body": "Support review completed.",
+            "reason": "Record the verified account-support outcome.",
+        },
         format="json",
     )
     assert note.status_code == 201
-    assert client.get(f"/api/v1/operations/admin/notes/accounts.user/{target.id}").status_code == 200
+    assert (
+        client.get(f"/api/v1/operations/admin/notes/accounts.user/{target.id}").status_code == 200
+    )
     assert client.get(f"/api/v1/operations/admin/users/{target.id}/entitlements").status_code == 200
     granted = client.post(
         f"/api/v1/operations/admin/users/{target.id}/entitlements/grants",
-        {"entitlement_code": "focus.workspace", "reason": "Provide a verified temporary focus accommodation."},
+        {
+            "entitlement_code": "focus.workspace",
+            "reason": "Provide a verified temporary focus accommodation.",
+        },
         format="json",
     )
     assert granted.status_code == 201
-    assert client.post(
-        f"/api/v1/operations/admin/entitlements/grants/{granted.json()['id']}/revoke",
-        {"reason": "Close the temporary accommodation after review."},
-        format="json",
-    ).status_code == 200
+    assert (
+        client.post(
+            f"/api/v1/operations/admin/entitlements/grants/{granted.json()['id']}/revoke",
+            {"reason": "Close the temporary accommodation after review."},
+            format="json",
+        ).status_code
+        == 200
+    )
 
 
 def test_admin_api_creates_dispatches_and_lifecycles_campaigns_and_plans() -> None:
@@ -529,6 +624,7 @@ def test_admin_api_creates_dispatches_and_lifecycles_campaigns_and_plans() -> No
                     "interval_count": 1,
                 }
             ],
+            "entitlements": [{"entitlement_code": "content.premium"}],
             "publish": True,
             "reason": "Create an approved monthly operations plan version.",
         },
@@ -536,11 +632,14 @@ def test_admin_api_creates_dispatches_and_lifecycles_campaigns_and_plans() -> No
     )
     assert created.status_code == 201, created.json()
     plan_id = created.json()["id"]
-    assert client.post(
-        f"/api/v1/operations/admin/plans/{plan_id}/actions",
-        {"action": "retire", "reason": "Retire the plan while reviewing its pricing."},
-        format="json",
-    ).status_code == 200
+    assert (
+        client.post(
+            f"/api/v1/operations/admin/plans/{plan_id}/actions",
+            {"action": "retire", "reason": "Retire the plan while reviewing its pricing."},
+            format="json",
+        ).status_code
+        == 200
+    )
     restored = client.post(
         f"/api/v1/operations/admin/plans/{plan_id}/actions",
         {"action": "restore", "reason": "Restore the verified plan after pricing review."},
@@ -619,7 +718,9 @@ def test_campaign_audiences_and_validation_cover_real_recipient_rules() -> None:
     trial_subscription.status = Subscription.Status.TRIALING
     trial_subscription.save(update_fields=("status", "updated_at"))
 
-    def campaign(audience: str, audience_filter: dict[str, object] | None = None) -> NotificationCampaign:
+    def campaign(
+        audience: str, audience_filter: dict[str, object] | None = None
+    ) -> NotificationCampaign:
         return NotificationCampaign.objects.create(
             audience=audience,
             audience_filter=audience_filter or {},
@@ -630,7 +731,9 @@ def test_campaign_audiences_and_validation_cover_real_recipient_rules() -> None:
         )
 
     assert list(_campaign_recipients(campaign("user", {"user_id": str(selected.id)}))) == [selected]
-    assert selected in list(_campaign_recipients(campaign("selected_users", {"user_ids": [str(selected.id)]})))
+    assert selected in list(
+        _campaign_recipients(campaign("selected_users", {"user_ids": [str(selected.id)]}))
+    )
     assert actor in list(_campaign_recipients(campaign("all_users")))
     assert creator in list(_campaign_recipients(campaign("creators")))
     assert active_subscription.account.primary_user in list(
@@ -726,3 +829,41 @@ def test_campaign_audiences_and_validation_cover_real_recipient_rules() -> None:
             reason="Reject a duplicate dispatch after campaign completion.",
             source="test",
         )
+
+
+def test_due_campaign_scheduler_reports_success_and_isolates_failures() -> None:
+    actor = _admin()
+    now = datetime.now(UTC)
+    campaigns = [
+        NotificationCampaign.objects.create(
+            audience=NotificationCampaign.Audience.ALL_USERS,
+            title=f"Scheduled notice {index}",
+            body="Scheduled operational notification.",
+            status=NotificationCampaign.Status.SCHEDULED,
+            scheduled_for=now - timedelta(minutes=index + 1),
+            created_by=actor,
+            reason="Exercise the due campaign scheduler safely.",
+        )
+        for index in range(2)
+    ]
+    output = StringIO()
+    errors = StringIO()
+    with (
+        patch(
+            "apps.admin_control.management.commands.dispatch_due_notification_campaigns.timezone.now",
+            return_value=now,
+        ),
+        patch(
+            "apps.admin_control.management.commands.dispatch_due_notification_campaigns."
+            "dispatch_notification_campaign",
+            side_effect=[campaigns[0], AdminControlError("campaign locked")],
+        ) as dispatched,
+    ):
+        call_command(
+            "dispatch_due_notification_campaigns",
+            stdout=output,
+            stderr=errors,
+        )
+    assert dispatched.call_count == 2
+    assert "Dispatched 1 campaign(s); 1 failed." in output.getvalue()
+    assert "was not dispatched: campaign locked" in errors.getvalue()

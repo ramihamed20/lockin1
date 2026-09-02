@@ -310,7 +310,7 @@ class AnswerSaveSerializer(StrictSerializer):
     selected_option_ids = serializers.ListField(
         child=serializers.UUIDField(),
         min_length=0,
-        max_length=1,
+        max_length=12,
     )
     client_revision = serializers.IntegerField(min_value=1)
 

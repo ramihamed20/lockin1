@@ -1,8 +1,11 @@
 from datetime import timedelta
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
+from django.db.models import Count, Sum
+from django.db.models.functions import Coalesce
+from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -12,14 +15,20 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.db.models import Count, Sum
-from django.db.models.functions import Coalesce
-from django.utils import timezone
 
+from apps.accounts.avatars import avatar_payload
 from apps.accounts.models import User
 from apps.content.models import LearningObject, LearningObjectVersion
 from apps.entitlements.services import require_entitlement
 
+from .active_study import (
+    ActiveStudyRuleError,
+    active_quiz,
+    active_study_payload,
+    continue_active_study,
+    start_active_study,
+    submit_active_quiz,
+)
 from .annotation_services import (
     FocusAnnotationConflictError,
     annotation_payload,
@@ -27,6 +36,7 @@ from .annotation_services import (
 )
 from .domain_types import AnnotationMutation, WorkspaceStateInput
 from .integrations import resolve_focus_document
+from .models import FocusSession, FocusSessionNote, FocusTeam, FocusTeamMembership, FocusTeamMessage
 from .selectors import (
     annotations_for_pages,
     focus_session_history,
@@ -34,6 +44,8 @@ from .selectors import (
     latest_workspace,
 )
 from .serializers import (
+    ActiveStudyStartSerializer,
+    ActiveStudySubmitSerializer,
     AnnotationSyncSerializer,
     FocusSessionActionSerializer,
     FocusSessionNoteSerializer,
@@ -43,24 +55,24 @@ from .serializers import (
     FocusWorkspaceSerializer,
     LockInNoteUpdateSerializer,
     LockInStartSerializer,
+    LockInTaskCreateSerializer,
     LockInTeamCreateSerializer,
     LockInTeamJoinSerializer,
     LockInTeamMessageCreateSerializer,
     LockInTeamMessageSerializer,
     LockInTeamSerializer,
-    LockInTaskCreateSerializer,
     WorkspaceStateSerializer,
 )
 from .services import (
     FocusSessionStateError,
     abandon_focus_session,
-    add_focus_team_message,
     add_focus_session_task,
+    add_focus_team_message,
     complete_owned_focus_session,
     create_focus_team,
     end_focus_break,
-    focus_team_for_member,
     focus_session_durations,
+    focus_team_for_member,
     join_focus_team,
     pause_focus_session,
     resume_focus_session,
@@ -70,7 +82,6 @@ from .services import (
     start_workspace_session,
     toggle_focus_session_task,
 )
-from .models import FocusSession, FocusSessionNote, FocusTeam, FocusTeamMembership, FocusTeamMessage
 from .validation import FocusValidationError
 from .workspace_services import FocusWorkspaceConflictError, update_workspace_state
 
@@ -90,6 +101,77 @@ class FocusAnnotationPagination(PageNumberPagination):
     page_size = 250
     page_size_query_param = "page_size"
     max_page_size = 1000
+
+
+class ActiveStudyStartView(APIView):
+    @extend_schema(
+        operation_id="active_study_start",
+        request=ActiveStudyStartSerializer,
+        responses={200: OpenApiTypes.OBJECT, 201: OpenApiTypes.OBJECT},
+    )
+    def post(self, request: Request) -> Response:
+        user = _authorize(request)
+        serializer = ActiveStudyStartSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            run, created = start_active_study(
+                user=user,
+                material_slug=str(data["material_slug"]),
+                sheet_slug=str(data["sheet_slug"]),
+                difficulty=str(data["difficulty"]),
+                page_count=int(data["page_count"]),
+            )
+        except ActiveStudyRuleError as error:
+            raise FocusRejected(str(error)) from error
+        return Response(
+            {"run": active_study_payload(run), "resumed": not created},
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+
+class ActiveStudyQuizView(APIView):
+    @extend_schema(operation_id="active_study_quiz", responses={200: OpenApiTypes.OBJECT})
+    def get(self, request: Request, run_id: UUID) -> Response:
+        user = _authorize(request)
+        try:
+            run, questions = active_quiz(user=user, run_id=run_id)
+        except ActiveStudyRuleError as error:
+            raise FocusRejected(str(error)) from error
+        return Response({"run": active_study_payload(run), "questions": questions})
+
+    @extend_schema(
+        operation_id="active_study_quiz_submit",
+        request=ActiveStudySubmitSerializer,
+        responses={200: OpenApiTypes.OBJECT},
+    )
+    def post(self, request: Request, run_id: UUID) -> Response:
+        user = _authorize(request)
+        serializer = ActiveStudySubmitSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            run, result = submit_active_quiz(
+                user=user,
+                run_id=run_id,
+                answers={
+                    str(key): str(value)
+                    for key, value in serializer.validated_data["answers"].items()
+                },
+            )
+        except ActiveStudyRuleError as error:
+            raise FocusRejected(str(error)) from error
+        return Response({"run": active_study_payload(run), "result": result})
+
+
+class ActiveStudyContinueView(APIView):
+    @extend_schema(operation_id="active_study_continue", responses={200: OpenApiTypes.OBJECT})
+    def post(self, request: Request, run_id: UUID) -> Response:
+        user = _authorize(request)
+        try:
+            run = continue_active_study(user=user, run_id=run_id)
+        except ActiveStudyRuleError as error:
+            raise FocusRejected(str(error)) from error
+        return Response({"run": active_study_payload(run)})
 
 
 def _user(request: Request) -> User:
@@ -150,7 +232,9 @@ def _lock_in_materials(*, user: User) -> list[dict[str, object]]:
 
 def _team_payload(*, user: User, team: FocusTeam) -> dict[str, object]:
     memberships = list(
-        FocusTeamMembership.objects.filter(team=team).select_related("user").order_by("joined_at")
+        FocusTeamMembership.objects.filter(team=team)
+        .select_related("user", "user__profile_image")
+        .order_by("joined_at")
     )
     active_sessions = {
         session.user_id: session
@@ -176,6 +260,7 @@ def _team_payload(*, user: User, team: FocusTeam) -> dict[str, object]:
             {
                 "user_id": str(membership.user_id),
                 "name": membership.user.full_name,
+                "avatar": avatar_payload(membership.user),
                 "role": membership.role,
                 "status": session.status if session is not None else "offline",
                 "active_seconds": active_seconds,
@@ -194,7 +279,9 @@ def _team_payload(*, user: User, team: FocusTeam) -> dict[str, object]:
     team_data = dict(LockInTeamSerializer(team).data)
     team_data.update(
         {
-            "role": next((member.role for member in memberships if member.user_id == user.id), "member"),
+            "role": next(
+                (member.role for member in memberships if member.user_id == user.id), "member"
+            ),
             "member_count": len(members),
             "members": members,
             "weekly_active_seconds": int(weekly["active_seconds"]),
@@ -221,7 +308,10 @@ def _team_rankings_payload() -> list[dict[str, object]]:
                 "member_count": FocusTeamMembership.objects.filter(team=team).count(),
             }
         )
-    return sorted(rows, key=lambda row: (-int(row["weekly_active_seconds"]), str(row["name"])))[:10]
+    return sorted(
+        rows,
+        key=lambda row: (-cast(int, row["weekly_active_seconds"]), str(row["name"])),
+    )[:10]
 
 
 def _lock_in_payload(*, user: User, session: FocusSession) -> dict[str, object]:
@@ -254,7 +344,11 @@ def _lock_in_payload(*, user: User, session: FocusSession) -> dict[str, object]:
         "material": document,
         "note": FocusSessionNoteSerializer(note).data if note is not None else None,
         "tasks": FocusSessionTaskSerializer(session.tasks.all(), many=True).data,
-        "team": _team_payload(user=user, team=session.team) if session.team_id else None,
+        "team": (
+            _team_payload(user=user, team=cast(FocusTeam, session.team))
+            if session.team_id
+            else None
+        ),
         "timing": {
             "server_now": now,
             "active_elapsed_seconds": active_seconds,
@@ -443,8 +537,7 @@ class LockInBootstrapView(APIView):
                 topic=str(data.get("topic", "")),
                 note=str(data.get("note", "")),
                 tasks=tuple(
-                    (task["client_task_id"], str(task["title"]))
-                    for task in data.get("tasks", [])
+                    (task["client_task_id"], str(task["title"])) for task in data.get("tasks", [])
                 ),
             )
         except FocusSessionStateError as error:
@@ -481,7 +574,9 @@ class LockInTeamsView(APIView):
             team = create_focus_team(user=user, name=str(serializer.validated_data["name"]))
         except ValueError as error:
             raise _rule_error(error) from error
-        return Response({"team": _team_payload(user=user, team=team)}, status=status.HTTP_201_CREATED)
+        return Response(
+            {"team": _team_payload(user=user, team=team)}, status=status.HTTP_201_CREATED
+        )
 
 
 class LockInTeamJoinView(APIView):
@@ -495,7 +590,9 @@ class LockInTeamJoinView(APIView):
         serializer = LockInTeamJoinSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
-            team, _ = join_focus_team(user=user, invite_code=str(serializer.validated_data["invite_code"]))
+            team, _ = join_focus_team(
+                user=user, invite_code=str(serializer.validated_data["invite_code"])
+            )
         except FocusSessionStateError as error:
             raise _rule_error(error) from error
         return Response({"team": _team_payload(user=user, team=team)})
@@ -508,7 +605,9 @@ class LockInTeamMessagesView(APIView):
         except FocusSessionStateError as error:
             raise _rule_error(error) from error
         messages = list(
-            FocusTeamMessage.objects.filter(team=team).select_related("author").order_by("-created_at")[:50]
+            FocusTeamMessage.objects.filter(team=team)
+            .select_related("author", "author__profile_image")
+            .order_by("-created_at")[:50]
         )
         messages.reverse()
         return Response(
@@ -532,7 +631,9 @@ class LockInTeamMessagesView(APIView):
         serializer = LockInTeamMessageCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
-            add_focus_team_message(user=user, team_id=team_id, body=str(serializer.validated_data["body"]))
+            add_focus_team_message(
+                user=user, team_id=team_id, body=str(serializer.validated_data["body"])
+            )
         except FocusSessionStateError as error:
             raise _rule_error(error) from error
         response = self._messages(user=user, team_id=team_id)
@@ -544,7 +645,9 @@ class LockInSessionView(APIView):
     @extend_schema(operation_id="lock_in_session_retrieve", responses={200: OpenApiTypes.OBJECT})
     def get(self, request: Request, session_id: UUID) -> Response:
         user = _authorize(request)
-        return Response(_lock_in_payload(user=user, session=_lock_in_session(user=user, session_id=session_id)))
+        return Response(
+            _lock_in_payload(user=user, session=_lock_in_session(user=user, session_id=session_id))
+        )
 
 
 class LockInActionView(APIView):

@@ -24,12 +24,21 @@ Secrets are backed up through the approved secret manager, never copied into the
 ## PostgreSQL backup
 
 ```sh
-./scripts/production/backup-postgres.sh .env.production /encrypted/lockin-backups
+BACKUP_RETENTION_DAYS=30 \
+  ./scripts/production/backup-postgres.sh .env.production /encrypted/lockin-backups
 ```
 
+When the database is managed rather than bundled, set `LOCKIN_BACKUP_DATABASE_URL` to the owner
+connection URL. The script then dumps through a throwaway PostgreSQL client container instead of
+executing inside the `db` service; every other guarantee below is unchanged. Restore verification
+switches to a disposable local container in the same case, so verification never creates a scratch
+database on the production instance.
+
 The script uses restrictive permissions, writes a partial file first, creates a compressed custom
-dump, validates the catalog, atomically renames it, and emits a SHA-256 sidecar. Copy the completed
-set to encrypted off-host storage with retention/immutability controls.
+dump, validates the catalog, atomically renames it, emits a SHA-256 sidecar, and only then removes
+completed local Lock-in dumps older than `BACKUP_RETENTION_DAYS` from that exact directory. The
+default is 30 days; set it to `0` to disable local pruning. Copy the completed set to encrypted
+off-host storage with its own retention/immutability controls before relying on the local prune.
 
 Recommended starting cadence pending measured write volume: daily full logical dump, provider-level
 encrypted volume snapshots at least daily, and PostgreSQL WAL/PITR only after the hosting provider
@@ -40,6 +49,22 @@ and operational ownership are approved. Keep at least one geographically separat
 Pause or fence file-ingestion writes for the snapshot boundary, or use a storage provider with
 versioned point-in-time snapshots. Record the database dump and media snapshot in the same set. A
 database-only restore may reference missing files; a media-only restore may contain unreferenced data.
+
+Private media lives in S3-compatible object storage, not on a container volume (see
+`docs/DEPLOYMENT.md`). That changes how the media half of the set is produced:
+
+- Enable object versioning, or a lifecycle rule that retains noncurrent versions, so a deleted or
+  overwritten object is recoverable to the boundary the database dump was taken at. Object storage
+  is durable, not a backup: it replicates a deletion as faithfully as a write.
+- Keep at least one copy under a separate credential, ideally in a different account or provider, so
+  a compromised deployment token cannot destroy both the live objects and their history.
+- Record the bucket, the key prefix (`STORAGE_LOCATION_PREFIX`), and the point in time in the
+  backup-set manifest, alongside the database dump.
+- Recovering an individual object is a provider-side restore of that key. Because `ManagedFile` rows
+  carry the object name and its SHA-256, a restored object can be verified against the database
+  before the file is trusted again.
+- Rehearse the object half of the restore on the same cadence as the database half. A set whose
+  media half has never been restored is a database backup, not a recovery set.
 
 Before multi-host deployment, replace the single-host Docker media volume with approved durable
 object storage while preserving private authorization and immutable original-file behavior.
@@ -85,6 +110,8 @@ and reconcile/rebuild derived projections using documented commands. Record actu
 
 ## Retention and access
 
+The 30-day local default is an operational safety net, not an approved legal retention policy.
 Backup retention, deletion, residency, legal hold, and encryption-key ownership require legal and
 operations approval. Restrict backup read/restore roles, log every restore, test key recovery, and
-alert on failed/missing/undersized backups and stale restore verification.
+alert on failed/missing/undersized backups and stale restore verification. Backups are not considered
+launch-proven until a matching database/media set has passed the complete restore drill above.

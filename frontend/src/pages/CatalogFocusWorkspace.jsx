@@ -56,6 +56,7 @@ import { progressApi } from "../api/progress.js";
 import { generateIdempotencyKey } from "../api/pagination.js";
 import { getCatalogSheet, rememberLastOpenedCatalogSheet } from "../lib/materialCatalog.js";
 import { cssVars } from "../lib/utils.js";
+import { subscribeViewport } from "../lib/viewport.js";
 import { usePageTitle } from "../hooks/usePageTitle.js";
 import {
   continuousPinchScale,
@@ -519,6 +520,7 @@ export default function CatalogFocusWorkspace({ user = null }) {
   const rootRef = useRef(null);
   const readerRef = useRef(null);
   const toolbarRef = useRef(null);
+  const toolRailRef = useRef(null);
   const stageRef = useRef(null);
   const documentRef = useRef(null);
   const imageInputRef = useRef(null);
@@ -765,9 +767,10 @@ export default function CatalogFocusWorkspace({ user = null }) {
       performanceMonitorRef.current.increment("reactRendersDuringGesture");
     }
   });
-  // The toolbar wraps to a second row on a phone, so the surfaces that hang
-  // below it cannot assume a fixed height. Publish the measured height instead
-  // of guessing it in the stylesheet.
+  // Safe-area insets and the coarse-pointer control sizes both change the
+  // toolbar height, so the surfaces that hang below it cannot assume a fixed
+  // value. Publish the measured height instead of guessing it in the
+  // stylesheet.
   useEffect(() => {
     const toolbar = toolbarRef.current;
     const root = rootRef.current;
@@ -785,6 +788,123 @@ export default function CatalogFocusWorkspace({ user = null }) {
       observer.disconnect();
       window.removeEventListener("resize", publish);
       window.removeEventListener("orientationchange", publish);
+    };
+  }, []);
+  // The tool rail never wraps, so on a phone part of it is always off screen.
+  // Publish how much track is hidden on each physical side and the stylesheet
+  // fades that edge - the only honest way to say "there is more this way"
+  // without a scrollbar. Measuring in physical pixels keeps it correct in
+  // Arabic, where a scroller counts its offset backwards.
+  useEffect(() => {
+    const rail = toolRailRef.current;
+    if (!rail) return undefined;
+    const publish = () => {
+      const hidden = Math.max(0, rail.scrollWidth - rail.clientWidth);
+      const rtl = window.getComputedStyle(rail).direction === "rtl";
+      const left = Math.min(hidden, Math.max(0, rtl ? hidden + rail.scrollLeft : rail.scrollLeft));
+      rail.style.setProperty("--workspace-fade-left", `${Math.min(18, left)}px`);
+      rail.style.setProperty("--workspace-fade-right", `${Math.min(18, hidden - left)}px`);
+    };
+    publish();
+    rail.addEventListener("scroll", publish, { passive: true });
+    const observer = new window.ResizeObserver(publish);
+    observer.observe(rail);
+    for (const child of rail.children) observer.observe(child);
+    return () => {
+      rail.removeEventListener("scroll", publish);
+      observer.disconnect();
+    };
+  }, []);
+  // Choosing a tool with the keyboard, or restoring the last one on open, can
+  // land on a button parked outside the visible track. Bring it back rather
+  // than leaving the workspace claiming a tool the student cannot see.
+  useEffect(() => {
+    const rail = toolRailRef.current;
+    const button = rail?.querySelector(`[data-workspace-tool="${activeTool}"]`);
+    if (!rail || !button) return;
+    const track = rail.getBoundingClientRect();
+    const target = button.getBoundingClientRect();
+    const margin = 8;
+    const delta = target.left < track.left + margin
+      ? target.left - track.left - margin
+      : target.right > track.right - margin ? target.right - track.right + margin : 0;
+    if (!delta) return;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    rail.scrollBy({ left: delta, behavior: still ? "auto" : "smooth" });
+  }, [activeTool]);
+  /**
+   * Keyboard-aware layout for the note editor.
+   *
+   * The reader's frame is the PDF's coordinate space: every pan offset and the
+   * fit-to-width zoom basis are measured from it. A virtual keyboard that
+   * shortens that frame therefore re-lays-out the document under the student's
+   * finger and moves the page they were reading. Whether the keyboard shortens
+   * it is a per-browser decision - an iOS Safari tab resizes only the visual
+   * viewport, an installed iOS app and some Android configurations resize the
+   * layout viewport and with it `dvh` - so the frame is pinned to its
+   * keyboard-free height for the duration of the keyboard session rather than
+   * trusting any one of those behaviours.
+   *
+   * What the keyboard does move is the notes drawer, which rides above it on
+   * the published inset. The document itself never scrolls in this view, so if
+   * a browser scrolls the root to reveal the field, that invariant is restored:
+   * the field is already visible inside the lifted drawer.
+   *
+   * Whether the keyboard is up, and how much it covers, is measured once for
+   * the whole application by the viewport sync layer. What is local to the
+   * workspace is what that answer means here: pinning the reader's frame.
+   */
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return undefined;
+    let restingHeight = 0;
+    let wasOpen = false;
+    // The drawer is capped above the keyboard, so bringing the field into view
+    // is a scroll of the drawer's own list - never of the document or the PDF.
+    const revealFocusedNoteField = () => {
+      const field = document.activeElement;
+      const scroller = field?.closest?.(".workspace-v2-side-content");
+      if (!scroller) return;
+      const track = scroller.getBoundingClientRect();
+      const target = field.getBoundingClientRect();
+      const overflow = target.bottom - track.bottom + 12;
+      if (overflow > 0) scroller.scrollTop += overflow;
+    };
+    // The frame the reader is restored to has to be the current one: a rotation
+    // or a collapsing browser toolbar changes it while nobody is typing. It is
+    // therefore tracked from the frame itself, and only while it is free to
+    // follow the viewport.
+    const recordRestingHeight = () => {
+      if (wasOpen) return;
+      restingHeight = Math.round(root.getBoundingClientRect().height);
+    };
+    const frameObserver = typeof window.ResizeObserver === "function" ? new window.ResizeObserver(recordRestingHeight) : null;
+    frameObserver?.observe(root);
+    const unsubscribe = subscribeViewport(({ keyboardOpen, keyboardInset }) => {
+      if (keyboardOpen) {
+        root.style.setProperty("--workspace-keyboard-inset", `${keyboardInset}px`);
+        if (restingHeight) root.style.height = `${restingHeight}px`;
+        root.dataset.keyboard = "open";
+        const scroller = document.scrollingElement;
+        if (scroller && scroller.scrollTop !== 0) scroller.scrollTop = 0;
+        if (!wasOpen) revealFocusedNoteField();
+      } else {
+        // Recorded only while the keyboard is down, so the frame the reader is
+        // restored to is always the one it had before typing started.
+        root.style.removeProperty("height");
+        wasOpen = false;
+        recordRestingHeight();
+        root.style.removeProperty("--workspace-keyboard-inset");
+        delete root.dataset.keyboard;
+      }
+      wasOpen = keyboardOpen;
+    });
+    return () => {
+      unsubscribe();
+      frameObserver?.disconnect();
+      root.style.removeProperty("--workspace-keyboard-inset");
+      root.style.removeProperty("height");
+      delete root.dataset.keyboard;
     };
   }, []);
   useEffect(() => { annotationSpatialIndexRef.current = annotationSpatialIndex; }, [annotationSpatialIndex]);
@@ -865,8 +985,26 @@ export default function CatalogFocusWorkspace({ user = null }) {
       if (event.target.closest?.(".workspace-v2-toolbar, .workspace-v2-tool-options, .workspace-v2-settings-popover, .workspace-v2-page-dock")) return;
       setOpenSurface(null);
     };
+    // The tool options carry no close button: the tool that opened them is the
+    // toggle. Escape is the other half of that contract for a keyboard, and it
+    // hands focus back to the control that owns the panel.
+    const dismissOnEscape = (event) => {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      const owner = openSurface.startsWith("tool:")
+        ? `[data-workspace-tool="${openSurface.slice(5)}"]`
+        : openSurface === "pages"
+          ? ".workspace-v2-page-number"
+          : '[aria-controls="workspace-settings-popover"]';
+      setOpenSurface(null);
+      rootRef.current?.querySelector(owner)?.focus();
+    };
     document.addEventListener("pointerdown", dismissPopover);
-    return () => document.removeEventListener("pointerdown", dismissPopover);
+    document.addEventListener("keydown", dismissOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", dismissPopover);
+      document.removeEventListener("keydown", dismissOnEscape);
+    };
   }, [openSurface]);
   useEffect(() => {
     const stage = stageRef.current;
@@ -3496,7 +3634,7 @@ export default function CatalogFocusWorkspace({ user = null }) {
             <div className="workspace-v2-control-group is-exit">
               <WorkspaceIconButton label="Exit Workspace" onClick={() => navigate(sheetRoute)}><ArrowLeft size={19} /></WorkspaceIconButton>
             </div>
-            <div className="workspace-v2-toolbar-scroll">
+            <div className="workspace-v2-toolbar-scroll" ref={toolRailRef}>
               <div className="workspace-v2-tool-list">
                 {TOOL_ITEMS.map(([id, label, ToolIcon]) => {
                   const configurable = CONFIGURABLE_TOOLS.has(id);
@@ -3561,7 +3699,6 @@ export default function CatalogFocusWorkspace({ user = null }) {
                 onChange={updateActiveToolOpacity}
               />}
             </div>
-            <button className="workspace-v2-tool-options-close" type="button" onClick={() => setOpenSurface(null)} aria-label={`Close ${activeToolLabel} options`}><X size={17} /></button>
           </div>}
 
           {settingsOpen && <section id="workspace-settings-popover" className="workspace-v2-settings-popover" role="dialog" aria-label="Workspace settings" onPointerDown={(event) => event.stopPropagation()}>

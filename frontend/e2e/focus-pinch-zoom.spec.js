@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
 const ROUTE = "/#/materials/catalog/microbiology/sheets/sheet-1/workspace";
 
@@ -42,6 +43,9 @@ async function mockAuthenticatedWorkspace(page) {
       await route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ error: { code: "permission_denied", message: "Student account" } }) });
       return;
     }
+    // The workspace sits behind the subscription gate, so the access contract
+    // has to answer before the reader renders.
+    if (await fulfillAccessContract(route, pathname)) return;
     if (pathname === "/api/v1/focus/lock-in" && route.request().method() === "GET") {
       await route.fulfill({ contentType: "application/json", body: JSON.stringify({ active_session: null }) });
       return;
@@ -444,7 +448,7 @@ test("opaque Ball Pen stays color-stable and Precision Eraser splits only touche
   await page.getByRole("button", { name: "Pen", exact: true }).click();
   await page.locator('[data-workspace-tool="pen"]').click();
   await page.getByRole("button", { name: "Use #239ed1" }).click();
-  await page.getByRole("button", { name: "Close Pen options" }).click();
+  await page.locator('[data-workspace-tool="pen"]').click();
   const stage = page.locator(".workspace-v2-document-stage");
   const pageBounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
   const start = { x: pageBounds.x + pageBounds.width * .27, y: pageBounds.y + pageBounds.height * .34 };
@@ -505,7 +509,7 @@ test("Pencil supports 100 percent opacity without internal color stacking", asyn
   const opacity = page.locator(".workspace-v2-tool-range.is-opacity input");
   await opacity.fill("1");
   await expect(page.locator(".workspace-v2-tool-range.is-opacity output")).toHaveText("100%");
-  await page.getByRole("button", { name: "Close Pencil options" }).click();
+  await page.locator('[data-workspace-tool="pencil"]').click();
 
   const stage = page.locator(".workspace-v2-document-stage");
   const pageBounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();

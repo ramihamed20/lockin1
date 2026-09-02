@@ -1,0 +1,541 @@
+/* ==========================================================================
+   Interaction states — the single source of truth.
+
+   Seven states, defined once, in a fixed priority order:
+
+       disabled  >  selected / current  >  keyboard focus  >  pressed  >  hover  >  default
+
+   They are kept on separate visual channels so they can never stack into the
+   "gold bar + focus ring + selected background + pressed border" pile-up the
+   old stylesheets produced:
+
+       background / colour  ->  selected, current, toggle-on, hover
+       outline              ->  keyboard focus, and nothing else
+       transform / filter   ->  pressed, and nothing else
+
+   Because outline is reserved for keyboard focus, no component can grow a
+   second "selected" indicator by accident, and a mouse click can never leave
+   a ring behind.
+
+   Runtime contract (src/lib/interaction.js):
+       html.ix-hover          hover visuals are allowed for the current input
+       html[data-ix-input]    mouse | pen | touch | key
+       [data-ix-pressed]      exactly one element, cleared on up/cancel/scroll
+   ========================================================================== */
+
+@layer interaction {
+  :root {
+    /* Keyboard focus is deliberately NOT the brand accent. The accent means
+       "selected"; reusing it for focus is what made a focused button
+       indistinguishable from the current navigation item. */
+    --ix-ring-color: color-mix(in srgb, var(--color-text-primary, #fff) 68%, transparent);
+    --ix-ring-width: 2px;
+    --ix-ring-offset: 2px;
+
+    --ix-press-scale: 0.97;
+    --ix-press-brightness: 1.14;
+    --ix-press-duration: 90ms;
+    --ix-release-duration: 190ms;
+    --ix-press-easing: cubic-bezier(0.2, 0, 0, 1);
+
+    --ix-hover-surface: color-mix(in srgb, var(--color-text-primary, #fff) 7%, transparent);
+    --ix-selected-surface: color-mix(in srgb, var(--color-primary) 14%, transparent);
+    --ix-selected-surface-strong: color-mix(in srgb, var(--color-primary) 20%, transparent);
+    --ix-selected-text: var(--color-primary);
+    --ix-thumb-surface: color-mix(in srgb, var(--color-surface-1, #fff) 96%, var(--color-primary));
+    --ix-thumb-shadow: 0 1px 2px color-mix(in srgb, #000 22%, transparent);
+    --ix-disabled-opacity: 0.45;
+  }
+
+  /* Light themes press *into* the surface instead of lifting out of it, and
+     need a slightly stronger tint to stay legible on white. */
+  :root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) {
+    --ix-press-brightness: 0.94;
+    --ix-hover-surface: color-mix(in srgb, var(--color-primary) 8%, transparent);
+    --ix-selected-surface: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    --ix-selected-surface-strong: color-mix(in srgb, var(--color-primary) 18%, transparent);
+    --ix-thumb-shadow: 0 1px 3px color-mix(in srgb, var(--warm-shadow, #000) 70%, transparent);
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 0. Native behaviour the app replaces with its own feedback
+   * ------------------------------------------------------------------ */
+
+  /* Inherited, so one declaration covers the document. The app draws its own
+     press state; the grey iOS/Android flash is pure noise on top of it. */
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Every pointer-driven control opts out of the double-tap zoom delay and of
+     accidental text selection during a press-and-hold. */
+  :where(button, summary, a[href], label[for], [role="button"], [role="tab"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"], [role="radio"], [role="switch"], [data-ix]) {
+    touch-action: manipulation;
+    -webkit-touch-callout: none;
+  }
+
+  /* Text still has to be selectable inside content surfaces. Only the control
+     chrome itself resists selection. */
+  :where(button, summary, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [role="switch"], [data-ix]) {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 1. Hover — pointer devices only
+   *
+   * `html.ix-hover` is removed the moment a touch is registered, which is
+   * what stops a tapped control from staying lit until the next tap. The
+   * legacy stylesheets are rewritten to carry the same guard, so this is the
+   * only condition under which any hover rule in the app can match.
+   * ------------------------------------------------------------------ */
+
+  html.ix-hover :where([data-ix]:not([data-ix-selected]):not([data-ix-current]):not(:disabled):not([aria-disabled="true"])):hover {
+    background-color: var(--ix-hover-surface);
+    color: var(--color-text-primary);
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 2. Pressed — the only state allowed to move an element
+   * ------------------------------------------------------------------ */
+
+  :where(button, summary, a[href], [role="button"], [role="tab"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"], [role="radio"], [role="switch"], [data-ix]) {
+    transition-property: background-color, border-color, color, box-shadow, transform, filter, opacity;
+    transition-duration: var(--ix-release-duration);
+    transition-timing-function: var(--ix-press-easing);
+  }
+
+  [data-ix-pressed] {
+    transform: scale(var(--ix-press-scale));
+    filter: brightness(var(--ix-press-brightness));
+    transition-duration: var(--ix-press-duration);
+  }
+
+  /* Rows, cards and full-width surfaces need a far smaller compression than a
+     44px icon button or the movement reads as a glitch. */
+  :where(.list-row, .catalog-tile, .catalog-sheet-card, .material-card, .study-mode-card, .theme-card, .character-card, .sheet-card, .operations-row, .notification-item, .review-subject-row, .review-queue-link, .recent-mistake, .dashboard-recent-material, .stat-card, .plan-row, [data-ix="selectable-row"], [data-ix="row"])[data-ix-pressed] {
+    --ix-press-scale: 0.995;
+  }
+
+  /* Solid, high-chroma fills darken under the finger instead of blowing out. */
+  :where(.btn-primary, .auth-submit-btn, .btn-danger, .lockin-setup-start, [data-ix-tone="solid"], [data-ix-selected], [data-ix-current], .active, .is-active, .selected, .is-selected)[data-ix-pressed] {
+    --ix-press-brightness: 0.94;
+  }
+
+  /* An element can decline movement entirely (drag handles, canvas tools). */
+  [data-ix-press="none"][data-ix-pressed] {
+    transform: none;
+    filter: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-ix-pressed] {
+      transform: none;
+    }
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 3. Keyboard focus — one ring, outline channel only
+   *
+   * `:focus-visible` means the browser decided this focus deserves to be
+   * seen: keyboard and assistive tech get a ring, a mouse click never does.
+   * ------------------------------------------------------------------ */
+
+  :focus {
+    outline: none;
+  }
+
+  :focus-visible {
+    outline: var(--ix-ring-width) solid var(--ix-ring-color);
+    outline-offset: var(--ix-ring-offset);
+  }
+
+  /* Suppressing `:focus` is only safe where `:focus-visible` can take over.
+     Without it, every focus gets the ring back rather than none at all. */
+  @supports not selector(:focus-visible) {
+    :focus {
+      outline: var(--ix-ring-width) solid var(--ix-ring-color);
+      outline-offset: var(--ix-ring-offset);
+    }
+  }
+
+  /* Controls that sit flush against a container edge (toolbar strips, table
+     cells, sticky bars) would have the ring clipped, so it is drawn inside. */
+  :where(.bottom-nav a, .bottom-nav button, .store-tabs button, .progress-tabs button, .filter-group a, .workspace-v2-toolbar button, .settings-local-nav button, [data-ix-ring="inset"]):focus-visible {
+    outline-offset: calc(-1 * var(--ix-ring-width));
+  }
+
+  /* Text entry keeps its own field treatment; the ring would double it up. */
+  :where(input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]), textarea, select):focus-visible {
+    outline-offset: 0;
+  }
+
+  /* Never let a container claim the ring on behalf of a child. */
+  :where(.stat-card, .dashboard-stats-grid .stat-card--interactive, .progress-calendar-table, .profile-heatmap, .search-box, .auth-input-wrap, .creator-global-search):focus-within:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 4. Selected / current — the accent channel
+   *
+   * Two canonical treatments, and no component gets both:
+   *
+   *   tint  — accent-tinted surface + accent text. Navigation, chips,
+   *           toolbar tools, anything without its own track.
+   *   thumb — an elevated neutral pill sliding inside a track. Segmented
+   *           controls and tab strips that draw a background rail.
+   * ------------------------------------------------------------------ */
+
+  [data-ix-selected],
+  [data-ix-current] {
+    background-color: var(--ix-selected-surface);
+    color: var(--ix-selected-text);
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  [data-ix-variant="thumb"][data-ix-selected],
+  [data-ix-variant="thumb"][data-ix-current] {
+    background-color: var(--ix-thumb-surface);
+    color: var(--color-text-primary);
+    box-shadow: var(--ix-thumb-shadow);
+  }
+
+  [data-ix-variant="solid"][data-ix-selected],
+  [data-ix-variant="solid"][data-ix-current] {
+    background: var(--color-primary);
+    color: var(--button-text);
+  }
+
+  /* The accent rail is the one intentional "gold bar" left in the system. It
+     marks the row a detail pane is currently showing, and nothing else.
+     Drawn as an absolutely positioned pseudo-element so it mirrors correctly
+     in RTL and never becomes a grid or flex item. */
+  [data-ix-variant="rail"][data-ix-selected],
+  [data-ix-variant="rail"][data-ix-current] {
+    position: relative;
+    background-color: color-mix(in srgb, var(--color-primary) 9%, transparent);
+    color: var(--color-text-primary);
+  }
+
+  [data-ix-variant="rail"][data-ix-selected]::after,
+  [data-ix-variant="rail"][data-ix-current]::after {
+    position: absolute;
+    inset-block: 22%;
+    inset-inline-start: 0;
+    width: 3px;
+    border-radius: 0 99px 99px 0;
+    background: var(--color-primary);
+    content: "";
+    pointer-events: none;
+  }
+
+  :root[dir="rtl"] [data-ix-variant="rail"][data-ix-selected]::after,
+  [dir="rtl"] [data-ix-variant="rail"][data-ix-selected]::after,
+  [dir="rtl"] [data-ix-variant="rail"][data-ix-current]::after {
+    border-radius: 99px 0 0 99px;
+  }
+
+  /* Hover on an already-selected control must not change its identity. */
+  html.ix-hover :where([data-ix-selected], [data-ix-current]):hover {
+    filter: brightness(1.04);
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 5. Disabled — wins over everything
+   * ------------------------------------------------------------------ */
+
+  :where(button, a, summary, input, select, textarea, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [data-ix]):disabled,
+  :where(button, a, summary, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [data-ix])[aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: var(--ix-disabled-opacity);
+    transform: none;
+    filter: none;
+    box-shadow: none;
+  }
+
+  :where(button, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [data-ix]):disabled:hover,
+  :where(button, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [data-ix])[aria-disabled="true"]:hover {
+    background-color: inherit;
+    color: inherit;
+  }
+
+  /* ==================================================================== *
+   * Legacy surface mapping
+   *
+   * The application predates the primitives below, so the historical class
+   * names are re-pointed at the same canonical treatments here. This is what
+   * removes the double indicators without having to touch several thousand
+   * lines of markup: one definition per family, replacing whatever the old
+   * stylesheets stacked.
+   * ==================================================================== */
+
+  /* --- Navigation: sidebar, drawer, bottom bar, local strips ---------- */
+
+  :where(.nav-btn, .drawer-navigation .nav-btn, .sidebar .nav-btn) {
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  :where(.nav-btn, .bottom-nav a, .bottom-nav button, .tabs-row a, .settings-local-nav button, .creator-tabs a).active,
+  :where(.nav-btn, .bottom-nav a, .tabs-row a).active,
+  .nav-btn[aria-current="page"],
+  .bottom-nav [aria-current="page"],
+  .tabs-row a[aria-current="page"],
+  .settings-local-nav button[aria-current="location"] {
+    color: var(--ix-selected-text);
+    background: var(--ix-selected-surface);
+    border-color: transparent;
+    box-shadow: none;
+    background-image: none;
+  }
+
+  /* --- Tab strips and segmented controls with a track ----------------- */
+
+  :where(.progress-tabs, .filter-group, .store-tabs, .workspace-v2-tabs, .profile-tabs, .progress-section-tabs) :where(button, a).active,
+  :where(.progress-tabs, .filter-group, .store-tabs) :where(button, a)[aria-selected="true"],
+  :where(.progress-tabs, .filter-group, .store-tabs) :where(button, a)[aria-current="page"] {
+    color: var(--color-text-primary);
+    background: var(--ix-thumb-surface);
+    background-image: none;
+    box-shadow: var(--ix-thumb-shadow);
+    border-color: transparent;
+  }
+
+  /* The workspace side panel keeps its underline: it sits on a flush strip
+     with no room for a pill, and the underline is its only indicator. */
+  .workspace-v2-tabs button.is-active,
+  .workspace-v2-tabs button[aria-selected="true"] {
+    background: transparent;
+    box-shadow: none;
+    color: var(--color-text-primary);
+  }
+
+  /* --- Toolbar tools (genuine toggles) -------------------------------- */
+
+  .workspace-v2-icon-button.is-active,
+  .workspace-v2-icon-button[aria-pressed="true"],
+  .workspace-v2-icon-choices button.is-active,
+  .icon-btn.active,
+  .icon-btn[aria-pressed="true"] {
+    color: var(--ix-selected-text);
+    background: var(--ix-selected-surface-strong);
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  /* Disclosure is not selection. A button whose panel is open gets a neutral
+     surface, so the toolbar can show "notes panel open" and "pen in use" at
+     the same time without them reading as two chosen tools. */
+  .workspace-v2-icon-button.is-open,
+  .workspace-v2-custom-color.is-open,
+  [aria-expanded="true"][data-ix="toolbar-button"] {
+    color: var(--color-text-primary);
+    background: color-mix(in srgb, var(--color-text-primary, #fff) 14%, transparent);
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  /* One indicator per swatch: a single contrast ring around the colour, not a
+     white border plus a coloured halo. */
+  .workspace-v2-color-swatch.is-active::before {
+    border-color: transparent;
+    box-shadow:
+      0 0 0 2px var(--color-surface-0, #0b1020),
+      0 0 0 4px var(--color-text-primary, #fff);
+  }
+
+  /* Hover must never impersonate the active tool. The old rule gave both the
+     same fill, so on touch a tapped button looked exactly like the tool in
+     use — two tools appeared selected at once. */
+  html.ix-hover .workspace-v2-icon-button:hover:not(:disabled):not(.is-active):not(.is-open):not([aria-pressed="true"]),
+  html.ix-hover .workspace-v2-icon-choices button:hover:not(.is-active) {
+    color: var(--color-text-primary);
+    background: color-mix(in srgb, var(--color-text-primary, #fff) 10%, transparent);
+  }
+
+  html:not(.ix-hover) .workspace-v2-icon-button:hover:not(.is-active):not([aria-pressed="true"]),
+  html:not(.ix-hover) .workspace-v2-icon-choices button:hover:not(.is-active) {
+    background: transparent;
+  }
+
+  /* --- Rows in a master / detail pairing ------------------------------ */
+
+  .operations-row.active,
+  .operations-row[aria-current="true"] {
+    position: relative;
+    color: var(--color-text-primary);
+    background: color-mix(in srgb, var(--color-primary) 9%, transparent);
+    border-color: color-mix(in srgb, var(--color-primary) 26%, var(--border));
+    box-shadow: none;
+  }
+
+  .operations-row.active::after,
+  .operations-row[aria-current="true"]::after {
+    position: absolute;
+    inset-block: 24%;
+    inset-inline-start: 0;
+    width: 3px;
+    border-radius: 0 99px 99px 0;
+    background: var(--color-primary);
+    content: "";
+    pointer-events: none;
+  }
+
+  /* --- Answer / option pickers ---------------------------------------- */
+
+  .choices button.selected,
+  .demo-answer.selected,
+  .workspace-v2-quiz-option.is-selected,
+  .theme-card.selected,
+  .character-card.selected,
+  .app-icon-option.selected,
+  .plan-card.selected {
+    color: var(--color-text-primary);
+    background: var(--ix-selected-surface);
+    border-color: color-mix(in srgb, var(--color-primary) 44%, transparent);
+    box-shadow: none;
+  }
+
+  /* Graded answers own their own semantic colour; selection must not add a
+     second frame on top of correct / incorrect. */
+  .demo-answer.correct,
+  .demo-answer.wrong {
+    background-image: none;
+  }
+
+  /* --- Rows and cards that merely navigate ---------------------------- *
+   *
+   * These never hold a selected state. They were picking one up from sticky
+   * hover, from `:focus` left behind by a tap, and from focus-within on the
+   * parent card. All three are now impossible; this only guarantees the
+   * resting appearance. */
+
+  :where(.list-row, .material-card, .study-mode-card, .sheet-card, .catalog-tile, .catalog-sheet-card, .notification-item, .review-queue-link, .review-subject-row, .recent-mistake, .dashboard-recent-material, .mistake-row, .announcement-item, .settings-row):not([data-ix-selected]):not([data-ix-current]):not(.active):not(.selected) {
+    --ix-selected-surface: transparent;
+  }
+
+  /* --- Toggle switches ------------------------------------------------ */
+
+  .auto-toggle[aria-pressed="true"],
+  .auto-toggle.on {
+    background: var(--color-primary);
+    color: var(--button-text);
+  }
+
+  .auto-toggle:not(.on):not([aria-pressed="true"]) {
+    box-shadow: none;
+  }
+
+}
+
+/* ==================================================================== *
+ * Primitives — resting layout for src/components/ui/interactive.jsx
+ *
+ * Layout only; every state above owns the interaction layer. This sits in
+ * the lowest layer on purpose: a primitive can be dropped into markup that
+ * still carries a historical class name (`.nav-btn`, `.icon-btn`, `.btn`)
+ * and that class keeps control of size, spacing and shape, while the
+ * interaction layer keeps control of what the states look like.
+ * ==================================================================== */
+
+@layer primitives {
+  [data-ix] {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
+    background: transparent;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  [data-ix="button"],
+  [data-ix="toggle"] {
+    min-height: 44px;
+    padding: 0 18px;
+    border-radius: var(--radius-lg);
+    color: var(--color-text-primary);
+  }
+
+  [data-ix="button"][data-ix-tone="solid"] {
+    color: var(--button-text);
+    background: var(--color-primary);
+  }
+
+  [data-ix="button"][data-ix-tone="soft"] {
+    background: var(--color-surface-3);
+  }
+
+  [data-ix="button"][data-ix-tone="outline"] {
+    border-color: var(--color-border);
+  }
+
+  [data-ix="button"][data-ix-tone="danger"] {
+    color: #fff;
+    background: var(--color-danger);
+  }
+
+  [data-ix="icon-button"] {
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+    padding: 0;
+    border-radius: var(--radius-lg);
+  }
+
+  [data-ix="nav-item"] {
+    min-height: var(--touch-target);
+    justify-content: flex-start;
+    width: 100%;
+    padding: 0 13px;
+    border-radius: var(--radius-md);
+    gap: 12px;
+  }
+
+  [data-ix="tab"] {
+    min-height: 42px;
+    padding: 0 18px;
+    border-radius: var(--radius-full);
+  }
+
+  [data-ix="toolbar-button"] {
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+    padding: 0;
+    border-radius: var(--radius-sm);
+  }
+
+  [data-ix="menu-item"] {
+    min-height: var(--touch-target);
+    justify-content: flex-start;
+    width: 100%;
+    padding: 0 12px;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    text-align: start;
+  }
+
+  [data-ix="selectable-row"] {
+    min-height: 56px;
+    justify-content: flex-start;
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    color: var(--color-text-primary);
+    background: var(--color-surface-2);
+    font-weight: 600;
+    text-align: start;
+  }
+
+  [data-ix-block="true"] {
+    display: flex;
+    width: 100%;
+  }
+}

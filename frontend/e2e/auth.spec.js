@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
+import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
 const COHORTS = [
   { id: "cohort-61", code: "61", name_en: "Human Medicine 61", name_ar: "الطب البشري 61", program: { id: "medicine", code: "human-medicine", name_en: "Human Medicine", name_ar: "الطب البشري" } },
@@ -88,6 +89,7 @@ async function mockAuth(page, { sessionUser = null, loginDelay = 0, cohortFailur
       await route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ error: { code: "permission_denied", message: "Student account" } }) });
       return;
     }
+    if (await fulfillAccessContract(route, pathname)) return;
     await route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: { code: "not_found", message: "Not used in auth tests" } }) });
   });
   return captured;

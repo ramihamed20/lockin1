@@ -27,12 +27,14 @@ runtime privileges, migration drift, clean published files, and collected static
 the long-running backend with owner credentials or bypass failed preflight.
 
 Use `DEPLOYMENT_CHECKLIST.md` for every release, `BACKUP_RECOVERY.md` for backup/restore, and
-`SECURITY_REVIEW.md` for open launch blockers. The scanner and monitoring/error providers are not
-configured; production file ingestion and launch remain blocked until those controls are proven.
+`SECURITY_REVIEW.md` for open launch blockers. ClamAV, StatsD, and the HTTPS error collector now have
+fail-closed production configuration contracts; launch remains blocked until their real destinations,
+alerts, retention, and drills are proven in staging.
 
 The first production baseline is single-host Compose. PostgreSQL is internal-only; Nginx is the only
-public service; private media is delivered through Django authorization. No Redis, Celery, broker,
-WebSocket, scheduler, or microservice is part of operations.
+public service; private media is delivered through Django authorization. A database-leased operations
+scheduler and a dedicated file scanner worker are included; no Redis, Celery, broker, WebSocket, or
+microservice is required.
 
 ## Services
 
@@ -52,7 +54,10 @@ No Redis, task queue, broker, WebSocket service, or microservice is part of this
   email backends.
 - Review account link TTLs and scoped throttle windows/limits in `.env.example`.
 - Bootstrap and retain at least one active administrator; the API prevents removal of the last one.
-- Auth throttle rows are operational data. Define retention cleanup and monitoring before launch.
+- Expired sessions, one-time tokens, OAuth flows, auth attempts, and rate buckets are deleted by the
+  operations scheduler according to `OPERATIONAL_DATA_RETENTION_DAYS`.
+- Account deletion requests follow `ACCOUNT_DELETION_RETENTION.md`; confirmed requests remain
+  blocked until the owner/legal matrix is approved and a processor is implemented.
 
 ## Health checks
 
@@ -90,8 +95,8 @@ monitoring identifies a missed best-effort subscriber effect. Review its output 
 new ranking snapshot.
 
 Ranking publication is an explicit server operation, not a request-time client calculation. Keep
-the resulting snapshot status/checksum/error audit. No scheduler or worker is installed in Phase 7;
-production scheduling requires an approved operations/deployment decision.
+the resulting snapshot status/checksum/error audit. The operations scheduler runs the idempotent
+motivation rebuild at the configured daily interval and records its durable result.
 
 ## Commerce configuration and reconciliation
 
@@ -109,8 +114,8 @@ production scheduling requires an approved operations/deployment decision.
 
 Before paid launch, validate the real provider sandbox, webhook secret rotation/replay behavior,
 refund/dispute flows, amount/currency/exponent matching, tax/receipt/invoice policy, edge payload
-limits, retention, alerts, reconciliation cadence, and PostgreSQL concurrency. No commerce scheduler
-or worker exists in Phase 8.
+limits, retention, alerts, reconciliation cadence, and PostgreSQL concurrency. The operations
+scheduler runs bounded idempotent reconciliation at the configured interval.
 
 ## Secrets and logs
 
@@ -143,9 +148,9 @@ reason and are recorded in the append-only audit domain.
 
 - Use `/api/v1/operations/system-health` for authorized normalized status. Public liveness/readiness
   remain minimal and disclose no internal detail.
-- Configure `OBSERVABILITY_SLOW_REQUEST_MS` to the approved slow-request threshold. Default metric
-  and error providers are no-ops and intentionally report `not_configured` until a provider is
-  approved.
+- Configure `OBSERVABILITY_SLOW_REQUEST_MS`, `OBSERVABILITY_STATSD_HOST`, and the operator-owned
+  HTTPS error collector. Production settings reject missing providers; health reports whether the
+  provider objects and durable scheduler states are configured. This is not proof of alert delivery.
 - Run `python manage.py rebuild_operational_analytics --from YYYY-MM-DD --to YYYY-MM-DD` to rebuild
   UTC daily projections from durable analytics facts. The range is capped at 367 days.
 - Reports are synchronous and bounded by `reporting.max_export_rows`; preview before execution.
@@ -159,6 +164,7 @@ The only implemented operational action is `users.set_status`. Preview target/co
 a reason, confirm, and inspect the result summary/audit. The service blocks self-suspension and loss
 of the final administrator, and suspension terminates active sessions.
 
-No Redis, Celery, WebSocket, broker, microservice, BI provider, monitoring provider, scheduler, or
-background worker is installed. PostgreSQL concurrency, representative projection/export/action
-load, alerts, retention, and database grants must be validated before production launch.
+No Redis, Celery, WebSocket, broker, or microservice is installed. The database-leased scheduler,
+ClamAV worker, StatsD sink, and HTTPS error collector are implemented; PostgreSQL concurrency,
+collector reachability, real alert routing, retention, load, and database grants must still be
+validated before production launch.

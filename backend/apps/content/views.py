@@ -83,6 +83,7 @@ def _write_input(*, actor: User, data: dict[str, Any]) -> LearningObjectInput:
         available_from=data.get("available_from"),
         available_until=data.get("available_until"),
         primary_file=primary_file,
+        position=int(data.get("position", 0)),
     )
 
 

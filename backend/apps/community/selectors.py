@@ -16,7 +16,7 @@ def visible_discussions(
     space_id: UUID | None = None,
 ) -> QuerySet[Discussion]:
     queryset = Discussion.objects.select_related(
-        "author", "space", "space__owner"
+        "author", "author__profile_image", "space", "space__owner", "space__owner__profile_image"
     ).prefetch_related("author__groups")
     if space_id is None:
         queryset = queryset.filter(
@@ -57,7 +57,13 @@ def discussion_comments(*, user: User, discussion: Discussion) -> QuerySet[Comme
     discussion_for_user(user=user, discussion_id=discussion.id)
     return (
         Comment.objects.filter(discussion=discussion)
-        .select_related("author", "parent", "parent__author")
+        .select_related(
+            "author",
+            "author__profile_image",
+            "parent",
+            "parent__author",
+            "parent__author__profile_image",
+        )
         .prefetch_related("author__groups")
         .order_by("created_at", "id")
     )
@@ -69,7 +75,7 @@ def visible_spaces(*, user: User) -> QuerySet[CommunitySpace]:
         status=SpaceMembership.Status.ACTIVE,
     )
     queryset = (
-        CommunitySpace.objects.select_related("owner")
+        CommunitySpace.objects.select_related("owner", "owner__profile_image")
         .prefetch_related(
             "owner__groups",
             Prefetch(

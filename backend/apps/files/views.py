@@ -1,10 +1,9 @@
 import re
-from collections.abc import Iterator
 from uuid import UUID
 
 from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
-from django.http import FileResponse, HttpResponse, StreamingHttpResponse
+from django.http import HttpResponse, StreamingHttpResponse
 from django.http.response import HttpResponseBase
 from django.shortcuts import get_object_or_404
 from django.utils.http import content_disposition_header
@@ -16,12 +15,24 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import User
+from apps.administration.catalog import Capability
+from apps.administration.permissions import HasOperationalCapability
 from apps.content.policies import can_access_managed_file
 from apps.education.permissions import IsCreatorOrAdministrator
+from platform_core.storage import ManagedObjectUnavailable, open_managed_object
 
 from .models import ManagedFile
-from .serializers import FileUploadSerializer, ManagedFileSerializer
-from .services import FileValidationError, create_managed_file
+from .serializers import (
+    FileScanDecisionSerializer,
+    FileUploadSerializer,
+    ManagedFileSerializer,
+)
+from .services import (
+    FileValidationError,
+    ScanDecisionError,
+    create_managed_file,
+    record_operator_scan_decision,
+)
 
 
 class ManagedFileUploadView(APIView):
@@ -48,6 +59,30 @@ class ManagedFileUploadView(APIView):
         return Response(ManagedFileSerializer(managed_file).data, status=status.HTTP_201_CREATED)
 
 
+class ManagedFileScanDecisionView(APIView):
+    permission_classes = [HasOperationalCapability]
+    required_capability = Capability.CONTENT_MANAGE
+
+    def post(self, request: Request, file_id: UUID) -> Response:
+        serializer = FileScanDecisionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        actor = request.user
+        if not isinstance(actor, User):
+            raise PermissionDenied()
+        try:
+            managed_file = record_operator_scan_decision(
+                actor=actor,
+                managed_file_id=file_id,
+                decision=str(serializer.validated_data["decision"]),  # type: ignore[arg-type]
+                reason=str(serializer.validated_data["reason"]),
+            )
+        except ManagedFile.DoesNotExist as error:
+            raise NotFound("File not found.") from error
+        except ScanDecisionError as error:
+            raise ValidationError({"decision": [str(error)]}) from error
+        return Response(ManagedFileSerializer(managed_file).data)
+
+
 RANGE_PATTERN = re.compile(r"bytes=(\d*)-(\d*)$")
 STREAM_CHUNK_SIZE = 64 * 1024
 
@@ -71,20 +106,6 @@ def _byte_range(value: str, size: int) -> tuple[int, int] | None:
     if start >= size or start > end:
         return None
     return start, min(end, size - 1)
-
-
-def _range_stream(file_object, *, start: int, length: int) -> Iterator[bytes]:  # type: ignore[no-untyped-def]
-    remaining = length
-    try:
-        file_object.seek(start)
-        while remaining > 0:
-            chunk = file_object.read(min(STREAM_CHUNK_SIZE, remaining))
-            if not chunk:
-                break
-            remaining -= len(chunk)
-            yield chunk
-    finally:
-        file_object.close()
 
 
 class ManagedFileDeliveryView(APIView):
@@ -114,8 +135,8 @@ class ManagedFileDeliveryView(APIView):
         ):
             raise NotFound("File not found.")
         try:
-            file_object = managed_file.blob.open("rb")
-        except OSError as error:
+            stored_object = open_managed_object(managed_file.blob)
+        except ManagedObjectUnavailable as error:
             raise NotFound("File not found.") from error
 
         size = managed_file.size_bytes
@@ -124,24 +145,24 @@ class ManagedFileDeliveryView(APIView):
         if range_header and not is_download:
             selected_range = _byte_range(range_header, size)
             if selected_range is None:
-                file_object.close()
+                stored_object.close()
                 response = HttpResponse(status=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE)
                 response["Content-Range"] = f"bytes */{size}"
                 return response
             start, end = selected_range
             length = end - start + 1
             response = StreamingHttpResponse(
-                _range_stream(file_object, start=start, length=length),
+                stored_object.stream(start=start, length=length, chunk_size=STREAM_CHUNK_SIZE),
                 status=status.HTTP_206_PARTIAL_CONTENT,
                 content_type=managed_file.content_type,
             )
             response["Content-Range"] = f"bytes {start}-{end}/{size}"
             response["Content-Length"] = str(length)
         else:
-            response = FileResponse(
-                file_object,
-                as_attachment=is_download,
-                filename=managed_file.original_name,
+            # Streaming the whole object keeps object storage from staging a
+            # complete copy in the container before the first byte is sent.
+            response = StreamingHttpResponse(
+                stored_object.stream(chunk_size=STREAM_CHUNK_SIZE),
                 content_type=managed_file.content_type,
             )
             response["Content-Length"] = str(size)

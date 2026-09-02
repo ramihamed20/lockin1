@@ -9,24 +9,19 @@ from django.conf import settings
 @dataclass(frozen=True, slots=True)
 class ManualPaymentTelegramMessage:
     payment_id: str
-    user_id: str
-    username: str
     plan: str
     amount: str
-    recharge_code: str
     submitted: str
 
     def render(self) -> str:
         return "\n".join(
             (
                 "New Lock-in Payment",
-                f"User ID: {self.user_id}",
-                f"Username: {self.username}",
+                "A manual recharge submission is awaiting review.",
                 f"Plan: {self.plan}",
                 f"Amount: {self.amount}",
-                f"Recharge Code: {self.recharge_code}",
                 f"Submitted: {self.submitted}",
-                f"Payment ID: {self.payment_id}",
+                f"Internal payment reference: {self.payment_id}",
             )
         )
 

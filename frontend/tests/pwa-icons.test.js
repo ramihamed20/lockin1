@@ -61,7 +61,10 @@ test("app icon preference is persistent and the Settings UI exposes all three ch
   assert.match(app, /mergeRemoteThemeSettings/);
   assert.match(settings, /id="settings-app-icon"/);
   assert.match(settings, /appIconOptions\.map/);
-  assert.match(settings, /aria-pressed=\{selected\}/);
+  // Choosing an app icon is one-of-N, so the options are radios rather than a
+  // row of independent toggle buttons each reporting aria-pressed.
+  assert.match(settings, /<RadioGroup className="app-icon-grid"/);
+  assert.match(settings, /<RadioOption/);
   assert.match(settings, /cannot change an existing Home Screen icon/);
 });
 

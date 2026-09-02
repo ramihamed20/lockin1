@@ -1,10 +1,30 @@
+/* The Focus chrome borrows the application identity rather than restating it:
+   purple carries the surfaces, gold carries state. Every value below resolves
+   to a global token so a theme change moves the workspace with it, and the
+   light-theme block at the foot of this file only has to re-point the same
+   names. */
 .workspace-v2 {
-  --workspace-violet: #7650ed;
-  --workspace-violet-bright: #8e61ff;
+  --workspace-violet: var(--purple);
+  --workspace-violet-bright: color-mix(in srgb, var(--purple) 62%, #fff);
+  --workspace-gold: var(--gold);
+  --workspace-gold-bright: var(--gold-2);
   --workspace-bg: #070b17;
-  --workspace-panel: #0d1327;
-  --workspace-panel-2: #111a32;
-  --workspace-border: rgba(130, 151, 205, .13);
+  --workspace-panel: color-mix(in srgb, var(--purple) 10%, #090d1d);
+  --workspace-panel-2: color-mix(in srgb, var(--purple) 15%, #0c1124);
+  --workspace-border: color-mix(in srgb, var(--purple) 20%, transparent);
+  /* Night-theme defaults for the names the light themes re-point. Keeping the
+     chrome on variables means one rule serves every theme. */
+  --workspace-chrome-text: #f2f4ff;
+  --workspace-chrome-secondary: #c4c9e6;
+  --workspace-chrome-muted: #959cc0;
+  --workspace-control-bg: color-mix(in srgb, var(--purple) 13%, #0b0f21);
+  --workspace-control-border: color-mix(in srgb, var(--purple) 26%, transparent);
+  --workspace-control-hover: color-mix(in srgb, #fff 8%, transparent);
+  --workspace-track: color-mix(in srgb, var(--purple) 30%, #171c33);
+  --workspace-on-accent: var(--button-text);
+  --workspace-toolbar-radius: var(--radius-sm, 10px);
+  --workspace-panel-radius: var(--radius-md, 14px);
+  --workspace-ease: cubic-bezier(.2, 0, 0, 1);
   position: fixed;
   inset: 0;
   z-index: var(--z-immersive);
@@ -30,6 +50,10 @@
   background: var(--workspace-panel);
 }
 
+/* Resting shape only. Hover and the selected state are owned by the shared
+   interaction layer (src/styles/interaction.css), which paints selection in
+   the theme accent — gold on Night — and keeps hover on a separate channel so
+   a tapped button can never impersonate the tool in use. */
 .workspace-v2-icon-button {
   flex: 0 0 auto;
   display: inline-grid;
@@ -38,17 +62,19 @@
   place-items: center;
   padding: 0;
   border: 0;
-  border-radius: 9px;
-  color: #c5cce0;
+  border-radius: var(--workspace-toolbar-radius);
+  color: var(--workspace-chrome-secondary);
   background: transparent;
   cursor: pointer;
-  transition: color 180ms ease, background-color 180ms ease, transform 180ms ease;
+  transition: color 160ms var(--workspace-ease), background-color 160ms var(--workspace-ease), box-shadow 160ms var(--workspace-ease), transform 120ms var(--workspace-ease);
 }
-.workspace-v2-icon-button:hover:not(:disabled), .workspace-v2-icon-button.is-active { color: #fff; background: rgba(118, 80, 237, .24); }
-.workspace-v2-icon-button.is-active { box-shadow: inset 0 0 0 1px rgba(142, 97, 255, .38); }
-.workspace-v2-icon-button:active:not(:disabled) { transform: scale(.96); }
-.workspace-v2-icon-button:focus-visible, .workspace-v2 button:focus-visible, .workspace-v2 input:focus-visible, .workspace-v2 textarea:focus-visible, .workspace-v2 select:focus-visible { outline: 2px solid #a88cff; outline-offset: 2px; }
-.workspace-v2-icon-button:disabled { opacity: .35; cursor: not-allowed; }
+.workspace-v2-icon-button.is-active { color: var(--workspace-gold-bright); background: color-mix(in srgb, var(--workspace-gold) 17%, transparent); }
+.workspace-v2-icon-button:active:not(:disabled) { transform: scale(.94); }
+.workspace-v2-icon-button:focus-visible, .workspace-v2 button:focus-visible, .workspace-v2 input:focus-visible, .workspace-v2 textarea:focus-visible, .workspace-v2 select:focus-visible { outline: 2px solid var(--workspace-gold-bright); outline-offset: 2px; }
+/* Controls sitting flush inside the rail or a docked panel would have an
+   outset ring clipped by the overflow, so those draw it inside instead. */
+.workspace-v2-toolbar button:focus-visible, .workspace-v2-tool-options button:focus-visible { outline-offset: -2px; }
+.workspace-v2-icon-button:disabled { color: var(--workspace-chrome-muted); opacity: .42; cursor: not-allowed; }
 
 .workspace-v2-body { display: grid; grid-template-columns: minmax(0, 1fr); height: 100%; }
 .workspace-v2-body.has-side { grid-template-columns: minmax(0, 1fr) 330px; gap: 10px; }
@@ -64,79 +90,112 @@
 .workspace-v2:fullscreen .workspace-v2-reader,
 .workspace-v2.is-document-fullscreen .workspace-v2-reader { width: 100%; height: 100%; border: 0; border-radius: 0; background: #090f1e; }
 
-.workspace-v2-toolbar { z-index: 8; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: end; min-width: 0; min-height: calc(50px + env(safe-area-inset-top)); margin: 0; padding: env(safe-area-inset-top) max(5px, env(safe-area-inset-right)) 5px max(5px, env(safe-area-inset-left)); border-width: 0 0 1px; overflow: hidden; overscroll-behavior: contain; touch-action: pan-x; }
-.workspace-v2-toolbar-scroll { min-width: 0; display: flex; align-items: center; gap: 4px; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: none; touch-action: pan-x; }
+/* Three fixed regions: exit, the scrolling tool rail, workspace actions. The
+   rail is the only part that ever scrolls, at every width, so the tools stay
+   on one line and the page itself never gains a sideways scrollbar. */
+.workspace-v2-toolbar { z-index: 8; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; min-width: 0; min-height: calc(52px + env(safe-area-inset-top)); margin: 0; padding: env(safe-area-inset-top) max(5px, env(safe-area-inset-right)) 5px max(5px, env(safe-area-inset-left)); border-width: 0 0 1px; overflow: hidden; overscroll-behavior: contain; touch-action: pan-x; background-image: linear-gradient(180deg, color-mix(in srgb, var(--purple) 9%, transparent), transparent 72%); }
+/* The fades are driven from the component: it publishes how much track is
+   hidden on each physical side, so the affordance is correct in RTL too and
+   the first and last tool are never dimmed when everything already fits. */
+.workspace-v2-toolbar-scroll {
+  --workspace-fade-left: 0px;
+  --workspace-fade-right: 0px;
+  min-width: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+  scroll-padding-inline: 8px;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+  mask-image: linear-gradient(to right, transparent 0, #000 var(--workspace-fade-left), #000 calc(100% - var(--workspace-fade-right)), transparent 100%);
+}
 .workspace-v2-toolbar-scroll::-webkit-scrollbar, .workspace-v2-tool-options::-webkit-scrollbar, .workspace-v2-settings-content::-webkit-scrollbar { display: none; }
 .workspace-v2-control-group, .workspace-v2-toolbar-actions { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; }
 .workspace-v2-control-group.is-exit { padding-inline-end: 4px; border-inline-end: 1px solid var(--workspace-border); }
 .workspace-v2-toolbar-actions { padding-inline-start: 5px; border-inline-start: 1px solid var(--workspace-border); background: var(--workspace-panel); }
-.workspace-v2-toolbar-divider { width: 1px; height: 24px; flex: 0 0 1px; margin-inline: 3px; background: var(--workspace-border); }
-.workspace-v2-tool-list, .workspace-v2-colors, .workspace-v2-history, .workspace-v2-tool-settings { display: flex; align-items: center; gap: 3px; flex: 0 0 auto; }
+.workspace-v2-toolbar-divider { width: 1px; height: 22px; flex: 0 0 1px; margin-inline: 3px; background: var(--workspace-border); }
+.workspace-v2-tool-list, .workspace-v2-colors, .workspace-v2-history, .workspace-v2-tool-settings { display: flex; flex-wrap: nowrap; align-items: center; gap: 3px; flex: 0 0 auto; }
 .workspace-v2-file-input { position: fixed; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
-.workspace-v2-tool-options { position: absolute; z-index: 7; inset-inline: max(6px, env(safe-area-inset-left)) max(6px, env(safe-area-inset-right)); top: calc(var(--workspace-toolbar-height, calc(50px + env(safe-area-inset-top))) + 6px); display: flex; width: max-content; max-width: calc(100% - max(12px, env(safe-area-inset-left) + env(safe-area-inset-right))); min-height: 48px; align-items: center; gap: 5px; padding: 5px; overflow-x: auto; border-radius: 11px; box-shadow: 0 8px 12px rgba(0,0,0,.28); scrollbar-width: none; overscroll-behavior-inline: contain; touch-action: pan-x; animation: workspace-options-in 150ms cubic-bezier(.16,1,.3,1); }
+/* Docked flush under the rail with only its lower corners rounded and a gold
+   hairline along the seam, so opening a tool reads as the toolbar unfolding
+   rather than a floating panel arriving from somewhere else. */
+.workspace-v2-tool-options { position: absolute; z-index: 7; inset-inline: max(6px, env(safe-area-inset-left)) max(6px, env(safe-area-inset-right)); top: var(--workspace-toolbar-height, calc(52px + env(safe-area-inset-top))); display: flex; width: max-content; max-width: calc(100% - max(12px, env(safe-area-inset-left) + env(safe-area-inset-right))); min-height: 48px; align-items: center; gap: 6px; padding: 5px 8px; overflow-x: auto; border-block-start: 0; border-radius: 0 0 var(--workspace-panel-radius) var(--workspace-panel-radius); box-shadow: inset 0 1px 0 0 color-mix(in srgb, var(--workspace-gold) 20%, transparent), 0 14px 26px -14px rgba(0, 0, 0, .62); scrollbar-width: none; overscroll-behavior-inline: contain; touch-action: pan-x; animation: workspace-options-in 150ms cubic-bezier(.16,1,.3,1); }
 .workspace-v2-tool-options-title { display: grid; min-width: 54px; gap: 0; padding-inline: 7px 4px; line-height: 1.05; }
-.workspace-v2-tool-options-title strong { font-size: .72rem; }
-.workspace-v2-tool-options-title span { color: #7f8aa5; font-size: .58rem; }
-.workspace-v2-tool-options-close { position: sticky; inset-inline-end: 0; display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; padding: 0; border: 0; border-radius: 8px; color: #cbd3e6; background: var(--workspace-panel); cursor: pointer; }
+.workspace-v2-tool-options-title strong { color: var(--workspace-chrome-text); font-size: .72rem; }
+.workspace-v2-tool-options-title span { color: var(--workspace-chrome-muted); font-size: .58rem; }
 .workspace-v2-colors { align-items: end; gap: 2px; padding: 0 2px; }
 .workspace-v2-color-item { position: relative; display: grid; width: 34px; height: 42px; flex: 0 0 34px; place-items: start center; }
-.workspace-v2-color-swatch { position: relative; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 9px; background: transparent; cursor: pointer; }
+.workspace-v2-color-swatch { position: relative; width: 34px; height: 34px; padding: 0; border: 0; border-radius: var(--workspace-toolbar-radius); background: transparent; cursor: pointer; }
 .workspace-v2-color-swatch::before { position: absolute; inset: 6px; border: 2px solid transparent; border-radius: 50%; content: ""; background: var(--workspace-tool-color); }
-.workspace-v2-color-swatch.is-active::before { border-color: #fff; box-shadow: 0 0 0 3px rgba(142, 97, 255, .2); }
-.workspace-v2-color-delete { position: absolute; z-index: 1; right: 5px; bottom: -1px; display: grid; width: 24px; height: 18px; place-items: center; padding: 0; border: 0; border-radius: 6px; color: #b8c1d7; background: #171f35; cursor: pointer; }
-.workspace-v2-color-delete:hover { color: #fff; background: #2b3653; }
-.workspace-v2-custom-color { position: relative; display: inline-flex; min-width: 48px; height: 34px; flex: 0 0 auto; align-items: center; justify-content: center; gap: 3px; padding: 0 7px; border: 1px dashed rgba(174,184,207,.46) !important; border-radius: 9px; color: #cbd3e7; background: transparent !important; cursor: pointer; font-size: .62rem; font-weight: 750; }
-.workspace-v2-custom-color.is-active { color: #fff; border-color: #8e61ff !important; background: rgba(118,80,237,.18) !important; }
-.workspace-v2-custom-color-editor { display: flex; height: 34px; align-items: center; gap: 2px; padding: 2px; border-radius: 8px; background: #121a31; }
+/* One ring, not two: the panel colour separates the swatch from a gold halo
+   so the chosen colour reads at a glance without a second white outline. */
+.workspace-v2-color-swatch.is-active::before { border-color: transparent; box-shadow: 0 0 0 2px var(--workspace-panel), 0 0 0 4px var(--workspace-gold-bright); }
+.workspace-v2-color-delete { position: absolute; z-index: 1; right: 5px; bottom: -1px; display: grid; width: 24px; height: 18px; place-items: center; padding: 0; border: 0; border-radius: 6px; color: var(--workspace-chrome-secondary); background: var(--workspace-control-bg); cursor: pointer; }
+.workspace-v2-color-delete:hover { color: var(--workspace-chrome-text); background: color-mix(in srgb, var(--purple) 26%, var(--workspace-control-bg)); }
+.workspace-v2-custom-color { position: relative; display: inline-flex; min-width: 48px; height: 34px; flex: 0 0 auto; align-items: center; justify-content: center; gap: 3px; padding: 0 7px; border: 1px dashed var(--workspace-control-border) !important; border-radius: var(--workspace-toolbar-radius); color: var(--workspace-chrome-secondary); background: transparent !important; cursor: pointer; font-size: .62rem; font-weight: 750; }
+.workspace-v2-custom-color.is-active { color: var(--workspace-gold-bright); border-style: solid !important; border-color: color-mix(in srgb, var(--workspace-gold) 46%, transparent) !important; background: color-mix(in srgb, var(--workspace-gold) 15%, transparent) !important; }
+.workspace-v2-custom-color-editor { display: flex; height: 34px; align-items: center; gap: 2px; padding: 2px; border-radius: var(--workspace-toolbar-radius); background: var(--workspace-control-bg); }
 .workspace-v2-custom-color-editor input { width: 38px; height: 30px; padding: 2px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; }
-.workspace-v2-custom-color-editor button { display: grid; width: 32px; height: 30px; place-items: center; padding: 0; border: 0; border-radius: 6px; color: #fff; background: #7650ed; cursor: pointer; }
+.workspace-v2-custom-color-editor button { display: grid; width: 32px; height: 30px; place-items: center; padding: 0; border: 0; border-radius: 6px; color: var(--workspace-on-accent); background: var(--workspace-gold); cursor: pointer; }
 .workspace-v2-custom-color-editor button::before { display: none; }
 .workspace-v2-tool-settings { gap: 5px; padding: 0; }
-.workspace-v2-icon-choices { display: flex; flex: 0 0 auto; align-items: center; gap: 2px; padding: 2px; border-radius: 8px; background: #121a31; }
-.workspace-v2-icon-choices button { display: grid; width: 32px; height: 32px; place-items: center; padding: 0; border: 0; border-radius: 6px; color: #aeb8cf; background: transparent; cursor: pointer; }
-.workspace-v2-icon-choices button:hover, .workspace-v2-icon-choices button.is-active { color: #fff; background: rgba(118,80,237,.24); }
-.workspace-v2-icon-choices button.is-active { box-shadow: inset 0 0 0 1px rgba(142,97,255,.42); }
-.workspace-v2-tool-range { display: grid; width: 166px; min-height: 44px; flex: 0 0 166px; gap: 1px; padding: 4px 6px 3px; border-radius: 8px; color: #8994af; background: #121a31; }
-.workspace-v2-range-heading { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; color: #aeb8cf; font-size: .6rem; font-weight: 700; line-height: 1; }
-.workspace-v2-tool-range output { color: #eef1fb; font-size: .62rem; font-variant-numeric: tabular-nums; font-weight: 800; }
+.workspace-v2-icon-choices { display: flex; flex: 0 0 auto; align-items: center; gap: 2px; padding: 2px; border-radius: var(--workspace-toolbar-radius); background: var(--workspace-control-bg); }
+.workspace-v2-icon-choices button { display: grid; width: 32px; height: 32px; place-items: center; padding: 0; border: 0; border-radius: 6px; color: var(--workspace-chrome-secondary); background: transparent; cursor: pointer; transition: color 160ms var(--workspace-ease), background-color 160ms var(--workspace-ease); }
+.workspace-v2-icon-choices button.is-active { color: var(--workspace-gold-bright); background: color-mix(in srgb, var(--workspace-gold) 17%, transparent); }
+.workspace-v2-tool-range { display: grid; width: 166px; min-height: 44px; flex: 0 0 166px; gap: 1px; padding: 4px 6px 3px; border-radius: var(--workspace-toolbar-radius); color: var(--workspace-chrome-muted); background: var(--workspace-control-bg); }
+.workspace-v2-range-heading { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; color: var(--workspace-chrome-secondary); font-size: .6rem; font-weight: 700; line-height: 1; }
+.workspace-v2-tool-range output { color: var(--workspace-chrome-text); font-size: .62rem; font-variant-numeric: tabular-nums; font-weight: 800; }
 .workspace-v2-range-control { display: grid; grid-template-columns: 26px minmax(0, 1fr); align-items: center; gap: 5px; }
 .workspace-v2-range-preview { display: grid; width: 24px; height: 22px; place-items: center; border-radius: 5px; background: rgba(255,255,255,.04); }
 .workspace-v2-range-preview::before { width: 20px; height: var(--workspace-range-size); max-height: 14px; border-radius: 99px; content: ""; background: var(--workspace-range-color); opacity: var(--workspace-range-opacity); }
-.workspace-v2-tool-range.is-eraser .workspace-v2-range-preview::before { width: var(--workspace-range-size); height: var(--workspace-range-size); border: 2px solid #aeb8cf; border-radius: 50%; background: transparent; }
+.workspace-v2-tool-range.is-eraser .workspace-v2-range-preview::before { width: var(--workspace-range-size); height: var(--workspace-range-size); border: 2px solid var(--workspace-chrome-secondary); border-radius: 50%; background: transparent; }
 .workspace-v2-tool-range.is-opacity .workspace-v2-range-preview { background: conic-gradient(#d8deed 25%, #76819a 0 50%, #d8deed 0 75%, #76819a 0) 0 0 / 8px 8px; }
 .workspace-v2-tool-range.is-opacity .workspace-v2-range-preview::before { width: 16px; height: 16px; border-radius: 50%; }
 .workspace-v2-tool-range input { width: 100%; min-width: 82px; height: 24px; margin: 0; appearance: none; background: transparent; cursor: pointer; }
-.workspace-v2-tool-range input::-webkit-slider-runnable-track { height: 4px; border-radius: 99px; background: linear-gradient(90deg, #8e61ff 0 var(--workspace-range-progress), #3b4560 var(--workspace-range-progress) 100%); }
-.workspace-v2-tool-range input::-webkit-slider-thumb { width: 15px; height: 15px; margin-top: -5.5px; appearance: none; border: 2px solid #fff; border-radius: 50%; background: #8e61ff; box-shadow: 0 1px 3px rgba(0,0,0,.35); }
-.workspace-v2-tool-range input::-moz-range-track { height: 4px; border-radius: 99px; background: #3b4560; }
-.workspace-v2-tool-range input::-moz-range-progress { height: 4px; border-radius: 99px; background: #8e61ff; }
-.workspace-v2-tool-range input::-moz-range-thumb { width: 13px; height: 13px; border: 2px solid #fff; border-radius: 50%; background: #8e61ff; }
-.workspace-v2-settings-popover { position: absolute; z-index: 9; top: calc(var(--workspace-toolbar-height, calc(50px + env(safe-area-inset-top))) + 6px); inset-inline-end: max(6px, env(safe-area-inset-right)); width: min(330px, calc(100% - 12px)); max-height: calc(100% - 68px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow: hidden; border: 1px solid var(--workspace-border); border-radius: 12px; color: #e8ecf8; background: var(--workspace-panel); box-shadow: 0 8px 12px rgba(0,0,0,.3); animation: workspace-options-in 150ms cubic-bezier(.16,1,.3,1); }
+/* The filled part of a slider is an active-state indicator, so it carries the
+   accent; the empty part stays on the purple track. Gradients have no logical
+   direction, hence the mirrored rule for Arabic. */
+.workspace-v2-tool-range input::-webkit-slider-runnable-track { height: 4px; border-radius: 99px; background: linear-gradient(to right, var(--workspace-gold) 0 var(--workspace-range-progress), var(--workspace-track) var(--workspace-range-progress) 100%); }
+[dir="rtl"] .workspace-v2-tool-range input::-webkit-slider-runnable-track { background: linear-gradient(to left, var(--workspace-gold) 0 var(--workspace-range-progress), var(--workspace-track) var(--workspace-range-progress) 100%); }
+.workspace-v2-tool-range input::-webkit-slider-thumb { width: 15px; height: 15px; margin-top: -5.5px; appearance: none; border: 2px solid var(--workspace-panel); border-radius: 50%; background: var(--workspace-gold-bright); box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+.workspace-v2-tool-range input::-moz-range-track { height: 4px; border-radius: 99px; background: var(--workspace-track); }
+.workspace-v2-tool-range input::-moz-range-progress { height: 4px; border-radius: 99px; background: var(--workspace-gold); }
+.workspace-v2-tool-range input::-moz-range-thumb { width: 13px; height: 13px; border: 2px solid var(--workspace-panel); border-radius: 50%; background: var(--workspace-gold-bright); }
+.workspace-v2-settings-popover { position: absolute; z-index: 9; top: var(--workspace-toolbar-height, calc(52px + env(safe-area-inset-top))); inset-inline-end: max(6px, env(safe-area-inset-right)); width: min(330px, calc(100% - 12px)); max-height: calc(100% - 62px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow: hidden; border: 1px solid var(--workspace-border); border-block-start: 0; border-radius: 0 0 var(--workspace-panel-radius) var(--workspace-panel-radius); color: var(--workspace-chrome-text); background: var(--workspace-panel); box-shadow: inset 0 1px 0 0 color-mix(in srgb, var(--workspace-gold) 20%, transparent), 0 14px 26px -14px rgba(0, 0, 0, .62); animation: workspace-options-in 150ms cubic-bezier(.16,1,.3,1); }
 .workspace-v2-settings-popover > header { display: flex; min-height: 44px; align-items: center; justify-content: space-between; padding-inline-start: 12px; border-bottom: 1px solid var(--workspace-border); }
 .workspace-v2-settings-popover > header > span { display: inline-flex; align-items: center; gap: 7px; font-size: .78rem; font-weight: 750; }
-.workspace-v2-settings-popover > header button { display: grid; width: 44px; height: 44px; place-items: center; border: 0; color: #cbd3e6; background: transparent; cursor: pointer; }
-.workspace-v2-settings-content { max-height: calc(100dvh - 126px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow-y: auto; padding: 8px; scrollbar-width: none; }
+.workspace-v2-settings-popover > header button { display: grid; width: 44px; height: 44px; place-items: center; border: 0; color: var(--workspace-chrome-secondary); background: transparent; cursor: pointer; }
+.workspace-v2-settings-content { max-height: calc(var(--app-viewport-height, 100dvh) - 120px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow-y: auto; padding: 8px; scrollbar-width: none; }
 .workspace-v2-settings-content section + section { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--workspace-border); }
-.workspace-v2-settings-content h2 { margin: 2px 4px 6px; color: #8f99b4; font-size: .65rem; font-weight: 750; }
-.workspace-v2-settings-toggle, .workspace-v2-settings-action { display: grid; width: 100%; min-height: 48px; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 7px; padding: 5px 7px; border: 0; border-radius: 8px; color: #dce2f1; background: transparent; cursor: pointer; text-align: start; }
-.workspace-v2-settings-toggle:hover, .workspace-v2-settings-action:hover { background: rgba(118,80,237,.14); }
+.workspace-v2-settings-content h2 { margin: 2px 4px 6px; color: var(--workspace-chrome-muted); font-size: .65rem; font-weight: 750; }
+.workspace-v2-settings-toggle, .workspace-v2-settings-action { display: grid; width: 100%; min-height: 48px; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 7px; padding: 5px 7px; border: 0; border-radius: var(--workspace-toolbar-radius); color: var(--workspace-chrome-text); background: transparent; cursor: pointer; text-align: start; }
+/* Guarded by the shared hover contract so a tapped row does not stay lit. */
+html.ix-hover .workspace-v2-settings-toggle:not(:disabled):hover,
+html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: color-mix(in srgb, var(--purple) 18%, transparent); }
 .workspace-v2-settings-toggle > span:nth-child(2), .workspace-v2-settings-action > span { display: grid; gap: 1px; }
 .workspace-v2-settings-toggle strong, .workspace-v2-settings-action strong { font-size: .72rem; }
-.workspace-v2-settings-toggle small, .workspace-v2-settings-action small { color: #8f99b4; font-size: .62rem; line-height: 1.35; }
-.workspace-v2-switch-track { position: relative; width: 34px; height: 20px; border-radius: 99px; background: #39435e; transition: background-color 160ms ease; }
+.workspace-v2-settings-toggle small, .workspace-v2-settings-action small { color: var(--workspace-chrome-muted); font-size: .62rem; line-height: 1.35; }
+.workspace-v2-switch-track { position: relative; width: 34px; height: 20px; border-radius: 99px; background: var(--workspace-track); transition: background-color 160ms var(--workspace-ease); }
 .workspace-v2-switch-track span { position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #eef1fb; transition: transform 160ms cubic-bezier(.16,1,.3,1); }
-.workspace-v2-settings-toggle[aria-checked="true"] .workspace-v2-switch-track { background: #7650ed; }
+.workspace-v2-settings-toggle[aria-checked="true"] .workspace-v2-switch-track { background: var(--workspace-gold); }
+.workspace-v2-settings-toggle[aria-checked="true"] .workspace-v2-switch-track span { background: var(--workspace-on-accent); }
 .workspace-v2-settings-toggle[aria-checked="true"] .workspace-v2-switch-track span { transform: translateX(14px); }
 .workspace-v2-settings-content .workspace-v2-tool-range { width: 100%; margin-top: 4px; }
 /* Bottom-start keeps the reader dock clear of the Active Study checkpoint,
    which docks bottom-centre on desktop and bottom-end on small screens. */
 .workspace-v2-page-dock { position: absolute; z-index: 6; inset-inline-start: max(10px, env(safe-area-inset-left)); bottom: max(10px, env(safe-area-inset-bottom)); display: grid; justify-items: start; gap: 6px; }
-.workspace-v2-settings-note { margin: 0 4px 6px; padding: 7px 9px; border-radius: 8px; color: #2a1206; background: #f3ba55; font-size: .66rem; font-weight: 700; }
-.workspace-v2-settings-confirm { display: grid; gap: 7px; margin: 2px 4px 6px; padding: 9px; border: 1px solid rgba(142,97,255,.34); border-radius: 9px; background: rgba(118,80,237,.12); }
-.workspace-v2-settings-confirm p { margin: 0; color: #dce2f1; font-size: .68rem; line-height: 1.45; }
+.workspace-v2-settings-note { margin: 0 4px 6px; padding: 7px 9px; border-radius: var(--workspace-toolbar-radius); color: var(--workspace-on-accent); background: var(--workspace-gold); font-size: .66rem; font-weight: 700; }
+.workspace-v2-settings-confirm { display: grid; gap: 7px; margin: 2px 4px 6px; padding: 9px; border: 1px solid var(--workspace-control-border); border-radius: var(--workspace-toolbar-radius); background: color-mix(in srgb, var(--purple) 13%, transparent); }
+.workspace-v2-settings-confirm p { margin: 0; color: var(--workspace-chrome-text); font-size: .68rem; line-height: 1.45; }
 .workspace-v2-settings-confirm > div { display: flex; gap: 6px; }
-.workspace-v2-settings-confirm button { min-height: 40px; flex: 1 1 auto; padding: 0 10px; border: 0; border-radius: 8px; color: #fff; background: #7650ed; cursor: pointer; font-size: .7rem; font-weight: 750; }
-.workspace-v2-settings-confirm button:last-child { color: #cbd3e6; background: rgba(255,255,255,.06); }
+.workspace-v2-settings-confirm button { min-height: 40px; flex: 1 1 auto; padding: 0 10px; border: 0; border-radius: var(--workspace-toolbar-radius); color: var(--workspace-on-accent); background: var(--workspace-gold); cursor: pointer; font-size: .7rem; font-weight: 750; }
+.workspace-v2-settings-confirm button:last-child { color: var(--workspace-chrome-secondary); background: color-mix(in srgb, var(--purple) 20%, transparent); }
 .workspace-v2-page-number { display: inline-flex; min-height: 30px; align-items: center; gap: 3px; padding: 0 9px; border: 0; border-radius: 8px; color: #e8ecf8; background: rgba(13,19,39,.9); box-shadow: 0 2px 6px rgba(0,0,0,.3); cursor: pointer; font-size: .66rem; font-variant-numeric: tabular-nums; }
 .workspace-v2-page-number:hover, .workspace-v2-page-dock.is-open .workspace-v2-page-number { color: #fff; background: rgba(24,33,62,.96); }
 .workspace-v2-page-number span { color: #9ba6be; }
@@ -245,9 +304,12 @@
 .workspace-v2-card-copy { display: -webkit-box; overflow: hidden; margin-block: 6px; color: #d8deee; -webkit-box-orient: vertical; -webkit-line-clamp: 3; font-size: .76rem; line-height: 1.45; white-space: pre-wrap; }
 .workspace-v2-card-tags { display: flex; gap: 6px; }
 .workspace-v2-card-tags > span { padding: 3px 6px; border-radius: 5px; color: #baa8f7; background: #1a2341; }
-.workspace-v2-note-editor { display: grid; gap: 7px; color: #aeb8d0; font-size: .74rem; }
-.workspace-v2-note-editor textarea { min-height: 150px; resize: vertical; padding: 10px; border: 1px solid rgba(130,151,205,.16); border-radius: 8px; color: #edf0ff; background: #0b1226; }
-.workspace-v2-note-editor button { min-height: 44px; border: 0; border-radius: 8px; color: #fff; background: #7650ed; cursor: pointer; }
+.workspace-v2-note-editor { display: grid; gap: 7px; color: var(--workspace-chrome-secondary); font-size: .74rem; }
+/* Four lines of the field's own text, not a fixed block: the note list above
+   it is the part of the panel worth the room, and the field grows by drag on
+   a pointer and by content everywhere else. */
+.workspace-v2-note-editor textarea { min-height: calc((4 * 1.5em) + 22px); resize: vertical; padding: 10px; border: 1px solid var(--workspace-control-border); border-radius: var(--workspace-toolbar-radius); color: var(--workspace-chrome-text); background: var(--workspace-control-bg); font-size: var(--text-sm); line-height: 1.5; }
+.workspace-v2-note-editor button { min-height: 44px; border: 0; border-radius: var(--workspace-toolbar-radius); color: var(--workspace-on-accent); background: var(--workspace-gold); cursor: pointer; font-weight: 750; }
 .workspace-v2-note-editor button:disabled { opacity: .45; cursor: not-allowed; }
 .workspace-v2-highlight-card { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px 10px; overflow: hidden; padding-inline-start: 17px; }
 .workspace-v2-highlight-card strong { color: #e9edfa; font-size: .78rem; }
@@ -259,8 +321,8 @@
 .workspace-v2-missing { display: grid; place-content: center; gap: 16px; text-align: center; }
 .workspace-v2-missing button { min-height: 44px; border: 0; border-radius: 8px; color: #fff; background: #7650ed; }
 
-.workspace-v2-study-mode-button { display: inline-grid; width: 38px; height: 38px; flex: 0 0 auto; place-items: center; padding: 0; border: 1px solid rgba(142,97,255,.24); border-radius: 9px; color: #d8ccff; background: rgba(118,80,237,.12); cursor: pointer; }
-.workspace-v2-study-mode-button.is-normal { color: #aab5cd; border-color: var(--workspace-border); background: #11182d; }
+.workspace-v2-study-mode-button { display: inline-grid; width: 38px; height: 38px; flex: 0 0 auto; place-items: center; padding: 0; border: 1px solid var(--workspace-control-border); border-radius: var(--workspace-toolbar-radius); color: color-mix(in srgb, var(--purple) 45%, var(--workspace-chrome-text)); background: color-mix(in srgb, var(--purple) 14%, transparent); cursor: pointer; transition: color 160ms var(--workspace-ease), background-color 160ms var(--workspace-ease); }
+.workspace-v2-study-mode-button.is-normal { color: var(--workspace-chrome-secondary); border-color: var(--workspace-border); background: var(--workspace-control-bg); }
 .workspace-v2-checkpoint-dock { position: fixed; z-index: calc(var(--z-immersive) + 4); inset-inline: 0; bottom: max(18px, env(safe-area-inset-bottom)); display: flex; justify-content: center; padding-inline: max(12px, env(safe-area-inset-left)) max(12px, env(safe-area-inset-right)); pointer-events: none; }
 .workspace-v2-checkpoint-button { display: inline-flex; min-width: min(288px, calc(100vw - 32px)); min-height: 48px; align-items: center; justify-content: center; gap: 8px; padding: 0 18px; border: 0; border-radius: 10px; color: #75809b; background: #171f36; box-shadow: 0 6px 8px rgba(0,0,0,.25); cursor: not-allowed; font-size: .8rem; font-weight: 800; pointer-events: auto; }
 .workspace-v2-checkpoint-button.is-ready { color: #fff; background: linear-gradient(135deg, #6e49e6, #8f60fa); cursor: pointer; }
@@ -330,13 +392,12 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 @media (max-width: 1199px) {
   .workspace-v2-icon-button,
   .workspace-v2-study-mode-button,
-  .workspace-v2-tool-options-close,
   .workspace-v2-icon-choices button,
   .workspace-v2-tool-options .workspace-v2-color-swatch { min-width: 44px; width: 44px; min-height: 44px; height: 44px; }
   .workspace-v2-tool-options .workspace-v2-color-item { width: 44px; height: 50px; flex-basis: 44px; }
   .workspace-v2-tool-options .workspace-v2-custom-color { min-height: 44px; height: 44px; }
   .workspace-v2-body, .workspace-v2-body.has-side { grid-template-columns: 1fr; gap: 0; height: 100%; }
-  .workspace-v2-body.has-side .workspace-v2-side { position: fixed; z-index: var(--z-drawer); inset-block-start: calc(var(--workspace-toolbar-height, calc(50px + env(safe-area-inset-top))) + 8px); inset-block-end: auto; inset-inline-end: max(8px, env(safe-area-inset-right)); width: min(340px, calc(100vw - 16px)); height: auto; max-height: min(620px, calc(100% - 74px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); box-shadow: 0 8px 24px rgba(0,0,0,.38); transform: translateX(0); }
+  .workspace-v2-body.has-side .workspace-v2-side { position: fixed; z-index: var(--z-drawer); inset-block-start: calc(var(--workspace-toolbar-height, calc(52px + env(safe-area-inset-top))) + 8px); inset-block-end: auto; inset-inline-end: max(8px, env(safe-area-inset-right)); width: min(340px, calc(100vw - 16px)); height: auto; max-height: min(620px, calc(100% - 74px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); box-shadow: 0 8px 24px rgba(0,0,0,.38); transform: translateX(0); }
   .workspace-v2-side-backdrop { display: none !important; }
   .workspace-v2-checkpoint-dock { right: 0; bottom: max(12px, env(safe-area-inset-bottom)); left: auto; width: 48px; padding: 0; }
   .workspace-v2-checkpoint-button { width: 48px; min-width: 48px; min-height: 48px; padding: 0; border-radius: 12px 0 0 12px; font-size: 0; }
@@ -345,52 +406,36 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 }
 
 /* Narrow toolbar ------------------------------------------------------------
- * Fifteen 44px controls need ~690px of track. A phone has 320-430px, so on a
- * single row seven of them sat outside a scroller with no scrollbar and no
- * fade: undo and redo among them. Below 560px the toolbar stops being a
- * scroller and wraps instead, so every control is on screen. The reader row
- * sizes itself to whatever height that takes, and the popovers follow the
- * measured height rather than a hard-coded offset. */
+ * A phone has 320-430px of width and the rail carries twelve 44px controls, so
+ * everything cannot be on screen at once. The tools stay on one line and the
+ * rail scrolls sideways instead of wrapping: a second row costs the reader a
+ * band of height on the smallest screens, and a wrapped toolbar makes the
+ * tool positions move as the row count changes. Exit and the workspace
+ * actions stay pinned either side of the rail so the scroll never carries
+ * them away, the fades at each end of the rail say more is there, and the
+ * component scrolls the chosen tool back into view when it changes. The
+ * reader row still sizes itself from the measured toolbar height. */
 @media (max-width: 560px) {
   .workspace-v2-toolbar {
-    display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    justify-content: flex-start;
     gap: 2px;
-    overflow: visible;
-    touch-action: auto;
+    padding-inline: max(4px, env(safe-area-inset-left)) max(4px, env(safe-area-inset-right));
+    padding-block-end: 5px;
   }
 
-  /* The groups stop being boxes so their buttons wrap as one row of controls. */
-  .workspace-v2-toolbar-scroll,
-  .workspace-v2-tool-list,
-  .workspace-v2-history {
-    display: contents;
-  }
-
-  .workspace-v2-toolbar-divider {
-    display: none;
-  }
-
-  .workspace-v2-toolbar-actions {
-    padding-inline-start: 0;
-    border-inline-start: 0;
-    background: transparent;
-  }
+  .workspace-v2-toolbar-scroll { gap: 2px; }
+  .workspace-v2-tool-list, .workspace-v2-history { gap: 2px; }
+  .workspace-v2-control-group.is-exit { padding-inline-end: 3px; }
+  .workspace-v2-toolbar-actions { gap: 0; padding-inline-start: 3px; }
+  .workspace-v2-toolbar-divider { margin-inline: 2px; }
 
   .workspace-v2-study-mode-button { width: 44px; height: 44px; }
   .workspace-v2-icon-button { width: 44px; height: 44px; }
-  .workspace-v2-toolbar { padding-block-end: 5px; }
-  .workspace-v2-toolbar-scroll { gap: 1px; }
-  .workspace-v2-toolbar-divider { margin-inline: 1px; }
-  .workspace-v2-toolbar-actions { gap: 0; padding-inline-start: 2px; }
-  .workspace-v2-tool-options { inset-inline: 4px; max-width: calc(100% - 8px); min-height: 52px; padding: 4px; }
+  .workspace-v2-tool-options { inset-inline: 4px; max-width: calc(100% - 8px); min-height: 52px; padding: 4px 6px; }
   .workspace-v2-tool-range { width: 160px; min-height: 48px; flex-basis: 160px; }
   .workspace-v2-tool-range input { height: 40px; }
   .workspace-v2-tool-options-title { display: none; }
   .workspace-v2-tool-options .workspace-v2-toolbar-divider { display: none; }
-  .workspace-v2-tool-options-close { width: 44px; height: 44px; flex-basis: 44px; }
   .workspace-v2-document { min-height: 680px; padding: 28px 22px; }
   .workspace-v2-document-grid { grid-template-columns: 1fr; gap: 20px; }
   .workspace-v2-selection-actions { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; margin-inline: 0; overflow: visible; }
@@ -402,7 +447,7 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v2-side-backdrop { display: block !important; }
   .workspace-v2-side::before { width: 42px; height: 4px; flex: 0 0 auto; margin: 8px auto 0; border-radius: 99px; content: ""; background: #69738e; }
   .workspace-v2-side-content { padding: 6px 8px 8px; }
-  .workspace-v2-note-editor textarea { min-height: clamp(180px, 28dvh, 240px); resize: none; }
+  .workspace-v2-note-editor textarea { min-height: calc((4 * 1.5em) + 22px); max-height: 34dvh; resize: none; }
   .workspace-v2-settings-popover { inset-inline: 4px; width: auto; max-height: calc(100% - 68px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
   .workspace-v2-selection-menu { max-width: calc(100% - 20px); }
   .workspace-v2-checkpoint-dock { right: 0; bottom: max(12px, env(safe-area-inset-bottom)); left: auto; width: 48px; padding: 0; }
@@ -428,7 +473,7 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 @media (max-height: 500px) and (max-width: 900px) {
   .workspace-v2-toolbar { padding-block-end: 3px; }
   .workspace-v2-settings-popover { max-height: calc(100% - 58px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
-  .workspace-v2-body.has-side .workspace-v2-side { inset-block-start: calc(var(--workspace-toolbar-height, calc(50px + env(safe-area-inset-top))) + 4px); }
+  .workspace-v2-body.has-side .workspace-v2-side { inset-block-start: calc(var(--workspace-toolbar-height, calc(52px + env(safe-area-inset-top))) + 4px); }
 }
 
 @media (pointer: coarse) {
@@ -440,6 +485,49 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v2-custom-color { min-height: 44px; height: 44px; }
   .workspace-v2-study-mode-button { min-width: 44px; width: 44px; min-height: 44px; height: 44px; }
   .workspace-v2-tool-range input { min-height: 44px; }
+}
+
+/* Mobile Safari magnifies the whole page whenever it focuses a control whose
+   text is smaller than 16px, and it does not undo that magnification when the
+   keyboard closes. The workspace is a fixed, immersive surface with nowhere to
+   scroll the magnification away, so the reader was left enlarged for the rest
+   of the session. Text entry therefore holds the body size wherever a virtual
+   keyboard can appear - `any-pointer` rather than `pointer`, so an iPad with a
+   trackpad attached is covered too. Density is carried by the labels around
+   the field, not by the field. Colour, range and file inputs are excluded:
+   they open no keyboard and their sizing is the control, not the text. */
+@media (any-pointer: coarse) {
+  .workspace-v2 :is(textarea, input:not([type="color"]):not([type="range"]):not([type="file"])) {
+    font-size: max(16px, var(--text-md));
+  }
+
+  .workspace-v2-page-input input { width: 64px; }
+}
+
+/* While the keyboard is up the frame is pinned by the component, so the reader
+   keeps its geometry and the PDF neither rescales nor re-pans. Only the notes
+   drawer reacts: it rides on the published inset and shortens so the field and
+   its save action stay above the keyboard. */
+.workspace-v2[data-keyboard="open"] .workspace-v2-side,
+.workspace-v2[data-keyboard="open"] .workspace-v2-body.has-side .workspace-v2-side {
+  max-height: calc(100% - var(--workspace-keyboard-inset, 0px) - var(--workspace-toolbar-height, 52px) - 12px);
+}
+
+/* Three lines while the keyboard is up: enough to see what is being written,
+   short enough that the save action stays above the keyboard. */
+.workspace-v2[data-keyboard="open"] .workspace-v2-note-editor textarea {
+  min-height: calc((3 * 1.5em) + 22px);
+  max-height: 30dvh;
+}
+
+/* Only the phone layout docks the drawer to the bottom edge, so only it has to
+   be lifted clear of the keyboard. */
+@media (max-width: 560px) {
+  .workspace-v2[data-keyboard="open"] .workspace-v2-side,
+  .workspace-v2[data-keyboard="open"] .workspace-v2-body.has-side .workspace-v2-side {
+    bottom: var(--workspace-keyboard-inset, 0px);
+    padding-bottom: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -577,7 +665,7 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   background: var(--workspace-overlay);
 }
 
-:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2 :is(.workspace-v2-side-close, .workspace-v2-tabs button, .workspace-v2-tool-options-close) {
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2 :is(.workspace-v2-side-close, .workspace-v2-tabs button) {
   color: var(--workspace-chrome-secondary);
 }
 

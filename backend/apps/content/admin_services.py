@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from functools import partial
+from typing import cast
 from uuid import UUID
 
 from django.db import transaction
@@ -156,8 +158,12 @@ def create_sheet(
 
 
 def _current_input(
-    *, sheet: LearningObject, primary_file: ManagedFile | None, title: str | None = None,
-    summary: str | None = None, position: int | None = None
+    *,
+    sheet: LearningObject,
+    primary_file: ManagedFile | None,
+    title: str | None = None,
+    summary: str | None = None,
+    position: int | None = None,
 ) -> LearningObjectInput:
     version = sheet.current_version
     if version is None:
@@ -181,9 +187,11 @@ def _primary_file(sheet: LearningObject) -> ManagedFile:
     version = sheet.current_version
     if version is None:
         raise ContentRuleError("The sheet has no current version.")
-    asset = version.assets.select_related("managed_file").filter(
-        role=LearningObjectAsset.Role.PRIMARY
-    ).first()
+    asset = (
+        version.assets.select_related("managed_file")
+        .filter(role=LearningObjectAsset.Role.PRIMARY)
+        .first()
+    )
     if asset is None:
         raise ContentRuleError("Upload a PDF before editing this sheet.")
     return asset.managed_file
@@ -207,7 +215,7 @@ def update_sheet(
             primary_file=_primary_file(current),
             title=str(changes["title"]) if "title" in changes else None,
             summary=str(changes["summary"]) if "summary" in changes else None,
-            position=int(changes["position"]) if "position" in changes else None,
+            position=(int(cast(int | str, changes["position"])) if "position" in changes else None),
         ),
     )
     if was_published:
@@ -218,8 +226,12 @@ def update_sheet(
 
 @transaction.atomic
 def replace_pdf(
-    *, actor: User, sheet_id: UUID, expected_revision: int, managed_file: ManagedFile,
-    notify_students: bool
+    *,
+    actor: User,
+    sheet_id: UUID,
+    expected_revision: int,
+    managed_file: ManagedFile,
+    notify_students: bool,
 ) -> LearningObject:
     current = LearningObject.objects.select_related("current_version__academic_node").get(
         id=sheet_id
@@ -382,4 +394,4 @@ def permanently_delete_sheet(*, actor: User, sheet_id: UUID) -> None:
         storage = managed_file.blob.storage
         name = managed_file.blob.name
         managed_file.delete()
-        transaction.on_commit(lambda storage=storage, name=name: storage.delete(name))
+        transaction.on_commit(partial(storage.delete, name))

@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import cast
 from uuid import UUID
 
 from django.db import transaction
@@ -120,7 +121,7 @@ def rebuild_progress(*, user: User) -> None:
         is_active=True, current_version__isnull=False
     ).select_related("current_version"):
         version = definition.current_version
-        assert version is not None
+        version = cast(AchievementVersion, version)
         current, target = _criterion_value(user=user, version=version)
         AchievementProgress.objects.update_or_create(
             user=user,

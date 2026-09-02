@@ -41,6 +41,14 @@ export function TokenActionPage({ type, onAccountChanged }) {
   const pageTitle = isReset ? "Reset your password" : flow.title;
 
   useEffect(() => {
+    if (!token || !searchParams.has("token")) return;
+    // Keep one-time credentials out of browser history and referrers as soon
+    // as the router has captured them. The component instance retains the
+    // in-memory token while the public URL is replaced with the clean route.
+    navigate(`/${type}`, { replace: true });
+  }, [navigate, searchParams, token, type]);
+
+  useEffect(() => {
     document.title = `${pageTitle} — Lock-in`;
   }, [pageTitle]);
 

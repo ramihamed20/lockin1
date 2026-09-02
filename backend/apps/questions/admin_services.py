@@ -25,8 +25,12 @@ from .services import (
 
 
 def _audit(
-    *, actor: User, action: str, target_type: str, target_id: str,
-    metadata: dict[str, object] | None = None
+    *,
+    actor: User,
+    action: str,
+    target_type: str,
+    target_id: str,
+    metadata: dict[str, object] | None = None,
 ) -> None:
     record_audit(
         actor=actor,
@@ -77,9 +81,7 @@ def import_questions(
         sheet=sheet,
         schema_version="lockin_questions_v1",
         status=(
-            QuestionImportBatch.Status.PUBLISHED
-            if publish
-            else QuestionImportBatch.Status.DRAFT
+            QuestionImportBatch.Status.PUBLISHED if publish else QuestionImportBatch.Status.DRAFT
         ),
         question_count=len(validation.questions),
         type_counts=validation.type_counts,
@@ -183,8 +185,11 @@ def _move(*, actor: User, question: Question, target_sheet: LearningObject) -> Q
 
 @transaction.atomic
 def bulk_question_action(
-    *, actor: User, question_ids: list[UUID], action: str,
-    target_sheet: LearningObject | None = None
+    *,
+    actor: User,
+    question_ids: list[UUID],
+    action: str,
+    target_sheet: LearningObject | None = None,
 ) -> dict[str, object]:
     questions = list(
         Question.objects.select_for_update()

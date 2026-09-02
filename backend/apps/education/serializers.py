@@ -4,7 +4,23 @@ from rest_framework import serializers
 
 from platform_core.api.serializers import StrictSerializer
 
-from .models import CreatorScope, EducationNode
+from .models import AcademicProgram, CreatorScope, EducationNode, StudentCohort
+
+
+class AcademicProgramSerializer(serializers.ModelSerializer[AcademicProgram]):
+    class Meta:
+        model = AcademicProgram
+        fields = ("id", "code", "name_en", "name_ar")
+        read_only_fields = fields
+
+
+class StudentCohortSerializer(serializers.ModelSerializer[StudentCohort]):
+    program = AcademicProgramSerializer(read_only=True)
+
+    class Meta:
+        model = StudentCohort
+        fields = ("id", "code", "name_en", "name_ar", "program")
+        read_only_fields = fields
 
 
 class EducationNodeSerializer(serializers.ModelSerializer[EducationNode]):

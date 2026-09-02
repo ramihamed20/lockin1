@@ -14,12 +14,15 @@ import { assetPath, cssVars } from "../../lib/utils.js";
 import { PRODUCT_ROLES } from "../../api/contracts.js";
 import { hasProductRole } from "../../lib/authz.js";
 import { hasOperationalCapability } from "../../lib/authz.js";
+import { subscribeViewport } from "../../lib/viewport.js";
 import { useScrollOverflow } from "../../hooks/useScrollOverflow.js";
 import { useSidebarDensity } from "../../hooks/useSidebarDensity.js";
 import { useI18n } from "../I18nProvider.jsx";
 import { routeMetadata } from "../../lib/routeMetadata.js";
 import { formatNumber, greetingKey } from "../../lib/i18n.js";
-import { Skeleton, SkeletonAvatar, SkeletonText } from "../ui/index.jsx";
+import { NavItem, RadioGroup, RadioOption, Skeleton, SkeletonAvatar, SkeletonText } from "../ui/index.jsx";
+import { UserAvatar } from "../shared/UserAvatar.jsx";
+import { GlobalSearch } from "../search/GlobalSearch.jsx";
 
 // --- Brand ---
 
@@ -75,10 +78,10 @@ export function NavList({ tabIndex = undefined, onNavigate = undefined, user, op
         return (
           <div className="nav-entry" key={item.path}>
             {showGroup && <span className="nav-section-label">{t(item.groupKey || `group.${item.group.toLowerCase()}`)}</span>}
-            <Link to={item.path} className={`nav-btn ${active ? "active" : ""}`} aria-label={t(item.labelKey || item.label)} title={t(item.labelKey || item.label)} aria-current={active ? "page" : undefined} tabIndex={tabIndex} onClick={onNavigate}>
+            <NavItem to={item.path} current={active} className={`nav-btn ${active ? "active" : ""}`.trim()} aria-label={t(item.labelKey || item.label)} title={t(item.labelKey || item.label)} tabIndex={tabIndex} onClick={onNavigate}>
               <Icon name={item.icon} size={19} />
               <span>{t(item.labelKey || item.label)}</span>
-            </Link>
+            </NavItem>
           </div>
         );
       })}
@@ -96,22 +99,23 @@ export function DrawerThemeSelector({ activeTheme, onThemeChange, tabIndex }) {
         <p className="nav-section-label">{t("common.appearance")}</p>
         <strong>{themeOptions.find((item) => item.id === activeTheme)?.label || "Theme"}</strong>
       </div>
-      <div className="drawer-theme-options">
+      {/* One appearance is in use at a time, so this is a radio group. It used
+          to be a row of independent toggles, which announced every theme as a
+          pressed button and let two of them look chosen at once. */}
+      <RadioGroup className="drawer-theme-options" value={activeTheme} onChange={onThemeChange} label={t("common.appearance")}>
         {themeOptions.map((option) => (
-          <button
+          <RadioOption
             key={option.id}
-            type="button"
+            value={option.id}
             className={activeTheme === option.id ? "active" : ""}
-            onClick={() => onThemeChange(option.id)}
-            aria-pressed={activeTheme === option.id}
             aria-label={`Use ${option.label} theme`}
-            tabIndex={tabIndex}
+            tabIndex={tabIndex === -1 ? -1 : undefined}
           >
             <span aria-hidden="true" />
             {option.label}
-          </button>
+          </RadioOption>
         ))}
-      </div>
+      </RadioGroup>
     </section>
   );
 }
@@ -151,11 +155,10 @@ function DrawerNavGroup({ label, items, pathname, tabIndex, onNavigate, children
         {items.map((item) => {
           const active = isNavigationItemActive(pathname, item.path);
           return (
-            <Link key={item.path} className={`nav-btn ${active ? "active" : ""}`.trim()} to={item.path} aria-current={active ? "page" : undefined} tabIndex={tabIndex} onClick={onNavigate} draggable="false">
+            <NavItem key={item.path} className={`nav-btn ${active ? "active" : ""}`.trim()} to={item.path} current={active} tabIndex={tabIndex} onClick={onNavigate}>
               <Icon name={item.icon} size={19} />
               <span>{t(item.labelKey || item.label)}</span>
-              {active && <span className="drawer-active-dot" aria-hidden="true" />}
-            </Link>
+            </NavItem>
           );
         })}
         {children}
@@ -167,24 +170,20 @@ function DrawerNavGroup({ label, items, pathname, tabIndex, onNavigate, children
 function MobileDrawerNavigation({ user, operationsSession, pathname, tabIndex, onNavigate, onLogout }) {
   const { t } = useI18n();
   const primaryPaths = new Set(["/", "/materials", "/questions", "/review"]);
-  const primaryItems = [
-    ...navItems.filter((item) => primaryPaths.has(item.path)),
-    { path: "/search", label: "Search", labelKey: "nav.search", icon: "search" }
-  ];
-  const exploreItems = navItems.filter((item) => !primaryPaths.has(item.path));
-  const workspaceItems = roleNavigationItems(user, operationsSession);
-  const accountItems = [
+  const primaryItems = navItems.filter((item) => primaryPaths.has(item.path));
+  const exploreItems = [
+    ...navItems.filter((item) => !primaryPaths.has(item.path)),
     { path: "/notifications", label: "Notifications", labelKey: "nav.notifications", icon: "bell" },
     { path: "/achievements", label: "Achievements", labelKey: "nav.achievements", icon: "award" },
     { path: "/settings", label: "Settings", labelKey: "nav.settings", icon: "settings" }
   ];
+  const workspaceItems = roleNavigationItems(user, operationsSession);
 
   return (
     <nav className="drawer-navigation" aria-label={t("shell.mobileDestinations")}>
       <DrawerNavGroup label={t("common.primary")} items={primaryItems} pathname={pathname} tabIndex={tabIndex} onNavigate={onNavigate} />
       {workspaceItems.length > 0 && <DrawerNavGroup label={t("common.workspace")} items={workspaceItems} pathname={pathname} tabIndex={tabIndex} onNavigate={onNavigate} />}
-      <DrawerNavGroup label={t("common.explore")} items={exploreItems} pathname={pathname} tabIndex={tabIndex} onNavigate={onNavigate} />
-      <DrawerNavGroup label={t("common.account")} items={accountItems} pathname={pathname} tabIndex={tabIndex} onNavigate={onNavigate}>
+      <DrawerNavGroup label={t("common.explore")} items={exploreItems} pathname={pathname} tabIndex={tabIndex} onNavigate={onNavigate}>
         <button className="nav-btn drawer-logout" type="button" tabIndex={tabIndex} onClick={onLogout}>
           <Icon name="logout" size={19} />
           <span>{t("common.logout")}</span>
@@ -268,10 +267,10 @@ export function BottomNav({ onMore, menuOpen, inert = false }) {
       {items.map((item) => {
         const active = isNavigationItemActive(location.pathname, item.path);
         return (
-          <Link key={item.path} to={item.path} className={active ? "active" : ""} aria-current={active ? "page" : undefined}>
+          <NavItem key={item.path} to={item.path} current={active} className={active ? "active" : ""}>
             <Icon name={item.icon} size={20} />
             <span>{t(item.labelKey || item.label)}</span>
-          </Link>
+          </NavItem>
         );
       })}
       <button type="button" onClick={onMore} aria-label={t("common.more")} aria-expanded={menuOpen} aria-controls="mobile-drawer">
@@ -284,12 +283,12 @@ export function BottomNav({ onMore, menuOpen, inert = false }) {
 
 // --- Topbar ---
 
-export function Topbar({ user, theme, onThemeChange, onLogout, onMenu, menuOpen, menuButtonRef, onDropdownOpenChange, notificationVersion, onNotificationsChanged, storeCartCount = 0, lockBalance = 1250 }) {
+export function Topbar({ user, theme, onThemeChange, onLogout, onMenu, menuOpen, menuButtonRef, onDropdownOpenChange, notificationVersion, onNotificationsChanged, storeCartCount = 0, lockBalance = 0, storeCommerceEnabled = false }) {
   const { t, locale } = useI18n();
   const [profileMenuState, setProfileMenuState] = useState("closed");
   const [isPhone, setIsPhone] = useState(() => window.matchMedia(COMPACT_SHELL_QUERY).matches);
   const [profileMenuPosition, setProfileMenuPosition] = useState({ left: 12, top: 12 });
-  const [searchQuery, setSearchQuery] = useState("");
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -305,7 +304,6 @@ export function Topbar({ user, theme, onThemeChange, onLogout, onMenu, menuOpen,
   const profilePositionFrameRef = useRef(0);
   const profileGestureRef = useRef(null);
   const suppressProfileClickRef = useRef(false);
-  const searchRef = useRef(null);
   const notificationsRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -359,8 +357,14 @@ export function Topbar({ user, theme, onThemeChange, onLogout, onMenu, menuOpen,
   }, [location.pathname, menuOpen]);
 
   useEffect(() => {
-    onDropdownOpenChange?.(notificationsOpen);
-  }, [notificationsOpen, onDropdownOpenChange]);
+    onDropdownOpenChange?.(notificationsOpen || globalSearchOpen);
+  }, [globalSearchOpen, notificationsOpen, onDropdownOpenChange]);
+
+  useEffect(() => {
+    if (!globalSearchOpen) return;
+    closeProfileMenu({ restoreFocus: false });
+    setNotificationsOpen(false);
+  }, [closeProfileMenu, globalSearchOpen]);
 
   useEffect(() => {
     const query = window.matchMedia(COMPACT_SHELL_QUERY);
@@ -508,26 +512,6 @@ export function Topbar({ user, theme, onThemeChange, onLogout, onMenu, menuOpen,
       .catch(() => { if (active) setUnreadCount(0); });
     return () => { active = false; };
   }, [notificationVersion]);
-
-  // Keyboard shortcut: press / to focus search
-  useEffect(() => {
-    function onGlobalKey(event) {
-      if (event.key === "/" && !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) {
-        event.preventDefault();
-        searchRef.current?.focus();
-      }
-    }
-    document.addEventListener("keydown", onGlobalKey);
-    return () => document.removeEventListener("keydown", onGlobalKey);
-  }, []);
-
-  function handleSearch(event) {
-    if (event.key === "Enter" && searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-      setSearchQuery("");
-      searchRef.current?.blur();
-    }
-  }
 
   function logoutFromMenu() {
     closeProfileMenu({ restoreFocus: false });
@@ -727,13 +711,12 @@ export function Topbar({ user, theme, onThemeChange, onLogout, onMenu, menuOpen,
         </div>
       )}
       <div className="account-menu-identity">
-        <img src={assetPath(assets.mascot)} alt="" aria-hidden="true" draggable="false" />
+        <UserAvatar user={user} className="account-menu-avatar" alt="" aria-hidden="true" loading="eager" />
         <div>
           <strong id="account-menu-name" dir="auto">{user.name || t("shell.yourProfile")}</strong>
           <small dir="auto">{user.email || drawerRoleLabel(user, t)}</small>
         </div>
       </div>
-      {isPhone && <p className="account-menu-section-label">{t("common.account")}</p>}
       <nav className="account-menu-actions" role={isPhone ? undefined : "none"} aria-label={isPhone ? t("shell.profileMenu") : undefined}>
         <Link to="/profile" role={isPhone ? undefined : "menuitem"} onClick={() => closeProfileMenu({ restoreFocus: false })}><span className="account-menu-icon"><Icon name="user" size={18} /></span><span><b>{t("common.profile")}</b><small>{t("shell.profileDescription")}</small></span><Icon className="account-menu-chevron" name="chevron-right" size={17} /></Link>
         <Link to="/settings" role={isPhone ? undefined : "menuitem"} onClick={() => closeProfileMenu({ restoreFocus: false })}><span className="account-menu-icon"><Icon name="settings" size={18} /></span><span><b>{t("common.settings")}</b><small>{t("shell.settingsDescription")}</small></span><Icon className="account-menu-chevron" name="chevron-right" size={17} /></Link>
@@ -759,25 +742,11 @@ export function Topbar({ user, theme, onThemeChange, onLogout, onMenu, menuOpen,
           <p>{t("shell.greetingLine", { greeting: localizedGreeting, audience: t("shell.futureDentist") })}</p>
         </div>
       )}
-      <label className="search-box">
-        <Icon name="search" size={18} />
-        <input
-          ref={searchRef}
-          type="search"
-          placeholder={t("shell.searchPlaceholder")}
-          aria-label={t("common.search")}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyDown={handleSearch}
-        />
-      </label>
-      <Link className="icon-btn topbar-search-action" to="/search" aria-label={t("common.search")}>
-        <Icon name="search" size={19} />
-      </Link>
+      <GlobalSearch onOpenChange={setGlobalSearchOpen} />
       <button className="icon-btn" onClick={() => onThemeChange(theme === "night" ? "day" : "night")} aria-label={t("shell.toggleTheme")}>
         <Icon name={theme === "night" ? "sun" : "moon"} />
       </button>
-      {isStoreRoute && <>
+      {isStoreRoute && storeCommerceEnabled && <>
         <div className="store-balance" aria-label={`${formatNumber(lockBalance, {}, locale)} LOCK`}>
           <Icon name="coins" size={18} />
           <strong>{formatNumber(lockBalance, {}, locale)}</strong><span>LOCK</span>
@@ -790,7 +759,7 @@ export function Topbar({ user, theme, onThemeChange, onLogout, onMenu, menuOpen,
       
       <div className="notifications-menu-wrap" ref={notificationsRef}>
         <button 
-          className={`icon-btn ${unreadCount > 0 ? "active" : ""}`} 
+          className="icon-btn"
           onClick={() => setNotificationsOpen(!notificationsOpen)}
           aria-label={t("common.notifications")}
           aria-expanded={notificationsOpen}
@@ -827,7 +796,7 @@ export function Topbar({ user, theme, onThemeChange, onLogout, onMenu, menuOpen,
 
       <div className="profile-menu-wrap" ref={profileMenuRef}>
         <button className="avatar-btn" ref={profileButtonRef} onClick={toggleProfileMenu} aria-label={t("shell.openProfileMenu")} aria-haspopup={isPhone ? "dialog" : "menu"} aria-expanded={profileMenuOpen} aria-controls="profile-menu">
-          <img src={assetPath(assets.mascot)} alt="Student avatar" />
+          <UserAvatar user={user} alt={t("shell.openProfileMenu")} loading="eager" />
         </button>
       </div>
     </header>
@@ -838,7 +807,7 @@ export function Topbar({ user, theme, onThemeChange, onLogout, onMenu, menuOpen,
 
 // --- Shell ---
 
-export function Shell({ children, user, operationsSession, theme, onThemeChange, onLogout, notificationVersion, onNotificationsChanged, storeCartCount, lockBalance }) {
+export function Shell({ children, user, operationsSession, theme, onThemeChange, onLogout, notificationVersion, onNotificationsChanged, storeCartCount, lockBalance, storeCommerceEnabled = false }) {
   const { t } = useI18n();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [dropdownActive, setDropdownActive] = useState(false);
@@ -854,6 +823,11 @@ export function Shell({ children, user, operationsSession, theme, onThemeChange,
   const restoreDrawerFocusRef = useRef(true);
   const drawerTabIndex = drawerOpen ? undefined : -1;
   const location = useLocation();
+  // Finger placement can drift a few pixels during an ordinary tap. Starting
+  // pointer capture too early steals the resulting click from drawer links,
+  // which made destinations such as Materials and Ranked appear to need a
+  // second tap. A real swipe still activates comfortably beyond this slop.
+  const drawerSwipeActivationDistance = 18;
 
   function resetDrawerGestureStyles() {
     const drawer = drawerRef.current;
@@ -904,7 +878,7 @@ export function Shell({ children, user, operationsSession, theme, onThemeChange,
     const closingDistance = gesture.rtl ? deltaX : -deltaX;
 
     if (gesture.intent === "pending") {
-      if (Math.max(horizontal, vertical) < 8) return;
+      if (Math.max(horizontal, vertical) < drawerSwipeActivationDistance) return;
       if (vertical > horizontal * 1.15) {
         gesture.intent = "vertical";
         return;
@@ -1025,43 +999,11 @@ export function Shell({ children, user, operationsSession, theme, onThemeChange,
     };
   }, [drawerOpen]);
 
-  useEffect(() => {
-    const viewport = window.visualViewport;
-    if (!viewport) return undefined;
-
-    let frame = 0;
-    const updateKeyboardState = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => {
-        // Browser controls can change the visual viewport by a few pixels.
-        // A large layout-to-visual viewport delta, without page zoom, is the
-        // reliable cross-browser signal for an on-screen keyboard.
-        const layoutHeight = document.documentElement.clientHeight;
-        const viewportDelta = layoutHeight - viewport.height - viewport.offsetTop;
-        const scale = typeof viewport.scale === "number" ? viewport.scale : 1;
-        const isPageZoomed = Math.abs(scale - 1) > 0.01;
-        const activeElement = document.activeElement;
-        const hasKeyboardTarget = activeElement instanceof HTMLElement && (
-          activeElement.isContentEditable ||
-          activeElement.matches("textarea, input:not([type]), input[type='text'], input[type='search'], input[type='email'], input[type='password'], input[type='tel'], input[type='url'], input[type='number']")
-        );
-        setKeyboardOpen(hasKeyboardTarget && !isPageZoomed && viewportDelta > 150);
-      });
-    };
-
-    updateKeyboardState();
-    viewport.addEventListener("resize", updateKeyboardState);
-    window.addEventListener("resize", updateKeyboardState);
-    document.addEventListener("focusin", updateKeyboardState);
-    document.addEventListener("focusout", updateKeyboardState);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      viewport.removeEventListener("resize", updateKeyboardState);
-      window.removeEventListener("resize", updateKeyboardState);
-      document.removeEventListener("focusin", updateKeyboardState);
-      document.removeEventListener("focusout", updateKeyboardState);
-    };
-  }, []);
+  // The keyboard is measured once, for the whole application, by the viewport
+  // sync layer. The shell only reacts to the answer: the bottom bar stands down
+  // while a field is being typed into so it cannot be mis-tapped, and stops
+  // reserving the space it no longer occupies.
+  useEffect(() => subscribeViewport(({ keyboardOpen: open }) => setKeyboardOpen(open)), []);
 
   // Lock In Mode is a real immersive route, not an overlay. Keep the shared
   // shell mounted so authentication and route state remain intact, but do not
@@ -1093,6 +1035,7 @@ export function Shell({ children, user, operationsSession, theme, onThemeChange,
             onNotificationsChanged={onNotificationsChanged}
             storeCartCount={storeCartCount}
             lockBalance={lockBalance}
+            storeCommerceEnabled={storeCommerceEnabled}
           />
           <main className="page-shell" id="main-content" tabIndex={-1} aria-label="Lock-in page content">{children}</main>
         </div>

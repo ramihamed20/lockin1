@@ -63,6 +63,10 @@ class Subscription(models.Model):
         SUSPENDED = "suspended", "Suspended"
         REFUNDED = "refunded", "Refunded"
 
+    class PaymentVerification(models.TextChoices):
+        VERIFIED = "verified", "Verified"
+        PROVISIONAL = "provisional", "Payment review pending"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     account = models.ForeignKey(
         SubscriptionAccount, on_delete=models.PROTECT, related_name="subscriptions"
@@ -71,6 +75,12 @@ class Subscription(models.Model):
         PlanVersion, on_delete=models.PROTECT, related_name="subscriptions"
     )
     status = models.CharField(max_length=12, choices=Status.choices)
+    payment_verification = models.CharField(
+        max_length=12,
+        choices=PaymentVerification.choices,
+        default=PaymentVerification.VERIFIED,
+    )
+    provisional_payment_id = models.UUIDField(null=True, blank=True)
     started_at = models.DateTimeField(null=True, blank=True)
     trial_started_at = models.DateTimeField(null=True, blank=True)
     trial_ends_at = models.DateTimeField(null=True, blank=True)
@@ -81,6 +91,7 @@ class Subscription(models.Model):
     cancellation_requested_at = models.DateTimeField(null=True, blank=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
     suspended_at = models.DateTimeField(null=True, blank=True)
+    last_payment_at = models.DateTimeField(null=True, blank=True)
     ended_at = models.DateTimeField(null=True, blank=True)
     status_reason = models.CharField(max_length=80, blank=True)
     revision = models.PositiveBigIntegerField(default=1)

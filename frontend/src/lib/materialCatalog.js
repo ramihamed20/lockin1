@@ -76,7 +76,10 @@ export function rememberLastOpenedCatalogSheet(materialSlug, sheetSlug) {
   if (!material || !sheet) return;
 
   try {
-    const current = readRecentOpenedSheetEntries();
+    const current = getRecentOpenedCatalogSheets().map((entry) => ({
+      materialSlug: entry.material.slug,
+      sheetSlug: entry.sheet.slug
+    }));
     const next = [{ materialSlug, sheetSlug }, ...current.filter((entry) => entry.materialSlug !== materialSlug || entry.sheetSlug !== sheetSlug)].slice(0, MAX_RECENT_OPENED_SHEETS);
     globalThis.localStorage?.setItem(RECENT_OPENED_SHEETS_STORAGE_KEY, JSON.stringify(next));
     globalThis.localStorage?.setItem(LAST_OPENED_SHEET_STORAGE_KEY, JSON.stringify(next[0]));
@@ -104,7 +107,18 @@ function resolveOpenedSheet(entry) {
 }
 
 export function getRecentOpenedCatalogSheets() {
-  return readRecentOpenedSheetEntries().map(resolveOpenedSheet).filter(Boolean);
+  const recent = [];
+  const seen = new Set();
+
+  for (const entry of readRecentOpenedSheetEntries()) {
+    const resolved = resolveOpenedSheet(entry);
+    if (!resolved || seen.has(resolved.path)) continue;
+    seen.add(resolved.path);
+    recent.push(resolved);
+    if (recent.length === MAX_RECENT_OPENED_SHEETS) break;
+  }
+
+  return recent;
 }
 
 export function getLastOpenedCatalogSheet() {

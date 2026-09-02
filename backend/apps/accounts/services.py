@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
 from django.conf import settings
-from django.contrib.auth import logout
+from django.contrib.auth import login, logout
 from django.contrib.sessions.models import Session
 from django.core.mail import send_mail
 from django.db import IntegrityError, transaction
@@ -13,10 +13,13 @@ from django.http import HttpRequest
 from django.utils import timezone
 from django.utils.crypto import salted_hmac
 
+from apps.audit.services import record_audit
+from apps.education.models import StudentCohort
 from platform_core.events import publish_after_commit
 
 from .events import UserEmailVerified, UserRegistered, UserStatusChanged
 from .models import (
+    AccountDeletionRequest,
     AccountSecurityEvent,
     AccountSession,
     AuthAttempt,
@@ -95,6 +98,20 @@ def normalize_email(email: str) -> str:
     return User.objects.normalize_email(email).strip().lower()
 
 
+def available_username_for_email(email: str) -> str:
+    """Create a stable non-secret username for non-social registration compatibility."""
+    local_part = normalize_email(email).split("@", 1)[0]
+    base = "".join(
+        character for character in local_part.lower() if character.isascii() and character.isalnum()
+    )[:20]
+    base = base if len(base) >= 3 else "student"
+    candidate = base
+    suffix = hashlib.sha256(normalize_email(email).encode("utf-8")).hexdigest()[:6]
+    if User.objects.filter(username__iexact=candidate).exists():
+        candidate = f"{base[:23]}_{suffix}"
+    return candidate
+
+
 def _token_digest(raw_token: str) -> str:
     return salted_hmac(
         "lockin.accounts.one-time-token",
@@ -155,13 +172,17 @@ def register_user(
     full_name: str,
     password: str,
     preferred_language: str,
+    cohort: StudentCohort,
+    username: str | None = None,
 ) -> tuple[User, IssuedToken]:
     now = timezone.now()
     user = User.objects.create_user(
         email=email,
+        username=username or available_username_for_email(email),
         full_name=full_name,
         password=password,
         preferred_language=preferred_language,
+        cohort=cohort,
         policy_accepted_at=now,
         policy_version=settings.ACCOUNT_POLICY_VERSION,
     )
@@ -277,6 +298,139 @@ def confirm_email_change(*, raw_token: str) -> User:
     return user
 
 
+def account_deletion_status(*, user: User) -> AccountDeletionRequest | None:
+    return user.deletion_requests.exclude(status=AccountDeletionRequest.Status.CANCELLED).first()
+
+
+@transaction.atomic
+def request_account_deletion(*, user: User) -> tuple[AccountDeletionRequest, IssuedToken]:
+    user = User.objects.select_for_update().get(id=user.id)
+    existing = account_deletion_status(user=user)
+    if existing is not None and existing.status in {
+        AccountDeletionRequest.Status.CONFIRMED,
+        AccountDeletionRequest.Status.PROCESSING,
+    }:
+        raise AccountStateError("This account already has a confirmed deletion request.")
+    now = timezone.now()
+    pending = user.deletion_requests.filter(
+        status=AccountDeletionRequest.Status.PENDING_CONFIRMATION
+    )
+    pending.update(status=AccountDeletionRequest.Status.CANCELLED, cancelled_at=now)
+    token = issue_token(
+        user=user,
+        kind=OneTimeToken.Kind.ACCOUNT_DELETION,
+        lifetime=_token_lifetime("ACCOUNT_DELETION_CONFIRM_TTL_SECONDS", 86_400),
+    )
+    token_record = OneTimeToken.objects.get(
+        user=user,
+        kind=OneTimeToken.Kind.ACCOUNT_DELETION,
+        token_digest=_token_digest(token.raw_token),
+    )
+    deletion_request = AccountDeletionRequest.objects.create(
+        user=user,
+        confirmation_token=token_record,
+    )
+    AccountSecurityEvent.objects.create(
+        user=user,
+        actor=user,
+        event_type=AccountSecurityEvent.EventType.DELETION_REQUESTED,
+    )
+    record_audit(
+        actor=user,
+        action="account.deletion.requested",
+        domain="accounts",
+        target_type="accounts.account_deletion_request",
+        target_id=str(deletion_request.id),
+        reason="User requested a verified account deletion workflow.",
+        source="accounts.self_service",
+        new_state={"status": deletion_request.status},
+    )
+    return deletion_request, token
+
+
+@transaction.atomic
+def confirm_account_deletion(*, raw_token: str) -> AccountDeletionRequest:
+    token = _get_usable_token(raw_token=raw_token, kind=OneTimeToken.Kind.ACCOUNT_DELETION)
+    try:
+        deletion_request = AccountDeletionRequest.objects.select_for_update().get(
+            confirmation_token=token,
+            status=AccountDeletionRequest.Status.PENDING_CONFIRMATION,
+        )
+    except AccountDeletionRequest.DoesNotExist as error:
+        raise AccountTokenError("This link is invalid or has expired.") from error
+    now = timezone.now()
+    deletion_request.status = AccountDeletionRequest.Status.CONFIRMED
+    deletion_request.confirmed_at = now
+    deletion_request.policy_version = str(getattr(settings, "ACCOUNT_DELETION_POLICY_VERSION", ""))
+    deletion_request.save(update_fields=("status", "confirmed_at", "policy_version"))
+    token.used_at = now
+    token.save(update_fields=("used_at",))
+    AccountSecurityEvent.objects.create(
+        user=token.user,
+        actor=token.user,
+        event_type=AccountSecurityEvent.EventType.DELETION_CONFIRMED,
+    )
+    record_audit(
+        actor=token.user,
+        action="account.deletion.confirmed",
+        domain="accounts",
+        target_type="accounts.account_deletion_request",
+        target_id=str(deletion_request.id),
+        reason="User confirmed the request using a single-use email token.",
+        source="accounts.self_service",
+        previous_state={"status": AccountDeletionRequest.Status.PENDING_CONFIRMATION},
+        new_state={
+            "status": deletion_request.status,
+            "policy_version": deletion_request.policy_version,
+        },
+    )
+    return deletion_request
+
+
+@transaction.atomic
+def cancel_account_deletion(*, user: User) -> AccountDeletionRequest:
+    try:
+        deletion_request = (
+            AccountDeletionRequest.objects.select_for_update()
+            .filter(
+                user=user,
+                status__in=(
+                    AccountDeletionRequest.Status.PENDING_CONFIRMATION,
+                    AccountDeletionRequest.Status.CONFIRMED,
+                ),
+            )
+            .latest("requested_at")
+        )
+    except AccountDeletionRequest.DoesNotExist as error:
+        raise AccountStateError("There is no cancellable account deletion request.") from error
+    now = timezone.now()
+    previous = deletion_request.status
+    deletion_request.status = AccountDeletionRequest.Status.CANCELLED
+    deletion_request.cancelled_at = now
+    deletion_request.save(update_fields=("status", "cancelled_at"))
+    OneTimeToken.objects.filter(
+        id=deletion_request.confirmation_token_id,
+        used_at__isnull=True,
+    ).update(used_at=now)
+    AccountSecurityEvent.objects.create(
+        user=user,
+        actor=user,
+        event_type=AccountSecurityEvent.EventType.DELETION_CANCELLED,
+    )
+    record_audit(
+        actor=user,
+        action="account.deletion.cancelled",
+        domain="accounts",
+        target_type="accounts.account_deletion_request",
+        target_id=str(deletion_request.id),
+        reason="User cancelled the account deletion request before processing.",
+        source="accounts.self_service",
+        previous_state={"status": previous},
+        new_state={"status": deletion_request.status},
+    )
+    return deletion_request
+
+
 @transaction.atomic
 def change_password(*, user: User, new_password: str, keep_session_key: str | None) -> None:
     user.set_password(new_password)
@@ -328,6 +482,33 @@ def register_account_session(*, request: HttpRequest, user: User) -> AccountSess
             "expires_at": expires_at,
         },
     )[0]
+
+
+def establish_account_session(
+    *,
+    request: HttpRequest,
+    user: User,
+    remember_me: bool,
+    event_type: str = AccountSecurityEvent.EventType.LOGIN_SUCCEEDED,
+    metadata: dict[str, str] | None = None,
+) -> None:
+    """Create the same rotated Django session for password and social login."""
+
+    login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+    session_age = (
+        int(settings.ACCOUNT_REMEMBER_SESSION_AGE_SECONDS)
+        if remember_me
+        else int(settings.ACCOUNT_SESSION_AGE_SECONDS)
+    )
+    request.session.set_expiry(session_age)
+    request.session.save()
+    register_account_session(request=request, user=user)
+    AccountSecurityEvent.objects.create(
+        user=user,
+        actor=user,
+        event_type=event_type,
+        metadata=metadata or {},
+    )
 
 
 def touch_account_session(*, request: HttpRequest, user: User) -> None:

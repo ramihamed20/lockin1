@@ -75,9 +75,7 @@ class Command(BaseCommand):
                     else f"ينتهي وصولك إلى Lock-in خلال {days} أيام. يمكنك التجديد من الاشتراك."
                 )
             else:
-                title = (
-                    "Subscription expires tomorrow" if days == 1 else f"{days} days remaining"
-                )
+                title = "Subscription expires tomorrow" if days == 1 else f"{days} days remaining"
                 body = (
                     "Your Lock-in access expires tomorrow. Renew now to keep your study "
                     "flow uninterrupted."

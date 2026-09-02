@@ -1,6 +1,3 @@
-import calendar
-from datetime import datetime
-
 from apps.accounts.events import UserEmailVerified
 from apps.accounts.models import User
 from apps.entitlements.services import sync_subscription_entitlements
@@ -10,30 +7,19 @@ from apps.notifications.services import create_notification
 from apps.payments.events import PaymentFailed, PaymentSucceeded
 from apps.payments.models import Payment
 from apps.payments.services import apply_successful_refund
-from apps.product_catalog.models import Price
 from apps.provider_integrations.events import ProviderEventVerified
 from apps.provider_integrations.services import process_provider_event
 from apps.refunds.events import RefundFailed, RefundSucceeded
 from apps.subscriptions.events import SubscriptionStatusChanged
 from apps.subscriptions.models import Subscription, SubscriptionTransition
-from apps.subscriptions.services import create_trial_for_user, transition_subscription
+from apps.subscriptions.services import (
+    advance_billing_period,
+    create_trial_for_user,
+    transition_subscription,
+)
 from platform_core.events import domain_events
 
 _registered = False
-
-
-def _advance_period(start: datetime, *, interval: str, count: int) -> datetime:
-    if interval == Price.Interval.MONTH:
-        months = count
-    elif interval == Price.Interval.YEAR:
-        months = count * 12
-    else:
-        raise ValueError("Unsupported billing interval.")
-    total_month = start.month - 1 + months
-    year = start.year + total_month // 12
-    month = total_month % 12 + 1
-    day = min(start.day, calendar.monthrange(year, month)[1])
-    return start.replace(year=year, month=month, day=day)
 
 
 def _email_verified(event: UserEmailVerified) -> None:
@@ -123,7 +109,7 @@ def _payment_succeeded(event: PaymentSucceeded) -> None:
             idempotency_key=f"replacement:{payment.id}",
             source_reference=str(payment.id),
         )
-    period_end = _advance_period(
+    period_end = advance_billing_period(
         event.effective_at,
         interval=payment.price.interval,
         count=payment.price.interval_count,

@@ -3,7 +3,7 @@ import { dashboardApi } from "../api/learning.js";
 import { progressApi } from "../api/progress.js";
 import { reviewApi } from "../api/review.js";
 import { Icon } from "../lib/icons.jsx";
-import { getLastOpenedCatalogSheet, getRecentOpenedCatalogSheets } from "../lib/materialCatalog.js";
+import { getRecentOpenedCatalogSheets } from "../lib/materialCatalog.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
 import { StatsGrid } from "../components/shared/StatsGrid.jsx";
@@ -49,7 +49,6 @@ export default function Dashboard({ themeSettings, activeTheme }) {
   if (dashboard.error) return <ErrorPanel message={dashboard.error} onRetry={dashboard.reload} />;
 
   const { account, accountError, learning, learningError, review, reviewError, bank, bankError } = dashboard.data;
-  const lastOpenedSheet = getLastOpenedCatalogSheet();
   const recentOpenedSheets = getRecentOpenedCatalogSheets();
   const reviewItems = review?.results || [];
   const activeReviewCount = bank?.active_count;
@@ -78,7 +77,7 @@ export default function Dashboard({ themeSettings, activeTheme }) {
         <StatsGrid cards={dashboardCards} className="dashboard-stats-grid" />
         <section className="dashboard-main">
           <div className="dashboard-left">
-            <ContinueCard sheetEntry={lastOpenedSheet} />
+            <ContinueCard sheetEntry={recentOpenedSheets[0] || null} />
             <RecentContent sheetEntries={recentOpenedSheets} />
           </div>
           <div className="dashboard-right">
@@ -159,5 +158,5 @@ function ReviewQueue({ items }) {
 function DashboardHero({ character, theme }) {
   const { t } = useI18n();
   const characterLabel = t(character === "white" ? "dashboard.whiteCat" : "dashboard.blackCat");
-  return <article className="scene-card" aria-label={t("dashboard.mascotScene")}><ResponsiveThemePreview className="scene-theme" character={character} theme={theme} alt={t("dashboard.mascotAlt", { character: characterLabel, theme })} sizes="(max-width: 639px) 92vw, (max-width: 1199px) 44vw, 360px" priority /></article>;
+  return <article className="scene-card" aria-label={t("dashboard.mascotScene")}><ResponsiveThemePreview className="scene-theme" character={character} theme={theme} alt={t("dashboard.mascotAlt", { character: characterLabel, theme })} sizes="(max-width: 639px) 92vw, (max-width: 1199px) 52vw, 620px" priority /></article>;
 }

@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { managementApi } from "../../api/management.js";
 import { PRODUCT_ROLES } from "../../api/contracts.js";
 import { hasOperationalCapability, hasProductRole } from "../../lib/authz.js";
 import { Icon } from "../../lib/icons.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
-import { ErrorPanel } from "../ui/index.jsx";
+import { ErrorPanel, NavItem } from "../ui/index.jsx";
 
 export function creatorRoleAllowed(user, operationsSession = null) {
   return hasProductRole(user, PRODUCT_ROLES.CREATOR) || hasProductRole(user, PRODUCT_ROLES.ADMINISTRATOR) || hasOperationalCapability(operationsSession, "content.manage") || hasOperationalCapability(operationsSession, "assessments.manage");
@@ -26,7 +26,10 @@ export function CreatorTabs() {
     ["/creator/questions", "Questions", "help"],
     ["/creator/quizzes", "Quizzes", "target"]
   ];
-  return <nav className="tabs-row creator-tabs" aria-label="Creator studio">{items.map(([path, label, icon]) => <Link key={path} to={path} className={location.pathname === path || (path !== "/creator/education" && location.pathname.startsWith(path + "/")) ? "active" : ""}><Icon name={icon} size={16} />&nbsp;{label}</Link>)}</nav>;
+  return <nav className="tabs-row creator-tabs" aria-label="Creator studio">{items.map(([path, label, icon]) => {
+    const current = location.pathname === path || (path !== "/creator/education" && location.pathname.startsWith(path + "/"));
+    return <NavItem key={path} to={path} current={current} className={current ? "active" : ""}><Icon name={icon} size={16} />&nbsp;{label}</NavItem>;
+  })}</nav>;
 }
 
 export function CreatorNotice({ error = null, message = "", onRetry = null }) {

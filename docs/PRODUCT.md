@@ -258,7 +258,9 @@ All permission decisions are enforced by the backend. Frontend role checks only 
 - Email changes require verification of the new address.
 - Profile exposes name, academic placement where configured, language, avatar/mascot preference if supported, notification preferences, and subscription summary.
 - Account security lists active sessions at a useful device/time level without exposing tokens.
-- Account deletion is a request/confirmation flow until legal retention rules are finalized.
+- Account deletion has a password-protected request, single-use email confirmation, tracked status,
+  cancellation, security event, and audit flow. Confirmed processing remains blocked until the
+  owner/legal retention matrix in `ACCOUNT_DELETION_RETENTION.md` is approved.
 
 **Edge cases:**
 

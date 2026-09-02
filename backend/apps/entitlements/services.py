@@ -57,11 +57,23 @@ def sync_subscription_entitlements(*, subscription_id: UUID) -> list[Entitlement
         Subscription.Status.ACTIVE,
         Subscription.Status.GRACE,
     )
-    start = (
+    subscription_start = (
         subscription.current_period_started_at
         or subscription.trial_started_at
         or subscription.started_at
         or subscription.created_at
+    )
+    # A paid segment may begin after a still-active trial. Entitlement access
+    # remains continuous from the original subscription start while accounting
+    # stays anchored to the paid segment.
+    start = min(
+        value
+        for value in (
+            subscription_start,
+            subscription.trial_started_at,
+            subscription.started_at,
+        )
+        if value is not None
     )
     if subscription.status == Subscription.Status.TRIALING:
         end = subscription.trial_ends_at
@@ -225,9 +237,7 @@ def grant_manual_entitlement(
 
 
 @transaction.atomic
-def revoke_manual_entitlement(
-    *, grant_id: UUID, actor: User, reason_code: str
-) -> EntitlementGrant:
+def revoke_manual_entitlement(*, grant_id: UUID, actor: User, reason_code: str) -> EntitlementGrant:
     """Revoke one manual override while keeping its immutable grant history."""
     normalized_reason = reason_code.strip()[:80]
     if not normalized_reason:

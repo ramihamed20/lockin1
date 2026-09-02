@@ -28,7 +28,11 @@ class MaintenanceModeMiddleware:
         is_recovery_admin = bool(
             user
             and user.is_authenticated
-            and (user.is_superuser or user.is_staff or user.groups.filter(name="administrator").exists())
+            and (
+                user.is_superuser
+                or user.is_staff
+                or user.groups.filter(name="administrator").exists()
+            )
         )
         if is_recovery_admin:
             return self.get_response(request)

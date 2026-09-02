@@ -3,7 +3,7 @@ import { moderationApi } from "../api/community.js";
 import { Icon } from "../lib/icons.jsx";
 import { formatDateTime } from "../lib/i18n.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
-import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
+import { EmptyState, ErrorPanel, LoadingPanel, Page, SelectableRow } from "../components/ui/index.jsx";
 
 const REPORT_STATUSES = ["open", "triaged", "in_progress", "resolved", "rejected", "duplicate"];
 const ACTION_STATUSES = ["triaged", "in_progress", "resolved", "rejected"];
@@ -129,7 +129,7 @@ export default function Moderation({ user }) {
           </section>
           <section className="panel list-panel">
             <div className="panel-title"><div><p className="eyebrow">Authorized queue</p><h2>Reports</h2></div><span>{reports.length}</span></div>
-            {reports.length ? reports.map((report) => <button className={`operations-row ${selected?.id === report.id ? "active" : ""}`} type="button" key={report.id} onClick={() => setSelected(report)} aria-pressed={selected?.id === report.id}><span className="stat-icon"><Icon name="shield-alert" /></span><span><b>{report.target_label || humanize(report.target_type)}</b><small>{humanize(report.reason)} · {humanize(report.status)} · {report.assigned_to_name || "Unassigned"}</small></span><Icon name="chevron-right" /></button>) : <EmptyState title="No reports found" text="No report matches these server-side filters." />}
+            {reports.length ? reports.map((report) => <SelectableRow className="operations-row" key={report.id} selected={selected?.id === report.id} onClick={() => setSelected(report)}><span className="stat-icon"><Icon name="shield-alert" /></span><span><b>{report.target_label || humanize(report.target_type)}</b><small>{humanize(report.reason)} · {humanize(report.status)} · {report.assigned_to_name || "Unassigned"}</small></span><Icon name="chevron-right" /></SelectableRow>) : <EmptyState title="No reports found" text="No report matches these server-side filters." />}
             {nextCursor && <button className="btn btn-soft moderation-load-more" type="button" disabled={loadingMore} onClick={() => { void loadMore(); }}>{loadingMore ? "Loading…" : "Load more"}</button>}
           </section>
         </div>

@@ -10,10 +10,10 @@ from apps.accounts.models import User
 from apps.accounts.tests.helpers import create_user
 from apps.education.models import EducationNode
 from apps.education.tests.helpers import create_admin, published_path
-from apps.progress.models import QuestionReview, QuestionReviewLog
 from apps.questions.models import Question, QuestionVersion
 from apps.questions.services import revise_question
 from apps.questions.tests.helpers import published_question, question_input
+from apps.review.models import MistakeEvent, ReviewItem
 from platform_core.events import DomainEvent, domain_events
 
 from ..attempt_services import (
@@ -141,7 +141,7 @@ def test_autosave_is_monotonic_idempotent_and_server_acknowledged() -> None:
     assert updated.server_revision == 3
 
 
-def test_submission_grades_once_schedules_review_and_emits_stable_event(
+def test_correct_submission_grades_once_without_creating_mistakes_and_emits_stable_event(
     django_capture_on_commit_callbacks: Any,
 ) -> None:
     _, student, _, _, quiz = _assessment_fixture()
@@ -180,8 +180,8 @@ def test_submission_grades_once_schedules_review_and_emits_stable_event(
     assert result.passed is True
     assert AttemptResult.objects.filter(attempt=attempt).count() == 1
     assert AttemptSubmissionReceipt.objects.filter(attempt=attempt).count() == 1
-    assert QuestionReview.objects.filter(user=student).count() == 3
-    assert QuestionReviewLog.objects.filter(result_id=result.id).count() == 3
+    assert ReviewItem.objects.filter(user=student).count() == 0
+    assert MistakeEvent.objects.filter(user=student).count() == 0
     assert len(received) == 1
     event = received[0]
     assert isinstance(event, QuizAttemptSubmitted)
@@ -249,7 +249,9 @@ def test_practice_review_queue_uses_due_items_and_preserves_focus_boundary() -> 
         idempotency_key=uuid4(),
     ).attempt
     submit_attempt(user=student, attempt_id=source_attempt.id, idempotency_key=uuid4())
-    QuestionReview.objects.filter(user=student).update(due_at=timezone.now() - timedelta(minutes=1))
+    ReviewItem.objects.filter(user=student).update(
+        next_review_at=timezone.now() - timedelta(minutes=1)
+    )
     revised_question = questions[0]
     revise_question(
         actor=admin,

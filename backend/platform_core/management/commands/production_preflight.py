@@ -40,7 +40,9 @@ class Command(BaseCommand):
             raise CommandError(f"There are {len(unapplied)} unapplied migration operations.")
         unsafe_files = (
             ManagedFile.objects.exclude(scan_status=ManagedFile.ScanStatus.CLEAN)
-            .filter(learning_object_assets__version__published_for__workflow_status="published")
+            # The exact published-version relation is authoritative even while
+            # a newer current version is in draft/review.
+            .filter(learning_object_assets__version__published_for__archived_at__isnull=True)
             .distinct()
             .count()
         )

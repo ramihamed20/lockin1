@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
 const ROUTE = "/#/materials/catalog/microbiology/sheets/sheet-1/workspace";
 
@@ -30,6 +31,9 @@ async function mockAuthenticatedWorkspace(page) {
       await route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ error: { code: "permission_denied", message: "Student account" } }) });
       return;
     }
+    // The workspace is behind the subscription gate, so the access contract has
+    // to answer before the reader will render anything to measure.
+    if (await fulfillAccessContract(route, pathname)) return;
     if (pathname === "/api/v1/focus/lock-in" && route.request().method() === "GET") {
       await route.fulfill({ contentType: "application/json", body: JSON.stringify({ active_session: null }) });
       return;
@@ -113,13 +117,22 @@ for (const orientation of ["portrait", "landscape"]) {
       expect(optionsFit.bottom).toBeLessThanOrEqual(viewport.height + 1);
       await auditViewport(page, viewport);
 
-      // Every tool stays reachable through the horizontally scrollable rail.
-      const reachable = await page.locator(".workspace-v2-tool-list").evaluate((list) => {
+      // Every tool stays reachable through the horizontally scrollable rail,
+      // and the rail keeps them on a single line at every width.
+      const rail = await page.locator(".workspace-v2-tool-list").evaluate((list) => {
         const scroller = list.closest(".workspace-v2-toolbar-scroll");
         scroller.scrollLeft = scroller.scrollWidth;
-        return [...list.querySelectorAll("button")].length;
+        const buttons = [...list.querySelectorAll("button")];
+        return {
+          tools: buttons.length,
+          rows: new Set(buttons.map((button) => Math.round(button.getBoundingClientRect().top))).size,
+          scrollsSideways: scroller.scrollWidth > scroller.clientWidth + 1
+        };
       });
-      expect(reachable).toBe(9);
+      expect(rail.tools).toBe(9);
+      expect(rail.rows, `the tool rail wrapped on ${viewport.name}`).toBe(1);
+      // A phone cannot hold the whole rail, so it has to be the part that scrolls.
+      if (viewport.width < 560) expect(rail.scrollsSideways).toBe(true);
     });
   }
 }

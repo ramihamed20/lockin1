@@ -9,7 +9,7 @@ OIDC nonce, replay expiry, and a short-lived browser-binding cookie are validate
 1. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials), configure the OAuth
    consent screen and create an **OAuth client ID** with application type **Web application**.
 2. Add this exact authorized redirect URI, replacing the example host:
-   `https://lockin.example.edu/api/v1/auth/oauth/google/callback`.
+   `https://lockin.ly/api/v1/auth/oauth/google/callback`.
 3. This implementation does not load Google JavaScript in the browser, so an authorized JavaScript
    origin is not required for this server-side flow. If Google Identity Services is added later, add
    the production origin separately.
@@ -24,7 +24,7 @@ OIDC nonce, replay expiry, and a short-lived browser-binding cookie are validate
 1. In [Apple Developer Certificates, Identifiers & Profiles](https://developer.apple.com/account/resources/),
    enable **Sign in with Apple** on the primary App ID.
 2. Create a **Services ID** for the web application. Configure the production domain and exact return
-   URL `https://lockin.example.edu/api/v1/auth/oauth/apple/callback` under Sign in with Apple.
+   URL `https://lockin.ly/api/v1/auth/oauth/apple/callback` under Sign in with Apple.
 3. Create a Sign in with Apple private key, record its **Key ID**, download the `.p8` file once, and
    record the developer account **Team ID**.
 4. Add the values to the deployment environment:

@@ -233,11 +233,8 @@ def submit_manual_recharge(
     )
     message = ManualPaymentTelegramMessage(
         payment_id=str(payment.id),
-        user_id=str(user.id),
-        username=user.username or "",
         plan=price.plan_version.title,
         amount=_amount_label(payment),
-        recharge_code=normalized_code,
         submitted=submission.submitted_at.isoformat(),
     )
     transaction.on_commit(lambda: notify_manual_payment(message))
@@ -394,5 +391,5 @@ def review_manual_recharge(
 
 def recharge_code_for_admin(submission: ManualRechargeSubmission) -> str:
     if submission.status != ManualRechargeSubmission.Status.PENDING:
-        return ""
+        return f"********{submission.recharge_code_last4}"
     return decrypt_recharge_code(submission.recharge_code_ciphertext)

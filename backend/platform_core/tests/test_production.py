@@ -109,6 +109,52 @@ def test_production_commands_refuse_non_production_settings() -> None:
         call_command("production_preflight")
 
 
+def test_production_preflight_emits_machine_readable_success_evidence(tmp_path: Path) -> None:
+    (tmp_path / "app.css").write_text("/* collected */", encoding="utf-8")
+    output = StringIO()
+    evidence = DatabaseEvidence(
+        vendor="postgresql",
+        server_version=160_010,
+        current_role="lockin_runtime",
+        elevated_role=False,
+        schema_create=False,
+        audit_mutation=False,
+    )
+    managed_file = MagicMock()
+    managed_file.objects.exclude.return_value.filter.return_value.distinct.return_value.count.return_value = (  # noqa: E501
+        0
+    )
+    executor = MagicMock()
+    executor.return_value.loader.graph.leaf_nodes.return_value = []
+    executor.return_value.migration_plan.return_value = []
+
+    with (
+        override_settings(
+            ENVIRONMENT="production",
+            CONTENT_REQUIRE_CLEAN_SCAN=True,
+            STATIC_ROOT=tmp_path,
+        ),
+        patch("platform_core.management.commands.production_preflight.call_command") as check,
+        patch(
+            "platform_core.management.commands.production_preflight.collect_database_evidence",
+            return_value=evidence,
+        ),
+        patch(
+            "platform_core.management.commands.production_preflight.MigrationExecutor",
+            executor,
+        ),
+        patch(
+            "platform_core.management.commands.production_preflight.ManagedFile",
+            managed_file,
+        ),
+    ):
+        call_command("production_preflight", stdout=output)
+
+    check.assert_called_once_with("check", deploy=True, fail_level="ERROR")
+    assert '"status": "ready"' in output.getvalue()
+    assert '"unsafe_published_files": 0' in output.getvalue()
+
+
 def test_runtime_grants_are_complete_and_keep_missing_audit_table_safe() -> None:
     database = MagicMock()
     database.vendor = "postgresql"

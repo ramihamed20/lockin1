@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { motivationApi } from "../api/motivation.js";
 import { Icon } from "../lib/icons.jsx";
 import { useAsyncData } from "../hooks/useAsyncData.js";
-import { ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
+import { ErrorPanel, LoadingPanel, Page, Tab, TabList } from "../components/ui/index.jsx";
 import { PaginationControls } from "../components/learning/PaginationControls.jsx";
 import { formatDate, formatDateTime, formatNumber } from "../lib/i18n.js";
 import { useI18n } from "../components/I18nProvider.jsx";
@@ -172,11 +172,11 @@ export default function Progress() {
         <label className="progress-range-control"><Icon name="calendar" size={16} /><select value={range} onChange={(event) => { setRange(event.target.value); setPage(1); }} aria-label={t("progress.period")}><option value="week">{t("progress.weekThis")}</option><option value="month">{t("progress.rangeMonth")}</option><option value="all">{t("progress.rangeAll")}</option></select></label>
       </header>
 
-      <nav className="progress-mobile-nav" aria-label={t("progress.sections")}>
+      <TabList className="progress-mobile-nav" label={t("progress.sections")} value={progressSection} onChange={setProgressSection}>
         {[["summary", "progress.summary"], ["history", "progress.history"], ["calendar", "progress.calendar"]].map(([id, labelKey]) => (
-          <button type="button" key={id} className={progressSection === id ? "active" : ""} aria-pressed={progressSection === id} onClick={() => setProgressSection(id)}>{t(labelKey)}</button>
+          <Tab key={id} value={id}>{t(labelKey)}</Tab>
         ))}
-      </nav>
+      </TabList>
 
       <section className={`progress-level-hero progress-mobile-section ${progressSection === "summary" ? "is-active" : ""}`}>
         <div className="progress-level-orb" aria-label={t("progress.levelLabel", { level: xp.level ?? 1 })}><small>{t("progress.yourLevel")}</small><strong>{xp.level ?? 1}</strong></div>

@@ -4,6 +4,8 @@ Last updated: 2026-07-19
 
 This checklist is the repeatable production release contract. A checked source-code phase does not
 authorize a deployment; the deployment owner must complete and retain this evidence per release.
+The deployment shapes themselves, and the migration between them, are described in
+`docs/DEPLOYMENT.md`.
 
 ## Before the maintenance window
 
@@ -15,7 +17,15 @@ authorize a deployment; the deployment owner must complete and retain this evide
 - [ ] Owner/runtime database credentials differ and have an approved rotation record.
 - [ ] TLS certificate covers the public host, key is readable by the container-mounted UID, expiry and
   renewal alert are healthy.
-- [ ] DNS, firewall, load-balancer/proxy chain, and spoofed `X-Forwarded-Proto` stripping verified.
+- [ ] DNS and Cloudflare proxying verified. Origin ports 80/443 allow current Cloudflare CIDRs only;
+  administrative SSH is separately allowlisted. Direct public origin traffic is blocked.
+- [ ] `frontend/nginx/cloudflare-real-ip.conf` matches Cloudflare's current published IPv4/IPv6
+  ranges; spoofed `CF-Connecting-IP`, `X-Forwarded-For`, and `X-Forwarded-Proto` tests passed.
+- [ ] Object storage reachable with a bucket-scoped token; the bucket is private, and no `/media/`
+  route or public base URL exposes managed files. `STORAGE_ALLOW_LOCAL_MEDIA` is false unless a
+  single-host exception is documented and its media volume is in the backup set.
+- [ ] Database connection is explicit: `DATABASE_URL` or complete `POSTGRES_*`, with an `sslmode`
+  that is not `allow` or `prefer`. Owner and runtime roles differ.
 - [ ] Backup set completed: PostgreSQL dump plus coordinated private-media snapshot and hashes.
 - [ ] Restore verification completed recently; observed RPO/RTO recorded.
 - [ ] Migration reviewed for locks, table rewrites, reversibility, and compatibility with the previous
@@ -30,7 +40,12 @@ authorize a deployment; the deployment owner must complete and retain this evide
 docker compose --env-file .env.production -f compose.production.yaml config --quiet
 docker build --tag "lockin-backend:$LOCKIN_IMAGE_TAG" backend
 docker build --tag "lockin-edge:$LOCKIN_IMAGE_TAG" frontend
+docker build --tag "lockin-clamav:$LOCKIN_IMAGE_TAG" deploy/clamav
 ```
+
+- [ ] The database shape is deliberate: `COMPOSE_PROFILES=bundled-db` for the bundled PostgreSQL
+  container, or no profile plus `POSTGRES_HOST`/`POSTGRES_PORT` for a managed provider. The rendered
+  Compose output lists the services you expect and no others.
 
 - [ ] Container vulnerability/image-signature policy passed in the deployment environment.
 - [ ] `nginx -t` passed against the mounted production certificate/key.
@@ -48,10 +63,11 @@ docker build --tag "lockin-edge:$LOCKIN_IMAGE_TAG" frontend
 Example commands:
 
 ```sh
+# Omit the first line when the database is managed rather than bundled.
 docker compose --env-file .env.production -f compose.production.yaml up -d db
 docker compose --env-file .env.production -f compose.production.yaml run --rm release
 docker compose --env-file .env.production -f compose.production.yaml run --rm preflight
-docker compose --env-file .env.production -f compose.production.yaml up -d backend edge
+docker compose --env-file .env.production -f compose.production.yaml up -d backend operations-scheduler file-scan-worker edge
 ```
 
 Never run Django migrations with the runtime credential. Never bypass a failed preflight.
@@ -64,9 +80,12 @@ Never run Django migrations with the runtime credential. Never bypass a failed p
 - [ ] `/admin/` and API schema/docs are unavailable at the public edge.
 - [ ] Login, CSRF-protected mutation, logout, and account recovery smoke-tested.
 - [ ] Authorized private file access works; unauthorized/non-clean file access fails.
+- [ ] Private files stream from object storage: view, download, and a byte-range seek all succeed,
+  and the bucket refuses an unsigned anonymous request for the same object.
 - [ ] Payment webhook is 404 while `PAYMENT_PROVIDER=none`.
 - [ ] Static/PWA assets load; service-worker update does not cache private API responses.
 - [ ] Error/request ID appears in structured logs without cookies/tokens/body secrets.
+- [ ] OAuth/account-action query parameters do not appear in Nginx access logs.
 - [ ] Database role evidence shows non-superuser, no schema create, no audit mutation.
 - [ ] A bounded HTTP probe runs against approved safe endpoints; compare p95/error rate to baseline.
 - [ ] Mobile/desktop smoke and primary Arabic RTL route checked.

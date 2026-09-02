@@ -1,6 +1,13 @@
+from typing import cast
+
 from apps.accounts.models import User
 
-from .models import AchievementDefinition, AchievementProgress, EarnedAchievement
+from .models import (
+    AchievementDefinition,
+    AchievementProgress,
+    AchievementVersion,
+    EarnedAchievement,
+)
 
 
 def achievement_catalog_for_user(*, user: User, language: str) -> list[dict[str, object]]:
@@ -20,7 +27,7 @@ def achievement_catalog_for_user(*, user: User, language: str) -> list[dict[str,
     ).select_related("current_version")
     for definition in definitions:
         version = definition.current_version
-        assert version is not None
+        version = cast(AchievementVersion, version)
         progress = progress_by_definition.get(definition.id)
         earned = earned_by_definition.get(definition.id)
         result.append(

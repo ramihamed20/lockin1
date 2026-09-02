@@ -32,8 +32,6 @@ class SubscriptionProtectedPermission(BasePermission):
     message = "An active Lock-in subscription is required for this study feature."
 
     def has_permission(self, request: "Request", view: "APIView") -> bool:
-        if "/operations/" in request.path or "/admin/" in request.path:
-            return True
         match = request.resolver_match
         app_name = match.app_names[-1] if match and match.app_names else ""
         entitlement = PROTECTED_APP_ENTITLEMENTS.get(app_name)

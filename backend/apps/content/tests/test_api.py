@@ -13,7 +13,7 @@ pytestmark = pytest.mark.django_db
 
 def test_students_never_receive_drafts() -> None:
     admin = create_admin()
-    student = create_user()
+    student = create_user(with_trial=True)
     _, _, lesson = published_path(admin=admin)
     published = published_pdf(actor=admin, node=lesson)
     from apps.content.services import LearningObjectInput, create_learning_object
@@ -38,7 +38,7 @@ def test_students_never_receive_drafts() -> None:
 
 
 def test_management_endpoint_rejects_student_content_creation() -> None:
-    student = create_user()
+    student = create_user(with_trial=True)
     client = APIClient()
     client.force_authenticate(student)
 
@@ -189,7 +189,7 @@ def test_public_content_list_query_count_is_bounded(
     django_assert_max_num_queries: DjangoAssertNumQueries,
 ) -> None:
     admin = create_admin()
-    student = create_user()
+    student = create_user(with_trial=True)
     _, _, lesson = published_path(admin=admin)
     for index in range(4):
         published_pdf(actor=admin, node=lesson, title=f"Study guide {index}")

@@ -31,9 +31,10 @@ image itself has a production WSGI entrypoint.
 
 ## Local tools without containers
 
-Use Python 3.13, Node 24, and PostgreSQL 18. Create `backend/.venv`, install
+Use Python 3.13, Node 24, pnpm 11.19, and PostgreSQL 18. Create `backend/.venv`, install
 `-e ".[dev]"` from the backend directory, then run migrations. Install frontend packages with
-`npm ci`. Environment field descriptions are in `.env.example` and `docs/OPERATIONS.md`.
+`pnpm install --frozen-lockfile`. Environment field descriptions are in `.env.example` and
+`docs/OPERATIONS.md`.
 
 ## Quality checks
 
@@ -50,8 +51,20 @@ fail-closed quality gate.
 
 ## Production deployment
 
-Production uses `compose.production.yaml`, not the development Compose file. Start with
-`docs/PHASE_11_PRODUCTION_READINESS.md` and execute `docs/DEPLOYMENT_CHECKLIST.md`. Real secrets are
+`docs/DEPLOYMENT.md` is the deployment contract. It covers both supported shapes and the
+migration between them:
+
+- **Managed container host**: the root `Dockerfile` builds one image with the SPA, the Django API
+  and Nginx on one origin, against managed PostgreSQL (`DATABASE_URL`) and S3-compatible object
+  storage. Background workers run the same image with their own commands.
+- **VPS**: `compose.production.yaml` runs the edge, backend, workers, scanner and, optionally, a
+  bundled PostgreSQL container behind `COMPOSE_PROFILES=bundled-db`.
+
+Both read the same environment variables, so moving between them changes infrastructure rather than
+code: authentication, the frontend API base URL and the database schema are untouched. Private files
+live in object storage in both, and do not move during a migration.
+
+Start with `docs/PHASE_11_PRODUCTION_READINESS.md` and execute `docs/DEPLOYMENT_CHECKLIST.md`. Real secrets are
 file-mounted; PostgreSQL owner and runtime credentials must differ; the one-shot release must
 complete before runtime preflight/backend/edge.
 
@@ -59,9 +72,10 @@ complete before runtime preflight/backend/edge.
 database backups. A complete recovery set must also include coordinated encrypted private media and
 exact image/config evidence as defined in `docs/BACKUP_RECOVERY.md`.
 
-The local Phase 11 workstation has no Docker, PostgreSQL server, `psql`, or npm executable. Local
-code/build/browser evidence is green, while PostgreSQL/container/network dependency audit evidence
-must come from mandatory CI and production-equivalent staging for the exact commit.
+The current workstation has no Docker, PostgreSQL server, or `psql`. Local SQLite tests, static
+analysis, production frontend builds, browser checks, and current dependency audits are available;
+PostgreSQL concurrency, container, TLS, and runtime-role evidence must still come from mandatory CI
+and production-equivalent staging for the exact commit.
 
 ## Source of truth
 

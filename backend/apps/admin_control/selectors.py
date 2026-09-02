@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
-from django.db.models import Avg, Count, Q, Sum
+from django.db.models import Avg, Count, Q, QuerySet, Sum
 from django.db.models.functions import TruncDate
 
 from apps.accounts.models import AccountSecurityEvent, AccountSession, User
@@ -14,23 +14,45 @@ from apps.audit.models import AuditRecord
 from apps.content.models import LearningObject
 from apps.entitlements.models import EntitlementGrant
 from apps.focus.models import FocusSession
-from apps.invoices.models import Invoice
 from apps.notifications.models import NotificationDelivery
-from apps.payments.models import Payment
+from apps.payments.manual_services import recharge_code_for_admin
+from apps.payments.models import ManualRechargeSubmission, Payment
 from apps.progress.models import LearningProgress
+from apps.provider_integrations.models import ProviderObjectLink
 from apps.questions.models import Question
 from apps.refunds.models import Refund
 from apps.subscriptions.models import Subscription
-from apps.provider_integrations.models import ProviderObjectLink
 
-from .models import AdminInternalNote, NotificationCampaign, PaymentStatusCorrection, SubscriptionAdminEvent
+from .models import (
+    AdminInternalNote,
+    NotificationCampaign,
+    PaymentStatusCorrection,
+    SubscriptionAdminEvent,
+)
 
 
-def admin_purchases(*, query: str = "", status: str = ""):
+def admin_purchases(*, query: str = "", status: str = "") -> QuerySet[Payment]:
     payments = Payment.objects.select_related(
-        "account__primary_user", "subscription__plan_version__plan", "price"
-    ).prefetch_related("transitions", "refunds__transitions", "invoice__lines", "invoice__transitions")
-    if status:
+        "account__primary_user",
+        "subscription__plan_version__plan",
+        "price",
+        "manual_submission__reviewed_by",
+    ).prefetch_related(
+        "transitions", "refunds__transitions", "invoice__lines", "invoice__transitions"
+    )
+    if status == "pending_review":
+        payments = payments.filter(
+            manual_submission__status=ManualRechargeSubmission.Status.PENDING
+        )
+    elif status == "approved":
+        payments = payments.filter(
+            manual_submission__status=ManualRechargeSubmission.Status.APPROVED
+        )
+    elif status == "rejected":
+        payments = payments.filter(
+            manual_submission__status=ManualRechargeSubmission.Status.REJECTED
+        )
+    elif status:
         payments = payments.filter(status=status)
     if query:
         payments = payments.filter(
@@ -43,11 +65,14 @@ def admin_purchases(*, query: str = "", status: str = ""):
     return payments.order_by("-created_at", "-id")
 
 
-def serialize_purchase(payment: Payment, *, detailed: bool = False) -> dict[str, Any]:
+def serialize_purchase(
+    payment: Payment, *, detailed: bool = False, reveal_recharge_code: bool = False
+) -> dict[str, Any]:
     user = payment.account.primary_user
     payload: dict[str, Any] = {
         "id": payment.id,
         "status": payment.status,
+        "method": payment.method,
         "amount_minor": payment.amount_minor,
         "currency": payment.currency,
         "currency_exponent": payment.currency_exponent,
@@ -63,10 +88,30 @@ def serialize_purchase(payment: Payment, *, detailed: bool = False) -> dict[str,
             "id": user.id if user else None,
             "email": user.email if user else "",
             "full_name": user.full_name if user else "",
+            "username": user.username if user else "",
         },
         "invoice_id": str(payment.invoice.id) if hasattr(payment, "invoice") else None,
         "invoice_number": payment.invoice.number if hasattr(payment, "invoice") else "",
     }
+    try:
+        manual = payment.manual_submission
+    except ManualRechargeSubmission.DoesNotExist:
+        manual = None
+    payload["manual_submission"] = (
+        {
+            "id": manual.id,
+            "status": manual.status,
+            "recharge_code_masked": f"•••• {manual.recharge_code_last4}",
+            "submitted_at": manual.submitted_at,
+            "reviewed_at": manual.reviewed_at,
+            "reviewed_by_name": manual.reviewed_by.full_name if manual.reviewed_by else "",
+            "rejection_reason": manual.rejection_reason,
+            "subscription_period_started_at": manual.subscription_period_started_at,
+            "subscription_period_ends_at": manual.subscription_period_ends_at,
+        }
+        if manual
+        else None
+    )
     if not detailed:
         return payload
     invoice = payment.invoice if hasattr(payment, "invoice") else None
@@ -132,7 +177,9 @@ def serialize_purchase(payment: Payment, *, detailed: bool = False) -> dict[str,
                 else None
             ),
             "notes": list(
-                AdminInternalNote.objects.filter(target_type="payments.payment", target_id=str(payment.id))
+                AdminInternalNote.objects.filter(
+                    target_type="payments.payment", target_id=str(payment.id)
+                )
                 .select_related("author")
                 .order_by("-created_at")
             ),
@@ -143,10 +190,14 @@ def serialize_purchase(payment: Payment, *, detailed: bool = False) -> dict[str,
             ),
         }
     )
+    if manual is not None and reveal_recharge_code:
+        payload["manual_submission"]["recharge_code"] = recharge_code_for_admin(manual)
     return payload
 
 
-def admin_subscriptions(*, query: str = "", status: str = "", missing_only: bool = False):
+def admin_subscriptions(
+    *, query: str = "", status: str = "", missing_only: bool = False
+) -> QuerySet[User] | QuerySet[Subscription]:
     users = User.objects.select_related().all()
     if missing_only:
         users = users.exclude(subscription_accounts__subscriptions__isnull=False)
@@ -240,11 +291,13 @@ def serialize_user_detail(user: User) -> dict[str, Any]:
         .select_related("account", "subscription__plan_version__plan", "price")
         .order_by("-created_at")[:25]
     )
-    refunds = list(Refund.objects.filter(payment__account__primary_user=user).order_by("-requested_at")[:25])
+    refunds = list(
+        Refund.objects.filter(payment__account__primary_user=user).order_by("-requested_at")[:25]
+    )
     focus_sessions = list(
-        FocusSession.objects.filter(user=user).order_by("-started_at")[:25].values(
-            "id", "status", "started_at", "ended_at", "active_duration_seconds", "context_type"
-        )
+        FocusSession.objects.filter(user=user)
+        .order_by("-started_at")[:25]
+        .values("id", "status", "started_at", "ended_at", "active_duration_seconds", "context_type")
     )
     attempts = list(
         Attempt.objects.filter(user=user)
@@ -261,7 +314,13 @@ def serialize_user_detail(user: User) -> dict[str, Any]:
         LearningProgress.objects.filter(user=user)
         .select_related("learning_object")
         .order_by("-updated_at")[:25]
-        .values("learning_object_id", "learning_object__published_version__title", "status", "completion_percent", "updated_at")
+        .values(
+            "learning_object_id",
+            "learning_object__published_version__title",
+            "status",
+            "completion_percent",
+            "updated_at",
+        )
     )
     return {
         "id": user.id,
@@ -271,9 +330,15 @@ def serialize_user_detail(user: User) -> dict[str, Any]:
         "email_verified": user.is_email_verified,
         "preferred_language": user.preferred_language,
         "date_joined": user.date_joined,
+        "cohort": {
+            "id": user.cohort_id,
+            "title": user.cohort.name_en if user.cohort is not None else "",
+        },
         "product_roles": get_user_roles(user),
         "operational_roles": list(
-            user.operational_role_assignments.select_related("role").values_list("role_id", flat=True)
+            user.operational_role_assignments.select_related("role").values_list(
+                "role_id", flat=True
+            )
         ),
         "operational_capabilities": sorted(operational_capabilities(user)),
         "sessions": list(
@@ -340,29 +405,64 @@ def operational_analytics(*, start: date, end: date) -> dict[str, Any]:
     users = User.objects.all()
     subscriptions = Subscription.objects.select_related("plan_version__plan")
     payments = Payment.objects.all()
-    successful = payments.filter(status__in=(Payment.Status.SUCCEEDED, Payment.Status.PARTIALLY_REFUNDED, Payment.Status.REFUNDED))
+    successful = payments.filter(
+        status__in=(
+            Payment.Status.SUCCEEDED,
+            Payment.Status.PARTIALLY_REFUNDED,
+            Payment.Status.REFUNDED,
+        )
+    )
     refunds = Refund.objects.filter(status=Refund.Status.SUCCEEDED)
     active_subscriptions = subscriptions.filter(
-        status__in=(Subscription.Status.ACTIVE, Subscription.Status.TRIALING, Subscription.Status.GRACE)
+        status__in=(
+            Subscription.Status.ACTIVE,
+            Subscription.Status.TRIALING,
+            Subscription.Status.GRACE,
+        )
     )
     previous_start = start_dt - (end_dt - start_dt)
     current_new = subscriptions.filter(created_at__gte=start_dt, created_at__lt=end_dt)
     previous_active = subscriptions.filter(
         created_at__lt=start_dt,
-        status__in=(Subscription.Status.ACTIVE, Subscription.Status.TRIALING, Subscription.Status.GRACE),
+        status__in=(
+            Subscription.Status.ACTIVE,
+            Subscription.Status.TRIALING,
+            Subscription.Status.GRACE,
+        ),
     ).count()
-    cancelled = subscriptions.filter(status=Subscription.Status.CANCELLED, cancelled_at__gte=start_dt, cancelled_at__lt=end_dt).count()
-    gross = successful.filter(succeeded_at__gte=start_dt, succeeded_at__lt=end_dt).aggregate(value=Sum("amount_minor"))["value"] or 0
-    refund_total = refunds.filter(succeeded_at__gte=start_dt, succeeded_at__lt=end_dt).aggregate(value=Sum("amount_minor"))["value"] or 0
+    cancelled = subscriptions.filter(
+        status=Subscription.Status.CANCELLED, cancelled_at__gte=start_dt, cancelled_at__lt=end_dt
+    ).count()
+    gross = (
+        successful.filter(succeeded_at__gte=start_dt, succeeded_at__lt=end_dt).aggregate(
+            value=Sum("amount_minor")
+        )["value"]
+        or 0
+    )
+    refund_total = (
+        refunds.filter(succeeded_at__gte=start_dt, succeeded_at__lt=end_dt).aggregate(
+            value=Sum("amount_minor")
+        )["value"]
+        or 0
+    )
     payment_count = successful.filter(succeeded_at__gte=start_dt, succeeded_at__lt=end_dt).count()
     focus = FocusSession.objects.filter(started_at__gte=start_dt, started_at__lt=end_dt)
     attempts = Attempt.objects.filter(created_at__gte=start_dt, created_at__lt=end_dt)
     submitted = attempts.filter(status__in=(Attempt.Status.SUBMITTED, Attempt.Status.EXPIRED))
     results = AttemptResult.objects.filter(created_at__gte=start_dt, created_at__lt=end_dt)
     progress = LearningProgress.objects.filter(updated_at__gte=start_dt, updated_at__lt=end_dt)
+    now = datetime.now(UTC)
+    recent_sessions = AccountSession.objects.filter(
+        user__status=User.Status.ACTIVE,
+        last_seen_at__gte=now - timedelta(minutes=5),
+        expires_at__gt=now,
+    )
     creators = users.filter(groups__name=Role.CREATOR.value).distinct()
     active_creators = creators.filter(
-        Q(owned_learning_objects__updated_at__gte=start_dt, owned_learning_objects__updated_at__lt=end_dt)
+        Q(
+            owned_learning_objects__updated_at__gte=start_dt,
+            owned_learning_objects__updated_at__lt=end_dt,
+        )
         | Q(owned_questions__updated_at__gte=start_dt, owned_questions__updated_at__lt=end_dt)
         | Q(owned_quizzes__updated_at__gte=start_dt, owned_quizzes__updated_at__lt=end_dt)
     ).distinct()
@@ -380,18 +480,44 @@ def operational_analytics(*, start: date, end: date) -> dict[str, Any]:
         .annotate(count=Count("id"))
         .order_by("day")
     )
+    focus_activity = list(
+        focus.annotate(day=TruncDate("started_at"))
+        .values("day")
+        .annotate(
+            sessions=Count("id"),
+            learners=Count("user_id", distinct=True),
+            focus_seconds=Sum("active_duration_seconds"),
+        )
+        .order_by("day")
+    )
     return {
         "period": {"from": start, "to": end, "timezone": "UTC"},
         "users": {
             "total": users.count(),
             "verified": users.filter(email_verified_at__isnull=False).count(),
             "active_today": users.filter(last_login__date=end).count(),
+            "seen_today": AccountSession.objects.filter(
+                user__status=User.Status.ACTIVE,
+                last_seen_at__gte=datetime.combine(end, datetime.min.time(), tzinfo=UTC),
+                last_seen_at__lt=end_dt,
+            )
+            .values("user_id")
+            .distinct()
+            .count(),
+            "online_now": recent_sessions.values("user_id").distinct().count(),
             "active_week": users.filter(last_login__gte=end_dt - timedelta(days=7)).count(),
             "active_month": users.filter(last_login__gte=end_dt - timedelta(days=30)).count(),
-            "new_registrations": users.filter(date_joined__gte=start_dt, date_joined__lt=end_dt).count(),
+            "new_week": users.filter(
+                date_joined__gte=end_dt - timedelta(days=7), date_joined__lt=end_dt
+            ).count(),
+            "new_registrations": users.filter(
+                date_joined__gte=start_dt, date_joined__lt=end_dt
+            ).count(),
             "suspended": users.filter(status=User.Status.SUSPENDED).count(),
             "deactivated": users.filter(status=User.Status.DELETED).count(),
-            "returning": users.filter(last_login__gte=start_dt, date_joined__lt=previous_start).count(),
+            "returning": users.filter(
+                last_login__gte=start_dt, date_joined__lt=previous_start
+            ).count(),
             "growth": registrations,
         },
         "subscriptions": {
@@ -401,9 +527,20 @@ def operational_analytics(*, start: date, end: date) -> dict[str, Any]:
             "cancelled": subscriptions.filter(status=Subscription.Status.CANCELLED).count(),
             "suspended": subscriptions.filter(status=Subscription.Status.SUSPENDED).count(),
             "new": current_new.count(),
-            "renewals": subscriptions.filter(current_period_started_at__gte=start_dt, current_period_started_at__lt=end_dt).count(),
-            "churn_rate": round((cancelled / previous_active) * 100, 2) if previous_active else None,
-            "conversion_rate": round((subscriptions.filter(status=Subscription.Status.ACTIVE).count() / max(1, subscriptions.count())) * 100, 2),
+            "renewals": subscriptions.filter(
+                current_period_started_at__gte=start_dt, current_period_started_at__lt=end_dt
+            ).count(),
+            "churn_rate": round((cancelled / previous_active) * 100, 2)
+            if previous_active
+            else None,
+            "conversion_rate": round(
+                (
+                    subscriptions.filter(status=Subscription.Status.ACTIVE).count()
+                    / max(1, subscriptions.count())
+                )
+                * 100,
+                2,
+            ),
             "by_plan": list(
                 subscriptions.values("plan_version__plan__code", "status")
                 .annotate(count=Count("id"))
@@ -412,16 +549,25 @@ def operational_analytics(*, start: date, end: date) -> dict[str, Any]:
             "upcoming_expirations": subscriptions.filter(
                 current_period_ends_at__gte=end_dt,
                 current_period_ends_at__lt=end_dt + timedelta(days=14),
-                status__in=(Subscription.Status.ACTIVE, Subscription.Status.TRIALING, Subscription.Status.GRACE),
+                status__in=(
+                    Subscription.Status.ACTIVE,
+                    Subscription.Status.TRIALING,
+                    Subscription.Status.GRACE,
+                ),
             ).count(),
         },
         "revenue": {
             "gross_minor": gross,
             "refund_total_minor": refund_total,
             "net_minor": gross - refund_total,
-            "failed_payments": payments.filter(status=Payment.Status.FAILED, created_at__gte=start_dt, created_at__lt=end_dt).count(),
+            "failed_payments": payments.filter(
+                status=Payment.Status.FAILED, created_at__gte=start_dt, created_at__lt=end_dt
+            ).count(),
             "average_order_minor": round(gross / payment_count, 2) if payment_count else 0,
-            "paying_users": successful.filter(succeeded_at__gte=start_dt, succeeded_at__lt=end_dt).values("account__primary_user_id").distinct().count(),
+            "paying_users": successful.filter(succeeded_at__gte=start_dt, succeeded_at__lt=end_dt)
+            .values("account__primary_user_id")
+            .distinct()
+            .count(),
             "trend": revenue_points,
             "by_plan": list(
                 successful.filter(succeeded_at__gte=start_dt, succeeded_at__lt=end_dt)
@@ -432,19 +578,47 @@ def operational_analytics(*, start: date, end: date) -> dict[str, Any]:
         },
         "learning": {
             "active_learners": focus.values("user_id").distinct().count(),
-            "material_completions": progress.filter(status=LearningProgress.Status.COMPLETED).count(),
+            "material_completions": progress.filter(
+                status=LearningProgress.Status.COMPLETED
+            ).count(),
             "focus_sessions": focus.count(),
             "focus_seconds": focus.aggregate(value=Sum("active_duration_seconds"))["value"] or 0,
-            "average_focus_seconds": focus.aggregate(value=Avg("active_duration_seconds"))["value"] or 0,
+            "average_focus_seconds": focus.aggregate(value=Avg("active_duration_seconds"))["value"]
+            or 0,
+            "focus_sessions_today": FocusSession.objects.filter(
+                started_at__gte=datetime.combine(end, datetime.min.time(), tzinfo=UTC),
+                started_at__lt=end_dt,
+            ).count(),
+            "focus_activity": focus_activity,
             "quiz_attempts": attempts.count(),
             "exam_attempts": submitted.count(),
-            "completion_rate": round((progress.filter(status=LearningProgress.Status.COMPLETED).count() / max(1, progress.count())) * 100, 2),
+            "completion_rate": round(
+                (
+                    progress.filter(status=LearningProgress.Status.COMPLETED).count()
+                    / max(1, progress.count())
+                )
+                * 100,
+                2,
+            ),
             "average_score": results.aggregate(value=Avg("percentage"))["value"],
-            "pass_rate": round((results.filter(passed=True).count() / max(1, results.count())) * 100, 2),
+            "pass_rate": round(
+                (results.filter(passed=True).count() / max(1, results.count())) * 100, 2
+            ),
             "most_used_materials": list(
                 progress.values("learning_object_id", "learning_object__published_version__title")
                 .annotate(uses=Count("id"))
                 .order_by("-uses")[:10]
+            ),
+            "most_active_subjects": list(
+                progress.exclude(
+                    learning_object__published_version__academic_node__title__isnull=True
+                )
+                .values(
+                    "learning_object__published_version__academic_node_id",
+                    "learning_object__published_version__academic_node__title",
+                )
+                .annotate(uses=Count("id"), learners=Count("user_id", distinct=True))
+                .order_by("-uses")[:6]
             ),
         },
         "creators": {
@@ -457,17 +631,21 @@ def operational_analytics(*, start: date, end: date) -> dict[str, Any]:
                 workflow_status=LearningObject.WorkflowStatus.DRAFT
             ).count(),
             "content_awaiting_review": (
-                LearningObject.objects.filter(workflow_status=LearningObject.WorkflowStatus.IN_REVIEW).count()
+                LearningObject.objects.filter(
+                    workflow_status=LearningObject.WorkflowStatus.IN_REVIEW
+                ).count()
                 + Question.objects.filter(workflow_status=Question.WorkflowStatus.IN_REVIEW).count()
                 + Quiz.objects.filter(workflow_status=Quiz.WorkflowStatus.IN_REVIEW).count()
             ),
         },
         "operations": {
-            "failed_notification_deliveries": NotificationDelivery.objects.filter(status=NotificationDelivery.Status.FAILED).count(),
+            "failed_notification_deliveries": NotificationDelivery.objects.filter(
+                status=NotificationDelivery.Status.FAILED
+            ).count(),
             "generated_at": datetime.now(UTC),
         },
     }
 
 
-def campaigns():
+def campaigns() -> QuerySet[NotificationCampaign]:
     return NotificationCampaign.objects.select_related("created_by").all()

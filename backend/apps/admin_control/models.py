@@ -38,6 +38,9 @@ class AdminInternalNote(models.Model):
             models.Index(fields=("author", "-created_at"), name="admin_note_author_time_idx"),
         ]
 
+    def __str__(self) -> str:
+        return f"{self.target_type}:{self.target_id}"
+
     def save(self, *args: Any, **kwargs: Any) -> None:
         if not self._state.adding:
             raise TypeError("Administrative notes are append-only.")
@@ -70,9 +73,7 @@ class SubscriptionAdminEvent(models.Model):
     class Meta:
         ordering = ("-created_at", "-id")
         indexes = [
-            models.Index(
-                fields=("subscription", "-created_at"), name="admin_sub_event_time_idx"
-            )
+            models.Index(fields=("subscription", "-created_at"), name="admin_sub_event_time_idx")
         ]
         constraints = [
             models.UniqueConstraint(
@@ -80,6 +81,9 @@ class SubscriptionAdminEvent(models.Model):
                 name="admin_sub_event_idempotent",
             )
         ]
+
+    def __str__(self) -> str:
+        return f"{self.subscription_id}:{self.action}"
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         if not self._state.adding:
@@ -100,11 +104,16 @@ class PaymentStatusCorrection(models.Model):
         "payments.Payment", on_delete=models.PROTECT, related_name="admin_corrections"
     )
     requested_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="payment_corrections_requested"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="payment_corrections_requested",
     )
     reviewed_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="payment_corrections_reviewed",
-        null=True, blank=True,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="payment_corrections_reviewed",
+        null=True,
+        blank=True,
     )
     requested_status = models.CharField(max_length=24)
     provider_reference = models.CharField(max_length=180)
@@ -125,9 +134,14 @@ class PaymentStatusCorrection(models.Model):
             )
         ]
         indexes = [
-            models.Index(fields=("payment", "status", "-created_at"), name="admin_payment_correct_idx"),
+            models.Index(
+                fields=("payment", "status", "-created_at"), name="admin_payment_correct_idx"
+            ),
             models.Index(fields=("status", "-created_at"), name="admin_correction_state_idx"),
         ]
+
+    def __str__(self) -> str:
+        return f"{self.payment_id}:{self.requested_status}:{self.status}"
 
 
 class NotificationCampaign(models.Model):
@@ -177,6 +191,9 @@ class NotificationCampaign(models.Model):
             models.Index(fields=("created_by", "-created_at"), name="admin_campaign_creator_idx"),
         ]
 
+    def __str__(self) -> str:
+        return f"{self.title}:{self.status}"
+
 
 class NotificationCampaignDelivery(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -208,8 +225,9 @@ class NotificationCampaignDelivery(models.Model):
             )
         ]
         indexes = [
-            models.Index(
-                fields=("campaign", "in_app_status"), name="admin_campaign_inapp_idx"
-            ),
+            models.Index(fields=("campaign", "in_app_status"), name="admin_campaign_inapp_idx"),
             models.Index(fields=("campaign", "email_status"), name="admin_campaign_email_idx"),
         ]
+
+    def __str__(self) -> str:
+        return f"{self.campaign_id}:{self.recipient_id}"

@@ -4,7 +4,7 @@ import { reviewApi } from "../api/review.js";
 import { Icon } from "../lib/icons.jsx";
 import { MATERIAL_CATALOG, getCatalogMaterial } from "../lib/materialCatalog.js";
 import { getDemoQuiz } from "../lib/demoQuizCatalog.js";
-import { EmptyState, ErrorPanel, Page } from "../components/ui/index.jsx";
+import { EmptyState, ErrorPanel, Page, RadioGroup, RadioOption } from "../components/ui/index.jsx";
 import { CatalogSheetCard } from "../components/learning/CatalogSheetCard.jsx";
 import { CatalogTile } from "../components/learning/CatalogTile.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
@@ -27,7 +27,23 @@ function categoryEmptyState(category, t) {
 
 export default function Questions() {
   const { t } = useI18n();
-  return <Page title="Questions"><section className="questions-category-grid" aria-label={t("questions.categoriesLabel")}>{QUESTION_CATEGORIES.map((category) => <CategoryCard key={category.id} category={category} />)}</section></Page>;
+
+  return (
+    <Page title="Questions">
+      <section aria-labelledby="question-previews-heading">
+        <div className="panel-title">
+          <div>
+            <p className="eyebrow">{t("questions.previewLabel")}</p>
+            <h2 id="question-previews-heading">{t("questions.previewTitle")}</h2>
+            <p className="muted">{t("questions.previewSubtitle")}</p>
+          </div>
+        </div>
+        <section className="questions-category-grid" aria-label={t("questions.categoriesLabel")}>
+          {QUESTION_CATEGORIES.map((category) => <CategoryCard key={category.id} category={category} />)}
+        </section>
+      </section>
+    </Page>
+  );
 }
 
 function CategoryCard({ category }) {
@@ -164,8 +180,11 @@ export function DemoQuiz() {
         <div className="demo-quiz-progress" role="progressbar" aria-label={t("questions.quizProgress")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}><span style={{ width: `${progress}%` }} /></div>
         <article className="demo-question-stage">
           <div className="demo-question-heading"><span dir="auto">{t("questions.questionNumber", { number: String(activeIndex + 1).padStart(2, "0") })}</span><h2 dir="auto">{question.prompt}</h2></div>
-          <div className="demo-answer-list" aria-label={t("questions.answerChoices")}>{question.options.map((option, index) => { const chosen = selectedAnswer === index; const evaluated = selectedAnswer != null; const state = evaluated && index === question.answerIndex ? "correct" : evaluated && chosen ? "wrong" : chosen ? "selected" : ""; return <button key={option} className={`demo-answer ${state}`} type="button" disabled={evaluated} aria-pressed={chosen} onClick={() => selectAnswer(question, index)}><span className="demo-answer-letter">{String.fromCharCode(65 + index)}</span><span className="demo-answer-copy" dir="auto">{option}</span>{evaluated && index === question.answerIndex && <Icon name="check" size={20} aria-label={t("questions.correctAnswer")} />}{evaluated && chosen && !isCorrect && <Icon name="alert-triangle" size={20} aria-label={t("questions.incorrectAnswer")} />}</button>; })}</div>
-          {selectedAnswer != null && <section className={`demo-answer-feedback ${isCorrect ? "is-correct" : "is-incorrect"}`} role="status" aria-live="polite"><Icon name={isCorrect ? "check" : "alert-triangle"} size={20} aria-hidden="true" /><div><strong>{isCorrect ? t("questions.correctAnswer") : t("questions.notQuite")}</strong><p>{isCorrect ? t("questions.correctFeedback") : t("questions.incorrectFeedback")}</p></div></section>}
+          <RadioGroup className="demo-answer-list" orientation="vertical" label={t("questions.answerChoices")} value={selectedAnswer == null ? "" : String(selectedAnswer)} onChange={(value) => selectAnswer(question, Number(value))}>{question.options.map((option, index) => { const chosen = selectedAnswer === index; const evaluated = selectedAnswer != null; const state = evaluated && index === question.answerIndex ? "correct" : evaluated && chosen ? "wrong" : chosen ? "selected" : ""; return <RadioOption key={option} value={String(index)} className={`demo-answer ${state}`} disabled={evaluated}><span className="demo-answer-letter">{String.fromCharCode(65 + index)}</span><span className="demo-answer-copy" dir="auto">{option}</span>{evaluated && index === question.answerIndex && <Icon name="check" size={20} aria-label={t("questions.correctAnswer")} />}{evaluated && chosen && !isCorrect && <Icon name="alert-triangle" size={20} aria-label={t("questions.incorrectAnswer")} />}</RadioOption>; })}</RadioGroup>
+          {/* The answer buttons already carry the verdict visually and in their
+              icon labels, so the callout that repeated it is gone. Screen
+              readers still need it announced, hence the hidden live region. */}
+          {selectedAnswer != null && <p className="visually-hidden" role="status" aria-live="polite">{isCorrect ? t("questions.correctAnswer") : t("questions.incorrectAnswer")}</p>}
           {selectedAnswer != null && !isCorrect && tracking[question.id]?.state === "saving" && <p className="save-hint" role="status">{t("questions.savingMistake")}</p>}
           {selectedAnswer != null && !isCorrect && tracking[question.id]?.state === "saved" && <p className="save-hint" role="status">{t("questions.savedMistake")}</p>}
           {selectedAnswer != null && !isCorrect && tracking[question.id]?.state === "error" && <div className="demo-review-save-error" role="alert"><p dir="auto">{tracking[question.id].error}</p><button className="btn btn-soft compact" type="button" onClick={() => void trackAnswer(question, selectedAnswer)}>{t("questions.retrySaving")}</button></div>}

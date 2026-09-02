@@ -34,14 +34,20 @@ test("raw server HTML and technical traces never reach user-facing error copy", 
   assert.equal(normalizeUserError("The material is unavailable.", "Safe fallback"), "The material is unavailable.");
 });
 
-test("remediation architecture reserves catalog and protects stale lazy routes", async () => {
+test("remediation architecture routes the production catalog and protects stale lazy routes", async () => {
   const [app, lazyRecovery, worker, vite] = await Promise.all([
     readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/lib/lazyWithRecovery.js", import.meta.url), "utf8"),
     readFile(new URL("../src/service-worker.js", import.meta.url), "utf8"),
     readFile(new URL("../vite.config.js", import.meta.url), "utf8")
   ]);
-  assert.match(app, /path="\/materials\/catalog" element={<NotFoundPage/);
+  // The catalog is production, not a reserved placeholder: it owns the
+  // material, sheet and Focus Workspace routes. Its bare root is still the
+  // "pick a material first" not-found page rather than a redirect, so a stale
+  // deep link lands somewhere that explains itself.
+  assert.match(app, /path="\/materials\/catalog" element=\{<NotFoundPage variant="material-catalog" \/>\}/);
+  assert.match(app, /path="\/materials\/catalog\/:materialSlug\/sheets\/:sheetSlug\/workspace"/);
+  assert.match(app, /const CatalogFocusWorkspace = lazyWithRecovery\(/);
   assert.match(app, /lazyWithRecovery/);
   assert.match(lazyRecovery, /sessionStorage/);
   assert.match(lazyRecovery, /window\.location\.reload/);

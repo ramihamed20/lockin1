@@ -1,3 +1,13 @@
+/* The opening frame, shown before the application bundle has parsed.
+ *
+ * It is declared in its own cascade layer, named here because this sheet is
+ * parsed before any other. An unlayered rule outranks every layered one, so
+ * while this file sat outside the layers its `html`, `body` and `#root`
+ * declarations silently overruled the application's own viewport ownership -
+ * the opening screen, not the shell, decided how tall the document was. Naming
+ * the layer first puts it underneath `primitives`, `app` and `interaction`,
+ * which `styles/layers.css` appends after it. */
+@layer startup {
 :root {
   --startup-bg: #070b16;
   --startup-ink: #f7f7fb;
@@ -9,7 +19,11 @@
 html,
 body,
 #root {
-  min-block-size: 100%;
+  /* The very first frame uses the same stable large-viewport authority as the
+     application shell that replaces it. The preceding `vh` declaration is the
+     fallback for browsers older than the explicit large viewport unit. */
+  min-block-size: 100vh;
+  min-block-size: 100lvh;
   background: var(--startup-bg);
 }
 
@@ -20,7 +34,7 @@ body {
 .startup-shell {
   box-sizing: border-box;
   min-block-size: 100vh;
-  min-block-size: 100dvh;
+  min-block-size: 100lvh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -176,4 +190,5 @@ body {
   .startup-shell--continuation .startup-halo {
     opacity: 0.34;
   }
+}
 }

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
 /**
  * Store badges are 10px and bold on a filled brand surface, which is small text
@@ -23,6 +24,8 @@ const BADGES = [
 test("every store badge meets AA in every theme", async ({ page }) => {
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
+    // The gated routes need the access contract answered before they render.
+    if (await fulfillAccessContract(route, pathname)) return;
     if (pathname === "/api/v1/auth/session") {
       await route.fulfill({ contentType: "application/json", body: JSON.stringify({ user: { id: "store", email: "store@example.test", full_name: "Store Shopper", preferred_language: "en", status: "active", is_email_verified: true, roles: ["student"], date_joined: "2026-01-01T00:00:00Z" } }) });
       return;

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.exceptions import APIException, NotFound, PermissionDenied
@@ -65,13 +65,14 @@ class _ContentPermissionView(APIView):
 
     def get_permissions(self):  # type: ignore[no-untyped-def]
         self.required_capability = (
-            Capability.CONTENT_VIEW if self.request.method in {"GET", "HEAD", "OPTIONS"}
+            Capability.CONTENT_VIEW
+            if self.request.method in {"GET", "HEAD", "OPTIONS"}
             else Capability.CONTENT_MANAGE
         )
         return super().get_permissions()
 
 
-def _sheets(subject: EducationNode):
+def _sheets(subject: EducationNode) -> QuerySet[LearningObject]:
     return (
         LearningObject.objects.filter(
             current_version__content_type=LearningObjectVersion.ContentType.PDF,

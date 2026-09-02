@@ -11,6 +11,7 @@
  * own the product's colors, surfaces, radii, shadows, and component identity.
  */
 
+@layer app {
 :root {
   --responsive-shell-gap: 0px;
   --responsive-rail-width: 80px;
@@ -69,6 +70,16 @@
   .form-alert .text-link {
     display: inline;
     min-block-size: 0;
+  }
+
+  /* Mobile Safari magnifies the whole page when it focuses a control whose text
+   * is under 16px, and it does not magnify back out afterwards - the page is
+   * left zoomed and displaced for the rest of the session. Every control that
+   * raises a keyboard therefore carries a 16px floor on touch devices. `max`
+   * keeps anything already larger at its designed size, and this reaches no
+   * typography beyond the fields themselves. */
+  :is(input, textarea, select):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="reset"]) {
+    font-size: max(16px, 1em);
   }
 }
 
@@ -247,8 +258,6 @@
   cursor: pointer;
 }
 
-.progress-calendar-table:focus-visible .progress-calendar-cell[aria-selected="true"],
-.profile-heatmap:focus-visible .profile-heat-cell[aria-selected="true"],
 .progress-calendar-cell[aria-selected="true"],
 .profile-heat-cell[aria-selected="true"] {
   outline: 2px solid var(--color-primary);
@@ -708,8 +717,8 @@
     min-height: var(--touch-target);
   }
   :root {
-    /* 44px touch targets plus the bar's compact chrome and the Home Indicator. */
-    --mobile-bottom-nav-height: calc(54px + var(--safe-bottom));
+    /* 48px touch targets plus compact chrome and the Home Indicator. */
+    --mobile-bottom-nav-height: calc(58px + var(--safe-bottom));
   }
 
   .app-shell {
@@ -803,7 +812,7 @@
     left: 12px;
     width: auto;
     max-width: none;
-    max-height: calc(var(--app-viewport-height) - 68px - var(--safe-top) - var(--safe-bottom));
+    max-height: calc(var(--app-viewport-height) - 68px - var(--safe-top) - max(var(--safe-bottom), var(--keyboard-inset)));
     overflow-y: auto;
   }
 
@@ -816,7 +825,10 @@
   }
 
   .page-shell {
-    padding: 12px 10px 14px;
+    /* Landscape moves the notch and the rounded corners onto the inline edges,
+     * where nothing else reserves them: the top bar and the bottom bar own the
+     * block insets, so only the inline pair belongs here. */
+    padding: 12px max(10px, var(--safe-right)) 14px max(10px, var(--safe-left));
   }
 
   .section-heading {
@@ -840,8 +852,8 @@
     bottom: 0;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 0;
-    padding: 4px 4px calc(4px + var(--safe-bottom));
+    gap: 2px;
+    padding: 5px 4px calc(5px + var(--safe-bottom));
     padding-left: max(4px, var(--safe-left));
     padding-right: max(4px, var(--safe-right));
     overflow: visible;
@@ -856,30 +868,45 @@
 
   .bottom-nav a,
   .bottom-nav button {
+    inline-size: 100%;
+    max-inline-size: 100%;
     min-width: 0;
-    min-height: 44px;
+    min-height: 48px;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 20px minmax(0, 1fr);
     place-items: center;
     align-content: center;
-    gap: 1px;
-    padding: 2px 1px;
+    gap: 3px;
+    padding: 3px 2px 2px;
+    overflow: hidden;
     border: 1px solid transparent;
     border-radius: var(--radius-lg);
     color: var(--muted);
     background: transparent;
     font-family: inherit;
-    font-size: 0.6rem;
+    font-size: 0.66rem;
     font-weight: 750;
     line-height: 1.05;
   }
 
   .bottom-nav a span,
   .bottom-nav button span {
+    display: block;
+    inline-size: 100%;
+    min-width: 0;
     max-width: 100%;
     overflow: hidden;
     text-align: center;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .bottom-nav a > svg,
+  .bottom-nav button > svg {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 auto;
   }
 
   .bottom-nav .active {
@@ -1086,21 +1113,13 @@
   }
 
   .drawer-profile.active .drawer-profile-action,
-  .drawer-profile-action:hover {
+  .drawer-profile-action:hover:where(html.ix-hover *) {
     color: var(--color-primary);
     background: color-mix(in srgb, var(--color-primary) 10%, transparent);
   }
 
-  .drawer-profile-action:active {
+  .drawer-profile-action:active:where([data-ix-pressed]) {
     transform: scale(0.94);
-  }
-
-  .drawer-profile-action:focus-visible,
-  .drawer-navigation .nav-btn:focus-visible,
-  .drawer-theme-options button:focus-visible,
-  .drawer-close:focus-visible {
-    outline: 2px solid var(--focus);
-    outline-offset: 2px;
   }
 
   .drawer-navigation {
@@ -1173,7 +1192,7 @@
     background: currentColor;
   }
 
-  .drawer-navigation .nav-btn:active {
+  .drawer-navigation .nav-btn:active:where([data-ix-pressed]) {
     transform: scale(0.985);
     background: color-mix(in srgb, var(--color-primary) 14%, var(--surface-2));
   }
@@ -1247,7 +1266,7 @@
     box-shadow: none;
   }
 
-  .drawer-theme-options button:active {
+  .drawer-theme-options button:active:where([data-ix-pressed]) {
     transform: scale(0.96);
   }
 
@@ -1258,12 +1277,12 @@
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .drawer-navigation .nav-btn:hover {
+    .drawer-navigation .nav-btn:hover:where(html.ix-hover *) {
       color: var(--text);
       background: color-mix(in srgb, var(--surface-3) 58%, transparent);
     }
 
-    .drawer-navigation .nav-btn.active:hover {
+    .drawer-navigation .nav-btn.active:hover:where(html.ix-hover *) {
       color: var(--color-primary);
       background: color-mix(in srgb, var(--color-primary) 14%, var(--surface-2));
     }
@@ -1629,8 +1648,7 @@
     cursor: pointer;
   }
 
-  .settings-local-nav button:focus-visible,
-  .settings-local-nav button:hover,
+  .settings-local-nav button:hover:where(html.ix-hover *),
   .settings-local-nav button[aria-current="location"] {
     color: var(--text);
     background: var(--surface-3);
@@ -2713,7 +2731,7 @@
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .sidebar .nav-btn:hover:not(.active) {
+    .sidebar .nav-btn:hover:where(html.ix-hover *):not(.active) {
       color: var(--text);
       background: color-mix(in srgb, var(--surface-3) 58%, transparent);
     }
@@ -3025,12 +3043,12 @@
   padding: 6px 6px 10px;
 }
 
-.account-menu-identity img {
-  width: 40px;
-  height: 40px;
-  flex: 0 0 auto;
+.account-menu-identity .account-menu-avatar {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
   object-fit: cover;
-  border-radius: 13px;
+  border-radius: 10px;
   background: var(--surface-3);
 }
 
@@ -3092,22 +3110,15 @@
   transition: background 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
-.account-menu-actions a:hover,
-.account-menu-signout:hover {
+.account-menu-actions a:hover:where(html.ix-hover *),
+.account-menu-signout:hover:where(html.ix-hover *) {
   color: var(--color-text-primary);
   background: var(--account-menu-hover);
 }
 
-.account-menu-actions a:active,
-.account-menu-signout:active {
+.account-menu-actions a:active:where([data-ix-pressed]),
+.account-menu-signout:active:where([data-ix-pressed]) {
   transform: scale(0.985);
-}
-
-.account-menu-actions a:focus-visible,
-.account-menu-signout:focus-visible,
-.avatar-btn:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
 }
 
 .account-menu-icon {
@@ -3157,7 +3168,7 @@
   background: color-mix(in srgb, var(--danger) 10%, var(--surface-3));
 }
 
-.account-menu-signout:hover {
+.account-menu-signout:hover:where(html.ix-hover *) {
   color: var(--danger);
   background: color-mix(in srgb, var(--danger) 9%, var(--surface-3));
 }
@@ -3287,15 +3298,15 @@
     border-radius: 12px;
   }
 
-  .account-menu-identity strong {
-    font-size: var(--text-md);
+  .account-menu-identity .account-menu-avatar {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+    border-radius: 10px;
   }
 
-  .account-menu-section-label {
-    margin: 18px 6px 6px;
-    color: var(--soft);
-    font-size: var(--text-xs);
-    font-weight: 750;
+  .account-menu-identity strong {
+    font-size: var(--text-md);
   }
 
   .account-menu-actions a,
@@ -3359,5 +3370,83 @@
   .account-menu-actions a,
   .account-menu-signout {
     transition-duration: 1ms;
+  }
+}
+
+}
+
+/* ===== Streak card: one shape at every sidebar width =====
+ * Presentation used to be split across three width bands - an inset card at
+ * 1440px and up, a flat edge-to-edge bar between 768px and 1199px, and nothing
+ * at all between 1200px and 1439px. Rotating a tablet or a laptop moves the
+ * viewport from one band to another, so the card changed shape, or vanished,
+ * on rotation alone. Width now decides only how much room the row is given.
+ * Height is not part of the question: the sidebar itself is already hidden
+ * below 560px tall, so the card cannot be on screen there in either
+ * orientation. */
+@media (min-width: 640px) {
+  .sidebar .streak-card {
+    display: block;
+    margin-top: auto;
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface-2);
+    box-shadow: none;
+  }
+
+  .sidebar .streak-card-value {
+    margin-top: var(--space-2);
+    font-size: 1.5rem;
+  }
+
+  /* Compact is density, not width: it collapses the same card to a single row
+   * when the destinations need the space, and it reads the same wherever it
+   * happens. */
+  .sidebar[data-density="compact"] .streak-card {
+    display: flex;
+    min-height: var(--touch-target);
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+    padding: 0 var(--space-3);
+  }
+
+  .sidebar[data-density="compact"] .streak-card-heading small,
+  .sidebar[data-density="compact"] .streak-card-track,
+  .sidebar[data-density="compact"] .streak-freeze {
+    display: none;
+  }
+
+  .sidebar[data-density="compact"] .streak-card-heading {
+    margin: 0;
+    min-width: 0;
+  }
+
+  .sidebar[data-density="compact"] .streak-card-heading span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sidebar[data-density="compact"] .streak-card-value {
+    margin: 0;
+    font-size: 1.05rem;
+    white-space: nowrap;
+  }
+}
+
+/* The 1200-1439px rail is 145px wide and stacks each destination icon over its
+ * label, so the card keeps its shape but drops the words it cannot fit rather
+ * than truncating "Study streak" to "Stu...". */
+@media (min-width: 1200px) and (max-width: 1439px) {
+  .sidebar .streak-card-heading span {
+    display: none;
+  }
+
+  .sidebar[data-density="compact"] .streak-card {
+    justify-content: center;
+    gap: var(--space-2);
   }
 }

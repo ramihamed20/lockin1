@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
 const ROUTE = "/#/materials/catalog/microbiology/sheets/sheet-1/workspace";
 
@@ -16,6 +17,9 @@ async function mockAuthenticatedWorkspace(page) {
       await route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ error: { code: "permission_denied", message: "Student account" } }) });
       return;
     }
+    // The workspace sits behind the subscription gate, so the access contract
+    // has to answer before the reader renders.
+    if (await fulfillAccessContract(route, pathname)) return;
     if (pathname === "/api/v1/focus/lock-in" && route.request().method() === "GET") {
       await route.fulfill({ contentType: "application/json", body: JSON.stringify({ active_session: null }) });
       return;

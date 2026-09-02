@@ -19,10 +19,17 @@ test("manual Libyana checkout sends only the selected plan and recharge code", (
 test("subscription access is centralized and expired accounts retain safe routes", () => {
   const guard = source("../src/components/auth/ProtectedRoute.jsx");
   const app = source("../src/App.jsx");
+  const provider = source("../src/lib/SubscriptionSessionContext.jsx");
 
   assert.match(guard, /SUBSCRIPTION_PROTECTED_PATHS/);
-  assert.match(guard, /subscription\.access_allowed/);
+  assert.match(guard, /subscriptionSession\.canAccessNow\(\)/);
+  assert.doesNotMatch(guard, /billingApi\.currentSubscription/);
+  assert.doesNotMatch(guard, /location\.pathname, user/);
+  assert.match(provider, /subscriptionRefreshAt/);
+  assert.match(provider, /window\.setTimeout\(schedule/);
+  assert.doesNotMatch(provider, /setInterval|visibilitychange|addEventListener\("focus"/);
   assert.match(guard, /<ExpiredAccess subscription=\{subscription\}/);
+  assert.match(app, /SubscriptionSessionProvider/);
   assert.match(app, /path="\/subscription"/);
   assert.match(app, /path="\/settings"/);
 });
@@ -35,6 +42,9 @@ test("subscription UI preserves LTR recharge entry inside Arabic RTL and uses se
   assert.match(page, /inputMode="numeric"/);
   assert.match(page, /effectivePlan/);
   assert.match(page, /billingApi\.submitLibyana\(effectivePlan, code\)/);
+  assert.match(page, /setAuthoritativeSubscription\(result\.subscription\)/);
+  assert.doesNotMatch(page, /billingApi\.currentSubscription/);
+  assert.match(page, /subscription\.directAccess/);
   assert.match(status, /payment_verification === "provisional"/);
   assert.doesNotMatch(page, />pending_review</);
 });

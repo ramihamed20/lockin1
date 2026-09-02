@@ -437,6 +437,12 @@ extension, declared MIME, magic bytes, and checksum. Delivery views enforce view
 every request and support byte ranges. Malware scan state is explicit and currently
 `not_configured`; production enablement requires a real scanner.
 
+Where the bytes live is a configuration seam, not an architectural one. `STORAGE_BACKEND` selects a
+filesystem or any S3-compatible provider from environment values alone, and domain code only ever
+sees Django storage. Delivery is unchanged either way: proxied through the authorization check,
+never redirected to a bucket URL, and reading the requested byte range from the provider rather than
+staging the whole object.
+
 ### Discovery boundary
 
 `apps.discovery` is a rebuildable projection, not an authority. Domain services upsert or remove

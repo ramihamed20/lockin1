@@ -184,6 +184,9 @@ def validate_question_import(payload: Any) -> ImportValidationResult:
             _error(errors, index, "source_page", "source_page must be null or a positive integer.")
             source_page = None
 
+        choices: tuple[str, ...]
+        correct_answers: tuple[str, ...]
+        question_type: str
         if schema_type == "true_false":
             correct = raw.get("correct_answer")
             if not isinstance(correct, bool):
@@ -214,8 +217,10 @@ def validate_question_import(payload: Any) -> ImportValidationResult:
         else:
             choices = _choices(raw.get("choices"), errors=errors, index=index)
             answers = raw.get("correct_answers")
-            if not isinstance(answers, list) or len(answers) < 2 or any(
-                not isinstance(answer, str) for answer in answers
+            if (
+                not isinstance(answers, list)
+                or len(answers) < 2
+                or any(not isinstance(answer, str) for answer in answers)
             ):
                 _error(
                     errors,

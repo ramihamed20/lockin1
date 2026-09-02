@@ -8,6 +8,7 @@ class ReportExport(models.Model):
     class OutputFormat(models.TextChoices):
         CSV = "csv", "CSV"
         XLSX = "xlsx", "Excel workbook"
+
     class Status(models.TextChoices):
         PREVIEWED = "previewed", "Previewed"
         COMPLETED = "completed", "Completed"

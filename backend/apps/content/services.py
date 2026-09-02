@@ -43,6 +43,7 @@ class LearningObjectInput:
     available_from: datetime | None = None
     available_until: datetime | None = None
     primary_file: ManagedFile | None = None
+    position: int = 0
 
 
 def _validate_input(*, actor: User, data: LearningObjectInput) -> None:
@@ -50,6 +51,8 @@ def _validate_input(*, actor: User, data: LearningObjectInput) -> None:
         raise ContentRuleError("You cannot create content in this education scope.")
     if not data.title.strip():
         raise ContentRuleError("A content title is required.")
+    if not 0 <= data.position <= 1_000_000:
+        raise ContentRuleError("The content position is outside the supported range.")
     if data.available_from and data.available_until and data.available_until <= data.available_from:
         raise ContentRuleError("Availability must end after it starts.")
     if data.content_type == LearningObjectVersion.ContentType.VIDEO:
@@ -109,7 +112,7 @@ def _ensure_revision(*, learning_object: LearningObject, expected_revision: int)
 @transaction.atomic
 def create_learning_object(*, actor: User, data: LearningObjectInput) -> LearningObject:
     _validate_input(actor=actor, data=data)
-    learning_object = LearningObject.objects.create(owner=actor)
+    learning_object = LearningObject.objects.create(owner=actor, position=data.position)
     version = _create_version(
         learning_object=learning_object,
         actor=actor,
@@ -117,7 +120,7 @@ def create_learning_object(*, actor: User, data: LearningObjectInput) -> Learnin
         data=data,
     )
     learning_object.current_version = version
-    learning_object.save(update_fields=("current_version", "updated_at"))
+    learning_object.save(update_fields=("current_version", "position", "updated_at"))
     return LearningObject.objects.select_related("current_version").get(id=learning_object.id)
 
 
@@ -153,12 +156,14 @@ def revise_learning_object(
         data=data,
     )
     learning_object.current_version = version
+    learning_object.position = data.position
     learning_object.workflow_status = LearningObject.WorkflowStatus.DRAFT
     learning_object.review_note = ""
     learning_object.revision += 1
     learning_object.save(
         update_fields=(
             "current_version",
+            "position",
             "workflow_status",
             "review_note",
             "revision",

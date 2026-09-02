@@ -68,6 +68,45 @@ def remove_bookmark(*, user: User, learning_object_id: UUID) -> bool:
 
 
 @transaction.atomic
+def set_catalog_bookmark(
+    *,
+    user: User,
+    material_slug: str,
+    material_title: str,
+    sheet_slug: str,
+    sheet_title: str,
+    position: dict[str, object],
+) -> tuple[Bookmark, bool]:
+    validated_position = _validate_position(
+        content_type=LearningObjectVersion.ContentType.PDF,
+        position=position,
+    )
+    bookmark, created = Bookmark.objects.update_or_create(
+        user=user,
+        learning_object=None,
+        catalog_material_slug=material_slug,
+        catalog_sheet_slug=sheet_slug,
+        defaults={
+            "catalog_material_title": material_title.strip(),
+            "catalog_sheet_title": sheet_title.strip(),
+            "position": validated_position,
+        },
+    )
+    bookmark.full_clean()
+    return bookmark, created
+
+
+def remove_catalog_bookmark(*, user: User, material_slug: str, sheet_slug: str) -> bool:
+    deleted, _ = Bookmark.objects.filter(
+        user=user,
+        learning_object__isnull=True,
+        catalog_material_slug=material_slug,
+        catalog_sheet_slug=sheet_slug,
+    ).delete()
+    return deleted > 0
+
+
+@transaction.atomic
 def update_learning_progress(
     *,
     user: User,

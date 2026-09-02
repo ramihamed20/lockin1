@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
 /**
  * A missing message key does not throw: translate() falls back to the key
@@ -42,6 +43,8 @@ async function signIn(page, language) {
       await route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ error: { code: "permission_denied", message: "Student account" } }) });
       return;
     }
+    // The gated student routes need the access contract before they render.
+    if (await fulfillAccessContract(route, pathname)) return;
     if (route.request().method() === "GET") {
       await route.fulfill({ contentType: "application/json", body: JSON.stringify({ count: 0, results: [] }) });
       return;
@@ -75,7 +78,10 @@ for (const language of ["en", "ar"]) {
     const leaks = [];
     for (const route of STUDENT_ROUTES) {
       await page.goto(route);
-      await expect(page.locator(".app-shell, .lock-in-coming-soon")).toBeVisible({ timeout: 20_000 });
+      // Lock In renders its own immersive screen outside the application
+      // shell - the team hub, the setup form and its loading and error states
+      // all share `.lock-in-screen` - so the sweep waits on either root.
+      await expect(page.locator(".app-shell, .lock-in-screen").first()).toBeVisible({ timeout: 20_000 });
       await page.waitForTimeout(400);
       const strings = await page.evaluate(collectStrings);
       for (const value of strings) {

@@ -17,9 +17,7 @@ class Command(BaseCommand):
 
         signal.signal(signal.SIGTERM, stop)
         signal.signal(signal.SIGINT, stop)
-        interval = max(
-            60, int(getattr(settings, "SUBSCRIPTION_SCHEDULER_INTERVAL_SECONDS", 900))
-        )
+        interval = max(60, int(getattr(settings, "SUBSCRIPTION_SCHEDULER_INTERVAL_SECONDS", 900)))
         self.stdout.write(f"Subscription scheduler running every {interval} seconds.")
         while not stopped.is_set():
             call_command("process_subscription_lifecycle")

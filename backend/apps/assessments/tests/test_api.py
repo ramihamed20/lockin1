@@ -16,7 +16,7 @@ pytestmark = pytest.mark.django_db
 
 def test_student_assessment_flow_never_leaks_answer_key_before_submission() -> None:
     admin = create_admin()
-    student = create_user()
+    student = create_user(with_trial=True)
     _, _, lesson = published_path(admin=admin)
     question = published_question(actor=admin, node=lesson)
     quiz = published_quiz(actor=admin, node=lesson, questions=(question,))
@@ -102,7 +102,7 @@ def test_student_assessment_flow_never_leaks_answer_key_before_submission() -> N
 
 def test_answer_revision_conflict_returns_authoritative_server_answer() -> None:
     admin = create_admin()
-    student = create_user()
+    student = create_user(with_trial=True)
     _, _, lesson = published_path(admin=admin)
     question = published_question(actor=admin, node=lesson)
     quiz = published_quiz(actor=admin, node=lesson, questions=(question,))
@@ -138,7 +138,7 @@ def test_answer_revision_conflict_returns_authoritative_server_answer() -> None:
 
 def test_management_quiz_workflow_and_student_authorization() -> None:
     admin = create_admin()
-    student = create_user()
+    student = create_user(with_trial=True)
     _, _, lesson = published_path(admin=admin)
     question = published_question(actor=admin, node=lesson)
     student_client = APIClient()
@@ -218,7 +218,7 @@ def test_public_quiz_list_query_count_is_bounded(
     django_assert_max_num_queries: DjangoAssertNumQueries,
 ) -> None:
     admin = create_admin()
-    student = create_user()
+    student = create_user(with_trial=True)
     _, _, lesson = published_path(admin=admin)
     question = published_question(actor=admin, node=lesson)
     for index in range(4):
@@ -232,7 +232,9 @@ def test_public_quiz_list_query_count_is_bounded(
     client = APIClient()
     client.force_authenticate(student)
 
-    with django_assert_max_num_queries(4):
+    # Two bounded authorization queries are expected: administrator-role
+    # membership and the centralized subscription entitlement decision.
+    with django_assert_max_num_queries(5):
         response = client.get(f"/api/v1/quizzes?node={lesson.id}&page_size=25")
 
     assert response.status_code == 200

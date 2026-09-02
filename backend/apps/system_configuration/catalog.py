@@ -55,7 +55,10 @@ DEFINITIONS = {
         ConfigurationDefinition(
             key="platform.maintenance_mode",
             name="Maintenance mode",
-            description="Signals a planned maintenance window to the application shell. API enforcement is deployed separately.",
+            description=(
+                "Signals a planned maintenance window to the application shell. "
+                "API enforcement is deployed separately."
+            ),
             value_type="boolean",
             default=False,
         ),
@@ -69,7 +72,10 @@ DEFINITIONS = {
         ConfigurationDefinition(
             key="feature.focus_workspace_enabled",
             name="Focus Workspace availability",
-            description="Controls availability messaging for the Focus Workspace; entitlement enforcement remains server-authoritative.",
+            description=(
+                "Controls availability messaging for the Focus Workspace; entitlement "
+                "enforcement remains server-authoritative."
+            ),
             value_type="boolean",
             default=True,
         ),
@@ -117,7 +123,10 @@ DEFINITIONS = {
         ConfigurationDefinition(
             key="notifications.max_campaign_recipients",
             name="Maximum notification campaign recipients",
-            description="Hard recipient limit for a synchronous campaign dispatch when no background worker is configured.",
+            description=(
+                "Hard recipient limit for a synchronous campaign dispatch when no "
+                "background worker is configured."
+            ),
             value_type="integer",
             default=5000,
             minimum=1,

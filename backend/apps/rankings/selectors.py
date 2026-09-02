@@ -43,7 +43,7 @@ def current_ranking(*, viewer: User, code: str = "learning_all_time") -> dict[st
             "own_entry": None,
         }
     queryset = RankingEntry.objects.filter(snapshot=snapshot).select_related(
-        "user", "user__ranking_profile"
+        "user", "user__profile_image", "user__ranking_profile"
     )
     top_entries = list(queryset.order_by("position", "user_id")[:100])
     own = next((entry for entry in top_entries if entry.user_id == viewer.id), None)

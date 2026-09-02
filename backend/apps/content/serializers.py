@@ -122,6 +122,7 @@ class ManagementLearningObjectSerializer(serializers.ModelSerializer[LearningObj
             "current_version",
             "published_version_id",
             "workflow_status",
+            "position",
             "review_note",
             "revision",
             "published_at",
@@ -142,6 +143,7 @@ class LearningObjectWriteSerializer(StrictSerializer):
     available_from = serializers.DateTimeField(allow_null=True, required=False)
     available_until = serializers.DateTimeField(allow_null=True, required=False)
     primary_file_id = serializers.UUIDField(allow_null=True, required=False)
+    position = serializers.IntegerField(min_value=0, max_value=1_000_000, default=0)
 
 
 class LearningObjectUpdateSerializer(LearningObjectWriteSerializer):

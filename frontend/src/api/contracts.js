@@ -20,6 +20,7 @@ export const PRODUCT_ROLES = Object.freeze({
  *   username_required: boolean,
  *   welcome_required: boolean,
  *   welcome_completed_at: string|null,
+ *   avatar: {source: string, default_id: string, url: string|null},
  *   roles: string[],
  *   date_joined: string|null
  * }} UserContract
@@ -31,6 +32,16 @@ function stringOrEmpty(value) {
 
 function stringList(value) {
   return Array.isArray(value) ? value.filter((item) => typeof item === "string") : [];
+}
+
+function normalizeAvatar(value) {
+  const source = value && typeof value === "object" ? /** @type {Record<string, unknown>} */ (value) : {};
+  const defaultId = stringOrEmpty(source.default_id);
+  return {
+    source: source.source === "custom" ? "custom" : "default",
+    default_id: defaultId,
+    url: typeof source.url === "string" ? source.url : null
+  };
 }
 
 /** @param {unknown} payload */
@@ -82,6 +93,7 @@ export function normalizeUser(payload) {
     welcome_required: source.welcome_required === true,
     welcome_completed_at:
       typeof source.welcome_completed_at === "string" ? source.welcome_completed_at : null,
+    avatar: normalizeAvatar(source.avatar),
     roles: stringList(source.roles),
     date_joined: typeof source.date_joined === "string" ? source.date_joined : null
   };

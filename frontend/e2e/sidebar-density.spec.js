@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
 /**
  * The sidebar has to hold every destination the account can reach. How much
@@ -27,6 +28,8 @@ const DESKTOP_VIEWPORTS = [
 async function mockAccount(page, { roles, capabilities }) {
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
+    // The gated routes need the access contract answered before they render.
+    if (await fulfillAccessContract(route, pathname)) return;
     if (pathname === "/api/v1/auth/session") {
       await route.fulfill({
         contentType: "application/json",

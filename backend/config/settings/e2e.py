@@ -10,3 +10,7 @@ DATABASES = {  # noqa: F405
 
 ALLOWED_HOSTS = ["127.0.0.1", "localhost", "testserver"]
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+# This configuration is only used by the local demo server.  Keep repeated
+# phone-testing attempts from locking the shared demo account.
+ACCOUNT_LOGIN_ATTEMPT_LIMIT = 100

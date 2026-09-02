@@ -10,12 +10,26 @@ $Backend = Join-Path $Root "backend"
 $Frontend = Join-Path $Root "frontend"
 $Python = Join-Path $Backend ".venv\Scripts\python.exe"
 
+function Invoke-CheckedCommand {
+    param(
+        [Parameter(Mandatory = $true)]
+        [scriptblock]$Command,
+        [Parameter(Mandatory = $true)]
+        [string]$Label
+    )
+
+    & $Command
+    if ($LASTEXITCODE -ne 0) {
+        throw "$Label failed with exit code $LASTEXITCODE."
+    }
+}
+
 switch ($Action) {
     "start" {
-        docker compose --project-directory $Root up --build
+        Invoke-CheckedCommand { docker compose --project-directory $Root up --build } "Docker Compose start"
     }
     "stop" {
-        docker compose --project-directory $Root down
+        Invoke-CheckedCommand { docker compose --project-directory $Root down } "Docker Compose stop"
     }
     "test" {
         if (-not (Test-Path $Python)) {
@@ -23,60 +37,25 @@ switch ($Action) {
         }
         Push-Location $Backend
         try {
-            & $Python -m ruff check .
-            & $Python -m ruff format --check .
-            & $Python -m mypy .
-            & $Python manage.py makemigrations --check --dry-run
-            & $Python -m pytest
+            Invoke-CheckedCommand { & $Python -m pip_audit . --strict } "Backend dependency audit"
+            Invoke-CheckedCommand { & $Python -m ruff check . } "Backend lint"
+            Invoke-CheckedCommand { & $Python -m ruff format --check . } "Backend formatting"
+            Invoke-CheckedCommand { & $Python -m mypy . } "Backend type check"
+            Invoke-CheckedCommand { & $Python manage.py makemigrations --check --dry-run } "Migration drift check"
+            Invoke-CheckedCommand { & $Python -m pytest } "Backend tests"
         } finally {
             Pop-Location
         }
         Push-Location $Frontend
         try {
-            npm ci
-            npm run lint
-            npm run typecheck
-            npm run test:coverage
-            npm run build
-            $Output = Join-Path $Frontend "output\playwright\server"
-            New-Item -ItemType Directory -Force -Path $Output | Out-Null
-            $Node = (Get-Command node).Source
-            $PathKeys = [Environment]::GetEnvironmentVariables().Keys | Where-Object { $_ -ieq "path" }
-            if ($PathKeys.Count -gt 1) {
-                [Environment]::SetEnvironmentVariable("PATH", $null, "Process")
-            }
-            $Server = Start-Process -FilePath $Node `
-                -ArgumentList @(".\node_modules\vite\bin\vite.js", "preview", "--configLoader", "runner", "--host", "127.0.0.1", "--port", "5173", "--strictPort") `
-                -WorkingDirectory $Frontend `
-                -WindowStyle Hidden `
-                -RedirectStandardOutput (Join-Path $Output "stdout.log") `
-                -RedirectStandardError (Join-Path $Output "stderr.log") `
-                -PassThru
-            try {
-                $Ready = $false
-                foreach ($Attempt in 1..30) {
-                    try {
-                        $Response = Invoke-WebRequest -Uri "http://127.0.0.1:5173/login" -UseBasicParsing -TimeoutSec 2
-                        if ($Response.StatusCode -eq 200) {
-                            $Ready = $true
-                            break
-                        }
-                    } catch {
-                        Start-Sleep -Milliseconds 250
-                    }
-                }
-                if (-not $Ready) {
-                    throw "The frontend preview server did not become ready."
-                }
-                $env:PLAYWRIGHT_EXTERNAL_SERVER = "true"
-                & $Node ".\node_modules\@playwright\test\cli.js" test
-                if ($LASTEXITCODE -ne 0) {
-                    throw "Playwright tests failed."
-                }
-            } finally {
-                Remove-Item Env:PLAYWRIGHT_EXTERNAL_SERVER -ErrorAction SilentlyContinue
-                Stop-Process -Id $Server.Id -Force -ErrorAction SilentlyContinue
-            }
+            Invoke-CheckedCommand { pnpm install --frozen-lockfile } "Frontend install"
+            Invoke-CheckedCommand { pnpm audit --prod --audit-level=high } "Frontend dependency audit"
+            Invoke-CheckedCommand { pnpm run lint } "Frontend lint"
+            Invoke-CheckedCommand { pnpm run typecheck } "Frontend type check"
+            Invoke-CheckedCommand { pnpm test } "Frontend tests"
+            Invoke-CheckedCommand { pnpm run build } "Frontend build"
+            Invoke-CheckedCommand { pnpm run check:bundle } "Frontend bundle budget"
+            Invoke-CheckedCommand { pnpm run test:e2e } "Browser tests"
         } finally {
             Pop-Location
         }
@@ -88,13 +67,13 @@ switch ($Action) {
         $env:LOCKIN_TEST_USE_SQLITE = "true"
         Push-Location $Backend
         try {
-            & $Python -m pytest
+            Invoke-CheckedCommand { & $Python -m pytest } "Backend tests"
         } finally {
             Pop-Location
         }
         Push-Location $Frontend
         try {
-            npm run test:coverage
+            Invoke-CheckedCommand { pnpm test } "Frontend tests"
         } finally {
             Pop-Location
         }

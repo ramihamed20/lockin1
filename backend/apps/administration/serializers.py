@@ -12,6 +12,7 @@ class OperationalUserSerializer(serializers.Serializer[dict[str, Any]]):
     product_roles = serializers.ListField(child=serializers.CharField(), read_only=True)
     operational_roles = serializers.ListField(child=serializers.CharField(), read_only=True)
     date_joined = serializers.DateTimeField(read_only=True)
+    cohort = serializers.DictField(read_only=True)
 
 
 class OperationalRoleUpdateSerializer(serializers.Serializer[dict[str, Any]]):

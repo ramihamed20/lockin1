@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { billingApi } from "../api/billing.js";
 import { authApi } from "../lib/api.js";
-import { useAsyncData } from "../hooks/useAsyncData.js";
+import { useSubscriptionSession } from "../lib/SubscriptionSessionContext.jsx";
 import { formatDateTime } from "../lib/i18n.js";
 import { assetPath } from "../lib/utils.js";
 import { useI18n } from "../components/I18nProvider.jsx";
@@ -11,7 +10,7 @@ import { ErrorPanel, LoadingPanel } from "../components/ui/index.jsx";
 export default function WelcomeOnboarding({ onUserUpdate }) {
   const navigate = useNavigate();
   const { direction, t } = useI18n();
-  const subscription = useAsyncData(() => billingApi.currentSubscription(), []);
+  const subscriptionSession = useSubscriptionSession();
   const [pending, setPending] = useState("");
   const [error, setError] = useState("");
 
@@ -30,9 +29,9 @@ export default function WelcomeOnboarding({ onUserUpdate }) {
     }
   }
 
-  if (subscription.loading) return <LoadingPanel />;
-  if (subscription.error || !subscription.data) {
-    return <ErrorPanel message={subscription.error || t("welcome.error")} onRetry={subscription.reload} />;
+  if (!subscriptionSession.ready) return <LoadingPanel />;
+  if (subscriptionSession.error || !subscriptionSession.subscription) {
+    return <ErrorPanel message={subscriptionSession.error || t("welcome.error")} onRetry={subscriptionSession.refresh} />;
   }
 
   return (
@@ -46,7 +45,7 @@ export default function WelcomeOnboarding({ onUserUpdate }) {
         </div>
         <dl className="welcome-trial-facts">
           <div><dt>{t("welcome.access")}</dt><dd>{t("welcome.sevenDays")}</dd></div>
-          <div><dt>{t("welcome.expires")}</dt><dd>{formatDateTime(subscription.data.trial_ends_at)}</dd></div>
+          <div><dt>{t("welcome.expires")}</dt><dd>{formatDateTime(subscriptionSession.subscription.trial_ends_at)}</dd></div>
         </dl>
         <p className="welcome-data-note">{t("welcome.saved")}</p>
         {error && <p className="form-alert error" role="alert">{error}</p>}

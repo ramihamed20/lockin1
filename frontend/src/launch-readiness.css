@@ -1,4 +1,5 @@
 /* Late cascade layer for production lifecycle notices. */
+@layer app {
 .pwa-app-root {
   min-block-size: var(--app-viewport-height);
 }
@@ -18,7 +19,7 @@
   z-index: var(--z-immersive);
   inset: 0;
   min-block-size: 100vh;
-  min-block-size: 100dvh;
+  min-block-size: var(--app-viewport-height);
   display: grid;
   place-items: center;
   overflow-x: hidden;
@@ -313,4 +314,6 @@
 .confirm-dialog {
   position: relative;
   z-index: 1;
+}
+
 }

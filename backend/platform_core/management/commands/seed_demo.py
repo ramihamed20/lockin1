@@ -31,16 +31,20 @@ def stable_uuid(value: str) -> uuid.UUID:
 
 def demo_pdf_payload(number: int) -> bytes:
     """Build a small, valid single-page PDF for the local Focus workspace."""
-    stream = (
-        f"BT\n/F1 20 Tf\n72 720 Td\n(Lock-in demo study guide {number}) Tj\nET\n"
-    ).encode("ascii")
+    stream = (f"BT\n/F1 20 Tf\n72 720 Td\n(Lock-in demo study guide {number}) Tj\nET\n").encode(
+        "ascii"
+    )
     objects = (
         b"<< /Type /Catalog /Pages 2 0 R >>",
         b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
         b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
         b"/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
         b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-        b"<< /Length " + str(len(stream)).encode("ascii") + b" >>\nstream\n" + stream + b"endstream",
+        b"<< /Length "
+        + str(len(stream)).encode("ascii")
+        + b" >>\nstream\n"
+        + stream
+        + b"endstream",
     )
     document = bytearray(b"%PDF-1.4\n")
     offsets: list[int] = []
@@ -55,9 +59,10 @@ def demo_pdf_payload(number: int) -> bytes:
     for offset in offsets:
         document.extend(f"{offset:010d} 00000 n \n".encode("ascii"))
     document.extend(
-        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_offset}\n%%EOF\n".encode(
-            "ascii"
-        )
+        (
+            f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n"
+            f"startxref\n{xref_offset}\n%%EOF\n"
+        ).encode("ascii")
     )
     return bytes(document)
 
@@ -66,7 +71,12 @@ class Command(BaseCommand):
     help = "Create safe, idempotent local development data. Refuses production settings."
 
     def handle(self, *args, **options):
-        if getattr(settings, "ENVIRONMENT", "") not in {"development", "development-demo", "demo"}:
+        if getattr(settings, "ENVIRONMENT", "") not in {
+            "development",
+            "development-demo",
+            "demo",
+            "testing",
+        }:
             raise CommandError(
                 "seed_demo is available only in the development or public demo environment."
             )
@@ -236,9 +246,7 @@ class Command(BaseCommand):
                 },
             )
             if not managed.blob.name or not managed.blob.storage.exists(managed.blob.name):
-                managed.blob.save(
-                    f"lockin-demo-{index + 1}.pdf", ContentFile(payload), save=False
-                )
+                managed.blob.save(f"lockin-demo-{index + 1}.pdf", ContentFile(payload), save=False)
                 managed.kind = "pdf"
                 managed.content_type = "application/pdf"
                 managed.size_bytes = len(payload)

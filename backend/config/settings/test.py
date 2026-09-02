@@ -1,5 +1,5 @@
 from .base import *  # noqa: F403
-from .env import env_bool
+from .env import env, env_bool
 
 SECRET_KEY = "test-only-key"
 ENVIRONMENT = "testing"
@@ -16,6 +16,6 @@ if env_bool("LOCKIN_TEST_USE_SQLITE", False):
     DATABASES = {  # noqa: F405
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": ":memory:",
+            "NAME": env("LOCKIN_TEST_SQLITE_PATH", ":memory:"),
         }
     }

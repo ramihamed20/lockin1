@@ -5,8 +5,16 @@ from django.contrib import auth
 from django.contrib.auth.models import Group
 from rest_framework.test import APIClient
 
-from apps.accounts.models import AccountSession, AuthAttempt, OneTimeToken, User
+from apps.accounts.models import (
+    AccountDeletionRequest,
+    AccountSession,
+    AuthAttempt,
+    OneTimeToken,
+    User,
+)
 from apps.accounts.roles import Role
+from apps.audit.models import AuditRecord
+from apps.education.models import StudentCohort
 
 from .helpers import PASSWORD, create_user, csrf_client, token_from_latest_email
 
@@ -19,6 +27,7 @@ REGISTRATION = {
     "password": PASSWORD,
     "password_confirm": PASSWORD,
     "preferred_language": "ar",
+    "cohort_id": "a19b3034-e038-46b8-8806-7b113329f061",
     "accept_policies": True,
 }
 
@@ -47,6 +56,7 @@ def test_registration_is_strict_and_creates_unverified_account(settings: Any) ->
     assert user.email == "new@example.com"
     assert user.full_name == "New Student"
     assert user.preferred_language == "ar"
+    assert user.cohort_id == StudentCohort.objects.get(code="61").id
     assert user.policy_version == settings.ACCOUNT_POLICY_VERSION
     assert user.policy_accepted_at is not None
     assert not user.is_email_verified
@@ -68,6 +78,31 @@ def test_duplicate_registration_does_not_reveal_account_existence() -> None:
     assert first.json() == repeated.json() == {"status": "verification_required"}
     assert User.objects.count() == 1
     assert OneTimeToken.objects.filter(kind=OneTimeToken.Kind.EMAIL_VERIFICATION).count() == 1
+
+
+def test_registration_source_bucket_blocks_multi_identity_flooding(settings: Any) -> None:
+    settings.ACCOUNT_SENSITIVE_REQUEST_LIMIT = 20
+    settings.ACCOUNT_SENSITIVE_SOURCE_REQUEST_LIMIT = 1
+    client, csrf = csrf_client()
+
+    first = client.post(
+        "/api/v1/auth/register",
+        REGISTRATION,
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+        REMOTE_ADDR="198.51.100.20",
+    )
+    limited = client.post(
+        "/api/v1/auth/register",
+        {**REGISTRATION, "email": "another@example.com"},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+        REMOTE_ADDR="198.51.100.20",
+    )
+
+    assert first.status_code == 201
+    assert limited.status_code == 429
+    assert AuthAttempt.objects.filter(scope="registration_source").count() == 1
 
 
 def test_email_verification_token_is_single_use() -> None:
@@ -169,6 +204,38 @@ def test_login_rate_limit_is_database_backed(settings: Any) -> None:
     assert AuthAttempt.objects.filter(scope="login").count() == 2
 
 
+def test_login_source_bucket_blocks_identity_spraying(settings: Any) -> None:
+    settings.ACCOUNT_LOGIN_ATTEMPT_LIMIT = 20
+    settings.ACCOUNT_LOGIN_SOURCE_ATTEMPT_LIMIT = 2
+    client, csrf = csrf_client()
+
+    first = client.post(
+        "/api/v1/auth/login",
+        {"email": "first@example.com", "password": "wrong-password"},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+        REMOTE_ADDR="198.51.100.10",
+    )
+    second = client.post(
+        "/api/v1/auth/login",
+        {"email": "second@example.com", "password": "wrong-password"},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+        REMOTE_ADDR="198.51.100.10",
+    )
+    limited = client.post(
+        "/api/v1/auth/login",
+        {"email": "third@example.com", "password": "wrong-password"},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+        REMOTE_ADDR="198.51.100.10",
+    )
+
+    assert first.status_code == second.status_code == 403
+    assert limited.status_code == 429
+    assert AuthAttempt.objects.filter(scope="login_source").count() == 2
+
+
 def test_sensitive_account_requests_are_rate_limited(settings: Any) -> None:
     settings.ACCOUNT_SENSITIVE_REQUEST_LIMIT = 2
     client, csrf = csrf_client()
@@ -266,6 +333,35 @@ def test_profile_allows_only_owned_editable_fields() -> None:
     assert user.status == User.Status.ACTIVE
 
 
+def test_welcome_completion_is_server_stored_and_idempotent() -> None:
+    user = create_user(username="welcome_student")
+    client = APIClient(enforce_csrf_checks=True)
+    client.force_login(user)
+    csrf = client.get("/api/v1/auth/csrf").json()["csrf_token"]
+
+    before = client.get("/api/v1/auth/session")
+    first = client.post(
+        "/api/v1/account/welcome/complete",
+        {},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+    second = client.post(
+        "/api/v1/account/welcome/complete",
+        {},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+
+    assert before.json()["user"]["welcome_required"] is True
+    assert first.status_code == second.status_code == 200
+    assert first.json()["user"]["welcome_completed_at"] is not None
+    assert (
+        second.json()["user"]["welcome_completed_at"]
+        == first.json()["user"]["welcome_completed_at"]
+    )
+
+
 def test_email_change_requires_password_and_verifies_new_address() -> None:
     user = create_user()
     client, csrf = csrf_client()
@@ -297,6 +393,72 @@ def test_email_change_requires_password_and_verifies_new_address() -> None:
     user.refresh_from_db()
     assert user.email == "new-email@example.com"
     assert user.is_email_verified
+
+
+def test_account_deletion_request_requires_password_email_confirmation_and_tracks_status(
+    settings: Any,
+) -> None:
+    settings.ACCOUNT_DELETION_POLICY_VERSION = ""
+    user = create_user()
+    client, csrf = csrf_client()
+    client.force_login(user)
+
+    wrong = client.post(
+        "/api/v1/account/deletion",
+        {"current_password": "wrong"},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+    requested = client.post(
+        "/api/v1/account/deletion",
+        {"current_password": PASSWORD},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+
+    assert wrong.status_code == 400
+    assert requested.status_code == 201
+    assert requested.json()["status"] == "pending_confirmation"
+    deletion_request = AccountDeletionRequest.objects.get(user=user)
+    assert deletion_request.confirmation_token.kind == OneTimeToken.Kind.ACCOUNT_DELETION
+    assert AuditRecord.objects.filter(
+        action="account.deletion.requested", target_id=str(deletion_request.id)
+    ).exists()
+
+    raw_token = token_from_latest_email()
+    assert raw_token not in deletion_request.confirmation_token.token_digest
+    confirmed = client.post(
+        "/api/v1/account/deletion/confirm",
+        {"token": raw_token},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+    replay = client.post(
+        "/api/v1/account/deletion/confirm",
+        {"token": raw_token},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+
+    assert confirmed.status_code == 200
+    assert confirmed.json()["status"] == "confirmed"
+    assert confirmed.json()["request"]["policy_version"] == ""
+    assert replay.status_code == 400
+    deletion_request.refresh_from_db()
+    assert deletion_request.confirmed_at is not None
+    assert deletion_request.completed_at is None
+    assert AuditRecord.objects.filter(
+        action="account.deletion.confirmed", target_id=str(deletion_request.id)
+    ).exists()
+
+    cancelled = client.delete(
+        "/api/v1/account/deletion",
+        {"current_password": PASSWORD},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+    assert cancelled.status_code == 200
+    assert cancelled.json()["status"] == "cancelled"
 
 
 def test_password_change_preserves_current_session_and_invalidates_others() -> None:

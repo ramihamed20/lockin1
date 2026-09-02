@@ -1,0 +1,172 @@
+.profile-picture-editor {
+  display: grid;
+  gap: 12px;
+  min-inline-size: 0;
+  margin-block: 6px 4px;
+  padding-block: 14px 2px;
+  border-block-start: 1px solid var(--border-subtle, var(--border));
+}
+
+/* Keep the established ID-card frame, with the avatar intentionally inset. */
+.profile-academy-id .profile-avatar-wrap {
+  display: grid;
+  place-items: center;
+}
+
+.profile-academy-id .profile-avatar-wrap .profile-avatar-image {
+  inline-size: 70px;
+  block-size: 70px;
+  border-radius: 9px;
+  object-fit: cover;
+}
+
+.profile-picture-editor-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-inline-size: 0;
+}
+
+.profile-picture-editor-preview {
+  inline-size: 48px;
+  block-size: 48px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 2px solid var(--accent-border, var(--border));
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.profile-picture-editor-heading h3,
+.profile-picture-editor-heading p {
+  margin: 0;
+}
+
+.profile-picture-editor-heading h3 {
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.profile-picture-editor-heading p,
+.profile-avatar-file small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.profile-picture-editor-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.profile-picture-editor-modes button {
+  min-block-size: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  background: var(--surface-2);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+
+.profile-picture-editor-modes button.is-active {
+  color: var(--accent-text, var(--color-primary));
+  border-color: var(--accent-border, var(--color-primary));
+  background: var(--accent-subtle);
+}
+
+.profile-avatar-picker,
+.profile-avatar-upload {
+  display: grid;
+  gap: 10px;
+}
+
+.profile-avatar-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
+  gap: 8px;
+}
+
+.profile-avatar-choice {
+  aspect-ratio: 1;
+  padding: 3px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.profile-avatar-choice img {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  border-radius: 7px;
+  object-fit: cover;
+}
+
+.profile-avatar-choice.is-selected {
+  border: 2px solid var(--accent, var(--color-primary));
+  background: var(--accent-subtle);
+}
+
+.profile-avatar-choice:focus-visible,
+.profile-picture-editor-modes button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent, var(--color-primary)) 35%, transparent);
+  outline-offset: 2px;
+}
+
+.profile-avatar-file {
+  display: grid;
+  gap: 2px;
+  min-block-size: 52px;
+  padding: 9px 11px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+
+.profile-avatar-file span {
+  overflow: hidden;
+  font-size: 0.82rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-avatar-upload input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.profile-avatar-editor-notice {
+  margin: 0;
+  color: var(--green, var(--color-success));
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+html[dir="rtl"] .profile-picture-editor-heading,
+html[dir="rtl"] .profile-picture-editor-modes {
+  text-align: start;
+}
+
+@media (max-width: 480px) {
+  .profile-avatar-choice-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-avatar-choice,
+  .profile-picture-editor-modes button {
+    transition-duration: 0.01ms;
+  }
+}

@@ -88,25 +88,24 @@ test("Lock In team creation, joining, and chat use Django endpoints", async () =
   ]);
 });
 
-test("Lock In is presented as coming soon without exposing the active workspace route", async () => {
-  const [app, layout, comingSoon, styles, dashboard, catalogue] = await Promise.all([
+test("Lock In exposes the server-backed active workspace and no coming-soon route", async () => {
+  const [app, layout, workspace, styles, dashboard] = await Promise.all([
     readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/layout/index.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/pages/LockInComingSoon.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/pages/LockInMode.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/styles.css", import.meta.url), "utf8"),
-    readFile(new URL("../src/pages/Dashboard.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/lib/i18n.js", import.meta.url), "utf8")
+    readFile(new URL("../src/pages/Dashboard.jsx", import.meta.url), "utf8")
   ]);
 
-  assert.match(app, /path="\/lock-in" element={<LockInComingSoon/);
-  assert.match(app, /path="\/lock-in\/:sessionId" element={<LockInComingSoon/);
+  assert.match(app, /path="\/lock-in" element=\{<LockInMode user=\{user\} \/>\}/);
+  assert.match(app, /path="\/lock-in\/:sessionId" element=\{<LockInMode user=\{user\} \/>\}/);
+  assert.doesNotMatch(app, /LockInComingSoon/);
   assert.match(layout, /location\.pathname === "\/lock-in"/);
-  // The wording lives in the message catalogue now, so both halves are checked:
-  // the page asks for the key, and English still reads the way it did.
-  assert.match(comingSoon, /t\("lockIn\.comingSoon"\)/);
-  assert.match(catalogue, /"lockIn\.comingSoon": "Coming soon"/);
-  assert.match(comingSoon, /t\("lockIn\.openStudyPlan"\)/);
-  assert.match(catalogue, /"lockIn\.openStudyPlan": "Open Study Plan"/);
-  assert.match(styles, /\.lock-in-coming-soon/);
+  assert.match(workspace, /focusApi\.getLockIn\(\)/);
+  assert.match(workspace, /focusApi\.startLockIn/);
+  assert.match(workspace, /focusApi\.getAnnotations/);
+  assert.match(workspace, /focusApi\.syncAnnotations/);
+  assert.match(workspace, /import "\.\/lock-in-reference\.css"/);
+  assert.match(styles, /\.lock-in-screen/);
   assert.doesNotMatch(dashboard, /Focus session|FocusTimerCard|Enter Lock In Mode/);
 });

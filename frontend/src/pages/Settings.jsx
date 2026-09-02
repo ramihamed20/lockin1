@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { accountsApi } from "../api/accounts.js";
-import { billingApi } from "../api/billing.js";
 import { motivationApi } from "../api/motivation.js";
 import { PRODUCT_ROLES } from "../api/contracts.js";
 import { Icon } from "../lib/icons.jsx";
 import { hasProductRole } from "../lib/authz.js";
+import { useSubscriptionSession } from "../lib/SubscriptionSessionContext.jsx";
 import { appIconOptions, characterOptions, themeOptions } from "../lib/constants.js";
 import { assetPath, normalizeThemeSettings, normalizeReminderSettings } from "../lib/utils.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
@@ -13,7 +13,7 @@ import { AccountFieldErrors } from "../components/account/AccountFormErrors.jsx"
 import { useI18n } from "../components/I18nProvider.jsx";
 import { SessionList } from "../components/account/SessionList.jsx";
 import { SubscriptionStatus } from "../components/subscription/SubscriptionStatus.jsx";
-import { Page, ErrorPanel } from "../components/ui/index.jsx";
+import { Page, ErrorPanel, RadioGroup, RadioOption, ToggleButton } from "../components/ui/index.jsx";
 import { ResponsiveThemePreview } from "../components/shared/ResponsiveThemePreview.jsx";
 
 export default function Settings({ user, onUserUpdate, settings, activeTheme, reminderSettings, onReminderSettingsChange, onSettingsChange, onSignedOut }) {
@@ -23,8 +23,19 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
   const [error, setError] = useState("");
   const [reminderError, setReminderError] = useState("");
   const isAdministrator = hasProductRole(user, PRODUCT_ROLES.ADMINISTRATOR);
-  const requestedSection = new URLSearchParams(location.search).get("section") || "";
-  const activeSection = requestedSection || "character";
+  const searchParameters = new URLSearchParams(location.search);
+  const requestedSection = searchParameters.get("section") || "";
+  const deletionToken = searchParameters.get("token") || "";
+  const activeSection = requestedSection || (deletionToken ? "account" : "character");
+  const handleDeletionConfirmation = useCallback(() => {
+    const search = new URLSearchParams(location.search);
+    search.delete("token");
+    search.set("section", "account");
+    navigate(
+      { pathname: "/settings", search: `?${search.toString()}` },
+      { replace: true }
+    );
+  }, [location.search, navigate]);
 
   useEffect(() => {
     if (!requestedSection) return undefined;
@@ -108,23 +119,24 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
             <div><p className="eyebrow">Section 1</p><h2 id="settings-character-heading" tabIndex={-1}>Character</h2></div>
             <span className="pill">{settings.character === "black" ? "Black Cat" : "White Cat"}</span>
           </div>
-          <div className="character-grid">
+          {/* One character is in use, so this is a single choice. The options
+              used to be independent toggles reporting aria-pressed. */}
+          <RadioGroup className="character-grid" label="Study character" value={settings.character} onChange={(next) => saveSettings({ ...settings, character: next }, `character-${next}`)}>
             {characterOptions.map((option) => {
               const selected = settings.character === option.id;
               return (
-                <button
+                <RadioOption
                   className={`theme-card character-card ${selected ? "selected" : ""}`}
                   key={option.id}
-                  onClick={() => saveSettings({ ...settings, character: option.id }, `character-${option.id}`)}
-                  aria-pressed={selected}
+                  value={option.id}
                 >
                   <ResponsiveThemePreview character={option.id} theme={activeTheme} alt={`${option.label} preview`} sizes="(max-width: 639px) 42vw, 210px" />
                   <span>{option.label}</span>
                   {selected && <i><Icon name="check" size={18} /></i>}
-                </button>
+                </RadioOption>
               );
             })}
-          </div>
+          </RadioGroup>
         </article>
 
         <article className="theme-section app-icon-section" id="settings-app-icon" aria-labelledby="settings-app-icon-heading">
@@ -136,24 +148,22 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
             </div>
             <span className="pill">{appIconOptions.find((option) => option.id === settings.appIcon)?.label}</span>
           </div>
-          <div className="app-icon-grid" role="group" aria-label="App icon choices">
+          <RadioGroup className="app-icon-grid" label="App icon choices" value={settings.appIcon} onChange={(next) => saveSettings({ ...settings, appIcon: next }, `app-icon-${next}`)}>
             {appIconOptions.map((option) => {
               const selected = settings.appIcon === option.id;
               return (
-                <button
+                <RadioOption
                   className={`app-icon-option ${selected ? "selected" : ""}`}
-                  type="button"
                   key={option.id}
-                  onClick={() => saveSettings({ ...settings, appIcon: option.id }, `app-icon-${option.id}`)}
-                  aria-pressed={selected}
+                  value={option.id}
                 >
                   <img src={assetPath(option.preview)} alt="" />
                   <span>{option.label}</span>
                   {selected && <i aria-hidden="true"><Icon name="check" size={15} /></i>}
-                </button>
+                </RadioOption>
               );
             })}
-          </div>
+          </RadioGroup>
           <p className="app-icon-platform-note">Installed PWA icons are chosen when the app is installed. iPhone and iPad cannot change an existing Home Screen icon from the website; reinstall to use a different one there.</p>
         </article>
 
@@ -162,25 +172,24 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
             <div><p className="eyebrow">Section 3</p><h2 id="settings-themes-heading" tabIndex={-1}>Choose Theme</h2></div>
             <span className="pill">{settings.autoTheme ? `Auto: ${activeTheme}` : themeOptions.find((theme) => theme.id === settings.theme)?.label}</span>
           </div>
-          <div className={`theme-grid ${settings.autoTheme ? "manual-disabled" : ""}`}>
+          <RadioGroup className={`theme-grid ${settings.autoTheme ? "manual-disabled" : ""}`} label="Theme" value={settings.autoTheme ? "" : settings.theme} onChange={(next) => saveSettings({ ...settings, theme: next, autoTheme: false }, `theme-${next}`)}>
             {themeOptions.map((option) => {
               const selected = settings.theme === option.id && !settings.autoTheme;
               return (
-                <button
+                <RadioOption
                   className={`theme-card ${option.id} ${selected ? "selected" : ""}`}
                   key={option.id}
-                  onClick={() => saveSettings({ ...settings, theme: option.id, autoTheme: false }, `theme-${option.id}`)}
+                  value={option.id}
                   disabled={settings.autoTheme}
-                  aria-pressed={selected}
                 >
                   <ResponsiveThemePreview character={settings.character} theme={option.id} alt={`${option.label} theme preview`} sizes="(max-width: 639px) 42vw, 210px" />
                   <span>{option.label}</span>
                   <small>{option.time}</small>
                   {selected && <i><Icon name="check" size={18} /></i>}
-                </button>
+                </RadioOption>
               );
             })}
-          </div>
+          </RadioGroup>
         </article>
 
         <article className="auto-theme-card">
@@ -189,14 +198,15 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
             <h2>Auto Theme</h2>
             <p>Automatically switch themes based on the current time of day.</p>
           </div>
-          <button
+          <ToggleButton
             className={`auto-toggle ${settings.autoTheme ? "on" : ""}`}
+            label="Automatic theme"
+            pressed={settings.autoTheme}
             onClick={() => saveSettings({ ...settings, autoTheme: !settings.autoTheme }, "auto")}
-            aria-pressed={settings.autoTheme}
           >
             <span>{settings.autoTheme ? "ON" : "OFF"}</span>
             <i />
-          </button>
+          </ToggleButton>
           <div className="theme-schedule">
             {themeOptions.map((option) => <span key={option.id}><strong>{option.label}</strong>{option.time}</span>)}
           </div>
@@ -215,14 +225,15 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
               <span>Reminder time</span>
               <input type="time" value={reminderSettings.time} onChange={(event) => saveReminder({ ...reminderSettings, time: event.target.value }, "reminder-time")} />
             </label>
-            <button
+            <ToggleButton
               className={`auto-toggle ${reminderSettings.enabled ? "on" : ""}`}
+              label="Daily study reminder"
+              pressed={reminderSettings.enabled}
               onClick={() => saveReminder({ ...reminderSettings, enabled: !reminderSettings.enabled }, "reminder-toggle")}
-              aria-pressed={reminderSettings.enabled}
             >
               <span>{reminderSettings.enabled ? "ON" : "OFF"}</span>
               <i />
-            </button>
+            </ToggleButton>
             <button className="btn btn-soft" type="button" onClick={testReminder}>Test reminder</button>
           </div>
           <p className="save-hint">Lock-in will ping once per day after the selected time while the app is open.</p>
@@ -243,6 +254,10 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
             <PasswordCard />
             <ConnectedAccountsCard email={user?.email} />
             <SessionList onCurrentSessionRevoked={onSignedOut} />
+            <AccountDeletionCard
+              confirmationToken={deletionToken}
+              onConfirmationHandled={handleDeletionConfirmation}
+            />
           </div>
         </section>
 
@@ -258,8 +273,8 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
 
 function AccountSubscriptionCard({ onOpen }) {
   const { t } = useI18n();
-  const data = useAsyncData(() => billingApi.currentSubscription(), []);
-  return <article className="panel account-management-card"><div className="panel-title"><div><p className="eyebrow">{t("subscription.title")}</p><h2>{data.data?.plan_title || t("subscription.noPlan")}</h2></div><Icon name="coins" size={18} /></div>{data.loading ? <p className="save-hint">{t("common.loading")}</p> : data.error ? <p className="form-alert error">{data.error}</p> : <SubscriptionStatus subscription={data.data} />}<button className="btn btn-outline compact" type="button" onClick={onOpen}>{t("subscription.view")}</button></article>;
+  const { subscription } = useSubscriptionSession();
+  return <article className="panel account-management-card"><div className="panel-title"><div><p className="eyebrow">{t("subscription.title")}</p><h2>{subscription?.plan_title || t("subscription.noPlan")}</h2></div><Icon name="coins" size={18} /></div><SubscriptionStatus subscription={subscription} /><button className="btn btn-outline compact" type="button" onClick={onOpen}>{t("subscription.view")}</button></article>;
 }
 
 function PasswordCard() {
@@ -289,6 +304,84 @@ function PasswordCard() {
   }
 
   return <article className="panel account-management-card"><div className="panel-title"><div><p className="eyebrow">Account security</p><h2>Change password</h2></div><Icon name="lock" size={18} /></div><form className="account-password-form" onSubmit={submit}><label className="field"><span>Current password</span><input type="password" autoComplete="current-password" value={form.currentPassword} onChange={(event) => setForm({ ...form, currentPassword: event.target.value })} required /><AccountFieldErrors error={error} field="current_password" /></label><label className="field"><span>New password</span><input type="password" autoComplete="new-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required /><AccountFieldErrors error={error} field="new_password" /></label><label className="field"><span>Confirm new password</span><input type="password" autoComplete="new-password" value={form.passwordConfirm} onChange={(event) => setForm({ ...form, passwordConfirm: event.target.value })} required /><AccountFieldErrors error={error} field="new_password_confirm" /></label><AccountFieldErrors error={error} /><div className="account-password-actions"><span>{message}</span><button className="btn btn-primary compact" type="submit" disabled={saving}>{saving ? "Updating…" : "Update password"}</button></div></form></article>;
+}
+
+function AccountDeletionCard({ confirmationToken, onConfirmationHandled }) {
+  const [state, setState] = useState({ loading: true, status: "not_requested", request: null });
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      try {
+        let payload;
+        if (confirmationToken) {
+          payload = await accountsApi.confirmDeletion(confirmationToken);
+          onConfirmationHandled?.();
+        } else {
+          payload = await accountsApi.getDeletionStatus();
+        }
+        if (active) setState({ loading: false, ...payload });
+      } catch (requestError) {
+        if (active) {
+          setError(requestError);
+          setState((current) => ({ ...current, loading: false }));
+        }
+      }
+    }
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [confirmationToken, onConfirmationHandled]);
+
+  async function submit(action) {
+    if (!password || busy) return;
+    setBusy(true);
+    setError(null);
+    setMessage("");
+    try {
+      const payload = action === "cancel"
+        ? await accountsApi.cancelDeletion(password)
+        : await accountsApi.requestDeletion(password);
+      setState({ loading: false, ...payload });
+      setPassword("");
+      setMessage(action === "cancel"
+        ? "The deletion request was cancelled."
+        : "Check your email and confirm the request using the single-use link.");
+    } catch (requestError) {
+      setError(requestError);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const isOpen = ["pending_confirmation", "confirmed", "processing"].includes(state.status);
+  const statusLabel = state.status === "pending_confirmation"
+    ? "Email confirmation required"
+    : state.status === "confirmed"
+      ? "Confirmed — awaiting approved retention processing"
+      : state.status === "processing"
+        ? "Deletion processing"
+        : state.status === "completed"
+          ? "Completed"
+          : "No deletion request";
+
+  return <article className="panel account-management-card account-deletion-card">
+    <div className="panel-title"><div><p className="eyebrow">Data rights</p><h2>Delete account</h2></div><Icon name="trash" size={18} /></div>
+    <p>Deletion is different from sign-out or suspension. A verified request is tracked before eligible data can be erased or anonymized under the approved retention policy.</p>
+    <p className="save-hint" role="status">{state.loading ? "Checking deletion status…" : statusLabel}</p>
+    {state.status === "confirmed" && !state.request?.policy_version && <p className="form-notice" role="alert">Your request is confirmed but cannot be processed until the retention policy is approved.</p>}
+    <label className="field"><span>Current password</span><input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy || state.loading || state.status === "processing" || state.status === "completed"} /></label>
+    <AccountFieldErrors error={error} />
+    {message && <p className="save-hint" role="status">{message}</p>}
+    <div className="account-password-actions">
+      {isOpen ? <button className="btn btn-outline compact" type="button" onClick={() => void submit("cancel")} disabled={!password || busy}>Cancel request</button> : <button className="btn btn-danger compact" type="button" onClick={() => void submit("request")} disabled={!password || busy || state.loading || state.status === "completed"}>{busy ? "Submitting…" : "Request deletion"}</button>}
+    </div>
+  </article>;
 }
 
 /**
@@ -385,7 +478,7 @@ function NotificationPreferences() {
           return (
             <div className="settings-row" key={`${preference.category}-${preference.channel}`}>
               <div><h2>{preference.category} · {preference.channel.replace("_", " ")}</h2><p>{locked ? "Always on" : unavailable ? "This delivery channel is not available yet" : preference.enabled ? "Enabled" : "Disabled"}</p></div>
-              <button className={`auto-toggle ${preference.enabled ? "on" : ""}`} type="button" aria-pressed={preference.enabled} onClick={() => { void togglePreference(index); }} disabled={locked || unavailable || Boolean(saving)}><span>{isSaving ? "…" : preference.enabled ? "ON" : "OFF"}</span><i /></button>
+              <ToggleButton className={`auto-toggle ${preference.enabled ? "on" : ""}`} label={`${preference.category} ${preference.channel.replace("_", " ")} notifications`} pressed={preference.enabled} onClick={() => { void togglePreference(index); }} disabled={locked || unavailable || Boolean(saving)}><span>{isSaving ? "…" : preference.enabled ? "ON" : "OFF"}</span><i /></ToggleButton>
             </div>
           );
         })}

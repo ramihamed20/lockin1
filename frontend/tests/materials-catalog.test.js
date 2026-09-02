@@ -64,7 +64,7 @@ test("Catalog sheet prioritizes Focus Workspace and keeps only the page count", 
   assert.match(materials, /rememberLastOpenedCatalogSheet\(materialSlug, sheetSlug\)/);
 });
 
-test("Continue study restores the last valid catalog sheet", () => {
+test("opened-sheet history orders, deduplicates, promotes, and caps recent sheets", () => {
   const previousStorage = globalThis.localStorage;
   const data = new Map();
   globalThis.localStorage = {
@@ -89,6 +89,44 @@ test("Continue study restores the last valid catalog sheet", () => {
       "/materials/catalog/fixed-prosthodontic/sheets/sheet-2",
       "/materials/catalog/general-pathology/sheets/sheet-3",
       "/materials/catalog/pharmacy/sheets/sheet-1"
+    ]);
+  } finally {
+    globalThis.localStorage = previousStorage;
+  }
+});
+
+test("opened-sheet history has a clean empty state and ignores missing or malformed sheets", () => {
+  const previousStorage = globalThis.localStorage;
+  const data = new Map();
+  globalThis.localStorage = {
+    getItem: (key) => data.get(key) || null,
+    setItem: (key, value) => data.set(key, value)
+  };
+
+  try {
+    assert.equal(getLastOpenedCatalogSheet(), null);
+    assert.deepEqual(getRecentOpenedCatalogSheets(), []);
+
+    data.set("lock-in.materials.recent-opened-sheets", JSON.stringify([
+      { materialSlug: "deleted-material", sheetSlug: "sheet-1" },
+      { materialSlug: "conservative", sheetSlug: "sheet-2" },
+      { materialSlug: "conservative", sheetSlug: "sheet-2" },
+      { materialSlug: "microbiology", sheetSlug: "unpublished-sheet" },
+      { materialSlug: null, sheetSlug: "sheet-1" },
+      { materialSlug: "pharmacy", sheetSlug: "sheet-3" }
+    ]));
+
+    assert.deepEqual(getRecentOpenedCatalogSheets().map((entry) => entry.path), [
+      "/materials/catalog/conservative/sheets/sheet-2",
+      "/materials/catalog/pharmacy/sheets/sheet-3"
+    ]);
+    assert.equal(getLastOpenedCatalogSheet()?.path, "/materials/catalog/conservative/sheets/sheet-2");
+
+    rememberLastOpenedCatalogSheet("general-pathology", "sheet-1");
+    assert.deepEqual(JSON.parse(data.get("lock-in.materials.recent-opened-sheets")), [
+      { materialSlug: "general-pathology", sheetSlug: "sheet-1" },
+      { materialSlug: "conservative", sheetSlug: "sheet-2" },
+      { materialSlug: "pharmacy", sheetSlug: "sheet-3" }
     ]);
   } finally {
     globalThis.localStorage = previousStorage;
@@ -268,14 +306,22 @@ test("Catalog Focus Workspace uses a compact contextual toolbar and persistent c
   assert.match(workspace, /stage\.addEventListener\("touchend", resetEndedTouchSession/);
   assert.match(workspace, /stage\.addEventListener\("touchcancel", resetEndedTouchSession/);
   assert.match(styles, /@media \(max-width: 560px\)/);
-  // The toolbar wraps on a phone so no control is left outside the viewport,
-  // so the reader row measures it instead of assuming a single-row height, and
-  // the surfaces below it follow that measurement.
+  // The tool rail stays on one line at every width and scrolls sideways rather
+  // than wrapping, so the tools never change position and the reader keeps its
+  // height. The reader row still measures the toolbar instead of assuming one,
+  // and the surfaces below it follow that measurement.
   assert.match(styles, /\.workspace-v2-reader \{[^}]*grid-template-rows: auto minmax\(0, 1fr\)/);
-  assert.match(styles, /\.workspace-v2-toolbar \{[^}]*min-height: calc\(50px \+ env\(safe-area-inset-top\)\)/);
+  assert.match(styles, /\.workspace-v2-toolbar \{[^}]*min-height: calc\(52px \+ env\(safe-area-inset-top\)\)/);
   assert.match(styles, /\.workspace-v2-tool-options \{[^}]*var\(--workspace-toolbar-height/);
-  assert.match(styles, /@media \(max-width: 560px\) \{[\s\S]*\.workspace-v2-toolbar-scroll,\s*\.workspace-v2-tool-list,\s*\.workspace-v2-history \{\s*display: contents/);
+  assert.doesNotMatch(styles, /display: contents/);
+  assert.match(styles, /\.workspace-v2-toolbar-scroll \{[^}]*flex-wrap: nowrap/);
+  assert.match(styles, /\.workspace-v2-toolbar-scroll \{[^}]*scroll-behavior: smooth/);
+  assert.match(styles, /\.workspace-v2-tool-list, \.workspace-v2-colors, \.workspace-v2-history, \.workspace-v2-tool-settings \{[^}]*flex-wrap: nowrap/);
   assert.match(styles, /\.workspace-v2-toolbar-scroll \{[^}]*overflow-x: auto/);
+  // The rail publishes how much track is hidden on each side so the fade is
+  // correct in Arabic, and it brings a newly chosen tool back into view.
+  assert.match(workspace, /rail\.style\.setProperty\("--workspace-fade-left"/);
+  assert.match(workspace, /rail\.scrollBy\(\{ left: delta/);
   assert.match(styles, /\.workspace-v2-tool-options \{[^}]*position: absolute/);
   assert.match(styles, /@media \(max-width: 1199px\) \{[\s\S]*width: min\(340px/);
   assert.doesNotMatch(styles, /min-height: 100svh/);

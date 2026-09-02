@@ -14,7 +14,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.events import UserEmailVerified
 from apps.accounts.tests.helpers import create_user
-from apps.entitlements.models import EntitlementGrant
+from apps.entitlements.models import EntitlementDefinition, EntitlementGrant, PlanEntitlementRule
 from apps.entitlements.services import entitlement_decision
 from apps.invoices.models import Invoice
 from apps.notifications.models import Notification, NotificationPreference
@@ -544,6 +544,12 @@ def test_catalog_versions_are_immutable_offers_and_expose_currency_precision() -
         title="Student Plus",
         trial_days=7,
         grace_days=2,
+    )
+    with pytest.raises(ValueError, match="At least one entitlement"):
+        publish_plan_version(plan_version=version)
+    PlanEntitlementRule.objects.create(
+        plan_version=version,
+        entitlement=EntitlementDefinition.objects.get(code="content.premium"),
     )
     publish_plan_version(plan_version=version)
     price = create_price(

@@ -6,6 +6,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.accounts.models import User
+from apps.content.models import LearningObject
 from apps.discovery.indexing import remove_search_entry, upsert_search_entry
 from apps.education.models import EducationNode
 from apps.education.policies import (
@@ -16,7 +17,7 @@ from apps.education.policies import (
 from platform_core.events import publish_after_commit
 
 from .events import QuestionPublished
-from .models import Question, QuestionOption, QuestionVersion
+from .models import Question, QuestionImportBatch, QuestionOption, QuestionVersion
 from .policies import can_edit_question
 
 
@@ -44,6 +45,10 @@ class QuestionInput:
     difficulty: str = QuestionVersion.Difficulty.MEDIUM
     language: str = "en"
     metadata: dict[str, object] = field(default_factory=dict)
+    source_learning_object: LearningObject | None = None
+    topic: str = ""
+    source_page: int | None = None
+    import_batch: QuestionImportBatch | None = None
 
 
 def _validate_input(*, actor: User, data: QuestionInput) -> None:
@@ -62,10 +67,24 @@ def _validate_input(*, actor: User, data: QuestionInput) -> None:
         raise QuestionRuleError("Answer options cannot be empty.")
     if len(set(normalized_options)) != len(normalized_options):
         raise QuestionRuleError("Answer options must be unique.")
-    if sum(option.is_correct for option in data.options) != 1:
+    correct_count = sum(option.is_correct for option in data.options)
+    if data.question_type == QuestionVersion.QuestionType.MULTIPLE_SELECT:
+        if correct_count < 2:
+            raise QuestionRuleError(
+                "Multiple select questions require at least two correct options."
+            )
+    elif correct_count != 1:
         raise QuestionRuleError("Exactly one answer option must be correct.")
     if data.question_type == QuestionVersion.QuestionType.TRUE_FALSE and len(data.options) != 2:
         raise QuestionRuleError("True or false questions require exactly two options.")
+    if data.source_page is not None and data.source_page < 1:
+        raise QuestionRuleError("Source page must be a positive page number.")
+    if data.source_learning_object is not None:
+        source_version = data.source_learning_object.current_version
+        if source_version is None or source_version.academic_node_id != data.academic_node.id:
+            raise QuestionRuleError(
+                "The selected sheet does not match the question education scope."
+            )
     if len(json.dumps(data.metadata, separators=(",", ":"), default=str)) > 4096:
         raise QuestionRuleError("Question metadata is too large.")
 
@@ -81,9 +100,12 @@ def _create_version(
         question=question,
         version_number=version_number,
         academic_node=data.academic_node,
+        source_learning_object=data.source_learning_object,
         question_type=data.question_type,
         prompt=data.prompt.strip(),
         explanation=data.explanation.strip(),
+        topic=data.topic.strip(),
+        source_page=data.source_page,
         difficulty=data.difficulty,
         language=data.language.strip().lower(),
         metadata=data.metadata,
@@ -111,7 +133,7 @@ def _ensure_revision(*, question: Question, expected_revision: int) -> None:
 @transaction.atomic
 def create_question(*, actor: User, data: QuestionInput) -> Question:
     _validate_input(actor=actor, data=data)
-    question = Question.objects.create(owner=actor)
+    question = Question.objects.create(owner=actor, import_batch=data.import_batch)
     version = _create_version(question=question, actor=actor, version_number=1, data=data)
     question.current_version = version
     question.save(update_fields=("current_version", "updated_at"))

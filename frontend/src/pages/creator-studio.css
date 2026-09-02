@@ -1,3 +1,4 @@
+@layer app {
 .creator-studio {
   --creator-bg: #0b0f17;
   --creator-surface: #111827;
@@ -11,7 +12,7 @@
   --creator-green: #44c78b;
   width: 100%;
   min-width: 0;
-  min-height: calc(100dvh - 138px);
+  min-height: calc(var(--app-viewport-height, 100dvh) - 138px);
   display: grid;
   grid-template-columns: 224px minmax(0, 1fr);
   overflow: hidden;
@@ -79,7 +80,7 @@
   background: transparent;
   cursor: pointer;
 }
-.creator-studio-brand button:hover { color: var(--creator-text); background: var(--creator-surface-raised); }
+.creator-studio-brand button:hover:where(html.ix-hover *) { color: var(--creator-text); background: var(--creator-surface-raised); }
 
 .creator-studio-rail nav { display: grid; gap: 18px; padding: 18px 0; }
 .creator-studio-rail nav section { display: grid; gap: 4px; }
@@ -105,7 +106,7 @@
   text-decoration: none;
 }
 .creator-studio-rail nav a svg { flex: 0 0 auto; }
-.creator-studio-rail nav a:hover { color: var(--creator-text); background: rgb(255 255 255 / 4%); }
+.creator-studio-rail nav a:hover:where(html.ix-hover *) { color: var(--creator-text); background: rgb(255 255 255 / 4%); }
 .creator-studio-rail nav a.active {
   color: #fff;
   border-color: rgb(124 108 242 / 26%);
@@ -248,7 +249,7 @@
 
 .creator-attention > a { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 54px; border-top: 1px solid var(--creator-border); color: var(--creator-text); text-decoration: none; }
 .creator-attention > a:first-of-type { border-top: 0; }
-.creator-attention > a:hover strong { color: var(--creator-gold); }
+.creator-attention > a:hover:where(html.ix-hover *) strong { color: var(--creator-gold); }
 .creator-attention-icon { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; color: var(--creator-purple); background: var(--creator-purple-soft); }
 .creator-attention-icon.is-billing,
 .creator-attention-icon.is-subscriptions { color: var(--creator-gold); background: rgb(245 194 75 / 9%); }
@@ -310,7 +311,7 @@
 .creator-table td:first-child small { display: block; }
 .creator-table td:first-child strong { color: var(--creator-text); font-size: .76rem; }
 .creator-table td:first-child small { margin-top: 3px; color: #718096; }
-.creator-table tbody tr:hover { background: rgb(255 255 255 / 2%); }
+.creator-table tbody tr:hover:where(html.ix-hover *) { background: rgb(255 255 255 / 2%); }
 .creator-table .btn { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 
 /* Stacked records -----------------------------------------------------------
@@ -394,7 +395,7 @@
     justify-content: center;
   }
 
-  .creator-table tbody tr:hover { background: #0f1622; }
+  .creator-table tbody tr:hover:where(html.ix-hover *) { background: #0f1622; }
 }
 .creator-badge { display: inline-flex; align-items: center; min-height: 24px; padding: 0 8px; border: 1px solid var(--creator-border); border-radius: 999px; color: var(--creator-muted); background: rgb(147 161 181 / 7%); font-size: .62rem; font-weight: 780; white-space: nowrap; }
 .creator-badge.is-active,
@@ -442,7 +443,7 @@
 .creator-component-icon.is-unavailable { color: #f28d8d; background: rgb(238 104 104 / 9%); }
 
 .creator-studio .operations-row { border-color: var(--creator-border); color: var(--creator-text); }
-.creator-studio .operations-row:hover { background: rgb(255 255 255 / 3%); }
+.creator-studio .operations-row:hover:where(html.ix-hover *) { background: rgb(255 255 255 / 3%); }
 .creator-studio .operations-pager { color: var(--creator-muted); }
 .creator-studio .panel,
 .creator-studio .operations-inline-panel,
@@ -510,7 +511,7 @@
 }
 
 @media (max-width: 760px) {
-  .creator-studio { min-height: calc(100dvh - 118px); display: block; border-radius: 12px; }
+  .creator-studio { min-height: calc(var(--app-viewport-height, 100dvh) - 118px); display: block; border-radius: 12px; }
   .creator-studio-rail { display: none; }
   .creator-studio-topbar { grid-template-columns: minmax(0, 1fr) auto; gap: 11px; padding: 12px 14px; }
   .creator-global-search { grid-column: 1 / -1; grid-row: 2; }
@@ -560,4 +561,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .creator-studio-rail { transition: none; }
+}
+
 }

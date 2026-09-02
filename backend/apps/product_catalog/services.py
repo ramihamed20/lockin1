@@ -50,6 +50,8 @@ def publish_plan_version(*, plan_version: PlanVersion) -> PlanVersion:
     version = PlanVersion.objects.select_for_update().get(id=plan_version.id, plan=plan)
     if not version.title:
         raise ValueError("A plan title is required before publication.")
+    if not version.entitlement_rules.exists():
+        raise ValueError("At least one entitlement is required before plan publication.")
     now = timezone.now()
     version.published_at = version.published_at or now
     version.save(update_fields=("published_at",))

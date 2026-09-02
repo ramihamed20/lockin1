@@ -3,6 +3,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .models import Price
 from .selectors import available_products
 from .serializers import ProductSerializer
 
@@ -15,5 +16,8 @@ class ProductCatalogView(APIView):
             {
                 "results": ProductSerializer(products, many=True).data,
                 "checkout_available": settings.PAYMENT_PROVIDER != "none",
+                "manual_payment_available": Price.objects.filter(
+                    status=Price.Status.ACTIVE, currency="LYD"
+                ).exists(),
             }
         )

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { billingApi } from "../api/billing.js";
 import { formatDate, formatDateTime } from "../lib/i18n.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
+import { useSubscriptionSession } from "../lib/SubscriptionSessionContext.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
 import { SubscriptionStatus } from "../components/subscription/SubscriptionStatus.jsx";
 import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
@@ -42,19 +43,21 @@ function paymentStatus(value, t) {
 
 export default function Subscription() {
   const { locale, direction, t } = useI18n();
-  const summary = useAsyncData(() => billingApi.summary(), []);
+  const subscriptionSession = useSubscriptionSession();
+  const details = useAsyncData(() => billingApi.details(), []);
   const [selectedPlan, setSelectedPlan] = useState("");
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
-  const offers = useMemo(() => summary.data ? paidOffers(summary.data.catalog) : [], [summary.data]);
+  const offers = useMemo(() => details.data ? paidOffers(details.data.catalog) : [], [details.data]);
   const effectivePlan = selectedPlan || offers[0]?.plan.id || "";
 
-  if (summary.loading) return <LoadingPanel />;
-  if (summary.error) return <ErrorPanel message={summary.error} onRetry={summary.reload} />;
+  if (details.loading) return <LoadingPanel />;
+  if (details.error) return <ErrorPanel message={details.error} onRetry={details.reload} />;
 
-  const { subscription, payments, catalog } = summary.data;
+  const { subscription, accessAllowed, directAccess } = subscriptionSession;
+  const { payments, catalog } = details.data;
   const recentPayments = payments.filter((payment) => payment.method === "libyana").slice(0, 5);
   const periodEnd = subscription?.status === "trialing"
     ? subscription?.trial_ends_at
@@ -65,6 +68,16 @@ export default function Subscription() {
       ? t("subscription.verified")
       : "—";
 
+  if (directAccess) {
+    return (
+      <Page title={t("subscription.directAccess")} subtitle={t("subscription.directAccessBody")}>
+        <section className="subscription-saved-banner subscription-direct-access">
+          <div><p className="eyebrow">Lock-in</p><h2>{t("subscription.directAccess")}</h2><p>{t("subscription.directAccessBody")}</p></div>
+        </section>
+      </Page>
+    );
+  }
+
   async function submitPayment(event) {
     event.preventDefault();
     if (!effectivePlan || submitting) return;
@@ -72,10 +85,11 @@ export default function Subscription() {
     setError("");
     setNotice("");
     try {
-      await billingApi.submitLibyana(effectivePlan, code);
+      const result = await billingApi.submitLibyana(effectivePlan, code);
+      subscriptionSession.setAuthoritativeSubscription(result.subscription);
       setCode("");
       setNotice(t("subscription.submitted"));
-      await summary.reload();
+      details.reload();
     } catch (requestError) {
       setError(requestError.message || t("subscription.submitError"));
     } finally {
@@ -85,7 +99,7 @@ export default function Subscription() {
 
   return (
     <Page title={t("subscription.title")} subtitle={t("subscription.subtitle")}>
-      {!subscription?.access_allowed && (
+      {!accessAllowed && (
         <section className="subscription-saved-banner">
           <div><p className="eyebrow">Lock-in</p><h2>{t("subscription.spaceSaved")}</h2><p>{t("subscription.spaceSavedBody")}</p></div>
           <a className="btn btn-primary" href="#libyana-payment">{t("subscription.renew")}</a>

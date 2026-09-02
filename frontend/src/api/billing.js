@@ -49,10 +49,32 @@ export const billingApi = {
     return request("/subscriptions/current").then(currentSubscriptionPayload);
   },
 
+  currentEntitlements() {
+    return request("/entitlements/me").then((payload) => resultsPayload(payload, "The entitlement response was incomplete."));
+  },
+
+  async accessSnapshot() {
+    const [subscription, entitlements] = await Promise.all([
+      this.currentSubscription(),
+      this.currentEntitlements()
+    ]);
+    return { subscription, entitlements };
+  },
+
+  async details() {
+    const [catalog, payments, invoices, refunds] = await Promise.all([
+      request("/catalog/products").then(catalogPayload),
+      request("/payments").then((payload) => resultsPayload(payload, "The payment history response was incomplete.")),
+      request("/invoices").then((payload) => resultsPayload(payload, "The invoice history response was incomplete.")),
+      request("/refunds").then((payload) => resultsPayload(payload, "The refund history response was incomplete."))
+    ]);
+    return { catalog, payments, invoices, refunds };
+  },
+
   async summary() {
     const [subscription, entitlements, catalog, payments, invoices, refunds] = await Promise.all([
       request("/subscriptions/current").then(currentSubscriptionPayload),
-      request("/entitlements/me").then((payload) => resultsPayload(payload, "The entitlement response was incomplete.")),
+      this.currentEntitlements(),
       request("/catalog/products").then(catalogPayload),
       request("/payments").then((payload) => resultsPayload(payload, "The payment history response was incomplete.")),
       request("/invoices").then((payload) => resultsPayload(payload, "The invoice history response was incomplete.")),
@@ -87,7 +109,8 @@ export const billingApi = {
     );
     return {
       payment: objectPayload(source.payment, "The payment record was incomplete."),
-      submission: objectPayload(source.submission, "The payment submission was incomplete.")
+      submission: objectPayload(source.submission, "The payment submission was incomplete."),
+      subscription: objectPayload(source.subscription, "The subscription response was incomplete.")
     };
   }
 };

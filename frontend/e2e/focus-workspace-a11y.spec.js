@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { withoutServiceWorker } from "./helpers/serviceWorker.js";
+import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
 const ROUTE = "/#/materials/catalog/microbiology/sheets/sheet-1/workspace";
 
@@ -18,6 +19,9 @@ async function mockWorkspace(page) {
       await route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ error: { code: "permission_denied", message: "Student account" } }) });
       return;
     }
+    // The workspace sits behind the subscription gate, so the access contract
+    // has to answer before the reader renders.
+    if (await fulfillAccessContract(route, pathname)) return;
     if (pathname === "/api/v1/focus/lock-in" && route.request().method() === "GET") {
       await route.fulfill({ contentType: "application/json", body: JSON.stringify({ active_session: null }) });
       return;
@@ -73,9 +77,13 @@ test("every reachable control has an accessible name and a visible focus ring", 
     .map((control) => control.className || control.tagName));
   expect(unnamed).toEqual([]);
 
-  // Keyboard focus is visible, not just present.
+  // The popovers carry no close button, so Escape is the keyboard's way out
+  // and it has to hand focus back to the control that owns the panel.
   await page.keyboard.press("Escape");
-  await page.keyboard.press("Tab");
+  await expect(settings).toBeHidden();
+  await expect(page.getByRole("button", { name: "Workspace settings", exact: true })).toBeFocused();
+
+  // Keyboard focus is visible, not just present.
   const focusRing = await page.evaluate(() => {
     const active = document.activeElement;
     const style = getComputedStyle(active);

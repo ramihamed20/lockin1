@@ -15,6 +15,8 @@ _SENSITIVE_FRAGMENTS = (
     "authorization",
     "cookie",
     "card_number",
+    "recharge",
+    "payment_code",
     "cvv",
 )
 

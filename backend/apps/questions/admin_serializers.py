@@ -17,9 +17,7 @@ class QuestionBulkActionSerializer(StrictSerializer):
         min_length=1,
         max_length=200,
     )
-    action = serializers.ChoiceField(
-        choices=("publish", "unpublish", "archive", "delete", "move")
-    )
+    action = serializers.ChoiceField(choices=("publish", "unpublish", "archive", "delete", "move"))
     target_sheet_id = serializers.UUIDField(allow_null=True, required=False, default=None)
 
     def validate_question_ids(self, value):  # type: ignore[no-untyped-def]

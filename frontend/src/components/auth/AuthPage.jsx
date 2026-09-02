@@ -59,6 +59,7 @@ function oauthMessage(t, outcome, code) {
     account_link_required: "auth.oauthAccountLink",
     configuration: "auth.oauthConfiguration",
     flow_invalid: "auth.oauthFlow",
+    rate_limited: "auth.oauthRateLimited",
     registration_unavailable: "auth.oauthRegistration",
     provider_error: "auth.oauthProviderError"
   };
@@ -214,10 +215,10 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null }) 
           cohortId: !requiresUsername && requiresCohort ? form.cohortId : undefined,
           preferredLanguage: locale
         });
-        onAuthed(nextUser);
+        onAuthed(nextUser, { newSession: false });
       } else {
         const result = await authApi.login({ email: form.email, password: form.password, remember: form.remember });
-        onAuthed(result.user);
+        onAuthed(result.user, { newSession: true });
       }
     } catch (nextError) {
       setError(nextError);

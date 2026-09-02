@@ -108,7 +108,8 @@ def record_activity(
     state.last_qualified_on = last
     state.revision += 1
     state.save()
-    assert last is not None
+    if last is None:
+        raise StreakRuleError("A newly recorded streak activity must produce a qualified date.")
     publish_after_commit(
         StreakUpdated(
             user_id=user.id,

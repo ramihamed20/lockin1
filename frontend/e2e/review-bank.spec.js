@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
+import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
 const SCREENSHOT_DIR = "output/playwright";
 
@@ -201,6 +202,8 @@ async function mockReviewApi(page) {
       });
       return;
     }
+    // The gated student routes need the access contract before they render.
+    if (await fulfillAccessContract(route, pathname)) return;
     if (pathname === "/api/v1/review-bank" && method === "GET") {
       await route.fulfill({ contentType: "application/json", body: JSON.stringify(bankPayload) });
       return;

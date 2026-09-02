@@ -142,7 +142,8 @@ def _discussion_created(event: DiscussionCreated) -> None:
 def _reply_created(event: DiscussionReplyCreated) -> None:
     recipients = {event.discussion_author_id, event.parent_author_id} - {None, event.author_id}
     for recipient_id in recipients:
-        assert recipient_id is not None
+        if recipient_id is None:
+            continue
         create_notification(
             recipient_id=recipient_id,
             actor_id=event.author_id,
@@ -212,7 +213,8 @@ def _xp_awarded(event: XpAwarded) -> None:
 def _moderator_action(event: ModeratorActionRecorded) -> None:
     recipients = {event.reporter_id, event.target_author_id} - {None, event.actor_id}
     for recipient_id in recipients:
-        assert recipient_id is not None
+        if recipient_id is None:
+            continue
         create_notification(
             recipient_id=recipient_id,
             actor_id=event.actor_id,

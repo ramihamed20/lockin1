@@ -15,7 +15,7 @@ from apps.discovery.indexing import (
 )
 
 from .models import CreatorScope, EducationNode
-from .policies import can_manage_hierarchy, is_content_administrator, is_administrator
+from .policies import can_manage_hierarchy, is_administrator, is_content_administrator
 
 
 class EducationRuleError(ValueError):

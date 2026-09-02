@@ -1,6 +1,6 @@
 # Lock-in Decision Log
 
-Last updated: 2026-07-19
+Last updated: 2026-09-02
 
 This file records decisions that change product behavior, architecture, maintenance cost, or phase boundaries. Approved decisions are not silently replaced. A changed decision must record the trade-off and date.
 
@@ -100,6 +100,8 @@ This file records decisions that change product behavior, architecture, maintena
 | D-090 | Make release and preflight explicit one-shot gates | Approved Phase 11 deployment safety |
 | D-091 | Gate measured query and bundle budgets without capacity claims | Approved Phase 11 performance policy |
 | D-092 | Require coordinated verified recovery and provider-neutral observability | Approved Phase 11 operations policy |
+| D-094 | DATABASE_URL is the portable database contract, with POSTGRES_* overrides | Approved deployment direction |
+| D-095 | Private files live in provider-neutral object storage, delivered only through the API | Approved deployment direction |
 
 ## D-001 — Product Identity
 
@@ -1006,3 +1008,33 @@ appearance, not a rollback to mock data, Supabase, or obsolete routing/security 
 **Consequence:** Every migration slice keeps the current Django API, session/CSRF auth, route and
 permission boundaries, tests, and PWA behavior. New current-only domains must use the legacy visual
 language while remaining owned by their existing feature modules.
+
+## D-094 - One Portable Database Contract
+
+**Decision:** Accept `DATABASE_URL` as the primary database configuration in every environment, and
+let explicitly set `POSTGRES_*` values override individual parts of it.
+
+**Reason:** Managed providers and container hosts publish exactly one connection URL, while the
+self-hosted deployment needs owner and runtime roles against the same database. One contract with a
+defined precedence serves both, so moving between hosts is a configuration change rather than a code
+change.
+
+**Consequence:** Production still refuses an incomplete connection or an unstated `sslmode`, and
+still rejects `allow`/`prefer` because both silently downgrade to plaintext. The release step keeps
+migrating under the owning role by overriding only the credential pair.
+
+## D-095 - Object Storage Behind Authorized Delivery
+
+**Decision:** Store private study material in S3-compatible object storage selected entirely by
+`STORAGE_*` environment values, and keep delivering it through the entitlement-checked API rather
+than through public or signed bucket URLs.
+
+**Reason:** Container disks are ephemeral and a host volume cannot follow the application across a
+migration, so files must leave the application filesystem. Handing out bucket URLs would move the
+access decision outside the application, where publication state and clean-scan evidence cannot be
+checked.
+
+**Consequence:** Files survive a host migration untouched, and changing provider is a change of
+environment values. Because every read is proxied, the read path issues ranged GETs instead of using
+the storage library file object, which would otherwise stage a whole object per request. No
+deployment may expose a `/media/` route or a public bucket.

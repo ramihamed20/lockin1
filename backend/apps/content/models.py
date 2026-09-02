@@ -41,6 +41,7 @@ class LearningObject(models.Model):
         choices=WorkflowStatus.choices,
         default=WorkflowStatus.DRAFT,
     )
+    position = models.PositiveIntegerField(default=0)
     review_note = models.TextField(blank=True)
     revision = models.PositiveBigIntegerField(default=1)
     published_at = models.DateTimeField(null=True, blank=True)
@@ -55,6 +56,7 @@ class LearningObject(models.Model):
                 fields=("owner", "workflow_status", "-updated_at"), name="content_owner_flow_idx"
             ),
             models.Index(fields=("archived_at", "-published_at"), name="content_publication_idx"),
+            models.Index(fields=("position", "updated_at"), name="content_position_idx"),
         ]
 
     def __str__(self) -> str:

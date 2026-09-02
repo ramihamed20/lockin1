@@ -63,7 +63,7 @@ test("Focus requests use Django's entitlement, workspace revision, and annotatio
   assert.equal(calls.filter((call) => ["POST", "PATCH"].includes(call.method)).every((call) => call.csrf === "csrf-value"), true);
 });
 
-test("the retired document-version Focus viewer has no route or internal entry point", async () => {
+test("the legacy Focus route stays retired while Materials enters the production Lock In workspace", async () => {
   const student = { id: "student", roles: ["student"] };
   assert.equal(canAccessRoute(student, "/focus/version"), false);
   assert.equal(canAccessRoute(student, "/focus/version/extra"), false);
@@ -74,8 +74,13 @@ test("the retired document-version Focus viewer has no route or internal entry p
     readFile(new URL("../src/service-worker.js", import.meta.url), "utf8")
   ]);
   assert.doesNotMatch(app, /const FocusWorkspace|import\("\.\/pages\/FocusWorkspace\.jsx"\)|path="\/focus\//);
-  assert.doesNotMatch(dashboard, /focus_document_version_id|`\/focus\//);
+  assert.doesNotMatch(dashboard, /`\/focus\//);
   assert.doesNotMatch(learningObject, /focus_context|<Navigate/);
-  assert.match(app, /path="\/materials\/catalog\/:materialSlug\/sheets\/:sheetSlug\/workspace"/);
+  assert.match(learningObject, /to="\/lock-in"/);
+  assert.match(learningObject, /preselectedDocumentVersionId: version\.id/);
+  assert.match(app, /path="\/lock-in" element=\{<LockInMode user=\{user\} \/>\}/);
+  // The catalog Focus Workspace is production and has its own guards in
+  // materials-catalog.test.js; only the coming-soon placeholder stays retired.
+  assert.doesNotMatch(app, /LockInComingSoon/);
   assert.doesNotMatch(worker, /cache\.put\([^\n]*api/i);
 });

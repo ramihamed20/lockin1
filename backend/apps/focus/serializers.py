@@ -3,6 +3,7 @@ from typing import Any
 
 from rest_framework import serializers
 
+from apps.accounts.avatars import AvatarPayload, avatar_payload
 from platform_core.api.serializers import StrictSerializer
 
 from .models import (
@@ -129,15 +130,31 @@ class LockInStartSerializer(StrictSerializer):
     goal = serializers.CharField(max_length=280, required=False, allow_blank=True, default="")
     topic = serializers.CharField(max_length=280, required=False, allow_blank=True, default="")
     note = serializers.CharField(max_length=10_000, required=False, allow_blank=True, default="")
-    tasks = LockInInitialTaskSerializer(many=True, required=False, default=list, max_length=20)
+    tasks = serializers.ListField(
+        child=LockInInitialTaskSerializer(), required=False, default=list, max_length=20
+    )
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         session_type = str(attrs["session_type"])
         planned = attrs.get("planned_duration_seconds")
-        if session_type in {FocusSession.SessionType.TIMED, FocusSession.SessionType.MATERIAL} and planned is None:
-            raise serializers.ValidationError({"planned_duration_seconds": "A duration is required for this session type."})
-        if session_type == FocusSession.SessionType.MATERIAL and attrs.get("document_version_id") is None:
-            raise serializers.ValidationError({"document_version_id": "A study material is required for a material-based session."})
+        if (
+            session_type in {FocusSession.SessionType.TIMED, FocusSession.SessionType.MATERIAL}
+            and planned is None
+        ):
+            raise serializers.ValidationError(
+                {"planned_duration_seconds": "A duration is required for this session type."}
+            )
+        if (
+            session_type == FocusSession.SessionType.MATERIAL
+            and attrs.get("document_version_id") is None
+        ):
+            raise serializers.ValidationError(
+                {
+                    "document_version_id": (
+                        "A study material is required for a material-based session."
+                    )
+                }
+            )
         if attrs.get("team_name", "").strip() != attrs.get("team_name", ""):
             attrs["team_name"] = attrs["team_name"].strip()
         return attrs
@@ -145,7 +162,9 @@ class LockInStartSerializer(StrictSerializer):
 
 class LockInNoteUpdateSerializer(StrictSerializer):
     body = serializers.CharField(max_length=10_000, allow_blank=True)
-    expected_revision = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)
+    expected_revision = serializers.IntegerField(
+        min_value=1, required=False, allow_null=True, default=None
+    )
 
 
 class LockInTaskCreateSerializer(StrictSerializer):
@@ -185,14 +204,29 @@ class LockInTeamMessageCreateSerializer(StrictSerializer):
         return value
 
 
+class ActiveStudyStartSerializer(StrictSerializer):
+    material_slug = serializers.SlugField(max_length=80)
+    sheet_slug = serializers.SlugField(max_length=80)
+    difficulty = serializers.ChoiceField(choices=("easy", "medium", "hard"))
+    page_count = serializers.IntegerField(min_value=1, max_value=500)
+
+
+class ActiveStudySubmitSerializer(StrictSerializer):
+    answers = serializers.DictField(child=serializers.CharField(max_length=64), allow_empty=False)
+
+
 class LockInTeamMessageSerializer(serializers.ModelSerializer[FocusTeamMessage]):
     author_id = serializers.UUIDField(read_only=True)
     author_name = serializers.CharField(source="author.full_name", read_only=True)
+    author_avatar = serializers.SerializerMethodField()
 
     class Meta:
         model = FocusTeamMessage
-        fields = ("id", "author_id", "author_name", "body", "created_at")
+        fields = ("id", "author_id", "author_name", "author_avatar", "body", "created_at")
         read_only_fields = fields
+
+    def get_author_avatar(self, message: FocusTeamMessage) -> AvatarPayload:
+        return avatar_payload(message.author)
 
 
 class LockInTeamSerializer(serializers.ModelSerializer[FocusTeam]):

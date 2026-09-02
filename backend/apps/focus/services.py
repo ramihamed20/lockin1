@@ -37,9 +37,7 @@ def create_focus_team(*, user: User, name: str) -> FocusTeam:
     team = FocusTeam(owner=user, name=name.strip())
     team.full_clean()
     team.save()
-    FocusTeamMembership.objects.create(
-        team=team, user=user, role=FocusTeamMembership.Role.OWNER
-    )
+    FocusTeamMembership.objects.create(team=team, user=user, role=FocusTeamMembership.Role.OWNER)
     return team
 
 
@@ -191,11 +189,14 @@ def start_lock_in_session(
     User.objects.select_for_update().get(id=user.id)
     existing = (
         FocusSession.objects.select_for_update()
-        .filter(user=user, status__in=(
-            FocusSession.Status.ACTIVE,
-            FocusSession.Status.PAUSED,
-            FocusSession.Status.ON_BREAK,
-        ))
+        .filter(
+            user=user,
+            status__in=(
+                FocusSession.Status.ACTIVE,
+                FocusSession.Status.PAUSED,
+                FocusSession.Status.ON_BREAK,
+            ),
+        )
         .order_by("-last_activity_at")
         .first()
     )
@@ -210,7 +211,11 @@ def start_lock_in_session(
     if replay is not None:
         return replay, False
 
-    context_type = FocusSession.ContextType.STUDY if document is not None else FocusSession.ContextType.INDEPENDENT
+    context_type = (
+        FocusSession.ContextType.STUDY
+        if document is not None
+        else FocusSession.ContextType.INDEPENDENT
+    )
     session = start_focus_session(
         user=user,
         planned_duration_seconds=planned_duration_seconds,
@@ -225,7 +230,17 @@ def start_lock_in_session(
     session.goal = goal.strip()
     session.topic = topic.strip()
     session.full_clean()
-    session.save(update_fields=("break_duration_seconds", "session_type", "team", "team_name", "goal", "topic", "updated_at"))
+    session.save(
+        update_fields=(
+            "break_duration_seconds",
+            "session_type",
+            "team",
+            "team_name",
+            "goal",
+            "topic",
+            "updated_at",
+        )
+    )
     if team is not None:
         team.updated_at = timezone.now()
         team.save(update_fields=("updated_at",))
@@ -244,9 +259,12 @@ def start_lock_in_session(
             document_version_id=document.document_version_id,
             file_id=document.file_id,
             current_page=previous.current_page if previous is not None else 1,
-            page_count=document.page_count or (previous.page_count if previous is not None else None),
+            page_count=document.page_count
+            or (previous.page_count if previous is not None else None),
             zoom=previous.zoom if previous is not None else 1,
-            sidebar=previous.sidebar if previous is not None else FocusWorkspaceSnapshot.Sidebar.CLOSED,
+            sidebar=previous.sidebar
+            if previous is not None
+            else FocusWorkspaceSnapshot.Sidebar.CLOSED,
             active_tool=previous.active_tool if previous is not None else "",
             layout=previous.layout if previous is not None else {},
             open_tabs=previous.open_tabs if previous is not None else [],
@@ -305,11 +323,15 @@ def _session_durations(*, session: FocusSession, until: datetime) -> tuple[int, 
         ):
             active_total += max(0.0, (activity.occurred_at - opened_at).total_seconds())
             opened_at = None
-        if activity.activity_type in {
-            FocusSessionActivity.ActivityType.BREAK_ENDED,
-            FocusSessionActivity.ActivityType.COMPLETED,
-            FocusSessionActivity.ActivityType.ABANDONED,
-        } and break_opened_at is not None:
+        if (
+            activity.activity_type
+            in {
+                FocusSessionActivity.ActivityType.BREAK_ENDED,
+                FocusSessionActivity.ActivityType.COMPLETED,
+                FocusSessionActivity.ActivityType.ABANDONED,
+            }
+            and break_opened_at is not None
+        ):
             break_total += max(0.0, (activity.occurred_at - break_opened_at).total_seconds())
             break_opened_at = None
     if opened_at is not None:
@@ -319,10 +341,14 @@ def _session_durations(*, session: FocusSession, until: datetime) -> tuple[int, 
     return int(active_total), int(break_total)
 
 
-def focus_session_durations(*, session: FocusSession, until: datetime | None = None) -> tuple[int, int]:
+def focus_session_durations(
+    *, session: FocusSession, until: datetime | None = None
+) -> tuple[int, int]:
     """Return server-derived active and break seconds without trusting clients."""
     if session.ended_at is not None:
-        return session.active_duration_seconds, _session_durations(session=session, until=session.ended_at)[1]
+        return session.active_duration_seconds, _session_durations(
+            session=session, until=session.ended_at
+        )[1]
     return _session_durations(session=session, until=until or timezone.now())
 
 

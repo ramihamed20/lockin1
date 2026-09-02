@@ -95,9 +95,9 @@ Optional Telegram configuration:
 
 Both Telegram identifiers must be provided together in production. With neither
 configured, submissions remain fully functional and Telegram is a safe no-op.
-The adapter sends only payment/user IDs, username, plan, amount, recharge code,
-submission time, and payment ID—never passwords, sessions, or authentication
-tokens.
+The adapter sends only the internal payment reference, plan, amount, and
+submission time. It never sends the recharge code, username/email, passwords,
+sessions, or authentication tokens.
 
 ## Existing-user migration policy
 

@@ -17,6 +17,7 @@ class QuestionOptionManagementSerializer(serializers.ModelSerializer[QuestionOpt
 class QuestionVersionManagementSerializer(serializers.ModelSerializer[QuestionVersion]):
     academic_node_id = serializers.UUIDField(read_only=True)
     academic_node_title = serializers.CharField(source="academic_node.title", read_only=True)
+    source_learning_object_id = serializers.UUIDField(read_only=True, allow_null=True)
     options = QuestionOptionManagementSerializer(many=True, read_only=True)
 
     class Meta:
@@ -26,9 +27,12 @@ class QuestionVersionManagementSerializer(serializers.ModelSerializer[QuestionVe
             "version_number",
             "academic_node_id",
             "academic_node_title",
+            "source_learning_object_id",
             "question_type",
             "prompt",
             "explanation",
+            "topic",
+            "source_page",
             "difficulty",
             "language",
             "metadata",
@@ -53,6 +57,7 @@ class QuestionManagementSerializer(serializers.ModelSerializer[Question]):
             "owner_email",
             "current_version",
             "published_version_id",
+            "import_batch_id",
             "workflow_status",
             "review_note",
             "revision",
@@ -70,6 +75,11 @@ class QuestionOptionWriteSerializer(StrictSerializer):
 
 class QuestionWriteSerializer(StrictSerializer):
     academic_node_id = serializers.UUIDField()
+    source_learning_object_id = serializers.UUIDField(
+        allow_null=True,
+        required=False,
+        default=None,
+    )
     question_type = serializers.ChoiceField(choices=QuestionVersion.QuestionType.choices)
     prompt = serializers.CharField(max_length=10_000, trim_whitespace=True)
     explanation = serializers.CharField(
@@ -77,6 +87,18 @@ class QuestionWriteSerializer(StrictSerializer):
         trim_whitespace=True,
         required=False,
         default="",
+    )
+    topic = serializers.CharField(
+        max_length=220,
+        trim_whitespace=True,
+        required=False,
+        default="",
+    )
+    source_page = serializers.IntegerField(
+        min_value=1,
+        allow_null=True,
+        required=False,
+        default=None,
     )
     difficulty = serializers.ChoiceField(
         choices=QuestionVersion.Difficulty.choices,

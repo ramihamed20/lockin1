@@ -4,10 +4,10 @@ import hmac
 import io
 import json
 import secrets
-from xml.sax.saxutils import escape
-from zipfile import ZIP_DEFLATED, ZipFile
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
+from xml.sax.saxutils import escape
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.db import transaction
 from django.utils import timezone
@@ -15,13 +15,13 @@ from django.utils import timezone
 from apps.accounts.models import User
 from apps.administration.permissions import has_operational_capability
 from apps.analytics.models import DailyMetric
-from apps.audit.services import record_audit
-from apps.audit.models import AuditRecord
 from apps.assessments.models import Attempt
+from apps.audit.models import AuditRecord
+from apps.audit.services import record_audit
 from apps.focus.models import FocusSession
+from apps.moderation.models import Report
 from apps.payments.models import Payment
 from apps.subscriptions.models import Subscription
-from apps.moderation.models import Report
 from apps.system_configuration.services import get_configuration_value
 
 from .catalog import REPORTS, ReportDefinition
@@ -83,11 +83,15 @@ def _query_rows(definition: ReportDefinition, filters: dict[str, Any]):  # type:
             subscriptions = subscriptions.filter(status=status)
         if "from" in filters or "to" in filters:
             start, end = _date_filters(filters)
-            subscriptions = subscriptions.filter(created_at__date__gte=start, created_at__date__lte=end)
+            subscriptions = subscriptions.filter(
+                created_at__date__gte=start, created_at__date__lte=end
+            )
         return subscriptions.values(*definition.columns)
     if definition.code == "focus_activity":
         start, end = _date_filters(filters)
-        return FocusSession.objects.filter(started_at__date__gte=start, started_at__date__lte=end).values(*definition.columns)
+        return FocusSession.objects.filter(
+            started_at__date__gte=start, started_at__date__lte=end
+        ).values(*definition.columns)
     if definition.code == "assessment_attempts":
         attempts = Attempt.objects.all()
         status = str(filters.get("status", ""))
@@ -141,15 +145,51 @@ def _xlsx_content(*, columns: tuple[str, ...], rows: Any) -> tuple[bytes, int]:
         count += 1
     for row_index, row in enumerate(all_rows, start=1):
         cells = "".join(
-            f'<c r="{chr(64 + column_index)}{row_index}" t="inlineStr"><is><t>{escape(str(value if value is not None else ""))}</t></is></c>'
+            f'<c r="{chr(64 + column_index)}{row_index}" t="inlineStr"><is><t>'
+            f"{escape(str(value if value is not None else ''))}</t></is></c>"
             for column_index, value in enumerate(row.values(), start=1)
         )
         row_xml.append(f'<row r="{row_index}">{cells}</row>')
-    worksheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>' + "".join(row_xml) + "</sheetData></worksheet>"
-    content_types = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>'
-    relationships = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'
-    workbook = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Report" sheetId="1" r:id="rId1"/></sheets></workbook>'
-    workbook_relationships = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>'
+    worksheet = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        "<sheetData>" + "".join(row_xml) + "</sheetData></worksheet>"
+    )
+    content_types = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="rels" '
+        'ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        '<Default Extension="xml" ContentType="application/xml"/>'
+        '<Override PartName="/xl/workbook.xml" '
+        'ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+        '<Override PartName="/xl/worksheets/sheet1.xml" '
+        'ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+        "</Types>"
+    )
+    relationships = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" '
+        'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" '
+        'Target="xl/workbook.xml"/>'
+        "</Relationships>"
+    )
+    workbook = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        '<sheets><sheet name="Report" sheetId="1" r:id="rId1"/></sheets>'
+        "</workbook>"
+    )
+    workbook_relationships = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" '
+        'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" '
+        'Target="worksheets/sheet1.xml"/>'
+        "</Relationships>"
+    )
     buffer = io.BytesIO()
     with ZipFile(buffer, "w", ZIP_DEFLATED) as archive:
         archive.writestr("[Content_Types].xml", content_types)
@@ -175,7 +215,11 @@ def report_catalog_for(*, user: User) -> list[dict[str, Any]]:
 
 @transaction.atomic
 def preview_report(
-    *, user: User, report_code: str, filters: dict[str, Any], output_format: str = ReportExport.OutputFormat.CSV
+    *,
+    user: User,
+    report_code: str,
+    filters: dict[str, Any],
+    output_format: str = ReportExport.OutputFormat.CSV,
 ) -> tuple[ReportExport, str]:
     definition = REPORTS.get(report_code)
     if definition is None or not has_operational_capability(user, definition.capability):

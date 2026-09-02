@@ -34,7 +34,7 @@ def published_learning_objects(
             "published_version__academic_node",
         )
         .prefetch_related("published_version__assets__managed_file")
-        .order_by("-published_at", "published_version__title", "id")
+        .order_by("position", "published_version__title", "id")
     )
 
 
@@ -49,11 +49,11 @@ def manageable_learning_objects(*, user: User) -> QuerySet[LearningObject]:
         "published_version__academic_node",
     ).prefetch_related("current_version__assets__managed_file")
     if is_content_administrator(user):
-        return queryset.order_by("-updated_at", "id")
+        return queryset.order_by("position", "-updated_at", "id")
     scope_paths = list(
         CreatorScope.objects.filter(user=user).values_list("node__path", flat=True).distinct()
     )
     condition = Q(owner=user)
     for path in scope_paths:
         condition |= Q(current_version__academic_node__path__startswith=path)
-    return queryset.filter(condition).distinct().order_by("-updated_at", "id")
+    return queryset.filter(condition).distinct().order_by("position", "-updated_at", "id")

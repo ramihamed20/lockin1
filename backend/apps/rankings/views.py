@@ -1,3 +1,5 @@
+from typing import cast
+
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -14,22 +16,19 @@ from .services import build_snapshot, get_or_create_profile
 
 class CurrentRankingView(APIView):
     def get(self, request: Request) -> Response:
-        assert isinstance(request.user, User)
+        user = cast(User, request.user)
         return Response(
-            current_ranking(
-                viewer=request.user, code=request.query_params.get("code", "learning_all_time")
-            )
+            current_ranking(viewer=user, code=request.query_params.get("code", "learning_all_time"))
         )
 
 
 class RankingProfileView(APIView):
     def get(self, request: Request) -> Response:
-        assert isinstance(request.user, User)
-        return Response(RankingProfileSerializer(get_or_create_profile(user=request.user)).data)
+        user = cast(User, request.user)
+        return Response(RankingProfileSerializer(get_or_create_profile(user=user)).data)
 
     def put(self, request: Request) -> Response:
-        assert isinstance(request.user, User)
-        profile = get_or_create_profile(user=request.user)
+        profile = get_or_create_profile(user=cast(User, request.user))
         serializer = RankingProfileSerializer(profile, data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -38,8 +37,8 @@ class RankingProfileView(APIView):
 
 class RankingBuildView(APIView):
     def post(self, request: Request, code: str) -> Response:
-        assert isinstance(request.user, User)
-        if not user_has_role(request.user, Role.ADMINISTRATOR):
+        user = cast(User, request.user)
+        if not user_has_role(user, Role.ADMINISTRATOR):
             raise PermissionDenied()
         definition = RankingDefinition.objects.get(code=code, is_active=True)
         snapshot = build_snapshot(definition=definition)

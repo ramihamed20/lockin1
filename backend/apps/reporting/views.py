@@ -44,7 +44,10 @@ class ReportPreviewView(APIView):
         data = cast(dict[str, Any], serializer.validated_data)
         try:
             export, token = preview_report(
-                user=_user(request), report_code=data["report_code"], filters=data["filters"], output_format=data["output_format"]
+                user=_user(request),
+                report_code=data["report_code"],
+                filters=data["filters"],
+                output_format=data["output_format"],
             )
         except ReportingError as error:
             raise RequestRejected(str(error), code="report_preview_rejected") from error

@@ -10,8 +10,13 @@ from apps.accounts.tests.helpers import create_user
 from apps.content.tests.helpers import published_pdf
 from apps.education.tests.helpers import create_admin, published_path
 from apps.entitlements.models import EntitlementDefinition, EntitlementGrant
-from apps.focus.models import FocusSession, FocusSessionActivity, FocusSessionNote, FocusSessionTask, FocusTeamMembership
-
+from apps.focus.models import (
+    FocusSession,
+    FocusSessionActivity,
+    FocusSessionNote,
+    FocusSessionTask,
+    FocusTeamMembership,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -102,13 +107,18 @@ def test_lock_in_persists_a_trimmed_team_name_on_the_session() -> None:
 
     assert started.status_code == 201
     assert started.json()["session"]["team_name"] == "Oral Anatomy Squad"
-    assert FocusSession.objects.get(id=started.json()["session"]["id"]).team_name == "Oral Anatomy Squad"
+    assert (
+        FocusSession.objects.get(id=started.json()["session"]["id"]).team_name
+        == "Oral Anatomy Squad"
+    )
 
 
 def test_lock_in_team_membership_message_and_session_are_persisted() -> None:
     owner, version_id = _fixture()
     owner_client = _client(owner)
-    created = owner_client.post("/api/v1/focus/lock-in/teams", {"name": "Oral Anatomy Squad"}, format="json")
+    created = owner_client.post(
+        "/api/v1/focus/lock-in/teams", {"name": "Oral Anatomy Squad"}, format="json"
+    )
 
     assert created.status_code == 201
     team = created.json()["team"]
@@ -159,7 +169,9 @@ def test_lock_in_pause_resume_and_break_are_server_state_transitions() -> None:
     assert idempotent_resume.status_code == 200
     assert idempotent_resume.json()["session"]["status"] == FocusSession.Status.ACTIVE
     assert list(
-        FocusSessionActivity.objects.filter(session_id=session_id).values_list("activity_type", flat=True)
+        FocusSessionActivity.objects.filter(session_id=session_id).values_list(
+            "activity_type", flat=True
+        )
     ) == ["started", "paused", "resumed", "break_started", "break_ended"]
 
 

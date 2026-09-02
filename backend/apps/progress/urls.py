@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     BookmarkDetailView,
     BookmarkListView,
+    CatalogBookmarkDetailView,
     LearningDashboardView,
     LearningProgressDetailView,
     LessonCompleteView,
@@ -17,6 +18,11 @@ urlpatterns = [
         "bookmarks/<uuid:learning_object_id>",
         BookmarkDetailView.as_view(),
         name="bookmark-detail",
+    ),
+    path(
+        "bookmarks/catalog/<slug:material_slug>/<slug:sheet_slug>",
+        CatalogBookmarkDetailView.as_view(),
+        name="catalog-bookmark-detail",
     ),
     path("progress/resume", ResumeListView.as_view(), name="resume-list"),
     path(

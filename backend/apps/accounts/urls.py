@@ -1,8 +1,11 @@
 from django.urls import path
 
 from .views import (
+    AccountDeletionConfirmView,
+    AccountDeletionView,
     AdminUserListView,
     AdminUserRolesView,
+    CohortListView,
     CsrfTokenView,
     CurrentSessionView,
     DashboardView,
@@ -11,15 +14,21 @@ from .views import (
     LoginView,
     LogoutAllView,
     LogoutView,
+    OAuthProviderStatusView,
+    OAuthStartView,
     PasswordChangeView,
     PasswordResetConfirmView,
     PasswordResetRequestView,
+    ProfileAvatarView,
     ProfileView,
     RegisterView,
     ResendVerificationView,
     SessionDetailView,
     SessionListView,
     VerifyEmailView,
+    WelcomeCompleteView,
+    apple_oauth_callback,
+    google_oauth_callback,
 )
 
 app_name = "accounts"
@@ -27,6 +36,11 @@ app_name = "accounts"
 urlpatterns = [
     path("auth/csrf", CsrfTokenView.as_view(), name="csrf"),
     path("auth/register", RegisterView.as_view(), name="register"),
+    path("auth/cohorts", CohortListView.as_view(), name="cohorts"),
+    path("auth/oauth/providers", OAuthProviderStatusView.as_view(), name="oauth-providers"),
+    path("auth/oauth/<str:provider>/start", OAuthStartView.as_view(), name="oauth-start"),
+    path("auth/oauth/google/callback", google_oauth_callback, name="oauth-google-callback"),
+    path("auth/oauth/apple/callback", apple_oauth_callback, name="oauth-apple-callback"),
     path("auth/verify-email", VerifyEmailView.as_view(), name="verify-email"),
     path("auth/resend-verification", ResendVerificationView.as_view(), name="resend-verification"),
     path("auth/password-reset", PasswordResetRequestView.as_view(), name="password-reset"),
@@ -40,9 +54,17 @@ urlpatterns = [
     path("auth/logout-all", LogoutAllView.as_view(), name="logout-all"),
     path("auth/session", CurrentSessionView.as_view(), name="session"),
     path("account/profile", ProfileView.as_view(), name="profile"),
+    path("account/profile/avatar", ProfileAvatarView.as_view(), name="profile-avatar"),
+    path("account/welcome/complete", WelcomeCompleteView.as_view(), name="welcome-complete"),
     path("account/password", PasswordChangeView.as_view(), name="password-change"),
     path("account/email", EmailChangeRequestView.as_view(), name="email-change"),
     path("account/email/confirm", EmailChangeConfirmView.as_view(), name="email-change-confirm"),
+    path("account/deletion", AccountDeletionView.as_view(), name="account-deletion"),
+    path(
+        "account/deletion/confirm",
+        AccountDeletionConfirmView.as_view(),
+        name="account-deletion-confirm",
+    ),
     path("account/sessions", SessionListView.as_view(), name="sessions"),
     path("account/sessions/<uuid:session_id>", SessionDetailView.as_view(), name="session-detail"),
     path("dashboard", DashboardView.as_view(), name="dashboard"),

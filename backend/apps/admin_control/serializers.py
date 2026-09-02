@@ -17,7 +17,15 @@ class AdminInternalNoteSerializer(serializers.ModelSerializer[AdminInternalNote]
 
     class Meta:
         model = AdminInternalNote
-        fields = ("id", "target_type", "target_id", "author_id", "author_name", "body", "created_at")
+        fields = (
+            "id",
+            "target_type",
+            "target_id",
+            "author_id",
+            "author_name",
+            "body",
+            "created_at",
+        )
         read_only_fields = fields
 
 
@@ -42,6 +50,11 @@ class PaymentCorrectionReviewSerializer(StrictSerializer):
     reason = serializers.CharField(min_length=8, max_length=500, trim_whitespace=True)
 
 
+class ManualPaymentReviewSerializer(StrictSerializer):
+    decision = serializers.ChoiceField(choices=("approve", "reject"))
+    reason = serializers.CharField(min_length=3, max_length=500, trim_whitespace=True)
+
+
 class PaymentStatusCorrectionSerializer(serializers.ModelSerializer[PaymentStatusCorrection]):
     requested_by_name = serializers.CharField(source="requested_by.full_name", read_only=True)
     reviewed_by_name = serializers.CharField(source="reviewed_by.full_name", read_only=True)
@@ -49,9 +62,19 @@ class PaymentStatusCorrectionSerializer(serializers.ModelSerializer[PaymentStatu
     class Meta:
         model = PaymentStatusCorrection
         fields = (
-            "id", "payment_id", "requested_status", "provider_reference", "reason", "status",
-            "requested_by_id", "requested_by_name", "reviewed_by_id", "reviewed_by_name",
-            "review_reason", "reviewed_at", "created_at",
+            "id",
+            "payment_id",
+            "requested_status",
+            "provider_reference",
+            "reason",
+            "status",
+            "requested_by_id",
+            "requested_by_name",
+            "reviewed_by_id",
+            "reviewed_by_name",
+            "review_reason",
+            "reviewed_at",
+            "created_at",
         )
         read_only_fields = fields
 
@@ -70,7 +93,9 @@ class SubscriptionActionSerializer(StrictSerializer):
         )
     )
     reason = serializers.CharField(min_length=8, max_length=500, trim_whitespace=True)
-    note = serializers.CharField(max_length=4000, trim_whitespace=True, required=False, allow_blank=True)
+    note = serializers.CharField(
+        max_length=4000, trim_whitespace=True, required=False, allow_blank=True
+    )
     period_ends_at = serializers.DateTimeField(required=False)
     plan_version_id = serializers.UUIDField(required=False)
 
@@ -85,7 +110,9 @@ class EntitlementOverrideSerializer(StrictSerializer):
         starts_at = attrs.get("starts_at")
         ends_at = attrs.get("ends_at")
         if starts_at is not None and ends_at is not None and ends_at <= starts_at:
-            raise serializers.ValidationError({"ends_at": ["The expiration must follow the start."]})
+            raise serializers.ValidationError(
+                {"ends_at": ["The expiration must follow the start."]}
+            )
         return attrs
 
 
@@ -123,7 +150,9 @@ class UserActionSerializer(StrictSerializer):
         if action == "replace_product_roles" and "roles" not in attrs:
             raise serializers.ValidationError({"roles": ["Provide the roles to assign."]})
         if action != "logout_session" and "session_id" in attrs:
-            raise serializers.ValidationError({"session_id": ["This action does not accept a session."]})
+            raise serializers.ValidationError(
+                {"session_id": ["This action does not accept a session."]}
+            )
         return attrs
 
 
@@ -185,17 +214,30 @@ class NotificationCampaignCreateSerializer(StrictSerializer):
         payload = attrs["audience_filter"]
         if audience == NotificationCampaign.Audience.USER:
             if not isinstance(payload.get("user_id"), str):
-                raise serializers.ValidationError({"audience_filter": ["A user_id is required for one-user delivery."]})
+                raise serializers.ValidationError(
+                    {"audience_filter": ["A user_id is required for one-user delivery."]}
+                )
         elif audience == NotificationCampaign.Audience.SELECTED_USERS:
             user_ids = payload.get("user_ids")
-            if not isinstance(user_ids, list) or not user_ids or len(user_ids) > 250 or not all(isinstance(item, str) for item in user_ids):
-                raise serializers.ValidationError({"audience_filter": ["Provide between 1 and 250 user IDs."]})
+            if (
+                not isinstance(user_ids, list)
+                or not user_ids
+                or len(user_ids) > 250
+                or not all(isinstance(item, str) for item in user_ids)
+            ):
+                raise serializers.ValidationError(
+                    {"audience_filter": ["Provide between 1 and 250 user IDs."]}
+                )
         elif audience == NotificationCampaign.Audience.PLAN_USERS:
             plan_code = payload.get("plan_code")
             if not isinstance(plan_code, str) or not plan_code.strip():
-                raise serializers.ValidationError({"audience_filter": ["A plan_code is required for plan delivery."]})
+                raise serializers.ValidationError(
+                    {"audience_filter": ["A plan_code is required for plan delivery."]}
+                )
         elif payload:
-            raise serializers.ValidationError({"audience_filter": ["This audience does not accept a filter."]})
+            raise serializers.ValidationError(
+                {"audience_filter": ["This audience does not accept a filter."]}
+            )
         return attrs
 
 
@@ -223,15 +265,28 @@ class PlanVersionCreateSerializer(StrictSerializer):
     product_id = serializers.UUIDField()
     plan_code = serializers.RegexField(r"^[a-z0-9]+(?:_[a-z0-9]+)*$", max_length=59)
     title = serializers.CharField(min_length=1, max_length=120, trim_whitespace=True)
-    description = serializers.CharField(max_length=320, trim_whitespace=True, required=False, allow_blank=True)
-    audience = serializers.ChoiceField(choices=("individual", "family", "organization", "institution"), default="individual")
+    description = serializers.CharField(
+        max_length=320, trim_whitespace=True, required=False, allow_blank=True
+    )
+    audience = serializers.ChoiceField(
+        choices=("individual", "family", "organization", "institution"), default="individual"
+    )
     trial_days = serializers.IntegerField(min_value=0, max_value=365, default=0)
     grace_days = serializers.IntegerField(min_value=0, max_value=365, default=0)
     terms = serializers.JSONField(default=dict)
-    prices = PlanPriceInputSerializer(many=True, min_length=1, max_length=20)
-    entitlements = PlanEntitlementInputSerializer(many=True, required=False, default=list, max_length=50)
+    prices = serializers.ListField(child=PlanPriceInputSerializer(), min_length=1, max_length=20)
+    entitlements = serializers.ListField(
+        child=PlanEntitlementInputSerializer(), required=False, default=list, max_length=50
+    )
     publish = serializers.BooleanField(default=False)
     reason = serializers.CharField(min_length=8, max_length=500, trim_whitespace=True)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if attrs.get("publish") and not attrs.get("entitlements"):
+            raise serializers.ValidationError(
+                {"entitlements": ["At least one entitlement is required to publish a plan."]}
+            )
+        return attrs
 
 
 class PlanActionSerializer(StrictSerializer):

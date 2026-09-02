@@ -187,11 +187,26 @@ def system_health_dashboard() -> dict[str, Any]:
     return collect_health_status()
 
 
-def operational_users(*, query: str = "") -> QuerySet[User]:
-    users = User.objects.prefetch_related("groups", "operational_role_assignments__role").all()
+def operational_users(
+    *, query: str = "", status: str = "", role: str = "", ordering: str = "-date_joined"
+) -> QuerySet[User]:
+    users = (
+        User.objects.select_related("cohort")
+        .prefetch_related("groups", "operational_role_assignments__role")
+        .all()
+    )
     if query:
         users = users.filter(Q(email__istartswith=query) | Q(full_name__istartswith=query))
-    return users
+    if status in User.Status.values:
+        users = users.filter(status=status)
+    if role:
+        users = users.filter(groups__name=role)
+    safe_ordering = (
+        ordering
+        if ordering in {"date_joined", "-date_joined", "full_name", "email"}
+        else "-date_joined"
+    )
+    return users.distinct().order_by(safe_ordering)
 
 
 def serialize_operational_user(user: User) -> dict[str, Any]:
@@ -206,4 +221,8 @@ def serialize_operational_user(user: User) -> dict[str, Any]:
             assignment.role_id for assignment in user.operational_role_assignments.all()
         ),
         "date_joined": user.date_joined,
+        "cohort": {
+            "id": user.cohort_id,
+            "title": user.cohort.name_en if user.cohort is not None else "",
+        },
     }

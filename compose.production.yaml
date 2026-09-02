@@ -3,13 +3,14 @@ name: lockin-production
 x-backend-common: &backend-common
   build:
     context: ./backend
-  image: lockin-backend:${LOCKIN_IMAGE_TAG:-local}
+  image: lockin-backend:${LOCKIN_IMAGE_TAG:?Set LOCKIN_IMAGE_TAG}
   environment: &backend-environment
     DJANGO_SETTINGS_MODULE: config.settings.production
     DJANGO_SECRET_KEY_FILE: /run/secrets/django_secret_key
     DJANGO_ALLOWED_HOSTS: ${LOCKIN_PUBLIC_HOST:?Set LOCKIN_PUBLIC_HOST}
     DJANGO_CSRF_TRUSTED_ORIGINS: https://${LOCKIN_PUBLIC_HOST:?Set LOCKIN_PUBLIC_HOST}
     DJANGO_TRUST_PROXY_SSL_HEADER: "true"
+    DJANGO_TRUSTED_PROXY_CIDRS: ${DJANGO_TRUSTED_PROXY_CIDRS:-172.28.0.0/24}
     DJANGO_SECURE_HSTS_SECONDS: ${DJANGO_SECURE_HSTS_SECONDS:-3600}
     DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS: ${DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS:-true}
     DJANGO_SECURE_HSTS_PRELOAD: ${DJANGO_SECURE_HSTS_PRELOAD:-false}
@@ -25,9 +26,11 @@ x-backend-common: &backend-common
     EMAIL_USE_TLS: ${EMAIL_USE_TLS:-true}
     EMAIL_USE_SSL: ${EMAIL_USE_SSL:-false}
     EMAIL_TIMEOUT_SECONDS: ${EMAIL_TIMEOUT_SECONDS:-10}
+    # Host and port are overridable so a managed PostgreSQL provider can replace
+    # the bundled database without editing this file.
     POSTGRES_DB: ${POSTGRES_DB:-lockin}
-    POSTGRES_HOST: db
-    POSTGRES_PORT: 5432
+    POSTGRES_HOST: ${POSTGRES_HOST:-db}
+    POSTGRES_PORT: ${POSTGRES_PORT:-5432}
     POSTGRES_RUNTIME_ROLE: ${POSTGRES_RUNTIME_ROLE:-lockin_app}
     POSTGRES_CONN_MAX_AGE: ${POSTGRES_CONN_MAX_AGE:-60}
     POSTGRES_SSLMODE: ${POSTGRES_SSLMODE:-disable}
@@ -35,14 +38,70 @@ x-backend-common: &backend-common
     POSTGRES_STATEMENT_TIMEOUT_MS: ${POSTGRES_STATEMENT_TIMEOUT_MS:-15000}
     POSTGRES_LOCK_TIMEOUT_MS: ${POSTGRES_LOCK_TIMEOUT_MS:-3000}
     POSTGRES_IDLE_TRANSACTION_TIMEOUT_MS: ${POSTGRES_IDLE_TRANSACTION_TIMEOUT_MS:-30000}
+    # Provider-neutral object storage. Changing provider is a change of these
+    # values only; no image or application code changes.
+    STORAGE_BACKEND: ${STORAGE_BACKEND:-s3}
+    STORAGE_BUCKET_NAME: ${STORAGE_BUCKET_NAME:-}
+    STORAGE_ENDPOINT_URL: ${STORAGE_ENDPOINT_URL:-}
+    STORAGE_REGION: ${STORAGE_REGION:-auto}
+    STORAGE_ACCESS_KEY_ID: ${STORAGE_ACCESS_KEY_ID:-}
+    STORAGE_SECRET_ACCESS_KEY_FILE: ${STORAGE_SECRET_ACCESS_KEY_FILE:+/run/secrets/storage_secret_access_key}
+    STORAGE_ADDRESSING_STYLE: ${STORAGE_ADDRESSING_STYLE:-virtual}
+    STORAGE_LOCATION_PREFIX: ${STORAGE_LOCATION_PREFIX:-}
+    STORAGE_ALLOW_INSECURE_ENDPOINT: ${STORAGE_ALLOW_INSECURE_ENDPOINT:-false}
+    STORAGE_ALLOW_LOCAL_MEDIA: ${STORAGE_ALLOW_LOCAL_MEDIA:-false}
     CONTENT_MAX_PDF_BYTES: ${CONTENT_MAX_PDF_BYTES:-52428800}
-    CONTENT_MAX_AUDIO_BYTES: ${CONTENT_MAX_AUDIO_BYTES:-104857600}
+    CONTENT_MAX_AUDIO_BYTES: ${CONTENT_MAX_AUDIO_BYTES:-94371840}
+    FILE_SCAN_HOST: ${FILE_SCAN_HOST:-clamav}
+    FILE_SCAN_PORT: ${FILE_SCAN_PORT:-3310}
+    FILE_SCAN_CONNECT_TIMEOUT_SECONDS: ${FILE_SCAN_CONNECT_TIMEOUT_SECONDS:-5}
+    FILE_SCAN_READ_TIMEOUT_SECONDS: ${FILE_SCAN_READ_TIMEOUT_SECONDS:-120}
+    FILE_SCAN_MAX_ATTEMPTS: ${FILE_SCAN_MAX_ATTEMPTS:-3}
+    FILE_SCAN_RETRY_BASE_SECONDS: ${FILE_SCAN_RETRY_BASE_SECONDS:-30}
+    FILE_SCAN_RETRY_MAX_SECONDS: ${FILE_SCAN_RETRY_MAX_SECONDS:-900}
+    FILE_SCAN_CLAIM_TIMEOUT_SECONDS: ${FILE_SCAN_CLAIM_TIMEOUT_SECONDS:-300}
+    FILE_SCAN_WORKER_INTERVAL_SECONDS: ${FILE_SCAN_WORKER_INTERVAL_SECONDS:-10}
+    FILE_SCAN_BATCH_SIZE: ${FILE_SCAN_BATCH_SIZE:-8}
     PAYMENT_PROVIDER: none
     DEFAULT_TRIAL_PLAN_CODE: ${DEFAULT_TRIAL_PLAN_CODE:-lockin_trial}
+    PAYMENT_CODE_ENCRYPTION_KEY_FILE: /run/secrets/payment_code_encryption_key
+    MANUAL_PAYMENT_RATE_WINDOW_SECONDS: ${MANUAL_PAYMENT_RATE_WINDOW_SECONDS:-3600}
+    MANUAL_PAYMENT_RATE_LIMIT: ${MANUAL_PAYMENT_RATE_LIMIT:-5}
+    TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+    TELEGRAM_PAYMENT_CHAT_ID: ${TELEGRAM_PAYMENT_CHAT_ID:-}
+    TELEGRAM_HTTP_TIMEOUT_SECONDS: ${TELEGRAM_HTTP_TIMEOUT_SECONDS:-5}
+    SUBSCRIPTION_SCHEDULER_INTERVAL_SECONDS: ${SUBSCRIPTION_SCHEDULER_INTERVAL_SECONDS:-900}
+    NOTIFICATION_SCHEDULER_INTERVAL_SECONDS: ${NOTIFICATION_SCHEDULER_INTERVAL_SECONDS:-60}
+    OPERATIONAL_CLEANUP_INTERVAL_SECONDS: ${OPERATIONAL_CLEANUP_INTERVAL_SECONDS:-3600}
+    OPERATIONAL_DATA_RETENTION_DAYS: ${OPERATIONAL_DATA_RETENTION_DAYS:-30}
+    COMMERCE_RECONCILIATION_INTERVAL_SECONDS: ${COMMERCE_RECONCILIATION_INTERVAL_SECONDS:-21600}
+    ANALYTICS_REBUILD_INTERVAL_SECONDS: ${ANALYTICS_REBUILD_INTERVAL_SECONDS:-86400}
+    MOTIVATION_REBUILD_INTERVAL_SECONDS: ${MOTIVATION_REBUILD_INTERVAL_SECONDS:-86400}
+    OPERATIONS_SCHEDULER_POLL_SECONDS: ${OPERATIONS_SCHEDULER_POLL_SECONDS:-15}
+    OPERATIONS_JOB_LEASE_SECONDS: ${OPERATIONS_JOB_LEASE_SECONDS:-7200}
     OBSERVABILITY_SLOW_REQUEST_MS: ${OBSERVABILITY_SLOW_REQUEST_MS:-1000}
+    GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+    GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+    GOOGLE_OAUTH_REDIRECT_URI: ${GOOGLE_OAUTH_REDIRECT_URI:-}
+    APPLE_OAUTH_SERVICES_ID: ${APPLE_OAUTH_SERVICES_ID:-}
+    APPLE_OAUTH_TEAM_ID: ${APPLE_OAUTH_TEAM_ID:-}
+    APPLE_OAUTH_KEY_ID: ${APPLE_OAUTH_KEY_ID:-}
+    APPLE_OAUTH_PRIVATE_KEY: ${APPLE_OAUTH_PRIVATE_KEY:-}
+    APPLE_OAUTH_REDIRECT_URI: ${APPLE_OAUTH_REDIRECT_URI:-}
+    OAUTH_FLOW_TTL_SECONDS: ${OAUTH_FLOW_TTL_SECONDS:-600}
+    OAUTH_HTTP_TIMEOUT_SECONDS: ${OAUTH_HTTP_TIMEOUT_SECONDS:-10}
+    OBSERVABILITY_STATSD_HOST: ${OBSERVABILITY_STATSD_HOST:?Set OBSERVABILITY_STATSD_HOST}
+    OBSERVABILITY_STATSD_PORT: ${OBSERVABILITY_STATSD_PORT:-8125}
+    OBSERVABILITY_METRIC_PREFIX: ${OBSERVABILITY_METRIC_PREFIX:-lockin}
+    OBSERVABILITY_ERROR_WEBHOOK_URL: ${OBSERVABILITY_ERROR_WEBHOOK_URL:?Set OBSERVABILITY_ERROR_WEBHOOK_URL}
+    OBSERVABILITY_ERROR_WEBHOOK_TOKEN_FILE: /run/secrets/observability_error_webhook_token
+    OBSERVABILITY_ERROR_TIMEOUT_SECONDS: ${OBSERVABILITY_ERROR_TIMEOUT_SECONDS:-3}
   secrets:
     - django_secret_key
     - email_host_password
+    - payment_code_encryption_key
+    - observability_error_webhook_token
+    - storage_secret_access_key
   networks:
     - application
     - data
@@ -56,7 +115,28 @@ x-backend-common: &backend-common
     - no-new-privileges:true
 
 services:
+  clamav:
+    build:
+      context: ./deploy/clamav
+    image: lockin-clamav:${LOCKIN_IMAGE_TAG:?Set LOCKIN_IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      CLAMD_STARTUP_TIMEOUT: 1800
+      FRESHCLAM_CHECKS: 24
+    volumes:
+      - lockin_clamav_signatures:/var/lib/clamav
+    networks:
+      - data
+    mem_limit: 4g
+    cpus: 2.0
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+
   db:
+    # Opt-in. Activate with COMPOSE_PROFILES=bundled-db, or leave it out and
+    # point POSTGRES_HOST/POSTGRES_PORT at a managed PostgreSQL instance.
+    profiles: ["bundled-db"]
     image: postgres:18.4-alpine
     restart: unless-stopped
     environment:
@@ -94,10 +174,15 @@ services:
     secrets:
       - django_secret_key
       - email_host_password
+      - payment_code_encryption_key
+      - observability_error_webhook_token
+      - storage_secret_access_key
       - postgres_owner_password
     depends_on:
       db:
         condition: service_healthy
+        # Absent when the deployment uses a managed database.
+        required: false
     volumes:
       - lockin_static:/app/staticfiles
 
@@ -111,6 +196,9 @@ services:
     secrets:
       - django_secret_key
       - email_host_password
+      - payment_code_encryption_key
+      - observability_error_webhook_token
+      - storage_secret_access_key
       - postgres_runtime_password
     depends_on:
       release:
@@ -136,6 +224,9 @@ services:
     secrets:
       - django_secret_key
       - email_host_password
+      - payment_code_encryption_key
+      - observability_error_webhook_token
+      - storage_secret_access_key
       - postgres_runtime_password
     depends_on:
       preflight:
@@ -157,13 +248,63 @@ services:
       - lockin_media:/app/media
     stop_grace_period: 45s
 
+  operations-scheduler:
+    <<: *backend-common
+    command: ["python", "manage.py", "run_operations_scheduler"]
+    restart: unless-stopped
+    environment:
+      <<: *backend-environment
+      POSTGRES_USER: ${POSTGRES_RUNTIME_ROLE:-lockin_app}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_runtime_password
+    secrets:
+      - django_secret_key
+      - email_host_password
+      - payment_code_encryption_key
+      - observability_error_webhook_token
+      - storage_secret_access_key
+      - postgres_runtime_password
+    depends_on:
+      preflight:
+        condition: service_completed_successfully
+    stop_grace_period: 30s
+
+  file-scan-worker:
+    <<: *backend-common
+    command: ["python", "manage.py", "run_file_scanner"]
+    restart: unless-stopped
+    environment:
+      <<: *backend-environment
+      POSTGRES_USER: ${POSTGRES_RUNTIME_ROLE:-lockin_app}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_runtime_password
+    secrets:
+      - django_secret_key
+      - email_host_password
+      - payment_code_encryption_key
+      - observability_error_webhook_token
+      - storage_secret_access_key
+      - postgres_runtime_password
+    depends_on:
+      preflight:
+        condition: service_completed_successfully
+      clamav:
+        condition: service_healthy
+    volumes:
+      - lockin_media:/app/media
+    stop_grace_period: 150s
+
   edge:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: /api/v1
-    image: lockin-edge:${LOCKIN_IMAGE_TAG:-local}
+        VITE_APP_VERSION: ${LOCKIN_IMAGE_TAG:?Set LOCKIN_IMAGE_TAG}
+        VITE_SUPPORT_EMAIL: ${LOCKIN_SUPPORT_EMAIL:?Set LOCKIN_SUPPORT_EMAIL}
+        VITE_LEGAL_ENTITY: ${LOCKIN_LEGAL_ENTITY:?Set LOCKIN_LEGAL_ENTITY}
+        VITE_LEGAL_ADDRESS: ${LOCKIN_LEGAL_ADDRESS:?Set LOCKIN_LEGAL_ADDRESS}
+        VITE_LEGAL_JURISDICTION: ${LOCKIN_LEGAL_JURISDICTION:?Set LOCKIN_LEGAL_JURISDICTION}
+        VITE_POLICY_VERSION: ${ACCOUNT_POLICY_VERSION:?Set ACCOUNT_POLICY_VERSION}
+    image: lockin-edge:${LOCKIN_IMAGE_TAG:?Set LOCKIN_IMAGE_TAG}
     restart: unless-stopped
     depends_on:
       backend:
@@ -191,6 +332,13 @@ secrets:
     file: ${DJANGO_SECRET_KEY_FILE:?Set DJANGO_SECRET_KEY_FILE}
   email_host_password:
     file: ${EMAIL_HOST_PASSWORD_FILE:?Set EMAIL_HOST_PASSWORD_FILE}
+  payment_code_encryption_key:
+    file: ${PAYMENT_CODE_ENCRYPTION_KEY_FILE:?Set PAYMENT_CODE_ENCRYPTION_KEY_FILE}
+  observability_error_webhook_token:
+    file: ${OBSERVABILITY_ERROR_WEBHOOK_TOKEN_FILE:?Set OBSERVABILITY_ERROR_WEBHOOK_TOKEN_FILE}
+  # Unset resolves to an empty file, and the containers are told to ignore it.
+  storage_secret_access_key:
+    file: ${STORAGE_SECRET_ACCESS_KEY_FILE:-/dev/null}
   postgres_owner_password:
     file: ${POSTGRES_OWNER_PASSWORD_FILE:?Set POSTGRES_OWNER_PASSWORD_FILE}
   postgres_runtime_password:
@@ -198,11 +346,15 @@ secrets:
 
 volumes:
   lockin_postgres_data:
+  lockin_clamav_signatures:
   lockin_static:
   lockin_media:
 
 networks:
   application:
     internal: false
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
   data:
     internal: true

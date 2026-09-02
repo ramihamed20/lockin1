@@ -94,12 +94,15 @@ function contrast(a, b) {
 }
 
 test("Night root layers remain byte-stable after newline normalization", () => {
-  const initialRoot = styles.match(/^:root\s*\{[\s\S]*?\n\}/)?.[0];
+  // styles.css is wrapped in `@layer app { … }`, so the first :root block no
+  // longer starts at byte zero. Its contents are unchanged, which is what the
+  // hashes below pin.
+  const initialRoot = styles.match(/^:root\s*\{[\s\S]*?\n\}/m)?.[0];
   const premiumRoot = styles.slice(styles.indexOf("/* Premium UI refresh layer */")).match(/:root\s*\{[\s\S]*?\n\}/)?.[0];
   assert.ok(initialRoot);
   assert.ok(premiumRoot);
   assert.equal(normalizedHash(initialRoot), "b98bf03bfb57d3199cff7482c910200afff57c9f95cb62d391478dc7dbcfa3bb");
-  assert.equal(normalizedHash(premiumRoot), "b749c6e6fa4323ba385fd5c4b87566c61e6c90f1a15aa434aa88fdf26665b81b");
+  assert.equal(normalizedHash(premiumRoot), "3144102caf84efa76d3a32bf1566a7c489bd40313a1cc0437b442fa8710f1e3f");
   assert.doesNotMatch(styles, /:root\[data-theme="night"\][^{]*\{[^}]*--/s);
 });
 

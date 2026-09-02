@@ -152,16 +152,18 @@ Required fix: approve a scanner/provider-independent workflow, authenticate its 
 result to checksum/file identity, record timestamp/engine/version, test malicious/timeout/retry
 behavior, and alert on backlog. Do not weaken `CONTENT_REQUIRE_CLEAN_SCAN`.
 
-## SEC-007 - Observability providers and alerts are unconfigured
+## SEC-007 - Observability provider code is configured; alert delivery is unverified
 
 Severity: Medium
 
-Status: Open launch blocker
+Status: Partially remediated; external launch blocker
 
 Rule: production incidents and suspicious activity must be detectable and actionable.
 
-Evidence: provider-neutral structured logs, metrics/error contracts, request IDs, health, and slow
-request thresholds exist; the default sinks honestly return `not_configured`.
+Evidence: production now requires a StatsD destination and operator-owned HTTPS error collector;
+backend, browser, request, and scheduled-job signals are redacted and emitted. Development/test may
+still use honest no-op sinks. No real collector receipt, dashboard, paging route, or alert drill has
+been demonstrated from this workstation.
 
 Impact: without log aggregation, error capture, metrics, and tested paging, availability/security
 incidents may be invisible even though the application emits useful signals.

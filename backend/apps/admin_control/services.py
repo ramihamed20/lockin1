@@ -8,12 +8,16 @@ from uuid import UUID, uuid4
 from django.conf import settings
 from django.core.mail import send_mail
 from django.db import transaction
+from django.db.models import QuerySet
 from django.utils import timezone
 
 from apps.accounts.models import AccountSecurityEvent, AccountSession, User
 from apps.accounts.roles import Role, replace_managed_roles
 from apps.accounts.services import build_account_link, invalidate_sessions, request_password_reset
-from apps.administration.services import is_final_effective_platform_administrator, lock_effective_platform_administrators
+from apps.administration.services import (
+    is_final_effective_platform_administrator,
+    lock_effective_platform_administrators,
+)
 from apps.audit.services import record_audit
 from apps.entitlements.models import EntitlementDefinition, EntitlementGrant, PlanEntitlementRule
 from apps.entitlements.services import (
@@ -27,7 +31,12 @@ from apps.notifications.services import create_notification
 from apps.payments.models import Payment
 from apps.payments.services import apply_admin_reconciled_payment_state
 from apps.product_catalog.models import Plan, PlanVersion, Product
-from apps.product_catalog.services import create_plan_version, create_price, publish_plan_version, publish_price
+from apps.product_catalog.services import (
+    create_plan_version,
+    create_price,
+    publish_plan_version,
+    publish_price,
+)
 from apps.subscriptions.models import Subscription, SubscriptionTransition
 from apps.subscriptions.services import transition_subscription
 from apps.system_configuration.services import get_configuration_value
@@ -76,9 +85,16 @@ def _require_idempotency_key(value: str) -> str:
 
 @transaction.atomic
 def request_payment_status_correction(
-    *, payment_id: UUID, requested_status: str, provider_reference: str, actor: User,
-    reason: str, idempotency_key: str, source: str, correlation_id: UUID | None = None,
-    ip_address: str = ""
+    *,
+    payment_id: UUID,
+    requested_status: str,
+    provider_reference: str,
+    actor: User,
+    reason: str,
+    idempotency_key: str,
+    source: str,
+    correlation_id: UUID | None = None,
+    ip_address: str = "",
 ) -> PaymentStatusCorrection:
     """Create a pending, evidence-backed correction request for a second operator."""
     clean_reason = _require_reason(reason)
@@ -87,8 +103,14 @@ def request_payment_status_correction(
     if not reference:
         raise AdminControlError("A verified payment-provider reference is required.")
     payment = Payment.objects.select_for_update().get(id=payment_id)
-    if requested_status not in (Payment.Status.SUCCEEDED, Payment.Status.FAILED, Payment.Status.CANCELLED):
-        raise AdminControlError("This payment status is not eligible for controlled reconciliation.")
+    if requested_status not in (
+        Payment.Status.SUCCEEDED,
+        Payment.Status.FAILED,
+        Payment.Status.CANCELLED,
+    ):
+        raise AdminControlError(
+            "This payment status is not eligible for controlled reconciliation."
+        )
     correction, created = PaymentStatusCorrection.objects.get_or_create(
         payment=payment,
         requested_by=actor,
@@ -100,8 +122,13 @@ def request_payment_status_correction(
         },
     )
     if not created:
-        if correction.requested_status != requested_status or correction.provider_reference != reference[:180]:
-            raise AdminControlError("This idempotency key was already used for a different correction request.")
+        if (
+            correction.requested_status != requested_status
+            or correction.provider_reference != reference[:180]
+        ):
+            raise AdminControlError(
+                "This idempotency key was already used for a different correction request."
+            )
         return correction
     record_audit(
         actor=actor,
@@ -122,21 +149,32 @@ def request_payment_status_correction(
 
 @transaction.atomic
 def review_payment_status_correction(
-    *, correction_id: UUID, decision: str, actor: User, reason: str, idempotency_key: str,
-    source: str, correlation_id: UUID | None = None, ip_address: str = ""
+    *,
+    correction_id: UUID,
+    decision: str,
+    actor: User,
+    reason: str,
+    idempotency_key: str,
+    source: str,
+    correlation_id: UUID | None = None,
+    ip_address: str = "",
 ) -> PaymentStatusCorrection:
     """Apply or reject a correction request using separation of duties."""
     clean_reason = _require_reason(reason)
     key = _require_idempotency_key(idempotency_key)
-    correction = PaymentStatusCorrection.objects.select_for_update().select_related(
-        "payment__account", "requested_by"
-    ).get(id=correction_id)
+    correction = (
+        PaymentStatusCorrection.objects.select_for_update()
+        .select_related("payment__account", "requested_by")
+        .get(id=correction_id)
+    )
     if correction.status != PaymentStatusCorrection.Status.PENDING:
         if correction.approval_idempotency_key == key:
             return correction
         raise AdminControlError("This correction request has already been reviewed.")
     if correction.requested_by_id == actor.id:
-        raise AdminControlError("A different administrator must review a payment correction request.")
+        raise AdminControlError(
+            "A different administrator must review a payment correction request."
+        )
     if decision not in {"approve", "reject"}:
         raise AdminControlError("The payment correction decision is invalid.")
     previous = {"payment_status": correction.payment.status, "request_status": correction.status}
@@ -159,7 +197,11 @@ def review_payment_status_correction(
         payment_status = correction.payment.status
     correction.save(
         update_fields=(
-            "reviewed_by", "review_reason", "approval_idempotency_key", "reviewed_at", "status"
+            "reviewed_by",
+            "review_reason",
+            "approval_idempotency_key",
+            "reviewed_at",
+            "status",
         )
     )
     record_audit(
@@ -181,8 +223,15 @@ def review_payment_status_correction(
 
 @transaction.atomic
 def add_internal_note(
-    *, actor: User, target_type: str, target_id: str, body: str, reason: str, source: str,
-    correlation_id: UUID | None = None, ip_address: str = ""
+    *,
+    actor: User,
+    target_type: str,
+    target_id: str,
+    body: str,
+    reason: str,
+    source: str,
+    correlation_id: UUID | None = None,
+    ip_address: str = "",
 ) -> AdminInternalNote:
     clean_reason = _require_reason(reason)
     clean_body = body.strip()
@@ -233,9 +282,12 @@ def manage_subscription(
         .select_related("account", "plan_version__plan")
         .get(id=subscription_id)
     )
-    previous_event = SubscriptionAdminEvent.objects.filter(
-        subscription=subscription, idempotency_key=key
-    ).first()
+    previous_event = cast(
+        SubscriptionAdminEvent | None,
+        SubscriptionAdminEvent.objects.filter(
+            subscription=subscription, idempotency_key=key
+        ).first(),
+    )
     if previous_event is not None:
         if previous_event.action != action.strip():
             raise AdminControlError("This idempotency key was already used for a different action.")
@@ -308,12 +360,21 @@ def manage_subscription(
     elif normalized_action in {"extend", "change_expiration"}:
         if period_ends_at is None:
             raise AdminControlError("A new expiration date is required.")
-        if not subscription.current_period_started_at or period_ends_at <= subscription.current_period_started_at:
+        if (
+            not subscription.current_period_started_at
+            or period_ends_at <= subscription.current_period_started_at
+        ):
             raise AdminControlError("The expiration date must be after the current period start.")
-        if normalized_action == "extend" and subscription.current_period_ends_at and period_ends_at <= subscription.current_period_ends_at:
+        if (
+            normalized_action == "extend"
+            and subscription.current_period_ends_at
+            and period_ends_at <= subscription.current_period_ends_at
+        ):
             raise AdminControlError("An extension must move the expiration date forward.")
         subscription.current_period_ends_at = period_ends_at
-        subscription.grace_ends_at = period_ends_at + timedelta(days=subscription.plan_version.grace_days)
+        subscription.grace_ends_at = period_ends_at + timedelta(
+            days=subscription.plan_version.grace_days
+        )
         subscription.cancel_at_period_end = False
         subscription.cancellation_requested_at = None
         subscription.status_reason = f"admin_{normalized_action}"
@@ -390,7 +451,9 @@ def manage_subscription(
         correlation_id=correlation_id,
         previous_state=previous,
         new_state=current,
-        related_entities=[{"type": "accounts.user", "id": str(subscription.account.primary_user_id)}],
+        related_entities=[
+            {"type": "accounts.user", "id": str(subscription.account.primary_user_id)}
+        ],
         metadata={"ip_address": ip_address[:64], "note": note.strip()[:4000]},
     )
     return subscription
@@ -398,8 +461,14 @@ def manage_subscription(
 
 @transaction.atomic
 def change_user_status(
-    *, target: User, status: str, actor: User, reason: str, source: str,
-    correlation_id: UUID | None = None, ip_address: str = ""
+    *,
+    target: User,
+    status: str,
+    actor: User,
+    reason: str,
+    source: str,
+    correlation_id: UUID | None = None,
+    ip_address: str = "",
 ) -> User:
     clean_reason = _require_reason(reason)
     if status not in User.Status.values:
@@ -411,9 +480,13 @@ def change_user_status(
     target = User.objects.select_for_update().get(id=target.id)
     previous = {"status": target.status, "is_active": target.is_active}
     if target.id == actor.id and status != User.Status.ACTIVE:
-        raise AdminControlError("You cannot suspend or delete your own active administrative account.")
+        raise AdminControlError(
+            "You cannot suspend or delete your own active administrative account."
+        )
     if status != User.Status.ACTIVE and is_final_effective_platform_administrator(user=target):
-        raise AdminControlError("The final active platform administrator cannot be suspended or deleted.")
+        raise AdminControlError(
+            "The final active platform administrator cannot be suspended or deleted."
+        )
     target.status = status
     target.save(update_fields=("status", "is_active", "updated_at"))
     if status != User.Status.ACTIVE:
@@ -442,8 +515,14 @@ def change_user_status(
 
 @transaction.atomic
 def set_user_verification(
-    *, target: User, verified: bool, actor: User, reason: str, source: str,
-    correlation_id: UUID | None = None, ip_address: str = ""
+    *,
+    target: User,
+    verified: bool,
+    actor: User,
+    reason: str,
+    source: str,
+    correlation_id: UUID | None = None,
+    ip_address: str = "",
 ) -> User:
     clean_reason = _require_reason(reason)
     target = User.objects.select_for_update().get(id=target.id)
@@ -468,8 +547,14 @@ def set_user_verification(
 
 @transaction.atomic
 def set_product_roles(
-    *, target: User, role_codes: Iterable[str], actor: User, reason: str, source: str,
-    correlation_id: UUID | None = None, ip_address: str = ""
+    *,
+    target: User,
+    role_codes: Iterable[str],
+    actor: User,
+    reason: str,
+    source: str,
+    correlation_id: UUID | None = None,
+    ip_address: str = "",
 ) -> tuple[str, ...]:
     clean_reason = _require_reason(reason)
     try:
@@ -501,8 +586,14 @@ def set_product_roles(
 
 @transaction.atomic
 def force_user_logout(
-    *, target: User, actor: User, reason: str, source: str, session_id: UUID | None = None,
-    correlation_id: UUID | None = None, ip_address: str = ""
+    *,
+    target: User,
+    actor: User,
+    reason: str,
+    source: str,
+    session_id: UUID | None = None,
+    correlation_id: UUID | None = None,
+    ip_address: str = "",
 ) -> int:
     clean_reason = _require_reason(reason)
     if session_id is None:
@@ -526,15 +617,23 @@ def force_user_logout(
         source=source,
         correlation_id=correlation_id,
         new_state={"sessions_revoked": removed},
-        metadata={"session_id": str(session_id) if session_id else None, "ip_address": ip_address[:64]},
+        metadata={
+            "session_id": str(session_id) if session_id else None,
+            "ip_address": ip_address[:64],
+        },
     )
     return removed
 
 
 @transaction.atomic
 def trigger_password_reset(
-    *, target: User, actor: User, reason: str, source: str,
-    correlation_id: UUID | None = None, ip_address: str = ""
+    *,
+    target: User,
+    actor: User,
+    reason: str,
+    source: str,
+    correlation_id: UUID | None = None,
+    ip_address: str = "",
 ) -> bool:
     clean_reason = _require_reason(reason)
     issued = request_password_reset(email=target.email)
@@ -568,7 +667,7 @@ def trigger_password_reset(
     return True
 
 
-def _campaign_recipients(campaign: NotificationCampaign) -> Iterable[User]:
+def _campaign_recipients(campaign: NotificationCampaign) -> QuerySet[User]:
     audience = campaign.audience
     payload = campaign.audience_filter
     users = User.objects.filter(status=User.Status.ACTIVE).order_by("id")
@@ -597,7 +696,9 @@ def _campaign_recipients(campaign: NotificationCampaign) -> Iterable[User]:
             )
         ).distinct()
     if audience == NotificationCampaign.Audience.TRIAL_USERS:
-        return users.filter(subscription_accounts__subscriptions__status=Subscription.Status.TRIALING).distinct()
+        return users.filter(
+            subscription_accounts__subscriptions__status=Subscription.Status.TRIALING
+        ).distinct()
     if audience == NotificationCampaign.Audience.PLAN_USERS:
         return users.filter(
             subscription_accounts__subscriptions__plan_version__plan__code=payload.get("plan_code"),
@@ -621,9 +722,19 @@ def _email_is_configured() -> bool:
 
 @transaction.atomic
 def create_notification_campaign(
-    *, actor: User, audience: str, audience_filter: dict[str, object], title: str, body: str,
-    send_in_app: bool, send_email: bool, scheduled_for: Any, reason: str, source: str,
-    correlation_id: UUID | None = None, ip_address: str = ""
+    *,
+    actor: User,
+    audience: str,
+    audience_filter: dict[str, object],
+    title: str,
+    body: str,
+    send_in_app: bool,
+    send_email: bool,
+    scheduled_for: Any,
+    reason: str,
+    source: str,
+    correlation_id: UUID | None = None,
+    ip_address: str = "",
 ) -> NotificationCampaign:
     clean_reason = _require_reason(reason)
     if audience not in NotificationCampaign.Audience.values:
@@ -660,7 +771,12 @@ def create_notification_campaign(
         reason=clean_reason,
         source=source,
         correlation_id=correlation_id,
-        new_state={"audience": audience, "status": status, "send_in_app": send_in_app, "send_email": send_email},
+        new_state={
+            "audience": audience,
+            "status": status,
+            "send_in_app": send_in_app,
+            "send_email": send_email,
+        },
         metadata={"ip_address": ip_address[:64]},
     )
     return campaign
@@ -668,19 +784,28 @@ def create_notification_campaign(
 
 @transaction.atomic
 def dispatch_notification_campaign(
-    *, campaign_id: UUID, actor: User, reason: str, source: str,
-    correlation_id: UUID | None = None, ip_address: str = ""
+    *,
+    campaign_id: UUID,
+    actor: User,
+    reason: str,
+    source: str,
+    correlation_id: UUID | None = None,
+    ip_address: str = "",
 ) -> NotificationCampaign:
     clean_reason = _require_reason(reason)
     campaign = NotificationCampaign.objects.select_for_update().get(id=campaign_id)
-    if campaign.status not in (NotificationCampaign.Status.DRAFT, NotificationCampaign.Status.SCHEDULED):
+    if campaign.status not in (
+        NotificationCampaign.Status.DRAFT,
+        NotificationCampaign.Status.SCHEDULED,
+    ):
         raise AdminControlError("This campaign cannot be dispatched in its current state.")
     recipients = _campaign_recipients(campaign)
     recipient_count = recipients.count()
     maximum = int(get_configuration_value("notifications.max_campaign_recipients"))
     if recipient_count > maximum:
         raise AdminControlError(
-            f"This campaign targets {recipient_count} users, exceeding the configured synchronous limit of {maximum}."
+            f"This campaign targets {recipient_count} users, exceeding the configured "
+            f"synchronous limit of {maximum}."
         )
     campaign.status = NotificationCampaign.Status.PROCESSING
     campaign.save(update_fields=("status", "updated_at"))
@@ -739,12 +864,12 @@ def dispatch_notification_campaign(
     campaign.failed_count = failed
     campaign.completed_at = timezone.now()
     campaign.status = (
-        NotificationCampaign.Status.FAILED if failed and not delivered else NotificationCampaign.Status.COMPLETED
+        NotificationCampaign.Status.FAILED
+        if failed and not delivered
+        else NotificationCampaign.Status.COMPLETED
     )
     campaign.save(
-        update_fields=(
-            "status", "delivered_count", "failed_count", "completed_at", "updated_at"
-        )
+        update_fields=("status", "delivered_count", "failed_count", "completed_at", "updated_at")
     )
     record_audit(
         actor=actor,
@@ -763,8 +888,16 @@ def dispatch_notification_campaign(
 
 @transaction.atomic
 def grant_access_override(
-    *, user: User, entitlement_code: str, starts_at: Any, ends_at: Any, actor: User,
-    reason: str, source: str, correlation_id: UUID | None = None, ip_address: str = ""
+    *,
+    user: User,
+    entitlement_code: str,
+    starts_at: Any,
+    ends_at: Any,
+    actor: User,
+    reason: str,
+    source: str,
+    correlation_id: UUID | None = None,
+    ip_address: str = "",
 ) -> EntitlementGrant:
     clean_reason = _require_reason(reason)
     if starts_at is None:
@@ -795,8 +928,13 @@ def grant_access_override(
 
 @transaction.atomic
 def revoke_access_override(
-    *, grant_id: UUID, actor: User, reason: str, source: str,
-    correlation_id: UUID | None = None, ip_address: str = ""
+    *,
+    grant_id: UUID,
+    actor: User,
+    reason: str,
+    source: str,
+    correlation_id: UUID | None = None,
+    ip_address: str = "",
 ) -> EntitlementGrant:
     clean_reason = _require_reason(reason)
     grant = revoke_manual_entitlement(
@@ -828,7 +966,9 @@ def entitlement_inspection(*, user: User) -> dict[str, object]:
     decisions = [
         {
             "code": definition.code,
-            "allowed": (decision := entitlement_decision(user=user, entitlement_code=definition.code)).allowed,
+            "allowed": (
+                decision := entitlement_decision(user=user, entitlement_code=definition.code)
+            ).allowed,
             "reason": decision.reason,
             "expires_at": decision.expires_at,
         }
@@ -887,8 +1027,12 @@ def serialize_plan(plan: Plan) -> dict[str, object]:
 
 @transaction.atomic
 def create_admin_plan_version(
-    *, actor: User, payload: dict[str, Any], source: str, correlation_id: UUID | None = None,
-    ip_address: str = ""
+    *,
+    actor: User,
+    payload: dict[str, Any],
+    source: str,
+    correlation_id: UUID | None = None,
+    ip_address: str = "",
 ) -> Plan:
     clean_reason = _require_reason(str(payload["reason"]))
     product = Product.objects.select_for_update().get(id=payload["product_id"])
@@ -924,7 +1068,10 @@ def create_admin_plan_version(
             configuration=cast(dict[str, object], entitlement_payload.get("configuration", {})),
         )
     if bool(payload["publish"]):
-        publish_plan_version(plan_version=version)
+        try:
+            publish_plan_version(plan_version=version)
+        except ValueError as error:
+            raise AdminControlError(str(error)) from error
         for price in version.prices.all():
             publish_price(price=price)
     plan = Plan.objects.select_related("product", "current_version").get(id=version.plan_id)
@@ -937,7 +1084,11 @@ def create_admin_plan_version(
         reason=clean_reason,
         source=source,
         correlation_id=correlation_id,
-        new_state={"plan_code": plan.code, "version_id": str(version.id), "published": bool(payload["publish"])},
+        new_state={
+            "plan_code": plan.code,
+            "version_id": str(version.id),
+            "published": bool(payload["publish"]),
+        },
         metadata={"ip_address": ip_address[:64]},
     )
     return plan
@@ -945,12 +1096,25 @@ def create_admin_plan_version(
 
 @transaction.atomic
 def change_plan_lifecycle(
-    *, plan_id: UUID, action: str, actor: User, reason: str, source: str,
-    correlation_id: UUID | None = None, ip_address: str = ""
+    *,
+    plan_id: UUID,
+    action: str,
+    actor: User,
+    reason: str,
+    source: str,
+    correlation_id: UUID | None = None,
+    ip_address: str = "",
 ) -> Plan:
     clean_reason = _require_reason(reason)
-    plan = Plan.objects.select_for_update().select_related("product", "current_version").get(id=plan_id)
-    previous = {"status": plan.status, "current_version_id": str(plan.current_version_id) if plan.current_version_id else None}
+    plan = (
+        Plan.objects.select_for_update()
+        .select_related("product", "current_version")
+        .get(id=plan_id)
+    )
+    previous = {
+        "status": plan.status,
+        "current_version_id": str(plan.current_version_id) if plan.current_version_id else None,
+    }
     if action == "retire":
         plan.status = Plan.Status.ARCHIVED
     elif action == "restore":
@@ -962,7 +1126,10 @@ def change_plan_lifecycle(
             latest = plan.versions.order_by("-version").first()
             if latest is None:
                 raise AdminControlError("The plan has no version to publish.")
-            publish_plan_version(plan_version=latest)
+            try:
+                publish_plan_version(plan_version=latest)
+            except ValueError as error:
+                raise AdminControlError(str(error)) from error
             for price in latest.prices.all():
                 publish_price(price=price)
             plan.refresh_from_db()
@@ -981,7 +1148,10 @@ def change_plan_lifecycle(
         source=source,
         correlation_id=correlation_id,
         previous_state=previous,
-        new_state={"status": plan.status, "current_version_id": str(plan.current_version_id) if plan.current_version_id else None},
+        new_state={
+            "status": plan.status,
+            "current_version_id": str(plan.current_version_id) if plan.current_version_id else None,
+        },
         metadata={"ip_address": ip_address[:64]},
     )
     return plan

@@ -26,10 +26,20 @@ function nodeKindLabel(kind, t) {
 
 export default function Materials() {
   const { t } = useI18n();
+
   return (
     <Page title="Materials">
-      <section className="material-grid catalog-material-grid" aria-label={t("materials.catalogLabel")}>
-        {MATERIAL_CATALOG.map((material) => <CatalogMaterialCard key={material.slug} material={material} />)}
+      <section aria-labelledby="demo-materials-heading">
+        <div className="panel-title">
+          <div>
+            <p className="eyebrow">{t("materials.demoCatalogTitle")}</p>
+            <h2 id="demo-materials-heading">{t("materials.demoCatalogHeading")}</h2>
+            <p className="muted">{t("materials.demoCatalogSubtitle")}</p>
+          </div>
+        </div>
+        <section className="material-grid catalog-material-grid" aria-label={t("materials.catalogLabel")}>
+          {MATERIAL_CATALOG.map((material) => <CatalogMaterialCard key={material.slug} material={material} />)}
+        </section>
       </section>
     </Page>
   );

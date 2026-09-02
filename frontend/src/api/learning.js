@@ -62,7 +62,11 @@ export const learningApi = {
 
 /** Authenticated, server-indexed search. */
 export const discoveryApi = {
-  async search({ query = "", kinds = [], contentTypes = [], academicPath = "", page = 1, pageSize = 25 } = {}) {
+  /**
+   * @param {{query?: string, kinds?: string[], contentTypes?: string[], academicPath?: string, limit?: number | null, page?: number, pageSize?: number, signal?: AbortSignal}} [options]
+   */
+  async search({ query = "", kinds = [], contentTypes = [], academicPath = "", limit = null, page = 1, pageSize = 25, signal } = {}) {
+    const paging = limit == null ? { page, page_size: pageSize } : { limit };
     const payload = await request(
       "/search" +
         buildQueryString({
@@ -70,9 +74,9 @@ export const discoveryApi = {
           kinds,
           content_types: contentTypes,
           academic_path: academicPath,
-          page,
-          page_size: pageSize
-        })
+          ...paging
+        }),
+      { signal }
     );
     return pagePayload(payload, "The search response was incomplete.");
   }

@@ -1,3 +1,4 @@
+import calendar
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from uuid import UUID
@@ -7,7 +8,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.accounts.models import User
-from apps.product_catalog.models import Plan, PlanVersion
+from apps.product_catalog.models import Plan, PlanVersion, Price
 from platform_core.events import publish_after_commit
 
 from .events import (
@@ -23,6 +24,51 @@ from .validation import validate_transition
 class TransitionResult:
     subscription: Subscription
     changed: bool
+
+
+def advance_billing_period(start: datetime, *, interval: str, count: int) -> datetime:
+    """Advance an authoritative billing anchor without client-owned duration math."""
+    if count <= 0:
+        raise ValueError("A billing interval count must be positive.")
+    if interval == Price.Interval.DAY:
+        return start + timedelta(days=count)
+    if interval == Price.Interval.MONTH:
+        months = count
+    elif interval == Price.Interval.YEAR:
+        months = count * 12
+    else:
+        raise ValueError("Unsupported billing interval.")
+    total_month = start.month - 1 + months
+    year = start.year + total_month // 12
+    month = total_month % 12 + 1
+    day = min(start.day, calendar.monthrange(year, month)[1])
+    return start.replace(year=year, month=month, day=day)
+
+
+def paid_period_window(
+    *, subscription: Subscription, price: Price, effective_at: datetime
+) -> tuple[datetime, datetime]:
+    """Return the paid segment anchor/end while preserving trial and grace accounting."""
+    if (
+        subscription.status == Subscription.Status.TRIALING
+        and subscription.trial_ends_at
+        and subscription.trial_ends_at > effective_at
+    ):
+        anchor = subscription.trial_ends_at
+    elif (
+        subscription.status in (Subscription.Status.ACTIVE, Subscription.Status.GRACE)
+        and subscription.current_period_ends_at
+    ) or (
+        subscription.current_period_ends_at
+        and subscription.grace_ends_at
+        and effective_at <= subscription.grace_ends_at
+    ):
+        anchor = subscription.current_period_ends_at
+    else:
+        anchor = effective_at
+    return anchor, advance_billing_period(
+        anchor, interval=price.interval, count=price.interval_count
+    )
 
 
 @transaction.atomic

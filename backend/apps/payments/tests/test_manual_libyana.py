@@ -99,6 +99,11 @@ def test_submission_uses_server_plan_terms_and_grants_provisional_access() -> No
     assert trial.status == Subscription.Status.ACTIVE
     assert trial.payment_verification == Subscription.PaymentVerification.PROVISIONAL
     assert trial.current_period_ends_at == trial.trial_ends_at + timedelta(days=30)
+    assert response.json()["subscription"]["status"] == Subscription.Status.ACTIVE
+    assert response.json()["subscription"]["payment_verification"] == "provisional"
+    assert response.json()["subscription"]["expires_at"] == (
+        trial.current_period_ends_at.isoformat().replace("+00:00", "Z")
+    )
     assert "recharge_code" not in response.json()["submission"]
     assert AuditRecord.objects.filter(action="payment_submitted").exists()
 
@@ -129,12 +134,15 @@ def test_duplicate_recharge_code_is_rejected_for_another_user() -> None:
     second_client = APIClient()
     second_client.force_authenticate(second_user)
 
-    assert _submit(
-        first_client,
-        plan=plan,
-        code="5555-4444-3333",
-        key="manual-duplicate-first-001",
-    ).status_code == 201
+    assert (
+        _submit(
+            first_client,
+            plan=plan,
+            code="5555-4444-3333",
+            key="manual-duplicate-first-001",
+        ).status_code
+        == 201
+    )
     duplicate = _submit(
         second_client,
         plan=plan,
@@ -176,6 +184,11 @@ def test_only_admin_can_review_and_approval_is_idempotent() -> None:
     )
     admin_client = APIClient()
     admin_client.force_authenticate(admin)
+    pending_list = admin_client.get("/api/v1/operations/admin/purchases?manual_status=pending")
+    pending_detail = admin_client.get(f"/api/v1/operations/admin/purchases/{payment_id}")
+    assert pending_list.status_code == 200
+    assert pending_detail.status_code == 200
+    assert pending_detail.json()["manual_submission"]["recharge_code"] == "987654321012"
     first = admin_client.post(
         f"/api/v1/operations/admin/purchases/{payment_id}/manual-review",
         {"decision": "approve", "reason": "Card value verified"},
@@ -196,6 +209,8 @@ def test_only_admin_can_review_and_approval_is_idempotent() -> None:
     assert subscription.payment_verification == Subscription.PaymentVerification.VERIFIED
     assert subscription.current_period_ends_at == expected_end
     assert submission.recharge_code_ciphertext == ""
+    reviewed_detail = admin_client.get(f"/api/v1/operations/admin/purchases/{payment_id}")
+    assert reviewed_detail.json()["manual_submission"]["recharge_code"] == "********1012"
     assert AuditRecord.objects.filter(action="payment_approved").count() == 1
 
 
@@ -295,10 +310,13 @@ def test_lifecycle_reminders_grace_and_expiration_are_server_driven() -> None:
     ):
         call_command("process_subscription_lifecycle")
         call_command("process_subscription_lifecycle")
-    assert Notification.objects.filter(
-        recipient=user,
-        template_key="billing.expiry.7_days",
-    ).count() == 1
+    assert (
+        Notification.objects.filter(
+            recipient=user,
+            template_key="billing.expiry.7_days",
+        ).count()
+        == 1
+    )
 
     grace = refresh_subscription(
         subscription=subscription,

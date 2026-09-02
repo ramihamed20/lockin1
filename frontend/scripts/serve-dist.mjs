@@ -44,10 +44,12 @@ function shutdown() {
   server.close((error) => {
     if (error) {
       console.error("Could not stop the production-file test server", error);
-      process.exitCode = 1;
+      process.exit(1);
     }
+    process.exit(0);
   });
   server.closeAllConnections?.();
+  setTimeout(() => process.exit(0), 1_000).unref();
 }
 
 process.once("SIGINT", shutdown);

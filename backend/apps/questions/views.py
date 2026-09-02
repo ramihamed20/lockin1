@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import User
+from apps.content.models import LearningObject
 from apps.education.models import EducationNode
 from apps.education.permissions import IsCreatorOrAdministrator
 
@@ -62,11 +63,17 @@ def _rule_error(error: QuestionRuleError) -> APIException:
 
 
 def _write_input(data: dict[str, Any]) -> QuestionInput:
+    source_id = data.get("source_learning_object_id")
     return QuestionInput(
         academic_node=get_object_or_404(EducationNode, id=data["academic_node_id"]),
+        source_learning_object=(
+            get_object_or_404(LearningObject, id=source_id) if source_id is not None else None
+        ),
         question_type=str(data["question_type"]),
         prompt=str(data["prompt"]),
         explanation=str(data.get("explanation", "")),
+        topic=str(data.get("topic", "")),
+        source_page=data.get("source_page"),
         difficulty=str(data["difficulty"]),
         language=str(data["language"]),
         metadata=dict(data.get("metadata", {})),

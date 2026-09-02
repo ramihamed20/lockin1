@@ -6,6 +6,55 @@ from django.db import models
 from django.db.models import F, Q
 
 
+class AcademicProgram(models.Model):
+    """An enrolment program, kept separate from the content-navigation tree."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    code = models.SlugField(max_length=80, unique=True)
+    name_en = models.CharField(max_length=120)
+    name_ar = models.CharField(max_length=120)
+    is_active = models.BooleanField(default=True, db_index=True)
+    position = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("position", "name_en", "id")
+
+    def __str__(self) -> str:
+        return self.name_en
+
+
+class StudentCohort(models.Model):
+    """A selectable intake/class within an academic program."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    program = models.ForeignKey(
+        AcademicProgram,
+        on_delete=models.PROTECT,
+        related_name="cohorts",
+    )
+    code = models.SlugField(max_length=80)
+    name_en = models.CharField(max_length=120)
+    name_ar = models.CharField(max_length=120)
+    is_active = models.BooleanField(default=True, db_index=True)
+    position = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("program__position", "position", "name_en", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("program", "code"),
+                name="education_program_cohort_unique",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return self.name_en
+
+
 class EducationNode(models.Model):
     class Kind(models.TextChoices):
         INSTITUTION = "institution", "Institution"

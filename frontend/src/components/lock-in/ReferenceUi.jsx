@@ -1,6 +1,7 @@
 import { cva } from "class-variance-authority";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { UserAvatar } from "../shared/UserAvatar.jsx";
 
 export function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -43,6 +44,10 @@ export function ReferenceProgress({ value, className = "", indicatorClassName = 
   );
 }
 
-export function ReferenceAvatar({ initials, tone = "violet", className = "" }) {
-  return <span className={cn("lockin-reference-avatar", `lockin-reference-avatar--${tone}`, className)} aria-hidden="true">{initials}</span>;
+export function ReferenceAvatar({ initials, avatar, userId, tone = "violet", className = "" }) {
+  return (
+    <span className={cn("lockin-reference-avatar", `lockin-reference-avatar--${tone}`, className)} aria-hidden="true">
+      {avatar ? <UserAvatar avatar={avatar} user={{ id: userId }} alt="" /> : initials}
+    </span>
+  );
 }

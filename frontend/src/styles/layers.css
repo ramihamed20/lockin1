@@ -1,0 +1,18 @@
+/* Cascade order for the whole application.
+
+   `primitives` carries the resting layout of the shared controls, so the
+   historical class names in `app` can still override it during migration.
+   Everything that predates the interaction-state rebuild lives in `app`.
+   The interaction layer is declared last so a single, centralised definition
+   of hover / press / focus / selected always wins over the historical rules,
+   no matter which route-level stylesheet happens to load last.
+
+   Only cascade layers give that guarantee: page stylesheets are imported by
+   lazily-loaded routes, so their source order changes with the navigation
+   path the user happened to take. */
+/* `startup` is named first on purpose. `public/startup.css` is a plain
+   stylesheet in the document head, so it is parsed before this file and names
+   the layer itself; repeating it here is what keeps the order correct if that
+   sheet is ever absent, and records that the opening frame sits underneath the
+   application rather than over it. */
+@layer startup, primitives, app, interaction;

@@ -2,6 +2,7 @@ from typing import Any
 
 from rest_framework import serializers
 
+from apps.accounts.avatars import AvatarPayload, avatar_payload
 from apps.accounts.models import User
 from apps.accounts.roles import Role
 from platform_core.api.serializers import StrictSerializer
@@ -30,14 +31,18 @@ def _request_user(context: dict[str, Any]) -> User | None:
 
 class AuthorSerializer(serializers.ModelSerializer[User]):
     badges = serializers.SerializerMethodField()
+    avatar = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ("id", "full_name", "badges")
+        fields = ("id", "full_name", "avatar", "badges")
         read_only_fields = fields
 
     def get_badges(self, user: User) -> list[str]:
         return _author_badges(user)
+
+    def get_avatar(self, user: User) -> AvatarPayload:
+        return avatar_payload(user)
 
 
 class DiscussionSerializer(serializers.ModelSerializer[Discussion]):

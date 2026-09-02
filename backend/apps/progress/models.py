@@ -21,7 +21,14 @@ class Bookmark(models.Model):
         LearningObject,
         on_delete=models.CASCADE,
         related_name="bookmarks",
+        null=True,
+        blank=True,
     )
+    catalog_material_slug = models.CharField(max_length=64, blank=True, default="")
+    catalog_material_title = models.CharField(max_length=160, blank=True, default="")
+    catalog_sheet_slug = models.CharField(max_length=64, blank=True, default="")
+    catalog_sheet_title = models.CharField(max_length=240, blank=True, default="")
+    position = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -29,13 +36,41 @@ class Bookmark(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=("user", "learning_object"),
+                condition=Q(learning_object__isnull=False),
                 name="progress_bookmark_unique",
-            )
+            ),
+            models.UniqueConstraint(
+                fields=("user", "catalog_material_slug", "catalog_sheet_slug"),
+                condition=(
+                    Q(learning_object__isnull=True)
+                    & ~Q(catalog_material_slug="")
+                    & ~Q(catalog_sheet_slug="")
+                ),
+                name="progress_catalog_bookmark_unique",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(
+                        learning_object__isnull=False,
+                        catalog_material_slug="",
+                        catalog_sheet_slug="",
+                    )
+                    | (
+                        Q(learning_object__isnull=True)
+                        & ~Q(catalog_material_slug="")
+                        & ~Q(catalog_sheet_slug="")
+                    )
+                ),
+                name="progress_bookmark_target_valid",
+            ),
         ]
         indexes = [models.Index(fields=("user", "-created_at"), name="progress_bookmark_user_idx")]
 
     def __str__(self) -> str:
-        return f"{self.user_id}:{self.learning_object_id}"
+        target = self.learning_object_id or (
+            f"{self.catalog_material_slug}/{self.catalog_sheet_slug}"
+        )
+        return f"{self.user_id}:{target}"
 
 
 class LearningProgress(models.Model):

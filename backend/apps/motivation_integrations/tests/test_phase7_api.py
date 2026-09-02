@@ -1,8 +1,10 @@
 import pytest
+from django.contrib.auth.models import Group
 from rest_framework.test import APIClient
 
+from apps.accounts.roles import Role
 from apps.accounts.tests.helpers import create_user
-from apps.notifications.models import Notification
+from apps.notifications.models import Notification, NotificationPreference
 from apps.notifications.services import create_notification
 
 pytestmark = pytest.mark.django_db
@@ -65,3 +67,33 @@ def test_non_admin_cannot_build_rankings_or_create_platform_notice() -> None:
 
     assert client.post("/api/v1/progression/rankings/learning_all_time/build").status_code == 403
     assert client.post("/api/v1/notifications/platform-notices", {}).status_code == 403
+
+
+def test_optional_platform_notice_respects_recipient_preference() -> None:
+    admin = create_user(email="admin-notice@example.com")
+    recipient = create_user(email="recipient-notice@example.com")
+    Group.objects.get(name=Role.ADMINISTRATOR.value).user_set.add(admin)
+    NotificationPreference.objects.create(
+        user=recipient,
+        category=Notification.Category.PLATFORM,
+        channel=NotificationPreference.Channel.IN_APP,
+        enabled=False,
+    )
+    client = APIClient()
+    client.force_authenticate(admin)
+
+    response = client.post(
+        "/api/v1/notifications/platform-notices",
+        {
+            "recipient_id": str(recipient.id),
+            "title": "Maintenance",
+            "body": "The platform will be briefly unavailable.",
+            "notice_key": "maintenance-2026-08-14",
+            "is_required": False,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 202
+    assert response.json()["created"] is False
+    assert not Notification.objects.filter(recipient=recipient).exists()

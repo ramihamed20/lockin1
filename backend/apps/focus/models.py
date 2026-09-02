@@ -19,21 +19,23 @@ class FocusTeam(models.Model):
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="owned_focus_teams"
     )
-    invite_code = models.CharField(max_length=12, unique=True, db_index=True, default=focus_team_invite_code)
+    invite_code = models.CharField(
+        max_length=12, unique=True, db_index=True, default=focus_team_invite_code
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ("-updated_at", "name")
 
+    def __str__(self) -> str:
+        return self.name
+
     def clean(self) -> None:
         super().clean()
         self.name = self.name.strip()
         if not self.name:
             raise ValidationError({"name": "A team name is required."})
-
-    def __str__(self) -> str:
-        return self.name
 
 
 class FocusTeamMembership(models.Model):
@@ -72,14 +74,14 @@ class FocusTeamMessage(models.Model):
         ordering = ("created_at", "id")
         indexes = [models.Index(fields=("team", "-created_at"), name="focus_team_message_idx")]
 
+    def __str__(self) -> str:
+        return f"{self.team_id}:{self.author_id}:{self.created_at.isoformat()}"
+
     def clean(self) -> None:
         super().clean()
         self.body = self.body.strip()
         if not self.body:
             raise ValidationError({"body": "A message is required."})
-
-    def __str__(self) -> str:
-        return f"{self.team_id}:{self.author_id}:{self.created_at.isoformat()}"
 
 
 class FocusSession(models.Model):
@@ -250,6 +252,57 @@ class FocusSessionTask(models.Model):
 
     def __str__(self) -> str:
         return f"{self.session_id}:{self.title}"
+
+
+class ActiveStudyRun(models.Model):
+    """Server-owned progress for a gated Catalog Focus study run."""
+
+    class Difficulty(models.TextChoices):
+        EASY = "easy", "Easy"
+        MEDIUM = "medium", "Medium"
+        HARD = "hard", "Hard"
+
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Active"
+        COMPLETED = "completed", "Completed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="active_study_runs"
+    )
+    material_slug = models.SlugField(max_length=80)
+    sheet_slug = models.SlugField(max_length=80)
+    difficulty = models.CharField(max_length=12, choices=Difficulty.choices)
+    page_count = models.PositiveIntegerField()
+    unlocked_pages = models.PositiveIntegerField(default=3)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE)
+    last_score = models.PositiveIntegerField(null=True, blank=True)
+    last_outcome = models.CharField(max_length=24, blank=True)
+    checkpoint_attempts = models.PositiveIntegerField(default=0)
+    final_attempts = models.PositiveIntegerField(default=0)
+    xp_awarded = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-updated_at",)
+        indexes = [
+            models.Index(
+                fields=("user", "material_slug", "sheet_slug", "status", "-updated_at"),
+                name="focus_active_study_idx",
+            )
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(page_count__gte=1), name="active_study_page_count_positive"
+            ),
+            models.CheckConstraint(
+                condition=Q(unlocked_pages__gte=1), name="active_study_unlocked_positive"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.material_slug}:{self.sheet_slug}:{self.difficulty}"
 
 
 class FocusWorkspaceSnapshot(models.Model):

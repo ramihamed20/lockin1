@@ -24,7 +24,9 @@ from .services import (
     ProgressRuleError,
     complete_lesson,
     remove_bookmark,
+    remove_catalog_bookmark,
     set_bookmark,
+    set_catalog_bookmark,
     update_learning_progress,
 )
 
@@ -54,11 +56,22 @@ class BookmarkListView(ListAPIView[Bookmark]):
     def post(self, request: Request) -> Response:
         serializer = BookmarkCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
         try:
-            bookmark, created = set_bookmark(
-                user=_user(request),
-                learning_object_id=serializer.validated_data["learning_object_id"],
-            )
+            if "learning_object_id" in data:
+                bookmark, created = set_bookmark(
+                    user=_user(request),
+                    learning_object_id=data["learning_object_id"],
+                )
+            else:
+                bookmark, created = set_catalog_bookmark(
+                    user=_user(request),
+                    material_slug=str(data["catalog_material_slug"]),
+                    material_title=str(data["catalog_material_title"]),
+                    sheet_slug=str(data["catalog_sheet_slug"]),
+                    sheet_title=str(data["catalog_sheet_title"]),
+                    position=dict(data["position"]),
+                )
         except LearningObject.DoesNotExist as error:
             raise ProgressRejected("This learning object is not available.") from error
         except ProgressRuleError as error:
@@ -72,6 +85,27 @@ class BookmarkListView(ListAPIView[Bookmark]):
 class BookmarkDetailView(APIView):
     def delete(self, request: Request, learning_object_id: UUID) -> Response:
         remove_bookmark(user=_user(request), learning_object_id=learning_object_id)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CatalogBookmarkDetailView(APIView):
+    def get(self, request: Request, material_slug: str, sheet_slug: str) -> Response:
+        bookmark = Bookmark.objects.filter(
+            user=_user(request),
+            learning_object__isnull=True,
+            catalog_material_slug=material_slug,
+            catalog_sheet_slug=sheet_slug,
+        ).first()
+        if bookmark is None:
+            return Response({"detail": "Bookmark not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(BookmarkSerializer(bookmark).data)
+
+    def delete(self, request: Request, material_slug: str, sheet_slug: str) -> Response:
+        remove_catalog_bookmark(
+            user=_user(request),
+            material_slug=material_slug,
+            sheet_slug=sheet_slug,
+        )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

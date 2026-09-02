@@ -6,7 +6,7 @@ import { isKnownNotificationRoute } from "../lib/notificationRoutes.js";
 import { notificationPresentation } from "../lib/notificationPresentation.js";
 import { Icon } from "../lib/icons.jsx";
 import { useAsyncData } from "../hooks/useAsyncData.js";
-import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
+import { EmptyState, ErrorPanel, LoadingPanel, Page, Tab, TabList } from "../components/ui/index.jsx";
 import { formatDateTime } from "../lib/i18n.js";
 import { useMediaQuery } from "../hooks/useMediaQuery.js";
 import { useI18n } from "../components/I18nProvider.jsx";
@@ -126,10 +126,13 @@ export default function Notifications({ onNotificationsChanged }) {
             {feed.data.summary.unread_count > 0 && <button className="btn btn-soft compact" type="button" onClick={() => { void markAllRead(); }} disabled={busyId === "all"}>{busyId === "all" ? t("notifications.marking") : t("common.markAllRead")}</button>}
           </div>
         </header>
-        <div className="notification-filter-actions" aria-label={t("notifications.filterLabel")}>
-          <button className={`btn btn-soft ${!unreadOnly ? "active" : ""}`} type="button" aria-pressed={!unreadOnly} onClick={() => setUnreadOnly(false)}>{t("notifications.all")}</button>
-          <button className={`btn btn-soft ${unreadOnly ? "active" : ""}`} type="button" aria-pressed={unreadOnly} onClick={() => setUnreadOnly(true)}>{t("notifications.unread")}</button>
-        </div>
+        {/* A filter is one-of-N, not two independent toggles: `aria-pressed`
+            made both buttons announce as pressed toggles and let both carry a
+            selected look at once. */}
+        <TabList className="notification-filter-actions" label={t("notifications.filterLabel")} variant="tint" value={unreadOnly ? "unread" : "all"} onChange={(next) => setUnreadOnly(next === "unread")}>
+          <Tab className="btn btn-soft" value="all">{t("notifications.all")}</Tab>
+          <Tab className="btn btn-soft" value="unread">{t("notifications.unread")}</Tab>
+        </TabList>
         {actionError && <ErrorPanel message={actionError} onRetry={feed.reload} />}
         {!notifications.length ? <EmptyState title={t(unreadOnly ? "notifications.noUnreadTitle" : "notifications.emptyTitle")} text={t(unreadOnly ? "notifications.noUnreadText" : "notifications.emptyText")} /> : (
           <div className="notification-feed">

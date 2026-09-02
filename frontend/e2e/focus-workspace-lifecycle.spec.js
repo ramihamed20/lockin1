@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { withoutServiceWorker } from "./helpers/serviceWorker.js";
+import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
 const ROUTE = "/#/materials/catalog/microbiology/sheets/sheet-1/workspace";
 const SHEET_ROUTE = "/#/materials/catalog/microbiology/sheets/sheet-1";
@@ -8,6 +9,8 @@ async function mockWorkspace(page) {
   await withoutServiceWorker(page);
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
+    // The gated routes need the access contract answered before they render.
+    if (await fulfillAccessContract(route, pathname)) return;
     if (pathname === "/api/v1/auth/session") {
       await route.fulfill({
         contentType: "application/json",

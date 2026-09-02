@@ -30,9 +30,7 @@ GOOGLE_JWKS_ENDPOINT = "https://www.googleapis.com/oauth2/v3/certs"
 APPLE_AUTHORIZATION_ENDPOINT = "https://appleid.apple.com/auth/authorize"
 APPLE_TOKEN_ENDPOINT = "https://appleid.apple.com/auth/token"  # noqa: S105
 APPLE_JWKS_ENDPOINT = "https://appleid.apple.com/auth/keys"
-APPLE_PRIVATE_RELAY_DOMAINS = frozenset(
-    {"privaterelay.appleid.com", "private.icloud.com"}
-)
+APPLE_PRIVATE_RELAY_DOMAINS = frozenset({"privaterelay.appleid.com", "private.icloud.com"})
 _STATE_SALT = "lockin.accounts.oauth-state"
 _MAX_PROVIDER_RESPONSE_BYTES = 65_536
 OAUTH_BROWSER_COOKIE_PATH = "/"
@@ -202,9 +200,7 @@ def begin_oauth_flow(
 
 
 @transaction.atomic
-def consume_oauth_flow(
-    *, provider: str, state: str, browser_binding: str
-) -> tuple[OAuthFlow, str]:
+def consume_oauth_flow(*, provider: str, state: str, browser_binding: str) -> tuple[OAuthFlow, str]:
     try:
         payload = signing.loads(
             state,
@@ -311,9 +307,7 @@ def _token_payload(*, provider: str, code: str) -> dict[str, Any]:
 def _verified_claims(*, provider: str, id_token: str, nonce: str) -> dict[str, Any]:
     config = provider_config(provider)
     jwks_url = (
-        GOOGLE_JWKS_ENDPOINT
-        if provider == SocialIdentity.Provider.GOOGLE
-        else APPLE_JWKS_ENDPOINT
+        GOOGLE_JWKS_ENDPOINT if provider == SocialIdentity.Provider.GOOGLE else APPLE_JWKS_ENDPOINT
     )
     issuer: str | list[str] = (
         ["https://accounts.google.com", "accounts.google.com"]
@@ -394,8 +388,7 @@ def exchange_oauth_code(
         email_verified=email_verified,
         full_name=full_name,
         is_private_relay=(
-            _truthy_claim(claims.get("is_private_email"))
-            or domain in APPLE_PRIVATE_RELAY_DOMAINS
+            _truthy_claim(claims.get("is_private_email")) or domain in APPLE_PRIVATE_RELAY_DOMAINS
         ),
     )
 
@@ -445,9 +438,7 @@ def resolve_social_user(*, profile: ProviderProfile, flow: OAuthFlow) -> User:
         if user.status != User.Status.ACTIVE or not user.is_active:
             raise OAuthAccountLinkError("This account cannot sign in.")
         if SocialIdentity.objects.filter(user=user, provider=profile.provider).exists():
-            raise OAuthAccountLinkError(
-                "A different account from this provider is already linked."
-            )
+            raise OAuthAccountLinkError("A different account from this provider is already linked.")
     else:
         if not _registration_enabled():
             raise OAuthRegistrationUnavailable("New registrations are temporarily unavailable.")
@@ -542,6 +533,7 @@ def oauth_frontend_redirect(*, provider: str, outcome: str, error: str = "") -> 
         "configuration",
         "flow_invalid",
         "provider_error",
+        "rate_limited",
         "registration_unavailable",
     }
     safe_outcome = outcome if outcome in allowed_outcomes else "error"

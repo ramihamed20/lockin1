@@ -1,4 +1,5 @@
 import { devices, expect, test } from "@playwright/test";
+import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
 /**
  * Every control a finger can reach has to meet the platform minimum of 44px.
@@ -43,6 +44,8 @@ async function mockOperator(page) {
       });
       return;
     }
+    // The gated student routes need the access contract before they render.
+    if (await fulfillAccessContract(route, pathname)) return;
     if (route.request().method() === "GET") {
       await route.fulfill({ contentType: "application/json", body: JSON.stringify({ count: 0, results: [] }) });
       return;

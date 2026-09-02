@@ -8,7 +8,9 @@ from .models import ReportExport
 class ReportPreviewRequestSerializer(serializers.Serializer[dict[str, Any]]):
     report_code = serializers.CharField(max_length=60)
     filters = serializers.JSONField(required=False, default=dict)
-    output_format = serializers.ChoiceField(choices=ReportExport.OutputFormat.choices, default=ReportExport.OutputFormat.CSV)
+    output_format = serializers.ChoiceField(
+        choices=ReportExport.OutputFormat.choices, default=ReportExport.OutputFormat.CSV
+    )
 
 
 class ReportExecuteSerializer(serializers.Serializer[dict[str, Any]]):

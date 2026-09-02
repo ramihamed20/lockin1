@@ -34,6 +34,16 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
+      # Optional locally: point at MinIO or a scratch bucket to rehearse the
+      # object-storage path that every deployed environment uses.
+      STORAGE_BACKEND: ${STORAGE_BACKEND:-filesystem}
+      STORAGE_BUCKET_NAME: ${STORAGE_BUCKET_NAME:-}
+      STORAGE_ENDPOINT_URL: ${STORAGE_ENDPOINT_URL:-}
+      STORAGE_REGION: ${STORAGE_REGION:-auto}
+      STORAGE_ACCESS_KEY_ID: ${STORAGE_ACCESS_KEY_ID:-}
+      STORAGE_SECRET_ACCESS_KEY: ${STORAGE_SECRET_ACCESS_KEY:-}
+      STORAGE_ADDRESSING_STYLE: ${STORAGE_ADDRESSING_STYLE:-virtual}
+      STORAGE_ALLOW_INSECURE_ENDPOINT: ${STORAGE_ALLOW_INSECURE_ENDPOINT:-false}
     depends_on:
       db:
         condition: service_healthy
@@ -53,12 +63,12 @@ services:
       dockerfile: Dockerfile.dev
     environment:
       VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
-      VITE_PROXY_TARGET: http://backend:8000
+      VITE_DJANGO_PROXY_TARGET: http://backend:8000
     depends_on:
       backend:
         condition: service_healthy
     ports:
-      - "5173:5173"
+      - "5173:5050"
     volumes:
       - ./frontend:/app
       - lockin_node_modules:/app/node_modules

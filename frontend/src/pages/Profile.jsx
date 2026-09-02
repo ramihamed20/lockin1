@@ -4,12 +4,14 @@ import { motivationApi } from "../api/motivation.js";
 import { progressApi } from "../api/progress.js";
 import { Icon } from "../lib/icons.jsx";
 import { normalizeThemeSettings } from "../lib/utils.js";
-import { Page, ProgressLine } from "../components/ui/index.jsx";
+import { Page, ProgressLine, Tab, TabList } from "../components/ui/index.jsx";
 import { AccountFieldErrors } from "../components/account/AccountFormErrors.jsx";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { formatDate, formatNumber as formatLocaleNumber } from "../lib/i18n.js";
 import { ResponsiveThemePreview } from "../components/shared/ResponsiveThemePreview.jsx";
 import { ResponsiveMascot } from "../components/shared/ResponsiveMascot.jsx";
+import { UserAvatar } from "../components/shared/UserAvatar.jsx";
+import { ProfilePictureEditor } from "../components/account/ProfilePictureEditor.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
 
 function resolved(result, fallback) {
@@ -208,24 +210,33 @@ export default function Profile({ user, onUserUpdate }) {
     }
   }
 
+  function handleAvatarSaved(updated) {
+    onUserUpdate?.(updated);
+    profile.reload();
+  }
+
   return (
     <Page title="My Profile" subtitle={t("profile.subtitle")}>
       <section className="profile-page">
         {workspace.unavailableCount > 0 && <p className="profile-sync-note" role="status"><Icon name="activity" size={16} />{t("profile.syncNote")}</p>}
 
-        <nav className="profile-mobile-nav" aria-label={t("profile.sections")}>
-          {[["overview", "profile.overview"], ["activity", "profile.activity"], ["personal", "profile.personal"]].map(([id, labelKey]) => <button type="button" key={id} className={mobileSection === id ? "active" : ""} aria-pressed={mobileSection === id} onClick={() => setMobileSection(id)}>{t(labelKey)}</button>)}
-        </nav>
+        {/* Section switcher: one section is shown at a time, so these are
+            tabs. They used to be toggle buttons, which announced every section
+            as pressed and let the strip show two selections. */}
+        <TabList className="profile-mobile-nav" label={t("profile.sections")} value={mobileSection} onChange={setMobileSection}>
+          {[["overview", "profile.overview"], ["activity", "profile.activity"], ["personal", "profile.personal"]].map(([id, labelKey]) => <Tab key={id} value={id}>{t(labelKey)}</Tab>)}
+        </TabList>
 
         <section className={`profile-hero-grid profile-mobile-section profile-mobile-overview ${mobileSection === "overview" ? "is-active" : ""}`} aria-label={t("profile.overviewLabel")}>
           <div className="profile-academy-stack">
           <article className="panel student-id-card profile-academy-id">
             <div className="id-card-header"><div className="id-card-logo"><Icon name="award" size={18} /><span>{t("profile.academy")}</span></div><span className="id-card-chip" /></div>
             <div className="id-card-body">
-              <div className="profile-avatar-wrap"><ResponsiveMascot alt={t("profile.companionAlt")} sizes="140px" priority /><div className="profile-level-badge"><span>{t("profile.lvl")}</span><strong>{level}</strong></div></div>
+              <div className="profile-avatar-wrap"><UserAvatar user={account} className="profile-avatar-image" alt={t("profile.avatarPreviewAlt")} loading="eager" /><div className="profile-level-badge"><span>{t("profile.lvl")}</span><strong>{level}</strong></div></div>
               {editing ? <form onSubmit={saveProfile} className="profile-edit-form profile-id-edit-form">
                 <label className="field"><span>{t("profile.displayName")}</span><input type="text" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /><AccountFieldErrors error={profileError} field="full_name" /></label>
                 <label className="field"><span>{t("profile.preferredLanguage")}</span><select value={form.preferredLanguage} onChange={(event) => setForm({ ...form, preferredLanguage: event.target.value })}><option value="en">{t("profile.english")}</option><option value="ar">{t("profile.arabic")}</option></select><AccountFieldErrors error={profileError} field="preferred_language" /></label>
+                <ProfilePictureEditor user={account} onSaved={handleAvatarSaved} />
                 {profileError && <p className="form-alert error" role="alert" dir="auto">{profileError.message || t("profile.saveError")}</p>}
                 <div className="profile-edit-actions"><button className="btn btn-primary compact" type="submit" disabled={saving}>{t(saving ? "profile.saving" : "profile.saveChanges")}</button><button className="btn btn-soft compact" type="button" onClick={() => setEditing(false)}>{t("common.cancel")}</button></div>
               </form> : <div className="id-card-info">

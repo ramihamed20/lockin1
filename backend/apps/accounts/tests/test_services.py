@@ -15,6 +15,7 @@ from apps.accounts.services import (
     request_email_change,
     verify_email,
 )
+from apps.education.models import StudentCohort
 from platform_core.events import DomainEvent, domain_events
 
 from .helpers import PASSWORD, create_user
@@ -39,6 +40,7 @@ def test_registration_event_is_published_only_after_commit(
                 full_name="Event Student",
                 password=PASSWORD,
                 preferred_language="en",
+                cohort=StudentCohort.objects.get(code="61"),
             )
             assert received == []
         assert len(callbacks) == 1

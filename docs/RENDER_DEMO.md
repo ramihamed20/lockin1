@@ -2,6 +2,8 @@
 
 This is a disposable demonstration deployment. It builds the Vite frontend and serves it beside Django through one public Render URL, so browser sessions and `/api/v1` remain same-origin.
 
+For a real deployment, follow `docs/DEPLOYMENT.md` instead. It uses the same image and the same entry point with `config.settings.production`, the release/preflight contract, object storage, and separate worker services.
+
 ## Render service
 
 Create a **Web Service** from the `codex/phase-11-production-readiness` branch with:
@@ -15,7 +17,7 @@ Create a **Web Service** from the `codex/phase-11-production-readiness` branch w
 - Health check: `/api/v1/health/ready`
 - Instance type: Free (demo only)
 
-The root `Dockerfile` builds the frontend and starts Nginx plus Django on the single Render service URL.
+The root `Dockerfile` builds the frontend and starts Nginx plus Django on the single Render service URL through `deploy/container-host/start.sh`. With demo settings that entry point migrates, collects static assets, and seeds; with production settings it runs the full release and preflight contract instead.
 
 ## Environment variables
 
@@ -32,6 +34,7 @@ Set these under Render **Environment**. Do not commit any of these values.
 | `ACCOUNT_POLICY_VERSION` | `demo-1` |
 | `POSTGRES_SSLMODE` | `require` |
 | `LOCKIN_DEMO_SEED` | `true` |
+| `STORAGE_BACKEND` | `filesystem` (the demo keeps its throwaway files on the container disk) |
 
 If Render gives the service a different public host, replace `lockin1.onrender.com` in all three host/URL values before deploying.
 

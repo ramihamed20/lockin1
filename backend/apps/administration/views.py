@@ -99,7 +99,12 @@ class OperationalUserListView(APIView):
 
     @extend_schema(responses=OperationalUserSerializer(many=True))
     def get(self, request: Request) -> Response:
-        users = operational_users(query=request.query_params.get("q", "")[:100])
+        users = operational_users(
+            query=request.query_params.get("q", "")[:100],
+            status=request.query_params.get("status", "")[:20],
+            role=request.query_params.get("role", "")[:40],
+            ordering=request.query_params.get("ordering", "-date_joined")[:40],
+        )
         paginator = LockinPagination()
         page = paginator.paginate_queryset(users, request, view=self)
         payload = [serialize_operational_user(user) for user in (page or [])]

@@ -1,35 +1,64 @@
+from collections.abc import Mapping
 from typing import cast
 from uuid import UUID
 
 from django.conf import settings
-from django.contrib.auth import authenticate, login, update_session_auth_hash
+from django.contrib.auth import authenticate, update_session_auth_hash
 from django.contrib.sessions.models import Session
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import IntegrityError
-from django.http import HttpRequest
+from django.core.files.uploadedfile import UploadedFile
+from django.db import IntegrityError, transaction
+from django.http import HttpRequest, HttpResponseRedirect
 from django.middleware.csrf import get_token
 from django.utils import timezone
 from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
+from django.views.decorators.http import require_GET, require_POST
 from rest_framework import status
-from rest_framework.exceptions import APIException, AuthenticationFailed, NotFound
+from rest_framework.exceptions import APIException, AuthenticationFailed, NotFound, ValidationError
 from rest_framework.generics import ListAPIView
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import AccountSecurityEvent, AccountSession, User
+from apps.education.models import StudentCohort
+from apps.education.serializers import StudentCohortSerializer
+from apps.files.models import ManagedFile
+from apps.files.services import FileValidationError, create_managed_file
+from apps.system_configuration.services import get_configuration_value
+from platform_core.network import client_ip
+
+from .models import AccountDeletionRequest, AccountSession, SocialIdentity, User
+from .oauth import (
+    OAUTH_BROWSER_COOKIE_PATH,
+    OAuthAccountLinkError,
+    OAuthConfigurationError,
+    OAuthFlowError,
+    OAuthProviderError,
+    OAuthRegistrationUnavailable,
+    begin_oauth_flow,
+    complete_oauth_callback,
+    consume_oauth_flow,
+    new_oauth_browser_binding,
+    oauth_browser_cookie_name,
+    oauth_frontend_redirect,
+    oauth_provider_status,
+)
 from .permissions import IsAdministrator
 from .roles import Role, RoleChangeError, replace_managed_roles
 from .selectors import dashboard_summary
 from .serializers import (
+    AccountDeletionPasswordSerializer,
     AccountSessionSerializer,
     EmailChangeRequestSerializer,
     EmailSerializer,
     LoginSerializer,
+    OAuthStartSerializer,
     PasswordChangeSerializer,
     PasswordResetConfirmSerializer,
+    ProfileAvatarUploadSerializer,
     ProfileUpdateSerializer,
     RegistrationSerializer,
     RoleUpdateSerializer,
@@ -39,21 +68,25 @@ from .serializers import (
 from .services import (
     AccountStateError,
     AccountTokenError,
+    account_deletion_status,
     auth_attempt_fingerprint,
     auth_attempt_is_limited,
     build_account_link,
+    cancel_account_deletion,
     change_password,
     clear_login_failures,
+    confirm_account_deletion,
     confirm_email_change,
     confirm_password_reset,
+    establish_account_session,
     invalidate_sessions,
     login_fingerprint,
     login_is_limited,
     logout_current_session,
     record_auth_attempt,
     record_login_failure,
-    register_account_session,
     register_user,
+    request_account_deletion,
     request_email_change,
     request_password_reset,
     resend_verification,
@@ -61,7 +94,6 @@ from .services import (
     touch_account_session,
     verify_email,
 )
-from apps.system_configuration.services import get_configuration_value
 
 
 class TooManyAccountRequests(APIException):
@@ -88,6 +120,12 @@ class RegistrationUnavailable(APIException):
     default_code = "registration_unavailable"
 
 
+class OAuthUnavailable(APIException):
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    default_detail = "This sign-in provider is not configured."
+    default_code = "oauth_not_configured"
+
+
 def _user(request: Request) -> User:
     if not isinstance(request.user, User):
         raise AuthenticationFailed()
@@ -99,19 +137,32 @@ def _http_request(request: Request) -> HttpRequest:
 
 
 def _enforce_sensitive_request_limit(*, request: Request, scope: str, identifier: str) -> None:
+    remote_address = client_ip(request)
     key_hash = auth_attempt_fingerprint(
         scope=scope,
         identifier=identifier,
-        remote_address=request.META.get("REMOTE_ADDR", "unknown"),
+        remote_address=remote_address,
+    )
+    source_scope = f"{scope}_source"
+    source_hash = auth_attempt_fingerprint(
+        scope=source_scope,
+        identifier="*",
+        remote_address=remote_address,
     )
     if auth_attempt_is_limited(
         key_hash=key_hash,
         scope=scope,
         window_seconds=int(settings.ACCOUNT_SENSITIVE_WINDOW_SECONDS),
         limit=int(settings.ACCOUNT_SENSITIVE_REQUEST_LIMIT),
+    ) or auth_attempt_is_limited(
+        key_hash=source_hash,
+        scope=source_scope,
+        window_seconds=int(settings.ACCOUNT_SENSITIVE_WINDOW_SECONDS),
+        limit=int(settings.ACCOUNT_SENSITIVE_SOURCE_REQUEST_LIMIT),
     ):
         raise TooManyAccountRequests()
     record_auth_attempt(key_hash=key_hash, scope=scope)
+    record_auth_attempt(key_hash=source_hash, scope=source_scope)
 
 
 def _send_verification_email(*, user: User, raw_token: str) -> None:
@@ -155,9 +206,11 @@ class RegisterView(APIView):
         try:
             user, token = register_user(
                 email=str(data["email"]),
+                username=str(data["username"]) if data.get("username") else None,
                 full_name=str(data["full_name"]),
                 password=str(data["password"]),
                 preferred_language=str(data["preferred_language"]),
+                cohort=data["cohort"],
             )
         except (DjangoValidationError, IntegrityError) as error:
             if isinstance(error, DjangoValidationError) and "email" not in error.message_dict:
@@ -256,34 +309,198 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         email = str(data["email"])
+        remote_address = client_ip(request)
         fingerprint = login_fingerprint(
             email=email,
-            remote_address=request.META.get("REMOTE_ADDR", "unknown"),
+            remote_address=remote_address,
         )
-        if login_is_limited(key_hash=fingerprint):
+        source_scope = "login_source"
+        source_fingerprint = auth_attempt_fingerprint(
+            scope=source_scope,
+            identifier="*",
+            remote_address=remote_address,
+        )
+        if login_is_limited(key_hash=fingerprint) or auth_attempt_is_limited(
+            key_hash=source_fingerprint,
+            scope=source_scope,
+            window_seconds=int(settings.ACCOUNT_LOGIN_WINDOW_SECONDS),
+            limit=int(settings.ACCOUNT_LOGIN_SOURCE_ATTEMPT_LIMIT),
+        ):
             raise TooManyAccountRequests()
         user = authenticate(_http_request(request), username=email, password=str(data["password"]))
         if not isinstance(user, User) or not user.is_email_verified:
             record_login_failure(key_hash=fingerprint)
+            record_auth_attempt(key_hash=source_fingerprint, scope=source_scope)
             raise AuthenticationFailed(
                 "The email or password is incorrect.", code="invalid_credentials"
             )
         clear_login_failures(key_hash=fingerprint)
-        login(_http_request(request), user)
-        session_age = (
-            int(settings.ACCOUNT_REMEMBER_SESSION_AGE_SECONDS)
-            if bool(data["remember_me"])
-            else int(settings.ACCOUNT_SESSION_AGE_SECONDS)
-        )
-        request.session.set_expiry(session_age)
-        request.session.save()
-        register_account_session(request=_http_request(request), user=user)
-        AccountSecurityEvent.objects.create(
+        establish_account_session(
+            request=_http_request(request),
             user=user,
-            actor=user,
-            event_type=AccountSecurityEvent.EventType.LOGIN_SUCCEEDED,
+            remember_me=bool(data["remember_me"]),
         )
         return Response({"user": UserSerializer(user).data})
+
+
+class CohortListView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request: Request) -> Response:
+        cohorts = StudentCohort.objects.filter(is_active=True).select_related("program")
+        return Response({"cohorts": StudentCohortSerializer(cohorts, many=True).data})
+
+
+class OAuthProviderStatusView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request: Request) -> Response:
+        return Response({"providers": oauth_provider_status()})
+
+
+class OAuthStartView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request: Request, provider: str) -> Response:
+        if provider not in SocialIdentity.Provider.values:
+            raise RequestRejected(
+                "This sign-in provider is not supported.",
+                code="unsupported_provider",
+            )
+        serializer = OAuthStartSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        _enforce_sensitive_request_limit(
+            request=request,
+            scope="oauth_start",
+            identifier=provider,
+        )
+        data = serializer.validated_data
+        try:
+            browser_binding = new_oauth_browser_binding()
+            authorization_url = begin_oauth_flow(
+                provider=provider,
+                intent=str(data["intent"]),
+                preferred_language=str(data["preferred_language"]),
+                remember_me=bool(data["remember_me"]),
+                policy_accepted=bool(data["accept_policies"]),
+                browser_binding=browser_binding,
+            )
+        except OAuthConfigurationError as error:
+            raise OAuthUnavailable() from error
+        response = Response({"authorization_url": authorization_url})
+        production_cookie = not settings.DEBUG
+        response.set_cookie(
+            oauth_browser_cookie_name(),
+            browser_binding,
+            max_age=int(settings.OAUTH_FLOW_TTL_SECONDS),
+            httponly=True,
+            secure=production_cookie,
+            samesite="None" if production_cookie else "Lax",
+            path=OAUTH_BROWSER_COOKIE_PATH,
+        )
+        return response
+
+
+def _oauth_callback_redirect(
+    *, request: HttpRequest, provider: str, payload: object
+) -> HttpResponseRedirect:
+    callback_scope = "oauth_callback_source"
+    callback_fingerprint = auth_attempt_fingerprint(
+        scope=callback_scope,
+        identifier=provider,
+        remote_address=client_ip(request),
+    )
+    if auth_attempt_is_limited(
+        key_hash=callback_fingerprint,
+        scope=callback_scope,
+        window_seconds=int(settings.ACCOUNT_SENSITIVE_WINDOW_SECONDS),
+        limit=int(settings.ACCOUNT_SENSITIVE_SOURCE_REQUEST_LIMIT),
+    ):
+        return HttpResponseRedirect(
+            oauth_frontend_redirect(provider=provider, outcome="error", error="rate_limited")
+        )
+    record_auth_attempt(key_hash=callback_fingerprint, scope=callback_scope)
+
+    source = cast(Mapping[str, object], payload) if isinstance(payload, Mapping) else {}
+    state_value = source.get("state", "")
+    state = state_value if isinstance(state_value, str) else ""
+    provider_error_value = source.get("error", "")
+    provider_error = provider_error_value if isinstance(provider_error_value, str) else ""
+    if not state:
+        return HttpResponseRedirect(
+            oauth_frontend_redirect(provider=provider, outcome="error", error="flow_invalid")
+        )
+    if provider_error:
+        try:
+            consume_oauth_flow(
+                provider=provider,
+                state=state,
+                browser_binding=request.COOKIES.get(oauth_browser_cookie_name(), ""),
+            )
+        except OAuthFlowError:
+            return HttpResponseRedirect(
+                oauth_frontend_redirect(provider=provider, outcome="error", error="flow_invalid")
+            )
+        outcome = "cancelled" if provider_error == "access_denied" else "error"
+        return HttpResponseRedirect(
+            oauth_frontend_redirect(
+                provider=provider,
+                outcome=outcome,
+                error="" if outcome == "cancelled" else "provider_error",
+            )
+        )
+    code_value = source.get("code", "")
+    code = code_value if isinstance(code_value, str) else ""
+    if not code:
+        return HttpResponseRedirect(
+            oauth_frontend_redirect(provider=provider, outcome="error", error="provider_error")
+        )
+    apple_user_value = source.get("user", "")
+    apple_user_payload = apple_user_value if isinstance(apple_user_value, str) else ""
+    try:
+        complete_oauth_callback(
+            request=request,
+            provider=provider,
+            state=state,
+            code=code,
+            apple_user_payload=apple_user_payload,
+        )
+    except OAuthFlowError:
+        error_code = "flow_invalid"
+    except OAuthConfigurationError:
+        error_code = "configuration"
+    except OAuthAccountLinkError:
+        error_code = "account_link_required"
+    except OAuthRegistrationUnavailable:
+        error_code = "registration_unavailable"
+    except OAuthProviderError:
+        error_code = "provider_error"
+    else:
+        return HttpResponseRedirect(oauth_frontend_redirect(provider=provider, outcome="success"))
+    return HttpResponseRedirect(
+        oauth_frontend_redirect(provider=provider, outcome="error", error=error_code)
+    )
+
+
+@require_GET
+def google_oauth_callback(request: HttpRequest) -> HttpResponseRedirect:
+    return _oauth_callback_redirect(
+        request=request,
+        provider=SocialIdentity.Provider.GOOGLE,
+        payload=request.GET,
+    )
+
+
+@csrf_exempt
+@require_POST
+def apple_oauth_callback(request: HttpRequest) -> HttpResponseRedirect:
+    """Apple uses form_post; signed one-time state and OIDC nonce protect this endpoint."""
+
+    return _oauth_callback_redirect(
+        request=request,
+        provider=SocialIdentity.Provider.APPLE,
+        payload=request.POST,
+    )
 
 
 class LogoutView(APIView):
@@ -321,12 +538,78 @@ class ProfileView(APIView):
 
     def patch(self, request: Request) -> Response:
         user = _user(request)
-        serializer = ProfileUpdateSerializer(data=request.data, partial=True)
+        serializer = ProfileUpdateSerializer(
+            data=request.data, partial=True, context={"user": user}
+        )
         serializer.is_valid(raise_exception=True)
-        for field, value in serializer.validated_data.items():
-            setattr(user, field, value)
-        user.full_clean(exclude={"password"})
-        user.save()
+        previous_image = (
+            user.profile_image if "avatar_default" in serializer.validated_data else None
+        )
+        with transaction.atomic():
+            for field, value in serializer.validated_data.items():
+                setattr(user, field, value)
+            if previous_image is not None:
+                user.profile_image = None
+            if user.profile_completion_required and user.full_name.strip() and user.cohort_id:
+                user.profile_completion_required = False
+            try:
+                user.full_clean(exclude={"password"})
+                user.save()
+            except IntegrityError as error:
+                raise ValidationError({"username": ["That username is unavailable."]}) from error
+            _delete_replaced_avatar_after_commit(previous_image)
+        return Response({"user": UserSerializer(user).data})
+
+
+def _delete_replaced_avatar_after_commit(managed_file: ManagedFile | None) -> None:
+    if managed_file is None or managed_file.kind != ManagedFile.Kind.AVATAR:
+        return
+    storage = managed_file.blob.storage
+    name = managed_file.blob.name
+
+    def delete() -> None:
+        if name:
+            storage.delete(name)
+        managed_file.delete()
+
+    transaction.on_commit(delete)
+
+
+class ProfileAvatarView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request: Request) -> Response:
+        serializer = ProfileAvatarUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        upload = serializer.validated_data["file"]
+        if not isinstance(upload, UploadedFile):
+            raise ValidationError({"file": ["A valid image upload is required."]})
+        user = _user(request)
+        with transaction.atomic():
+            try:
+                profile_image = create_managed_file(
+                    owner=user, upload=upload, kind=ManagedFile.Kind.AVATAR
+                )
+            except FileValidationError as error:
+                raise ValidationError({"file": [str(error)]}) from error
+            previous_image = user.profile_image
+            user.profile_image = profile_image
+            user.save(update_fields=("profile_image", "updated_at"))
+            _delete_replaced_avatar_after_commit(previous_image)
+        return Response({"user": UserSerializer(user).data}, status=status.HTTP_201_CREATED)
+
+
+class WelcomeCompleteView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        user = _user(request)
+        if not user.username or user.profile_completion_required:
+            raise RequestRejected("Complete the required profile steps first.")
+        if user.welcome_completed_at is None:
+            user.welcome_completed_at = timezone.now()
+            user.save(update_fields=("welcome_completed_at", "updated_at"))
         return Response({"user": UserSerializer(user).data})
 
 
@@ -400,6 +683,89 @@ class EmailChangeConfirmView(APIView):
         except AccountStateError as error:
             raise RequestRejected(str(error), code="email_unavailable") from error
         return Response({"status": "email_changed"})
+
+
+def _deletion_request_payload(
+    deletion_request: AccountDeletionRequest | None,
+) -> dict[str, object]:
+    if deletion_request is None:
+        return {"status": "not_requested", "request": None}
+    return {
+        "status": deletion_request.status,
+        "request": {
+            "id": deletion_request.id,
+            "status": deletion_request.status,
+            "requested_at": deletion_request.requested_at,
+            "confirmed_at": deletion_request.confirmed_at,
+            "processing_started_at": deletion_request.processing_started_at,
+            "completed_at": deletion_request.completed_at,
+            "cancelled_at": deletion_request.cancelled_at,
+            "policy_version": deletion_request.policy_version,
+        },
+    }
+
+
+class AccountDeletionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        return Response(_deletion_request_payload(account_deletion_status(user=_user(request))))
+
+    def post(self, request: Request) -> Response:
+        user = _user(request)
+        _enforce_sensitive_request_limit(
+            request=request, scope="account_deletion_request", identifier=str(user.id)
+        )
+        serializer = AccountDeletionPasswordSerializer(data=request.data, context={"user": user})
+        serializer.is_valid(raise_exception=True)
+        try:
+            deletion_request, token = request_account_deletion(user=user)
+        except AccountStateError as error:
+            raise RequestRejected(str(error), code="deletion_request_rejected") from error
+        link = build_account_link(path="/#/settings", raw_token=token.raw_token)
+        send_account_email(
+            recipient=user.email,
+            subject="Confirm your Lock-in account deletion request",
+            body=(
+                "Confirm your account deletion request using this single-use link:\n\n"
+                f"{link}\n\n"
+                "The request will not be processed until you confirm it."
+            ),
+        )
+        return Response(_deletion_request_payload(deletion_request), status=status.HTTP_201_CREATED)
+
+    def delete(self, request: Request) -> Response:
+        user = _user(request)
+        _enforce_sensitive_request_limit(
+            request=request, scope="account_deletion_cancel", identifier=str(user.id)
+        )
+        serializer = AccountDeletionPasswordSerializer(data=request.data, context={"user": user})
+        serializer.is_valid(raise_exception=True)
+        try:
+            deletion_request = cancel_account_deletion(user=user)
+        except AccountStateError as error:
+            raise RequestRejected(str(error), code="deletion_cancel_rejected") from error
+        return Response(_deletion_request_payload(deletion_request))
+
+
+class AccountDeletionConfirmView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request: Request) -> Response:
+        serializer = TokenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        _enforce_sensitive_request_limit(
+            request=request,
+            scope="account_deletion_confirm",
+            identifier=str(serializer.validated_data["token"]),
+        )
+        try:
+            deletion_request = confirm_account_deletion(
+                raw_token=str(serializer.validated_data["token"])
+            )
+        except AccountTokenError as error:
+            raise InvalidAccountToken() from error
+        return Response(_deletion_request_payload(deletion_request))
 
 
 class SessionListView(APIView):

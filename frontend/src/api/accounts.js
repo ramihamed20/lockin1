@@ -44,7 +44,8 @@ export function toAppUser(user) {
     welcomeCompletedAt: normalized.welcome_completed_at,
     emailVerified: normalized.is_email_verified,
     status: normalized.status,
-    dateJoined: normalized.date_joined
+    dateJoined: normalized.date_joined,
+    avatar: normalized.avatar
   };
 }
 
@@ -180,18 +181,31 @@ export const accountsApi = {
     return userFromPayload(await request("/account/profile"), "The profile response was incomplete.");
   },
 
-  async updateProfile({ username = undefined, fullName = undefined, preferredLanguage = undefined, cohortId = undefined }) {
+  async updateProfile({ username = undefined, fullName = undefined, preferredLanguage = undefined, cohortId = undefined, avatarDefault = undefined }) {
     const body = {};
     if (typeof username === "string") body.username = username;
     if (typeof fullName === "string") body.full_name = fullName;
     if (typeof preferredLanguage === "string") body.preferred_language = preferredLanguage;
     if (typeof cohortId === "string") body.cohort_id = cohortId;
+    if (typeof avatarDefault === "string") body.avatar_default = avatarDefault;
     return userFromPayload(
       await request("/account/profile", {
         method: "PATCH",
         body
       }),
       "The profile response was incomplete."
+    );
+  },
+
+  async uploadProfileAvatar(file) {
+    if (typeof File === "undefined" || !(file instanceof File)) {
+      throw new ApiError(0, null, "Choose an image before saving.", "invalid_request");
+    }
+    const body = new FormData();
+    body.append("file", file);
+    return userFromPayload(
+      await request("/account/profile/avatar", { method: "POST", body }),
+      "The profile image response was incomplete."
     );
   },
 
@@ -223,7 +237,20 @@ export const accountsApi = {
     }
     return source.sessions;
   },
-  revokeSession: (sessionId) => request(`/account/sessions/${sessionId}`, { method: "DELETE" })
+  revokeSession: (sessionId) => request(`/account/sessions/${sessionId}`, { method: "DELETE" }),
+  getDeletionStatus: () => request("/account/deletion"),
+  requestDeletion: (currentPassword) =>
+    request("/account/deletion", {
+      method: "POST",
+      body: { current_password: currentPassword }
+    }),
+  confirmDeletion: (token) =>
+    request("/account/deletion/confirm", { method: "POST", body: { token } }),
+  cancelDeletion: (currentPassword) =>
+    request("/account/deletion", {
+      method: "DELETE",
+      body: { current_password: currentPassword }
+    })
 };
 
 accountsApi.completeWelcome = async function completeWelcome() {
