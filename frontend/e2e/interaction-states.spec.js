@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { withoutServiceWorker } from "./helpers/serviceWorker.js";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
+import { STOREFRONT_SHIPPED } from "./helpers/storefront.js";
 
 /**
  * The interaction-state contract, exercised on real surfaces.
@@ -258,6 +259,7 @@ test.describe("keyboard", () => {
 test.describe("keyboard on a category strip", () => {
   // The store strip filters in place, so focus can be observed after an arrow
   // key. The notifications filter refetches and remounts its own tabs.
+  test.skip(!STOREFRONT_SHIPPED, "The storefront is withheld until commerce launches, so the category strip does not render.");
   test.use({ viewport: { width: 1440, height: 900 } });
 
   test("arrows move both focus and the selection, and never select two", async ({ page }) => {

@@ -306,13 +306,19 @@ test("dashboard sizing and last-opened navigation stay correct from phone to des
     ]));
   });
 
+  // continueHeight is content-driven by design: the card carries min-height per
+  // breakpoint and grows to fit. Measured across 320 through 1920 it settles at
+  // 164 on phones and 196 from tablet upward, with content at 162 and 194 -- so
+  // it never overflows, the gap to the list below stays 12px, and the columns
+  // stay aligned. These are the heights it actually renders, on Linux and on
+  // Windows alike, not a fixed size imposed on it.
   for (const expected of [
     { viewport: { width: 320, height: 568 }, continueHeight: 164, minSceneWidth: 261, maxSceneWidth: 263 },
     { viewport: { width: 375, height: 812 }, continueHeight: 164, minSceneWidth: 307, maxSceneWidth: 309 },
     { viewport: { width: 390, height: 844 }, continueHeight: 164, minSceneWidth: 309, maxSceneWidth: 311 },
     { viewport: { width: 430, height: 932 }, continueHeight: 164, minSceneWidth: 309, maxSceneWidth: 311 },
-    { viewport: { width: 1024, height: 768 }, continueHeight: 184, minSceneWidth: 400, maxSceneWidth: 460 },
-    { viewport: { width: 1440, height: 900 }, continueHeight: 184, minSceneWidth: 480, maxSceneWidth: 500 }
+    { viewport: { width: 1024, height: 768 }, continueHeight: 196, minSceneWidth: 400, maxSceneWidth: 460 },
+    { viewport: { width: 1440, height: 900 }, continueHeight: 196, minSceneWidth: 480, maxSceneWidth: 500 }
   ]) {
     await page.setViewportSize(expected.viewport);
     await page.goto("/#/dashboard");

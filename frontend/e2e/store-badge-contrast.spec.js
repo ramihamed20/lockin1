@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
+import { STOREFRONT_SHIPPED } from "./helpers/storefront.js";
 
 /**
  * Store badges are 10px and bold on a filled brand surface, which is small text
@@ -10,6 +11,8 @@ import { fulfillAccessContract } from "./fixtures/productionApi.js";
  * The ratios are measured on the painted colours rather than read out of the
  * stylesheet, because the badges resolve through color-mix() and oklch().
  */
+
+test.skip(!STOREFRONT_SHIPPED, "The storefront is withheld until commerce launches, so no badge renders to measure.");
 
 const THEMES = ["night", "day", "dawn", "sunset"];
 

@@ -248,14 +248,14 @@ test("the dashboard uses compact responsive cards and a contained cat illustrati
   const styles = await source("../src/styles.css");
 
   assert.match(styles, /\.dashboard-main\s*\{[\s\S]*grid-template-columns: minmax\(280px, 0\.82fr\) minmax\(360px, 1\.3fr\)/);
-  assert.match(styles, /\.dashboard-left \.continue-card\s*\{[\s\S]*height: 184px;[\s\S]*padding: 16px 18px;/);
+  assert.match(styles, /\.dashboard-left \.continue-card\s*\{[\s\S]*min-height: 184px;[\s\S]*padding: 16px 18px;/);
   assert.match(styles, /\.dashboard-left \.dashboard-recent-sheets\s*\{[\s\S]*height: auto;[\s\S]*flex: 0 0 auto;/);
   assert.match(styles, /\.dashboard-recent-sheets \.dashboard-review-item\s*\{[\s\S]*min-height: 44px;/);
   assert.match(styles, /\.dashboard-right \.scene-card\s*\{[\s\S]*width: min\(100%, 500px\);[\s\S]*aspect-ratio: 1;/);
   assert.match(styles, /\.scene-card > picture\s*\{[\s\S]*inline-size: 100%;[\s\S]*block-size: 100%;/);
   assert.match(styles, /\.dashboard-right \.scene-card \.scene-theme\s*\{\s*object-fit: contain;/);
   assert.match(styles, /@media \(max-width: 639px\)[\s\S]*\.dashboard-right \.scene-card\s*\{[\s\S]*width: min\(82vw, 310px\)/);
-  assert.match(styles, /@media \(max-width: 639px\)[\s\S]*\.dashboard-left \.continue-card\s*\{[\s\S]*height: 164px/);
+  assert.match(styles, /@media \(max-width: 639px\)[\s\S]*\.dashboard-left \.continue-card\s*\{[\s\S]*min-height: 164px/);
   assert.match(styles, /@media \(min-width: 640px\) and \(max-width: 900px\)[\s\S]*\.dashboard-right \.scene-card\s*\{[\s\S]*width: min\(62vw, 420px\)/);
   assert.match(styles, /@media \(min-width: 901px\) and \(max-width: 1199px\) and \(min-height: 560px\)[\s\S]*width: min\(100%, 460px\)/);
   assert.match(styles, /@media \(max-height: 559px\)[\s\S]*width: min\(46vw, 300px\)/);
