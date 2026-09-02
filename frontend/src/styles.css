@@ -4412,7 +4412,7 @@ a.streak-card:hover:where(html.ix-hover *) {
 }
 
 .dashboard-right .scene-card {
-  width: min(100%, 620px);
+  width: min(100%, 500px);
   min-height: 0;
   aspect-ratio: 1;
   align-self: center;
@@ -5337,7 +5337,7 @@ a.streak-card:hover:where(html.ix-hover *) {
 
 @media (max-width: 639px) {
   .dashboard-right .scene-card {
-    width: min(92vw, 380px);
+    width: min(82vw, 310px);
     min-height: 0;
     aspect-ratio: 1;
   }
@@ -18065,7 +18065,7 @@ html {
 
 @media (min-width: 640px) and (max-width: 900px) {
   .dashboard-right .scene-card {
-    width: min(68vw, 500px);
+    width: min(62vw, 420px);
   }
 
   .dashboard-left .continue-card {
@@ -18078,7 +18078,7 @@ html {
 
 @media (min-width: 901px) and (max-width: 1199px) and (min-height: 560px) {
   .dashboard-right .scene-card {
-    width: min(100%, 560px);
+    width: min(100%, 460px);
   }
 }
 
