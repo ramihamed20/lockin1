@@ -41,9 +41,16 @@ fail() {
 
 cleanup() {
     status=$?
+    # Only dump logs for a container that got as far as existing. Failing before
+    # that printed a "No such container" error from the daemon, which read like
+    # a second, unrelated fault on top of the real one.
     if [ "$status" -ne 0 ] || [ "$failures" -ne 0 ]; then
-        log "application logs"
-        docker logs "$app_container" 2>&1 | tail -n 60 || true
+        if docker inspect "$app_container" > /dev/null 2>&1; then
+            log "application logs"
+            docker logs "$app_container" 2>&1 | tail -n 60 || true
+        else
+            log "the application container was never started"
+        fi
     fi
     docker rm --force "$app_container" "$storage_container" "$db_container" > /dev/null 2>&1 || true
     docker network rm "$network" > /dev/null 2>&1 || true
@@ -85,7 +92,14 @@ docker run --detach --name "$db_container" --network "$network" --network-alias 
     --env POSTGRES_PASSWORD="$owner_password" \
     --volume "$root/deploy/postgres/create-runtime-role.sql:/tmp/create-runtime-role.sql:ro" \
     "$postgres_image" > /dev/null
-await "PostgreSQL" 30 docker exec "$db_container" pg_isready --username lockin_owner --dbname lockin
+# Wait for the database, not merely for the server. pg_isready reports success
+# as soon as the postmaster answers, and "database does not exist" is a normal
+# answer -- so it passes during the image's initdb phase, which serves the
+# socket before it creates POSTGRES_DB. Querying the target database is the
+# condition the next step actually depends on.
+await "PostgreSQL" 45 docker exec "$db_container" \
+    psql --username lockin_owner --dbname lockin --no-password --quiet \
+    --set ON_ERROR_STOP=1 --command "SELECT 1"
 
 # This also exercises the managed-provider role bootstrap that Phase 1 depends on.
 log "creating the least-privilege runtime role"
