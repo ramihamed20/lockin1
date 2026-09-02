@@ -40,6 +40,7 @@ from ..scanning import (
     recover_stale_scans,
 )
 from ..services import FileValidationError, create_managed_file, validate_upload
+from .helpers import close_streamed
 
 pytestmark = pytest.mark.django_db
 
@@ -148,7 +149,7 @@ def test_published_file_remains_available_while_replacement_version_is_draft() -
     draft_response = client.get(f"/api/v1/files/{replacement.id}/view")
 
     assert published_response.status_code == 200
-    published_response.close()
+    close_streamed(published_response)
     assert draft_response.status_code == 404
 
 
@@ -242,7 +243,7 @@ def test_clean_scan_gate_is_fail_closed_when_enabled(settings: Any) -> None:
     managed_file.save(update_fields=("scan_status",))
     response = client.get(f"/api/v1/files/{managed_file.id}/view")
     assert response.status_code == 200
-    response.close()
+    close_streamed(response)
 
 
 def test_launch_shape_publishes_and_delivers_without_a_scanner(settings: Any) -> None:
@@ -290,7 +291,7 @@ def test_launch_shape_publishes_and_delivers_without_a_scanner(settings: Any) ->
     response = client.get(f"/api/v1/files/{managed_file.id}/view")
 
     assert response.status_code == 200
-    response.close()
+    close_streamed(response)
 
 
 def test_unscanned_mode_still_refuses_uploads_from_unprivileged_accounts(
@@ -451,7 +452,7 @@ def test_fresh_pdf_scans_publishes_and_delivers_without_database_override(
     client.force_authenticate(student)
     response = client.get(f"/api/v1/files/{managed_file.id}/view")
     assert response.status_code == 200
-    response.close()
+    close_streamed(response)
 
 
 def test_scan_failures_retry_then_fail_closed_and_stale_claims_recover(settings: Any) -> None:
@@ -551,7 +552,7 @@ def test_superseded_unpublished_and_archived_files_are_revoked() -> None:
     client.force_authenticate(student)
     before = client.get(f"/api/v1/files/{old_file_id}/view")
     assert before.status_code == 200
-    before.close()
+    close_streamed(before)
 
     learning_object = replace_pdf(
         actor=admin,
@@ -565,7 +566,7 @@ def test_superseded_unpublished_and_archived_files_are_revoked() -> None:
     assert client.get(f"/api/v1/files/{old_file_id}/view").status_code == 404
     current = client.get(f"/api/v1/files/{current_file_id}/view")
     assert current.status_code == 200
-    current.close()
+    close_streamed(current)
 
     learning_object = unpublish_sheet(
         actor=admin,

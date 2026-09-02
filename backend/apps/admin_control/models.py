@@ -212,8 +212,12 @@ class NotificationCampaignDelivery(models.Model):
         blank=True,
         related_name="campaign_delivery_records",
     )
-    in_app_status = models.CharField(max_length=12, default="not_requested")
-    email_status = models.CharField(max_length=12, default="not_requested")
+    # "not_requested" is 13 characters, so max_length=12 could never store this
+    # field's own default. SQLite ignores declared VARCHAR length and accepted
+    # it; PostgreSQL rejects it, which closed the whole campaign dispatch path.
+    # 20 keeps headroom over the longest value in use ("not_requested").
+    in_app_status = models.CharField(max_length=20, default="not_requested")
+    email_status = models.CharField(max_length=20, default="not_requested")
     failure_reason = models.CharField(max_length=240, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
