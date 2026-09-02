@@ -48,11 +48,16 @@ RUN chmod 0555 /usr/local/bin/lockin-start
 
 # nginx and Gunicorn both run unprivileged. The listener is above 1024, and the
 # writable paths below are the only state either process needs.
+#
+# Deliberately no /var/cache/nginx: that path belongs to the Alpine and official
+# nginx images. This stage installs Debian's nginx, which compiles its temporary
+# paths under /var/lib/nginx and never creates a cache directory, so chown'ing
+# it failed the build outright. Nothing in this deployment sets proxy_cache_path
+# or overrides a *_temp_path either, so /var/lib/nginx below is the whole of it.
 RUN chown -R lockin:lockin \
         /app/media \
         /app/staticfiles \
         /etc/nginx/conf.d \
-        /var/cache/nginx \
         /var/lib/nginx \
         /var/log/nginx
 
