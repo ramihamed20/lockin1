@@ -349,3 +349,61 @@ test("an offline start explains itself and recovers when the connection returns"
   await expect(page.locator(".startup-shell")).toHaveCount(0, { timeout: 20_000 });
   expect(captured.sessionRequests).toBe(2);
 });
+
+// The production report: the verification link came back to the site and the
+// interface behaved as though registration had to start over. Following the
+// mailed link has to land on the confirmation page, keep the token long enough
+// to spend it, and then leave the token out of the visible URL.
+test("the mailed verification link confirms the account instead of restarting registration", async ({ page }) => {
+  await mockAuth(page);
+  const verifications = [];
+  await page.route("**/api/v1/auth/verify-email", async (route) => {
+    verifications.push(route.request().postDataJSON());
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ status: "verified" }) });
+  });
+
+  // Exactly the shape the account email produces for a hash-router client.
+  await page.goto("/#/verify-email?token=mailed-verification-token");
+
+  await expect(page.getByRole("heading", { name: "Verify your email" })).toBeVisible();
+  // The signup form is not what the reader should be looking at.
+  await expect(page.getByRole("heading", { name: "Create your account" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toHaveCount(0);
+  // The token is off the address bar before anything is submitted.
+  await expect.poll(() => new URL(page.url()).hash).toBe("#/verify-email");
+
+  await page.getByRole("button", { name: "Verify email" }).click();
+
+  await expect(page.getByText("Your email is verified. You can now sign in.")).toBeVisible();
+  expect(verifications).toEqual([{ token: "mailed-verification-token" }]);
+  expect(new URL(page.url()).hash).toBe("#/verify-email");
+  await expect(page.getByRole("button", { name: "Continue to sign in" })).toBeVisible();
+});
+
+test("an invalid verification link reports the failure on the confirmation page", async ({ page }) => {
+  await mockAuth(page);
+  await page.route("**/api/v1/auth/verify-email", async (route) => {
+    await route.fulfill({
+      status: 400,
+      contentType: "application/json",
+      body: JSON.stringify({ error: { code: "invalid_or_expired_token", message: "This link is invalid or has expired." } })
+    });
+  });
+
+  await page.goto("/#/verify-email?token=spent-token");
+  await page.getByRole("button", { name: "Verify email" }).click();
+
+  await expect(page.getByText("This link is invalid or has expired.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Verify your email" })).toBeVisible();
+});
+
+// Signing in with Google when the address has no account here is a
+// registration, and registration is where the policies are accepted.
+test("a Google sign-in with no account here moves the reader to the create-account screen", async ({ page }) => {
+  await mockAuth(page);
+  await page.goto("/?oauth=error&provider=google&oauth_error=signup_required#/");
+
+  await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
+  await expect(page.getByText("There is no Lock-in account for that Google address yet.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
+});

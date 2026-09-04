@@ -588,8 +588,18 @@ def clear_login_failures(*, key_hash: str) -> None:
 
 
 def build_account_link(*, path: str, raw_token: str) -> str:
+    """Build a single-use client link for ``path`` with its token attached.
+
+    The client is a hash-router single-page application, so the route and its
+    query string must live in the URL fragment. A path-style link is answered by
+    the static index document instead: the router stays on "/", never sees the
+    token, and the recipient lands back on the sign-in screen as though nothing
+    was confirmed.
+    """
+
     base_url = str(settings.PUBLIC_APP_URL).rstrip("/")
-    return f"{base_url}{path}?{urlencode({'token': raw_token})}"
+    route = path if path.startswith("/") else f"/{path}"
+    return f"{base_url}/#{route}?{urlencode({'token': raw_token})}"
 
 
 def send_account_email(*, recipient: str, subject: str, body: str) -> None:

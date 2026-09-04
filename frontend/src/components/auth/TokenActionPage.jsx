@@ -39,14 +39,19 @@ export function TokenActionPage({ type, onAccountChanged }) {
   const isReset = type === "reset-password";
   const flow = FLOW[type];
   const pageTitle = isReset ? "Reset your password" : flow.title;
+  // The route this page was mounted on. The flow type is not a route name
+  // ("verify" is served at /verify-email), so replacing the URL with a name
+  // derived from the type navigates away from this page and discards the
+  // token before the visitor can confirm anything.
+  const routePath = location.pathname;
 
   useEffect(() => {
     if (!token || !searchParams.has("token")) return;
     // Keep one-time credentials out of browser history and referrers as soon
     // as the router has captured them. The component instance retains the
     // in-memory token while the public URL is replaced with the clean route.
-    navigate(`/${type}`, { replace: true });
-  }, [navigate, searchParams, token, type]);
+    navigate(routePath, { replace: true });
+  }, [navigate, routePath, searchParams, token]);
 
   useEffect(() => {
     document.title = `${pageTitle} — Lock-in`;
@@ -69,16 +74,21 @@ export function TokenActionPage({ type, onAccountChanged }) {
       if (isReset) {
         await authApi.confirmPasswordReset(token, password, passwordConfirm);
         setMessage("Your password has been reset. Please sign in with your new password.");
-        await onAccountChanged?.();
       } else {
         await flow.run(token);
         setMessage(flow.success);
+      }
+      // The single-use token is spent either way, so a failure to refresh the
+      // signed-in account must not be reported as a failed confirmation.
+      try {
         await onAccountChanged?.();
+      } catch {
+        // The account action already completed on the server.
       }
       // The one-time token has been consumed; remove it from the visible URL.
       // Keep a non-secret message so this route remains useful if HashRouter
       // remounts it while processing the replacement navigation.
-      navigate(`/${type}`, {
+      navigate(routePath, {
         replace: true,
         state: { accountActionMessage: isReset ? "Your password has been reset. Please sign in with your new password." : flow.success }
       });

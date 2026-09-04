@@ -566,3 +566,204 @@ def test_suspended_account_cannot_keep_authenticating() -> None:
 
     assert response.status_code == 403
     assert auth.authenticate(username=user.email, password=PASSWORD) is None
+
+
+def _latest_email_link() -> str:
+    from django.core import mail
+
+    assert mail.outbox
+    links = [line for line in mail.outbox[-1].body.splitlines() if line.startswith("http")]
+    assert len(links) == 1
+    return links[0]
+
+
+def test_account_emails_link_into_the_client_router_with_the_token(settings: Any) -> None:
+    """A path-only link is served by the static index and loses the token."""
+
+    settings.PUBLIC_APP_URL = "https://app.example.test"
+    client, csrf = csrf_client()
+
+    client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
+    verification_link = _latest_email_link()
+    raw_token = token_from_latest_email()
+
+    assert verification_link.startswith("https://app.example.test/#/verify-email?token=")
+    assert raw_token in verification_link
+
+    client.post(
+        "/api/v1/auth/password-reset",
+        {"email": REGISTRATION["email"]},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+    # The account is not verified yet, so no reset mail is sent and the last
+    # message is still the verification one. Verify first, then check the reset.
+    client.post(
+        "/api/v1/auth/verify-email",
+        {"token": raw_token},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+    client.post(
+        "/api/v1/auth/password-reset",
+        {"email": REGISTRATION["email"]},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+
+    assert _latest_email_link().startswith("https://app.example.test/#/reset-password?token=")
+
+
+def test_email_change_and_deletion_links_use_the_same_router_form(settings: Any) -> None:
+    settings.PUBLIC_APP_URL = "https://app.example.test/"
+    user = create_user(email="linkform@example.com", username="linkform")
+    client, csrf = csrf_client()
+    client.force_login(user)
+
+    client.post(
+        "/api/v1/account/email",
+        {"new_email": "moved@example.com", "current_password": PASSWORD},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+    assert _latest_email_link().startswith("https://app.example.test/#/confirm-email?token=")
+
+    client.post(
+        "/api/v1/account/deletion",
+        {"current_password": PASSWORD},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+    assert _latest_email_link().startswith("https://app.example.test/#/settings?token=")
+
+
+def test_verification_link_token_completes_registration_and_enables_login() -> None:
+    """The full production path: register, follow the mailed link, then sign in."""
+
+    client, csrf = csrf_client()
+    client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
+    raw_token = token_from_latest_email()
+
+    before_login = client.post(
+        "/api/v1/auth/login",
+        {"email": REGISTRATION["email"], "password": PASSWORD},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+    verified = client.post(
+        "/api/v1/auth/verify-email",
+        {"token": raw_token},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+    after_login = client.post(
+        "/api/v1/auth/login",
+        {"email": REGISTRATION["email"], "password": PASSWORD},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+
+    assert before_login.status_code == 403
+    assert before_login.json()["error"]["code"] == "invalid_credentials"
+    assert verified.status_code == 200
+    assert verified.json() == {"status": "verified"}
+    user = User.objects.get()
+    assert user.email_verified_at is not None
+    assert OneTimeToken.objects.get(kind=OneTimeToken.Kind.EMAIL_VERIFICATION).used_at is not None
+    assert after_login.status_code == 200
+    assert after_login.json()["user"]["email"] == "new@example.com"
+    assert after_login.json()["user"]["is_email_verified"] is True
+
+
+def test_verify_email_rejects_an_unknown_token_without_touching_any_account() -> None:
+    client, csrf = csrf_client()
+    client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
+
+    response = client.post(
+        "/api/v1/auth/verify-email",
+        {"token": "not-a-real-token"},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "invalid_or_expired_token"
+    assert not User.objects.get().is_email_verified
+
+
+def test_verify_email_rejects_an_expired_token(settings: Any) -> None:
+    settings.ACCOUNT_EMAIL_VERIFICATION_TTL_SECONDS = 0
+    client, csrf = csrf_client()
+    client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
+    raw_token = token_from_latest_email()
+
+    response = client.post(
+        "/api/v1/auth/verify-email",
+        {"token": raw_token},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "invalid_or_expired_token"
+    assert not User.objects.get().is_email_verified
+
+
+def test_resend_verification_supersedes_the_previous_link_and_verifies() -> None:
+    client, csrf = csrf_client()
+    client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
+    first_token = token_from_latest_email()
+
+    resent = client.post(
+        "/api/v1/auth/resend-verification",
+        {"email": REGISTRATION["email"]},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+    second_token = token_from_latest_email()
+    superseded = client.post(
+        "/api/v1/auth/verify-email",
+        {"token": first_token},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+    accepted = client.post(
+        "/api/v1/auth/verify-email",
+        {"token": second_token},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+
+    assert resent.status_code == 200
+    assert second_token != first_token
+    assert superseded.status_code == 400
+    assert accepted.status_code == 200
+    assert User.objects.get().is_email_verified
+
+
+def test_email_case_and_spacing_are_normalized_across_register_verify_and_login() -> None:
+    client, csrf = csrf_client()
+    client.post(
+        "/api/v1/auth/register",
+        {**REGISTRATION, "email": "  MiXeD.Case@Example.COM  "},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+    raw_token = token_from_latest_email()
+    client.post(
+        "/api/v1/auth/verify-email",
+        {"token": raw_token},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+
+    response = client.post(
+        "/api/v1/auth/login",
+        {"email": "MIXED.CASE@EXAMPLE.com", "password": PASSWORD},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+
+    assert User.objects.get().email == "mixed.case@example.com"
+    assert response.status_code == 200
+    assert response.json()["user"]["email"] == "mixed.case@example.com"

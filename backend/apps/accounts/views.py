@@ -38,6 +38,7 @@ from .oauth import (
     OAuthFlowError,
     OAuthProviderError,
     OAuthRegistrationUnavailable,
+    OAuthSignupRequired,
     begin_oauth_flow,
     complete_oauth_callback,
     consume_oauth_flow,
@@ -471,6 +472,8 @@ def _oauth_callback_redirect(
         error_code = "configuration"
     except OAuthAccountLinkError:
         error_code = "account_link_required"
+    except OAuthSignupRequired:
+        error_code = "signup_required"
     except OAuthRegistrationUnavailable:
         error_code = "registration_unavailable"
     except OAuthProviderError:
@@ -722,7 +725,7 @@ class AccountDeletionView(APIView):
             deletion_request, token = request_account_deletion(user=user)
         except AccountStateError as error:
             raise RequestRejected(str(error), code="deletion_request_rejected") from error
-        link = build_account_link(path="/#/settings", raw_token=token.raw_token)
+        link = build_account_link(path="/settings", raw_token=token.raw_token)
         send_account_email(
             recipient=user.email,
             subject="Confirm your Lock-in account deletion request",

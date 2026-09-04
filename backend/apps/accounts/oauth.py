@@ -56,6 +56,10 @@ class OAuthRegistrationUnavailable(ValueError):
     pass
 
 
+class OAuthSignupRequired(ValueError):
+    """The provider identity has no Lock-in account and the flow cannot create one."""
+
+
 @dataclass(frozen=True, slots=True)
 class ProviderConfig:
     provider: str
@@ -442,9 +446,13 @@ def resolve_social_user(*, profile: ProviderProfile, flow: OAuthFlow) -> User:
     else:
         if not _registration_enabled():
             raise OAuthRegistrationUnavailable("New registrations are temporarily unavailable.")
-        if not flow.policy_accepted:
-            raise OAuthRegistrationUnavailable(
-                "Accept the current platform policies before creating an account."
+        # Account creation stays gated on an explicit registration intent that
+        # carried policy acceptance. A sign-in flow reports that separately so
+        # the client can offer registration instead of claiming the platform
+        # has closed registrations.
+        if flow.intent != OAuthFlow.Intent.REGISTER or not flow.policy_accepted:
+            raise OAuthSignupRequired(
+                "Create a Lock-in account with this provider before signing in."
             )
         try:
             with transaction.atomic():
@@ -535,6 +543,7 @@ def oauth_frontend_redirect(*, provider: str, outcome: str, error: str = "") -> 
         "provider_error",
         "rate_limited",
         "registration_unavailable",
+        "signup_required",
     }
     safe_outcome = outcome if outcome in allowed_outcomes else "error"
     safe_error = error if error in allowed_errors else "provider_error"

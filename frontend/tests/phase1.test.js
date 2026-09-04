@@ -89,7 +89,13 @@ test("account token routes and direct privileged-route guards are attached to th
   assert.match(app, /path="\/operations\/\*"/);
   assert.match(app, /onSignedOut=\{clearAuthenticatedUi\}/);
   assert.match(tokenAction, /searchParams\.has\("token"\)/);
-  assert.match(tokenAction, /navigate\(`\/\$\{type\}`,[\s\S]*replace: true/);
+  // The token leaves the URL by replacing it with the route the page is
+  // mounted on. Rebuilding it from the flow type sends "verify" to /verify,
+  // which no route serves, so the visitor is bounced to the sign-in screen
+  // and the token is lost before it can be spent.
+  assert.match(tokenAction, /const routePath = location\.pathname;/);
+  assert.match(tokenAction, /navigate\(routePath, \{[\s\S]*replace: true/);
+  assert.doesNotMatch(tokenAction, /navigate\(`\/\$\{type\}`/);
   assert.doesNotMatch(tokenAction, /localStorage[^\n]*token|sessionStorage[^\n]*token/);
 });
 

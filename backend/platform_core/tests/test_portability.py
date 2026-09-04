@@ -509,3 +509,40 @@ def test_clean_scan_enforcement_rejects_an_ambiguous_value() -> None:
 
     assert result.returncode != 0
     assert "CONTENT_REQUIRE_CLEAN_SCAN must be a boolean" in result.stderr
+
+
+# Production refuses a provider that carries some of its values and not others,
+# so an example a deployment copies verbatim has to be one of the two accepted
+# shapes. Shipping only a callback URL stops the API from starting at all.
+OPTIONAL_OAUTH_PROVIDERS = {
+    "Google": (
+        "GOOGLE_OAUTH_CLIENT_ID",
+        "GOOGLE_OAUTH_CLIENT_SECRET",
+        "GOOGLE_OAUTH_REDIRECT_URI",
+    ),
+    "Apple": (
+        "APPLE_OAUTH_SERVICES_ID",
+        "APPLE_OAUTH_TEAM_ID",
+        "APPLE_OAUTH_KEY_ID",
+        "APPLE_OAUTH_PRIVATE_KEY",
+        "APPLE_OAUTH_REDIRECT_URI",
+    ),
+}
+
+
+def test_production_example_never_half_configures_an_optional_oauth_provider() -> None:
+    example = Path(__file__).resolve().parents[3] / ".env.production.example"
+    assignments: dict[str, str] = {}
+    for line in example.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if stripped.startswith("#") or "=" not in stripped:
+            continue
+        name, _, value = stripped.partition("=")
+        assignments[name.strip()] = value.strip()
+
+    for provider, names in OPTIONAL_OAUTH_PROVIDERS.items():
+        supplied = [name for name in names if assignments.get(name)]
+        assert supplied in ([], list(names)), (
+            f"{provider} OAuth is half-configured in .env.production.example "
+            f"({', '.join(supplied)}); production refuses to start on that."
+        )
