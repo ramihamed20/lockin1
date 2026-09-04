@@ -18,9 +18,17 @@ ARG VITE_POLICY_VERSION
 
 # Legal identity and a support destination are launch requirements. They are
 # intentionally public build values, never secrets.
+#
+# The postal address is the exception, and deliberately so. PublicInfoPage
+# renders it conditionally, so the application has always been able to omit
+# it. An individual running this without a registered company has no address
+# to publish that is not their home, and requiring one leaves two ways out:
+# publish that, or invent something. The second is exactly what the
+# placeholder check below exists to prevent, so the requirement was working
+# against itself. The address stays optional here, and a placeholder is still
+# rejected whenever one is supplied.
 RUN test -n "$VITE_SUPPORT_EMAIL" \
     && test -n "$VITE_LEGAL_ENTITY" \
-    && test -n "$VITE_LEGAL_ADDRESS" \
     && test -n "$VITE_LEGAL_JURISDICTION" \
     && test -n "$VITE_POLICY_VERSION" \
     && case "$VITE_SUPPORT_EMAIL" in *@*.*) ;; *) echo "VITE_SUPPORT_EMAIL must be a valid public contact" >&2; exit 1;; esac \

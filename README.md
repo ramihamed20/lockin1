@@ -75,6 +75,11 @@ Start with `docs/PHASE_11_PRODUCTION_READINESS.md` and execute `docs/DEPLOYMENT_
 file-mounted; PostgreSQL owner and runtime credentials must differ; the one-shot release must
 complete before runtime preflight/backend/edge.
 
+`bench/` is the capacity-benchmark harness: it answers how many concurrent active users a
+2 vCPU / 4 GB VPS supports by measuring the real production images under `compose.production.yaml`,
+rather than by reasoning about them. It needs a second host for the load generator and it publishes
+no capacity number that was not measured. See `bench/README.md`.
+
 `scripts/production/backup-postgres.sh` and `verify-postgres-restore.sh` create and verify logical
 database backups. A complete recovery set must also include coordinated encrypted private media and
 exact image/config evidence as defined in `docs/BACKUP_RECOVERY.md`.

@@ -1,6 +1,6 @@
 # Production Deployment Checklist
 
-Last updated: 2026-07-19
+Last updated: 2026-09-04
 
 This checklist is the repeatable production release contract. A checked source-code phase does not
 authorize a deployment; the deployment owner must complete and retain this evidence per release.
@@ -16,10 +16,19 @@ The deployment shapes themselves, and the migration between them, are described 
   whose image has never started in CI is not production-ready.
 - [ ] `validate_object_storage` passed against the target bucket, with `anonymous_access` refused
   and `ranged_reads` true. See docs/DEPLOYMENT.md, Staging validation for a storage provider.
-- [ ] ClamAV verified per docs/DEPLOYMENT.md: reachable from the worker on 3310, unreachable from
-  the public internet by explicit test, EICAR quarantined, signature volume persistent, sized for
-  the reload peak.
+- [ ] The malware-scanning decision is recorded, and `CONTENT_REQUIRE_CLEAN_SCAN` and
+  `COMPOSE_PROFILES` agree with it. The initial launch runs with scanning off and no
+  `file-scanning` profile; that is a stated decision, not an omission, because the upload
+  surface is restricted to creators and administrators. See docs/DEPLOYMENT.md, "Malware
+  scanning".
+- [ ] *Only when the `file-scanning` profile is enabled:* ClamAV verified per
+  docs/DEPLOYMENT.md -- reachable from the worker on 3310, unreachable from the public
+  internet by explicit test, EICAR quarantined, signature volume persistent, sized for the
+  reload peak, and the host has the memory for it.
 - [ ] Immutable backend/edge image tags and digests recorded; no `latest` tag.
+- [ ] The deployment host can reach those images: either it is signed in to the registry
+  with a read-only token, or the packages are deliberately public. `docker compose pull`
+  is the first step of the release and it fails closed on a private package.
 - [ ] `.env.production` reviewed against `.env.production.example`; no secret values in the file.
 - [ ] Django, SMTP, PostgreSQL owner/runtime, and TLS secrets exist with restrictive host permissions.
 - [ ] Owner/runtime database credentials differ and have an approved rotation record.
@@ -39,7 +48,7 @@ The deployment shapes themselves, and the migration between them, are described 
 - [ ] Migration reviewed for locks, table rewrites, reversibility, and compatibility with the previous
   application image. Large data migrations need a separately approved runbook.
 - [ ] Monitoring/alerts/structured-log ingestion/error reporting are healthy; on-call owner named.
-- [ ] Malware scanning is healthy. If not, production file ingestion remains disabled.
+- [ ] With scanning enabled, it is healthy; if not, production file ingestion remains disabled.
 - [ ] Rollback image digests, database decision point, and rollback authority are recorded.
 
 ## Validate the Compose contract
@@ -75,8 +84,16 @@ Example commands:
 docker compose --env-file .env.production -f compose.production.yaml up -d db
 docker compose --env-file .env.production -f compose.production.yaml run --rm release
 docker compose --env-file .env.production -f compose.production.yaml run --rm preflight
-docker compose --env-file .env.production -f compose.production.yaml up -d backend operations-scheduler file-scan-worker edge
+docker compose --env-file .env.production -f compose.production.yaml up -d backend operations-scheduler edge
 ```
+
+That last line is the launch shape, and it deliberately names no `file-scan-worker`.
+Naming a profiled service on `up` is enough to enable its profile, so adding it here
+also starts ClamAV -- roughly 1.6 GB resident and 2.4 GB during its daily signature
+reload, which does not fit beside the application on a 4 GB host. Add
+`file-scan-worker` to this line only together with `file-scanning` in
+`COMPOSE_PROFILES` and `CONTENT_REQUIRE_CLEAN_SCAN=true`, on a host with the memory
+for it. See docs/DEPLOYMENT.md, "Malware scanning".
 
 Never run Django migrations with the runtime credential. Never bypass a failed preflight.
 

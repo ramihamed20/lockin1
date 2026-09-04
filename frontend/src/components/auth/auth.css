@@ -1,4 +1,33 @@
 @layer app {
+/* Height authority on the sign-in route.
+
+   The application sizes html, body, #root and .pwa-app-root to
+   --app-viewport-height, which resolves to the *large* viewport: the screen
+   with the browser toolbar retracted. On a phone the document is therefore
+   always taller than what is visible, by exactly the toolbar.
+
+   Every screen carries that surplus, but only sign-in feels it, because
+   sign-in is the one screen whose content already fits — so the surplus is
+   its entire scroll range. Dragging down consumes it, the toolbar retracts,
+   the surplus is gone, and the browser snaps back to the top. That reads as
+   the screen resisting downward scroll while upward scroll behaves normally
+   (moving toward the stable, already-scrolled-to-zero position never hits the
+   snap). Creating an account is unaffected because that form genuinely
+   overflows, so a real scroll range swallows the same surplus.
+
+   svh is the viewport with the toolbar shown, so this chain is never taller
+   than the reader can actually see. It is a static unit, so it does not
+   thrash while the browser chrome animates open or closed. These stay
+   minimums, so a sign-up form that is genuinely taller still grows and
+   scrolls exactly as it did. Scoped to this route only: the shell's own
+   height contract elsewhere is unrelated to this bug. */
+:root:has(.auth-v2),
+:root:has(.auth-v2) body,
+:root:has(.auth-v2) #root,
+:root:has(.auth-v2) .pwa-app-root {
+  min-block-size: 100vh;
+  min-block-size: 100svh;
+}
 .auth-v2 {
   --auth-base: #060a14;
   --auth-surface: #0b1020;
@@ -11,15 +40,18 @@
   --auth-muted: #a6b0c4;
   --auth-quiet: #7f8aa1;
   --auth-gold: #f0be3c;
-  /* Authentication paints outside the application shell but answers to the
-     same viewport authority, so the sign-in screen and the shell it leads to
-     are exactly the same height. */
+  /* Sign-in sizes to the viewport the reader can actually see: see the height
+     note above for why it does not take the shell's large-viewport authority.
+     100vh is the fallback for browsers without svh. */
   min-height: 100vh;
-  min-height: var(--app-viewport-height, 100dvh);
+  min-height: 100svh;
   color-scheme: dark;
-  overflow-x: clip;
-  overflow-y: auto;
-  scroll-padding-bottom: 36vh;
+  /* Clip horizontally without becoming a scroll container. `overflow-y: auto`
+     forced overflow-x to compute to hidden, which gave this element a scroll
+     box of its own that it never actually used — the document is the real
+     scroller, so every document scroll had to move a full-page layer that
+     existed for nothing. */
+  overflow: clip visible;
   color: var(--auth-ink);
   background: var(--auth-base);
   padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
@@ -139,7 +171,6 @@
 .auth-v2-social-button:hover:where(html.ix-hover *):not(:disabled) { border-color: var(--auth-border-strong); background: var(--auth-control-hover); transform: translateY(-1px); }
 .auth-v2-social-button:active:where([data-ix-pressed]):not(:disabled) { transform: translateY(0); }
 .auth-v2-social-button:disabled { cursor: not-allowed; opacity: .54; background: var(--auth-surface); }
-.auth-v2-apple { color: var(--auth-ink); }
 .auth-v2-divider { display: flex; align-items: center; gap: 12px; margin: 9px 0 2px; color: var(--auth-quiet); font-size: 11px; font-weight: 700; text-transform: uppercase; }
 .auth-v2-divider::before, .auth-v2-divider::after { content: ""; height: 1px; flex: 1; background: var(--auth-border); }
 .auth-v2-form { display: grid; gap: 17px; }

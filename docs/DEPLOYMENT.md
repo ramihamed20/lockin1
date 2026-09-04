@@ -616,7 +616,26 @@ Images come from the registry CI published them to. The VPS never builds: a
 frontend build peaks near 2 GB, which this host cannot spare beside PostgreSQL
 and a running application, and a host build makes the deployed artefact
 unreproducible. Set `LOCKIN_IMAGE_REPOSITORY` and `LOCKIN_IMAGE_TAG` in
-`.env.production` to the values the CI publish job printed, then:
+`.env.production` to the values the CI publish job printed.
+
+A package that GitHub Actions pushes to GHCR is private until someone makes it
+public, and `pull` against a private package fails with `denied` before it says
+anything more useful. Authenticate the host once, with a token that can read
+packages and nothing else:
+
+```bash
+# A GitHub personal access token carrying the single read:packages scope,
+# passed on stdin so it reaches neither the shell history nor the process list.
+printf '%s' "$GHCR_READ_TOKEN" | docker login ghcr.io --username <github-username> --password-stdin
+```
+
+The credential lands in `~/.docker/config.json` on the host; protect that file
+as you would any other secret. The alternative is to make the three packages
+public in the repository's package settings and skip this step -- the images
+carry no secrets, but they do disclose the built application. Either way it is
+a decision: record which one this deployment made.
+
+Then:
 
 ```bash
 docker compose --env-file .env.production -f compose.production.yaml pull

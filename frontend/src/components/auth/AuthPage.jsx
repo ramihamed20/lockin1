@@ -30,14 +30,6 @@ function GoogleIcon() {
   );
 }
 
-function AppleIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-      <path d="M17.04 12.54c.02 3.04 2.67 4.05 2.7 4.07-.02.08-.42 1.46-1.4 2.88-.85 1.23-1.73 2.45-3.12 2.48-1.36.03-1.8-.8-3.36-.8-1.56 0-2.05.77-3.34.83-1.34.05-2.36-1.35-3.22-2.57C3.55 16.9 2.2 12.28 4 9.14a5 5 0 0 1 4.25-2.57c1.33-.03 2.58.9 3.36.9.78 0 2.24-1.12 3.78-.96.64.03 2.46.26 3.62 1.96-.1.06-2.16 1.25-2.14 3.73l.17.34ZM14.38 4.9c.71-.86 1.19-2.06 1.06-3.25-1.02.04-2.25.68-2.99 1.54-.66.76-1.24 1.98-1.08 3.14 1.13.09 2.3-.58 3.01-1.43Z" />
-    </svg>
-  );
-}
-
 function PasswordField({ id, label, value, onChange, autoComplete, placeholder, error, show, onToggle, t }) {
   return (
     <div className="auth-v2-field">
@@ -80,7 +72,7 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null }) 
   const [cohortLoading, setCohortLoading] = useState(true);
   const [cohortError, setCohortError] = useState(false);
   const [cohortRetry, setCohortRetry] = useState(0);
-  const [providers, setProviders] = useState({ google: null, apple: null });
+  const [providers, setProviders] = useState({ google: null });
   const [error, setError] = useState(null);
   const [message, setMessage] = useState("");
   const [verificationPending, setVerificationPending] = useState(false);
@@ -138,7 +130,7 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null }) 
 
   useEffect(() => {
     let active = true;
-    authApi.oauthProviders().then((status) => { if (active) setProviders(status); }).catch(() => { if (active) setProviders({ google: false, apple: false }); });
+    authApi.oauthProviders().then((status) => { if (active) setProviders(status); }).catch(() => { if (active) setProviders({ google: false }); });
     return () => { active = false; };
   }, []);
 
@@ -256,9 +248,6 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null }) 
               <div className="auth-v2-social" aria-label={t("auth.or")}>
                 <button type="button" className="auth-v2-social-button" onClick={() => beginSocial("google")} disabled={busy || providers.google !== true} title={providers.google === false ? t("auth.providerUnavailable") : undefined}>
                   {socialLoading === "google" ? <span className="auth-v2-spinner" /> : <GoogleIcon />}<span>{t("auth.continueGoogle")}</span>
-                </button>
-                <button type="button" className="auth-v2-social-button auth-v2-apple" onClick={() => beginSocial("apple")} disabled={busy || providers.apple !== true} title={providers.apple === false ? t("auth.providerUnavailable") : undefined}>
-                  {socialLoading === "apple" ? <span className="auth-v2-spinner" /> : <AppleIcon />}<span>{t("auth.continueApple")}</span>
                 </button>
                 <div className="auth-v2-divider"><span>{t("auth.or")}</span></div>
               </div>

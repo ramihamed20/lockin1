@@ -177,10 +177,15 @@ jobs:
       - name: Install exact frontend lockfile
         working-directory: frontend
         run: pnpm install --frozen-lockfile
+      # Split out of the quality step below because it fails for a reason the
+      # others cannot: npm's advisory service being unreachable says nothing
+      # about this repository. The script retries only that case and still
+      # fails closed, at the same --audit-level=high, on any real finding.
+      - name: Production dependency audit
+        run: scripts/ci/pnpm-audit.sh
       - name: Frontend quality and production build
         working-directory: frontend
         run: |
-          pnpm audit --prod --audit-level=high
           pnpm run lint
           pnpm run typecheck
           pnpm test

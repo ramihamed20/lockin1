@@ -94,7 +94,7 @@ export default defineConfig(({ mode }) => {
   server: {
     host: "0.0.0.0",
     port: 5050,
-    allowedHosts: [".trycloudflare.com"],
+    allowedHosts: [".trycloudflare.com", ".ngrok-free.app", ".ngrok-free.dev", ".ngrok.app", ".ngrok.io"],
     proxy: {
       "/api/v1": {
         target: djangoProxyTarget,
