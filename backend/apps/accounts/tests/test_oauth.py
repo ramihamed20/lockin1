@@ -11,7 +11,13 @@ from django.db import IntegrityError
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.accounts.models import AccountSession, OAuthFlow, SocialIdentity, User
+from apps.accounts.models import (
+    AccountSecurityEvent,
+    AccountSession,
+    OAuthFlow,
+    SocialIdentity,
+    User,
+)
 from apps.accounts.oauth import (
     APPLE_TOKEN_ENDPOINT,
     GOOGLE_TOKEN_ENDPOINT,
@@ -57,14 +63,24 @@ def configure_apple(settings: Any) -> None:
     settings.PUBLIC_APP_URL = "http://testserver/"
 
 
-def start_flow(*, client: APIClient, csrf: str, provider: str, intent: str = "register") -> str:
+def start_flow(
+    *,
+    client: APIClient,
+    csrf: str,
+    provider: str,
+    intent: str = "register",
+    accept_policies: bool = True,
+) -> str:
+    """Start a flow the way the client does: the provider button states the
+    consent, so acceptance rides along on login and registration alike."""
+
     response = client.post(
         f"/api/v1/auth/oauth/{provider}/start",
         {
             "intent": intent,
             "preferred_language": "ar",
             "remember_me": True,
-            "accept_policies": intent == "register",
+            "accept_policies": accept_policies,
         },
         format="json",
         HTTP_X_CSRFTOKEN=csrf,
@@ -467,7 +483,7 @@ def test_oauth_rejects_unsupported_configuration_and_tampered_flow_state(setting
 def test_social_registration_failures_are_converted_to_safe_domain_errors(settings: Any) -> None:
     configure_google(settings)
     client, csrf = csrf_client()
-    start_flow(client=client, csrf=csrf, provider="google", intent="login")
+    start_flow(client=client, csrf=csrf, provider="google", intent="login", accept_policies=False)
     login_flow = OAuthFlow.objects.get()
     new_profile = ProviderProfile(
         provider="google",
@@ -620,14 +636,14 @@ def test_google_start_accepts_both_intents_and_records_them(settings: Any) -> No
     configure_google(settings)
     client, csrf = csrf_client()
 
-    for intent, accept_policies in (("login", False), ("register", True)):
+    for intent in ("login", "register"):
         response = client.post(
             "/api/v1/auth/oauth/google/start",
             {
                 "intent": intent,
                 "preferred_language": "ar",
                 "remember_me": True,
-                "accept_policies": accept_policies,
+                "accept_policies": True,
             },
             format="json",
             HTTP_X_CSRFTOKEN=csrf,
@@ -637,8 +653,30 @@ def test_google_start_accepts_both_intents_and_records_them(settings: Any) -> No
         assert authorization_url.startswith("https://accounts.google.com/o/oauth2/v2/auth?")
 
     assert sorted(OAuthFlow.objects.values_list("intent", flat=True)) == ["login", "register"]
-    assert OAuthFlow.objects.get(intent="register").policy_accepted
-    assert not OAuthFlow.objects.get(intent="login").policy_accepted
+    # The consent stated at the provider button is recorded against the current
+    # policy version for both screens, not only for the registration screen.
+    for flow in OAuthFlow.objects.all():
+        assert flow.policy_accepted
+        assert flow.policy_version == settings.ACCOUNT_POLICY_VERSION
+
+
+def test_oauth_start_requires_an_explicit_position_on_the_policies(settings: Any) -> None:
+    """Consent is never inferred from silence: a client that omits the field is
+    rejected rather than quietly recorded as having declined (or accepted)."""
+
+    configure_google(settings)
+    client, csrf = csrf_client()
+
+    response = client.post(
+        "/api/v1/auth/oauth/google/start",
+        {"intent": "login", "preferred_language": "ar", "remember_me": True},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+
+    assert response.status_code == 400
+    assert "accept_policies" in response.json()["error"]["fields"]
+    assert not OAuthFlow.objects.exists()
 
 
 def test_google_login_signs_in_an_existing_social_account(settings: Any) -> None:
@@ -676,12 +714,15 @@ def test_google_login_signs_in_an_existing_social_account(settings: Any) -> None
     assert client.get("/api/v1/auth/session").json()["user"]["email"] == existing.email
 
 
-def test_google_login_without_an_account_asks_for_signup_not_a_closed_platform(
-    settings: Any,
-) -> None:
+@pytest.mark.parametrize("intent", ["login", "register"])
+def test_a_new_google_user_is_created_from_either_screen(settings: Any, intent: str) -> None:
+    """The reported failure: "Continue with Google" from the login screen was
+    rejected for a first-time user. The button states the consent on both
+    screens, so both screens can complete a first sign-in."""
+
     configure_google(settings)
     client, csrf = csrf_client()
-    state = start_flow(client=client, csrf=csrf, provider="google", intent="login")
+    state = start_flow(client=client, csrf=csrf, provider="google", intent=intent)
     profile = ProviderProfile(
         provider="google",
         subject="first-time-subject",
@@ -697,10 +738,125 @@ def test_google_login_without_an_account_asks_for_signup_not_a_closed_platform(
             {"state": state, "code": "one-time-code"},
         )
 
+    assert response["Location"].endswith("?oauth=success&provider=google")
+    created = User.objects.get(email="first-time@example.com")
+    assert created.is_email_verified
+    assert SocialIdentity.objects.get(user=created).subject == "first-time-subject"
+    assert AccountSession.objects.get(user=created).session_key == client.session.session_key
+
+
+def test_the_accepted_policy_version_is_recorded_against_the_new_account(settings: Any) -> None:
+    configure_google(settings)
+    client, csrf = csrf_client()
+    state = start_flow(client=client, csrf=csrf, provider="google", intent="login")
+    profile = ProviderProfile(
+        provider="google",
+        subject="recorded-consent-subject",
+        email="recorded-consent@example.com",
+        email_verified=True,
+        full_name="Recorded Consent",
+        is_private_relay=False,
+    )
+
+    with patch("apps.accounts.oauth.exchange_oauth_code", return_value=profile):
+        client.get("/api/v1/auth/oauth/google/callback", {"state": state, "code": "one-time-code"})
+
+    created = User.objects.get(email="recorded-consent@example.com")
+    assert created.policy_accepted_at is not None
+    assert created.policy_version == settings.ACCOUNT_POLICY_VERSION
+    registration_event = AccountSecurityEvent.objects.get(
+        user=created,
+        event_type=AccountSecurityEvent.EventType.REGISTERED,
+    )
+    assert registration_event.metadata == {
+        "policy_version": settings.ACCOUNT_POLICY_VERSION,
+        "provider": "google",
+    }
+
+
+def test_a_flow_without_recorded_consent_cannot_create_an_account(settings: Any) -> None:
+    """Consent is not weakened, only relocated: a flow that carries no recorded
+    acceptance still creates nothing, whichever intent it claims."""
+
+    configure_google(settings)
+    profile = ProviderProfile(
+        provider="google",
+        subject="no-consent-subject",
+        email="no-consent@example.com",
+        email_verified=True,
+        full_name="No Consent",
+        is_private_relay=False,
+    )
+
+    for intent in ("login", "register"):
+        client, csrf = csrf_client()
+        state = start_flow(
+            client=client, csrf=csrf, provider="google", intent=intent, accept_policies=False
+        )
+        with patch("apps.accounts.oauth.exchange_oauth_code", return_value=profile):
+            response = client.get(
+                "/api/v1/auth/oauth/google/callback",
+                {"state": state, "code": "one-time-code"},
+            )
+        assert "oauth_error=signup_required" in response["Location"]
+
+    # A stored acceptance with no policy version to attribute it to is not
+    # consent either, so a tampered flow row cannot buy an account.
+    client, csrf = csrf_client()
+    state = start_flow(client=client, csrf=csrf, provider="google", intent="login")
+    OAuthFlow.objects.filter(used_at__isnull=True).update(policy_version="")
+    with patch("apps.accounts.oauth.exchange_oauth_code", return_value=profile):
+        response = client.get(
+            "/api/v1/auth/oauth/google/callback",
+            {"state": state, "code": "one-time-code"},
+        )
+
     assert "oauth_error=signup_required" in response["Location"]
-    # The policy acceptance gate is unchanged: no account, no social identity.
-    assert not User.objects.filter(email="first-time@example.com").exists()
+    assert not User.objects.filter(email="no-consent@example.com").exists()
     assert not SocialIdentity.objects.exists()
+
+
+def test_consented_login_creation_still_enforces_state_binding_and_single_use(
+    settings: Any,
+) -> None:
+    """Carrying consent from the login screen changes what a valid flow may do,
+    never which flows are valid."""
+
+    configure_google(settings)
+    client, csrf = csrf_client()
+    state = start_flow(client=client, csrf=csrf, provider="google", intent="login")
+    profile = ProviderProfile(
+        provider="google",
+        subject="protected-subject",
+        email="protected@example.com",
+        email_verified=True,
+        full_name="Protected",
+        is_private_relay=False,
+    )
+
+    # The state alone is not enough: another browser holds no binding cookie.
+    other_browser = APIClient()
+    with patch("apps.accounts.oauth.exchange_oauth_code", return_value=profile):
+        stolen = other_browser.get(
+            "/api/v1/auth/oauth/google/callback",
+            {"state": state, "code": "one-time-code"},
+        )
+    assert "oauth_error=flow_invalid" in stolen["Location"]
+    assert not User.objects.filter(email="protected@example.com").exists()
+
+    with patch("apps.accounts.oauth.exchange_oauth_code", return_value=profile):
+        first = client.get(
+            "/api/v1/auth/oauth/google/callback",
+            {"state": state, "code": "one-time-code"},
+        )
+        replayed = client.get(
+            "/api/v1/auth/oauth/google/callback",
+            {"state": state, "code": "one-time-code"},
+        )
+
+    assert first["Location"].endswith("?oauth=success&provider=google")
+    assert "oauth_error=flow_invalid" in replayed["Location"]
+    assert User.objects.filter(email="protected@example.com").count() == 1
 
 
 def test_google_signup_after_the_signup_prompt_creates_the_account(settings: Any) -> None:
@@ -752,3 +908,204 @@ def test_disabled_registration_still_reports_a_closed_platform(settings: Any) ->
 
     assert "oauth_error=registration_unavailable" in response["Location"]
     assert not User.objects.filter(email="closed@example.com").exists()
+
+
+def _complete_google_signup(
+    *,
+    settings: Any,
+    provider_name: str,
+    email: str = "rami@example.com",
+    subject: str = "google-onboarding-subject",
+) -> tuple[APIClient, str, User]:
+    """Run a first-time Google sign-in and return the client ready to onboard."""
+
+    configure_google(settings)
+    client, csrf = csrf_client()
+    state = start_flow(client=client, csrf=csrf, provider="google", intent="login")
+    profile = ProviderProfile(
+        provider="google",
+        subject=subject,
+        email=email,
+        email_verified=True,
+        full_name=provider_name,
+        is_private_relay=False,
+    )
+    with patch("apps.accounts.oauth.exchange_oauth_code", return_value=profile):
+        response = client.get(
+            "/api/v1/auth/oauth/google/callback",
+            {"state": state, "code": "one-time-code"},
+        )
+    assert response["Location"].endswith("?oauth=success&provider=google")
+    rotated_csrf = client.get("/api/v1/auth/csrf").json()["csrf_token"]
+    return client, rotated_csrf, User.objects.get(email=email)
+
+
+def test_the_chosen_username_is_the_only_public_name_a_google_account_shows(
+    settings: Any,
+) -> None:
+    """The reported failure: Google offered "Rami ha", the reader chose "ra33",
+    and the product showed the provider's name instead of the chosen one."""
+
+    client, csrf, created = _complete_google_signup(settings=settings, provider_name="Rami ha")
+
+    # Nothing from the provider was written into the profile in the first place.
+    assert created.full_name == ""
+    assert created.username is None
+
+    completed = client.patch(
+        "/api/v1/account/profile",
+        {"username": "ra33"},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+
+    assert completed.status_code == 200
+    created.refresh_from_db()
+    assert created.username == "ra33"
+    # The displayed name is exactly the chosen username -- not the provider's
+    # name, and not the two of them joined.
+    assert created.full_name == "ra33"
+    session_user = client.get("/api/v1/auth/session").json()["user"]
+    assert session_user["full_name"] == "ra33"
+    assert session_user["username"] == "ra33"
+    assert not session_user["username_required"]
+    # "Rami ha" survives nowhere a reader can see, in whole or in part.
+    assert "Rami" not in json.dumps(session_user)
+    assert "Rami ha ra33" not in json.dumps(session_user)
+    # The provider identity is kept only where sign-in needs it.
+    identity = SocialIdentity.objects.get(user=created)
+    assert identity.subject == "google-onboarding-subject"
+    assert identity.provider_email == "rami@example.com"
+
+
+def test_a_spaced_provider_name_does_not_reach_the_chosen_username(settings: Any) -> None:
+    client, csrf = _complete_google_signup(
+        settings=settings, provider_name="  Rami   ha  Al Fitouri  "
+    )[:2]
+
+    completed = client.patch(
+        "/api/v1/account/profile",
+        {"username": "  RA33  "},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+
+    assert completed.status_code == 200
+    # Normalization is the username's own: trimmed and lowercased, with no part
+    # of the provider's spaced name folded in.
+    user = User.objects.get(email="rami@example.com")
+    assert user.username == "ra33"
+    assert user.full_name == "ra33"
+    assert " " not in user.full_name
+
+
+def test_username_validation_and_uniqueness_survive_the_display_name_change(
+    settings: Any,
+) -> None:
+    create_user(email="taken@example.com", username="ra33", full_name="Existing Owner")
+    client, csrf = _complete_google_signup(settings=settings, provider_name="Rami ha")[:2]
+
+    for rejected_username in ("ra", "ra 33", "Ra33!", "_ra33", "r" * 31):
+        response = client.patch(
+            "/api/v1/account/profile",
+            {"username": rejected_username},
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf,
+        )
+        assert response.status_code == 400, rejected_username
+        assert "username" in response.json()["error"]["fields"]
+
+    taken = client.patch(
+        "/api/v1/account/profile",
+        {"username": "RA33"},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+
+    assert taken.status_code == 400
+    assert "username" in taken.json()["error"]["fields"]
+    # A refused username leaves no display name behind either.
+    rejected_user = User.objects.get(email="rami@example.com")
+    assert rejected_user.username is None
+    assert rejected_user.full_name == ""
+    # The account that already owned the name is untouched.
+    assert User.objects.get(email="taken@example.com").full_name == "Existing Owner"
+
+
+def test_a_display_name_the_reader_wrote_is_never_replaced_by_a_username(
+    settings: Any,
+) -> None:
+    """Email-and-password accounts name themselves at registration, so setting a
+    username later must not overwrite what they wrote."""
+
+    user = create_user(email="typed@example.com", full_name="Ahmed Al Mansouri")
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    named = client.patch("/api/v1/account/profile", {"username": "ahmed99"}, format="json")
+
+    assert named.status_code == 200
+    user.refresh_from_db()
+    assert user.username == "ahmed99"
+    assert user.full_name == "Ahmed Al Mansouri"
+
+    # A provider account that later renames itself keeps its display in step,
+    # until the reader writes a name of their own -- which then stays.
+    google_client, csrf = _complete_google_signup(settings=settings, provider_name="Rami ha")[:2]
+    google_client.patch(
+        "/api/v1/account/profile", {"username": "ra33"}, format="json", HTTP_X_CSRFTOKEN=csrf
+    )
+    google_client.patch(
+        "/api/v1/account/profile", {"username": "ra34"}, format="json", HTTP_X_CSRFTOKEN=csrf
+    )
+    renamed = User.objects.get(email="rami@example.com")
+    assert (renamed.username, renamed.full_name) == ("ra34", "ra34")
+
+    google_client.patch(
+        "/api/v1/account/profile",
+        {"full_name": "Rami Chosen"},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+    google_client.patch(
+        "/api/v1/account/profile", {"username": "ra35"}, format="json", HTTP_X_CSRFTOKEN=csrf
+    )
+    kept = User.objects.get(email="rami@example.com")
+    assert (kept.username, kept.full_name) == ("ra35", "Rami Chosen")
+
+
+def test_an_existing_google_account_keeps_its_name_and_signs_in_unchanged(settings: Any) -> None:
+    """Accounts that onboarded before this change are read, not rewritten."""
+
+    configure_google(settings)
+    existing = create_user(
+        email="returning-google@example.com", username="ra33", full_name="Rami ha"
+    )
+    SocialIdentity.objects.create(
+        user=existing,
+        provider="google",
+        subject="returning-google-subject",
+        provider_email=existing.email,
+        email_verified=True,
+    )
+    client, csrf = csrf_client()
+    state = start_flow(client=client, csrf=csrf, provider="google", intent="login")
+    profile = ProviderProfile(
+        provider="google",
+        subject="returning-google-subject",
+        email=existing.email,
+        email_verified=True,
+        full_name="Rami ha",
+        is_private_relay=False,
+    )
+
+    with patch("apps.accounts.oauth.exchange_oauth_code", return_value=profile):
+        response = client.get(
+            "/api/v1/auth/oauth/google/callback",
+            {"state": state, "code": "one-time-code"},
+        )
+
+    assert response["Location"].endswith("?oauth=success&provider=google")
+    existing.refresh_from_db()
+    assert (existing.username, existing.full_name) == ("ra33", "Rami ha")
+    assert client.get("/api/v1/auth/session").json()["user"]["full_name"] == "Rami ha"

@@ -18,6 +18,7 @@ import { FullScreenState, ReminderToast } from "./components/shared/index.jsx";
 import { bootFailureMessage, bootRetryDelayMs, shouldRetryBootAutomatically } from "./lib/sessionBootstrap.js";
 import { LoadingPanel } from "./components/ui/index.jsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.jsx";
+import { ConfirmDialog } from "./components/shared/ConfirmDialog.jsx";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute.jsx";
 import { TokenActionPage } from "./components/auth/TokenActionPage.jsx";
 import { setSessionMarker } from "./api/client.js";
@@ -96,7 +97,7 @@ function mergeRemoteThemeSettings(remoteSettings, currentSettings) {
 
 function App() {
   const location = useLocation();
-  const { setLocale } = useI18n();
+  const { setLocale, t } = useI18n();
   const [themeSettings, setThemeSettings] = useState(readLocalThemeSettings);
   const [reminderSettings, setReminderSettings] = useState(() => readReminderSettings());
   const clockTick = useVisibleNow(themeSettings.autoTheme || reminderSettings.enabled, 60_000);
@@ -114,6 +115,9 @@ function App() {
   const oauthSessionBootRef = useRef(new URLSearchParams(window.location.search).has("oauth"));
   const [sessionAttempt, setSessionAttempt] = useState(0);
   const [sessionNotice, setSessionNotice] = useState("");
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const loggingOutRef = useRef(false);
   const [notificationVersion, setNotificationVersion] = useState(0);
   const [storeCartCount, setStoreCartCount] = useState(0);
   const [lockBalance, setLockBalance] = useState(0);
@@ -358,6 +362,50 @@ function App() {
     }
   }, [clearAuthenticatedUi]);
 
+  // Signing out ends work in progress, so it is confirmed before it runs. Every
+  // entry point (the drawer, the account menu, the onboarding screen) asks the
+  // same question through the same dialog, and the answer -- not the click --
+  // is what reaches the unchanged logout call above.
+  const requestLogout = useCallback(() => {
+    if (loggingOutRef.current) return;
+    setLogoutConfirmOpen(true);
+  }, []);
+
+  const cancelLogout = useCallback(() => {
+    if (loggingOutRef.current) return;
+    setLogoutConfirmOpen(false);
+  }, []);
+
+  const confirmLogout = useCallback(async () => {
+    // The request is in flight exactly once: a second confirmation, however it
+    // arrives, is dropped here rather than reaching the API a second time.
+    if (loggingOutRef.current) return;
+    loggingOutRef.current = true;
+    setLoggingOut(true);
+    try {
+      await handleLogout();
+    } finally {
+      loggingOutRef.current = false;
+      setLoggingOut(false);
+      // A failed sign-out leaves the reader signed in, and handleLogout has
+      // already put the reason on screen; the dialog closes either way so the
+      // notice is not hidden behind it.
+      setLogoutConfirmOpen(false);
+    }
+  }, [handleLogout]);
+
+  const logoutConfirmDialog = (
+    <ConfirmDialog
+      open={logoutConfirmOpen}
+      busy={loggingOut}
+      title={t("auth.logoutConfirmTitle")}
+      message={t("auth.logoutConfirmMessage")}
+      confirmLabel={loggingOut ? t("auth.logoutWorking") : t("common.logout")}
+      onCancel={cancelLogout}
+      onConfirm={() => { void confirmLogout(); }}
+    />
+  );
+
   if (["/terms", "/privacy", "/support"].includes(location.pathname)) {
     return <PublicInfoPage page={location.pathname.slice(1)} />;
   }
@@ -389,12 +437,15 @@ function App() {
 
   if (user.onboardingRequired) {
     return (
-      <AuthPage
-        key={user.usernameRequired ? "username" : user.requiredProfileFields.join("-")}
-        completionUser={user}
-        onAuthed={applyAuthedUser}
-        onSignOut={handleLogout}
-      />
+      <>
+        <AuthPage
+          key={user.usernameRequired ? "username" : user.requiredProfileFields.join("-")}
+          completionUser={user}
+          onAuthed={applyAuthedUser}
+          onSignOut={requestLogout}
+        />
+        {logoutConfirmDialog}
+      </>
     );
   }
 
@@ -411,7 +462,7 @@ function App() {
   return (
     <SubscriptionSessionProvider key={user.id} user={user}>
       <>
-      <Shell user={user} operationsSession={operationsSession} theme={activeTheme} onThemeChange={setManualTheme} onLogout={handleLogout} notificationVersion={notificationVersion} onNotificationsChanged={() => setNotificationVersion((version) => version + 1)} storeCartCount={storeCartCount} lockBalance={lockBalance} storeCommerceEnabled={false}>
+      <Shell user={user} operationsSession={operationsSession} theme={activeTheme} onThemeChange={setManualTheme} onLogout={requestLogout} notificationVersion={notificationVersion} onNotificationsChanged={() => setNotificationVersion((version) => version + 1)} storeCartCount={storeCartCount} lockBalance={lockBalance} storeCommerceEnabled={false}>
         <ErrorBoundary>
         <Suspense fallback={<LoadingPanel />}>
           <Routes>
@@ -476,6 +527,7 @@ function App() {
       </Shell>
       {!inLockInMode && !inFocusWorkspace && reminderToast && <ReminderToast message={reminderToast} onDismiss={() => setReminderToast("")} />}
       {!inLockInMode && !inFocusWorkspace && sessionNotice && <ReminderToast title="Session" icon="alert-triangle" message={sessionNotice} onDismiss={() => setSessionNotice("")} />}
+      {logoutConfirmDialog}
       </>
     </SubscriptionSessionProvider>
   );

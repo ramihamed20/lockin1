@@ -110,7 +110,11 @@ class OAuthStartSerializer(StrictSerializer):
     intent = serializers.ChoiceField(choices=("login", "register"), default="login")
     preferred_language = serializers.ChoiceField(choices=User.Language.choices, default="en")
     remember_me = serializers.BooleanField(default=True)
-    accept_policies = serializers.BooleanField(default=False)
+    # Consent is stated at the provider button, so it is carried on every start
+    # regardless of the screen it came from. It is required rather than
+    # defaulted: a client that never states a position must not be read as
+    # having consented, and must not be read as having declined in silence.
+    accept_policies = serializers.BooleanField()
 
 
 class UserSerializer(serializers.ModelSerializer[User]):

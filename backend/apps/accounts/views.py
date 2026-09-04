@@ -235,10 +235,25 @@ class VerifyEmailView(APIView):
             identifier=str(serializer.validated_data["token"]),
         )
         try:
-            verify_email(raw_token=str(serializer.validated_data["token"]))
+            user = verify_email(raw_token=str(serializer.validated_data["token"]))
         except AccountTokenError as error:
             raise InvalidAccountToken() from error
-        return Response({"status": "verified"})
+        # Spending the link proves control of the mailbox, which is the same
+        # evidence a sign-in asks for -- and the token was single-use, unexpired
+        # and checked on the server before reaching this line. So the reader
+        # continues into the product rather than being sent to a login form for
+        # an account they just proved is theirs. The session is the one every
+        # other entry point creates, with a rotated key and a recorded event.
+        # An account that may not sign in is verified without one.
+        if user.status != User.Status.ACTIVE or not user.is_active:
+            return Response({"status": "verified", "user": None})
+        establish_account_session(
+            request=_http_request(request),
+            user=user,
+            remember_me=False,
+            metadata={"method": "email_verification"},
+        )
+        return Response({"status": "verified", "user": UserSerializer(user).data})
 
 
 class ResendVerificationView(APIView):
@@ -548,11 +563,23 @@ class ProfileView(APIView):
         previous_image = (
             user.profile_image if "avatar_default" in serializer.validated_data else None
         )
+        previous_username = user.username or ""
         with transaction.atomic():
             for field, value in serializer.validated_data.items():
                 setattr(user, field, value)
             if previous_image is not None:
                 user.profile_image = None
+            # An account created through a provider arrives with no display
+            # name, because the provider's name is not this profile's identity.
+            # The username the reader chooses is the identity they picked, so it
+            # is what the product shows -- and it keeps following a later
+            # rename, right up until the reader edits the display name into
+            # something of their own, which is then left alone.
+            if "username" in serializer.validated_data and user.full_name.strip() in (
+                "",
+                previous_username,
+            ):
+                user.full_name = user.username or ""
             if user.profile_completion_required and user.full_name.strip() and user.cohort_id:
                 user.profile_completion_required = False
             try:
