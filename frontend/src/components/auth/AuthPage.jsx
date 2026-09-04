@@ -53,6 +53,7 @@ function oauthMessage(t, outcome, code) {
     flow_invalid: "auth.oauthFlow",
     rate_limited: "auth.oauthRateLimited",
     registration_unavailable: "auth.oauthRegistration",
+    signup_required: "auth.oauthSignupRequired",
     provider_error: "auth.oauthProviderError"
   };
   return t(keys[code] || "auth.oauthProviderError");
@@ -134,14 +135,29 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null }) 
     return () => { active = false; };
   }, []);
 
+  // Returning from a provider through the back/forward cache restores this
+  // component with its pre-redirect state, which would leave the provider
+  // button disabled and reading as unavailable.
+  useEffect(() => {
+    function restoreFromCache(event) {
+      if (event.persisted) setSocialLoading("");
+    }
+    window.addEventListener("pageshow", restoreFromCache);
+    return () => window.removeEventListener("pageshow", restoreFromCache);
+  }, []);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const outcome = params.get("oauth");
     if (!outcome) return;
+    const code = params.get("oauth_error") || "";
     if (outcome === "cancelled") setMessage(oauthMessage(t, outcome, ""));
-    if (outcome === "error") setError(new Error(oauthMessage(t, outcome, params.get("oauth_error") || "")));
+    if (outcome === "error") setError(new Error(oauthMessage(t, outcome, code)));
+    // Signing in with a provider that has no account here is a registration,
+    // and registration needs the policy acceptance only this screen collects.
+    if (outcome === "error" && code === "signup_required" && !completionUser) setMode("signup");
     window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.hash}`);
-  }, [t]);
+  }, [completionUser, t]);
 
   useEffect(() => { document.title = `${heading[0]} — Lock-in`; }, [heading]);
 
@@ -156,6 +172,9 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null }) 
     setVerificationPending(false);
     setShowPassword(false);
     setShowConfirm(false);
+    // A provider hand-off that never left this document (a cancelled or
+    // restored navigation) must not leave every control disabled.
+    setSocialLoading("");
     window.scrollTo({ top: 0 });
   }
 

@@ -20,6 +20,7 @@ from apps.accounts.oauth import (
     OAuthFlowError,
     OAuthProviderError,
     OAuthRegistrationUnavailable,
+    OAuthSignupRequired,
     ProviderConfig,
     ProviderProfile,
     _apple_client_secret,
@@ -483,7 +484,7 @@ def test_social_registration_failures_are_converted_to_safe_domain_errors(settin
         resolve_social_user(profile=new_profile, flow=login_flow)
     with (
         patch("apps.accounts.oauth._registration_enabled", return_value=True),
-        pytest.raises(OAuthRegistrationUnavailable, match="Accept the current"),
+        pytest.raises(OAuthSignupRequired, match="before signing in"),
     ):
         resolve_social_user(profile=new_profile, flow=login_flow)
 
@@ -598,3 +599,156 @@ def test_social_identity_reconnect_updates_metadata_and_blocks_unsafe_links(sett
         pytest.raises(OAuthProviderError, match="invalid email"),
     ):
         exchange_oauth_code(provider="google", code="code", nonce="nonce")
+
+
+def test_google_is_the_only_available_provider_for_both_screens(settings: Any) -> None:
+    """Availability is provider state, not screen state: one answer serves both."""
+
+    configure_google(settings)
+    settings.APPLE_OAUTH_SERVICES_ID = ""
+    settings.APPLE_OAUTH_TEAM_ID = ""
+    settings.APPLE_OAUTH_KEY_ID = ""
+    settings.APPLE_OAUTH_PRIVATE_KEY = ""
+
+    response = APIClient().get("/api/v1/auth/oauth/providers")
+
+    assert response.status_code == 200
+    assert response.json() == {"providers": {"google": True, "apple": False}}
+
+
+def test_google_start_accepts_both_intents_and_records_them(settings: Any) -> None:
+    configure_google(settings)
+    client, csrf = csrf_client()
+
+    for intent, accept_policies in (("login", False), ("register", True)):
+        response = client.post(
+            "/api/v1/auth/oauth/google/start",
+            {
+                "intent": intent,
+                "preferred_language": "ar",
+                "remember_me": True,
+                "accept_policies": accept_policies,
+            },
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf,
+        )
+        assert response.status_code == 200
+        authorization_url = response.json()["authorization_url"]
+        assert authorization_url.startswith("https://accounts.google.com/o/oauth2/v2/auth?")
+
+    assert sorted(OAuthFlow.objects.values_list("intent", flat=True)) == ["login", "register"]
+    assert OAuthFlow.objects.get(intent="register").policy_accepted
+    assert not OAuthFlow.objects.get(intent="login").policy_accepted
+
+
+def test_google_login_signs_in_an_existing_social_account(settings: Any) -> None:
+    """The reported failure: sign-in from the login screen, not the signup screen."""
+
+    configure_google(settings)
+    existing = create_user(email="returning@example.com", username="returning")
+    SocialIdentity.objects.create(
+        user=existing,
+        provider="google",
+        subject="returning-subject",
+        provider_email=existing.email,
+        email_verified=True,
+    )
+    client, csrf = csrf_client()
+    state = start_flow(client=client, csrf=csrf, provider="google", intent="login")
+    profile = ProviderProfile(
+        provider="google",
+        subject="returning-subject",
+        email=existing.email,
+        email_verified=True,
+        full_name="Returning Student",
+        is_private_relay=False,
+    )
+
+    with patch("apps.accounts.oauth.exchange_oauth_code", return_value=profile):
+        response = client.get(
+            "/api/v1/auth/oauth/google/callback",
+            {"state": state, "code": "one-time-code"},
+        )
+
+    assert response.status_code == 302
+    assert response["Location"].endswith("?oauth=success&provider=google")
+    assert AccountSession.objects.get(user=existing).session_key == client.session.session_key
+    assert client.get("/api/v1/auth/session").json()["user"]["email"] == existing.email
+
+
+def test_google_login_without_an_account_asks_for_signup_not_a_closed_platform(
+    settings: Any,
+) -> None:
+    configure_google(settings)
+    client, csrf = csrf_client()
+    state = start_flow(client=client, csrf=csrf, provider="google", intent="login")
+    profile = ProviderProfile(
+        provider="google",
+        subject="first-time-subject",
+        email="first-time@example.com",
+        email_verified=True,
+        full_name="First Timer",
+        is_private_relay=False,
+    )
+
+    with patch("apps.accounts.oauth.exchange_oauth_code", return_value=profile):
+        response = client.get(
+            "/api/v1/auth/oauth/google/callback",
+            {"state": state, "code": "one-time-code"},
+        )
+
+    assert "oauth_error=signup_required" in response["Location"]
+    # The policy acceptance gate is unchanged: no account, no social identity.
+    assert not User.objects.filter(email="first-time@example.com").exists()
+    assert not SocialIdentity.objects.exists()
+
+
+def test_google_signup_after_the_signup_prompt_creates_the_account(settings: Any) -> None:
+    configure_google(settings)
+    client, csrf = csrf_client()
+    state = start_flow(client=client, csrf=csrf, provider="google", intent="register")
+    profile = ProviderProfile(
+        provider="google",
+        subject="first-time-subject",
+        email="first-time@example.com",
+        email_verified=True,
+        full_name="First Timer",
+        is_private_relay=False,
+    )
+
+    with patch("apps.accounts.oauth.exchange_oauth_code", return_value=profile):
+        response = client.get(
+            "/api/v1/auth/oauth/google/callback",
+            {"state": state, "code": "one-time-code"},
+        )
+
+    assert response["Location"].endswith("?oauth=success&provider=google")
+    created = User.objects.get(email="first-time@example.com")
+    assert created.is_email_verified
+    assert created.policy_version == settings.ACCOUNT_POLICY_VERSION
+
+
+def test_disabled_registration_still_reports_a_closed_platform(settings: Any) -> None:
+    configure_google(settings)
+    client, csrf = csrf_client()
+    state = start_flow(client=client, csrf=csrf, provider="google", intent="register")
+    profile = ProviderProfile(
+        provider="google",
+        subject="closed-platform-subject",
+        email="closed@example.com",
+        email_verified=True,
+        full_name="Closed Platform",
+        is_private_relay=False,
+    )
+
+    with (
+        patch("apps.accounts.oauth.exchange_oauth_code", return_value=profile),
+        patch("apps.accounts.oauth._registration_enabled", return_value=False),
+    ):
+        response = client.get(
+            "/api/v1/auth/oauth/google/callback",
+            {"state": state, "code": "one-time-code"},
+        )
+
+    assert "oauth_error=registration_unavailable" in response["Location"]
+    assert not User.objects.filter(email="closed@example.com").exists()
