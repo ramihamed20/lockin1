@@ -34,6 +34,16 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://127.0.0.1:5173}
+      # Optional social sign-in. Empty values leave the provider disabled.
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      GOOGLE_OAUTH_REDIRECT_URI: ${GOOGLE_OAUTH_REDIRECT_URI:-}
+      APPLE_OAUTH_SERVICES_ID: ${APPLE_OAUTH_SERVICES_ID:-}
+      APPLE_OAUTH_TEAM_ID: ${APPLE_OAUTH_TEAM_ID:-}
+      APPLE_OAUTH_KEY_ID: ${APPLE_OAUTH_KEY_ID:-}
+      APPLE_OAUTH_PRIVATE_KEY: ${APPLE_OAUTH_PRIVATE_KEY:-}
+      APPLE_OAUTH_REDIRECT_URI: ${APPLE_OAUTH_REDIRECT_URI:-}
       # Optional locally: point at MinIO or a scratch bucket to rehearse the
       # object-storage path that every deployed environment uses.
       STORAGE_BACKEND: ${STORAGE_BACKEND:-filesystem}

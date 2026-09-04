@@ -117,7 +117,8 @@ test("login remains polished and usable across phone, iPad, landscape, desktop, 
   await page.goto("/#/");
   await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
-  await expect(page.getByRole("button", { name: "Continue with Apple" })).toBeEnabled();
+  // Google is the only federated option, even though the mock still offers Apple.
+  await expect(page.getByRole("button", { name: /Apple/i })).toHaveCount(0);
 
   for (const viewport of [
     { width: 320, height: 568 },
@@ -133,9 +134,7 @@ test("login remains polished and usable across phone, iPad, landscape, desktop, 
     expect(metrics.overflow).toBe(0);
     expect(metrics.physicalOrder).toBe(true);
     const googleBox = await page.getByRole("button", { name: "Continue with Google" }).boundingBox();
-    const appleBox = await page.getByRole("button", { name: "Continue with Apple" }).boundingBox();
     expect(googleBox.height).toBeGreaterThanOrEqual(44);
-    expect(appleBox.height).toBeGreaterThanOrEqual(44);
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: "output/playwright/auth-login-phone.png", fullPage: true });
@@ -152,6 +151,36 @@ test("login remains polished and usable across phone, iPad, landscape, desktop, 
   })).toBe(true);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.screenshot({ path: "output/playwright/auth-login-desktop.png", fullPage: true });
+});
+
+// The report was that the interface visibly jumped the moment typing started.
+// A field that is already fully on screen must not be scrolled at all when it
+// receives focus — any motion there is not "revealing an occluded field", it
+// is an artifact of scroll geometry (e.g. an oversized `scroll-padding`)
+// forcing the browser to scroll further than the gesture needs.
+test("focusing an already-visible field never scrolls the page", async ({ page }) => {
+  await mockAuth(page);
+  await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
+  await page.goto("/#/");
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+
+  // A phone viewport with a keyboard already occluding the lower part of the
+  // screen (the "content resizes" shape some browsers use), so every field is
+  // exactly as visible as it will ever be at this width.
+  await page.setViewportSize({ width: 390, height: 524 });
+  for (const label of ["Email", "Password"]) {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const field = page.getByLabel(label, { exact: true });
+    const visibleBefore = await field.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      return bounds.top >= 0 && bounds.bottom <= window.innerHeight;
+    });
+    await field.focus();
+    await field.evaluate((element) => element.scrollIntoView({ block: "nearest" }));
+    await page.waitForTimeout(80);
+    const scrollY = await page.evaluate(() => window.scrollY);
+    if (visibleBefore) expect({ label, scrollY }).toEqual({ label, scrollY: 0 });
+  }
 });
 
 test("program and class selection recover when the cohort request initially fails", async ({ page }) => {

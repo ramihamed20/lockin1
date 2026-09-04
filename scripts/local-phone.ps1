@@ -28,6 +28,31 @@ function Stop-OwnedProcess {
     Remove-Item -LiteralPath $PidFile -Force
 }
 
+function Import-OAuthEnvironment {
+    # The demo server is started outside Compose, so the untracked .env is the
+    # only place holding provider credentials.  Only the sign-in keys are
+    # imported; the demo keeps its own database and settings module.
+    $EnvFile = Join-Path $ProjectRoot ".env"
+    if (-not (Test-Path -LiteralPath $EnvFile)) { return }
+    $Wanted = @(
+        "PUBLIC_APP_URL",
+        "GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET", "GOOGLE_OAUTH_REDIRECT_URI",
+        "APPLE_OAUTH_SERVICES_ID", "APPLE_OAUTH_TEAM_ID", "APPLE_OAUTH_KEY_ID",
+        "APPLE_OAUTH_PRIVATE_KEY", "APPLE_OAUTH_REDIRECT_URI"
+    )
+    foreach ($Line in Get-Content -LiteralPath $EnvFile) {
+        $Trimmed = $Line.Trim()
+        if (-not $Trimmed -or $Trimmed.StartsWith("#")) { continue }
+        $Split = $Trimmed.IndexOf("=")
+        if ($Split -lt 1) { continue }
+        $Key = $Trimmed.Substring(0, $Split).Trim()
+        $Value = $Trimmed.Substring($Split + 1).Trim()
+        if ($Wanted -contains $Key -and $Value) {
+            Set-Item -Path "env:$Key" -Value $Value
+        }
+    }
+}
+
 function Get-ListeningProcessId {
     param([int]$Port)
     $Match = netstat -ano -p tcp |
@@ -58,8 +83,10 @@ if (-not (Test-Path -LiteralPath $PythonPath)) {
 }
 
 New-Item -ItemType Directory -Path $LogRoot -Force | Out-Null
+Import-OAuthEnvironment
 $env:DJANGO_SETTINGS_MODULE = "config.settings.e2e"
 $env:LOCKIN_E2E_DB = ".lockin-demo.sqlite3"
+if (-not $env:PUBLIC_APP_URL) { $env:PUBLIC_APP_URL = "http://127.0.0.1:5050" }
 
 Push-Location $BackendRoot
 try {
@@ -70,7 +97,11 @@ try {
 }
 
 if (-not (Get-ListeningProcessId -Port 8000)) {
-    Start-Process -FilePath $PythonPath -ArgumentList "manage.py runserver 127.0.0.1:8000 --noreload" -WorkingDirectory $BackendRoot -WindowStyle Hidden | Out-Null
+    # The window is hidden, so Django's request log is only recoverable from a
+    # file.  Callback failures are otherwise invisible after the fact.
+    $BackendLog = Join-Path $LogRoot "local-phone-backend.log"
+    $BackendErrorLog = Join-Path $LogRoot "local-phone-backend.err.log"
+    Start-Process -FilePath $PythonPath -ArgumentList "manage.py runserver 127.0.0.1:8000 --noreload" -WorkingDirectory $BackendRoot -WindowStyle Hidden -RedirectStandardOutput $BackendLog -RedirectStandardError $BackendErrorLog | Out-Null
     Set-Content -LiteralPath $BackendPidFile -Value (Wait-ForListeningProcessId -Port 8000)
 }
 
