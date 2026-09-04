@@ -7,6 +7,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import (
     AccountDeletionRequest,
+    AccountSecurityEvent,
     AccountSession,
     AuthAttempt,
     OneTimeToken,
@@ -116,11 +117,13 @@ def test_email_verification_token_is_single_use() -> None:
         format="json",
         HTTP_X_CSRFTOKEN=csrf,
     )
+    # The first call signed the reader in, and Django rotates CSRF state on
+    # login; the browser reads the fresh cookie before its next unsafe request.
     second = client.post(
         "/api/v1/auth/verify-email",
         {"token": raw_token},
         format="json",
-        HTTP_X_CSRFTOKEN=csrf,
+        HTTP_X_CSRFTOKEN=client.get("/api/v1/auth/csrf").json()["csrf_token"],
     )
 
     assert first.status_code == 200
@@ -604,11 +607,12 @@ def test_account_emails_link_into_the_client_router_with_the_token(settings: Any
         format="json",
         HTTP_X_CSRFTOKEN=csrf,
     )
+    # Verifying signed the reader in, which rotated CSRF state.
     client.post(
         "/api/v1/auth/password-reset",
         {"email": REGISTRATION["email"]},
         format="json",
-        HTTP_X_CSRFTOKEN=csrf,
+        HTTP_X_CSRFTOKEN=client.get("/api/v1/auth/csrf").json()["csrf_token"],
     )
 
     assert _latest_email_link().startswith("https://app.example.test/#/reset-password?token=")
@@ -656,17 +660,22 @@ def test_verification_link_token_completes_registration_and_enables_login() -> N
         format="json",
         HTTP_X_CSRFTOKEN=csrf,
     )
+    # Verifying signs the reader in, and Django rotates CSRF state on login
+    # exactly as it does for a password sign-in, so the browser reads the fresh
+    # token before its next unsafe request. The real client does this too.
+    rotated_csrf = client.get("/api/v1/auth/csrf").json()["csrf_token"]
     after_login = client.post(
         "/api/v1/auth/login",
         {"email": REGISTRATION["email"], "password": PASSWORD},
         format="json",
-        HTTP_X_CSRFTOKEN=csrf,
+        HTTP_X_CSRFTOKEN=rotated_csrf,
     )
 
     assert before_login.status_code == 403
     assert before_login.json()["error"]["code"] == "invalid_credentials"
     assert verified.status_code == 200
-    assert verified.json() == {"status": "verified"}
+    assert verified.json()["status"] == "verified"
+    assert verified.json()["user"]["email"] == "new@example.com"
     user = User.objects.get()
     assert user.email_verified_at is not None
     assert OneTimeToken.objects.get(kind=OneTimeToken.Kind.EMAIL_VERIFICATION).used_at is not None
@@ -761,9 +770,129 @@ def test_email_case_and_spacing_are_normalized_across_register_verify_and_login(
         "/api/v1/auth/login",
         {"email": "MIXED.CASE@EXAMPLE.com", "password": PASSWORD},
         format="json",
-        HTTP_X_CSRFTOKEN=csrf,
+        HTTP_X_CSRFTOKEN=client.get("/api/v1/auth/csrf").json()["csrf_token"],
     )
 
     assert User.objects.get().email == "mixed.case@example.com"
     assert response.status_code == 200
     assert response.json()["user"]["email"] == "mixed.case@example.com"
+
+
+def test_verification_signs_the_reader_in_without_a_second_credential() -> None:
+    """The reported friction: the mailed link verified the account and then sent
+    the reader to a login form for the account they had just proved is theirs."""
+
+    client, csrf = csrf_client()
+    client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
+    raw_token = token_from_latest_email()
+
+    anonymous_before = client.get("/api/v1/auth/session")
+    verified = client.post(
+        "/api/v1/auth/verify-email",
+        {"token": raw_token},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+
+    assert anonymous_before.status_code in (401, 403)
+    assert verified.status_code == 200
+    body = verified.json()
+    assert body["status"] == "verified"
+    # The response carries the public user record and nothing else: no token, no
+    # session key, no password material for the client to hold or leak.
+    assert body["user"]["email"] == "new@example.com"
+    assert body["user"]["is_email_verified"] is True
+    assert not {"token", "session", "session_key", "password"} & set(body)
+    assert not {"token", "password"} & set(body["user"])
+
+    user = User.objects.get()
+    # The session is the ordinary one, registered and attributed like any login.
+    session = AccountSession.objects.get(user=user)
+    assert session.session_key == client.session.session_key
+    assert auth.get_user(client).is_authenticated
+    assert client.get("/api/v1/auth/session").json()["user"]["email"] == "new@example.com"
+    assert AccountSecurityEvent.objects.filter(
+        user=user,
+        event_type=AccountSecurityEvent.EventType.EMAIL_VERIFIED,
+    ).exists()
+    assert AccountSecurityEvent.objects.filter(
+        user=user,
+        event_type=AccountSecurityEvent.EventType.LOGIN_SUCCEEDED,
+        metadata={"method": "email_verification"},
+    ).exists()
+
+
+def test_a_spent_verification_link_cannot_be_replayed_into_a_session() -> None:
+    client, csrf = csrf_client()
+    client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
+    raw_token = token_from_latest_email()
+    client.post(
+        "/api/v1/auth/verify-email", {"token": raw_token}, format="json", HTTP_X_CSRFTOKEN=csrf
+    )
+
+    # A second reader holding a copy of the same link gets nothing from it.
+    replay_client, replay_csrf = csrf_client()
+    replayed = replay_client.post(
+        "/api/v1/auth/verify-email",
+        {"token": raw_token},
+        format="json",
+        HTTP_X_CSRFTOKEN=replay_csrf,
+    )
+
+    assert replayed.status_code == 400
+    assert replayed.json()["error"]["code"] == "invalid_or_expired_token"
+    assert not auth.get_user(replay_client).is_authenticated
+    assert AccountSession.objects.count() == 1
+
+
+def test_an_expired_or_unknown_link_creates_no_session() -> None:
+    client, csrf = csrf_client()
+    client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
+
+    unknown = client.post(
+        "/api/v1/auth/verify-email",
+        {"token": "not-a-real-token"},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+
+    assert unknown.status_code == 400
+    assert not auth.get_user(client).is_authenticated
+    assert not AccountSession.objects.exists()
+
+
+def test_verification_without_csrf_neither_verifies_nor_signs_anyone_in() -> None:
+    """The session is a consequence of verifying, so it inherits every control
+    that already guarded verification -- CSRF included."""
+
+    client, csrf = csrf_client()
+    client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
+    raw_token = token_from_latest_email()
+
+    response = client.post("/api/v1/auth/verify-email", {"token": raw_token}, format="json")
+
+    assert response.status_code == 403
+    assert not User.objects.get().is_email_verified
+    assert not auth.get_user(client).is_authenticated
+    assert not AccountSession.objects.exists()
+    assert OneTimeToken.objects.get(kind=OneTimeToken.Kind.EMAIL_VERIFICATION).used_at is None
+
+
+def test_a_suspended_account_is_verified_but_is_not_signed_in() -> None:
+    client, csrf = csrf_client()
+    client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
+    raw_token = token_from_latest_email()
+    User.objects.update(status=User.Status.SUSPENDED)
+
+    response = client.post(
+        "/api/v1/auth/verify-email",
+        {"token": raw_token},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "verified", "user": None}
+    assert User.objects.get().is_email_verified
+    assert not auth.get_user(client).is_authenticated
+    assert not AccountSession.objects.exists()

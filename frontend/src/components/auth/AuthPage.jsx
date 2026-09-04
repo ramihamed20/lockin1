@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Icon } from "../../lib/icons.jsx";
 import { authApi } from "../../lib/api.js";
@@ -81,7 +81,6 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null }) 
   const [socialLoading, setSocialLoading] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const policyRef = useRef(null);
   const requiresName = !completionUser || completionUser.requiredProfileFields.includes("full_name");
   const requiresCohort = !completionUser || completionUser.requiredProfileFields.includes("cohort");
   const requiresUsername = Boolean(completionUser?.usernameRequired);
@@ -153,8 +152,10 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null }) 
     const code = params.get("oauth_error") || "";
     if (outcome === "cancelled") setMessage(oauthMessage(t, outcome, ""));
     if (outcome === "error") setError(new Error(oauthMessage(t, outcome, code)));
-    // Signing in with a provider that has no account here is a registration,
-    // and registration needs the policy acceptance only this screen collects.
+    // The provider button carries the policy acceptance, so this outcome now
+    // means the acceptance never reached the backend at all (a stale client, a
+    // hand-written request). The create-account screen is where the reader can
+    // see the policies and state the acceptance in full, so send them there.
     if (outcome === "error" && code === "signup_required" && !completionUser) setMode("signup");
     window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.hash}`);
   }, [completionUser, t]);
@@ -181,19 +182,17 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null }) 
   async function beginSocial(provider) {
     setError(null);
     setMessage("");
-    if (mode === "signup" && !form.acceptPolicies) {
-      const nextError = { message: t("auth.acceptRequired"), fields: { accept_policies: [t("auth.acceptRequired")] } };
-      setError(nextError);
-      policyRef.current?.focus();
-      return;
-    }
+    // The notice under the provider button states that continuing accepts the
+    // policies, so pressing it is the acceptance — on the login screen just as
+    // on the create-account screen. The separate checkbox belongs to the
+    // email-and-password form, which has no such notice on its own button.
     setSocialLoading(provider);
     try {
       const authorizationUrl = await authApi.startOAuth(provider, {
         intent: mode === "signup" ? "register" : "login",
         preferredLanguage: locale,
         remember: form.remember,
-        acceptPolicies: form.acceptPolicies
+        acceptPolicies: true
       });
       window.location.assign(authorizationUrl);
     } catch (nextError) {
@@ -265,9 +264,12 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null }) 
 
             {socialVisible && (
               <div className="auth-v2-social" aria-label={t("auth.or")}>
-                <button type="button" className="auth-v2-social-button" onClick={() => beginSocial("google")} disabled={busy || providers.google !== true} title={providers.google === false ? t("auth.providerUnavailable") : undefined}>
+                <button type="button" className="auth-v2-social-button" onClick={() => beginSocial("google")} disabled={busy || providers.google !== true} title={providers.google === false ? t("auth.providerUnavailable") : undefined} aria-describedby="auth-social-consent">
                   {socialLoading === "google" ? <span className="auth-v2-spinner" /> : <GoogleIcon />}<span>{t("auth.continueGoogle")}</span>
                 </button>
+                <p className="auth-v2-social-consent" id="auth-social-consent">
+                  {t("auth.socialConsentPrefix")} <Link to="/terms">{t("auth.terms")}</Link> {t("auth.and")} <Link to="/privacy">{t("auth.privacy")}</Link>{t("auth.socialConsentSuffix")}
+                </p>
                 <div className="auth-v2-divider"><span>{t("auth.or")}</span></div>
               </div>
             )}
@@ -350,7 +352,7 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null }) 
               {mode === "signup" && (
                 <div>
                   <label className="auth-v2-check auth-v2-policy">
-                    <input ref={policyRef} type="checkbox" checked={form.acceptPolicies} onChange={(event) => updateForm("acceptPolicies", event.target.checked)} required />
+                    <input type="checkbox" checked={form.acceptPolicies} onChange={(event) => updateForm("acceptPolicies", event.target.checked)} required />
                     <span>{t("auth.termsPrefix")} <Link to="/terms">{t("auth.terms")}</Link> {t("auth.and")} <Link to="/privacy">{t("auth.privacy")}</Link></span>
                   </label>
                   <AccountFieldErrors error={error} field="accept_policies" />

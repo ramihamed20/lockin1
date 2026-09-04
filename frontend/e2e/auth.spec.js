@@ -29,9 +29,12 @@ function userPayload(overrides = {}) {
   };
 }
 
-async function mockAuth(page, { sessionUser = null, loginDelay = 0, cohortFailures = 0, sessionFailures = 0, sessionFailureStatus = 503, isDisconnected = () => false } = {}) {
-  const captured = { registration: null, profile: null, sessionRequests: 0 };
+async function mockAuth(page, { sessionUser = null, profileUser = null, logoutStatus = 200, logoutDelay = 0, verifyResponse = null, loginDelay = 0, cohortFailures = 0, sessionFailures = 0, sessionFailureStatus = 503, isDisconnected = () => false } = {}) {
+  const captured = { registration: null, profile: null, sessionRequests: 0, oauthStarts: [], logouts: 0 };
   let cohortRequests = 0;
+  await page.route("https://accounts.google.com/**", async (route) => {
+    await route.fulfill({ contentType: "text/html", body: "<title>Google</title>Provider consent screen" });
+  });
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
@@ -66,6 +69,11 @@ async function mockAuth(page, { sessionUser = null, loginDelay = 0, cohortFailur
       await route.fulfill({ contentType: "application/json", body: JSON.stringify({ providers: { google: true, apple: true } }) });
       return;
     }
+    if (pathname === "/api/v1/auth/oauth/google/start" && request.method() === "POST") {
+      captured.oauthStarts.push(request.postDataJSON());
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ authorization_url: "https://accounts.google.com/o/oauth2/v2/auth?state=signed-state" }) });
+      return;
+    }
     if (pathname === "/api/v1/auth/login" && request.method() === "POST") {
       if (loginDelay) await new Promise((resolve) => setTimeout(resolve, loginDelay));
       await route.fulfill({ contentType: "application/json", body: JSON.stringify({ user: userPayload() }) });
@@ -76,13 +84,27 @@ async function mockAuth(page, { sessionUser = null, loginDelay = 0, cohortFailur
       await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ status: "verification_required" }) });
       return;
     }
+    if (pathname === "/api/v1/auth/logout" && request.method() === "POST") {
+      captured.logouts += 1;
+      if (logoutDelay) await new Promise((resolve) => setTimeout(resolve, logoutDelay));
+      if (logoutStatus !== 200) {
+        await route.fulfill({ status: logoutStatus, contentType: "application/json", body: JSON.stringify({ error: { code: "permission_denied", message: "We could not sign you out." } }) });
+        return;
+      }
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ status: "signed_out" }) });
+      return;
+    }
     if (pathname === "/api/v1/auth/password-reset" && request.method() === "POST") {
       await route.fulfill({ contentType: "application/json", body: JSON.stringify({ status: "accepted" }) });
       return;
     }
+    if (pathname === "/api/v1/auth/verify-email" && request.method() === "POST") {
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify(verifyResponse || { status: "verified", user: null }) });
+      return;
+    }
     if (pathname === "/api/v1/account/profile" && request.method() === "PATCH") {
       captured.profile = request.postDataJSON();
-      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ user: userPayload({ cohort: COHORTS[0] }) }) });
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ user: profileUser || userPayload({ cohort: COHORTS[0] }) }) });
       return;
     }
     if (pathname === "/api/v1/operations/session") {
@@ -403,13 +425,235 @@ test("an invalid verification link reports the failure on the confirmation page"
   await expect(page.getByRole("heading", { name: "Verify your email" })).toBeVisible();
 });
 
-// Signing in with Google when the address has no account here is a
-// registration, and registration is where the policies are accepted.
-test("a Google sign-in with no account here moves the reader to the create-account screen", async ({ page }) => {
+// The reported failure: a first-time Google user starting from the login
+// screen was rejected because that screen sent accept_policies=false. The
+// button now states the consent, so it can truthfully carry it from either
+// screen — and the reader can read what they are agreeing to before pressing.
+test("the Google button states its consent and carries it from login and from create-account", async ({ page }) => {
+  const captured = await mockAuth(page);
+  await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
+  await page.goto("/#/");
+
+  const consent = page.locator("#auth-social-consent");
+  await expect(consent).toContainText("By continuing with Google you agree to Lock-in’s");
+  await expect(consent.getByRole("link", { name: "Terms" })).toBeVisible();
+  await expect(consent.getByRole("link", { name: "Privacy Policy" })).toBeVisible();
+  const google = page.getByRole("button", { name: "Continue with Google" });
+  // The notice is announced with the button, not merely printed beside it.
+  await expect(google).toHaveAttribute("aria-describedby", "auth-social-consent");
+
+  await google.click();
+  await expect.poll(() => captured.oauthStarts.length).toBe(1);
+  expect(captured.oauthStarts[0]).toMatchObject({ intent: "login", accept_policies: true });
+  // The hand-off actually leaves for the provider; let it land before the next
+  // navigation, so returning to the app is not racing a pending one.
+  await page.waitForURL(/accounts\.google\.com/);
+
+  // The same button on the create-account screen, with the separate checkbox
+  // left untouched: the notice is the acceptance for this route.
+  await page.goto("/#/");
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
+  await expect(page.locator(".auth-v2-policy input")).not.toBeChecked();
+  await expect(page.locator("#auth-social-consent")).toBeVisible();
+  await page.getByRole("button", { name: "Continue with Google" }).click();
+  await expect.poll(() => captured.oauthStarts.length).toBe(2);
+  expect(captured.oauthStarts[1]).toMatchObject({ intent: "register", accept_policies: true });
+  await page.waitForURL(/accounts\.google\.com/);
+});
+
+// A backend that still reports signup_required means the acceptance never
+// arrived, so the reader is sent to the screen that states the policies in
+// full rather than being left on a dead end.
+test("a Google sign-in reported as needing signup moves the reader to the create-account screen", async ({ page }) => {
   await mockAuth(page);
   await page.goto("/?oauth=error&provider=google&oauth_error=signup_required#/");
 
   await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
   await expect(page.getByText("There is no Lock-in account for that Google address yet.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
+});
+
+// The reported failure: Google offered the name "Rami ha", the reader chose the
+// username "ra33", and the product went on showing the provider's name. The
+// username the reader picks is the identity Lock-in displays, on its own.
+test("the username chosen at Google onboarding is the only name the product shows", async ({ page }) => {
+  const needsUsername = userPayload({
+    full_name: "",
+    username: "",
+    cohort: COHORTS[0],
+    onboarding_required: true,
+    username_required: true,
+    required_profile_fields: []
+  });
+  const onboarded = userPayload({ full_name: "ra33", username: "ra33" });
+  const captured = await mockAuth(page, { sessionUser: needsUsername, profileUser: onboarded });
+  await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
+  await page.goto("/?oauth=success&provider=google#/");
+
+  // Only the username is asked for. The provider's name is not offered back to
+  // the reader to confirm, because it is not their Lock-in identity.
+  await expect(page.getByRole("heading", { name: "Choose your username" })).toBeVisible();
+  await expect(page.getByLabel("Full name")).toHaveCount(0);
+  await expect(page.getByText("Rami ha")).toHaveCount(0);
+
+  await page.getByRole("textbox", { name: "Username" }).fill("ra33");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+
+  // The request carries the username alone -- no name field rides along to be
+  // joined with it on the way in.
+  await expect.poll(() => captured.profile).toEqual({ username: "ra33", preferred_language: "en" });
+
+  await page.getByRole("button", { name: "Open profile menu" }).click();
+  const shownName = page.locator("#account-menu-name");
+  await expect(shownName).toBeVisible();
+  await expect(shownName).toHaveText("ra33");
+  await expect(page.getByText("Rami ha")).toHaveCount(0);
+  await expect(page.getByText("Rami ha ra33")).toHaveCount(0);
+});
+
+// Signing out ends work in progress, so it is confirmed first.
+test("logging out asks first, and cancelling keeps the reader signed in", async ({ page }) => {
+  const captured = await mockAuth(page, { sessionUser: userPayload() });
+  await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
+  await page.goto("/#/");
+
+  await page.getByRole("button", { name: "Open profile menu" }).click();
+  await page.locator(".account-menu-signout").click();
+
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("Log out of Lock-in?");
+  await expect(dialog).toContainText("You will need to sign in again");
+  // Asking is not doing.
+  expect(captured.logouts).toBe(0);
+
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toHaveCount(0);
+  // Cancelling calls nothing and leaves the session exactly as it was.
+  expect(captured.logouts).toBe(0);
+  await expect(page.getByRole("button", { name: "Open profile menu" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toHaveCount(0);
+
+  // Escape is the same answer as Cancel.
+  await page.getByRole("button", { name: "Open profile menu" }).click();
+  await page.locator(".account-menu-signout").click();
+  await expect(page.getByRole("alertdialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  expect(captured.logouts).toBe(0);
+});
+
+test("confirming logs out exactly once, however many times the button is pressed", async ({ page }) => {
+  const captured = await mockAuth(page, { sessionUser: userPayload(), logoutDelay: 900 });
+  await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
+  await page.goto("/#/");
+
+  await page.getByRole("button", { name: "Open profile menu" }).click();
+  await page.locator(".account-menu-signout").click();
+  const dialog = page.getByRole("alertdialog");
+  // Addressed by role in the dialog, because the label changes while busy.
+  const confirm = dialog.locator(".btn-danger");
+  await expect(confirm).toHaveText("Log out");
+  await confirm.click();
+
+  // While the request is in flight the dialog refuses every exit, so a second
+  // press cannot reach the API and the action cannot be abandoned half-way.
+  await expect(confirm).toBeDisabled();
+  await expect(confirm).toHaveText("Logging out…");
+  await expect(dialog.getByRole("button", { name: "Cancel" })).toBeDisabled();
+  await confirm.click({ force: true }).catch(() => {});
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible({ timeout: 15_000 });
+  expect(captured.logouts).toBe(1);
+});
+
+test("a failed logout keeps the reader signed in and says why", async ({ page }) => {
+  const captured = await mockAuth(page, { sessionUser: userPayload(), logoutStatus: 403 });
+  await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
+  await page.goto("/#/");
+
+  await page.getByRole("button", { name: "Open profile menu" }).click();
+  await page.locator(".account-menu-signout").click();
+  await page.getByRole("alertdialog").locator(".btn-danger").click();
+
+  // The existing error behaviour is untouched: the notice appears and the
+  // session is unchanged. The dialog closes so it cannot hide the notice.
+  await expect(page.getByText("We could not sign you out.")).toBeVisible();
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Open profile menu" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toHaveCount(0);
+  expect(captured.logouts).toBe(1);
+});
+
+test("the logout confirmation reads correctly in Arabic", async ({ page }) => {
+  await mockAuth(page, { sessionUser: userPayload({ preferred_language: "ar" }) });
+  await page.addInitScript(() => localStorage.setItem("lock-in.locale", "ar"));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/#/");
+
+  await page.getByRole("button", { name: "فتح قائمة الملف الشخصي" }).click();
+  await page.locator(".account-menu-signout").click();
+
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog).toContainText("تسجيل الخروج من Lock-in؟");
+  await expect(dialog.getByRole("button", { name: "إلغاء" })).toBeVisible();
+  // No message key leaks through, and the dialog fits the phone viewport.
+  await expect(dialog).not.toContainText("auth.logoutConfirm");
+  const box = await dialog.boundingBox();
+  expect(box.width).toBeLessThanOrEqual(390);
+});
+
+// The reported friction: the mailed link verified the account and then sent the
+// reader to a login form for the account they had just proved is theirs.
+test("a verification that signs the reader in lands them in the app, not on a login form", async ({ page }) => {
+  const verified = userPayload({ is_email_verified: true });
+  let sessionUser = null;
+  const captured = await mockAuth(page, {
+    verifyResponse: { status: "verified", user: verified },
+    get sessionUser() { return sessionUser; }
+  });
+  // The session endpoint answers as anonymous until verification creates one.
+  await page.route("**/api/v1/auth/session", async (route) => {
+    if (!sessionUser) {
+      await route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ error: { code: "not_authenticated", message: "Authentication required." } }) });
+      return;
+    }
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ user: sessionUser }) });
+  });
+  await page.route("**/api/v1/account/profile", async (route) => {
+    if (route.request().method() !== "GET") return route.fallback();
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ user: sessionUser || verified }) });
+  });
+  await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
+
+  await page.goto("/#/verify-email?token=mailed-verification-token");
+  await expect(page.getByRole("heading", { name: "Verify your email" })).toBeVisible();
+  // The token is off the address bar before anything is submitted.
+  await expect.poll(() => new URL(page.url()).hash).toBe("#/verify-email");
+
+  sessionUser = verified;
+  await page.getByRole("button", { name: "Verify email" }).click();
+
+  // Landed in the authenticated app: no sign-in form, no token in the URL.
+  await expect(page.getByRole("button", { name: "Open profile menu" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toHaveCount(0);
+  await expect(page.getByText("Continue to sign in")).toHaveCount(0);
+  expect(new URL(page.url()).hash).toBe("#/");
+  expect(page.url()).not.toContain("token");
+});
+
+test("a verification that did not sign anyone in keeps the existing sign-in hand-off", async ({ page }) => {
+  await mockAuth(page, { verifyResponse: { status: "verified", user: null } });
+  await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
+
+  await page.goto("/#/verify-email?token=mailed-verification-token");
+  await page.getByRole("button", { name: "Verify email" }).click();
+
+  await expect(page.getByText("Your email is verified. You can now sign in.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue to sign in" })).toBeVisible();
+  expect(new URL(page.url()).hash).toBe("#/verify-email");
+  expect(page.url()).not.toContain("token");
 });

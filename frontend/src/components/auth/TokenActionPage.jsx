@@ -11,7 +11,9 @@ const FLOW = {
     subtitle: "Confirm this one-time link to activate your account.",
     action: "Verify email",
     run: (token) => authApi.verifyEmail(token),
-    success: "Your email is verified. You can now sign in."
+    success: "Your email is verified. You can now sign in.",
+    // Shown only when the server signed the reader in as part of verifying.
+    successAuthenticated: "Your email is verified. Opening your study room..."
   },
   "confirm-email": {
     title: "Confirm your new email",
@@ -71,19 +73,30 @@ export function TokenActionPage({ type, onAccountChanged }) {
     }
     setLoading(true);
     try {
+      let authenticated = false;
       if (isReset) {
         await authApi.confirmPasswordReset(token, password, passwordConfirm);
         setMessage("Your password has been reset. Please sign in with your new password.");
       } else {
-        await flow.run(token);
-        setMessage(flow.success);
+        // Verifying an account the server is willing to sign in returns that
+        // account, and the session cookie arrives with the same response.
+        const result = await flow.run(token);
+        authenticated = Boolean(result?.user);
+        setMessage(authenticated ? flow.successAuthenticated || flow.success : flow.success);
       }
       // The single-use token is spent either way, so a failure to refresh the
       // signed-in account must not be reported as a failed confirmation.
+      let refreshedUser = null;
       try {
-        await onAccountChanged?.();
+        refreshedUser = (await onAccountChanged?.()) || null;
       } catch {
         // The account action already completed on the server.
+      }
+      if (authenticated && refreshedUser) {
+        // Signed in and confirmed: leave this one-time route for the authed
+        // destination, which drops the spent token's route from the URL too.
+        navigate("/", { replace: true });
+        return;
       }
       // The one-time token has been consumed; remove it from the visible URL.
       // Keep a non-secret message so this route remains useful if HashRouter

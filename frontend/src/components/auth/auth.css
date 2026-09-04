@@ -171,6 +171,8 @@
 .auth-v2-social-button:hover:where(html.ix-hover *):not(:disabled) { border-color: var(--auth-border-strong); background: var(--auth-control-hover); transform: translateY(-1px); }
 .auth-v2-social-button:active:where([data-ix-pressed]):not(:disabled) { transform: translateY(0); }
 .auth-v2-social-button:disabled { cursor: not-allowed; opacity: .54; background: var(--auth-surface); }
+.auth-v2-social-consent { margin: 0; text-align: start; color: var(--auth-quiet); font-size: 12px; line-height: 1.55; }
+.auth-v2-social-consent a { color: #c5a053; font-weight: 650; }
 .auth-v2-divider { display: flex; align-items: center; gap: 12px; margin: 9px 0 2px; color: var(--auth-quiet); font-size: 11px; font-weight: 700; text-transform: uppercase; }
 .auth-v2-divider::before, .auth-v2-divider::after { content: ""; height: 1px; flex: 1; background: var(--auth-border); }
 .auth-v2-form { display: grid; gap: 17px; }

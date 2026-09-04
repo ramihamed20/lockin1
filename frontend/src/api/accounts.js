@@ -140,7 +140,21 @@ export const accountsApi = {
     return authorizationUrl;
   },
 
-  verifyEmail: (token) => request("/auth/verify-email", { method: "POST", body: { token } }),
+  async verifyEmail(token) {
+    const payload = await request("/auth/verify-email", { method: "POST", body: { token } });
+    const source = payload && typeof payload === "object" ? payload : null;
+    // A verified account that may sign in is signed in by the server, in the
+    // same response. Nothing about the session travels in the URL: the cookie
+    // is set on this request and the body carries only the public user record.
+    const user = toAppUser(source && "user" in source ? source.user : null);
+    if (user) {
+      // Django rotates CSRF state on login, exactly as it does for a password
+      // sign-in. Do not reuse a token minted before this response.
+      clearCsrfToken();
+      setSessionMarker(true);
+    }
+    return { status: source?.status || "verified", user };
+  },
   resendVerification: (email) =>
     request("/auth/resend-verification", { method: "POST", body: { email } }),
   requestPasswordReset: (email) =>

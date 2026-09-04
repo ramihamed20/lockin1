@@ -446,11 +446,14 @@ def resolve_social_user(*, profile: ProviderProfile, flow: OAuthFlow) -> User:
     else:
         if not _registration_enabled():
             raise OAuthRegistrationUnavailable("New registrations are temporarily unavailable.")
-        # Account creation stays gated on an explicit registration intent that
-        # carried policy acceptance. A sign-in flow reports that separately so
-        # the client can offer registration instead of claiming the platform
-        # has closed registrations.
-        if flow.intent != OAuthFlow.Intent.REGISTER or not flow.policy_accepted:
+        # Account creation is gated on recorded policy acceptance, not on which
+        # screen the flow started from: the provider button states the consent
+        # itself, so "Continue with Google" carries it from login and from
+        # registration alike. A flow that recorded no acceptance, or recorded
+        # one without a policy version to attribute it to, cannot create an
+        # account; that is reported separately from a closed platform so the
+        # client can ask for consent instead of claiming registration is shut.
+        if not flow.policy_accepted or not flow.policy_version:
             raise OAuthSignupRequired(
                 "Create a Lock-in account with this provider before signing in."
             )
@@ -458,7 +461,11 @@ def resolve_social_user(*, profile: ProviderProfile, flow: OAuthFlow) -> User:
             with transaction.atomic():
                 user = User.objects.create_user(
                     email=profile.email,
-                    full_name=profile.full_name,
+                    # The provider's name is that provider's data, not this
+                    # profile's identity. Lock-in shows the display name, and
+                    # for a provider account that is the username the reader
+                    # chooses at onboarding, so nothing is seeded here.
+                    full_name="",
                     password=None,
                     preferred_language=flow.preferred_language,
                     email_verified_at=timezone.now(),

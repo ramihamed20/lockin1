@@ -55,6 +55,17 @@ export default defineConfig(({ mode }) => {
         orientation: "any",
         start_url: basePath,
         scope: basePath,
+        // When the platform does hand an in-scope link to the installed app --
+        // Chromium desktop and Android, where link capturing exists -- reuse the
+        // window that is already open instead of stacking a second one, so a
+        // verification link lands in the session the reader already has.
+        //
+        // This is the whole of what the web platform offers here. It cannot
+        // make a link open the installed app: that decision belongs to the
+        // client that owns the tap (Gmail opens links in its own in-app
+        // browser on both platforms), and on iOS a home-screen web app has no
+        // link capturing at all. See docs/PWA_EMAIL_LINKS.md.
+        launch_handler: { client_mode: "navigate-existing" },
         categories: ["education", "productivity"],
         prefer_related_applications: false,
         icons: [
