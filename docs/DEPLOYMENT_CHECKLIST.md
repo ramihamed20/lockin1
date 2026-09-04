@@ -26,6 +26,9 @@ The deployment shapes themselves, and the migration between them, are described 
   internet by explicit test, EICAR quarantined, signature volume persistent, sized for the
   reload peak, and the host has the memory for it.
 - [ ] Immutable backend/edge image tags and digests recorded; no `latest` tag.
+- [ ] The deployment host can reach those images: either it is signed in to the registry
+  with a read-only token, or the packages are deliberately public. `docker compose pull`
+  is the first step of the release and it fails closed on a private package.
 - [ ] `.env.production` reviewed against `.env.production.example`; no secret values in the file.
 - [ ] Django, SMTP, PostgreSQL owner/runtime, and TLS secrets exist with restrictive host permissions.
 - [ ] Owner/runtime database credentials differ and have an approved rotation record.
