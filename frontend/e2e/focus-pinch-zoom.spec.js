@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
+import { WORKSPACE_GESTURE } from "../src/workspace/config.js";
 
 const ROUTE = "/#/materials/catalog/microbiology/sheets/sheet-1/workspace";
 
@@ -139,6 +140,50 @@ async function expectHorizontalFocalOrPhysicalEdge(page, actualX, targetX, live 
 }
 
 /**
+ * The workspace guarantees focal-exact vertical tracking only while zooming in.
+ * Zooming out, `renderLivePinchTransform` deliberately constrains Y against the
+ * document edges -- "Y remains focal-exact while zooming in and is constrained
+ * only while zooming out or two-finger panning" -- so a gesture that reaches an
+ * edge legitimately lands away from its focal point, by the clamped overflow
+ * less whatever the rubber band gives back.
+ *
+ * What must still hold there is the constraint itself: the document never pulls
+ * away from an edge far enough to open empty space beyond the reveal allowance,
+ * plus the elastic limit while the gesture is still live. This mirrors
+ * expectHorizontalFocalOrPhysicalEdge, which already concedes exactly this for
+ * X. Both allowances come from WORKSPACE_GESTURE rather than being restated
+ * here, so the test cannot drift away from the contract it is checking.
+ */
+async function expectVerticalFocalOrConstrainedEdge(page, actualY, targetY, live = false) {
+  if (Math.abs(actualY - targetY) < (live ? 1.5 : 1.25)) return;
+  const geometry = await page.evaluate(() => {
+    // constrainPinchTranslation measures the stage's client box against the
+    // live layer, so assert against those same two boxes.
+    const stage = document.querySelector(".workspace-v2-document-stage");
+    const viewportTop = stage.getBoundingClientRect().top;
+    const viewportHeight = stage.clientHeight;
+    const pdf = document.querySelector(".workspace-v2-a4-live-layer").getBoundingClientRect();
+    return {
+      topGap: pdf.top - viewportTop,
+      bottomGap: viewportTop + viewportHeight - pdf.bottom,
+      centerError: Math.abs((pdf.top + pdf.bottom) / 2 - (viewportTop + viewportHeight / 2)),
+      fits: pdf.height <= viewportHeight + 0.5
+    };
+  });
+  const slack = WORKSPACE_GESTURE.verticalEdgeReveal + (live ? WORKSPACE_GESTURE.pinchElasticLimit : 0);
+  // visibleContentStartBounds pins a document shorter than the stage to the
+  // centre and lets a taller one rest against either edge. Either way the empty
+  // margin a gesture may open is bounded. A negative gap is content correctly
+  // overflowing the stage, which is not what this guards against.
+  if (geometry.fits) {
+    expect(geometry.centerError).toBeLessThanOrEqual(slack);
+    return;
+  }
+  expect(geometry.topGap).toBeLessThanOrEqual(slack);
+  expect(geometry.bottomGap).toBeLessThanOrEqual(slack);
+}
+
+/**
  * A focal-point assertion is only meaningful once the document has stopped
  * resizing: pages adopt their real aspect ratio as they render, which changes
  * the document height under the gesture.
@@ -174,7 +219,10 @@ async function exactPinch(page, { xRatio, yRatio, targetScale, moveX = 0, moveY 
 
   const livePoint = await anchoredClientPoint(page, anchor);
   await expectHorizontalFocalOrPhysicalEdge(page, livePoint.x, targetFocal.x, true);
-  expect(Math.abs(livePoint.y - targetFocal.y)).toBeLessThan(1.5);
+  // The production branch turns on this exact comparison: zooming in keeps Y
+  // focal-exact, zooming out hands Y to the edge constraint.
+  if (targetScale > initialScale) expect(Math.abs(livePoint.y - targetFocal.y)).toBeLessThan(1.5);
+  else await expectVerticalFocalOrConstrainedEdge(page, livePoint.y, targetFocal.y, true);
 
   await dispatchTouch(stage, "pointerup", 11, targetFocal.x - targetHalfSpan, targetFocal.y);
   await dispatchTouch(stage, "pointerup", 12, targetFocal.x + targetHalfSpan, targetFocal.y);
@@ -184,7 +232,10 @@ async function exactPinch(page, { xRatio, yRatio, targetScale, moveX = 0, moveY 
   expect(Math.abs(committedScale - targetScale)).toBeLessThan(1e-6);
   const committedPoint = await anchoredClientPoint(page, anchor);
   await expectHorizontalFocalOrPhysicalEdge(page, committedPoint.x, targetFocal.x);
-  expect(Math.abs(committedPoint.y - targetFocal.y)).toBeLessThan(1.25);
+  // The spring has released by now, so a constrained gesture must have settled
+  // onto the legal bound itself rather than anywhere inside the elastic band.
+  if (targetScale > initialScale) expect(Math.abs(committedPoint.y - targetFocal.y)).toBeLessThan(1.25);
+  else await expectVerticalFocalOrConstrainedEdge(page, committedPoint.y, targetFocal.y);
 
   await page.waitForTimeout(250);
   const settledScale = await readerScale(page);
@@ -241,19 +292,30 @@ test("last-page zoom-out reconciles from post-layout scroll without jumping", as
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 834, height: 1194 });
   const stage = page.locator(".workspace-v2-document-stage");
-  await stage.evaluate((node) => {
-    const lastPage = document.querySelector(".workspace-v2-a4-page:last-child");
-    const viewport = node.getBoundingClientRect();
-    const pageBounds = lastPage.getBoundingClientRect();
-    const anchorClientY = pageBounds.top + pageBounds.height * 0.04;
-    const targetClientY = viewport.top + viewport.height * 0.18;
-    node.scrollTop += anchorClientY - targetClientY;
-  });
-  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-  // The focal anchor is only meaningful once the last page has its real
-  // rendered aspect ratio; measuring against the A4 fallback shifts the
-  // document height under the gesture.
+  // Put the last page's 4% mark at 18% of the stage. Applied twice, and that is
+  // the point: pages render lazily, so the first pass is what brings the last
+  // page into the render window at all, and it necessarily measures a document
+  // whose last page has not adopted its rendered aspect ratio yet. Re-applying
+  // it once the geometry has settled is what makes the starting position a
+  // property of the final layout instead of a race against it -- and whether
+  // the zoom-out below reaches the bottom constraint depends on exactly that.
+  const scrollLastPageIntoPosition = async () => {
+    await stage.evaluate((node) => {
+      const lastPage = document.querySelector(".workspace-v2-a4-page:last-child");
+      const viewport = node.getBoundingClientRect();
+      const pageBounds = lastPage.getBoundingClientRect();
+      const anchorClientY = pageBounds.top + pageBounds.height * 0.04;
+      const targetClientY = viewport.top + viewport.height * 0.18;
+      node.scrollTop += anchorClientY - targetClientY;
+    });
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  };
+
+  await scrollLastPageIntoPosition();
   await expect.poll(async () => page.locator(".workspace-v2-a4-page:last-child .workspace-v2-a4-canvas.is-visible").evaluate((canvas) => canvas.width > 0), { timeout: 20_000 }).toBe(true);
+  await waitForStableDocumentGeometry(page);
+
+  await scrollLastPageIntoPosition();
   await waitForStableDocumentGeometry(page);
 
   const ratios = await page.locator(".workspace-v2-a4-page:last-child").evaluate((lastPage) => {
