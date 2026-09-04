@@ -1,0 +1,143 @@
+# Benchmark overlay for compose.production.yaml.
+#
+#   docker compose -f compose.production.yaml -f bench/compose.bench.yaml ...
+#
+# It changes NO application code and NO application behaviour. It does exactly
+# three things:
+#
+#   1. Applies the PostgreSQL tuning that docs/DEPLOYMENT.md section 1c already
+#      prescribes for a 4 GB host. Without this the benchmark measures the
+#      postgres image defaults (128 MB shared_buffers), which is not what the
+#      documented deployment runs.
+#
+#   2. Turns on measurement that production leaves off: pg_stat_statements,
+#      track_io_timing, and slow-query logging. These are the instruments. They
+#      cost a few percent of throughput, which is disclosed in the report
+#      rather than hidden.
+#
+#   3. Optionally places every container in a shared cgroup slice so an
+#      oversized test host is held to the VPS envelope in aggregate.
+#      Comment the cgroup_parent lines out when running on a real 2 vCPU VPS.
+#
+# Everything else -- images, Gunicorn sizing, worker counts, nginx, security
+# options -- is inherited unchanged from compose.production.yaml.
+
+name: lockin-production
+
+services:
+  db:
+    cgroup_parent: lockin-bench.slice
+    command: >-
+      postgres
+      -c shared_buffers=512MB
+      -c effective_cache_size=1536MB
+      -c work_mem=8MB
+      -c maintenance_work_mem=128MB
+      -c max_connections=50
+      -c max_parallel_workers_per_gather=1
+      -c random_page_cost=1.1
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.max=5000
+      -c pg_stat_statements.track=all
+      -c track_io_timing=on
+      -c track_activity_query_size=4096
+      -c log_min_duration_statement=500
+      -c log_lock_waits=on
+      -c log_checkpoints=on
+
+  backend:
+    cgroup_parent: lockin-bench.slice
+
+  operations-scheduler:
+    cgroup_parent: lockin-bench.slice
+
+  edge:
+    cgroup_parent: lockin-bench.slice
+
+  release:
+    cgroup_parent: lockin-bench.slice
+
+  preflight:
+    cgroup_parent: lockin-bench.slice
+
+  # One-shot loader for benchmark data. It runs the same image as the backend
+  # under the same production settings module, so the data it writes goes
+  # through the real models, the real validators and the real storage backend.
+  #
+  # It is not part of the deployment: `docker compose run --rm seed-bench`
+  # starts it explicitly and nothing depends on it.
+  seed-bench:
+    profiles: ["bench"]
+    cgroup_parent: lockin-bench.slice
+    image: ${LOCKIN_IMAGE_REPOSITORY:-lockin}-backend:${LOCKIN_IMAGE_TAG:?Set LOCKIN_IMAGE_TAG}
+    pull_policy: ${LOCKIN_PULL_POLICY:-always}
+    mem_limit: 1g
+    restart: "no"
+    read_only: true
+    tmpfs:
+      - /tmp:size=268435456,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_SECRET_KEY_FILE: /run/secrets/django_secret_key
+      DJANGO_ALLOWED_HOSTS: ${LOCKIN_PUBLIC_HOST:?Set LOCKIN_PUBLIC_HOST}
+      DJANGO_CSRF_TRUSTED_ORIGINS: https://${LOCKIN_PUBLIC_HOST:?Set LOCKIN_PUBLIC_HOST}
+      DJANGO_TRUST_PROXY_SSL_HEADER: "true"
+      DJANGO_TRUSTED_PROXY_CIDRS: ${DJANGO_TRUSTED_PROXY_CIDRS:-172.28.0.0/24}
+      PUBLIC_APP_URL: https://${LOCKIN_PUBLIC_HOST:?Set LOCKIN_PUBLIC_HOST}
+      ACCOUNT_POLICY_VERSION: ${ACCOUNT_POLICY_VERSION:?Set ACCOUNT_POLICY_VERSION}
+      DJANGO_EMAIL_BACKEND: ${DJANGO_EMAIL_BACKEND:?Set DJANGO_EMAIL_BACKEND}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:?Set DEFAULT_FROM_EMAIL}
+      EMAIL_HOST: ${EMAIL_HOST:?Set EMAIL_HOST}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:?Set EMAIL_HOST_USER}
+      EMAIL_HOST_PASSWORD_FILE: /run/secrets/email_host_password
+      POSTGRES_DB: ${POSTGRES_DB:-lockin}
+      POSTGRES_HOST: ${POSTGRES_HOST:-db}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      # The loader writes reference data that the runtime role may not own, so
+      # it connects as the owner, exactly as the release service does.
+      POSTGRES_USER: ${POSTGRES_OWNER_USER:-lockin_owner}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_owner_password
+      POSTGRES_RUNTIME_ROLE: ${POSTGRES_RUNTIME_ROLE:-lockin_app}
+      POSTGRES_SSLMODE: ${POSTGRES_SSLMODE:-disable}
+      POSTGRES_TRUSTED_PRIVATE_NETWORK: ${POSTGRES_TRUSTED_PRIVATE_NETWORK:-true}
+      # Bulk inserts must not trip the runtime statement timeout.
+      POSTGRES_STATEMENT_TIMEOUT_MS: 0
+      POSTGRES_LOCK_TIMEOUT_MS: 0
+      POSTGRES_IDLE_TRANSACTION_TIMEOUT_MS: 0
+      STORAGE_BACKEND: ${STORAGE_BACKEND:-s3}
+      STORAGE_BUCKET_NAME: ${STORAGE_BUCKET_NAME:-}
+      STORAGE_ENDPOINT_URL: ${STORAGE_ENDPOINT_URL:-}
+      STORAGE_REGION: ${STORAGE_REGION:-auto}
+      STORAGE_ACCESS_KEY_ID: ${STORAGE_ACCESS_KEY_ID:-}
+      STORAGE_SECRET_ACCESS_KEY_FILE: ${STORAGE_SECRET_ACCESS_KEY_FILE:+/run/secrets/storage_secret_access_key}
+      STORAGE_ADDRESSING_STYLE: ${STORAGE_ADDRESSING_STYLE:-virtual}
+      STORAGE_LOCATION_PREFIX: ${STORAGE_LOCATION_PREFIX:-}
+      STORAGE_ALLOW_INSECURE_ENDPOINT: ${STORAGE_ALLOW_INSECURE_ENDPOINT:-false}
+      STORAGE_ALLOW_LOCAL_MEDIA: ${STORAGE_ALLOW_LOCAL_MEDIA:-false}
+      CONTENT_REQUIRE_CLEAN_SCAN: ${CONTENT_REQUIRE_CLEAN_SCAN:?Set CONTENT_REQUIRE_CLEAN_SCAN}
+      PAYMENT_PROVIDER: none
+      DEFAULT_TRIAL_PLAN_CODE: ${DEFAULT_TRIAL_PLAN_CODE:-lockin_trial}
+      PAYMENT_CODE_ENCRYPTION_KEY_FILE: /run/secrets/payment_code_encryption_key
+      OBSERVABILITY_STATSD_HOST: ${OBSERVABILITY_STATSD_HOST:?Set OBSERVABILITY_STATSD_HOST}
+      OBSERVABILITY_ERROR_WEBHOOK_URL: ${OBSERVABILITY_ERROR_WEBHOOK_URL:?Set OBSERVABILITY_ERROR_WEBHOOK_URL}
+      OBSERVABILITY_ERROR_WEBHOOK_TOKEN_FILE: /run/secrets/observability_error_webhook_token
+      # Refuses to run unless this is set. See bench/seed_bench_data.py.
+      LOCKIN_BENCH_ALLOW: ${LOCKIN_BENCH_ALLOW:-}
+    secrets:
+      - django_secret_key
+      - email_host_password
+      - payment_code_encryption_key
+      - observability_error_webhook_token
+      - storage_secret_access_key
+      - postgres_owner_password
+    networks:
+      - data
+    volumes:
+      - lockin_media:/app/media
+      - ./bench:/bench:ro
+    entrypoint: ["python", "/bench/seed_bench_data.py"]

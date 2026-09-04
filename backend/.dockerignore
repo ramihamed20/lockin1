@@ -1,6 +1,6 @@
 .venv
-__pycache__
-*.py[cod]
+**/__pycache__
+**/*.py[cod]
 .pytest_cache
 .mypy_cache
 .ruff_cache
@@ -10,3 +10,12 @@ media
 staticfiles
 *.sqlite3
 *.log
+
+lockin_backend.egg-info
+.local-logs
+
+# Deployment environment files never belong in a build context, even though no
+# COPY reaches them: the whole context is transferred to the daemon.
+.env
+.env.*
+!.env.example

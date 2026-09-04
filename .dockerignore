@@ -15,3 +15,25 @@ playwright-report
 test-results
 backups
 secrets
+
+# Deployment environment files and secret material never belong in a build
+# context, even when no COPY reaches them: the whole context is transferred to
+# the daemon and is readable from any later build stage.
+.env
+.env.*
+!.env.example
+!.env.production.example
+!.env.container-host.example
+
+# Evidence, capacity-benchmark tooling and marketing assets are repository
+# content that no image stage copies.
+bench
+ad-assets
+audit-artifacts
+local-run
+tmp
+
+# These two were anchored to the context root, so the copies that actually
+# appear (frontend/test-results, frontend/playwright-report) were still sent.
+**/test-results
+**/playwright-report

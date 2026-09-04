@@ -1,0 +1,30 @@
+# Build context for `docker build frontend` (compose.production.yaml `edge`,
+# and the CI containers/edge-runtime jobs).
+#
+# The Dockerfile installs dependencies from the lockfile and only then runs
+# `COPY . .`. Without this file a host `node_modules` in the context is copied
+# straight over the ones the image just installed -- a Windows or macOS tree
+# landing on top of a Linux install, pnpm store symlinks and all. CI never sees
+# it because a fresh checkout has no node_modules, so this is the only thing
+# standing between a local `up --build` and an image built from the wrong
+# dependency tree.
+node_modules
+.pnpm-store
+
+# Build and test output. Regenerated inside the image; sending it only makes
+# the context larger and can shadow the build's own dist/.
+dist
+dev-dist
+output
+test-results
+playwright-report
+coverage
+.vite
+.playwright
+.playwright-cli
+
+# Local scratch.
+*.log
+.env
+.env.*
+!.env.example
