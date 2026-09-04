@@ -305,22 +305,28 @@ test("a transient session failure recovers on its own without asking the reader"
 });
 
 test("a persistent session failure stops retrying and offers a retry that works", async ({ page }) => {
+  // Four failed attempts spend 5.3s of deliberate backoff before this test
+  // reaches its first assertion, and it then boots the application twice.
+  test.setTimeout(60_000);
   // One initial attempt plus the three automatic retries all fail.
   const captured = await mockAuth(page, { sessionUser: userPayload(), sessionFailures: 4 });
   await page.goto("/#/");
-  const retry = page.getByRole("button", { name: "Try again" });
+  const shell = page.locator(".startup-shell");
+  // Scoped to the startup shell. Once the session recovers, the application
+  // renders and its own access check offers an unrelated "Try again", so a
+  // page-wide locator stops describing the boot failure this test is about.
+  const retry = shell.getByRole("button", { name: "Try again" });
   await expect(retry).toBeVisible({ timeout: 20_000 });
   expect(captured.sessionRequests).toBe(4);
 
   // The 5xx body named an internal host; the reader is never shown it.
-  const shell = page.locator(".startup-shell");
   await expect(shell).toContainText("The server is having trouble right now.");
   await expect(shell).not.toContainText("db-prod-3");
   await expect(shell).not.toContainText("upstream");
 
   await retry.click();
-  await expect(retry).toHaveCount(0);
-  await expect(page.locator(".startup-shell")).toHaveCount(0, { timeout: 20_000 });
+  await expect(retry).toHaveCount(0, { timeout: 20_000 });
+  await expect(shell).toHaveCount(0, { timeout: 20_000 });
   expect(captured.sessionRequests).toBe(5);
 });
 
