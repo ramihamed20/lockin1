@@ -19,7 +19,6 @@ function requiresSubscription(pathname) {
 export function ProtectedRoute({ user, loading = false, operationsSession = null }) {
   const location = useLocation();
   const subscriptionSession = useSubscriptionSession();
-  const { subscription } = subscriptionSession;
 
   if (loading) return <FullScreenState message="Opening your study room..." />;
   if (!user) return <Navigate to="/" replace state={{ from: location }} />;
@@ -34,7 +33,7 @@ export function ProtectedRoute({ user, loading = false, operationsSession = null
     return <FullScreenState message={subscriptionSession.error || "Checking your Lock-in access…"} actionLabel={subscriptionSession.error ? "Try again" : ""} onAction={subscriptionSession.error ? subscriptionSession.refresh : null} />;
   }
   if (requiresSubscription(location.pathname) && subscriptionSession.ready && !subscriptionSession.canAccessNow()) {
-    return <ExpiredAccess subscription={subscription} />;
+    return <ExpiredAccess />;
   }
 
   return <Outlet />;

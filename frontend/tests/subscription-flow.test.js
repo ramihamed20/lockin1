@@ -20,6 +20,7 @@ test("subscription access is centralized and expired accounts retain safe routes
   const guard = source("../src/components/auth/ProtectedRoute.jsx");
   const app = source("../src/App.jsx");
   const provider = source("../src/lib/SubscriptionSessionContext.jsx");
+  const expired = source("../src/components/subscription/ExpiredAccess.jsx");
 
   assert.match(guard, /SUBSCRIPTION_PROTECTED_PATHS/);
   assert.match(guard, /subscriptionSession\.canAccessNow\(\)/);
@@ -28,7 +29,8 @@ test("subscription access is centralized and expired accounts retain safe routes
   assert.match(provider, /subscriptionRefreshAt/);
   assert.match(provider, /window\.setTimeout\(schedule/);
   assert.doesNotMatch(provider, /setInterval|visibilitychange|addEventListener\("focus"/);
-  assert.match(guard, /<ExpiredAccess subscription=\{subscription\}/);
+  assert.match(guard, /<ExpiredAccess \/>/);
+  assert.match(expired, /Navigate replace to="\/subscription"/);
   assert.match(app, /SubscriptionSessionProvider/);
   assert.match(app, /path="\/subscription"/);
   assert.match(app, /path="\/settings"/);
