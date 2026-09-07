@@ -89,6 +89,25 @@ async function seedAnnotations(page, { strokes, pages, pointsPerStroke }) {
   }, { strokes, pages, pointsPerStroke });
 }
 
+/**
+ * The reader applies its stored position once the pages are laid out, so a page
+ * box read before that lands is stale by however far the document then scrolls.
+ * Pointer events aimed at those coordinates miss the ink they were aimed at.
+ */
+async function waitForReaderToSettle(page) {
+  let previous = null;
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const top = await page.evaluate(() => {
+      const first = document.querySelector(".workspace-v2-a4-page");
+      return first ? Math.round(first.getBoundingClientRect().top) : null;
+    });
+    if (top !== null && top === previous) return;
+    previous = top;
+    await page.waitForTimeout(100);
+  }
+  throw new Error("the reader never settled on an initial position");
+}
+
 test("a heavily annotated sheet opens, stays interactive, and only rewrites the page that changed", async ({ page }) => {
   test.setTimeout(180_000);
   await mockWorkspace(page);
@@ -124,6 +143,7 @@ test("a heavily annotated sheet opens, stays interactive, and only rewrites the 
   // Drawing on top of a loaded sheet still feels like drawing: the stroke is
   // committed and only its own page is rewritten.
   const stage = page.locator(".workspace-v2-document-stage");
+  await waitForReaderToSettle(page);
   const bounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
   const y = bounds.y + bounds.height * 0.5;
   await page.getByRole("button", { name: "Pen", exact: true }).click();
@@ -187,6 +207,7 @@ test("erasing across a dense page stays responsive and undoes exactly", async ({
   const before = await inkOnPageOne.count();
 
   const stage = page.locator(".workspace-v2-document-stage");
+  await waitForReaderToSettle(page);
   const bounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
   await page.getByRole("button", { name: "Eraser", exact: true }).click();
   const started = Date.now();
