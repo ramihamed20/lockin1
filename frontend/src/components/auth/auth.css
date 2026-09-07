@@ -231,6 +231,7 @@
 @keyframes auth-v2-spin { to { transform: rotate(360deg); } }
 .auth-v2 .form-hint { margin: 0; font-size: 12px; line-height: 1.4; }
 .auth-v2 .form-hint.danger { color: #ff9c94; }
+.auth-v2-session-notice { margin-bottom: 14px; }
 .auth-v2 .form-alert { margin: 0; padding: 11px 12px; border-radius: 10px; font-size: 12px; line-height: 1.45; }
 .auth-v2 .form-alert.error { border: 1px solid #7f3a41; color: #ffb1aa; background: #2b1820; }
 .auth-v2 .form-alert.success { border: 1px solid #2f7759; color: #9ee7bc; background: #10281f; }

@@ -742,9 +742,9 @@ export default function LockInMode({ user }) {
   const leaveRef = useRef(false);
   const workspaceSaveTimerRef = useRef(null);
 
-  const replacePayload = useCallback((payload) => {
+  const replacePayload = useCallback((payload, { syncNote = true } = {}) => {
     setState((current) => ({ ...current, payload, error: "", loading: false }));
-    if (typeof payload?.note?.body === "string") setNoteBody(payload.note.body);
+    if (syncNote && typeof payload?.note?.body === "string") setNoteBody(payload.note.body);
   }, []);
 
   const load = useCallback(async () => {
@@ -767,7 +767,13 @@ export default function LockInMode({ user }) {
     const session = state.payload?.session;
     if (!session || !isUnfinished(state.payload)) return undefined;
     const handleBeforeUnload = (event) => { event.preventDefault(); event.returnValue = ""; };
-    const handleVisibility = () => { if (!document.hidden) void focusApi.getLockInSession(session.id).then(replacePayload).catch(() => {}); };
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        // Keep an unsaved local note intact while the active-session status is
+        // refreshed in the background after returning to the app.
+        void focusApi.getLockInSession(session.id).then((payload) => replacePayload(payload, { syncNote: false })).catch(() => {});
+      }
+    };
     const handlePopState = () => {
       if (leaveRef.current) return;
       setExitOpen(true);

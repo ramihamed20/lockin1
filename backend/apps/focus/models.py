@@ -146,6 +146,7 @@ class FocusSession(models.Model):
                 name="focus_user_activity_idx",
             ),
         ]
+
         constraints = [
             models.UniqueConstraint(
                 fields=("user", "client_instance_id"),
@@ -255,7 +256,7 @@ class FocusSessionTask(models.Model):
 
 
 class ActiveStudyRun(models.Model):
-    """Server-owned progress for a gated Catalog Focus study run."""
+    """Server-owned progress for both legacy catalog and managed-sheet Active Study."""
 
     class Difficulty(models.TextChoices):
         EASY = "easy", "Easy"
@@ -266,9 +267,25 @@ class ActiveStudyRun(models.Model):
         ACTIVE = "active", "Active"
         COMPLETED = "completed", "Completed"
 
+    class Stage(models.TextChoices):
+        READING = "reading", "Reading"
+        CHECKPOINT = "checkpoint", "Checkpoint"
+        CHECKPOINT_RESULT = "checkpoint_result", "Checkpoint result"
+        FINAL = "final", "Final exam"
+        FINAL_RESULT = "final_result", "Final exam result"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="active_study_runs"
+    )
+    # Managed-sheet runtime.  The nullable legacy fields below are intentionally
+    # retained for the pre-existing catalogue experiment and its saved runs.
+    sheet = models.ForeignKey(
+        "content.LearningObject",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="active_study_runs",
     )
     material_slug = models.SlugField(max_length=80)
     sheet_slug = models.SlugField(max_length=80)
@@ -281,6 +298,10 @@ class ActiveStudyRun(models.Model):
     checkpoint_attempts = models.PositiveIntegerField(default=0)
     final_attempts = models.PositiveIntegerField(default=0)
     xp_awarded = models.PositiveIntegerField(default=0)
+    current_part = models.PositiveSmallIntegerField(default=1)
+    stage = models.CharField(max_length=24, choices=Stage.choices, default=Stage.READING)
+    completed_parts = models.JSONField(default=list)
+    plan_signature = models.JSONField(default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -290,7 +311,11 @@ class ActiveStudyRun(models.Model):
             models.Index(
                 fields=("user", "material_slug", "sheet_slug", "status", "-updated_at"),
                 name="focus_active_study_idx",
-            )
+            ),
+            models.Index(
+                fields=("user", "sheet", "difficulty", "status", "-updated_at"),
+                name="focus_active_sheet_idx",
+            ),
         ]
         constraints = [
             models.CheckConstraint(
@@ -302,7 +327,63 @@ class ActiveStudyRun(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.user_id}:{self.material_slug}:{self.sheet_slug}:{self.difficulty}"
+        return f"{self.user_id}:{self.sheet_id or self.sheet_slug}:{self.difficulty}"
+
+
+class ActiveStudyAttempt(models.Model):
+    """Immutable scoring evidence for one checkpoint or final exam attempt."""
+
+    class Kind(models.TextChoices):
+        CHECKPOINT = "checkpoint", "Checkpoint"
+        FINAL = "final", "Final exam"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    run = models.ForeignKey(ActiveStudyRun, on_delete=models.CASCADE, related_name="attempts")
+    kind = models.CharField(max_length=16, choices=Kind.choices)
+    part_number = models.PositiveSmallIntegerField(null=True, blank=True)
+    number = models.PositiveSmallIntegerField()
+    score = models.PositiveSmallIntegerField(null=True, blank=True)
+    total = models.PositiveSmallIntegerField()
+    passed = models.BooleanField(null=True, blank=True)
+    continued_anyway = models.BooleanField(default=False)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("number", "created_at")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("run", "kind", "part_number", "number"),
+                name="focus_active_attempt_unique",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.run_id}:{self.kind}:{self.part_number or 'final'}:{self.number}"
+
+
+class ActiveStudyAnswer(models.Model):
+    """One server-scored answer; the unique scope prevents answer rewrites."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    attempt = models.ForeignKey(
+        ActiveStudyAttempt, on_delete=models.CASCADE, related_name="answers"
+    )
+    question_position = models.PositiveSmallIntegerField()
+    selected_answer = models.CharField(max_length=1)
+    was_correct = models.BooleanField()
+    answered_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("question_position",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=("attempt", "question_position"), name="focus_active_answer_unique"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.attempt_id}:{self.question_position}"
 
 
 class FocusWorkspaceSnapshot(models.Model):

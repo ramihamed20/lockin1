@@ -36,6 +36,37 @@ from .annotation_services import (
 )
 from .domain_types import AnnotationMutation, WorkspaceStateInput
 from .integrations import resolve_focus_document
+from .managed_active_study import (
+    ManagedActiveStudyRuleError,
+    complete_part_reading,
+)
+from .managed_active_study import (
+    answer as answer_managed_active_study,
+)
+from .managed_active_study import (
+    availability as managed_active_study_availability,
+)
+from .managed_active_study import (
+    continue_anyway as continue_managed_active_study,
+)
+from .managed_active_study import (
+    questions as managed_active_study_questions,
+)
+from .managed_active_study import (
+    retry_final as retry_managed_active_study,
+)
+from .managed_active_study import (
+    run_payload as managed_active_study_run_payload,
+)
+from .managed_active_study import (
+    start as start_managed_active_study,
+)
+from .managed_active_study import (
+    study_again as managed_active_study_again,
+)
+from .managed_active_study import (
+    submit as submit_managed_active_study,
+)
 from .models import FocusSession, FocusSessionNote, FocusTeam, FocusTeamMembership, FocusTeamMessage
 from .selectors import (
     annotations_for_pages,
@@ -61,6 +92,9 @@ from .serializers import (
     LockInTeamMessageCreateSerializer,
     LockInTeamMessageSerializer,
     LockInTeamSerializer,
+    ManagedActiveStudyAnswerSerializer,
+    ManagedActiveStudyStartSerializer,
+    ManagedActiveStudySubmitSerializer,
     WorkspaceStateSerializer,
 )
 from .services import (
@@ -172,6 +206,102 @@ class ActiveStudyContinueView(APIView):
         except ActiveStudyRuleError as error:
             raise FocusRejected(str(error)) from error
         return Response({"run": active_study_payload(run)})
+
+
+class ManagedActiveStudyAvailabilityView(APIView):
+    @extend_schema(
+        operation_id="managed_active_study_availability",
+        responses={200: OpenApiTypes.OBJECT},
+    )
+    def get(self, request: Request, sheet_id: UUID) -> Response:
+        try:
+            return Response(
+                managed_active_study_availability(user=_authorize(request), sheet_id=sheet_id)
+            )
+        except ManagedActiveStudyRuleError as error:
+            raise FocusRejected(str(error)) from error
+
+
+class ManagedActiveStudyStartView(APIView):
+    @extend_schema(
+        operation_id="managed_active_study_start",
+        request=ManagedActiveStudyStartSerializer,
+    )
+    def post(self, request: Request) -> Response:
+        serializer = ManagedActiveStudyStartSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            run, created = start_managed_active_study(
+                user=_authorize(request),
+                sheet_id=serializer.validated_data["sheet_id"],
+                difficulty=str(serializer.validated_data["difficulty"]),
+            )
+        except ManagedActiveStudyRuleError as error:
+            raise FocusRejected(str(error)) from error
+        return Response(
+            {"run": managed_active_study_run_payload(run), "resumed": not created},
+            status=(status.HTTP_201_CREATED if created else status.HTTP_200_OK),
+        )
+
+
+class ManagedActiveStudyRunView(APIView):
+    def post(self, request: Request, run_id: UUID, action: str) -> Response:
+        user = _authorize(request)
+        try:
+            if action == "complete-reading":
+                run = complete_part_reading(user=user, run_id=run_id)
+                return Response({"run": managed_active_study_run_payload(run)})
+            if action == "continue":
+                run = continue_managed_active_study(user=user, run_id=run_id)
+                return Response({"run": managed_active_study_run_payload(run)})
+            if action == "study-again":
+                run = managed_active_study_again(user=user, run_id=run_id)
+                return Response({"run": managed_active_study_run_payload(run)})
+            if action == "retry-final":
+                run = retry_managed_active_study(user=user, run_id=run_id)
+                return Response({"run": managed_active_study_run_payload(run)})
+        except ManagedActiveStudyRuleError as error:
+            raise FocusRejected(str(error)) from error
+        raise FocusRejected("Active Study action is invalid.")
+
+
+class ManagedActiveStudyQuestionsView(APIView):
+    def get(self, request: Request, run_id: UUID) -> Response:
+        try:
+            return Response(managed_active_study_questions(user=_authorize(request), run_id=run_id))
+        except ManagedActiveStudyRuleError as error:
+            raise FocusRejected(str(error)) from error
+
+
+class ManagedActiveStudyAnswerView(APIView):
+    def post(self, request: Request, run_id: UUID) -> Response:
+        serializer = ManagedActiveStudyAnswerSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            return Response(
+                answer_managed_active_study(
+                    user=_authorize(request),
+                    run_id=run_id,
+                    **serializer.validated_data,
+                )
+            )
+        except ManagedActiveStudyRuleError as error:
+            raise FocusRejected(str(error)) from error
+
+
+class ManagedActiveStudySubmitView(APIView):
+    def post(self, request: Request, run_id: UUID) -> Response:
+        serializer = ManagedActiveStudySubmitSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            run, result = submit_managed_active_study(
+                user=_authorize(request),
+                run_id=run_id,
+                attempt_id=serializer.validated_data["attempt_id"],
+            )
+        except ManagedActiveStudyRuleError as error:
+            raise FocusRejected(str(error)) from error
+        return Response({"run": managed_active_study_run_payload(run), "result": result})
 
 
 def _user(request: Request) -> User:

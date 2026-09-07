@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { withoutServiceWorker } from "./helpers/serviceWorker.js";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
-const ROUTE = "/#/materials/catalog/microbiology/sheets/sheet-1/workspace";
+const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 
 async function mockWorkspace(page) {
   await withoutServiceWorker(page);
@@ -47,13 +47,13 @@ async function seedAnnotations(page, { strokes, pages, pointsPerStroke }) {
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
         const database = request.result;
-        const documentId = "user:stress-student::microbiology::sheet-1";
+        const documentId = "user:stress-student::biochemistry-1::vitamin-1";
         const transaction = database.transaction(["documents", "pages"], "readwrite");
         transaction.objectStore("documents").put({
           id: documentId,
           owner: "user:stress-student",
-          materialSlug: "microbiology",
-          sheetSlug: "sheet-1",
+          materialSlug: "biochemistry-1",
+          sheetSlug: "vitamin-1",
           version: 1,
           savedAt: new Date().toISOString(),
           view: { page: 1, zoom: 1, scrollLeft: 0, scrollTop: 0, pageOffset: 0 },

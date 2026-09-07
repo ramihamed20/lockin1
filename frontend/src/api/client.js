@@ -263,7 +263,14 @@ async function parseResponse(response, responseType) {
       payload,
       "Request failed (" + response.status + ")."
     );
-    if (response.status === 401) notifyUnauthorized();
+    // 401 is an expired credential. Django also answers 403 for a request that
+    // arrives with no usable session at all -- which is what a session revoked
+    // on the server, or a sign-out performed on another device, looks like from
+    // here. Only that precise code counts: a permission_denied 403 is a real
+    // answer about a live session, and a CSRF failure is not an ended one.
+    if (response.status === 401 || (response.status === 403 && error.code === "not_authenticated")) {
+      notifyUnauthorized();
+    }
     throw error;
   }
 

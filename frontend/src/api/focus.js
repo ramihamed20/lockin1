@@ -24,6 +24,30 @@ const WORKSPACE_TOOLS = new Set(["", "pen", "pencil", "highlighter", "eraser", "
 
 /** Server-authoritative Focus document, session, workspace, and annotation contracts. */
 export const focusApi = {
+  async getManagedActiveStudyAvailability(sheetId) {
+    return objectPayload(await request(`/focus/managed-active-study/sheets/${sheetId}`), "Active Study availability could not be loaded.");
+  },
+
+  async startManagedActiveStudy({ sheetId, difficulty }) {
+    return objectPayload(await request("/focus/managed-active-study/start", { method: "POST", body: { sheet_id: sheetId, difficulty } }), "Active Study could not be started.");
+  },
+
+  async managedActiveStudyAction(runId, action) {
+    return objectPayload(await request(`/focus/managed-active-study/${runId}/${action}`, { method: "POST", body: {} }), "Active Study could not be updated.");
+  },
+
+  async getManagedActiveStudyQuestions(runId) {
+    return objectPayload(await request(`/focus/managed-active-study/${runId}/questions`), "Active Study questions could not be loaded.");
+  },
+
+  async answerManagedActiveStudyQuestion(runId, { attemptId, position, selectedAnswer }) {
+    return objectPayload(await request(`/focus/managed-active-study/${runId}/answer`, { method: "POST", body: { attempt_id: attemptId, position, selected_answer: selectedAnswer } }), "The answer could not be saved.");
+  },
+
+  async submitManagedActiveStudy(runId, attemptId) {
+    return objectPayload(await request(`/focus/managed-active-study/${runId}/submit`, { method: "POST", body: { attempt_id: attemptId } }), "The Active Study result could not be saved.");
+  },
+
   async startActiveStudy({ materialSlug, sheetSlug, difficulty, pageCount }) {
     return objectPayload(
       await request("/focus/active-study/start", {

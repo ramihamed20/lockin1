@@ -25,7 +25,7 @@ import { fulfillAccessContract } from "./fixtures/productionApi.js";
 // them.
 test.use({ hasTouch: true });
 
-const ROUTE = "/#/materials/catalog/microbiology/sheets/sheet-1/workspace";
+const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 
 const PHONES = [
   { width: 320, height: 568, name: "phone-320" },

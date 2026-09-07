@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { withoutServiceWorker } from "./helpers/serviceWorker.js";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
-const ROUTE = "/#/materials/catalog/microbiology/sheets/sheet-1/workspace";
+const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 
 async function mockWorkspace(page) {
   await withoutServiceWorker(page);
@@ -105,7 +105,7 @@ test("global shortcuts never fire while a field or a control has focus", async (
   await mockWorkspace(page);
   await openWorkspace(page);
   const indicator = page.locator(".workspace-v2-page-number");
-  await expect(indicator).toHaveAttribute("aria-label", "Page 1 of 16");
+  await expect(indicator).toHaveAttribute("aria-label", "Page 1 of 41");
 
   // Typing a page number must not be read as tool shortcuts or page steps.
   await indicator.click();
@@ -113,11 +113,11 @@ test("global shortcuts never fire while a field or a control has focus", async (
   await pageInput.click();
   await pageInput.press("ArrowRight");
   await pageInput.press("ArrowLeft");
-  await expect(indicator).toHaveAttribute("aria-label", "Page 1 of 16");
+  await expect(indicator).toHaveAttribute("aria-label", "Page 1 of 41");
   await expect(page.locator('[data-workspace-tool="pen"]')).toHaveAttribute("aria-pressed", "false");
   await pageInput.fill("5");
   await pageInput.press("Enter");
-  await expect(indicator).toHaveAttribute("aria-label", "Page 5 of 16");
+  await expect(indicator).toHaveAttribute("aria-label", "Page 5 of 41");
   await expect(page.locator('[data-workspace-tool="pen"]')).toHaveAttribute("aria-pressed", "false");
   await page.locator(".workspace-v2-page-number").click();
   await waitForScrollToSettle(page);
@@ -125,7 +125,7 @@ test("global shortcuts never fire while a field or a control has focus", async (
   // The same keys reach the reader once focus leaves the field.
   await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
   await page.keyboard.press("ArrowRight");
-  await expect(indicator).toHaveAttribute("aria-label", "Page 6 of 16");
+  await expect(indicator).toHaveAttribute("aria-label", "Page 6 of 41");
   await waitForScrollToSettle(page);
 
   // A note field swallows every shortcut, including Delete and Backspace.
@@ -136,7 +136,7 @@ test("global shortcuts never fire while a field or a control has focus", async (
   await noteEditor.press("Backspace");
   await noteEditor.press("ArrowLeft");
   await expect(noteEditor).toHaveValue("pencil and erase");
-  await expect(indicator).toHaveAttribute("aria-label", "Page 6 of 16");
+  await expect(indicator).toHaveAttribute("aria-label", "Page 6 of 41");
   await expect(page.locator('[data-workspace-tool="eraser"]')).toHaveAttribute("aria-pressed", "false");
 });
 

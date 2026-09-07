@@ -4,6 +4,7 @@ import { learningApi } from "../api/learning.js";
 import { progressApi } from "../api/progress.js";
 import { isApiError } from "../api/client.js";
 import { BookmarkButton } from "../components/learning/BookmarkButton.jsx";
+import { ActiveStudyPlayer } from "../components/learning/ActiveStudyPlayer.jsx";
 import { ErrorPanel, LoadingPanel, Page, ProgressLine } from "../components/ui/index.jsx";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { Icon } from "../lib/icons.jsx";
@@ -85,6 +86,7 @@ function NonFocusStudyEntry({ learningObject, version, progress, progressError, 
             <Link className="btn btn-soft" to={`/community/context/learning_object/${learningObject.id}`}><Icon name="messages" size={16} /> Discuss</Link>
           </div>
         </article>
+        {version.content_type === "pdf" && <ActiveStudyPlayer sheetId={learningObject.id} viewUrl={viewUrl} />}
         {progress ? <ProgressEditor learningObjectId={learningObject.id} progress={progress} onProgressUpdated={onProgressUpdated} /> : <ErrorPanel message={progressError || "Learning progress could not be loaded."} onRetry={onProgressUpdated} />}
         <Link className="study-entry__back" to="/materials"><Icon name="arrow-left" size={16} /> All materials</Link>
       </section>

@@ -14,16 +14,14 @@ export function SubscriptionStatus({ subscription, compact = false }) {
   const expiresAt = subscription?.status === "trialing"
     ? subscription?.trial_ends_at
     : subscription?.current_period_ends_at;
+  if (["suspended", "cancelled", "expired"].includes(state)) return null;
   const labels = {
     trialing: [t("subscription.freeTrial"), t("subscription.daysRemaining", { count: days })],
     active: [t("subscription.active"), expiresAt ? t("subscription.expires", { date: formatDate(expiresAt, { dateStyle: "medium" }) }) : ""],
     pending: [t("subscription.active"), t("subscription.reviewPending")],
-    grace: [t("subscription.renewalPeriod"), t("subscription.daysRemaining", { count: days })],
-    suspended: [t("subscription.paused"), t("subscription.renewToContinue")],
-    cancelled: [t("subscription.paused"), t("subscription.renewToContinue")],
-    expired: [t("subscription.paused"), t("subscription.renewToContinue")]
+    grace: [t("subscription.renewalPeriod"), t("subscription.daysRemaining", { count: days })]
   };
-  const [title, detail] = labels[state] || labels.expired;
+  const [title, detail] = labels[state] || [t("subscription.active"), ""];
 
   return (
     <span className={`subscription-state subscription-state-${state}${compact ? " compact" : ""}`}>

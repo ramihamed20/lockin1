@@ -108,7 +108,8 @@ for (const [label, descriptor] of [["phone", devices["Pixel 5"]], ["tablet", dev
   });
 }
 
-test.describe("quiz touch targets", () => {
+// Skipped until questions are published: the local demo quiz is gone; re-enable with the first published questions.
+test.describe.skip("quiz touch targets", () => {
   test.use(deviceTraits(devices["Pixel 5"]));
 
   test("leaving a quiz is as easy to hit as answering it", async ({ page }) => {

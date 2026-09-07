@@ -14,10 +14,9 @@ class RechargeCodeError(ValueError):
 
 
 def normalize_recharge_code(value: str) -> str:
-    normalized = "".join(character for character in value.strip() if character not in " -\t\r\n")
-    if not normalized.isascii() or not normalized.isdigit() or not 8 <= len(normalized) <= 32:
-        raise RechargeCodeError("Enter the 8–32 digit code printed on the Libyana recharge card.")
-    return normalized
+    if not isinstance(value, str) or not value.isascii() or not value.isdigit() or len(value) != 13:
+        raise RechargeCodeError("Enter exactly 13 digits with no spaces or symbols.")
+    return value
 
 
 def _encryption_key() -> bytes:

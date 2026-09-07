@@ -15,6 +15,9 @@ const A4_RENDER_OVERSCAN_PAGES = WORKSPACE_RENDER.catalogOverscanPages;
 const RENDER_SCALE_SETTLE_MS = WORKSPACE_RENDER.renderScaleSettleMs;
 const SCROLL_SETTLE_MS = WORKSPACE_RENDER.scrollSettleMs;
 const CANVAS_EVICTION_MS = WORKSPACE_RENDER.catalogCanvasEvictionMs;
+// Pages far behind the reader are dropped sooner than pages just off screen,
+// which are the ones a small scroll back would need again.
+const DISTANT_CANVAS_EVICTION_MS = WORKSPACE_RENDER.catalogDistantCanvasEvictionMs;
 const SLOW_LOAD_NOTICE_MS = 15_000;
 
 let pdfLibraryPromise;
@@ -56,8 +59,8 @@ export function a4RenderQualityScale(renderZoom, devicePixelRatio = 1, pageAspec
 }
 
 const A4PdfCanvas = memo(
-/** @param {{ documentProxy: any, pageNumber: number, pageAspectRatio: number, renderZoom: number, shouldRender: boolean, renderRevision: number, renderController: { suspended: boolean, generation: number, scrolling: boolean }, priority: number, renderQueue: PdfRenderQueue, onPageGeometry?: (pageNumber: number, width: number, height: number) => void, onPageRendered?: (duration: number) => void, onPageOutcome?: (pageNumber: number, failed: boolean) => void }} props */
-function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, shouldRender, renderRevision, renderController, priority, renderQueue, onPageGeometry, onPageRendered, onPageOutcome }) {
+/** @param {{ documentProxy: any, pageNumber: number, pageAspectRatio: number, renderZoom: number, shouldRender: boolean, evictionDelayMs?: number, renderRevision: number, renderController: { suspended: boolean, generation: number, scrolling: boolean }, priority: number, renderQueue: PdfRenderQueue, onPageGeometry?: (pageNumber: number, width: number, height: number) => void, onPageRendered?: (duration: number) => void, onPageOutcome?: (pageNumber: number, failed: boolean) => void }} props */
+function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, shouldRender, evictionDelayMs = CANVAS_EVICTION_MS, renderRevision, renderController, priority, renderQueue, onPageGeometry, onPageRendered, onPageOutcome }) {
   const canvasRefs = useRef([null, null]);
   const visibleCanvasRef = useRef(0);
   const renderedRef = useRef({ documentProxy: null, qualityScale: 0 });
@@ -85,7 +88,7 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
             canvas.height = 0;
           }
           renderedRef.current = { documentProxy: null, qualityScale: 0 };
-        }, CANVAS_EVICTION_MS);
+        }, evictionDelayMs);
       }
       return undefined;
     }
@@ -211,7 +214,7 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
     });
 
     return cancelQueuedRender;
-  }, [documentProxy, onPageGeometry, onPageOutcome, onPageRendered, pageNumber, priority, qualityScale, renderController, renderQueue, renderRevision, shouldRender]);
+  }, [documentProxy, evictionDelayMs, onPageGeometry, onPageOutcome, onPageRendered, pageNumber, priority, qualityScale, renderController, renderQueue, renderRevision, shouldRender]);
 
   useEffect(() => () => {
     renderQueue.cancel(`page:${pageNumber}`);
@@ -615,14 +618,28 @@ export function ContinuousA4Pdf({
   }, [commitNearbyPages, commitPrimaryPage, documentRootRef, pageCount, stageRef, visiblePageCount]);
 
   const pages = useMemo(() => Array.from({ length: Math.min(pageCount, visiblePageCount) }, (_, index) => index + 1), [pageCount, visiblePageCount]);
+  // The render observer's margin is a share of the stage height, so a sheet of
+  // short 16:9 slides admits several times more pages than a tall A4 one, and
+  // every extra page is a full-size canvas held in memory. This is how far the
+  // reader will actually keep pages rasterized: what the stage can show, plus
+  // the overscan, so live canvases follow the viewport rather than page shape.
+  const renderReach = useMemo(() => {
+    const pageHeight = Math.max(1, A4_PAGE_WIDTH * defaultPageAspectRatio * zoom);
+    const pagesOnScreen = Math.ceil(stageViewport.height / pageHeight);
+    return Math.max(1, pagesOnScreen) + A4_RENDER_OVERSCAN_PAGES;
+  }, [defaultPageAspectRatio, stageViewport.height, zoom]);
   const pagesToRender = useMemo(() => {
-    const next = new Set(nearbyPages);
+    const next = new Set();
     for (let offset = -A4_RENDER_OVERSCAN_PAGES; offset <= A4_RENDER_OVERSCAN_PAGES; offset += 1) {
       const pageNumber = primaryPage + offset;
       if (pageNumber >= 1 && pageNumber <= visiblePageCount) next.add(pageNumber);
     }
+    nearbyPages.forEach((pageNumber) => {
+      if (Math.abs(pageNumber - primaryPage) > renderReach) return;
+      if (pageNumber >= 1 && pageNumber <= visiblePageCount) next.add(pageNumber);
+    });
     return next;
-  }, [nearbyPages, visiblePageCount, primaryPage]);
+  }, [nearbyPages, primaryPage, renderReach, visiblePageCount]);
   const baseDocumentHeight = useMemo(() => pages.reduce((total, pageNumber) => (
     total + A4_PAGE_WIDTH * (pageAspectRatios.get(pageNumber) || defaultPageAspectRatio)
   ), Math.max(0, pages.length - 1) * A4_PAGE_GAP), [defaultPageAspectRatio, pageAspectRatios, pages]);
@@ -666,6 +683,7 @@ export function ContinuousA4Pdf({
               pageAspectRatio={pageAspectRatios.get(pageNumber) || defaultPageAspectRatio}
               renderZoom={renderScale}
               shouldRender={pagesToRender.has(pageNumber)}
+              evictionDelayMs={Math.abs(pageNumber - primaryPage) > renderReach * 2 ? DISTANT_CANVAS_EVICTION_MS : CANVAS_EVICTION_MS}
               renderRevision={pagesToRender.has(pageNumber) ? renderRevision : 0}
               renderController={renderControllerRef.current}
               priority={pageNumber === primaryPage ? 0 : Math.abs(pageNumber - primaryPage) * 10 + (pageNumber < primaryPage ? 1 : 0)}

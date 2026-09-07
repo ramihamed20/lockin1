@@ -149,6 +149,8 @@ import {
   pageSignatures,
   parseImportPayload
 } from "../workspace/storage/workspaceSnapshot.js";
+import { EmptyState, Page } from "../components/ui/index.jsx";
+import { useI18n } from "../components/I18nProvider.jsx";
 import "./catalog-focus-workspace.css";
 
 const PAGE_COUNT = 342;
@@ -460,7 +462,7 @@ function StudyModeDialog({ difficulty, setDifficulty, activeAvailable, busy, err
             <div className="workspace-v2-difficulty" role="radiogroup" aria-label="Active Study difficulty">
               {ACTIVE_DIFFICULTIES.map(([id, label, detail]) => <button key={id} type="button" role="radio" aria-label={`${label}: ${detail}`} title={detail} aria-checked={difficulty === id} className={difficulty === id ? "is-selected" : ""} onClick={() => setDifficulty(id)}>{label}</button>)}
             </div>
-            <button type="button" className="workspace-v2-active-start" onClick={onActive} disabled={busy || !activeAvailable}>{busy ? "Starting…" : activeAvailable ? "Start Active" : "Published PDFs only"}<ChevronRight size={16} /></button>
+            <button type="button" className="workspace-v2-active-start" onClick={onActive} disabled={busy || !activeAvailable}>{busy ? "Starting…" : activeAvailable ? "Start Active" : "Questions not ready yet"}<ChevronRight size={16} /></button>
           </div>
         </div>
         {error && <p className="workspace-v2-mode-error" role="alert">{error}</p>}
@@ -513,7 +515,21 @@ function ActiveStudyQuiz({ quiz, answers, setAnswers, result, busy, onSubmit, on
   );
 }
 
+/**
+ * The workspace mounts a large annotation and PDF stack, so the sheet is
+ * resolved before it renders rather than through an early return inside it.
+ */
 export default function CatalogFocusWorkspace({ user = null }) {
+  const { materialSlug, sheetSlug } = useParams();
+  const { t } = useI18n();
+  const { material, sheet } = getCatalogSheet(materialSlug, sheetSlug);
+  if (!material || !sheet) {
+    return <Page title={t("materials.sheetNotFoundTitle")}><EmptyState icon="study" title={t("materials.noSheetsTitle")} text={t("materials.noSheetsText")} /></Page>;
+  }
+  return <CatalogFocusWorkspaceView user={user} />;
+}
+
+function CatalogFocusWorkspaceView({ user = null }) {
   const { materialSlug, sheetSlug } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -546,6 +562,7 @@ export default function CatalogFocusWorkspace({ user = null }) {
   const transformRef = useRef(null);
   const previousToolRef = useRef("hand");
   const zoomRef = useRef(1);
+  const pdfZoomModeRef = useRef("fit");
   const pendingPinchCommitRef = useRef(null);
   const initialPageViewRef = useRef("");
   const wheelZoomEndTimerRef = useRef(null);
@@ -1108,9 +1125,10 @@ export default function CatalogFocusWorkspace({ user = null }) {
     const stage = stageRef.current;
     const keepPdfFitted = () => {
       const minimum = minimumPdfZoom();
-      if (zoomRef.current >= minimum) return;
-      zoomRef.current = minimum;
-      setZoom(minimum);
+      const nextZoom = pdfZoomModeRef.current === "fit" ? minimum : Math.max(zoomRef.current, minimum);
+      if (Math.abs(zoomRef.current - nextZoom) < .001) return;
+      zoomRef.current = nextZoom;
+      setZoom(nextZoom);
     };
     keepPdfFitted();
     const observer = new window.ResizeObserver(keepPdfFitted);
@@ -1128,6 +1146,11 @@ export default function CatalogFocusWorkspace({ user = null }) {
     const storedView = restored?.view;
     const fitZoom = minimumPdfZoom();
     const initialZoom = rememberZoomLevel ? zoomFromStoredView(storedView) : fitZoom;
+    const storedBasis = Number(storedView?.zoomFitBasis);
+    const storedZoom = Number(storedView?.zoom);
+    pdfZoomModeRef.current = rememberZoomLevel && Number.isFinite(storedBasis) && storedBasis > 0 && storedZoom > storedBasis + .001
+      ? "manual"
+      : "fit";
     zoomRef.current = initialZoom;
     setZoom(initialZoom);
     const positionInitialPage = () => {
@@ -1325,6 +1348,10 @@ export default function CatalogFocusWorkspace({ user = null }) {
         if (rememberLastPositionRef.current && !(bookmarkedPage > 0)) setPage(Math.max(1, view.page));
         if (rememberZoomLevelRef.current && Number.isFinite(view.zoom)) {
           const nextZoom = zoomFromStoredView(view);
+          const storedBasis = Number(view.zoomFitBasis);
+          pdfZoomModeRef.current = Number.isFinite(storedBasis) && storedBasis > 0 && Number(view.zoom) > storedBasis + .001
+            ? "manual"
+            : "fit";
           zoomRef.current = nextZoom;
           setZoom(nextZoom);
         }
@@ -2415,6 +2442,7 @@ export default function CatalogFocusWorkspace({ user = null }) {
     const root = documentRef.current;
     const stage = stageRef.current;
     if (!root || !stage) return false;
+    if (sheet?.pdfUrl) pdfZoomModeRef.current = "manual";
     if (gesture.mode === INTERACTION_STATE.PINCHING && gesture.pinch?.active) return true;
     cancelZoomSettle();
     // Suspend PDF.js work before ending a one-finger pan so the renderer never
@@ -3064,7 +3092,7 @@ export default function CatalogFocusWorkspace({ user = null }) {
   }
   cancelInteractionRef.current = cancelWorkspacePointer;
 
-  function zoomTo(nextZoom, clientX, clientY) {
+  function zoomTo(nextZoom, clientX, clientY, { mode = "manual" } = {}) {
     stopScrollMomentum();
     cancelZoomSettle();
     const gesture = gestureRef.current;
@@ -3079,6 +3107,7 @@ export default function CatalogFocusWorkspace({ user = null }) {
     }
     const stage = stageRef.current;
     if (!stage) return;
+    if (sheet?.pdfUrl) pdfZoomModeRef.current = mode;
     const bounds = stage.getBoundingClientRect();
     const x = clientX ?? bounds.left + bounds.width / 2;
     const y = clientY ?? bounds.top + bounds.height / 2;
@@ -3326,7 +3355,7 @@ export default function CatalogFocusWorkspace({ user = null }) {
   }
 
   async function chooseActiveStudy() {
-    if (activeStudyBusy || !sheet?.isTestSheet) return;
+    if (activeStudyBusy || !sheet?.hasActiveStudy) return;
     setActiveStudyBusy(true);
     setActiveStudyError("");
     try {
@@ -3571,7 +3600,7 @@ export default function CatalogFocusWorkspace({ user = null }) {
     const stage = stageRef.current;
     if (!stage) return;
     const bounds = stage.getBoundingClientRect();
-    zoomTo(minimumPdfZoom(), bounds.left + bounds.width / 2, bounds.top + Math.min(bounds.height / 2, 180));
+    zoomTo(minimumPdfZoom(), bounds.left + bounds.width / 2, bounds.top + Math.min(bounds.height / 2, 180), { mode: "fit" });
     setFocusMessage("PDF fitted to width.");
   }
 
@@ -3830,7 +3859,7 @@ export default function CatalogFocusWorkspace({ user = null }) {
       {studyMode === "active" && activeStudy?.status === "active" && <div className="workspace-v2-checkpoint-dock" role="status" aria-live="polite">
         <button type="button" className={`workspace-v2-checkpoint-button${activeCheckpointReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeCheckpointReady} aria-label={activeCheckpointReady ? activeStudy.final_ready ? "Open final test" : "Open checkpoint" : `Reach page ${activeStudy.unlocked_pages} to unlock the checkpoint`}>{activeStudy.final_ready ? <><Trophy size={20} /><span className="workspace-v2-checkpoint-copy">Final test · 50</span></> : activeCheckpointReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">Checkpoint · 10</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">Reach page {activeStudy.unlocked_pages}</span></>}</button>
       </div>}
-      {modeDialogOpen && <StudyModeDialog difficulty={activeDifficulty} setDifficulty={setActiveDifficulty} activeAvailable={Boolean(sheet.isTestSheet)} busy={activeStudyBusy} error={activeStudyError} onNormal={chooseNormalStudy} onActive={chooseActiveStudy} />}
+      {modeDialogOpen && <StudyModeDialog difficulty={activeDifficulty} setDifficulty={setActiveDifficulty} activeAvailable={Boolean(sheet.hasActiveStudy)} busy={activeStudyBusy} error={activeStudyError} onNormal={chooseNormalStudy} onActive={chooseActiveStudy} />}
       {activeQuiz && activeStudy && <ActiveStudyQuiz quiz={activeQuiz} answers={activeAnswers} setAnswers={setActiveAnswers} result={activeResult} busy={activeStudyBusy} onSubmit={submitActiveQuiz} onDismiss={dismissActiveQuiz} onRetake={retakeActiveQuiz} onContinue={continueActiveStudyAnyway} />}
     </main>
   );

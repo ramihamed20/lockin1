@@ -2,8 +2,11 @@ from django.urls import path
 
 from .admin_views import (
     AdminSheetActionView,
+    AdminSheetActiveStudyQuestionsView,
+    AdminSheetActiveStudyView,
     AdminSheetDetailView,
     AdminSheetPdfView,
+    AdminSheetReorderView,
     AdminSubjectListView,
     AdminSubjectSheetListView,
 )
@@ -46,6 +49,21 @@ urlpatterns = [
         "operations/admin/content/sheets/<uuid:sheet_id>/pdf",
         AdminSheetPdfView.as_view(),
         name="admin-sheet-pdf",
+    ),
+    path(
+        "operations/admin/content/sheets/<uuid:sheet_id>/reorder",
+        AdminSheetReorderView.as_view(),
+        name="admin-sheet-reorder",
+    ),
+    path(
+        "operations/admin/content/sheets/<uuid:sheet_id>/active-study",
+        AdminSheetActiveStudyView.as_view(),
+        name="admin-sheet-active-study",
+    ),
+    path(
+        "operations/admin/content/sheets/<uuid:sheet_id>/active-study/questions/<str:difficulty>",
+        AdminSheetActiveStudyQuestionsView.as_view(),
+        name="admin-sheet-active-study-questions",
     ),
     path("learning-objects", PublicLearningObjectListView.as_view(), name="public-list"),
     path(

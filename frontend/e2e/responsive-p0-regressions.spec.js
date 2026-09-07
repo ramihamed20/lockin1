@@ -7,7 +7,7 @@ import { fulfillAccessContract } from "./fixtures/productionApi.js";
  * fails here rather than on a student's device.
  */
 
-const WORKSPACE_ROUTE = "/#/materials/catalog/microbiology/sheets/sheet-1/workspace";
+const WORKSPACE_ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 const A4_PAGE_WIDTH = 595;
 
 const LANDSCAPE_PHONES = [
@@ -256,6 +256,34 @@ test("a remembered zoom follows the viewport instead of the old page width", asy
     canvasFitsStage: true,
     canvasOnScreen: true
   });
+});
+
+test("fit-width PDF follows a live resize while manual zoom preserves magnification", async ({ page }) => {
+  test.setTimeout(90_000);
+  await mockStudent(page);
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto(WORKSPACE_ROUTE);
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  const canvas = page.locator(".workspace-v2-a4-canvas.is-visible").first();
+  await expect(canvas).toBeVisible({ timeout: 20_000 });
+  await page.locator(".workspace-v2-page-number").click();
+  await page.getByRole("button", { name: "Fit width" }).click();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(() => page.evaluate(() => {
+    const stage = document.querySelector(".workspace-v2-document-stage");
+    const pageCanvas = document.querySelector(".workspace-v2-a4-canvas");
+    return Math.round(pageCanvas.getBoundingClientRect().width) <= stage.clientWidth + 1;
+  })).toBe(true);
+
+  await page.getByRole("button", { name: "Zoom in" }).click();
+  const manualZoom = await page.locator(".workspace-v2-a4-document").evaluate((node) => (
+    Number(getComputedStyle(node).getPropertyValue("--workspace-a4-zoom"))
+  ));
+  await page.setViewportSize({ width: 430, height: 932 });
+  await expect.poll(() => page.locator(".workspace-v2-a4-document").evaluate((node) => (
+    Number(getComputedStyle(node).getPropertyValue("--workspace-a4-zoom"))
+  ))).toBeCloseTo(manualZoom, 2);
 });
 
 // P0: a right-to-left reader starts scrolled to its right edge, so a page wider

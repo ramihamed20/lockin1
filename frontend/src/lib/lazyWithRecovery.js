@@ -1,39 +1,6 @@
-/* global __APP_VERSION__ */
 import { lazy } from "react";
 
-const RECOVERY_MARKER = "lock-in.chunk-recovery";
-const RECOVERY_WINDOW_MS = 60_000;
-const APP_VERSION = typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : "development";
 const CHUNK_ERROR_PATTERN = /failed to fetch dynamically imported module|importing a module script failed|error loading dynamically imported module|loading chunk .+ failed|chunkloaderror/i;
-
-function readRecoveryMarker() {
-  try {
-    return JSON.parse(window.sessionStorage.getItem(RECOVERY_MARKER) || "null");
-  } catch {
-    return null;
-  }
-}
-
-function writeRecoveryMarker() {
-  try {
-    window.sessionStorage.setItem(RECOVERY_MARKER, JSON.stringify({
-      at: Date.now(),
-      href: window.location.href,
-      version: APP_VERSION
-    }));
-  } catch {
-    // A reload still works when storage is unavailable; the recovery screen
-    // remains the final guard against repeated automatic reloads.
-  }
-}
-
-function clearRecoveryMarker() {
-  try {
-    window.sessionStorage.removeItem(RECOVERY_MARKER);
-  } catch {
-    // Storage access is optional.
-  }
-}
 
 async function refreshServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
@@ -58,27 +25,19 @@ export function isStaleClientError(error) {
 
 export async function reloadForUpdate() {
   if (typeof window === "undefined") return;
-  writeRecoveryMarker();
   await refreshServiceWorker();
+  // This function is called only from an explicit “Update and reload” action.
+  // A backgrounded browser can discard a lazy module, but that must never turn
+  // returning to the app into an unsolicited navigation or state reset.
   window.location.reload();
 }
 
 export function lazyWithRecovery(loader) {
   return lazy(async () => {
     try {
-      const loadedModule = await loader();
-      clearRecoveryMarker();
-      return loadedModule;
+      return await loader();
     } catch (error) {
       if (!isChunkLoadError(error) || typeof window === "undefined") throw error;
-
-      const marker = readRecoveryMarker();
-      const automaticRecoveryIsRecent = marker && Date.now() - Number(marker.at || 0) < RECOVERY_WINDOW_MS;
-
-      if (!automaticRecoveryIsRecent && navigator.onLine !== false) {
-        await reloadForUpdate();
-        return new Promise(() => {});
-      }
 
       const staleError = new Error("A newer version of Lock-in is ready. Update and reload to continue.");
       staleError.name = "StaleClientError";

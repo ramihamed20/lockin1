@@ -1,33 +1,66 @@
 /**
- * The Materials landing page is intentionally a small, curated study
- * directory. This catalogue controls navigation and presentation only; it
- * never invents study progress, permissions, or protected content state.
+ * The study directory behind Materials and Questions. This catalogue controls
+ * navigation and presentation only; it never invents study progress,
+ * permissions, or protected content state.
+ *
+ * Subjects are scoped to the cohort a learner is enrolled in, so each intake
+ * sees its own list. Sheets and questions are published separately and stay
+ * empty here until real content is loaded.
  */
 /**
  * @typedef {object} CatalogSheet
  * @property {string} slug
  * @property {number} number
  * @property {string} title
- * @property {string} summary
+ * @property {string=} summary
  * @property {string=} fileName
  * @property {string=} pdfUrl
  * @property {number=} pageCount
- * @property {boolean=} isTestSheet
+ * @property {boolean=} hasActiveStudy Set once the sheet has Active Study questions.
  *
  * @typedef {object} CatalogMaterial
  * @property {string} slug
  * @property {string} title
  * @property {CatalogSheet[]} sheets
+ *
+ * @typedef {object} CohortCatalog
+ * @property {string[]} programCodes
+ * @property {string[]} cohortCodes Empty means every cohort in the program.
+ * @property {CatalogMaterial[]} materials
+ * @property {string[]} questionCategories
  */
-const ORAL_HISTO_TEST_SHEET = Object.freeze({
-  summary: "Test PDF: Oral Histo 2.",
-  fileName: "Oral Histo 2.pdf",
-  pdfUrl: "/assets/oral-histology-test.pdf",
-  pageCount: 16,
-  isTestSheet: true
-});
 
-export const MATERIAL_CATALOG = /** @type {CatalogMaterial[]} */ ([
+/** Question categories a cohort can open, in the order they are shown. */
+const STANDARD_QUESTION_CATEGORIES = ["practice", "years", "ai-sheet", "mix"];
+
+/** @param {[string, string][]} entries */
+function buildMaterials(entries) {
+  return entries.map(([slug, title]) => Object.freeze({ slug, title, sheets: [] }));
+}
+
+/**
+ * Biochemistry 1 is the first subject with published sheets. Active Study is
+ * left off until its questions are written, so these open in Normal Study.
+ * @param {[string, string, string, number][]} entries
+ */
+function buildSheets(entries) {
+  return entries.map(([slug, title, fileName, pageCount], index) => Object.freeze({
+    slug,
+    number: index + 1,
+    title,
+    fileName,
+    pdfUrl: `/assets/biochemistry/${slug}.pdf`,
+    pageCount
+  }));
+}
+
+const BIOCHEMISTRY_1_SHEETS = buildSheets([
+  ["vitamin-1", "Vitamin -1", "VITAMIN 2025 part 1.pdf", 41],
+  ["vitamin-2", "Vitamin -2", "vitamin 2025 part 2.pdf", 17],
+  ["vitamin-3", "Vitamin -3", "vitamin part 3.pdf", 33]
+]);
+
+const DENTISTRY_MATERIALS = buildMaterials([
   ["conservative", "Conservative"],
   ["microbiology", "Microbiology"],
   ["pharmacy", "Pharmacy"],
@@ -35,32 +68,72 @@ export const MATERIAL_CATALOG = /** @type {CatalogMaterial[]} */ ([
   ["oral-histology", "Oral histology"],
   ["fixed-prosthodontic", "Fixed prosthodontic"],
   ["removeable-prosthodontic", "Removeable prosthodontic"]
-].map(([slug, title]) => ({
-  slug,
-  title,
-  sheets: [1, 2, 3].map((number) => ({
-    slug: `sheet-${number}`,
-    number,
-    title: `${title} sheet ${number}`,
-    ...ORAL_HISTO_TEST_SHEET
-  }))
-})));
+]);
 
-const oralHistology = MATERIAL_CATALOG.find((material) => material.slug === "oral-histology");
+const HUMAN_MEDICINE_60_MATERIALS = buildMaterials([
+  ["anatomy-1", "Anatomy 1"],
+  ["physiology-1", "Physiology 1"],
+  ["histology-1", "Histology 1"],
+  ["biochemistry-1", "Biochemistry 1"]
+]).map((material) => (material.slug === "biochemistry-1"
+  ? Object.freeze({ ...material, sheets: BIOCHEMISTRY_1_SHEETS })
+  : material));
 
-const LAST_OPENED_SHEET_STORAGE_KEY = "lock-in.materials.last-opened-sheet";
-const RECENT_OPENED_SHEETS_STORAGE_KEY = "lock-in.materials.recent-opened-sheets";
-const MAX_RECENT_OPENED_SHEETS = 4;
+/** @type {CohortCatalog[]} */
+export const COHORT_CATALOGS = [
+  {
+    programCodes: ["human-medicine"],
+    cohortCodes: ["60"],
+    materials: HUMAN_MEDICINE_60_MATERIALS,
+    questionCategories: STANDARD_QUESTION_CATEGORIES
+  },
+  {
+    programCodes: ["dentistry", "dentistry-tripoli", "dentistry-zawiya", "dentistry-benghazi"],
+    cohortCodes: [],
+    materials: DENTISTRY_MATERIALS,
+    questionCategories: STANDARD_QUESTION_CATEGORIES
+  }
+];
 
-oralHistology?.sheets.push({
-  slug: "sheet-4",
-  number: 4,
-  title: "Oral histology sheet 4",
-  ...ORAL_HISTO_TEST_SHEET
-});
+/** @type {CohortCatalog} */
+const EMPTY_CATALOG = {
+  programCodes: [],
+  cohortCodes: [],
+  materials: [],
+  questionCategories: STANDARD_QUESTION_CATEGORIES
+};
+
+/**
+ * Resolves the catalogue for an enrolment. An unknown or missing cohort gets
+ * the empty catalogue rather than another intake's subjects.
+ * @param {{code?: string, program?: {code?: string}}|null|undefined} cohort
+ * @returns {CohortCatalog}
+ */
+export function getCohortCatalog(cohort) {
+  const programCode = cohort?.program?.code || "";
+  const cohortCode = cohort?.code || "";
+  if (!programCode) return EMPTY_CATALOG;
+  return COHORT_CATALOGS.find((catalog) => (
+    catalog.programCodes.includes(programCode)
+    && (!catalog.cohortCodes.length || catalog.cohortCodes.includes(cohortCode))
+  )) || EMPTY_CATALOG;
+}
+
+/** @param {{cohort?: {code?: string, program?: {code?: string}}|null}|null|undefined} user */
+export function getCohortMaterials(user) {
+  return getCohortCatalog(user?.cohort).materials;
+}
+
+/** @param {{cohort?: {code?: string, program?: {code?: string}}|null}|null|undefined} user */
+export function getCohortQuestionCategories(user) {
+  return getCohortCatalog(user?.cohort).questionCategories;
+}
+
+/** Subject slugs are unique across cohorts, so a link resolves without one. */
+const ALL_MATERIALS = COHORT_CATALOGS.flatMap((catalog) => catalog.materials);
 
 export function getCatalogMaterial(slug) {
-  return MATERIAL_CATALOG.find((material) => material.slug === slug) || null;
+  return ALL_MATERIALS.find((material) => material.slug === slug) || null;
 }
 
 export function getCatalogSheet(materialSlug, sheetSlug) {
@@ -70,6 +143,10 @@ export function getCatalogSheet(materialSlug, sheetSlug) {
     sheet: material?.sheets.find((item) => item.slug === sheetSlug) || null
   };
 }
+
+const LAST_OPENED_SHEET_STORAGE_KEY = "lock-in.materials.last-opened-sheet";
+const RECENT_OPENED_SHEETS_STORAGE_KEY = "lock-in.materials.recent-opened-sheets";
+const MAX_RECENT_OPENED_SHEETS = 4;
 
 export function rememberLastOpenedCatalogSheet(materialSlug, sheetSlug) {
   const { material, sheet } = getCatalogSheet(materialSlug, sheetSlug);

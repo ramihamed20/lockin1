@@ -298,7 +298,14 @@ export function scrollForElementAnchor({
 }
 
 export function boundedOutputScale(pageWidth, pageHeight, devicePixelRatio, renderZoom, maxPixels = 16_000_000) {
-  const desired = Math.min(3, Math.max(1, Number(devicePixelRatio) || 1) * Math.max(1, Number(renderZoom) || 1));
+  // The backing store only has to carry the pixels the page occupies on
+  // screen. Flooring the zoom at 1 meant a page shown at 65% of its layout
+  // width - which is every sheet on a phone - was rasterized half again as
+  // wide as the display could use, at more than twice the memory. The scale
+  // itself still never drops below 1, so the canvas is never smaller than the
+  // page's own layout size.
+  const zoom = Math.max(0, Number(renderZoom) || 0);
+  const desired = Math.min(3, Math.max(1, Number(devicePixelRatio) || 1) * zoom);
   const pixelLimitScale = Math.sqrt(maxPixels / Math.max(1, pageWidth * pageHeight));
   return Math.max(1, Math.min(desired, pixelLimitScale));
 }

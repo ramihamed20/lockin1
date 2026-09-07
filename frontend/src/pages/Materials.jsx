@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { educationApi, learningApi } from "../api/learning.js";
 import { Icon } from "../lib/icons.jsx";
-import { MATERIAL_CATALOG, getCatalogMaterial, getCatalogSheet, rememberLastOpenedCatalogSheet } from "../lib/materialCatalog.js";
+import { getCatalogMaterial, getCatalogSheet, getCohortMaterials, rememberLastOpenedCatalogSheet } from "../lib/materialCatalog.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
 import { LearningObjectCard } from "../components/learning/LearningObjectCard.jsx";
@@ -24,22 +24,27 @@ function nodeKindLabel(kind, t) {
   return typeof kind === "string" ? kind.replaceAll("_", " ") : t("materials.studyArea");
 }
 
-export default function Materials() {
+export default function Materials({ user = null }) {
   const { t } = useI18n();
+  const materials = getCohortMaterials(user);
 
   return (
     <Page title="Materials">
-      <section aria-labelledby="demo-materials-heading">
+      <section aria-labelledby="cohort-materials-heading">
         <div className="panel-title">
           <div>
-            <p className="eyebrow">{t("materials.demoCatalogTitle")}</p>
-            <h2 id="demo-materials-heading">{t("materials.demoCatalogHeading")}</h2>
-            <p className="muted">{t("materials.demoCatalogSubtitle")}</p>
+            <p className="eyebrow">{t("materials.coreCatalogTitle")}</p>
+            <h2 id="cohort-materials-heading">{t("materials.coreCatalogHeading")}</h2>
+            <p className="muted">{t("materials.coreCatalogSubtitle")}</p>
           </div>
         </div>
-        <section className="material-grid catalog-material-grid" aria-label={t("materials.catalogLabel")}>
-          {MATERIAL_CATALOG.map((material) => <CatalogMaterialCard key={material.slug} material={material} />)}
-        </section>
+        {materials.length === 0
+          ? <EmptyState icon="study" title={t("materials.noCohortMaterialsTitle")} text={t("materials.noCohortMaterialsText")} />
+          : (
+            <section className="material-grid catalog-material-grid" aria-label={t("materials.catalogLabel")}>
+              {materials.map((material) => <CatalogMaterialCard key={material.slug} material={material} />)}
+            </section>
+          )}
       </section>
     </Page>
   );
@@ -56,6 +61,10 @@ export function CatalogMaterialSheets() {
   const material = getCatalogMaterial(materialSlug);
 
   if (!material) return <Page title={t("materials.notFoundTitle")}><ErrorPanel message={t("materials.notFoundText")} /></Page>;
+
+  if (!material.sheets.length) {
+    return <Page title={material.title}><EmptyState icon="study" title={t("materials.noSheetsTitle")} text={t("materials.noSheetsText")} /></Page>;
+  }
 
   return (
     <Page title={material.title}>
@@ -168,7 +177,7 @@ export function MaterialSheets() {
       {learningObjects.loading && <LoadingPanel />}
       {learningObjects.error && <ErrorPanel message={learningObjects.error} />}
       {!learningObjects.loading && !learningObjects.error && !learningObjects.data.results.length && (
-        <EmptyState title={t("materials.noMatchTitle")} text={t("materials.noMatchText")} />
+        <EmptyState icon="study" title={t("materials.noMatchTitle")} text={t("materials.noMatchText")} />
       )}
       {!learningObjects.loading && !learningObjects.error && learningObjects.data.results.length > 0 && (
         <section className="sheet-grid">

@@ -6,11 +6,11 @@ function source(path) {
   return readFileSync(new URL(path, import.meta.url), "utf8");
 }
 
-test("manual Libyana checkout sends only the selected plan and recharge code", () => {
+test("manual Libyana checkout sends only the selected plan and recharge codes", () => {
   const billing = source("../src/api/billing.js");
   const manualCheckout = billing.match(/async submitLibyana[\s\S]+?\n  }\n};/)?.[0] || "";
 
-  assert.match(manualCheckout, /body:\s*\{ plan_id: planId, recharge_code: rechargeCode \}/);
+  assert.match(manualCheckout, /body:\s*\{ plan_id: planId, recharge_codes: rechargeCodes \}/);
   assert.doesNotMatch(manualCheckout, /body:\s*\{[^}]*price/i);
   assert.doesNotMatch(manualCheckout, /body:\s*\{[^}]*duration/i);
   assert.doesNotMatch(manualCheckout, /body:\s*\{[^}]*status/i);
@@ -41,7 +41,9 @@ test("subscription UI preserves LTR recharge entry inside Arabic RTL and uses se
   assert.match(page, /dir="ltr"/);
   assert.match(page, /inputMode="numeric"/);
   assert.match(page, /effectivePlan/);
-  assert.match(page, /billingApi\.submitLibyana\(effectivePlan, code\)/);
+  assert.match(page, /billingApi\.submitLibyana\(/);
+  assert.match(page, /early_renewal_available/);
+  assert.match(page, /pattern="\[0-9\]\{13\}"/);
   assert.match(page, /setAuthoritativeSubscription\(result\.subscription\)/);
   assert.doesNotMatch(page, /billingApi\.currentSubscription/);
   assert.match(page, /subscription\.directAccess/);

@@ -10,6 +10,41 @@ function normalizeBasePath(value) {
   return basePath.endsWith("/") ? basePath : `${basePath}/`;
 }
 
+/**
+ * A production PWA worker may still control localhost after switching back to
+ * `vite dev`. Its precached HTML can then point at hashed chunks that the dev
+ * server does not provide, which looks like a stale lazy-route deployment.
+ *
+ * Serve a one-shot replacement only from Vite's development server. Browser
+ * update checks replace the old worker and unregister it. Existing clients
+ * stay where they are: even development tooling must not turn backgrounding
+ * the browser into an unsolicited navigation. Production never registers this
+ * plugin and keeps the versioned Workbox worker below.
+ */
+function removeLegacyWorkerInDevelopment() {
+  const worker = [
+    "self.addEventListener('install', () => self.skipWaiting());",
+    "self.addEventListener('activate', (event) => event.waitUntil((async () => {",
+    "  await self.registration.unregister();",
+    "})()));"
+  ].join("\n");
+  const legacyPaths = new Set(["/sw.js", "/service-worker.js"]);
+
+  return {
+    name: "lock-in-remove-legacy-worker-in-development",
+    configureServer(server) {
+      server.middlewares.use((request, response, next) => {
+        const pathname = new URL(request.url || "/", "http://vite.local").pathname;
+        if (!legacyPaths.has(pathname)) return next();
+        response.statusCode = 200;
+        response.setHeader("Content-Type", "application/javascript; charset=utf-8");
+        response.setHeader("Cache-Control", "no-store");
+        response.end(worker);
+      });
+    }
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const appVersion = env.VITE_APP_VERSION || process.env.GITHUB_SHA || "local";
@@ -27,6 +62,7 @@ export default defineConfig(({ mode }) => {
   },
   plugins: [
     react(),
+    ...(mode === "development" ? [removeLegacyWorkerInDevelopment()] : []),
     VitePWA({
       registerType: "prompt",
       injectRegister: null,
@@ -105,6 +141,11 @@ export default defineConfig(({ mode }) => {
   server: {
     host: "0.0.0.0",
     port: 5050,
+    // A phone that backgrounds Vite's development WebSocket can reconnect as
+    // though it has missed an HMR update. This project is frequently tested
+    // through a tunnel on mobile, where that can look exactly like an app
+    // reload. Keep development refreshes manual; production has no HMR client.
+    hmr: false,
     allowedHosts: [".trycloudflare.com", ".ngrok-free.app", ".ngrok-free.dev", ".ngrok.app", ".ngrok.io"],
     proxy: {
       "/api/v1": {

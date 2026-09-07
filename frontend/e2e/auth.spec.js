@@ -516,6 +516,7 @@ test("the username chosen at Google onboarding is the only name the product show
 test("logging out asks first, and cancelling keeps the reader signed in", async ({ page }) => {
   const captured = await mockAuth(page, { sessionUser: userPayload() });
   await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
+  await page.setViewportSize({ width: 390, height: 700 });
   await page.goto("/#/");
 
   await page.getByRole("button", { name: "Open profile menu" }).click();
@@ -530,6 +531,10 @@ test("logging out asks first, and cancelling keeps the reader signed in", async 
 
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(dialog).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => ({
+    overflow: document.body.style.overflow,
+    touchAction: document.body.style.touchAction
+  }))).toEqual({ overflow: "", touchAction: "" });
   // Cancelling calls nothing and leaves the session exactly as it was.
   expect(captured.logouts).toBe(0);
   await expect(page.getByRole("button", { name: "Open profile menu" })).toBeVisible();
@@ -541,6 +546,7 @@ test("logging out asks first, and cancelling keeps the reader signed in", async 
   await expect(page.getByRole("alertdialog")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe("");
   expect(captured.logouts).toBe(0);
 });
 
@@ -656,4 +662,225 @@ test("a verification that did not sign anyone in keeps the existing sign-in hand
   await expect(page.getByRole("button", { name: "Continue to sign in" })).toBeVisible();
   expect(new URL(page.url()).hash).toBe("#/verify-email");
   expect(page.url()).not.toContain("token");
+});
+
+// After a sign-out the reader must not be able to walk back into the account.
+// NOTE: Playwright drives history, not the iOS edge-swipe gesture. On iOS that
+// gesture is the same history traversal underneath, but the real device
+// behaviour -- and the bfcache restore it can trigger -- still needs the manual
+// check recorded in docs. These tests cover the mechanism, not the gesture.
+test("going back after logout never shows the account again", async ({ page }) => {
+  let signedIn = true;
+  await mockAuth(page, { sessionUser: userPayload() });
+  await page.route("**/api/v1/auth/session", async (route) => {
+    if (!signedIn) {
+      await route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ error: { code: "not_authenticated", message: "Authentication required." } }) });
+      return;
+    }
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ user: userPayload() }) });
+  });
+  await page.route("**/api/v1/auth/logout", async (route) => {
+    signedIn = false;
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ status: "signed_out" }) });
+  });
+  await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
+
+  await page.goto("/#/");
+  await expect(page.getByRole("button", { name: "Open profile menu" })).toBeVisible();
+  // Build real protected history to walk back through.
+  await page.goto("/#/profile");
+  await page.goto("/#/settings");
+
+  await page.getByRole("button", { name: "Open profile menu" }).click();
+  await page.locator(".account-menu-signout").click();
+  await page.getByRole("alertdialog").locator(".btn-danger").click();
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible({ timeout: 15_000 });
+
+  // Walk the protected stack backwards. Three entries were pushed and the
+  // sign-out replaced the last, so two remain behind it; going further would
+  // leave the application entirely and stop describing this behaviour.
+  for (let step = 0; step < 2; step += 1) {
+    await page.goBack();
+    await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Open profile menu" })).toHaveCount(0);
+    await expect(page.getByText("Auth Student")).toHaveCount(0);
+    await expect(page.getByText("student@example.test")).toHaveCount(0);
+  }
+});
+
+test("a restored page with an ended session re-checks and lands on sign-in", async ({ page }) => {
+  let signedIn = true;
+  await mockAuth(page, { sessionUser: userPayload() });
+  let sessionChecks = 0;
+  await page.route("**/api/v1/auth/session", async (route) => {
+    sessionChecks += 1;
+    if (!signedIn) {
+      await route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ error: { code: "not_authenticated", message: "Authentication required." } }) });
+      return;
+    }
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ user: userPayload() }) });
+  });
+  await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
+
+  await page.goto("/#/");
+  await expect(page.getByRole("button", { name: "Open profile menu" })).toBeVisible();
+  const before = sessionChecks;
+
+  // The session ends elsewhere (another device, an expiry), then this document
+  // comes back from the back/forward cache with its old React state intact.
+  signedIn = false;
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true })));
+
+  // The restored user object is not trusted: the server is asked, and the
+  // account never paints again.
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("button", { name: "Open profile menu" })).toHaveCount(0);
+  expect(sessionChecks).toBeGreaterThan(before);
+});
+
+test("a restored page with a valid session keeps the mounted workspace and its UI state", async ({ page }) => {
+  let sessionChecks = 0;
+  await mockAuth(page, { sessionUser: userPayload() });
+  await page.route("**/api/v1/auth/session", async (route) => {
+    sessionChecks += 1;
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ user: userPayload() }) });
+  });
+  await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
+
+  await page.goto("/#/");
+  await expect(page.getByRole("button", { name: "Open profile menu" })).toBeVisible();
+  await page.getByRole("button", { name: "Open profile menu" }).click();
+  await expect(page.locator(".account-menu")).toBeVisible();
+  const before = sessionChecks;
+  const shellId = await page.locator(".app-shell").evaluate((node) => {
+    node.dataset.restoreProbe = "preserved";
+    return node.dataset.restoreProbe;
+  });
+
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true })));
+  await expect.poll(() => sessionChecks).toBeGreaterThan(before);
+
+  await expect(page.locator(".app-shell")).toHaveAttribute("data-restore-probe", shellId);
+  await expect(page.locator(".account-menu")).toBeVisible();
+  await expect(page).toHaveURL(/#\/$/);
+});
+
+test("a restore while signed out costs no extra session request", async ({ page }) => {
+  let sessionChecks = 0;
+  await mockAuth(page);
+  await page.route("**/api/v1/auth/session", async (route) => {
+    sessionChecks += 1;
+    await route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ error: { code: "not_authenticated", message: "Authentication required." } }) });
+  });
+  await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
+
+  await page.goto("/#/");
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+  const before = sessionChecks;
+
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true })));
+  await page.waitForTimeout(400);
+
+  // Nothing protected is on screen, so there is nothing to re-verify.
+  expect(sessionChecks).toBe(before);
+  // An ordinary (non-restore) pageshow is likewise free.
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: false })));
+  await page.waitForTimeout(200);
+  expect(sessionChecks).toBe(before);
+});
+
+test("back navigation still works normally across public pages", async ({ page }) => {
+  await mockAuth(page);
+  await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
+
+  await page.goto("/#/");
+  await page.goto("/#/terms");
+  await expect(page.getByRole("heading", { name: /Terms/i }).first()).toBeVisible();
+  await page.goto("/#/privacy");
+  await expect(page.getByRole("heading", { name: /Privacy/i }).first()).toBeVisible();
+
+  // Going back walks the public history normally -- no loop, no trapping.
+  await page.goBack();
+  await expect(page.getByRole("heading", { name: /Terms/i }).first()).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+  await page.goForward();
+  await expect(page.getByRole("heading", { name: /Terms/i }).first()).toBeVisible();
+});
+
+// A session revoked on the server (or signed out on another device) used to
+// drop the reader on the sign-in screen with no explanation.
+test("a session revoked mid-visit explains itself and lets the reader back in", async ({ page }) => {
+  let signedIn = true;
+  await mockAuth(page, { sessionUser: userPayload() });
+  await page.route("**/api/v1/auth/session", async (route) => {
+    if (!signedIn) {
+      await route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ error: { code: "not_authenticated", message: "Authentication required." } }) });
+      return;
+    }
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ user: userPayload() }) });
+  });
+  await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
+
+  await page.goto("/#/");
+  await expect(page.getByRole("button", { name: "Open profile menu" })).toBeVisible();
+
+  // The server ends the session, and the next restore re-checks it.
+  signedIn = false;
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true })));
+
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("Your session has ended. Please sign in again to continue.")).toBeVisible();
+  // No protected data survives alongside the explanation.
+  await expect(page.getByRole("button", { name: "Open profile menu" })).toHaveCount(0);
+  await expect(page.getByText("student@example.test")).toHaveCount(0);
+
+  // Signing back in works, and the notice does not follow the reader.
+  signedIn = true;
+  await page.getByLabel("Email").fill("student@example.test");
+  await page.getByLabel("Password", { exact: true }).fill("Lock-in-test-pass-2026");
+  await page.locator(".auth-v2-primary").click();
+  await expect(page.getByRole("button", { name: "Open profile menu" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("Your session has ended.")).toHaveCount(0);
+});
+
+test("an anonymous first visit is never told its session expired", async ({ page }) => {
+  await mockAuth(page);
+  await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
+
+  // The session endpoint answers 403 for every anonymous load by design.
+  await page.goto("/#/");
+
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+  await expect(page.getByText("Your session has ended.")).toHaveCount(0);
+  // Moving between the public screens does not conjure the notice either.
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
+  await expect(page.getByText("Your session has ended.")).toHaveCount(0);
+});
+
+test("the session-expired notice reads correctly in Arabic", async ({ page }) => {
+  let signedIn = true;
+  await mockAuth(page, { sessionUser: userPayload({ preferred_language: "ar" }) });
+  await page.route("**/api/v1/auth/session", async (route) => {
+    if (!signedIn) {
+      await route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ error: { code: "not_authenticated", message: "Authentication required." } }) });
+      return;
+    }
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ user: userPayload({ preferred_language: "ar" }) }) });
+  });
+  await page.addInitScript(() => localStorage.setItem("lock-in.locale", "ar"));
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await page.goto("/#/");
+  await expect(page.getByRole("button", { name: "فتح قائمة الملف الشخصي" })).toBeVisible();
+  signedIn = false;
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true })));
+
+  const notice = page.locator(".auth-v2-session-notice");
+  await expect(notice).toBeVisible({ timeout: 15_000 });
+  await expect(notice).toContainText("انتهت جلستك");
+  // Right-to-left is preserved and the phone viewport does not overflow.
+  expect(await page.evaluate(() => document.documentElement.dir)).toBe("rtl");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
 });

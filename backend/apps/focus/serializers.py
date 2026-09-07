@@ -215,6 +215,21 @@ class ActiveStudySubmitSerializer(StrictSerializer):
     answers = serializers.DictField(child=serializers.CharField(max_length=64), allow_empty=False)
 
 
+class ManagedActiveStudyStartSerializer(StrictSerializer):
+    sheet_id = serializers.UUIDField()
+    difficulty = serializers.ChoiceField(choices=("easy", "medium", "hard"))
+
+
+class ManagedActiveStudyAnswerSerializer(StrictSerializer):
+    attempt_id = serializers.UUIDField()
+    position = serializers.IntegerField(min_value=1, max_value=100)
+    selected_answer = serializers.ChoiceField(choices=("A", "B", "C", "D"))
+
+
+class ManagedActiveStudySubmitSerializer(StrictSerializer):
+    attempt_id = serializers.UUIDField()
+
+
 class LockInTeamMessageSerializer(serializers.ModelSerializer[FocusTeamMessage]):
     author_id = serializers.UUIDField(read_only=True)
     author_name = serializers.CharField(source="author.full_name", read_only=True)

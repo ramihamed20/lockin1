@@ -101,7 +101,7 @@ test("phase 2 routes use direct server file links and remove fabricated dashboar
   assert.match(app, /path="\/search"/);
   assert.match(study, /\^\/api\/v1\/files\//);
   assert.doesNotMatch(study, /request\(/);
-  assert.match(app, /path="\/study-plan"/);
+  assert.match(app, /path="\/study-plan\/\*" element=\{<FeatureComingSoon featureId="study-plan" \/>\}/);
   assert.doesNotMatch(dashboard, /Build your study week/);
   assert.doesNotMatch(dashboard, /Focus session|FocusTimerCard/);
   assert.match(dashboard, /getRecentOpenedCatalogSheets\(\)/);

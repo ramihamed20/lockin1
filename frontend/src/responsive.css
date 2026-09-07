@@ -1,15 +1,15 @@
 /*
- * Responsive architecture
- * -----------------------
- * Phone:                         0–639px
- * Tablet portrait:            640–899px
- * Tablet landscape / compact: 900–1199px
- * Desktop:                       1200px+
- *
- * This layer intentionally loads after the legacy visual stylesheet. It owns
- * structural responsive behavior while the existing stylesheet continues to
- * own the product's colors, surfaces, radii, shadows, and component identity.
- */
+  * Responsive architecture
+  * -----------------------
+  * Phone:                         0–639px
+  * Tablet portrait:            640–899px
+  * Tablet landscape / compact: 900–1199px
+  * Desktop:                       1200px+
+  *
+  * This layer intentionally loads after the legacy visual stylesheet. It owns
+  * structural responsive behavior while the existing stylesheet continues to
+  * own the product's colors, surfaces, radii, shadows, and component identity.
+  */
 
 @layer app {
 :root {
@@ -18,26 +18,6 @@
 }
 
 @media (pointer: coarse) {
-  :is(
-    .icon-btn,
-    .avatar-btn,
-    .profile-menu a,
-    .profile-menu button,
-    .settings-local-nav button,
-    .drawer-theme-options button,
-    .drawer-profile-action,
-    .dashboard-material-action,
-    .store-header-cart,
-    .lockin-team-create,
-    .lockin-team-secondary-action,
-    .workspace-v2-icon,
-    .workspace-v2-selection-actions button,
-    .workspace-v2-quick button,
-    .demo-quiz-exit
-  ) {
-    min-inline-size: var(--touch-target);
-    min-block-size: var(--touch-target);
-  }
 
   /* Full-width rows and fields only need the vertical minimum; forcing a width
    * minimum on them would do nothing useful and can fight their own layout. */
@@ -597,12 +577,12 @@
 
 /* Phone ------------------------------------------------------------------ */
 /* Compact shell -----------------------------------------------------------
- * The shell is chosen by width AND height. A phone in landscape is wider
- * than 640px but far too short for a sidebar, so short viewports keep the
- * bottom bar and drawer. 560px is above every landscape phone (<=450px) and
- * below every tablet in landscape (>=744px), so no touch device sits on the
- * boundary. Every shell breakpoint below carries the matching min-height so
- * exactly one shell applies at any size. */
+  * The shell is chosen by width AND height. A phone in landscape is wider
+  * than 640px but far too short for a sidebar, so short viewports keep the
+  * bottom bar and drawer. 560px is above every landscape phone (<=450px) and
+  * below every tablet in landscape (>=744px), so no touch device sits on the
+  * boundary. Every shell breakpoint below carries the matching min-height so
+  * exactly one shell applies at any size. */
 @media (max-width: 639px), (max-height: 559px) {
   .store-addons-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1048,80 +1028,6 @@
     touch-action: pan-y;
   }
 
-  .drawer-profile {
-    display: grid;
-    grid-template-columns: 44px minmax(0, 1fr) 44px;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 2px 14px;
-    border-bottom: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
-  }
-
-  .drawer-profile > img {
-    width: 44px;
-    height: 44px;
-    display: block;
-    object-fit: cover;
-    border-radius: 12px;
-    background: var(--surface-3);
-  }
-
-  .drawer-profile-copy {
-    min-width: 0;
-    display: grid;
-    gap: 1px;
-  }
-
-  .drawer-profile-copy strong,
-  .drawer-profile-copy span,
-  .drawer-profile-copy small {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .drawer-profile-copy strong {
-    color: var(--text);
-    font-size: 0.94rem;
-    font-weight: 800;
-  }
-
-  .drawer-profile-copy span {
-    color: var(--color-primary);
-    font-size: 0.74rem;
-    font-weight: 750;
-  }
-
-  .drawer-profile-copy small {
-    color: var(--muted);
-    font-size: 0.7rem;
-  }
-
-  .drawer-profile-action {
-    width: 44px;
-    height: 44px;
-    display: grid;
-    place-items: center;
-    border-radius: 12px;
-    color: var(--muted);
-    background: transparent;
-    transition:
-      color 160ms ease,
-      background-color 160ms ease,
-      transform 120ms ease;
-  }
-
-  .drawer-profile.active .drawer-profile-action,
-  .drawer-profile-action:hover:where(html.ix-hover *) {
-    color: var(--color-primary);
-    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-  }
-
-  .drawer-profile-action:active:where([data-ix-pressed]) {
-    transform: scale(0.94);
-  }
-
   .drawer-navigation {
     display: grid;
     gap: 18px;
@@ -1174,6 +1080,12 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .drawer-navigation .nav-coming-soon-label {
+    display: inline;
+    margin-inline-start: auto;
+    font-size: .68rem;
   }
 
   .drawer-navigation .nav-btn.active {
@@ -1695,9 +1607,9 @@
 }
 
 /* Five fixed columns give each tab 54px on a 320px phone, while the longest
- * labels need 62px, so "Reminder" ran into "Account". Below 360px the strip
- * sizes to its labels and wraps instead of overlapping them. Wider phones keep
- * the single row, which already fits. */
+  * labels need 62px, so "Reminder" ran into "Account". Below 360px the strip
+  * sizes to its labels and wraps instead of overlapping them. Wider phones keep
+  * the single row, which already fits. */
 @media (max-width: 359px) {
   .settings-local-nav {
     grid-template-columns: repeat(auto-fit, minmax(66px, 1fr));
@@ -2490,7 +2402,6 @@
   .mobile-drawer,
   .drawer-backdrop,
   .drawer-navigation .nav-btn,
-  .drawer-profile-action,
   .drawer-theme-options button {
     transition-duration: 0.01ms;
   }
@@ -2554,9 +2465,9 @@
 }
 
 /* Safe-area ownership -----------------------------------------------------
- * The top bar owns the top inset. Its background reaches behind the iOS/iPadOS
- * status bar while controls remain below it, so there is no separate empty
- * strip above the application header. */
+  * The top bar owns the top inset. Its background reaches behind the iOS/iPadOS
+  * status bar while controls remain below it, so there is no separate empty
+  * strip above the application header. */
 @media (min-width: 640px) and (min-height: 560px) {
   .app-shell {
     min-height: var(--app-viewport-height);
@@ -2589,13 +2500,13 @@
 }
 
 /* Auth is rendered outside the shared application shell. Its content must
- * receive the same inset protection in standalone PWA mode. */
+  * receive the same inset protection in standalone PWA mode. */
 .auth-card {
   padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
 }
 
 /* Overlay surfaces may paint to the viewport edge, but their controls and
- * scrollable content stay within the usable iOS/iPadOS viewport. */
+  * scrollable content stay within the usable iOS/iPadOS viewport. */
 .onboarding-backdrop {
   padding: max(20px, var(--safe-top)) max(20px, var(--safe-right)) max(20px, var(--safe-bottom)) max(20px, var(--safe-left));
 }
@@ -2609,10 +2520,10 @@
 }
 
 /* iPad / tablet shell -----------------------------------------------------
- * A tablet is neither a narrow desktop nor a large phone. From 768px the
- * rail becomes a compact, labelled sidebar and shares one continuous surface
- * with the top bar. The safe inset belongs to those two shell surfaces, not
- * to a spacer above the content. */
+  * A tablet is neither a narrow desktop nor a large phone. From 768px the
+  * rail becomes a compact, labelled sidebar and shares one continuous surface
+  * with the top bar. The safe inset belongs to those two shell surfaces, not
+  * to a spacer above the content. */
 @media (min-width: 768px) and (max-width: 1199px) and (min-height: 560px) {
   .app-shell {
     --tablet-sidebar-width: clamp(204px, 27vw, 232px);
@@ -2857,9 +2768,9 @@
 }
 
 /* Answering a quiz ----------------------------------------------------------
- * An attempt is a task the reader should be able to finish without leaving by
- * accident. The top bar and bottom bar stand down for its duration; each
- * attempt screen provides its own way out. */
+  * An attempt is a task the reader should be able to finish without leaving by
+  * accident. The top bar and bottom bar stand down for its duration; each
+  * attempt screen provides its own way out. */
 .app-shell.is-answering :is(.topbar, .bottom-nav, .sidebar) {
   display: none;
 }
@@ -2871,12 +2782,12 @@
 }
 
 /* Scrollable navigation edges ---------------------------------------------
- * A navigation list that continues past its box has to say so. iOS and iPadOS
- * use overlay scrollbars that stay hidden until a finger is already moving, so
- * on the devices where the sidebar is most likely to overflow the scrollbar
- * cannot carry that information. `data-overflow` comes from useScrollOverflow
- * and names the edge that still has content behind it; the mask fades that
- * edge so the list visibly continues. */
+  * A navigation list that continues past its box has to say so. iOS and iPadOS
+  * use overlay scrollbars that stay hidden until a finger is already moving, so
+  * on the devices where the sidebar is most likely to overflow the scrollbar
+  * cannot carry that information. `data-overflow` comes from useScrollOverflow
+  * and names the edge that still has content behind it; the mask fades that
+  * edge so the list visibly continues. */
 :is(.sidebar .nav-list, .drawer-scroll)[data-overflow="end"] {
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 34px), transparent 100%);
   mask-image: linear-gradient(to bottom, #000 calc(100% - 34px), transparent 100%);
@@ -2893,17 +2804,17 @@
 }
 
 /* Compact sidebar density --------------------------------------------------
- * The sidebar has to hold every destination the account can reach, and how
- * much room that needs depends on the account as much as on the viewport: ten
- * rows for a student, thirteen for an operations account. So the choice is
- * measured in useSidebarDensity rather than declared at a breakpoint, which is
- * what the first version of this rule did - it was keyed on viewport height
- * and capped at 1199px wide, so it rescued the iPad and left a 1440x900 laptop
- * hiding 193px of navigation behind an invisible scroll.
- *
- * Compact tightens the destination rows and collapses the streak card to a
- * single row, keeping its reading and its link to Lock In. Anything still
- * below the fold is faded by the overflow cue above rather than hidden. */
+  * The sidebar has to hold every destination the account can reach, and how
+  * much room that needs depends on the account as much as on the viewport: ten
+  * rows for a student, thirteen for an operations account. So the choice is
+  * measured in useSidebarDensity rather than declared at a breakpoint, which is
+  * what the first version of this rule did - it was keyed on viewport height
+  * and capped at 1199px wide, so it rescued the iPad and left a 1440x900 laptop
+  * hiding 193px of navigation behind an invisible scroll.
+  *
+  * Compact tightens the destination rows and collapses the streak card to a
+  * single row, keeping its reading and its link to Lock In. Anything still
+  * below the fold is faded by the overflow cue above rather than hidden. */
 .sidebar[data-density="compact"] .nav-list {
   margin-top: var(--space-3);
   gap: var(--space-1);
@@ -2913,13 +2824,17 @@
   min-height: 44px;
 }
 
+.sidebar[data-density="compact"] .nav-coming-soon-label {
+  display: none;
+}
+
 .sidebar[data-density="compact"] .nav-section-label {
   margin-top: var(--space-3);
   margin-bottom: var(--space-1);
 }
 
 /* The 1200-1319px rail stacks the icon over its label, so its rows have a
- * higher floor than a row that reads left to right. */
+  * higher floor than a row that reads left to right. */
 @media (min-width: 1200px) and (max-width: 1319px) and (min-height: 560px) {
   .sidebar[data-density="compact"] .nav-btn {
     min-height: 48px;
@@ -2927,37 +2842,10 @@
 }
 
 /* Only where the streak card is on screen in the first place. Between 1200px
- * and 1439px it is already display:none and collapsing it would put a row back
- * on a sidebar that is short of rows. */
+  * and 1439px it is already display:none and collapsing it would put a row back
+  * on a sidebar that is short of rows. */
 @media (min-width: 640px) and (max-width: 1199px) and (min-height: 560px), (min-width: 1440px) and (min-height: 560px) {
-  .sidebar[data-density="compact"] .streak-card {
-    min-height: var(--touch-target);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-2);
-    margin-top: var(--space-2);
-    padding: 0 var(--space-3);
-  }
-
-  .sidebar[data-density="compact"] .streak-card-heading small,
-  .sidebar[data-density="compact"] .streak-card-track,
-  .sidebar[data-density="compact"] .streak-freeze {
-    display: none;
-  }
-
-  .sidebar[data-density="compact"] .streak-card-heading {
-    margin: 0;
-    min-width: 0;
-  }
-
-  .sidebar[data-density="compact"] .streak-card-value {
-    margin: 0;
-    font-size: 1.05rem;
-    white-space: nowrap;
-  }
 }
-
 
 @media (min-width: 900px) and (max-width: 1199px) and (min-height: 560px) {
   .topbar .search-box {
@@ -2990,8 +2878,8 @@
 }
 
 /* Account menu ------------------------------------------------------------
- * This is intentionally a distinct responsive surface: a page-connected
- * popover on tablet/desktop, and a touch-first account sheet on phones. */
+  * This is intentionally a distinct responsive surface: a page-connected
+  * popover on tablet/desktop, and a touch-first account sheet on phones. */
 .profile-menu-wrap {
   position: relative;
 }
@@ -3376,14 +3264,14 @@
 }
 
 /* ===== Streak card: one shape at every sidebar width =====
- * Presentation used to be split across three width bands - an inset card at
- * 1440px and up, a flat edge-to-edge bar between 768px and 1199px, and nothing
- * at all between 1200px and 1439px. Rotating a tablet or a laptop moves the
- * viewport from one band to another, so the card changed shape, or vanished,
- * on rotation alone. Width now decides only how much room the row is given.
- * Height is not part of the question: the sidebar itself is already hidden
- * below 560px tall, so the card cannot be on screen there in either
- * orientation. */
+  * Presentation used to be split across three width bands - an inset card at
+  * 1440px and up, a flat edge-to-edge bar between 768px and 1199px, and nothing
+  * at all between 1200px and 1439px. Rotating a tablet or a laptop moves the
+  * viewport from one band to another, so the card changed shape, or vanished,
+  * on rotation alone. Width now decides only how much room the row is given.
+  * Height is not part of the question: the sidebar itself is already hidden
+  * below 560px tall, so the card cannot be on screen there in either
+  * orientation. */
 @media (min-width: 640px) {
   .sidebar .streak-card {
     display: block;
@@ -3400,53 +3288,57 @@
     font-size: 1.5rem;
   }
 
-  /* Compact is density, not width: it collapses the same card to a single row
-   * when the destinations need the space, and it reads the same wherever it
-   * happens. */
-  .sidebar[data-density="compact"] .streak-card {
-    display: flex;
-    min-height: var(--touch-target);
-    align-items: center;
-    justify-content: space-between;
+}
+
+/* The 1200-1439px rail is 145px wide and stacks each destination icon over its
+  * label, so the card keeps its shape but drops the words it cannot fit rather
+  * than truncating "Study streak" to "Stu...". */
+@media (min-width: 1200px) and (max-width: 1439px) {
+  /* The label used to be dropped on this band alone, which made the card a
+     different shape here than on every other width. It truncates instead. */
+  .sidebar .streak-card {
     gap: var(--space-2);
-    margin-top: var(--space-2);
-    padding: 0 var(--space-3);
   }
 
-  .sidebar[data-density="compact"] .streak-card-heading small,
-  .sidebar[data-density="compact"] .streak-card-track,
-  .sidebar[data-density="compact"] .streak-freeze {
+}
+
+  /* Last in the last stylesheet, so it settles the card's box after every
+     width band and pointer query above it. Always visible, always the same
+     box. The density system still tightens the destinations; it no longer
+     reshapes this card. */
+  .sidebar .streak-card,
+  .mobile-drawer .streak-card {
+    /* Reports the streak; it is not a destination. */
+    cursor: default;
+    display: block;
+    margin-top: auto;
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-2);
+    box-shadow: none;
+  }
+
+  /* The parts are settled here as well, not only in styles.css: rules later in
+     this file would otherwise bring them back for the drawer copy. */
+  .sidebar .streak-card-heading small,
+  .sidebar .streak-card-track,
+  .sidebar .streak-freeze,
+  .mobile-drawer .streak-card-heading small,
+  .mobile-drawer .streak-card-track,
+  .mobile-drawer .streak-freeze {
     display: none;
   }
 
-  .sidebar[data-density="compact"] .streak-card-heading {
+  .sidebar .streak-card-heading,
+  .mobile-drawer .streak-card-heading {
     margin: 0;
     min-width: 0;
   }
 
-  .sidebar[data-density="compact"] .streak-card-heading span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .sidebar[data-density="compact"] .streak-card-value {
+  .sidebar .streak-card-value,
+  .mobile-drawer .streak-card-value {
     margin: 0;
     font-size: 1.05rem;
     white-space: nowrap;
   }
-}
-
-/* The 1200-1439px rail is 145px wide and stacks each destination icon over its
- * label, so the card keeps its shape but drops the words it cannot fit rather
- * than truncating "Study streak" to "Stu...". */
-@media (min-width: 1200px) and (max-width: 1439px) {
-  .sidebar .streak-card-heading span {
-    display: none;
-  }
-
-  .sidebar[data-density="compact"] .streak-card {
-    justify-content: center;
-    gap: var(--space-2);
-  }
-}

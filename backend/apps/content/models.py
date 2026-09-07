@@ -159,3 +159,77 @@ class LearningObjectAsset(models.Model):
 
     def __str__(self) -> str:
         return f"{self.version_id}:{self.role}"
+
+
+class ActiveStudySettings(models.Model):
+    """Durable configuration for future Active Study question/template content."""
+
+    sheet = models.OneToOneField(
+        LearningObject,
+        on_delete=models.CASCADE,
+        related_name="active_study_settings",
+    )
+    enabled = models.BooleanField(default=False)
+    total_pdf_pages = models.PositiveIntegerField(null=True, blank=True)
+    excluded_start_pages = models.PositiveIntegerField(default=0)
+    excluded_end_pages = models.PositiveIntegerField(default=0)
+    revision = models.PositiveBigIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [models.Index(fields=("enabled",), name="content_active_enabled_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.sheet_id}:active-study"
+
+
+class ActiveStudyQuestionContent(models.Model):
+    """One ordered, validated JSON document per sheet and Active Study difficulty."""
+
+    class Difficulty(models.TextChoices):
+        EASY = "easy", "Easy"
+        MEDIUM = "medium", "Medium"
+        HARD = "hard", "Hard"
+
+    sheet = models.ForeignKey(
+        LearningObject,
+        on_delete=models.CASCADE,
+        related_name="active_study_question_content",
+    )
+    difficulty = models.CharField(max_length=12, choices=Difficulty.choices)
+    payload = models.JSONField()
+    # Captures the server-computed part/page boundaries at import time.
+    plan_signature = models.JSONField()
+    checkpoint_question_count = models.PositiveIntegerField()
+    final_exam_question_count = models.PositiveIntegerField()
+    revision = models.PositiveBigIntegerField(default=1)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_active_study_question_content",
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="updated_active_study_question_content",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("sheet", "difficulty"),
+                name="active_study_content_sheet_difficulty_unique",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=("sheet", "difficulty"),
+                name="content_active_q_scope_idx",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.sheet_id}:{self.difficulty}:active-study-questions"

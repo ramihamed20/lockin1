@@ -69,8 +69,6 @@ export default function Dashboard({ themeSettings, activeTheme }) {
     badge: card.id === "reviewBank" ? t(activeReviewCount > 0 ? "dashboard.badgeDue" : "dashboard.badgeClear") : t(card.badgeKey),
     pulse: card.id === "reviewBank" ? activeReviewCount > 0 : card.pulse
   }));
-
-
   return (
     <Page title="Dashboard" showHeading={false}>
       <div className="dashboard-layout">

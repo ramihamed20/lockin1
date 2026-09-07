@@ -49,8 +49,11 @@ test("remediation architecture routes the production catalog and protects stale 
   assert.match(app, /path="\/materials\/catalog\/:materialSlug\/sheets\/:sheetSlug\/workspace"/);
   assert.match(app, /const CatalogFocusWorkspace = lazyWithRecovery\(/);
   assert.match(app, /lazyWithRecovery/);
-  assert.match(lazyRecovery, /sessionStorage/);
+  // Chunk failures are recoverable only with the reader's explicit action;
+  // returning from a suspended browser must never reload the page by itself.
+  assert.match(lazyRecovery, /Update and reload to continue/);
   assert.match(lazyRecovery, /window\.location\.reload/);
+  assert.doesNotMatch(lazyRecovery, /automaticRecoveryIsRecent|await reloadForUpdate\(\)/);
   assert.match(worker, /__APP_VERSION__/);
   assert.doesNotMatch(worker, /cache\.put\([^\n]*api/i);
   assert.match(vite, /orientation:\s*"any"/);

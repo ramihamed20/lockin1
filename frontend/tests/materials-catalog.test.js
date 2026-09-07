@@ -1,43 +1,62 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
-import { MATERIAL_CATALOG, getCatalogMaterial, getCatalogSheet, getLastOpenedCatalogSheet, getRecentOpenedCatalogSheets, rememberLastOpenedCatalogSheet } from "../src/lib/materialCatalog.js";
+import { COHORT_CATALOGS, getCatalogMaterial, getCatalogSheet, getCohortMaterials, getCohortQuestionCategories, getLastOpenedCatalogSheet, getRecentOpenedCatalogSheets, rememberLastOpenedCatalogSheet } from "../src/lib/materialCatalog.js";
 import { canAccessRoute } from "../src/lib/authz.js";
 
-test("Materials catalogue exposes the Oral Histology test PDF in every published sheet", () => {
-  assert.deepEqual(MATERIAL_CATALOG.map((material) => material.title), [
-    "Conservative",
-    "Microbiology",
-    "Pharmacy",
-    "General pathology",
-    "Oral histology",
-    "Fixed prosthodontic",
-    "Removeable prosthodontic"
+const humanMedicine60 = { cohort: { code: "60", program: { code: "human-medicine" } } };
+const dentistryTripoli = { cohort: { code: "year-2", program: { code: "dentistry-tripoli" } } };
+
+test("Human Medicine 60 studies its own four subjects", () => {
+  assert.deepEqual(getCohortMaterials(humanMedicine60).map((material) => material.title), [
+    "Anatomy 1",
+    "Physiology 1",
+    "Histology 1",
+    "Biochemistry 1"
   ]);
-  assert.equal(MATERIAL_CATALOG.length, 7);
-  assert.ok(MATERIAL_CATALOG.filter((material) => material.slug !== "oral-histology").every((material) => material.sheets.length === 3));
-  assert.ok(MATERIAL_CATALOG.every((material) => material.sheets.every((sheet) => (
-    sheet.fileName === "Oral Histo 2.pdf" &&
-    sheet.pdfUrl === "/assets/oral-histology-test.pdf" &&
-    sheet.pageCount === 16 &&
-    sheet.isTestSheet === true
-  ))));
-  assert.deepEqual(getCatalogSheet("oral-histology", "sheet-4").sheet, {
-    slug: "sheet-4",
-    number: 4,
-    title: "Oral histology sheet 4",
-    summary: "Test PDF: Oral Histo 2.",
-    fileName: "Oral Histo 2.pdf",
-    pdfUrl: "/assets/oral-histology-test.pdf",
-    pageCount: 16,
-    isTestSheet: true
-  });
-  assert.equal(getCatalogMaterial("microbiology")?.title, "Microbiology");
-  assert.equal(getCatalogSheet("microbiology", "sheet-2").sheet?.title, "Microbiology sheet 2");
+  assert.equal(getCatalogMaterial("anatomy-1")?.title, "Anatomy 1");
   const student = { id: "student", roles: ["student"] };
-  assert.equal(canAccessRoute(student, "/materials/catalog/microbiology"), true);
-  assert.equal(canAccessRoute(student, "/materials/catalog/microbiology/sheets/sheet-2"), true);
-  assert.equal(canAccessRoute(student, "/materials/catalog/microbiology/sheets/sheet-2/workspace"), true);
+  assert.equal(canAccessRoute(student, "/materials/catalog/anatomy-1"), true);
+});
+
+test("Dentistry cohorts keep their own subjects and never see another intake's", () => {
+  assert.deepEqual(getCohortMaterials(dentistryTripoli).map((material) => material.slug), [
+    "conservative",
+    "microbiology",
+    "pharmacy",
+    "general-pathology",
+    "oral-histology",
+    "fixed-prosthodontic",
+    "removeable-prosthodontic"
+  ]);
+  assert.deepEqual(getCohortMaterials({ cohort: { code: "61", program: { code: "human-medicine" } } }), []);
+  assert.deepEqual(getCohortMaterials(null), []);
+});
+
+test("Biochemistry 1 publishes the three Vitamin sheets and nothing else does", () => {
+  assert.deepEqual(getCatalogMaterial("biochemistry-1")?.sheets.map((sheet) => [sheet.slug, sheet.title, sheet.pdfUrl, sheet.pageCount]), [
+    ["vitamin-1", "Vitamin -1", "/assets/biochemistry/vitamin-1.pdf", 41],
+    ["vitamin-2", "Vitamin -2", "/assets/biochemistry/vitamin-2.pdf", 17],
+    ["vitamin-3", "Vitamin -3", "/assets/biochemistry/vitamin-3.pdf", 33]
+  ]);
+  const others = COHORT_CATALOGS.flatMap((catalog) => catalog.materials).filter((material) => material.slug !== "biochemistry-1");
+  assert.ok(others.every((material) => material.sheets.length === 0));
+  assert.equal(getCatalogSheet("microbiology", "sheet-1").sheet, null);
+  assert.equal(getCatalogSheet("anatomy-1", "sheet-1").sheet, null);
+});
+
+test("Active Study stays closed until a sheet has questions, and Quizzes is not offered", async () => {
+  // Every published sheet opens in Normal Study: hasActiveStudy is the opt-in,
+  // and no sheet sets it yet.
+  assert.ok(COHORT_CATALOGS.every((catalog) => catalog.materials.every((material) => material.sheets.every((sheet) => !sheet.hasActiveStudy))));
+  const workspace = await readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8");
+  assert.match(workspace, /activeAvailable=\{Boolean\(sheet\.hasActiveStudy\)\}/);
+  assert.match(workspace, /if \(activeStudyBusy \|\| !sheet\?\.hasActiveStudy\) return;/);
+  assert.match(workspace, /"Questions not ready yet"/);
+  assert.doesNotMatch(workspace, /isTestSheet/);
+
+  assert.ok(COHORT_CATALOGS.every((catalog) => !catalog.questionCategories.includes("quizzes")));
+  assert.deepEqual(getCohortQuestionCategories(humanMedicine60), ["practice", "years", "ai-sheet", "mix"]);
 });
 
 test("Catalog sheet prioritizes Focus Workspace and keeps only the page count", async () => {
@@ -64,38 +83,7 @@ test("Catalog sheet prioritizes Focus Workspace and keeps only the page count", 
   assert.match(materials, /rememberLastOpenedCatalogSheet\(materialSlug, sheetSlug\)/);
 });
 
-test("opened-sheet history orders, deduplicates, promotes, and caps recent sheets", () => {
-  const previousStorage = globalThis.localStorage;
-  const data = new Map();
-  globalThis.localStorage = {
-    getItem: (key) => data.get(key) || null,
-    setItem: (key, value) => data.set(key, value)
-  };
-
-  try {
-    rememberLastOpenedCatalogSheet("conservative", "sheet-1");
-    rememberLastOpenedCatalogSheet("microbiology", "sheet-2");
-    rememberLastOpenedCatalogSheet("pharmacy", "sheet-1");
-    rememberLastOpenedCatalogSheet("general-pathology", "sheet-3");
-    rememberLastOpenedCatalogSheet("fixed-prosthodontic", "sheet-2");
-    rememberLastOpenedCatalogSheet("microbiology", "sheet-2");
-    assert.deepEqual(getLastOpenedCatalogSheet(), {
-      material: getCatalogMaterial("microbiology"),
-      sheet: getCatalogSheet("microbiology", "sheet-2").sheet,
-      path: "/materials/catalog/microbiology/sheets/sheet-2"
-    });
-    assert.deepEqual(getRecentOpenedCatalogSheets().map((entry) => entry.path), [
-      "/materials/catalog/microbiology/sheets/sheet-2",
-      "/materials/catalog/fixed-prosthodontic/sheets/sheet-2",
-      "/materials/catalog/general-pathology/sheets/sheet-3",
-      "/materials/catalog/pharmacy/sheets/sheet-1"
-    ]);
-  } finally {
-    globalThis.localStorage = previousStorage;
-  }
-});
-
-test("opened-sheet history has a clean empty state and ignores missing or malformed sheets", () => {
+test("opened-sheet history orders, deduplicates, and ignores unpublished sheets", () => {
   const previousStorage = globalThis.localStorage;
   const data = new Map();
   globalThis.localStorage = {
@@ -107,26 +95,30 @@ test("opened-sheet history has a clean empty state and ignores missing or malfor
     assert.equal(getLastOpenedCatalogSheet(), null);
     assert.deepEqual(getRecentOpenedCatalogSheets(), []);
 
-    data.set("lock-in.materials.recent-opened-sheets", JSON.stringify([
-      { materialSlug: "deleted-material", sheetSlug: "sheet-1" },
-      { materialSlug: "conservative", sheetSlug: "sheet-2" },
-      { materialSlug: "conservative", sheetSlug: "sheet-2" },
-      { materialSlug: "microbiology", sheetSlug: "unpublished-sheet" },
-      { materialSlug: null, sheetSlug: "sheet-1" },
-      { materialSlug: "pharmacy", sheetSlug: "sheet-3" }
-    ]));
+    // A sheet that is not in the catalogue is never remembered, so Continue
+    // study cannot offer a link that resolves to nothing.
+    rememberLastOpenedCatalogSheet("microbiology", "sheet-1");
+    assert.equal(data.get("lock-in.materials.recent-opened-sheets"), undefined);
 
+    rememberLastOpenedCatalogSheet("biochemistry-1", "vitamin-1");
+    rememberLastOpenedCatalogSheet("biochemistry-1", "vitamin-3");
+    rememberLastOpenedCatalogSheet("biochemistry-1", "vitamin-2");
+    rememberLastOpenedCatalogSheet("biochemistry-1", "vitamin-3");
     assert.deepEqual(getRecentOpenedCatalogSheets().map((entry) => entry.path), [
-      "/materials/catalog/conservative/sheets/sheet-2",
-      "/materials/catalog/pharmacy/sheets/sheet-3"
+      "/materials/catalog/biochemistry-1/sheets/vitamin-3",
+      "/materials/catalog/biochemistry-1/sheets/vitamin-2",
+      "/materials/catalog/biochemistry-1/sheets/vitamin-1"
     ]);
-    assert.equal(getLastOpenedCatalogSheet()?.path, "/materials/catalog/conservative/sheets/sheet-2");
+    assert.equal(getLastOpenedCatalogSheet()?.path, "/materials/catalog/biochemistry-1/sheets/vitamin-3");
 
-    rememberLastOpenedCatalogSheet("general-pathology", "sheet-1");
-    assert.deepEqual(JSON.parse(data.get("lock-in.materials.recent-opened-sheets")), [
-      { materialSlug: "general-pathology", sheetSlug: "sheet-1" },
+    // Entries left over from an earlier catalogue are dropped on read.
+    data.set("lock-in.materials.recent-opened-sheets", JSON.stringify([
       { materialSlug: "conservative", sheetSlug: "sheet-2" },
-      { materialSlug: "pharmacy", sheetSlug: "sheet-3" }
+      { materialSlug: null, sheetSlug: "sheet-1" },
+      { materialSlug: "biochemistry-1", sheetSlug: "vitamin-2" }
+    ]));
+    assert.deepEqual(getRecentOpenedCatalogSheets().map((entry) => entry.path), [
+      "/materials/catalog/biochemistry-1/sheets/vitamin-2"
     ]);
   } finally {
     globalThis.localStorage = previousStorage;

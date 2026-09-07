@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING
 from rest_framework.permissions import BasePermission
 
 from apps.accounts.models import User
-from apps.accounts.roles import Role, user_has_role
 from apps.subscriptions.services import create_trial_for_user
 
 from .services import entitlement_decision
@@ -40,8 +39,6 @@ class SubscriptionProtectedPermission(BasePermission):
         user = request.user
         if not isinstance(user, User) or not user.is_authenticated:
             return False
-        if user_has_role(user, Role.ADMINISTRATOR):
-            return True
         decision = entitlement_decision(user=user, entitlement_code=entitlement)
         if decision.allowed:
             return True

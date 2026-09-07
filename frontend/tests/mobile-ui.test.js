@@ -56,13 +56,15 @@ test("the iPad shell uses a labelled sidebar and one continuous safe-area-aware 
 });
 
 test("confirmation dialogs keep focus and scrolling contained on small screens", async () => {
-  const [dialog, styles] = await Promise.all([
+  const [dialog, scrollLock, styles] = await Promise.all([
     source("../src/components/shared/ConfirmDialog.jsx"),
+    source("../src/lib/bodyScrollLock.js"),
     source("../src/styles.css")
   ]);
 
   assert.match(dialog, /aria-modal="true"/);
-  assert.match(dialog, /document\.body\.style\.overflow\s*=\s*"hidden"/);
+  assert.match(dialog, /acquireBodyScrollLock\(\)/);
+  assert.match(scrollLock, /body\.style\.overflow = "hidden"/);
   assert.match(dialog, /triggerRef\.current\?\.focus\?\.\(\)/);
   assert.match(dialog, /type="button"/);
   assert.match(styles, /\.confirm-dialog\s*\{[\s\S]*max-height: calc\(var\(--app-viewport-height\)/);
@@ -240,7 +242,11 @@ test("sidebar omits Account while profile remains available from account surface
 
   assert.doesNotMatch(navConfiguration, /path:\s*"\/(?:account|profile)"|label:\s*"Account"/);
   assert.doesNotMatch(layout, /common\.account|accountItems|account-menu-section-label/);
-  assert.match(layout, /className="drawer-profile-action" to="\/profile"/);
+  // The drawer carries no account identity at all now -- no name, no email, no
+  // profile row. Profile stays reachable from the account menu, which is the
+  // surface this assertion moves to.
+  assert.doesNotMatch(layout, /drawer-profile/);
+  assert.doesNotMatch(layout, /DrawerProfile/);
   assert.match(layout, /<Link to="\/profile" role=\{isPhone/);
 });
 
@@ -251,13 +257,24 @@ test("the dashboard uses compact responsive cards and a contained cat illustrati
   assert.match(styles, /\.dashboard-left \.continue-card\s*\{[\s\S]*min-height: 184px;[\s\S]*padding: 16px 18px;/);
   assert.match(styles, /\.dashboard-left \.dashboard-recent-sheets\s*\{[\s\S]*height: auto;[\s\S]*flex: 0 0 auto;/);
   assert.match(styles, /\.dashboard-recent-sheets \.dashboard-review-item\s*\{[\s\S]*min-height: 44px;/);
-  assert.match(styles, /\.dashboard-right \.scene-card\s*\{[\s\S]*width: min\(100%, 500px\);[\s\S]*aspect-ratio: 1;/);
+  // The card fills its column: it is the only thing in it, so any cap below
+  // 100% just leaves a gap down both sides (measured at 103px on a 1536px
+  // screen). aspect-ratio keeps the square artwork undistorted.
+  assert.match(styles, /\.dashboard-right \.scene-card\s*\{[\s\S]*width: 100%;[\s\S]*aspect-ratio: 1;/);
   assert.match(styles, /\.scene-card > picture\s*\{[\s\S]*inline-size: 100%;[\s\S]*block-size: 100%;/);
   assert.match(styles, /\.dashboard-right \.scene-card \.scene-theme\s*\{\s*object-fit: contain;/);
-  assert.match(styles, /@media \(max-width: 639px\)[\s\S]*\.dashboard-right \.scene-card\s*\{[\s\S]*width: min\(82vw, 310px\)/);
+  assert.match(styles, /@media \(max-width: 639px\)[\s\S]*\.dashboard-right \.scene-card\s*\{[\s\S]*width: 100%/);
   assert.match(styles, /@media \(max-width: 639px\)[\s\S]*\.dashboard-left \.continue-card\s*\{[\s\S]*min-height: 164px/);
-  assert.match(styles, /@media \(min-width: 640px\) and \(max-width: 900px\)[\s\S]*\.dashboard-right \.scene-card\s*\{[\s\S]*width: min\(62vw, 420px\)/);
-  assert.match(styles, /@media \(min-width: 901px\) and \(max-width: 1199px\) and \(min-height: 560px\)[\s\S]*width: min\(100%, 460px\)/);
+  assert.match(styles, /@media \(min-width: 640px\) and \(max-width: 900px\)[\s\S]*\.dashboard-right \.scene-card\s*\{[\s\S]*width: 100%/);
+  // The old 460px cap here is gone: on an iPad in landscape it held the card
+  // 16px inside its own 476px column, so the illustration sat in a visible
+  // band of empty space instead of lining up with the cards above it. The
+  // two-column rule below now governs every width from 901px up.
+  assert.doesNotMatch(styles, /width: min\(100%, 460px\)/);
+  assert.match(styles, /@media \(min-width: 901px\)[\s\S]*\.dashboard-right \.scene-card\s*\{[\s\S]*width: calc\(100% \+ 8px\);[\s\S]*margin-inline-start: -8px;/);
+  // The column must not impose the row's height on the square card, which is
+  // what capped it below its own column width.
+  assert.match(styles, /@media \(min-width: 901px\)[\s\S]*\.dashboard-right\s*\{[\s\S]*height: auto;/);
   assert.match(styles, /@media \(max-height: 559px\)[\s\S]*width: min\(46vw, 300px\)/);
 });
 

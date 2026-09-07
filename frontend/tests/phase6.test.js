@@ -143,7 +143,7 @@ test("Phase 6 screens remove generic fake community data and keep reporting non-
   assert.match(space, /space\.can_manage/);
   assert.ok(report.includes('t("community.reportNote")'), "CommunityReport asks for the reportNote key");
   assert.match(catalogue, /does not display moderation evidence or moderation controls/);
-  assert.match(app, /path="\/community\/context\/:contextType\/:contextId"/);
+  assert.match(app, /path="\/community\/\*" element=\{<FeatureComingSoon featureId="community" \/>\}/);
   assert.doesNotMatch(community + discussion + space, /api\(\s*["']\/api\/community|post\.likes|Doctor Announcements/);
   assert.doesNotMatch(report, /evidence_snapshot|transition|assign/);
 });

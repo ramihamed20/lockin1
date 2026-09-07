@@ -33,7 +33,8 @@ function catalogPayload(payload) {
   return {
     results: source.results,
     checkoutAvailable: source.checkout_available,
-    manualPaymentAvailable: source.manual_payment_available === true
+    manualPaymentAvailable: source.manual_payment_available === true,
+    firstSubscriptionOfferEligible: source.first_subscription_offer_eligible === true
   };
 }
 
@@ -98,11 +99,11 @@ export const billingApi = {
     }));
   },
 
-  async submitLibyana(planId, rechargeCode) {
+  async submitLibyana(planId, rechargeCodes) {
     const source = objectPayload(
       await request("/payments/manual-libyana", {
         method: "POST",
-        body: { plan_id: planId, recharge_code: rechargeCode },
+        body: { plan_id: planId, recharge_codes: rechargeCodes },
         idempotencyKey: generateIdempotencyKey()
       }),
       "The Libyana payment response was incomplete."

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
-const ROUTE = "/#/materials/catalog/microbiology/sheets/sheet-1/workspace";
+const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 
 async function mockAuthenticatedWorkspace(page) {
   await page.route("**/api/v1/**", async (route) => {
@@ -105,21 +105,21 @@ test("page keys move the reader instead of only relabelling the indicator", asyn
   await openWorkspace(page);
   const stage = page.locator(".workspace-v2-document-stage");
   const indicator = page.locator(".workspace-v2-page-number");
-  await expect(indicator).toHaveAttribute("aria-label", "Page 1 of 16");
+  await expect(indicator).toHaveAttribute("aria-label", "Page 1 of 41");
   const startScrollTop = await stage.evaluate((node) => node.scrollTop);
 
   await page.keyboard.press("ArrowRight");
-  await expect(indicator).toHaveAttribute("aria-label", "Page 2 of 16");
+  await expect(indicator).toHaveAttribute("aria-label", "Page 2 of 41");
   await expect.poll(async () => stage.evaluate((node) => node.scrollTop)).toBeGreaterThan(startScrollTop + 100);
 
   await page.keyboard.press("ArrowLeft");
-  await expect(indicator).toHaveAttribute("aria-label", "Page 1 of 16");
+  await expect(indicator).toHaveAttribute("aria-label", "Page 1 of 41");
   await expect.poll(async () => stage.evaluate((node) => node.scrollTop)).toBeLessThan(startScrollTop + 100);
 
   await page.keyboard.press("End");
-  await expect(indicator).toHaveAttribute("aria-label", "Page 16 of 16");
+  await expect(indicator).toHaveAttribute("aria-label", "Page 41 of 41");
   await page.keyboard.press("Home");
-  await expect(indicator).toHaveAttribute("aria-label", "Page 1 of 16");
+  await expect(indicator).toHaveAttribute("aria-label", "Page 1 of 41");
 });
 
 test("the page dock jumps to a typed page and steps the zoom", async ({ page }) => {
@@ -135,7 +135,7 @@ test("the page dock jumps to a typed page and steps the zoom", async ({ page }) 
   const startScrollTop = await stage.evaluate((node) => node.scrollTop);
   await navigator.locator("input[type='number']").fill("7");
   await navigator.locator("input[type='number']").press("Enter");
-  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "Page 7 of 16");
+  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "Page 7 of 41");
   await expect.poll(async () => stage.evaluate((node) => node.scrollTop)).toBeGreaterThan(startScrollTop + 500);
 
   const startScale = await readerScale();

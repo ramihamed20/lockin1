@@ -23,6 +23,7 @@ const CURRENT_AUTHENTICATED_ROUTES = new Set([
 ]);
 
 export const ROUTE_ACCESS_CONFIG = Object.freeze([
+  { path: "/operations/admin/content", capability: "content.view" },
   { path: "/operations/admin", capability: "overview.view" },
   { path: "/operations/configuration", capability: "configuration.view" },
   { path: "/operations/system-health", capability: "system_health.view" },
@@ -105,7 +106,6 @@ export function canAccessRoute(userOrSession, path, operationsSession) {
     /^\/review\/(?:bank(?:\/[^/]+)?|weekly)$/.test(currentPath) ||
     /^\/questions\/(?:quizzes|attempts|results)\/[^/]+$/.test(currentPath) ||
     /^\/questions\/categories\/[^/]+(?:\/subjects\/[^/]+)?$/.test(currentPath) ||
-    /^\/questions\/demo\/[^/]+\/[^/]+$/.test(currentPath) ||
     /^\/community\/(?:discussions|spaces|reports)\/[^/]+$/.test(currentPath) ||
     /^\/community\/context\/(?:lesson|learning_object|question|quiz)\/[^/]+$/.test(currentPath)
   );

@@ -112,6 +112,10 @@ class ManualRechargeSubmission(models.Model):
     subscription_period_started_at = models.DateTimeField()
     subscription_period_ends_at = models.DateTimeField()
     previous_subscription_state = models.JSONField(default=dict)
+    is_early_renewal = models.BooleanField(default=False)
+    previous_subscription_end_at = models.DateTimeField(null=True, blank=True)
+    extension_started_at = models.DateTimeField(null=True, blank=True)
+    extension_ends_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -136,6 +140,42 @@ class ManualRechargeSubmission(models.Model):
 
     def __str__(self) -> str:
         return f"{self.payment_id}:{self.status}:••••{self.recharge_code_last4}"
+
+
+class ManualRechargeCode(models.Model):
+    """One encrypted recharge code belonging to a manual payment submission.
+
+    The legacy fields on ``ManualRechargeSubmission`` remain as a compatibility
+    mirror for the first code.  New application code reads this related model,
+    which permits a future increase in the permitted number of cards without a
+    schema redesign.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    submission = models.ForeignKey(
+        ManualRechargeSubmission, on_delete=models.PROTECT, related_name="recharge_codes"
+    )
+    position = models.PositiveSmallIntegerField()
+    ciphertext = models.TextField()
+    digest = models.CharField(max_length=64, unique=True, editable=False)
+    last4 = models.CharField(max_length=4, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("position", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("submission", "position"), name="manual_recharge_code_position_unique"
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=("submission", "position"), name="manual_recharge_code_order_idx"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.submission_id}:{self.position}:••••{self.last4}"
 
 
 class PaymentTransition(models.Model):

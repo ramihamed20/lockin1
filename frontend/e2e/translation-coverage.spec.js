@@ -36,7 +36,7 @@ async function signIn(page, language) {
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     if (pathname === "/api/v1/auth/session") {
-      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ user: { id: "sweep", email: "sweep@example.test", full_name: "Sweep Student", preferred_language: language, status: "active", is_email_verified: true, roles: ["student"], date_joined: "2026-01-01T00:00:00Z" } }) });
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ user: { id: "sweep", email: "sweep@example.test", full_name: "Sweep Student", preferred_language: language, status: "active", is_email_verified: true, roles: ["student"], date_joined: "2026-01-01T00:00:00Z", cohort: { id: "cohort-60", code: "60", name_en: "Human Medicine 60", name_ar: "الطب البشري 60", program: { id: "medicine", code: "human-medicine", name_en: "Human Medicine", name_ar: "الطب البشري" } } } }) });
       return;
     }
     if (pathname === "/api/v1/operations/session") {

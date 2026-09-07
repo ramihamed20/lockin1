@@ -71,6 +71,12 @@ test("operations console navigation fails closed without the overview capability
   assert.equal(canAccessRoute(user, "/operations/admin/overview", { capabilities: ["overview.view"] }), true);
 });
 
+test("Content Studio uses the content capability rather than the overview capability", () => {
+  const user = { id: USER_ID, roles: ["student"] };
+  assert.equal(canAccessRoute(user, "/operations/admin/content", { capabilities: ["content.view"] }), true);
+  assert.equal(canAccessRoute(user, "/operations/admin/content", { capabilities: ["overview.view"] }), false);
+});
+
 test("Creator Studio follows the shared hidden visual-page-heading default", async () => {
   const [pageComponent, operationsPage] = await Promise.all([
     readFile(new URL("../src/components/ui/index.jsx", import.meta.url), "utf8"),

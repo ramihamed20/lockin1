@@ -150,9 +150,11 @@ test("the shell shows one identity field, and it is the account's display name",
   // display identity rather than two competing ones.
   assert.match(contracts, /name: normalized\.full_name/);
   assert.doesNotMatch(contracts, /name: `\$\{/);
-  // Both places the shell prints a name print that one field on its own.
-  assert.match(shell, /<strong dir="auto">\{user\?\.name \|\| t\("shell\.yourProfile"\)\}<\/strong>/);
+  // The account menu is now the only place the shell prints a name, and it
+  // prints that one field on its own. The mobile drawer used to print it too;
+  // that section was removed, so identity appears exactly once.
   assert.match(shell, /<strong id="account-menu-name" dir="auto">\{user\.name \|\| t\("shell\.yourProfile"\)\}<\/strong>/);
+  assert.equal((shell.match(/user\??\.name \|\| t\("shell\.yourProfile"\)/g) || []).length, 1);
 });
 
 test("the OAuth outcome catalogue carries a message for every backend error code", async () => {
@@ -265,4 +267,143 @@ test("the manifest asks for the standards-compliant launch behaviour only", asyn
   assert.match(config, /scope: basePath/);
   // No pretend deep-linking: nothing here claims to capture links itself.
   assert.doesNotMatch(config, /apple-app-site-association|universal_links|custom_scheme/);
+});
+
+// A page restored from the back/forward cache comes back with the JavaScript
+// heap as it was when the reader left, including a user whose session may have
+// ended since. That copy is not evidence of a session.
+test("a bfcache restore of an authenticated view revalidates silently without remounting it", () => {
+  const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+
+  const handler = app.split("function revalidateRestoredSession")[1].split("window.addEventListener")[0];
+  // Only a genuine restore, and only when protected content is on screen: an
+  // ordinary load or a public screen must not cost an extra session request.
+  assert.match(handler, /if \(!event\.persisted \|\| !authenticatedRef\.current(?: \|\| sessionRevalidationRef\.current)?\) return;/);
+  // Validation uses the normal account endpoint, but never switches the
+  // rendered app back to its blocking bootstrap state.
+  assert.match(handler, /refreshActiveAccount\(\)/);
+  assert.doesNotMatch(handler, /retryBootstrap\(\)|setBooting\(true\)|location\.reload|window\.location/);
+
+  assert.match(app, /window\.addEventListener\("pageshow", revalidateRestoredSession\)/);
+  assert.match(app, /window\.removeEventListener\("pageshow", revalidateRestoredSession\)/);
+  // The ref is what keeps the listener from being re-registered per user change.
+  assert.match(app, /authenticatedRef\.current = Boolean\(user\)/);
+});
+
+test("a successful sign-out replaces the protected entry instead of stacking one", () => {
+  const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+
+  const confirmLogout = app.split("const confirmLogout")[1].split("const logoutConfirmDialog")[0];
+  assert.match(confirmLogout, /const signedOut = await handleLogout\(\)/);
+  assert.match(confirmLogout, /if \(signedOut\) navigate\("\/", \{ replace: true \}\)/);
+  // A failed sign-out leaves the session alive, so it must not move the reader.
+  assert.doesNotMatch(confirmLogout, /navigate\("\/"\)/);
+
+  // handleLogout reports whether the session actually ended.
+  const handleLogout = app.split("const handleLogout")[1].split("// A page restored")[0];
+  assert.match(handleLogout, /return true;/);
+  assert.match(handleLogout, /return false;/);
+});
+
+test("the no-store middleware is registered and scoped to the API only", async () => {
+  const settings = await readFile(new URL("../../backend/config/settings/base.py", import.meta.url), "utf8");
+  const middleware = await readFile(new URL("../../backend/platform_core/api/middleware.py", import.meta.url), "utf8");
+
+  assert.match(settings, /"platform_core\.api\.middleware\.ApiNoStoreMiddleware"/);
+  // Narrow by construction: static assets and CDN-cached documents are untouched.
+  assert.match(middleware, /API_PATH_PREFIX = "\/api\/"/);
+  assert.match(middleware, /if not request\.path\.startswith\(API_PATH_PREFIX\)/);
+  // An endpoint that set its own policy keeps it.
+  assert.match(middleware, /if response\.has_header\("Cache-Control"\)/);
+  assert.match(middleware, /no-store/);
+});
+
+// Losing a session mid-visit is a different event from arriving without one.
+test("a session that ends mid-visit explains itself instead of just vanishing", () => {
+  const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+  const client = readFileSync(new URL("../src/api/client.js", import.meta.url), "utf8");
+  const authPage = readFileSync(new URL("../src/components/auth/AuthPage.jsx", import.meta.url), "utf8");
+
+  // Only a signed-in reader is told; an anonymous first load answers 403 by
+  // design and must stay silent, or every visitor would be told their session
+  // expired.
+  const handler = app.split("onUnauthorized(() =>")[1].split("}), [clearAuthenticatedUi")[0];
+  assert.match(handler, /if \(authenticatedRef\.current\) setSessionNotice\(t\("auth\.sessionExpired"\)\)/);
+  assert.match(handler, /clearAuthenticatedUi\(\)/);
+
+  // A revoked session, or a sign-out on another device, reads as 403
+  // not_authenticated -- and only that code, so permission_denied and CSRF
+  // failures are not mistaken for an ended session.
+  assert.match(client, /response\.status === 401 \|\| \(response\.status === 403 && error\.code === "not_authenticated"\)/);
+  assert.doesNotMatch(client, /response\.status === 403\)\s*notifyUnauthorized/);
+
+  // The reason is shown on the only screen left, through the existing alert.
+  assert.match(app, /notice=\{sessionNotice\}/);
+  assert.match(authPage, /notice = "", onDismissNotice = null/);
+  assert.match(authPage, /className="form-alert error auth-v2-session-notice" role="status" dir="auto"/);
+  // It clears once the reader acts, so it cannot follow them around.
+  assert.match(authPage, /onDismissNotice\?\.\(\);\s*\n\s*setMode\(nextMode\)/);
+  assert.match(authPage, /onDismissNotice\?\.\(\);\s*\n\s*setError\(null\)/);
+});
+
+test("the session-expired notice is written in both locales", async () => {
+  const catalogue = await readFile(new URL("../src/lib/i18n.js", import.meta.url), "utf8");
+
+  assert.equal(catalogue.split('"auth.sessionExpired":').length - 1, 2);
+  assert.match(catalogue, /"auth\.sessionExpired": "Your session has ended\./);
+  assert.match(catalogue, /"auth\.sessionExpired": "انتهت جلستك\./);
+});
+
+test("a short browser restart restores the non-secret session UI before silent validation", () => {
+  const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+
+  assert.match(app, /const SESSION_USER_SNAPSHOT_KEY = "lock-in\.session-user"/);
+  assert.match(app, /const \[user, setUser\] = useState\(readSessionUserSnapshot\)/);
+  assert.match(app, /const \[booting, setBooting\] = useState\(\(\) => !user\)/);
+  assert.match(app, /const silentlyRevalidateRestoredApp = resumedSessionRef\.current && sessionAttempt === 0/);
+  assert.match(app, /if \(!silentlyRevalidateRestoredApp\) setBooting\(true\)/);
+  assert.match(app, /if \(active && !silentlyRevalidateRestoredApp\) setBooting\(false\)/);
+  // Only ordinary profile metadata is stored; the session cookie/token remains
+  // server-owned and out of Web Storage.
+  assert.doesNotMatch(app, /session-user[\s\S]{0,300}(?:access_token|refresh_token|session_token)/);
+});
+
+test("account validation connects each invalid control to one field message", async () => {
+  const [errors, authPage, tokenPage, settings, profile] = await Promise.all([
+    readFile(new URL("../src/components/account/AccountFormErrors.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/auth/AuthPage.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/auth/TokenActionPage.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/pages/Settings.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/pages/Profile.jsx", import.meta.url), "utf8")
+  ]);
+
+  assert.match(errors, /"aria-invalid": invalid \|\| undefined/);
+  assert.match(errors, /"aria-describedby": ids \|\| undefined/);
+  assert.match(errors, /fieldValues\.includes\(error\.message\)/);
+  for (const source of [authPage, tokenPage, settings, profile]) {
+    assert.match(source, /fieldErrorAttributes\(/);
+    assert.match(source, /AccountFieldErrors[^>]+id=/);
+  }
+});
+
+test("token actions and account management copy are localized in both languages", async () => {
+  const catalogue = await readFile(new URL("../src/lib/i18n.js", import.meta.url), "utf8");
+  for (const key of ["token.verifyTitle", "token.resetSuccess", "settings.changePassword", "settings.deleteAccount", "settings.connectedAccounts"]) {
+    assert.equal(catalogue.split(`"${key}":`).length - 1, 2, `${key} must exist in English and Arabic`);
+  }
+});
+
+// These already existed and are asserted here so a later change cannot quietly
+// remove them: the project's transient-failure policy is bounded and does not
+// treat ordinary HTTP answers as network trouble.
+test("network-failure recovery stays bounded and does not swallow real answers", async () => {
+  const bootstrap = await readFile(new URL("../src/lib/sessionBootstrap.js", import.meta.url), "utf8");
+
+  assert.match(bootstrap, /MAX_AUTOMATIC_BOOT_RETRIES = 3/);
+  assert.match(bootstrap, /attempts < MAX_AUTOMATIC_BOOT_RETRIES/);
+  // Only transport-shaped failures retry; 4xx answers are real and are kept.
+  assert.match(bootstrap, /if \(status === 0\) return true;/);
+  assert.match(bootstrap, /status === 408 \|\| status === 429/);
+  assert.match(bootstrap, /status >= 500 && status <= 599/);
+  assert.match(bootstrap, /if \(!online\) return false;/);
 });

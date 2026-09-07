@@ -9,7 +9,7 @@ import { useSubscriptionSession } from "../lib/SubscriptionSessionContext.jsx";
 import { appIconOptions, characterOptions, themeOptions } from "../lib/constants.js";
 import { assetPath, normalizeThemeSettings, normalizeReminderSettings } from "../lib/utils.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
-import { AccountFieldErrors } from "../components/account/AccountFormErrors.jsx";
+import { AccountFieldErrors, fieldErrorAttributes } from "../components/account/AccountFormErrors.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
 import { SessionList } from "../components/account/SessionList.jsx";
 import { SubscriptionStatus } from "../components/subscription/SubscriptionStatus.jsx";
@@ -17,6 +17,7 @@ import { Page, ErrorPanel, RadioGroup, RadioOption, ToggleButton } from "../comp
 import { ResponsiveThemePreview } from "../components/shared/ResponsiveThemePreview.jsx";
 
 export default function Settings({ user, onUserUpdate, settings, activeTheme, reminderSettings, onReminderSettingsChange, onSettingsChange, onSignedOut }) {
+  const { t } = useI18n();
   const location = useLocation();
   const navigate = useNavigate();
   const [saving, setSaving] = useState("");
@@ -242,11 +243,11 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
         <section className="settings-account-management" id="settings-account" aria-labelledby="settings-account-heading">
           <div className="settings-account-heading">
             <div>
-              <p className="eyebrow">Account</p>
-              <h2 id="settings-account-heading" tabIndex={-1}>Account & security</h2>
-              <p>Manage your password, sign-in methods, and active devices.</p>
+              <p className="eyebrow">{t("common.account")}</p>
+              <h2 id="settings-account-heading" tabIndex={-1}>{t("settings.accountSecurity")}</h2>
+              <p>{t("settings.accountDescription")}</p>
             </div>
-            <span className="pill success">Protected</span>
+            <span className="pill success">{t("settings.protected")}</span>
           </div>
           <div className="account-management-grid">
             <AccountSubscriptionCard onOpen={() => navigate("/subscription")} />
@@ -278,6 +279,7 @@ function AccountSubscriptionCard({ onOpen }) {
 }
 
 function PasswordCard() {
+  const { t } = useI18n();
   const [form, setForm] = useState({ currentPassword: "", password: "", passwordConfirm: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -286,7 +288,7 @@ function PasswordCard() {
   async function submit(event) {
     event.preventDefault();
     if (form.password !== form.passwordConfirm) {
-      setError({ message: "New passwords do not match.", fields: { new_password_confirm: ["New passwords do not match."] } });
+      setError({ message: t("settings.passwordMismatch"), fields: { new_password_confirm: [t("settings.passwordMismatch")] } });
       return;
     }
     setSaving(true);
@@ -295,7 +297,7 @@ function PasswordCard() {
     try {
       await accountsApi.changePassword(form.currentPassword, form.password, form.passwordConfirm);
       setForm({ currentPassword: "", password: "", passwordConfirm: "" });
-      setMessage("Your password has been updated.");
+      setMessage(t("settings.passwordUpdated"));
     } catch (requestError) {
       setError(requestError);
     } finally {
@@ -303,10 +305,11 @@ function PasswordCard() {
     }
   }
 
-  return <article className="panel account-management-card"><div className="panel-title"><div><p className="eyebrow">Account security</p><h2>Change password</h2></div><Icon name="lock" size={18} /></div><form className="account-password-form" onSubmit={submit}><label className="field"><span>Current password</span><input type="password" autoComplete="current-password" value={form.currentPassword} onChange={(event) => setForm({ ...form, currentPassword: event.target.value })} required /><AccountFieldErrors error={error} field="current_password" /></label><label className="field"><span>New password</span><input type="password" autoComplete="new-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required /><AccountFieldErrors error={error} field="new_password" /></label><label className="field"><span>Confirm new password</span><input type="password" autoComplete="new-password" value={form.passwordConfirm} onChange={(event) => setForm({ ...form, passwordConfirm: event.target.value })} required /><AccountFieldErrors error={error} field="new_password_confirm" /></label><AccountFieldErrors error={error} /><div className="account-password-actions"><span>{message}</span><button className="btn btn-primary compact" type="submit" disabled={saving}>{saving ? "Updating…" : "Update password"}</button></div></form></article>;
+  return <article className="panel account-management-card"><div className="panel-title"><div><p className="eyebrow">{t("settings.accountSecurity")}</p><h2>{t("settings.changePassword")}</h2></div><Icon name="lock" size={18} /></div><form className="account-password-form" onSubmit={submit}><label className="field"><span>{t("settings.currentPassword")}</span><input type="password" autoComplete="current-password" value={form.currentPassword} onChange={(event) => setForm({ ...form, currentPassword: event.target.value })} required {...fieldErrorAttributes(error, "current_password", "settings-current-password-error")} /><AccountFieldErrors error={error} field="current_password" id="settings-current-password-error" /></label><label className="field"><span>{t("settings.newPassword")}</span><input type="password" autoComplete="new-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required {...fieldErrorAttributes(error, "new_password", "settings-new-password-error")} /><AccountFieldErrors error={error} field="new_password" id="settings-new-password-error" /></label><label className="field"><span>{t("settings.confirmNewPassword")}</span><input type="password" autoComplete="new-password" value={form.passwordConfirm} onChange={(event) => setForm({ ...form, passwordConfirm: event.target.value })} required {...fieldErrorAttributes(error, "new_password_confirm", "settings-confirm-password-error")} /><AccountFieldErrors error={error} field="new_password_confirm" id="settings-confirm-password-error" /></label><AccountFieldErrors error={error} /><div className="account-password-actions"><span role="status">{message}</span><button className="btn btn-primary compact" type="submit" disabled={saving}>{saving ? t("settings.updatingPassword") : t("settings.updatePassword")}</button></div></form></article>;
 }
 
 function AccountDeletionCard({ confirmationToken, onConfirmationHandled }) {
+  const { t } = useI18n();
   const [state, setState] = useState({ loading: true, status: "not_requested", request: null });
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -350,8 +353,8 @@ function AccountDeletionCard({ confirmationToken, onConfirmationHandled }) {
       setState({ loading: false, ...payload });
       setPassword("");
       setMessage(action === "cancel"
-        ? "The deletion request was cancelled."
-        : "Check your email and confirm the request using the single-use link.");
+        ? t("settings.deletionCancelled")
+        : t("settings.deletionCheckEmail"));
     } catch (requestError) {
       setError(requestError);
     } finally {
@@ -361,25 +364,25 @@ function AccountDeletionCard({ confirmationToken, onConfirmationHandled }) {
 
   const isOpen = ["pending_confirmation", "confirmed", "processing"].includes(state.status);
   const statusLabel = state.status === "pending_confirmation"
-    ? "Email confirmation required"
+    ? t("settings.deletionEmailRequired")
     : state.status === "confirmed"
-      ? "Confirmed — awaiting approved retention processing"
+      ? t("settings.deletionConfirmed")
       : state.status === "processing"
-        ? "Deletion processing"
+        ? t("settings.deletionProcessing")
         : state.status === "completed"
-          ? "Completed"
-          : "No deletion request";
+          ? t("settings.deletionCompleted")
+          : t("settings.deletionNone");
 
   return <article className="panel account-management-card account-deletion-card">
-    <div className="panel-title"><div><p className="eyebrow">Data rights</p><h2>Delete account</h2></div><Icon name="trash" size={18} /></div>
-    <p>Deletion is different from sign-out or suspension. A verified request is tracked before eligible data can be erased or anonymized under the approved retention policy.</p>
-    <p className="save-hint" role="status">{state.loading ? "Checking deletion status…" : statusLabel}</p>
-    {state.status === "confirmed" && !state.request?.policy_version && <p className="form-notice" role="alert">Your request is confirmed but cannot be processed until the retention policy is approved.</p>}
-    <label className="field"><span>Current password</span><input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy || state.loading || state.status === "processing" || state.status === "completed"} /></label>
+    <div className="panel-title"><div><p className="eyebrow">{t("settings.dataRights")}</p><h2>{t("settings.deleteAccount")}</h2></div><Icon name="trash" size={18} /></div>
+    <p>{t("settings.deletionDescription")}</p>
+    <p className="save-hint" role="status">{state.loading ? t("settings.deletionChecking") : statusLabel}</p>
+    {state.status === "confirmed" && !state.request?.policy_version && <p className="form-notice" role="alert">{t("settings.deletionPolicyPending")}</p>}
+    <label className="field"><span>{t("settings.currentPassword")}</span><input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy || state.loading || state.status === "processing" || state.status === "completed"} /></label>
     <AccountFieldErrors error={error} />
     {message && <p className="save-hint" role="status">{message}</p>}
     <div className="account-password-actions">
-      {isOpen ? <button className="btn btn-outline compact" type="button" onClick={() => void submit("cancel")} disabled={!password || busy}>Cancel request</button> : <button className="btn btn-danger compact" type="button" onClick={() => void submit("request")} disabled={!password || busy || state.loading || state.status === "completed"}>{busy ? "Submitting…" : "Request deletion"}</button>}
+      {isOpen ? <button className="btn btn-outline compact" type="button" onClick={() => void submit("cancel")} disabled={!password || busy}>{t("settings.cancelDeletion")}</button> : <button className="btn btn-danger compact" type="button" onClick={() => void submit("request")} disabled={!password || busy || state.loading || state.status === "completed"}>{busy ? t("settings.submittingDeletion") : t("settings.requestDeletion")}</button>}
     </div>
   </article>;
 }
@@ -418,19 +421,20 @@ function LanguageCard({ onUserUpdate }) {
     </div>
     <label className="field">
       <span>{t("settings.interfaceLanguage")}</span>
-      <select value={locale} disabled={saving} onChange={(event) => { void change(event.target.value); }}>
+      <select value={locale} disabled={saving} onChange={(event) => { void change(event.target.value); }} {...fieldErrorAttributes(error, "preferred_language", "settings-language-error")}>
         <option value="en">English</option>
         <option value="ar">العربية</option>
       </select>
     </label>
-    <AccountFieldErrors error={error} field="preferred_language" />
+    <AccountFieldErrors error={error} field="preferred_language" id="settings-language-error" />
     <AccountFieldErrors error={error} />
     {message && <p className="save-hint" role="status">{message}</p>}
   </article>;
 }
 
 function ConnectedAccountsCard({ email }) {
-  return <article className="panel account-management-card"><div className="panel-title"><div><p className="eyebrow">Sign-in methods</p><h2>Connected accounts</h2></div><Icon name="user" size={18} /></div><div className="account-auth-methods"><div className="account-auth-method primary"><span><Icon name="lock" size={16} /></span><div><strong>Email & password</strong><small>{email || "Primary Lock In sign-in"}</small></div><b>Primary</b></div><div className="account-auth-method"><span><Icon name="globe" size={16} /></span><div><strong>Google</strong><small>Provider linking is not enabled yet.</small></div><b>Not connected</b></div><div className="account-auth-method"><span><Icon name="user" size={16} /></span><div><strong>Apple</strong><small>Provider linking is not enabled yet.</small></div><b>Not connected</b></div></div></article>;
+  const { t } = useI18n();
+  return <article className="panel account-management-card"><div className="panel-title"><div><p className="eyebrow">{t("settings.signInMethods")}</p><h2>{t("settings.connectedAccounts")}</h2></div><Icon name="user" size={18} /></div><div className="account-auth-methods"><div className="account-auth-method primary"><span><Icon name="lock" size={16} /></span><div><strong>{t("settings.emailPassword")}</strong><small>{email || t("settings.primarySignIn")}</small></div><b>{t("settings.primary")}</b></div><div className="account-auth-method"><span><Icon name="globe" size={16} /></span><div><strong>Google</strong><small>{t("settings.providerLinkingDisabled")}</small></div><b>{t("settings.notConnected")}</b></div><div className="account-auth-method"><span><Icon name="user" size={16} /></span><div><strong>Apple</strong><small>{t("settings.providerLinkingDisabled")}</small></div><b>{t("settings.notConnected")}</b></div></div></article>;
 }
 
 function NotificationPreferences() {

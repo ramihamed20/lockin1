@@ -96,6 +96,17 @@ test("PWA registration and browser-owned installation are centralized at bootstr
   assert.match(lazyRecovery, /navigator\.serviceWorker\.getRegistration/);
 });
 
+test("Vite development replaces a legacy localhost worker without changing the production worker", async () => {
+  const config = await readFile(new URL("../vite.config.js", import.meta.url), "utf8");
+
+  assert.match(config, /mode === "development" \? \[removeLegacyWorkerInDevelopment\(\)\] : \[\]/);
+  assert.match(config, /new Set\(\["\/sw\.js", "\/service-worker\.js"\]\)/);
+  assert.match(config, /self\.registration\.unregister\(\)/);
+  assert.doesNotMatch(config, /client\.navigate\(/);
+  assert.match(config, /Cache-Control", "no-store/);
+  assert.match(config, /hmr: false/);
+});
+
 test("manifest and runtime cache include Android installability safeguards", async () => {
   const [config, serviceWorker, nginx] = await Promise.all([
     readFile(new URL("../vite.config.js", import.meta.url), "utf8"),

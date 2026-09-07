@@ -109,7 +109,10 @@ test("Review surfaces expose latest four, subject sessions, recall, loading, and
   assert.match(review, /role="progressbar"/);
   assert.match(review, /t\("review\.leaveSafely"\)/);
   assert.match(catalogue, /"review\.leaveSafely": "Leave safely"/);
-  assert.match(questions, /reviewApi\.trackAttempt/);
+  // Nothing feeds the Review Bank from the client yet: the local demo quiz that
+  // used to call reviewApi.trackAttempt is gone, and the real question players
+  // will wire it back up when their questions are published.
+  assert.doesNotMatch(questions, /reviewApi/);
   assert.match(app, /path="\/review\/bank\/:subjectKey"/);
   assert.match(styles, /@media \(max-width: 480px\)[\s\S]*\.review-session-question/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.review-session-progress span/);

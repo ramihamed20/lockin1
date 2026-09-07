@@ -5,7 +5,7 @@ import { progressApi } from "../api/progress.js";
 import { Icon } from "../lib/icons.jsx";
 import { normalizeThemeSettings } from "../lib/utils.js";
 import { Page, ProgressLine, Tab, TabList } from "../components/ui/index.jsx";
-import { AccountFieldErrors } from "../components/account/AccountFormErrors.jsx";
+import { AccountFieldErrors, AccountFormAlert, fieldErrorAttributes } from "../components/account/AccountFormErrors.jsx";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { formatDate, formatNumber as formatLocaleNumber } from "../lib/i18n.js";
 import { ResponsiveThemePreview } from "../components/shared/ResponsiveThemePreview.jsx";
@@ -234,10 +234,10 @@ export default function Profile({ user, onUserUpdate }) {
             <div className="id-card-body">
               <div className="profile-avatar-wrap"><UserAvatar user={account} className="profile-avatar-image" alt={t("profile.avatarPreviewAlt")} loading="eager" /><div className="profile-level-badge"><span>{t("profile.lvl")}</span><strong>{level}</strong></div></div>
               {editing ? <form onSubmit={saveProfile} className="profile-edit-form profile-id-edit-form">
-                <label className="field"><span>{t("profile.displayName")}</span><input type="text" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /><AccountFieldErrors error={profileError} field="full_name" /></label>
-                <label className="field"><span>{t("profile.preferredLanguage")}</span><select value={form.preferredLanguage} onChange={(event) => setForm({ ...form, preferredLanguage: event.target.value })}><option value="en">{t("profile.english")}</option><option value="ar">{t("profile.arabic")}</option></select><AccountFieldErrors error={profileError} field="preferred_language" /></label>
+                <label className="field"><span>{t("profile.displayName")}</span><input type="text" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required {...fieldErrorAttributes(profileError, "full_name", "profile-name-error")} /><AccountFieldErrors error={profileError} field="full_name" id="profile-name-error" /></label>
+                <label className="field"><span>{t("profile.preferredLanguage")}</span><select value={form.preferredLanguage} onChange={(event) => setForm({ ...form, preferredLanguage: event.target.value })} {...fieldErrorAttributes(profileError, "preferred_language", "profile-language-error")}><option value="en">{t("profile.english")}</option><option value="ar">{t("profile.arabic")}</option></select><AccountFieldErrors error={profileError} field="preferred_language" id="profile-language-error" /></label>
                 <ProfilePictureEditor user={account} onSaved={handleAvatarSaved} />
-                {profileError && <p className="form-alert error" role="alert" dir="auto">{profileError.message || t("profile.saveError")}</p>}
+                <AccountFormAlert error={profileError} />
                 <div className="profile-edit-actions"><button className="btn btn-primary compact" type="submit" disabled={saving}>{t(saving ? "profile.saving" : "profile.saveChanges")}</button><button className="btn btn-soft compact" type="button" onClick={() => setEditing(false)}>{t("common.cancel")}</button></div>
               </form> : <div className="id-card-info">
                 <div className="id-card-field"><span className="id-card-label">{t("profile.academyMember")}</span><h2 className="id-card-value" dir="auto">{account?.name || t("profile.learner")}</h2><p className="id-card-value email" dir="auto">{t("profile.studentId", { id: (account?.id || "—").slice(0, 8) })}</p></div>

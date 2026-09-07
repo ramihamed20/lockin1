@@ -43,6 +43,17 @@ def user_has_role(user: User, role: Role) -> bool:
     return user.groups.filter(name=role.value).exists()
 
 
+def is_subscription_exempt(user: User) -> bool:
+    """Whether an official Founder/Administrator is exempt from paid access gates.
+
+    This deliberately does not grant any role or operational capability.  It
+    only prevents subscription state from denying an already-authorized
+    administrator access to entitlement-protected product areas.
+    """
+
+    return user_has_role(user, Role.ADMINISTRATOR)
+
+
 @transaction.atomic
 def replace_managed_roles(*, target: User, actor: User, roles: set[Role]) -> tuple[str, ...]:
     if not roles.issubset(MANAGED_ROLES):

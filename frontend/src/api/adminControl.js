@@ -63,6 +63,27 @@ export const adminControlApi = {
   updateSheet(sheetId, body) {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}`, { method: "PATCH", body });
   },
+  reorderSheet(sheetId, body) {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/reorder`, { method: "POST", body });
+  },
+  activeStudySettings(sheetId) {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study`);
+  },
+  updateActiveStudySettings(sheetId, body) {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study`, { method: "PATCH", body });
+  },
+  activeStudyQuestions(sheetId, difficulty) {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study/questions/${difficulty}`);
+  },
+  validateActiveStudyQuestions(sheetId, difficulty, payload) {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study/questions/${difficulty}`, { method: "POST", body: { payload } });
+  },
+  saveActiveStudyQuestions(sheetId, difficulty, body) {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study/questions/${difficulty}`, { method: "PUT", body });
+  },
+  deleteActiveStudyQuestions(sheetId, difficulty, expectedRevision) {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study/questions/${difficulty}`, { method: "DELETE", body: { expected_revision: Number(expectedRevision) } });
+  },
   sheetAction(sheetId, body) {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/actions`, { method: "POST", body });
   },
