@@ -96,12 +96,29 @@ for (const viewport of LANDSCAPE_PHONES) {
 // P0: on a tablet in landscape the sidebar list was taller than its box, and
 // the scrollbar iPadOS draws only while a finger is moving was the sole hint
 // that anything continued below the fold.
+/**
+ * The overflow cue is published by a ResizeObserver, which delivers after the
+ * layout it describes. Reading the cue and the measurement together can land
+ * in the frame between the two and see a cue for an overflow that has already
+ * been absorbed, so the list is measured only once its box has stopped moving.
+ */
+async function waitForNavigationToSettle(page) {
+  await expect.poll(async () => page.evaluate(async () => {
+    const list = document.querySelector(".sidebar .nav-list");
+    if (!list) return false;
+    const before = `${list.scrollHeight}x${list.clientHeight}`;
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    return before === `${list.scrollHeight}x${list.clientHeight}`;
+  }), { timeout: 10_000 }).toBe(true);
+}
+
 for (const viewport of LANDSCAPE_TABLETS) {
   test(`the sidebar admits what it hides at ${viewport.name}`, async ({ page }) => {
     await mockStudent(page);
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto("/#/");
     await expect(page.locator(".sidebar")).toBeVisible();
+    await waitForNavigationToSettle(page);
 
     const navigation = await page.evaluate(() => {
       const list = document.querySelector(".sidebar .nav-list");
