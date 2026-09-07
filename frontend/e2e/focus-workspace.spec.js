@@ -360,7 +360,11 @@ test("PDF view preferences restore position and zoom only while enabled @chromiu
   await page.goto(WORKSPACE_ROUTE);
   await page.getByRole("button", { name: /Normal Study/ }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "Page 3 of 17");
+  // The indicator names the page holding most of the stage, not the page the
+  // stored view was anchored to. Page 3 is 736px against 1141px of stage here,
+  // so restoring a quarter of the way into it leaves page 4 covering more of
+  // the reader. The offset assertion below is what guards the restore itself.
+  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "Page 4 of 17");
   await expect.poll(async () => page.locator(".workspace-v2-a4-document").evaluate((node) => Number(getComputedStyle(node).getPropertyValue("--workspace-a4-zoom")))).toBeCloseTo(2.2, 5);
   await expect.poll(async () => page.evaluate(() => {
     const stage = document.querySelector(".workspace-v2-document-stage").getBoundingClientRect();

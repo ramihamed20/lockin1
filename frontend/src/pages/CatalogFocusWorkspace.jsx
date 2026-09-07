@@ -563,6 +563,10 @@ function CatalogFocusWorkspaceView({ user = null }) {
   const previousToolRef = useRef("hand");
   const zoomRef = useRef(1);
   const pdfZoomModeRef = useRef("fit");
+  // A refit caused by the stage changing width has to land on the same reading
+  // position it left. The anchor is carried the way a pinch carries one.
+  const pendingFitAnchorRef = useRef(null);
+  const fittedStageWidthRef = useRef(null);
   const pendingPinchCommitRef = useRef(null);
   const initialPageViewRef = useRef("");
   const wheelZoomEndTimerRef = useRef(null);
@@ -1115,6 +1119,34 @@ function CatalogFocusWorkspaceView({ user = null }) {
   // gesture helpers intentionally read the latest mutable refs in that frame.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zoom]);
+  useLayoutEffect(() => {
+    const pending = pendingFitAnchorRef.current;
+    const stage = stageRef.current;
+    const root = documentRef.current;
+    if (!pending || !stage || !root || Math.abs(pending.finalZoom - zoom) > .001) return;
+    pendingFitAnchorRef.current = null;
+    const documentElement = root.querySelector(".workspace-v2-a4-document") || root;
+    const documentBounds = documentElement.getBoundingClientRect();
+    if (!(documentBounds.width > 0 && documentBounds.height > 0)) return;
+    const next = scrollForDocumentAnchor({
+      currentScrollLeft: stage.scrollLeft,
+      currentScrollTop: stage.scrollTop,
+      documentLeft: documentBounds.left,
+      documentTop: documentBounds.top,
+      documentAnchorX: pending.documentAnchorX,
+      documentAnchorY: pending.documentAnchorY,
+      scale: zoom,
+      focalClientX: pending.focalClientX,
+      focalClientY: pending.focalClientY
+    });
+    const bounds = readerScrollBounds({ preserveCurrent: false });
+    stage.scrollLeft = Math.min(bounds.maxScrollLeft, Math.max(bounds.minScrollLeft, next.scrollLeft));
+    stage.scrollTop = Math.min(bounds.maxScrollTop, Math.max(bounds.minScrollTop, next.scrollTop));
+  // The anchor belongs to the zoom geometry that just mounted, and the bounds
+  // helper reads the latest mutable refs in that same frame.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zoom]);
+
   useEffect(() => {
     setPageCount(configuredPageCount);
     setPage((current) => Math.min(configuredPageCount, Math.max(1, current)));
@@ -1126,7 +1158,30 @@ function CatalogFocusWorkspaceView({ user = null }) {
     const keepPdfFitted = () => {
       const minimum = minimumPdfZoom();
       const nextZoom = pdfZoomModeRef.current === "fit" ? minimum : Math.max(zoomRef.current, minimum);
+      const previousStageWidth = fittedStageWidthRef.current;
+      const stageWidth = stage.clientWidth;
+      fittedStageWidthRef.current = stageWidth;
       if (Math.abs(zoomRef.current - nextZoom) < .001) return;
+      // Docking the side panel narrows the stage, and a narrower stage fits the
+      // page at a smaller scale. The document shrinks around a scroll position
+      // that does not move, which slides the reader forward - two pages deep
+      // into a sheet, more further in. The point the stage is reading from is
+      // remembered here in unscaled document space and restored once the new
+      // zoom has laid out, exactly as a pinch reconciles its focal point.
+      const root = documentRef.current;
+      const documentElement = root?.querySelector(".workspace-v2-a4-document") || root;
+      const documentBounds = documentElement?.getBoundingClientRect();
+      if (previousStageWidth !== null && previousStageWidth !== stageWidth && documentBounds?.height > 0) {
+        const stageBounds = stage.getBoundingClientRect();
+        const currentZoom = Math.max(.001, zoomRef.current);
+        pendingFitAnchorRef.current = {
+          finalZoom: nextZoom,
+          documentAnchorX: (stageBounds.left - documentBounds.left) / currentZoom,
+          documentAnchorY: (stageBounds.top - documentBounds.top) / currentZoom,
+          focalClientX: stageBounds.left,
+          focalClientY: stageBounds.top
+        };
+      }
       zoomRef.current = nextZoom;
       setZoom(nextZoom);
     };
