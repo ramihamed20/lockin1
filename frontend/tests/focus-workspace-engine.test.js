@@ -243,6 +243,24 @@ test("zoom and render scales are bounded for interaction and tablet memory safet
   assert.ok(outputScale <= Math.sqrt(4_000_000 / (1200 * 1600)));
 });
 
+test("a page shown smaller than its layout width is not rasterized larger than the screen shows it", () => {
+  // A phone fits the 595px page into about 390 CSS px, so the reader draws it
+  // at roughly 0.65 zoom. Rasterizing that as though the zoom were 1 cost more
+  // than twice the canvas memory for pixels the display could never show.
+  const phoneZoom = 390 / 595;
+  const pageHeight = 595 * (540 / 960);
+  const scale = boundedOutputScale(595, pageHeight, 3, phoneZoom, 2_000_000);
+  const renderedWidth = 595 * scale;
+  const screenPixels = 390 * 3;
+  assert.ok(renderedWidth >= screenPixels, "the page would render softer than the screen shows it");
+  assert.ok(renderedWidth < screenPixels * 1.25, `${Math.round(renderedWidth)}px of canvas for ${screenPixels} screen pixels`);
+
+  // Zooming in still raises quality, and the canvas never drops below the
+  // page's own layout size however far the reader zooms out.
+  assert.ok(boundedOutputScale(595, pageHeight, 3, 2, 2_000_000) > scale);
+  assert.equal(boundedOutputScale(595, pageHeight, 1, 0.2, 2_000_000), 1);
+});
+
 test("touch devices use bounded PDF raster budgets while desktop keeps full quality", () => {
   assert.equal(catalogCanvasPixelBudget(390, true), 2_000_000);
   assert.equal(catalogCanvasPixelBudget(834, true), 3_000_000);

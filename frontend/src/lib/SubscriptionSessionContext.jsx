@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { billingApi } from "../api/billing.js";
 import {
   hasDirectStudyAccess,
+  hasSubscriptionExemption,
   isSubscriptionSnapshotFresh,
   readSubscriptionSnapshot,
   subscriptionRefreshAt,
@@ -89,8 +90,10 @@ export function SubscriptionSessionProvider({ user, children }) {
   const value = useMemo(() => ({
     ...state,
     directAccess: hasDirectStudyAccess(state.entitlements),
+    accessExempt: hasSubscriptionExemption(state.subscription),
     accessAllowed: Boolean(state.subscription?.access_allowed || hasDirectStudyAccess(state.entitlements)),
     canAccessNow: () => {
+      if (hasSubscriptionExemption(state.subscription)) return true;
       if (hasDirectStudyAccess(state.entitlements)) return true;
       if (!state.subscription?.access_allowed) return false;
       const refreshAt = subscriptionRefreshAt(state);

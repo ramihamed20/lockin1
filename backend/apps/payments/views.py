@@ -115,7 +115,9 @@ class ManualLibyanaPaymentView(APIView):
             result = submit_manual_recharge(
                 user=user,
                 price=price,
-                recharge_code=str(serializer.validated_data["recharge_code"]),
+                recharge_codes=[
+                    str(value) for value in serializer.validated_data["recharge_codes"]
+                ],
                 idempotency_key=idempotency_key,
             )
         except Price.DoesNotExist as error:
@@ -123,7 +125,9 @@ class ManualLibyanaPaymentView(APIView):
                 {"plan_id": ["This plan is not available for Libyana payment."]}
             ) from error
         except DuplicateRechargeCodeError as error:
-            raise ValidationError({"recharge_code": [str(error)]}, code="duplicate_code") from error
+            raise ValidationError(
+                {"recharge_codes": [str(error)]}, code="duplicate_code"
+            ) from error
         except ManualPaymentError as error:
             raise ValidationError({"payment": [str(error)]}) from error
         return Response(

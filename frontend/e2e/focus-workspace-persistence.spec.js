@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { withoutServiceWorker } from "./helpers/serviceWorker.js";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
-const ROUTE = "/#/materials/catalog/microbiology/sheets/sheet-1/workspace";
+const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 
 async function mockWorkspace(page, { userId = "persistence-student" } = {}) {
   await withoutServiceWorker(page);
@@ -92,11 +92,13 @@ test("marks are stored per page in IndexedDB and survive a reload", async ({ pag
   await drawStroke(page, 62, 1);
   await expect(visibleInk(page)).toHaveCount(2);
 
-  await expect.poll(async () => (await readWorkspaceDatabase(page)).pages.length, { timeout: 15_000 }).toBeGreaterThan(0);
+  // Strokes are flushed in their own batches, so wait for both to land rather
+  // than for the page record to merely exist.
+  await expect.poll(async () => (await readWorkspaceDatabase(page)).pages[0]?.annotations.length || 0, { timeout: 15_000 }).toBe(2);
   const stored = await readWorkspaceDatabase(page);
   expect(stored.documents).toHaveLength(1);
   expect(stored.documents[0].id).toContain("user:persistence-student");
-  expect(stored.documents[0].materialSlug).toBe("microbiology");
+  expect(stored.documents[0].materialSlug).toBe("biochemistry-1");
   // Ink lives in its own per-page record rather than one document-sized blob.
   expect(stored.pages).toHaveLength(1);
   expect(stored.pages[0].page).toBe(1);
@@ -139,7 +141,7 @@ test("a legacy localStorage sheet migrates once and the old copy is removed", as
   await page.addInitScript(() => {
     if (sessionStorage.getItem("legacy-seeded")) return;
     sessionStorage.setItem("legacy-seeded", "true");
-    localStorage.setItem("lock-in.catalog-workspace.v1.microbiology.sheet-1", JSON.stringify({
+    localStorage.setItem("lock-in.catalog-workspace.v1.biochemistry-1.vitamin-1", JSON.stringify({
       version: 1,
       savedAt: new Date().toISOString(),
       page: 1,
@@ -170,7 +172,7 @@ test("a legacy localStorage sheet migrates once and the old copy is removed", as
   expect(migrated.pages[0].annotations[0].id).toBe("legacy-stroke");
   expect(migrated.documents[0].notes).toHaveLength(1);
   // The legacy key is only dropped after the migrated document reads back.
-  expect(await page.evaluate(() => localStorage.getItem("lock-in.catalog-workspace.v1.microbiology.sheet-1"))).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem("lock-in.catalog-workspace.v1.biochemistry-1.vitamin-1"))).toBeNull();
 
   // Re-opening must not duplicate the migrated stroke.
   await openWorkspace(page);
@@ -196,7 +198,7 @@ test("a backup exports, restores, and refuses to cross into another sheet unaske
   const backup = JSON.parse(await readFile(backupPath, "utf8"));
   expect(backup.kind).toBe("lock-in.focus-workspace.backup");
   expect(backup.annotations).toHaveLength(1);
-  expect(download.suggestedFilename()).toMatch(/^lock-in-microbiology-sheet-1-\d{4}-\d{2}-\d{2}\.json$/);
+  expect(download.suggestedFilename()).toMatch(/^lock-in-biochemistry-1-vitamin-1-\d{4}-\d{2}-\d{2}\.json$/);
 
   // Clear the sheet, then restore it from the file.
   await page.getByRole("button", { name: /Clear ink on page/ }).click();

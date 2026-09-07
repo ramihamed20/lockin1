@@ -1,6 +1,7 @@
 import { useRef, useEffect } from "react";
 import { Icon } from "../../lib/icons.jsx";
 import { useI18n } from "../I18nProvider.jsx";
+import { acquireBodyScrollLock } from "../../lib/bodyScrollLock.js";
 
 // `busy` is opt-in: a caller that runs an asynchronous action passes it while
 // the action is in flight, and the dialog then refuses every way out of itself
@@ -18,8 +19,7 @@ export function ConfirmDialog({ open, title, message, confirmLabel = "", onConfi
   useEffect(() => {
     if (!open) return;
     triggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const releaseScrollLock = acquireBodyScrollLock();
     ref.current?.focus();
 
     function onKey(e) {
@@ -42,7 +42,7 @@ export function ConfirmDialog({ open, title, message, confirmLabel = "", onConfi
     }
     document.addEventListener("keydown", onKey);
     return () => {
-      document.body.style.overflow = previousOverflow;
+      releaseScrollLock();
       document.removeEventListener("keydown", onKey);
       triggerRef.current?.focus?.();
     };

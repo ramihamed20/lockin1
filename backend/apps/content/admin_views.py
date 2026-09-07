@@ -17,21 +17,34 @@ from apps.education.models import EducationNode
 from apps.files.models import ManagedFile
 from apps.questions.models import Question
 
+from .active_study_questions import ActiveStudyQuestionValidationError
 from .admin_serializers import (
+    AdminActiveStudyQuestionDeleteSerializer,
+    AdminActiveStudyQuestionSaveSerializer,
+    AdminActiveStudyQuestionValidateSerializer,
+    AdminActiveStudySettingsSerializer,
     AdminSheetActionSerializer,
     AdminSheetCreateSerializer,
     AdminSheetDeletePdfSerializer,
+    AdminSheetReorderSerializer,
     AdminSheetReplacePdfSerializer,
     AdminSheetUpdateSerializer,
 )
 from .admin_services import (
+    active_study_payload,
+    active_study_question_content_payload,
     change_sheet_status,
     create_sheet,
+    delete_active_study_question_content,
     delete_pdf,
     has_publication_history,
     permanently_delete_sheet,
+    reorder_sheet,
     replace_pdf,
+    save_active_study_question_content,
+    update_active_study_settings,
     update_sheet,
+    validate_active_study_question_content,
 )
 from .models import LearningObject, LearningObjectAsset, LearningObjectVersion
 from .services import ContentConflictError, ContentRuleError
@@ -79,6 +92,7 @@ def _sheets(subject: EducationNode) -> QuerySet[LearningObject]:
             current_version__academic_node__path__startswith=subject.path,
         )
         .select_related("owner", "current_version__academic_node", "published_version")
+        .select_related("active_study_settings")
         .prefetch_related("current_version__assets__managed_file")
         .order_by("position", "current_version__title", "id")
     )
@@ -107,6 +121,7 @@ def serialize_sheet(sheet: LearningObject) -> dict[str, object]:
         or sheet.bookmarks.exists()
         or question_count > 0
         or sheet.question_import_batches.exists()
+        or sheet.active_study_question_content.exists()
         or has_publication_history(sheet)
     )
     return {
@@ -121,6 +136,8 @@ def serialize_sheet(sheet: LearningObject) -> dict[str, object]:
         "published_at": sheet.published_at,
         "archived_at": sheet.archived_at,
         "question_count": question_count,
+        "active_study_enabled": getattr(sheet, "active_study_settings", None) is not None
+        and sheet.active_study_settings.enabled,
         "can_permanently_delete": not has_history,
         "pdf": (
             {
@@ -148,6 +165,12 @@ class AdminSubjectListView(_ContentPermissionView):
         results = []
         for subject in subjects:
             sheets = _sheets(subject)
+            # EducationNode paths are opaque identifiers, so walk the actual parent chain.
+            ancestor_by_kind: dict[str, str] = {}
+            parent = subject.parent
+            while parent is not None:
+                ancestor_by_kind.setdefault(parent.kind, parent.title)
+                parent = parent.parent
             results.append(
                 {
                     "id": str(subject.id),
@@ -165,6 +188,12 @@ class AdminSubjectListView(_ContentPermissionView):
                             LearningObject.WorkflowStatus.REJECTED,
                         )
                     ).count(),
+                    "specialty_title": ancestor_by_kind.get(EducationNode.Kind.DEPARTMENT)
+                    or ancestor_by_kind.get(EducationNode.Kind.COLLEGE)
+                    or ancestor_by_kind.get(EducationNode.Kind.INSTITUTION)
+                    or "Unassigned",
+                    "academic_year_title": ancestor_by_kind.get(EducationNode.Kind.ACADEMIC_YEAR)
+                    or "Unassigned",
                 }
             )
         return Response({"count": len(results), "results": results})
@@ -302,3 +331,127 @@ class AdminSheetPdfView(_ContentPermissionView):
         except (LearningObject.DoesNotExist, ContentRuleError) as error:
             _raise_rule(error)
         return Response(serialize_sheet(sheet))
+
+
+class AdminSheetReorderView(_ContentPermissionView):
+    def post(self, request: Request, sheet_id: UUID) -> Response:
+        serializer = AdminSheetReorderSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            sheet = reorder_sheet(
+                actor=_user(request),
+                sheet_id=sheet_id,
+                expected_revision=int(data["expected_revision"]),
+                target_sheet_id=data["target_sheet_id"],
+                placement=str(data["placement"]),
+            )
+        except (LearningObject.DoesNotExist, ContentRuleError) as error:
+            _raise_rule(error)
+        return Response(serialize_sheet(sheet))
+
+
+class AdminSheetActiveStudyView(_ContentPermissionView):
+    def _sheet(self, sheet_id: UUID) -> LearningObject:
+        return get_object_or_404(
+            LearningObject.objects.select_related("active_study_settings"),
+            id=sheet_id,
+            current_version__content_type=LearningObjectVersion.ContentType.PDF,
+        )
+
+    def get(self, request: Request, sheet_id: UUID) -> Response:
+        return Response(active_study_payload(sheet=self._sheet(sheet_id)))
+
+    def patch(self, request: Request, sheet_id: UUID) -> Response:
+        serializer = AdminActiveStudySettingsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            sheet = update_active_study_settings(
+                actor=_user(request),
+                sheet_id=sheet_id,
+                expected_revision=int(data["expected_revision"]),
+                enabled=bool(data["enabled"]),
+                total_pdf_pages=data.get("total_pdf_pages"),
+                excluded_start_pages=int(data["excluded_start_pages"]),
+                excluded_end_pages=int(data["excluded_end_pages"]),
+                confirm_boundary_change=bool(data["confirm_boundary_change"]),
+            )
+        except (LearningObject.DoesNotExist, ContentRuleError) as error:
+            _raise_rule(error)
+        sheet = self._sheet(sheet.id)
+        return Response(active_study_payload(sheet=sheet))
+
+
+class AdminSheetActiveStudyQuestionsView(_ContentPermissionView):
+    def _sheet(self, sheet_id: UUID) -> LearningObject:
+        return get_object_or_404(
+            LearningObject.objects.select_related("active_study_settings"),
+            id=sheet_id,
+            current_version__content_type=LearningObjectVersion.ContentType.PDF,
+        )
+
+    def get(self, request: Request, sheet_id: UUID, difficulty: str) -> Response:
+        try:
+            return Response(
+                active_study_question_content_payload(
+                    sheet=self._sheet(sheet_id), difficulty_key=difficulty
+                )
+            )
+        except ContentRuleError as error:
+            _raise_rule(error)
+        raise AssertionError("Content rejection must raise an API exception.")
+
+    def post(self, request: Request, sheet_id: UUID, difficulty: str) -> Response:
+        serializer = AdminActiveStudyQuestionValidateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            validation = validate_active_study_question_content(
+                sheet=self._sheet(sheet_id),
+                difficulty_key=difficulty,
+                payload=serializer.validated_data["payload"],
+            )
+        except ActiveStudyQuestionValidationError as error:
+            return Response(
+                {"valid": False, "errors": error.errors}, status=status.HTTP_400_BAD_REQUEST
+            )
+        except ContentRuleError as error:
+            _raise_rule(error)
+        return Response(validation.as_dict())
+
+    def put(self, request: Request, sheet_id: UUID, difficulty: str) -> Response:
+        serializer = AdminActiveStudyQuestionSaveSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            content = save_active_study_question_content(
+                actor=_user(request),
+                sheet_id=sheet_id,
+                difficulty_key=difficulty,
+                payload=serializer.validated_data["payload"],
+                expected_revision=int(serializer.validated_data["expected_revision"]),
+            )
+        except ActiveStudyQuestionValidationError as error:
+            return Response(
+                {"valid": False, "errors": error.errors}, status=status.HTTP_400_BAD_REQUEST
+            )
+        except (LearningObject.DoesNotExist, ContentRuleError) as error:
+            _raise_rule(error)
+        return Response(
+            active_study_question_content_payload(
+                sheet=self._sheet(sheet_id), difficulty_key=content.difficulty
+            )
+        )
+
+    def delete(self, request: Request, sheet_id: UUID, difficulty: str) -> Response:
+        serializer = AdminActiveStudyQuestionDeleteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            delete_active_study_question_content(
+                actor=_user(request),
+                sheet_id=sheet_id,
+                difficulty_key=difficulty,
+                expected_revision=int(serializer.validated_data["expected_revision"]),
+            )
+        except (LearningObject.DoesNotExist, ContentRuleError) as error:
+            _raise_rule(error)
+        return Response(status=status.HTTP_204_NO_CONTENT)

@@ -132,5 +132,33 @@ DEFINITIONS = {
             minimum=1,
             maximum=10000,
         ),
+        ConfigurationDefinition(
+            key="telegram.notifications_enabled",
+            name="Telegram payment notifications",
+            description="Enables outbound Telegram notifications for manual payment events.",
+            value_type="boolean",
+            default=True,
+        ),
+        ConfigurationDefinition(
+            key="telegram.new_payment_notifications_enabled",
+            name="Telegram new payment notifications",
+            description="Sends Telegram notifications when a Libyana payment request is submitted.",
+            value_type="boolean",
+            default=True,
+        ),
+        ConfigurationDefinition(
+            key="telegram.approval_notifications_enabled",
+            name="Telegram payment approval notifications",
+            description="Sends Telegram notifications when a Libyana payment is approved.",
+            value_type="boolean",
+            default=True,
+        ),
+        ConfigurationDefinition(
+            key="telegram.rejection_notifications_enabled",
+            name="Telegram payment rejection notifications",
+            description="Sends Telegram notifications when a Libyana payment is rejected.",
+            value_type="boolean",
+            default=True,
+        ),
     )
 }

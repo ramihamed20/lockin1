@@ -5,6 +5,7 @@ from typing import cast
 from uuid import UUID
 
 from django.db import transaction
+from django.db.models import QuerySet
 
 from apps.accounts.models import User
 from apps.audit.models import AuditRecord
@@ -15,7 +16,19 @@ from apps.files.models import ManagedFile
 from apps.notifications.models import Notification
 from apps.notifications.services import create_notification
 
-from .models import LearningObject, LearningObjectAsset, LearningObjectVersion
+from .active_study import DIFFICULTIES, ActiveStudyDifficulty, ActiveStudyPlanError, plan_payload
+from .active_study_questions import (
+    ActiveStudyQuestionValidationError,
+    ActiveStudyQuestionValidationResult,
+    validate_active_study_questions,
+)
+from .models import (
+    ActiveStudyQuestionContent,
+    ActiveStudySettings,
+    LearningObject,
+    LearningObjectAsset,
+    LearningObjectVersion,
+)
 from .services import (
     ContentConflictError,
     ContentRuleError,
@@ -358,6 +371,8 @@ def permanently_delete_sheet(*, actor: User, sheet_id: UUID) -> None:
         dependencies.append("bookmarks")
     if sheet.question_versions.exists() or sheet.question_import_batches.exists():
         dependencies.append("questions")
+    if sheet.active_study_question_content.exists():
+        dependencies.append("Active Study question content")
     if has_publication_history(sheet):
         dependencies.append("publication history")
     if dependencies:
@@ -395,3 +410,423 @@ def permanently_delete_sheet(*, actor: User, sheet_id: UUID) -> None:
         name = managed_file.blob.name
         managed_file.delete()
         transaction.on_commit(partial(storage.delete, name))
+
+
+def _sheets_for_subject(subject: EducationNode) -> QuerySet[LearningObject]:
+    return LearningObject.objects.filter(
+        current_version__content_type=LearningObjectVersion.ContentType.PDF,
+        current_version__academic_node__path__startswith=subject.path,
+    ).order_by("position", "current_version__title", "id")
+
+
+@transaction.atomic
+def reorder_sheet(
+    *,
+    actor: User,
+    sheet_id: UUID,
+    expected_revision: int,
+    target_sheet_id: UUID,
+    placement: str,
+) -> LearningObject:
+    sheet = (
+        LearningObject.objects.select_for_update(of=("self",))
+        .select_related("current_version__academic_node")
+        .get(id=sheet_id)
+    )
+    target = (
+        LearningObject.objects.select_for_update(of=("self",))
+        .select_related("current_version__academic_node")
+        .get(id=target_sheet_id)
+    )
+    if sheet.revision != expected_revision:
+        raise ContentConflictError("This content changed. Reload it and try again.")
+    if sheet.id == target.id:
+        raise ContentRuleError("Choose a different sheet to reorder.")
+    source_version = sheet.current_version
+    target_version = target.current_version
+    if source_version is None or target_version is None:
+        raise ContentRuleError("A sheet without a current version cannot be reordered.")
+    source_subject = _subject_for_node(source_version.academic_node)
+    target_subject = _subject_for_node(target_version.academic_node)
+    if source_subject.id != target_subject.id:
+        raise ContentRuleError("Sheets can only be reordered within the same subject.")
+    previous_position = sheet.position
+    ordered = list(_sheets_for_subject(source_subject).select_for_update())
+    ordered = [item for item in ordered if item.id != sheet.id]
+    target_index = next(index for index, item in enumerate(ordered) if item.id == target.id)
+    ordered.insert(target_index + (1 if placement == "after" else 0), sheet)
+    for position, item in enumerate(ordered):
+        if item.position != position:
+            item.position = position
+            item.save(update_fields=("position", "updated_at"))
+    sheet.refresh_from_db()
+    _audit(
+        actor=actor,
+        action="content.sheet_reordered",
+        sheet=sheet,
+        previous={"position": previous_position},
+    )
+    return sheet
+
+
+def active_study_payload(*, sheet: LearningObject) -> dict[str, object]:
+    settings = getattr(sheet, "active_study_settings", None)
+    total_pages = settings.total_pdf_pages if settings is not None else None
+    excluded_start = settings.excluded_start_pages if settings is not None else 0
+    excluded_end = settings.excluded_end_pages if settings is not None else 0
+    try:
+        plan = plan_payload(
+            total_pdf_pages=total_pages,
+            excluded_start_pages=excluded_start,
+            excluded_end_pages=excluded_end,
+        )
+    except ActiveStudyPlanError as error:
+        raise ContentRuleError(str(error)) from error
+    content_by_difficulty = {
+        content.difficulty: content
+        for content in ActiveStudyQuestionContent.objects.filter(sheet=sheet)
+    }
+    difficulty_by_key = {difficulty.key: difficulty for difficulty in DIFFICULTIES}
+    difficulties = cast(list[dict[str, object]], plan["difficulties"])
+    for difficulty_plan in difficulties:
+        key = str(difficulty_plan["difficulty"])
+        content = content_by_difficulty.get(key)
+        expected_checkpoint = cast(int, difficulty_plan["number_of_parts"]) * cast(
+            int, difficulty_plan["questions_per_checkpoint"]
+        )
+        expected_final = cast(int, difficulty_plan["final_exam_questions"])
+        signature = _plan_signature(difficulty_plan)
+        status = "not_configured"
+        if content is not None:
+            if content.plan_signature != signature:
+                status = "needs_review"
+            else:
+                try:
+                    validate_active_study_questions(
+                        content.payload,
+                        difficulty=difficulty_by_key[key],
+                        number_of_parts=cast(int, difficulty_plan["number_of_parts"]),
+                    )
+                    status = "ready"
+                except ActiveStudyQuestionValidationError:
+                    status = "incomplete"
+        difficulty_plan["content"] = {
+            "status": status,
+            "checkpoint_question_count": (
+                content.checkpoint_question_count if content is not None else 0
+            ),
+            "checkpoint_question_target": expected_checkpoint,
+            "final_exam_question_count": (
+                content.final_exam_question_count if content is not None else 0
+            ),
+            "final_exam_question_target": expected_final,
+            "revision": content.revision if content is not None else 0,
+        }
+    has_existing_questions = (
+        sheet.question_versions.exists()
+        or sheet.question_import_batches.exists()
+        or bool(content_by_difficulty)
+    )
+    return {
+        "enabled": settings.enabled if settings is not None else False,
+        "revision": settings.revision if settings is not None else 0,
+        "excluded_start_pages": excluded_start,
+        "excluded_end_pages": excluded_end,
+        "existing_question_content": has_existing_questions,
+        "question_configuration_status": (
+            "configured"
+            if any(
+                cast(dict[str, object], item["content"])["status"] == "ready"
+                for item in difficulties
+            )
+            else "not_configured"
+        ),
+        **{**plan, "difficulties": difficulties},
+    }
+
+
+def _plan_signature(difficulty_plan: dict[str, object]) -> dict[str, object]:
+    return {
+        "number_of_parts": difficulty_plan["number_of_parts"],
+        "page_ranges": difficulty_plan["page_ranges"],
+    }
+
+
+def _difficulty_for_key(key: str) -> ActiveStudyDifficulty:
+    for difficulty in DIFFICULTIES:
+        if difficulty.key == key:
+            return difficulty
+    raise ContentRuleError("Active Study difficulty must be easy, medium, or hard.")
+
+
+def _difficulty_plan_for_sheet(
+    *, sheet: LearningObject, difficulty_key: str
+) -> tuple[ActiveStudyDifficulty, dict[str, object]]:
+    settings = ActiveStudySettings.objects.filter(sheet=sheet).first()
+    total_pages = settings.total_pdf_pages if settings is not None else None
+    if settings is None or total_pages is None:
+        raise ContentRuleError(
+            "Configure the Active Study PDF page count before importing questions."
+        )
+    try:
+        plan = plan_payload(
+            total_pdf_pages=total_pages,
+            excluded_start_pages=settings.excluded_start_pages,
+            excluded_end_pages=settings.excluded_end_pages,
+        )
+    except ActiveStudyPlanError as error:
+        raise ContentRuleError(str(error)) from error
+    difficulty = _difficulty_for_key(difficulty_key)
+    difficulty_plan = next(
+        item
+        for item in cast(list[dict[str, object]], plan["difficulties"])
+        if item["difficulty"] == difficulty.key
+    )
+    return difficulty, difficulty_plan
+
+
+def validate_active_study_question_content(
+    *, sheet: LearningObject, difficulty_key: str, payload: object
+) -> ActiveStudyQuestionValidationResult:
+    difficulty, difficulty_plan = _difficulty_plan_for_sheet(
+        sheet=sheet, difficulty_key=difficulty_key
+    )
+    return validate_active_study_questions(
+        payload,
+        difficulty=difficulty,
+        number_of_parts=cast(int, difficulty_plan["number_of_parts"]),
+    )
+
+
+def active_study_question_content_payload(
+    *, sheet: LearningObject, difficulty_key: str
+) -> dict[str, object]:
+    difficulty, difficulty_plan = _difficulty_plan_for_sheet(
+        sheet=sheet, difficulty_key=difficulty_key
+    )
+    content = ActiveStudyQuestionContent.objects.filter(
+        sheet=sheet, difficulty=difficulty.key
+    ).first()
+    plan_signature = _plan_signature(difficulty_plan)
+    status = "not_configured"
+    if content is not None:
+        if content.plan_signature != plan_signature:
+            status = "needs_review"
+        else:
+            try:
+                validate_active_study_questions(
+                    content.payload,
+                    difficulty=difficulty,
+                    number_of_parts=cast(int, difficulty_plan["number_of_parts"]),
+                )
+                status = "ready"
+            except ActiveStudyQuestionValidationError:
+                status = "incomplete"
+    return {
+        "difficulty": difficulty.key,
+        "number_of_parts": difficulty_plan["number_of_parts"],
+        "page_ranges": difficulty_plan["page_ranges"],
+        "content": {
+            "status": status,
+            "revision": content.revision if content is not None else 0,
+            "checkpoint_question_count": (
+                content.checkpoint_question_count if content is not None else 0
+            ),
+            "checkpoint_question_target": cast(int, difficulty_plan["number_of_parts"])
+            * difficulty.questions_per_checkpoint,
+            "final_exam_question_count": (
+                content.final_exam_question_count if content is not None else 0
+            ),
+            "final_exam_question_target": difficulty.final_exam_questions,
+            "payload": content.payload if content is not None else None,
+        },
+    }
+
+
+@transaction.atomic
+def save_active_study_question_content(
+    *,
+    actor: User,
+    sheet_id: UUID,
+    difficulty_key: str,
+    payload: object,
+    expected_revision: int,
+) -> ActiveStudyQuestionContent:
+    sheet = LearningObject.objects.select_for_update().get(id=sheet_id)
+    validation = validate_active_study_question_content(
+        sheet=sheet, difficulty_key=difficulty_key, payload=payload
+    )
+    _, difficulty_plan = _difficulty_plan_for_sheet(sheet=sheet, difficulty_key=difficulty_key)
+    content = (
+        ActiveStudyQuestionContent.objects.select_for_update()
+        .filter(sheet=sheet, difficulty=difficulty_key)
+        .first()
+    )
+    if content is None:
+        if expected_revision != 0:
+            raise ContentConflictError("This Active Study content changed. Reload and try again.")
+        content = ActiveStudyQuestionContent.objects.create(
+            sheet=sheet,
+            difficulty=difficulty_key,
+            payload=validation.payload,
+            plan_signature=_plan_signature(difficulty_plan),
+            checkpoint_question_count=validation.checkpoint_question_count,
+            final_exam_question_count=validation.final_exam_question_count,
+            revision=1,
+            created_by=actor,
+            updated_by=actor,
+        )
+        action = "content.active_study_questions_imported"
+    else:
+        if content.revision != expected_revision:
+            raise ContentConflictError("This Active Study content changed. Reload and try again.")
+        content.payload = validation.payload
+        content.plan_signature = _plan_signature(difficulty_plan)
+        content.checkpoint_question_count = validation.checkpoint_question_count
+        content.final_exam_question_count = validation.final_exam_question_count
+        content.updated_by = actor
+        content.revision += 1
+        content.save(
+            update_fields=(
+                "payload",
+                "plan_signature",
+                "checkpoint_question_count",
+                "final_exam_question_count",
+                "updated_by",
+                "revision",
+                "updated_at",
+            )
+        )
+        action = "content.active_study_questions_replaced"
+    record_audit(
+        actor=actor,
+        action=action,
+        domain="content",
+        target_type="content.learning_object",
+        target_id=str(sheet.id),
+        reason="Active Study questions saved.",
+        source="content_management.api",
+        metadata={
+            "difficulty": difficulty_key,
+            "checkpoint_question_count": validation.checkpoint_question_count,
+            "final_exam_question_count": validation.final_exam_question_count,
+        },
+    )
+    return content
+
+
+@transaction.atomic
+def delete_active_study_question_content(
+    *, actor: User, sheet_id: UUID, difficulty_key: str, expected_revision: int
+) -> None:
+    sheet = LearningObject.objects.select_for_update().get(id=sheet_id)
+    _difficulty_for_key(difficulty_key)
+    content = ActiveStudyQuestionContent.objects.select_for_update().get(
+        sheet=sheet, difficulty=difficulty_key
+    )
+    if content.revision != expected_revision:
+        raise ContentConflictError("This Active Study content changed. Reload and try again.")
+    checkpoint_question_count = content.checkpoint_question_count
+    final_exam_question_count = content.final_exam_question_count
+    content.delete()
+    record_audit(
+        actor=actor,
+        action="content.active_study_questions_deleted",
+        domain="content",
+        target_type="content.learning_object",
+        target_id=str(sheet.id),
+        reason="Active Study questions deleted.",
+        source="content_management.api",
+        metadata={
+            "difficulty": difficulty_key,
+            "checkpoint_question_count": checkpoint_question_count,
+            "final_exam_question_count": final_exam_question_count,
+        },
+    )
+
+
+@transaction.atomic
+def update_active_study_settings(
+    *,
+    actor: User,
+    sheet_id: UUID,
+    expected_revision: int,
+    enabled: bool,
+    total_pdf_pages: int | None,
+    excluded_start_pages: int,
+    excluded_end_pages: int,
+    confirm_boundary_change: bool,
+) -> LearningObject:
+    sheet = LearningObject.objects.select_for_update().get(id=sheet_id)
+    settings, created = ActiveStudySettings.objects.select_for_update().get_or_create(sheet=sheet)
+    if not created and settings.revision != expected_revision:
+        raise ContentConflictError("These Active Study settings changed. Reload and try again.")
+    if created and expected_revision != 0:
+        raise ContentConflictError("These Active Study settings changed. Reload and try again.")
+    if created:
+        settings.revision = 0
+    resolved_total = total_pdf_pages if total_pdf_pages is not None else settings.total_pdf_pages
+    if enabled and resolved_total is None:
+        raise ContentRuleError("Enter the PDF's total page count before enabling Active Study.")
+    if enabled:
+        version = sheet.current_version
+        has_pdf = (
+            version is not None
+            and LearningObjectAsset.objects.filter(
+                version=version,
+                role=LearningObjectAsset.Role.PRIMARY,
+                managed_file__content_type="application/pdf",
+            ).exists()
+        )
+        if not has_pdf:
+            raise ContentRuleError("Upload a valid PDF before enabling Active Study.")
+    if resolved_total is not None:
+        try:
+            plan_payload(
+                total_pdf_pages=resolved_total,
+                excluded_start_pages=excluded_start_pages,
+                excluded_end_pages=excluded_end_pages,
+            )
+        except ActiveStudyPlanError as error:
+            raise ContentRuleError(str(error)) from error
+    boundaries_changed = (
+        settings.total_pdf_pages != resolved_total
+        or settings.excluded_start_pages != excluded_start_pages
+        or settings.excluded_end_pages != excluded_end_pages
+    )
+    has_existing_questions = (
+        sheet.question_versions.exists() or sheet.question_import_batches.exists()
+    )
+    if boundaries_changed and has_existing_questions and not confirm_boundary_change:
+        raise ContentRuleError(
+            "Changing excluded pages changes Active Study part boundaries. Existing question "
+            "configuration may no longer match this sheet; confirm before saving."
+        )
+    previous = active_study_payload(sheet=sheet)
+    settings.enabled = enabled
+    settings.total_pdf_pages = resolved_total
+    settings.excluded_start_pages = excluded_start_pages
+    settings.excluded_end_pages = excluded_end_pages
+    settings.revision += 1
+    settings.save(
+        update_fields=(
+            "enabled",
+            "total_pdf_pages",
+            "excluded_start_pages",
+            "excluded_end_pages",
+            "revision",
+            "updated_at",
+        )
+    )
+    record_audit(
+        actor=actor,
+        action="content.active_study_updated",
+        domain="content",
+        target_type="content.learning_object",
+        target_id=str(sheet.id),
+        reason="Active Study settings updated.",
+        source="content_management.api",
+        previous_state=previous,
+        new_state=active_study_payload(sheet=sheet),
+    )
+    return sheet

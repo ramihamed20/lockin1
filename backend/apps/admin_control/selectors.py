@@ -15,7 +15,7 @@ from apps.content.models import LearningObject
 from apps.entitlements.models import EntitlementGrant
 from apps.focus.models import FocusSession
 from apps.notifications.models import NotificationDelivery
-from apps.payments.manual_services import recharge_code_for_admin
+from apps.payments.manual_services import recharge_code_for_admin, recharge_codes_for_admin
 from apps.payments.models import ManualRechargeSubmission, Payment
 from apps.progress.models import LearningProgress
 from apps.provider_integrations.models import ProviderObjectLink
@@ -38,7 +38,11 @@ def admin_purchases(*, query: str = "", status: str = "") -> QuerySet[Payment]:
         "price",
         "manual_submission__reviewed_by",
     ).prefetch_related(
-        "transitions", "refunds__transitions", "invoice__lines", "invoice__transitions"
+        "transitions",
+        "refunds__transitions",
+        "invoice__lines",
+        "invoice__transitions",
+        "manual_submission__recharge_codes",
     )
     if status == "pending_review":
         payments = payments.filter(
@@ -102,6 +106,8 @@ def serialize_purchase(
             "id": manual.id,
             "status": manual.status,
             "recharge_code_masked": f"•••• {manual.recharge_code_last4}",
+            "recharge_codes_masked": [f"•••• {code.last4}" for code in manual.recharge_codes.all()]
+            or [f"•••• {manual.recharge_code_last4}"],
             "submitted_at": manual.submitted_at,
             "reviewed_at": manual.reviewed_at,
             "reviewed_by_name": manual.reviewed_by.full_name if manual.reviewed_by else "",
@@ -192,6 +198,7 @@ def serialize_purchase(
     )
     if manual is not None and reveal_recharge_code:
         payload["manual_submission"]["recharge_code"] = recharge_code_for_admin(manual)
+        payload["manual_submission"]["recharge_codes"] = recharge_codes_for_admin(manual)
     return payload
 
 

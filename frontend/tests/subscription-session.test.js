@@ -63,3 +63,15 @@ test("terminal states and direct manual access do not create recurring checks", 
   assert.equal(subscriptionRefreshAt(direct), null);
   assert.equal(isSubscriptionSnapshotFresh(direct, "user-1"), true);
 });
+
+test("Founder access is exempt from expiry checks without a paid entitlement", () => {
+  const founder = {
+    version: 1,
+    userId: "founder-1",
+    subscription: { status: "founder", access_allowed: true, access_exempt: true },
+    entitlements: []
+  };
+
+  assert.equal(subscriptionRefreshAt(founder), null);
+  assert.equal(isSubscriptionSnapshotFresh(founder, "founder-1"), true);
+});

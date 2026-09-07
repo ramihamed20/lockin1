@@ -19,18 +19,21 @@ function requiresSubscription(pathname) {
 export function ProtectedRoute({ user, loading = false, operationsSession = null }) {
   const location = useLocation();
   const subscriptionSession = useSubscriptionSession();
-  const { subscription } = subscriptionSession;
 
   if (loading) return <FullScreenState message="Opening your study room..." />;
   if (!user) return <Navigate to="/" replace state={{ from: location }} />;
   if (!canAccessRoute(user, location.pathname, operationsSession)) {
     return <ForbiddenState />;
   }
-  if (requiresSubscription(location.pathname) && !subscriptionSession.ready) {
+  // Access is enforced by Django on every protected request. Do not replace a
+  // restored route with a full-screen gate while its local access snapshot is
+  // silently being refreshed; if the server says access is unavailable, the
+  // normal expired-access state renders immediately afterward.
+  if (requiresSubscription(location.pathname) && !subscriptionSession.ready && subscriptionSession.error) {
     return <FullScreenState message={subscriptionSession.error || "Checking your Lock-in access…"} actionLabel={subscriptionSession.error ? "Try again" : ""} onAction={subscriptionSession.error ? subscriptionSession.refresh : null} />;
   }
-  if (requiresSubscription(location.pathname) && !subscriptionSession.canAccessNow()) {
-    return <ExpiredAccess subscription={subscription} />;
+  if (requiresSubscription(location.pathname) && subscriptionSession.ready && !subscriptionSession.canAccessNow()) {
+    return <ExpiredAccess />;
   }
 
   return <Outlet />;

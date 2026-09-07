@@ -1,6 +1,7 @@
 import { createContext, useContext } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Icon } from "../../lib/icons.jsx";
+import { LockinIcon } from "../../lib/lockinIcons.jsx";
 import { usePageTitle } from "../../hooks/usePageTitle.js";
 import { normalizeUserError } from "../../lib/errors.js";
 import { routeMetadata } from "../../lib/routeMetadata.js";
@@ -48,8 +49,17 @@ export function ListRow({ title, meta, icon, action }) {
   );
 }
 
-export function EmptyState({ title, text }) {
-  return <article className="empty-state"><Icon name="sparkles" /><h2 dir="auto">{title}</h2><p dir="auto">{text}</p></article>;
+/**
+ * An empty state is one of the few places worth a concept icon: it is large,
+ * it is the only thing on screen, and it is naming a part of the product
+ * rather than an action. Pass `icon` with a Lock-in concept name to say which
+ * part. Callers that pass nothing keep the generic mark they already had.
+ *
+ * The icon is decorative here -- the heading and the body text carry the
+ * meaning, so it stays out of the accessibility tree.
+ */
+export function EmptyState({ title, text, icon = "" }) {
+  return <article className="empty-state">{icon ? <LockinIcon name={icon} size={30} /> : <Icon name="sparkles" />}<h2 dir="auto">{title}</h2><p dir="auto">{text}</p></article>;
 }
 
 export function Skeleton({ className = "", style = undefined }) {

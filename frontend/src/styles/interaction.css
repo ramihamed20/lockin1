@@ -381,11 +381,7 @@
     content: "";
     pointer-events: none;
   }
-
-  /* --- Answer / option pickers ---------------------------------------- */
-
   .choices button.selected,
-  .demo-answer.selected,
   .workspace-v2-quiz-option.is-selected,
   .theme-card.selected,
   .character-card.selected,
@@ -395,13 +391,6 @@
     background: var(--ix-selected-surface);
     border-color: color-mix(in srgb, var(--color-primary) 44%, transparent);
     box-shadow: none;
-  }
-
-  /* Graded answers own their own semantic colour; selection must not add a
-     second frame on top of correct / incorrect. */
-  .demo-answer.correct,
-  .demo-answer.wrong {
-    background-image: none;
   }
 
   /* --- Rows and cards that merely navigate ---------------------------- *
@@ -430,14 +419,14 @@
 }
 
 /* ==================================================================== *
- * Primitives — resting layout for src/components/ui/interactive.jsx
- *
- * Layout only; every state above owns the interaction layer. This sits in
- * the lowest layer on purpose: a primitive can be dropped into markup that
- * still carries a historical class name (`.nav-btn`, `.icon-btn`, `.btn`)
- * and that class keeps control of size, spacing and shape, while the
- * interaction layer keeps control of what the states look like.
- * ==================================================================== */
+  * Primitives — resting layout for src/components/ui/interactive.jsx
+  *
+  * Layout only; every state above owns the interaction layer. This sits in
+  * the lowest layer on purpose: a primitive can be dropped into markup that
+  * still carries a historical class name (`.nav-btn`, `.icon-btn`, `.btn`)
+  * and that class keeps control of size, spacing and shape, while the
+  * interaction layer keeps control of what the states look like.
+  * ==================================================================== */
 
 @layer primitives {
   [data-ix] {

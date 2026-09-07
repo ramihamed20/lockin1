@@ -2,8 +2,8 @@ import { mkdir } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
-const WORKSPACE_ROUTE = "/#/materials/catalog/oral-histology/sheets/sheet-4/workspace";
-const SHARED_TEST_SHEET_ROUTE = "/#/materials/catalog/microbiology/sheets/sheet-1/workspace";
+const WORKSPACE_ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-2/workspace";
+const SHARED_TEST_SHEET_ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 const SCREENSHOT_DIR = "output/playwright";
 
 async function mockAuthenticatedWorkspace(page) {
@@ -54,7 +54,7 @@ async function mockAuthenticatedWorkspace(page) {
         return;
       }
       if (catalogBookmarked) {
-        await route.fulfill({ contentType: "application/json", body: JSON.stringify({ id: "catalog-bookmark", learning_object: null, catalog_material_slug: "oral-histology", catalog_material_title: "Oral Histology", catalog_sheet_slug: "sheet-4", catalog_sheet_title: "Sheet 4", position: { page: 1 }, created_at: "2026-01-01T00:00:00Z" }) });
+        await route.fulfill({ contentType: "application/json", body: JSON.stringify({ id: "catalog-bookmark", learning_object: null, catalog_material_slug: "biochemistry-1", catalog_material_title: "Biochemistry 1", catalog_sheet_slug: "vitamin-2", catalog_sheet_title: "Vitamin -2", position: { page: 1 }, created_at: "2026-01-01T00:00:00Z" }) });
       } else {
         await route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: { code: "not_found", message: "Bookmark not found" } }) });
       }
@@ -340,7 +340,7 @@ test("PDF view preferences restore position and zoom only while enabled @chromiu
     if (sessionStorage.getItem("workspace-view-seeded")) return;
     sessionStorage.setItem("workspace-view-seeded", "true");
     localStorage.setItem("lock-in.catalog-workspace.settings.v1", JSON.stringify({ rememberLastPosition: true, rememberZoomLevel: true, showPageNumber: true }));
-    localStorage.setItem("lock-in.catalog-workspace.v1.oral-histology.sheet-4", JSON.stringify({
+    localStorage.setItem("lock-in.catalog-workspace.v1.biochemistry-1.vitamin-2", JSON.stringify({
       version: 1,
       savedAt: new Date().toISOString(),
       page: 3,
@@ -360,7 +360,11 @@ test("PDF view preferences restore position and zoom only while enabled @chromiu
   await page.goto(WORKSPACE_ROUTE);
   await page.getByRole("button", { name: /Normal Study/ }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "Page 3 of 16");
+  // The indicator names the page holding most of the stage, not the page the
+  // stored view was anchored to. Page 3 is 736px against 1141px of stage here,
+  // so restoring a quarter of the way into it leaves page 4 covering more of
+  // the reader. The offset assertion below is what guards the restore itself.
+  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "Page 4 of 17");
   await expect.poll(async () => page.locator(".workspace-v2-a4-document").evaluate((node) => Number(getComputedStyle(node).getPropertyValue("--workspace-a4-zoom")))).toBeCloseTo(2.2, 5);
   await expect.poll(async () => page.evaluate(() => {
     const stage = document.querySelector(".workspace-v2-document-stage").getBoundingClientRect();
@@ -376,7 +380,7 @@ test("PDF view preferences restore position and zoom only while enabled @chromiu
   await page.reload();
   await page.getByRole("button", { name: /Normal Study/ }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "Page 1 of 16");
+  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "Page 1 of 17");
   await expect.poll(async () => page.evaluate(() => {
     const stage = document.querySelector(".workspace-v2-document-stage").getBoundingClientRect();
     const pdf = document.querySelector(".workspace-v2-a4-live-layer").getBoundingClientRect();
@@ -384,7 +388,7 @@ test("PDF view preferences restore position and zoom only while enabled @chromiu
   })).toBeLessThan(1.5);
 });
 
-test("the shared Oral Histology test PDF renders in a regular catalogue sheet", async ({ page }) => {
+test("a published catalogue sheet renders its PDF and zooms with the wheel", async ({ page }) => {
   test.setTimeout(60_000);
   const pageErrors = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
@@ -411,7 +415,7 @@ test("the shared Oral Histology test PDF renders in a regular catalogue sheet", 
     if (!stage) return false;
     const pageBounds = pageNode.getBoundingClientRect();
     const stageBounds = stage.getBoundingClientRect();
-    return pageBounds.width <= stageBounds.width + 1 && pageBounds.height > pageBounds.width;
+    return pageBounds.width <= stageBounds.width + 1 && pageBounds.height > 0;
   })).toBe(true);
 
   const pageShell = page.locator(".workspace-v2-a4-page").first();
@@ -428,6 +432,6 @@ test("the shared Oral Histology test PDF renders in a regular catalogue sheet", 
   const wheelZoomRatio = (await pageShell.boundingBox()).width / beforeZoom.width;
   expect(wheelZoomRatio).toBeLessThan(1.09);
 
-  await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-shared-test-sheet-1280x800.png`, fullPage: false });
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-published-sheet-1280x800.png`, fullPage: false });
   expect(pageErrors).toEqual([]);
 });

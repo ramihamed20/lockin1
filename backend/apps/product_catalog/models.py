@@ -113,6 +113,7 @@ class Price(models.Model):
     tax_behavior = models.CharField(
         max_length=12, choices=TaxBehavior.choices, default=TaxBehavior.UNSPECIFIED
     )
+    first_subscription_only = models.BooleanField(default=False)
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.DRAFT)
     valid_from = models.DateTimeField(null=True, blank=True)
     valid_until = models.DateTimeField(null=True, blank=True)

@@ -63,7 +63,7 @@ export default function Bookmarks() {
               action={<div className="focus-timer-actions"><Link className="btn btn-soft compact" to={openPath}>{t("common.open")}</Link><button className="btn btn-danger compact" type="button" onClick={() => setConfirmItem(item)} aria-label={t("bookmarks.removeNamed", { name: title })}><Icon name="x" size={17} /> {t("common.remove")}</button></div>}
             />
           );
-        }) : <EmptyState title={t("bookmarks.emptyTitle")} text={t("bookmarks.emptyText")} />}
+        }) : <EmptyState icon="study" title={t("bookmarks.emptyTitle")} text={t("bookmarks.emptyText")} />}
       </section>
       <PaginationControls page={page} pageData={bookmarks.data} onPageChange={setPage} label={t("bookmarks.pages")} />
       <ConfirmDialog

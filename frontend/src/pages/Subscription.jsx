@@ -26,9 +26,13 @@ function paidOffers(catalog) {
   return catalog.results.flatMap((product) => (product.plans || []).flatMap((plan) => {
     const version = plan.current_version;
     const price = version?.prices?.find((item) => String(item.currency).toUpperCase() === "LYD");
-    if (!version || !price) return [];
+    if (!version || !price || (price.first_subscription_only && !catalog.firstSubscriptionOfferEligible)) return [];
     return [{ product, plan, version, price }];
-  }));
+  })).sort((left, right) => Number(left.price.amount_minor) - Number(right.price.amount_minor));
+}
+
+function isFiveLyd(price) {
+  return Number(price?.amount_minor) === 5 * (10 ** Number(price?.currency_exponent || 0));
 }
 
 function paymentStatus(value, t) {
@@ -46,7 +50,7 @@ export default function Subscription() {
   const subscriptionSession = useSubscriptionSession();
   const details = useAsyncData(() => billingApi.details(), []);
   const [selectedPlan, setSelectedPlan] = useState("");
-  const [code, setCode] = useState("");
+  const [codes, setCodes] = useState(["", ""]);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -56,9 +60,14 @@ export default function Subscription() {
   if (details.loading) return <LoadingPanel />;
   if (details.error) return <ErrorPanel message={details.error} onRetry={details.reload} />;
 
-  const { subscription, accessAllowed, directAccess } = subscriptionSession;
+  const { subscription, directAccess, accessExempt } = subscriptionSession;
   const { payments, catalog } = details.data;
   const recentPayments = payments.filter((payment) => payment.method === "libyana").slice(0, 5);
+  const selectedOffer = offers.find(({ plan }) => plan.id === effectivePlan) || offers[0];
+  const oneCardOnly = isFiveLyd(selectedOffer?.price);
+  const pendingManualReview = recentPayments.some((payment) => payment.manual_submission?.status === "pending");
+  const renewalBlocked = subscription?.status === "active" && !subscription?.early_renewal_available;
+  const canSubmit = !renewalBlocked && !pendingManualReview;
   const periodEnd = subscription?.status === "trialing"
     ? subscription?.trial_ends_at
     : subscription?.current_period_ends_at;
@@ -68,7 +77,7 @@ export default function Subscription() {
       ? t("subscription.verified")
       : "—";
 
-  if (directAccess) {
+  if (directAccess || accessExempt) {
     return (
       <Page title={t("subscription.directAccess")} subtitle={t("subscription.directAccessBody")}>
         <section className="subscription-saved-banner subscription-direct-access">
@@ -85,9 +94,12 @@ export default function Subscription() {
     setError("");
     setNotice("");
     try {
-      const result = await billingApi.submitLibyana(effectivePlan, code);
+      const result = await billingApi.submitLibyana(
+        effectivePlan,
+        oneCardOnly ? [codes[0]] : codes.filter(Boolean)
+      );
       subscriptionSession.setAuthoritativeSubscription(result.subscription);
-      setCode("");
+      setCodes(["", ""]);
       setNotice(t("subscription.submitted"));
       details.reload();
     } catch (requestError) {
@@ -99,9 +111,9 @@ export default function Subscription() {
 
   return (
     <Page title={t("subscription.title")} subtitle={t("subscription.subtitle")}>
-      {!accessAllowed && (
-        <section className="subscription-saved-banner">
-          <div><p className="eyebrow">Lock-in</p><h2>{t("subscription.spaceSaved")}</h2><p>{t("subscription.spaceSavedBody")}</p></div>
+      {subscription?.early_renewal_available && (
+        <section className="subscription-saved-banner subscription-early-renewal">
+          <div><h2>{t("subscription.earlyRenewalDays", { count: subscription.remaining_days })}</h2><p>{t("subscription.earlyRenewalPromise")}</p></div>
           <a className="btn btn-primary" href="#libyana-payment">{t("subscription.renew")}</a>
         </section>
       )}
@@ -137,26 +149,37 @@ export default function Subscription() {
         </div>
         {!catalog.manualPaymentAvailable || !offers.length ? (
           <EmptyState title={t("subscription.noOffers")} text={t("subscription.noOffersBody")} />
+        ) : !canSubmit ? (
+          <div className="subscription-payment-unavailable">
+            <h3>{pendingManualReview ? t("subscription.pendingPaymentTitle") : t("subscription.renewalNotYet")}</h3>
+            <p>{pendingManualReview ? t("subscription.pendingPaymentBody") : t("subscription.renewalNotYetBody")}</p>
+          </div>
         ) : (
           <form className="libyana-payment-form" onSubmit={submitPayment}>
             <fieldset className="subscription-plan-options">
               <legend>{t("subscription.choosePlan")}</legend>
               {offers.map(({ plan, version, price }) => (
                 <label className={effectivePlan === plan.id ? "selected" : ""} key={plan.id}>
-                  <input type="radio" name="subscription-plan" value={plan.id} checked={effectivePlan === plan.id} onChange={() => setSelectedPlan(plan.id)} />
+                  <input type="radio" name="subscription-plan" value={plan.id} checked={effectivePlan === plan.id} onChange={() => { setSelectedPlan(plan.id); setCodes(["", ""]); }} />
                   <span><strong>{version.title}</strong><small>{version.description}</small></span>
                   <b>{money(price.amount_minor, price.currency, price.currency_exponent, locale)}</b>
                 </label>
               ))}
             </fieldset>
-            <label className="field libyana-code-field">
-              <span>{t("subscription.rechargeCode")}</span>
-              <input type="text" inputMode="numeric" autoComplete="off" dir="ltr" minLength={8} maxLength={64} value={code} onChange={(event) => setCode(event.target.value)} placeholder={t("subscription.codePlaceholder")} aria-describedby="libyana-code-hint" required />
-              <small id="libyana-code-hint">{t("subscription.codeHint")}</small>
-            </label>
+            <div className="libyana-code-stack">
+              <label className="field libyana-code-field">
+                <span>{t("subscription.rechargeCode")}</span>
+                <input type="text" inputMode="numeric" autoComplete="off" dir="ltr" pattern="[0-9]{13}" minLength={13} maxLength={13} value={codes[0]} onChange={(event) => setCodes([event.target.value.replace(/\D/g, "").slice(0, 13), codes[1]])} placeholder={t("subscription.codePlaceholder")} aria-describedby="libyana-code-hint" required />
+                <small id="libyana-code-hint">{t("subscription.codeHint")}</small>
+              </label>
+              {!oneCardOnly && <label className="field libyana-code-field">
+                <span>{t("subscription.additionalRechargeCode")}</span>
+                <input type="text" inputMode="numeric" autoComplete="off" dir="ltr" pattern="[0-9]{13}" minLength={13} maxLength={13} value={codes[1]} onChange={(event) => setCodes([codes[0], event.target.value.replace(/\D/g, "").slice(0, 13)])} placeholder={t("subscription.codePlaceholder")} />
+              </label>}
+            </div>
             {error && <p className="form-alert error" role="alert">{error}</p>}
             {notice && <p className="form-alert success" role="status">{notice}</p>}
-            <button className="btn btn-primary libyana-submit" type="submit" disabled={submitting || code.trim().length < 8}>{submitting ? t("subscription.submitting") : t("subscription.submitCard")}</button>
+            <button className="btn btn-primary libyana-submit" type="submit" disabled={submitting || codes[0].length !== 13 || (!oneCardOnly && codes[1] && codes[1].length !== 13)}>{submitting ? t("subscription.submitting") : t("subscription.submitCard")}</button>
             <p className="subscription-code-privacy">{t("subscription.codePrivacy")}</p>
           </form>
         )}
@@ -166,7 +189,7 @@ export default function Subscription() {
         <div className="panel-title"><div><p className="eyebrow">{t("subscription.history")}</p><h2>{t("subscription.recentPayments")}</h2></div><span>{recentPayments.length}</span></div>
         {recentPayments.length ? (
           <div className="subscription-history-list">
-            {recentPayments.map((payment) => <article className="list-row" key={payment.id}><div><h3>{payment.price_snapshot?.plan_title || t("subscription.payLibyana")}</h3><p>{money(payment.amount_minor, payment.currency, payment.currency_exponent, locale)} · {formatDateTime(payment.created_at)}</p><small>{paymentStatus(payment.manual_submission?.status, t)}</small></div><span>{payment.manual_submission?.recharge_code_masked}</span></article>)}
+            {recentPayments.map((payment) => <article className="list-row" key={payment.id}><div><h3>{payment.price_snapshot?.plan_title || t("subscription.payLibyana")}</h3><p>{money(payment.amount_minor, payment.currency, payment.currency_exponent, locale)} · {formatDateTime(payment.created_at)}</p><small>{paymentStatus(payment.manual_submission?.status, t)}</small>{payment.manual_submission?.status === "rejected" && <p className="subscription-rejection"><span>{t("subscription.paymentRejected")}: {payment.manual_submission?.rejection_reason}</span><a href="#libyana-payment">{t("subscription.retryPayment")}</a></p>}</div><span>{(payment.manual_submission?.recharge_codes_masked || []).join(" · ")}</span></article>)}
           </div>
         ) : <EmptyState title={t("subscription.noPayments")} text={t("subscription.noPaymentsBody")} />}
       </section>

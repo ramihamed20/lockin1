@@ -896,3 +896,34 @@ def test_a_suspended_account_is_verified_but_is_not_signed_in() -> None:
     assert User.objects.get().is_email_verified
     assert not auth.get_user(client).is_authenticated
     assert not AccountSession.objects.exists()
+
+
+def test_authenticated_api_responses_are_never_stored_by_any_cache() -> None:
+    """A cached copy of an account response outlives the session it belongs to,
+    so the browser must not be able to replay one after a sign-out."""
+
+    user = create_user(email="nostore@example.com", username="nostore")
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    session = client.get("/api/v1/auth/session")
+    profile = client.get("/api/v1/account/profile")
+
+    assert session.status_code == 200
+    for response in (session, profile):
+        directives = response.headers["Cache-Control"]
+        assert "no-store" in directives
+        assert "must-revalidate" in directives
+        assert response.headers["Pragma"] == "no-cache"
+
+
+def test_anonymous_and_rejected_api_responses_are_also_unstorable() -> None:
+    """The rejection itself is state: a cached 403 would answer for a session
+    that has since been created, and a cached 200 for one that has ended."""
+
+    anonymous = APIClient().get("/api/v1/auth/session")
+    cohorts = APIClient().get("/api/v1/auth/cohorts")
+
+    assert anonymous.status_code in (401, 403)
+    for response in (anonymous, cohorts):
+        assert "no-store" in response.headers["Cache-Control"]

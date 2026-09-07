@@ -30,7 +30,7 @@ export default function Achievements() {
         </div>
         <div className="achievement-ring">{completion}%</div>
       </section>
-      {!achievements.data.length ? <EmptyState title={t("achievements.emptyTitle")} text={t("achievements.emptyText")} /> : (
+      {!achievements.data.length ? <EmptyState icon="achievement" title={t("achievements.emptyTitle")} text={t("achievements.emptyText")} /> : (
         <section className="achievement-grid">
           {achievements.data.map((achievement) => {
             const current = Number(achievement.current_value) || 0;

@@ -7,7 +7,7 @@ import { fulfillAccessContract } from "./fixtures/productionApi.js";
  * fails here rather than on a student's device.
  */
 
-const WORKSPACE_ROUTE = "/#/materials/catalog/microbiology/sheets/sheet-1/workspace";
+const WORKSPACE_ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 const A4_PAGE_WIDTH = 595;
 
 const LANDSCAPE_PHONES = [
@@ -96,12 +96,29 @@ for (const viewport of LANDSCAPE_PHONES) {
 // P0: on a tablet in landscape the sidebar list was taller than its box, and
 // the scrollbar iPadOS draws only while a finger is moving was the sole hint
 // that anything continued below the fold.
+/**
+ * The overflow cue is published by a ResizeObserver, which delivers after the
+ * layout it describes. Reading the cue and the measurement together can land
+ * in the frame between the two and see a cue for an overflow that has already
+ * been absorbed, so the list is measured only once its box has stopped moving.
+ */
+async function waitForNavigationToSettle(page) {
+  await expect.poll(async () => page.evaluate(async () => {
+    const list = document.querySelector(".sidebar .nav-list");
+    if (!list) return false;
+    const before = `${list.scrollHeight}x${list.clientHeight}`;
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    return before === `${list.scrollHeight}x${list.clientHeight}`;
+  }), { timeout: 10_000 }).toBe(true);
+}
+
 for (const viewport of LANDSCAPE_TABLETS) {
   test(`the sidebar admits what it hides at ${viewport.name}`, async ({ page }) => {
     await mockStudent(page);
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto("/#/");
     await expect(page.locator(".sidebar")).toBeVisible();
+    await waitForNavigationToSettle(page);
 
     const navigation = await page.evaluate(() => {
       const list = document.querySelector(".sidebar .nav-list");
@@ -256,6 +273,34 @@ test("a remembered zoom follows the viewport instead of the old page width", asy
     canvasFitsStage: true,
     canvasOnScreen: true
   });
+});
+
+test("fit-width PDF follows a live resize while manual zoom preserves magnification", async ({ page }) => {
+  test.setTimeout(90_000);
+  await mockStudent(page);
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto(WORKSPACE_ROUTE);
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  const canvas = page.locator(".workspace-v2-a4-canvas.is-visible").first();
+  await expect(canvas).toBeVisible({ timeout: 20_000 });
+  await page.locator(".workspace-v2-page-number").click();
+  await page.getByRole("button", { name: "Fit width" }).click();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(() => page.evaluate(() => {
+    const stage = document.querySelector(".workspace-v2-document-stage");
+    const pageCanvas = document.querySelector(".workspace-v2-a4-canvas");
+    return Math.round(pageCanvas.getBoundingClientRect().width) <= stage.clientWidth + 1;
+  })).toBe(true);
+
+  await page.getByRole("button", { name: "Zoom in" }).click();
+  const manualZoom = await page.locator(".workspace-v2-a4-document").evaluate((node) => (
+    Number(getComputedStyle(node).getPropertyValue("--workspace-a4-zoom"))
+  ));
+  await page.setViewportSize({ width: 430, height: 932 });
+  await expect.poll(() => page.locator(".workspace-v2-a4-document").evaluate((node) => (
+    Number(getComputedStyle(node).getPropertyValue("--workspace-a4-zoom"))
+  ))).toBeCloseTo(manualZoom, 2);
 });
 
 // P0: a right-to-left reader starts scrolled to its right edge, so a page wider

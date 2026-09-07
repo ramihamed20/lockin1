@@ -18,6 +18,12 @@ from .views import (
     LockInTeamJoinView,
     LockInTeamMessagesView,
     LockInTeamsView,
+    ManagedActiveStudyAnswerView,
+    ManagedActiveStudyAvailabilityView,
+    ManagedActiveStudyQuestionsView,
+    ManagedActiveStudyRunView,
+    ManagedActiveStudyStartView,
+    ManagedActiveStudySubmitView,
 )
 
 app_name = "focus"
@@ -26,6 +32,21 @@ urlpatterns = [
     path("focus/active-study/start", ActiveStudyStartView.as_view()),
     path("focus/active-study/<uuid:run_id>/quiz", ActiveStudyQuizView.as_view()),
     path("focus/active-study/<uuid:run_id>/continue", ActiveStudyContinueView.as_view()),
+    path(
+        "focus/managed-active-study/sheets/<uuid:sheet_id>",
+        ManagedActiveStudyAvailabilityView.as_view(),
+    ),
+    path("focus/managed-active-study/start", ManagedActiveStudyStartView.as_view()),
+    path(
+        "focus/managed-active-study/<uuid:run_id>/questions",
+        ManagedActiveStudyQuestionsView.as_view(),
+    ),
+    path("focus/managed-active-study/<uuid:run_id>/answer", ManagedActiveStudyAnswerView.as_view()),
+    path("focus/managed-active-study/<uuid:run_id>/submit", ManagedActiveStudySubmitView.as_view()),
+    path(
+        "focus/managed-active-study/<uuid:run_id>/<str:action>",
+        ManagedActiveStudyRunView.as_view(),
+    ),
     path("focus/documents/<uuid:document_version_id>", FocusDocumentView.as_view()),
     path(
         "focus/documents/<uuid:document_version_id>/annotations",

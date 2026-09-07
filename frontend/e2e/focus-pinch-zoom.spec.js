@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
 import { WORKSPACE_GESTURE } from "../src/workspace/config.js";
 
-const ROUTE = "/#/materials/catalog/microbiology/sheets/sheet-1/workspace";
+const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 
 test("normal PDF zoom fills the stage width without side strips @chromium-only", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);

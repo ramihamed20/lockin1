@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 from django.core.management import call_command
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.tests.helpers import create_user
@@ -43,10 +44,13 @@ def _monthly_plan_and_price() -> tuple[Plan, Price]:
     return plan, price
 
 
-def _submit(client: APIClient, *, plan: Plan, code: str, key: str):
+def _submit(client: APIClient, *, plan: Plan, code: str, key: str, second_code: str = ""):
     return client.post(
         "/api/v1/payments/manual-libyana",
-        {"plan_id": str(plan.id), "recharge_code": code},
+        {
+            "plan_id": str(plan.id),
+            "recharge_codes": [code, *([second_code] if second_code else [])],
+        },
         format="json",
         HTTP_IDEMPOTENCY_KEY=key,
     )
@@ -72,7 +76,7 @@ def test_submission_uses_server_plan_terms_and_grants_provisional_access() -> No
         "/api/v1/payments/manual-libyana",
         {
             "plan_id": str(plan.id),
-            "recharge_code": "1234 5678 9012",
+            "recharge_codes": ["1234567890123"],
             "price": 1,
             "duration": 999,
             "status": "active",
@@ -83,7 +87,7 @@ def test_submission_uses_server_plan_terms_and_grants_provisional_access() -> No
     response = _submit(
         client,
         plan=plan,
-        code="1234 5678 9012",
+        code="1234567890123",
         key="manual-payment-submit-001",
     )
 
@@ -95,7 +99,7 @@ def test_submission_uses_server_plan_terms_and_grants_provisional_access() -> No
     assert payment.amount_minor == price.amount_minor
     assert payment.currency == price.currency
     assert submission.status == ManualRechargeSubmission.Status.PENDING
-    assert "123456789012" not in submission.recharge_code_ciphertext
+    assert "1234567890123" not in submission.recharge_code_ciphertext
     assert trial.status == Subscription.Status.ACTIVE
     assert trial.payment_verification == Subscription.PaymentVerification.PROVISIONAL
     assert trial.current_period_ends_at == trial.trial_ends_at + timedelta(days=30)
@@ -117,7 +121,7 @@ def test_manual_recharge_submission_requires_csrf_for_session_authentication() -
     response = _submit(
         client,
         plan=plan,
-        code="222233334444",
+        code="2222333344445",
         key="manual-csrf-rejected-001",
     )
 
@@ -138,7 +142,7 @@ def test_duplicate_recharge_code_is_rejected_for_another_user() -> None:
         _submit(
             first_client,
             plan=plan,
-            code="5555-4444-3333",
+            code="5555444433335",
             key="manual-duplicate-first-001",
         ).status_code
         == 201
@@ -146,7 +150,7 @@ def test_duplicate_recharge_code_is_rejected_for_another_user() -> None:
     duplicate = _submit(
         second_client,
         plan=plan,
-        code="555544443333",
+        code="5555444433335",
         key="manual-duplicate-second-001",
     )
 
@@ -162,7 +166,7 @@ def test_only_admin_can_review_and_approval_is_idempotent() -> None:
     submitted = _submit(
         client,
         plan=plan,
-        code="987654321012",
+        code="9876543210123",
         key="manual-approval-submit-001",
     )
     payment_id = submitted.json()["payment"]["id"]
@@ -188,7 +192,7 @@ def test_only_admin_can_review_and_approval_is_idempotent() -> None:
     pending_detail = admin_client.get(f"/api/v1/operations/admin/purchases/{payment_id}")
     assert pending_list.status_code == 200
     assert pending_detail.status_code == 200
-    assert pending_detail.json()["manual_submission"]["recharge_code"] == "987654321012"
+    assert pending_detail.json()["manual_submission"]["recharge_code"] == "9876543210123"
     first = admin_client.post(
         f"/api/v1/operations/admin/purchases/{payment_id}/manual-review",
         {"decision": "approve", "reason": "Card value verified"},
@@ -210,7 +214,7 @@ def test_only_admin_can_review_and_approval_is_idempotent() -> None:
     assert subscription.current_period_ends_at == expected_end
     assert submission.recharge_code_ciphertext == ""
     reviewed_detail = admin_client.get(f"/api/v1/operations/admin/purchases/{payment_id}")
-    assert reviewed_detail.json()["manual_submission"]["recharge_code"] == "********1012"
+    assert reviewed_detail.json()["manual_submission"]["recharge_code"] == "********0123"
     assert AuditRecord.objects.filter(action="payment_approved").count() == 1
 
 
@@ -233,7 +237,7 @@ def test_rejection_revokes_only_provisional_access_and_keeps_account_data() -> N
         response = _submit(
             client,
             plan=plan,
-            code="111122223333",
+            code="1111222233334",
             key="manual-rejection-submit-001",
         )
     payment_id = response.json()["payment"]["id"]
@@ -280,7 +284,7 @@ def test_grace_renewal_remains_anchored_to_original_expiration() -> None:
         response = _submit(
             client,
             plan=plan,
-            code="777788889999",
+            code="7777888899990",
             key="manual-grace-renewal-001",
         )
 
@@ -294,7 +298,7 @@ def test_lifecycle_reminders_grace_and_expiration_are_server_driven() -> None:
     plan, _ = _monthly_plan_and_price()
     version = plan.current_version
     assert version is not None
-    now = datetime(2026, 8, 29, 10, tzinfo=UTC)
+    now = timezone.now().replace(microsecond=0)
     subscription.plan_version = version
     subscription.status = Subscription.Status.ACTIVE
     subscription.trial_started_at = None
@@ -318,10 +322,9 @@ def test_lifecycle_reminders_grace_and_expiration_are_server_driven() -> None:
         == 1
     )
 
-    grace = refresh_subscription(
-        subscription=subscription,
-        now=subscription.current_period_ends_at,
-    )
+    subscription.refresh_from_db()
+    assert subscription.current_period_ends_at is not None
+    grace = refresh_subscription(subscription=subscription, now=subscription.current_period_ends_at)
     assert grace.status == Subscription.Status.GRACE
     assert grace.grace_ends_at - grace.current_period_ends_at == timedelta(days=7)
     expired = refresh_subscription(subscription=grace, now=grace.grace_ends_at)

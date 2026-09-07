@@ -9,7 +9,6 @@ import { isKnownNotificationRoute } from "../../lib/notificationRoutes.js";
 import { notificationPresentation } from "../../lib/notificationPresentation.js";
 import { PROGRESSION_UPDATED_EVENT } from "../../lib/progressionEvents.js";
 import { COMPACT_SHELL_QUERY, navItems, themeOptions } from "../../lib/constants.js";
-import { assets } from "../../lib/constants.js";
 import { assetPath, cssVars } from "../../lib/utils.js";
 import { PRODUCT_ROLES } from "../../api/contracts.js";
 import { hasProductRole } from "../../lib/authz.js";
@@ -23,6 +22,9 @@ import { formatNumber, greetingKey } from "../../lib/i18n.js";
 import { NavItem, RadioGroup, RadioOption, Skeleton, SkeletonAvatar, SkeletonText } from "../ui/index.jsx";
 import { UserAvatar } from "../shared/UserAvatar.jsx";
 import { GlobalSearch } from "../search/GlobalSearch.jsx";
+import { LockinIcon } from "../../lib/lockinIcons.jsx";
+import { getFeatureForNavigationPath, isFeatureComingSoon } from "../../lib/featureAvailability.js";
+import { acquireBodyScrollLock } from "../../lib/bodyScrollLock.js";
 
 // --- Brand ---
 
@@ -44,7 +46,7 @@ function roleNavigationItems(user, operationsSession) {
   const contentAdministrator = hasOperationalCapability(operationsSession, "content.manage");
   const assessmentAdministrator = hasOperationalCapability(operationsSession, "assessments.manage");
   const creatorItems = productCreator || contentAdministrator || assessmentAdministrator
-    ? [{ path: contentAdministrator || productCreator ? "/creator/education" : "/creator/questions", label: productCreator ? "Content Studio" : "Content Administration", labelKey: productCreator ? "nav.creator" : "nav.contentAdmin", icon: "layers", group: "Workspace", groupKey: "group.workspace" }]
+    ? [{ path: contentAdministrator || productCreator ? "/operations/admin/content" : "/creator/questions", label: productCreator ? "Content Studio" : "Content Administration", labelKey: productCreator ? "nav.creator" : "nav.contentAdmin", icon: "layers", group: "Workspace", groupKey: "group.workspace" }]
     : [];
   const operationsItems = hasOperationalCapability(operationsSession, "overview.view")
     ? [{ path: "/operations/admin/overview", label: "Creator Studio", labelKey: "nav.operations", icon: "settings", group: "Workspace", groupKey: "group.workspace" }]
@@ -75,12 +77,15 @@ export function NavList({ tabIndex = undefined, onNavigate = undefined, user, op
         const showGroup = item.group !== currentGroup;
         currentGroup = item.group;
         const active = isNavigationItemActive(location.pathname, item.path);
+        const feature = getFeatureForNavigationPath(item.path);
+        const comingSoon = isFeatureComingSoon(feature);
         return (
           <div className="nav-entry" key={item.path}>
             {showGroup && <span className="nav-section-label">{t(item.groupKey || `group.${item.group.toLowerCase()}`)}</span>}
-            <NavItem to={item.path} current={active} className={`nav-btn ${active ? "active" : ""}`.trim()} aria-label={t(item.labelKey || item.label)} title={t(item.labelKey || item.label)} tabIndex={tabIndex} onClick={onNavigate}>
-              <Icon name={item.icon} size={19} />
+            <NavItem to={item.path} current={active} className={`nav-btn ${active ? "active" : ""} ${comingSoon ? "nav-btn--coming-soon" : ""}`.trim()} aria-label={comingSoon ? t("features.navigationLabel", { feature: t(item.labelKey || item.label) }) : t(item.labelKey || item.label)} title={comingSoon ? t("features.navigationLabel", { feature: t(item.labelKey || item.label) }) : t(item.labelKey || item.label)} tabIndex={tabIndex} onClick={onNavigate} data-feature-id={feature?.id} data-feature-status={comingSoon ? feature.status : undefined}>
+              {comingSoon ? <LockinIcon name="coming-soon" size={19} /> : <Icon name={item.icon} size={19} />}
               <span>{t(item.labelKey || item.label)}</span>
+              {comingSoon && <small className="nav-coming-soon-label">{t("features.comingSoon")}</small>}
             </NavItem>
           </div>
         );
@@ -127,23 +132,6 @@ function drawerRoleLabel(user, t) {
   return t("shell.student");
 }
 
-function DrawerProfile({ user, tabIndex, active, onNavigate }) {
-  const { t } = useI18n();
-  return (
-    <section className={`drawer-profile ${active ? "active" : ""}`.trim()} aria-label={t("shell.signedInAccount")}>
-      <img src={assetPath(assets.mascot)} alt="" aria-hidden="true" draggable="false" />
-      <div className="drawer-profile-copy">
-        <strong dir="auto">{user?.name || t("shell.yourProfile")}</strong>
-        <span>{drawerRoleLabel(user, t)}</span>
-        {user?.email && <small>{user.email}</small>}
-      </div>
-      <Link className="drawer-profile-action" to="/profile" aria-label="Open profile" aria-current={active ? "page" : undefined} tabIndex={tabIndex} onClick={onNavigate} draggable="false">
-        <Icon name="chevron-right" size={17} />
-      </Link>
-    </section>
-  );
-}
-
 function DrawerNavGroup({ label, items, pathname, tabIndex, onNavigate, children = null }) {
   const { t } = useI18n();
   const generatedId = useId();
@@ -154,10 +142,13 @@ function DrawerNavGroup({ label, items, pathname, tabIndex, onNavigate, children
       <div className="drawer-nav-items">
         {items.map((item) => {
           const active = isNavigationItemActive(pathname, item.path);
+          const feature = getFeatureForNavigationPath(item.path);
+          const comingSoon = isFeatureComingSoon(feature);
           return (
-            <NavItem key={item.path} className={`nav-btn ${active ? "active" : ""}`.trim()} to={item.path} current={active} tabIndex={tabIndex} onClick={onNavigate}>
-              <Icon name={item.icon} size={19} />
+            <NavItem key={item.path} className={`nav-btn ${active ? "active" : ""} ${comingSoon ? "nav-btn--coming-soon" : ""}`.trim()} to={item.path} current={active} tabIndex={tabIndex} onClick={onNavigate} data-feature-id={feature?.id} data-feature-status={comingSoon ? feature.status : undefined}>
+              {comingSoon ? <LockinIcon name="coming-soon" size={19} /> : <Icon name={item.icon} size={19} />}
               <span>{t(item.labelKey || item.label)}</span>
+              {comingSoon && <small className="nav-coming-soon-label">{t("features.comingSoon")}</small>}
             </NavItem>
           );
         })}
@@ -200,7 +191,10 @@ export function StreakCard() {
 
   useEffect(() => {
     let active = true;
-    const loadStreak = () => {
+    let lastLoadedAt = 0;
+    const loadStreak = ({ force = false } = {}) => {
+      if (!force && Date.now() - lastLoadedAt < 60_000) return;
+      lastLoadedAt = Date.now();
       motivationApi.streakSummary()
         .then((data) => { if (active) setState({ loading: false, error: "", data }); })
         .catch((error) => { if (active) setState({ loading: false, error: error.message || "Streak unavailable", data: null }); });
@@ -209,11 +203,12 @@ export function StreakCard() {
       if (!document.hidden) loadStreak();
     };
     loadStreak();
-    window.addEventListener(PROGRESSION_UPDATED_EVENT, loadStreak);
+    const refreshAfterProgressChange = () => loadStreak({ force: true });
+    window.addEventListener(PROGRESSION_UPDATED_EVENT, refreshAfterProgressChange);
     document.addEventListener("visibilitychange", refreshWhenVisible);
     return () => {
       active = false;
-      window.removeEventListener(PROGRESSION_UPDATED_EVENT, loadStreak);
+      window.removeEventListener(PROGRESSION_UPDATED_EVENT, refreshAfterProgressChange);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, []);
@@ -223,19 +218,21 @@ export function StreakCard() {
   }
 
   if (state.error || !state.data) {
-    return <Link className="streak-card streak-card--unavailable" to="/lock-in"><div className="streak-card-heading"><Icon name="flame" size={18} /><span>Study streak</span><small>30 days</small></div><strong className="streak-card-value">— <small>day</small></strong><span className="streak-card-track"><i style={{ width: "0%" }} /></span><FreezeRow /></Link>;
+    return <div className="streak-card streak-card--unavailable" role="group" aria-label="Study streak unavailable"><div className="streak-card-heading"><Icon name="flame" size={18} /><span>Study streak</span><small>30 days</small></div><strong className="streak-card-value">— <small>day</small></strong><span className="streak-card-track"><i style={{ width: "0%" }} /></span><FreezeRow /></div>;
   }
 
   const currentDays = Number(state.data.current_days) || 0;
   const streakTier = getStreakTier(currentDays);
   const streakStyle = /** @type {import("react").CSSProperties & { "--streak-tier-color": string }} */ ({ "--streak-tier-color": streakTier.color });
   return (
-    <Link className={`streak-card ${currentDays ? "streak-card--active" : "streak-card--ready"}`} to="/lock-in" aria-label={`${currentDays} day study streak. Open Lock In.`} style={streakStyle}>
+    // A reading, not a destination: it reports the streak and goes nowhere, so
+    // it is not a link and takes no place in the tab order.
+    <div className={`streak-card ${currentDays ? "streak-card--active" : "streak-card--ready"}`} role="group" aria-label={`${currentDays} day study streak`} style={streakStyle}>
       <div className="streak-card-heading"><Icon name="flame" size={18} /><span>Study streak</span><small>30 days</small></div>
       <strong className="streak-card-value">{currentDays} <small>day</small></strong>
       <span className="streak-card-track"><i style={{ width: `${streakTier.progress}%` }} /></span>
       <FreezeRow />
-    </Link>
+    </div>
   );
 }
 
@@ -438,15 +435,10 @@ export function Topbar({ user, theme, onThemeChange, onLogout, onMenu, menuOpen,
 
   useEffect(() => {
     if (!profileMenuOpen || !isPhone) return undefined;
-    const { body } = document;
-    const previousOverflow = body.style.overflow;
-    const previousTouchAction = body.style.touchAction;
-    body.style.overflow = "hidden";
-    body.style.touchAction = "none";
+    const releaseScrollLock = acquireBodyScrollLock({ touchAction: "none" });
     window.setTimeout(() => profilePanelRef.current?.focus(), 0);
     return () => {
-      body.style.overflow = previousOverflow;
-      body.style.touchAction = previousTouchAction;
+      releaseScrollLock();
     };
   }, [isPhone, profileMenuOpen]);
 
@@ -965,7 +957,7 @@ export function Shell({ children, user, operationsSession, theme, onThemeChange,
 
   useEffect(() => {
     if (!drawerOpen) return undefined;
-    const previousOverflow = document.body.style.overflow;
+    const releaseScrollLock = acquireBodyScrollLock();
     window.setTimeout(() => drawerCloseRef.current?.focus(), 0);
     const handleKeyDown = (event) => {
       if (event.key === "Escape") closeDrawer();
@@ -985,12 +977,11 @@ export function Shell({ children, user, operationsSession, theme, onThemeChange,
         }
       }
     };
-    document.body.style.overflow = "hidden";
     document.addEventListener("keydown", handleKeyDown);
     return () => {
       const trigger = drawerTriggerRef.current;
       const shouldRestoreFocus = restoreDrawerFocusRef.current;
-      document.body.style.overflow = previousOverflow;
+      releaseScrollLock();
       document.removeEventListener("keydown", handleKeyDown);
       drawerGestureRef.current = null;
       resetDrawerGestureStyles();
@@ -1013,10 +1004,9 @@ export function Shell({ children, user, operationsSession, theme, onThemeChange,
   }
 
   // While a quiz is being answered the product chrome is a hazard: a mis-tap on
-  // the bottom bar leaves the attempt. Both attempt screens carry their own
-  // "Exit quiz", so the shell steps back and lets them own the viewport.
-  const answeringQuiz = location.pathname.startsWith("/questions/attempts/")
-    || location.pathname.startsWith("/questions/demo/");
+  // the bottom bar leaves the attempt. The attempt screen carries its own
+  // "Exit quiz", so the shell steps back and lets it own the viewport.
+  const answeringQuiz = location.pathname.startsWith("/questions/attempts/");
 
   return (
       <div className={`app-shell ${keyboardOpen ? "keyboard-open" : ""} ${answeringQuiz ? "is-answering" : ""}`.trim()}>
@@ -1065,9 +1055,12 @@ export function Shell({ children, user, operationsSession, theme, onThemeChange,
             </button>
           </div>
           <div className="drawer-scroll" ref={drawerScrollRef}>
-            <DrawerProfile user={user} active={location.pathname.startsWith("/profile")} tabIndex={drawerTabIndex} onNavigate={() => closeDrawer({ restoreFocus: false })} />
             <MobileDrawerNavigation user={user} operationsSession={operationsSession} pathname={location.pathname} tabIndex={drawerTabIndex} onNavigate={() => closeDrawer({ restoreFocus: false })} onLogout={() => { closeDrawer({ restoreFocus: false }); onLogout(); }} />
             <DrawerThemeSelector activeTheme={theme} onThemeChange={onThemeChange} tabIndex={drawerTabIndex} />
+            {/* The same streak the sidebar shows, in the place the phone keeps
+                its navigation. It is the identical component, so it reads the
+                same here as it does on a tablet or a laptop. */}
+            <StreakCard />
           </div>
         </aside>
       </div>

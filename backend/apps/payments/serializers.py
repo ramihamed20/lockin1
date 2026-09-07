@@ -37,7 +37,7 @@ class PaymentSerializer(serializers.ModelSerializer[Payment]):
 
 
 class ManualRechargeSubmissionSerializer(serializers.ModelSerializer[ManualRechargeSubmission]):
-    recharge_code_masked = serializers.SerializerMethodField()
+    recharge_codes_masked = serializers.SerializerMethodField()
 
     class Meta:
         model = ManualRechargeSubmission
@@ -45,7 +45,7 @@ class ManualRechargeSubmissionSerializer(serializers.ModelSerializer[ManualRecha
             "id",
             "payment_id",
             "status",
-            "recharge_code_masked",
+            "recharge_codes_masked",
             "submitted_at",
             "reviewed_at",
             "rejection_reason",
@@ -54,14 +54,20 @@ class ManualRechargeSubmissionSerializer(serializers.ModelSerializer[ManualRecha
         )
         read_only_fields = fields
 
-    def get_recharge_code_masked(self, submission: ManualRechargeSubmission) -> str:
-        return f"•••• {submission.recharge_code_last4}"
+    def get_recharge_codes_masked(self, submission: ManualRechargeSubmission) -> list[str]:
+        codes = list(submission.recharge_codes.all())
+        if not codes:
+            return [f"•••• {submission.recharge_code_last4}"]
+        return [f"•••• {code.last4}" for code in codes]
 
 
 class ManualRechargeRequestSerializer(StrictSerializer):
     plan_id = serializers.UUIDField()
-    recharge_code = serializers.CharField(
-        min_length=8, max_length=64, trim_whitespace=True, write_only=True
+    recharge_codes = serializers.ListField(
+        child=serializers.RegexField(r"^[0-9]{13}$"),
+        min_length=1,
+        max_length=2,
+        write_only=True,
     )
 
 

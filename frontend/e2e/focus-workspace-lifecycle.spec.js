@@ -2,8 +2,8 @@ import { expect, test } from "@playwright/test";
 import { withoutServiceWorker } from "./helpers/serviceWorker.js";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
-const ROUTE = "/#/materials/catalog/microbiology/sheets/sheet-1/workspace";
-const SHEET_ROUTE = "/#/materials/catalog/microbiology/sheets/sheet-1";
+const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
+const SHEET_ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1";
 
 async function mockWorkspace(page) {
   await withoutServiceWorker(page);
@@ -102,18 +102,21 @@ test("a stroke interrupted by a pinch is kept, and no gesture state stays stuck"
   const stage = page.locator(".workspace-v2-document-stage");
   const bounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
   const y = bounds.y + bounds.height * 0.35;
+  // The fingers land below the pen but on the same page, so the offset follows
+  // the page rather than a fixed number of pixels.
+  const pinchY = y + bounds.height * 0.3;
   await page.getByRole("button", { name: "Pen", exact: true }).click();
 
   await sendPointer(stage, "pointerdown", 111, bounds.x + bounds.width * 0.3, y);
   await sendPointer(stage, "pointermove", 111, bounds.x + bounds.width * 0.45, y + 12);
   await sendPointer(stage, "pointermove", 111, bounds.x + bounds.width * 0.58, y + 4);
   // Two fingers land while the pen is still down.
-  await sendPointer(stage, "pointerdown", 112, bounds.x + 120, y + 200, "touch");
-  await sendPointer(stage, "pointerdown", 113, bounds.x + 320, y + 200, "touch");
-  await sendPointer(stage, "pointermove", 112, bounds.x + 90, y + 210, "touch");
-  await sendPointer(stage, "pointermove", 113, bounds.x + 360, y + 210, "touch");
-  await sendPointer(stage, "pointerup", 112, bounds.x + 90, y + 210, "touch");
-  await sendPointer(stage, "pointerup", 113, bounds.x + 360, y + 210, "touch");
+  await sendPointer(stage, "pointerdown", 112, bounds.x + 120, pinchY, "touch");
+  await sendPointer(stage, "pointerdown", 113, bounds.x + 320, pinchY, "touch");
+  await sendPointer(stage, "pointermove", 112, bounds.x + 90, pinchY + 10, "touch");
+  await sendPointer(stage, "pointermove", 113, bounds.x + 360, pinchY + 10, "touch");
+  await sendPointer(stage, "pointerup", 112, bounds.x + 90, pinchY + 10, "touch");
+  await sendPointer(stage, "pointerup", 113, bounds.x + 360, pinchY + 10, "touch");
   await sendPointer(stage, "pointercancel", 111, bounds.x + bounds.width * 0.58, y + 4);
 
   // The interrupted stroke is committed rather than thrown away.
@@ -124,9 +127,9 @@ test("a stroke interrupted by a pinch is kept, and no gesture state stays stuck"
   expect(await layer.evaluate((node) => node.style.transform)).toBe("");
 
   // The workspace still accepts a completely ordinary stroke afterwards.
-  await sendPointer(stage, "pointerdown", 114, bounds.x + bounds.width * 0.3, y + 90);
-  await sendPointer(stage, "pointermove", 114, bounds.x + bounds.width * 0.55, y + 96);
-  await sendPointer(stage, "pointerup", 114, bounds.x + bounds.width * 0.55, y + 96);
+  await sendPointer(stage, "pointerdown", 114, bounds.x + bounds.width * 0.3, y + bounds.height * 0.15);
+  await sendPointer(stage, "pointermove", 114, bounds.x + bounds.width * 0.55, y + bounds.height * 0.15 + 6);
+  await sendPointer(stage, "pointerup", 114, bounds.x + bounds.width * 0.55, y + bounds.height * 0.15 + 6);
   await expect(visibleInk(page)).toHaveCount(2);
 });
 

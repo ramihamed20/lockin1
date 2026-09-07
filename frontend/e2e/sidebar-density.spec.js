@@ -107,22 +107,81 @@ for (const viewport of DESKTOP_VIEWPORTS) {
 test("a laptop hides no destinations from an operations account", async ({ page }) => {
   await openShell(page, { width: 1440, height: 900 }, OPERATIONS_ACCOUNT);
   const sidebar = await page.evaluate(readSidebar);
-  expect(sidebar.density).toBe("compact");
-  expect(sidebar.hidden).toBeLessThanOrEqual(1);
+  // The streak card is a fixed size now rather than one that collapses when
+  // the destinations need room, so the densest account can overflow a laptop
+  // sidebar. What has to hold is that nothing becomes unreachable: if anything
+  // is below the fold, the list scrolls and says so.
+  if (sidebar.hidden > 1) {
+    expect(sidebar.cue, "the nav list hides destinations without a cue").not.toBe("none");
+    const lastReachable = await page.evaluate(() => {
+      const list = document.querySelector(".sidebar .nav-list");
+      list.scrollTop = list.scrollHeight;
+      const rows = [...list.querySelectorAll("a[href^='#/']")];
+      const last = rows[rows.length - 1].getBoundingClientRect();
+      return last.top >= 0 && last.bottom <= window.innerHeight + 1;
+    });
+    expect(lastReachable, "the last destination cannot be scrolled to").toBe(true);
+  }
 });
 
-// The other half of the contract: density is measured, so a sidebar that fits
-// keeps the streak card whole rather than collapsing on every laptop.
-test("a sidebar with room to spare keeps its streak card whole", async ({ page }) => {
-  await openShell(page, { width: 1920, height: 1080 }, STUDENT_ACCOUNT);
-  const sidebar = await page.evaluate(readSidebar);
-  expect(sidebar.density).toBe("comfortable");
-  expect(sidebar.hidden).toBeLessThanOrEqual(1);
+/** The streak card's rendered shape, for comparison across viewports. */
+function readStreak() {
+  const card = document.querySelector(".sidebar .streak-card");
+  if (!card) return { present: false };
+  const style = window.getComputedStyle(card);
+  return {
+    present: true,
+    height: Math.round(card.getBoundingClientRect().height),
+    padding: style.padding,
+    parts: [...card.children]
+      .filter((child) => window.getComputedStyle(child).display !== "none")
+      .map((child) => child.className)
+      .join("+"),
+    label: card.querySelector(".streak-card-heading span")?.textContent || ""
+  };
+}
 
-  const streak = await page.evaluate(() => {
-    const card = document.querySelector(".sidebar .streak-card");
-    return { height: Math.round(card.getBoundingClientRect().height), trackVisible: Boolean(card.querySelector(".streak-card-track")) && window.getComputedStyle(card.querySelector(".streak-card-track")).display !== "none" };
-  });
-  expect(streak.height).toBeGreaterThan(100);
-  expect(streak.trackVisible).toBe(true);
+// The streak card used to be laid out by `data-density`, which is measured from
+// how much room the destinations leave, and by width bands and a pointer-type
+// query on top of that. The same account therefore saw a different card on a
+// laptop than on an iPad, and an iPad changed it simply by being rotated. It is
+// one shape now, wherever it renders.
+test("the study streak looks the same on every viewport", async ({ page }) => {
+  const shapes = [];
+  for (const viewport of [
+    { width: 1920, height: 1080, name: "desktop" },
+    { width: 1440, height: 900, name: "laptop" },
+    { width: 1280, height: 800, name: "small laptop" },
+    { width: 1112, height: 834, name: "iPad landscape" },
+    { width: 1024, height: 1366, name: "iPad portrait" }
+  ]) {
+    await openShell(page, viewport, STUDENT_ACCOUNT);
+    shapes.push({ name: viewport.name, ...(await page.evaluate(readStreak)) });
+  }
+
+  for (const shape of shapes) {
+    expect(shape.present, `${shape.name} hides the streak card`).toBe(true);
+    // The label is kept everywhere; one width band used to drop it entirely.
+    expect(shape.label, `${shape.name} drops the label`).toBe("Study streak");
+  }
+  // Every viewport renders the same parts at the same size.
+  const reference = shapes[0];
+  for (const shape of shapes.slice(1)) {
+    expect({ n: shape.name, parts: shape.parts, padding: shape.padding })
+      .toEqual({ n: shape.name, parts: reference.parts, padding: reference.padding });
+    expect(Math.abs(shape.height - reference.height), `${shape.name} height differs`).toBeLessThanOrEqual(2);
+  }
+});
+
+// Rotation is the case that made this obvious to read.
+test("rotating an iPad does not reshape the streak card", async ({ page }) => {
+  await openShell(page, { width: 834, height: 1112 }, STUDENT_ACCOUNT);
+  const portrait = await page.evaluate(readStreak);
+  await page.setViewportSize({ width: 1112, height: 834 });
+  await page.waitForTimeout(250);
+  const landscape = await page.evaluate(readStreak);
+
+  expect(landscape.parts).toBe(portrait.parts);
+  expect(landscape.padding).toBe(portrait.padding);
+  expect(Math.abs(landscape.height - portrait.height)).toBeLessThanOrEqual(2);
 });

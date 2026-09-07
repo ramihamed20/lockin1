@@ -4,7 +4,7 @@ import { Icon } from "../../lib/icons.jsx";
 import { authApi } from "../../lib/api.js";
 import { assetPath } from "../../lib/utils.js";
 import { useI18n } from "../I18nProvider.jsx";
-import { AccountFieldErrors, AccountFormAlert } from "../account/AccountFormErrors.jsx";
+import { AccountFieldErrors, AccountFormAlert, fieldErrorAttributes } from "../account/AccountFormErrors.jsx";
 import "./auth.css";
 
 const EMPTY_FORM = Object.freeze({
@@ -31,16 +31,18 @@ function GoogleIcon() {
 }
 
 function PasswordField({ id, label, value, onChange, autoComplete, placeholder, error, show, onToggle, t }) {
+  const field = id === "auth-confirm" ? "password_confirm" : "password";
+  const errorId = `${id}-error`;
   return (
     <div className="auth-v2-field">
       <label htmlFor={id}>{label}</label>
       <div className="auth-v2-input-shell auth-v2-password-shell">
-        <input id={id} type={show ? "text" : "password"} value={value} onChange={onChange} autoComplete={autoComplete} placeholder={placeholder} required />
+        <input id={id} type={show ? "text" : "password"} value={value} onChange={onChange} autoComplete={autoComplete} placeholder={placeholder} required {...fieldErrorAttributes(error, field, errorId)} />
         <button className="auth-v2-password-toggle" type="button" onClick={onToggle} aria-label={show ? t("auth.hidePassword") : t("auth.showPassword")} aria-pressed={show}>
           <Icon name={show ? "eye-off" : "eye"} size={18} />
         </button>
       </div>
-      <AccountFieldErrors error={error} field={id === "auth-confirm" ? "password_confirm" : "password"} />
+      <AccountFieldErrors error={error} field={field} id={errorId} />
     </div>
   );
 }
@@ -59,7 +61,7 @@ function oauthMessage(t, outcome, code) {
   return t(keys[code] || "auth.oauthProviderError");
 }
 
-export function AuthPage({ onAuthed, completionUser = null, onSignOut = null }) {
+export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, notice = "", onDismissNotice = null }) {
   const { locale, direction, setLocale, t } = useI18n();
   const [mode, setMode] = useState(completionUser ? "complete" : "login");
   const [form, setForm] = useState(() => ({
@@ -167,6 +169,7 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null }) 
   }
 
   function changeMode(nextMode) {
+    onDismissNotice?.();
     setMode(nextMode);
     setError(null);
     setMessage("");
@@ -203,6 +206,7 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null }) 
 
   async function handleSubmit(event) {
     event.preventDefault();
+    onDismissNotice?.();
     setError(null);
     setMessage("");
     if (mode === "signup" && form.password !== form.confirm) {
@@ -262,6 +266,10 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null }) 
           <div className="auth-v2-card-inner">
             <div className="auth-v2-heading"><h1 id="auth-v2-title">{heading[0]}</h1><p>{heading[1]}</p></div>
 
+            {notice && (
+              <p className="form-alert error auth-v2-session-notice" role="status" dir="auto">{notice}</p>
+            )}
+
             {socialVisible && (
               <div className="auth-v2-social" aria-label={t("auth.or")}>
                 <button type="button" className="auth-v2-social-button" onClick={() => beginSocial("google")} disabled={busy || providers.google !== true} title={providers.google === false ? t("auth.providerUnavailable") : undefined} aria-describedby="auth-social-consent">
@@ -292,19 +300,19 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null }) 
                     minLength={3}
                     maxLength={30}
                     placeholder={t("auth.usernamePlaceholder")}
-                    aria-describedby="auth-username-hint"
+                    {...fieldErrorAttributes(error, "username", "auth-username-error", "auth-username-hint")}
                     required
                   />
                   <p id="auth-username-hint" className="auth-v2-cohort-status">{t("auth.usernameHint")}</p>
-                  <AccountFieldErrors error={error} field="username" />
+                  <AccountFieldErrors error={error} field="username" id="auth-username-error" />
                 </div>
               )}
 
               {(mode === "signup" || (mode === "complete" && !requiresUsername && requiresName)) && (
                 <div className="auth-v2-field">
                   <label htmlFor="auth-name">{t("auth.fullName")}</label>
-                  <input id="auth-name" type="text" value={form.name} onChange={(event) => updateForm("name", event.target.value)} autoComplete="name" enterKeyHint="next" placeholder={t("auth.fullNamePlaceholder")} required />
-                  <AccountFieldErrors error={error} field="full_name" />
+                  <input id="auth-name" type="text" value={form.name} onChange={(event) => updateForm("name", event.target.value)} autoComplete="name" enterKeyHint="next" placeholder={t("auth.fullNamePlaceholder")} required {...fieldErrorAttributes(error, "full_name", "auth-name-error")} />
+                  <AccountFieldErrors error={error} field="full_name" id="auth-name-error" />
                 </div>
               )}
 
@@ -322,11 +330,11 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null }) 
 
                 <div className="auth-v2-field">
                   <label htmlFor="auth-cohort">{t("auth.cohort")}</label>
-                  <select id="auth-cohort" value={form.cohortId} onChange={(event) => updateForm("cohortId", event.target.value)} required disabled={!form.programId || cohortLoading || !availableCohorts.length || busy}>
+                  <select id="auth-cohort" value={form.cohortId} onChange={(event) => updateForm("cohortId", event.target.value)} required disabled={!form.programId || cohortLoading || !availableCohorts.length || busy} {...fieldErrorAttributes(error, "cohort_id", "auth-cohort-error")}>
                     <option value="">{t("auth.chooseCohort")}</option>
                     {availableCohorts.map((cohort) => <option value={cohort.id} key={cohort.id}>{locale === "ar" ? cohort.name_ar : cohort.name_en}</option>)}
                   </select>
-                  <AccountFieldErrors error={error} field="cohort_id" />
+                  <AccountFieldErrors error={error} field="cohort_id" id="auth-cohort-error" />
                 </div>
                 </>
               )}
@@ -334,8 +342,8 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null }) 
               {mode !== "complete" && (
                 <div className="auth-v2-field">
                   <label htmlFor="auth-email">{t("auth.email")}</label>
-                  <input id="auth-email" className="auth-v2-email" type="email" value={form.email} onChange={(event) => updateForm("email", event.target.value)} inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck="false" enterKeyHint={mode === "forgot" ? "send" : "next"} placeholder={t("auth.emailPlaceholder")} required />
-                  <AccountFieldErrors error={error} field="email" />
+                  <input id="auth-email" className="auth-v2-email" type="email" value={form.email} onChange={(event) => updateForm("email", event.target.value)} inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck="false" enterKeyHint={mode === "forgot" ? "send" : "next"} placeholder={t("auth.emailPlaceholder")} required {...fieldErrorAttributes(error, "email", "auth-email-error")} />
+                  <AccountFieldErrors error={error} field="email" id="auth-email-error" />
                 </div>
               )}
 
@@ -352,10 +360,10 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null }) 
               {mode === "signup" && (
                 <div>
                   <label className="auth-v2-check auth-v2-policy">
-                    <input type="checkbox" checked={form.acceptPolicies} onChange={(event) => updateForm("acceptPolicies", event.target.checked)} required />
+                    <input type="checkbox" checked={form.acceptPolicies} onChange={(event) => updateForm("acceptPolicies", event.target.checked)} required {...fieldErrorAttributes(error, "accept_policies", "auth-policies-error")} />
                     <span>{t("auth.termsPrefix")} <Link to="/terms">{t("auth.terms")}</Link> {t("auth.and")} <Link to="/privacy">{t("auth.privacy")}</Link></span>
                   </label>
-                  <AccountFieldErrors error={error} field="accept_policies" />
+                  <AccountFieldErrors error={error} field="accept_policies" id="auth-policies-error" />
                 </div>
               )}
 

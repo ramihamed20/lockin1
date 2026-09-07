@@ -17,6 +17,7 @@ class PriceSerializer(serializers.ModelSerializer[Price]):
             "interval_count",
             "tax_behavior",
             "valid_until",
+            "first_subscription_only",
         )
 
 

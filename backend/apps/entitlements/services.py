@@ -8,6 +8,7 @@ from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
 
 from apps.accounts.models import User
+from apps.accounts.roles import is_subscription_exempt
 from apps.subscriptions.models import Subscription
 from platform_core.events import publish_after_commit
 
@@ -258,6 +259,8 @@ def entitlement_decision(
         return EntitlementDecision(code=code, allowed=False, reason="account_inactive")
     if user.email_verified_at is None:
         return EntitlementDecision(code=code, allowed=False, reason="verification_required")
+    if is_subscription_exempt(user):
+        return EntitlementDecision(code=code, allowed=True, reason="founder_access")
     current = at or timezone.now()
     grant = (
         EntitlementGrant.objects.filter(

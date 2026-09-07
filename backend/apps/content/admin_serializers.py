@@ -44,3 +44,36 @@ class AdminSheetReplacePdfSerializer(StrictSerializer):
 
 class AdminSheetDeletePdfSerializer(StrictSerializer):
     expected_revision = serializers.IntegerField(min_value=1)
+
+
+class AdminSheetReorderSerializer(StrictSerializer):
+    expected_revision = serializers.IntegerField(min_value=1)
+    target_sheet_id = serializers.UUIDField()
+    placement = serializers.ChoiceField(choices=("before", "after"))
+
+
+class AdminActiveStudySettingsSerializer(StrictSerializer):
+    expected_revision = serializers.IntegerField(min_value=0)
+    enabled = serializers.BooleanField()
+    total_pdf_pages = serializers.IntegerField(
+        min_value=1, max_value=10_000, allow_null=True, required=False
+    )
+    excluded_start_pages = serializers.IntegerField(
+        min_value=0, max_value=9_999, required=False, default=0
+    )
+    excluded_end_pages = serializers.IntegerField(
+        min_value=0, max_value=9_999, required=False, default=0
+    )
+    confirm_boundary_change = serializers.BooleanField(required=False, default=False)
+
+
+class AdminActiveStudyQuestionValidateSerializer(StrictSerializer):
+    payload = serializers.JSONField()
+
+
+class AdminActiveStudyQuestionSaveSerializer(AdminActiveStudyQuestionValidateSerializer):
+    expected_revision = serializers.IntegerField(min_value=0)
+
+
+class AdminActiveStudyQuestionDeleteSerializer(StrictSerializer):
+    expected_revision = serializers.IntegerField(min_value=1)

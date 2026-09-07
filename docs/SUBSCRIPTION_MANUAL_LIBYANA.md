@@ -45,9 +45,14 @@ expiration date.
 
 - Paying during a trial anchors the paid period to the trial expiration, so none
   of the seven trial days are lost.
-- Renewing an active period or during its grace window extends from the existing
-  paid expiration. For example, a 30-day plan expiring September 1 and renewed on
-  September 8 ends October 1. The grace period is access tolerance, not free time.
+- An active paid subscription can renew only during its final seven days. An
+  early renewal is anchored to the existing paid expiration, so none of its
+  remaining days are lost. Each extension stores its previous end, extension
+  start, extension end, and payment request. If that request is rejected, only
+  its extension is rolled back; the original paid period remains intact.
+- Renewing during a grace window extends from the existing paid expiration. For
+  example, a 30-day plan expiring September 1 and renewed on September 8 ends
+  October 1. The grace period is access tolerance, not free time.
 - Renewing after grace starts a fresh period at the server submission time.
 - Provisional approval verifies the period already granted and is idempotent; it
   never adds the duration a second time. Rejection transactionally restores the
@@ -55,13 +60,17 @@ expiration date.
 
 ## Libyana code protection
 
-Codes are normalized and validated server-side, encrypted at rest with AES-GCM,
-and indexed only by a keyed HMAC digest plus the final four digits. The digest has
-a unique database constraint, and a user can have only one pending submission.
-Normal payment APIs expose only a masked value. Only administrators with
-`payments.manage` can reveal a pending code. On approval or rejection, Lock-in
-deletes the reversible ciphertext while retaining the digest and last four digits
-for duplicate prevention and audit history.
+Each code is exactly 13 ASCII digits: no letters, spaces, or symbols. Codes are
+validated in the browser and server, encrypted at rest with AES-GCM, and indexed
+only by a keyed HMAC digest plus the final four digits. The digest has a unique
+database constraint, and a user can have only one pending submission. A 5 LYD
+plan accepts one code; other plans accept one required code plus one optional
+second code. The separate `ManualRechargeCode` records allow more cards to be
+supported later without redesigning a payment request. Normal payment APIs expose
+only masked values. Only administrators with `payments.manage` can reveal a
+pending code. On approval or rejection, Lock-in deletes reversible ciphertext
+while retaining digests and final four digits for duplicate prevention and audit
+history.
 
 Recharge codes are excluded from normal logs and audit payloads. The audit
 sanitizer also redacts keys containing recharge, payment-code, token, cookie,
@@ -84,20 +93,23 @@ Required production configuration:
 - `SUBSCRIPTION_SCHEDULER_INTERVAL_SECONDS`: 60–86400; default 900. The dedicated
   `subscription-scheduler` service runs `process_subscription_lifecycle` without
   requiring a browser session.
-- Owner must confirm the live monthly price (currently seeded as 10 LYD for 30
-  days) and publish/retire a plan version in Creator Studio as needed.
+- Seeded Libyana offers are 5 LYD for an eligible user's first month, then 10
+  LYD for one month, 20 LYD for two months, 25 LYD for three months, and 30 LYD
+  for four months. The offer eligibility is computed by the backend from prior
+  successful payments; it is never trusted from the client.
 
 Optional Telegram configuration:
 
 - `TELEGRAM_BOT_TOKEN`
-- `TELEGRAM_PAYMENT_CHAT_ID`
+- `TELEGRAM_ADMIN_CHAT_ID` (preferred; `TELEGRAM_PAYMENT_CHAT_ID` remains a
+  backwards-compatible alias)
 - `TELEGRAM_HTTP_TIMEOUT_SECONDS` (default 5)
 
 Both Telegram identifiers must be provided together in production. With neither
 configured, submissions remain fully functional and Telegram is a safe no-op.
-The adapter sends only the internal payment reference, plan, amount, and
-submission time. It never sends the recharge code, username/email, passwords,
-sessions, or authentication tokens.
+The adapter sends the request ID, username, user ID, plan, amount, submitted
+time, and the submitted card code(s) so the authorized payment reviewer can act
+from the alert. It never sends passwords, sessions, or authentication tokens.
 
 ## Existing-user migration policy
 

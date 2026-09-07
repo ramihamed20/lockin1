@@ -24,6 +24,18 @@ DEMO_ACCOUNTS = (
     ("student5@lockin.local", "Student123!", "Noor Salem", False, False),
 )
 
+# These accounts exist only when the explicit E2E option is selected.  Keeping
+# them out of the normal demo dataset prevents test-only payment states from
+# appearing in ordinary local demos.
+SUBSCRIPTION_E2E_ACCOUNTS = (
+    ("qa.google@lockin.local", "StudyQA123!", "QA Google", None, True),
+    ("qa.trial@lockin.local", "StudyQA123!", "QA Trial", "qa_trial", False),
+    ("qa.expired@lockin.local", "StudyQA123!", "QA Expired", "qa_expired", False),
+    ("qa.renewal@lockin.local", "StudyQA123!", "QA Renewal", "qa_renewal", False),
+    ("qa.renewal-early@lockin.local", "StudyQA123!", "QA Renewal Early", "qa_renewal_early", False),
+    ("qa.review@lockin.local", "StudyQA123!", "QA Review", "qa_review", False),
+)
+
 
 def stable_uuid(value: str) -> uuid.UUID:
     return uuid.uuid5(uuid.NAMESPACE_URL, f"https://lockin.local/demo/{value}")
@@ -70,6 +82,18 @@ def demo_pdf_payload(number: int) -> bytes:
 class Command(BaseCommand):
     help = "Create safe, idempotent local development data. Refuses production settings."
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--subscription-e2e",
+            action="store_true",
+            help="Add deterministic subscription browser-test accounts (testing settings only).",
+        )
+        parser.add_argument(
+            "--manual-qa",
+            action="store_true",
+            help="Add idempotent Founder and student accounts for local manual QA.",
+        )
+
     def handle(self, *args, **options):
         if getattr(settings, "ENVIRONMENT", "") not in {
             "development",
@@ -80,10 +104,14 @@ class Command(BaseCommand):
             raise CommandError(
                 "seed_demo is available only in the development or public demo environment."
             )
+        if options["subscription_e2e"] and settings.ENVIRONMENT != "testing":
+            raise CommandError("--subscription-e2e is available only with testing settings.")
         # This command deliberately writes an idempotent public demo dataset.
         # Keeping every record in one transaction blocks sign-in for the whole
         # seed on a hosted database, so persist each operation normally instead.
         data = self._seed()
+        manual_qa = self._seed_manual_qa() if options["manual_qa"] else None
+        e2e_data = self._seed_subscription_e2e() if options["subscription_e2e"] else None
         self.stdout.write(self.style.SUCCESS("Lock-in demo data is ready."))
         self.stdout.write("\nCredentials (development only):")
         for email, password, _, _, _ in DEMO_ACCOUNTS:
@@ -98,6 +126,286 @@ class Command(BaseCommand):
             f"{data['content']} documents, {data['questions']} questions, "
             f"and {data['students']} learners."
         )
+        if e2e_data:
+            self.stdout.write(
+                "Prepared subscription E2E accounts: " + ", ".join(e2e_data["emails"])
+            )
+        if manual_qa:
+            self.stdout.write("Prepared local manual-QA accounts:")
+            self.stdout.write("  local_founder@lockin.local / FounderLocal123!")
+            self.stdout.write("  local_student@lockin.local / StudentLocal123!")
+
+    def _seed_manual_qa(self):
+        """Create the two repeatable accounts used for local browser testing only."""
+        from apps.accounts.models import User
+        from apps.accounts.roles import Role, replace_managed_roles
+        from apps.education.models import AcademicProgram, StudentCohort
+        from apps.entitlements.services import sync_subscription_entitlements
+        from apps.product_catalog.models import Plan
+        from apps.subscriptions.models import Subscription, SubscriptionAccount
+
+        now = timezone.now()
+        dentistry_program = AcademicProgram.objects.filter(code="dentistry-tripoli").first()
+        cohort = None
+        if dentistry_program is not None:
+            cohort, _ = StudentCohort.objects.update_or_create(
+                program=dentistry_program,
+                code="year-3",
+                defaults={
+                    "name_en": "Tripoli Dentistry — Year 3",
+                    "name_ar": "السنة الثالثة طب الأسنان - طرابلس",
+                    "is_active": True,
+                    "position": 3,
+                },
+            )
+        if cohort is None:
+            cohort = StudentCohort.objects.filter(is_active=True).order_by("position", "id").first()
+        if cohort is None:
+            raise CommandError("Manual QA fixtures require an active student cohort.")
+        plan = Plan.objects.select_related("current_version").get(code="lockin-plus-monthly")
+        if plan.current_version is None:
+            raise CommandError("Manual QA fixtures require the local demo plan version.")
+
+        founder, _ = User.objects.update_or_create(
+            email="local_founder@lockin.local",
+            defaults={
+                "username": "local_founder",
+                "full_name": "Local QA Founder",
+                "cohort": cohort,
+                "preferred_language": User.Language.ENGLISH,
+                "profile_completion_required": False,
+                "welcome_completed_at": now,
+                "email_verified_at": now,
+                "policy_accepted_at": now,
+                "policy_version": "local-manual-qa-v1",
+                "status": User.Status.ACTIVE,
+                "is_staff": True,
+                "is_superuser": True,
+            },
+        )
+        founder.set_password("FounderLocal123!")
+        founder.save(update_fields=["password", "updated_at"])
+        replace_managed_roles(
+            target=founder, actor=founder, roles={Role.ADMINISTRATOR, Role.CREATOR}
+        )
+
+        student, _ = User.objects.update_or_create(
+            email="local_student@lockin.local",
+            defaults={
+                "username": "local_student",
+                "full_name": "Local QA Student",
+                "cohort": cohort,
+                "preferred_language": User.Language.ENGLISH,
+                "profile_completion_required": False,
+                "welcome_completed_at": now,
+                "email_verified_at": now,
+                "policy_accepted_at": now,
+                "policy_version": "local-manual-qa-v1",
+                "status": User.Status.ACTIVE,
+                "is_staff": False,
+                "is_superuser": False,
+            },
+        )
+        student.set_password("StudentLocal123!")
+        student.save(update_fields=["password", "updated_at"])
+        replace_managed_roles(target=student, actor=founder, roles=set())
+
+        account, _ = SubscriptionAccount.objects.update_or_create(
+            primary_user=student,
+            kind=SubscriptionAccount.Kind.INDIVIDUAL,
+            defaults={
+                "display_name": student.full_name,
+                "status": SubscriptionAccount.Status.ACTIVE,
+            },
+        )
+        subscription, _ = Subscription.objects.update_or_create(
+            account=account,
+            status__in=[
+                Subscription.Status.TRIALING,
+                Subscription.Status.ACTIVE,
+                Subscription.Status.GRACE,
+            ],
+            defaults={
+                "plan_version": plan.current_version,
+                "status": Subscription.Status.ACTIVE,
+                "payment_verification": Subscription.PaymentVerification.VERIFIED,
+                "started_at": now - timedelta(days=1),
+                "current_period_started_at": now - timedelta(days=1),
+                "current_period_ends_at": now + timedelta(days=30),
+                "status_reason": "local_manual_qa",
+            },
+        )
+        sync_subscription_entitlements(subscription_id=subscription.id)
+        return {
+            "founder": founder,
+            "student": student,
+            "cohort": cohort,
+            "subscription": subscription,
+        }
+
+    def _seed_subscription_e2e(self):
+        """Prepare the exact state consumed by ``subscription-live.spec.js``.
+
+        This is intentionally an explicit testing-only extension of the normal
+        demo seed. It creates ordinary users and persisted subscription state;
+        browser tests still authenticate and call the production payment and
+        review endpoints.
+        """
+        from apps.accounts.models import User
+        from apps.education.models import StudentCohort
+        from apps.entitlements.services import sync_subscription_entitlements
+        from apps.payments.manual_services import submit_manual_recharge
+        from apps.payments.models import ManualRechargeSubmission
+        from apps.product_catalog.models import Plan, Price
+        from apps.subscriptions.models import Subscription, SubscriptionAccount
+
+        now = timezone.now()
+        paid_price = Price.objects.select_related("plan_version").get(code="lockin_monthly_10_lyd")
+        trial_plan = Plan.objects.select_related("current_version").get(
+            code=settings.DEFAULT_TRIAL_PLAN_CODE
+        )
+        if trial_plan.current_version is None:
+            raise CommandError("The configured trial plan has no current version.")
+        qa_cohort = StudentCohort.objects.order_by("position", "id").first()
+        if qa_cohort is None:
+            raise CommandError("Subscription E2E fixtures require a seeded student cohort.")
+
+        users = {}
+        for email, password, name, username, needs_profile in SUBSCRIPTION_E2E_ACCOUNTS:
+            user, _ = User.objects.update_or_create(
+                email=email,
+                defaults={
+                    "full_name": name,
+                    "username": username,
+                    "cohort": qa_cohort,
+                    "preferred_language": (
+                        User.Language.ARABIC
+                        if email == "qa.expired@lockin.local"
+                        else User.Language.ENGLISH
+                    ),
+                    "profile_completion_required": needs_profile,
+                    "welcome_completed_at": (
+                        None
+                        if email in {"qa.google@lockin.local", "qa.trial@lockin.local"}
+                        else now
+                    ),
+                    "email_verified_at": now,
+                    "policy_accepted_at": now,
+                    "policy_version": "e2e-fixture-v1",
+                    "status": User.Status.ACTIVE,
+                },
+            )
+            user.set_password(password)
+            user.save(update_fields=["password", "updated_at"])
+            users[email] = user
+        users["admin@lockin.local"] = User.objects.get(email="admin@lockin.local")
+        admin_user = users["admin@lockin.local"]
+        admin_user.welcome_completed_at = now
+        admin_user.save(update_fields=["welcome_completed_at", "updated_at"])
+
+        def account_for(user):
+            return SubscriptionAccount.objects.update_or_create(
+                primary_user=user,
+                kind=SubscriptionAccount.Kind.INDIVIDUAL,
+                defaults={
+                    "display_name": user.full_name,
+                    "status": SubscriptionAccount.Status.ACTIVE,
+                },
+            )[0]
+
+        def set_subscription(*, email, status, plan_version, starts_at, ends_at, trial=False):
+            account = account_for(users[email])
+            subscription, _ = Subscription.objects.update_or_create(
+                account=account,
+                defaults={
+                    "plan_version": plan_version,
+                    "status": status,
+                    "payment_verification": Subscription.PaymentVerification.VERIFIED,
+                    "provisional_payment_id": None,
+                    "started_at": starts_at,
+                    "trial_started_at": starts_at if trial else None,
+                    "trial_ends_at": ends_at if trial else None,
+                    "current_period_started_at": starts_at,
+                    "current_period_ends_at": ends_at,
+                    "grace_ends_at": None,
+                    "cancel_at_period_end": False,
+                    "cancellation_requested_at": None,
+                    "cancelled_at": None,
+                    "suspended_at": None,
+                    "ended_at": ends_at if status == Subscription.Status.EXPIRED else None,
+                    "status_reason": "subscription_e2e_fixture",
+                },
+            )
+            sync_subscription_entitlements(subscription_id=subscription.id)
+            return subscription
+
+        set_subscription(
+            email="qa.google@lockin.local",
+            status=Subscription.Status.TRIALING,
+            plan_version=trial_plan.current_version,
+            starts_at=now,
+            ends_at=now + timedelta(days=7),
+            trial=True,
+        )
+        set_subscription(
+            email="qa.trial@lockin.local",
+            status=Subscription.Status.TRIALING,
+            plan_version=trial_plan.current_version,
+            starts_at=now,
+            ends_at=now + timedelta(days=7),
+            trial=True,
+        )
+        set_subscription(
+            email="qa.expired@lockin.local",
+            status=Subscription.Status.EXPIRED,
+            plan_version=paid_price.plan_version,
+            starts_at=now - timedelta(days=34),
+            ends_at=now - timedelta(days=4),
+        )
+        set_subscription(
+            email="qa.renewal@lockin.local",
+            status=Subscription.Status.ACTIVE,
+            plan_version=paid_price.plan_version,
+            starts_at=now - timedelta(days=26),
+            ends_at=now + timedelta(days=4),
+        )
+        set_subscription(
+            email="qa.renewal-early@lockin.local",
+            status=Subscription.Status.ACTIVE,
+            plan_version=paid_price.plan_version,
+            starts_at=now - timedelta(days=22),
+            ends_at=now + timedelta(days=8),
+        )
+        set_subscription(
+            email="admin@lockin.local",
+            status=Subscription.Status.ACTIVE,
+            plan_version=paid_price.plan_version,
+            starts_at=now - timedelta(days=10),
+            ends_at=now + timedelta(days=20),
+        )
+        review_submission = (
+            ManualRechargeSubmission.objects.filter(
+                user=users["qa.review@lockin.local"],
+                status=ManualRechargeSubmission.Status.PENDING,
+            )
+            .select_related("payment")
+            .first()
+        )
+        if review_submission is None:
+            set_subscription(
+                email="qa.review@lockin.local",
+                status=Subscription.Status.EXPIRED,
+                plan_version=paid_price.plan_version,
+                starts_at=now - timedelta(days=34),
+                ends_at=now - timedelta(days=4),
+            )
+            submit_manual_recharge(
+                user=users["qa.review@lockin.local"],
+                price=paid_price,
+                recharge_codes=["5656565612345"],
+                idempotency_key="subscription-e2e-review-payment",
+            )
+        return {"emails": tuple(email for email, *_ in SUBSCRIPTION_E2E_ACCOUNTS)}
 
     def _seed(self):
         from apps.accounts.models import User
@@ -122,7 +430,8 @@ class Command(BaseCommand):
         )
         from apps.content.models import LearningObject, LearningObjectAsset, LearningObjectVersion
         from apps.education.models import CreatorScope, EducationNode
-        from apps.entitlements.models import EntitlementDefinition, EntitlementGrant
+        from apps.entitlements.models import EntitlementDefinition, PlanEntitlementRule
+        from apps.entitlements.services import sync_subscription_entitlements
         from apps.files.models import ManagedFile
         from apps.focus.models import (
             FocusAnnotation,
@@ -696,6 +1005,15 @@ class Command(BaseCommand):
         if plan.current_version_id != plan_version.id:
             plan.current_version = plan_version
             plan.save(update_fields=["current_version"])
+        demo_entitlements = EntitlementDefinition.objects.filter(
+            code__in=("focus.workspace", "content.premium", "files.download")
+        )
+        for entitlement in demo_entitlements:
+            PlanEntitlementRule.objects.get_or_create(
+                plan_version=plan_version,
+                entitlement=entitlement,
+                defaults={"configuration": {}},
+            )
         Price.objects.update_or_create(
             code="lockin-plus-monthly-usd",
             defaults={
@@ -724,23 +1042,9 @@ class Command(BaseCommand):
                 "status_reason": "demo subscription",
             },
         )
-        # Keep demo subscriptions aligned with the API's authoritative
-        # entitlement identifier. The old hyphenated value never matched the
-        # catalog definition, leaving an entitled demo student unable to open
-        # Focus or Lock In Mode.
-        entitlement = EntitlementDefinition.objects.filter(code="focus.workspace").first()
-        if entitlement:
-            EntitlementGrant.objects.get_or_create(
-                user=primary,
-                entitlement=entitlement,
-                source_type=EntitlementGrant.SourceType.SUBSCRIPTION,
-                source_id=subscription.id,
-                defaults={
-                    "status": EntitlementGrant.Status.ACTIVE,
-                    "starts_at": now - timedelta(days=10),
-                    "ends_at": now + timedelta(days=20),
-                },
-            )
+        # Use the normal subscription synchronizer so the official local demo
+        # plan grants every study entitlement its API routes require.
+        sync_subscription_entitlements(subscription_id=subscription.id)
 
         for index, title in enumerate(
             (

@@ -111,9 +111,9 @@ if len(PAYMENT_CODE_ENCRYPTION_KEY) < 32 or PAYMENT_CODE_ENCRYPTION_KEY.startswi
     raise ImproperlyConfigured(
         "PAYMENT_CODE_ENCRYPTION_KEY must be a strong, dedicated production secret."
     )
-if bool(TELEGRAM_BOT_TOKEN) != bool(TELEGRAM_PAYMENT_CHAT_ID):  # noqa: F405
+if bool(TELEGRAM_BOT_TOKEN) != bool(TELEGRAM_ADMIN_CHAT_ID or TELEGRAM_PAYMENT_CHAT_ID):  # noqa: F405
     raise ImproperlyConfigured(
-        "Telegram payment forwarding requires both a bot token and payment chat ID."
+        "Telegram payment forwarding requires both a bot token and administrator chat ID."
     )
 if not 60 <= SUBSCRIPTION_SCHEDULER_INTERVAL_SECONDS <= 86_400:  # noqa: F405
     raise ImproperlyConfigured(

@@ -2,23 +2,23 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
 
-test("Questions uses source categories and the Materials catalogue for local demo quizzes", async () => {
-  const [questions, demoCatalog, catalogue] = await Promise.all([
+test("Questions offers cohort question sources and lists subjects under AI Sheet", async () => {
+  const [questions, catalogue] = await Promise.all([
     readFile(new URL("../src/pages/Questions.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/lib/demoQuizCatalog.js", import.meta.url), "utf8"),
     readFile(new URL("../src/lib/i18n.js", import.meta.url), "utf8")
   ]);
-  for (const [id, label] of [["practice", "Practice"], ["years", "Years"], ["aiSheet", "AI Sheet"], ["quizzes", "Quizzes"], ["mix", "Mix"]]) {
-    assert.match(questions, new RegExp(`titleKey: "questions\\.${id}"`));
-    assert.match(catalogue, new RegExp(`"questions\\.${id}": "${label}"`));
+  for (const [id, label] of [["practice", "Practice"], ["years", "Years"], ["aiSheet", "AI Sheet"], ["mix", "Mix"]]) {
+    assert.match(questions, new RegExp(`titleKey: "questions\.${id}"`));
+    assert.match(catalogue, new RegExp(`"questions\.${id}": "${label}"`));
   }
-  assert.match(questions, /MATERIAL_CATALOG/);
-  assert.match(catalogue, /"questions\.quizzesMeta": "Browse material"/);
-  assert.match(questions, /t\("questions\.openQuiz"\)/);
-  assert.match(catalogue, /"questions\.openQuiz": "Open Quiz"/);
-  assert.match(questions, /CatalogSheetCard/);
-  assert.match(demoCatalog, /DEMO_QUESTIONS/);
-  assert.match(demoCatalog, /general-pathology/);
+  // Quizzes is gone with the local demo quiz it used to open.
+  assert.doesNotMatch(questions, /quizzes/i);
+  assert.doesNotMatch(catalogue, /"questions\.quizzes"/);
+  assert.match(questions, /id: "ai-sheet".*available: true/);
+  assert.match(questions, /getCohortMaterials\(user\)/);
+  assert.match(questions, /getCohortQuestionCategories\(user\)/);
+  assert.match(questions, /t\("questions\.noQuestionsTitle"\)/);
+  assert.match(catalogue, /"questions\.noQuestionsTitle": "No questions yet"/);
   assert.match(questions, /text=\{t\("common\.soon"\)\}/);
   assert.doesNotMatch(questions, /Practice mode is coming soon\.|has not been published by the server yet/);
 });
@@ -33,7 +33,7 @@ test("quiz launch bypasses attempt details and the player keeps grading server-a
   ]);
   assert.match(app, /path="\/questions\/categories\/:categoryId"/);
   assert.match(app, /path="\/questions\/categories\/:categoryId\/subjects\/:subjectId"/);
-  assert.match(app, /path="\/questions\/demo\/:materialSlug\/:sheetSlug"/);
+  assert.doesNotMatch(app, /questions\/demo/);
   assert.match(launch, /assessmentsApi\.startAttempt\(quizId/);
   assert.doesNotMatch(launch, /Start or resume|Practice size|configured questions/);
   assert.match(attempt, /t\("assessment\.questionOf", \{ index: activeIndex \+ 1, total: questions\.length \}\)/);

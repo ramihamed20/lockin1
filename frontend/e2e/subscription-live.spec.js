@@ -20,7 +20,11 @@ async function login(page, email, password, locale = "en") {
   const passwordLabel = locale === "ar" ? "كلمة المرور" : "Password";
   await page.getByLabel(emailLabel, { exact: true }).fill(email);
   await page.getByLabel(passwordLabel, { exact: true }).fill(password);
+  const loginResponse = page.waitForResponse((response) => (
+    response.url().includes("/auth/login") && response.request().method() === "POST"
+  ));
   await page.locator(".auth-v2-primary").click();
+  await loginResponse;
 }
 
 async function responsiveAudit(page, viewports, prefix) {
@@ -42,6 +46,18 @@ async function responsiveAudit(page, viewports, prefix) {
       hiddenActions: 0
     });
   }
+}
+
+async function currentSubscription(page) {
+  return page.evaluate(async () => {
+    const response = await fetch("/api/v1/subscriptions/current", { credentials: "same-origin" });
+    if (!response.ok) throw new Error(`Subscription request failed: ${response.status}`);
+    return response.json();
+  });
+}
+
+function addDays(iso, days) {
+  return new Date(new Date(iso).getTime() + days * 24 * 60 * 60 * 1000).toISOString();
 }
 
 test.beforeAll(async () => {
@@ -88,10 +104,10 @@ test("trial welcome and provisional Libyana payment work on production viewports
   await expect(page.getByRole("heading", { name: "Pay with Libyana" })).toBeVisible();
   const code = page.getByLabel("Recharge card code");
   await expect(code).toHaveAttribute("dir", "ltr");
-  await code.fill("456789012345");
+  await code.fill("4567890123456");
   await page.getByRole("button", { name: "Submit card and continue" }).click();
   await expect(page.getByText("Payment being reviewed", { exact: true })).toBeVisible();
-  await expect(page.getByText("456789012345", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("4567890123456", { exact: true })).toHaveCount(0);
 
   await responsiveAudit(page, [
     { width: 390, height: 844 },
@@ -132,14 +148,93 @@ test("authorized admin reviews the pending code once and the full code is then r
   const paymentRow = page.getByRole("button").filter({ hasText: "@qa_review" }).first();
   await expect(paymentRow).toBeVisible();
   await paymentRow.click();
-  await expect(page.getByText("565656561234", { exact: true })).toBeVisible();
+  await expect(page.getByText("5656565612345", { exact: true })).toBeVisible();
   await page.getByLabel("Review reason").fill("Recharge card value verified");
   await page.getByRole("button", { name: "Approve payment" }).click();
   await page.getByRole("button", { name: "Approve", exact: true }).click();
 
   await expect(page.locator(".manual-payment-review .creator-badge")).toHaveText("Approved");
-  await expect(page.getByText("565656561234", { exact: true })).toHaveCount(0);
-  await expect(page.locator(".manual-recharge-code")).toContainText("1234");
+  await expect(page.getByText("5656565612345", { exact: true })).toHaveCount(0);
+  await expect(page.locator(".manual-recharge-code")).toContainText("2345");
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.screenshot({ path: `${SCREENSHOT_DIR}/admin-payment-approved-ipad.png`, fullPage: true });
+});
+
+test("early renewal preserves paid days through pending, rejection, and approval", async ({ browser }) => {
+  const tooEarlyContext = await browser.newContext();
+  const tooEarlyPage = await tooEarlyContext.newPage();
+  await login(tooEarlyPage, "qa.renewal-early@lockin.local", "StudyQA123!");
+  await tooEarlyPage.goto("/#/subscription");
+  await expect(tooEarlyPage.getByRole("heading", { name: "Early renewal is not available yet" })).toBeVisible();
+  await expect(tooEarlyPage.getByRole("button", { name: "Submit card and continue" })).toHaveCount(0);
+  await tooEarlyContext.close();
+
+  const renewalContext = await browser.newContext();
+  const renewalPage = await renewalContext.newPage();
+  await login(renewalPage, "qa.renewal@lockin.local", "StudyQA123!");
+  await renewalPage.goto("/#/subscription");
+  const before = (await currentSubscription(renewalPage)).subscription;
+  await expect(renewalPage.getByRole("heading", { name: "4 days remain on your subscription" })).toBeVisible();
+  await expect(renewalPage.getByText("You will not lose your remaining days. The new plan is added after your current subscription ends.")).toBeVisible();
+  await responsiveAudit(renewalPage, [
+    { width: 390, height: 844 },
+    { width: 834, height: 1112 },
+    { width: 1440, height: 900 }
+  ], "early renewal");
+  await renewalPage.setViewportSize({ width: 390, height: 844 });
+  await renewalPage.screenshot({ path: `${SCREENSHOT_DIR}/early-renewal-phone.png`, fullPage: true });
+  await renewalPage.setViewportSize({ width: 1440, height: 900 });
+  await renewalPage.screenshot({ path: `${SCREENSHOT_DIR}/early-renewal-desktop.png`, fullPage: true });
+
+  await renewalPage.getByRole("radio", { name: /Monthly/ }).check();
+  await renewalPage.getByLabel("Recharge card code", { exact: true }).fill("7000000000001");
+  const pendingResponse = renewalPage.waitForResponse((response) => response.url().includes("/payments/manual-libyana") && response.status() === 201);
+  await renewalPage.getByRole("button", { name: "Submit card and continue" }).click();
+  const pendingPayload = await (await pendingResponse).json();
+  const provisionalEnd = pendingPayload.subscription.current_period_ends_at;
+  expect(provisionalEnd).toBe(addDays(before.current_period_ends_at, 30));
+  await expect(renewalPage.getByText("Payment being reviewed", { exact: true })).toBeVisible();
+  await expect(renewalPage.getByRole("heading", { name: "A payment is already under review" })).toBeVisible();
+
+  const rejectAdminContext = await browser.newContext();
+  const rejectAdminPage = await rejectAdminContext.newPage();
+  await login(rejectAdminPage, "admin@lockin.local", "Admin123!");
+  await rejectAdminPage.goto("/#/operations/admin/purchases");
+  const rejectedPayment = rejectAdminPage.getByRole("button").filter({ hasText: "@qa_renewal" }).first();
+  await rejectedPayment.click();
+  await rejectAdminPage.getByLabel("Review reason").fill("Card rejected for E2E verification");
+  await rejectAdminPage.getByRole("button", { name: "Reject payment" }).click();
+  await rejectAdminPage.getByRole("button", { name: "Reject", exact: true }).click();
+  await expect(rejectAdminPage.locator(".manual-payment-review .creator-badge")).toHaveText("Rejected");
+  await rejectAdminContext.close();
+
+  await renewalPage.reload();
+  const afterRejection = (await currentSubscription(renewalPage)).subscription;
+  expect(afterRejection.current_period_ends_at).toBe(before.current_period_ends_at);
+  await expect(renewalPage.getByText("Payment could not be confirmed", { exact: false })).toBeVisible();
+
+  await renewalPage.getByRole("radio", { name: /Monthly/ }).check();
+  await renewalPage.getByLabel("Recharge card code", { exact: true }).fill("7000000000002");
+  const approvedPendingResponse = renewalPage.waitForResponse((response) => response.url().includes("/payments/manual-libyana") && response.status() === 201);
+  await renewalPage.getByRole("button", { name: "Submit card and continue" }).click();
+  const approvedPendingPayload = await (await approvedPendingResponse).json();
+  expect(approvedPendingPayload.subscription.current_period_ends_at).toBe(provisionalEnd);
+
+  const approveAdminContext = await browser.newContext();
+  const approveAdminPage = await approveAdminContext.newPage();
+  await login(approveAdminPage, "admin@lockin.local", "Admin123!");
+  await approveAdminPage.goto("/#/operations/admin/purchases");
+  const approvedPayment = approveAdminPage.getByRole("button").filter({ hasText: "@qa_renewal" }).first();
+  await approvedPayment.click();
+  await approveAdminPage.getByLabel("Review reason").fill("Card accepted for E2E verification");
+  await approveAdminPage.getByRole("button", { name: "Approve payment" }).click();
+  await approveAdminPage.getByRole("button", { name: "Approve", exact: true }).click();
+  await expect(approveAdminPage.locator(".manual-payment-review .creator-badge")).toHaveText("Approved");
+  await approveAdminContext.close();
+
+  await renewalPage.reload();
+  const afterApproval = (await currentSubscription(renewalPage)).subscription;
+  expect(afterApproval.current_period_ends_at).toBe(provisionalEnd);
+  await expect(renewalPage.getByRole("heading", { name: "A payment is already under review" })).toHaveCount(0);
+  await renewalContext.close();
 });

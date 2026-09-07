@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { authApi, isApiError, onUnauthorized } from "./lib/api.js";
 import {
   autoThemeForDate,
@@ -16,7 +16,6 @@ import { Shell } from "./components/layout/index.jsx";
 import { AuthPage } from "./components/auth/AuthPage.jsx";
 import { FullScreenState, ReminderToast } from "./components/shared/index.jsx";
 import { bootFailureMessage, bootRetryDelayMs, shouldRetryBootAutomatically } from "./lib/sessionBootstrap.js";
-import { LoadingPanel } from "./components/ui/index.jsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.jsx";
 import { ConfirmDialog } from "./components/shared/ConfirmDialog.jsx";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute.jsx";
@@ -29,10 +28,10 @@ import { NotFoundPage } from "./components/ui/index.jsx";
 import { PublicInfoPage } from "./components/PublicInfoPage.jsx";
 import { SubscriptionSessionProvider } from "./lib/SubscriptionSessionContext.jsx";
 import { clearSubscriptionSnapshots } from "./lib/subscriptionSession.js";
+import { FeatureComingSoon } from "./components/FeatureComingSoon.jsx";
 
 // --- Lazy-loaded pages ---
 const Dashboard = lazyWithRecovery(() => import("./pages/Dashboard.jsx"));
-const StudyPlan = lazyWithRecovery(() => import("./pages/StudyPlan.jsx"));
 const Materials = lazyWithRecovery(() => import("./pages/Materials.jsx"));
 const MaterialSheets = lazyWithRecovery(() => import("./pages/Materials.jsx").then((m) => ({ default: m.MaterialSheets })));
 const CatalogMaterialSheets = lazyWithRecovery(() => import("./pages/Materials.jsx").then((m) => ({ default: m.CatalogMaterialSheets })));
@@ -43,8 +42,7 @@ const LockInMode = lazyWithRecovery(() => import("./pages/LockInMode.jsx"));
 const Search = lazyWithRecovery(() => import("./pages/Search.jsx"));
 const Questions = lazyWithRecovery(() => import("./pages/Questions.jsx"));
 const QuestionCategory = lazyWithRecovery(() => import("./pages/Questions.jsx").then((module) => ({ default: module.QuestionCategory })));
-const QuestionSubjectQuizzes = lazyWithRecovery(() => import("./pages/Questions.jsx").then((module) => ({ default: module.QuestionSubjectQuizzes })));
-const DemoQuiz = lazyWithRecovery(() => import("./pages/Questions.jsx").then((module) => ({ default: module.DemoQuiz })));
+const QuestionSubjectQuestions = lazyWithRecovery(() => import("./pages/Questions.jsx").then((module) => ({ default: module.QuestionSubjectQuestions })));
 const QuizDetail = lazyWithRecovery(() => import("./pages/QuizDetail.jsx"));
 const Attempt = lazyWithRecovery(() => import("./pages/Attempt.jsx"));
 const AssessmentResult = lazyWithRecovery(() => import("./pages/AssessmentResult.jsx"));
@@ -52,12 +50,6 @@ const Review = lazyWithRecovery(() => import("./pages/Review.jsx"));
 const ReviewBank = lazyWithRecovery(() => import("./pages/Review.jsx").then((module) => ({ default: module.ReviewBank })));
 const SubjectReviewSession = lazyWithRecovery(() => import("./pages/Review.jsx").then((module) => ({ default: module.SubjectReviewSession })));
 const WeeklyRecall = lazyWithRecovery(() => import("./pages/Review.jsx").then((module) => ({ default: module.WeeklyRecall })));
-const Community = lazyWithRecovery(() => import("./pages/Community.jsx"));
-const CommunityContext = lazyWithRecovery(() => import("./pages/Community.jsx").then((module) => ({ default: module.CommunityContext })));
-const Discussion = lazyWithRecovery(() => import("./pages/Discussion.jsx"));
-const CommunitySpace = lazyWithRecovery(() => import("./pages/CommunitySpace.jsx"));
-const CommunityReport = lazyWithRecovery(() => import("./pages/CommunityReport.jsx"));
-const Ranked = lazyWithRecovery(() => import("./pages/Ranked.jsx"));
 const Bookmarks = lazyWithRecovery(() => import("./pages/Bookmarks.jsx"));
 const Progress = lazyWithRecovery(() => import("./pages/Progress.jsx"));
 const Achievements = lazyWithRecovery(() => import("./pages/Achievements.jsx"));
@@ -85,6 +77,26 @@ const THEME_META_COLORS = {
 const Subscription = lazyWithRecovery(() => import("./pages/Subscription.jsx"));
 const WelcomeOnboarding = lazyWithRecovery(() => import("./pages/WelcomeOnboarding.jsx"));
 const Moderation = lazyWithRecovery(() => import("./pages/Moderation.jsx"));
+const SESSION_USER_SNAPSHOT_KEY = "lock-in.session-user";
+
+function readSessionUserSnapshot() {
+  try {
+    const value = JSON.parse(window.sessionStorage.getItem(SESSION_USER_SNAPSHOT_KEY) || "null");
+    if (value && typeof value === "object" && typeof value.id === "string" && typeof value.email === "string") return value;
+  } catch {
+    // Session storage is optional and a malformed snapshot is never trusted.
+  }
+  return null;
+}
+
+function writeSessionUserSnapshot(user) {
+  try {
+    if (user) window.sessionStorage.setItem(SESSION_USER_SNAPSHOT_KEY, JSON.stringify(user));
+    else window.sessionStorage.removeItem(SESSION_USER_SNAPSHOT_KEY);
+  } catch {
+    // The server session remains authoritative when storage is unavailable.
+  }
+}
 
 function mergeRemoteThemeSettings(remoteSettings, currentSettings) {
   return normalizeThemeSettings({
@@ -97,15 +109,20 @@ function mergeRemoteThemeSettings(remoteSettings, currentSettings) {
 
 function App() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { setLocale, t } = useI18n();
   const [themeSettings, setThemeSettings] = useState(readLocalThemeSettings);
   const [reminderSettings, setReminderSettings] = useState(() => readReminderSettings());
   const clockTick = useVisibleNow(themeSettings.autoTheme || reminderSettings.enabled, 60_000);
   const [reminderToast, setReminderToast] = useState("");
-  const [user, setUser] = useState(null);
+  // If a browser recreates this document after a short background period, the
+  // non-secret profile snapshot lets the existing route paint immediately.
+  // The HttpOnly cookie is still checked in the background before any server
+  // mutation is allowed; a missing/ended session clears this snapshot.
+  const [user, setUser] = useState(readSessionUserSnapshot);
   const [operationsSession, setOperationsSession] = useState(null);
   const operationsRequestRef = useRef(0);
-  const [booting, setBooting] = useState(true);
+  const [booting, setBooting] = useState(() => !user);
   const [bootError, setBootError] = useState(null);
   const [bootRetrying, setBootRetrying] = useState(false);
   const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine !== false);
@@ -118,6 +135,9 @@ function App() {
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const loggingOutRef = useRef(false);
+  const authenticatedRef = useRef(false);
+  const sessionRevalidationRef = useRef(null);
+  const resumedSessionRef = useRef(Boolean(user));
   const [notificationVersion, setNotificationVersion] = useState(0);
   const [storeCartCount, setStoreCartCount] = useState(0);
   const [lockBalance, setLockBalance] = useState(0);
@@ -158,15 +178,19 @@ function App() {
         .forEach((key) => window.sessionStorage.removeItem(key));
     } catch { /* Storage may be unavailable in privacy-restricted browsers. */ }
     setSessionMarker(false);
+    writeSessionUserSnapshot(null);
     clearSubscriptionSnapshots();
     setUser(null);
     clearOperationsSession();
   }, [clearOperationsSession]);
 
+  useEffect(() => {
+    writeSessionUserSnapshot(user);
+  }, [user]);
+
   const refreshActiveAccount = useCallback(async () => {
     try {
       const nextUser = await authApi.me();
-      clearSubscriptionSnapshots();
       setUser(nextUser);
       setThemeSettings((current) => mergeRemoteThemeSettings(nextUser.themeSettings, current));
       await loadOperationsSession();
@@ -243,16 +267,24 @@ function App() {
   }, [clockTick, reminderSettings]);
 
   useEffect(() => onUnauthorized(() => {
+    // Losing a session mid-visit is not the same event as arriving without one.
+    // A reader who was signed in a moment ago is owed the reason they are back
+    // at the sign-in screen; an anonymous first load is answered with 403 by
+    // design and must stay silent. authenticatedRef is what separates the two.
+    if (authenticatedRef.current) setSessionNotice(t("auth.sessionExpired"));
     clearAuthenticatedUi();
     bootRetryAttemptsRef.current = 0;
     setBootError(null);
     setBooting(false);
-  }), [clearAuthenticatedUi]);
+  }), [clearAuthenticatedUi, t]);
 
   useEffect(() => {
     bootErrorRef.current = bootError;
     bootingRef.current = booting;
-  }, [bootError, booting]);
+    // Read by the pageshow handler, which must not be re-registered on every
+    // change of user.
+    authenticatedRef.current = Boolean(user);
+  }, [bootError, booting, user]);
 
   const retryBootstrap = useCallback(() => {
     // One bootstrap at a time. A queued retry would race the in-flight request
@@ -262,6 +294,30 @@ function App() {
     setBootRetrying(false);
     setSessionAttempt((attempt) => attempt + 1);
   }, []);
+
+  // A page restored from the back/forward cache retains its JavaScript heap,
+  // including a user object whose server session may have ended elsewhere.
+  // Revalidate that one case quietly: showing the bootstrap screen here would
+  // unmount every protected route and discard transient study/form UI even
+  // when the session remains valid. Failed transport checks leave the reader
+  // in place; an actual ended session still clears the protected UI through
+  // the normal unauthorized path.
+  useEffect(() => {
+    function revalidateRestoredSession(event) {
+      if (!event.persisted || !authenticatedRef.current || sessionRevalidationRef.current) return;
+      const revalidation = refreshActiveAccount()
+        .catch(() => {
+          // Background validation must not replace a usable workspace with a
+          // boot error for a transient network interruption.
+        })
+        .finally(() => {
+          if (sessionRevalidationRef.current === revalidation) sessionRevalidationRef.current = null;
+        });
+      sessionRevalidationRef.current = revalidation;
+    }
+    window.addEventListener("pageshow", revalidateRestoredSession);
+    return () => window.removeEventListener("pageshow", revalidateRestoredSession);
+  }, [refreshActiveAccount]);
 
   // A transient failure retries a bounded number of times behind a short
   // backoff before the reader is asked to do anything.
@@ -294,7 +350,8 @@ function App() {
 
   useEffect(() => {
     let active = true;
-    setBooting(true);
+    const silentlyRevalidateRestoredApp = resumedSessionRef.current && sessionAttempt === 0;
+    if (!silentlyRevalidateRestoredApp) setBooting(true);
     setBootError(null);
 
     authApi
@@ -316,10 +373,13 @@ function App() {
           setUser(null);
           return;
         }
-        setBootError(error);
+        // A transient error while restoring a just-backgrounded tab must not
+        // replace its visible route with the startup screen. The reader can
+        // continue and the next request will revalidate normally.
+        if (!silentlyRevalidateRestoredApp) setBootError(error);
       })
       .finally(() => {
-        if (active) setBooting(false);
+        if (active && !silentlyRevalidateRestoredApp) setBooting(false);
       });
 
     return () => {
@@ -350,16 +410,20 @@ function App() {
     try {
       await authApi.logout();
       clearAuthenticatedUi();
+      return true;
     } catch (error) {
       // Django returns 403/not_authenticated for an already-expired session.
       // Treat only that precise anonymous response as a completed local
       // logout; permission and CSRF failures must keep the current UI state.
       if (isApiError(error) && (error.status === 401 || (error.status === 403 && error.code === "not_authenticated"))) {
         clearAuthenticatedUi();
-        return;
+        return true;
       }
       setSessionNotice(error.message || "We could not sign you out. Your current session is unchanged.");
     }
+    // The session outlived the attempt, so the caller must leave the reader
+    // exactly where they were.
+    return false;
   }, [clearAuthenticatedUi]);
 
   // Signing out ends work in progress, so it is confirmed before it runs. Every
@@ -383,7 +447,15 @@ function App() {
     loggingOutRef.current = true;
     setLoggingOut(true);
     try {
-      await handleLogout();
+      const signedOut = await handleLogout();
+      // Replace rather than push: the reader did not navigate anywhere, so the
+      // signed-out screen takes the place of the protected route instead of
+      // stacking on top of it. This is a tidiness measure, not the defence --
+      // the entries behind it are still reachable, and it is the bfcache
+      // revalidation above plus the server's no-store that keep them empty.
+      // A failed sign-out leaves the session alive, so it also leaves the
+      // reader where they were.
+      if (signedOut) navigate("/", { replace: true });
     } finally {
       loggingOutRef.current = false;
       setLoggingOut(false);
@@ -392,7 +464,7 @@ function App() {
       // notice is not hidden behind it.
       setLogoutConfirmOpen(false);
     }
-  }, [handleLogout]);
+  }, [handleLogout, navigate]);
 
   const logoutConfirmDialog = (
     <ConfirmDialog
@@ -432,7 +504,13 @@ function App() {
   }
 
   if (!user) {
-    return <AuthPage onAuthed={applyAuthedUser} />;
+    return (
+      <AuthPage
+        onAuthed={applyAuthedUser}
+        notice={sessionNotice}
+        onDismissNotice={() => setSessionNotice("")}
+      />
+    );
   }
 
   if (user.onboardingRequired) {
@@ -452,7 +530,7 @@ function App() {
   if (user.welcomeRequired) {
     return (
       <SubscriptionSessionProvider key={user.id} user={user}>
-        <Suspense fallback={<LoadingPanel />}>
+        <Suspense fallback={null}>
           <WelcomeOnboarding onUserUpdate={setUser} />
         </Suspense>
       </SubscriptionSessionProvider>
@@ -464,13 +542,15 @@ function App() {
       <>
       <Shell user={user} operationsSession={operationsSession} theme={activeTheme} onThemeChange={setManualTheme} onLogout={requestLogout} notificationVersion={notificationVersion} onNotificationsChanged={() => setNotificationVersion((version) => version + 1)} storeCartCount={storeCartCount} lockBalance={lockBalance} storeCommerceEnabled={false}>
         <ErrorBoundary>
-        <Suspense fallback={<LoadingPanel />}>
+        {/* Returning from background must keep the shell stable. Route chunks
+            resolve in place instead of replacing the screen with a loader. */}
+        <Suspense fallback={null}>
           <Routes>
               <Route element={<ProtectedRoute user={user} operationsSession={operationsSession} />}>
                 <Route path="/" element={<Dashboard themeSettings={themeSettings} activeTheme={activeTheme} />} />
                 <Route path="/dashboard" element={<Dashboard themeSettings={themeSettings} activeTheme={activeTheme} />} />
-                <Route path="/study-plan" element={<StudyPlan />} />
-                <Route path="/materials" element={<Materials />} />
+                <Route path="/study-plan/*" element={<FeatureComingSoon featureId="study-plan" />} />
+                <Route path="/materials" element={<Materials user={user} />} />
                 <Route path="/materials/catalog" element={<NotFoundPage variant="material-catalog" />} />
                 <Route path="/materials/catalog/:materialSlug" element={<CatalogMaterialSheets />} />
                 <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug" element={<CatalogSheetStudy />} />
@@ -481,10 +561,9 @@ function App() {
                 <Route path="/lock-in" element={<LockInMode user={user} />} />
                 <Route path="/lock-in/:sessionId" element={<LockInMode user={user} />} />
                 <Route path="/search" element={<Search />} />
-                <Route path="/questions" element={<Questions />} />
-                <Route path="/questions/categories/:categoryId" element={<QuestionCategory />} />
-                <Route path="/questions/categories/:categoryId/subjects/:subjectId" element={<QuestionSubjectQuizzes />} />
-                <Route path="/questions/demo/:materialSlug/:sheetSlug" element={<DemoQuiz />} />
+                <Route path="/questions" element={<Questions user={user} />} />
+                <Route path="/questions/categories/:categoryId" element={<QuestionCategory user={user} />} />
+                <Route path="/questions/categories/:categoryId/subjects/:subjectId" element={<QuestionSubjectQuestions user={user} />} />
                 <Route path="/questions/quizzes/:quizId" element={<QuizDetail />} />
                 <Route path="/questions/attempts/:attemptId" element={<Attempt />} />
                 <Route path="/questions/results/:resultId" element={<AssessmentResult />} />
@@ -492,12 +571,8 @@ function App() {
                 <Route path="/review/bank" element={<ReviewBank />} />
                 <Route path="/review/bank/:subjectKey" element={<SubjectReviewSession />} />
                 <Route path="/review/weekly" element={<WeeklyRecall />} />
-                <Route path="/community" element={<Community />} />
-                <Route path="/community/context/:contextType/:contextId" element={<CommunityContext user={user} />} />
-                <Route path="/community/discussions/:discussionId" element={<Discussion user={user} />} />
-                <Route path="/community/spaces/:spaceId" element={<CommunitySpace />} />
-                <Route path="/community/reports/:reportId" element={<CommunityReport />} />
-                <Route path="/ranked" element={<Ranked />} />
+                <Route path="/community/*" element={<FeatureComingSoon featureId="community" />} />
+                <Route path="/ranked/*" element={<FeatureComingSoon featureId="rank" />} />
                 <Route path="/bookmarks" element={<Bookmarks />} />
                 <Route path="/progress" element={<Progress />} />
                 <Route path="/progression" element={<Progress />} />

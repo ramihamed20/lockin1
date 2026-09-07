@@ -41,6 +41,21 @@ test("strict JSON import includes presets, validation, preview, and safe undo", 
   assert.match(page, /Undo import/);
 });
 
+test("Active Study JSON management validates, previews, replaces, and deletes one difficulty", () => {
+  assert.match(api, /activeStudyQuestions/);
+  assert.match(api, /validateActiveStudyQuestions/);
+  assert.match(api, /saveActiveStudyQuestions/);
+  assert.match(api, /deleteActiveStudyQuestions/);
+  assert.match(api, /active-study\/questions\//);
+  assert.match(page, /Import JSON/);
+  assert.match(page, /Edit \/ Replace JSON/);
+  assert.match(page, /Delete content/);
+  assert.match(page, /JSON needs correction/);
+  assert.match(page, /ActiveStudyQuestionPreview/);
+  assert.match(page, /Needs Review/);
+  assert.match(page, /Validate the current JSON before saving/);
+});
+
 test("multiple-select answers work in attempts and review", () => {
   assert.match(attempt, /question\.question_type === "multiple_select"/);
   assert.match(attempt, /previousIds\.filter/);

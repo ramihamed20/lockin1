@@ -60,6 +60,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Outermost after security so it stamps every API response on the way out,
+    # including error responses produced further down the chain.
+    "platform_core.api.middleware.ApiNoStoreMiddleware",
     "platform_core.logging.middleware.RequestIdMiddleware",
     "platform_core.observability.middleware.OperationalTelemetryMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -229,6 +232,7 @@ PAYMENT_CODE_ENCRYPTION_KEY = secret_env("PAYMENT_CODE_ENCRYPTION_KEY")
 MANUAL_PAYMENT_RATE_WINDOW_SECONDS = env_int("MANUAL_PAYMENT_RATE_WINDOW_SECONDS", 3_600)
 MANUAL_PAYMENT_RATE_LIMIT = env_int("MANUAL_PAYMENT_RATE_LIMIT", 5)
 TELEGRAM_BOT_TOKEN = secret_env("TELEGRAM_BOT_TOKEN")
+TELEGRAM_ADMIN_CHAT_ID = env("TELEGRAM_ADMIN_CHAT_ID")
 TELEGRAM_PAYMENT_CHAT_ID = env("TELEGRAM_PAYMENT_CHAT_ID")
 TELEGRAM_HTTP_TIMEOUT_SECONDS = env_int("TELEGRAM_HTTP_TIMEOUT_SECONDS", 5)
 SUBSCRIPTION_SCHEDULER_INTERVAL_SECONDS = env_int("SUBSCRIPTION_SCHEDULER_INTERVAL_SECONDS", 900)

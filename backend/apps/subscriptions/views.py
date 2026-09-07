@@ -9,10 +9,11 @@ from rest_framework.views import APIView
 
 from apps.accounts.models import User
 from apps.accounts.permissions import IsAdministrator
+from apps.accounts.roles import is_subscription_exempt
 
 from .models import Subscription, SubscriptionTransition
 from .selectors import current_subscription_for_user
-from .serializers import AdminTransitionSerializer, SubscriptionSerializer
+from .serializers import AdminTransitionSerializer, SubscriptionSerializer, founder_access_snapshot
 from .services import refresh_subscription, schedule_cancellation, transition_subscription
 
 
@@ -23,7 +24,13 @@ class CurrentSubscriptionView(APIView):
             raise NotFound()
         subscription = current_subscription_for_user(user=user)
         if subscription is None:
-            return Response({"subscription": None})
+            return Response(
+                {
+                    "subscription": (
+                        founder_access_snapshot() if is_subscription_exempt(user) else None
+                    )
+                }
+            )
         subscription = refresh_subscription(subscription=subscription)
         return Response({"subscription": SubscriptionSerializer(subscription).data})
 

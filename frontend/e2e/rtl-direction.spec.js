@@ -10,7 +10,8 @@ import { fulfillAccessContract } from "./fixtures/productionApi.js";
  * "sheets 3", and a trailing full stop jumped to the front of its sentence.
  *
  * The catalogue is bundled rather than fetched, so this page renders both a
- * mixed run and a directional icon without any seeded data.
+ * mixed run and a directional icon from the signed-in cohort alone, without any
+ * seeded data.
  */
 
 async function signIn(page, language) {
@@ -19,7 +20,7 @@ async function signIn(page, language) {
     // The gated routes need the access contract answered before they render.
     if (await fulfillAccessContract(route, pathname)) return;
     if (pathname === "/api/v1/auth/session") {
-      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ user: { id: "rtl", email: "rtl@example.test", full_name: "RTL Student", preferred_language: language, status: "active", is_email_verified: true, roles: ["student"], date_joined: "2026-01-01T00:00:00Z" } }) });
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ user: { id: "rtl", email: "rtl@example.test", full_name: "RTL Student", preferred_language: language, status: "active", is_email_verified: true, roles: ["student"], date_joined: "2026-01-01T00:00:00Z", cohort: { id: "cohort-60", code: "60", name_en: "Human Medicine 60", name_ar: "الطب البشري 60", program: { id: "medicine", code: "human-medicine", name_en: "Human Medicine", name_ar: "الطب البشري" } } } }) });
       return;
     }
     if (pathname === "/api/v1/operations/session") {
@@ -89,10 +90,12 @@ test("a count is written and numbered the way Arabic writes counts", async ({ pa
   const counts = await page.evaluate(() => [...document.querySelectorAll(".catalog-tile__copy small")].map((node) => node.textContent));
   expect(counts.length).toBeGreaterThan(0);
   for (const count of counts) {
-    // Arabic-Indic digits, then an Arabic word - no Latin digits, no "sheets".
-    expect(count, "the count is not localised").toMatch(/^[\u0660-\u0669]+\s[\u0600-\u06FF]+$/);
+    // Either Arabic-Indic digits followed by an Arabic word, or the wordy
+    // zero form that carries no digit - never Latin digits, never "sheets".
+    expect(count, "the count is not localised").toMatch(/^(?:[٠-٩]+\s)?[؀-ۿ]+(?:\s[؀-ۿ]+)*$/);
   }
-  // Three and four take the same (few) form; the plural is chosen, not appended.
+  // Subjects with no sheets read differently from the one with three: the
+  // plural category is chosen, not appended to a number.
   expect(new Set(counts).size).toBeGreaterThan(1);
 });
 

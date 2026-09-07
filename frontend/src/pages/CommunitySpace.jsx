@@ -73,7 +73,7 @@ export default function CommunitySpace() {
         </article>
       </section>
       <section className="community-grid">
-        <article className="panel community-post-list"><div className="panel-title"><h2>{t("community.spaceDiscussions")}</h2><span>{discussions.length}</span></div>{discussions.length ? discussions.map((discussion) => <DiscussionCard key={discussion.id} discussion={discussion} />) : <EmptyState title={t("community.noSpaceDiscussionsTitle")} text={t("community.noSpaceDiscussionsText")} />}{nextCursor && <button className="btn btn-soft" type="button" disabled={loadingMore} onClick={() => { void loadMore(); }}>{t(loadingMore ? "notifications.loadingMore" : "community.loadMoreDiscussions")}</button>}</article>
+        <article className="panel community-post-list"><div className="panel-title"><h2>{t("community.spaceDiscussions")}</h2><span>{discussions.length}</span></div>{discussions.length ? discussions.map((discussion) => <DiscussionCard key={discussion.id} discussion={discussion} />) : <EmptyState icon="community" title={t("community.noSpaceDiscussionsTitle")} text={t("community.noSpaceDiscussionsText")} />}{nextCursor && <button className="btn btn-soft" type="button" disabled={loadingMore} onClick={() => { void loadMore(); }}>{t(loadingMore ? "notifications.loadingMore" : "community.loadMoreDiscussions")}</button>}</article>
         {space.can_manage && <aside className="community-rail"><article className="study-buddy-card"><div><p className="eyebrow">{t("community.spaceMembership")}</p><h2>{t("community.inviteMember")}</h2><p>{t("community.inviteNote")}</p></div><SpaceMemberForm spaceId={space.id} onChanged={spaceData.reload} /></article></aside>}
       </section>
     </Page>

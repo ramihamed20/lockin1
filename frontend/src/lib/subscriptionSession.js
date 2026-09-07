@@ -25,6 +25,10 @@ export function hasDirectStudyAccess(entitlements) {
   ));
 }
 
+export function hasSubscriptionExemption(subscription) {
+  return subscription?.access_exempt === true;
+}
+
 export function subscriptionExpiresAt(subscription) {
   if (!subscription || typeof subscription !== "object") return null;
   const value = subscription.expires_at || (
@@ -40,7 +44,7 @@ export function subscriptionExpiresAt(subscription) {
 }
 
 export function subscriptionRefreshAt(snapshot) {
-  if (!snapshot || hasDirectStudyAccess(snapshot.entitlements)) return null;
+  if (!snapshot || hasDirectStudyAccess(snapshot.entitlements) || hasSubscriptionExemption(snapshot.subscription)) return null;
   const subscription = snapshot.subscription;
   if (!subscription?.access_allowed) return null;
   if (!["trialing", "active", "grace"].includes(subscription.status)) return null;
@@ -64,7 +68,7 @@ export function isSubscriptionSnapshotFresh(snapshot, userId, now = Date.now()) 
   ) {
     return false;
   }
-  if (hasDirectStudyAccess(snapshot.entitlements)) return true;
+  if (hasDirectStudyAccess(snapshot.entitlements) || hasSubscriptionExemption(snapshot.subscription)) return true;
   if (!hasTimedSubscriptionAccess(snapshot.subscription)) return true;
   const refreshAt = subscriptionRefreshAt(snapshot);
   return refreshAt !== null && now < refreshAt;

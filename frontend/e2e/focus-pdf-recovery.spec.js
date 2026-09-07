@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { withoutServiceWorker } from "./helpers/serviceWorker.js";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
-const ROUTE = "/#/materials/catalog/microbiology/sheets/sheet-1/workspace";
+const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 
 async function mockWorkspace(page) {
   await withoutServiceWorker(page);

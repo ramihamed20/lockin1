@@ -62,6 +62,33 @@ test("the sidebar names each destination group once", async ({ page }) => {
   expect(new Set(headings).size, `duplicate group headings: ${headings.join(", ")}`).toBe(headings.length);
 });
 
+test("light-theme sidebar section labels meet text contrast", async ({ page }) => {
+  await mockStudent(page);
+  await page.addInitScript(() => {
+    localStorage.setItem("lock-in.theme", "light");
+    localStorage.setItem("lock-in.theme.settings", JSON.stringify({ theme: "light", autoTheme: false }));
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/#/");
+  const ratios = await page.locator(".sidebar .nav-section-label").evaluateAll((labels) => {
+    const rgba = (value) => (value.match(/[\d.]+/g) || []).map(Number);
+    const linear = (value) => {
+      const channel = value / 255;
+      return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
+    };
+    const luminance = (color) => .2126 * linear(color[0]) + .7152 * linear(color[1]) + .0722 * linear(color[2]);
+    return labels.map((label) => {
+      const foreground = rgba(getComputedStyle(label).color);
+      const background = rgba(getComputedStyle(label.closest(".sidebar")).backgroundColor);
+      const alpha = foreground[3] ?? 1;
+      const painted = foreground.slice(0, 3).map((channel, index) => channel * alpha + background[index] * (1 - alpha));
+      const [lighter, darker] = [luminance(painted), luminance(background)].sort((a, b) => b - a);
+      return (lighter + .05) / (darker + .05);
+    });
+  });
+  expect(Math.min(...ratios)).toBeGreaterThanOrEqual(4.5);
+});
+
 test("Account is absent from navigation menus while Profile remains available", async ({ page }) => {
   await mockStudent(page);
 
@@ -78,7 +105,23 @@ test("Account is absent from navigation menus while Profile remains available", 
       const drawer = page.getByRole("dialog", { name: "Mobile navigation" });
       await expect(drawer).toBeVisible();
       await expect(drawer.getByText("Account", { exact: true })).toHaveCount(0);
-      await expect(drawer.locator("a[href='#/profile']")).toBeVisible();
+      // The drawer no longer carries the reader's identity: no name, no email,
+      // and no profile row. Profile itself is still one tap away through the
+      // account menu, which this test goes on to check for every viewport.
+      await expect(drawer.locator(".drawer-profile")).toHaveCount(0);
+      await expect(drawer.locator("a[href='#/profile']")).toHaveCount(0);
+      await expect(drawer.getByText("student@example.test")).toHaveCount(0);
+      // What the drawer is for still works, and nothing was left behind: the
+      // navigation is the first thing in the scroll area, with no orphan gap.
+      await expect(drawer.getByRole("navigation", { name: "Mobile navigation destinations" })).toBeVisible();
+      await expect(drawer.getByRole("link", { name: "Settings" })).toBeVisible();
+      await expect(drawer.getByRole("button", { name: "Log out" })).toBeVisible();
+      const gap = await drawer.evaluate((element) => {
+        const scroll = element.querySelector(".drawer-scroll");
+        const nav = scroll.querySelector(".drawer-navigation");
+        return Math.round(nav.getBoundingClientRect().top - scroll.getBoundingClientRect().top);
+      });
+      expect(gap).toBeLessThanOrEqual(24);
       await page.getByRole("button", { name: "Close navigation" }).click();
     } else {
       const sidebar = page.locator(".sidebar");

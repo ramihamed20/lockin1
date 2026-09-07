@@ -3,28 +3,29 @@ import { Link, useLocation, useNavigate, useSearchParams } from "react-router-do
 import { Icon } from "../../lib/icons.jsx";
 import { authApi } from "../../lib/api.js";
 import { assetPath } from "../../lib/utils.js";
-import { AccountFieldErrors, AccountFormAlert } from "../account/AccountFormErrors.jsx";
+import { AccountFieldErrors, AccountFormAlert, fieldErrorAttributes } from "../account/AccountFormErrors.jsx";
+import { useI18n } from "../I18nProvider.jsx";
 
 const FLOW = {
   verify: {
-    title: "Verify your email",
-    subtitle: "Confirm this one-time link to activate your account.",
-    action: "Verify email",
+    titleKey: "token.verifyTitle",
+    subtitleKey: "token.verifySubtitle",
+    actionKey: "token.verifyAction",
     run: (token) => authApi.verifyEmail(token),
-    success: "Your email is verified. You can now sign in.",
-    // Shown only when the server signed the reader in as part of verifying.
-    successAuthenticated: "Your email is verified. Opening your study room..."
+    successKey: "token.verifySuccess",
+    successAuthenticatedKey: "token.verifySuccessAuthenticated"
   },
   "confirm-email": {
-    title: "Confirm your new email",
-    subtitle: "Confirm this one-time link to finish changing your account email.",
-    action: "Confirm email",
+    titleKey: "token.confirmEmailTitle",
+    subtitleKey: "token.confirmEmailSubtitle",
+    actionKey: "token.confirmEmailAction",
     run: (token) => authApi.confirmEmailChange(token),
-    success: "Your email address has been updated."
+    successKey: "token.confirmEmailSuccess"
   }
 };
 
 export function TokenActionPage({ type, onAccountChanged }) {
+  const { direction, t } = useI18n();
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -40,7 +41,7 @@ export function TokenActionPage({ type, onAccountChanged }) {
   const [loading, setLoading] = useState(false);
   const isReset = type === "reset-password";
   const flow = FLOW[type];
-  const pageTitle = isReset ? "Reset your password" : flow.title;
+  const pageTitle = isReset ? t("token.resetPageTitle") : t(flow.titleKey);
   // The route this page was mounted on. The flow type is not a route name
   // ("verify" is served at /verify-email), so replacing the URL with a name
   // derived from the type navigates away from this page and discards the
@@ -64,11 +65,11 @@ export function TokenActionPage({ type, onAccountChanged }) {
     setError(null);
     setMessage("");
     if (!token) {
-      setError(new Error("This link is missing its verification token."));
+      setError(new Error(t("token.missingToken")));
       return;
     }
     if (isReset && password !== passwordConfirm) {
-      setError({ message: "Passwords do not match.", fields: { new_password_confirm: ["Passwords do not match."] } });
+      setError({ message: t("auth.passwordMismatch"), fields: { new_password_confirm: [t("auth.passwordMismatch")] } });
       return;
     }
     setLoading(true);
@@ -76,13 +77,13 @@ export function TokenActionPage({ type, onAccountChanged }) {
       let authenticated = false;
       if (isReset) {
         await authApi.confirmPasswordReset(token, password, passwordConfirm);
-        setMessage("Your password has been reset. Please sign in with your new password.");
+        setMessage(t("token.resetSuccess"));
       } else {
         // Verifying an account the server is willing to sign in returns that
         // account, and the session cookie arrives with the same response.
         const result = await flow.run(token);
         authenticated = Boolean(result?.user);
-        setMessage(authenticated ? flow.successAuthenticated || flow.success : flow.success);
+        setMessage(t(authenticated ? flow.successAuthenticatedKey || flow.successKey : flow.successKey));
       }
       // The single-use token is spent either way, so a failure to refresh the
       // signed-in account must not be reported as a failed confirmation.
@@ -103,7 +104,7 @@ export function TokenActionPage({ type, onAccountChanged }) {
       // remounts it while processing the replacement navigation.
       navigate(routePath, {
         replace: true,
-        state: { accountActionMessage: isReset ? "Your password has been reset. Please sign in with your new password." : flow.success }
+        state: { accountActionMessage: isReset ? t("token.resetSuccess") : t(flow.successKey) }
       });
     } catch (requestError) {
       setError(requestError);
@@ -112,29 +113,29 @@ export function TokenActionPage({ type, onAccountChanged }) {
     }
   }
 
-  const title = isReset ? "Choose a new password" : flow.title;
+  const title = isReset ? t("token.choosePassword") : t(flow.titleKey);
   const subtitle = isReset
-    ? "Use this one-time link to securely set a new password."
-    : flow.subtitle;
-  const action = isReset ? "Reset password" : flow.action;
+    ? t("token.resetSubtitle")
+    : t(flow.subtitleKey);
+  const action = isReset ? t("token.resetAction") : t(flow.actionKey);
 
   return (
-    <main className="auth-page auth-forgot">
+    <main className="auth-page auth-forgot" dir={direction}>
       <div className="auth-bg-orbs" aria-hidden="true"><span className="auth-orb auth-orb-1" /><span className="auth-orb auth-orb-2" /><span className="auth-orb auth-orb-3" /></div>
-      <section className="auth-card" aria-label="Account confirmation">
+      <section className="auth-card" aria-label={t("token.accountConfirmation")}>
         <div className="auth-panel"><div className="auth-panel-inner">
-          <div className="auth-brand"><div className="auth-brand-logo"><span className="auth-brand-mark"><img src={assetPath("/icons/lockin-light-192-v2.png")} alt="Lock-in Logo" className="brand-logo-img" /></span></div><span className="auth-brand-badge">Account security</span></div>
+          <div className="auth-brand"><div className="auth-brand-logo"><span className="auth-brand-mark"><img src={assetPath("/icons/lockin-light-192-v2.png")} alt={t("token.logoAlt")} className="brand-logo-img" /></span></div><span className="auth-brand-badge">{t("token.accountSecurity")}</span></div>
           <div className="auth-header"><h1 className="auth-title">{title}</h1><p className="auth-subtitle">{subtitle}</p></div>
           <form className="auth-form" onSubmit={submit}>
             {isReset && <>
-              <label className="auth-field-group" htmlFor="reset-password"><span className="auth-field-label">New password</span><div className="auth-input-wrap"><span className="auth-input-icon" aria-hidden="true"><Icon name="lock" size={18} /></span><input id="reset-password" type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></div><AccountFieldErrors error={error} field="new_password" /></label>
-              <label className="auth-field-group" htmlFor="reset-password-confirm"><span className="auth-field-label">Confirm new password</span><div className="auth-input-wrap"><span className="auth-input-icon" aria-hidden="true"><Icon name="lock" size={18} /></span><input id="reset-password-confirm" type="password" autoComplete="new-password" value={passwordConfirm} onChange={(event) => setPasswordConfirm(event.target.value)} required /></div><AccountFieldErrors error={error} field="new_password_confirm" /></label>
+              <label className="auth-field-group" htmlFor="reset-password"><span className="auth-field-label">{t("token.newPassword")}</span><div className="auth-input-wrap"><span className="auth-input-icon" aria-hidden="true"><Icon name="lock" size={18} /></span><input id="reset-password" type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} required {...fieldErrorAttributes(error, "new_password", "reset-password-error")} /></div><AccountFieldErrors error={error} field="new_password" id="reset-password-error" /></label>
+              <label className="auth-field-group" htmlFor="reset-password-confirm"><span className="auth-field-label">{t("token.confirmNewPassword")}</span><div className="auth-input-wrap"><span className="auth-input-icon" aria-hidden="true"><Icon name="lock" size={18} /></span><input id="reset-password-confirm" type="password" autoComplete="new-password" value={passwordConfirm} onChange={(event) => setPasswordConfirm(event.target.value)} required {...fieldErrorAttributes(error, "new_password_confirm", "reset-password-confirm-error")} /></div><AccountFieldErrors error={error} field="new_password_confirm" id="reset-password-confirm-error" /></label>
             </>}
             <AccountFormAlert error={error} message={message} />
-            {!message && <button className="auth-submit-btn" type="submit" disabled={loading}>{loading ? "Please wait..." : action}<Icon name="chevron-right" size={18} /></button>}
-            {message && <button className="auth-submit-btn" type="button" onClick={() => navigate("/")}>Continue to sign in<Icon name="chevron-right" size={18} /></button>}
+            {!message && <button className="auth-submit-btn" type="submit" disabled={loading}>{loading ? t("auth.working") : action}<Icon name="chevron-right" size={18} /></button>}
+            {message && <button className="auth-submit-btn" type="button" onClick={() => navigate("/")}>{t("token.continueSignIn")}<Icon name="chevron-right" size={18} /></button>}
           </form>
-          <div className="auth-switch"><p><Link className="auth-switch-link" to="/"><Icon name="chevron-left" size={16} /> Back to sign in</Link></p></div>
+          <div className="auth-switch"><p><Link className="auth-switch-link" to="/"><Icon name="chevron-left" size={16} /> {t("token.backSignIn")}</Link></p></div>
         </div></div>
       </section>
     </main>
