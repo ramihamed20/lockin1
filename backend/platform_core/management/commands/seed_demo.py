@@ -185,7 +185,9 @@ class Command(BaseCommand):
         )
         founder.set_password("FounderLocal123!")
         founder.save(update_fields=["password", "updated_at"])
-        replace_managed_roles(target=founder, actor=founder, roles={Role.ADMINISTRATOR, Role.CREATOR})
+        replace_managed_roles(
+            target=founder, actor=founder, roles={Role.ADMINISTRATOR, Role.CREATOR}
+        )
 
         student, _ = User.objects.update_or_create(
             email="local_student@lockin.local",
@@ -211,11 +213,18 @@ class Command(BaseCommand):
         account, _ = SubscriptionAccount.objects.update_or_create(
             primary_user=student,
             kind=SubscriptionAccount.Kind.INDIVIDUAL,
-            defaults={"display_name": student.full_name, "status": SubscriptionAccount.Status.ACTIVE},
+            defaults={
+                "display_name": student.full_name,
+                "status": SubscriptionAccount.Status.ACTIVE,
+            },
         )
         subscription, _ = Subscription.objects.update_or_create(
             account=account,
-            status__in=[Subscription.Status.TRIALING, Subscription.Status.ACTIVE, Subscription.Status.GRACE],
+            status__in=[
+                Subscription.Status.TRIALING,
+                Subscription.Status.ACTIVE,
+                Subscription.Status.GRACE,
+            ],
             defaults={
                 "plan_version": plan.current_version,
                 "status": Subscription.Status.ACTIVE,
@@ -227,7 +236,12 @@ class Command(BaseCommand):
             },
         )
         sync_subscription_entitlements(subscription_id=subscription.id)
-        return {"founder": founder, "student": student, "cohort": cohort, "subscription": subscription}
+        return {
+            "founder": founder,
+            "student": student,
+            "cohort": cohort,
+            "subscription": subscription,
+        }
 
     def _seed_subscription_e2e(self):
         """Prepare the exact state consumed by ``subscription-live.spec.js``.
