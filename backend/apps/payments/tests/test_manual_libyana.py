@@ -237,7 +237,7 @@ def test_rejection_revokes_only_provisional_access_and_keeps_account_data() -> N
         response = _submit(
             client,
             plan=plan,
-        code="1111222233334",
+            code="1111222233334",
             key="manual-rejection-submit-001",
         )
     payment_id = response.json()["payment"]["id"]
@@ -284,7 +284,7 @@ def test_grace_renewal_remains_anchored_to_original_expiration() -> None:
         response = _submit(
             client,
             plan=plan,
-        code="7777888899990",
+            code="7777888899990",
             key="manual-grace-renewal-001",
         )
 

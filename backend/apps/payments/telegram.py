@@ -51,11 +51,7 @@ class ManualPaymentTelegramMessage:
                 f"📦 الخطة: {self.plan}",
                 f"💰 السعر: {self.amount}",
                 f"💳 طريقة الدفع: {self.payment_method}",
-                *(
-                    (f"📅 Current expiry: {self.current_expiry}",)
-                    if self.current_expiry
-                    else ()
-                ),
+                *((f"📅 Current expiry: {self.current_expiry}",) if self.current_expiry else ()),
                 *(
                     f"🎫 Card {position}: {code}"
                     for position, code in enumerate(self.recharge_codes, start=1)

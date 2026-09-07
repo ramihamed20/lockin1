@@ -6,6 +6,8 @@ from .models import Payment
 
 
 def payments_for_user(*, user: User) -> QuerySet[Payment]:
-    return Payment.objects.filter(account__primary_user=user).select_related(
-        "subscription", "price__plan_version__plan__product", "manual_submission"
-    ).prefetch_related("manual_submission__recharge_codes")
+    return (
+        Payment.objects.filter(account__primary_user=user)
+        .select_related("subscription", "price__plan_version__plan__product", "manual_submission")
+        .prefetch_related("manual_submission__recharge_codes")
+    )

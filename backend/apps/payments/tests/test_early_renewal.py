@@ -208,12 +208,15 @@ def test_recharge_codes_are_exactly_thirteen_digits_and_first_offer_is_one_time(
     )
     admin_client = APIClient()
     admin_client.force_authenticate(admin)
-    assert admin_client.post(
-        f"/api/v1/operations/admin/purchases/{payment_id}/manual-review",
-        {"decision": "approve", "reason": "Card value verified"},
-        format="json",
-        HTTP_IDEMPOTENCY_KEY="first-offer-review-001",
-    ).status_code == 200
+    assert (
+        admin_client.post(
+            f"/api/v1/operations/admin/purchases/{payment_id}/manual-review",
+            {"decision": "approve", "reason": "Card value verified"},
+            format="json",
+            HTTP_IDEMPOTENCY_KEY="first-offer-review-001",
+        ).status_code
+        == 200
+    )
 
     denied = _post(client, first_plan, ["5555555555555"], "first-offer-repeat-001")
     assert denied.status_code == 400

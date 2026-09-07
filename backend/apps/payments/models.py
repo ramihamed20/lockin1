@@ -169,9 +169,7 @@ class ManualRechargeCode(models.Model):
             )
         ]
         indexes = [
-            models.Index(
-                fields=("submission", "position"), name="manual_recharge_code_order_idx"
-            )
+            models.Index(fields=("submission", "position"), name="manual_recharge_code_order_idx")
         ]
 
     def __str__(self) -> str:

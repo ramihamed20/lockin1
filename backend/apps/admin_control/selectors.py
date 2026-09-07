@@ -106,9 +106,7 @@ def serialize_purchase(
             "id": manual.id,
             "status": manual.status,
             "recharge_code_masked": f"•••• {manual.recharge_code_last4}",
-            "recharge_codes_masked": [
-                f"•••• {code.last4}" for code in manual.recharge_codes.all()
-            ]
+            "recharge_codes_masked": [f"•••• {code.last4}" for code in manual.recharge_codes.all()]
             or [f"•••• {manual.recharge_code_last4}"],
             "submitted_at": manual.submitted_at,
             "reviewed_at": manual.reviewed_at,

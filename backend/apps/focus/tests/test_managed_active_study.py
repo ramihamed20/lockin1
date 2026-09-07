@@ -155,9 +155,7 @@ def test_final_exam_requires_all_parts_and_awards_completion_xp_once() -> None:
     assert XpTransaction.objects.filter(user=user, rule_code="active_study_medium_v1").count() == 1
 
 
-def test_final_score_34_does_not_complete_and_records_wrong_answers() -> (
-    None
-):
+def test_final_score_34_does_not_complete_and_records_wrong_answers() -> None:
     user, sheet, _ = _setup()
     run, _ = start(user=user, sheet_id=sheet.id, difficulty="medium")
     for _ in range(4):
@@ -170,9 +168,7 @@ def test_final_score_34_does_not_complete_and_records_wrong_answers() -> (
     run, result = submit(user=user, run_id=run.id, attempt_id=final["attempt_id"])
     assert result["passed"] is False and run.status == ActiveStudyRun.Status.ACTIVE
     assert run.stage == ActiveStudyRun.Stage.FINAL_RESULT
-    assert (
-        ReviewItem.objects.filter(user=user, canonical_key__contains=":final:").count() == 16
-    )
+    assert ReviewItem.objects.filter(user=user, canonical_key__contains=":final:").count() == 16
 
 
 def test_answer_is_server_scored_and_cannot_be_rewritten() -> None:

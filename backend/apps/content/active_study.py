@@ -59,9 +59,7 @@ def part_sizes(*, eligible_pages: int, target_pages_per_part: int) -> tuple[int,
     ):
         raise ActiveStudyPlanError("Part sizes must be whole numbers.")
     if eligible_pages < 1 or target_pages_per_part < 1:
-        raise ActiveStudyPlanError(
-            "Eligible pages and target pages must be positive."
-        )
+        raise ActiveStudyPlanError("Eligible pages and target pages must be positive.")
     if eligible_pages <= target_pages_per_part:
         return (eligible_pages,)
     full_parts, remainder = divmod(eligible_pages, target_pages_per_part)
