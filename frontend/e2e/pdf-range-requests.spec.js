@@ -75,6 +75,22 @@ test("opening and scrolling a document stays inside the edge request allowance",
 
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(ROUTE);
+
+  // The document is served from the same machine, so on a fast runner the whole
+  // file can finish streaming before the reader needs a later page -- and then
+  // pdf.js has no reason to ask for a range, and this measured the runner, not
+  // the reader. A mobile-class link, applied only once the app has loaded,
+  // makes the ranged reads depend on the reader again. Chromium-only, as is
+  // this spec.
+  const network = await page.context().newCDPSession(page);
+  await network.send("Network.enable");
+  await network.send("Network.emulateNetworkConditions", {
+    offline: false,
+    latency: 40,
+    downloadThroughput: 400 * 1024,
+    uploadThroughput: 200 * 1024
+  });
+
   await page.getByRole("button", { name: /Normal Study/ }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
 
@@ -93,11 +109,13 @@ test("opening and scrolling a document stays inside the edge request allowance",
   const total = documentRequests.length;
   const ranged = documentRequests.filter((entry) => typeof entry.range === "string");
 
-  // What this measured, against the current pinned PDF.js and a 2.1 MB document: opening it
-  // and scrolling twelve screens produced a handful of requests, of which at
-  // least one carried a Range header. pdf.js probes with a ranged read and then
-  // streams the remainder rather than issuing dozens of small ranges, so a
-  // reader comes nowhere near `burst=60`.
+  // What this measured, against the current pinned PDF.js and a 2.1 MB document
+  // on the 400 KB/s link above: opening it took 25-26 requests, nearly all of
+  // them ranged, and scrolling twelve screens added one or two more. That is
+  // the slow reader the edge allowance has to serve, and it stays under
+  // `burst=60`. Unthrottled on the same machine the file streamed in two
+  // requests with a single range probe -- and on a faster runner none, which
+  // is why the link is throttled.
   //
   // The assertions are lower bounds on "ranges are really in use" and upper
   // bounds on "still inside what the edge allows". They would fail if a future
