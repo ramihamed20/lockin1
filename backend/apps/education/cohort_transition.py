@@ -1,6 +1,7 @@
 """Cohort switching keeps the account but retires cohort-bound learner state."""
 
 from django.db import transaction
+from django.db.models import QuerySet
 
 from apps.accounts.models import User
 from apps.accounts.roles import is_subscription_exempt
@@ -9,7 +10,7 @@ from apps.content.models import LearningObject
 from .models import StudentCohort
 
 
-def _objects_under(cohort: StudentCohort):
+def _objects_under(cohort: StudentCohort) -> QuerySet[LearningObject]:
     paths = cohort.content_nodes.values_list("path", flat=True)
     # A scoped root authorizes every descendant.  Build explicit prefix checks
     # at the database boundary rather than comparing labels in application code.
@@ -123,12 +124,12 @@ def change_student_cohort(*, user: User, cohort: StudentCohort) -> bool:
             old_recall_session_ids = list(
                 WeeklyRecallSession.objects.filter(user=user)
                 .annotate(
-                    total_questions=Count("questions"),
+                    recall_question_count=Count("questions"),
                     old_questions=Count(
                         "questions", filter=Q(questions__review_item_id__in=item_ids)
                     ),
                 )
-                .filter(total_questions=F("old_questions"))
+                .filter(recall_question_count=F("old_questions"))
                 .values_list("id", flat=True)
             )
             ReviewAnswerLog.objects.filter(
