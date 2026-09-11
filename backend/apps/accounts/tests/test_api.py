@@ -89,7 +89,7 @@ def test_third_year_is_not_offered_as_a_selectable_study_path() -> None:
         HTTP_X_CSRFTOKEN=csrf,
     )
     assert rejected.status_code == 400
-    assert "cohort_id" in rejected.json()
+    assert "cohort_id" in rejected.json()["error"]["fields"]
 
 
 def test_duplicate_registration_does_not_reveal_account_existence() -> None:
@@ -622,6 +622,9 @@ def test_suspended_account_cannot_keep_authenticating() -> None:
 def _latest_email_link() -> str:
     from django.core import mail
 
+    from apps.accounts.email_delivery import dispatch_due_account_emails
+
+    dispatch_due_account_emails()
     assert mail.outbox
     links = [line for line in mail.outbox[-1].body.splitlines() if line.startswith("http")]
     assert len(links) == 1

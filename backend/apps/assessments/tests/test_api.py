@@ -68,7 +68,7 @@ def test_student_assessment_flow_never_leaks_answer_key_before_submission() -> N
         format="json",
     )
     assert answer.status_code == 200
-    assert answer.json()["server_revision"] == 2
+    assert answer.json()["server_revision"] == 3
 
     activity = client.post(
         f"/api/v1/attempts/{attempt['id']}/activities",

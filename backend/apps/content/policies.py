@@ -29,12 +29,12 @@ def can_view_learning_object(*, user: User, learning_object: LearningObject) -> 
     )
     if not baseline or version is None:
         return False
+    if not getattr(settings, "COHORT_CONTENT_ENFORCEMENT", False):
+        return True
     # Founders and operators who can manage content retain their intentional
-    # cross-cohort operational access.  Every ordinary reader is evaluated
+    # cross-cohort operational access. Every ordinary reader is evaluated
     # against a database relationship, never a frontend catalogue or label.
     if is_content_administrator(user):
-        return True
-    if not getattr(settings, "COHORT_CONTENT_ENFORCEMENT", False):
         return True
     cohort = user.cohort
     return bool(

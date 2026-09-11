@@ -3,6 +3,7 @@ import json
 from typing import Any
 from uuid import UUID
 
+from django.conf import settings
 from django.db import models, transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -312,6 +313,8 @@ class PublicLearningObjectListView(ListAPIView[LearningObject]):
         # catalogue itself is an access surface too.
         user = _user(self.request)
         candidates = published_learning_objects(node_id=node_id, content_type=content_type)
+        if not getattr(settings, "COHORT_CONTENT_ENFORCEMENT", False):
+            return candidates
         allowed_ids = [
             item.id
             for item in candidates
