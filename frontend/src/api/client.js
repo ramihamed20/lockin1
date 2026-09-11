@@ -172,6 +172,15 @@ function timeoutSignal(timeoutMs) {
   return state;
 }
 
+/**
+ * `navigator.onLine === true` proves nothing, but `false` reliably means there
+ * is no network interface, so retrying a failed request would only burn the
+ * reader's wait.
+ */
+function browserReportsOffline() {
+  return typeof navigator !== "undefined" && navigator.onLine === false;
+}
+
 function combineSignals(callerSignal, deadlineSignal) {
   if (!callerSignal) return deadlineSignal || undefined;
   if (!deadlineSignal) return callerSignal;
@@ -409,7 +418,7 @@ export async function request(path, options = {}) {
         throw new ApiError(0, null, "This request was cancelled.", "aborted");
       }
       reportConnectionFailure();
-      if (retryable && attempt < 2) { await new Promise((resolve) => setTimeout(resolve, [400, 1100][attempt])); continue; }
+      if (retryable && attempt < 2 && !browserReportsOffline()) { await new Promise((resolve) => setTimeout(resolve, [400, 1100][attempt])); continue; }
       throw new ApiError(
         0,
         null,

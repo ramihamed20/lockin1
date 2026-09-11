@@ -26,7 +26,11 @@
 
 export const E2E_FIXTURE_URL_PREFIX = "/e2e-fixtures/pdf";
 
-/** Sheets attached to an existing production material, keyed by material slug. */
+/**
+ * Sheets keyed by material slug. A slug the production catalogue already has
+ * gets these sheets; one it lacks (such as `biochemistry-1`, which production
+ * now spells `human-medicine-60-biochemistry-1`) is added as its own material.
+ */
 export const E2E_CATALOG_MATERIALS = {
   "biochemistry-1": [
     { slug: "vitamin-1", number: 1, title: "Vitamin -1", file: "sheet-41.pdf", pageCount: 41 },

@@ -90,6 +90,23 @@ test("a safe read retries a brief interruption without duplicating the request r
   }
 });
 
+test("a safe read is not retried while the browser reports no network at all", async () => {
+  let calls = 0;
+  globalThis.fetch = () => {
+    calls += 1;
+    return Promise.reject(new TypeError("Failed to fetch"));
+  };
+  Object.defineProperty(globalThis.navigator, "onLine", { configurable: true, get: () => false });
+  try {
+    const error = await request("/auth/session").then(() => null, (failure) => failure);
+    assert.equal(error.code, "network_error");
+    assert.equal(calls, 1);
+  } finally {
+    delete globalThis.navigator.onLine;
+    restoreFetch();
+  }
+});
+
 test("the deadline is cleared once a response arrives, so a slow render cannot abort it", async () => {
   globalThis.fetch = () => Promise.resolve(
     new Response(JSON.stringify({ ok: true }), {

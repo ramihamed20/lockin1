@@ -124,8 +124,36 @@ export function getCohortQuestionCategories(user) {
   return getCohortCatalog(user?.cohort).questionCategories;
 }
 
+/* global __E2E_CATALOG_MATERIALS__ */
+/**
+ * Fixture sheets compiled in only by `npm run build:e2e` (see
+ * e2e/fixtures/catalog.js). Every other build defines this as null, so the
+ * merge below is a no-op and there is no runtime switch to flip.
+ */
+const E2E_CATALOG_MATERIALS = typeof __E2E_CATALOG_MATERIALS__ === "object" ? __E2E_CATALOG_MATERIALS__ : null;
+
+/** "biochemistry-1" -> "Biochemistry 1" */
+function titleFromSlug(slug) {
+  return slug.split("-").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
+}
+
+/** @param {CatalogMaterial[]} materials */
+function withE2eFixtureSheets(materials) {
+  if (!E2E_CATALOG_MATERIALS) return materials;
+  const fixtureSheets = (slug) => E2E_CATALOG_MATERIALS[slug].map((sheet) => Object.freeze({ ...sheet }));
+  const known = new Set(materials.map((material) => material.slug));
+  return [
+    ...materials.map((material) => (E2E_CATALOG_MATERIALS[material.slug]
+      ? Object.freeze({ ...material, sheets: fixtureSheets(material.slug) })
+      : material)),
+    ...Object.keys(E2E_CATALOG_MATERIALS)
+      .filter((slug) => !known.has(slug))
+      .map((slug) => Object.freeze({ slug, title: titleFromSlug(slug), sheets: fixtureSheets(slug) }))
+  ];
+}
+
 /** Subject slugs are cohort-qualified, so a link resolves without a tree path. */
-const ALL_MATERIALS = COHORT_CATALOGS.flatMap((catalog) => catalog.materials);
+const ALL_MATERIALS = withE2eFixtureSheets(COHORT_CATALOGS.flatMap((catalog) => catalog.materials));
 
 export function getCatalogMaterial(slug) {
   return ALL_MATERIALS.find((material) => material.slug === slug) || null;
