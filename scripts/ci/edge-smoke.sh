@@ -227,6 +227,29 @@ else
     fail "the SPA was not served"
 fi
 
+# Vite emits the PDF.js worker under /assets as a hashed .mjs module. It must
+# be a real static JavaScript file, never SPA fallback HTML or octet-stream.
+worker_path="$(docker exec "$edge_container" sh -c 'find /usr/share/nginx/html/assets -maxdepth 1 -name "pdf.worker.min-*.mjs" -print -quit')"
+if [ -z "$worker_path" ]; then
+    fail "the PDF.js worker was not emitted into edge assets"
+else
+    worker_url="/assets/$(basename "$worker_path")"
+    worker_headers="$(curl --silent --insecure --head --max-time 5 --header "Host: $public_host" "https://127.0.0.1:$https_port$worker_url" || true)"
+    worker_body="$(curl --silent --insecure --max-time 5 --header "Host: $public_host" "https://127.0.0.1:$https_port$worker_url" | head -c 256 || true)"
+    case "$worker_headers" in
+        *" 200 "*|*" 200\r"*) pass "PDF.js worker returns HTTP 200" ;;
+        *) fail "PDF.js worker did not return HTTP 200" ;;
+    esac
+    case "$worker_headers" in
+        *"Content-Type: application/javascript"*|*"content-type: application/javascript"*) pass "PDF.js worker is served as JavaScript" ;;
+        *) fail "PDF.js worker was not served with a JavaScript MIME type" ;;
+    esac
+    case "$worker_body" in
+        *"<!doctype html"*|*"<html"*) fail "PDF.js worker received SPA fallback HTML" ;;
+        *) pass "PDF.js worker body is a static module, not SPA fallback" ;;
+    esac
+fi
+
 if [ "$(status_of --insecure "https://127.0.0.1:$https_port/admin/")" = "404" ]; then
     pass "Django admin stays closed at the edge"
 else

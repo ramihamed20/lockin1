@@ -26,6 +26,7 @@ from rest_framework.views import APIView
 
 from platform_core.observability import providers
 
+from .telegram import answer_callback_query
 from .telegram_actions import TelegramAuthorizationError, handle_callback_query, webhook_secret
 
 logger = logging.getLogger("lockin.telegram")
@@ -85,7 +86,12 @@ class TelegramWebhookView(APIView):
             providers.metric_sink.increment(
                 "telegram.webhook.rejected", attributes={"reason": "unauthorized"}
             )
-            return Response({"detail": "Not permitted."}, status=status.HTTP_403_FORBIDDEN)
+            # The envelope was authenticated even though the actor was not. A
+            # 403 makes Telegram redeliver the same unusable callback and leaves
+            # its client-side spinner open. Acknowledge it without exposing the
+            # reason (or changing payment state).
+            _answer_callback(callback_query, "This action is not available.")
+            return Response({"status": "ignored"})
         except Exception:
             # A failure here must not leave Telegram retrying a payment action
             # whose transaction may already have committed. The database is
@@ -93,6 +99,9 @@ class TelegramWebhookView(APIView):
             logger.exception("Telegram payment callback failed")
             providers.error_reporter.capture_exception(
                 RuntimeError("telegram callback failed"), context={"stage": "telegram-callback"}
+            )
+            _answer_callback(
+                callback_query, "Could not process this action. Try the operations console."
             )
             return Response({"status": "error"}, status=status.HTTP_200_OK)
 
@@ -126,3 +135,11 @@ def _sanitised(callback_query: dict[str, Any]) -> dict[str, Any]:
             "chat": {"id": chat.get("id")},
         },
     }
+
+
+def _answer_callback(callback_query: dict[str, Any], text: str) -> None:
+    """End Telegram's button progress indicator for a trusted failed callback."""
+
+    callback_id = callback_query.get("id")
+    if isinstance(callback_id, str) and callback_id[:64]:
+        answer_callback_query(callback_query_id=callback_id[:64], text=text)

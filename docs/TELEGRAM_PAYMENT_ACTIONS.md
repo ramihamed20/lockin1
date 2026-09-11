@@ -147,6 +147,26 @@ credentials, and refuses to register at all when
 payment-approving endpoint open to anyone who guessed the path. Only
 `callback_query` updates are subscribed.
 
+### Rotating `TELEGRAM_BOT_TOKEN`
+
+A Telegram webhook is configured **on the bot identified by its token**. After
+rotating that token, restart the backend with the new secret value and run the
+same registration command once against the public HTTPS origin. This is an
+explicit release operation; application startup deliberately does not call
+Telegram or mutate webhook state.
+
+```bash
+# Run only after the release is healthy and its environment contains the new token.
+docker compose -f compose.production.yaml run --rm backend \
+  python manage.py telegram_webhook --url https://YOUR-PUBLIC-HOST
+docker compose -f compose.production.yaml run --rm backend \
+  python manage.py telegram_webhook --show
+```
+
+Do not use `--drop-pending` during a routine token rotation: it discards queued
+callbacks. Confirm the reported URL is the endpoint above, `allowed_updates`
+contains `callback_query`, and no `last_error_message` is reported.
+
 ---
 
 ## Failure behaviour
@@ -160,8 +180,11 @@ Telegram cannot corrupt payment state.
 - If the handler raises after committing, the endpoint answers **200** rather
   than an error, so Telegram stops redelivering an action that already happened.
   The failure is logged and reported to the error reporter.
-- Unauthorized updates are logged with the reason and answered 403 with no
-  detail.
+- Updates that passed the secret header but fail chat/operator/signature checks
+  are logged, leave payment state unchanged, and receive a generic callback
+  acknowledgement. That clears Telegram's button spinner without revealing the
+  rejected reason or triggering redelivery. A missing or incorrect secret still
+  receives 404 and is never acknowledged.
 
 Recharge codes are never written to logs. They appear only in the notification
 body itself, which is the existing behaviour the reviewer depends on to validate

@@ -294,7 +294,11 @@ test("only a protected same-origin file resolves as the sheet's document", () =>
 
 test("the workspace resolves its document and syncs when the connection returns", async () => {
   const source = await readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8");
+  const catalogHook = await readFile(new URL("../src/hooks/useCatalogMaterials.js", import.meta.url), "utf8");
   assert.match(source, /useCatalogDocument\(/);
+  assert.match(source, /materialsLoading/);
+  assert.match(source, /materialsError/);
+  assert.doesNotMatch(catalogHook, /getCohortMaterials/);
   assert.match(source, /createCatalogServerSync\(/);
   assert.match(source, /subscribeConnection\(\(connection\)/);
   assert.match(source, /connection\.status === "connected"/);

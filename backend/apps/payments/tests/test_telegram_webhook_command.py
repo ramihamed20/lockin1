@@ -60,6 +60,18 @@ def test_register_sends_the_secret_and_never_prints_it() -> None:
     assert SECRET not in output
 
 
+def test_register_uses_the_current_rotated_bot_token(settings: Any) -> None:
+    """Webhook registration belongs to the bot represented by this token."""
+
+    settings.TELEGRAM_BOT_TOKEN = "rotated-bot-token"
+    with patch(URLOPEN, return_value=_Response({"ok": True, "result": True})) as mock:
+        _run("--url", "https://app.example.test")
+
+    url, payload = _sent(mock)
+    assert url == "https://api.telegram.org/botrotated-bot-token/setWebhook"
+    assert payload["url"] == "https://app.example.test/api/v1/billing/webhooks/telegram"
+
+
 def test_register_accepts_the_full_webhook_path() -> None:
     with patch(URLOPEN, return_value=_Response({"ok": True})) as mock:
         _run("--url", "https://app.example.test/api/v1/billing/webhooks/telegram")
