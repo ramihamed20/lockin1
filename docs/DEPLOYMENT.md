@@ -729,18 +729,47 @@ from the internet are 80, 443, and the allowlisted SSH port.
 ### 8. Deploy an update
 
 CI builds and pushes an image for every commit on `main` and prints the exact
-tag. Deploying is pulling that tag — there is no build step on the host.
+tag. Deploying is pulling that tag — there is no build step on the host. The
+publish job's summary lists each image's digest, its size, and how much of it is
+new since the previous release: that last figure is what this host will
+actually download.
+
+**1. Pull first, before the window.** Pulling changes no container, so do it
+while the current release is still serving, as early as you like:
 
 ```bash
 cd /srv/lockin
 git fetch --all && git checkout <release-tag>
 # The tag CI published, not a local git hash, and never "latest".
 export LOCKIN_IMAGE_TAG=<sha-from-the-ci-publish-job>
-docker compose --env-file .env.production -f compose.production.yaml pull
+scripts/production/pull-release.sh .env.production
+```
+
+The script retries a failed or stalled pull, prints every image's digest for the
+release record, and exits non-zero if an image is missing. To prove the pulled
+images are exactly the ones CI published, pass the digests from the publish
+summary as `LOCKIN_EXPECT_BACKEND_DIGEST`, `LOCKIN_EXPECT_EDGE_DIGEST` and
+`LOCKIN_EXPECT_CLAMAV_DIGEST`. **If it does not exit 0, stop here.** Nothing has
+changed yet, and the running release is untouched.
+
+**2. Switch over**, only after step 1 succeeded:
+
+```bash
 docker compose --env-file .env.production -f compose.production.yaml run --rm release
 docker compose --env-file .env.production -f compose.production.yaml run --rm preflight
 docker compose --env-file .env.production -f compose.production.yaml up -d backend operations-scheduler edge
 ```
+
+`release` applies migrations while the previous release is still serving, so a
+migration must be compatible with the previous application image (see
+`docs/DEPLOYMENT_CHECKLIST.md`). `pull_policy: always` makes `up` check the
+registry once more; the layers are already here, so that is a manifest request,
+not a download.
+
+Keep the previous release's images on the host until the new one has passed its
+post-deployment checks: they are the rollback. Do not run `docker image prune -a`
+or `docker system prune -a` during a release. Afterwards, prune deliberately and
+keep at least the previous release.
 
 Before the first publish, set the repository variables the frontend image needs:
 `LOCKIN_SUPPORT_EMAIL`, `LOCKIN_LEGAL_ENTITY`, `LOCKIN_LEGAL_ADDRESS`,
@@ -748,8 +777,91 @@ Before the first publish, set the repository variables the frontend image needs:
 inputs, not secrets, and the image refuses to build on placeholders.
 
 Never use a `latest` tag. Record the image digests you deployed; rollback is
-redeploying the previous digests, and a database rollback needs the decision
-point recorded in `docs/DEPLOYMENT_CHECKLIST.md`.
+redeploying the previous digests (section 9), and a database rollback needs the
+decision point recorded in `docs/DEPLOYMENT_CHECKLIST.md`.
+
+#### Why a release downloads little
+
+Docker downloads only the layers a host does not already hold. The images are
+ordered so that dependencies come before application code: a release that
+changes only code shares every Python and system dependency layer, the nginx
+layers and the static public assets with the release before it, and the host
+fetches just the small application layers. CI keeps those layers identical from
+release to release with a BuildKit cache stored in GHCR beside each image (the
+`buildcache` tag — build metadata, never deploy it), and the `image-layers` job
+fails any change to the Dockerfiles that would break the ordering. A release
+that changes dependencies still downloads the dependency layers, once.
+
+The first release after this ordering was introduced downloads the dependency
+layers one more time, because they are new; later code-only releases do not.
+
+#### When the registry is slow
+
+GHCR serves layer data from `pkg-containers.githubusercontent.com`, not from
+`ghcr.io`, so a registry that answers quickly can still download slowly. The
+defences, in order:
+
+1. **Pull early.** Step 1 can run hours before the window; a slow download then
+   costs nothing.
+2. **Retry.** An interrupted pull keeps every completed layer; running the script
+   again fetches only what is missing. `LOCKIN_PULL_ATTEMPTS` raises the retry count.
+3. **Check the network path, read-only**, if pulls are persistently slow — for
+   example IPv4 against IPv6 to the blob host:
+
+   ```bash
+   TOKEN=$(curl -s "https://ghcr.io/token?scope=repository:<owner>/lockin-edge:pull" | sed -E 's/.*"token":"([^"]+)".*/\1/')
+   for ip in -4 -6; do curl $ip -sL -o /dev/null -w "$ip %{speed_download} B/s\n" -H "Authorization: Bearer $TOKEN" "https://ghcr.io/v2/<owner>/lockin-edge/blobs/<a-layer-digest>"; done
+   ```
+
+4. **Emergency transfer of the exact images**, only when the registry is unusable
+   and a release cannot wait. This is a fallback, never the normal path, and it
+   still never builds on the host. On a trusted machine that can pull the release:
+
+   ```bash
+   docker pull <repo>-backend:<sha> && docker pull <repo>-edge:<sha>
+   docker save <repo>-backend:<sha> <repo>-edge:<sha> | gzip > lockin-<sha>.tar.gz
+   sha256sum lockin-<sha>.tar.gz
+   ```
+
+   Copy the archive and its checksum to the host over SSH, verify the checksum,
+   then `gunzip -c lockin-<sha>.tar.gz | docker load`. Prove identity before using
+   it: `docker image inspect --format '{{.Id}}' <repo>-backend:<sha>` must equal
+   the config digest the registry reports for that tag
+   (`docker buildx imagetools inspect --raw <repo>-backend:<sha>`, field
+   `.config.digest`); the ID is a hash over every layer, so a match is the same
+   image. Then run the switch-over with `LOCKIN_PULL_POLICY=missing`, which uses
+   the loaded images and neither pulls nor builds. Return to the registry path for
+   the next release.
+
+A second registry mirror would also work, but it is standing infrastructure to
+secure and keep in step for a problem that pulling early and retrying already
+absorb; it is not recommended unless slow pulls become the norm.
+
+### 9. Roll back
+
+A rollback redeploys the previous release's exact images. Use the previous
+`LOCKIN_IMAGE_TAG` from the release record:
+
+```bash
+export LOCKIN_IMAGE_TAG=<previous-sha>
+scripts/production/pull-release.sh .env.production   # instant while its images are still on the host
+docker compose --env-file .env.production -f compose.production.yaml run --rm release
+docker compose --env-file .env.production -f compose.production.yaml run --rm preflight
+docker compose --env-file .env.production -f compose.production.yaml up -d backend operations-scheduler edge
+```
+
+Set the same tag in `.env.production` so a later restart does not return to the
+failed release. `release` is safe to run with the older image: Django never
+reverses an applied migration, so `migrate` finds nothing to do, and
+`collectstatic` restores the older release's static files.
+
+**A rollback does not undo migrations.** The database stays on the newer schema,
+and the older image runs against it. That is only safe when the release's
+migrations were backward-compatible, which the pre-release checklist requires
+reviewing. When they were not, the options are a reviewed forward fix, a reverse
+migration tested against a staging copy, or a database restore — see "Rollback
+decision" in `docs/DEPLOYMENT_CHECKLIST.md`. Never improvise schema changes during
+an incident.
 
 ## Database backup, export, and restore
 
