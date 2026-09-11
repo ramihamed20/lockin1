@@ -20,8 +20,8 @@ public_host="lockin.example.test"
 bucket="lockin-media"
 
 postgres_image="${LOCKIN_POSTGRES_IMAGE:-postgres:18.4-alpine}"
-storage_image="${LOCKIN_STORAGE_IMAGE:-minio/minio:RELEASE.2025-04-22T22-12-26Z}"
-storage_client_image="${LOCKIN_STORAGE_CLIENT_IMAGE:-minio/mc:RELEASE.2025-04-16T18-13-26Z}"
+storage_image="${LOCKIN_STORAGE_IMAGE:-quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z}"
+storage_client_image="${LOCKIN_STORAGE_CLIENT_IMAGE:-quay.io/minio/mc:RELEASE.2025-04-16T18-13-26Z}"
 
 # Test-only values. Every one is thrown away with the network at the end.
 owner_password="smoke-owner-password"
