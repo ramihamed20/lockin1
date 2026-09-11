@@ -224,6 +224,7 @@ def transition_subscription(
     source_reference: str = "",
     period_started_at: datetime | None = None,
     period_ends_at: datetime | None = None,
+    allow_out_of_order: bool = False,
 ) -> TransitionResult:
     subscription = (
         Subscription.objects.select_for_update()
@@ -236,7 +237,7 @@ def transition_subscription(
     if duplicate is not None:
         return TransitionResult(subscription=subscription, changed=False)
     latest = subscription.transitions.order_by("-effective_at", "-created_at").first()
-    if latest is not None and effective_at < latest.effective_at:
+    if not allow_out_of_order and latest is not None and effective_at < latest.effective_at:
         SubscriptionTransition.objects.create(
             subscription=subscription,
             from_status=subscription.status,
@@ -398,6 +399,7 @@ def refresh_subscription(
             idempotency_key=(
                 f"period-end:{subscription.id}:{subscription.current_period_ends_at.isoformat()}"
             ),
+            allow_out_of_order=True,
         ).subscription
         # A grace window may already have elapsed when the scheduler catches
         # up. Continue through the authoritative state machine so one run does
@@ -417,5 +419,6 @@ def refresh_subscription(
             idempotency_key=(
                 f"grace-end:{subscription.id}:{subscription.grace_ends_at.isoformat()}"
             ),
+            allow_out_of_order=True,
         ).subscription
     return subscription

@@ -375,8 +375,8 @@ def _lock_in_materials(*, user: User) -> list[dict[str, object]]:
         .order_by("-published_at", "-updated_at")[:50]
     )
 
-    content_admin = is_content_administrator(user)
     cohort_enforced = bool(getattr(settings, "COHORT_CONTENT_ENFORCEMENT", False))
+    content_admin = is_content_administrator(user) if cohort_enforced else False
     materials: list[dict[str, object]] = []
     for learning_object in candidates:
         version = learning_object.published_version

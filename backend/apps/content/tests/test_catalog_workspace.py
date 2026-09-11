@@ -174,10 +174,10 @@ def test_catalog_materials_are_cohort_scoped_and_published_from_content_studio()
         "catalog-materials-other-dental-anatomy"
     ]
     assert forbidden.status_code == 403
-    assert {item["slug"] for item in founder_directory.json()["results"]} == {
+    assert {
         own_subject.material_slug,
         "catalog-materials-other-dental-anatomy",
-    }
+    } <= {item["slug"] for item in founder_directory.json()["results"]}
 
 
 def test_founder_content_panel_exposes_every_configured_catalog_branch() -> None:

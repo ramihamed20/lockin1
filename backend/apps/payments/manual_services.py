@@ -300,6 +300,7 @@ def submit_manual_recharge(
         source_reference=str(payment.id),
         period_started_at=period_start,
         period_ends_at=paid_end,
+        allow_out_of_order=True,
     ).subscription
     subscription.payment_verification = Subscription.PaymentVerification.PROVISIONAL
     subscription.provisional_payment_id = payment.id
