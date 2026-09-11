@@ -529,7 +529,7 @@ function ActiveStudyQuiz({ quiz, answers, setAnswers, result, busy, onSubmit, on
 export default function CatalogFocusWorkspace({ user = null }) {
   const { materialSlug, sheetSlug } = useParams();
   const { t } = useI18n();
-  const { materials } = useCatalogMaterials(user);
+  const { materials, loading: materialsLoading, error: materialsError, reload: reloadMaterials } = useCatalogMaterials(user);
   const material = materials.find((item) => item.slug === materialSlug) || null;
   const sheet = material?.sheets.find((item) => item.slug === sheetSlug) || null;
   // The server document behind the sheet: its protected PDF, and the ids its
@@ -542,6 +542,8 @@ export default function CatalogFocusWorkspace({ user = null }) {
       ? { ...item, sheets: item.sheets.map((entry) => (entry.slug === sheetSlug ? { ...entry, pdfUrl: viewUrl } : entry)) }
       : item))
     : materials), [materialSlug, materials, sheet, sheetSlug, viewUrl]);
+  if (materialsLoading) return <Page title={t("materials.coreCatalogTitle")}><LoadingPanel /></Page>;
+  if (materialsError) return <Page title={t("materials.sheetNotFoundTitle")}><ErrorPanel message={materialsError} onRetry={reloadMaterials} /></Page>;
   if (!material || !sheet) {
     return <Page title={t("materials.sheetNotFoundTitle")}><EmptyState icon="study" title={t("materials.noSheetsTitle")} text={t("materials.noSheetsText")} /></Page>;
   }

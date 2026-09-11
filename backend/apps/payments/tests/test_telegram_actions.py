@@ -302,14 +302,21 @@ def test_the_webhook_is_closed_when_no_secret_is_configured(settings: Any) -> No
     assert Payment.objects.get(id=payment.id).status == Payment.Status.PENDING
 
 
-def test_an_unauthorized_chat_cannot_act() -> None:
+def test_an_unauthorized_chat_cannot_act_but_ends_the_button_spinner(
+    silent_telegram: Any,
+) -> None:
     payment = _pending_payment(email="tg-chat@example.com", code="6677889900112")
     _operator()
 
     response = _post(_update(payment=payment, chat_id="-1009999999999"))
 
-    assert response.status_code == 403
+    assert response.status_code == 200
+    assert response.json() == {"status": "ignored"}
     assert Payment.objects.get(id=payment.id).status == Payment.Status.PENDING
+    answer = next(
+        call for call in silent_telegram.call_args_list if call.args[0] == "answerCallbackQuery"
+    )
+    assert answer.args[1]["text"] == "This action is not available."
 
 
 def test_an_unlinked_telegram_account_cannot_act() -> None:
@@ -318,7 +325,8 @@ def test_an_unlinked_telegram_account_cannot_act() -> None:
 
     response = _post(_update(payment=payment, from_id="999000111"))
 
-    assert response.status_code == 403
+    assert response.status_code == 200
+    assert response.json() == {"status": "ignored"}
     assert Payment.objects.get(id=payment.id).status == Payment.Status.PENDING
 
 
@@ -327,7 +335,7 @@ def test_a_deactivated_link_cannot_act() -> None:
     operator = _operator()
     TelegramPaymentOperator.objects.filter(id=operator.id).update(is_active=False)
 
-    assert _post(_update(payment=payment)).status_code == 403
+    assert _post(_update(payment=payment)).status_code == 200
     assert Payment.objects.get(id=payment.id).status == Payment.Status.PENDING
 
 
@@ -337,7 +345,7 @@ def test_a_linked_account_without_the_capability_cannot_act() -> None:
     payment = _pending_payment(email="tg-nocap@example.com", code="9900112233445")
     _operator(capability=False)
 
-    assert _post(_update(payment=payment)).status_code == 403
+    assert _post(_update(payment=payment)).status_code == 200
     assert Payment.objects.get(id=payment.id).status == Payment.Status.PENDING
 
 
@@ -356,7 +364,7 @@ def test_a_linked_account_without_the_capability_cannot_act() -> None:
 def test_malformed_or_unsigned_callback_data_is_refused(data: str) -> None:
     _operator()
 
-    assert _post(_update(data=data)).status_code == 403
+    assert _post(_update(data=data)).json() == {"status": "ignored"}
 
 
 def test_callback_data_signed_for_a_different_action_is_refused() -> None:
@@ -367,7 +375,7 @@ def test_callback_data_signed_for_a_different_action_is_refused() -> None:
     approve = build_callback_data(action="approve", payment_id=payment.id)
     tampered = approve.replace("p1:a:", "p1:r:", 1)
 
-    assert _post(_update(data=tampered)).status_code == 403
+    assert _post(_update(data=tampered)).json() == {"status": "ignored"}
     assert Payment.objects.get(id=payment.id).status == Payment.Status.PENDING
 
 
