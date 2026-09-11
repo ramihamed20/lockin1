@@ -194,7 +194,11 @@ class AdminSubjectListView(_ContentPermissionView):
                 "Tripoli" if program.code == "human-medicine" else program.name_en.split(" — ")[-1]
             )
             specialty = "Human Medicine" if program.code == "human-medicine" else "Dentistry"
-            year = subject.cohort.name_en.split(" — ")[-1]
+            year = (
+                f"Batch {subject.cohort.code}"
+                if program.code == "human-medicine"
+                else subject.cohort.name_en.split(" — ")[-1]
+            )
             results.append(
                 {
                     "id": str(subject.id),

@@ -19,7 +19,15 @@ def is_administrator(user: User) -> bool:
 
 
 def is_content_administrator(user: User) -> bool:
-    return is_administrator(user) or has_operational_capability(user, Capability.CONTENT_MANAGE)
+    # A request may check dozens of documents. Roles/capabilities are immutable
+    # for that request, so avoid re-querying memberships for every row.
+    cached = getattr(user, "_content_administrator", None)
+    if cached is None:
+        cached = is_administrator(user) or has_operational_capability(
+            user, Capability.CONTENT_MANAGE
+        )
+        setattr(user, "_content_administrator", cached)
+    return bool(cached)
 
 
 def is_assessment_administrator(user: User) -> bool:
