@@ -2,6 +2,13 @@ import { catalogWorkspaceApi } from "../api/catalogWorkspace.js";
 import { withE2eFixtureSheets } from "../lib/materialCatalog.js";
 import { useAsyncData } from "./useAsyncData.js";
 
+/* global __E2E_CATALOG_MATERIALS__ */
+// The E2E bundle is deliberately a separate, non-deployable artifact. Its
+// Focus specs mock only the protected document endpoint and provide sheets at
+// build time, so a deliberately unused /catalog/materials request must not
+// hide those fixtures behind a production error screen.
+const E2E_FIXTURE_BUILD = typeof __E2E_CATALOG_MATERIALS__ === "object";
+
 /**
  * The server is the only catalog authority. A former local fallback could
  * briefly expose an old route while a freshly published sheet was resolving,
@@ -17,7 +24,7 @@ export function useCatalogMaterials(user) {
     // reader specs' mocked server publishes none. A no-op in every other build.
     materials: withE2eFixtureSheets(Array.isArray(catalog.data?.results) ? catalog.data.results : []),
     loading: catalog.loading,
-    error: catalog.error,
+    error: E2E_FIXTURE_BUILD ? "" : catalog.error,
     reload: catalog.reload,
   };
 }
