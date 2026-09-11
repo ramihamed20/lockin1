@@ -26,7 +26,7 @@ def is_content_administrator(user: User) -> bool:
         cached = is_administrator(user) or has_operational_capability(
             user, Capability.CONTENT_MANAGE
         )
-        setattr(user, "_content_administrator", cached)
+        user._content_administrator = cached  # type: ignore[attr-defined]
     return bool(cached)
 
 
