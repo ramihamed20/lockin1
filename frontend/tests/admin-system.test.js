@@ -122,6 +122,6 @@ test("configuration changes use Django's versioned PATCH contract and content ac
     body: { value: true, expected_version: 1, reason: "Schedule a verified maintenance window." }
   });
   const user = { id: USER_ID, roles: ["student"] };
-  assert.equal(canAccessRoute(user, "/creator/content", { capabilities: ["content.manage"] }), true);
+  assert.equal(canAccessRoute(user, "/creator/content", { capabilities: ["content.view"] }), true);
   assert.equal(canAccessRoute(user, "/creator/content", { capabilities: ["assessments.view"] }), false);
 });
