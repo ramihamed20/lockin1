@@ -56,6 +56,9 @@ import { progressApi } from "../api/progress.js";
 import { generateIdempotencyKey } from "../api/pagination.js";
 import { rememberLastOpenedCatalogSheet } from "../lib/materialCatalog.js";
 import { useCatalogMaterials } from "../hooks/useCatalogMaterials.js";
+import { useCatalogDocument } from "../hooks/useCatalogDocument.js";
+import { subscribeConnection } from "../lib/connectionState.js";
+import { createCatalogServerSync } from "../workspace/catalog/catalogServerSync.js";
 import { cssVars } from "../lib/utils.js";
 import { subscribeViewport } from "../lib/viewport.js";
 import { usePageTitle } from "../hooks/usePageTitle.js";
@@ -150,7 +153,7 @@ import {
   pageSignatures,
   parseImportPayload
 } from "../workspace/storage/workspaceSnapshot.js";
-import { EmptyState, Page } from "../components/ui/index.jsx";
+import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
 import "./catalog-focus-workspace.css";
 
@@ -160,6 +163,9 @@ const PAGE_SPACE = 1000;
 const MIN_FOCUS_ZOOM = WORKSPACE_ZOOM.minimum;
 const MAX_FOCUS_ZOOM = WORKSPACE_ZOOM.catalogMaximum;
 const AUTOSAVE_IDLE_MS = 750;
+// The server mirror trails the local save, so a burst of strokes or a scroll
+// becomes one request rather than many.
+const SERVER_SYNC_DELAY_MS = 1_500;
 const COLORS = ["#8b5cf6", "#f2b728", "#20b982", "#e65791", "#239ed1"];
 const HOLD_RECOGNITION_MS = 420;
 const HOLD_ENDPOINT_TOLERANCE_PX = 6;
@@ -526,13 +532,29 @@ export default function CatalogFocusWorkspace({ user = null }) {
   const { materials } = useCatalogMaterials(user);
   const material = materials.find((item) => item.slug === materialSlug) || null;
   const sheet = material?.sheets.find((item) => item.slug === sheetSlug) || null;
+  // The server document behind the sheet: its protected PDF, and the ids its
+  // reader state and annotations sync under. A fixture sheet that carries its
+  // own pdfUrl opens without it and simply stays local.
+  const catalogDocument = useCatalogDocument(sheet ? materialSlug : "", sheet ? sheetSlug : "");
+  const viewUrl = catalogDocument.document?.viewUrl || "";
+  const resolvedMaterials = useMemo(() => (viewUrl && sheet && !sheet.pdfUrl
+    ? materials.map((item) => (item.slug === materialSlug
+      ? { ...item, sheets: item.sheets.map((entry) => (entry.slug === sheetSlug ? { ...entry, pdfUrl: viewUrl } : entry)) }
+      : item))
+    : materials), [materialSlug, materials, sheet, sheetSlug, viewUrl]);
   if (!material || !sheet) {
     return <Page title={t("materials.sheetNotFoundTitle")}><EmptyState icon="study" title={t("materials.noSheetsTitle")} text={t("materials.noSheetsText")} /></Page>;
   }
-  return <CatalogFocusWorkspaceView user={user} materials={materials} />;
+  // The workspace sizes itself from the PDF when it first mounts, so it waits
+  // for the document rather than mounting without one.
+  if (!sheet.pdfUrl && catalogDocument.loading) return <Page title={sheet.title}><LoadingPanel /></Page>;
+  if (!sheet.pdfUrl && !catalogDocument.document) {
+    return <Page title={sheet.title}><ErrorPanel message={catalogDocument.error || t("materials.sheetNotFoundText")} onRetry={catalogDocument.reload} /></Page>;
+  }
+  return <CatalogFocusWorkspaceView user={user} materials={resolvedMaterials} catalogDocument={catalogDocument.document} />;
 }
 
-function CatalogFocusWorkspaceView({ user = null, materials = [] }) {
+function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocument = null }) {
   const { materialSlug, sheetSlug } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -587,6 +609,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [] }) {
   const revisionIndexRef = useRef(null);
   const savedPageSignaturesRef = useRef(new Map());
   const hydratedRef = useRef(false);
+  // Server mirror of the local store (see catalogServerSync.js).
+  const serverSyncRef = useRef(null);
+  const serverSyncTimerRef = useRef(null);
+  const serverLoadStartedRef = useRef(null);
   const backupInputRef = useRef(null);
   if (annotationStoreRef.current === null) annotationStoreRef.current = createAnnotationStore();
   if (revisionIndexRef.current === null) revisionIndexRef.current = createAnnotationRevisionIndex();
@@ -1298,6 +1324,26 @@ function CatalogFocusWorkspaceView({ user = null, materials = [] }) {
   }, [updateAnnotations]);
 
   /**
+   * Mirrors the local store to the server shortly after it settles. The device
+   * store is written first and stays authoritative; a failed push is retried on
+   * the next save or when the connection returns.
+   */
+  const scheduleServerSync = useCallback((delay = SERVER_SYNC_DELAY_MS) => {
+    if (serverSyncTimerRef.current) window.clearTimeout(serverSyncTimerRef.current);
+    serverSyncTimerRef.current = window.setTimeout(() => {
+      serverSyncTimerRef.current = null;
+      const sync = serverSyncRef.current;
+      if (!sync?.isLoaded()) return;
+      void sync.push({
+        savedAt: new Date().toISOString(),
+        view: { page: pageRef.current, zoom: zoomRef.current },
+        notes: notesRef.current,
+        annotations: annotationsRef.current
+      });
+    }, delay);
+  }, []);
+
+  /**
    * Writes only the pages whose ink actually changed. Every edit path produces
    * new annotation objects, so identity signatures detect an erase or a
    * transform that keeps an id, without serializing anything.
@@ -1325,6 +1371,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [] }) {
         savedPageSignaturesRef.current = signatures;
         setSaveState("saved");
         setSaveErrorReason("");
+        if (!target) scheduleServerSync();
       } catch {
         setSaveState("error");
         setSaveErrorReason("This device is out of space for saved marks.");
@@ -1346,13 +1393,15 @@ function CatalogFocusWorkspaceView({ user = null, materials = [] }) {
       savedPageSignaturesRef.current = signatures;
       setSaveState("saved");
       setSaveErrorReason("");
+      // A save made for the sheet being left belongs to that sheet, not this sync.
+      if (!target) scheduleServerSync();
     } catch (error) {
       // The signatures are deliberately not advanced, so the next save retries
       // exactly the pages that failed.
       setSaveState("error");
       setSaveErrorReason(error?.message || "Marks could not be saved on this device.");
     }
-  }, [materialSlug, minimumPdfZoom, ownerKey, sheetSlug]);
+  }, [materialSlug, minimumPdfZoom, ownerKey, scheduleServerSync, sheetSlug]);
 
   persistWorkspaceRef.current = persistWorkspace;
 
@@ -1426,6 +1475,60 @@ function CatalogFocusWorkspaceView({ user = null, materials = [] }) {
   // `clampReaderZoom` and the remember-* refs are read once per document load.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookmarkedPage, materialSlug, ownerKey, sheetSlug]);
+
+  // One server mirror per document and account. A sheet without a server
+  // document (a build fixture, or one the reader cannot reach) stays local.
+  const catalogDocumentId = catalogDocument?.id || "";
+  const catalogDocumentVersionId = catalogDocument?.versionId || "";
+  const [serverLoadAttempt, setServerLoadAttempt] = useState(0);
+  useEffect(() => {
+    const sync = catalogDocumentId && catalogDocumentVersionId
+      ? createCatalogServerSync({ documentId: catalogDocumentId, documentVersionId: catalogDocumentVersionId, owner: ownerKey })
+      : null;
+    serverSyncRef.current = sync;
+    serverLoadStartedRef.current = null;
+    return () => {
+      if (serverSyncTimerRef.current) window.clearTimeout(serverSyncTimerRef.current);
+      serverSyncTimerRef.current = null;
+      if (serverSyncRef.current === sync) serverSyncRef.current = null;
+    };
+  }, [catalogDocumentId, catalogDocumentVersionId, ownerKey]);
+
+  // The server's copy is read once the local one is restored and the PDF has
+  // reported its page count, then merged into what this device holds.
+  useEffect(() => {
+    const sync = serverSyncRef.current;
+    if (!sync || !restored || !pdfDocumentReady || serverLoadStartedRef.current === sync) return;
+    serverLoadStartedRef.current = sync;
+    sync.load({ pageCount }).then(() => {
+      if (serverSyncRef.current !== sync || !hydratedRef.current) return;
+      const merged = sync.reconcile({ annotations: annotationsRef.current, notes: notesRef.current });
+      if (!merged.localChanged) {
+        scheduleServerSync(0);
+        return;
+      }
+      // Another device's work arrives as a change like any other: the autosave
+      // writes it to this device and then pushes this device's own changes.
+      updateAnnotations(merged.annotations);
+      notesRef.current = merged.notes;
+      setNotes(merged.notes);
+      setSelectedIds([]);
+      setUndoHistory([]);
+      setRedoHistory([]);
+    }).catch(() => {
+      // Offline, or the server is unreachable: stay local, retry on reconnect.
+      if (serverLoadStartedRef.current === sync) serverLoadStartedRef.current = null;
+    });
+  }, [catalogDocumentId, pageCount, pdfDocumentReady, restored, scheduleServerSync, serverLoadAttempt, updateAnnotations]);
+
+  // Work done offline is sent when the connection comes back.
+  useEffect(() => subscribeConnection((connection) => {
+    if (connection.status === "connected") {
+      const sync = serverSyncRef.current;
+      if (sync && !sync.isLoaded()) setServerLoadAttempt((attempt) => attempt + 1);
+      else if (sync?.hasPending()) void sync.retry();
+    }
+  }), []);
 
   useEffect(() => {
     const stage = stageRef.current;

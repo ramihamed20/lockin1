@@ -5,8 +5,13 @@ export const catalogWorkspaceApi = {
   materials() {
     return request("/catalog/materials");
   },
-  resolve(materialSlug, sheetSlug) {
-    return request(`/catalog/documents/${encodeURIComponent(materialSlug)}/${encodeURIComponent(sheetSlug)}`);
+  /**
+   * @param {string} materialSlug
+   * @param {string} sheetSlug
+   * @param {{ signal?: AbortSignal }} [options]
+   */
+  resolve(materialSlug, sheetSlug, { signal } = {}) {
+    return request(`/catalog/documents/${encodeURIComponent(materialSlug)}/${encodeURIComponent(sheetSlug)}`, { signal });
   },
   get(documentId) { return request(`/catalog/documents/${documentId}/workspace`); },
   save(documentId, expectedRevision, state, idempotencyKey = generateIdempotencyKey()) {
