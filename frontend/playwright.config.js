@@ -15,7 +15,10 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? "github" : "list",
+  // Keep GitHub annotations while also streaming progress. The GitHub reporter
+  // alone is intentionally quiet until completion, which makes a normal
+  // several-minute browser suite look stalled in Actions logs.
+  reporter: process.env.CI ? [["github"], ["line"]] : "list",
   use: {
     baseURL,
     trace: "on-first-retry"
