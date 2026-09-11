@@ -1,6 +1,7 @@
 """Durable, bounded account-email worker. SMTP is intentionally outside HTTP."""
 
 from datetime import timedelta
+import hashlib
 
 from cryptography.fernet import Fernet
 from django.conf import settings
@@ -18,7 +19,12 @@ def _cipher() -> Fernet:
     # The application secret already protects Django's signed state. Deriving a
     # separate Fernet key prevents raw, single-use URLs being stored as plain DB
     # text without adding a second production secret to manage.
-    key = salted_hmac("accounts.email-delivery", "fernet", secret=settings.SECRET_KEY).digest()
+    key = salted_hmac(
+        "accounts.email-delivery",
+        "fernet",
+        secret=settings.SECRET_KEY,
+        algorithm=hashlib.sha256().name,
+    ).digest()
     import base64
 
     return Fernet(base64.urlsafe_b64encode(key))
