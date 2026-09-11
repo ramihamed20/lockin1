@@ -100,9 +100,11 @@ def _sheets(subject: EducationNode) -> QuerySet[LearningObject]:
 
 def _catalog_subject_node(subject_id: UUID) -> tuple[CatalogSubject | None, EducationNode]:
     """Resolve the Catalog identifier, while keeping pre-Catalog content operable."""
-    catalog_subject = CatalogSubject.objects.filter(id=subject_id, is_active=True).select_related(
-        "source_node"
-    ).first()
+    catalog_subject = (
+        CatalogSubject.objects.filter(id=subject_id, is_active=True)
+        .select_related("source_node")
+        .first()
+    )
     if catalog_subject is not None:
         if catalog_subject.source_node is None:
             raise NotFound("Catalog subject is not linked to content yet.")
@@ -168,9 +170,11 @@ def serialize_sheet(sheet: LearningObject) -> dict[str, object]:
 
 class AdminSubjectListView(_ContentPermissionView):
     def get(self, request: Request) -> Response:
-        subjects = CatalogSubject.objects.select_related("cohort__program", "source_node").filter(
-            is_active=True, source_node__isnull=False
-        ).order_by("cohort__position", "position", "title", "id")
+        subjects = (
+            CatalogSubject.objects.select_related("cohort__program", "source_node")
+            .filter(is_active=True, source_node__isnull=False)
+            .order_by("cohort__position", "position", "title", "id")
+        )
         query = request.query_params.get("q", "").strip()[:100]
         if query:
             subjects = subjects.filter(title__icontains=query)
@@ -187,9 +191,7 @@ class AdminSubjectListView(_ContentPermissionView):
                 continue
             program = subject.cohort.program
             college = (
-                "Tripoli"
-                if program.code == "human-medicine"
-                else program.name_en.split(" — ")[-1]
+                "Tripoli" if program.code == "human-medicine" else program.name_en.split(" — ")[-1]
             )
             specialty = "Human Medicine" if program.code == "human-medicine" else "Dentistry"
             year = subject.cohort.name_en.split(" — ")[-1]

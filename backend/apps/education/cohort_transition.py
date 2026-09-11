@@ -62,9 +62,9 @@ def change_student_cohort(*, user: User, cohort: StudentCohort) -> bool:
             WeeklyRecallSession,
         )
 
-        old_version_ids = list(
-            old_objects.values_list("current_version_id", flat=True)
-        ) + list(old_objects.values_list("published_version_id", flat=True))
+        old_version_ids = list(old_objects.values_list("current_version_id", flat=True)) + list(
+            old_objects.values_list("published_version_id", flat=True)
+        )
         old_version_ids = [version_id for version_id in old_version_ids if version_id is not None]
 
         # This is an explicit allowlist of student-owned, cohort-bound study

@@ -176,9 +176,7 @@ class CatalogMaterialListView(APIView):
                         "title": version.title,
                         "summary": version.summary,
                         "pageCount": (
-                            page_count
-                            if isinstance(page_count, int) and page_count > 0
-                            else None
+                            page_count if isinstance(page_count, int) and page_count > 0 else None
                         ),
                         "hasActiveStudy": bool(settings and settings.enabled),
                     }

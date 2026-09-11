@@ -23,12 +23,8 @@ def cohorts() -> tuple[StudentCohort, StudentCohort, object]:
     program = AcademicProgram.objects.create(
         code="transition-program", name_en="Transition", name_ar="Transition"
     )
-    old = StudentCohort.objects.create(
-        program=program, code="old", name_en="Old", name_ar="Old"
-    )
-    new = StudentCohort.objects.create(
-        program=program, code="new", name_en="New", name_ar="New"
-    )
+    old = StudentCohort.objects.create(program=program, code="old", name_en="Old", name_ar="Old")
+    new = StudentCohort.objects.create(program=program, code="new", name_en="New", name_ar="New")
     old.content_nodes.add(root)
     return old, new, lesson
 
@@ -65,9 +61,10 @@ def test_failed_cleanup_rolls_back_the_cohort_update() -> None:
     old, new, _ = cohorts()
     student = create_user(email="cohort-rollback@example.com", cohort=old)
 
-    with patch(
-        "apps.education.cohort_transition._objects_under", side_effect=RuntimeError("boom")
-    ), pytest.raises(RuntimeError, match="boom"):
+    with (
+        patch("apps.education.cohort_transition._objects_under", side_effect=RuntimeError("boom")),
+        pytest.raises(RuntimeError, match="boom"),
+    ):
         change_student_cohort(user=student, cohort=new)
 
     student.refresh_from_db()
