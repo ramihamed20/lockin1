@@ -153,10 +153,20 @@ def _first_subscription_offer_available(*, user: User) -> bool:
 
 def _early_renewal_allowed(*, subscription: Subscription, now: datetime) -> bool:
     return bool(
-        subscription.status == Subscription.Status.ACTIVE
+        subscription.status in (Subscription.Status.ACTIVE, Subscription.Status.GRACE)
         and subscription.current_period_ends_at
-        and subscription.current_period_ends_at > now
-        and subscription.current_period_ends_at - now <= EARLY_RENEWAL_WINDOW
+        and (
+            (
+                subscription.status == Subscription.Status.ACTIVE
+                and subscription.current_period_ends_at > now
+                and subscription.current_period_ends_at - now <= EARLY_RENEWAL_WINDOW
+            )
+            or (
+                subscription.status == Subscription.Status.GRACE
+                and subscription.grace_ends_at
+                and now <= subscription.grace_ends_at
+            )
+        )
     )
 
 

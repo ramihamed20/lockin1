@@ -389,7 +389,7 @@ def refresh_subscription(
             target = Subscription.Status.GRACE
         else:
             target = Subscription.Status.EXPIRED
-        return transition_subscription(
+        transitioned = transition_subscription(
             subscription_id=subscription.id,
             to_status=target,
             reason_code="period_ended",
@@ -399,6 +399,10 @@ def refresh_subscription(
                 f"period-end:{subscription.id}:{subscription.current_period_ends_at.isoformat()}"
             ),
         ).subscription
+        # A grace window may already have elapsed when the scheduler catches
+        # up. Continue through the authoritative state machine so one run does
+        # not leave an already-expired subscription in GRACE for another cycle.
+        return refresh_subscription(subscription=transitioned, now=current)
     if (
         subscription.status == Subscription.Status.GRACE
         and subscription.grace_ends_at
