@@ -205,7 +205,7 @@ services:
       retries: 18
       start_period: 30s
     volumes:
-      - lockin_postgres_data:/var/lib/postgresql/data
+      - lockin_postgres_data:/var/lib/postgresql
       - ./deploy/postgres/init-runtime-role.sh:/docker-entrypoint-initdb.d/10-lockin-runtime-role.sh:ro
     networks:
       - data
