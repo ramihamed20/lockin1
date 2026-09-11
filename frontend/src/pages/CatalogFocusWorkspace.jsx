@@ -54,7 +54,8 @@ import {
 import { focusApi } from "../api/focus.js";
 import { progressApi } from "../api/progress.js";
 import { generateIdempotencyKey } from "../api/pagination.js";
-import { getCatalogSheet, rememberLastOpenedCatalogSheet } from "../lib/materialCatalog.js";
+import { rememberLastOpenedCatalogSheet } from "../lib/materialCatalog.js";
+import { useCatalogMaterials } from "../hooks/useCatalogMaterials.js";
 import { cssVars } from "../lib/utils.js";
 import { subscribeViewport } from "../lib/viewport.js";
 import { usePageTitle } from "../hooks/usePageTitle.js";
@@ -522,14 +523,16 @@ function ActiveStudyQuiz({ quiz, answers, setAnswers, result, busy, onSubmit, on
 export default function CatalogFocusWorkspace({ user = null }) {
   const { materialSlug, sheetSlug } = useParams();
   const { t } = useI18n();
-  const { material, sheet } = getCatalogSheet(materialSlug, sheetSlug);
+  const { materials } = useCatalogMaterials(user);
+  const material = materials.find((item) => item.slug === materialSlug) || null;
+  const sheet = material?.sheets.find((item) => item.slug === sheetSlug) || null;
   if (!material || !sheet) {
     return <Page title={t("materials.sheetNotFoundTitle")}><EmptyState icon="study" title={t("materials.noSheetsTitle")} text={t("materials.noSheetsText")} /></Page>;
   }
-  return <CatalogFocusWorkspaceView user={user} />;
+  return <CatalogFocusWorkspaceView user={user} materials={materials} />;
 }
 
-function CatalogFocusWorkspaceView({ user = null }) {
+function CatalogFocusWorkspaceView({ user = null, materials = [] }) {
   const { materialSlug, sheetSlug } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -627,7 +630,8 @@ function CatalogFocusWorkspaceView({ user = null }) {
     smartSelectionActivated: false
   });
 
-  const { material, sheet } = getCatalogSheet(materialSlug, sheetSlug);
+  const material = materials.find((item) => item.slug === materialSlug) || null;
+  const sheet = material?.sheets.find((item) => item.slug === sheetSlug) || null;
   const inkDebugEnabled = import.meta.env.DEV && searchParams.get("inkDebug") === "1";
 
   useEffect(() => {

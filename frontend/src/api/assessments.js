@@ -70,12 +70,29 @@ export const assessmentsApi = {
     return objectPayload(
       await request(`/attempts/${attemptId}/questions/${attemptQuestionId}/answer`, {
         method: "PUT",
+        retryable: true,
+        allowOfflineQueue: true,
         body: {
           selected_option_ids: selectedOptionIds,
           client_revision: clientRevision
         }
       }),
       "The answer-save response was incomplete."
+    );
+  },
+
+  async saveResume(attemptId, { questionPosition, clientRevision }) {
+    return objectPayload(
+      await request(`/attempts/${attemptId}/resume`, {
+        method: "PUT",
+        retryable: true,
+        allowOfflineQueue: true,
+        body: {
+          question_position: questionPosition,
+          client_revision: clientRevision
+        }
+      }),
+      "The quiz position could not be saved."
     );
   },
 

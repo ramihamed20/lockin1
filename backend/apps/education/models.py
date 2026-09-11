@@ -1,4 +1,5 @@
 import uuid
+from typing import Any
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -38,6 +39,12 @@ class StudentCohort(models.Model):
     name_en = models.CharField(max_length=120)
     name_ar = models.CharField(max_length=120)
     is_active = models.BooleanField(default=True, db_index=True)
+    # Authoritative access scopes.  A scope may be any education subtree, so
+    # shared foundation material is linked once to each intended cohort rather
+    # than copied per student or inferred from a presentation name.
+    content_nodes: Any = models.ManyToManyField(
+        "EducationNode", blank=True, related_name="authorized_cohorts"
+    )
     position = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

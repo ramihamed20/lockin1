@@ -135,13 +135,12 @@ test("two accounts on one device never see each other's marks", async ({ page })
   expect(firstAccountPages[0].annotations).toHaveLength(1);
 });
 
-test("a legacy localStorage sheet migrates once and the old copy is removed", async ({ page }) => {
+test("the localStorage fallback restores only the authenticated owner's sheet", async ({ page }) => {
   test.setTimeout(90_000);
   await mockWorkspace(page);
   await page.addInitScript(() => {
-    if (sessionStorage.getItem("legacy-seeded")) return;
-    sessionStorage.setItem("legacy-seeded", "true");
-    localStorage.setItem("lock-in.catalog-workspace.v1.biochemistry-1.vitamin-1", JSON.stringify({
+    Object.defineProperty(globalThis, "indexedDB", { configurable: true, value: undefined });
+    const snapshot = {
       version: 1,
       savedAt: new Date().toISOString(),
       page: 1,
@@ -161,24 +160,24 @@ test("a legacy localStorage sheet migrates once and the old copy is removed", as
         points: [{ x: 120, y: 200, t: 0, p: 0.5, pointer: "pen" }, { x: 420, y: 260, t: 8, p: 0.5, pointer: "pen" }]
       }],
       notes: [{ id: "legacy-note", page: 1, body: "kept from the old store", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" }]
+    };
+    localStorage.setItem("lock-in.catalog-workspace.v1.user_persistence-student.biochemistry-1.vitamin-1", JSON.stringify(snapshot));
+    localStorage.setItem("lock-in.catalog-workspace.v1.biochemistry-1.vitamin-1", JSON.stringify({
+      ...snapshot,
+      annotations: snapshot.annotations.map((annotation) => ({ ...annotation, id: "unscoped-stroke" }))
     }));
   });
 
   await openWorkspace(page);
   await expect(visibleInk(page)).toHaveCount(1);
   await expect(page.locator('[data-annotation-id="legacy-stroke"]').first()).toBeAttached();
+  await expect(page.locator('[data-annotation-id="unscoped-stroke"]')).toHaveCount(0);
 
-  const migrated = await readWorkspaceDatabase(page);
-  expect(migrated.pages[0].annotations[0].id).toBe("legacy-stroke");
-  expect(migrated.documents[0].notes).toHaveLength(1);
-  // The legacy key is only dropped after the migrated document reads back.
-  expect(await page.evaluate(() => localStorage.getItem("lock-in.catalog-workspace.v1.biochemistry-1.vitamin-1"))).toBeNull();
-
-  // Re-opening must not duplicate the migrated stroke.
+  // Re-opening the fallback must not duplicate the owner's stroke.
   await openWorkspace(page);
   await expect(visibleInk(page)).toHaveCount(1);
-  const reopened = await readWorkspaceDatabase(page);
-  expect(reopened.pages[0].annotations).toHaveLength(1);
+  await expect(page.locator('[data-annotation-id="legacy-stroke"]').first()).toBeAttached();
+  await expect(page.locator('[data-annotation-id="unscoped-stroke"]')).toHaveCount(0);
 });
 
 test("a backup exports, restores, and refuses to cross into another sheet unasked", async ({ page }) => {

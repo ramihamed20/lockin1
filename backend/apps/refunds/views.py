@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.generics import ListAPIView
@@ -37,14 +38,25 @@ class AdminRefundRequestView(APIView):
         if len(key) < 12:
             raise ValidationError({"idempotency_key": ["A stable idempotency key is required."]})
         try:
-            refund, created = request_refund(
-                payment_id=serializer.validated_data["payment_id"],
-                actor=actor,
-                amount_minor=serializer.validated_data["amount_minor"],
-                reason=serializer.validated_data["reason"],
-                idempotency_key=key,
-            )
-            create_refund_request(refund=refund)
+            # One transaction, because the reservation and the provider request
+            # are one decision. ``request_refund`` is itself atomic, so calling
+            # it alone committed the Refund row before the provider was asked --
+            # and when the provider refused (which it always does while
+            # PAYMENT_PROVIDER=none) the caller saw a 400 while a REQUESTED row
+            # survived. Those rows count toward the reserved balance in
+            # ``request_refund``, so each failed attempt permanently shrank what
+            # the payment could still refund. The operations console already
+            # wraps the same pair this way; this endpoint now matches it.
+            with transaction.atomic():
+                refund, created = request_refund(
+                    payment_id=serializer.validated_data["payment_id"],
+                    actor=actor,
+                    amount_minor=serializer.validated_data["amount_minor"],
+                    reason=serializer.validated_data["reason"],
+                    idempotency_key=key,
+                )
+                if created:
+                    create_refund_request(refund=refund)
         except (Payment.DoesNotExist, ValueError) as error:
             raise ValidationError({"refund": [str(error)]}) from error
         return Response(

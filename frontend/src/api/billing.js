@@ -1,5 +1,23 @@
 import { ApiError, request } from "./client.js";
-import { generateIdempotencyKey } from "./pagination.js";
+
+/**
+ * The server requires at least 12 characters and treats the key as the identity
+ * of one logical payment. Refusing a missing key here rather than inventing one
+ * keeps that identity where it belongs -- with the caller that knows whether
+ * this is a retry or a new attempt.
+ * @param {unknown} idempotencyKey
+ */
+function requireAttemptKey(idempotencyKey) {
+  if (typeof idempotencyKey !== "string" || idempotencyKey.length < 12) {
+    throw new ApiError(
+      0,
+      null,
+      "This payment could not be prepared. Reload the page and try again.",
+      "missing_idempotency_key"
+    );
+  }
+  return idempotencyKey;
+}
 
 function objectPayload(payload, message) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
@@ -91,20 +109,37 @@ export const billingApi = {
     );
   },
 
-  async startCheckout(priceId) {
+  /**
+   * The key identifies the attempt, not the call.
+   *
+   * These used to mint a key inside the request, so a retry after a lost
+   * response was a different logical payment to the server -- which is exactly
+   * the case an idempotency key exists to cover. The caller owns the key and
+   * holds it across retries; it makes a new one only when the reader starts a
+   * new attempt. See `paymentAttemptKey` in pages/Subscription.jsx.
+   *
+   * @param {string} priceId
+   * @param {string} idempotencyKey
+   */
+  async startCheckout(priceId, idempotencyKey) {
     return checkoutPayload(await request("/payments/intents", {
       method: "POST",
       body: { price_id: priceId },
-      idempotencyKey: generateIdempotencyKey()
+      idempotencyKey: requireAttemptKey(idempotencyKey)
     }));
   },
 
-  async submitLibyana(planId, rechargeCodes) {
+  /**
+   * @param {string} planId
+   * @param {string[]} rechargeCodes
+   * @param {string} idempotencyKey
+   */
+  async submitLibyana(planId, rechargeCodes, idempotencyKey) {
     const source = objectPayload(
       await request("/payments/manual-libyana", {
         method: "POST",
         body: { plan_id: planId, recharge_codes: rechargeCodes },
-        idempotencyKey: generateIdempotencyKey()
+        idempotencyKey: requireAttemptKey(idempotencyKey)
       }),
       "The Libyana payment response was incomplete."
     );

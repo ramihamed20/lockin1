@@ -34,7 +34,7 @@ export const authApi = {
   oauthProviders: () => accountsApi.oauthProviders(),
   startOAuth: (provider, payload) => accountsApi.startOAuth(provider, payload),
   updateProfile: (payload) => accountsApi.updateProfile(payload),
-  completeWelcome: () => accountsApi.completeWelcome(),
+  completeWelcome: (preferences) => accountsApi.completeWelcome(preferences),
 
   requestPasswordReset: (email) => accountsApi.requestPasswordReset(email),
   resendVerification: (email) => accountsApi.resendVerification(email),

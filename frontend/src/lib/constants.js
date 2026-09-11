@@ -71,7 +71,8 @@ export const appIconOptions = [
 
 export const characterOptions = [
   { id: "black", label: "Black Cat" },
-  { id: "white", label: "White Cat" }
+  { id: "white", label: "White Cat" },
+  { id: "none", label: "None" }
 ];
 
 export const themeOptions = [

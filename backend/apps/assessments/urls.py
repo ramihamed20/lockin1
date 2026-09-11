@@ -5,6 +5,7 @@ from .views import (
     AttemptAnswerView,
     AttemptDetailView,
     AttemptResultView,
+    AttemptResumeView,
     AttemptSubmitView,
     ManagementQuizDetailView,
     ManagementQuizListView,
@@ -26,6 +27,7 @@ urlpatterns = [
     path("quizzes/<uuid:quiz_id>", PublicQuizDetailView.as_view(), name="public-detail"),
     path("quizzes/<uuid:quiz_id>/attempts", StartAttemptView.as_view(), name="start-attempt"),
     path("attempts/<uuid:attempt_id>", AttemptDetailView.as_view(), name="attempt-detail"),
+    path("attempts/<uuid:attempt_id>/resume", AttemptResumeView.as_view(), name="save-resume"),
     path(
         "attempts/<uuid:attempt_id>/questions/<uuid:attempt_question_id>/answer",
         AttemptAnswerView.as_view(),

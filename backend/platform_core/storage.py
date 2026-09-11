@@ -58,35 +58,53 @@ class ManagedObject:
         length: int | None = None,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
     ) -> Iterator[bytes]:
+        """Begin reading, raising before the caller can commit to a 200.
+
+        The provider request is issued here rather than on first iteration. A
+        generator defers all of its body until something pulls on it, and
+        ``StreamingHttpResponse`` does not pull until the response is already on
+        the wire -- so a missing or unreadable object used to arrive as a 200
+        that died mid-body, which a client cannot tell from a truncated network
+        read. Failing here lets the view answer properly instead.
+
+        An interruption after the first chunk can still truncate the response;
+        that one is genuinely unavoidable once the status line has been sent.
+        """
+
         if self._remote is not None:
-            return self._stream_remote(
-                self._remote, start=start, length=length, chunk_size=chunk_size
+            byte_range = (
+                f"bytes={start}-" if length is None else f"bytes={start}-{start + length - 1}"
             )
-        return self._stream_local(start=start, length=length, chunk_size=chunk_size)
-
-    def _stream_remote(
-        self, remote: Any, *, start: int, length: int | None, chunk_size: int
-    ) -> Iterator[bytes]:
-        # An open-ended range keeps the request valid when only the offset is known.
-        byte_range = f"bytes={start}-" if length is None else f"bytes={start}-{start + length - 1}"
-        try:
-            body = remote.get(Range=byte_range)["Body"]
             try:
-                while True:
-                    chunk = body.read(chunk_size)
-                    if not chunk:
-                        break
-                    yield chunk
-            finally:
-                body.close()
-        finally:
-            self.close()
-
-    def _stream_local(self, *, start: int, length: int | None, chunk_size: int) -> Iterator[bytes]:
-        remaining = length
+                body = self._remote.get(Range=byte_range)["Body"]
+            except UNREADABLE_OBJECT_ERRORS as error:
+                self.close()
+                raise ManagedObjectUnavailable(str(error)) from error
+            return self._stream_remote(body, chunk_size=chunk_size)
         try:
             if start:
                 self._handle.seek(start)
+        except UNREADABLE_OBJECT_ERRORS as error:
+            self.close()
+            raise ManagedObjectUnavailable(str(error)) from error
+        return self._stream_local(length=length, chunk_size=chunk_size)
+
+    def _stream_remote(self, body: Any, *, chunk_size: int) -> Iterator[bytes]:
+        try:
+            while True:
+                chunk = body.read(chunk_size)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            body.close()
+            self.close()
+
+    def _stream_local(self, *, length: int | None, chunk_size: int) -> Iterator[bytes]:
+        # The seek has already happened in ``stream``, so a bad offset is
+        # reported before the response status is chosen.
+        remaining = length
+        try:
             while remaining is None or remaining > 0:
                 size = chunk_size if remaining is None else min(chunk_size, remaining)
                 chunk = self._handle.read(size)

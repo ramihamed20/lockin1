@@ -45,7 +45,8 @@ export function toAppUser(user) {
     emailVerified: normalized.is_email_verified,
     status: normalized.status,
     dateJoined: normalized.date_joined,
-    avatar: normalized.avatar
+    avatar: normalized.avatar,
+    themeSettings: normalized.theme_settings
   };
 }
 
@@ -195,13 +196,17 @@ export const accountsApi = {
     return userFromPayload(await request("/account/profile"), "The profile response was incomplete.");
   },
 
-  async updateProfile({ username = undefined, fullName = undefined, preferredLanguage = undefined, cohortId = undefined, avatarDefault = undefined }) {
+  async updateProfile({ username = undefined, fullName = undefined, preferredLanguage = undefined, cohortId = undefined, confirmCohortChange = undefined, avatarDefault = undefined, mascotPreference = undefined, themePreference = undefined, dynamicTheme = undefined }) {
     const body = {};
     if (typeof username === "string") body.username = username;
     if (typeof fullName === "string") body.full_name = fullName;
     if (typeof preferredLanguage === "string") body.preferred_language = preferredLanguage;
     if (typeof cohortId === "string") body.cohort_id = cohortId;
+    if (typeof confirmCohortChange === "boolean") body.confirm_cohort_change = confirmCohortChange;
     if (typeof avatarDefault === "string") body.avatar_default = avatarDefault;
+    if (typeof mascotPreference === "string") body.mascot_preference = mascotPreference;
+    if (typeof themePreference === "string") body.theme_preference = themePreference;
+    if (typeof dynamicTheme === "boolean") body.dynamic_theme = dynamicTheme;
     return userFromPayload(
       await request("/account/profile", {
         method: "PATCH",
@@ -267,9 +272,14 @@ export const accountsApi = {
     })
 };
 
-accountsApi.completeWelcome = async function completeWelcome() {
+accountsApi.completeWelcome = async function completeWelcome({ mascotPreference = undefined, themePreference = undefined, dynamicTheme = undefined, preferredLanguage = undefined } = {}) {
+  const body = {};
+  if (typeof mascotPreference === "string") body.mascot_preference = mascotPreference;
+  if (typeof themePreference === "string") body.theme_preference = themePreference;
+  if (typeof dynamicTheme === "boolean") body.dynamic_theme = dynamicTheme;
+  if (typeof preferredLanguage === "string") body.preferred_language = preferredLanguage;
   return userFromPayload(
-    await request("/account/welcome/complete", { method: "POST", body: {} }),
+    await request("/account/welcome/complete", { method: "POST", body }),
     "The welcome response was incomplete."
   );
 };

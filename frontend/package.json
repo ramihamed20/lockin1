@@ -10,6 +10,8 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5050",
     "build": "vite build",
+    "build:e2e": "node scripts/build-e2e.mjs",
+    "fixtures:pdf": "node scripts/make-e2e-pdf.mjs",
     "preview": "vite preview --host 0.0.0.0 --port 4173",
     "lint": "eslint --max-warnings 0",
     "typecheck": "tsc --project tsconfig.phase0.json --pretty false && tsc --project tsconfig.worker.json --pretty false",
@@ -21,6 +23,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",
+    "pdfjs-dist": "6.3.289",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.18.2",

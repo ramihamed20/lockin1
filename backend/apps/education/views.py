@@ -14,7 +14,7 @@ from apps.accounts.models import User
 from .models import CreatorScope, EducationNode
 from .permissions import IsCreatorOrAdministrator
 from .policies import is_administrator
-from .selectors import manageable_nodes, node_breadcrumbs, public_node, public_nodes
+from .selectors import cohort_visible_node, cohort_visible_nodes, manageable_nodes, node_breadcrumbs
 from .serializers import (
     CreatorScopeSerializer,
     CreatorScopeWriteSerializer,
@@ -68,18 +68,18 @@ class PublicEducationNodeListView(ListAPIView[EducationNode]):
     def get_queryset(self):  # type: ignore[no-untyped-def]
         raw_parent = self.request.query_params.get("parent")
         if not raw_parent:
-            return public_nodes(parent_id=None)
+            return cohort_visible_nodes(user=_user(self.request), parent_id=None)
         try:
             parent_id = UUID(raw_parent)
         except ValueError as error:
             raise NotFound("Education node not found.") from error
-        return public_nodes(parent_id=parent_id)
+        return cohort_visible_nodes(user=_user(self.request), parent_id=parent_id)
 
 
 class PublicEducationNodeDetailView(APIView):
     def get(self, request: Request, node_id: UUID) -> Response:
         try:
-            node = public_node(node_id=node_id)
+            node = cohort_visible_node(user=_user(request), node_id=node_id)
         except EducationNode.DoesNotExist as error:
             raise NotFound("Education node not found.") from error
         return Response(

@@ -1,32 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
-import { educationApi, learningApi } from "../api/learning.js";
 import { Icon } from "../lib/icons.jsx";
-import { getCatalogMaterial, getCatalogSheet, getCohortMaterials, rememberLastOpenedCatalogSheet } from "../lib/materialCatalog.js";
-import { useAsyncData } from "../hooks/useAsyncData.js";
-import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
-import { LearningObjectCard } from "../components/learning/LearningObjectCard.jsx";
-import { PaginationControls } from "../components/learning/PaginationControls.jsx";
+import { rememberLastOpenedCatalogSheet } from "../lib/materialCatalog.js";
+import { useCatalogMaterials } from "../hooks/useCatalogMaterials.js";
+import { EmptyState, ErrorPanel, Page } from "../components/ui/index.jsx";
 import { CatalogSheetCard } from "../components/learning/CatalogSheetCard.jsx";
 import { CatalogTile } from "../components/learning/CatalogTile.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
 
-const CONTENT_TYPE_KEYS = [
-  ["", "materials.allContentTypes"],
-  ["pdf", "materials.pdfDocuments"],
-  ["audio", "materials.audio"],
-  ["video", "materials.video"]
-];
-
-/** Published kinds arrive from the catalogue as their own labels; only the
- * fallback is ours to translate. */
-function nodeKindLabel(kind, t) {
-  return typeof kind === "string" ? kind.replaceAll("_", " ") : t("materials.studyArea");
-}
-
 export default function Materials({ user = null }) {
   const { t } = useI18n();
-  const materials = getCohortMaterials(user);
+  const { materials } = useCatalogMaterials(user);
 
   return (
     <Page title="Materials">
@@ -55,10 +39,11 @@ function CatalogMaterialCard({ material }) {
   return <CatalogTile title={material.title} meta={t("materials.sheetCount", { count: material.sheets.length })} icon="book-open" to={`/materials/catalog/${material.slug}`} />;
 }
 
-export function CatalogMaterialSheets() {
+export function CatalogMaterialSheets({ user = null }) {
   const { materialSlug } = useParams();
   const { t } = useI18n();
-  const material = getCatalogMaterial(materialSlug);
+  const { materials } = useCatalogMaterials(user);
+  const material = materials.find((item) => item.slug === materialSlug) || null;
 
   if (!material) return <Page title={t("materials.notFoundTitle")}><ErrorPanel message={t("materials.notFoundText")} /></Page>;
 
@@ -77,11 +62,13 @@ export function CatalogMaterialSheets() {
   );
 }
 
-export function CatalogSheetStudy() {
+export function CatalogSheetStudy({ user = null }) {
   const { materialSlug, sheetSlug } = useParams();
   const location = useLocation();
   const { t } = useI18n();
-  const { material, sheet } = getCatalogSheet(materialSlug, sheetSlug);
+  const { materials } = useCatalogMaterials(user);
+  const material = materials.find((item) => item.slug === materialSlug) || null;
+  const sheet = material?.sheets.find((item) => item.slug === sheetSlug) || null;
 
   useEffect(() => {
     rememberLastOpenedCatalogSheet(materialSlug, sheetSlug);
@@ -104,89 +91,6 @@ export function CatalogSheetStudy() {
         </article>
         <Link className="btn btn-soft compact catalog-sheet-back" to={`/materials/catalog/${material.slug}`}><Icon name="arrow-left" size={16} /> {t("materials.backToSheets")}</Link>
       </section>
-    </Page>
-  );
-}
-
-export function MaterialCard({ node }) {
-  const { t } = useI18n();
-  return (
-    <article className="material-card">
-      <div className="card-head">
-        <div><h2 dir="auto">{node.title}</h2><p dir="auto">{node.description || t("materials.areaFallbackSummary")}</p></div>
-        <span className="stat-icon"><Icon name="layers" /></span>
-      </div>
-      <div className="progress-meta"><span dir="auto">{nodeKindLabel(node.kind, t)}</span><strong>{t("materials.browse")}</strong></div>
-      <Link className="btn btn-soft" to={`/materials/${node.id}`}>{t("materials.openArea")}</Link>
-    </article>
-  );
-}
-
-export function MaterialSheets() {
-  const { materialId } = useParams();
-  const { t } = useI18n();
-  const [childPage, setChildPage] = useState(1);
-  const [objectPage, setObjectPage] = useState(1);
-  const [contentType, setContentType] = useState("");
-  const [bookmarkOverrides, setBookmarkOverrides] = useState({});
-  const node = useAsyncData(() => educationApi.getNode(materialId), [materialId]);
-  const children = useAsyncData(
-    () => educationApi.listNodes({ parentId: materialId, page: childPage }),
-    [materialId, childPage]
-  );
-  const learningObjects = useAsyncData(
-    () => learningApi.listLearningObjects({ nodeId: materialId, contentType, page: objectPage }),
-    [materialId, contentType, objectPage]
-  );
-
-  function changeContentType(nextType) {
-    setContentType(nextType);
-    setObjectPage(1);
-  }
-
-  function applyBookmarkChange(learningObjectId, isBookmarked) {
-    // The response list is server-sourced; keep only the confirmed local
-    // representation until this page is fetched again.
-    setBookmarkOverrides((current) => ({ ...current, [learningObjectId]: isBookmarked }));
-  }
-
-  if (node.loading) return <LoadingPanel />;
-  if (node.error) return <ErrorPanel message={node.error} />;
-
-  const currentNode = node.data.node;
-  return (
-    <Page title={currentNode.title} subtitle={t("materials.areaSubtitle")}>
-      <section className="material-grid">
-        {children.loading && <LoadingPanel />}
-        {children.error && <ErrorPanel message={children.error} />}
-        {!children.loading && !children.error && children.data.results.map((child) => <MaterialCard key={child.id} node={child} />)}
-      </section>
-      {!children.loading && !children.error && !children.data.results.length && <p className="muted">{t("materials.noChildAreas")}</p>}
-      {!children.loading && !children.error && <PaginationControls page={childPage} pageData={children.data} onPageChange={setChildPage} label={t("materials.childPages")} />}
-
-      <section className="panel study-table-card">
-        <div className="panel-title"><div><p className="eyebrow">{t("materials.published")}</p><h2 dir="auto">{currentNode.title}</h2></div></div>
-        <label className="field">
-          <span>{t("materials.contentType")}</span>
-          <select value={contentType} onChange={(event) => changeContentType(event.target.value)}>
-            {CONTENT_TYPE_KEYS.map(([value, labelKey]) => <option value={value} key={value}>{t(labelKey)}</option>)}
-          </select>
-        </label>
-      </section>
-
-      {learningObjects.loading && <LoadingPanel />}
-      {learningObjects.error && <ErrorPanel message={learningObjects.error} />}
-      {!learningObjects.loading && !learningObjects.error && !learningObjects.data.results.length && (
-        <EmptyState icon="study" title={t("materials.noMatchTitle")} text={t("materials.noMatchText")} />
-      )}
-      {!learningObjects.loading && !learningObjects.error && learningObjects.data.results.length > 0 && (
-        <section className="sheet-grid">
-          {learningObjects.data.results.map((learningObject) => (
-            <LearningObjectCard key={learningObject.id} learningObject={{ ...learningObject, is_bookmarked: bookmarkOverrides[learningObject.id] ?? learningObject.is_bookmarked }} onBookmarkChanged={applyBookmarkChange} />
-          ))}
-        </section>
-      )}
-      {!learningObjects.loading && !learningObjects.error && <PaginationControls page={objectPage} pageData={learningObjects.data} onPageChange={setObjectPage} label={t("materials.objectPages")} />}
     </Page>
   );
 }

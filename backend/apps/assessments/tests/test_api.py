@@ -50,6 +50,14 @@ def test_student_assessment_flow_never_leaks_answer_key_before_submission() -> N
     )
     assert resumed.status_code == 200
     assert resumed.json()["resumed"] is True
+    resume = client.put(
+        f"/api/v1/attempts/{attempt['id']}/resume",
+        {"question_position": 1, "client_revision": 1},
+        format="json",
+    )
+    assert resume.status_code == 200
+    assert resume.json()["resume_question_position"] == 1
+    assert resume.json()["resume_client_revision"] == 1
 
     source_version = question.published_version
     assert source_version is not None

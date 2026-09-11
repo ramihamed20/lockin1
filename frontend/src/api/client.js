@@ -1,4 +1,10 @@
 import { isHtmlErrorMessage, normalizeUserError } from "../lib/errors.js";
+import {
+  configureConnectionProbe,
+  isOffline,
+  reportConnectionFailure,
+  reportConnectionSuccess
+} from "../lib/connectionState.js";
 
 const configuredBasePath = import.meta.env?.VITE_API_BASE_URL || "/api/v1";
 const SESSION_MARKER_KEY = "lock-in.session";
@@ -12,7 +18,10 @@ const CSRF_COOKIE_NAMES = ["__Host-lockin_csrf", "csrftoken"];
  *   body?: unknown,
  *   responseType?: ResponseType,
  *   idempotencyKey?: string,
- *   signal?: AbortSignal
+ *   signal?: AbortSignal,
+ *   timeoutMs?: number,
+ *   retryable?: boolean,
+ *   allowOfflineQueue?: boolean
  * }} ApiRequestOptions
  */
 
@@ -122,6 +131,61 @@ function detailMessage(payload) {
   return payload && typeof payload === "object" && typeof payload.detail === "string" ? payload.detail : "";
 }
 
+/**
+ * How long a request may take before the reader is told it will not arrive.
+ *
+ * Without a deadline a request on a stalled mobile connection never settles:
+ * the promise stays pending, the spinner stays up, and nothing retries. The
+ * default is generous enough for a slow first byte on a poor connection and
+ * short enough that a stall is reported rather than endured.
+ *
+ * Streamed private files legitimately take far longer -- nginx allows five
+ * minutes for them -- so a caller can raise its own ceiling, and pass 0 to opt
+ * out entirely for a transfer that is genuinely unbounded.
+ */
+export const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+export const FILE_REQUEST_TIMEOUT_MS = 300_000;
+
+function requestTimeoutMs(options) {
+  const configured = options.timeoutMs;
+  if (configured === 0) return 0;
+  return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_REQUEST_TIMEOUT_MS;
+}
+
+function isAbortError(error) {
+  return Boolean(error) && (error.name === "AbortError" || error.name === "TimeoutError");
+}
+
+/**
+ * A deadline that reports whether it was the one that fired.
+ * `AbortSignal.timeout` alone cannot be told apart from a caller's own abort
+ * once both are merged into one signal.
+ */
+function timeoutSignal(timeoutMs) {
+  if (!timeoutMs || typeof AbortController === "undefined") return null;
+  const controller = new AbortController();
+  const state = { signal: controller.signal, expired: false, clear: () => clearTimeout(timer) };
+  const timer = setTimeout(() => {
+    state.expired = true;
+    controller.abort();
+  }, timeoutMs);
+  return state;
+}
+
+function combineSignals(callerSignal, deadlineSignal) {
+  if (!callerSignal) return deadlineSignal || undefined;
+  if (!deadlineSignal) return callerSignal;
+  if (typeof AbortSignal !== "undefined" && typeof AbortSignal.any === "function") {
+    return AbortSignal.any([callerSignal, deadlineSignal]);
+  }
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  if (callerSignal.aborted || deadlineSignal.aborted) abort();
+  callerSignal.addEventListener("abort", abort, { once: true });
+  deadlineSignal.addEventListener("abort", abort, { once: true });
+  return controller.signal;
+}
+
 export class ApiError extends Error {
   /**
    * @param {number} status
@@ -209,10 +273,17 @@ async function readErrorPayload(response) {
 }
 
 async function fetchCsrfToken() {
-  const response = await fetch(apiPath("/auth/csrf"), {
-    credentials: "include",
-    headers: { Accept: "application/json" }
-  });
+  let response;
+  try {
+    response = await fetch(apiPath("/auth/csrf"), {
+      credentials: "include",
+      headers: { Accept: "application/json" }
+    });
+    reportConnectionSuccess();
+  } catch {
+    reportConnectionFailure();
+    throw new ApiError(0, null, "Network error. Check your connection and try again.", "network_error");
+  }
   if (!response.ok) {
     const payload = await readErrorPayload(response);
     throw new ApiError(
@@ -291,6 +362,9 @@ async function parseResponse(response, responseType) {
  */
 export async function request(path, options = {}) {
   const method = (options.method || "GET").toUpperCase();
+  if (isOffline() && isUnsafe(method) && !options.allowOfflineQueue) {
+    throw new ApiError(0, null, "You’re offline. This action needs a connection before it can be confirmed.", "offline");
+  }
   const headers = new Headers(options.headers || {});
   const body = normaliseRequestBody(options.body, headers);
 
@@ -301,17 +375,37 @@ export async function request(path, options = {}) {
     headers.set("X-CSRFToken", await ensureCsrfToken());
   }
 
+  const timeout = requestTimeoutMs(options);
+  const deadline = timeoutSignal(timeout);
+  const signal = combineSignals(options.signal, deadline?.signal);
+
   let response;
-  try {
-    response = await fetch(apiPath(path), {
-      method,
-      headers,
-      body: /** @type {BodyInit | null | undefined} */ (body),
-      credentials: "include",
-      signal: options.signal
-    });
+  const retryable = options.retryable === true || ["GET", "HEAD", "OPTIONS"].includes(method);
+  for (let attempt = 0; ; attempt += 1) try {
+    response = await fetch(apiPath(path), { method, headers, body: /** @type {BodyInit | null | undefined} */ (body), credentials: "include", signal });
+    reportConnectionSuccess();
+    break;
   } catch (error) {
     if (error instanceof ApiError) throw error;
+    // A timeout, a caller's cancellation and a dead network are three different
+    // answers, and a reader deserves to be told which. Collapsing them into
+    // "network error" made a slow connection look like a broken one, and made a
+    // navigation away look like a failure worth reporting.
+    if (deadline?.expired) {
+      reportConnectionFailure();
+      if (retryable && attempt < 2) { await new Promise((resolve) => setTimeout(resolve, [400, 1100][attempt])); continue; }
+      throw new ApiError(
+        0,
+        null,
+        "The server took too long to answer. Check your connection and try again.",
+        "timeout"
+      );
+    }
+    if (isAbortError(error)) {
+      throw new ApiError(0, null, "This request was cancelled.", "aborted");
+    }
+    reportConnectionFailure();
+    if (retryable && attempt < 2) { await new Promise((resolve) => setTimeout(resolve, [400, 1100][attempt])); continue; }
     throw new ApiError(
       0,
       null,
@@ -319,9 +413,15 @@ export async function request(path, options = {}) {
       "network_error"
     );
   }
+  deadline?.clear();
 
   return parseResponse(response, options.responseType || "json");
 }
+
+configureConnectionProbe(async () => {
+  const response = await fetch(apiPath("/auth/csrf"), { credentials: "include", headers: { Accept: "application/json" } });
+  if (!response) throw new Error("No response");
+});
 
 export const apiClient = {
   get: (path, options) => request(path, { ...options, method: "GET" }),

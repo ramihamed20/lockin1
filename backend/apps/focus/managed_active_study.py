@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, cast
 from uuid import UUID
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.accounts.models import User
@@ -177,32 +177,51 @@ def run_payload(run: ActiveStudyRun | None) -> dict[str, Any] | None:
     }
 
 
-@transaction.atomic
-def start(*, user: User, sheet_id: UUID, difficulty: str) -> tuple[ActiveStudyRun, bool]:
-    sheet = _sheet_for_user(user=user, sheet_id=sheet_id)
-    _difficulty(difficulty)
-    _, plan = _content(sheet=sheet, difficulty=difficulty)
-    existing = (
+def _active_run(*, user: User, sheet: LearningObject, difficulty: str) -> ActiveStudyRun | None:
+    return (
         ActiveStudyRun.objects.select_for_update()
         .filter(user=user, sheet=sheet, difficulty=difficulty, status=ActiveStudyRun.Status.ACTIVE)
         .order_by("-updated_at")
         .first()
     )
+
+
+@transaction.atomic
+def start(*, user: User, sheet_id: UUID, difficulty: str) -> tuple[ActiveStudyRun, bool]:
+    sheet = _sheet_for_user(user=user, sheet_id=sheet_id)
+    _difficulty(difficulty)
+    _, plan = _content(sheet=sheet, difficulty=difficulty)
+    existing = _active_run(user=user, sheet=sheet, difficulty=difficulty)
     if existing is not None:
         return existing, False
     ranges = cast(list[dict[str, int]], plan["page_ranges"])
-    run = ActiveStudyRun.objects.create(
-        user=user,
-        sheet=sheet,
-        material_slug="managed-sheet",
-        sheet_slug=str(sheet.id),
-        difficulty=difficulty,
-        # The difficulty plan intentionally contains only difficulty-specific
-        # data.  The PDF page count remains owned by the sheet settings.
-        page_count=cast(int, sheet.active_study_settings.total_pdf_pages),
-        unlocked_pages=ranges[0]["end_page"],
-        plan_signature=_signature(plan),
-    )
+    try:
+        # A nested atomic block, so losing the race rolls back only this insert
+        # and leaves the caller's transaction usable. The read above cannot lock
+        # a row that does not exist yet, so the unique constraint is what
+        # actually decides which concurrent start wins.
+        with transaction.atomic():
+            run = ActiveStudyRun.objects.create(
+                user=user,
+                sheet=sheet,
+                material_slug="managed-sheet",
+                sheet_slug=str(sheet.id),
+                difficulty=difficulty,
+                # The difficulty plan intentionally contains only
+                # difficulty-specific data.  The PDF page count remains owned by
+                # the sheet settings.
+                page_count=cast(int, sheet.active_study_settings.total_pdf_pages),
+                unlocked_pages=ranges[0]["end_page"],
+                plan_signature=_signature(plan),
+            )
+    except IntegrityError:
+        # Another request created the run between the read and the insert. Its
+        # run is the one that exists, so this caller resumes it rather than
+        # reporting a failure the reader did nothing to cause.
+        concurrent = _active_run(user=user, sheet=sheet, difficulty=difficulty)
+        if concurrent is None:
+            raise
+        return concurrent, False
     return run, True
 
 

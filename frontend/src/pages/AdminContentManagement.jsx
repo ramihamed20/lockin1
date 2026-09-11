@@ -65,19 +65,20 @@ export default function AdminContentManagement({ operationsSession, initialArea 
 }
 
 function SubjectBrowser({ selected, onSelect, purpose = "sheets" }) {
-  const [query, setQuery] = useState(""); const [specialty, setSpecialty] = useState(""); const [year, setYear] = useState("");
+  const [query, setQuery] = useState(""); const [college, setCollege] = useState(""); const [specialty, setSpecialty] = useState(""); const [year, setYear] = useState("");
   const data = useAsyncData(() => adminControlApi.contentSubjects({ query }), [query]);
   if (data.loading) return <LoadingPanel />;
   if (data.error) return <ErrorPanel message={data.error} onRetry={data.reload} />;
   if (selected) return null;
   const subjects = data.data.results || [];
-  const specialties = [...new Set(subjects.map((item) => item.specialty_title || "Unassigned"))];
-  const years = [...new Set(subjects.filter((item) => !specialty || (item.specialty_title || "Unassigned") === specialty).map((item) => item.academic_year_title || "Unassigned"))];
-  const visibleSubjects = subjects.filter((item) => (!specialty || (item.specialty_title || "Unassigned") === specialty) && (!year || (item.academic_year_title || "Unassigned") === year));
+  const colleges = [...new Set(subjects.map((item) => item.college_title || "Unassigned"))];
+  const specialties = [...new Set(subjects.filter((item) => !college || (item.college_title || "Unassigned") === college).map((item) => item.specialty_title || "Unassigned"))];
+  const years = [...new Set(subjects.filter((item) => (!college || (item.college_title || "Unassigned") === college) && (!specialty || (item.specialty_title || "Unassigned") === specialty)).map((item) => item.academic_year_title || "Unassigned"))];
+  const visibleSubjects = subjects.filter((item) => (!college || (item.college_title || "Unassigned") === college) && (!specialty || (item.specialty_title || "Unassigned") === specialty) && (!year || (item.academic_year_title || "Unassigned") === year));
   return <section className="admin-content-section">
     <div className="admin-content-toolbar"><div><h2>Sheets by study path</h2><p>Choose the existing specialty, year or batch, then subject to manage its {purpose}.</p></div><label className="field admin-content-search"><span>Search subjects</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Histology 1" /></label></div>
-    <div className="admin-content-filters"><label className="field"><span>Specialty</span><select value={specialty} onChange={(event) => { setSpecialty(event.target.value); setYear(""); }}><option value="">All specialties</option>{specialties.map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label className="field"><span>Year / batch</span><select value={year} onChange={(event) => setYear(event.target.value)}><option value="">All years / batches</option>{years.map((value) => <option key={value} value={value}>{value}</option>)}</select></label></div>
-    <div className="admin-subject-list">{visibleSubjects.length ? visibleSubjects.map((subject) => <button type="button" key={subject.id} onClick={() => onSelect(subject)}><span className="stat-icon"><Icon name="book-open" /></span><span><strong>{subject.title}</strong><small>{subject.specialty_title || "Unassigned"} · {subject.academic_year_title || "Unassigned"} · {subject.sheet_count} sheets · {subject.published_count} published</small></span><Icon name="chevron-right" size={18} /></button>) : <EmptyState title="No subjects found" text="Choose another study path or create a subject in Education first." />}</div>
+    <div className="admin-content-filters"><label className="field"><span>College</span><select value={college} onChange={(event) => { setCollege(event.target.value); setSpecialty(""); setYear(""); }}><option value="">All colleges</option>{colleges.map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label className="field"><span>Specialty</span><select value={specialty} onChange={(event) => { setSpecialty(event.target.value); setYear(""); }}><option value="">All specialties</option>{specialties.map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label className="field"><span>Year / batch</span><select value={year} onChange={(event) => setYear(event.target.value)}><option value="">All years / batches</option>{years.map((value) => <option key={value} value={value}>{value}</option>)}</select></label></div>
+    <div className="admin-subject-list">{visibleSubjects.length ? visibleSubjects.map((subject) => <button type="button" key={subject.id} onClick={() => onSelect(subject)}><span className="stat-icon"><Icon name="book-open" /></span><span><strong>{subject.title}</strong><small>{subject.college_title || "Unassigned"} · {subject.specialty_title || "Unassigned"} · {subject.academic_year_title || "Unassigned"} · {subject.sheet_count} sheets · {subject.published_count} published</small></span><Icon name="chevron-right" size={18} /></button>) : <EmptyState title="No Catalog subjects found" text="The selected Catalog study path has no configured subjects." />}</div>
   </section>;
 }
 

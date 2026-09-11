@@ -30,7 +30,8 @@ from apps.files.services import FileValidationError, create_managed_file
 from apps.system_configuration.services import get_configuration_value
 from platform_core.network import client_ip
 
-from .models import AccountDeletionRequest, AccountSession, SocialIdentity, User
+from .email_delivery import enqueue_account_email
+from .models import AccountDeletionRequest, AccountSession, OneTimeToken, SocialIdentity, User
 from .oauth import (
     OAUTH_BROWSER_COOKIE_PATH,
     OAuthAccountLinkError,
@@ -65,10 +66,12 @@ from .serializers import (
     RoleUpdateSerializer,
     TokenSerializer,
     UserSerializer,
+    WelcomePreferencesSerializer,
 )
 from .services import (
     AccountStateError,
     AccountTokenError,
+    _token_digest,
     account_deletion_status,
     auth_attempt_fingerprint,
     auth_attempt_is_limited,
@@ -168,8 +171,9 @@ def _enforce_sensitive_request_limit(*, request: Request, scope: str, identifier
 
 def _send_verification_email(*, user: User, raw_token: str) -> None:
     link = build_account_link(path="/verify-email", raw_token=raw_token)
-    send_account_email(
-        recipient=user.email,
+    enqueue_account_email(
+        user=user,
+        token=OneTimeToken.objects.get(token_digest=_token_digest(raw_token)),
         subject="Verify your Lock-in account",
         body=f"Verify your Lock-in account using this single-use link:\n\n{link}",
     )
@@ -177,8 +181,9 @@ def _send_verification_email(*, user: User, raw_token: str) -> None:
 
 def _send_password_reset_email(*, user: User, raw_token: str) -> None:
     link = build_account_link(path="/reset-password", raw_token=raw_token)
-    send_account_email(
-        recipient=user.email,
+    enqueue_account_email(
+        user=user,
+        token=OneTimeToken.objects.get(token_digest=_token_digest(raw_token)),
         subject="Reset your Lock-in password",
         body=f"Reset your Lock-in password using this single-use link:\n\n{link}",
     )
@@ -363,7 +368,14 @@ class CohortListView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request: Request) -> Response:
-        cohorts = StudentCohort.objects.filter(is_active=True).select_related("program")
+        # Third Year has no configured Catalog branch. Keep legacy records
+        # intact for audit/history, but never offer an empty path at signup or
+        # during a later study-path change.
+        cohorts = (
+            StudentCohort.objects.filter(is_active=True)
+            .exclude(code="year-3")
+            .select_related("program")
+        )
         return Response({"cohorts": StudentCohortSerializer(cohorts, many=True).data})
 
 
@@ -565,6 +577,21 @@ class ProfileView(APIView):
         )
         previous_username = user.username or ""
         with transaction.atomic():
+            next_cohort = serializer.validated_data.pop("cohort", None)
+            if next_cohort is not None and next_cohort.id != user.cohort_id:
+                from apps.education.cohort_transition import change_student_cohort
+
+                try:
+                    change_student_cohort(user=user, cohort=next_cohort)
+                except Exception as error:
+                    # The outer transaction rolls back both cleanup and the
+                    # cohort assignment. Do not leave a student half-switched
+                    # or leak an internal cleanup detail to the browser.
+                    raise RequestRejected(
+                        "Study path could not be changed. "
+                        "Your current path and study data were kept.",
+                        code="cohort_change_failed",
+                    ) from error
             for field, value in serializer.validated_data.items():
                 setattr(user, field, value)
             if previous_image is not None:
@@ -637,9 +664,14 @@ class WelcomeCompleteView(APIView):
         user = _user(request)
         if not user.username or user.profile_completion_required:
             raise RequestRejected("Complete the required profile steps first.")
+        serializer = WelcomePreferencesSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        for field, value in serializer.validated_data.items():
+            setattr(user, field, value)
         if user.welcome_completed_at is None:
             user.welcome_completed_at = timezone.now()
-            user.save(update_fields=("welcome_completed_at", "updated_at"))
+        user.full_clean(exclude={"password"})
+        user.save()
         return Response({"user": UserSerializer(user).data})
 
 

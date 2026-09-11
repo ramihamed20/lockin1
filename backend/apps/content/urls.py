@@ -12,6 +12,9 @@ from .admin_views import (
 )
 from .views import (
     ArchiveLearningObjectView,
+    CatalogDocumentResolveView,
+    CatalogMaterialListView,
+    CatalogWorkspaceView,
     ManagementLearningObjectDetailView,
     ManagementLearningObjectListView,
     PublicLearningObjectDetailView,
@@ -25,6 +28,15 @@ from .views import (
 app_name = "content"
 
 urlpatterns = [
+    # Keep the structural UUID route before the two-slug alias resolver: UUIDs
+    # are valid slugs, so the broader pattern would otherwise shadow workspace
+    # GET/PATCH requests and return 404/405 before authorization is evaluated.
+    path("catalog/documents/<uuid:document_id>/workspace", CatalogWorkspaceView.as_view()),
+    path("catalog/materials", CatalogMaterialListView.as_view(), name="catalog-materials"),
+    path(
+        "catalog/documents/<slug:material_slug>/<slug:sheet_slug>",
+        CatalogDocumentResolveView.as_view(),
+    ),
     path(
         "operations/admin/content/subjects",
         AdminSubjectListView.as_view(),

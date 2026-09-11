@@ -53,14 +53,14 @@ export default function Bookmarks() {
             : version?.summary || t("bookmarks.fallbackMeta", { type: version?.content_type || t("bookmarks.fallbackType") });
           const openPath = catalogBookmark
             ? `/materials/catalog/${item.catalog_material_slug}/sheets/${item.catalog_sheet_slug}/workspace${savedPage > 0 ? `?page=${savedPage}` : ""}`
-            : `/materials/objects/${learningObject.id}`;
+            : null;
           return (
             <ListRow
               key={item.id}
               title={title}
               meta={meta}
               icon="bookmark"
-              action={<div className="focus-timer-actions"><Link className="btn btn-soft compact" to={openPath}>{t("common.open")}</Link><button className="btn btn-danger compact" type="button" onClick={() => setConfirmItem(item)} aria-label={t("bookmarks.removeNamed", { name: title })}><Icon name="x" size={17} /> {t("common.remove")}</button></div>}
+              action={<div className="focus-timer-actions">{openPath && <Link className="btn btn-soft compact" to={openPath}>{t("common.open")}</Link>}<button className="btn btn-danger compact" type="button" onClick={() => setConfirmItem(item)} aria-label={t("bookmarks.removeNamed", { name: title })}><Icon name="x" size={17} /> {t("common.remove")}</button></div>}
             />
           );
         }) : <EmptyState icon="study" title={t("bookmarks.emptyTitle")} text={t("bookmarks.emptyText")} />}

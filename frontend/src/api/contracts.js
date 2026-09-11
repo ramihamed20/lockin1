@@ -20,6 +20,7 @@ export const PRODUCT_ROLES = Object.freeze({
  *   username_required: boolean,
  *   welcome_required: boolean,
  *   welcome_completed_at: string|null,
+ *   theme_settings: {character: string, theme: string, autoTheme: boolean},
  *   avatar: {source: string, default_id: string, url: string|null},
  *   roles: string[],
  *   date_joined: string|null
@@ -41,6 +42,15 @@ function normalizeAvatar(value) {
     source: source.source === "custom" ? "custom" : "default",
     default_id: defaultId,
     url: typeof source.url === "string" ? source.url : null
+  };
+}
+
+function normalizeThemeSettings(value) {
+  const source = value && typeof value === "object" ? /** @type {Record<string, unknown>} */ (value) : {};
+  return {
+    character: ["black", "white", "none"].includes(String(source.character)) ? String(source.character) : "white",
+    theme: ["dawn", "day", "sunset", "night"].includes(String(source.theme)) ? String(source.theme) : "night",
+    autoTheme: source.auto_theme === true
   };
 }
 
@@ -94,6 +104,7 @@ export function normalizeUser(payload) {
     welcome_completed_at:
       typeof source.welcome_completed_at === "string" ? source.welcome_completed_at : null,
     avatar: normalizeAvatar(source.avatar),
+    theme_settings: normalizeThemeSettings(source.theme_settings),
     roles: stringList(source.roles),
     date_joined: typeof source.date_joined === "string" ? source.date_joined : null
   };

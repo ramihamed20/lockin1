@@ -3,6 +3,7 @@ import { SessionConfetti } from "../ui/index.jsx";
 import { assetPath } from "../../lib/utils.js";
 export { ForbiddenState } from "./ForbiddenState.jsx";
 export { PwaUpdatePrompt } from "./PwaUpdatePrompt.jsx";
+export { ConnectionStatus } from "./ConnectionStatus.jsx";
 
 export function FullScreenState({ message, actionLabel = "", onAction = null, startup = false }) {
   return (

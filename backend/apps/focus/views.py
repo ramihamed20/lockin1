@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID
 
-from django.db.models import Count, Sum
+from django.db.models import Count, Prefetch, Q, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
@@ -18,8 +18,10 @@ from rest_framework.views import APIView
 
 from apps.accounts.avatars import avatar_payload
 from apps.accounts.models import User
-from apps.content.models import LearningObject, LearningObjectVersion
+from apps.content.models import LearningObject, LearningObjectAsset, LearningObjectVersion
+from apps.content.policies import can_view_learning_object
 from apps.entitlements.services import require_entitlement
+from apps.files.models import ManagedFile
 
 from .active_study import (
     ActiveStudyRuleError,
@@ -337,26 +339,71 @@ def _document_payload(document: Any) -> dict[str, object]:
 
 
 def _lock_in_materials(*, user: User) -> list[dict[str, object]]:
-    """Return only accessible, published PDF materials; access is rechecked per row."""
+    """Return only accessible, published PDF materials; access is rechecked per row.
+
+    Resolved in bulk. This used to call ``resolve_focus_document`` per candidate,
+    which is two queries each, so opening Lock In cost around a hundred round
+    trips before anything rendered. The joins below fetch the same rows in one
+    query and the checks are applied in Python against them.
+
+    The checks themselves are unchanged and still per row -- discoverability and
+    availability windows are read from the same fields ``can_view_learning_object``
+    and ``is_version_available`` use, so a material nobody may open is still
+    excluded. The payload and its ordering are identical.
+    """
+
     candidates = (
         LearningObject.objects.filter(
             archived_at__isnull=True,
             published_version__content_type=LearningObjectVersion.ContentType.PDF,
         )
-        .select_related("published_version")
+        .select_related("published_version__academic_node")
+        .prefetch_related(
+            Prefetch(
+                "published_version__assets",
+                queryset=LearningObjectAsset.objects.filter(
+                    role=LearningObjectAsset.Role.PRIMARY,
+                    managed_file__validation_status=ManagedFile.ValidationStatus.READY,
+                )
+                .select_related("managed_file")
+                .order_by("position", "id"),
+                to_attr="primary_assets",
+            )
+        )
         .order_by("-published_at", "-updated_at")[:50]
     )
+
     materials: list[dict[str, object]] = []
     for learning_object in candidates:
-        if learning_object.published_version_id is None:
+        version = learning_object.published_version
+        if version is None or not can_view_learning_object(
+            user=user, learning_object=learning_object
+        ):
             continue
-        try:
-            document = resolve_focus_document(
-                user=user, document_version_id=learning_object.published_version_id
-            )
-        except APIException:
+        asset = next(iter(getattr(version, "primary_assets", [])), None)
+        if asset is None or asset.managed_file.content_type != "application/pdf":
             continue
-        materials.append(_document_payload(document))
+        raw_page_count = version.metadata.get("page_count")
+        page_count = (
+            raw_page_count
+            if isinstance(raw_page_count, int)
+            and not isinstance(raw_page_count, bool)
+            and 1 <= raw_page_count <= 10_000
+            else None
+        )
+        materials.append(
+            {
+                "document_id": str(learning_object.id),
+                "document_version_id": str(version.id),
+                "file_id": str(asset.managed_file_id),
+                "title": version.title,
+                "language": version.language,
+                "view_url": f"/api/v1/files/{asset.managed_file_id}/view",
+                "size_bytes": asset.managed_file.size_bytes,
+                "checksum_sha256": asset.managed_file.checksum_sha256,
+                "page_count": page_count,
+            }
+        )
     return materials
 
 
@@ -422,26 +469,41 @@ def _team_payload(*, user: User, team: FocusTeam) -> dict[str, object]:
 
 
 def _team_rankings_payload() -> list[dict[str, object]]:
+    """The weekly leaderboard, in one query.
+
+    This walked every row of FocusTeam and issued two queries per team -- an
+    aggregate and a count -- so the cost of the Lock In screen grew with the
+    number of teams in the product, for every reader who opened it. Both totals
+    are now annotations, ordering happens in the database, and the slice is a
+    LIMIT rather than a Python sort over everything.
+
+    The payload is unchanged, including the ordering rule: most active first,
+    ties broken by name.
+    """
+
     week_start = timezone.localdate() - timedelta(days=6)
-    rows: list[dict[str, object]] = []
-    for team in FocusTeam.objects.all():
-        totals = FocusSession.objects.filter(
-            team=team,
-            status=FocusSession.Status.COMPLETED,
-            ended_at__date__gte=week_start,
-        ).aggregate(active_seconds=Coalesce(Sum("active_duration_seconds"), 0))
-        rows.append(
-            {
-                "id": str(team.id),
-                "name": team.name,
-                "weekly_active_seconds": int(totals["active_seconds"]),
-                "member_count": FocusTeamMembership.objects.filter(team=team).count(),
-            }
-        )
-    return sorted(
-        rows,
-        key=lambda row: (-cast(int, row["weekly_active_seconds"]), str(row["name"])),
-    )[:10]
+    completed_this_week = Q(
+        sessions__status=FocusSession.Status.COMPLETED,
+        sessions__ended_at__date__gte=week_start,
+    )
+    teams = FocusTeam.objects.annotate(
+        weekly_active_seconds=Coalesce(
+            Sum("sessions__active_duration_seconds", filter=completed_this_week),
+            0,
+        ),
+        # distinct=True: the sessions join above multiplies membership rows,
+        # and without it every team with sessions would over-count members.
+        member_total=Count("memberships", distinct=True),
+    ).order_by("-weekly_active_seconds", "name")[:10]
+    return [
+        {
+            "id": str(team.id),
+            "name": team.name,
+            "weekly_active_seconds": int(team.weekly_active_seconds),
+            "member_count": int(team.member_total),
+        }
+        for team in teams
+    ]
 
 
 def _lock_in_payload(*, user: User, session: FocusSession) -> dict[str, object]:

@@ -38,46 +38,29 @@ function buildMaterials(entries) {
   return entries.map(([slug, title]) => Object.freeze({ slug, title, sheets: [] }));
 }
 
-/**
- * Biochemistry 1 is the first subject with published sheets. Active Study is
- * left off until its questions are written, so these open in Normal Study.
- * @param {[string, string, string, number][]} entries
- */
-function buildSheets(entries) {
-  return entries.map(([slug, title, fileName, pageCount], index) => Object.freeze({
-    slug,
-    number: index + 1,
-    title,
-    fileName,
-    pdfUrl: `/assets/biochemistry/${slug}.pdf`,
-    pageCount
-  }));
-}
-
-const BIOCHEMISTRY_1_SHEETS = buildSheets([
-  ["vitamin-1", "Vitamin -1", "VITAMIN 2025 part 1.pdf", 41],
-  ["vitamin-2", "Vitamin -2", "vitamin 2025 part 2.pdf", 17],
-  ["vitamin-3", "Vitamin -3", "vitamin part 3.pdf", 33]
-]);
-
-const DENTISTRY_MATERIALS = buildMaterials([
+const FIRST_YEAR = [
+  ["dental-anatomy", "Dental Anatomy"], ["dental-material", "Dental Material"],
+  ["general-histology", "General Histology"], ["general-anatomy", "General Anatomy"],
+  ["physiology", "Physiology"], ["biochemistry", "Biochemistry"]
+];
+const SECOND_YEAR = [
   ["conservative", "Conservative"],
   ["microbiology", "Microbiology"],
   ["pharmacy", "Pharmacy"],
-  ["general-pathology", "General pathology"],
-  ["oral-histology", "Oral histology"],
-  ["fixed-prosthodontic", "Fixed prosthodontic"],
-  ["removeable-prosthodontic", "Removeable prosthodontic"]
-]);
+  ["general-pathology", "General Pathology"], ["oral-histology", "Oral Histology"],
+  ["fixed-prosthodontic", "Fixed Prosthodontic"], ["removable-prosthodontic", "Removable Prosthodontic"]
+];
+
+function scopedMaterials(scope, entries) {
+  return buildMaterials(entries.map(([slug, title]) => [`${scope}-${slug}`, title]));
+}
 
 const HUMAN_MEDICINE_60_MATERIALS = buildMaterials([
-  ["anatomy-1", "Anatomy 1"],
-  ["physiology-1", "Physiology 1"],
-  ["histology-1", "Histology 1"],
-  ["biochemistry-1", "Biochemistry 1"]
-]).map((material) => (material.slug === "biochemistry-1"
-  ? Object.freeze({ ...material, sheets: BIOCHEMISTRY_1_SHEETS })
-  : material));
+  ["human-medicine-60-anatomy-1", "Anatomy 1"],
+  ["human-medicine-60-physiology-1", "Physiology 1"],
+  ["human-medicine-60-histology-1", "Histology 1"],
+  ["human-medicine-60-biochemistry-1", "Biochemistry 1"]
+]);
 
 /** @type {CohortCatalog[]} */
 export const COHORT_CATALOGS = [
@@ -87,10 +70,19 @@ export const COHORT_CATALOGS = [
     materials: HUMAN_MEDICINE_60_MATERIALS,
     questionCategories: STANDARD_QUESTION_CATEGORIES
   },
+  ...["tripoli", "benghazi", "zawiya"].flatMap((college) => [
+    {
+      programCodes: [`dentistry-${college}`], cohortCodes: ["year-1"],
+      materials: scopedMaterials(`dentistry-${college}-year-1`, FIRST_YEAR), questionCategories: STANDARD_QUESTION_CATEGORIES
+    },
+    {
+      programCodes: [`dentistry-${college}`], cohortCodes: ["year-2"],
+      materials: scopedMaterials(`dentistry-${college}-year-2`, SECOND_YEAR), questionCategories: STANDARD_QUESTION_CATEGORIES
+    }
+  ]),
   {
-    programCodes: ["dentistry", "dentistry-tripoli", "dentistry-zawiya", "dentistry-benghazi"],
-    cohortCodes: [],
-    materials: DENTISTRY_MATERIALS,
+    programCodes: ["human-medicine"], cohortCodes: ["61"],
+    materials: scopedMaterials("human-medicine-61", [["intro-histology", "Intro Histology"], ["intro-anatomy", "Intro Anatomy"], ["english", "English"], ["it", "IT"]]),
     questionCategories: STANDARD_QUESTION_CATEGORIES
   }
 ];
@@ -121,6 +113,9 @@ export function getCohortCatalog(cohort) {
 
 /** @param {{cohort?: {code?: string, program?: {code?: string}}|null}|null|undefined} user */
 export function getCohortMaterials(user) {
+  if (Array.isArray(user?.roles) && user.roles.some((role) => ["administrator", "admin", "founder"].includes(String(role).toLowerCase()))) {
+    return ALL_MATERIALS;
+  }
   return getCohortCatalog(user?.cohort).materials;
 }
 
@@ -129,7 +124,7 @@ export function getCohortQuestionCategories(user) {
   return getCohortCatalog(user?.cohort).questionCategories;
 }
 
-/** Subject slugs are unique across cohorts, so a link resolves without one. */
+/** Subject slugs are cohort-qualified, so a link resolves without a tree path. */
 const ALL_MATERIALS = COHORT_CATALOGS.flatMap((catalog) => catalog.materials);
 
 export function getCatalogMaterial(slug) {

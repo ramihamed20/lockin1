@@ -236,7 +236,11 @@ def test_lock_in_complete_uses_timeline_not_client_duration_and_returns_summary(
 
 def test_lock_in_enforces_the_server_entitlement() -> None:
     _, version_id = _fixture()
-    client = _client(create_user(email="lock-in-no-access@example.com"))
+    # Unverified, so the account is denied on its own terms. A verified account
+    # without a subscription is granted the trial it is owed on first contact
+    # with a protected route, and that grant now lands inside the same
+    # transaction rather than after the next commit.
+    client = _client(create_user(email="lock-in-no-access@example.com", verified=False))
 
     response = _start(client, version_id)
 

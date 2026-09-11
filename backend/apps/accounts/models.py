@@ -28,6 +28,17 @@ class User(AbstractBaseUser, PermissionsMixin):
         FEMALE_LAVENDER = "cat-female-lavender", "Lavender cat"
         FEMALE_PINK = "cat-female-pink", "Pink cat"
 
+    class MascotPreference(models.TextChoices):
+        BLACK = "black", "Black cat"
+        WHITE = "white", "White cat"
+        NONE = "none", "No mascot"
+
+    class ThemePreference(models.TextChoices):
+        DAWN = "dawn", "Dawn"
+        DAY = "day", "Day"
+        SUNSET = "sunset", "Sunset"
+        NIGHT = "night", "Night"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True, max_length=254)
     username = models.CharField(
@@ -62,6 +73,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     policy_accepted_at = models.DateTimeField(null=True, blank=True)
     policy_version = models.CharField(max_length=64, blank=True)
     avatar_default = models.CharField(max_length=32, choices=AvatarDefault.choices, blank=True)
+    mascot_preference = models.CharField(
+        max_length=8, choices=MascotPreference.choices, default=MascotPreference.WHITE
+    )
+    theme_preference = models.CharField(
+        max_length=8, choices=ThemePreference.choices, default=ThemePreference.NIGHT
+    )
+    dynamic_theme = models.BooleanField(default=False)
     profile_image = models.ForeignKey(
         "files.ManagedFile",
         on_delete=models.SET_NULL,
@@ -146,6 +164,42 @@ class OneTimeToken(models.Model):
     @property
     def is_usable(self) -> bool:
         return self.used_at is None and self.expires_at > timezone.now()
+
+
+class AccountEmailDelivery(models.Model):
+    """Durable outbound account email. The worker, never an HTTP view, talks SMTP."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        SENDING = "sending", "Sending"
+        SENT = "sent", "Sent"
+        FAILED = "failed", "Failed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    token = models.OneToOneField(
+        OneTimeToken, on_delete=models.CASCADE, related_name="email_delivery"
+    )
+    recipient = models.EmailField(max_length=254)
+    subject = models.CharField(max_length=200)
+    encrypted_body = models.TextField()
+    status = models.CharField(
+        max_length=12, choices=Status.choices, default=Status.PENDING, db_index=True
+    )
+    attempts = models.PositiveSmallIntegerField(default=0)
+    next_attempt_at = models.DateTimeField(default=timezone.now, db_index=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    failed_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.CharField(max_length=240, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=("status", "next_attempt_at"), name="accounts_email_due_idx")
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.subject} to {self.recipient}: {self.status}"
 
 
 class AccountSession(models.Model):

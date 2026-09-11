@@ -10,7 +10,7 @@ from rest_framework.test import APIClient
 from apps.accounts.tests.helpers import create_user
 from apps.education.tests.helpers import create_admin, published_path
 
-from ..models import Discussion
+from ..models import Discussion, SpaceMembership
 from ..serializers import DiscussionSerializer
 from ..services import create_discussion, create_space, set_space_member
 from .helpers import scoped_creator
@@ -155,8 +155,50 @@ def test_space_owner_invites_by_email_without_exposing_user_lookup_to_outsiders(
         {"email": student.email, "role": "member"},
         format="json",
     )
-    assert invited.status_code == 201
-    assert invited.json() == {
+    unknown = creator_client.post(
+        f"/api/v1/community/spaces/{space.id}/members",
+        {"email": "nobody-has-this-address@example.com", "role": "member"},
+        format="json",
+    )
+
+    # A space manager must not be able to walk a list of addresses and learn
+    # which of them belong to Lock-in accounts. The reply is identical either
+    # way, and carries no user id.
+    assert invited.status_code == 202
+    assert unknown.status_code == 202
+    assert invited.json() == unknown.json() == {"status": "accepted"}
+
+    # The invitation still did its job for the address that exists.
+    assert SpaceMembership.objects.filter(
+        space=space, user=student, status=SpaceMembership.Status.ACTIVE
+    ).exists()
+
+
+def test_adding_a_member_by_id_still_returns_the_membership() -> None:
+    """Only the guessable identifier is blinded; adding by id is unchanged."""
+
+    admin = create_admin()
+    student = create_user(email="member-by-id@example.com")
+    _, _, lesson = published_path(admin=admin)
+    creator = scoped_creator(admin=admin, node=lesson)
+    space = create_space(
+        actor=creator,
+        context_type="lesson",
+        context_id=lesson.id,
+        title="Membership by identifier",
+        description="Adding a known account by its identifier keeps its response.",
+    )
+    client = APIClient()
+    client.force_authenticate(creator)
+
+    added = client.post(
+        f"/api/v1/community/spaces/{space.id}/members",
+        {"user_id": str(student.id), "role": "member"},
+        format="json",
+    )
+
+    assert added.status_code == 201
+    assert added.json() == {
         "user_id": str(student.id),
         "role": "member",
         "status": "active",

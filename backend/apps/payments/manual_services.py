@@ -205,11 +205,19 @@ def submit_manual_recharge(
         user=user, status=ManualRechargeSubmission.Status.PENDING
     ).exists():
         raise ManualPaymentError("A recharge card is already awaiting review.")
-    if (
-        ManualRechargeSubmission.objects.filter(recharge_code_digest__in=digests).exists()
-        or ManualRechargeCode.objects.filter(digest__in=digests).exists()
-    ):
-        raise DuplicateRechargeCodeError("This recharge card code has already been submitted.")
+    # A card number that has been seen before is no longer refused here.
+    #
+    # It used to be: the digest was globally unique, so the first submission of a
+    # number burned it for everyone, for good. A card rejected in error could
+    # never be re-sent, and a genuine second attempt looked like fraud. Approval
+    # is a person's decision, and that person is the right one to weigh a repeat
+    # -- so the repeat is recorded and surfaced to them (see
+    # ``previous_submission_count`` on the operations payload) rather than
+    # blocked by the schema.
+    #
+    # What still cannot happen is an accidental double side effect: one logical
+    # attempt is pinned by the idempotency key handled above, and a user may hold
+    # only one pending submission at a time.
 
     subscription = (
         Subscription.objects.select_for_update()
@@ -316,13 +324,8 @@ def submit_manual_recharge(
                 ]
             )
     except IntegrityError as error:
-        if (
-            ManualRechargeSubmission.objects.filter(recharge_code_digest__in=digests).exists()
-            or ManualRechargeCode.objects.filter(digest__in=digests).exists()
-        ):
-            raise DuplicateRechargeCodeError(
-                "This recharge card code has already been submitted."
-            ) from error
+        # The only uniqueness left on this path is one pending submission per
+        # user, which a concurrent second request can still lose.
         raise ManualPaymentError("A recharge card is already awaiting review.") from error
     record_audit(
         actor=user,
@@ -364,7 +367,18 @@ def review_manual_recharge(
     decision: str,
     reason: str,
     idempotency_key: str,
+    send_notification: bool = True,
 ) -> tuple[ManualRechargeSubmission, bool]:
+    """Approve or reject a manual payment. The only path that may do so.
+
+    ``send_notification`` suppresses only the outgoing Telegram message, never
+    the in-app notification, the invoice, the audit record or any state change.
+    A review made from a Telegram button rewrites the original message in place
+    to show the outcome, so sending a second message about the same decision
+    would simply duplicate it in the same chat. Reviews made from the operations
+    console still announce themselves in Telegram exactly as before.
+    """
+
     if decision not in {"approve", "reject"}:
         raise ManualPaymentError("Choose approve or reject.")
     if len(reason.strip()) < 3:
@@ -533,17 +547,18 @@ def review_manual_recharge(
             "user_id": submission.user_id,
         },
     )
-    message = _telegram_message(
-        event=(
-            ManualPaymentTelegramMessage.Event.APPROVED
-            if decision == "approve"
-            else ManualPaymentTelegramMessage.Event.REJECTED
-        ),
-        payment=payment,
-        submission=submission,
-        subscription=subscription,
-    )
-    transaction.on_commit(lambda: notify_manual_payment(message))
+    if send_notification:
+        message = _telegram_message(
+            event=(
+                ManualPaymentTelegramMessage.Event.APPROVED
+                if decision == "approve"
+                else ManualPaymentTelegramMessage.Event.REJECTED
+            ),
+            payment=payment,
+            submission=submission,
+            subscription=subscription,
+        )
+        transaction.on_commit(lambda: notify_manual_payment(message))
     return submission, True
 
 

@@ -294,29 +294,44 @@ class SpaceMemberListView(APIView):
             raise PermissionDenied("You cannot manage this creator space.")
         identity = serializer.validated_data
         user_id = identity.get("user_id")
-        target = get_object_or_404(
-            User,
-            **(
-                {"id": user_id, "is_active": True}
-                if user_id is not None
-                else {"email__iexact": identity["email"], "is_active": True}
-            ),
-        )
-        try:
-            membership = set_space_member(
-                actor=_user(request),
-                space_id=space_id,
-                user=target,
-                role=str(serializer.validated_data["role"]),
+        role = str(serializer.validated_data["role"])
+
+        if user_id is not None:
+            # An id is not a guessable identifier, and the caller already holds
+            # it, so a 404 here reveals nothing they did not know.
+            target = get_object_or_404(User, id=user_id, is_active=True)
+            try:
+                membership = set_space_member(
+                    actor=_user(request), space_id=space_id, user=target, role=role
+                )
+            except (CommunitySpace.DoesNotExist, CommunityRuleError) as error:
+                if isinstance(error, CommunitySpace.DoesNotExist):
+                    raise NotFound("Creator space not found.") from error
+                _raise_service(error)
+            return Response(
+                {
+                    "user_id": membership.user_id,
+                    "role": membership.role,
+                    "status": membership.status,
+                },
+                status=status.HTTP_201_CREATED,
             )
-        except (CommunitySpace.DoesNotExist, CommunityRuleError) as error:
-            if isinstance(error, CommunitySpace.DoesNotExist):
-                raise NotFound("Creator space not found.") from error
-            _raise_service(error)
-        return Response(
-            {"user_id": membership.user_id, "role": membership.role, "status": membership.status},
-            status=status.HTTP_201_CREATED,
-        )
+
+        # An email address is guessable, and this route used to say whether one
+        # belonged to a Lock-in account: 404 for a stranger, 201 for a member.
+        # Any space manager could walk a list of addresses and learn who has an
+        # account here. The answer is now the same either way, and the caller
+        # learns the outcome from the member list, which they are entitled to
+        # see. Adding by id remains exact.
+        invited = User.objects.filter(email__iexact=identity["email"], is_active=True).first()
+        if invited is not None:
+            try:
+                set_space_member(actor=_user(request), space_id=space_id, user=invited, role=role)
+            except (CommunitySpace.DoesNotExist, CommunityRuleError) as error:
+                if isinstance(error, CommunitySpace.DoesNotExist):
+                    raise NotFound("Creator space not found.") from error
+                _raise_service(error)
+        return Response({"status": "accepted"}, status=status.HTTP_202_ACCEPTED)
 
 
 class SpaceMemberDetailView(APIView):

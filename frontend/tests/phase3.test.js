@@ -41,6 +41,7 @@ test("assessment requests use Django's exact attempt, revision, activity, result
     if (String(url).endsWith("/quizzes/quiz/attempts")) return response({ resumed: false, attempt: { id: "attempt" } }, 201);
     if (String(url).endsWith("/attempts/attempt") && options.method === "GET") return response({ id: "attempt", questions: [] });
     if (String(url).includes("/questions/question/answer")) return response({ selected_option_ids: ["option"], client_revision: 1, server_revision: 2, saved_at: "2026-01-01T00:00:00Z" });
+    if (String(url).endsWith("/attempts/attempt/resume")) return response({ id: "attempt", resume_question_position: 4, resume_client_revision: 1, server_revision: 3 });
     if (String(url).endsWith("/attempts/attempt/activities")) return response({ id: "activity", activity_type: "workspace_entered" }, 201);
     if (String(url).endsWith("/attempts/attempt/submit")) return response({ id: "result", released: false });
     if (String(url).endsWith("/assessment-results/result") && options.method === "GET") return response({ id: "result", released: false });
@@ -54,6 +55,7 @@ test("assessment requests use Django's exact attempt, revision, activity, result
   await assessmentsApi.startAttempt("quiz", { idempotencyKey: "00000000-0000-4000-8000-000000000001", questionCount: 5, difficulties: ["easy"], reviewOnly: true });
   await assessmentsApi.getAttempt("attempt");
   await assessmentsApi.saveAnswer("attempt", "question", { selectedOptionIds: ["option"], clientRevision: 1 });
+  await assessmentsApi.saveResume("attempt", { questionPosition: 4, clientRevision: 1 });
   await assessmentsApi.recordActivity("attempt", { clientEventId: "00000000-0000-4000-8000-000000000002", activityType: "workspace_entered", clientOccurredAt: "2026-01-01T00:00:00.000Z" });
   await assessmentsApi.submitAttempt("attempt", "00000000-0000-4000-8000-000000000003");
   await assessmentsApi.getResult("result");
@@ -66,6 +68,7 @@ test("assessment requests use Django's exact attempt, revision, activity, result
     { url: "/api/v1/quizzes/quiz/attempts", method: "POST", body: { idempotency_key: "00000000-0000-4000-8000-000000000001", review_only: true, question_count: 5, difficulties: ["easy"] } },
     { url: "/api/v1/attempts/attempt", method: "GET", body: undefined },
     { url: "/api/v1/attempts/attempt/questions/question/answer", method: "PUT", body: { selected_option_ids: ["option"], client_revision: 1 } },
+    { url: "/api/v1/attempts/attempt/resume", method: "PUT", body: { question_position: 4, client_revision: 1 } },
     { url: "/api/v1/attempts/attempt/activities", method: "POST", body: { client_event_id: "00000000-0000-4000-8000-000000000002", activity_type: "workspace_entered", client_occurred_at: "2026-01-01T00:00:00.000Z", metadata: {} } },
     { url: "/api/v1/attempts/attempt/submit", method: "POST", body: { idempotency_key: "00000000-0000-4000-8000-000000000003" } },
     { url: "/api/v1/assessment-results/result", method: "GET", body: undefined },

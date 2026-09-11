@@ -20,6 +20,7 @@ export default [
         ecmaFeatures: { jsx: true }
       },
       globals: {
+        AbortController: "readonly",
         AbortSignal: "readonly",
         Blob: "readonly",
         File: "readonly",
@@ -43,6 +44,7 @@ export default [
         process: "readonly",
         requestAnimationFrame: "readonly",
         self: "readonly",
+        setTimeout: "readonly",
         window: "readonly"
       }
     },

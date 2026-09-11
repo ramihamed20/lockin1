@@ -208,6 +208,8 @@ class Attempt(models.Model):
     requested_question_count = models.PositiveSmallIntegerField()
     review_only = models.BooleanField(default=False)
     server_revision = models.PositiveBigIntegerField(default=1)
+    resume_question_position = models.PositiveSmallIntegerField(default=1)
+    resume_client_revision = models.PositiveBigIntegerField(default=0)
     started_at = models.DateTimeField(default=timezone.now)
     deadline_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)

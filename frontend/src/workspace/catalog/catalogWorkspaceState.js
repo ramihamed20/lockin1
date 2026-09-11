@@ -29,8 +29,12 @@ function safePoint(point) {
   };
 }
 
-export function catalogWorkspaceStorageKey(materialSlug, sheetSlug) {
-  return `lock-in.catalog-workspace.v${SNAPSHOT_VERSION}.${materialSlug}.${sheetSlug}`;
+export function catalogWorkspaceStorageKey(owner, materialSlug, sheetSlug) {
+  // LocalStorage is origin-wide.  A document key without the authenticated
+  // owner lets the next account on a shared device restore somebody else's
+  // unsynced annotations when IndexedDB is unavailable.
+  const ownerPart = String(owner || "anonymous").replace(/[^a-zA-Z0-9_-]/g, "_");
+  return `lock-in.catalog-workspace.v${SNAPSHOT_VERSION}.${ownerPart}.${materialSlug}.${sheetSlug}`;
 }
 
 export function sanitizeCatalogAnnotation(annotation) {
@@ -125,6 +129,7 @@ export function parseCatalogWorkspace(value) {
     const snapshot = JSON.parse(value);
     if (snapshot?.version !== SNAPSHOT_VERSION) return null;
     return {
+      savedAt: Number.isFinite(Date.parse(snapshot.savedAt)) ? snapshot.savedAt : null,
       page: Math.max(1, Math.round(finite(snapshot.page, 1))),
       zoom: Math.min(5, Math.max(0.5, finite(snapshot.zoom, 1))),
       zoomFitBasis: Math.min(5, Math.max(0, finite(snapshot.zoomFitBasis, 0))),

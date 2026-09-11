@@ -46,7 +46,7 @@ function roleNavigationItems(user, operationsSession) {
   const contentAdministrator = hasOperationalCapability(operationsSession, "content.manage");
   const assessmentAdministrator = hasOperationalCapability(operationsSession, "assessments.manage");
   const creatorItems = productCreator || contentAdministrator || assessmentAdministrator
-    ? [{ path: contentAdministrator || productCreator ? "/operations/admin/content" : "/creator/questions", label: productCreator ? "Content Studio" : "Content Administration", labelKey: productCreator ? "nav.creator" : "nav.contentAdmin", icon: "layers", group: "Workspace", groupKey: "group.workspace" }]
+    ? [{ path: contentAdministrator || productCreator ? "/operations/admin/content" : "/operations/admin/questions", label: productCreator ? "Content Studio" : "Content Administration", labelKey: productCreator ? "nav.creator" : "nav.contentAdmin", icon: "layers", group: "Workspace", groupKey: "group.workspace" }]
     : [];
   const operationsItems = hasOperationalCapability(operationsSession, "overview.view")
     ? [{ path: "/operations/admin/overview", label: "Creator Studio", labelKey: "nav.operations", icon: "settings", group: "Workspace", groupKey: "group.workspace" }]
@@ -1003,13 +1003,8 @@ export function Shell({ children, user, operationsSession, theme, onThemeChange,
     return children;
   }
 
-  // While a quiz is being answered the product chrome is a hazard: a mis-tap on
-  // the bottom bar leaves the attempt. The attempt screen carries its own
-  // "Exit quiz", so the shell steps back and lets it own the viewport.
-  const answeringQuiz = location.pathname.startsWith("/questions/attempts/");
-
   return (
-      <div className={`app-shell ${keyboardOpen ? "keyboard-open" : ""} ${answeringQuiz ? "is-answering" : ""}`.trim()}>
+      <div className={`app-shell ${keyboardOpen ? "keyboard-open" : ""}`.trim()}>
         <Sidebar user={user} operationsSession={operationsSession} inert={drawerOpen} />
         <div className="content-frame" inert={drawerOpen ? "" : undefined} aria-hidden={drawerOpen || undefined}>
           <Topbar

@@ -1,5 +1,6 @@
 import hashlib
 import secrets
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
@@ -18,6 +19,12 @@ from apps.education.models import StudentCohort
 from platform_core.events import publish_after_commit
 
 from .events import UserEmailVerified, UserRegistered, UserStatusChanged
+from .middleware import (
+    SESSION_REMEMBER,
+    SESSION_SLID_AT,
+    SESSION_STARTED_AT,
+    session_windows,
+)
 from .models import (
     AccountDeletionRequest,
     AccountSecurityEvent,
@@ -495,12 +502,14 @@ def establish_account_session(
     """Create the same rotated Django session for password and social login."""
 
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
-    session_age = (
-        int(settings.ACCOUNT_REMEMBER_SESSION_AGE_SECONDS)
-        if remember_me
-        else int(settings.ACCOUNT_SESSION_AGE_SECONDS)
-    )
-    request.session.set_expiry(session_age)
+    idle_seconds, _ = session_windows(remember=bool(remember_me))
+    # Stamped at sign-in and never rewritten: SlidingSessionMiddleware measures
+    # the absolute ceiling from here, and reads the remember flag to know which
+    # pair of windows applies.
+    request.session[SESSION_STARTED_AT] = time.time()
+    request.session[SESSION_SLID_AT] = time.time()
+    request.session[SESSION_REMEMBER] = bool(remember_me)
+    request.session.set_expiry(idle_seconds)
     request.session.save()
     register_account_session(request=request, user=user)
     AccountSecurityEvent.objects.create(

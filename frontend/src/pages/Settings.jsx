@@ -61,12 +61,23 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
 
   async function saveSettings(nextSettings, source) {
     const normalized = normalizeThemeSettings(nextSettings);
+    const previous = normalizeThemeSettings(settings);
     onSettingsChange(normalized);
     setSaving(source);
     setError("");
-    // Theme choices are intentionally device-local: the current Django profile API
-    // only owns account language and name, not visual preferences.
-    window.setTimeout(() => setSaving(""), 0);
+    try {
+      const updated = await accountsApi.updateProfile({
+        mascotPreference: normalized.character,
+        themePreference: normalized.theme,
+        dynamicTheme: normalized.autoTheme
+      });
+      onUserUpdate(updated);
+    } catch (requestError) {
+      onSettingsChange(previous);
+      setError(requestError.message || "Theme settings could not be saved.");
+    } finally {
+      setSaving("");
+    }
   }
 
   async function saveReminder(nextSettings, source) {
@@ -118,7 +129,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
         <article className="theme-section" id="settings-character" aria-labelledby="settings-character-heading">
           <div className="theme-section-head">
             <div><p className="eyebrow">Section 1</p><h2 id="settings-character-heading" tabIndex={-1}>Character</h2></div>
-            <span className="pill">{settings.character === "black" ? "Black Cat" : "White Cat"}</span>
+            <span className="pill">{settings.character === "black" ? "Black Cat" : settings.character === "white" ? "White Cat" : "No mascot"}</span>
           </div>
           {/* One character is in use, so this is a single choice. The options
               used to be independent toggles reporting aria-pressed. */}

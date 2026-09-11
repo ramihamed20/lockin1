@@ -1,5 +1,5 @@
 from .base import *  # noqa: F403
-from .env import env, env_list
+from .env import env, env_bool, env_list
 
 DEBUG = True
 ENVIRONMENT = "development"
@@ -9,3 +9,6 @@ SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
 ACCOUNT_POLICY_VERSION = env("ACCOUNT_POLICY_VERSION", "phase3-development")
 EMAIL_BACKEND = env("DJANGO_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+# Community is unlaunched and closed in production; development opts in so the
+# implementation stays exercised while it waits.
+COMMUNITY_ENABLED = env_bool("COMMUNITY_ENABLED", True)
