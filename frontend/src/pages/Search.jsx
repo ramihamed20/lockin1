@@ -26,8 +26,9 @@ export default function Search() {
   useEffect(() => setDraft(query), [query]);
 
   useEffect(() => {
+    if (query) return;
     inputRef.current?.focus({ preventScroll: true });
-  }, []);
+  }, [query]);
 
   const normalizedDraft = draft.trim();
   const results = useAsyncData(
