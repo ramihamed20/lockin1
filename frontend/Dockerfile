@@ -45,7 +45,20 @@ ENV VITE_API_BASE_URL=$VITE_API_BASE_URL \
     VITE_LEGAL_JURISDICTION=$VITE_LEGAL_JURISDICTION \
     VITE_POLICY_VERSION=$VITE_POLICY_VERSION
 
-RUN pnpm build
+# Vite copies public/ into dist/ verbatim. Those files -- about 18 MB of theme
+# art, icons and video -- rarely change, while the built bundle changes every
+# release. Splitting them lets the image ship them as their own layer, which a
+# release that only changes code reuses instead of downloading again. A file is
+# moved out only when it is byte-identical to its public/ source, so anything
+# the build generated or overrode stays with the bundle.
+RUN pnpm build \
+    && mkdir -p /app/dist-public \
+    && cd /app/public \
+    && find . -type f -exec sh -c 'for file do \
+         if cmp -s "$file" "/app/dist/$file"; then \
+           mkdir -p "/app/dist-public/$(dirname "$file")" && mv "/app/dist/$file" "/app/dist-public/$file"; \
+         fi; \
+       done' sh {} +
 
 FROM nginx:1.27-alpine
 
@@ -76,6 +89,9 @@ RUN addgroup -S -g 10001 lockin \
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
 COPY nginx/cloudflare-real-ip.conf /etc/nginx/conf.d/00-cloudflare-real-ip.conf
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
+# Stable public assets first, then the release's bundle. Together they are
+# exactly the dist/ tree `pnpm build` produced.
+COPY --from=build /app/dist-public /usr/share/nginx/html
 COPY --from=build /app/dist /usr/share/nginx/html
 
 # Both listeners are above 1024, so binding needs no capability either.

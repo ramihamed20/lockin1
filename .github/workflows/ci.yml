@@ -333,6 +333,45 @@ jobs:
       - name: Start the edge under the production security settings
         run: scripts/ci/edge-smoke.sh lockin-edge:ci
 
+  image-layers:
+    # A release that changes only application code must reuse every dependency
+    # layer, so a host already running the previous release downloads the
+    # application and nothing else. That property lives entirely in the order
+    # of steps in the Dockerfiles, so the rebuild matrix runs only when
+    # something that defines the images changed; otherwise it was proven when
+    # they last did.
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # One-off evidence runs set a git ref here to also measure and compare
+      # against that ref's Dockerfiles. Empty in normal operation.
+      LAYER_REFERENCE: ""
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Decide whether the image definitions changed
+        id: scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -eu
+          if [ -n "$LAYER_REFERENCE" ] || [ -z "$BASE_SHA" ] \
+            || ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --name-only "$BASE_SHA" HEAD \
+            | grep -qE '^(backend/Dockerfile|frontend/Dockerfile|backend/\.dockerignore|frontend/\.dockerignore|\.github/workflows/ci\.yml|scripts/ci/image_layer_stability\.py)$'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Image definitions are unchanged since ${BASE_SHA}."
+          fi
+      - name: Prove source-only releases reuse dependency layers
+        if: steps.scope.outputs.run == 'true'
+        run: python3 scripts/ci/image_layer_stability.py ${LAYER_REFERENCE:+--reference "$LAYER_REFERENCE"}
+
   publish:
     # Production images are built and published here, never on the
     # deployment host. A frontend build peaks near 2 GB, which a 4 GB
@@ -343,45 +382,144 @@ jobs:
     # The legal and support values are public build inputs, not secrets.
     # Set them as repository variables before the first publish; the
     # frontend image refuses to build on placeholders.
+    #
+    # Layer reuse across releases comes from a BuildKit cache kept in GHCR
+    # beside each image, under the `buildcache` tag. A registry cache rather
+    # than the GitHub Actions cache: Actions evicts entries unused for 7 days,
+    # and an evicted cache rebuilds every layer under new digests, which puts
+    # the whole image back on the host's next pull. Only this job, on main and
+    # after every gate has passed, writes it; pull requests never do. The
+    # `buildcache` tags are build metadata, not runnable images: never deploy
+    # them.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [backend, frontend, browser, containers, container-runtime, edge-runtime]
+    needs: [backend, frontend, browser, containers, container-runtime, edge-runtime, image-layers]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     permissions:
       contents: read
       packages: write
     env:
       REPOSITORY: ghcr.io/${{ github.repository_owner }}/lockin
+      # The published image and this log are the release record; a separate
+      # build-record artifact would only duplicate them.
+      DOCKER_BUILD_RECORD_UPLOAD: false
     steps:
       - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
       - name: Sign in to the container registry
-        run: >-
-          echo "${{ secrets.GITHUB_TOKEN }}"
-          | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
-      - name: Build and push the immutable release tag
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # amd64 only, as production is, and no provenance or SBOM attestations:
+      # each tag stays the single Docker image manifest it has always been.
+      - name: Build and push the backend image
+        id: backend
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          platforms: linux/amd64
+          provenance: false
+          sbom: false
+          push: true
+          tags: ${{ env.REPOSITORY }}-backend:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.REPOSITORY }}-backend:buildcache
+          cache-to: type=registry,ref=${{ env.REPOSITORY }}-backend:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
+      - name: Build and push the edge image
+        id: edge
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          platforms: linux/amd64
+          provenance: false
+          sbom: false
+          push: true
+          tags: ${{ env.REPOSITORY }}-edge:${{ github.sha }}
+          build-args: |
+            VITE_APP_VERSION=${{ github.sha }}
+            VITE_SUPPORT_EMAIL=${{ vars.LOCKIN_SUPPORT_EMAIL }}
+            VITE_LEGAL_ENTITY=${{ vars.LOCKIN_LEGAL_ENTITY }}
+            VITE_LEGAL_ADDRESS=${{ vars.LOCKIN_LEGAL_ADDRESS }}
+            VITE_LEGAL_JURISDICTION=${{ vars.LOCKIN_LEGAL_JURISDICTION }}
+            VITE_POLICY_VERSION=${{ vars.ACCOUNT_POLICY_VERSION }}
+          cache-from: type=registry,ref=${{ env.REPOSITORY }}-edge:buildcache
+          cache-to: type=registry,ref=${{ env.REPOSITORY }}-edge:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
+      # The scanner image is published with every release so that enabling the
+      # file-scanning profile stays a configuration change.
+      - name: Build and push the scanner image
+        id: clamav
+        uses: docker/build-push-action@v6
+        with:
+          context: deploy/clamav
+          platforms: linux/amd64
+          provenance: false
+          sbom: false
+          push: true
+          tags: ${{ env.REPOSITORY }}-clamav:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.REPOSITORY }}-clamav:buildcache
+          cache-to: type=registry,ref=${{ env.REPOSITORY }}-clamav:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
+      - name: Verify the published release
+        # Reads the release back from the registry: every tag must resolve to
+        # exactly the digest this job pushed, as one linux/amd64 manifest. Sizes
+        # are reported, and only a large regression raises a warning.
+        env:
+          TAG: ${{ github.sha }}
+          PREVIOUS_TAG: ${{ github.event.before }}
+          BACKEND_DIGEST: ${{ steps.backend.outputs.digest }}
+          EDGE_DIGEST: ${{ steps.edge.outputs.digest }}
+          CLAMAV_DIGEST: ${{ steps.clamav.outputs.digest }}
         run: |
           set -eu
-          TAG="${GITHUB_SHA}"
-          docker build --tag "${REPOSITORY}-backend:${TAG}" backend
-          docker build \
-            --build-arg VITE_APP_VERSION="${TAG}" \
-            --build-arg VITE_SUPPORT_EMAIL="${{ vars.LOCKIN_SUPPORT_EMAIL }}" \
-            --build-arg VITE_LEGAL_ENTITY="${{ vars.LOCKIN_LEGAL_ENTITY }}" \
-            --build-arg VITE_LEGAL_ADDRESS="${{ vars.LOCKIN_LEGAL_ADDRESS }}" \
-            --build-arg VITE_LEGAL_JURISDICTION="${{ vars.LOCKIN_LEGAL_JURISDICTION }}" \
-            --build-arg VITE_POLICY_VERSION="${{ vars.ACCOUNT_POLICY_VERSION }}" \
-            --tag "${REPOSITORY}-edge:${TAG}" frontend
-          # The scanner image is published with every release so that
-          # enabling the file-scanning profile stays a configuration change.
-          docker build --tag "${REPOSITORY}-clamav:${TAG}" deploy/clamav
-          docker push "${REPOSITORY}-backend:${TAG}"
-          docker push "${REPOSITORY}-edge:${TAG}"
-          docker push "${REPOSITORY}-clamav:${TAG}"
+          megabytes() { awk -v bytes="$1" 'BEGIN { printf "%.1f MB", bytes / 1048576 }'; }
+          {
+            echo "### Published release ${TAG}"
+            echo
+            echo "| image | digest | layers | compressed | new since the previous release |"
+            echo "|---|---|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          verify() {
+            name="$1" expected="$2" review_mb="$3"
+            ref="${REPOSITORY}-${name}:${TAG}"
+            raw="$(docker buildx imagetools inspect --raw "$ref")"
+            media="$(printf '%s' "$raw" | jq -r '.mediaType')"
+            case "$media" in
+              application/vnd.docker.distribution.manifest.v2+json|application/vnd.oci.image.manifest.v1+json) ;;
+              *) echo "::error title=Publish::${ref} is ${media}, not a single image manifest"; return 1 ;;
+            esac
+            digest="$(docker buildx imagetools inspect "$ref" --format '{{json .Manifest}}' | jq -r '.digest')"
+            if [ "$digest" != "$expected" ]; then
+              echo "::error title=Publish::${ref} resolves to ${digest}; this job pushed ${expected}"
+              return 1
+            fi
+            platform="$(docker buildx imagetools inspect "$ref" --format '{{json .Image}}' | jq -r '.os + "/" + .architecture')"
+            if [ "$platform" != linux/amd64 ]; then
+              echo "::error title=Publish::${ref} is ${platform}, production runs linux/amd64"
+              return 1
+            fi
+            layers="$(printf '%s' "$raw" | jq '.layers | length')"
+            bytes="$(printf '%s' "$raw" | jq '[.layers[].size] | add')"
+            fresh="no previous release to compare"
+            if [ -n "$PREVIOUS_TAG" ] \
+              && previous="$(docker buildx imagetools inspect --raw "${REPOSITORY}-${name}:${PREVIOUS_TAG}" 2>/dev/null)"; then
+              fresh_bytes="$(jq -n --argjson new "$raw" --argjson old "$previous" \
+                '[$old.layers[].digest] as $held | [$new.layers[] | select(.digest as $d | $held | index($d) | not) | .size] | add // 0')"
+              fresh="$(megabytes "$fresh_bytes")"
+            fi
+            echo "| ${name} | \`${digest}\` | ${layers} | $(megabytes "$bytes") | ${fresh} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice title=${name}::${ref} ${digest}, ${layers} layers, $(megabytes "$bytes") compressed, new since previous release: ${fresh}"
+            if [ "$bytes" -gt $(( review_mb * 1048576 )) ]; then
+              echo "::warning title=Image size::${name} is $(megabytes "$bytes") compressed, above the ${review_mb} MB review threshold"
+            fi
+          }
+          verify backend "$BACKEND_DIGEST" 200
+          verify edge "$EDGE_DIGEST" 100
+          verify clamav "$CLAMAV_DIGEST" 200
           echo "Deploy with LOCKIN_IMAGE_REPOSITORY=${REPOSITORY} LOCKIN_IMAGE_TAG=${TAG}"
 
   quality-gate:
     if: always()
-    needs: [backend, frontend, browser, containers, container-runtime, edge-runtime]
+    needs: [backend, frontend, browser, containers, container-runtime, edge-runtime, image-layers]
     runs-on: ubuntu-latest
     steps:
       - name: Require every production gate
@@ -392,6 +530,7 @@ jobs:
           CONTAINER_RESULT: ${{ needs.containers.result }}
           CONTAINER_RUNTIME_RESULT: ${{ needs['container-runtime'].result }}
           EDGE_RUNTIME_RESULT: ${{ needs['edge-runtime'].result }}
+          IMAGE_LAYERS_RESULT: ${{ needs['image-layers'].result }}
         run: |
           test "$BACKEND_RESULT" = success
           test "$FRONTEND_RESULT" = success
@@ -402,3 +541,5 @@ jobs:
           # ... and not until the edge has started under the security settings
           # production actually applies to it.
           test "$EDGE_RUNTIME_RESULT" = success
+          # A source-only release must keep reusing the dependency layers.
+          test "$IMAGE_LAYERS_RESULT" = success

@@ -1,6 +1,6 @@
 # Production Deployment Checklist
 
-Last updated: 2026-09-04
+Last updated: 2026-09-11
 
 This checklist is the repeatable production release contract. A checked source-code phase does not
 authorize a deployment; the deployment owner must complete and retain this evidence per release.
@@ -55,10 +55,14 @@ The deployment shapes themselves, and the migration between them, are described 
 
 ```sh
 docker compose --env-file .env.production -f compose.production.yaml config --quiet
-docker build --tag "lockin-backend:$LOCKIN_IMAGE_TAG" backend
-docker build --tag "lockin-edge:$LOCKIN_IMAGE_TAG" frontend
-docker build --tag "lockin-clamav:$LOCKIN_IMAGE_TAG" deploy/clamav
+# Pull, never build: the host runs exactly the images CI published. Safe to run
+# before the window; it changes no container.
+scripts/production/pull-release.sh .env.production
 ```
+
+- [ ] `pull-release.sh` exited 0 and printed a digest for every image; the digests match the CI
+  publish summary (or were checked with `LOCKIN_EXPECT_*_DIGEST`). If it did not exit 0, stop:
+  nothing has changed and the running release is untouched.
 
 - [ ] The database shape is deliberate: `COMPOSE_PROFILES=bundled-db` for the bundled PostgreSQL
   container, or no profile plus `POSTGRES_HOST`/`POSTGRES_PORT` for a managed provider. The rendered
@@ -70,6 +74,9 @@ docker build --tag "lockin-clamav:$LOCKIN_IMAGE_TAG" deploy/clamav
 
 ## Release sequence
 
+0. The release images are already on the host (`pull-release.sh` above). Keep the previous
+   release's images until post-deployment verification passes; they are the rollback. No
+   `docker image prune -a` / `docker system prune -a` during the release.
 1. Start/verify PostgreSQL only; wait through its declared start period and health retries.
 2. Run the one-shot `release` service as migration owner. It must exit 0.
 3. Run the one-shot `preflight` service as runtime role. Retain its JSON evidence; it must exit 0.
@@ -118,7 +125,9 @@ Never run Django migrations with the runtime credential. Never bypass a failed p
 
 ## Rollback decision
 
-- Application-only regression with backward-compatible schema: restore previous immutable images.
+- Application-only regression with backward-compatible schema: restore previous immutable images
+  by setting the previous `LOCKIN_IMAGE_TAG` and following docs/DEPLOYMENT.md, "Roll back". A
+  rollback never reverses migrations; the older image runs on the newer schema.
 - Forward-fix migration: preferred when safe and reviewed.
 - Reverse migration: only if explicitly tested against a staging copy and data loss is impossible or
   approved.
