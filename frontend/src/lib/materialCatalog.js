@@ -116,7 +116,7 @@ export function getCohortMaterials(user) {
   if (Array.isArray(user?.roles) && user.roles.some((role) => ["administrator", "admin", "founder"].includes(String(role).toLowerCase()))) {
     return ALL_MATERIALS;
   }
-  return getCohortCatalog(user?.cohort).materials;
+  return withE2eFixtureSheets(getCohortCatalog(user?.cohort).materials);
 }
 
 /** @param {{cohort?: {code?: string, program?: {code?: string}}|null}|null|undefined} user */
@@ -137,19 +137,36 @@ function titleFromSlug(slug) {
   return slug.split("-").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
 }
 
+const allCatalogSlugs = new Set(COHORT_CATALOGS.flatMap((catalog) => catalog.materials.map((material) => material.slug)));
+
+/** @param {string} slug */
+function fixtureSheets(slug) {
+  return (E2E_CATALOG_MATERIALS?.[slug] || []).map((sheet) => Object.freeze({ ...sheet }));
+}
+
+/**
+ * A fixture material the catalogue lacks belongs to no cohort, so it is offered
+ * to every learner; the reader specs sign in without one.
+ */
+const E2E_ONLY_MATERIALS = Object.keys(E2E_CATALOG_MATERIALS || {})
+  .filter((slug) => !allCatalogSlugs.has(slug))
+  .map((slug) => Object.freeze({ slug, title: titleFromSlug(slug), sheets: fixtureSheets(slug) }));
+
+/** Memoized so a merged list keeps one identity across renders. */
+const mergedMaterials = new WeakMap();
+
 /** @param {CatalogMaterial[]} materials */
 function withE2eFixtureSheets(materials) {
   if (!E2E_CATALOG_MATERIALS) return materials;
-  const fixtureSheets = (slug) => E2E_CATALOG_MATERIALS[slug].map((sheet) => Object.freeze({ ...sheet }));
-  const known = new Set(materials.map((material) => material.slug));
-  return [
-    ...materials.map((material) => (E2E_CATALOG_MATERIALS[material.slug]
-      ? Object.freeze({ ...material, sheets: fixtureSheets(material.slug) })
-      : material)),
-    ...Object.keys(E2E_CATALOG_MATERIALS)
-      .filter((slug) => !known.has(slug))
-      .map((slug) => Object.freeze({ slug, title: titleFromSlug(slug), sheets: fixtureSheets(slug) }))
-  ];
+  if (!mergedMaterials.has(materials)) {
+    mergedMaterials.set(materials, [
+      ...materials.map((material) => (E2E_CATALOG_MATERIALS[material.slug]
+        ? Object.freeze({ ...material, sheets: fixtureSheets(material.slug) })
+        : material)),
+      ...E2E_ONLY_MATERIALS
+    ]);
+  }
+  return mergedMaterials.get(materials);
 }
 
 /** Subject slugs are cohort-qualified, so a link resolves without a tree path. */
