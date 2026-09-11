@@ -381,39 +381,45 @@ export async function request(path, options = {}) {
 
   let response;
   const retryable = options.retryable === true || ["GET", "HEAD", "OPTIONS"].includes(method);
-  for (let attempt = 0; ; attempt += 1) try {
-    response = await fetch(apiPath(path), { method, headers, body: /** @type {BodyInit | null | undefined} */ (body), credentials: "include", signal });
-    reportConnectionSuccess();
-    break;
-  } catch (error) {
-    if (error instanceof ApiError) throw error;
-    // A timeout, a caller's cancellation and a dead network are three different
-    // answers, and a reader deserves to be told which. Collapsing them into
-    // "network error" made a slow connection look like a broken one, and made a
-    // navigation away look like a failure worth reporting.
-    if (deadline?.expired) {
+  // Cleared on every exit, failures included, so a failed request does not
+  // leave its deadline timer running.
+  try {
+    for (let attempt = 0; ; attempt += 1) try {
+      response = await fetch(apiPath(path), { method, headers, body: /** @type {BodyInit | null | undefined} */ (body), credentials: "include", signal });
+      reportConnectionSuccess();
+      break;
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      // A timeout, a caller's cancellation and a dead network are three different
+      // answers, and a reader deserves to be told which. Collapsing them into
+      // "network error" made a slow connection look like a broken one, and made a
+      // navigation away look like a failure worth reporting.
+      // The deadline covers the whole request, retries included, so once it has
+      // expired another attempt would only reuse an already-aborted signal.
+      if (deadline?.expired) {
+        reportConnectionFailure();
+        throw new ApiError(
+          0,
+          null,
+          "The server took too long to answer. Check your connection and try again.",
+          "timeout"
+        );
+      }
+      if (isAbortError(error)) {
+        throw new ApiError(0, null, "This request was cancelled.", "aborted");
+      }
       reportConnectionFailure();
       if (retryable && attempt < 2) { await new Promise((resolve) => setTimeout(resolve, [400, 1100][attempt])); continue; }
       throw new ApiError(
         0,
         null,
-        "The server took too long to answer. Check your connection and try again.",
-        "timeout"
+        "Network error. Check your connection and try again.",
+        "network_error"
       );
     }
-    if (isAbortError(error)) {
-      throw new ApiError(0, null, "This request was cancelled.", "aborted");
-    }
-    reportConnectionFailure();
-    if (retryable && attempt < 2) { await new Promise((resolve) => setTimeout(resolve, [400, 1100][attempt])); continue; }
-    throw new ApiError(
-      0,
-      null,
-      "Network error. Check your connection and try again.",
-      "network_error"
-    );
+  } finally {
+    deadline?.clear();
   }
-  deadline?.clear();
 
   return parseResponse(response, options.responseType || "json");
 }

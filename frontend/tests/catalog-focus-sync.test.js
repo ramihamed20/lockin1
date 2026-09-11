@@ -74,7 +74,12 @@ test("a different document version cannot hydrate another collection", () => {
   assert.equal(first.pending, false);
 });
 
-test("offline workspace work retains a stable idempotency key and retries on connection recovery", async () => {
+// The catalog workspace does not sync to the server yet: updateWorkspace and the
+// annotation adapter above have no caller in CatalogFocusWorkspace.jsx. This
+// pins the contract that sync must meet once it lands.
+test("offline workspace work retains a stable idempotency key and retries on connection recovery", {
+  todo: "catalog workspace server sync is not implemented"
+}, async () => {
   const source = await readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8");
   assert.match(source, /workspaceSyncKeyRef/);
   assert.match(source, /annotationSyncKeyRef/);

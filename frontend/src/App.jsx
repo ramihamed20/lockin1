@@ -521,7 +521,7 @@ function App() {
     return (
       <SubscriptionSessionProvider key={user.id} user={user}>
         <Suspense fallback={null}>
-          <WelcomeOnboarding onUserUpdate={setUser} />
+          <WelcomeOnboarding user={user} onUserUpdate={setUser} onThemeSettingsChange={updateThemeSettings} />
         </Suspense>
       </SubscriptionSessionProvider>
     );
