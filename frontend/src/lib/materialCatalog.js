@@ -111,7 +111,7 @@ export function getCohortCatalog(cohort) {
   )) || EMPTY_CATALOG;
 }
 
-/** @param {{cohort?: {code?: string, program?: {code?: string}}|null}|null|undefined} user */
+/** @param {{cohort?: {code?: string, program?: {code?: string}}|null, roles?: unknown[]}|null|undefined} user */
 export function getCohortMaterials(user) {
   if (Array.isArray(user?.roles) && user.roles.some((role) => ["administrator", "admin", "founder"].includes(String(role).toLowerCase()))) {
     return ALL_MATERIALS;

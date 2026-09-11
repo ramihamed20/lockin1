@@ -188,7 +188,10 @@ def test_founder_content_panel_exposes_every_configured_catalog_branch() -> None
 
     assert response.status_code == 200
     subjects = response.json()["results"]
-    paths = {(item["college_title"], item["specialty_title"], item["academic_year_title"]) for item in subjects}
+    paths = {
+        (item["college_title"], item["specialty_title"], item["academic_year_title"])
+        for item in subjects
+    }
     expected = {
         (college, "Dentistry", year)
         for college in ("Tripoli", "Benghazi", "Zawiya")
