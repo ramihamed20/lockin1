@@ -38,7 +38,7 @@ export function autoThemeForDate(date = new Date()) {
 }
 
 export function normalizeThemeSettings(settings = {}) {
-  const character = ["black", "white"].includes(settings.character) ? settings.character : defaultThemeSettings.character;
+  const character = ["black", "white", "none"].includes(settings.character) ? settings.character : defaultThemeSettings.character;
   const theme = ["dawn", "day", "sunset", "night"].includes(settings.theme) ? settings.theme : defaultThemeSettings.theme;
   const appIcon = appIconOptions.some((option) => option.id === settings.appIcon) ? settings.appIcon : defaultThemeSettings.appIcon;
   return { character, theme, autoTheme: Boolean(settings.autoTheme), appIcon };

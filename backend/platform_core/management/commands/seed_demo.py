@@ -139,27 +139,18 @@ class Command(BaseCommand):
         """Create the two repeatable accounts used for local browser testing only."""
         from apps.accounts.models import User
         from apps.accounts.roles import Role, replace_managed_roles
-        from apps.education.models import AcademicProgram, StudentCohort
+        from apps.education.models import StudentCohort
         from apps.entitlements.services import sync_subscription_entitlements
         from apps.product_catalog.models import Plan
         from apps.subscriptions.models import Subscription, SubscriptionAccount
 
         now = timezone.now()
-        dentistry_program = AcademicProgram.objects.filter(code="dentistry-tripoli").first()
-        cohort = None
-        if dentistry_program is not None:
-            cohort, _ = StudentCohort.objects.update_or_create(
-                program=dentistry_program,
-                code="year-3",
-                defaults={
-                    "name_en": "Tripoli Dentistry — Year 3",
-                    "name_ar": "السنة الثالثة طب الأسنان - طرابلس",
-                    "is_active": True,
-                    "position": 3,
-                },
-            )
-        if cohort is None:
-            cohort = StudentCohort.objects.filter(is_active=True).order_by("position", "id").first()
+        cohort = (
+            StudentCohort.objects.filter(is_active=True)
+            .exclude(code="year-3")
+            .order_by("position", "id")
+            .first()
+        )
         if cohort is None:
             raise CommandError("Manual QA fixtures require an active student cohort.")
         plan = Plan.objects.select_related("current_version").get(code="lockin-plus-monthly")
@@ -502,7 +493,7 @@ class Command(BaseCommand):
         )
         college = node(institution, "college", "health-sciences", "College of Health Sciences", 1)
         department = node(college, "department", "dentistry", "Dentistry", 1)
-        year = node(department, "academic_year", "year-3", "Year 3", 1)
+        year = node(department, "academic_year", "year-2", "Second Year", 1)
         semester = node(year, "semester", "fall-2026", "Fall 2026", 1)
         CreatorScope.objects.update_or_create(
             user=creator,

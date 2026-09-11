@@ -115,6 +115,24 @@ if bool(TELEGRAM_BOT_TOKEN) != bool(TELEGRAM_ADMIN_CHAT_ID or TELEGRAM_PAYMENT_C
     raise ImproperlyConfigured(
         "Telegram payment forwarding requires both a bot token and administrator chat ID."
     )
+# The webhook secret is optional -- a deployment may send notifications without
+# accepting Approve/Reject callbacks -- but a weak one is worse than none, since
+# it is the whole authentication of an endpoint that approves payments.
+if TELEGRAM_WEBHOOK_SECRET_TOKEN:  # noqa: F405
+    if not TELEGRAM_BOT_TOKEN:  # noqa: F405
+        raise ImproperlyConfigured(
+            "TELEGRAM_WEBHOOK_SECRET_TOKEN is set without a Telegram bot token."
+        )
+    if len(TELEGRAM_WEBHOOK_SECRET_TOKEN) < 32:  # noqa: F405
+        raise ImproperlyConfigured("TELEGRAM_WEBHOOK_SECRET_TOKEN must be at least 32 characters.")
+    # Telegram only accepts A-Z, a-z, 0-9, _ and - in this header value, so a
+    # secret outside that set would be silently unusable.
+    if not set(TELEGRAM_WEBHOOK_SECRET_TOKEN) <= set(  # noqa: F405
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-"
+    ):
+        raise ImproperlyConfigured(
+            "TELEGRAM_WEBHOOK_SECRET_TOKEN may contain only letters, digits, underscore and dash."
+        )
 if not 60 <= SUBSCRIPTION_SCHEDULER_INTERVAL_SECONDS <= 86_400:  # noqa: F405
     raise ImproperlyConfigured(
         "SUBSCRIPTION_SCHEDULER_INTERVAL_SECONDS must be between 60 and 86400."
@@ -191,27 +209,42 @@ CSRF_COOKIE_NAME = "__Host-lockin_csrf"
 CSRF_COOKIE_PATH = "/"
 CSRF_COOKIE_DOMAIN = None
 SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", True)
-SECURE_HSTS_SECONDS = env_int("DJANGO_SECURE_HSTS_SECONDS", 3600)
+SECURE_HSTS_SECONDS = env_int("DJANGO_SECURE_HSTS_SECONDS", 31_536_000)
 if SECURE_HSTS_SECONDS < 300:
     raise ImproperlyConfigured("DJANGO_SECURE_HSTS_SECONDS must be at least 300 in production.")
-SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", True)
+# A parent domain can have legacy or third-party HTTP subdomains. Operators
+# must inventory them before opting in; the edge uses the same default.
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", False)
 SECURE_HSTS_PRELOAD = env_bool("DJANGO_SECURE_HSTS_PRELOAD", False)
 SECURE_REFERRER_POLICY = "no-referrer"
 EXPOSE_API_DOCS = False
 # Malware scanning is a deployment decision, not a code constant.
 #
 # The default stays secure: enforcement is on unless a deployment explicitly
-# turns it off. A deployment may turn it off when the upload surface itself is
-# the control -- managed-file uploads are restricted to creators and
-# administrators by ``IsCreatorOrAdministrator``, so unprivileged accounts
-# cannot introduce a file to scan in the first place. The initial launch runs
-# this way; see docs/DEPLOYMENT.md, "Malware scanning".
+# turns it off. The initial launch turns it off, and that is a temporary,
+# accepted risk rather than a claim that nothing unscanned can arrive.
+#
+# Be precise about the residual exposure, because an earlier version of this
+# comment was not. Study material -- PDFs and audio -- is restricted to creators
+# and administrators by ``IsCreatorOrAdministrator``. Avatars are not: any
+# authenticated account can reach ``ProfileAvatarView`` and create a
+# ``ManagedFile`` through ``create_managed_file``. So unprivileged accounts CAN
+# introduce a file that no scanner has seen, and it is served to other readers.
+#
+# What contains that today is type validation rather than scanning:
+# ``validate_upload`` requires the extension, the declared content type and the
+# leading signature bytes to agree, and admits only JPEG, PNG and WebP for an
+# avatar. Delivery adds ``X-Content-Type-Options: nosniff``, the response is
+# inline-only (``can_access_managed_file`` refuses ``download`` for an avatar),
+# and the edge CSP has no ``unsafe-eval`` and permits images only from 'self'.
+# SVG is not an accepted avatar type.
 #
 # Nothing else changes when this is off. Upload authorisation, entitlement
 # checks in ``can_access_managed_file``, and the proxied /api/v1/files/
 # delivery path are all independent of it, and quarantined or failed files stay
 # undeliverable either way. Re-enabling is configuration only: set this true and
-# start the file-scanning Compose profile.
+# start the file-scanning Compose profile. See docs/DEPLOYMENT.md, "Malware
+# scanning".
 CONTENT_REQUIRE_CLEAN_SCAN = env_bool("CONTENT_REQUIRE_CLEAN_SCAN", True)
 if CONTENT_REQUIRE_CLEAN_SCAN:
     if not FILE_SCAN_HOST:  # noqa: F405

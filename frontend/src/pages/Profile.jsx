@@ -12,7 +12,11 @@ import { ResponsiveThemePreview } from "../components/shared/ResponsiveThemePrev
 import { ResponsiveMascot } from "../components/shared/ResponsiveMascot.jsx";
 import { UserAvatar } from "../components/shared/UserAvatar.jsx";
 import { ProfilePictureEditor } from "../components/account/ProfilePictureEditor.jsx";
+import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
+import { PRODUCT_ROLES } from "../api/contracts.js";
+import { hasProductRole } from "../lib/authz.js";
+import { educationPathFor, isSelectableStudyPath, uniqueEducationOptions } from "../lib/educationPath.js";
 
 function resolved(result, fallback) {
   return result.status === "fulfilled" ? result.value : fallback;
@@ -159,9 +163,39 @@ export default function Profile({ user, onUserUpdate }) {
   const [profileError, setProfileError] = useState(null);
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [mobileSection, setMobileSection] = useState("overview");
+  const [cohorts, setCohorts] = useState([]);
+  const [cohortLoading, setCohortLoading] = useState(false);
+  const [studyPathOpen, setStudyPathOpen] = useState(false);
+  const [selectedCohortId, setSelectedCohortId] = useState("");
+  const [selectedCollegeId, setSelectedCollegeId] = useState("");
+  const [selectedSpecialtyId, setSelectedSpecialtyId] = useState("");
+  const [pendingCohortId, setPendingCohortId] = useState("");
+  const [changingCohort, setChangingCohort] = useState(false);
+  const [studyPathMessage, setStudyPathMessage] = useState("");
 
   const workspace = profile.data || {};
   const account = workspace.account || user;
+  const isFounder = hasProductRole(account, PRODUCT_ROLES.ADMINISTRATOR);
+  const contextStorageKey = account?.id ? `lockin.education.context.${account.id}` : "";
+  const founderContextId = isFounder && contextStorageKey && typeof window !== "undefined"
+    ? window.sessionStorage.getItem(contextStorageKey) || ""
+    : "";
+  const activeCohortId = founderContextId || account?.cohort?.id || "";
+  const activeCohort = cohorts.find((cohort) => cohort.id === activeCohortId) || account?.cohort || null;
+  const selectableCohorts = cohorts.filter(isSelectableStudyPath);
+  const studyPathColleges = uniqueEducationOptions(selectableCohorts, "college");
+  const studyPathSpecialties = (() => {
+    const options = new Map();
+    selectableCohorts.filter((cohort) => educationPathFor(cohort).collegeId === selectedCollegeId).forEach((cohort) => {
+      const path = educationPathFor(cohort);
+      if (!options.has(path.specialtyId)) options.set(path.specialtyId, { id: path.specialtyId, label: path.specialtyLabel });
+    });
+    return [...options.values()];
+  })();
+  const studyPathYears = selectableCohorts.filter((cohort) => {
+    const path = educationPathFor(cohort);
+    return path.collegeId === selectedCollegeId && path.specialtyId === selectedSpecialtyId;
+  });
   const learning = workspace.learning || {};
   const xp = workspace.xp || {};
   const streak = workspace.streak || {};
@@ -213,6 +247,56 @@ export default function Profile({ user, onUserUpdate }) {
   function handleAvatarSaved(updated) {
     onUserUpdate?.(updated);
     profile.reload();
+  }
+
+  async function openStudyPathChange() {
+    setCohortLoading(true);
+    setProfileError(null);
+    try {
+      const options = await accountsApi.listCohorts();
+      setCohorts(options);
+      setSelectedCohortId(activeCohortId);
+      const activePath = educationPathFor(options.find((cohort) => cohort.id === activeCohortId) || account?.cohort);
+      setSelectedCollegeId(activePath.collegeId || "");
+      setSelectedSpecialtyId(activePath.specialtyId || "");
+      setStudyPathOpen(true);
+      setStudyPathMessage("");
+    }
+    catch (error) { setProfileError(error); }
+    finally { setCohortLoading(false); }
+  }
+
+  function reviewStudyPathChange() {
+    if (!selectedCohortId || selectedCohortId === activeCohortId) return;
+    setPendingCohortId(selectedCohortId);
+  }
+
+  async function confirmStudyPathChange() {
+    if (!pendingCohortId) return;
+    setChangingCohort(true);
+    setProfileError(null);
+    try {
+      const next = cohorts.find((cohort) => cohort.id === pendingCohortId);
+      if (!next) throw new Error("The selected study path is no longer available. Reload and try again.");
+      if (isFounder) {
+        window.sessionStorage.setItem(contextStorageKey, next.id);
+        window.dispatchEvent(new window.CustomEvent("lockin:education-context-changed", { detail: { cohortId: next.id } }));
+        setStudyPathMessage(`Browsing context changed to ${next.name_en}. No account or study data was changed.`);
+      } else {
+        const updated = await accountsApi.updateProfile({ cohortId: next.id, confirmCohortChange: true });
+        onUserUpdate?.(updated);
+        profile.reload();
+        window.dispatchEvent(new window.CustomEvent("lockin:education-context-changed", { detail: { cohortId: next.id } }));
+        setStudyPathMessage(`Study path changed to ${next.name_en}. Old-path study data was cleared.`);
+      }
+      setSelectedCohortId(next.id);
+      setPendingCohortId("");
+      setStudyPathOpen(false);
+    } catch (error) {
+      setProfileError(error);
+      setPendingCohortId("");
+    }
+    finally { setChangingCohort(false); }
   }
 
   return (
@@ -293,7 +377,10 @@ export default function Profile({ user, onUserUpdate }) {
           <article className="panel profile-consistency-card"><div className="profile-card-heading"><div><p className="eyebrow">{t("profile.learningRhythm")}</p><h2>{t("profile.learningConsistency")}</h2></div><Icon name="calendar" size={17} /></div><div className="profile-consistency-content"><div><span>{t("profile.activeDays")}</span><strong>{activeDays}</strong><small>{t("profile.inLast13")}</small></div><div><span>{t("profile.bestStreak")}</span><strong dir="auto">{formatNumber(streak.longest_days)}</strong><small>{t("profile.daysInRow")}</small></div><ActivityHeatmap cells={recentActivity.slice(-21)} onSelect={setSelectedActivity} compact /></div></article>
 
           <article className="panel profile-lock-card"><div className="profile-card-heading"><div><p className="eyebrow">{t("profile.storeWallet")}</p><h2>{t("profile.lockStatistics")}</h2></div><Icon name="coins" size={18} /></div><p className="profile-data-unavailable">{t("profile.walletUnavailable")}</p></article>
+          <article className="panel profile-lock-card"><div className="profile-card-heading"><div><p className="eyebrow">Study path</p><h2>College, specialty and year</h2></div><Icon name="book-open" size={18} /></div><p>{activeCohort?.name_en || "No study path selected"}</p>{studyPathMessage && <p className="profile-sync-note" role="status">{studyPathMessage}</p>}<AccountFormAlert error={profileError} /><button className="btn btn-soft compact" type="button" onClick={openStudyPathChange} disabled={cohortLoading}>{cohortLoading ? "Loading…" : "Change specialty / study path"}</button>{studyPathOpen && <div className="profile-study-path-fields"><label className="field"><span>College</span><select value={selectedCollegeId} onChange={(event) => { setSelectedCollegeId(event.target.value); setSelectedSpecialtyId(""); setSelectedCohortId(""); }}><option value="">Choose your college</option>{studyPathColleges.map((college) => <option key={college.id} value={college.id}>{college.label}</option>)}</select></label><label className="field"><span>Specialty</span><select value={selectedSpecialtyId} disabled={!selectedCollegeId} onChange={(event) => { setSelectedSpecialtyId(event.target.value); setSelectedCohortId(""); }}><option value="">Choose your specialty</option>{studyPathSpecialties.map((specialty) => <option key={specialty.id} value={specialty.id}>{specialty.label}</option>)}</select></label><label className="field"><span>Year / batch</span><select value={selectedCohortId} disabled={!selectedSpecialtyId} onChange={(event) => setSelectedCohortId(event.target.value)}><option value="">Choose your year / batch</option>{studyPathYears.map((cohort) => <option key={cohort.id} value={cohort.id}>{educationPathFor(cohort).yearLabel}</option>)}</select></label></div>}{studyPathOpen && <div className="profile-edit-actions"><button className="btn btn-primary compact" type="button" disabled={!selectedCohortId || selectedCohortId === activeCohortId} onClick={reviewStudyPathChange}>Review change</button><button className="btn btn-soft compact" type="button" onClick={() => setStudyPathOpen(false)}>Cancel</button></div>}</article>
         </section>
+
+        <ConfirmDialog open={Boolean(pendingCohortId)} title={isFounder ? "Change browsing context?" : "Change study path?"} message={isFounder ? "This only changes the education branch you are browsing. Your founder account and all data remain unchanged." : "Your old-path study progress, bookmarks, review state, unfinished attempts, workspace state, and Active Study progress will be cleared where they belong to this path. Your account, subscription, payments, and profile identity are kept."} confirmLabel={changingCohort ? "Changing…" : isFounder ? "Change browsing context" : "Change and clear study progress"} busy={changingCohort} onCancel={() => setPendingCohortId("")} onConfirm={confirmStudyPathChange} />
 
       </section>
     </Page>

@@ -50,8 +50,20 @@ class MyPaymentsView(ListAPIView[Payment]):
 
 
 class PaymentIntentView(APIView):
+    """Provider-backed checkout. Inert until a real provider is configured.
+
+    Production pins ``PAYMENT_PROVIDER=none``, so this route could only ever
+    reach ``DisabledProvider`` and answer 400 after creating and rolling back a
+    pending subscription and payment. Closing it at the door keeps an unreachable
+    flow from presenting itself as a working one, and keeps the write path out of
+    reach of anyone probing it. The implementation is untouched: configure a
+    provider and it serves again, under exactly the same permissions.
+    """
+
     @transaction.atomic
     def post(self, request: Request) -> Response:
+        if str(settings.PAYMENT_PROVIDER) == "none":
+            raise NotFound()
         serializer = PaymentIntentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = request.user

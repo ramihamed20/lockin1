@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Icon } from "../../lib/icons.jsx";
 import { authApi } from "../../lib/api.js";
 import { assetPath } from "../../lib/utils.js";
+import { educationPathFor, isSelectableStudyPath, uniqueEducationOptions } from "../../lib/educationPath.js";
 import { useI18n } from "../I18nProvider.jsx";
 import { AccountFieldErrors, AccountFormAlert, fieldErrorAttributes } from "../account/AccountFormErrors.jsx";
 import "./auth.css";
@@ -13,7 +14,8 @@ const EMPTY_FORM = Object.freeze({
   email: "",
   password: "",
   confirm: "",
-  programId: "",
+  collegeId: "",
+  specialtyId: "",
   cohortId: "",
   remember: true,
   acceptPolicies: false
@@ -68,7 +70,8 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, no
     ...EMPTY_FORM,
     username: completionUser?.username || "",
     name: completionUser?.name || "",
-    programId: completionUser?.cohort?.program?.id || "",
+    collegeId: educationPathFor(completionUser?.cohort).collegeId || "",
+    specialtyId: educationPathFor(completionUser?.cohort).specialtyId || "",
     cohortId: completionUser?.cohort?.id || ""
   }));
   const [cohorts, setCohorts] = useState([]);
@@ -96,21 +99,23 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, no
       : [t("auth.completeTitle"), t("auth.completeSubtitle")]
   })[mode], [mode, requiresUsername, t]);
 
-  const programs = useMemo(() => {
-    const uniquePrograms = new Map();
-    cohorts.forEach((cohort) => {
-      const program = cohort.program || {};
-      const name = locale === "ar" ? program.name_ar : program.name_en;
-      if (program.id && !uniquePrograms.has(program.id)) {
-        uniquePrograms.set(program.id, { id: program.id, name });
-      }
+  const selectableCohorts = useMemo(() => cohorts.filter(isSelectableStudyPath), [cohorts]);
+  const colleges = useMemo(() => uniqueEducationOptions(selectableCohorts, "college"), [selectableCohorts]);
+  const specialties = useMemo(() => {
+    const values = new Map();
+    selectableCohorts.filter((cohort) => educationPathFor(cohort).collegeId === form.collegeId).forEach((cohort) => {
+      const path = educationPathFor(cohort, locale);
+      if (!values.has(path.specialtyId)) values.set(path.specialtyId, { id: path.specialtyId, label: path.specialtyLabel });
     });
-    return Array.from(uniquePrograms.values());
-  }, [cohorts, locale]);
+    return [...values.values()];
+  }, [selectableCohorts, form.collegeId, locale]);
 
   const availableCohorts = useMemo(
-    () => cohorts.filter((cohort) => cohort.program?.id === form.programId),
-    [cohorts, form.programId]
+    () => selectableCohorts.filter((cohort) => {
+      const path = educationPathFor(cohort);
+      return path.collegeId === form.collegeId && path.specialtyId === form.specialtyId;
+    }),
+    [selectableCohorts, form.collegeId, form.specialtyId]
   );
 
   useEffect(() => {
@@ -319,20 +324,28 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, no
               {(mode === "signup" || (mode === "complete" && !requiresUsername && requiresCohort)) && (
                 <>
                 <div className="auth-v2-field">
-                  <label htmlFor="auth-program">{t("auth.program")}</label>
-                  <select id="auth-program" value={form.programId} onChange={(event) => setForm((current) => ({ ...current, programId: event.target.value, cohortId: "" }))} required disabled={cohortLoading || !programs.length || busy} aria-describedby={cohortLoading || cohortError ? "auth-cohort-status" : undefined}>
-                    <option value="">{cohortLoading ? t("auth.loadingPrograms") : t("auth.chooseProgram")}</option>
-                    {programs.map((program) => <option value={program.id} key={program.id}>{program.name}</option>)}
+                  <label htmlFor="auth-college">College</label>
+                  <select id="auth-college" value={form.collegeId} onChange={(event) => setForm((current) => ({ ...current, collegeId: event.target.value, specialtyId: "", cohortId: "" }))} required disabled={cohortLoading || !colleges.length || busy} aria-describedby={cohortLoading || cohortError ? "auth-cohort-status" : undefined}>
+                    <option value="">{cohortLoading ? t("auth.loadingPrograms") : "Choose your college"}</option>
+                    {colleges.map((college) => <option value={college.id} key={college.id}>{college.label}</option>)}
                   </select>
                   {cohortLoading && <p id="auth-cohort-status" className="auth-v2-cohort-status" role="status">{t("auth.loadingPrograms")}</p>}
                   {cohortError && <div id="auth-cohort-status" className="auth-v2-cohort-status auth-v2-cohort-error" role="alert"><span>{t("auth.cohortsUnavailable")}</span><button type="button" onClick={() => setCohortRetry((current) => current + 1)}>{t("common.tryAgain")}</button></div>}
                 </div>
 
                 <div className="auth-v2-field">
-                  <label htmlFor="auth-cohort">{t("auth.cohort")}</label>
-                  <select id="auth-cohort" value={form.cohortId} onChange={(event) => updateForm("cohortId", event.target.value)} required disabled={!form.programId || cohortLoading || !availableCohorts.length || busy} {...fieldErrorAttributes(error, "cohort_id", "auth-cohort-error")}>
-                    <option value="">{t("auth.chooseCohort")}</option>
-                    {availableCohorts.map((cohort) => <option value={cohort.id} key={cohort.id}>{locale === "ar" ? cohort.name_ar : cohort.name_en}</option>)}
+                  <label htmlFor="auth-specialty">Specialty</label>
+                  <select id="auth-specialty" value={form.specialtyId} onChange={(event) => setForm((current) => ({ ...current, specialtyId: event.target.value, cohortId: "" }))} required disabled={!form.collegeId || cohortLoading || !specialties.length || busy}>
+                    <option value="">Choose your specialty</option>
+                    {specialties.map((specialty) => <option value={specialty.id} key={specialty.id}>{specialty.label}</option>)}
+                  </select>
+                </div>
+
+                <div className="auth-v2-field">
+                  <label htmlFor="auth-cohort">Year / batch</label>
+                  <select id="auth-cohort" value={form.cohortId} onChange={(event) => updateForm("cohortId", event.target.value)} required disabled={!form.specialtyId || cohortLoading || !availableCohorts.length || busy} {...fieldErrorAttributes(error, "cohort_id", "auth-cohort-error")}>
+                    <option value="">Choose your year / batch</option>
+                    {availableCohorts.map((cohort) => <option value={cohort.id} key={cohort.id}>{educationPathFor(cohort, locale).yearLabel}</option>)}
                   </select>
                   <AccountFieldErrors error={error} field="cohort_id" id="auth-cohort-error" />
                 </div>
@@ -368,7 +381,7 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, no
               )}
 
               <AccountFormAlert error={error} message={message} />
-              <button className="auth-v2-primary" type="submit" disabled={busy || (requiresUsername && form.username.length < 3) || ((mode === "signup" || mode === "complete") && !requiresUsername && requiresCohort && (cohortLoading || cohortError || !form.programId || !form.cohortId))}>
+              <button className="auth-v2-primary" type="submit" disabled={busy || (requiresUsername && form.username.length < 3) || ((mode === "signup" || mode === "complete") && !requiresUsername && requiresCohort && (cohortLoading || cohortError || !form.collegeId || !form.specialtyId || !form.cohortId))}>
                 {loading && <span className="auth-v2-spinner auth-v2-spinner-light" aria-hidden="true" />}<span>{loading ? t("auth.working") : mode === "signup" ? t("auth.create") : mode === "forgot" ? t("auth.sendReset") : mode === "complete" ? t("auth.continue") : t("auth.login")}</span>
               </button>
 

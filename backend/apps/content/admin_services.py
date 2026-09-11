@@ -6,6 +6,7 @@ from uuid import UUID
 
 from django.db import transaction
 from django.db.models import QuerySet
+from django.utils.text import slugify
 
 from apps.accounts.models import User
 from apps.audit.models import AuditRecord
@@ -25,6 +26,8 @@ from .active_study_questions import (
 from .models import (
     ActiveStudyQuestionContent,
     ActiveStudySettings,
+    CatalogDocument,
+    CatalogSubject,
     LearningObject,
     LearningObjectAsset,
     LearningObjectVersion,
@@ -86,6 +89,72 @@ def _subject_for_node(node: EducationNode) -> EducationNode:
             else None
         )
     raise ContentRuleError("The sheet is not inside a subject.")
+
+
+def _catalog_subject_for_node(node: EducationNode) -> CatalogSubject | None:
+    """Find the sole Catalog branch that owns this legacy content location.
+
+    EducationNode remains an implementation detail while existing versioned
+    content is being retired from it.  No Catalog action resolves a subject by
+    title or by a shared slug: the one-to-one mapping makes each cohort branch
+    explicit.
+    """
+
+    subject = _subject_for_node(node)
+    return CatalogSubject.objects.filter(source_node_id=subject.id, is_active=True).first()
+
+
+def _catalog_sheet_slug(*, material_slug: str, title: str, excluding_id: UUID | None = None) -> str:
+    base = slugify(title)[:110] or "sheet"
+    candidate = base
+    index = 2
+    query = CatalogDocument.objects.filter(material_slug=material_slug)
+    if excluding_id is not None:
+        query = query.exclude(id=excluding_id)
+    while query.filter(sheet_slug=candidate).exists():
+        suffix = f"-{index}"
+        candidate = f"{base[: 120 - len(suffix)]}{suffix}"
+        index += 1
+    return candidate
+
+
+def _sync_catalog_document(sheet: LearningObject) -> None:
+    """Publish the current protected PDF at its exact Catalog address."""
+
+    version = sheet.published_version
+    if version is None:
+        CatalogDocument.objects.filter(version__learning_object_id=sheet.id).update(is_active=False)
+        return
+    catalog_subject = _catalog_subject_for_node(version.academic_node)
+    if catalog_subject is None:
+        # Legacy content outside a Catalog branch is intentionally not exposed
+        # from the Catalog.
+        return
+    asset = (
+        version.assets.filter(role=LearningObjectAsset.Role.PRIMARY)
+        .select_related("managed_file")
+        .first()
+    )
+    if asset is None:
+        CatalogDocument.objects.filter(version__learning_object_id=sheet.id).update(is_active=False)
+        return
+    document = CatalogDocument.objects.filter(version__learning_object_id=sheet.id).first()
+    if document is None:
+        CatalogDocument.objects.create(
+            material_slug=catalog_subject.material_slug,
+            sheet_slug=_catalog_sheet_slug(
+                material_slug=catalog_subject.material_slug,
+                title=version.title,
+            ),
+            version=version,
+            managed_file=asset.managed_file,
+            is_active=True,
+        )
+        return
+    document.version = version
+    document.managed_file = asset.managed_file
+    document.is_active = True
+    document.save(update_fields=("version", "managed_file", "is_active", "updated_at"))
 
 
 def _notify_students(*, actor: User, sheet: LearningObject) -> int:
@@ -164,6 +233,7 @@ def create_sheet(
     )
     if publish:
         sheet = _publish_current(actor=actor, sheet=sheet)
+        _sync_catalog_document(sheet)
         if notify_students:
             _notify_students(actor=actor, sheet=sheet)
     _audit(actor=actor, action="content.sheet_created", sheet=sheet)
@@ -233,6 +303,7 @@ def update_sheet(
     )
     if was_published:
         sheet = _publish_current(actor=actor, sheet=sheet)
+        _sync_catalog_document(sheet)
     _audit(actor=actor, action="content.sheet_updated", sheet=sheet, previous=previous)
     return sheet
 
@@ -258,6 +329,7 @@ def replace_pdf(
     )
     if was_published:
         sheet = _publish_current(actor=actor, sheet=sheet)
+        _sync_catalog_document(sheet)
         if notify_students:
             _notify_students(actor=actor, sheet=sheet)
     _audit(actor=actor, action="content.pdf_replaced", sheet=sheet)
@@ -284,6 +356,7 @@ def unpublish_sheet(*, actor: User, sheet_id: UUID, expected_revision: int) -> L
         )
     )
     remove_search_entry(resource_kind="learning_object", resource_id=sheet.id)
+    _sync_catalog_document(sheet)
     _audit(actor=actor, action="content.sheet_unpublished", sheet=sheet, previous=previous)
     return sheet
 
@@ -330,6 +403,7 @@ def delete_pdf(*, actor: User, sheet_id: UUID, expected_revision: int) -> Learni
         )
     )
     remove_search_entry(resource_kind="learning_object", resource_id=sheet.id)
+    _sync_catalog_document(sheet)
     _audit(actor=actor, action="content.pdf_removed", sheet=sheet)
     return sheet
 
@@ -343,6 +417,7 @@ def change_sheet_status(
         raise ContentConflictError("This content changed. Reload it and try again.")
     if action == "publish":
         sheet = _publish_current(actor=actor, sheet=sheet)
+        _sync_catalog_document(sheet)
         if notify_students:
             _notify_students(actor=actor, sheet=sheet)
         audit_action = "content.sheet_published"
@@ -354,6 +429,7 @@ def change_sheet_status(
             learning_object_id=sheet.id,
             expected_revision=sheet.revision,
         )
+        _sync_catalog_document(sheet)
         audit_action = "content.sheet_archived"
     else:
         raise ContentRuleError("Unsupported sheet action.")
@@ -390,6 +466,7 @@ def permanently_delete_sheet(*, actor: User, sheet_id: UUID) -> None:
     sheet.current_version = None
     sheet.published_version = None
     sheet.save(update_fields=("current_version", "published_version"))
+    CatalogDocument.objects.filter(version__learning_object_id=sheet.id).delete()
     LearningObjectAsset.objects.filter(version__in=versions).delete()
     LearningObjectVersion.objects.filter(learning_object=sheet).delete()
     record_audit(

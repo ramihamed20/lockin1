@@ -87,6 +87,41 @@ if [ "$role" = "worker" ]; then
     exec "$@"
 fi
 
-nginx -g "$NGINX_DIRECTIVES"
+# Two processes, one container, and neither may outlive the other.
+#
+# This used to daemonize nginx and then `exec gunicorn`. Gunicorn became PID 1
+# and nginx was reparented to it, so if nginx died the container carried on
+# looking healthy while nothing answered on $PORT -- the platform saw a live
+# main process and never restarted it. Gunicorn does not supervise nginx and
+# cannot be made to.
+#
+# So run nginx in the foreground, run Gunicorn beside it, and have this shell
+# wait on both. `wait -n` returns as soon as *either* exits; whichever it was,
+# the other is stopped and the container exits non-zero so the platform
+# restarts it. `set -e` is already on, and the trap covers a platform SIGTERM.
+log "starting nginx"
+nginx -g "daemon off; $NGINX_DIRECTIVES" &
+nginx_pid=$!
 log "starting gunicorn"
-exec gunicorn --config config/gunicorn.py config.wsgi:application
+gunicorn --config config/gunicorn.py config.wsgi:application &
+gunicorn_pid=$!
+
+stop() {
+    trap - TERM INT
+    kill "$nginx_pid" "$gunicorn_pid" 2>/dev/null || true
+    wait "$nginx_pid" "$gunicorn_pid" 2>/dev/null || true
+}
+trap 'stop; exit 0' TERM INT
+
+# POSIX sh has no `wait -n`; poll instead, which also keeps this readable.
+while kill -0 "$nginx_pid" 2>/dev/null && kill -0 "$gunicorn_pid" 2>/dev/null; do
+    sleep 1
+done
+
+if kill -0 "$nginx_pid" 2>/dev/null; then
+    log "gunicorn exited; stopping nginx so the container is replaced"
+else
+    log "nginx exited; stopping gunicorn so the container is replaced"
+fi
+stop
+exit 1

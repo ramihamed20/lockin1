@@ -56,10 +56,36 @@ class InProcessEventBus:
                     "Domain event subscriber failed",
                     extra={"event_name": event.event_name, "event_id": str(event.event_id)},
                 )
+                # Isolation is not the same as silence. A swallowed subscriber
+                # is invisible in a log nobody is tailing, and this bus carries
+                # work that users feel -- notifications, projections, repair
+                # passes. Report it where failures are actually watched.
+                #
+                # Anything a request must not lose is called directly by the
+                # service that owns it rather than left to this path; see
+                # apps.subscriptions.services._converge_entitlements.
+                self._report_failure(event=event, error=error)
                 if self._strict:
                     raise EventDispatchError(
                         f"Subscriber failed for {event.event_name}."
                     ) from error
+
+    @staticmethod
+    def _report_failure(*, event: DomainEvent, error: Exception) -> None:
+        # Imported lazily: observability configures itself from settings, and the
+        # bus is constructed at import time.
+        from platform_core.observability import providers
+
+        try:
+            providers.metric_sink.increment(
+                "events.subscriber.failed", attributes={"event": event.event_name}
+            )
+            providers.error_reporter.capture_exception(
+                error,
+                context={"event_name": event.event_name, "event_id": str(event.event_id)},
+            )
+        except Exception:  # noqa: BLE001 - reporting must never mask the original failure
+            logger.exception("Could not report a failed domain event subscriber")
 
 
 domain_events = InProcessEventBus()

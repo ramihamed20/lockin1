@@ -153,10 +153,20 @@ def _first_subscription_offer_available(*, user: User) -> bool:
 
 def _early_renewal_allowed(*, subscription: Subscription, now: datetime) -> bool:
     return bool(
-        subscription.status == Subscription.Status.ACTIVE
+        subscription.status in (Subscription.Status.ACTIVE, Subscription.Status.GRACE)
         and subscription.current_period_ends_at
-        and subscription.current_period_ends_at > now
-        and subscription.current_period_ends_at - now <= EARLY_RENEWAL_WINDOW
+        and (
+            (
+                subscription.status == Subscription.Status.ACTIVE
+                and subscription.current_period_ends_at > now
+                and subscription.current_period_ends_at - now <= EARLY_RENEWAL_WINDOW
+            )
+            or (
+                subscription.status == Subscription.Status.GRACE
+                and subscription.grace_ends_at
+                and now <= subscription.grace_ends_at
+            )
+        )
     )
 
 
@@ -205,11 +215,19 @@ def submit_manual_recharge(
         user=user, status=ManualRechargeSubmission.Status.PENDING
     ).exists():
         raise ManualPaymentError("A recharge card is already awaiting review.")
-    if (
-        ManualRechargeSubmission.objects.filter(recharge_code_digest__in=digests).exists()
-        or ManualRechargeCode.objects.filter(digest__in=digests).exists()
-    ):
-        raise DuplicateRechargeCodeError("This recharge card code has already been submitted.")
+    # A card number that has been seen before is no longer refused here.
+    #
+    # It used to be: the digest was globally unique, so the first submission of a
+    # number burned it for everyone, for good. A card rejected in error could
+    # never be re-sent, and a genuine second attempt looked like fraud. Approval
+    # is a person's decision, and that person is the right one to weigh a repeat
+    # -- so the repeat is recorded and surfaced to them (see
+    # ``previous_submission_count`` on the operations payload) rather than
+    # blocked by the schema.
+    #
+    # What still cannot happen is an accidental double side effect: one logical
+    # attempt is pinned by the idempotency key handled above, and a user may hold
+    # only one pending submission at a time.
 
     subscription = (
         Subscription.objects.select_for_update()
@@ -220,10 +238,17 @@ def submit_manual_recharge(
     )
     if subscription is None:
         raise ManualPaymentError("A subscription account is not ready yet. Please try again.")
-    subscription = refresh_subscription(subscription=subscription)
+    now = timezone.now()
+    # Grace remains payable through its inclusive end instant. Do not reconcile
+    # it to expired immediately before evaluating that renewal.
+    if not (
+        subscription.status == Subscription.Status.GRACE
+        and subscription.grace_ends_at
+        and now <= subscription.grace_ends_at
+    ):
+        subscription = refresh_subscription(subscription=subscription, now=now)
     if subscription.status == Subscription.Status.SUSPENDED:
         raise ManualPaymentError("This subscription is suspended. Contact support before paying.")
-    now = timezone.now()
     active_unexpired = bool(
         subscription.status == Subscription.Status.ACTIVE
         and subscription.current_period_ends_at
@@ -275,6 +300,7 @@ def submit_manual_recharge(
         source_reference=str(payment.id),
         period_started_at=period_start,
         period_ends_at=paid_end,
+        allow_out_of_order=True,
     ).subscription
     subscription.payment_verification = Subscription.PaymentVerification.PROVISIONAL
     subscription.provisional_payment_id = payment.id
@@ -316,13 +342,8 @@ def submit_manual_recharge(
                 ]
             )
     except IntegrityError as error:
-        if (
-            ManualRechargeSubmission.objects.filter(recharge_code_digest__in=digests).exists()
-            or ManualRechargeCode.objects.filter(digest__in=digests).exists()
-        ):
-            raise DuplicateRechargeCodeError(
-                "This recharge card code has already been submitted."
-            ) from error
+        # The only uniqueness left on this path is one pending submission per
+        # user, which a concurrent second request can still lose.
         raise ManualPaymentError("A recharge card is already awaiting review.") from error
     record_audit(
         actor=user,
@@ -364,7 +385,18 @@ def review_manual_recharge(
     decision: str,
     reason: str,
     idempotency_key: str,
+    send_notification: bool = True,
 ) -> tuple[ManualRechargeSubmission, bool]:
+    """Approve or reject a manual payment. The only path that may do so.
+
+    ``send_notification`` suppresses only the outgoing Telegram message, never
+    the in-app notification, the invoice, the audit record or any state change.
+    A review made from a Telegram button rewrites the original message in place
+    to show the outcome, so sending a second message about the same decision
+    would simply duplicate it in the same chat. Reviews made from the operations
+    console still announce themselves in Telegram exactly as before.
+    """
+
     if decision not in {"approve", "reject"}:
         raise ManualPaymentError("Choose approve or reject.")
     if len(reason.strip()) < 3:
@@ -533,17 +565,18 @@ def review_manual_recharge(
             "user_id": submission.user_id,
         },
     )
-    message = _telegram_message(
-        event=(
-            ManualPaymentTelegramMessage.Event.APPROVED
-            if decision == "approve"
-            else ManualPaymentTelegramMessage.Event.REJECTED
-        ),
-        payment=payment,
-        submission=submission,
-        subscription=subscription,
-    )
-    transaction.on_commit(lambda: notify_manual_payment(message))
+    if send_notification:
+        message = _telegram_message(
+            event=(
+                ManualPaymentTelegramMessage.Event.APPROVED
+                if decision == "approve"
+                else ManualPaymentTelegramMessage.Event.REJECTED
+            ),
+            payment=payment,
+            submission=submission,
+            subscription=subscription,
+        )
+        transaction.on_commit(lambda: notify_manual_payment(message))
     return submission, True
 
 

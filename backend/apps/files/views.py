@@ -19,6 +19,7 @@ from apps.administration.catalog import Capability
 from apps.administration.permissions import HasOperationalCapability
 from apps.content.policies import can_access_managed_file
 from apps.education.permissions import IsCreatorOrAdministrator
+from apps.entitlements.access_permissions import require_subscription_access
 from platform_core.storage import ManagedObjectUnavailable, open_managed_object
 
 from .models import ManagedFile
@@ -123,6 +124,13 @@ class ManagedFileDeliveryView(APIView):
             download=is_download,
         ):
             raise NotFound("File not found.")
+        # This route is exempt from the app-wide subscription gate because it
+        # serves avatars as well as study material, so it applies that gate here
+        # against the object it actually resolved. An avatar is readable by any
+        # authenticated account -- which is what can_access_managed_file above
+        # already decided -- and everything else still needs the entitlement.
+        if managed_file.kind != ManagedFile.Kind.AVATAR:
+            require_subscription_access(user=user, entitlement_code="content.premium")
         if managed_file.validation_status != ManagedFile.ValidationStatus.READY:
             raise NotFound("File not found.")
         blocked_scan_states = {
@@ -151,8 +159,16 @@ class ManagedFileDeliveryView(APIView):
                 return response
             start, end = selected_range
             length = end - start + 1
+            # ``stream`` issues the provider request now, so an unreadable object
+            # is answered here rather than as a 200 that dies mid-body.
+            try:
+                content = stored_object.stream(
+                    start=start, length=length, chunk_size=STREAM_CHUNK_SIZE
+                )
+            except ManagedObjectUnavailable as error:
+                raise NotFound("File not found.") from error
             response = StreamingHttpResponse(
-                stored_object.stream(start=start, length=length, chunk_size=STREAM_CHUNK_SIZE),
+                content,
                 status=status.HTTP_206_PARTIAL_CONTENT,
                 content_type=managed_file.content_type,
             )
@@ -161,8 +177,12 @@ class ManagedFileDeliveryView(APIView):
         else:
             # Streaming the whole object keeps object storage from staging a
             # complete copy in the container before the first byte is sent.
+            try:
+                content = stored_object.stream(chunk_size=STREAM_CHUNK_SIZE)
+            except ManagedObjectUnavailable as error:
+                raise NotFound("File not found.") from error
             response = StreamingHttpResponse(
-                stored_object.stream(chunk_size=STREAM_CHUNK_SIZE),
+                content,
                 content_type=managed_file.content_type,
             )
             response["Content-Length"] = str(size)

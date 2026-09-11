@@ -5,6 +5,7 @@ import test from "node:test";
 
 import { isTrustedOAuthAuthorizationUrl } from "../src/api/accounts.js";
 import { normalizeCohort, normalizeUser } from "../src/api/contracts.js";
+import { educationPathFor, isSelectableStudyPath } from "../src/lib/educationPath.js";
 
 test("auth contracts preserve cohort and onboarding requirements", () => {
   const cohort = normalizeCohort({
@@ -48,6 +49,25 @@ test("auth UI uses the shared i18n and data-backed cohort APIs", () => {
   assert.match(source, /authApi\.startOAuth\(provider/);
   assert.doesNotMatch(source, /a19b3034-e038-46b8-8806-7b113329f0/);
   assert.doesNotMatch(source, /localStorage.*token/i);
+});
+
+test("study-path choices expose college, specialty, and year while excluding Third Year", () => {
+  const tripoli = {
+    id: "tripoli-year-2", code: "year-2", name_en: "Dentistry — Tripoli — Second Year",
+    program: { id: "tripoli", code: "dentistry-tripoli", name_en: "Dentistry — Tripoli" }
+  };
+  const thirdYear = { ...tripoli, code: "year-3" };
+  assert.deepEqual(educationPathFor(tripoli), {
+    collegeId: "tripoli", collegeLabel: "Tripoli", specialtyId: "dentistry",
+    specialtyLabel: "Dentistry", yearLabel: "Dentistry — Tripoli — Second Year"
+  });
+  assert.equal(isSelectableStudyPath(tripoli), true);
+  assert.equal(isSelectableStudyPath(thirdYear), false);
+
+  const source = readFileSync(new URL("../src/components/auth/AuthPage.jsx", import.meta.url), "utf8");
+  assert.match(source, /label htmlFor="auth-college">College/);
+  assert.match(source, /label htmlFor="auth-specialty">Specialty/);
+  assert.match(source, /label htmlFor="auth-cohort">Year \/ batch/);
 });
 
 // The email links are single-use routes. TokenActionPage strips the token from

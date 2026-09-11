@@ -9,10 +9,22 @@ import { fulfillAccessContract } from "./fixtures/productionApi.js";
  * an Arabic page reorders unless it is isolated: "3 sheets" rendered as
  * "sheets 3", and a trailing full stop jumped to the front of its sentence.
  *
- * The catalogue is bundled rather than fetched, so this page renders both a
- * mixed run and a directional icon from the signed-in cohort alone, without any
- * seeded data.
+ * The server's /catalog/materials list is authoritative, so the mock answers it
+ * with the cohort's subjects, all still without sheets. The e2e build adds the
+ * fixture Biochemistry 1 with its sheets, which gives the page both an empty
+ * count and a plural one to render.
  */
+
+const COHORT_SUBJECTS = [
+  ["human-medicine-60-anatomy-1", "Anatomy 1"],
+  ["human-medicine-60-physiology-1", "Physiology 1"],
+  ["human-medicine-60-histology-1", "Histology 1"]
+].map(([slug, title]) => ({
+  slug,
+  title,
+  sheets: [],
+  cohort: { program_code: "human-medicine", cohort_code: "60", name: "Human Medicine 60" }
+}));
 
 async function signIn(page, language) {
   await page.route("**/api/v1/**", async (route) => {
@@ -25,6 +37,10 @@ async function signIn(page, language) {
     }
     if (pathname === "/api/v1/operations/session") {
       await route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ error: { code: "permission_denied", message: "Student account" } }) });
+      return;
+    }
+    if (pathname === "/api/v1/catalog/materials") {
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ count: COHORT_SUBJECTS.length, results: COHORT_SUBJECTS }) });
       return;
     }
     if (route.request().method() === "GET") {

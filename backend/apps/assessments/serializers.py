@@ -282,6 +282,8 @@ class AttemptSerializer(serializers.ModelSerializer[Attempt]):
             "review_only",
             "requested_question_count",
             "server_revision",
+            "resume_question_position",
+            "resume_client_revision",
             "started_at",
             "deadline_at",
             "completed_at",
@@ -312,6 +314,11 @@ class AnswerSaveSerializer(StrictSerializer):
         min_length=0,
         max_length=12,
     )
+    client_revision = serializers.IntegerField(min_value=1)
+
+
+class AttemptResumeSerializer(StrictSerializer):
+    question_position = serializers.IntegerField(min_value=1, max_value=100)
     client_revision = serializers.IntegerField(min_value=1)
 
 

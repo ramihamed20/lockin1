@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { billingApi } from "../api/billing.js";
+import { generateIdempotencyKey } from "../api/pagination.js";
 import { formatDate, formatDateTime } from "../lib/i18n.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { useSubscriptionSession } from "../lib/SubscriptionSessionContext.jsx";
@@ -54,6 +55,9 @@ export default function Subscription() {
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  // Survives re-renders and failed submissions; cleared only once an attempt
+  // has actually been accepted. See submitPayment.
+  const paymentAttemptKey = useRef("");
   const offers = useMemo(() => details.data ? paidOffers(details.data.catalog) : [], [details.data]);
   const effectivePlan = selectedPlan || offers[0]?.plan.id || "";
 
@@ -93,11 +97,20 @@ export default function Subscription() {
     setSubmitting(true);
     setError("");
     setNotice("");
+    // One attempt, one key, however many times the transport is retried.
+    //
+    // A key minted per call made a retry after a lost response look like a
+    // second payment to the server, which is the case the key exists to cover.
+    // The key is kept until the attempt actually succeeds; only then does the
+    // next submission become a new attempt with a new key.
+    if (!paymentAttemptKey.current) paymentAttemptKey.current = generateIdempotencyKey();
     try {
       const result = await billingApi.submitLibyana(
         effectivePlan,
-        oneCardOnly ? [codes[0]] : codes.filter(Boolean)
+        oneCardOnly ? [codes[0]] : codes.filter(Boolean),
+        paymentAttemptKey.current
       );
+      paymentAttemptKey.current = "";
       subscriptionSession.setAuthoritativeSubscription(result.subscription);
       setCodes(["", ""]);
       setNotice(t("subscription.submitted"));

@@ -21,13 +21,12 @@ export function CreatorRoute({ user, operationsSession = null, children }) {
 export function CreatorTabs() {
   const location = useLocation();
   const items = [
-    ["/creator/education", "Education", "layers"],
     ["/creator/content", "Content", "file"],
     ["/creator/questions", "Questions", "help"],
     ["/creator/quizzes", "Quizzes", "target"]
   ];
   return <nav className="tabs-row creator-tabs" aria-label="Creator studio">{items.map(([path, label, icon]) => {
-    const current = location.pathname === path || (path !== "/creator/education" && location.pathname.startsWith(path + "/"));
+    const current = location.pathname === path || location.pathname.startsWith(path + "/");
     return <NavItem key={path} to={path} current={current} className={current ? "active" : ""}><Icon name={icon} size={16} />&nbsp;{label}</NavItem>;
   })}</nav>;
 }

@@ -16,7 +16,7 @@ from apps.entitlements.models import EntitlementGrant
 from apps.focus.models import FocusSession
 from apps.notifications.models import NotificationDelivery
 from apps.payments.manual_services import recharge_code_for_admin, recharge_codes_for_admin
-from apps.payments.models import ManualRechargeSubmission, Payment
+from apps.payments.models import ManualRechargeCode, ManualRechargeSubmission, Payment
 from apps.progress.models import LearningProgress
 from apps.provider_integrations.models import ProviderObjectLink
 from apps.questions.models import Question
@@ -69,6 +69,23 @@ def admin_purchases(*, query: str = "", status: str = "") -> QuerySet[Payment]:
     return payments.order_by("-created_at", "-id")
 
 
+def _repeat_submission_count(manual: ManualRechargeSubmission) -> int:
+    """How many earlier submissions used any of this submission's card numbers.
+
+    Zero for a first-time card. Digests are HMACs of the number, so this compares
+    cards without reading them.
+    """
+
+    digests = [code.digest for code in manual.recharge_codes.all()] or [manual.recharge_code_digest]
+    return (
+        ManualRechargeCode.objects.filter(digest__in=digests)
+        .exclude(submission_id=manual.id)
+        .values("submission_id")
+        .distinct()
+        .count()
+    )
+
+
 def serialize_purchase(
     payment: Payment, *, detailed: bool = False, reveal_recharge_code: bool = False
 ) -> dict[str, Any]:
@@ -114,6 +131,11 @@ def serialize_purchase(
             "rejection_reason": manual.rejection_reason,
             "subscription_period_started_at": manual.subscription_period_started_at,
             "subscription_period_ends_at": manual.subscription_period_ends_at,
+            # A repeat is context for the reviewer, not a verdict. The same card
+            # number may legitimately be submitted again -- an earlier attempt
+            # may have been rejected in error, or the reader may simply be
+            # retrying -- so the count is shown and the decision stays manual.
+            "repeat_submission_count": _repeat_submission_count(manual),
         }
         if manual
         else None

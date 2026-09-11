@@ -1,8 +1,9 @@
 from base64 import urlsafe_b64encode
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.tests.helpers import create_user
@@ -28,7 +29,8 @@ def _paid_subscription(*, remaining_days: int, email: str):
     subscription, _ = create_trial_for_user(user=user, source_reference="early-renewal")
     plan = Plan.objects.select_related("current_version").get(code="lockin_monthly")
     assert plan.current_version is not None
-    now = datetime(2026, 10, 1, 10, tzinfo=UTC)
+    # Relative to the real clock, which the trial above was created on.
+    now = timezone.now().replace(microsecond=0) + timedelta(days=1)
     subscription.plan_version = plan.current_version
     subscription.status = Subscription.Status.ACTIVE
     subscription.trial_started_at = None

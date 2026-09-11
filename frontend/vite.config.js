@@ -45,8 +45,13 @@ function removeLegacyWorkerInDevelopment() {
   };
 }
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(async ({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
+  // Only `npm run build:e2e` sets this; every other build compiles in null.
+  // See e2e/fixtures/catalog.js.
+  const e2eCatalogMaterials = process.env.LOCKIN_E2E_CATALOG === "1"
+    ? (await import("./e2e/fixtures/catalog.js")).e2eCatalogMaterials()
+    : null;
   const appVersion = env.VITE_APP_VERSION || process.env.GITHUB_SHA || "local";
   const basePath = normalizeBasePath(env.VITE_BASE_PATH || "/");
   // This value is used only by Vite's development proxy. Browser requests stay
@@ -58,7 +63,8 @@ export default defineConfig(({ mode }) => {
   return {
   base: basePath,
   define: {
-    __APP_VERSION__: JSON.stringify(appVersion)
+    __APP_VERSION__: JSON.stringify(appVersion),
+    __E2E_CATALOG_MATERIALS__: JSON.stringify(e2eCatalogMaterials)
   },
   plugins: [
     react(),

@@ -46,7 +46,7 @@ from .admin_services import (
     update_sheet,
     validate_active_study_question_content,
 )
-from .models import LearningObject, LearningObjectAsset, LearningObjectVersion
+from .models import CatalogSubject, LearningObject, LearningObjectAsset, LearningObjectVersion
 from .services import ContentConflictError, ContentRuleError
 
 
@@ -96,6 +96,20 @@ def _sheets(subject: EducationNode) -> QuerySet[LearningObject]:
         .prefetch_related("current_version__assets__managed_file")
         .order_by("position", "current_version__title", "id")
     )
+
+
+def _catalog_subject_node(subject_id: UUID) -> tuple[CatalogSubject | None, EducationNode]:
+    """Resolve the Catalog identifier, while keeping pre-Catalog content operable."""
+    catalog_subject = (
+        CatalogSubject.objects.filter(id=subject_id, is_active=True)
+        .select_related("source_node")
+        .first()
+    )
+    if catalog_subject is not None:
+        if catalog_subject.source_node is None:
+            raise NotFound("Catalog subject is not linked to content yet.")
+        return catalog_subject, catalog_subject.source_node
+    return None, get_object_or_404(EducationNode, id=subject_id, kind=EducationNode.Kind.SUBJECT)
 
 
 def _primary_asset(sheet: LearningObject):  # type: ignore[no-untyped-def]
@@ -156,27 +170,41 @@ def serialize_sheet(sheet: LearningObject) -> dict[str, object]:
 
 class AdminSubjectListView(_ContentPermissionView):
     def get(self, request: Request) -> Response:
-        subjects = EducationNode.objects.filter(kind=EducationNode.Kind.SUBJECT).order_by(
-            "position", "title", "id"
+        subjects = (
+            CatalogSubject.objects.select_related("cohort__program", "source_node")
+            .filter(is_active=True, source_node__isnull=False)
+            .order_by("cohort__position", "position", "title", "id")
         )
         query = request.query_params.get("q", "").strip()[:100]
         if query:
             subjects = subjects.filter(title__icontains=query)
         results = []
         for subject in subjects:
-            sheets = _sheets(subject)
-            # EducationNode paths are opaque identifiers, so walk the actual parent chain.
-            ancestor_by_kind: dict[str, str] = {}
-            parent = subject.parent
-            while parent is not None:
-                ancestor_by_kind.setdefault(parent.kind, parent.title)
-                parent = parent.parent
+            source_node = subject.source_node
+            if source_node is None:
+                continue
+            sheets = _sheets(source_node)
+            # Do not offer an empty Third Year placeholder to content staff.
+            # If legacy content exists, retain access so it can be reviewed
+            # rather than silently deleting or concealing real work.
+            if subject.cohort.code == "year-3" and not sheets.exists():
+                continue
+            program = subject.cohort.program
+            college = (
+                "Tripoli" if program.code == "human-medicine" else program.name_en.split(" — ")[-1]
+            )
+            specialty = "Human Medicine" if program.code == "human-medicine" else "Dentistry"
+            year = (
+                f"Batch {subject.cohort.code}"
+                if program.code == "human-medicine"
+                else subject.cohort.name_en.split(" — ")[-1]
+            )
             results.append(
                 {
                     "id": str(subject.id),
                     "title": subject.title,
-                    "path": subject.path,
-                    "status": subject.status,
+                    "path": f"catalog/{subject.material_slug}",
+                    "status": "published",
                     "sheet_count": sheets.count(),
                     "published_count": sheets.filter(
                         workflow_status=LearningObject.WorkflowStatus.PUBLISHED
@@ -188,12 +216,9 @@ class AdminSubjectListView(_ContentPermissionView):
                             LearningObject.WorkflowStatus.REJECTED,
                         )
                     ).count(),
-                    "specialty_title": ancestor_by_kind.get(EducationNode.Kind.DEPARTMENT)
-                    or ancestor_by_kind.get(EducationNode.Kind.COLLEGE)
-                    or ancestor_by_kind.get(EducationNode.Kind.INSTITUTION)
-                    or "Unassigned",
-                    "academic_year_title": ancestor_by_kind.get(EducationNode.Kind.ACADEMIC_YEAR)
-                    or "Unassigned",
+                    "specialty_title": specialty,
+                    "college_title": college,
+                    "academic_year_title": year,
                 }
             )
         return Response({"count": len(results), "results": results})
@@ -201,7 +226,7 @@ class AdminSubjectListView(_ContentPermissionView):
 
 class AdminSubjectSheetListView(_ContentPermissionView):
     def get(self, request: Request, subject_id: UUID) -> Response:
-        subject = get_object_or_404(EducationNode, id=subject_id, kind=EducationNode.Kind.SUBJECT)
+        catalog_subject, subject = _catalog_subject_node(subject_id)
         sheets = _sheets(subject)
         workflow_status = request.query_params.get("status", "").strip()
         if workflow_status:
@@ -217,14 +242,19 @@ class AdminSubjectSheetListView(_ContentPermissionView):
         results = [serialize_sheet(sheet) for sheet in sheets]
         return Response(
             {
-                "subject": {"id": str(subject.id), "title": subject.title},
+                "subject": {
+                    "id": str(catalog_subject.id if catalog_subject is not None else subject.id),
+                    "title": (
+                        catalog_subject.title if catalog_subject is not None else subject.title
+                    ),
+                },
                 "count": len(results),
                 "results": results,
             }
         )
 
     def post(self, request: Request, subject_id: UUID) -> Response:
-        subject = get_object_or_404(EducationNode, id=subject_id, kind=EducationNode.Kind.SUBJECT)
+        _, subject = _catalog_subject_node(subject_id)
         serializer = AdminSheetCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data

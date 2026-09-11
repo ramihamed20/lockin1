@@ -22,6 +22,8 @@ declare global {
   }
 
   const __APP_VERSION__: string;
+  /** Fixture sheets keyed by material slug; null outside `npm run build:e2e`. */
+  const __E2E_CATALOG_MATERIALS__: Record<string, import("../lib/materialCatalog.js").CatalogSheet[]> | null;
 
   interface Window {
     pdfjsLib?: any;

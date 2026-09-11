@@ -33,11 +33,9 @@ import { FeatureComingSoon } from "./components/FeatureComingSoon.jsx";
 // --- Lazy-loaded pages ---
 const Dashboard = lazyWithRecovery(() => import("./pages/Dashboard.jsx"));
 const Materials = lazyWithRecovery(() => import("./pages/Materials.jsx"));
-const MaterialSheets = lazyWithRecovery(() => import("./pages/Materials.jsx").then((m) => ({ default: m.MaterialSheets })));
 const CatalogMaterialSheets = lazyWithRecovery(() => import("./pages/Materials.jsx").then((m) => ({ default: m.CatalogMaterialSheets })));
 const CatalogSheetStudy = lazyWithRecovery(() => import("./pages/Materials.jsx").then((m) => ({ default: m.CatalogSheetStudy })));
 const CatalogFocusWorkspace = lazyWithRecovery(() => import("./pages/CatalogFocusWorkspace.jsx"));
-const LearningObjectStudy = lazyWithRecovery(() => import("./pages/LearningObjectStudy.jsx"));
 const LockInMode = lazyWithRecovery(() => import("./pages/LockInMode.jsx"));
 const Search = lazyWithRecovery(() => import("./pages/Search.jsx"));
 const Questions = lazyWithRecovery(() => import("./pages/Questions.jsx"));
@@ -57,14 +55,6 @@ const Notifications = lazyWithRecovery(() => import("./pages/Notifications.jsx")
 const Store = lazyWithRecovery(() => import("./pages/Store.jsx"));
 const Profile = lazyWithRecovery(() => import("./pages/Profile.jsx"));
 const Settings = lazyWithRecovery(() => import("./pages/Settings.jsx"));
-const CreatorEducation = lazyWithRecovery(() => import("./pages/CreatorEducation.jsx"));
-const CreatorContent = lazyWithRecovery(() => import("./pages/CreatorContent.jsx"));
-const CreatorContentDetail = lazyWithRecovery(() => import("./pages/CreatorContent.jsx").then((module) => ({ default: module.CreatorContentDetail })));
-const CreatorQuestions = lazyWithRecovery(() => import("./pages/CreatorAssessments.jsx").then((module) => ({ default: module.CreatorQuestions })));
-const CreatorQuestionDetail = lazyWithRecovery(() => import("./pages/CreatorAssessments.jsx").then((module) => ({ default: module.CreatorQuestionDetail })));
-const CreatorQuizzes = lazyWithRecovery(() => import("./pages/CreatorAssessments.jsx").then((module) => ({ default: module.CreatorQuizzes })));
-const CreatorQuizDetail = lazyWithRecovery(() => import("./pages/CreatorAssessments.jsx").then((module) => ({ default: module.CreatorQuizDetail })));
-const CreatorRoute = lazyWithRecovery(() => import("./components/creator/index.jsx").then((module) => ({ default: module.CreatorRoute })));
 const OperationsAdmin = lazyWithRecovery(() => import("./pages/OperationsAdmin.jsx"));
 
 const THEME_META_COLORS = {
@@ -531,7 +521,7 @@ function App() {
     return (
       <SubscriptionSessionProvider key={user.id} user={user}>
         <Suspense fallback={null}>
-          <WelcomeOnboarding onUserUpdate={setUser} />
+          <WelcomeOnboarding user={user} onUserUpdate={setUser} onThemeSettingsChange={updateThemeSettings} />
         </Suspense>
       </SubscriptionSessionProvider>
     );
@@ -552,12 +542,9 @@ function App() {
                 <Route path="/study-plan/*" element={<FeatureComingSoon featureId="study-plan" />} />
                 <Route path="/materials" element={<Materials user={user} />} />
                 <Route path="/materials/catalog" element={<NotFoundPage variant="material-catalog" />} />
-                <Route path="/materials/catalog/:materialSlug" element={<CatalogMaterialSheets />} />
-                <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug" element={<CatalogSheetStudy />} />
+                <Route path="/materials/catalog/:materialSlug" element={<CatalogMaterialSheets user={user} />} />
+                <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug" element={<CatalogSheetStudy user={user} />} />
                 <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug/workspace" element={<CatalogFocusWorkspace user={user} />} />
-                <Route path="/materials/objects/:learningObjectId" element={<LearningObjectStudy />} />
-                <Route path="/materials/:materialId" element={<MaterialSheets />} />
-                <Route path="/materials/:materialId/sheets/:sheetId" element={<LearningObjectStudy />} />
                 <Route path="/lock-in" element={<LockInMode user={user} />} />
                 <Route path="/lock-in/:sessionId" element={<LockInMode user={user} />} />
                 <Route path="/search" element={<Search />} />
@@ -584,14 +571,8 @@ function App() {
                 <Route path="/subscription" element={<Subscription />} />
                 <Route path="/settings" element={<Settings user={user} onUserUpdate={setUser} settings={themeSettings} activeTheme={activeTheme} reminderSettings={reminderSettings} onReminderSettingsChange={setReminderSettings} onSettingsChange={updateThemeSettings} onSignedOut={clearAuthenticatedUi} />} />
                 <Route path="/admin/*" element={<OperationsAdmin operationsSession={operationsSession} />} />
-                <Route path="/creator" element={<CreatorRoute user={user} operationsSession={operationsSession}><Navigate to={operationsSession?.capabilities?.includes("content.manage") || user.roles?.includes("creator") || user.roles?.includes("administrator") ? "/creator/education" : "/creator/questions"} replace /></CreatorRoute>} />
-                <Route path="/creator/education" element={<CreatorRoute user={user} operationsSession={operationsSession}><CreatorEducation /></CreatorRoute>} />
-                <Route path="/creator/content" element={<CreatorRoute user={user} operationsSession={operationsSession}><CreatorContent /></CreatorRoute>} />
-                <Route path="/creator/content/:contentId" element={<CreatorRoute user={user} operationsSession={operationsSession}><CreatorContentDetail user={user} operationsSession={operationsSession} /></CreatorRoute>} />
-                <Route path="/creator/questions" element={<CreatorRoute user={user} operationsSession={operationsSession}><CreatorQuestions /></CreatorRoute>} />
-                <Route path="/creator/questions/:questionId" element={<CreatorRoute user={user} operationsSession={operationsSession}><CreatorQuestionDetail /></CreatorRoute>} />
-                <Route path="/creator/quizzes" element={<CreatorRoute user={user} operationsSession={operationsSession}><CreatorQuizzes /></CreatorRoute>} />
-                <Route path="/creator/quizzes/:quizId" element={<CreatorRoute user={user} operationsSession={operationsSession}><CreatorQuizDetail /></CreatorRoute>} />
+                {/* Same content.view gate as /creator; /admin/* also requires the administrator role. */}
+                <Route path="/creator/*" element={<Navigate to="/operations/admin/content" replace />} />
                 <Route path="/moderation/*" element={<Moderation user={user} />} />
                 <Route path="/operations/*" element={<OperationsAdmin operationsSession={operationsSession} />} />
               </Route>

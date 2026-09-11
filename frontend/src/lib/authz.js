@@ -24,6 +24,7 @@ const CURRENT_AUTHENTICATED_ROUTES = new Set([
 
 export const ROUTE_ACCESS_CONFIG = Object.freeze([
   { path: "/operations/admin/content", capability: "content.view" },
+  { path: "/operations/admin/questions", capability: "assessments.view" },
   { path: "/operations/admin", capability: "overview.view" },
   { path: "/operations/configuration", capability: "configuration.view" },
   { path: "/operations/system-health", capability: "system_health.view" },
@@ -36,11 +37,7 @@ export const ROUTE_ACCESS_CONFIG = Object.freeze([
   { path: "/operations/audit", capability: "audit.view" },
   { path: "/operations", capability: "overview.view", exact: true },
   { path: "/admin", productRole: PRODUCT_ROLES.ADMINISTRATOR },
-  { path: "/creator/questions", productRoles: [PRODUCT_ROLES.CREATOR, PRODUCT_ROLES.ADMINISTRATOR], capabilities: ["assessments.manage"] },
-  { path: "/creator/quizzes", productRoles: [PRODUCT_ROLES.CREATOR, PRODUCT_ROLES.ADMINISTRATOR], capabilities: ["assessments.manage"] },
-  { path: "/creator/education", productRoles: [PRODUCT_ROLES.CREATOR, PRODUCT_ROLES.ADMINISTRATOR], capabilities: ["content.manage"] },
-  { path: "/creator/content", productRoles: [PRODUCT_ROLES.CREATOR, PRODUCT_ROLES.ADMINISTRATOR], capabilities: ["content.manage"] },
-  { path: "/creator", productRoles: [PRODUCT_ROLES.CREATOR, PRODUCT_ROLES.ADMINISTRATOR], capabilities: ["content.manage", "assessments.manage"] },
+  { path: "/creator", capability: "content.view" },
   { path: "/moderation", productRoles: [PRODUCT_ROLES.MODERATOR, PRODUCT_ROLES.ADMINISTRATOR], capabilities: ["moderation.view"] }
 ]);
 
@@ -99,7 +96,7 @@ export function canAccessRoute(userOrSession, path, operationsSession) {
 
   if (CURRENT_AUTHENTICATED_ROUTES.has(currentPath)) return true;
   return (
-    /^\/materials\/(?:catalog\/[^/]+(?:\/sheets\/[^/]+(?:\/workspace)?)?|objects\/[^/]+|[^/]+(?:\/sheets\/[^/]+)?)$/.test(currentPath) ||
+    /^\/materials\/catalog\/[^/]+(?:\/sheets\/[^/]+(?:\/workspace)?)?$/.test(currentPath) ||
     // This client-side route guard only establishes authentication. Django's
     // Focus API remains the authority for Lock In entitlement decisions.
     /^\/lock-in(?:\/[^/]+)?$/.test(currentPath) ||

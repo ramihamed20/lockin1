@@ -23,6 +23,7 @@ from ..attempt_services import (
     record_attempt_activity,
     refresh_attempt_state,
     save_answer,
+    save_attempt_resume,
     start_attempt,
     submit_attempt,
 )
@@ -139,6 +140,78 @@ def test_autosave_is_monotonic_idempotent_and_server_acknowledged() -> None:
     )
     assert updated.client_revision == 2
     assert updated.server_revision == 3
+
+
+def test_resume_position_is_durable_monotonic_and_does_not_close_the_attempt() -> None:
+    _, student, _, _, quiz = _assessment_fixture()
+    attempt = start_attempt(user=student, quiz_id=quiz.id, idempotency_key=uuid4()).attempt
+
+    saved = save_attempt_resume(
+        user=student,
+        attempt_id=attempt.id,
+        question_position=2,
+        client_revision=1,
+    )
+    replay = save_attempt_resume(
+        user=student,
+        attempt_id=attempt.id,
+        question_position=2,
+        client_revision=1,
+    )
+    assert saved.id == replay.id
+    assert saved.status == Attempt.Status.ACTIVE
+    assert saved.resume_question_position == 2
+    assert saved.resume_client_revision == 1
+
+    with pytest.raises(AttemptConflictError):
+        save_attempt_resume(
+            user=student,
+            attempt_id=attempt.id,
+            question_position=3,
+            client_revision=1,
+        )
+
+    resumed = start_attempt(user=student, quiz_id=quiz.id, idempotency_key=uuid4())
+    assert resumed.resumed is True
+    assert resumed.attempt.resume_question_position == 2
+
+
+def test_wrong_submission_uses_the_canonical_mistake_bank_once(
+    django_capture_on_commit_callbacks: Any,
+) -> None:
+    _, student, _, _, quiz = _assessment_fixture()
+    attempt = start_attempt(user=student, quiz_id=quiz.id, idempotency_key=uuid4()).attempt
+    snapshot = attempt.questions.order_by("position").first()
+    assert snapshot is not None
+    wrong_option = next(
+        option["id"]
+        for option in snapshot.option_snapshot
+        if option["id"] not in snapshot.correct_option_ids
+    )
+    save_answer(
+        user=student,
+        attempt_id=attempt.id,
+        attempt_question_id=snapshot.id,
+        selected_option_ids=(wrong_option,),
+        client_revision=1,
+    )
+
+    submit_key = uuid4()
+    with django_capture_on_commit_callbacks(execute=True):
+        result = submit_attempt(user=student, attempt_id=attempt.id, idempotency_key=submit_key)
+    with django_capture_on_commit_callbacks(execute=True):
+        replay = submit_attempt(user=student, attempt_id=attempt.id, idempotency_key=submit_key)
+
+    assert replay.id == result.id
+    assert result.attempt_id == attempt.id
+    event_key = f"assessment-result:{result.id}:question:{snapshot.question_version.question_id}"
+    assert MistakeEvent.objects.filter(user=student, event_key=event_key).count() == 1
+    assert (
+        ReviewItem.objects.filter(
+            user=student, last_question_version=snapshot.question_version
+        ).count()
+        == 1
+    )
 
 
 def test_correct_submission_grades_once_without_creating_mistakes_and_emits_stable_event(

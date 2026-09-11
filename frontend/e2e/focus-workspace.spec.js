@@ -336,35 +336,83 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
 test("PDF view preferences restore position and zoom only while enabled @chromium-only", async ({ page }) => {
   test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
-  await page.addInitScript(() => {
-    if (sessionStorage.getItem("workspace-view-seeded")) return;
-    sessionStorage.setItem("workspace-view-seeded", "true");
+  await page.goto("/");
+  await page.evaluate(async () => {
     localStorage.setItem("lock-in.catalog-workspace.settings.v1", JSON.stringify({ rememberLastPosition: true, rememberZoomLevel: true, showPageNumber: true }));
-    localStorage.setItem("lock-in.catalog-workspace.v1.biochemistry-1.vitamin-2", JSON.stringify({
+    const database = await new Promise((resolve, reject) => {
+      const request = indexedDB.open("lock-in-workspace", 1);
+      request.onupgradeneeded = () => {
+        const nextDatabase = request.result;
+        if (!nextDatabase.objectStoreNames.contains("documents")) nextDatabase.createObjectStore("documents", { keyPath: "id" });
+        if (!nextDatabase.objectStoreNames.contains("pages")) {
+          const pages = nextDatabase.createObjectStore("pages", { keyPath: "id" });
+          pages.createIndex("documentId", "documentId", { unique: false });
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const transaction = database.transaction("documents", "readwrite");
+    transaction.objectStore("documents").put({
+      id: "user:focus-visual-student::biochemistry-1::vitamin-2",
+      owner: "user:focus-visual-student",
+      materialSlug: "biochemistry-1",
+      sheetSlug: "vitamin-2",
       version: 1,
       savedAt: new Date().toISOString(),
-      page: 3,
-      zoom: 2.2,
-      // The scale 2.2 was reached against this fit-to-width basis (834px of
-      // stage over a 595px A4 page). The reader restores the magnification the
-      // basis describes, so on this same viewport it resolves back to 2.2.
-      zoomFitBasis: 834 / 595,
-      scrollLeft: 140,
-      scrollTop: 2800,
-      pageOffset: .25,
-      annotations: [],
+      view: {
+        page: 3,
+        zoom: 2.2,
+        // The scale 2.2 was reached against this fit-to-width basis (834px of
+        // stage over a 595px A4 page). The reader restores the magnification the
+        // basis describes, so on this same viewport it resolves back to 2.2.
+        zoomFitBasis: 834 / 595,
+        scrollLeft: 140,
+        scrollTop: 2800,
+        pageOffset: .25
+      },
       notes: []
-    }));
+    });
+    await new Promise((resolve, reject) => {
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+    database.close();
   });
   await page.setViewportSize({ width: 834, height: 1194 });
   await page.goto(WORKSPACE_ROUTE);
   await page.getByRole("button", { name: /Normal Study/ }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
   // The indicator names the page holding most of the stage, not the page the
-  // stored view was anchored to. Page 3 is 736px against 1141px of stage here,
-  // so restoring a quarter of the way into it leaves page 4 covering more of
-  // the reader. The offset assertion below is what guards the restore itself.
-  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "Page 4 of 17");
+  // stored view was anchored to -- restoring a quarter of the way into page 3
+  // can leave either page 3 or page 4 covering more of the reader, depending on
+  // how tall the document's pages are.
+  //
+  // So assert the rule rather than one document's arithmetic: whichever page
+  // covers the most of the stage is the one the indicator names. The offset
+  // assertion below is what guards the restore itself.
+  await expect.poll(async () => page.evaluate(() => {
+    const stage = document.querySelector(".workspace-v2-document-stage").getBoundingClientRect();
+    let bestPage = 0;
+    let bestVisible = 0;
+    for (const element of document.querySelectorAll("[data-pdf-page]")) {
+      const box = element.getBoundingClientRect();
+      const visible = Math.min(stage.bottom, box.bottom) - Math.max(stage.top, box.top);
+      if (visible > bestVisible) {
+        bestVisible = visible;
+        bestPage = Number(element.getAttribute("data-pdf-page"));
+      }
+    }
+    const label = document.querySelector(".workspace-v2-page-number")?.getAttribute("aria-label");
+    return {
+      namesTheDominantPage: label === `Page ${bestPage} of 17`,
+      // The restore is anchored a quarter into page 3, so the page covering
+      // most of the stage is 3 or 4 and never anywhere else in the document.
+      landedAtTheAnchor: bestPage === 3 || bestPage === 4,
+      label
+    };
+  })).toMatchObject({ namesTheDominantPage: true, landedAtTheAnchor: true });
   await expect.poll(async () => page.locator(".workspace-v2-a4-document").evaluate((node) => Number(getComputedStyle(node).getPropertyValue("--workspace-a4-zoom")))).toBeCloseTo(2.2, 5);
   await expect.poll(async () => page.evaluate(() => {
     const stage = document.querySelector(".workspace-v2-document-stage").getBoundingClientRect();

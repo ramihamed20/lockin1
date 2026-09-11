@@ -53,7 +53,7 @@ class RegistrationSerializer(StrictSerializer):
     password_confirm = serializers.CharField(write_only=True, trim_whitespace=False)
     preferred_language = serializers.ChoiceField(choices=User.Language.choices)
     cohort_id = serializers.PrimaryKeyRelatedField(
-        queryset=StudentCohort.objects.filter(is_active=True),
+        queryset=StudentCohort.objects.filter(is_active=True).exclude(code="year-3"),
         source="cohort",
     )
     accept_policies = serializers.BooleanField(write_only=True)
@@ -126,6 +126,7 @@ class UserSerializer(serializers.ModelSerializer[User]):
     username_required = serializers.SerializerMethodField()
     welcome_required = serializers.SerializerMethodField()
     avatar = serializers.SerializerMethodField()
+    theme_settings = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -144,6 +145,7 @@ class UserSerializer(serializers.ModelSerializer[User]):
             "welcome_required",
             "welcome_completed_at",
             "avatar",
+            "theme_settings",
             "roles",
             "date_joined",
         )
@@ -174,6 +176,13 @@ class UserSerializer(serializers.ModelSerializer[User]):
     def get_avatar(self, user: User) -> AvatarPayload:
         return avatar_payload(user)
 
+    def get_theme_settings(self, user: User) -> dict[str, str | bool]:
+        return {
+            "character": user.mascot_preference,
+            "theme": user.theme_preference,
+            "auto_theme": user.dynamic_theme,
+        }
+
 
 class ProfileUpdateSerializer(StrictSerializer):
     username = serializers.CharField(
@@ -182,15 +191,50 @@ class ProfileUpdateSerializer(StrictSerializer):
     full_name = serializers.CharField(max_length=150, trim_whitespace=True, required=False)
     preferred_language = serializers.ChoiceField(choices=User.Language.choices, required=False)
     avatar_default = serializers.ChoiceField(choices=User.AvatarDefault.choices, required=False)
+    mascot_preference = serializers.ChoiceField(
+        choices=User.MascotPreference.choices, required=False
+    )
+    theme_preference = serializers.ChoiceField(choices=User.ThemePreference.choices, required=False)
+    dynamic_theme = serializers.BooleanField(required=False)
     cohort_id = serializers.PrimaryKeyRelatedField(
-        queryset=StudentCohort.objects.filter(is_active=True),
+        queryset=StudentCohort.objects.filter(is_active=True).exclude(code="year-3"),
         source="cohort",
         required=False,
     )
+    confirm_cohort_change = serializers.BooleanField(write_only=True, required=False)
 
     def validate_username(self, value: str) -> str:
         user = self.context.get("user")
         return validate_username(value, user=user if isinstance(user, User) else None)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        user = self.context.get("user")
+        next_cohort = attrs.get("cohort")
+        if (
+            isinstance(user, User)
+            and next_cohort is not None
+            and user.cohort_id is not None
+            and next_cohort.id != user.cohort_id
+            and attrs.pop("confirm_cohort_change", False) is not True
+        ):
+            raise serializers.ValidationError(
+                {
+                    "confirm_cohort_change": [
+                        "Confirm the study-path change to clear current-path progress."
+                    ]
+                }
+            )
+        attrs.pop("confirm_cohort_change", None)
+        return attrs
+
+
+class WelcomePreferencesSerializer(StrictSerializer):
+    mascot_preference = serializers.ChoiceField(
+        choices=User.MascotPreference.choices, required=False
+    )
+    theme_preference = serializers.ChoiceField(choices=User.ThemePreference.choices, required=False)
+    dynamic_theme = serializers.BooleanField(required=False)
+    preferred_language = serializers.ChoiceField(choices=User.Language.choices, required=False)
 
 
 class ProfileAvatarUploadSerializer(StrictSerializer):

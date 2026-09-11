@@ -129,7 +129,15 @@ def test_manual_recharge_submission_requires_csrf_for_session_authentication() -
     assert not ManualRechargeSubmission.objects.filter(user=user).exists()
 
 
-def test_duplicate_recharge_code_is_rejected_for_another_user() -> None:
+def test_a_card_number_seen_before_is_recorded_rather_than_refused() -> None:
+    """Approval is a person's decision, so a repeat reaches that person.
+
+    The digest used to be globally unique, which meant the first submission of a
+    card number consumed it permanently -- a card rejected in error could never
+    be re-sent. The repeat is now accepted, kept as its own auditable attempt,
+    and counted for the reviewer.
+    """
+
     first_user, _ = _trial_user(email="first-card@example.com")
     second_user, _ = _trial_user(email="second-card@example.com")
     plan, _ = _monthly_plan_and_price()
@@ -147,15 +155,112 @@ def test_duplicate_recharge_code_is_rejected_for_another_user() -> None:
         ).status_code
         == 201
     )
-    duplicate = _submit(
+    repeat = _submit(
         second_client,
         plan=plan,
         code="5555444433335",
         key="manual-duplicate-second-001",
     )
 
-    assert duplicate.status_code == 400
-    assert ManualRechargeSubmission.objects.count() == 1
+    assert repeat.status_code == 201
+    assert ManualRechargeSubmission.objects.count() == 2
+    # Both attempts survive as evidence, and neither was auto-approved.
+    assert set(ManualRechargeSubmission.objects.values_list("status", flat=True)) == {
+        ManualRechargeSubmission.Status.PENDING
+    }
+
+
+def test_the_same_card_can_be_resubmitted_after_a_rejection() -> None:
+    """The case the old rule made impossible: a mistaken rejection.
+
+    A user whose valid card was rejected in error may send it again; nothing in
+    the schema stands in the way, and the reviewer decides again.
+    """
+
+    user, _ = _trial_user(email="resubmit-card@example.com")
+    admin = create_user(email="resubmit-admin@example.com", is_superuser=True, is_staff=True)
+    plan, _ = _monthly_plan_and_price()
+    client = APIClient()
+    client.force_authenticate(user)
+    admin_client = APIClient()
+    admin_client.force_authenticate(admin)
+
+    first = _submit(client, plan=plan, code="1234512345123", key="manual-resubmit-001")
+    assert first.status_code == 201
+    payment_id = first.json()["payment"]["id"]
+    rejected = admin_client.post(
+        f"/api/v1/operations/admin/purchases/{payment_id}/manual-review",
+        {"decision": "reject", "reason": "Rejected by mistake during review"},
+        format="json",
+        HTTP_IDEMPOTENCY_KEY="manual-resubmit-review-001",
+    )
+    assert rejected.status_code == 200
+
+    again = _submit(client, plan=plan, code="1234512345123", key="manual-resubmit-002")
+
+    assert again.status_code == 201
+    assert ManualRechargeSubmission.objects.filter(user=user).count() == 2
+
+
+def test_one_idempotency_key_still_produces_one_submission() -> None:
+    """Allowing a repeat card must not weaken transport-retry protection.
+
+    Same key means the same logical attempt, so the replay returns the original
+    rows rather than creating a second payment.
+    """
+
+    user, _ = _trial_user(email="replayed-card@example.com")
+    plan, _ = _monthly_plan_and_price()
+    client = APIClient()
+    client.force_authenticate(user)
+
+    first = _submit(client, plan=plan, code="7777888899990", key="manual-replay-0001")
+    replay = _submit(client, plan=plan, code="7777888899990", key="manual-replay-0001")
+
+    assert first.status_code == 201
+    assert replay.status_code == 200
+    assert first.json()["payment"]["id"] == replay.json()["payment"]["id"]
+    assert ManualRechargeSubmission.objects.filter(user=user).count() == 1
+    assert Payment.objects.filter(account__primary_user=user).count() == 1
+
+
+def test_the_reviewer_is_told_how_often_a_card_was_seen_before() -> None:
+    first_user, _ = _trial_user(email="repeat-context-a@example.com")
+    second_user, _ = _trial_user(email="repeat-context-b@example.com")
+    admin = create_user(email="repeat-context-admin@example.com", is_superuser=True, is_staff=True)
+    plan, _ = _monthly_plan_and_price()
+    for user, key in ((first_user, "manual-context-001"), (second_user, "manual-context-002")):
+        client = APIClient()
+        client.force_authenticate(user)
+        assert _submit(client, plan=plan, code="2468013579246", key=key).status_code == 201
+
+    admin_client = APIClient()
+    admin_client.force_authenticate(admin)
+    second_payment = Payment.objects.get(account__primary_user=second_user)
+    detail = admin_client.get(f"/api/v1/operations/admin/purchases/{second_payment.id}")
+
+    assert detail.status_code == 200
+    assert detail.json()["manual_submission"]["repeat_submission_count"] == 1
+
+
+def test_the_same_card_cannot_fill_both_slots_of_one_submission() -> None:
+    """Two cards means two cards; the same number twice would double-count it."""
+
+    user, _ = _trial_user(email="same-card-twice@example.com")
+    plan, _ = _monthly_plan_and_price()
+    client = APIClient()
+    client.force_authenticate(user)
+
+    response = _submit(
+        client,
+        plan=plan,
+        code="3333222211110",
+        second_code="3333222211110",
+        key="manual-same-twice-001",
+    )
+
+    assert response.status_code == 400
+    assert not ManualRechargeSubmission.objects.filter(user=user).exists()
 
 
 def test_only_admin_can_review_and_approval_is_idempotent() -> None:
@@ -222,7 +327,8 @@ def test_rejection_revokes_only_provisional_access_and_keeps_account_data() -> N
     user, subscription = _trial_user(email="rejection-user@example.com")
     user.full_name = "Saved Study Owner"
     user.save(update_fields=("full_name", "updated_at"))
-    now = datetime(2026, 9, 20, 10, tzinfo=UTC)
+    # Relative to the real clock, which the trial above was created on.
+    now = timezone.now().replace(microsecond=0) + timedelta(days=1)
     subscription.status = Subscription.Status.EXPIRED
     subscription.trial_started_at = None
     subscription.trial_ends_at = None

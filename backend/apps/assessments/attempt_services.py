@@ -388,6 +388,52 @@ def save_answer(
     return answer
 
 
+@transaction.atomic
+def save_attempt_resume(
+    *,
+    user: User,
+    attempt_id: UUID,
+    question_position: int,
+    client_revision: int,
+    now: datetime | None = None,
+) -> Attempt:
+    """Persist the reader's position with the same monotonic retry contract as answers."""
+    saved_at = now or timezone.now()
+    try:
+        attempt = Attempt.objects.select_for_update().get(id=attempt_id, user=user)
+    except Attempt.DoesNotExist as error:
+        raise AttemptRuleError("Attempt not found.") from error
+    if attempt.status != Attempt.Status.ACTIVE:
+        raise AttemptClosedError("This attempt is already closed.")
+    if attempt.deadline_at and saved_at >= attempt.deadline_at:
+        _finalize_attempt(attempt=attempt, submitted_at=saved_at, expired=True)
+        raise AttemptClosedError("The server deadline has passed; the attempt was submitted.")
+
+    question_count = AttemptQuestion.objects.filter(attempt=attempt).count()
+    if not 1 <= question_position <= question_count:
+        raise AttemptRuleError("Attempt question position not found.")
+    if client_revision <= attempt.resume_client_revision:
+        if (
+            client_revision == attempt.resume_client_revision
+            and question_position == attempt.resume_question_position
+        ):
+            return attempt
+        raise AttemptConflictError("A newer quiz position is already stored on the server.")
+
+    attempt.resume_question_position = question_position
+    attempt.resume_client_revision = client_revision
+    attempt.server_revision += 1
+    attempt.save(
+        update_fields=(
+            "resume_question_position",
+            "resume_client_revision",
+            "server_revision",
+            "updated_at",
+        )
+    )
+    return attempt
+
+
 def _finalize_attempt(*, attempt: Attempt, submitted_at: datetime, expired: bool) -> AttemptResult:
     existing = AttemptResult.objects.filter(attempt=attempt).first()
     if existing is not None:

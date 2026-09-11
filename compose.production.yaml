@@ -28,7 +28,7 @@ x-backend-common: &backend-common
     DJANGO_CSRF_TRUSTED_ORIGINS: https://${LOCKIN_PUBLIC_HOST:?Set LOCKIN_PUBLIC_HOST}
     DJANGO_TRUST_PROXY_SSL_HEADER: "true"
     DJANGO_TRUSTED_PROXY_CIDRS: ${DJANGO_TRUSTED_PROXY_CIDRS:-172.28.0.0/24}
-    DJANGO_SECURE_HSTS_SECONDS: ${DJANGO_SECURE_HSTS_SECONDS:-3600}
+    DJANGO_SECURE_HSTS_SECONDS: ${DJANGO_SECURE_HSTS_SECONDS:-31536000}
     DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS: ${DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS:-true}
     DJANGO_SECURE_HSTS_PRELOAD: ${DJANGO_SECURE_HSTS_PRELOAD:-false}
     DJANGO_LOG_LEVEL: ${DJANGO_LOG_LEVEL:-INFO}
@@ -91,24 +91,36 @@ x-backend-common: &backend-common
     TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
     TELEGRAM_PAYMENT_CHAT_ID: ${TELEGRAM_PAYMENT_CHAT_ID:-}
     TELEGRAM_HTTP_TIMEOUT_SECONDS: ${TELEGRAM_HTTP_TIMEOUT_SECONDS:-5}
+    # Empty closes the Approve/Reject webhook. See .env.production.example.
+    TELEGRAM_WEBHOOK_SECRET_TOKEN: ${TELEGRAM_WEBHOOK_SECRET_TOKEN:-}
     SUBSCRIPTION_SCHEDULER_INTERVAL_SECONDS: ${SUBSCRIPTION_SCHEDULER_INTERVAL_SECONDS:-900}
     NOTIFICATION_SCHEDULER_INTERVAL_SECONDS: ${NOTIFICATION_SCHEDULER_INTERVAL_SECONDS:-60}
     OPERATIONAL_CLEANUP_INTERVAL_SECONDS: ${OPERATIONAL_CLEANUP_INTERVAL_SECONDS:-3600}
     OPERATIONAL_DATA_RETENTION_DAYS: ${OPERATIONAL_DATA_RETENTION_DAYS:-30}
-    COMMERCE_RECONCILIATION_INTERVAL_SECONDS: ${COMMERCE_RECONCILIATION_INTERVAL_SECONDS:-21600}
+    COMMERCE_RECONCILIATION_INTERVAL_SECONDS: ${COMMERCE_RECONCILIATION_INTERVAL_SECONDS:-900}
     ANALYTICS_REBUILD_INTERVAL_SECONDS: ${ANALYTICS_REBUILD_INTERVAL_SECONDS:-86400}
     MOTIVATION_REBUILD_INTERVAL_SECONDS: ${MOTIVATION_REBUILD_INTERVAL_SECONDS:-86400}
     OPERATIONS_SCHEDULER_POLL_SECONDS: ${OPERATIONS_SCHEDULER_POLL_SECONDS:-15}
     OPERATIONS_JOB_LEASE_SECONDS: ${OPERATIONS_JOB_LEASE_SECONDS:-7200}
     OBSERVABILITY_SLOW_REQUEST_MS: ${OBSERVABILITY_SLOW_REQUEST_MS:-1000}
     GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
-    GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
     GOOGLE_OAUTH_REDIRECT_URI: ${GOOGLE_OAUTH_REDIRECT_URI:-}
     APPLE_OAUTH_SERVICES_ID: ${APPLE_OAUTH_SERVICES_ID:-}
     APPLE_OAUTH_TEAM_ID: ${APPLE_OAUTH_TEAM_ID:-}
     APPLE_OAUTH_KEY_ID: ${APPLE_OAUTH_KEY_ID:-}
-    APPLE_OAUTH_PRIVATE_KEY: ${APPLE_OAUTH_PRIVATE_KEY:-}
     APPLE_OAUTH_REDIRECT_URI: ${APPLE_OAUTH_REDIRECT_URI:-}
+    # OAuth credentials are secrets and are mounted as files, like every other
+    # one here. `secret_env` reads NAME_FILE when it is set, and refuses to read
+    # both NAME and NAME_FILE, so a deployment cannot half-migrate by accident.
+    #
+    # Apple's credential is a multi-line PEM, which is exactly the kind of value
+    # that gets mangled passing through an env var.
+    #
+    # The `:+` form leaves the variable unset when no path is configured, so an
+    # OAuth-less deployment stays OAuth-less rather than pointing at an empty
+    # secret file. Set the *_FILE path variables to enable a provider.
+    GOOGLE_OAUTH_CLIENT_SECRET_FILE: ${GOOGLE_OAUTH_CLIENT_SECRET_FILE:+/run/secrets/google_oauth_client_secret}
+    APPLE_OAUTH_PRIVATE_KEY_FILE: ${APPLE_OAUTH_PRIVATE_KEY_FILE:+/run/secrets/apple_oauth_private_key}
     OAUTH_FLOW_TTL_SECONDS: ${OAUTH_FLOW_TTL_SECONDS:-600}
     OAUTH_HTTP_TIMEOUT_SECONDS: ${OAUTH_HTTP_TIMEOUT_SECONDS:-10}
     OBSERVABILITY_STATSD_HOST: ${OBSERVABILITY_STATSD_HOST:?Set OBSERVABILITY_STATSD_HOST}
@@ -123,6 +135,8 @@ x-backend-common: &backend-common
     - payment_code_encryption_key
     - observability_error_webhook_token
     - storage_secret_access_key
+    - google_oauth_client_secret
+    - apple_oauth_private_key
   networks:
     - application
     - data
@@ -213,6 +227,8 @@ services:
       - payment_code_encryption_key
       - observability_error_webhook_token
       - storage_secret_access_key
+      - google_oauth_client_secret
+      - apple_oauth_private_key
       - postgres_owner_password
     depends_on:
       db:
@@ -236,6 +252,8 @@ services:
       - payment_code_encryption_key
       - observability_error_webhook_token
       - storage_secret_access_key
+      - google_oauth_client_secret
+      - apple_oauth_private_key
       - postgres_runtime_password
     depends_on:
       release:
@@ -266,13 +284,34 @@ services:
       GUNICORN_KEEPALIVE_SECONDS: ${GUNICORN_KEEPALIVE_SECONDS:-5}
       GUNICORN_MAX_REQUESTS: ${GUNICORN_MAX_REQUESTS:-1000}
       GUNICORN_MAX_REQUESTS_JITTER: ${GUNICORN_MAX_REQUESTS_JITTER:-100}
-      GUNICORN_FORWARDED_ALLOW_IPS: "*"
+      # Only the edge network may set X-Forwarded-*.
+      #
+      # "*" told Gunicorn to accept forwarded headers from any peer that reached
+      # it. Nothing publishes this port, so the blast radius was the Docker
+      # network rather than the internet -- but a single compromised container on
+      # `application` could then claim any client address and any scheme, which
+      # is exactly what the trusted-proxy logic in platform_core/network.py and
+      # SECURE_PROXY_SSL_HEADER are built to prevent.
+      #
+      # Gunicorn 26 accepts CIDR networks here as well as bare addresses
+      # (gunicorn/config.py, ForwardedAllowIPS -> validate_string_to_addr_list,
+      # which runs ipaddress.ip_network in strict mode). So this names the
+      # application subnet rather than pinning the edge to a fixed address that
+      # Docker could reassign -- and it stays in step with
+      # DJANGO_TRUSTED_PROXY_CIDRS, which describes the same network to Django.
+      #
+      # 127.0.0.1 is required as well: the container healthcheck calls Gunicorn
+      # on the loopback with X-Forwarded-Proto: https, and would be answered
+      # with an HTTPS redirect if that header were ignored.
+      GUNICORN_FORWARDED_ALLOW_IPS: "127.0.0.1,${DJANGO_TRUSTED_PROXY_CIDRS:-172.28.0.0/24}"
     secrets:
       - django_secret_key
       - email_host_password
       - payment_code_encryption_key
       - observability_error_webhook_token
       - storage_secret_access_key
+      - google_oauth_client_secret
+      - apple_oauth_private_key
       - postgres_runtime_password
     depends_on:
       preflight:
@@ -303,12 +342,28 @@ services:
       <<: *backend-environment
       POSTGRES_USER: ${POSTGRES_RUNTIME_ROLE:-lockin_app}
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_runtime_password
+      # Background work needs longer statements than a web request may have.
+      #
+      # The web tier keeps 15s/3s deliberately: a request that cannot finish in
+      # that window should fail rather than hold a Gunicorn thread and a
+      # connection. Maintenance is the opposite shape -- the nightly cleanup
+      # deletes expired sessions and auth attempts in bulk, and reconciliation
+      # walks every subscription -- and those legitimately exceed 15s as the
+      # data grows. Sharing the web limits meant these jobs would begin failing
+      # silently at a size nobody was watching for.
+      #
+      # Still bounded, never unlimited: a runaway query is killed, just later.
+      POSTGRES_STATEMENT_TIMEOUT_MS: ${WORKER_POSTGRES_STATEMENT_TIMEOUT_MS:-300000}
+      POSTGRES_LOCK_TIMEOUT_MS: ${WORKER_POSTGRES_LOCK_TIMEOUT_MS:-30000}
+      POSTGRES_IDLE_TRANSACTION_TIMEOUT_MS: ${WORKER_POSTGRES_IDLE_TRANSACTION_TIMEOUT_MS:-120000}
     secrets:
       - django_secret_key
       - email_host_password
       - payment_code_encryption_key
       - observability_error_webhook_token
       - storage_secret_access_key
+      - google_oauth_client_secret
+      - apple_oauth_private_key
       - postgres_runtime_password
     depends_on:
       preflight:
@@ -326,12 +381,18 @@ services:
       <<: *backend-environment
       POSTGRES_USER: ${POSTGRES_RUNTIME_ROLE:-lockin_app}
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_runtime_password
+      # Scanning a 90 MB object outlasts a web request; see operations-scheduler.
+      POSTGRES_STATEMENT_TIMEOUT_MS: ${WORKER_POSTGRES_STATEMENT_TIMEOUT_MS:-300000}
+      POSTGRES_LOCK_TIMEOUT_MS: ${WORKER_POSTGRES_LOCK_TIMEOUT_MS:-30000}
+      POSTGRES_IDLE_TRANSACTION_TIMEOUT_MS: ${WORKER_POSTGRES_IDLE_TRANSACTION_TIMEOUT_MS:-120000}
     secrets:
       - django_secret_key
       - email_host_password
       - payment_code_encryption_key
       - observability_error_webhook_token
       - storage_secret_access_key
+      - google_oauth_client_secret
+      - apple_oauth_private_key
       - postgres_runtime_password
     depends_on:
       preflight:
@@ -402,6 +463,12 @@ secrets:
   # Unset resolves to an empty file, and the containers are told to ignore it.
   storage_secret_access_key:
     file: ${STORAGE_SECRET_ACCESS_KEY_FILE:-/dev/null}
+  # Unset resolves to an empty file, and the *_FILE env var above stays unset,
+  # so the containers ignore it exactly as they do for object storage.
+  google_oauth_client_secret:
+    file: ${GOOGLE_OAUTH_CLIENT_SECRET_FILE:-/dev/null}
+  apple_oauth_private_key:
+    file: ${APPLE_OAUTH_PRIVATE_KEY_FILE:-/dev/null}
   postgres_owner_password:
     file: ${POSTGRES_OWNER_PASSWORD_FILE:?Set POSTGRES_OWNER_PASSWORD_FILE}
   postgres_runtime_password:

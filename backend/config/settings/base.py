@@ -70,6 +70,9 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # After authentication, because it needs request.user; before maintenance
+    # and the views, so an expired ceiling is anonymous everywhere downstream.
+    "apps.accounts.middleware.SlidingSessionMiddleware",
     "platform_core.maintenance.middleware.MaintenanceModeMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -126,8 +129,31 @@ ACCOUNT_PASSWORD_RESET_TTL_SECONDS = env_int("ACCOUNT_PASSWORD_RESET_TTL_SECONDS
 ACCOUNT_EMAIL_CHANGE_TTL_SECONDS = env_int("ACCOUNT_EMAIL_CHANGE_TTL_SECONDS", 3_600)
 ACCOUNT_DELETION_CONFIRM_TTL_SECONDS = env_int("ACCOUNT_DELETION_CONFIRM_TTL_SECONDS", 86_400)
 ACCOUNT_DELETION_POLICY_VERSION = env("ACCOUNT_DELETION_POLICY_VERSION")
+# Explicit cohort-to-content mappings are introduced in a two-stage rollout.
+# Keep this off only while production mappings are audited and populated; once
+# enabled, an ordinary learner with no matching mapping is denied (fail closed).
+COHORT_CONTENT_ENFORCEMENT = env_bool("COHORT_CONTENT_ENFORCEMENT", False)
+# Sessions slide on authenticated activity and stop at an absolute ceiling.
+#
+# ACCOUNT_SESSION_AGE_SECONDS is the idle window: how long a session survives
+# with no activity. ACCOUNT_SESSION_ABSOLUTE_AGE_SECONDS is measured from
+# sign-in and is never extended, so it bounds how long a stolen cookie can be
+# useful no matter how busy the session looks.
+#
+#   ordinary sign-in   idle 12 hours, absolute  7 days
+#   "remember me"      idle 30 days,  absolute 90 days
+#
+# Both ceilings are new; before this a session was a single fixed window and had
+# no upper bound beyond it. See apps/accounts/middleware.py.
 ACCOUNT_SESSION_AGE_SECONDS = env_int("ACCOUNT_SESSION_AGE_SECONDS", 43_200)
+ACCOUNT_SESSION_ABSOLUTE_AGE_SECONDS = env_int("ACCOUNT_SESSION_ABSOLUTE_AGE_SECONDS", 604_800)
 ACCOUNT_REMEMBER_SESSION_AGE_SECONDS = env_int("ACCOUNT_REMEMBER_SESSION_AGE_SECONDS", 2_592_000)
+ACCOUNT_REMEMBER_SESSION_ABSOLUTE_AGE_SECONDS = env_int(
+    "ACCOUNT_REMEMBER_SESSION_ABSOLUTE_AGE_SECONDS", 7_776_000
+)
+# How often an active session may be re-saved. One write per interval per active
+# reader, rather than one per request.
+ACCOUNT_SESSION_SLIDE_INTERVAL_SECONDS = env_int("ACCOUNT_SESSION_SLIDE_INTERVAL_SECONDS", 300)
 ACCOUNT_LOGIN_WINDOW_SECONDS = env_int("ACCOUNT_LOGIN_WINDOW_SECONDS", 900)
 ACCOUNT_LOGIN_ATTEMPT_LIMIT = env_int("ACCOUNT_LOGIN_ATTEMPT_LIMIT", 5)
 ACCOUNT_LOGIN_SOURCE_ATTEMPT_LIMIT = env_int("ACCOUNT_LOGIN_SOURCE_ATTEMPT_LIMIT", 30)
@@ -138,11 +164,14 @@ OPERATIONAL_DATA_RETENTION_DAYS = env_int("OPERATIONAL_DATA_RETENTION_DAYS", 30)
 OPERATIONS_SCHEDULER_POLL_SECONDS = env_int("OPERATIONS_SCHEDULER_POLL_SECONDS", 15)
 OPERATIONS_JOB_LEASE_SECONDS = env_int("OPERATIONS_JOB_LEASE_SECONDS", 7200)
 NOTIFICATION_SCHEDULER_INTERVAL_SECONDS = env_int("NOTIFICATION_SCHEDULER_INTERVAL_SECONDS", 60)
+ACCOUNT_EMAIL_DELIVERY_INTERVAL_SECONDS = env_int("ACCOUNT_EMAIL_DELIVERY_INTERVAL_SECONDS", 60)
 SUBSCRIPTION_SCHEDULER_INTERVAL_SECONDS = env_int("SUBSCRIPTION_SCHEDULER_INTERVAL_SECONDS", 900)
 OPERATIONAL_CLEANUP_INTERVAL_SECONDS = env_int("OPERATIONAL_CLEANUP_INTERVAL_SECONDS", 3600)
-COMMERCE_RECONCILIATION_INTERVAL_SECONDS = env_int(
-    "COMMERCE_RECONCILIATION_INTERVAL_SECONDS", 21600
-)
+# Entitlement state now converges inside the transaction that changes a
+# subscription, so this is a repair pass rather than the primary mechanism. It
+# still runs often, because the window it leaves open is a paying reader being
+# refused: six hours was long enough for that to look like a broken product.
+COMMERCE_RECONCILIATION_INTERVAL_SECONDS = env_int("COMMERCE_RECONCILIATION_INTERVAL_SECONDS", 900)
 ANALYTICS_REBUILD_INTERVAL_SECONDS = env_int("ANALYTICS_REBUILD_INTERVAL_SECONDS", 86400)
 MOTIVATION_REBUILD_INTERVAL_SECONDS = env_int("MOTIVATION_REBUILD_INTERVAL_SECONDS", 86400)
 TRUSTED_PROXY_CIDRS = env_list("DJANGO_TRUSTED_PROXY_CIDRS")
@@ -214,6 +243,10 @@ FILE_SCAN_CLAIM_TIMEOUT_SECONDS = env_int("FILE_SCAN_CLAIM_TIMEOUT_SECONDS", 300
 FILE_SCAN_WORKER_INTERVAL_SECONDS = env_int("FILE_SCAN_WORKER_INTERVAL_SECONDS", 10)
 FILE_SCAN_BATCH_SIZE = env_int("FILE_SCAN_BATCH_SIZE", 8)
 
+# Community is implemented but not launched: the front end shows "coming soon"
+# and the API stays closed unless a deployment says otherwise. Off by default so
+# a new environment cannot expose it by omission; development and tests opt in.
+COMMUNITY_ENABLED = env_bool("COMMUNITY_ENABLED", False)
 COMMUNITY_DISCUSSION_RATE_WINDOW_SECONDS = env_int("COMMUNITY_DISCUSSION_RATE_WINDOW_SECONDS", 300)
 COMMUNITY_DISCUSSION_RATE_LIMIT = env_int("COMMUNITY_DISCUSSION_RATE_LIMIT", 5)
 COMMUNITY_COMMENT_RATE_WINDOW_SECONDS = env_int("COMMUNITY_COMMENT_RATE_WINDOW_SECONDS", 300)
@@ -235,6 +268,11 @@ TELEGRAM_BOT_TOKEN = secret_env("TELEGRAM_BOT_TOKEN")
 TELEGRAM_ADMIN_CHAT_ID = env("TELEGRAM_ADMIN_CHAT_ID")
 TELEGRAM_PAYMENT_CHAT_ID = env("TELEGRAM_PAYMENT_CHAT_ID")
 TELEGRAM_HTTP_TIMEOUT_SECONDS = env_int("TELEGRAM_HTTP_TIMEOUT_SECONDS", 5)
+# Shared secret echoed by Telegram in X-Telegram-Bot-Api-Secret-Token on every
+# webhook delivery. It is the only thing that makes the webhook URL more than a
+# guessable public endpoint, so an unset value disables callback handling
+# entirely rather than accepting unauthenticated updates.
+TELEGRAM_WEBHOOK_SECRET_TOKEN = secret_env("TELEGRAM_WEBHOOK_SECRET_TOKEN")
 SUBSCRIPTION_SCHEDULER_INTERVAL_SECONDS = env_int("SUBSCRIPTION_SCHEDULER_INTERVAL_SECONDS", 900)
 OBSERVABILITY_SLOW_REQUEST_MS = env_int("OBSERVABILITY_SLOW_REQUEST_MS", 1000)
 
@@ -263,6 +301,7 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
+        "platform_core.api.permissions.FeatureEnabledPermission",
         "apps.entitlements.access_permissions.SubscriptionProtectedPermission",
     ],
     "DEFAULT_PAGINATION_CLASS": "platform_core.api.pagination.LockinPagination",

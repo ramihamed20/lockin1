@@ -4,8 +4,47 @@ from django.conf import settings
 from django.db import models
 from django.db.models import F, Q
 
-from apps.education.models import EducationNode
+from apps.education.models import EducationNode, StudentCohort
 from apps.files.models import ManagedFile
+
+
+class CatalogSubject(models.Model):
+    """A flat, cohort-owned Catalog branch exposed by Materials and Content Studio."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    cohort = models.ForeignKey(
+        StudentCohort,
+        on_delete=models.PROTECT,
+        related_name="catalog_subjects",
+    )
+    source_node = models.OneToOneField(
+        EducationNode,
+        on_delete=models.PROTECT,
+        related_name="catalog_subject",
+        null=True,
+        blank=True,
+    )
+    title = models.CharField(max_length=180)
+    slug = models.SlugField(max_length=180)
+    # This is the public Materials route key.  It is cohort-qualified so a
+    # repeated subject title can never accidentally resolve to another college.
+    material_slug = models.SlugField(max_length=240, unique=True)
+    position = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("cohort__position", "position", "title", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("cohort", "slug"),
+                name="catalog_subject_cohort_slug_unique",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.cohort}: {self.title}"
 
 
 class LearningObject(models.Model):
@@ -159,6 +198,86 @@ class LearningObjectAsset(models.Model):
 
     def __str__(self) -> str:
         return f"{self.version_id}:{self.role}"
+
+
+class CatalogDocument(models.Model):
+    """Authoritative catalog alias for one immutable published PDF version."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    material_slug = models.SlugField(max_length=120)
+    sheet_slug = models.SlugField(max_length=120)
+    version = models.OneToOneField(
+        LearningObjectVersion, on_delete=models.PROTECT, related_name="catalog_document"
+    )
+    managed_file = models.ForeignKey(
+        ManagedFile, on_delete=models.PROTECT, related_name="catalog_documents"
+    )
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("material_slug", "sheet_slug"), name="content_catalog_alias_unique"
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=("material_slug", "sheet_slug", "is_active"),
+                name="content_catalog_lookup_idx",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.material_slug}/{self.sheet_slug} -> {self.version_id}"
+
+
+class CatalogWorkspaceSnapshot(models.Model):
+    """User-owned durable reader state; annotation bytes remain in Focus collections."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="catalog_workspaces"
+    )
+    document = models.ForeignKey(
+        CatalogDocument, on_delete=models.CASCADE, related_name="workspaces"
+    )
+    state = models.JSONField(default=dict, blank=True)
+    revision = models.PositiveBigIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("user", "document"), name="content_catalog_workspace_unique"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.document_id}:{self.revision}"
+
+
+class CatalogWorkspaceReceipt(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        CatalogWorkspaceSnapshot, on_delete=models.CASCADE, related_name="receipts"
+    )
+    idempotency_key = models.UUIDField()
+    request_digest = models.CharField(max_length=64)
+    response_payload = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("workspace", "idempotency_key"), name="content_catalog_receipt_unique"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.workspace_id}:{self.idempotency_key}"
 
 
 class ActiveStudySettings(models.Model):

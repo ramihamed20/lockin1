@@ -259,24 +259,46 @@ from the environment and **defaults to enforcing it**; a deployment that wants i
 off has to say so.
 
 **The initial launch runs with it off (`CONTENT_REQUIRE_CLEAN_SCAN=false`), and
-starts neither ClamAV nor the file-scan worker.** The reason is that the upload
-surface is itself the control:
+starts neither ClamAV nor the file-scan worker.** This is a temporary accepted
+risk, and the reasoning has to be stated accurately — an earlier version of this
+section overstated it.
 
-- `ManagedFileUploadView` is gated by `IsCreatorOrAdministrator`. Students and
-  every other unprivileged account are refused before a file is ever stored —
-  including avatars. There is no other route by which a managed file enters the
-  system.
-- Only trusted administrators upload study material, so every stored object has a
-  known, accountable origin.
+What is true:
+
+- **Study material is administrator-only.** `ManagedFileUploadView` is gated by
+  `IsCreatorOrAdministrator`, so every PDF and audio object has a known,
+  accountable origin.
 - ClamAV needs roughly 1.6 GB resident and 2.4 GB during its daily signature
   reload. On a 4 GB host that is more memory than the entire rest of the
   deployment, and it cannot be made to fit beside PostgreSQL and the application.
+
+What is **not** true, and was previously claimed here:
+
+- **The upload endpoint is not the only route in.** `ProfileAvatarView`
+  (`POST /api/v1/account/profile/avatar`) lets *any authenticated account* create
+  a `ManagedFile` through `create_managed_file`. Unprivileged accounts therefore
+  can and do introduce unscanned objects, and those objects are served to other
+  readers.
+
+What actually contains the avatar surface while scanning is off is type
+validation, not authorisation:
+
+- `validate_upload` requires the file extension, the declared content type and
+  the leading signature bytes to agree, and admits only JPEG, PNG and WebP.
+  SVG is not an accepted avatar type.
+- Delivery sets `X-Content-Type-Options: nosniff` and is inline-only —
+  `can_access_managed_file` refuses `download` for an avatar.
+- The edge CSP serves images from `'self'` only and carries no `unsafe-eval`.
+- `PROFILE_AVATAR_MAX_BYTES` bounds the object size.
+
+Treat enabling the scanner as the fix for this gap, not as an optional upgrade.
 
 **What does not change when it is off.** Nothing else in the file path moves with
 this flag, and this is worth being precise about, because the flag is easy to
 mistake for a general relaxation:
 
-- Upload authorisation is unchanged. Unprivileged accounts still cannot upload.
+- Upload authorisation is unchanged. Unprivileged accounts still cannot upload
+  study material; they can still upload an avatar, exactly as before.
 - `can_access_managed_file` and every entitlement check are unchanged. A student
   still only reaches a file they are entitled to.
 - Delivery still goes through the API at `/api/v1/files/`, never a public bucket
@@ -372,10 +394,10 @@ depends entirely on who can upload:
 - **If uploads are open to ordinary users, move to a host that can run it.**
   Untrusted input reaching storage unscanned is not a trade to make.
 - **If uploads are restricted to trusted operators**, as they are here — see
-  "Malware scanning" above — running without it is a defensible decision, because
-  the authorisation on the upload endpoint is doing the work the scanner would
-  otherwise do at ingestion. State it with `CONTENT_REQUIRE_CLEAN_SCAN=false` and
-  keep the profile stopped.
+  "Malware scanning" above — running without it is a defensible decision for
+  study material, whose upload is administrator-only, but it leaves the
+  reader-facing avatar upload unscanned. State it with
+  `CONTENT_REQUIRE_CLEAN_SCAN=false` and keep the profile stopped.
 
 What is not defensible in either case is enabling enforcement with no scanner
 reachable, or widening upload permissions while scanning is off.

@@ -10,7 +10,6 @@ urlpatterns = [
     path("telemetry/client-errors", client_error, name="client-error"),
     path("", include("apps.accounts.urls")),
     path("", include("apps.focus.urls")),
-    path("", include("apps.education.urls")),
     path("", include("apps.files.urls")),
     path("", include("apps.content.urls")),
     path("", include("apps.discovery.urls")),

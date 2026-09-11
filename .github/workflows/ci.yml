@@ -219,9 +219,13 @@ jobs:
       - name: Install exact frontend lockfile
         working-directory: frontend
         run: pnpm install --frozen-lockfile
+      # build:e2e is the production build plus the fixture catalogue sheets the
+      # reader specs open (frontend/e2e/fixtures/catalog.js). Everything else is
+      # identical production code, and the "frontend" job above still builds and
+      # budget-checks the real production bundle.
       - name: Production-bundle browser regression
         working-directory: frontend
-        run: pnpm run build && pnpm run test:e2e
+        run: pnpm run build:e2e && pnpm run test:e2e
 
   containers:
     runs-on: ubuntu-latest

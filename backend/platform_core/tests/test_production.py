@@ -237,6 +237,7 @@ def test_runtime_grants_are_complete_and_keep_missing_audit_table_safe() -> None
 
 
 @pytest.mark.filterwarnings("ignore:Overriding setting DATABASES can lead to unexpected behavior")
+@pytest.mark.django_db
 def test_release_runs_ordered_production_steps_with_distinct_roles() -> None:
     output = StringIO()
     production = {

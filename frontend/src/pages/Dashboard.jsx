@@ -49,6 +49,7 @@ export default function Dashboard({ themeSettings, activeTheme }) {
   if (dashboard.error) return <ErrorPanel message={dashboard.error} onRetry={dashboard.reload} />;
 
   const { account, accountError, learning, learningError, review, reviewError, bank, bankError } = dashboard.data;
+  const hasMascot = themeSettings.character !== "none";
   const recentOpenedSheets = getRecentOpenedCatalogSheets();
   const reviewItems = review?.results || [];
   const activeReviewCount = bank?.active_count;
@@ -73,14 +74,14 @@ export default function Dashboard({ themeSettings, activeTheme }) {
     <Page title="Dashboard" showHeading={false}>
       <div className="dashboard-layout">
         <StatsGrid cards={dashboardCards} className="dashboard-stats-grid" />
-        <section className="dashboard-main">
+        <section className={`dashboard-main${hasMascot ? "" : " dashboard-main--no-mascot"}`}>
           <div className="dashboard-left">
             <ContinueCard sheetEntry={recentOpenedSheets[0] || null} />
             <RecentContent sheetEntries={recentOpenedSheets} />
           </div>
-          <div className="dashboard-right">
+          {hasMascot && <div className="dashboard-right">
             <DashboardHero character={themeSettings.character} theme={activeTheme} />
-          </div>
+          </div>}
         </section>
         <ReviewQueue items={reviewItems} />
         {(accountError || learningError || reviewError || bankError) && <p className="save-hint">{t("dashboard.partialData")}</p>}

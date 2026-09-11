@@ -9,6 +9,7 @@ const COHORTS = [
   { id: "cohort-tripoli-dentistry-1", code: "year-1", name_en: "Tripoli Dentistry — Year 1", name_ar: "طب أسنان طرابلس سنة أولى", program: { id: "dentistry-tripoli", code: "dentistry-tripoli", name_en: "Dentistry — Tripoli", name_ar: "طب الأسنان طرابلس" } },
   { id: "cohort-zawiya-dentistry-2", code: "year-2", name_en: "Zawiya Dentistry — Year 2", name_ar: "طب أسنان زاوية سنة ثانية", program: { id: "dentistry-zawiya", code: "dentistry-zawiya", name_en: "Dentistry — Zawiya", name_ar: "طب الأسنان زاوية" } },
   { id: "cohort-benghazi-dentistry-2", code: "year-2", name_en: "Benghazi Dentistry — Year 2", name_ar: "طب أسنان بنغازي سنة ثانية", program: { id: "dentistry-benghazi", code: "dentistry-benghazi", name_en: "Dentistry — Benghazi", name_ar: "طب الأسنان بنغازي" } },
+  { id: "cohort-tripoli-dentistry-3", code: "year-3", name_en: "Tripoli Dentistry — Year 3", name_ar: "طب أسنان طرابلس سنة ثالثة", program: { id: "dentistry-tripoli", code: "dentistry-tripoli", name_en: "Dentistry — Tripoli", name_ar: "طب الأسنان طرابلس" } },
   { id: "cohort-tripoli-preparatory", code: "preparatory", name_en: "Preparatory Medical Sciences — Tripoli", name_ar: "تمهيدي علوم طبية طرابلس", program: { id: "medical-sciences-tripoli", code: "medical-sciences-tripoli", name_en: "Medical Sciences — Tripoli", name_ar: "علوم طبية طرابلس" } }
 ];
 
@@ -205,33 +206,38 @@ test("focusing an already-visible field never scrolls the page", async ({ page }
   }
 });
 
-test("program and class selection recover when the cohort request initially fails", async ({ page }) => {
+test("college, specialty, and year selection recover when the cohort request initially fails", async ({ page }) => {
   await mockAuth(page, { cohortFailures: 1 });
   await page.goto("/#/");
   await page.getByRole("button", { name: "Create account" }).click();
-  const program = page.getByRole("combobox", { name: "Program" });
-  const cohort = page.getByRole("combobox", { name: "Class" });
+  const college = page.getByRole("combobox", { name: "College" });
+  const specialty = page.getByRole("combobox", { name: "Specialty" });
+  const cohort = page.getByRole("combobox", { name: "Year / batch" });
   await expect(page.getByText("We couldn’t load the available programs and classes.")).toBeVisible();
-  await expect(program).toBeDisabled();
+  await expect(college).toBeDisabled();
+  await expect(specialty).toBeDisabled();
   await expect(cohort).toBeDisabled();
 
   await page.getByRole("button", { name: "Try again" }).click();
-  await expect(program.getByRole("option", { name: "Human Medicine" })).toBeAttached();
-  await expect(program).toBeEnabled();
+  await expect(college.getByRole("option", { name: "Tripoli" })).toBeAttached();
+  await expect(college).toBeEnabled();
   await expect(page.getByText("We couldn’t load the available programs and classes.")).toHaveCount(0);
-  // The class list stays closed until a program narrows it.
+  // Each step stays closed until the previous path dimension is selected.
+  await expect(specialty).toBeDisabled();
   await expect(cohort).toBeDisabled();
 
-  await program.selectOption("medicine");
+  await college.selectOption("tripoli");
+  await specialty.selectOption("human-medicine");
   await expect(cohort).toBeEnabled();
   await cohort.selectOption("cohort-61");
   await expect(cohort).toHaveValue("cohort-61");
 
-  // Switching program clears a class that no longer belongs to it.
-  await program.selectOption("dentistry-tripoli");
+  // Switching specialty clears a year that no longer belongs to it.
+  await specialty.selectOption("dentistry");
   await expect(cohort).toHaveValue("");
   await expect(cohort.getByRole("option", { name: "Human Medicine 61" })).toHaveCount(0);
   await expect(cohort.getByRole("option", { name: "Tripoli Dentistry — Year 2" })).toBeAttached();
+  await expect(cohort.getByRole("option", { name: "Tripoli Dentistry — Year 3" })).toHaveCount(0);
 });
 
 test("Arabic uses RTL content while the logo and language control keep physical corners", async ({ page }) => {
@@ -248,18 +254,18 @@ test("Arabic uses RTL content while the logo and language control keep physical 
   await page.screenshot({ path: "output/playwright/auth-login-arabic.png", fullPage: true });
 });
 
-test("registration sends the selected data-backed cohort and preserves accessible loading geometry", async ({ page }) => {
+test("registration requires and sends the selected college, specialty, and year path", async ({ page }) => {
   const captured = await mockAuth(page, { loginDelay: 6000 });
   await page.goto("/#/");
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
-  const program = page.getByRole("combobox", { name: "Program" });
-  const cohort = page.getByRole("combobox", { name: "Class" });
-  await expect(program.getByRole("option", { name: "Human Medicine" })).toBeAttached();
-  await expect(program.getByRole("option", { name: "Dentistry — Tripoli" })).toBeAttached();
-  await expect(program.getByRole("option", { name: "Medical Sciences — Tripoli" })).toBeAttached();
+  const college = page.getByRole("combobox", { name: "College" });
+  const specialty = page.getByRole("combobox", { name: "Specialty" });
+  const cohort = page.getByRole("combobox", { name: "Year / batch" });
+  await expect(college.getByRole("option", { name: "Tripoli" })).toBeAttached();
   await page.getByLabel("Full name").fill("New Student");
-  await program.selectOption("medicine");
+  await college.selectOption("tripoli");
+  await specialty.selectOption("human-medicine");
   await expect(cohort.getByRole("option", { name: "Human Medicine 61" })).toBeAttached();
   await expect(cohort.getByRole("option", { name: "Human Medicine 60" })).toBeAttached();
   // Classes belonging to another program must never leak into the list.
@@ -285,21 +291,23 @@ test("registration sends the selected data-backed cohort and preserves accessibl
   expect(during.y).toBe(before.y);
 });
 
-test("social onboarding asks only for the missing class", async ({ page }) => {
+test("social onboarding asks only for the missing study path", async ({ page }) => {
   const incomplete = userPayload({ cohort: null, onboarding_required: true, required_profile_fields: ["cohort"] });
   const captured = await mockAuth(page, { sessionUser: incomplete });
   await page.goto("/?oauth=success&provider=google#/");
   await expect(page.getByRole("heading", { name: "Complete your account" })).toBeVisible();
-  // The class is chosen through its program, and nothing already supplied by
+  // The path is chosen explicitly, and nothing already supplied by
   // the provider is asked for again.
-  await expect(page.getByLabel("Program")).toBeVisible();
-  await expect(page.getByLabel("Class")).toBeVisible();
+  await expect(page.getByLabel("College")).toBeVisible();
+  await expect(page.getByLabel("Specialty")).toBeVisible();
+  await expect(page.getByLabel("Year / batch")).toBeVisible();
   await expect(page.getByLabel("Full name")).toHaveCount(0);
   await expect(page.getByLabel("Email")).toHaveCount(0);
   await expect(page.getByLabel("Password")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Continue with Google" })).toHaveCount(0);
-  await page.getByLabel("Program").selectOption("medicine");
-  await page.getByLabel("Class").selectOption("cohort-61");
+  await page.getByLabel("College").selectOption("tripoli");
+  await page.getByLabel("Specialty").selectOption("human-medicine");
+  await page.getByLabel("Year / batch").selectOption("cohort-61");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect.poll(() => captured.profile?.cohort_id).toBe("cohort-61");
 });

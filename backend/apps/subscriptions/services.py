@@ -71,6 +71,30 @@ def paid_period_window(
     )
 
 
+def _converge_entitlements(*, subscription_id: UUID) -> None:
+    """Bring entitlement state to the subscription state, in this transaction.
+
+    Entitlements used to be granted only by a subscriber on
+    ``SubscriptionStatusChanged``, dispatched after commit through a bus that
+    isolates handlers by swallowing their exceptions. A transient failure there
+    -- a lock timeout, a dropped connection -- left an ACTIVE subscription with
+    no grant and no error anywhere the request could see. A reader who had just
+    paid was refused every study endpoint until reconciliation next ran, hours
+    later, and nothing said why.
+
+    Calling it here makes the two states converge or fail together: if the grant
+    cannot be written, the transition that required it is not committed either,
+    and the caller is told. The subscriber stays subscribed as a repair path and
+    is idempotent, so running twice grants nothing twice.
+    """
+
+    # Imported here rather than at module scope: entitlements reads subscription
+    # models, and a module-level import in this direction would close the loop.
+    from apps.entitlements.services import sync_subscription_entitlements
+
+    sync_subscription_entitlements(subscription_id=subscription_id)
+
+
 @transaction.atomic
 def get_or_create_individual_account(*, user: User) -> SubscriptionAccount:
     account, _ = SubscriptionAccount.objects.select_for_update().get_or_create(
@@ -139,6 +163,9 @@ def create_trial_for_user(
             reason_code="trial_started",
         )
     )
+    # A trial that grants nothing is not a trial. Converge here rather than
+    # waiting on the after-commit subscriber; see _converge_entitlements.
+    _converge_entitlements(subscription_id=subscription.id)
     return subscription, True
 
 
@@ -197,6 +224,7 @@ def transition_subscription(
     source_reference: str = "",
     period_started_at: datetime | None = None,
     period_ends_at: datetime | None = None,
+    allow_out_of_order: bool = False,
 ) -> TransitionResult:
     subscription = (
         Subscription.objects.select_for_update()
@@ -209,7 +237,7 @@ def transition_subscription(
     if duplicate is not None:
         return TransitionResult(subscription=subscription, changed=False)
     latest = subscription.transitions.order_by("-effective_at", "-created_at").first()
-    if latest is not None and effective_at < latest.effective_at:
+    if not allow_out_of_order and latest is not None and effective_at < latest.effective_at:
         SubscriptionTransition.objects.create(
             subscription=subscription,
             from_status=subscription.status,
@@ -275,6 +303,7 @@ def transition_subscription(
             actor_id=actor.id if actor else None,
         )
     )
+    _converge_entitlements(subscription_id=subscription.id)
     return TransitionResult(subscription=subscription, changed=True)
 
 
@@ -361,7 +390,7 @@ def refresh_subscription(
             target = Subscription.Status.GRACE
         else:
             target = Subscription.Status.EXPIRED
-        return transition_subscription(
+        transitioned = transition_subscription(
             subscription_id=subscription.id,
             to_status=target,
             reason_code="period_ended",
@@ -370,7 +399,12 @@ def refresh_subscription(
             idempotency_key=(
                 f"period-end:{subscription.id}:{subscription.current_period_ends_at.isoformat()}"
             ),
+            allow_out_of_order=True,
         ).subscription
+        # A grace window may already have elapsed when the scheduler catches
+        # up. Continue through the authoritative state machine so one run does
+        # not leave an already-expired subscription in GRACE for another cycle.
+        return refresh_subscription(subscription=transitioned, now=current)
     if (
         subscription.status == Subscription.Status.GRACE
         and subscription.grace_ends_at
@@ -385,5 +419,6 @@ def refresh_subscription(
             idempotency_key=(
                 f"grace-end:{subscription.id}:{subscription.grace_ends_at.isoformat()}"
             ),
+            allow_out_of_order=True,
         ).subscription
     return subscription

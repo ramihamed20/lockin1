@@ -324,6 +324,23 @@ class ActiveStudyRun(models.Model):
             models.CheckConstraint(
                 condition=Q(unlocked_pages__gte=1), name="active_study_unlocked_positive"
             ),
+            # One live run per sheet and difficulty, enforced by the database.
+            #
+            # ``start`` used to read with ``select_for_update()`` and create when
+            # it found nothing, but a row that does not exist cannot be locked:
+            # two concurrent starts -- a double tap, or a client retrying after a
+            # timeout on a slow connection -- both found nothing and both
+            # inserted. Progress then split across two runs, and the reader saw
+            # it go backwards, because ``availability`` reports the most recently
+            # updated one while the client holds the other.
+            #
+            # Legacy catalogue runs carry ``sheet=NULL`` and PostgreSQL treats
+            # NULLs as distinct, so they are untouched by this.
+            models.UniqueConstraint(
+                fields=("user", "sheet", "difficulty"),
+                condition=Q(status="active"),
+                name="active_study_one_active_run_per_sheet",
+            ),
         ]
 
     def __str__(self) -> str:

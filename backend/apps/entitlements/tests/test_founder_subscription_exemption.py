@@ -63,9 +63,16 @@ def test_founder_with_expired_subscription_remains_subscription_exempt() -> None
 
 
 def test_student_without_entitlement_remains_denied() -> None:
+    # An expired subscription, not a bare verified account. A verified account
+    # with no subscription is granted the trial it is owed on its first
+    # protected request -- that reconciliation is deliberate, and since
+    # entitlements converge inside the transaction it now takes effect
+    # immediately rather than after the next commit. The denied state that
+    # actually matters is the one on the far side of a paid window.
     student = create_user(
         email="student-no-entitlement@example.com", username="student_no_entitlement"
     )
+    _expire_subscription(student)
 
     assert entitlement_decision(user=student, entitlement_code="content.premium").allowed is False
     assert _client_for(student).get("/api/v1/learning-objects").status_code == 403

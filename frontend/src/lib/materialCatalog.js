@@ -38,46 +38,29 @@ function buildMaterials(entries) {
   return entries.map(([slug, title]) => Object.freeze({ slug, title, sheets: [] }));
 }
 
-/**
- * Biochemistry 1 is the first subject with published sheets. Active Study is
- * left off until its questions are written, so these open in Normal Study.
- * @param {[string, string, string, number][]} entries
- */
-function buildSheets(entries) {
-  return entries.map(([slug, title, fileName, pageCount], index) => Object.freeze({
-    slug,
-    number: index + 1,
-    title,
-    fileName,
-    pdfUrl: `/assets/biochemistry/${slug}.pdf`,
-    pageCount
-  }));
-}
-
-const BIOCHEMISTRY_1_SHEETS = buildSheets([
-  ["vitamin-1", "Vitamin -1", "VITAMIN 2025 part 1.pdf", 41],
-  ["vitamin-2", "Vitamin -2", "vitamin 2025 part 2.pdf", 17],
-  ["vitamin-3", "Vitamin -3", "vitamin part 3.pdf", 33]
-]);
-
-const DENTISTRY_MATERIALS = buildMaterials([
+const FIRST_YEAR = [
+  ["dental-anatomy", "Dental Anatomy"], ["dental-material", "Dental Material"],
+  ["general-histology", "General Histology"], ["general-anatomy", "General Anatomy"],
+  ["physiology", "Physiology"], ["biochemistry", "Biochemistry"]
+];
+const SECOND_YEAR = [
   ["conservative", "Conservative"],
   ["microbiology", "Microbiology"],
   ["pharmacy", "Pharmacy"],
-  ["general-pathology", "General pathology"],
-  ["oral-histology", "Oral histology"],
-  ["fixed-prosthodontic", "Fixed prosthodontic"],
-  ["removeable-prosthodontic", "Removeable prosthodontic"]
-]);
+  ["general-pathology", "General Pathology"], ["oral-histology", "Oral Histology"],
+  ["fixed-prosthodontic", "Fixed Prosthodontic"], ["removable-prosthodontic", "Removable Prosthodontic"]
+];
+
+function scopedMaterials(scope, entries) {
+  return buildMaterials(entries.map(([slug, title]) => [`${scope}-${slug}`, title]));
+}
 
 const HUMAN_MEDICINE_60_MATERIALS = buildMaterials([
-  ["anatomy-1", "Anatomy 1"],
-  ["physiology-1", "Physiology 1"],
-  ["histology-1", "Histology 1"],
-  ["biochemistry-1", "Biochemistry 1"]
-]).map((material) => (material.slug === "biochemistry-1"
-  ? Object.freeze({ ...material, sheets: BIOCHEMISTRY_1_SHEETS })
-  : material));
+  ["human-medicine-60-anatomy-1", "Anatomy 1"],
+  ["human-medicine-60-physiology-1", "Physiology 1"],
+  ["human-medicine-60-histology-1", "Histology 1"],
+  ["human-medicine-60-biochemistry-1", "Biochemistry 1"]
+]);
 
 /** @type {CohortCatalog[]} */
 export const COHORT_CATALOGS = [
@@ -87,10 +70,19 @@ export const COHORT_CATALOGS = [
     materials: HUMAN_MEDICINE_60_MATERIALS,
     questionCategories: STANDARD_QUESTION_CATEGORIES
   },
+  ...["tripoli", "benghazi", "zawiya"].flatMap((college) => [
+    {
+      programCodes: [`dentistry-${college}`], cohortCodes: ["year-1"],
+      materials: scopedMaterials(`dentistry-${college}-year-1`, FIRST_YEAR), questionCategories: STANDARD_QUESTION_CATEGORIES
+    },
+    {
+      programCodes: [`dentistry-${college}`], cohortCodes: ["year-2"],
+      materials: scopedMaterials(`dentistry-${college}-year-2`, SECOND_YEAR), questionCategories: STANDARD_QUESTION_CATEGORIES
+    }
+  ]),
   {
-    programCodes: ["dentistry", "dentistry-tripoli", "dentistry-zawiya", "dentistry-benghazi"],
-    cohortCodes: [],
-    materials: DENTISTRY_MATERIALS,
+    programCodes: ["human-medicine"], cohortCodes: ["61"],
+    materials: scopedMaterials("human-medicine-61", [["intro-histology", "Intro Histology"], ["intro-anatomy", "Intro Anatomy"], ["english", "English"], ["it", "IT"]]),
     questionCategories: STANDARD_QUESTION_CATEGORIES
   }
 ];
@@ -119,9 +111,12 @@ export function getCohortCatalog(cohort) {
   )) || EMPTY_CATALOG;
 }
 
-/** @param {{cohort?: {code?: string, program?: {code?: string}}|null}|null|undefined} user */
+/** @param {{cohort?: {code?: string, program?: {code?: string}}|null, roles?: unknown[]}|null|undefined} user */
 export function getCohortMaterials(user) {
-  return getCohortCatalog(user?.cohort).materials;
+  if (Array.isArray(user?.roles) && user.roles.some((role) => ["administrator", "admin", "founder"].includes(String(role).toLowerCase()))) {
+    return ALL_MATERIALS;
+  }
+  return withE2eFixtureSheets(getCohortCatalog(user?.cohort).materials);
 }
 
 /** @param {{cohort?: {code?: string, program?: {code?: string}}|null}|null|undefined} user */
@@ -129,8 +124,57 @@ export function getCohortQuestionCategories(user) {
   return getCohortCatalog(user?.cohort).questionCategories;
 }
 
-/** Subject slugs are unique across cohorts, so a link resolves without one. */
-const ALL_MATERIALS = COHORT_CATALOGS.flatMap((catalog) => catalog.materials);
+/* global __E2E_CATALOG_MATERIALS__ */
+/**
+ * Fixture sheets compiled in only by `npm run build:e2e` (see
+ * e2e/fixtures/catalog.js). Every other build defines this as null, so the
+ * merge below is a no-op and there is no runtime switch to flip.
+ */
+const E2E_CATALOG_MATERIALS = typeof __E2E_CATALOG_MATERIALS__ === "object" ? __E2E_CATALOG_MATERIALS__ : null;
+
+/** "biochemistry-1" -> "Biochemistry 1" */
+function titleFromSlug(slug) {
+  return slug.split("-").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
+}
+
+const allCatalogSlugs = new Set(COHORT_CATALOGS.flatMap((catalog) => catalog.materials.map((material) => material.slug)));
+
+/** @param {string} slug */
+function fixtureSheets(slug) {
+  return (E2E_CATALOG_MATERIALS?.[slug] || []).map((sheet) => Object.freeze({ ...sheet }));
+}
+
+/**
+ * A fixture material the catalogue lacks belongs to no cohort, so it is offered
+ * to every learner; the reader specs sign in without one.
+ */
+const E2E_ONLY_MATERIALS = Object.keys(E2E_CATALOG_MATERIALS || {})
+  .filter((slug) => !allCatalogSlugs.has(slug))
+  .map((slug) => Object.freeze({ slug, title: titleFromSlug(slug), sheets: fixtureSheets(slug) }));
+
+/** Memoized so a merged list keeps one identity across renders. */
+const mergedMaterials = new WeakMap();
+
+/**
+ * Adds the fixture sheets to a material list, the server's included. A no-op
+ * outside `npm run build:e2e`.
+ * @param {CatalogMaterial[]} materials
+ */
+export function withE2eFixtureSheets(materials) {
+  if (!E2E_CATALOG_MATERIALS) return materials;
+  if (!mergedMaterials.has(materials)) {
+    mergedMaterials.set(materials, [
+      ...materials.map((material) => (E2E_CATALOG_MATERIALS[material.slug]
+        ? Object.freeze({ ...material, sheets: fixtureSheets(material.slug) })
+        : material)),
+      ...E2E_ONLY_MATERIALS
+    ]);
+  }
+  return mergedMaterials.get(materials);
+}
+
+/** Subject slugs are cohort-qualified, so a link resolves without a tree path. */
+const ALL_MATERIALS = withE2eFixtureSheets(COHORT_CATALOGS.flatMap((catalog) => catalog.materials));
 
 export function getCatalogMaterial(slug) {
   return ALL_MATERIALS.find((material) => material.slug === slug) || null;

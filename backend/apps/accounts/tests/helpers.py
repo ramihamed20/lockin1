@@ -4,6 +4,7 @@ from django.core import mail
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from apps.accounts.email_delivery import dispatch_due_account_emails
 from apps.accounts.models import User
 
 PASSWORD = "Lock-in-test-pass-2026"
@@ -48,6 +49,10 @@ def csrf_client() -> tuple[APIClient, str]:
 
 
 def token_from_latest_email() -> str:
+    # Registration, verification resend and password reset intentionally queue
+    # delivery. Tests that need the link advance the local worker explicitly;
+    # HTTP behavior remains independent from SMTP availability.
+    dispatch_due_account_emails()
     assert mail.outbox
     links = [line for line in mail.outbox[-1].body.splitlines() if line.startswith("http")]
     assert len(links) == 1

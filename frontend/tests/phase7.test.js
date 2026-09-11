@@ -141,12 +141,14 @@ test("Phase 7 fails closed for invalid management identifiers and creator routes
   setup();
   await assert.rejects(managementApi.getContent("https://untrusted.invalid/content"), (error) => error.code === "invalid_request");
   await assert.rejects(managementApi.lifecycle("content", CONTENT_ID, "unsupported", { expectedRevision: 1 }), (error) => error.code === "invalid_request");
+  // /creator/* is now a redirect into the operations console, gated by the
+  // content capability rather than by product role.
   const student = { id: "student", roles: ["student"] };
-  const creator = { id: "creator", roles: ["creator"] };
-  const administrator = { id: "administrator", roles: ["administrator"] };
   assert.equal(canAccessRoute(student, "/creator/content"), false);
-  assert.equal(canAccessRoute(creator, "/creator/questions/123"), true);
-  assert.equal(canAccessRoute(administrator, "/creator/quizzes/123"), true);
+  assert.equal(canAccessRoute(student, "/creator/questions/123", { capabilities: ["content.view"] }), true);
+  assert.equal(canAccessRoute(student, "/creator/quizzes/123", { capabilities: ["overview.view"] }), false);
+  // The redirect target admits exactly who the redirect admitted.
+  assert.equal(canAccessRoute(student, "/operations/admin/content", { capabilities: ["content.view"] }), true);
 });
 
 test("Phase 7 isolates management answer data and replaces the deferred creator routes", async () => {
@@ -156,8 +158,8 @@ test("Phase 7 isolates management answer data and replaces the deferred creator 
     readFile(new URL("../src/pages/CreatorAssessments.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/CreatorContent.jsx", import.meta.url), "utf8")
   ]);
-  assert.match(app, /path="\/creator\/education"/);
-  assert.match(app, /CreatorRoute user=\{user\}/);
+  assert.match(app, /path="\/creator\/\*" element=\{<Navigate to="\/operations\/admin\/content" replace \/>\}/);
+  assert.doesNotMatch(app, /path="\/creator\/education"/);
   assert.doesNotMatch(app, /Creator tools will be connected/);
   assert.match(management, /new FormData\(\)/);
   assert.match(management, /expected_revision/);

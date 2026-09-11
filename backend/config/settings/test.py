@@ -10,6 +10,8 @@ ACCOUNT_POLICY_VERSION = "test-policy-v1"
 PUBLIC_APP_URL = "http://testserver"
 ACCOUNT_LOGIN_ATTEMPT_LIMIT = 5
 PAYMENT_PROVIDER = "fake"
+# The Community implementation is still tested even though production closes it.
+COMMUNITY_ENABLED = True
 PAYMENT_FAKE_WEBHOOK_SECRET = "test-only-fake-webhook-secret"
 
 # A convenience for running the suite without a PostgreSQL service. It is not

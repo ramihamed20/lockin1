@@ -95,8 +95,9 @@ test("phase 2 routes use direct server file links and remove fabricated dashboar
     readFile(new URL("../src/service-worker.js", import.meta.url), "utf8"),
     readFile(new URL("../src/lib/authz.js", import.meta.url), "utf8")
   ]);
-  assert.match(app, /path="\/materials\/objects\/:learningObjectId"/);
-  assert.match(app, /path="\/materials\/:materialId\/sheets\/:sheetId" element=\{<LearningObjectStudy/);
+  // Materials is Catalog-only: the legacy learning-object reader has no route.
+  assert.doesNotMatch(app, /path="\/materials\/objects/);
+  assert.match(app, /path="\/materials\/catalog\/:materialSlug\/sheets\/:sheetSlug" element=\{<CatalogSheetStudy/);
   assert.doesNotMatch(app, /<SheetStudy/);
   assert.match(app, /path="\/search"/);
   assert.match(study, /\^\/api\/v1\/files\//);
@@ -112,13 +113,13 @@ test("phase 2 routes use direct server file links and remove fabricated dashboar
   assert.doesNotMatch(worker, /cache\.put\([^\n]*api/i);
 });
 
-test("authenticated student routes include search and the learning-object reader only", () => {
+test("authenticated student routes include search and the catalog sheet reader only", () => {
   const student = { id: "student", roles: ["student"] };
   assert.equal(canAccessRoute(student, "/search"), true);
   assert.equal(canAccessRoute(student, "/study-plan"), true);
-  assert.equal(canAccessRoute(student, "/materials/objects/object-id"), true);
-  assert.equal(canAccessRoute(student, "/materials/node-id/sheets/sheet-id"), true);
-  assert.equal(canAccessRoute(student, "/materials/objects/object-id/extra"), false);
+  assert.equal(canAccessRoute(student, "/materials/catalog/material/sheets/sheet"), true);
+  assert.equal(canAccessRoute(student, "/materials/objects/object-id"), false);
+  assert.equal(canAccessRoute(student, "/materials/node-id/sheets/sheet-id"), false);
 });
 
 test("study plan requests use the authenticated Django API", async () => {

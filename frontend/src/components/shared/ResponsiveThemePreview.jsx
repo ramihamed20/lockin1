@@ -1,6 +1,9 @@
 import { assetPath } from "../../lib/utils.js";
 
 export function ResponsiveThemePreview({ character, theme, alt, className = "", sizes = "(max-width: 639px) 88vw, 320px", priority = false }) {
+  if (character === "none") {
+    return <div className={`theme-preview-empty theme-preview-empty--${theme} ${className}`.trim()} role="img" aria-label={alt} />;
+  }
   const base = `/assets/themes/${character}-${theme}`;
   const sourceSet = (format) => `${assetPath(`${base}-320.${format}`)} 320w, ${assetPath(`${base}-640.${format}`)} 640w`;
 

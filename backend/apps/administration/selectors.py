@@ -57,8 +57,7 @@ def operations_session(*, user: User) -> dict[str, Any]:
 def operational_resource_catalog(*, user: User) -> list[dict[str, str]]:
     resources = (
         ("users", "User management", "/operations/users", Capability.USERS_VIEW),
-        ("education", "Educational hierarchy", "/admin/education", Capability.CONTENT_VIEW),
-        ("content", "Content studio", "/management/content", Capability.CONTENT_VIEW),
+        ("content", "Catalog content studio", "/admin/content", Capability.CONTENT_VIEW),
         (
             "assessments",
             "Assessment studio",

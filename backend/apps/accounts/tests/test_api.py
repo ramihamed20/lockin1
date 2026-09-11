@@ -15,7 +15,7 @@ from apps.accounts.models import (
 )
 from apps.accounts.roles import Role
 from apps.audit.models import AuditRecord
-from apps.education.models import StudentCohort
+from apps.education.models import AcademicProgram, StudentCohort
 
 from .helpers import PASSWORD, create_user, csrf_client, token_from_latest_email
 
@@ -66,6 +66,30 @@ def test_registration_is_strict_and_creates_unverified_account(settings: Any) ->
     raw_token = token_from_latest_email()
     assert raw_token not in token.token_digest
     assert token.token_digest != raw_token
+
+
+def test_third_year_is_not_offered_as_a_selectable_study_path() -> None:
+    program = AcademicProgram.objects.create(
+        code="third-year-test", name_en="Third Year Test", name_ar="Third Year Test"
+    )
+    third_year = StudentCohort.objects.create(
+        program=program, code="year-3", name_en="Third Year", name_ar="Third Year"
+    )
+
+    response = APIClient().get("/api/v1/auth/cohorts")
+
+    assert response.status_code == 200
+    assert str(third_year.id) not in {item["id"] for item in response.json()["cohorts"]}
+
+    client, csrf = csrf_client()
+    rejected = client.post(
+        "/api/v1/auth/register",
+        {**REGISTRATION, "cohort_id": str(third_year.id)},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+    assert rejected.status_code == 400
+    assert "cohort_id" in rejected.json()["error"]["fields"]
 
 
 def test_duplicate_registration_does_not_reveal_account_existence() -> None:
@@ -324,7 +348,13 @@ def test_profile_allows_only_owned_editable_fields() -> None:
     )
     accepted = client.patch(
         "/api/v1/account/profile",
-        {"full_name": "  Updated Student ", "preferred_language": "ar"},
+        {
+            "full_name": "  Updated Student ",
+            "preferred_language": "ar",
+            "mascot_preference": User.MascotPreference.NONE,
+            "theme_preference": User.ThemePreference.SUNSET,
+            "dynamic_theme": True,
+        },
         format="json",
         HTTP_X_CSRFTOKEN=csrf,
     )
@@ -334,6 +364,14 @@ def test_profile_allows_only_owned_editable_fields() -> None:
     user.refresh_from_db()
     assert user.full_name == "Updated Student"
     assert user.status == User.Status.ACTIVE
+    assert user.mascot_preference == User.MascotPreference.NONE
+    assert user.theme_preference == User.ThemePreference.SUNSET
+    assert user.dynamic_theme is True
+    assert accepted.json()["user"]["theme_settings"] == {
+        "character": "none",
+        "theme": "sunset",
+        "auto_theme": True,
+    }
 
 
 def test_welcome_completion_is_server_stored_and_idempotent() -> None:
@@ -345,7 +383,12 @@ def test_welcome_completion_is_server_stored_and_idempotent() -> None:
     before = client.get("/api/v1/auth/session")
     first = client.post(
         "/api/v1/account/welcome/complete",
-        {},
+        {
+            "mascot_preference": "black",
+            "theme_preference": "dawn",
+            "dynamic_theme": True,
+            "preferred_language": "ar",
+        },
         format="json",
         HTTP_X_CSRFTOKEN=csrf,
     )
@@ -363,6 +406,11 @@ def test_welcome_completion_is_server_stored_and_idempotent() -> None:
         second.json()["user"]["welcome_completed_at"]
         == first.json()["user"]["welcome_completed_at"]
     )
+    user.refresh_from_db()
+    assert user.mascot_preference == User.MascotPreference.BLACK
+    assert user.theme_preference == User.ThemePreference.DAWN
+    assert user.dynamic_theme is True
+    assert user.preferred_language == User.Language.ARABIC
 
 
 def test_email_change_requires_password_and_verifies_new_address() -> None:
@@ -574,6 +622,9 @@ def test_suspended_account_cannot_keep_authenticating() -> None:
 def _latest_email_link() -> str:
     from django.core import mail
 
+    from apps.accounts.email_delivery import dispatch_due_account_emails
+
+    dispatch_due_account_emails()
     assert mail.outbox
     links = [line for line in mail.outbox[-1].body.splitlines() if line.startswith("http")]
     assert len(links) == 1

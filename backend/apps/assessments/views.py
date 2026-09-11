@@ -24,6 +24,7 @@ from .attempt_services import (
     record_attempt_activity,
     refresh_attempt_state,
     save_answer,
+    save_attempt_resume,
     start_attempt,
     submit_attempt,
 )
@@ -47,6 +48,7 @@ from .serializers import (
     AttemptActivityWriteSerializer,
     AttemptAnswerSerializer,
     AttemptResultSerializer,
+    AttemptResumeSerializer,
     AttemptSerializer,
     AttemptStartSerializer,
     AttemptSubmitSerializer,
@@ -317,6 +319,26 @@ class AttemptAnswerView(APIView):
         except AttemptRuleError as error:
             raise _rule_error(error) from error
         return Response(AttemptAnswerSerializer(answer).data)
+
+
+class AttemptResumeView(APIView):
+    def put(self, request: Request, attempt_id: UUID) -> Response:
+        serializer = AttemptResumeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            attempt = save_attempt_resume(
+                user=_user(request),
+                attempt_id=attempt_id,
+                question_position=int(serializer.validated_data["question_position"]),
+                client_revision=int(serializer.validated_data["client_revision"]),
+            )
+        except AttemptConflictError as error:
+            raise AttemptRevisionConflict(str(error)) from error
+        except AttemptClosedError as error:
+            raise AttemptClosed(str(error)) from error
+        except AttemptRuleError as error:
+            raise _rule_error(error) from error
+        return Response(AttemptSerializer(attempt).data)
 
 
 class AttemptSubmitView(APIView):

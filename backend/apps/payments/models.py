@@ -96,7 +96,12 @@ class ManualRechargeSubmission(models.Model):
         "accounts.User", on_delete=models.PROTECT, related_name="manual_payment_submissions"
     )
     recharge_code_ciphertext = models.TextField()
-    recharge_code_digest = models.CharField(max_length=64, unique=True, editable=False)
+    # Indexed, not unique. A globally unique digest meant the first submission of
+    # a card number consumed it permanently: a card rejected by mistake could
+    # never be re-sent, and a genuine second attempt was refused by the schema
+    # before a human ever saw it. Approval here is manual, so a repeat is
+    # evidence for the reviewer rather than grounds for automatic rejection.
+    recharge_code_digest = models.CharField(max_length=64, db_index=True, editable=False)
     recharge_code_last4 = models.CharField(max_length=4, editable=False)
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING)
     submitted_at = models.DateTimeField(default=timezone.now, db_index=True)
@@ -157,7 +162,8 @@ class ManualRechargeCode(models.Model):
     )
     position = models.PositiveSmallIntegerField()
     ciphertext = models.TextField()
-    digest = models.CharField(max_length=64, unique=True, editable=False)
+    # Indexed rather than unique; see ManualRechargeSubmission.recharge_code_digest.
+    digest = models.CharField(max_length=64, db_index=True, editable=False)
     last4 = models.CharField(max_length=4, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -174,6 +180,53 @@ class ManualRechargeCode(models.Model):
 
     def __str__(self) -> str:
         return f"{self.submission_id}:{self.position}:••••{self.last4}"
+
+
+class TelegramPaymentOperator(models.Model):
+    """A Lock-in account that may review manual payments from Telegram.
+
+    Approving from Telegram must not invent an actor. The reviewer is a real
+    administrator who already holds ``payments.manage``; this row is only the
+    link between the Telegram account they click with and the Lock-in account
+    the audit trail records. It deliberately mirrors ``accounts.SocialIdentity``:
+    an external subject bound to one internal user.
+
+    Capability is not stored here. It is read from the linked user at the moment
+    of the action, so revoking ``payments.manage`` in the operations console
+    revokes the Telegram button too, with no second place to remember.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.OneToOneField(
+        "accounts.User",
+        on_delete=models.CASCADE,
+        related_name="telegram_payment_operator",
+    )
+    # Telegram user ids are 64-bit integers; stored as text so the value is
+    # compared exactly as it arrives rather than through integer coercion.
+    telegram_user_id = models.CharField(max_length=32, unique=True)
+    label = models.CharField(max_length=120, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="telegram_payment_operators_created",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("telegram_user_id",)
+        indexes = [
+            models.Index(
+                fields=("telegram_user_id", "is_active"), name="telegram_operator_active_idx"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"telegram:{self.telegram_user_id}"
 
 
 class PaymentTransition(models.Model):

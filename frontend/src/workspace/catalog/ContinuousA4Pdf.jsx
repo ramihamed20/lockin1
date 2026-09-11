@@ -3,6 +3,7 @@ import { assetPath } from "../../lib/utils.js";
 import { boundedOutputScale, pdfPageAspectRatio } from "../document/coordinateTransforms.js";
 import { WORKSPACE_RENDER } from "../config.js";
 import { PdfRenderQueue, pdfRenderGenerationIsCurrent } from "./pdfRenderQueue.js";
+import { loadPdfLibrary } from "./pdfJsAdapter.js";
 import { catalogCanvasPixelBudget } from "./renderBudget.js";
 
 export const A4_PAGE_WIDTH = 595;
@@ -19,29 +20,6 @@ const CANVAS_EVICTION_MS = WORKSPACE_RENDER.catalogCanvasEvictionMs;
 // which are the ones a small scroll back would need again.
 const DISTANT_CANVAS_EVICTION_MS = WORKSPACE_RENDER.catalogDistantCanvasEvictionMs;
 const SLOW_LOAD_NOTICE_MS = 15_000;
-
-let pdfLibraryPromise;
-
-function loadPdfLibrary() {
-  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
-  if (pdfLibraryPromise) return pdfLibraryPromise;
-  pdfLibraryPromise = new Promise((resolve, reject) => {
-    const existing = document.querySelector('script[data-catalog-pdfjs="true"]');
-    if (existing) {
-      existing.addEventListener("load", () => resolve(window.pdfjsLib));
-      existing.addEventListener("error", () => reject(new Error("PDF reader could not be loaded.")));
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = assetPath("/pdf.min.js");
-    script.async = true;
-    script.dataset.catalogPdfjs = "true";
-    script.onload = () => window.pdfjsLib ? resolve(window.pdfjsLib) : reject(new Error("PDF reader could not be initialized."));
-    script.onerror = () => reject(new Error("PDF reader could not be loaded."));
-    document.head.appendChild(script);
-  });
-  return pdfLibraryPromise;
-}
 
 /**
  * @param {number} renderZoom
@@ -571,8 +549,7 @@ export function ContinuousA4Pdf({
         setDefaultPageAspectRatio(A4_PAGE_RATIO);
         setPageAspectRatios(new Map());
         const pdfjs = await loadPdfLibrary();
-        pdfjs.GlobalWorkerOptions.workerSrc = assetPath("/pdf.worker.min.js");
-        loadingTask = pdfjs.getDocument(assetPath(pdfUrl));
+        loadingTask = pdfjs.getDocument({ url: assetPath(pdfUrl) });
         const nextDocument = await loadingTask.promise;
         if (cancelled) return;
         const geometry = await measureEveryPage(nextDocument, () => cancelled);

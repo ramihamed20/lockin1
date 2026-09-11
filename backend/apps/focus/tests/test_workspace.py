@@ -111,7 +111,10 @@ def test_focus_document_and_session_start_are_private_and_idempotent() -> None:
 
 def test_focus_requires_server_entitlement_before_resolving_document() -> None:
     _, _, _, version_id = _workspace_fixture()
-    unentitled = create_user(email="unentitled-focus@example.com")
+    # Unverified: a verified account with no subscription is granted the trial it
+    # is owed on first contact with a protected route, and that grant is now
+    # written in the same transaction rather than after the next commit.
+    unentitled = create_user(email="unentitled-focus@example.com", verified=False)
     client = _client(unentitled)
 
     document = client.get(f"/api/v1/focus/documents/{version_id}")
