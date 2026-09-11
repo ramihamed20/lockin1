@@ -23,10 +23,13 @@ coverage
 .playwright
 .playwright-cli
 
-# Test suites and their fixtures (including the e2e PDFs). `pnpm build` reads
-# neither; vite.config.js imports e2e/fixtures only under build:e2e, which never
-# runs in an image.
-e2e
+# Test suites and the e2e reader PDFs; no image build reads them. Not all of e2e/:
+# Vite bundles vite.config.js before running it, and the bundler follows the
+# literal import of e2e/fixtures/catalog.js even though only build:e2e executes
+# it, so that module has to stay in the context.
+e2e/*.spec.js
+e2e/helpers
+e2e/fixtures/pdf
 tests
 
 # Local scratch.

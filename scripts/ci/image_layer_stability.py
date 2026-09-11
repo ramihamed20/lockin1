@@ -73,7 +73,7 @@ def build(context: Path, tag: str, *, dockerfile: Path | None = None, args: list
     log = result.stdout + result.stderr
     if result.returncode:
         print(log[-12_000:])
-        raise SystemExit(f"build failed: {tag}")
+        raise SystemExit(f"build failed: {tag}\n{log[-1_500:]}")
     return log
 
 
@@ -318,5 +318,22 @@ def main() -> None:
         sys.exit(1)
 
 
+def annotate_fatal(message: str) -> None:
+    """Surface a stopping error where the check-run API shows it, not only in the log."""
+    if os.environ.get("GITHUB_ACTIONS"):
+        encoded = message.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
+        print(f"::error title=Layer stability stopped::{encoded}")
+
+
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit as stop:
+        if isinstance(stop.code, str):
+            annotate_fatal(stop.code)
+            print(stop.code, file=sys.stderr)
+            sys.exit(1)
+        raise
+    except Exception as error:  # noqa: BLE001 - report anything that stops the proof
+        annotate_fatal(f"{type(error).__name__}: {error}")
+        raise
