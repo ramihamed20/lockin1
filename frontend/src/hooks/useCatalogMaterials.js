@@ -1,5 +1,5 @@
 import { catalogWorkspaceApi } from "../api/catalogWorkspace.js";
-import { getCohortMaterials } from "../lib/materialCatalog.js";
+import { getCohortMaterials, withE2eFixtureSheets } from "../lib/materialCatalog.js";
 import { useAsyncData } from "./useAsyncData.js";
 
 /**
@@ -15,7 +15,9 @@ export function useCatalogMaterials(user) {
     [user?.id || "", user?.cohort?.id || "", user?.cohort?.code || "", user?.cohort?.program?.code || ""]
   );
   return {
-    materials: Array.isArray(catalog.data?.results) ? catalog.data.results : fallback,
+    // The e2e build's fixture sheets join the server's list as well, since the
+    // reader specs' mocked server publishes none. A no-op in every other build.
+    materials: Array.isArray(catalog.data?.results) ? withE2eFixtureSheets(catalog.data.results) : fallback,
     loading: catalog.loading,
     error: catalog.error,
     reload: catalog.reload,

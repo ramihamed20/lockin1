@@ -155,8 +155,12 @@ const E2E_ONLY_MATERIALS = Object.keys(E2E_CATALOG_MATERIALS || {})
 /** Memoized so a merged list keeps one identity across renders. */
 const mergedMaterials = new WeakMap();
 
-/** @param {CatalogMaterial[]} materials */
-function withE2eFixtureSheets(materials) {
+/**
+ * Adds the fixture sheets to a material list, the server's included. A no-op
+ * outside `npm run build:e2e`.
+ * @param {CatalogMaterial[]} materials
+ */
+export function withE2eFixtureSheets(materials) {
   if (!E2E_CATALOG_MATERIALS) return materials;
   if (!mergedMaterials.has(materials)) {
     mergedMaterials.set(materials, [

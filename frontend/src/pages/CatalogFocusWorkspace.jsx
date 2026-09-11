@@ -330,9 +330,9 @@ function AnnotationVisuals({ annotations, hiddenIds = new Set(), prefix = "annot
   </>;
 });
 
-function loadStoredWorkspace(materialSlug, sheetSlug) {
+function loadStoredWorkspace(owner, materialSlug, sheetSlug) {
   try {
-    return parseCatalogWorkspace(window.localStorage.getItem(catalogWorkspaceStorageKey(materialSlug, sheetSlug)));
+    return parseCatalogWorkspace(window.localStorage.getItem(catalogWorkspaceStorageKey(owner, materialSlug, sheetSlug)));
   } catch {
     return null;
   }
@@ -1319,7 +1319,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [] }) {
     if (storageModeRef.current === "local") {
       try {
         window.localStorage.setItem(
-          catalogWorkspaceStorageKey(document.materialSlug, document.sheetSlug),
+          catalogWorkspaceStorageKey(document.owner, document.materialSlug, document.sheetSlug),
           serializeCatalogWorkspace({ annotations: annotationsRef.current, notes: notesRef.current, ...view })
         );
         savedPageSignaturesRef.current = signatures;
@@ -1369,7 +1369,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [] }) {
     setRestored(null);
     setSaveState("idle");
     setSaveErrorReason("");
-    const legacyKey = catalogWorkspaceStorageKey(materialSlug, sheetSlug);
+    const legacyKey = catalogWorkspaceStorageKey(ownerKey, materialSlug, sheetSlug);
     const store = annotationStoreRef.current;
 
     async function hydrate() {
@@ -1390,7 +1390,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [] }) {
         // stays usable on the previous localStorage path rather than losing
         // persistence altogether.
         storageModeRef.current = "local";
-        const legacy = loadStoredWorkspace(materialSlug, sheetSlug);
+        const legacy = loadStoredWorkspace(ownerKey, materialSlug, sheetSlug);
         snapshot = legacy ? { view: legacy, notes: legacy.notes, annotations: legacy.annotations } : null;
       }
       if (!active) return;
