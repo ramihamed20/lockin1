@@ -47,6 +47,9 @@ BACKEND_DEPENDENCY_INSTALL = "--requirement /tmp/requirements.txt"
 BACKEND_SOURCE_COPY = "COPY --chown=lockin:lockin apps ./apps"
 EDGE_PUBLIC_COPY = "COPY /app/dist-public /usr/share/nginx/html"
 EDGE_BUNDLE_COPY = "COPY /app/dist /usr/share/nginx/html"
+# A comment would be minified away and leave the bundle unchanged; the probe has
+# to be code that survives the build, as a real source change does.
+EDGE_SOURCE_PROBE = '\nglobalThis.__lockinLayerProbe = "layer-stability probe";\n'
 
 failures: list[str] = []
 summary: list[str] = []
@@ -221,7 +224,17 @@ for root in roots:
             path = os.path.join(directory, name)
             info = os.lstat(path)
             with open(path, "rb") as handle:
-                tree[path] = [hashlib.sha256(handle.read()).hexdigest(), oct(info.st_mode), info.st_uid, info.st_gid]
+                data = handle.read()
+            requested_entries = 0
+            if name == "RECORD" and directory.endswith(".dist-info"):
+                # A RECORD lists every installed file, so it names the REQUESTED
+                # marker when there is one. That entry is counted, not hashed;
+                # every other line must still match.
+                lines = data.splitlines(keepends=True)
+                kept = [line for line in lines if not line.split(b",")[0].endswith(b".dist-info/REQUESTED")]
+                requested_entries = len(lines) - len(kept)
+                data = b"".join(kept)
+            tree[path] = [hashlib.sha256(data).hexdigest(), oct(info.st_mode), info.st_uid, info.st_gid, requested_entries]
 print(json.dumps(tree, sort_keys=True))
 """
 
@@ -239,13 +252,20 @@ def equivalent_backend(old: str, new: str) -> None:
     # user-requested, which pip records as an empty dist-info/REQUESTED file.
     # Only pip reads it (`pip list --not-required`); it is reported, not hidden.
     requested = sorted(path for path in set(old_tree) ^ set(new_tree) if path.endswith(".dist-info/REQUESTED"))
+    # The comparison covers content, mode and owner; the trailing field is the
+    # count of REQUESTED entries a RECORD named, which is reported separately.
     differing = sorted(
         path for path in set(old_tree) | set(new_tree)
-        if old_tree.get(path) != new_tree.get(path) and path not in requested
+        if path not in requested and (old_tree.get(path) or [None] * 5)[:4] != (new_tree.get(path) or [None] * 5)[:4]
     )
+    records = sorted(path for path in new_tree if path in old_tree and old_tree[path][4] != new_tree[path][4])
     check(not differing, f"backend equivalence: /app, site-packages and console scripts are identical in content, mode and owner ({len(new_tree)} files){'; differs: ' + ', '.join(differing[:8]) if differing else ''}")
+    check(
+        {path.rsplit("/", 1)[0] for path in requested} == {path.rsplit("/", 1)[0] for path in records},
+        "backend equivalence: every RECORD difference is exactly its REQUESTED entry",
+    )
     print(f"NOTE  backend equivalence: {len(requested)} pip REQUESTED markers differ (metadata pip alone reads): {', '.join(path.split('/')[-2] for path in requested[:12])}")
-    summary_notes.append(f"{len(requested)} dist-info/REQUESTED markers differ between the old and new backend images; no other file does")
+    summary_notes.append(f"Old vs new backend: {len(requested)} dist-info/REQUESTED markers (and their RECORD entries) differ; every other file is identical")
 
 
 def edge(work: Path, reference: str | None) -> None:
@@ -254,7 +274,7 @@ def edge(work: Path, reference: str | None) -> None:
     build(context, "layers/edge:a", args=EDGE_BUILD_ARGS)
     a = layers("layers/edge:a")
 
-    mutate(context / "src" / "main.jsx", "\n// layer-stability probe: application source only\n")
+    mutate(context / "src" / "main.jsx", EDGE_SOURCE_PROBE)
     log_b = build(context, "layers/edge:b", args=EDGE_BUILD_ARGS)
     b = layers("layers/edge:b")
     table("edge B (source only) vs A", a, b)
@@ -280,7 +300,7 @@ def edge(work: Path, reference: str | None) -> None:
         shutil.copytree(ROOT / "frontend", pristine, ignore=shutil.ignore_patterns("node_modules", "dist", "dev-dist", "test-results", "playwright-report", "output"))
         build(pristine, "layers/edge-old:a", dockerfile=old_dockerfile, args=EDGE_BUILD_ARGS)
         old_a = layers("layers/edge-old:a")
-        mutate(pristine / "src" / "main.jsx", "\n// layer-stability probe: application source only\n")
+        mutate(pristine / "src" / "main.jsx", EDGE_SOURCE_PROBE)
         build(pristine, "layers/edge-old:b", dockerfile=old_dockerfile, args=EDGE_BUILD_ARGS)
         old_b = layers("layers/edge-old:b")
         table(f"edge B vs A under the Dockerfile at {reference}", old_a, old_b)
