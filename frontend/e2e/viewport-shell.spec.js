@@ -213,6 +213,17 @@ test("only the intended container owns vertical scrolling", async ({ page }) => 
   await shrinkPage();
 
   await page.setViewportSize({ width: 1024, height: 768 });
+  // A viewport breakpoint updates the shell on the next layout pass. Wait for
+  // its fixed tablet frame before adding the overflow probe; otherwise a busy
+  // CI renderer can measure the outgoing phone document as the filler lands.
+  await expect.poll(async () => {
+    const measured = await heightAuthority(page);
+    return {
+      appViewport: measured.appViewport,
+      documentHeight: measured.documentHeight,
+      rootScrollRange: measured.rootScrollRange
+    };
+  }).toEqual({ appViewport: 768, documentHeight: 768, rootScrollRange: 0 });
   await growPage();
   await expect.poll(async () => (await heightAuthority(page)).scrollers).toEqual(["page-shell"]);
   const tablet = await heightAuthority(page);
