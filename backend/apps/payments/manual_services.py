@@ -238,10 +238,17 @@ def submit_manual_recharge(
     )
     if subscription is None:
         raise ManualPaymentError("A subscription account is not ready yet. Please try again.")
-    subscription = refresh_subscription(subscription=subscription)
+    now = timezone.now()
+    # Grace remains payable through its inclusive end instant. Do not reconcile
+    # it to expired immediately before evaluating that renewal.
+    if not (
+        subscription.status == Subscription.Status.GRACE
+        and subscription.grace_ends_at
+        and now <= subscription.grace_ends_at
+    ):
+        subscription = refresh_subscription(subscription=subscription, now=now)
     if subscription.status == Subscription.Status.SUSPENDED:
         raise ManualPaymentError("This subscription is suspended. Contact support before paying.")
-    now = timezone.now()
     active_unexpired = bool(
         subscription.status == Subscription.Status.ACTIVE
         and subscription.current_period_ends_at

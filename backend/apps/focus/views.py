@@ -3,6 +3,7 @@ from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID
 
+from django.conf import settings
 from django.db.models import Count, Prefetch, Q, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
@@ -19,7 +20,8 @@ from rest_framework.views import APIView
 from apps.accounts.avatars import avatar_payload
 from apps.accounts.models import User
 from apps.content.models import LearningObject, LearningObjectAsset, LearningObjectVersion
-from apps.content.policies import can_view_learning_object
+from apps.content.policies import can_view_learning_object, is_version_available
+from apps.education.policies import is_content_administrator
 from apps.entitlements.services import require_entitlement
 from apps.files.models import ManagedFile
 
@@ -373,10 +375,18 @@ def _lock_in_materials(*, user: User) -> list[dict[str, object]]:
         .order_by("-published_at", "-updated_at")[:50]
     )
 
+    content_admin = is_content_administrator(user)
+    cohort_enforced = bool(getattr(settings, "COHORT_CONTENT_ENFORCEMENT", False))
     materials: list[dict[str, object]] = []
     for learning_object in candidates:
         version = learning_object.published_version
-        if version is None or not can_view_learning_object(
+        if (
+            version is None
+            or not version.academic_node.is_discoverable
+            or not is_version_available(version)
+        ):
+            continue
+        if cohort_enforced and not content_admin and not can_view_learning_object(
             user=user, learning_object=learning_object
         ):
             continue
