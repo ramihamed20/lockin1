@@ -386,8 +386,10 @@ def _lock_in_materials(*, user: User) -> list[dict[str, object]]:
             or not is_version_available(version)
         ):
             continue
-        if cohort_enforced and not content_admin and not can_view_learning_object(
-            user=user, learning_object=learning_object
+        if (
+            cohort_enforced
+            and not content_admin
+            and not can_view_learning_object(user=user, learning_object=learning_object)
         ):
             continue
         asset = next(iter(getattr(version, "primary_assets", [])), None)
