@@ -571,7 +571,8 @@ function App() {
                 <Route path="/subscription" element={<Subscription />} />
                 <Route path="/settings" element={<Settings user={user} onUserUpdate={setUser} settings={themeSettings} activeTheme={activeTheme} reminderSettings={reminderSettings} onReminderSettingsChange={setReminderSettings} onSettingsChange={updateThemeSettings} onSignedOut={clearAuthenticatedUi} />} />
                 <Route path="/admin/*" element={<OperationsAdmin operationsSession={operationsSession} />} />
-                <Route path="/creator/*" element={<Navigate to="/admin/content" replace />} />
+                {/* Same content.view gate as /creator; /admin/* also requires the administrator role. */}
+                <Route path="/creator/*" element={<Navigate to="/operations/admin/content" replace />} />
                 <Route path="/moderation/*" element={<Moderation user={user} />} />
                 <Route path="/operations/*" element={<OperationsAdmin operationsSession={operationsSession} />} />
               </Route>

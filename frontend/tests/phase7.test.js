@@ -147,6 +147,8 @@ test("Phase 7 fails closed for invalid management identifiers and creator routes
   assert.equal(canAccessRoute(student, "/creator/content"), false);
   assert.equal(canAccessRoute(student, "/creator/questions/123", { capabilities: ["content.view"] }), true);
   assert.equal(canAccessRoute(student, "/creator/quizzes/123", { capabilities: ["overview.view"] }), false);
+  // The redirect target admits exactly who the redirect admitted.
+  assert.equal(canAccessRoute(student, "/operations/admin/content", { capabilities: ["content.view"] }), true);
 });
 
 test("Phase 7 isolates management answer data and replaces the deferred creator routes", async () => {
@@ -156,7 +158,7 @@ test("Phase 7 isolates management answer data and replaces the deferred creator 
     readFile(new URL("../src/pages/CreatorAssessments.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/CreatorContent.jsx", import.meta.url), "utf8")
   ]);
-  assert.match(app, /path="\/creator\/\*" element=\{<Navigate to="\/admin\/content" replace \/>\}/);
+  assert.match(app, /path="\/creator\/\*" element=\{<Navigate to="\/operations\/admin\/content" replace \/>\}/);
   assert.doesNotMatch(app, /path="\/creator\/education"/);
   assert.doesNotMatch(app, /Creator tools will be connected/);
   assert.match(management, /new FormData\(\)/);

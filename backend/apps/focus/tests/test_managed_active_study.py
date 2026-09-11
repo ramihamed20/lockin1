@@ -188,6 +188,7 @@ def test_answer_is_server_scored_and_cannot_be_rewritten() -> None:
         )
 
 
+@pytest.mark.postgres
 def test_managed_run_lock_targets_only_the_run_row() -> None:
     user, sheet, _ = _setup()
     run, _ = start(user=user, sheet_id=sheet.id, difficulty="medium")
@@ -202,6 +203,7 @@ def test_managed_run_lock_targets_only_the_run_row() -> None:
     assert '"content_learningobject"' not in locking_query.split("FOR UPDATE", maxsplit=1)[1]
 
 
+@pytest.mark.postgres
 @pytest.mark.django_db(transaction=True)
 def test_concurrent_duplicate_answers_create_one_persisted_answer() -> None:
     Group.objects.get_or_create(name=Role.ADMINISTRATOR.value)

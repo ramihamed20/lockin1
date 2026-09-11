@@ -59,7 +59,7 @@ test("the Catalog is the only exposed materials management route", async () => {
     readFile(new URL("../../backend/platform_core/api/urls.py", import.meta.url), "utf8"),
     readFile(new URL("../../backend/apps/education/admin.py", import.meta.url), "utf8")
   ]);
-  assert.match(app, /<Route path="\/creator\/\*" element=\{<Navigate to="\/admin\/content" replace \/>\} \/>/);
+  assert.match(app, /<Route path="\/creator\/\*" element=\{<Navigate to="\/operations\/admin\/content" replace \/>\} \/>/);
   assert.doesNotMatch(app, /CreatorEducation|CreatorContent|CreatorQuestions|CreatorQuizzes/);
   assert.doesNotMatch(apiUrls, /apps\.education\.urls/);
   assert.doesNotMatch(educationAdmin, /EducationNodeAdmin|CreatorScopeAdmin|content_nodes/);
