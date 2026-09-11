@@ -1,7 +1,7 @@
 """Durable, bounded account-email worker. SMTP is intentionally outside HTTP."""
 
-from datetime import timedelta
 import hashlib
+from datetime import timedelta
 
 from cryptography.fernet import Fernet
 from django.conf import settings
