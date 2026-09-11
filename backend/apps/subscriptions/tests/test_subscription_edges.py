@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 from django.core.management import call_command
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.tests.helpers import create_user
@@ -297,8 +298,10 @@ def test_refresh_cancellation_no_grace_and_scheduler_command() -> None:
 
 def test_lifecycle_command_covers_localized_reminders_and_authoritative_transitions() -> None:
     # Keep the authoritative scheduler clock after the trial-creation events so
-    # lifecycle transitions are not (correctly) treated as out of order.
-    now = datetime(2026, 9, 10, 12, tzinfo=UTC)
+    # lifecycle transitions are not (correctly) treated as out of order. It is
+    # relative to the real clock: the trials below start at real time, and a
+    # fixed date eventually falls before them.
+    now = timezone.now() + timedelta(hours=1)
     arabic_user, arabic = _trial("arabic-reminder@example.com")
     arabic_user.preferred_language = "ar"
     arabic_user.save(update_fields=("preferred_language", "updated_at"))

@@ -327,7 +327,8 @@ def test_rejection_revokes_only_provisional_access_and_keeps_account_data() -> N
     user, subscription = _trial_user(email="rejection-user@example.com")
     user.full_name = "Saved Study Owner"
     user.save(update_fields=("full_name", "updated_at"))
-    now = datetime(2026, 9, 20, 10, tzinfo=UTC)
+    # Relative to the real clock, which the trial above was created on.
+    now = timezone.now().replace(microsecond=0) + timedelta(days=1)
     subscription.status = Subscription.Status.EXPIRED
     subscription.trial_started_at = None
     subscription.trial_ends_at = None
