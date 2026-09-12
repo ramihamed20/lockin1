@@ -9,6 +9,18 @@ const root = resolve(fileURLToPath(new URL("../dist/", import.meta.url)));
 // test server maps a URL onto them. See e2e/fixtures/catalog.js.
 const fixtureRoot = resolve(fileURLToPath(new URL("../e2e/fixtures/pdf/", import.meta.url)));
 const FIXTURE_PREFIX = "/e2e-fixtures/pdf/";
+// The one fixture whose full body is deliberately slow. pdf.js only asks for a
+// byte range when the reader needs data the full-body stream has not delivered
+// yet, so a document that arrives in one quick burst is read in one GET and
+// measures nothing. e2e/pdf-range-requests.spec.js used to force that with
+// page-wide CDP throttling, which also throttled the 1.3 MB pdf.js worker chunk
+// and so made the outcome depend on how fast the runner booted the worker --
+// fast machines measured ranges, slow ones measured none. Pacing this one
+// response instead keeps the reader's demand ahead of the stream on any runner,
+// and leaves every other asset, and every other spec, at full speed.
+const PACED_FIXTURE = "sheet-range.pdf";
+const PACED_BYTES_PER_SECOND = 64 * 1024;
+const PACE_INTERVAL_MS = 100;
 const host = process.env.HOST || "127.0.0.1";
 const port = Number(process.env.PORT || 4173);
 const types = {
@@ -43,7 +55,30 @@ function fixtureFile(pathname) {
  * reads, and only takes that path when the server advertises byte ranges. The
  * production edge streams private files with ranges, so the tests should
  * exercise the same shape rather than a single full-body GET.
+ *
+ * Range responses are always served at full speed; only the full body of
+ * `PACED_FIXTURE` is paced, for the reason given at that constant.
  */
+function writePaced(file, response) {
+  const chunkBytes = Math.round((PACED_BYTES_PER_SECOND * PACE_INTERVAL_MS) / 1_000);
+  const source = createReadStream(file, { highWaterMark: chunkBytes });
+  response.on("close", () => source.destroy());
+  (async () => {
+    try {
+      for await (const piece of source) {
+        if (response.writableEnded || response.destroyed) return;
+        response.write(piece);
+        await new Promise((done) => setTimeout(done, PACE_INTERVAL_MS));
+      }
+    } catch {
+      // The reader closed the connection part way through, which is the normal
+      // end of this response: the spec never waits for the whole body.
+      return;
+    }
+    if (!response.writableEnded && !response.destroyed) response.end();
+  })();
+}
+
 function serveFixture(request, response, file) {
   const total = statSync(file).size;
   const headers = {
@@ -55,6 +90,7 @@ function serveFixture(request, response, file) {
   if (!match || (!match[1] && !match[2])) {
     response.writeHead(200, { ...headers, "Content-Length": String(total) });
     if (request.method === "HEAD") return response.end();
+    if (file.endsWith(`${sep}${PACED_FIXTURE}`)) return writePaced(file, response);
     return createReadStream(file).pipe(response);
   }
   const start = match[1] ? Number(match[1]) : Math.max(0, total - Number(match[2]));
