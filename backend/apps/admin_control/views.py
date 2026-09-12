@@ -29,6 +29,8 @@ from platform_core.network import client_ip
 
 from .models import AdminInternalNote, NotificationCampaign, PaymentStatusCorrection
 from .selectors import (
+    PURCHASE_ORDERINGS,
+    SUBSCRIPTION_ORDERINGS,
     admin_purchases,
     admin_subscriptions,
     campaigns,
@@ -92,6 +94,14 @@ def _request_context(request: Request) -> tuple[UUID | None, str]:
     return correlation_id, client_ip(request)[:64]
 
 
+def _ordering(request: Request, allowed: dict[str, tuple[str, ...]]) -> str:
+    """Read the requested sort, refusing anything the selector does not define."""
+    requested = request.query_params.get("sort", "")[:16]
+    if requested and requested not in allowed:
+        raise RequestRejected("That sort order is not available.", code="invalid_sort")
+    return requested or "newest"
+
+
 def _idempotency_key(request: Request) -> str:
     return request.headers.get("Idempotency-Key", "")[:180]
 
@@ -134,7 +144,9 @@ class AdminPurchaseListView(APIView):
                 "The payment status filter is invalid.", code="invalid_payment_status"
             )
         records = admin_purchases(
-            query=request.query_params.get("q", "")[:100], status=status_filter
+            query=request.query_params.get("q", "")[:100],
+            status=status_filter,
+            sort=_ordering(request, PURCHASE_ORDERINGS),
         )
         paginator = LockinPagination()
         page = paginator.paginate_queryset(records, request, view=self)
@@ -314,6 +326,7 @@ class AdminSubscriptionListView(APIView):
             query=request.query_params.get("q", "")[:100],
             status=status_filter,
             missing_only=missing_only,
+            sort=_ordering(request, SUBSCRIPTION_ORDERINGS),
         )
         paginator = LockinPagination()
         page = paginator.paginate_queryset(records, request, view=self)

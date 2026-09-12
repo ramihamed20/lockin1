@@ -7473,7 +7473,77 @@ a.streak-card:hover:where(html.ix-hover *) {
 }
 
 .subscription-state-grace .subscription-state-dot {
-  background: var(--warning);
+  background: var(--color-warning);
+}
+
+.subscription-state-expired .subscription-state-dot,
+.subscription-state-cancelled .subscription-state-dot {
+  background: var(--danger);
+}
+
+/* The live answer to "what happened to my card". Tone carries the outcome;
+   the heading and body carry it again in words, because colour alone is not
+   an answer. */
+.subscription-review-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  margin-bottom: var(--space-5);
+  padding: var(--space-5) var(--space-6);
+  border: 1px solid var(--border);
+  border-inline-start: 4px solid var(--muted);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+
+.subscription-review-banner h2 {
+  font-size: var(--text-lg);
+}
+
+.subscription-review-banner p {
+  margin-top: var(--space-1);
+  color: var(--muted);
+}
+
+.subscription-review-banner .btn {
+  flex: 0 0 auto;
+}
+
+.subscription-review-banner.is-pending {
+  border-inline-start-color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 7%, var(--surface-2));
+}
+
+.subscription-review-banner.is-approved {
+  border-inline-start-color: var(--green);
+  background: color-mix(in srgb, var(--green) 7%, var(--surface-2));
+}
+
+.subscription-review-banner.is-rejected {
+  border-inline-start-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 7%, var(--surface-2));
+}
+
+.subscription-review-banner.is-expired {
+  border-inline-start-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 7%, var(--surface-2));
+}
+
+.subscription-review-reason {
+  margin-top: var(--space-2);
+  color: var(--text);
+}
+
+@media (max-width: 40rem) {
+  .subscription-review-banner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .subscription-review-banner .btn {
+    width: 100%;
+  }
 }
 
 .subscription-saved-banner {
@@ -7496,8 +7566,8 @@ a.streak-card:hover:where(html.ix-hover *) {
 
 .subscription-grace-note {
   padding: var(--space-3) var(--space-4);
-  border-inline-start: 3px solid var(--warning);
-  background: color-mix(in srgb, var(--warning) 8%, transparent);
+  border-inline-start: 3px solid var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 8%, transparent);
 }
 
 .subscription-facts dt {

@@ -26,11 +26,22 @@ def effective_grants_for_user(
     convergence remains the repair and audit mechanism.
     """
     now = at or timezone.now()
+    # An ACTIVE subscription whose paid period has just ended is still inside
+    # its grace window; only the reconciliation job has not relabelled it yet.
+    # Requiring ``current_period_ends_at > now`` alone denied that reader every
+    # study endpoint from the instant their period ended until something
+    # happened to run the lifecycle -- the one moment a renewal reminder is
+    # supposed to be reachable. A subscription set to end at period end gets no
+    # such window, because it is heading for CANCELLED rather than GRACE.
+    within_grace = Q(status=Subscription.Status.ACTIVE, cancel_at_period_end=False) & Q(
+        grace_ends_at__gt=now
+    )
     live_subscription_ids = (
         Subscription.objects.filter(account__primary_user=user)
         .filter(
             Q(status=Subscription.Status.TRIALING, trial_ends_at__gt=now)
             | Q(status=Subscription.Status.ACTIVE, current_period_ends_at__gt=now)
+            | within_grace
             | Q(status=Subscription.Status.GRACE, grace_ends_at__gt=now)
         )
         .values("id")

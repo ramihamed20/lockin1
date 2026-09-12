@@ -59,6 +59,21 @@ function hasTimedSubscriptionAccess(subscription) {
   );
 }
 
+/**
+ * Is this stored snapshot still usable without asking the server again?
+ *
+ * The answer used to be an unconditional yes for any reader who did **not**
+ * currently have access — a pending card, a lapsed trial, no subscription at
+ * all. Those snapshots never went stale, so the one state a reader most needs
+ * to see change was the one state the client would never re-read: an
+ * administrator approved the payment and the tab kept the "subscribe" screen
+ * for the life of the session, on every route, until the reader happened to
+ * open a new tab.
+ *
+ * Every snapshot now ages out after {@link ACCESS_RECHECK_MS}. Access that is
+ * time-bounded must additionally still be inside its own window, which is the
+ * rule that was already here and is still the stricter one.
+ */
 export function isSubscriptionSnapshotFresh(snapshot, userId, now = Date.now()) {
   if (
     !snapshot ||
@@ -69,12 +84,24 @@ export function isSubscriptionSnapshotFresh(snapshot, userId, now = Date.now()) 
   ) {
     return false;
   }
+  // A manual grant and a Founder exemption are not clock-bound and are not
+  // revoked by a payment decision, so re-reading them buys nothing.
   if (hasDirectStudyAccess(snapshot.entitlements) || hasSubscriptionExemption(snapshot.subscription)) return true;
-  if (!hasTimedSubscriptionAccess(snapshot.subscription)) return true;
   const storedAt = Date.parse(snapshot.storedAt || "");
   if (!Number.isFinite(storedAt) || now - storedAt >= ACCESS_RECHECK_MS) return false;
+  if (!hasTimedSubscriptionAccess(snapshot.subscription)) return true;
   const refreshAt = subscriptionRefreshAt(snapshot);
   return refreshAt !== null && now < refreshAt;
+}
+
+/** The review state of the most recent manual card, as the server reports it. */
+export function manualPaymentReview(subscription) {
+  const review = subscription?.manual_payment_review;
+  return review && typeof review === "object" ? review : null;
+}
+
+export function hasPendingManualPayment(subscription) {
+  return manualPaymentReview(subscription)?.status === "pending";
 }
 
 export function readSubscriptionSnapshot(userId, now = Date.now()) {

@@ -2,8 +2,10 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { billingApi } from "../api/billing.js";
 import {
   hasDirectStudyAccess,
+  hasPendingManualPayment,
   hasSubscriptionExemption,
   isSubscriptionSnapshotFresh,
+  manualPaymentReview,
   readSubscriptionSnapshot,
   subscriptionRefreshAt,
   writeSubscriptionSnapshot
@@ -23,6 +25,8 @@ export function SubscriptionSessionProvider({ user, children }) {
   const userId = String(user?.id || "");
   const [state, setState] = useState(() => initialState(userId));
   const requestRef = useRef(0);
+  const directAccess = hasDirectStudyAccess(state.entitlements);
+  const accessExempt = hasSubscriptionExemption(state.subscription);
 
   const commit = useCallback((subscription, entitlements) => {
     const next = writeSubscriptionSnapshot(
@@ -87,8 +91,16 @@ export function SubscriptionSessionProvider({ user, children }) {
     };
   }, [refresh, state]);
 
+  // Polled for every signed-in reader, not only for one who currently has
+  // access. The reader who most needs the next answer is the one waiting on an
+  // administrator to approve a recharge card: gating this on `access_allowed`
+  // meant that reader was the only one never asking, so an approval landed in
+  // the database and nowhere else until they reopened the tab. A reader whose
+  // access is stable and unbounded — a manual grant, a Founder exemption — has
+  // nothing to learn from the poll and is left alone.
+  const polls = Boolean(state.ready && !directAccess && !accessExempt);
   useEffect(() => {
-    if (!state.ready || !state.subscription?.access_allowed) return undefined;
+    if (!polls) return undefined;
     const refreshIfVisible = () => {
       if (document.visibilityState !== "hidden") void refresh({ blocking: false });
     };
@@ -100,16 +112,18 @@ export function SubscriptionSessionProvider({ user, children }) {
       window.removeEventListener("focus", refreshIfVisible);
       document.removeEventListener("visibilitychange", refreshIfVisible);
     };
-  }, [refresh, state.ready, state.subscription?.access_allowed]);
+  }, [polls, refresh]);
 
   const value = useMemo(() => ({
     ...state,
-    directAccess: hasDirectStudyAccess(state.entitlements),
-    accessExempt: hasSubscriptionExemption(state.subscription),
-    accessAllowed: Boolean(state.subscription?.access_allowed || hasDirectStudyAccess(state.entitlements)),
+    directAccess,
+    accessExempt,
+    accessAllowed: Boolean(state.subscription?.access_allowed || directAccess),
+    manualPaymentReview: manualPaymentReview(state.subscription),
+    pendingManualPayment: hasPendingManualPayment(state.subscription),
     canAccessNow: () => {
-      if (hasSubscriptionExemption(state.subscription)) return true;
-      if (hasDirectStudyAccess(state.entitlements)) return true;
+      if (accessExempt) return true;
+      if (directAccess) return true;
       if (!state.subscription?.access_allowed) return false;
       const refreshAt = subscriptionRefreshAt(state);
       if (["trialing", "active", "grace"].includes(state.subscription.status)) {
@@ -119,7 +133,7 @@ export function SubscriptionSessionProvider({ user, children }) {
     },
     refresh,
     setAuthoritativeSubscription: (subscription) => commit(subscription)
-  }), [commit, refresh, state]);
+  }), [accessExempt, commit, directAccess, refresh, state]);
 
   return <SubscriptionSessionContext.Provider value={value}>{children}</SubscriptionSessionContext.Provider>;
 }

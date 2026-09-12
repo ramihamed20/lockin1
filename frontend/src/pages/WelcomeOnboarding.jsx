@@ -69,6 +69,12 @@ export default function WelcomeOnboarding({ user, onUserUpdate, onThemeSettingsC
     return <ErrorPanel message={subscriptionSession.error || t("welcome.error")} onRetry={subscriptionSession.refresh} />;
   }
 
+  const { trial_started_at: trialStart, trial_ends_at: trialEnd } = subscriptionSession.subscription;
+  const trialSpan = Date.parse(trialEnd || "") - Date.parse(trialStart || "");
+  const trialDays = Number.isFinite(trialSpan) && trialSpan > 0
+    ? Math.round(trialSpan / 86_400_000)
+    : 7;
+
   return (
     <main className="welcome-onboarding" dir={direction}>
       <section className="welcome-onboarding-copy" aria-labelledby="welcome-title">
@@ -79,7 +85,12 @@ export default function WelcomeOnboarding({ user, onUserUpdate, onThemeSettingsC
           <p className="welcome-lead">{t("welcome.lead")}</p>
         </div>
         <dl className="welcome-trial-facts">
-          <div><dt>{t("welcome.access")}</dt><dd>{t("welcome.sevenDays")}</dd></div>
+          {/* Counted from the trial the server actually granted rather than
+              printed as a constant: the plan's trial length is configuration,
+              and a welcome screen promising seven days over a window of some
+              other length is the kind of lie nobody notices until a reader
+              does. */}
+          <div><dt>{t("welcome.access")}</dt><dd>{t("welcome.trialLength", { count: trialDays })}</dd></div>
           <div><dt>{t("welcome.expires")}</dt><dd>{formatDateTime(subscriptionSession.subscription.trial_ends_at)}</dd></div>
         </dl>
         <section className="welcome-personalization" aria-labelledby="welcome-personalization-title">

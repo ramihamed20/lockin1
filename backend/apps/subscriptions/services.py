@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from uuid import UUID
 
 from django.conf import settings
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.accounts.models import User
@@ -97,12 +97,34 @@ def _converge_entitlements(*, subscription_id: UUID) -> None:
 
 @transaction.atomic
 def get_or_create_individual_account(*, user: User) -> SubscriptionAccount:
-    account, _ = SubscriptionAccount.objects.select_for_update().get_or_create(
-        kind=SubscriptionAccount.Kind.INDIVIDUAL,
-        primary_user=user,
-        defaults={"display_name": user.full_name or user.email},
-    )
+    try:
+        account, _ = SubscriptionAccount.objects.select_for_update().get_or_create(
+            kind=SubscriptionAccount.Kind.INDIVIDUAL,
+            primary_user=user,
+            defaults={"display_name": user.full_name or user.email},
+        )
+    except IntegrityError:
+        # ``get_or_create`` cannot lock a row that does not exist yet, so two
+        # concurrent first requests for the same reader both reach the INSERT
+        # and the unique index rejects one of them. That loser is not an error
+        # the reader can act on: the account it asked for now exists.
+        account = SubscriptionAccount.objects.select_for_update().get(
+            kind=SubscriptionAccount.Kind.INDIVIDUAL, primary_user=user
+        )
     return account
+
+
+def lock_individual_account(*, user: User) -> SubscriptionAccount:
+    """Return the reader's account with its row locked for the caller's work.
+
+    Every write that decides what a reader's single subscription should be --
+    granting the trial, submitting a manual payment -- must serialise against
+    the others, or two requests each read "no live subscription" and each create
+    one, and the one-live-per-account index rejects the loser with a 500.
+    """
+
+    account = get_or_create_individual_account(user=user)
+    return SubscriptionAccount.objects.select_for_update().get(id=account.id)
 
 
 @transaction.atomic
@@ -111,9 +133,18 @@ def create_trial_for_user(
 ) -> tuple[Subscription, bool]:
     if user.email_verified_at is None or user.status != User.Status.ACTIVE:
         raise ValueError("A trial requires a verified active account.")
-    account = get_or_create_individual_account(user=user)
+    # Locked before the "has this account any subscription at all" question is
+    # asked. Two verification callbacks, or a callback racing the reconciliation
+    # in ``entitlements.access_permissions``, otherwise both answer "none" and
+    # both insert a trial; one loses to the one-live-per-account index with a
+    # 500, and which one loses is a coin toss.
+    account = lock_individual_account(user=user)
     existing = account.subscriptions.order_by("-created_at").first()
     if existing is not None:
+        # One trial per account, ever. A second call -- a reconnected OAuth
+        # identity, a repeated verification link, a protected endpoint
+        # reconciling -- returns the subscription that already exists rather
+        # than restarting the clock.
         return existing, False
     plan = Plan.objects.select_related("current_version").get(
         code=settings.DEFAULT_TRIAL_PLAN_CODE,
@@ -371,13 +402,26 @@ def refresh_subscription(
             if subscription.cancel_at_period_end
             else Subscription.Status.EXPIRED
         )
+        # ``allow_out_of_order`` and a dated key, exactly as the paid period and
+        # the grace window already do.
+        #
+        # Without them a trial that ends while some later transition is already
+        # recorded -- a manual payment submitted on day 6 and rejected on day 9,
+        # say -- is refused as out of order, and the refusal consumes the
+        # undated ``trial-end:<id>`` key permanently. The account stays TRIALING
+        # for ever with a trial end in the past: the study gate denies it (the
+        # effective-grant selector fails closed), while the subscription screen
+        # still calls it a running trial and never offers a way out.
         return transition_subscription(
             subscription_id=subscription.id,
             to_status=target,
             reason_code="trial_ended",
             source=SubscriptionTransition.Source.RECONCILIATION,
             effective_at=subscription.trial_ends_at,
-            idempotency_key=f"trial-end:{subscription.id}",
+            idempotency_key=(
+                f"trial-end:{subscription.id}:{subscription.trial_ends_at.isoformat()}"
+            ),
+            allow_out_of_order=True,
         ).subscription
     if (
         subscription.status == Subscription.Status.ACTIVE

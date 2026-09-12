@@ -155,25 +155,47 @@ test("expired Arabic account retains renewal/account access without RTL overflow
   await expect(page.getByLabel("رمز بطاقة التعبئة")).toHaveAttribute("dir", "ltr");
 });
 
-test("authorized admin reviews the pending code once and the full code is then removed", async ({ page }) => {
-  await loginAdmin(page);
-  await page.goto("/#/operations/admin/purchases");
-  await expect(page.getByRole("heading", { name: "Payments" }).first()).toBeVisible();
+test("an approval reaches the student's open tab without a manual refresh", async ({ browser }) => {
+  // The bug this guards: the access snapshot was cached as fresh for ever while
+  // a reader had no access, and the poll that could have refreshed it was
+  // skipped for exactly those readers. An administrator approved the card and
+  // the student kept the "awaiting review" screen for the rest of the session.
+  test.setTimeout(120_000);
+  const studentContext = await browser.newContext();
+  const studentPage = await studentContext.newPage();
+  await login(studentPage, "qa.review@lockin.local", "StudyQA123!");
+  await studentPage.goto("/#/subscription");
+  await expect(studentPage.getByRole("heading", { name: "Your recharge card is being reviewed" })).toBeVisible();
 
-  const paymentRow = page.getByRole("button").filter({ hasText: "@qa_review" }).first();
-  await expect(paymentRow).toBeVisible();
-  await paymentRow.click();
-  await expect(page.getByText("5656565612345", { exact: true })).toBeVisible();
-  await page.getByLabel("Review reason").fill("Recharge card value verified");
-  await page.getByRole("button", { name: "Approve payment" }).click();
-  await page.getByRole("button", { name: "Approve payment", exact: true }).last().click();
+  const adminContext = await browser.newContext();
+  const adminPage = await adminContext.newPage();
+  await loginAdmin(adminPage);
+  await adminPage.goto("/#/operations/admin/purchases");
+  await expect(adminPage.getByRole("heading", { name: "Payments" }).first()).toBeVisible();
+  await adminPage.getByRole("button").filter({ hasText: "@qa_review" }).first().click();
+  // The full number is readable exactly while the decision is open.
+  await expect(adminPage.getByText("5656565612345", { exact: true })).toBeVisible();
+  await adminPage.getByLabel("Review reason").fill("Approved during live parity check");
+  await adminPage.getByRole("button", { name: "Approve payment" }).click();
+  await adminPage.getByRole("button", { name: "Approve payment", exact: true }).last().click();
 
-  await expect(page.locator(".manual-payment-review .creator-badge")).toHaveText("Approved");
-  await expect(page.getByText("Payment approved and revenue totals refreshed.", { exact: true })).toBeVisible();
-  await expect(page.getByText("5656565612345", { exact: true })).toHaveCount(0);
-  await expect(page.locator(".manual-recharge-code")).toContainText("2345");
-  await page.setViewportSize({ width: 1024, height: 768 });
-  await page.screenshot({ path: `${SCREENSHOT_DIR}/admin-payment-approved-ipad.png`, fullPage: true });
+  await expect(adminPage.locator(".ops-review .ops-badge")).toHaveText("Approved");
+  await expect(adminPage.getByText(
+    "Payment approved. The subscription is verified and the reader has access.",
+    { exact: true }
+  )).toBeVisible();
+  // Decided: the reversible code is destroyed, the last four digits remain.
+  await expect(adminPage.getByText("5656565612345", { exact: true })).toHaveCount(0);
+  await expect(adminPage.locator(".ops-review .ops-code").first()).toContainText("2345");
+  await adminPage.setViewportSize({ width: 1024, height: 768 });
+  await adminPage.screenshot({ path: `${SCREENSHOT_DIR}/admin-payment-approved-ipad.png`, fullPage: true });
+  await adminContext.close();
+
+  // No reload, no navigation: the student's own tab has to notice.
+  await expect(studentPage.getByRole("heading", { name: "Payment approved" })).toBeVisible({ timeout: 60_000 });
+  await expect(studentPage.getByRole("heading", { name: "Your recharge card is being reviewed" })).toHaveCount(0);
+  await studentPage.screenshot({ path: `${SCREENSHOT_DIR}/student-sees-approval-live.png`, fullPage: true });
+  await studentContext.close();
 });
 
 test("early renewal preserves paid days through pending, rejection, and approval", async ({ browser }) => {
@@ -222,7 +244,7 @@ test("early renewal preserves paid days through pending, rejection, and approval
   await rejectAdminPage.getByLabel("Review reason").fill("Card rejected for E2E verification");
   await rejectAdminPage.getByRole("button", { name: "Reject payment" }).click();
   await rejectAdminPage.getByRole("button", { name: "Reject payment", exact: true }).last().click();
-  await expect(rejectAdminPage.locator(".manual-payment-review .creator-badge")).toHaveText("Rejected");
+  await expect(rejectAdminPage.locator(".ops-review .ops-badge")).toHaveText("Rejected");
   await rejectAdminContext.close();
 
   await renewalPage.reload();
@@ -246,7 +268,7 @@ test("early renewal preserves paid days through pending, rejection, and approval
   await approveAdminPage.getByLabel("Review reason").fill("Card accepted for E2E verification");
   await approveAdminPage.getByRole("button", { name: "Approve payment" }).click();
   await approveAdminPage.getByRole("button", { name: "Approve payment", exact: true }).last().click();
-  await expect(approveAdminPage.locator(".manual-payment-review .creator-badge")).toHaveText("Approved");
+  await expect(approveAdminPage.locator(".ops-review .ops-badge")).toHaveText("Approved");
   await approveAdminContext.close();
 
   await renewalPage.reload();

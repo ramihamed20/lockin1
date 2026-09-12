@@ -37,7 +37,48 @@ def founder_access_snapshot() -> dict[str, object]:
         "expires_at": None,
         "remaining_days": 0,
         "early_renewal_available": False,
+        "manual_payment_review": None,
         "transitions": [],
+    }
+
+
+def _manual_payment_review(subscription: Subscription) -> dict[str, object] | None:
+    """The latest manual card review attached to this account, or nothing.
+
+    This rides on the subscription snapshot deliberately. The subscription
+    screen used to read the review state from a separate payment-history call
+    that was made once when the screen mounted, so an approval or a rejection
+    landing afterwards left the reader looking at "awaiting review" with no way
+    to submit again -- the exact state readers reported being stuck in. Carrying
+    it here makes it part of the one payload the access session already
+    re-reads, and the screen cannot disagree with the gate.
+    """
+
+    # Imported inside the function: payments reads subscription models, so a
+    # module-level import in this direction would close the loop.
+    from apps.payments.models import ManualRechargeSubmission
+
+    submission = (
+        ManualRechargeSubmission.objects.filter(payment__account_id=subscription.account_id)
+        .select_related("payment__price__plan_version")
+        .order_by("-submitted_at", "-id")
+        .first()
+    )
+    if submission is None:
+        return None
+    payment = submission.payment
+    return {
+        "payment_id": str(payment.id),
+        "submission_id": str(submission.id),
+        "status": submission.status,
+        "submitted_at": submission.submitted_at,
+        "reviewed_at": submission.reviewed_at,
+        "rejection_reason": submission.rejection_reason,
+        "plan_title": payment.price.plan_version.title,
+        "amount_minor": payment.amount_minor,
+        "currency": payment.currency,
+        "currency_exponent": payment.currency_exponent,
+        "is_early_renewal": submission.is_early_renewal,
     }
 
 
@@ -57,6 +98,7 @@ class SubscriptionSerializer(serializers.ModelSerializer[Subscription]):
     expires_at = serializers.SerializerMethodField()
     remaining_days = serializers.SerializerMethodField()
     early_renewal_available = serializers.SerializerMethodField()
+    manual_payment_review = serializers.SerializerMethodField()
 
     class Meta:
         model = Subscription
@@ -83,8 +125,12 @@ class SubscriptionSerializer(serializers.ModelSerializer[Subscription]):
             "expires_at",
             "remaining_days",
             "early_renewal_available",
+            "manual_payment_review",
             "transitions",
         )
+
+    def get_manual_payment_review(self, subscription: Subscription) -> dict[str, object] | None:
+        return _manual_payment_review(subscription)
 
     def get_access_allowed(self, subscription: Subscription) -> bool:
         primary_user = subscription.account.primary_user
