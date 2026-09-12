@@ -59,9 +59,17 @@ export function useScrollOverflow() {
         return;
       }
       pendingConfirmation = window.requestAnimationFrame(() => {
-        pendingConfirmation = 0;
-        const confirmed = measure();
-        if (confirmed !== "none") element.dataset.overflow = confirmed;
+        // A nested frame deliberately measures after the browser has had a
+        // chance to apply late style and font metrics.  In particular, an
+        // iPad-sized sidebar can briefly overflow while its grid track is
+        // resolving, then fit exactly one frame later.  Publishing the first
+        // measurement left a stale end cue over a list that no longer hid a
+        // destination.
+        pendingConfirmation = window.requestAnimationFrame(() => {
+          pendingConfirmation = 0;
+          const confirmed = measure();
+          if (confirmed !== "none") element.dataset.overflow = confirmed;
+        });
       });
     }
 
@@ -99,6 +107,13 @@ export function useScrollOverflow() {
       update();
     });
     mutationObserver.observe(element, { childList: true, subtree: true });
+
+    // Font metrics can alter the height of a row while the scroll container
+    // itself keeps the same dimensions.  ResizeObserver normally catches the
+    // row resize, but the Font Loading API is the final authoritative signal
+    // for the initial page paint and avoids retaining a cue from fallback text.
+    const fontsReady = document.fonts?.ready;
+    fontsReady?.then(update);
 
     return () => {
       cancelConfirmation();
