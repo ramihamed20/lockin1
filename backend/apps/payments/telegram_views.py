@@ -81,10 +81,18 @@ class TelegramWebhookView(APIView):
             # Log the reason for operators; tell the caller nothing.
             logger.warning(
                 "Rejected an unauthorized Telegram payment action",
-                extra={"reason": str(error)},
+                extra={"reason": str(error), "code": getattr(error, "code", "unknown")},
             )
+            # The coarse class is carried into the metric so a deployment where
+            # every button fails for one reason -- no operator is linked, or a
+            # key rotation invalidated every button in the chat -- is visible on
+            # a dashboard rather than only in the logs.
             providers.metric_sink.increment(
-                "telegram.webhook.rejected", attributes={"reason": "unauthorized"}
+                "telegram.webhook.rejected",
+                attributes={
+                    "reason": "unauthorized",
+                    "code": str(getattr(error, "code", "unknown")),
+                },
             )
             # The envelope was authenticated even though the actor was not. A
             # 403 makes Telegram redeliver the same unusable callback and leaves

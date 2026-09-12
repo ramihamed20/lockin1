@@ -40,7 +40,8 @@ happen before the payment is looked up at all.
    `TELEGRAM_WEBHOOK_SECRET_TOKEN`. An unset secret returns 404 — the endpoint is
    closed, not open.
 2. **Chat.** The update must originate in `TELEGRAM_ADMIN_CHAT_ID` or
-   `TELEGRAM_PAYMENT_CHAT_ID`. Anywhere else is 403.
+   `TELEGRAM_PAYMENT_CHAT_ID`. Anywhere else is refused, acknowledged with a
+   generic message, and answered 200 — see *Failure behaviour*.
 3. **Operator.** `callback_query.from.id` must match an **active**
    `TelegramPaymentOperator` row, and the linked Lock-in account must be active
    and hold the `payments.manage` capability. Capability is read at click time,
@@ -60,22 +61,43 @@ No fake or system user is invented. `TelegramPaymentOperator` links a Telegram
 account to a **real Lock-in administrator**, mirroring `accounts.SocialIdentity`.
 That administrator is the actor on the audit record, the subscription
 transition, the payment transition and the in-app notification — identical to a
-console review, with `source="payments.telegram"` distinguishing the channel.
+console review. `review_manual_recharge` takes the channel as its `source`
+argument, so the `AuditRecord` reads `payments.telegram` for a button and
+`admin_control.api` for the console. That is the only field that differs.
 
-Create a link from the Django shell (there is deliberately no self-service API):
+### Linking an operator
 
-```python
-from apps.accounts.models import User
-from apps.payments.models import TelegramPaymentOperator
+**Until a link exists, every Approve/Reject button is refused.** There is
+deliberately no self-service API — the link grants the power to approve money
+outside the session-authenticated console, so creating one requires host access.
 
-TelegramPaymentOperator.objects.create(
-    user=User.objects.get(email="admin@example.com"),
-    telegram_user_id="123456789",   # numeric Telegram user id
-    label="Night shift",            # shown in the chat instead of an email
-)
+```bash
+# Show every configured link, and whether its account still holds payments.manage.
+docker compose -f compose.production.yaml run --rm backend \
+  python manage.py telegram_operator --list
 ```
 
-To revoke: set `is_active=False`, or remove `payments.manage` from the account.
+```bash
+# Link a Telegram account to a real administrator. The numeric Telegram user id
+# is required; an @username is refused. So is an account without payments.manage,
+# rather than creating a link that could never work.
+docker compose -f compose.production.yaml run --rm backend \
+  python manage.py telegram_operator --link 123456789 \
+  --user admin@example.com --label "Night shift"
+```
+
+```bash
+# Revoke. The row is kept: it is the audited actor on every past review.
+docker compose -f compose.production.yaml run --rm backend \
+  python manage.py telegram_operator --revoke 123456789
+```
+
+Removing `payments.manage` in the operations console revokes the button in the
+same instant, whatever this command has recorded.
+
+`production_preflight` warns when the webhook secret is configured and no
+operator is linked, and reports the count in its evidence as
+`telegram_payment_operators`.
 
 ---
 
@@ -167,6 +189,14 @@ Do not use `--drop-pending` during a routine token rotation: it discards queued
 callbacks. Confirm the reported URL is the endpoint above, `allowed_updates`
 contains `callback_query`, and no `last_error_message` is reported.
 
+> **Rotating a credential invalidates every button already in the chat.** The
+> `callback_data` signature is keyed from the bot token, the webhook secret and
+> `DJANGO_SECRET_KEY` (see `_callback_signing_key`). After rotating any of the
+> three, buttons on notifications sent before the rotation fail the signature
+> check and are answered `This action is not available.` Pending payments have to
+> be reviewed from the operations console, or re-notified. This is visible in the
+> `telegram.webhook.rejected` metric as `code="callback_signature"`.
+
 ---
 
 ## Failure behaviour
@@ -189,3 +219,27 @@ Telegram cannot corrupt payment state.
 Recharge codes are never written to logs. They appear only in the notification
 body itself, which is the existing behaviour the reviewer depends on to validate
 a card.
+
+### Diagnosing a refused button
+
+All four refusals look identical to the presser, by design. They are not
+identical in the deployment's own telemetry:
+
+```bash
+docker compose -f compose.production.yaml logs backend \
+  | grep "Rejected an unauthorized Telegram payment action"
+```
+
+The log line and the `telegram.webhook.rejected` metric both carry a `code`:
+
+| `code` | Meaning |
+|---|---|
+| `no_operator_link` | No active `TelegramPaymentOperator` for this Telegram account — run `telegram_operator --link`. |
+| `inactive_account` | The linked Lock-in account is suspended or inactive. |
+| `missing_capability` | The linked account no longer holds `payments.manage`. |
+| `unauthorized_chat` | The update did not come from a configured chat. |
+| `callback_signature` | A button signed before a credential rotation, or a tampered payload. |
+| `no_sender` | A malformed update with no Telegram sender. |
+
+A wrong or missing secret header never reaches this path: it is answered 404 and
+shows up in Telegram's own `last_error_message`.

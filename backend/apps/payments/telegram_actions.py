@@ -36,9 +36,25 @@ from .telegram import (
 
 logger = logging.getLogger("lockin.telegram")
 
+# Recorded on the audit trail so a review made from a chat button is
+# distinguishable from one made in the operations console. Both run the same
+# service; only the channel differs.
+TELEGRAM_REVIEW_SOURCE = "payments.telegram"
+
 
 class TelegramAuthorizationError(Exception):
-    """The update may not act on payments. Never tells the caller why."""
+    """The update may not act on payments. Never tells the caller why.
+
+    ``code`` is a coarse machine-readable class of refusal. It is for the
+    deployment's own metrics, never for the chat: the four refusals are
+    indistinguishable to a presser by design, but an operator looking at a
+    dashboard should not have to grep logs to learn that every button in the
+    deployment is failing because no operator is linked.
+    """
+
+    def __init__(self, message: str, *, code: str = "unknown") -> None:
+        super().__init__(message)
+        self.code = code
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,12 +83,20 @@ def resolve_operator(*, telegram_user_id: str) -> TelegramPaymentOperator:
         .first()
     )
     if operator is None:
-        raise TelegramAuthorizationError("No active operator link for this Telegram account.")
+        raise TelegramAuthorizationError(
+            "No active operator link for this Telegram account. Link one with "
+            "`manage.py telegram_operator --link <id> --user <email>`.",
+            code="no_operator_link",
+        )
     user = operator.user
     if not isinstance(user, User) or user.status != User.Status.ACTIVE or not user.is_active:
-        raise TelegramAuthorizationError("The linked Lock-in account is not active.")
+        raise TelegramAuthorizationError(
+            "The linked Lock-in account is not active.", code="inactive_account"
+        )
     if not has_operational_capability(user, Capability.PAYMENTS_MANAGE):
-        raise TelegramAuthorizationError("The linked account cannot manage payments.")
+        raise TelegramAuthorizationError(
+            "The linked account cannot manage payments.", code="missing_capability"
+        )
     return operator
 
 
@@ -103,17 +127,22 @@ def handle_callback_query(*, callback_query: dict[str, Any]) -> CallbackOutcome:
 
     chat_id = str(chat.get("id", "")).strip()
     if not chat_id or chat_id not in authorized_chat_ids():
-        raise TelegramAuthorizationError("Update did not originate in an authorized chat.")
+        raise TelegramAuthorizationError(
+            "Update did not originate in an authorized chat.", code="unauthorized_chat"
+        )
 
     telegram_user_id = str(sender.get("id", "")).strip()
     if not telegram_user_id:
-        raise TelegramAuthorizationError("Update carries no Telegram sender.")
+        raise TelegramAuthorizationError("Update carries no Telegram sender.", code="no_sender")
     operator = resolve_operator(telegram_user_id=telegram_user_id)
 
     try:
         action, payment_id = parse_callback_data(_text(callback_query.get("data"), 64))
     except TelegramCallbackError as error:
-        raise TelegramAuthorizationError(str(error)) from error
+        # A button signed by a previous deployment lands here: the signing key is
+        # derived from the bot token, webhook secret and SECRET_KEY, so rotating
+        # any of them invalidates every button already sitting in the chat.
+        raise TelegramAuthorizationError(str(error), code="callback_signature") from error
 
     outcome = _review(
         payment_id=payment_id,
@@ -155,6 +184,7 @@ def _review(
             reason=reason,
             idempotency_key=_idempotency_key(payment_id=payment_id, action=action),
             send_notification=False,
+            source=TELEGRAM_REVIEW_SOURCE,
         )
     except ManualRechargeSubmission.DoesNotExist:
         # Not an error worth retrying, and worth answering vaguely: the chat is

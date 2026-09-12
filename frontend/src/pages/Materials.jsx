@@ -3,14 +3,20 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import { Icon } from "../lib/icons.jsx";
 import { rememberLastOpenedCatalogSheet } from "../lib/materialCatalog.js";
 import { useCatalogMaterials } from "../hooks/useCatalogMaterials.js";
-import { EmptyState, ErrorPanel, Page } from "../components/ui/index.jsx";
+import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
 import { CatalogSheetCard } from "../components/learning/CatalogSheetCard.jsx";
 import { CatalogTile } from "../components/learning/CatalogTile.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
 
 export default function Materials({ user = null }) {
   const { t } = useI18n();
-  const { materials } = useCatalogMaterials(user);
+  const { materials, loading, error, reload } = useCatalogMaterials(user);
+
+  // A directory that has not arrived is not a directory that is empty. Telling a
+  // student "you have no subjects" while the request is still in flight -- or
+  // because it failed -- is how a transient error reads as lost content.
+  if (loading) return <Page title="Materials"><LoadingPanel /></Page>;
+  if (error) return <Page title="Materials"><ErrorPanel message={error} onRetry={reload} /></Page>;
 
   return (
     <Page title="Materials">
@@ -42,9 +48,11 @@ function CatalogMaterialCard({ material }) {
 export function CatalogMaterialSheets({ user = null }) {
   const { materialSlug } = useParams();
   const { t } = useI18n();
-  const { materials } = useCatalogMaterials(user);
+  const { materials, loading, error, reload } = useCatalogMaterials(user);
   const material = materials.find((item) => item.slug === materialSlug) || null;
 
+  if (loading) return <Page title={t("materials.coreCatalogTitle")}><LoadingPanel /></Page>;
+  if (error) return <Page title={t("materials.notFoundTitle")}><ErrorPanel message={error} onRetry={reload} /></Page>;
   if (!material) return <Page title={t("materials.notFoundTitle")}><ErrorPanel message={t("materials.notFoundText")} /></Page>;
 
   if (!material.sheets.length) {
@@ -66,7 +74,7 @@ export function CatalogSheetStudy({ user = null }) {
   const { materialSlug, sheetSlug } = useParams();
   const location = useLocation();
   const { t } = useI18n();
-  const { materials } = useCatalogMaterials(user);
+  const { materials, loading, error, reload } = useCatalogMaterials(user);
   const material = materials.find((item) => item.slug === materialSlug) || null;
   const sheet = material?.sheets.find((item) => item.slug === sheetSlug) || null;
 
@@ -74,6 +82,8 @@ export function CatalogSheetStudy({ user = null }) {
     rememberLastOpenedCatalogSheet(materialSlug, sheetSlug);
   }, [materialSlug, sheetSlug]);
 
+  if (loading) return <Page title={t("materials.coreCatalogTitle")}><LoadingPanel /></Page>;
+  if (error) return <Page title={t("materials.sheetNotFoundTitle")}><ErrorPanel message={error} onRetry={reload} /></Page>;
   if (!material || !sheet) return <Page title={t("materials.sheetNotFoundTitle")}><ErrorPanel message={t("materials.sheetNotFoundText")} /></Page>;
 
   return (

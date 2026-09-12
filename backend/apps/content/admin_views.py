@@ -38,6 +38,7 @@ from .admin_services import (
     delete_active_study_question_content,
     delete_pdf,
     has_publication_history,
+    is_student_visible,
     permanently_delete_sheet,
     reorder_sheet,
     replace_pdf,
@@ -146,6 +147,11 @@ def serialize_sheet(sheet: LearningObject) -> dict[str, object]:
         "subject_title": version.academic_node.title,
         "position": sheet.position,
         "workflow_status": sheet.workflow_status,
+        # Published in Content Studio and reachable by a student are not the same
+        # fact: a sheet outside every cohort's Catalog branch is published and
+        # invisible. Saying which is which here is what stops that being
+        # discovered by the students who cannot find the sheet.
+        "student_visible": is_student_visible(sheet),
         "revision": sheet.revision,
         "published_at": sheet.published_at,
         "archived_at": sheet.archived_at,

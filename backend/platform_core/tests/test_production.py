@@ -143,12 +143,16 @@ def test_production_preflight_emits_machine_readable_success_evidence(tmp_path: 
     executor = MagicMock()
     executor.return_value.loader.graph.leaf_nodes.return_value = []
     executor.return_value.migration_plan.return_value = []
+    telegram_operators = MagicMock()
+    telegram_operators.objects.filter.return_value.count.return_value = 1
 
     with (
         override_settings(
             ENVIRONMENT="production",
             CONTENT_REQUIRE_CLEAN_SCAN=True,
             STATIC_ROOT=tmp_path,
+            # The operator count is only collected where callbacks are enabled.
+            TELEGRAM_WEBHOOK_SECRET_TOKEN="preflight-webhook-secret-token-0001",
         ),
         patch("platform_core.management.commands.production_preflight.call_command") as check,
         patch(
@@ -163,6 +167,14 @@ def test_production_preflight_emits_machine_readable_success_evidence(tmp_path: 
             "platform_core.management.commands.production_preflight.ManagedFile",
             managed_file,
         ),
+        patch(
+            "platform_core.management.commands.production_preflight.TelegramPaymentOperator",
+            telegram_operators,
+        ),
+        patch(
+            "platform_core.management.commands.production_preflight.cohorts_without_branches",
+            return_value=[],
+        ),
     ):
         call_command("production_preflight", stdout=output)
 
@@ -171,6 +183,10 @@ def test_production_preflight_emits_machine_readable_success_evidence(tmp_path: 
     assert report["status"] == "ready"
     assert report["clean_scan_enforced"] is True
     assert report["unsafe_published_files"] == 0
+    # Two configuration gaps a green release used to hide: a Telegram webhook
+    # nobody is linked to, and a cohort whose students would see no subjects.
+    assert report["telegram_payment_operators"] == 1
+    assert report["cohorts_without_catalog_subjects"] == []
 
 
 def test_production_preflight_records_intentionally_disabled_scanning(tmp_path: Path) -> None:
@@ -190,6 +206,8 @@ def test_production_preflight_records_intentionally_disabled_scanning(tmp_path: 
     executor = MagicMock()
     executor.return_value.loader.graph.leaf_nodes.return_value = []
     executor.return_value.migration_plan.return_value = []
+    telegram_operators = MagicMock()
+    telegram_operators.objects.filter.return_value.count.return_value = 1
 
     with (
         override_settings(
@@ -209,6 +227,14 @@ def test_production_preflight_records_intentionally_disabled_scanning(tmp_path: 
         patch(
             "platform_core.management.commands.production_preflight.ManagedFile",
             managed_file,
+        ),
+        patch(
+            "platform_core.management.commands.production_preflight.TelegramPaymentOperator",
+            telegram_operators,
+        ),
+        patch(
+            "platform_core.management.commands.production_preflight.cohorts_without_branches",
+            return_value=[],
         ),
     ):
         call_command("production_preflight", stdout=output)
