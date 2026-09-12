@@ -106,6 +106,21 @@ def test_ready_availability_uses_the_existing_content_status_and_resumes() -> No
     assert run.current_page_range if False else run.current_part == 1
 
 
+def test_availability_is_per_difficulty_and_pdf_rendering_is_not_a_readiness_input() -> None:
+    user, sheet, settings = _setup()
+    payload = availability(user=user, sheet_id=sheet.id)
+    by_difficulty = {item["difficulty"]: item for item in payload["difficulties"]}
+    assert by_difficulty["medium"]["status"] == "ready"
+    assert by_difficulty["easy"]["status"] == "not_configured"
+
+    # Browser PDF.js failures never reach this server-owned calculation.
+    settings.refresh_from_db()
+    unchanged = availability(user=user, sheet_id=sheet.id)
+    assert next(item for item in unchanged["difficulties"] if item["difficulty"] == "medium")[
+        "status"
+    ] == "ready"
+
+
 def test_checkpoint_passing_and_low_score_choices_preserve_attempt_history() -> None:
     user, sheet, _ = _setup()
     run, payload = _open_checkpoint(user, sheet)
