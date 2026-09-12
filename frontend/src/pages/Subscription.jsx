@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { billingApi } from "../api/billing.js";
 import { generateIdempotencyKey } from "../api/pagination.js";
 import { formatDate, formatDateTime } from "../lib/i18n.js";
@@ -58,6 +58,47 @@ function isFiveLyd(price) {
   return Number(price?.amount_minor) === 5 * (10 ** Number(price?.currency_exponent || 0));
 }
 
+/**
+ * The one banner that says where this reader's last card actually stands.
+ *
+ * It reads the review carried on the subscription snapshot, which the access
+ * session re-reads on a timer, so an approval or a rejection made by an
+ * administrator reaches this screen on its own. The payment-history list below
+ * is a record; this is the live state.
+ */
+function ReviewBanner({ review, t }) {
+  if (!review) return null;
+  const tone = { pending: "pending", approved: "approved", rejected: "rejected" }[review.status];
+  if (!tone) return null;
+  const when = tone === "pending" ? review.submitted_at : review.reviewed_at;
+  const date = when ? formatDateTime(when) : "—";
+  const copy = {
+    pending: [t("subscription.reviewPendingTitle"), t("subscription.reviewPendingBody", { date })],
+    approved: [t("subscription.reviewApprovedTitle"), t("subscription.reviewApprovedBody", { date })],
+    rejected: [t("subscription.reviewRejectedTitle"), t("subscription.reviewRejectedBody")]
+  }[tone];
+  return (
+    <section
+      className={`subscription-review-banner is-${tone}`}
+      role={tone === "rejected" ? "alert" : "status"}
+      aria-live="polite"
+    >
+      <div>
+        <h2>{copy[0]}</h2>
+        <p>{copy[1]}</p>
+        {tone === "rejected" && review.rejection_reason && (
+          <p className="subscription-review-reason">
+            <strong>{t("subscription.reviewReason")}:</strong> {review.rejection_reason}
+          </p>
+        )}
+      </div>
+      {tone === "rejected" && (
+        <a className="btn btn-primary" href="#libyana-payment">{t("subscription.submitAnotherCard")}</a>
+      )}
+    </section>
+  );
+}
+
 function paymentStatus(value, t) {
   const labels = {
     pending: t("subscription.pending"),
@@ -83,6 +124,23 @@ export default function Subscription() {
   const offers = useMemo(() => details.data ? paidOffers(details.data.catalog) : [], [details.data]);
   const comingSoon = useMemo(() => details.data ? comingSoonOffers(details.data.catalog) : [], [details.data]);
   const effectivePlan = selectedPlan || offers[0]?.plan.id || "";
+  const review = subscriptionSession.manualPaymentReview;
+
+  // The payment history and the plan catalogue are loaded once, when the screen
+  // opens. The access session keeps re-reading the review state on its own, so
+  // when it reports a different decision than the one this screen was rendered
+  // with, the loaded-once half is out of date and has to catch up -- otherwise
+  // the history keeps showing "pending review" under a banner that already says
+  // approved, and the first-subscription offer stays priced for a payment that
+  // has since been rejected.
+  const reviewStamp = review ? `${review.payment_id}:${review.status}` : "";
+  const lastReviewStamp = useRef(reviewStamp);
+  const reloadDetails = details.reload;
+  useEffect(() => {
+    if (lastReviewStamp.current === reviewStamp) return;
+    lastReviewStamp.current = reviewStamp;
+    reloadDetails();
+  }, [reloadDetails, reviewStamp]);
 
   if (details.loading) return <LoadingPanel />;
   if (details.error) return <ErrorPanel message={details.error} onRetry={details.reload} />;
@@ -92,7 +150,12 @@ export default function Subscription() {
   const recentPayments = payments.filter((payment) => payment.method === "libyana").slice(0, 5);
   const selectedOffer = offers.find(({ plan }) => plan.id === effectivePlan) || offers[0];
   const oneCardOnly = isFiveLyd(selectedOffer?.price);
-  const pendingManualReview = recentPayments.some((payment) => payment.manual_submission?.status === "pending");
+  // Asked of the access session, not of the payment list this screen loaded
+  // when it opened. The list cannot know that a reviewer decided thirty seconds
+  // ago, so readers whose card was approved -- or rejected -- sat in front of
+  // "a payment is already under review" with the form hidden, unable to pay and
+  // with nothing on the screen telling them why.
+  const pendingManualReview = subscriptionSession.pendingManualPayment;
   const renewalBlocked = subscription?.status === "active" && !subscription?.early_renewal_available;
   const canSubmit = !renewalBlocked && !pendingManualReview;
   const periodEnd = subscription?.status === "trialing"
@@ -148,6 +211,18 @@ export default function Subscription() {
 
   return (
     <Page title={t("subscription.title")} subtitle={t("subscription.subtitle")}>
+      <ReviewBanner review={review} t={t} />
+
+      {!subscription?.access_allowed && !pendingManualReview && (
+        <section className="subscription-review-banner is-expired" role="status">
+          <div>
+            <h2>{t("subscription.expiredTitle")}</h2>
+            <p>{t("subscription.expiredBody")}</p>
+          </div>
+          <a className="btn btn-primary" href="#libyana-payment">{t("subscription.renew")}</a>
+        </section>
+      )}
+
       {subscription?.early_renewal_available && (
         <section className="subscription-saved-banner subscription-early-renewal">
           <div><h2>{t("subscription.earlyRenewalDays", { count: subscription.remaining_days })}</h2><p>{t("subscription.earlyRenewalPromise")}</p></div>

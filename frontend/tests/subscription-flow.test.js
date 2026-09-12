@@ -60,14 +60,41 @@ test("subscription UI preserves LTR recharge entry inside Arabic RTL and uses se
 
 test("Creator Studio exposes manual review and immutable plan-version controls", () => {
   const adminPage = source("../src/pages/OperationsAdmin.jsx");
+  const payments = source("../src/pages/admin/PaymentsConsole.jsx");
+  const subscriptions = source("../src/pages/admin/SubscriptionsConsole.jsx");
   const adminApi = source("../src/api/adminControl.js");
 
-  assert.match(adminPage, /ManualPaymentReviewPanel/);
+  assert.match(adminPage, /PaymentsConsole/);
+  assert.match(adminPage, /SubscriptionsConsole/);
   assert.match(adminPage, /PlanPriceEditor/);
-  assert.match(adminPage, /Cancel immediately/);
-  assert.match(adminPage, /remove the student’s paid access immediately/);
-  assert.match(adminPage, /Payment approved and revenue totals refreshed/);
-  assert.match(adminPage, /summary\.reload\(\)/);
+  assert.match(payments, /ReviewActions/);
+  assert.match(subscriptions, /Cancel immediately/);
+  assert.match(subscriptions, /Paid access ends now/);
+  assert.match(payments, /Payment approved\. The subscription is verified/);
   assert.match(adminApi, /manual-review/);
   assert.match(adminApi, /createPlanVersion/);
+});
+
+test("a review refreshes the queue it moved the payment out of", () => {
+  const payments = source("../src/pages/admin/PaymentsConsole.jsx");
+
+  // The decision changes which filter the payment belongs to, so the list, the
+  // queue counters and the open payment are all re-read rather than left
+  // showing the state the reviewer just ended.
+  assert.match(payments, /list\.reload\(\);\s*\n\s*summary\.reload\(\);/);
+  assert.match(payments, /data\.reload\(\);\s*\n\s*onReviewed\?\.\(\);/);
+});
+
+test("the admin console never offers an action the server would refuse", () => {
+  const payments = source("../src/pages/admin/PaymentsConsole.jsx");
+  const subscriptions = source("../src/pages/admin/SubscriptionsConsole.jsx");
+
+  // Approve and reject are rendered only for a submission still awaiting a
+  // decision, and only for an administrator who may actually take one.
+  assert.match(payments, /const reviewable = submission\.status === "pending"/);
+  assert.match(payments, /canManage && reviewable/);
+  // Suspending a suspended subscription, or reactivating a live one, is not
+  // offered at all rather than refused after the fact.
+  assert.match(subscriptions, /availableActions/);
+  assert.match(subscriptions, /effectiveAction/);
 });

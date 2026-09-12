@@ -15,7 +15,7 @@ from apps.notifications.services import create_notification
 from apps.product_catalog.models import Price
 from apps.subscriptions.models import Subscription, SubscriptionTransition
 from apps.subscriptions.services import (
-    get_or_create_individual_account,
+    lock_individual_account,
     paid_period_window,
     refresh_subscription,
     transition_subscription,
@@ -192,7 +192,10 @@ def submit_manual_recharge(
     digests = [recharge_code_digest(code) for code in normalized_codes]
     if len(set(digests)) != len(digests):
         raise DuplicateRechargeCodeError("The same recharge card cannot be submitted twice.")
-    account = get_or_create_individual_account(user=user)
+    # Locked for the whole submission: the account's single subscription is read,
+    # re-anchored and transitioned below, and two submissions racing each other
+    # would otherwise both price a period from the same starting point.
+    account = lock_individual_account(user=user)
     existing_payment = (
         Payment.objects.filter(account=account, idempotency_key=idempotency_key)
         .select_related("subscription")
@@ -237,7 +240,27 @@ def submit_manual_recharge(
         .first()
     )
     if subscription is None:
-        raise ManualPaymentError("A subscription account is not ready yet. Please try again.")
+        # An account with no subscription row at all used to be told to "try
+        # again", for ever: the trial is created on email verification, so a
+        # reader whose verification predates the trial plan -- or ran while that
+        # plan was unpublished -- had no row, and the only screen that could
+        # have fixed it was the one refusing to take their money. Open the
+        # subscription here instead, in the state a payment is waiting on.
+        subscription = Subscription.objects.create(
+            account=account,
+            plan_version=price.plan_version,
+            status=Subscription.Status.PENDING,
+            status_reason="awaiting_payment",
+        )
+        SubscriptionTransition.objects.create(
+            subscription=subscription,
+            from_status="",
+            to_status=Subscription.Status.PENDING,
+            source=SubscriptionTransition.Source.USER,
+            reason_code="manual_payment_started",
+            idempotency_key=f"manual-open:{subscription.id}",
+            effective_at=timezone.now(),
+        )
     now = timezone.now()
     # Grace remains payable through its inclusive end instant. Do not reconcile
     # it to expired immediately before evaluating that renewal.
@@ -433,17 +456,53 @@ def review_manual_recharge(
     from_payment_status = payment.status
     previous_subscription_status = subscription.status
     arabic = submission.user.preferred_language == User.Language.ARABIC
+    # Whether this payment is still the one the subscription is provisionally
+    # resting on. It may not be: an administrator can have cancelled or replaced
+    # the subscription while the card sat in the queue. A review of this payment
+    # must still settle *the payment*, but it must not reach past that and undo
+    # what someone else decided afterwards.
+    owns_subscription_state = subscription.provisional_payment_id == payment.id
+    # Whether the period this payment reserved is still the period in force. If
+    # an administrator has extended or replaced it since, the snapshot taken at
+    # submission no longer describes anything anyone wants back, and writing it
+    # over their work would undo a decision made with more information than this
+    # one has.
+    reserved_period_intact = (
+        subscription.current_period_ends_at == submission.subscription_period_ends_at
+    )
     if decision == "approve":
         submission.status = ManualRechargeSubmission.Status.APPROVED
         payment.status = Payment.Status.SUCCEEDED
         payment.succeeded_at = now
         payment.failure_code = ""
-        subscription.payment_verification = Subscription.PaymentVerification.VERIFIED
-        subscription.provisional_payment_id = None
-        subscription.last_payment_at = now
-        subscription.status_reason = "manual_payment_approved"
-        subscription.revision += 1
-        subscription.save()
+        if owns_subscription_state:
+            subscription.payment_verification = Subscription.PaymentVerification.VERIFIED
+            subscription.provisional_payment_id = None
+            subscription.last_payment_at = now
+            subscription.status_reason = "manual_payment_approved"
+            subscription.revision += 1
+            subscription.save()
+            # The paid period was reserved at submission and is not extended
+            # again here -- that is what makes a repeated approval harmless --
+            # but the subscription's own history had nothing to show for the
+            # approval, and entitlements were left to whatever convergence ran
+            # at submission time. Record the decision and re-converge, so the
+            # grant a reader holds after approval is the grant this subscription
+            # implies now, not the one it implied while the card was pending.
+            SubscriptionTransition.objects.create(
+                subscription=subscription,
+                from_status=previous_subscription_status,
+                to_status=subscription.status,
+                source=SubscriptionTransition.Source.ADMIN,
+                reason_code="manual_payment_approved",
+                actor=actor,
+                source_reference=str(payment.id),
+                idempotency_key=f"manual-approval:{payment.id}",
+                effective_at=now,
+                metadata={"review_reason": reason.strip()[:500]},
+            )
+            subscription = refresh_subscription(subscription=subscription, now=now)
+            sync_subscription_entitlements(subscription_id=subscription.id)
         notification_title = "تم قبول الدفع" if arabic else "Payment approved"
         notification_body = (
             "تم التحقق من دفعة ليبيانا واشتراكك نشط."
@@ -460,7 +519,12 @@ def review_manual_recharge(
         payment.failure_code = "manual_rejected"
         previous_status = subscription.status
         previous = submission.previous_subscription_state
-        if submission.is_early_renewal:
+        # When ``owns_subscription_state`` is false, someone else has already
+        # moved this subscription off the provisional state this payment
+        # created. Rolling a stale snapshot over their decision would silently
+        # revert it, so the rejection is recorded against the payment and the
+        # subscription is left to its current owner.
+        if owns_subscription_state and submission.is_early_renewal:
             if (
                 submission.previous_subscription_end_at is None
                 or submission.extension_ends_at is None
@@ -483,27 +547,33 @@ def review_manual_recharge(
                 "status_reason",
             ):
                 setattr(subscription, field, _snapshot_value(field, previous[field]))
-        else:
+        elif owns_subscription_state and reserved_period_intact:
             for field, value in previous.items():
                 setattr(subscription, field, _snapshot_value(field, value))
-        subscription.payment_verification = Subscription.PaymentVerification.VERIFIED
-        subscription.provisional_payment_id = None
-        subscription.revision += 1
-        subscription.save()
-        SubscriptionTransition.objects.create(
-            subscription=subscription,
-            from_status=previous_status,
-            to_status=subscription.status,
-            source=SubscriptionTransition.Source.ADMIN,
-            reason_code="manual_payment_rejected",
-            actor=actor,
-            source_reference=str(payment.id),
-            idempotency_key=f"manual-rejection:{payment.id}",
-            effective_at=now,
-            metadata={"rejection_reason": reason.strip()[:500]},
-        )
-        subscription = refresh_subscription(subscription=subscription, now=now)
-        sync_subscription_entitlements(subscription_id=subscription.id)
+        if owns_subscription_state:
+            subscription.payment_verification = Subscription.PaymentVerification.VERIFIED
+            subscription.provisional_payment_id = None
+            subscription.revision += 1
+            subscription.save()
+            SubscriptionTransition.objects.create(
+                subscription=subscription,
+                from_status=previous_status,
+                to_status=subscription.status,
+                source=SubscriptionTransition.Source.ADMIN,
+                reason_code="manual_payment_rejected",
+                actor=actor,
+                source_reference=str(payment.id),
+                idempotency_key=f"manual-rejection:{payment.id}",
+                effective_at=now,
+                metadata={"rejection_reason": reason.strip()[:500]},
+            )
+            # Reconciled, not merely restored. The snapshot describes the
+            # subscription as it was when the card was submitted, which may be
+            # days of trial or paid period ago; running it back through the
+            # lifecycle here is what stops a rejection from leaving a reader
+            # holding a trial that ended while the card was in the queue.
+            subscription = refresh_subscription(subscription=subscription, now=now)
+            sync_subscription_entitlements(subscription_id=subscription.id)
         notification_title = "تم رفض الدفع" if arabic else "Payment rejected"
         notification_body = (
             f"لم يتم قبول دفعة ليبيانا. {reason.strip()[:220]}"

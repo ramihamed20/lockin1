@@ -24,6 +24,10 @@ function pagePath(path, options = {}) {
     status: options.status,
     role: options.role,
     ordering: options.ordering,
+    // Sorting is applied by the server. The console holds one page, so ordering
+    // those rows here would answer "which card has waited longest" with the
+    // longest wait *on this page* and sound just as certain.
+    sort: options.sort,
     without_subscription: options.withoutSubscription ? "true" : ""
   });
 }

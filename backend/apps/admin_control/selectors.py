@@ -30,8 +30,26 @@ from .models import (
     SubscriptionAdminEvent,
 )
 
+# Sorting is decided here rather than in the console, because the console only
+# ever holds one page: re-ordering those rows in the browser would produce a
+# confident, wrong answer to "which card has been waiting longest".
+PURCHASE_ORDERINGS: dict[str, tuple[str, ...]] = {
+    "newest": ("-created_at", "-id"),
+    "oldest": ("created_at", "id"),
+    "amount_high": ("-amount_minor", "-created_at", "-id"),
+    "amount_low": ("amount_minor", "-created_at", "-id"),
+}
 
-def admin_purchases(*, query: str = "", status: str = "") -> QuerySet[Payment]:
+SUBSCRIPTION_ORDERINGS: dict[str, tuple[str, ...]] = {
+    "newest": ("-created_at", "-id"),
+    "oldest": ("created_at", "id"),
+    "expiring": ("current_period_ends_at", "-created_at", "-id"),
+}
+
+
+def admin_purchases(
+    *, query: str = "", status: str = "", sort: str = "newest"
+) -> QuerySet[Payment]:
     payments = Payment.objects.select_related(
         "account__primary_user",
         "account__primary_user__cohort__program",
@@ -64,10 +82,11 @@ def admin_purchases(*, query: str = "", status: str = "") -> QuerySet[Payment]:
             Q(id__icontains=query)
             | Q(account__primary_user__email__icontains=query)
             | Q(account__primary_user__full_name__icontains=query)
+            | Q(account__primary_user__username__icontains=query)
             | Q(invoice__number__icontains=query)
             | Q(price__plan_version__plan__code__icontains=query)
         )
-    return payments.order_by("-created_at", "-id")
+    return payments.order_by(*PURCHASE_ORDERINGS.get(sort, PURCHASE_ORDERINGS["newest"]))
 
 
 def _repeat_submission_count(manual: ManualRechargeSubmission) -> int:
@@ -105,6 +124,7 @@ def serialize_purchase(
         "created_at": payment.created_at,
         "initiated_at": payment.initiated_at,
         "succeeded_at": payment.succeeded_at,
+        "failed_at": payment.failed_at,
         "failure_code": payment.failure_code,
         "plan_code": payment.price_snapshot.get("plan_code", ""),
         "plan_title": payment.price_snapshot.get("plan_title", ""),
@@ -127,6 +147,8 @@ def serialize_purchase(
             "status": subscription.status,
             "current_period_ends_at": subscription.current_period_ends_at,
             "trial_ends_at": subscription.trial_ends_at,
+            "payment_verification": subscription.payment_verification,
+            "plan_title": subscription.plan_version.title,
         },
         "invoice_id": str(payment.invoice.id) if hasattr(payment, "invoice") else None,
         "invoice_number": payment.invoice.number if hasattr(payment, "invoice") else "",
@@ -146,6 +168,7 @@ def serialize_purchase(
             "reviewed_at": manual.reviewed_at,
             "reviewed_by_name": manual.reviewed_by.full_name if manual.reviewed_by else "",
             "rejection_reason": manual.rejection_reason,
+            "is_early_renewal": manual.is_early_renewal,
             "subscription_period_started_at": manual.subscription_period_started_at,
             "subscription_period_ends_at": manual.subscription_period_ends_at,
             # A repeat is context for the reviewer, not a verdict. The same card
@@ -242,7 +265,7 @@ def serialize_purchase(
 
 
 def admin_subscriptions(
-    *, query: str = "", status: str = "", missing_only: bool = False
+    *, query: str = "", status: str = "", missing_only: bool = False, sort: str = "newest"
 ) -> QuerySet[User] | QuerySet[Subscription]:
     users = User.objects.select_related().all()
     if missing_only:
@@ -259,10 +282,13 @@ def admin_subscriptions(
         subscriptions = subscriptions.filter(
             Q(account__primary_user__email__icontains=query)
             | Q(account__primary_user__full_name__icontains=query)
+            | Q(account__primary_user__username__icontains=query)
             | Q(plan_version__plan__code__icontains=query)
             | Q(id__icontains=query)
         )
-    return subscriptions.order_by("-created_at", "-id")
+    return subscriptions.order_by(
+        *SUBSCRIPTION_ORDERINGS.get(sort, SUBSCRIPTION_ORDERINGS["newest"])
+    )
 
 
 def serialize_subscription(subscription: Subscription, *, detailed: bool = False) -> dict[str, Any]:
@@ -287,11 +313,15 @@ def serialize_subscription(subscription: Subscription, *, detailed: bool = False
         "suspended_at": subscription.suspended_at,
         "ended_at": subscription.ended_at,
         "remaining_days": remaining,
+        "payment_verification": subscription.payment_verification,
+        "status_reason": subscription.status_reason,
+        "last_payment_at": subscription.last_payment_at,
         "revision": subscription.revision,
         "user": {
             "id": user.id if user else None,
             "email": user.email if user else "",
             "full_name": user.full_name if user else "",
+            "username": user.username if user else "",
             "education": {
                 "program_code": user.cohort.program.code if user and user.cohort else "",
                 "program_name_en": user.cohort.program.name_en if user and user.cohort else "",
@@ -484,6 +514,7 @@ def operational_analytics(*, start: date, end: date) -> dict[str, Any]:
         )
     )
     refunds = Refund.objects.filter(status=Refund.Status.SUCCEEDED)
+    manual_reviews = ManualRechargeSubmission.objects.all()
     active_subscriptions = subscriptions.filter(
         status__in=(
             Subscription.Status.ACTIVE,
@@ -626,6 +657,32 @@ def operational_analytics(*, start: date, end: date) -> dict[str, Any]:
                     Subscription.Status.GRACE,
                 ),
             ).count(),
+        },
+        # A payments console cannot say "nothing is waiting on me" from revenue
+        # totals. ``pending`` is deliberately not scoped to the reporting
+        # period: a card submitted before the window still needs a decision
+        # today, and a queue that empties itself when the date filter moves is
+        # worse than no queue at all.
+        "manual_reviews": {
+            "pending": manual_reviews.filter(
+                status=ManualRechargeSubmission.Status.PENDING
+            ).count(),
+            "approved": manual_reviews.filter(
+                status=ManualRechargeSubmission.Status.APPROVED,
+                reviewed_at__gte=start_dt,
+                reviewed_at__lt=end_dt,
+            ).count(),
+            "rejected": manual_reviews.filter(
+                status=ManualRechargeSubmission.Status.REJECTED,
+                reviewed_at__gte=start_dt,
+                reviewed_at__lt=end_dt,
+            ).count(),
+            "oldest_pending_at": (
+                manual_reviews.filter(status=ManualRechargeSubmission.Status.PENDING)
+                .order_by("submitted_at")
+                .values_list("submitted_at", flat=True)
+                .first()
+            ),
         },
         "revenue": {
             "gross_minor": gross,

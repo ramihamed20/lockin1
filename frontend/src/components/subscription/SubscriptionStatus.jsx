@@ -14,14 +14,22 @@ export function SubscriptionStatus({ subscription, compact = false }) {
   const expiresAt = subscription?.status === "trialing"
     ? subscription?.trial_ends_at
     : subscription?.current_period_ends_at;
-  if (["suspended", "cancelled", "expired"].includes(state)) return null;
+  // An ended subscription used to render nothing at all, so the card it sits on
+  // showed a plan name and no state whatsoever -- indistinguishable from a
+  // reader whose access is fine. Say it plainly instead.
+  if (state === "suspended") return null;
   const labels = {
     trialing: [t("subscription.freeTrial"), t("subscription.daysRemaining", { count: days })],
     active: [t("subscription.active"), expiresAt ? t("subscription.expires", { date: formatDate(expiresAt, { dateStyle: "medium" }) }) : ""],
     pending: [t("subscription.active"), t("subscription.reviewPending")],
-    grace: [t("subscription.renewalPeriod"), t("subscription.daysRemaining", { count: days })]
+    grace: [t("subscription.renewalPeriod"), t("subscription.daysRemaining", { count: days })],
+    expired: [t("subscription.expired"), ""],
+    cancelled: [t("subscription.cancelled"), ""]
   };
-  const [title, detail] = labels[state] || [t("subscription.active"), ""];
+  // An unrecognised state is an ended state, never an active one: guessing
+  // "Active" for a status this component has not been taught (refunded, say)
+  // would tell the reader the opposite of the truth.
+  const [title, detail] = labels[state] || labels.expired;
 
   return (
     <span className={`subscription-state subscription-state-${state}${compact ? " compact" : ""}`}>

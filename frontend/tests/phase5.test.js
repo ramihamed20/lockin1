@@ -102,7 +102,11 @@ test("Phase 5 routes use server values and keep unsupported client authority dis
     readFile(new URL("../src/pages/Progress.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/Achievements.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/Ranked.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/pages/OperationsAdmin.jsx", import.meta.url), "utf8"),
+    Promise.all([
+      readFile(new URL("../src/pages/OperationsAdmin.jsx", import.meta.url), "utf8"),
+      readFile(new URL("../src/pages/admin/PaymentsConsole.jsx", import.meta.url), "utf8"),
+      readFile(new URL("../src/pages/admin/SubscriptionsConsole.jsx", import.meta.url), "utf8")
+    ]).then((parts) => parts.join("\n")),
     readFile(new URL("../src/api/adminControl.js", import.meta.url), "utf8"),
     readFile(new URL("../src/service-worker.js", import.meta.url), "utf8")
   ]);
