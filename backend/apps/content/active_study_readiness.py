@@ -67,7 +67,20 @@ def readiness_payload(*, sheet: LearningObject) -> dict[str, object]:
         status, reason = "not_configured", "Active Study is disabled."
         content = content_by_difficulty.get(rule.key)
         if not enabled:
-            pass
+            # Disabled sheets stay unavailable. Still surface a stale imported
+            # plan when page boundaries changed, so later enabling is explicit.
+            if (
+                total_pages is not None
+                and plan_error is None
+                and plan_item is not None
+                and bool(plan_item["page_ranges"])
+                and content is not None
+                and content.plan_signature != _signature(plan_item)
+            ):
+                status, reason = (
+                    "needs_review",
+                    "Page ranges changed; revalidate and reimport questions.",
+                )
         elif total_pages is None:
             reason = "PDF page count is missing."
         elif plan_error:
