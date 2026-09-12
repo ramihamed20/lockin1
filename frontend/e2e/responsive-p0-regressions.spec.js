@@ -98,17 +98,23 @@ for (const viewport of LANDSCAPE_PHONES) {
 // that anything continued below the fold.
 /**
  * The overflow cue is published by a ResizeObserver, which delivers after the
- * layout it describes. Reading the cue and the measurement together can land
- * in the frame between the two and see a cue for an overflow that has already
- * been absorbed, so the list is measured only once its box has stopped moving.
+ * layout it describes. Reading the cue and the measurement together can land in
+ * the frame between the two and see a cue for an overflow that has already been
+ * absorbed.
+ *
+ * Waiting for the box alone is not enough, and that is what made this flake: the
+ * box can be stable from the very first frame while the cue is still the one
+ * published before layout finished. The cue is what the assertions below read,
+ * so the cue is part of what has to stop changing.
  */
 async function waitForNavigationToSettle(page) {
   await expect.poll(async () => page.evaluate(async () => {
     const list = document.querySelector(".sidebar .nav-list");
     if (!list) return false;
-    const before = `${list.scrollHeight}x${list.clientHeight}`;
+    const signature = () => `${list.scrollHeight}x${list.clientHeight}:${list.dataset.overflow}`;
+    const before = signature();
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    return before === `${list.scrollHeight}x${list.clientHeight}`;
+    return before === signature();
   }), { timeout: 10_000 }).toBe(true);
 }
 
