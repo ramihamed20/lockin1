@@ -2,6 +2,11 @@
 
 Branch: `fix/payment-subscription-entitlement-lifecycle`
 
+> **Live QA addendum (2026-09-13).** Running the seeded browser validation found
+> three further faults that the unit and component suites could not see. They
+> are described in §10 at the end of this document, which also carries the live
+> results. §1–§9 describe the first pass and are unchanged.
+
 ## 1. Root causes found
 
 **R1 — The access snapshot was cached as fresh for ever, for exactly the readers
@@ -316,3 +321,159 @@ against the seeded QA database and was not run here; its new test
 ("an approval reaches the student's open tab without a manual refresh") is the
 end-to-end guard for the headline bug and should be run against the QA database
 before release.
+
+---
+
+## 10. Live QA validation (2026-09-13)
+
+### 10.1 How it was run
+
+A seeded QA server was stood up and driven by a real browser:
+
+- `python manage.py migrate` + `seed_demo --subscription-e2e` into a throwaway
+  database at `local-run/qa-live.sqlite3`
+- `manage.py runserver 127.0.0.1:8000` with `config.settings.e2e`
+- the built `dist/` served on `127.0.0.1:5050` by `local-run/serve.mjs`, which
+  proxies `/api/v1` to Django, so the browser talks to one origin
+- `LOCKIN_SUBSCRIPTION_LIVE=1 PLAYWRIGHT_EXTERNAL_SERVER=1
+  PLAYWRIGHT_BASE_URL=http://127.0.0.1:5050 npx playwright test
+  e2e/subscription-live.spec.js --workers=1`
+
+The spec is deliberately not idempotent — it consumes the seeded pending payment
+and completes the seeded username onboarding — so the database was recreated
+before every full run.
+
+**This ran on SQLite, not PostgreSQL.** The locally installed PostgreSQL 17
+requires `scram-sha-256` for every connection and no working credential was
+available; editing `pg_hba.conf` would have been a change to the machine's
+security configuration, so it was not made. The PostgreSQL run is still
+outstanding — see §10.5.
+
+### 10.2 Faults found by the live run
+
+**L1 — Four of the six purchasable plans granted no access at all.**
+`entitlements.0004` seeded plan entitlement rules for exactly two plan codes,
+`lockin_trial` and `lockin_monthly`. `product_catalog.0005` then added four more
+purchasable plans — the 5 LYD first month and the two, three and four month
+offers — and nothing ever gave them rules.
+
+A plan version with no rules is not a plan that grants nothing *extra*; it is a
+plan that grants *nothing*. `sync_subscription_entitlements` builds the set of
+entitlements a subscription should hold from its plan version rules and revokes
+every grant outside that set. Paying for one of those four offers moved the
+subscription onto the paid plan version and revoked `focus.workspace`,
+`content.premium` and `files.download` in the same transaction that recorded the
+payment as successful. The reader was left `ACTIVE`, `VERIFIED`, fully paid —
+and locked out of every study surface, while the subscription screen, which
+reads the subscription rather than the grants, told them their payment was
+approved.
+
+`lockin_monthly` was the one paid plan that worked, which is exactly why the
+early-renewal path (which selects "Monthly" explicitly) looked healthy and the
+default 5 LYD offer every new reader is steered to did not.
+
+Observed directly on the QA database after an approval:
+
+```
+SUB active verified
+ALL GRANTS:
+   content.premium  revoked  subscription  ends 2026-09-19
+   files.download   revoked  subscription  ends 2026-09-19
+   focus.workspace  revoked  subscription  ends 2026-09-19
+EFFECTIVE: []
+```
+
+**L2 — A reload showed the state the tab was last left in.** The cached access
+snapshot renders the screen immediately, and nothing then asked the server
+again: while the snapshot stayed fresh, a reader who reloaded right after an
+approval was told once more that a payment was already under review. The 30
+second cache TTL bounded it, but a page load is precisely the moment a reader
+expects the newest answer.
+
+**L3 — The live spec sign-in helper raced the application settling.**
+The form becomes actionable slightly before it stops being re-rendered, and a
+value written inside that window (measured at roughly the first 100–300 ms after
+navigation) is discarded by the render that follows. Playwright fills that fast;
+a person cannot. Verified present on the pre-branch build too, so it is not a
+regression from this work — but it made the whole serial file fail at its first
+login with an empty form.
+
+### 10.3 Fixes
+
+- `backend/apps/entitlements/migrations/0005_seed_libyana_offer_plan_rules.py`
+  backfills the three study entitlements for every plan version that sells
+  something and grants nothing. It matches on active prices rather than a list
+  of plan codes, so it covers the four offers without naming them.
+- `backend/apps/entitlements/tests/test_plan_entitlement_coverage.py` asserts
+  the same property two ways — every purchasable plan version carries the rules,
+  and moving a subscription onto any of them through
+  `sync_subscription_entitlements` keeps access. A migration runs once; this is
+  what stops the next plan reintroducing the gap. Both tests fail without the
+  migration, naming the four plans.
+- `frontend/src/lib/SubscriptionSessionContext.jsx` revalidates once on mount,
+  non-blocking, even when a cached snapshot let the screen render immediately.
+- `frontend/e2e/subscription-live.spec.js` writes the sign-in credentials until
+  they stay, via `expect(...).toPass()`.
+
+### 10.4 Live results
+
+`e2e/subscription-live.spec.js` — **6 passed** (1.2 m):
+
+| Test | What it proves |
+| --- | --- |
+| Google onboarding to welcome | trial account reaches the 7-day welcome once |
+| trial welcome + provisional payment across 5 viewports | submission grants provisional access, code never rendered back |
+| repeated approval + entitlements *(new)* | second approval changes neither period nor revision; grants present, sourced from the subscription, outliving the paid period; console offers no approve/reject on a decided payment |
+| expired Arabic account, RTL | no overflow, renewal reachable |
+| **approval reaches the student open tab** *(new)* | no reload, no navigation — the tab shows "Payment approved" on its own |
+| early renewal through pending, rejection, approval | paid days preserved; rejection restores the original expiry; approval does not double-extend |
+
+Trial expiry was additionally verified live over real HTTP (a trial cannot be
+waited out in a browser): the trial window measured exactly 7 days with access
+and 3 grants while running; after the window moved into the past,
+`/subscriptions/current` reported `expired` with `access_allowed: false`,
+`/entitlements/me` returned `[]`, and a re-read left exactly one `trial_ended`
+transition.
+
+Against the five requested checks:
+
+| Check | Result |
+| --- | --- |
+| Approve updates the already-open tab without manual refresh | **Verified live** (test 5, 32.6 s — one poll interval) |
+| Reject updates correctly and allows another submission | **Verified live** (test 6) |
+| Free trial works and expires correctly | **Verified live** (7 days, access to expired, grants revoked, one transition) |
+| No duplicate extension on repeated approval | **Verified live** (test 3: period and revision identical after a second approval through the real endpoint) |
+| Entitlements match the final subscription state | **Verified live** (test 3) — and this is where L1 was found |
+
+Supporting suites after the fixes:
+
+| Command | Result |
+| --- | --- |
+| `python -m pytest` (full backend, coverage gate) | 616 passed, 4 skipped, 7 pre-existing failures; coverage 85.33% |
+| `python -m pytest apps/entitlements/tests/test_plan_entitlement_coverage.py` | 2 passed; 2 failed with the migration disabled |
+| `ruff check` / `ruff format --check` / `mypy` / `makemigrations --check` | clean, clean, 454 files clean, no drift |
+| `npm run lint` / `typecheck` / `test` / `build` / `check:bundle` | clean, clean, 305 passed, built, within budget |
+
+The 7 backend failures are the same `platform_core/tests/test_portability.py`
+production-settings tests that fail identically on the base commit.
+
+### 10.5 Still outstanding
+
+The PostgreSQL run. What SQLite cannot tell you is whether the row locking is
+right: it reports `has_select_for_update = False`, so Django silently drops every
+`SELECT ... FOR UPDATE`, and the account-row locks added in this branch are
+therefore untested by anything above. The new migration and the approve/reject
+transactions also deserve a run on the real engine.
+
+To run it, a QA role and database are needed:
+
+```sql
+CREATE ROLE lockin_qa LOGIN PASSWORD '<password>' CREATEDB;
+CREATE DATABASE lockin_qa OWNER lockin_qa;
+```
+
+`CREATEDB` is required because pytest creates `test_lockin_qa`. With those
+credentials the backend suite runs against PostgreSQL by exporting
+`POSTGRES_DB/USER/PASSWORD/HOST/PORT` and *not* setting
+`LOCKIN_TEST_USE_SQLITE`, and the live spec runs the same way as §10.1 with the
+QA server pointed at the same database.
