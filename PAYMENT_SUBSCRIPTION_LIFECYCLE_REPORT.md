@@ -290,7 +290,29 @@ Frontend (`frontend/`)
 | `npm test` | 305 passed, 0 failed |
 | `npm run build` | built; PWA precache 12 entries |
 | `npm run check:bundle` | index JS 153.9 KiB gzip, CSS 72.1 KiB gzip — within budget |
-| `npx playwright test --workers=2` | see the run summary reported alongside this document |
+| `npx playwright test` — all 16 non-Focus specs, `--workers=2` | 125 passed, 7 skipped, 7 failed |
+
+Every one of those 7 Playwright failures reproduces identically with the
+frontend checked out at the parent commit and rebuilt, so none is caused by this
+work:
+
+- 6 in `responsive-p0-regressions.spec.js` (workspace controls at three phone
+  widths, remembered zoom, fit-width resize, the Arabic reader's opening
+  position) — verified against the pre-change build, same 6 failed, same 7 passed.
+- 1 in `rtl-direction.spec.js` ("a count is written and numbered the way Arabic
+  writes counts") — verified the same way.
+- `focus-pdf-recovery.spec.js` fails its 2 tests on both builds as well, with the
+  app rendering its own "Sheet not found" state; the whole Focus family shares
+  that fixture problem in this environment. The Focus specs were therefore not
+  used as a signal here, and should be run in CI where they have a working
+  fixture.
+
+One further failure, `interaction-states.spec.js` "drawer destinations navigate
+on the first tap", appeared under `--workers=2` and passed on its own — the
+worker-contention flake this suite is already known for.
 
 `e2e/subscription-live.spec.js` remains opt-in (`LOCKIN_SUBSCRIPTION_LIVE=1`)
-against the seeded QA database and was not run here.
+against the seeded QA database and was not run here; its new test
+("an approval reaches the student's open tab without a manual refresh") is the
+end-to-end guard for the headline bug and should be run against the QA database
+before release.
