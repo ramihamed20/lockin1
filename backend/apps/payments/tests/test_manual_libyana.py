@@ -420,10 +420,7 @@ def test_rejection_revokes_only_provisional_access_and_keeps_account_data() -> N
     assert user.full_name == "Saved Study Owner"
     assert user.__class__.objects.filter(id=user.id).exists()
     assert AuditRecord.objects.filter(action="payment_rejected").exists()
-    assert (
-        operational_analytics(start=today, end=today)["revenue"]["gross_minor"]
-        == gross_before
-    )
+    assert operational_analytics(start=today, end=today)["revenue"]["gross_minor"] == gross_before
 
 
 def test_grace_renewal_remains_anchored_to_original_expiration() -> None:

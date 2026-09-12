@@ -54,14 +54,18 @@ def readiness_payload(*, sheet: LearningObject) -> dict[str, object]:
     rows: list[dict[str, object]] = []
     for rule in DIFFICULTIES:
         plan_item = plans.get(rule.key)
-        row = dict(plan_item) if plan_item else {
-            "difficulty": rule.key,
-            "target_pages_per_part": rule.target_pages_per_part,
-            "questions_per_checkpoint": rule.questions_per_checkpoint,
-            "final_exam_questions": rule.final_exam_questions,
-            "number_of_parts": 0,
-            "page_ranges": [],
-        }
+        row = (
+            dict(plan_item)
+            if plan_item
+            else {
+                "difficulty": rule.key,
+                "target_pages_per_part": rule.target_pages_per_part,
+                "questions_per_checkpoint": rule.questions_per_checkpoint,
+                "final_exam_questions": rule.final_exam_questions,
+                "number_of_parts": 0,
+                "page_ranges": [],
+            }
+        )
         status, reason = "not_configured", "Active Study is disabled."
         content = content_by_difficulty.get(rule.key)
         if not enabled:

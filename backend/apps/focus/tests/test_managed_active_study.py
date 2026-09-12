@@ -116,9 +116,10 @@ def test_availability_is_per_difficulty_and_pdf_rendering_is_not_a_readiness_inp
     # Browser PDF.js failures never reach this server-owned calculation.
     settings.refresh_from_db()
     unchanged = availability(user=user, sheet_id=sheet.id)
-    assert next(item for item in unchanged["difficulties"] if item["difficulty"] == "medium")[
-        "status"
-    ] == "ready"
+    assert (
+        next(item for item in unchanged["difficulties"] if item["difficulty"] == "medium")["status"]
+        == "ready"
+    )
 
 
 def test_checkpoint_passing_and_low_score_choices_preserve_attempt_history() -> None:

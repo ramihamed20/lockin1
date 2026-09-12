@@ -262,9 +262,7 @@ def entitlement_decision(
     if is_subscription_exempt(user):
         return EntitlementDecision(code=code, allowed=True, reason="founder_access")
     current = at or timezone.now()
-    grant = effective_grants_for_user(user=user, at=current).filter(
-        entitlement__code=code
-    ).first()
+    grant = effective_grants_for_user(user=user, at=current).filter(entitlement__code=code).first()
     if grant is None:
         return EntitlementDecision(code=code, allowed=False, reason="entitlement_required")
     return EntitlementDecision(

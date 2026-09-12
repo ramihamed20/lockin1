@@ -252,10 +252,13 @@ def test_an_authorized_approve_activates_through_the_canonical_service(
     payment.refresh_from_db()
     assert subscription.status == Subscription.Status.CANCELLED
     assert payment.status == Payment.Status.SUCCEEDED
-    assert entitlement_decision(
-        user=subscription.account.primary_user,
-        entitlement_code="content.premium",
-    ).allowed is False
+    assert (
+        entitlement_decision(
+            user=subscription.account.primary_user,
+            entitlement_code="content.premium",
+        ).allowed
+        is False
+    )
 
 
 def test_an_authorized_reject_rolls_the_subscription_back(silent_telegram: Any) -> None:
