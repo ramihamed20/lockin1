@@ -22,12 +22,13 @@ def readiness_payload(*, sheet: LearningObject) -> dict[str, object]:
     PDF.js rendering is deliberately not a readiness input. Active Study uses
     configured page metadata and approved question content, not browser state.
     """
-    settings = getattr(sheet, "active_study_settings", None)
-    configured = isinstance(settings, ActiveStudySettings)
-    enabled = bool(configured and settings.enabled)
-    total_pages = settings.total_pdf_pages if configured else None
-    excluded_start = settings.excluded_start_pages if configured else 0
-    excluded_end = settings.excluded_end_pages if configured else 0
+    settings: ActiveStudySettings | None = getattr(sheet, "active_study_settings", None)
+    if not isinstance(settings, ActiveStudySettings):
+        settings = None
+    enabled = settings.enabled if settings is not None else False
+    total_pages = settings.total_pdf_pages if settings is not None else None
+    excluded_start = settings.excluded_start_pages if settings is not None else 0
+    excluded_end = settings.excluded_end_pages if settings is not None else 0
     content_by_difficulty = {
         content.difficulty: content
         for content in ActiveStudyQuestionContent.objects.filter(sheet=sheet)
@@ -36,13 +37,10 @@ def readiness_payload(*, sheet: LearningObject) -> dict[str, object]:
     plan_error: str | None = None
     if total_pages is not None:
         try:
-            plan = cast(
-                dict[str, object],
-                plan_payload(
-                    total_pdf_pages=total_pages,
-                    excluded_start_pages=excluded_start,
-                    excluded_end_pages=excluded_end,
-                ),
+            plan = plan_payload(
+                total_pdf_pages=total_pages,
+                excluded_start_pages=excluded_start,
+                excluded_end_pages=excluded_end,
             )
         except ActiveStudyPlanError as error:
             plan_error = str(error)
