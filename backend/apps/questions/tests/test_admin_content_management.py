@@ -8,6 +8,7 @@ from rest_framework.test import APIClient
 from apps.accounts.tests.helpers import create_user
 from apps.content.admin_services import create_sheet
 from apps.content.models import LearningObjectAsset
+from apps.education.models import AcademicProgram, StudentCohort
 from apps.education.tests.helpers import create_admin, pdf_upload, published_path
 from apps.files.models import ManagedFile
 from apps.files.services import create_managed_file
@@ -94,7 +95,14 @@ def test_content_management_requires_operational_capabilities() -> None:
 def test_sheet_create_publish_notify_update_unpublish_and_safe_delete() -> None:
     admin = create_admin()
     student = create_user()
-    _, subject, _ = published_path(admin=admin)
+    institution, subject, _ = published_path(admin=admin)
+    # Students are only told about a sheet their Catalog can reach, so the
+    # subject has to belong to a cohort for this notification to be correct.
+    program = AcademicProgram.objects.create(code="skin-program", name_en="Skin", name_ar="Skin")
+    cohort = StudentCohort.objects.create(
+        program=program, code="year-1", name_en="Skin Year 1", name_ar="Skin Year 1"
+    )
+    cohort.content_nodes.set([institution])
     managed_file = create_managed_file(owner=admin, upload=pdf_upload(name="skin.pdf"), kind="pdf")
     client = APIClient()
     client.force_authenticate(admin)

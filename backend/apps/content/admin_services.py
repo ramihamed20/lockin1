@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from functools import partial
 from typing import cast
 from uuid import UUID
@@ -23,6 +24,7 @@ from .active_study_questions import (
     ActiveStudyQuestionValidationResult,
     validate_active_study_questions,
 )
+from .catalog_subjects import project_subject_node
 from .models import (
     ActiveStudyQuestionContent,
     ActiveStudySettings,
@@ -42,6 +44,8 @@ from .services import (
     revise_learning_object,
     submit_for_review,
 )
+
+logger = logging.getLogger("lockin.catalog")
 
 
 def has_publication_history(sheet: LearningObject) -> bool:
@@ -92,16 +96,25 @@ def _subject_for_node(node: EducationNode) -> EducationNode:
 
 
 def _catalog_subject_for_node(node: EducationNode) -> CatalogSubject | None:
-    """Find the sole Catalog branch that owns this legacy content location.
+    """Find the sole Catalog branch that owns this content location.
 
     EducationNode remains an implementation detail while existing versioned
     content is being retired from it.  No Catalog action resolves a subject by
     title or by a shared slug: the one-to-one mapping makes each cohort branch
     explicit.
+
+    A subject whose cohort owns it but which has no branch yet is projected here
+    rather than treated as absent.  Publishing used to be the point where that
+    gap turned into a sheet nobody could open, because the branch had only ever
+    been written by a migration that ran once.
     """
 
     subject = _subject_for_node(node)
-    return CatalogSubject.objects.filter(source_node_id=subject.id, is_active=True).first()
+    existing = CatalogSubject.objects.filter(source_node_id=subject.id, is_active=True).first()
+    if existing is not None:
+        return existing
+    projected, _ = project_subject_node(subject)
+    return projected if projected is not None and projected.is_active else None
 
 
 def _catalog_sheet_slug(*, material_slug: str, title: str, excluding_id: UUID | None = None) -> str:
@@ -118,18 +131,27 @@ def _catalog_sheet_slug(*, material_slug: str, title: str, excluding_id: UUID | 
     return candidate
 
 
-def _sync_catalog_document(sheet: LearningObject) -> None:
-    """Publish the current protected PDF at its exact Catalog address."""
+def _sync_catalog_document(sheet: LearningObject) -> bool:
+    """Publish the current protected PDF at its exact Catalog address.
+
+    Returns whether the sheet is now reachable from a student's Catalog. Content
+    outside every cohort's content root stays publishable -- that is a
+    deliberate capability -- but it reaches no student, and saying so is the
+    point: this used to return in silence while the caller went on to announce a
+    "New sheet available" that nobody could open.
+    """
 
     version = sheet.published_version
     if version is None:
         CatalogDocument.objects.filter(version__learning_object_id=sheet.id).update(is_active=False)
-        return
+        return False
     catalog_subject = _catalog_subject_for_node(version.academic_node)
     if catalog_subject is None:
-        # Legacy content outside a Catalog branch is intentionally not exposed
-        # from the Catalog.
-        return
+        logger.warning(
+            "Published sheet has no Catalog branch and stays invisible to students",
+            extra={"sheet_id": str(sheet.id), "academic_node": str(version.academic_node_id)},
+        )
+        return False
     asset = (
         version.assets.filter(role=LearningObjectAsset.Role.PRIMARY)
         .select_related("managed_file")
@@ -137,7 +159,7 @@ def _sync_catalog_document(sheet: LearningObject) -> None:
     )
     if asset is None:
         CatalogDocument.objects.filter(version__learning_object_id=sheet.id).update(is_active=False)
-        return
+        return False
     document = CatalogDocument.objects.filter(version__learning_object_id=sheet.id).first()
     if document is None:
         CatalogDocument.objects.create(
@@ -150,11 +172,28 @@ def _sync_catalog_document(sheet: LearningObject) -> None:
             managed_file=asset.managed_file,
             is_active=True,
         )
-        return
+        return True
     document.version = version
     document.managed_file = asset.managed_file
     document.is_active = True
     document.save(update_fields=("version", "managed_file", "is_active", "updated_at"))
+    return True
+
+
+def is_student_visible(sheet: LearningObject) -> bool:
+    """Whether a student's Catalog can actually reach this sheet.
+
+    Content Studio lists sheets straight from ``LearningObject``, so a published
+    sheet has always looked live there whether or not a Catalog branch carries
+    it. This is that difference, surfaced in the interface instead of being
+    discovered by a student who cannot find the sheet.
+    """
+
+    if sheet.published_version_id is None or sheet.archived_at is not None:
+        return False
+    return CatalogDocument.objects.filter(
+        version_id=sheet.published_version_id, is_active=True
+    ).exists()
 
 
 def _notify_students(*, actor: User, sheet: LearningObject) -> int:
@@ -233,8 +272,9 @@ def create_sheet(
     )
     if publish:
         sheet = _publish_current(actor=actor, sheet=sheet)
-        _sync_catalog_document(sheet)
-        if notify_students:
+        visible = _sync_catalog_document(sheet)
+        # Announcing a sheet no student can open is worse than not announcing it.
+        if notify_students and visible:
             _notify_students(actor=actor, sheet=sheet)
     _audit(actor=actor, action="content.sheet_created", sheet=sheet)
     return sheet
@@ -329,8 +369,8 @@ def replace_pdf(
     )
     if was_published:
         sheet = _publish_current(actor=actor, sheet=sheet)
-        _sync_catalog_document(sheet)
-        if notify_students:
+        visible = _sync_catalog_document(sheet)
+        if notify_students and visible:
             _notify_students(actor=actor, sheet=sheet)
     _audit(actor=actor, action="content.pdf_replaced", sheet=sheet)
     return sheet
@@ -417,8 +457,8 @@ def change_sheet_status(
         raise ContentConflictError("This content changed. Reload it and try again.")
     if action == "publish":
         sheet = _publish_current(actor=actor, sheet=sheet)
-        _sync_catalog_document(sheet)
-        if notify_students:
+        visible = _sync_catalog_document(sheet)
+        if notify_students and visible:
             _notify_students(actor=actor, sheet=sheet)
         audit_action = "content.sheet_published"
     elif action == "unpublish":

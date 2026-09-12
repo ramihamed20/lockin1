@@ -62,8 +62,12 @@ async function mockStudent(page) {
   });
 }
 
+// Set here rather than with `test.setTimeout` inside the body, so it also covers
+// fixture setup -- on a retry, where tracing is on, that is where the previous
+// version of this spec ran out of the 30s default.
+test.describe.configure({ timeout: 90_000 });
+
 test("opening and scrolling a document stays inside the edge request allowance", async ({ page }) => {
-  test.setTimeout(90_000);
   await mockStudent(page);
 
   /** @type {{ at: number, range: string | undefined }[]} */
@@ -76,20 +80,14 @@ test("opening and scrolling a document stays inside the edge request allowance",
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(ROUTE);
 
-  // The document is served from the same machine, so on a fast runner the whole
-  // file can finish streaming before the reader needs a later page -- and then
-  // pdf.js has no reason to ask for a range, and this measured the runner, not
-  // the reader. A mobile-class link, applied only once the app has loaded,
-  // makes the ranged reads depend on the reader again. Chromium-only, as is
-  // this spec.
-  const network = await page.context().newCDPSession(page);
-  await network.send("Network.enable");
-  await network.send("Network.emulateNetworkConditions", {
-    offline: false,
-    latency: 40,
-    downloadThroughput: 400 * 1024,
-    uploadThroughput: 200 * 1024
-  });
+  // The document is served from the same machine, so a full body that arrives in
+  // one quick burst leaves pdf.js no reason to ask for a range, and this would
+  // measure the runner rather than the reader. `scripts/serve-dist.mjs` paces
+  // the full body of this one fixture (and only this one) so the reader's demand
+  // stays ahead of the stream on any runner; ranged reads are served at full
+  // speed. Page-wide CDP throttling used to do this, but it throttled the 1.3 MB
+  // pdf.js worker chunk too, so on a slow runner the worker booted after the
+  // whole document had already landed and no range was ever needed.
 
   await page.getByRole("button", { name: /Normal Study/ }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
@@ -109,13 +107,14 @@ test("opening and scrolling a document stays inside the edge request allowance",
   const total = documentRequests.length;
   const ranged = documentRequests.filter((entry) => typeof entry.range === "string");
 
-  // What this measured, against the current pinned PDF.js and a 2.1 MB document
-  // on the 400 KB/s link above: opening it took 25-26 requests, nearly all of
-  // them ranged, and scrolling twelve screens added one or two more. That is
-  // the slow reader the edge allowance has to serve, and it stays under
-  // `burst=60`. Unthrottled on the same machine the file streamed in two
-  // requests with a single range probe -- and on a faster runner none, which
-  // is why the link is throttled.
+  // What this measures, against the current pinned PDF.js and the 2.1 MB paced
+  // fixture: opening it takes on the order of 25-35 requests, nearly all of them
+  // ranged, and scrolling twelve screens adds one or two more. The document is
+  // 33 chunks at pdf.js's 64 KB range size, which is the ceiling on how many
+  // ranged reads a single full pass can need, so this stays well under
+  // `burst=60`. Served unpaced on the same machine the file streamed in two
+  // requests with a single range probe -- and on a faster runner none, which is
+  // why the fixture is paced.
   //
   // The assertions are lower bounds on "ranges are really in use" and upper
   // bounds on "still inside what the edge allows". They would fail if a future

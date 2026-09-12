@@ -59,6 +59,18 @@ server {
         expires 1h;
     }
 
+    # pdf.js loads its Vite-emitted worker as an ES module. nginx's bundled
+    # mime.types has no .mjs entry, so without this the worker is served as
+    # application/octet-stream and the reader refuses to start it. Matched
+    # separately so the normal MIME map still applies to every other hashed
+    # asset in this directory. Kept in step with frontend/nginx/default.conf.
+    location ~ ^/assets/.*\.mjs$ {
+        default_type application/javascript;
+        access_log off;
+        expires max;
+        try_files $uri =404;
+    }
+
     location /assets/ {
         access_log off;
         expires max;

@@ -7,7 +7,9 @@ from django.core.management import BaseCommand, CommandError, call_command
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 
+from apps.content.catalog_subjects import cohorts_without_branches
 from apps.files.models import ManagedFile
+from apps.payments.models import TelegramPaymentOperator
 from platform_core.production.database import (
     DatabaseReleaseError,
     collect_database_evidence,
@@ -60,6 +62,30 @@ class Command(BaseCommand):
         if not static_root.is_dir() or not any(static_root.iterdir()):
             raise CommandError("Collected static assets are missing.")
 
+        # Two configuration gaps that a green deploy used to hide. Neither can
+        # fail a release -- a deployment may legitimately run without Telegram,
+        # and a cohort may be configured after launch -- but both produce a
+        # feature that looks healthy and serves nobody, so the release states
+        # them rather than leaving them to be discovered in production.
+        telegram_operators = 0
+        if str(getattr(settings, "TELEGRAM_WEBHOOK_SECRET_TOKEN", "")).strip():
+            telegram_operators = TelegramPaymentOperator.objects.filter(is_active=True).count()
+            if not telegram_operators:
+                self.stderr.write(
+                    "WARNING: the Telegram payment webhook is configured but no operator is "
+                    "linked. Every Approve/Reject button will be refused. Link one with "
+                    "`manage.py telegram_operator --link <id> --user <email>`."
+                )
+        empty_cohorts = [
+            f"{cohort.program.code}/{cohort.code}" for cohort in cohorts_without_branches()
+        ]
+        if empty_cohorts:
+            self.stderr.write(
+                "WARNING: these active cohorts expose no Catalog subjects, so their students "
+                f"see an empty Materials page: {', '.join(empty_cohorts)}. Attach a content "
+                "root and run `manage.py sync_catalog_subjects`."
+            )
+
         evidence = {
             "status": "ready",
             "environment": settings.ENVIRONMENT,
@@ -68,5 +94,7 @@ class Command(BaseCommand):
             "clean_scan_enforced": clean_scan_enforced,
             "unsafe_published_files": unsafe_files,
             "static_assets": "present",
+            "telegram_payment_operators": telegram_operators,
+            "cohorts_without_catalog_subjects": empty_cohorts,
         }
         self.stdout.write(json.dumps(evidence, sort_keys=True))

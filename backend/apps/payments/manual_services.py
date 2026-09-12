@@ -386,8 +386,14 @@ def review_manual_recharge(
     reason: str,
     idempotency_key: str,
     send_notification: bool = True,
+    source: str = "admin_control.api",
 ) -> tuple[ManualRechargeSubmission, bool]:
     """Approve or reject a manual payment. The only path that may do so.
+
+    ``source`` names the channel on the audit record. Both callers run exactly
+    this function, so the channel is the only thing that differs between a
+    console review and a Telegram button, and it is the one thing the audit
+    trail could not previously show.
 
     ``send_notification`` suppresses only the outgoing Telegram message, never
     the in-app notification, the invoice, the audit record or any state change.
@@ -550,7 +556,7 @@ def review_manual_recharge(
         target_type="payments.manual_recharge_submission",
         target_id=str(submission.id),
         reason=reason,
-        source="admin_control.api",
+        source=source,
         previous_state={
             "status": ManualRechargeSubmission.Status.PENDING,
             "payment_status": from_payment_status,

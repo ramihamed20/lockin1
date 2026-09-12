@@ -124,6 +124,46 @@ class CatalogDocumentResolveView(APIView):
         )
 
 
+def _published_documents_by_subject(
+    subjects: list[CatalogSubject],
+) -> dict[UUID, list[CatalogDocument]]:
+    """Fetch every branch's published sheets in one query, grouped by subject.
+
+    This used to be one query per subject inside the response loop. A founder is
+    not cohort-scoped and so receives every branch in the deployment, which made
+    the directory's cost grow with the curriculum -- and this endpoint is
+    re-fetched on each step from Materials to a sheet.
+
+    The pairing is on both ``material_slug`` and the subject's source node, which
+    is what the per-subject query compared, so a document filed under a route key
+    that no longer belongs to its node is still excluded rather than attributed
+    to the wrong branch.
+    """
+
+    if not subjects:
+        return {}
+    by_key = {(subject.material_slug, subject.source_node_id): subject.id for subject in subjects}
+    documents = (
+        CatalogDocument.objects.filter(
+            material_slug__in={subject.material_slug for subject in subjects},
+            is_active=True,
+            version__academic_node_id__in={
+                subject.source_node_id for subject in subjects if subject.source_node_id
+            },
+            version__learning_object__published_version_id=models.F("version_id"),
+            version__learning_object__archived_at__isnull=True,
+        )
+        .select_related("version__learning_object__active_study_settings")
+        .order_by("version__learning_object__position", "sheet_slug", "id")
+    )
+    grouped: dict[UUID, list[CatalogDocument]] = {subject.id: [] for subject in subjects}
+    for document in documents:
+        subject_id = by_key.get((document.material_slug, document.version.academic_node_id))
+        if subject_id is not None:
+            grouped[subject_id].append(document)
+    return grouped
+
+
 class CatalogMaterialListView(APIView):
     """The one student-facing Materials directory.
 
@@ -140,26 +180,23 @@ class CatalogMaterialListView(APIView):
             if cohort is None or not cohort.is_active:
                 return Response({"count": 0, "results": []})
             subjects = subjects.filter(cohort_id=cohort.id)
-        subjects = subjects.order_by(
-            "cohort__program__position", "cohort__position", "position", "title", "id"
-        )
-        results = []
-        for subject in subjects:
-            documents = (
-                CatalogDocument.objects.filter(
-                    material_slug=subject.material_slug,
-                    is_active=True,
-                    version__academic_node_id=subject.source_node_id,
-                    version__learning_object__published_version_id=models.F("version_id"),
-                    version__learning_object__archived_at__isnull=True,
-                )
-                .select_related("version__learning_object__active_study_settings")
-                .order_by("version__learning_object__position", "sheet_slug", "id")
+        branches = list(
+            subjects.order_by(
+                "cohort__program__position", "cohort__position", "position", "title", "id"
             )
+        )
+        documents_by_subject = _published_documents_by_subject(branches)
+        results = []
+        for subject in branches:
+            documents = documents_by_subject.get(subject.id, [])
             # Third Year is intentionally unavailable until its curriculum is
             # configured.  Keep any real legacy material visible for review;
             # only suppress an empty placeholder branch.
-            if subject.cohort.code == "year-3" and not documents.exists():
+            #
+            # Every other branch is returned whether or not it holds a sheet. A
+            # subject exists because the student's cohort owns it, never because
+            # something has been published into it.
+            if subject.cohort.code == "year-3" and not documents:
                 continue
             sheets = []
             for number, document in enumerate(documents, start=1):
