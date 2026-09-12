@@ -23,6 +23,16 @@ class PriceSerializer(serializers.ModelSerializer[Price]):
 
 class PlanVersionSerializer(serializers.ModelSerializer[PlanVersion]):
     prices = PriceSerializer(many=True, read_only=True)
+    availability = serializers.SerializerMethodField()
+    scope = serializers.SerializerMethodField()
+
+    def get_availability(self, version: PlanVersion) -> str:
+        value = version.terms.get("availability", "available")
+        return value if value in {"available", "coming_soon"} else "available"
+
+    def get_scope(self, version: PlanVersion) -> dict[str, object]:
+        value = version.terms.get("scope", {})
+        return value if isinstance(value, dict) else {}
 
     class Meta:
         model = PlanVersion
@@ -34,6 +44,8 @@ class PlanVersionSerializer(serializers.ModelSerializer[PlanVersion]):
             "audience",
             "trial_days",
             "grace_days",
+            "availability",
+            "scope",
             "prices",
         )
 

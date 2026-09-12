@@ -3,7 +3,6 @@ from datetime import datetime
 from uuid import UUID
 
 from django.db import transaction
-from django.db.models import Q
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
 
@@ -19,6 +18,7 @@ from .models import (
     EntitlementGrantAudit,
     PlanEntitlementRule,
 )
+from .selectors import effective_grants_for_user
 from .validation import validate_entitlement_code
 
 
@@ -262,19 +262,9 @@ def entitlement_decision(
     if is_subscription_exempt(user):
         return EntitlementDecision(code=code, allowed=True, reason="founder_access")
     current = at or timezone.now()
-    grant = (
-        EntitlementGrant.objects.filter(
-            user=user,
-            entitlement__code=code,
-            entitlement__is_active=True,
-            status=EntitlementGrant.Status.ACTIVE,
-            starts_at__lte=current,
-        )
-        .filter(Q(ends_at__isnull=True) | Q(ends_at__gt=current))
-        .select_related("entitlement")
-        .order_by("ends_at")
-        .first()
-    )
+    grant = effective_grants_for_user(user=user, at=current).filter(
+        entitlement__code=code
+    ).first()
     if grant is None:
         return EntitlementDecision(code=code, allowed=False, reason="entitlement_required")
     return EntitlementDecision(

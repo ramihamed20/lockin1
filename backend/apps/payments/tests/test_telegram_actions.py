@@ -20,7 +20,10 @@ from rest_framework.test import APIClient
 
 from apps.accounts.roles import Role
 from apps.accounts.tests.helpers import create_user
+from apps.admin_control.selectors import operational_analytics
+from apps.admin_control.services import manage_subscription
 from apps.audit.models import AuditRecord
+from apps.entitlements.services import entitlement_decision
 from apps.payments.models import (
     ManualRechargeSubmission,
     Payment,
@@ -204,6 +207,8 @@ def test_an_authorized_approve_activates_through_the_canonical_service(
     payment = _pending_payment()
     operator = _operator()
     silent_telegram.reset_mock()
+    today = timezone.now().date()
+    gross_before = operational_analytics(start=today, end=today)["revenue"]["gross_minor"]
 
     response = _post(_update(payment=payment, action="approve"))
 
@@ -220,6 +225,10 @@ def test_an_authorized_approve_activates_through_the_canonical_service(
     assert AuditRecord.objects.filter(
         action="payment_approved", actor=operator.user, target_id=str(submission.id)
     ).exists()
+    assert (
+        operational_analytics(start=today, end=today)["revenue"]["gross_minor"]
+        == gross_before + payment.amount_minor
+    )
 
     methods = [call.args[0] for call in silent_telegram.call_args_list]
     assert "answerCallbackQuery" in methods
@@ -231,6 +240,22 @@ def test_an_authorized_approve_activates_through_the_canonical_service(
     )
     assert "✅ Approved" in edit.args[1]["text"]
     assert edit.args[1]["reply_markup"] == {"inline_keyboard": []}
+    manage_subscription(
+        subscription_id=subscription.id,
+        action="cancel_now",
+        actor=operator.user,
+        reason="Cancel Telegram-approved subscription immediately from website.",
+        idempotency_key="telegram-approved-website-cancel-001",
+        source="test",
+    )
+    subscription.refresh_from_db()
+    payment.refresh_from_db()
+    assert subscription.status == Subscription.Status.CANCELLED
+    assert payment.status == Payment.Status.SUCCEEDED
+    assert entitlement_decision(
+        user=subscription.account.primary_user,
+        entitlement_code="content.premium",
+    ).allowed is False
 
 
 def test_an_authorized_reject_rolls_the_subscription_back(silent_telegram: Any) -> None:

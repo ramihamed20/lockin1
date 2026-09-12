@@ -1,5 +1,6 @@
 const CACHE_PREFIX = "lock-in.subscription-session.";
-const CACHE_VERSION = 1;
+const CACHE_VERSION = 2;
+const ACCESS_RECHECK_MS = 30_000;
 
 const DIRECT_STUDY_ENTITLEMENTS = new Set([
   "focus.workspace",
@@ -70,6 +71,8 @@ export function isSubscriptionSnapshotFresh(snapshot, userId, now = Date.now()) 
   }
   if (hasDirectStudyAccess(snapshot.entitlements) || hasSubscriptionExemption(snapshot.subscription)) return true;
   if (!hasTimedSubscriptionAccess(snapshot.subscription)) return true;
+  const storedAt = Date.parse(snapshot.storedAt || "");
+  if (!Number.isFinite(storedAt) || now - storedAt >= ACCESS_RECHECK_MS) return false;
   const refreshAt = subscriptionRefreshAt(snapshot);
   return refreshAt !== null && now < refreshAt;
 }

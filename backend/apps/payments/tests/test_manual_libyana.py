@@ -8,10 +8,14 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.tests.helpers import create_user
+from apps.admin_control.selectors import operational_analytics
+from apps.admin_control.services import manage_subscription
 from apps.audit.models import AuditRecord
+from apps.entitlements.services import entitlement_decision
 from apps.notifications.models import Notification
 from apps.payments.models import ManualRechargeSubmission, Payment
 from apps.product_catalog.models import Plan, Price
+from apps.refunds.models import Refund
 from apps.subscriptions.models import Subscription
 from apps.subscriptions.services import create_trial_for_user, refresh_subscription
 
@@ -276,6 +280,10 @@ def test_only_admin_can_review_and_approval_is_idempotent() -> None:
     )
     payment_id = submitted.json()["payment"]["id"]
     expected_end = Subscription.objects.get(id=subscription.id).current_period_ends_at
+    today = timezone.now().date()
+    revenue_before = operational_analytics(start=today, end=today)["revenue"]
+    gross_before = revenue_before["gross_minor"]
+    refunds_before = revenue_before["refund_total_minor"]
 
     denied = client.post(
         f"/api/v1/operations/admin/purchases/{payment_id}/manual-review",
@@ -321,6 +329,46 @@ def test_only_admin_can_review_and_approval_is_idempotent() -> None:
     reviewed_detail = admin_client.get(f"/api/v1/operations/admin/purchases/{payment_id}")
     assert reviewed_detail.json()["manual_submission"]["recharge_code"] == "********0123"
     assert AuditRecord.objects.filter(action="payment_approved").count() == 1
+    payment = Payment.objects.get(id=payment_id)
+    revenue = operational_analytics(start=today, end=today)["revenue"]
+    assert revenue["gross_minor"] == gross_before + payment.amount_minor
+    assert revenue["paying_users"] == 1
+    manage_subscription(
+        subscription_id=subscription.id,
+        action="cancel_now",
+        actor=admin,
+        reason="Cancel approved website payment subscription immediately.",
+        idempotency_key="website-approved-cancel-001",
+        source="test",
+    )
+    subscription.refresh_from_db()
+    payment.refresh_from_db()
+    assert subscription.status == Subscription.Status.CANCELLED
+    assert payment.status == Payment.Status.SUCCEEDED
+    assert ManualRechargeSubmission.objects.get(payment=payment).status == "approved"
+    assert entitlement_decision(user=user, entitlement_code="content.premium").allowed is False
+    refunded_at = timezone.now()
+    payment.status = Payment.Status.REFUNDED
+    payment.refunded_amount_minor = payment.amount_minor
+    payment.save(update_fields=("status", "refunded_amount_minor", "updated_at"))
+    Refund.objects.create(
+        payment=payment,
+        requested_by=admin,
+        amount_minor=payment.amount_minor,
+        currency=payment.currency,
+        currency_exponent=payment.currency_exponent,
+        status=Refund.Status.SUCCEEDED,
+        reason="Accounting reporting regression coverage.",
+        idempotency_key="manual-approved-refund-001",
+        requested_at=refunded_at,
+        succeeded_at=refunded_at,
+    )
+    refunded_revenue = operational_analytics(start=today, end=today)["revenue"]
+    assert refunded_revenue["gross_minor"] == gross_before + payment.amount_minor
+    assert refunded_revenue["refund_total_minor"] == refunds_before + payment.amount_minor
+    assert refunded_revenue["net_minor"] == (
+        refunded_revenue["gross_minor"] - refunded_revenue["refund_total_minor"]
+    )
 
 
 def test_rejection_revokes_only_provisional_access_and_keeps_account_data() -> None:
@@ -355,6 +403,8 @@ def test_rejection_revokes_only_provisional_access_and_keeps_account_data() -> N
     )
     admin_client = APIClient()
     admin_client.force_authenticate(admin)
+    today = timezone.now().date()
+    gross_before = operational_analytics(start=today, end=today)["revenue"]["gross_minor"]
     rejected = admin_client.post(
         f"/api/v1/operations/admin/purchases/{payment_id}/manual-review",
         {"decision": "reject", "reason": "Recharge code invalid"},
@@ -370,6 +420,10 @@ def test_rejection_revokes_only_provisional_access_and_keeps_account_data() -> N
     assert user.full_name == "Saved Study Owner"
     assert user.__class__.objects.filter(id=user.id).exists()
     assert AuditRecord.objects.filter(action="payment_rejected").exists()
+    assert (
+        operational_analytics(start=today, end=today)["revenue"]["gross_minor"]
+        == gross_before
+    )
 
 
 def test_grace_renewal_remains_anchored_to_original_expiration() -> None:

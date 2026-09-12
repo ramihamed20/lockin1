@@ -28,7 +28,9 @@ test("subscription access is centralized and expired accounts retain safe routes
   assert.doesNotMatch(guard, /location\.pathname, user/);
   assert.match(provider, /subscriptionRefreshAt/);
   assert.match(provider, /window\.setTimeout\(schedule/);
-  assert.doesNotMatch(provider, /setInterval|visibilitychange|addEventListener\("focus"/);
+  assert.match(provider, /setInterval/);
+  assert.match(provider, /visibilitychange/);
+  assert.match(provider, /addEventListener\("focus"/);
   assert.match(guard, /<ExpiredAccess \/>/);
   assert.match(expired, /Navigate replace to="\/subscription"/);
   assert.match(app, /SubscriptionSessionProvider/);
@@ -49,6 +51,9 @@ test("subscription UI preserves LTR recharge entry inside Arabic RTL and uses se
   assert.match(page, /setAuthoritativeSubscription\(result\.subscription\)/);
   assert.doesNotMatch(page, /billingApi\.currentSubscription/);
   assert.match(page, /subscription\.directAccess/);
+  assert.match(page, /comingSoonOffers/);
+  assert.match(page, /version\?\.availability === "coming_soon"/);
+  assert.match(page, /disabled aria-disabled="true"/);
   assert.match(status, /payment_verification === "provisional"/);
   assert.doesNotMatch(page, />pending_review</);
 });
@@ -59,6 +64,10 @@ test("Creator Studio exposes manual review and immutable plan-version controls",
 
   assert.match(adminPage, /ManualPaymentReviewPanel/);
   assert.match(adminPage, /PlanPriceEditor/);
+  assert.match(adminPage, /Cancel immediately/);
+  assert.match(adminPage, /remove the student’s paid access immediately/);
+  assert.match(adminPage, /Payment approved and revenue totals refreshed/);
+  assert.match(adminPage, /summary\.reload\(\)/);
   assert.match(adminApi, /manual-review/);
   assert.match(adminApi, /createPlanVersion/);
 });

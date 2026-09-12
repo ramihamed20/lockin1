@@ -23,15 +23,17 @@ test("an authoritative paid subscription remains fresh locally until expires_at"
   const now = Date.parse("2026-09-01T00:00:00Z");
   const expiresAt = "2026-10-01T00:00:00Z";
   const snapshot = {
-    version: 1,
+    version: 2,
     userId: "user-1",
     subscription: { status: "active", access_allowed: true, expires_at: expiresAt },
-    entitlements: []
+    entitlements: [],
+    storedAt: new Date(now).toISOString()
   };
 
   assert.equal(subscriptionRefreshAt(snapshot), Date.parse(expiresAt));
   assert.equal(isSubscriptionSnapshotFresh(snapshot, "user-1", now), true);
-  assert.equal(isSubscriptionSnapshotFresh(snapshot, "user-1", Date.parse(expiresAt) - 1), true);
+  assert.equal(isSubscriptionSnapshotFresh(snapshot, "user-1", now + 29_999), true);
+  assert.equal(isSubscriptionSnapshotFresh(snapshot, "user-1", now + 30_000), false);
   assert.equal(isSubscriptionSnapshotFresh(snapshot, "user-1", Date.parse(expiresAt)), false);
   assert.equal(isSubscriptionSnapshotFresh({
     ...snapshot,
@@ -48,15 +50,15 @@ test("the session cache is scoped to the authenticated user and survives screen 
   };
 
   writeSubscriptionSnapshot("user-1", subscription, []);
-  assert.deepEqual(readSubscriptionSnapshot("user-1", Date.parse("2026-09-15T00:00:00Z"))?.subscription, subscription);
-  assert.equal(readSubscriptionSnapshot("user-2", Date.parse("2026-09-15T00:00:00Z")), null);
+  assert.deepEqual(readSubscriptionSnapshot("user-1", Date.now() + 1_000)?.subscription, subscription);
+  assert.equal(readSubscriptionSnapshot("user-2", Date.now() + 1_000), null);
   assert.equal(readSubscriptionSnapshot("user-1", Date.parse("2026-10-01T00:00:00Z")), null);
   delete globalThis.window;
 });
 
 test("terminal states and direct manual access do not create recurring checks", () => {
-  const expired = { version: 1, userId: "user-1", subscription: { status: "expired", access_allowed: false }, entitlements: [] };
-  const direct = { version: 1, userId: "user-1", subscription: null, entitlements: [{ source_type: "manual", code: "content.premium" }] };
+  const expired = { version: 2, userId: "user-1", subscription: { status: "expired", access_allowed: false }, entitlements: [] };
+  const direct = { version: 2, userId: "user-1", subscription: null, entitlements: [{ source_type: "manual", code: "content.premium" }] };
 
   assert.equal(subscriptionRefreshAt(expired), null);
   assert.equal(isSubscriptionSnapshotFresh(expired, "user-1"), true);
@@ -66,7 +68,7 @@ test("terminal states and direct manual access do not create recurring checks", 
 
 test("Founder access is exempt from expiry checks without a paid entitlement", () => {
   const founder = {
-    version: 1,
+    version: 2,
     userId: "founder-1",
     subscription: { status: "founder", access_allowed: true, access_exempt: true },
     entitlements: []

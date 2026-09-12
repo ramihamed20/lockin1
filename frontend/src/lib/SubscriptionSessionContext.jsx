@@ -87,6 +87,21 @@ export function SubscriptionSessionProvider({ user, children }) {
     };
   }, [refresh, state]);
 
+  useEffect(() => {
+    if (!state.ready || !state.subscription?.access_allowed) return undefined;
+    const refreshIfVisible = () => {
+      if (document.visibilityState !== "hidden") void refresh({ blocking: false });
+    };
+    const timer = window.setInterval(refreshIfVisible, 30_000);
+    window.addEventListener("focus", refreshIfVisible);
+    document.addEventListener("visibilitychange", refreshIfVisible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshIfVisible);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
+    };
+  }, [refresh, state.ready, state.subscription?.access_allowed]);
+
   const value = useMemo(() => ({
     ...state,
     directAccess: hasDirectStudyAccess(state.entitlements),
