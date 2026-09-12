@@ -25,6 +25,7 @@ export function SubscriptionSessionProvider({ user, children }) {
   const userId = String(user?.id || "");
   const [state, setState] = useState(() => initialState(userId));
   const requestRef = useRef(0);
+  const revalidatedRef = useRef(false);
   const directAccess = hasDirectStudyAccess(state.entitlements);
   const accessExempt = hasSubscriptionExemption(state.subscription);
 
@@ -44,6 +45,7 @@ export function SubscriptionSessionProvider({ user, children }) {
 
   const refresh = useCallback(async ({ blocking = true } = {}) => {
     if (!userId) return null;
+    revalidatedRef.current = true;
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
     if (blocking) setState((current) => ({ ...current, ready: false, error: "" }));
@@ -68,6 +70,17 @@ export function SubscriptionSessionProvider({ user, children }) {
     if (state.ready || state.error || !userId) return;
     void refresh();
   }, [refresh, state.error, state.ready, userId]);
+
+  // A cached snapshot renders the screen immediately; it does not get to decide
+  // anything. Reloading the page used to show the reader whatever was true when
+  // the tab was last open, for as long as that cache stayed fresh — so someone
+  // whose payment had just been approved reloaded, and was told again that a
+  // payment was already under review. Ask the server once on mount, without
+  // blocking, and let the answer replace the cache as soon as it lands.
+  useEffect(() => {
+    if (!userId || revalidatedRef.current) return;
+    void refresh({ blocking: false });
+  }, [refresh, userId]);
 
   useEffect(() => {
     if (!state.ready) return undefined;

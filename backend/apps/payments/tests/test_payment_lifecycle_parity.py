@@ -464,7 +464,9 @@ def test_a_rejection_does_not_undo_an_administrator_who_moved_on() -> None:
 
     user, client = _reader("reject-after-admin@example.com")
     plan, _ = _monthly_plan()
-    payment_id = _submit(client, plan, "1234567890123", "reject-admin-00001").json()["payment"]["id"]
+    payment_id = _submit(client, plan, "1234567890123", "reject-admin-00001").json()["payment"][
+        "id"
+    ]
     subscription = Subscription.objects.get(account__primary_user=user)
 
     # An administrator grants a longer period while the card is queued.

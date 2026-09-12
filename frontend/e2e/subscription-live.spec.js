@@ -18,8 +18,21 @@ async function login(page, email, password, locale = "en") {
   await page.goto("/#/");
   const emailLabel = locale === "ar" ? "البريد الإلكتروني" : "Email";
   const passwordLabel = locale === "ar" ? "كلمة المرور" : "Password";
-  await page.getByLabel(emailLabel, { exact: true }).fill(email);
-  await page.getByLabel(passwordLabel, { exact: true }).fill(password);
+  const emailField = page.getByLabel(emailLabel, { exact: true });
+  const passwordField = page.getByLabel(passwordLabel, { exact: true });
+  // The sign-in form becomes actionable a little before the application has
+  // finished settling around it, and a value written inside that window is
+  // discarded by the render that follows -- measured at roughly the first
+  // 100-300ms after navigation, on this build and on the one before this
+  // branch. A person cannot click and type that fast; Playwright can, and did,
+  // which made this whole serial file fail at its first login with an empty
+  // form. Write the credentials and keep writing them until they stay.
+  await expect(async () => {
+    await emailField.fill(email);
+    await passwordField.fill(password);
+    await expect(emailField).toHaveValue(email, { timeout: 1_000 });
+    await expect(passwordField).toHaveValue(password, { timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
   const loginResponse = page.waitForResponse((response) => (
     response.url().includes("/auth/login") && response.request().method() === "POST"
   ));
@@ -137,6 +150,105 @@ test("trial welcome and provisional Libyana payment work on production viewports
   await page.screenshot({ path: `${SCREENSHOT_DIR}/payment-pending-phone.png`, fullPage: true });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.screenshot({ path: `${SCREENSHOT_DIR}/payment-pending-desktop.png`, fullPage: true });
+});
+
+/** POST through the browser's own session, so the server sees a real reviewer. */
+async function postAsSession(page, path, body) {
+  return page.evaluate(async ({ path: target, body: payload }) => {
+    const csrf = await fetch("/api/v1/auth/csrf", { credentials: "same-origin" })
+      .then((response) => response.json())
+      .then((data) => data.csrf_token);
+    const response = await fetch(`/api/v1${target}`, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": csrf,
+        "Idempotency-Key": `live-qa-${Math.random().toString(36).slice(2)}${Date.now()}`
+      },
+      body: JSON.stringify(payload)
+    });
+    return { status: response.status, body: await response.json().catch(() => null) };
+  }, { path, body });
+}
+
+async function accessSnapshot(page) {
+  return page.evaluate(async () => {
+    const [subscription, entitlements] = await Promise.all([
+      fetch("/api/v1/subscriptions/current", { credentials: "same-origin" }).then((r) => r.json()),
+      fetch("/api/v1/entitlements/me", { credentials: "same-origin" }).then((r) => r.json())
+    ]);
+    return { subscription: subscription.subscription, entitlements: entitlements.results };
+  });
+}
+
+test("a repeated approval grants nothing twice and entitlements match the settled state", async ({ browser }) => {
+  test.setTimeout(90_000);
+  // qa.trial submitted a card in the previous test and is still awaiting review.
+  const studentContext = await browser.newContext();
+  const studentPage = await studentContext.newPage();
+  await login(studentPage, "qa.trial@lockin.local", "StudyQA123!");
+  await studentPage.goto("/#/subscription");
+  const before = await accessSnapshot(studentPage);
+  expect(before.subscription.manual_payment_review.status).toBe("pending");
+  const paymentId = before.subscription.manual_payment_review.payment_id;
+
+  const adminContext = await browser.newContext();
+  const adminPage = await adminContext.newPage();
+  await loginAdmin(adminPage);
+  await adminPage.goto("/#/operations/admin/purchases");
+
+  const first = await postAsSession(adminPage, `/operations/admin/purchases/${paymentId}/manual-review`, {
+    decision: "approve",
+    reason: "Live QA approval, first decision"
+  });
+  expect(first.status).toBe(200);
+  const afterFirst = await accessSnapshot(studentPage);
+
+  // The same decision again, with a different idempotency key, through the same
+  // endpoint an administrator's second click would reach.
+  const second = await postAsSession(adminPage, `/operations/admin/purchases/${paymentId}/manual-review`, {
+    decision: "approve",
+    reason: "Live QA approval, repeated decision"
+  });
+  const afterSecond = await accessSnapshot(studentPage);
+  await adminContext.close();
+
+  // Repeating it neither extends the subscription nor bumps its revision.
+  expect(afterSecond.subscription.current_period_ends_at).toBe(afterFirst.subscription.current_period_ends_at);
+  expect(afterSecond.subscription.revision).toBe(afterFirst.subscription.revision);
+  expect(afterSecond.subscription.status).toBe("active");
+  expect(afterSecond.subscription.payment_verification).toBe("verified");
+  expect(second.status).toBe(200);
+
+  // Entitlements describe the subscription that is actually in force: granted,
+  // sourced from it, and ending no earlier than the access it pays for.
+  const studyCodes = afterSecond.entitlements.map((grant) => grant.code);
+  for (const code of ["focus.workspace", "content.premium"]) {
+    expect(studyCodes, `${code} is granted after approval`).toContain(code);
+  }
+  // The endpoint returns only grants that can authorise access right now, so
+  // their presence is the assertion; what is checked here is that each one
+  // covers the paid period rather than expiring inside it.
+  const expiry = Date.parse(afterSecond.subscription.current_period_ends_at);
+  for (const grant of afterSecond.entitlements) {
+    expect(grant.source_type).toBe("subscription");
+    if (grant.ends_at) expect(Date.parse(grant.ends_at)).toBeGreaterThanOrEqual(expiry);
+  }
+  expect(afterSecond.subscription.access_allowed).toBe(true);
+
+  // And the console no longer presents a decision that has already been taken.
+  const reviewedContext = await browser.newContext();
+  const reviewedPage = await reviewedContext.newPage();
+  await loginAdmin(reviewedPage);
+  await reviewedPage.goto("/#/operations/admin/purchases");
+  await reviewedPage.getByRole("button", { name: "Approved", exact: true }).click();
+  await reviewedPage.getByRole("button").filter({ hasText: "@qa_trial" }).first().click();
+  await expect(reviewedPage.locator(".ops-review .ops-badge")).toHaveText("Approved");
+  await expect(reviewedPage.getByRole("button", { name: "Approve payment" })).toHaveCount(0);
+  await expect(reviewedPage.getByRole("button", { name: "Reject payment" })).toHaveCount(0);
+  await reviewedContext.close();
+  await studentContext.close();
 });
 
 test("expired Arabic account retains renewal/account access without RTL overflow", async ({ page }) => {
