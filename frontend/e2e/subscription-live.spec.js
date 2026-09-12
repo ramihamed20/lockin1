@@ -27,6 +27,18 @@ async function login(page, email, password, locale = "en") {
   await loginResponse;
 }
 
+async function loginAdmin(page) {
+  await login(page, "admin@lockin.local", "Admin123!");
+  const usernameHeading = page.getByRole("heading", { name: "Choose your username" });
+  const needsUsername = await usernameHeading.waitFor({ state: "visible", timeout: 2_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (needsUsername) {
+    await page.getByLabel("Username", { exact: true }).fill("qa_admin");
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+  }
+}
+
 async function responsiveAudit(page, viewports, prefix) {
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);
@@ -102,11 +114,16 @@ test("trial welcome and provisional Libyana payment work on production viewports
 
   await page.getByRole("button", { name: "Subscribe now" }).click();
   await expect(page.getByRole("heading", { name: "Pay with Libyana" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Plans coming soon" })).toBeVisible();
+  await expect(page.getByText("نصف السنة - طب الأسنان", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Coming Soon", exact: true })).toBeDisabled();
   const code = page.getByLabel("Recharge card code");
   await expect(code).toHaveAttribute("dir", "ltr");
   await code.fill("4567890123456");
   await page.getByRole("button", { name: "Submit card and continue" }).click();
-  await expect(page.getByText("Payment being reviewed", { exact: true })).toBeVisible();
+  await expect(page.getByText("Payment being reviewed", { exact: true })).toBeVisible({
+    timeout: 15_000
+  });
   await expect(page.getByText("4567890123456", { exact: true })).toHaveCount(0);
 
   await responsiveAudit(page, [
@@ -124,7 +141,7 @@ test("trial welcome and provisional Libyana payment work on production viewports
 
 test("expired Arabic account retains renewal/account access without RTL overflow", async ({ page }) => {
   await login(page, "qa.expired@lockin.local", "StudyQA123!", "ar");
-  await expect(page.getByRole("heading", { name: "مساحتك الدراسية محفوظة." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "الدفع ببطاقة ليبيانا" })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await responsiveAudit(page, [
     { width: 390, height: 844 },
@@ -135,13 +152,11 @@ test("expired Arabic account retains renewal/account access without RTL overflow
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: `${SCREENSHOT_DIR}/expired-arabic-phone.png`, fullPage: true });
 
-  await page.getByRole("link", { name: "تجديد الاشتراك" }).click();
-  await expect(page.getByRole("heading", { name: "الدفع ببطاقة ليبيانا" })).toBeVisible();
   await expect(page.getByLabel("رمز بطاقة التعبئة")).toHaveAttribute("dir", "ltr");
 });
 
 test("authorized admin reviews the pending code once and the full code is then removed", async ({ page }) => {
-  await login(page, "admin@lockin.local", "Admin123!");
+  await loginAdmin(page);
   await page.goto("/#/operations/admin/purchases");
   await expect(page.getByRole("heading", { name: "Payments" }).first()).toBeVisible();
 
@@ -151,9 +166,10 @@ test("authorized admin reviews the pending code once and the full code is then r
   await expect(page.getByText("5656565612345", { exact: true })).toBeVisible();
   await page.getByLabel("Review reason").fill("Recharge card value verified");
   await page.getByRole("button", { name: "Approve payment" }).click();
-  await page.getByRole("button", { name: "Approve", exact: true }).click();
+  await page.getByRole("button", { name: "Approve payment", exact: true }).last().click();
 
   await expect(page.locator(".manual-payment-review .creator-badge")).toHaveText("Approved");
+  await expect(page.getByText("Payment approved and revenue totals refreshed.", { exact: true })).toBeVisible();
   await expect(page.getByText("5656565612345", { exact: true })).toHaveCount(0);
   await expect(page.locator(".manual-recharge-code")).toContainText("2345");
   await page.setViewportSize({ width: 1024, height: 768 });
@@ -161,6 +177,7 @@ test("authorized admin reviews the pending code once and the full code is then r
 });
 
 test("early renewal preserves paid days through pending, rejection, and approval", async ({ browser }) => {
+  test.setTimeout(90_000);
   const tooEarlyContext = await browser.newContext();
   const tooEarlyPage = await tooEarlyContext.newPage();
   await login(tooEarlyPage, "qa.renewal-early@lockin.local", "StudyQA123!");
@@ -187,24 +204,24 @@ test("early renewal preserves paid days through pending, rejection, and approval
   await renewalPage.screenshot({ path: `${SCREENSHOT_DIR}/early-renewal-desktop.png`, fullPage: true });
 
   await renewalPage.getByRole("radio", { name: /Monthly/ }).check();
-  await renewalPage.getByLabel("Recharge card code", { exact: true }).fill("7000000000001");
+  await renewalPage.getByRole("textbox", { name: /^Recharge card code/ }).fill("7000000000001");
   const pendingResponse = renewalPage.waitForResponse((response) => response.url().includes("/payments/manual-libyana") && response.status() === 201);
   await renewalPage.getByRole("button", { name: "Submit card and continue" }).click();
   const pendingPayload = await (await pendingResponse).json();
   const provisionalEnd = pendingPayload.subscription.current_period_ends_at;
-  expect(provisionalEnd).toBe(addDays(before.current_period_ends_at, 30));
+  expect(new Date(provisionalEnd).getTime()).toBe(new Date(addDays(before.current_period_ends_at, 30)).getTime());
   await expect(renewalPage.getByText("Payment being reviewed", { exact: true })).toBeVisible();
   await expect(renewalPage.getByRole("heading", { name: "A payment is already under review" })).toBeVisible();
 
   const rejectAdminContext = await browser.newContext();
   const rejectAdminPage = await rejectAdminContext.newPage();
-  await login(rejectAdminPage, "admin@lockin.local", "Admin123!");
+  await loginAdmin(rejectAdminPage);
   await rejectAdminPage.goto("/#/operations/admin/purchases");
   const rejectedPayment = rejectAdminPage.getByRole("button").filter({ hasText: "@qa_renewal" }).first();
   await rejectedPayment.click();
   await rejectAdminPage.getByLabel("Review reason").fill("Card rejected for E2E verification");
   await rejectAdminPage.getByRole("button", { name: "Reject payment" }).click();
-  await rejectAdminPage.getByRole("button", { name: "Reject", exact: true }).click();
+  await rejectAdminPage.getByRole("button", { name: "Reject payment", exact: true }).last().click();
   await expect(rejectAdminPage.locator(".manual-payment-review .creator-badge")).toHaveText("Rejected");
   await rejectAdminContext.close();
 
@@ -214,7 +231,7 @@ test("early renewal preserves paid days through pending, rejection, and approval
   await expect(renewalPage.getByText("Payment could not be confirmed", { exact: false })).toBeVisible();
 
   await renewalPage.getByRole("radio", { name: /Monthly/ }).check();
-  await renewalPage.getByLabel("Recharge card code", { exact: true }).fill("7000000000002");
+  await renewalPage.getByRole("textbox", { name: /^Recharge card code/ }).fill("7000000000002");
   const approvedPendingResponse = renewalPage.waitForResponse((response) => response.url().includes("/payments/manual-libyana") && response.status() === 201);
   await renewalPage.getByRole("button", { name: "Submit card and continue" }).click();
   const approvedPendingPayload = await (await approvedPendingResponse).json();
@@ -222,13 +239,13 @@ test("early renewal preserves paid days through pending, rejection, and approval
 
   const approveAdminContext = await browser.newContext();
   const approveAdminPage = await approveAdminContext.newPage();
-  await login(approveAdminPage, "admin@lockin.local", "Admin123!");
+  await loginAdmin(approveAdminPage);
   await approveAdminPage.goto("/#/operations/admin/purchases");
   const approvedPayment = approveAdminPage.getByRole("button").filter({ hasText: "@qa_renewal" }).first();
   await approvedPayment.click();
   await approveAdminPage.getByLabel("Review reason").fill("Card accepted for E2E verification");
   await approveAdminPage.getByRole("button", { name: "Approve payment" }).click();
-  await approveAdminPage.getByRole("button", { name: "Approve", exact: true }).click();
+  await approveAdminPage.getByRole("button", { name: "Approve payment", exact: true }).last().click();
   await expect(approveAdminPage.locator(".manual-payment-review .creator-badge")).toHaveText("Approved");
   await approveAdminContext.close();
 

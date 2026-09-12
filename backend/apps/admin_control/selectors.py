@@ -34,6 +34,7 @@ from .models import (
 def admin_purchases(*, query: str = "", status: str = "") -> QuerySet[Payment]:
     payments = Payment.objects.select_related(
         "account__primary_user",
+        "account__primary_user__cohort__program",
         "subscription__plan_version__plan",
         "price",
         "manual_submission__reviewed_by",
@@ -90,6 +91,8 @@ def serialize_purchase(
     payment: Payment, *, detailed: bool = False, reveal_recharge_code: bool = False
 ) -> dict[str, Any]:
     user = payment.account.primary_user
+    cohort = user.cohort if user else None
+    subscription = payment.subscription
     payload: dict[str, Any] = {
         "id": payment.id,
         "status": payment.status,
@@ -110,6 +113,20 @@ def serialize_purchase(
             "email": user.email if user else "",
             "full_name": user.full_name if user else "",
             "username": user.username if user else "",
+            "education": {
+                "program_code": cohort.program.code if cohort else "",
+                "program_name_en": cohort.program.name_en if cohort else "",
+                "program_name_ar": cohort.program.name_ar if cohort else "",
+                "cohort_code": cohort.code if cohort else "",
+                "cohort_name_en": cohort.name_en if cohort else "",
+                "cohort_name_ar": cohort.name_ar if cohort else "",
+            },
+        },
+        "subscription": {
+            "id": subscription.id,
+            "status": subscription.status,
+            "current_period_ends_at": subscription.current_period_ends_at,
+            "trial_ends_at": subscription.trial_ends_at,
         },
         "invoice_id": str(payment.invoice.id) if hasattr(payment, "invoice") else None,
         "invoice_number": payment.invoice.number if hasattr(payment, "invoice") else "",
@@ -234,7 +251,7 @@ def admin_subscriptions(
             users = users.filter(Q(email__icontains=query) | Q(full_name__icontains=query))
         return users.order_by("-date_joined")
     subscriptions = Subscription.objects.select_related(
-        "account__primary_user", "plan_version__plan"
+        "account__primary_user__cohort__program", "plan_version__plan"
     ).prefetch_related("transitions", "admin_events__actor")
     if status:
         subscriptions = subscriptions.filter(status=status)
@@ -275,9 +292,34 @@ def serialize_subscription(subscription: Subscription, *, detailed: bool = False
             "id": user.id if user else None,
             "email": user.email if user else "",
             "full_name": user.full_name if user else "",
+            "education": {
+                "program_code": user.cohort.program.code if user and user.cohort else "",
+                "program_name_en": user.cohort.program.name_en if user and user.cohort else "",
+                "program_name_ar": user.cohort.program.name_ar if user and user.cohort else "",
+                "cohort_code": user.cohort.code if user and user.cohort else "",
+                "cohort_name_en": user.cohort.name_en if user and user.cohort else "",
+                "cohort_name_ar": user.cohort.name_ar if user and user.cohort else "",
+            },
         },
     }
     if detailed:
+        source_payment = (
+            Payment.objects.filter(subscription=subscription)
+            .order_by("-succeeded_at", "-created_at")
+            .first()
+        )
+        result["source_payment"] = (
+            {
+                "id": source_payment.id,
+                "method": source_payment.method,
+                "status": source_payment.status,
+                "amount_minor": source_payment.amount_minor,
+                "currency": source_payment.currency,
+                "currency_exponent": source_payment.currency_exponent,
+            }
+            if source_payment
+            else None
+        )
         result["transitions"] = [
             {
                 "id": item.id,

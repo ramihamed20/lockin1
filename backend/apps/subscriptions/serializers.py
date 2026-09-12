@@ -4,8 +4,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from apps.accounts.roles import is_subscription_exempt
-from apps.entitlements.models import EntitlementGrant
-from apps.entitlements.selectors import active_grants_for_user
+from apps.entitlements.services import entitlement_decision
 
 from .models import Subscription, SubscriptionTransition
 
@@ -91,21 +90,11 @@ class SubscriptionSerializer(serializers.ModelSerializer[Subscription]):
         primary_user = subscription.account.primary_user
         if primary_user is not None and is_subscription_exempt(primary_user):
             return True
-        if subscription.status in (
-            Subscription.Status.TRIALING,
-            Subscription.Status.ACTIVE,
-            Subscription.Status.GRACE,
-        ):
-            return True
         if primary_user is None:
             return False
-        return (
-            active_grants_for_user(user=primary_user)
-            .filter(
-                source_type=EntitlementGrant.SourceType.MANUAL,
-                entitlement__code__in=DIRECT_STUDY_ENTITLEMENTS,
-            )
-            .exists()
+        return any(
+            entitlement_decision(user=primary_user, entitlement_code=code).allowed
+            for code in DIRECT_STUDY_ENTITLEMENTS
         )
 
     def get_access_exempt(self, subscription: Subscription) -> bool:

@@ -20,10 +20,10 @@ from apps.notifications.services import create_notification
 
 from .active_study import DIFFICULTIES, ActiveStudyDifficulty, ActiveStudyPlanError, plan_payload
 from .active_study_questions import (
-    ActiveStudyQuestionValidationError,
     ActiveStudyQuestionValidationResult,
     validate_active_study_questions,
 )
+from .active_study_readiness import readiness_payload
 from .catalog_subjects import project_subject_node
 from .models import (
     ActiveStudyQuestionContent,
@@ -587,24 +587,13 @@ def reorder_sheet(
 
 
 def active_study_payload(*, sheet: LearningObject) -> dict[str, object]:
+    readiness = readiness_payload(sheet=sheet)
     settings = getattr(sheet, "active_study_settings", None)
-    total_pages = settings.total_pdf_pages if settings is not None else None
-    excluded_start = settings.excluded_start_pages if settings is not None else 0
-    excluded_end = settings.excluded_end_pages if settings is not None else 0
-    try:
-        plan = plan_payload(
-            total_pdf_pages=total_pages,
-            excluded_start_pages=excluded_start,
-            excluded_end_pages=excluded_end,
-        )
-    except ActiveStudyPlanError as error:
-        raise ContentRuleError(str(error)) from error
     content_by_difficulty = {
         content.difficulty: content
         for content in ActiveStudyQuestionContent.objects.filter(sheet=sheet)
     }
-    difficulty_by_key = {difficulty.key: difficulty for difficulty in DIFFICULTIES}
-    difficulties = cast(list[dict[str, object]], plan["difficulties"])
+    difficulties = cast(list[dict[str, object]], readiness["difficulties"])
     for difficulty_plan in difficulties:
         key = str(difficulty_plan["difficulty"])
         content = content_by_difficulty.get(key)
@@ -612,21 +601,7 @@ def active_study_payload(*, sheet: LearningObject) -> dict[str, object]:
             int, difficulty_plan["questions_per_checkpoint"]
         )
         expected_final = cast(int, difficulty_plan["final_exam_questions"])
-        signature = _plan_signature(difficulty_plan)
-        status = "not_configured"
-        if content is not None:
-            if content.plan_signature != signature:
-                status = "needs_review"
-            else:
-                try:
-                    validate_active_study_questions(
-                        content.payload,
-                        difficulty=difficulty_by_key[key],
-                        number_of_parts=cast(int, difficulty_plan["number_of_parts"]),
-                    )
-                    status = "ready"
-                except ActiveStudyQuestionValidationError:
-                    status = "incomplete"
+        status = cast(dict[str, str], difficulty_plan["readiness"])["status"]
         difficulty_plan["content"] = {
             "status": status,
             "checkpoint_question_count": (
@@ -647,8 +622,8 @@ def active_study_payload(*, sheet: LearningObject) -> dict[str, object]:
     return {
         "enabled": settings.enabled if settings is not None else False,
         "revision": settings.revision if settings is not None else 0,
-        "excluded_start_pages": excluded_start,
-        "excluded_end_pages": excluded_end,
+        "excluded_start_pages": readiness["excluded_start_pages"],
+        "excluded_end_pages": readiness["excluded_end_pages"],
         "existing_question_content": has_existing_questions,
         "question_configuration_status": (
             "configured"
@@ -658,7 +633,7 @@ def active_study_payload(*, sheet: LearningObject) -> dict[str, object]:
             )
             else "not_configured"
         ),
-        **{**plan, "difficulties": difficulties},
+        **{**readiness, "difficulties": difficulties},
     }
 
 
@@ -724,21 +699,13 @@ def active_study_question_content_payload(
     content = ActiveStudyQuestionContent.objects.filter(
         sheet=sheet, difficulty=difficulty.key
     ).first()
-    plan_signature = _plan_signature(difficulty_plan)
-    status = "not_configured"
-    if content is not None:
-        if content.plan_signature != plan_signature:
-            status = "needs_review"
-        else:
-            try:
-                validate_active_study_questions(
-                    content.payload,
-                    difficulty=difficulty,
-                    number_of_parts=cast(int, difficulty_plan["number_of_parts"]),
-                )
-                status = "ready"
-            except ActiveStudyQuestionValidationError:
-                status = "incomplete"
+    readiness = next(
+        item
+        for item in cast(list[dict[str, object]], readiness_payload(sheet=sheet)["difficulties"])
+        if item["difficulty"] == difficulty.key
+    )
+    readiness_detail = cast(dict[str, object], readiness["readiness"])
+    status = cast(str, readiness_detail["status"])
     return {
         "difficulty": difficulty.key,
         "number_of_parts": difficulty_plan["number_of_parts"],
@@ -756,6 +723,7 @@ def active_study_question_content_payload(
             ),
             "final_exam_question_target": difficulty.final_exam_questions,
             "payload": content.payload if content is not None else None,
+            "readiness": readiness_detail,
         },
     }
 

@@ -84,6 +84,7 @@ def test_admin_active_study_settings_are_persisted_recalculated_and_can_be_disab
     assert initial.status_code == 200
     assert initial.json()["enabled"] is False
     assert initial.json()["revision"] == 0
+    assert initial.json()["difficulties"][0]["readiness"]["reason"] == "Active Study is disabled."
 
     saved = client.patch(
         endpoint,
@@ -101,6 +102,8 @@ def test_admin_active_study_settings_are_persisted_recalculated_and_can_be_disab
     assert payload["enabled"] is True
     assert payload["eligible_study_pages"] == 21
     medium = next(item for item in payload["difficulties"] if item["difficulty"] == "medium")
+    assert medium["readiness"]["ready"] is False
+    assert "not been imported" in medium["readiness"]["reason"]
     assert medium["number_of_parts"] == 4
     assert medium["page_ranges"] == [
         {"part": 1, "start_page": 2, "end_page": 6},

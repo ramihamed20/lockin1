@@ -27,7 +27,7 @@ def available_products(*, region_code: str = "") -> QuerySet[Product]:
 
 def active_price(*, price_id: UUID | str) -> Price:
     now = timezone.now()
-    return (
+    price = (
         Price.objects.select_related("plan_version__plan__product")
         .filter(
             id=price_id,
@@ -41,6 +41,9 @@ def active_price(*, price_id: UUID | str) -> Price:
         )
         .get()
     )
+    if price.plan_version.terms.get("availability") == "coming_soon":
+        raise Price.DoesNotExist
+    return price
 
 
 def active_libyana_price_for_plan(*, plan_id: UUID | str) -> Price:
@@ -64,5 +67,7 @@ def active_libyana_price_for_plan(*, plan_id: UUID | str) -> Price:
         .first()
     )
     if price is None:
+        raise Price.DoesNotExist
+    if price.plan_version.terms.get("availability") == "coming_soon":
         raise Price.DoesNotExist
     return price

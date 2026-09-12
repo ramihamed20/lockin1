@@ -14,6 +14,7 @@ from apps.content.active_study_questions import (
     ActiveStudyQuestionValidationError,
     validate_active_study_questions,
 )
+from apps.content.active_study_readiness import readiness_payload
 from apps.content.models import ActiveStudyQuestionContent, ActiveStudySettings, LearningObject
 from apps.content.policies import can_view_learning_object
 from apps.review.contracts import QuestionAttemptEvent
@@ -111,45 +112,39 @@ def _content(
 
 def availability(*, user: User, sheet_id: UUID) -> dict[str, Any]:
     sheet = _sheet_for_user(user=user, sheet_id=sheet_id)
-    settings = getattr(sheet, "active_study_settings", None)
+    readiness = readiness_payload(sheet=sheet)
     rows: list[dict[str, Any]] = []
-    for item in DIFFICULTIES:
-        status = "not_configured"
-        plan: dict[str, Any] | None = None
-        if (
-            isinstance(settings, ActiveStudySettings)
-            and settings.enabled
-            and settings.total_pdf_pages
-        ):
-            try:
-                plan = _difficulty_plan(sheet=sheet, difficulty=item.key)
-                _content(sheet=sheet, difficulty=item.key)
-                status = "ready"
-            except ManagedActiveStudyRuleError as error:
-                status = "needs_review" if "need review" in str(error) else "not_configured"
+    for item in cast(list[dict[str, Any]], readiness["difficulties"]):
+        status = cast(dict[str, str], item["readiness"])["status"]
         active = (
             ActiveStudyRun.objects.filter(
-                user=user, sheet=sheet, difficulty=item.key, status=ActiveStudyRun.Status.ACTIVE
+                user=user,
+                sheet=sheet,
+                difficulty=item["difficulty"],
+                status=ActiveStudyRun.Status.ACTIVE,
             )
             .order_by("-updated_at")
             .first()
         )
         completed = ActiveStudyRun.objects.filter(
-            user=user, sheet=sheet, difficulty=item.key, status=ActiveStudyRun.Status.COMPLETED
+            user=user,
+            sheet=sheet,
+            difficulty=item["difficulty"],
+            status=ActiveStudyRun.Status.COMPLETED,
         ).exists()
         rows.append(
             {
-                "difficulty": item.key,
+                "difficulty": item["difficulty"],
                 "status": status,
-                "number_of_parts": plan["number_of_parts"] if plan else 0,
-                "page_ranges": plan["page_ranges"] if plan else [],
+                "number_of_parts": item["number_of_parts"],
+                "page_ranges": item["page_ranges"],
                 "progress": run_payload(active) if active else None,
                 "completed": completed,
             }
         )
     return {
         "sheet_id": str(sheet.id),
-        "enabled": bool(settings and settings.enabled),
+        "enabled": readiness["enabled"],
         "difficulties": rows,
     }
 

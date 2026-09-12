@@ -7695,6 +7695,28 @@ a.streak-card:hover:where(html.ix-hover *) {
   background: color-mix(in srgb, var(--surface-3) 70%, transparent);
 }
 
+.subscription-coming-soon {
+  display: grid;
+  gap: var(--space-5);
+  margin-bottom: var(--space-5);
+}
+
+.subscription-offer.is-coming-soon {
+  position: relative;
+  border-color: color-mix(in srgb, var(--primary) 34%, var(--border));
+  background: color-mix(in srgb, var(--primary) 7%, var(--surface-2));
+}
+
+.subscription-coming-soon-badge {
+  justify-self: start;
+  padding: var(--space-1) var(--space-3);
+  border-radius: 999px;
+  color: var(--primary-contrast);
+  font-size: var(--text-xs);
+  font-weight: 800;
+  background: var(--primary);
+}
+
 .subscription-facts small,
 .moderation-metadata dt {
   display: block;

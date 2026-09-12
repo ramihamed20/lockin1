@@ -32,6 +32,28 @@ function paidOffers(catalog) {
   })).sort((left, right) => Number(left.price.amount_minor) - Number(right.price.amount_minor));
 }
 
+function comingSoonOffers(catalog) {
+  return catalog.results.flatMap((product) => (product.plans || []).flatMap((plan) => {
+    const version = plan.current_version;
+    return version?.availability === "coming_soon" ? [{ product, plan, version }] : [];
+  }));
+}
+
+function ComingSoonPlans({ offers, t }) {
+  if (!offers.length) return null;
+  return <section className="panel subscription-coming-soon" aria-labelledby="coming-soon-title">
+    <div className="panel-title"><div><h2 id="coming-soon-title">{t("subscription.comingSoonPlans")}</h2><p>{t("subscription.comingSoonPlansBody")}</p></div></div>
+    <div className="subscription-offer-grid">
+      {offers.map(({ plan, version }) => <article className="subscription-offer is-coming-soon" key={plan.code}>
+        <span className="subscription-coming-soon-badge">{t("subscription.comingSoon")}</span>
+        <div><h3>{version.title}</h3><p>{version.description}</p></div>
+        <ul><li><span>{t("subscription.dentistry")}</span><strong>{t("subscription.allCollegesYears")}</strong></li></ul>
+        <button className="btn btn-soft" type="button" disabled aria-disabled="true">{t("subscription.comingSoon")}</button>
+      </article>)}
+    </div>
+  </section>;
+}
+
 function isFiveLyd(price) {
   return Number(price?.amount_minor) === 5 * (10 ** Number(price?.currency_exponent || 0));
 }
@@ -59,6 +81,7 @@ export default function Subscription() {
   // has actually been accepted. See submitPayment.
   const paymentAttemptKey = useRef("");
   const offers = useMemo(() => details.data ? paidOffers(details.data.catalog) : [], [details.data]);
+  const comingSoon = useMemo(() => details.data ? comingSoonOffers(details.data.catalog) : [], [details.data]);
   const effectivePlan = selectedPlan || offers[0]?.plan.id || "";
 
   if (details.loading) return <LoadingPanel />;
@@ -87,6 +110,7 @@ export default function Subscription() {
         <section className="subscription-saved-banner subscription-direct-access">
           <div><p className="eyebrow">Lock-in</p><h2>{t("subscription.directAccess")}</h2><p>{t("subscription.directAccessBody")}</p></div>
         </section>
+        <ComingSoonPlans offers={comingSoon} t={t} />
       </Page>
     );
   }
@@ -155,6 +179,8 @@ export default function Subscription() {
           </ol>
         </article>
       </section>
+
+      <ComingSoonPlans offers={comingSoon} t={t} />
 
       <section className="panel subscription-payment" id="libyana-payment" dir={direction}>
         <div className="panel-title">

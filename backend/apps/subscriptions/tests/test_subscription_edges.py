@@ -11,7 +11,7 @@ from rest_framework.test import APIClient
 from apps.accounts.tests.helpers import create_user
 from apps.audit.models import AuditRecord
 from apps.entitlements.models import EntitlementDefinition
-from apps.entitlements.services import grant_manual_entitlement
+from apps.entitlements.services import entitlement_decision, grant_manual_entitlement
 from apps.notifications.models import Notification
 from apps.product_catalog.models import Plan, PlanVersion, Price, Product
 from apps.subscriptions.models import Subscription, SubscriptionAccount, SubscriptionTransition
@@ -22,6 +22,7 @@ from apps.subscriptions.services import (
     create_trial_for_user,
     get_or_create_individual_account,
     refresh_subscription,
+    schedule_cancellation,
     transition_subscription,
 )
 
@@ -294,6 +295,18 @@ def test_refresh_cancellation_no_grace_and_scheduler_command() -> None:
     lifecycle.assert_called_once_with("process_subscription_lifecycle")
     event.wait.assert_called_once()
     assert "Subscription scheduler running" in output.getvalue()
+
+
+def test_period_end_cancellation_keeps_access_until_the_deadline_then_stops() -> None:
+    user, subscription = _trial("period-end-access@example.com")
+
+    scheduled = schedule_cancellation(subscription=subscription, user=user)
+
+    assert scheduled.cancel_at_period_end is True
+    assert entitlement_decision(user=user, entitlement_code="content.premium").allowed is True
+    ended = refresh_subscription(subscription=scheduled, now=scheduled.trial_ends_at)
+    assert ended.status == Subscription.Status.CANCELLED
+    assert entitlement_decision(user=user, entitlement_code="content.premium").allowed is False
 
 
 def test_lifecycle_command_covers_localized_reminders_and_authoritative_transitions() -> None:

@@ -17,6 +17,7 @@ from unittest.mock import patch
 import pytest
 from django.core.management import call_command
 from django.utils import timezone
+from rest_framework.test import APIClient
 
 from apps.accounts.tests.helpers import create_user
 from apps.entitlements.models import EntitlementGrant
@@ -137,3 +138,72 @@ def test_an_account_without_a_subscription_is_created_and_entitled_together() ->
     assert EntitlementGrant.objects.filter(
         user=user, status=EntitlementGrant.Status.ACTIVE
     ).exists()
+
+
+@pytest.mark.parametrize(
+    ("target_status", "reason"),
+    (
+        (Subscription.Status.CANCELLED, "admin_cancelled"),
+        (Subscription.Status.SUSPENDED, "admin_suspended"),
+    ),
+)
+def test_stop_states_deny_even_if_a_subscription_grant_is_stale(
+    target_status: str, reason: str
+) -> None:
+    user = create_user(email=f"{target_status}-access@example.com")
+    subscription, _ = create_trial_for_user(user=user, source_reference="test")
+    before_transitions = subscription.transitions.count()
+
+    transition_subscription(
+        subscription_id=subscription.id,
+        to_status=target_status,
+        reason_code=reason,
+        source=SubscriptionTransition.Source.ADMIN,
+        effective_at=timezone.now(),
+        idempotency_key=f"stop-access-{target_status}-001",
+    )
+
+    grant = EntitlementGrant.objects.get(
+        user=user,
+        source_type=EntitlementGrant.SourceType.SUBSCRIPTION,
+        source_id=subscription.id,
+        entitlement__code="content.premium",
+    )
+    assert grant.status == EntitlementGrant.Status.REVOKED
+    # Simulate legacy drift: the read-side authority must still fail closed.
+    EntitlementGrant.objects.filter(id=grant.id).update(
+        status=EntitlementGrant.Status.ACTIVE,
+        revoked_at=None,
+    )
+
+    assert entitlement_decision(user=user, entitlement_code="content.premium").allowed is False
+    client = APIClient()
+    client.force_authenticate(user)
+    assert client.get("/api/v1/bookmarks").status_code == 403
+    assert subscription.transitions.count() == before_transitions + 1
+
+
+def test_suspended_subscription_reactivation_restores_canonical_access() -> None:
+    user = create_user(email="reactivated-access@example.com")
+    subscription, _ = create_trial_for_user(user=user, source_reference="test")
+    now = timezone.now()
+    transition_subscription(
+        subscription_id=subscription.id,
+        to_status=Subscription.Status.SUSPENDED,
+        reason_code="admin_suspended",
+        source=SubscriptionTransition.Source.ADMIN,
+        effective_at=now,
+        idempotency_key="reactivation-suspend-001",
+    )
+    assert entitlement_decision(user=user, entitlement_code="content.premium").allowed is False
+
+    transition_subscription(
+        subscription_id=subscription.id,
+        to_status=Subscription.Status.ACTIVE,
+        reason_code="admin_reactivated",
+        source=SubscriptionTransition.Source.ADMIN,
+        effective_at=now,
+        idempotency_key="reactivation-active-001",
+    )
+
+    assert entitlement_decision(user=user, entitlement_code="content.premium").allowed is True
