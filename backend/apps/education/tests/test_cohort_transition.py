@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 import pytest
 from django.contrib.auth.models import Group
 from django.test import override_settings
@@ -30,7 +28,7 @@ def cohorts() -> tuple[StudentCohort, StudentCohort, object]:
 
 
 @override_settings(COHORT_CONTENT_ENFORCEMENT=True)
-def test_student_path_change_executes_and_only_clears_old_path_study_state() -> None:
+def test_student_path_change_preserves_prior_path_study_state() -> None:
     old, new, lesson = cohorts()
     student = create_user(email="cohort-change@example.com", cohort=old)
     student.avatar_default = student.AvatarDefault.FEMALE_CALICO
@@ -50,25 +48,11 @@ def test_student_path_change_executes_and_only_clears_old_path_study_state() -> 
     assert response.status_code == 200
     student.refresh_from_db()
     assert student.cohort_id == new.id
-    assert not LessonProgress.objects.filter(user=student, lesson=lesson).exists()
+    assert LessonProgress.objects.filter(user=student, lesson=lesson).exists()
     assert student.email == "cohort-change@example.com"
     assert student.avatar_default == student.AvatarDefault.FEMALE_CALICO
     assert student.mascot_preference == student.MascotPreference.BLACK
     assert student.theme_preference == student.ThemePreference.SUNSET
-
-
-def test_failed_cleanup_rolls_back_the_cohort_update() -> None:
-    old, new, _ = cohorts()
-    student = create_user(email="cohort-rollback@example.com", cohort=old)
-
-    with (
-        patch("apps.education.cohort_transition._objects_under", side_effect=RuntimeError("boom")),
-        pytest.raises(RuntimeError, match="boom"),
-    ):
-        change_student_cohort(user=student, cohort=new)
-
-    student.refresh_from_db()
-    assert student.cohort_id == old.id
 
 
 def test_founder_context_change_never_mutates_or_clears_their_account() -> None:
