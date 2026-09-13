@@ -258,6 +258,9 @@ services:
     depends_on:
       release:
         condition: service_completed_successfully
+      clamav:
+        condition: service_healthy
+        required: false
     volumes:
       - lockin_static:/app/staticfiles:ro
 

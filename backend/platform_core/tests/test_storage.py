@@ -77,6 +77,11 @@ class _FakeStorage:
             raise self._error
         return self._handle
 
+    def size(self, name: str) -> int:
+        if self._error is not None:
+            raise self._error
+        return len(self._handle._stream.getbuffer())
+
 
 class _FakeFieldFile:
     def __init__(self, name: str, storage: _FakeStorage) -> None:
@@ -148,6 +153,7 @@ def test_open_detects_a_provider_object_for_ranged_reads() -> None:
 
     stored = open_managed_object(field_file)  # type: ignore[arg-type]
 
+    assert stored.size == len(PAYLOAD)
     assert b"".join(stored.stream(start=8, length=8)) == PAYLOAD[8:16]
     assert storage.opened == ["managed/pdf/a.pdf"]
 
