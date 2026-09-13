@@ -156,7 +156,7 @@ export default function Subscription() {
   // "a payment is already under review" with the form hidden, unable to pay and
   // with nothing on the screen telling them why.
   const pendingManualReview = subscriptionSession.pendingManualPayment;
-  const renewalBlocked = subscription?.status === "active" && !subscription?.early_renewal_available;
+  const renewalBlocked = subscription?.status === "active" && subscription?.access_allowed && !subscription?.early_renewal_available;
   const canSubmit = !renewalBlocked && !pendingManualReview;
   const periodEnd = subscription?.status === "trialing"
     ? subscription?.trial_ends_at

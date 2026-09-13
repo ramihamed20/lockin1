@@ -12,6 +12,8 @@ import {
 } from "./subscriptionSession.js";
 
 const MAX_TIMER_DELAY = 2_147_000_000;
+const RETRY_BASE_DELAY_MS = 1_000;
+const RETRY_MAX_DELAY_MS = 30_000;
 const SubscriptionSessionContext = createContext(null);
 
 function initialState(userId) {
@@ -26,6 +28,7 @@ export function SubscriptionSessionProvider({ user, children }) {
   const [state, setState] = useState(() => initialState(userId));
   const requestRef = useRef(0);
   const revalidatedRef = useRef(false);
+  const retryAttemptRef = useRef(0);
   const directAccess = hasDirectStudyAccess(state.entitlements);
   const accessExempt = hasSubscriptionExemption(state.subscription);
 
@@ -36,9 +39,11 @@ export function SubscriptionSessionProvider({ user, children }) {
       entitlements === undefined ? state.entitlements : entitlements
     );
     if (!isSubscriptionSnapshotFresh(next, userId)) {
+      retryAttemptRef.current += 1;
       setState({ ready: false, error: "Subscription access did not include a valid expiration.", ...next });
       return null;
     }
+    retryAttemptRef.current = 0;
     setState({ ready: true, error: "", ...next });
     return next;
   }, [state.entitlements, userId]);
@@ -56,10 +61,12 @@ export function SubscriptionSessionProvider({ user, children }) {
       if (!isSubscriptionSnapshotFresh(next, userId)) {
         throw new Error("Subscription access did not include a valid expiration.");
       }
+      retryAttemptRef.current = 0;
       setState({ ready: true, error: "", ...next });
       return next;
     } catch (error) {
       if (requestRef.current === requestId) {
+        retryAttemptRef.current += 1;
         setState((current) => ({ ...current, ready: !blocking && current.ready, error: error?.message || "Subscription access could not be loaded." }));
       }
       return null;
@@ -67,8 +74,17 @@ export function SubscriptionSessionProvider({ user, children }) {
   }, [userId]);
 
   useEffect(() => {
-    if (state.ready || state.error || !userId) return;
-    void refresh();
+    if (state.ready || !userId) return undefined;
+    if (!state.error) {
+      void refresh();
+      return undefined;
+    }
+    const delay = Math.min(
+      RETRY_MAX_DELAY_MS,
+      RETRY_BASE_DELAY_MS * (2 ** Math.max(0, retryAttemptRef.current - 1))
+    );
+    const timer = window.setTimeout(() => void refresh(), delay);
+    return () => window.clearTimeout(timer);
   }, [refresh, state.error, state.ready, userId]);
 
   // A cached snapshot renders the screen immediately; it does not get to decide

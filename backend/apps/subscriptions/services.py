@@ -393,6 +393,24 @@ def refresh_subscription(
 ) -> Subscription:
     current = now or timezone.now()
     if (
+        subscription.status == Subscription.Status.ACTIVE
+        and not subscription.current_period_ends_at
+        and not subscription.grace_ends_at
+    ):
+        # ACTIVE is a paid, time-bounded state. Historical admin actions could
+        # create it without any period, leaving access denied while renewal was
+        # also blocked. Expiring that impossible state is non-destructive and
+        # immediately restores the normal renewal path.
+        return transition_subscription(
+            subscription_id=subscription.id,
+            to_status=Subscription.Status.EXPIRED,
+            reason_code="active_period_missing",
+            source=SubscriptionTransition.Source.RECONCILIATION,
+            effective_at=current,
+            idempotency_key=f"active-period-missing:{subscription.id}",
+            allow_out_of_order=True,
+        ).subscription
+    if (
         subscription.status == Subscription.Status.TRIALING
         and subscription.trial_ends_at
         and subscription.trial_ends_at <= current

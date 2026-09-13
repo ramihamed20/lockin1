@@ -705,6 +705,31 @@ def test_subscription_admin_lifecycle_actions_are_persisted_and_audited() -> Non
     assert SubscriptionAdminEvent.objects.filter(subscription=subscription).count() == 4
 
 
+def test_admin_cannot_activate_paid_access_without_a_future_period() -> None:
+    actor = _admin()
+    subscriber = create_user(email="subscription-missing-period@example.com")
+    subscription = _subscription(subscriber)
+    subscription.status = Subscription.Status.SUSPENDED
+    subscription.current_period_ends_at = None
+    subscription.grace_ends_at = None
+    subscription.save(
+        update_fields=("status", "current_period_ends_at", "grace_ends_at", "updated_at")
+    )
+
+    with pytest.raises(AdminControlError, match="future expiration"):
+        manage_subscription(
+            subscription_id=subscription.id,
+            action="reactivate",
+            actor=actor,
+            reason="Reactivate only after a valid paid period is supplied.",
+            idempotency_key="subscription-action-missing-period-001",
+            source="test",
+        )
+
+    subscription.refresh_from_db()
+    assert subscription.status == Subscription.Status.SUSPENDED
+
+
 def test_campaign_audiences_and_validation_cover_real_recipient_rules() -> None:
     actor = _admin()
     selected = create_user(email="campaign-selected@example.com")
