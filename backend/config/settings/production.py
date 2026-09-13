@@ -218,6 +218,9 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS
 SECURE_HSTS_PRELOAD = env_bool("DJANGO_SECURE_HSTS_PRELOAD", False)
 SECURE_REFERRER_POLICY = "no-referrer"
 EXPOSE_API_DOCS = False
+# The Catalog directory is cohort-scoped, so every resolver and file delivery
+# path must apply the same scope in production.
+COHORT_CONTENT_ENFORCEMENT = env_bool("COHORT_CONTENT_ENFORCEMENT", True)
 # Malware scanning is a deployment decision, not a code constant.
 #
 # The default stays secure: enforcement is on unless a deployment explicitly

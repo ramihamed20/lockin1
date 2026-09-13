@@ -253,6 +253,49 @@ def test_a_student_visible_sheet_reports_itself_as_visible() -> None:
     assert is_student_visible(sheet) is True
 
 
+def test_sheet_notification_only_targets_the_owning_cohort_with_a_valid_route() -> None:
+    admin = create_admin(email="projection-notify@example.com")
+    college = _college(admin, code="notify")
+    year = _published(admin, parent=college, kind=EducationNode.Kind.ACADEMIC_YEAR, title="Year 1")
+    subject = _published(admin, parent=year, kind=EducationNode.Kind.SUBJECT, title="Anatomy")
+    program = AcademicProgram.objects.create(
+        code="program-notify", name_en="Notify", name_ar="Notify"
+    )
+    own = StudentCohort.objects.create(
+        program=program, code="own", name_en="Own", name_ar="Own"
+    )
+    other = StudentCohort.objects.create(
+        program=program, code="other", name_en="Other", name_ar="Other"
+    )
+    own.content_nodes.set([year])
+    other.content_nodes.set([])
+    own_student = create_user(email="projection-notify-own@example.com", cohort=own)
+    other_student = create_user(email="projection-notify-other@example.com", cohort=other)
+
+    sheet = create_sheet(
+        actor=admin,
+        subject=subject,
+        managed_file=create_managed_file(owner=admin, upload=pdf_upload(), kind="pdf"),
+        title="Cranial nerves",
+        summary="",
+        position=0,
+        publish=True,
+        notify_students=True,
+        allow_download=False,
+    )
+
+    document = sheet.published_version.catalog_document
+    notification = Notification.objects.get(
+        recipient=own_student, template_key="content.sheet_published"
+    )
+    assert notification.target_route == (
+        f"/materials/catalog/{document.material_slug}/sheets/{document.sheet_slug}"
+    )
+    assert not Notification.objects.filter(
+        recipient=other_student, template_key="content.sheet_published"
+    ).exists()
+
+
 def test_publishing_into_a_newly_added_subject_reaches_the_student(
     django_capture_on_commit_callbacks,
 ) -> None:

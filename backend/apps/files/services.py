@@ -12,12 +12,37 @@ from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.audit.services import record_audit
+from platform_core.storage import ManagedObjectUnavailable, open_managed_object
 
 from .models import ManagedFile
 
 
 class FileValidationError(ValueError):
     pass
+
+
+def managed_file_delivery_size(managed_file: ManagedFile) -> int | None:
+    """Return the current stored size only when the file can be delivered."""
+
+    if managed_file.validation_status != ManagedFile.ValidationStatus.READY:
+        return None
+    if managed_file.scan_status in {
+        ManagedFile.ScanStatus.QUARANTINED,
+        ManagedFile.ScanStatus.FAILED,
+    }:
+        return None
+    if (
+        settings.CONTENT_REQUIRE_CLEAN_SCAN
+        and managed_file.scan_status != ManagedFile.ScanStatus.CLEAN
+    ):
+        return None
+    try:
+        stored = open_managed_object(managed_file.blob)
+        size = stored.size
+        stored.close()
+    except ManagedObjectUnavailable:
+        return None
+    return size if size > 0 else None
 
 
 @dataclass(frozen=True, slots=True)

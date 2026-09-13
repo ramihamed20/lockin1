@@ -15,6 +15,7 @@ from apps.audit.services import record_audit
 from apps.discovery.indexing import remove_search_entry
 from apps.education.models import EducationNode
 from apps.files.models import ManagedFile
+from apps.files.services import managed_file_delivery_size
 from apps.notifications.models import Notification
 from apps.notifications.services import create_notification
 
@@ -175,8 +176,20 @@ def _sync_catalog_document(sheet: LearningObject) -> bool:
         return True
     document.version = version
     document.managed_file = asset.managed_file
+    if document.material_slug != catalog_subject.material_slug:
+        if CatalogDocument.objects.filter(
+            material_slug=catalog_subject.material_slug,
+            sheet_slug=document.sheet_slug,
+        ).exclude(id=document.id).exists():
+            raise ContentRuleError(
+                "The sheet slug is already in use in the destination Catalog subject. "
+                "The existing sheet slug was preserved; resolve the mapping conflict first."
+            )
+        document.material_slug = catalog_subject.material_slug
     document.is_active = True
-    document.save(update_fields=("version", "managed_file", "is_active", "updated_at"))
+    document.save(
+        update_fields=("material_slug", "version", "managed_file", "is_active", "updated_at")
+    )
     return True
 
 
@@ -191,9 +204,10 @@ def is_student_visible(sheet: LearningObject) -> bool:
 
     if sheet.published_version_id is None or sheet.archived_at is not None:
         return False
-    return CatalogDocument.objects.filter(
+    document = CatalogDocument.objects.filter(
         version_id=sheet.published_version_id, is_active=True
-    ).exists()
+    ).select_related("managed_file").first()
+    return bool(document and managed_file_delivery_size(document.managed_file) is not None)
 
 
 def _notify_students(*, actor: User, sheet: LearningObject) -> int:
@@ -201,7 +215,15 @@ def _notify_students(*, actor: User, sheet: LearningObject) -> int:
     if version is None:
         return 0
     subject = _subject_for_node(version.academic_node)
-    recipients = User.objects.filter(status=User.Status.ACTIVE, is_active=True).exclude(id=actor.id)
+    catalog_subject = _catalog_subject_for_node(version.academic_node)
+    document = CatalogDocument.objects.filter(version=version, is_active=True).first()
+    if catalog_subject is None or document is None:
+        return 0
+    recipients = User.objects.filter(
+        status=User.Status.ACTIVE,
+        is_active=True,
+        cohort_id=catalog_subject.cohort_id,
+    ).exclude(id=actor.id)
     created = 0
     for recipient_id in recipients.values_list("id", flat=True).iterator():
         _, was_created = create_notification(
@@ -219,10 +241,41 @@ def _notify_students(*, actor: User, sheet: LearningObject) -> int:
             },
             target_type="learning_object",
             target_id=sheet.id,
-            target_route=f"/materials/objects/{sheet.id}",
+            target_route=(
+                f"/materials/catalog/{document.material_slug}/sheets/{document.sheet_slug}"
+            ),
         )
         created += int(was_created)
     return created
+
+
+@transaction.atomic
+def publish_catalog_learning_object(
+    *, actor: User, learning_object_id: UUID, expected_revision: int
+) -> LearningObject:
+    """Publish through the generic API and maintain the Catalog projection."""
+
+    sheet = publish_learning_object(
+        actor=actor,
+        learning_object_id=learning_object_id,
+        expected_revision=expected_revision,
+    )
+    if sheet.published_version and sheet.published_version.content_type == "pdf":
+        _sync_catalog_document(sheet)
+    return sheet
+
+
+@transaction.atomic
+def archive_catalog_learning_object(
+    *, actor: User, learning_object_id: UUID, expected_revision: int
+) -> LearningObject:
+    sheet = archive_learning_object(
+        actor=actor,
+        learning_object_id=learning_object_id,
+        expected_revision=expected_revision,
+    )
+    _sync_catalog_document(sheet)
+    return sheet
 
 
 def _publish_current(*, actor: User, sheet: LearningObject) -> LearningObject:

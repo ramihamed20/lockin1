@@ -17,6 +17,7 @@
  * @property {string=} pdfUrl
  * @property {number=} pageCount
  * @property {boolean=} hasActiveStudy Set once the sheet has Active Study questions.
+ * @property {boolean=} deliverable Whether the protected PDF can currently be opened.
  *
  * @typedef {object} CatalogMaterial
  * @property {string} slug

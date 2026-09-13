@@ -69,6 +69,7 @@ x-backend-common: &backend-common
     STORAGE_ALLOW_LOCAL_MEDIA: ${STORAGE_ALLOW_LOCAL_MEDIA:-false}
     CONTENT_MAX_PDF_BYTES: ${CONTENT_MAX_PDF_BYTES:-52428800}
     CONTENT_MAX_AUDIO_BYTES: ${CONTENT_MAX_AUDIO_BYTES:-94371840}
+    COHORT_CONTENT_ENFORCEMENT: ${COHORT_CONTENT_ENFORCEMENT:-true}
     # Deliberately has no default: whether managed files require clean scan
     # evidence is a decision each deployment has to state. Set it false only
     # while the file-scanning profile is stopped, and true together with it.

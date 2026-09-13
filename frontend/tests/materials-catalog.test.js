@@ -104,7 +104,12 @@ test("Catalog sheet prioritizes Focus Workspace and keeps only the page count", 
   assert.match(materials, /t\("materials\.pageCount", \{ count: sheet\.pageCount \}\)/);
   assert.match(catalogue, /"materials\.pageCount\.other": "\{count\} pages"/);
   assert.doesNotMatch(materials, /Sheet source|fileName.*attached|File-based actions/);
-  assert.doesNotMatch(materials, /disabled aria-describedby="catalog-sheet-file-status"/);
+  assert.match(materials, /sheet\.deliverable === false/);
+  assert.match(materials, /if \(sheet\?\.deliverable !== false\) rememberLastOpenedCatalogSheet/);
+  assert.match(materials, /<ErrorPanel message=\{t\("materials\.sheetNotFoundText"\)\} \/>/);
+  const sheetCard = await readFile(new URL("../src/components/learning/CatalogSheetCard.jsx", import.meta.url), "utf8");
+  assert.match(sheetCard, /if \(sheet\.deliverable === false\)/);
+  assert.match(sheetCard, /data-unavailable="true"/);
   assert.match(materials, /sheets\/\$\{sheet\.slug\}\/workspace/);
   assert.match(materials, /returnTo: location\.pathname/);
   assert.match(materials, /rememberLastOpenedCatalogSheet\(materialSlug, sheetSlug\)/);
