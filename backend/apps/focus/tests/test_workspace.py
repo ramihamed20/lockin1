@@ -7,10 +7,17 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 from apps.accounts.tests.helpers import create_user
+from apps.content.admin_services import replace_pdf
 from apps.content.tests.helpers import published_pdf
-from apps.education.tests.helpers import create_admin, published_path
+from apps.education.tests.helpers import create_admin, pdf_upload, published_path
 from apps.entitlements.models import EntitlementDefinition, EntitlementGrant
-from apps.focus.models import FocusAnnotation, FocusSession, FocusSessionActivity
+from apps.files.services import create_managed_file
+from apps.focus.models import (
+    FocusAnnotation,
+    FocusAnnotationCollection,
+    FocusSession,
+    FocusSessionActivity,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -197,6 +204,64 @@ def test_annotation_sync_is_versioned_idempotent_and_never_mutates_pdf() -> None
     assert loaded.json()["results"][0]["id"] == annotation_id
     assert FocusAnnotation.objects.get(id=annotation_id).payload["kind"] == "stroke"
     assert final_checksum == initial_checksum
+
+
+def test_replacing_pdf_preserves_annotations_under_the_logical_sheet() -> None:
+    admin, student, document_id, old_version_id = _workspace_fixture()
+    client = _client(student)
+    annotation_id = str(uuid4())
+    created = client.post(
+        f"/api/v1/focus/documents/{old_version_id}/annotations",
+        {
+            "expected_collection_revision": 0,
+            "idempotency_key": str(uuid4()),
+            "annotations": [_stroke(annotation_id)],
+            "deleted_ids": [],
+        },
+        format="json",
+    )
+    assert created.status_code == 200
+
+    from apps.content.models import LearningObject
+
+    sheet = LearningObject.objects.get(id=document_id)
+    replacement = create_managed_file(
+        owner=admin,
+        upload=pdf_upload(name="replacement-with-preserved-ink.pdf"),
+        kind="pdf",
+    )
+    sheet = replace_pdf(
+        actor=admin,
+        sheet_id=sheet.id,
+        expected_revision=sheet.revision,
+        managed_file=replacement,
+        notify_students=False,
+    )
+    new_version_id = str(sheet.published_version_id)
+
+    loaded = client.get(f"/api/v1/focus/documents/{new_version_id}/annotations?pages=1")
+    assert loaded.status_code == 200
+    assert [item["id"] for item in loaded.json()["results"]] == [annotation_id]
+
+    sync = client.post(
+        f"/api/v1/focus/documents/{new_version_id}/annotations",
+        {
+            "expected_collection_revision": loaded.json()["collection_revision"],
+            "idempotency_key": str(uuid4()),
+            "annotations": [_stroke(str(uuid4()), page=2)],
+            "deleted_ids": [],
+        },
+        format="json",
+    )
+    assert sync.status_code == 200
+    collection = FocusAnnotationCollection.objects.get(
+        user=student,
+        document_id=document_id,
+        merged_into__isnull=True,
+    )
+    assert str(collection.document_version_id) == new_version_id
+    assert collection.version_changed_at is not None
+    assert collection.annotations.filter(id=annotation_id, deleted_at__isnull=True).exists()
 
 
 def test_annotations_are_owner_scoped_and_invalid_geometry_fails_closed() -> None:

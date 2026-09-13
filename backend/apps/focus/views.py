@@ -592,7 +592,7 @@ class FocusDocumentView(APIView):
         )
         annotation_revision, _ = annotations_for_pages(
             user_id=user.id,
-            document_version_id=document.document_version_id,
+            document_id=document.document_id,
             page_numbers=(1,),
         )
         summary = get_focus_summary(user_id=user.id)
@@ -1009,7 +1009,7 @@ class FocusAnnotationsView(APIView):
             raise ValidationError("A requested annotation page is outside the document.")
         revision, annotations = annotations_for_pages(
             user_id=user.id,
-            document_version_id=document.document_version_id,
+            document_id=document.document_id,
             page_numbers=pages,
         )
         paginator = FocusAnnotationPagination()

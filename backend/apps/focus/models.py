@@ -473,7 +473,17 @@ class FocusAnnotationCollection(models.Model):
         related_name="focus_annotation_collections",
     )
     document_id = models.UUIDField()
+    # The logical LearningObject id is the durable annotation owner. The
+    # version id below is retained only as the most recent PDF anchor.
     document_version_id = models.UUIDField()
+    version_changed_at = models.DateTimeField(null=True, blank=True)
+    merged_into = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="merged_annotation_collections",
+    )
     revision = models.PositiveBigIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -481,19 +491,20 @@ class FocusAnnotationCollection(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=("user", "document_version_id"),
+                fields=("user", "document_id"),
+                condition=Q(merged_into__isnull=True),
                 name="focus_annotation_collection_unique",
             )
         ]
         indexes = [
             models.Index(
-                fields=("user", "document_version_id"),
+                fields=("user", "document_id"),
                 name="focus_annotation_owner_idx",
             )
         ]
 
     def __str__(self) -> str:
-        return f"{self.user_id}:{self.document_version_id}:{self.revision}"
+        return f"{self.user_id}:{self.document_id}:{self.revision}"
 
 
 class FocusAnnotation(models.Model):
