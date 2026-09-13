@@ -48,45 +48,6 @@ export const focusApi = {
     return objectPayload(await request(`/focus/managed-active-study/${runId}/submit`, { method: "POST", body: { attempt_id: attemptId } }), "The Active Study result could not be saved.");
   },
 
-  async startActiveStudy({ materialSlug, sheetSlug, difficulty, pageCount }) {
-    return objectPayload(
-      await request("/focus/active-study/start", {
-        method: "POST",
-        body: {
-          material_slug: materialSlug,
-          sheet_slug: sheetSlug,
-          difficulty,
-          page_count: pageCount
-        }
-      }),
-      "Active Study could not be started."
-    );
-  },
-
-  async getActiveStudyQuiz(runId) {
-    return objectPayload(
-      await request(`/focus/active-study/${runId}/quiz`),
-      "The Active Study test could not be loaded."
-    );
-  },
-
-  async submitActiveStudyQuiz(runId, answers) {
-    return objectPayload(
-      await request(`/focus/active-study/${runId}/quiz`, {
-        method: "POST",
-        body: { answers }
-      }),
-      "The Active Study test could not be submitted."
-    );
-  },
-
-  async continueActiveStudy(runId) {
-    return objectPayload(
-      await request(`/focus/active-study/${runId}/continue`, { method: "POST", body: {} }),
-      "The next pages could not be unlocked."
-    );
-  },
-
   async getDocument(documentVersionId) {
     const payload = objectPayload(
       await request(`/focus/documents/${documentVersionId}`),
