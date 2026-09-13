@@ -247,9 +247,7 @@ def test_catalog_sync_refreshes_material_slug_without_changing_sheet_slug() -> N
 
     admin = create_admin(email="catalog-slug-refresh@example.com")
     _, subject, _ = published_path(admin=admin)
-    program = AcademicProgram.objects.create(
-        code="slug-refresh", name_en="Slug", name_ar="Slug"
-    )
+    program = AcademicProgram.objects.create(code="slug-refresh", name_en="Slug", name_ar="Slug")
     cohort = StudentCohort.objects.create(
         program=program, code="year-1", name_en="Year 1", name_ar="Year 1"
     )

@@ -38,7 +38,8 @@ class Command(BaseCommand):
                 "size_mismatch": mismatch,
                 "old_page_count": managed_file.pdf_page_count,
                 "derived_page_count": inspection.page_count,
-                "state": inspection.error or (
+                "state": inspection.error
+                or (
                     "current"
                     if managed_file.pdf_page_count == inspection.page_count
                     else "page_count_mismatch"
@@ -55,10 +56,10 @@ class Command(BaseCommand):
                         role=LearningObjectAsset.Role.PRIMARY,
                         version__content_type=LearningObjectVersion.ContentType.PDF,
                     ).values_list("version_id", flat=True)
-                    changed_versions = LearningObjectVersion.objects.filter(
-                        id__in=version_ids
-                    ).exclude(page_count=inspection.page_count).update(
-                        page_count=inspection.page_count
+                    changed_versions = (
+                        LearningObjectVersion.objects.filter(id__in=version_ids)
+                        .exclude(page_count=inspection.page_count)
+                        .update(page_count=inspection.page_count)
                     )
                     if changed_file or changed_versions:
                         repaired += 1

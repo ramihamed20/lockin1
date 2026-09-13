@@ -261,9 +261,7 @@ def test_sheet_notification_only_targets_the_owning_cohort_with_a_valid_route() 
     program = AcademicProgram.objects.create(
         code="program-notify", name_en="Notify", name_ar="Notify"
     )
-    own = StudentCohort.objects.create(
-        program=program, code="own", name_en="Own", name_ar="Own"
-    )
+    own = StudentCohort.objects.create(program=program, code="own", name_en="Own", name_ar="Own")
     other = StudentCohort.objects.create(
         program=program, code="other", name_en="Other", name_ar="Other"
     )

@@ -141,9 +141,7 @@ def sync_annotations(
     if collection.document_version_id != document_version_id:
         collection.document_version_id = document_version_id
         collection.version_changed_at = timezone.now()
-        collection.save(
-            update_fields=("document_version_id", "version_changed_at", "updated_at")
-        )
+        collection.save(update_fields=("document_version_id", "version_changed_at", "updated_at"))
     receipt = FocusSyncReceipt.objects.filter(
         collection__in=FocusAnnotationCollection.objects.filter(
             Q(id=collection.id) | Q(merged_into=collection)

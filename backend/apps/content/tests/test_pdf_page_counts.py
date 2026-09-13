@@ -26,9 +26,7 @@ def _pdf_upload(*, pages: int, name: str = "real.pdf") -> SimpleUploadedFile:
 def test_real_pdf_page_count_is_persisted_on_file_and_new_version() -> None:
     admin = create_admin(email="page-count-upload@example.com")
     _, subject, _ = published_path(admin=admin)
-    managed_file = create_managed_file(
-        owner=admin, upload=_pdf_upload(pages=3), kind="pdf"
-    )
+    managed_file = create_managed_file(owner=admin, upload=_pdf_upload(pages=3), kind="pdf")
 
     sheet = create_learning_object(
         actor=admin,
@@ -47,9 +45,7 @@ def test_real_pdf_page_count_is_persisted_on_file_and_new_version() -> None:
 def test_page_count_backfill_is_dry_run_idempotent_and_reports_size_mismatch() -> None:
     admin = create_admin(email="page-count-backfill@example.com")
     _, subject, _ = published_path(admin=admin)
-    managed_file = create_managed_file(
-        owner=admin, upload=_pdf_upload(pages=4), kind="pdf"
-    )
+    managed_file = create_managed_file(owner=admin, upload=_pdf_upload(pages=4), kind="pdf")
     managed_file.pdf_page_count = None
     managed_file.size_bytes += 9
     managed_file.save(update_fields=("pdf_page_count", "size_bytes"))

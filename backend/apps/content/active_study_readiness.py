@@ -30,8 +30,7 @@ def readiness_payload(*, sheet: LearningObject) -> dict[str, object]:
     excluded_start = settings.excluded_start_pages if settings is not None else 0
     excluded_end = settings.excluded_end_pages if settings is not None else 0
     content_by_difficulty = {
-        content.difficulty: content
-        for content in sheet.active_study_question_content.all()
+        content.difficulty: content for content in sheet.active_study_question_content.all()
     }
     source_version = sheet.published_version or sheet.current_version
     settings_stale = bool(

@@ -153,9 +153,7 @@ def _published_documents_by_subject(
     if not subjects:
         return {}
     scoped_subjects = [
-        (subject, subject.source_node)
-        for subject in subjects
-        if subject.source_node is not None
+        (subject, subject.source_node) for subject in subjects if subject.source_node is not None
     ]
     if not scoped_subjects:
         return {subject.id: [] for subject in subjects}
@@ -166,7 +164,8 @@ def _published_documents_by_subject(
             version__academic_node__path__startswith=source_node.path,
         )
     documents = (
-        CatalogDocument.objects.filter(condition).filter(
+        CatalogDocument.objects.filter(condition)
+        .filter(
             is_active=True,
             version__learning_object__published_version_id=models.F("version_id"),
             version__learning_object__archived_at__isnull=True,

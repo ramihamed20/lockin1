@@ -298,9 +298,7 @@ def manage_subscription(
     if normalized_action in {"activate", "reactivate"}:
         effective_period_end = period_ends_at or subscription.current_period_ends_at
         if effective_period_end is None or effective_period_end <= now:
-            raise AdminControlError(
-                "A future expiration date is required to activate paid access."
-            )
+            raise AdminControlError("A future expiration date is required to activate paid access.")
         result = transition_subscription(
             subscription_id=subscription.id,
             to_status=Subscription.Status.ACTIVE,

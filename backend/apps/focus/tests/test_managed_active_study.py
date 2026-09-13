@@ -233,9 +233,7 @@ def test_admin_configured_real_sheet_completes_through_student_managed_api() -> 
             f"/api/v1/focus/managed-active-study/{run['id']}/complete-reading", {}, format="json"
         )
         assert opened.status_code == 200
-        quiz = client.get(
-            f"/api/v1/focus/managed-active-study/{run['id']}/questions"
-        ).json()
+        quiz = client.get(f"/api/v1/focus/managed-active-study/{run['id']}/questions").json()
         for question in quiz["questions"]:
             answer_response = client.post(
                 f"/api/v1/focus/managed-active-study/{run['id']}/answer",
@@ -256,20 +254,21 @@ def test_admin_configured_real_sheet_completes_through_student_managed_api() -> 
         run = submitted.json()["run"]
 
     assert run["stage"] == "final"
-    final = client.get(
-        f"/api/v1/focus/managed-active-study/{run['id']}/questions"
-    ).json()
+    final = client.get(f"/api/v1/focus/managed-active-study/{run['id']}/questions").json()
     for question in final["questions"]:
         selected = "B" if question["position"] <= 35 else "A"
-        assert client.post(
-            f"/api/v1/focus/managed-active-study/{run['id']}/answer",
-            {
-                "attempt_id": final["attempt_id"],
-                "position": question["position"],
-                "selected_answer": selected,
-            },
-            format="json",
-        ).status_code == 200
+        assert (
+            client.post(
+                f"/api/v1/focus/managed-active-study/{run['id']}/answer",
+                {
+                    "attempt_id": final["attempt_id"],
+                    "position": question["position"],
+                    "selected_answer": selected,
+                },
+                format="json",
+            ).status_code
+            == 200
+        )
     completed = client.post(
         f"/api/v1/focus/managed-active-study/{run['id']}/submit",
         {"attempt_id": final["attempt_id"]},

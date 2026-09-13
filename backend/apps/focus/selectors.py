@@ -70,9 +70,13 @@ def annotations_for_pages(
 
 
 def annotation_collection_revision(*, user_id: UUID, document_id: UUID) -> int:
-    revision = FocusAnnotationCollection.objects.filter(
-        user_id=user_id,
-        document_id=document_id,
-        merged_into__isnull=True,
-    ).values_list("revision", flat=True).first()
+    revision = (
+        FocusAnnotationCollection.objects.filter(
+            user_id=user_id,
+            document_id=document_id,
+            merged_into__isnull=True,
+        )
+        .values_list("revision", flat=True)
+        .first()
+    )
     return int(revision or 0)

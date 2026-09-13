@@ -178,10 +178,14 @@ def _sync_catalog_document(sheet: LearningObject) -> bool:
     document.version = version
     document.managed_file = asset.managed_file
     if document.material_slug != catalog_subject.material_slug:
-        if CatalogDocument.objects.filter(
-            material_slug=catalog_subject.material_slug,
-            sheet_slug=document.sheet_slug,
-        ).exclude(id=document.id).exists():
+        if (
+            CatalogDocument.objects.filter(
+                material_slug=catalog_subject.material_slug,
+                sheet_slug=document.sheet_slug,
+            )
+            .exclude(id=document.id)
+            .exists()
+        ):
             raise ContentRuleError(
                 "The sheet slug is already in use in the destination Catalog subject. "
                 "The existing sheet slug was preserved; resolve the mapping conflict first."
@@ -205,9 +209,11 @@ def is_student_visible(sheet: LearningObject) -> bool:
 
     if sheet.published_version_id is None or sheet.archived_at is not None:
         return False
-    document = CatalogDocument.objects.filter(
-        version_id=sheet.published_version_id, is_active=True
-    ).select_related("managed_file").first()
+    document = (
+        CatalogDocument.objects.filter(version_id=sheet.published_version_id, is_active=True)
+        .select_related("managed_file")
+        .first()
+    )
     return bool(document and managed_file_delivery_size(document.managed_file) is not None)
 
 
@@ -918,7 +924,9 @@ def update_active_study_settings(
     resolved_total = (
         derived_total
         if derived_total is not None
-        else total_pdf_pages if total_pdf_pages is not None else settings.total_pdf_pages
+        else total_pdf_pages
+        if total_pdf_pages is not None
+        else settings.total_pdf_pages
     )
     if enabled and resolved_total is None:
         raise ContentRuleError("Enter the PDF's total page count before enabling Active Study.")

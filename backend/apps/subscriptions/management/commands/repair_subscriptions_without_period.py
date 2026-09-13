@@ -44,9 +44,7 @@ class Command(BaseCommand):
                 "user_id": str(item.account.primary_user_id or ""),
                 "email": item.account.primary_user.email if item.account.primary_user else "",
                 "current_period_ends_at": (
-                    item.current_period_ends_at.isoformat()
-                    if item.current_period_ends_at
-                    else None
+                    item.current_period_ends_at.isoformat() if item.current_period_ends_at else None
                 ),
                 "grace_ends_at": item.grace_ends_at.isoformat() if item.grace_ends_at else None,
             }
