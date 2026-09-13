@@ -144,6 +144,10 @@ jobs:
           OBSERVABILITY_STATSD_HOST: 127.0.0.1
           OBSERVABILITY_ERROR_WEBHOOK_URL: https://monitoring.example.test/v1/errors
           OBSERVABILITY_ERROR_WEBHOOK_TOKEN: ci-only-observability-token
+          # This job deliberately has no scanner service. The enabled mode
+          # must therefore prove it fails closed before the explicitly
+          # scanner-free deployment mode is allowed to pass.
+          FILE_SCAN_PORT: 9
           CONTENT_REQUIRE_CLEAN_SCAN: "true"
           # As in the release gate above: the storage contract is declared, and
           # preflight reads no object. It runs check --deploy, database
@@ -155,10 +159,17 @@ jobs:
           STORAGE_ACCESS_KEY_ID: ci-only-storage-key
           STORAGE_SECRET_ACCESS_KEY: ci-only-storage-secret
         run: |
-          # Both enforcement modes must boot and pass preflight. Running
-          # without the scan gate is a supported production configuration,
-          # so it is gated here rather than discovered on the VPS.
-          python manage.py production_preflight
+          # A deployment that enables clean-scan enforcement without starting
+          # the file-scanning profile must never boot successfully.  Port 9 is
+          # intentionally unused on the runner, so this is a real TCP failure,
+          # not a mocked scanner.
+          if python manage.py production_preflight; then
+            echo "clean-scan enforcement passed without a reachable scanner" >&2
+            exit 1
+          fi
+          # Running without the scan gate is a supported, explicitly stated
+          # production configuration.  It must still pass every other runtime
+          # role, database and migration preflight check.
           CONTENT_REQUIRE_CLEAN_SCAN=false python manage.py production_preflight
 
   frontend:
