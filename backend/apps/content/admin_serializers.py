@@ -12,6 +12,7 @@ class AdminSheetCreateSerializer(StrictSerializer):
         default="",
     )
     primary_file_id = serializers.UUIDField()
+    summary_file_id = serializers.UUIDField(allow_null=True, required=False, default=None)
     position = serializers.IntegerField(min_value=0, max_value=1_000_000, default=0)
     publish = serializers.BooleanField(default=False)
     notify_students = serializers.BooleanField(default=False)
@@ -40,6 +41,11 @@ class AdminSheetReplacePdfSerializer(StrictSerializer):
     expected_revision = serializers.IntegerField(min_value=1)
     primary_file_id = serializers.UUIDField()
     notify_students = serializers.BooleanField(default=False)
+
+
+class AdminSheetSummaryPdfSerializer(StrictSerializer):
+    expected_revision = serializers.IntegerField(min_value=1)
+    summary_file_id = serializers.UUIDField()
 
 
 class AdminSheetDeletePdfSerializer(StrictSerializer):

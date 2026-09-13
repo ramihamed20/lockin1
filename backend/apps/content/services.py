@@ -43,6 +43,7 @@ class LearningObjectInput:
     available_from: datetime | None = None
     available_until: datetime | None = None
     primary_file: ManagedFile | None = None
+    summary_file: ManagedFile | None = None
     position: int = 0
 
 
@@ -72,6 +73,15 @@ def _validate_input(*, actor: User, data: LearningObjectInput) -> None:
     expected_kind = expected_kinds.get(data.content_type)
     if expected_kind is None or data.primary_file.kind != expected_kind:
         raise ContentRuleError("The primary file does not match the content type.")
+    if data.summary_file is not None:
+        if data.content_type != LearningObjectVersion.ContentType.PDF:
+            raise ContentRuleError("A summary PDF can only be attached to PDF content.")
+        if not is_content_administrator(actor) and data.summary_file.owner_id != actor.id:
+            raise ContentRuleError("You cannot attach another creator's summary file.")
+        if data.summary_file.validation_status != ManagedFile.ValidationStatus.READY:
+            raise ContentRuleError("The summary PDF did not pass validation.")
+        if data.summary_file.kind != ManagedFile.Kind.PDF:
+            raise ContentRuleError("The sheet summary must be a PDF file.")
 
 
 def _create_version(
@@ -106,6 +116,12 @@ def _create_version(
             version=version,
             managed_file=data.primary_file,
             role=LearningObjectAsset.Role.PRIMARY,
+        )
+    if data.summary_file is not None:
+        LearningObjectAsset.objects.create(
+            version=version,
+            managed_file=data.summary_file,
+            role=LearningObjectAsset.Role.SUMMARY,
         )
     return version
 

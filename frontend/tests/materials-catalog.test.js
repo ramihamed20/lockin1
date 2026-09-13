@@ -115,6 +115,22 @@ test("Catalog sheet prioritizes Focus Workspace and keeps only the page count", 
   assert.match(materials, /rememberLastOpenedCatalogSheet\(materialSlug, sheetSlug\)/);
 });
 
+test("Catalog sheet exposes a Normal Mode summary without Active Study", async () => {
+  const materials = await readFile(new URL("../src/pages/Materials.jsx", import.meta.url), "utf8");
+  const app = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
+  const messages = await readFile(new URL("../src/lib/i18n.js", import.meta.url), "utf8");
+  assert.match(materials, /CatalogSheetSummary/);
+  assert.match(materials, /sheet\.summaryPdf\?\.viewUrl/);
+  assert.match(materials, /iframe src=\{sheet\.summaryPdf\.viewUrl\}/);
+  assert.match(materials, /catalog-summary-card is-available/);
+  assert.match(materials, /catalog-summary-card is-unavailable/);
+  assert.match(materials, /materials\.summaryNormalOnly/);
+  assert.doesNotMatch(materials.match(/export function CatalogSheetSummary[\s\S]*$/)?.[0] || "", /ActiveStudySettings|hasActiveStudy/);
+  assert.match(app, /sheets\/:sheetSlug\/summary/);
+  assert.match(messages, /"materials\.sheetSummary": "Sheet Summary"/);
+  assert.match(messages, /"materials\.sheetSummary": "ملخص الشيت"/);
+});
+
 test("opened-sheet history ignores sheets that were not published by the Catalog", () => {
   const previousStorage = globalThis.localStorage;
   const data = new Map();

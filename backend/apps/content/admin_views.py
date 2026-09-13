@@ -28,6 +28,7 @@ from .admin_serializers import (
     AdminSheetDeletePdfSerializer,
     AdminSheetReorderSerializer,
     AdminSheetReplacePdfSerializer,
+    AdminSheetSummaryPdfSerializer,
     AdminSheetUpdateSerializer,
 )
 from .admin_services import (
@@ -37,11 +38,13 @@ from .admin_services import (
     create_sheet,
     delete_active_study_question_content,
     delete_pdf,
+    delete_summary_pdf,
     has_publication_history,
     is_student_visible,
     permanently_delete_sheet,
     reorder_sheet,
     replace_pdf,
+    replace_summary_pdf,
     save_active_study_question_content,
     update_active_study_settings,
     update_sheet,
@@ -123,11 +126,22 @@ def _primary_asset(sheet: LearningObject):  # type: ignore[no-untyped-def]
     )
 
 
+def _summary_asset(sheet: LearningObject):  # type: ignore[no-untyped-def]
+    version = sheet.current_version
+    if version is None:
+        return None
+    return next(
+        (asset for asset in version.assets.all() if asset.role == LearningObjectAsset.Role.SUMMARY),
+        None,
+    )
+
+
 def serialize_sheet(sheet: LearningObject) -> dict[str, object]:
     version = sheet.current_version
     if version is None:
         raise AdminContentRejected("The sheet has no current version.")
     asset = _primary_asset(sheet)
+    summary_asset = _summary_asset(sheet)
     question_count = Question.objects.filter(
         current_version__source_learning_object=sheet,
     ).count()
@@ -169,6 +183,18 @@ def serialize_sheet(sheet: LearningObject) -> dict[str, object]:
                 "view_url": f"/api/v1/files/{asset.managed_file_id}/view",
             }
             if asset is not None
+            else None
+        ),
+        "summary_pdf": (
+            {
+                "file_id": str(summary_asset.managed_file_id),
+                "original_name": summary_asset.managed_file.original_name,
+                "size_bytes": summary_asset.managed_file.size_bytes,
+                "page_count": summary_asset.managed_file.pdf_page_count,
+                "content_type": summary_asset.managed_file.content_type,
+                "view_url": f"/api/v1/files/{summary_asset.managed_file_id}/view",
+            }
+            if summary_asset is not None
             else None
         ),
         "updated_at": sheet.updated_at,
@@ -266,11 +292,17 @@ class AdminSubjectSheetListView(_ContentPermissionView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         managed_file = get_object_or_404(ManagedFile, id=data["primary_file_id"])
+        summary_file = (
+            get_object_or_404(ManagedFile, id=data["summary_file_id"])
+            if data.get("summary_file_id") is not None
+            else None
+        )
         try:
             sheet = create_sheet(
                 actor=_user(request),
                 subject=subject,
                 managed_file=managed_file,
+                summary_file=summary_file,
                 title=str(data["title"]),
                 summary=str(data["summary"]),
                 position=int(data["position"]),
@@ -361,6 +393,37 @@ class AdminSheetPdfView(_ContentPermissionView):
         serializer.is_valid(raise_exception=True)
         try:
             sheet = delete_pdf(
+                actor=_user(request),
+                sheet_id=sheet_id,
+                expected_revision=int(serializer.validated_data["expected_revision"]),
+            )
+        except (LearningObject.DoesNotExist, ContentRuleError) as error:
+            _raise_rule(error)
+        return Response(serialize_sheet(sheet))
+
+
+class AdminSheetSummaryPdfView(_ContentPermissionView):
+    def post(self, request: Request, sheet_id: UUID) -> Response:
+        serializer = AdminSheetSummaryPdfSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        managed_file = get_object_or_404(ManagedFile, id=data["summary_file_id"])
+        try:
+            sheet = replace_summary_pdf(
+                actor=_user(request),
+                sheet_id=sheet_id,
+                expected_revision=int(data["expected_revision"]),
+                managed_file=managed_file,
+            )
+        except (LearningObject.DoesNotExist, ContentRuleError) as error:
+            _raise_rule(error)
+        return Response(serialize_sheet(sheet))
+
+    def delete(self, request: Request, sheet_id: UUID) -> Response:
+        serializer = AdminSheetDeletePdfSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            sheet = delete_summary_pdf(
                 actor=_user(request),
                 sheet_id=sheet_id,
                 expected_revision=int(serializer.validated_data["expected_revision"]),

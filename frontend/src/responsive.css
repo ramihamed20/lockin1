@@ -3342,3 +3342,45 @@
     font-size: 1.05rem;
     white-space: nowrap;
   }
+
+/* Release settlement: the navigation is the scroll region and streak is a fixed footer. */
+.sidebar {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar .nav-list {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.sidebar .streak-card {
+  flex: 0 0 auto;
+  min-width: 0;
+  margin-top: var(--space-2);
+}
+
+.sidebar .streak-card-heading {
+  min-width: 0;
+}
+
+.sidebar .streak-card-heading span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-height: 720px) and (min-width: 640px) {
+  .sidebar .streak-card {
+    padding: 8px;
+  }
+
+  .sidebar .streak-card-heading small,
+  .sidebar .streak-card-track,
+  .sidebar .streak-freeze {
+    display: none;
+  }
+}

@@ -106,6 +106,11 @@ def test_sheet_create_publish_notify_update_unpublish_and_safe_delete() -> None:
     student.cohort = cohort
     student.save(update_fields=["cohort"])
     managed_file = create_managed_file(owner=admin, upload=pdf_upload(name="skin.pdf"), kind="pdf")
+    summary_file = create_managed_file(
+        owner=admin,
+        upload=pdf_upload(name="skin-summary.pdf"),
+        kind="pdf",
+    )
     client = APIClient()
     client.force_authenticate(admin)
 
@@ -115,6 +120,7 @@ def test_sheet_create_publish_notify_update_unpublish_and_safe_delete() -> None:
             "title": "Skin",
             "summary": "Lecture sheet",
             "primary_file_id": str(managed_file.id),
+            "summary_file_id": str(summary_file.id),
             "position": 4,
             "publish": True,
             "notify_students": True,
@@ -127,6 +133,14 @@ def test_sheet_create_publish_notify_update_unpublish_and_safe_delete() -> None:
     created = created_response.json()
     assert created["workflow_status"] == "published"
     assert created["position"] == 4
+    assert created["summary_pdf"]["file_id"] == str(summary_file.id)
+    student_client = APIClient()
+    student_client.force_authenticate(student)
+    catalog_sheet = student_client.get("/api/v1/catalog/materials").json()["results"][0]["sheets"][
+        0
+    ]
+    assert catalog_sheet["summaryPdf"]["viewUrl"].endswith(f"/{summary_file.id}/view")
+    assert student_client.get(catalog_sheet["summaryPdf"]["viewUrl"]).status_code == 200
     assert Notification.objects.filter(
         recipient=student,
         template_key="content.sheet_published",
@@ -142,6 +156,7 @@ def test_sheet_create_publish_notify_update_unpublish_and_safe_delete() -> None:
     updated = updated_response.json()
     assert updated["title"] == "Skin revised"
     assert updated["workflow_status"] == "published"
+    assert updated["summary_pdf"]["file_id"] == str(summary_file.id)
 
     unpublished_response = client.post(
         f"/api/v1/operations/admin/content/sheets/{created['id']}/actions",

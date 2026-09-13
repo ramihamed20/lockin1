@@ -97,6 +97,12 @@ export const adminControlApi = {
   removeSheetPdf(sheetId, expectedRevision) {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/pdf`, { method: "DELETE", body: { expected_revision: Number(expectedRevision) } });
   },
+  replaceSheetSummaryPdf(sheetId, body) {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/summary-pdf`, { method: "POST", body });
+  },
+  removeSheetSummaryPdf(sheetId, expectedRevision) {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/summary-pdf`, { method: "DELETE", body: { expected_revision: Number(expectedRevision) } });
+  },
   deleteSheet(sheetId) {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}`, { method: "DELETE" });
   },

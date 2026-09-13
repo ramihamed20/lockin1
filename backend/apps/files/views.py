@@ -6,7 +6,9 @@ from django.core.files.uploadedfile import UploadedFile
 from django.http import HttpResponse, StreamingHttpResponse
 from django.http.response import HttpResponseBase
 from django.shortcuts import get_object_or_404
+from django.utils.decorators import method_decorator
 from django.utils.http import content_disposition_header
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from rest_framework import status
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -109,6 +111,7 @@ def _byte_range(value: str, size: int) -> tuple[int, int] | None:
     return start, min(end, size - 1)
 
 
+@method_decorator(xframe_options_sameorigin, name="dispatch")
 class ManagedFileDeliveryView(APIView):
     def get(self, request: Request, file_id: UUID, disposition: str) -> HttpResponseBase:
         if disposition not in {"view", "download"}:

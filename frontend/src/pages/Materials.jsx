@@ -90,7 +90,7 @@ export function CatalogSheetStudy({ user = null }) {
   return (
     <Page title={sheet.title}>
       <section className="catalog-sheet-entry">
-        <article className="panel catalog-sheet-actions">
+        <article className="panel catalog-sheet-actions catalog-sheet-actions--primary">
           <div className="catalog-sheet-entry-heading">
             <span className="catalog-sheet-entry-icon"><Icon name="file" size={22} /></span>
             <div><h2>{sheet.title}</h2>{sheet.pageCount && <p id="catalog-sheet-file-status" dir="auto">{t("materials.pageCount", { count: sheet.pageCount })}</p>}</div>
@@ -100,8 +100,54 @@ export function CatalogSheetStudy({ user = null }) {
         <article className="catalog-lockin-card" aria-label={t("materials.lockInSoonLabel")}>
           <span><Icon name="lock" size={18} /></span><div><strong>{t("materials.lockInMode")}</strong><small>{t("common.soon")}</small></div>
         </article>
+        {sheet.summaryPdf?.viewUrl ? (
+          <Link className="catalog-summary-card is-available" to={`/materials/catalog/${material.slug}/sheets/${sheet.slug}/summary`}>
+            <span><Icon name="book-open" size={18} /></span>
+            <div><strong>{t("materials.sheetSummary")}</strong><small>{t("materials.summaryAvailable")}</small></div>
+            <Icon name="chevron-right" size={17} aria-hidden="true" />
+          </Link>
+        ) : (
+          <div className="catalog-summary-card is-unavailable" aria-disabled="true">
+            <span><Icon name="book-open" size={18} /></span>
+            <div><strong>{t("materials.sheetSummary")}</strong><small>{t("materials.summaryUnavailable")}</small></div>
+          </div>
+        )}
         <Link className="btn btn-soft compact catalog-sheet-back" to={`/materials/catalog/${material.slug}`}><Icon name="arrow-left" size={16} /> {t("materials.backToSheets")}</Link>
       </section>
+    </Page>
+  );
+}
+
+export function CatalogSheetSummary({ user = null }) {
+  const { materialSlug, sheetSlug } = useParams();
+  const { t } = useI18n();
+  const { materials, loading, error, reload } = useCatalogMaterials(user);
+  const material = materials.find((item) => item.slug === materialSlug) || null;
+  const sheet = material?.sheets.find((item) => item.slug === sheetSlug) || null;
+
+  if (loading) return <Page title={t("materials.sheetSummary")}><LoadingPanel /></Page>;
+  if (error) return <Page title={t("materials.sheetSummary")}><ErrorPanel message={error} onRetry={reload} /></Page>;
+  if (!material || !sheet) return <Page title={t("materials.sheetSummary")}><ErrorPanel message={t("materials.sheetNotFoundText")} /></Page>;
+  if (!sheet.summaryPdf?.viewUrl) return <Page title={t("materials.sheetSummary")}><ErrorPanel message={t("materials.summaryUnavailable")} /></Page>;
+
+  return (
+    <Page title={t("materials.sheetSummary")} subtitle={sheet.title}>
+      <article className="sheet-summary-reader">
+        <header>
+          <span><Icon name="book-open" size={20} /></span>
+          <div><p className="eyebrow">{t("materials.normalMode")}</p><h2 dir="auto">{sheet.title}</h2></div>
+        </header>
+        <div className="sheet-summary-pdf-frame">
+          <iframe src={sheet.summaryPdf.viewUrl} title={`${t("materials.sheetSummary")} — ${sheet.title}`} />
+        </div>
+        <footer>
+          <span><Icon name="info" size={16} />{t("materials.summaryNormalOnly")}</span>
+          <div className="sheet-summary-footer-actions">
+            <a className="btn btn-primary compact" href={sheet.summaryPdf.viewUrl} target="_blank" rel="noreferrer"><Icon name="expand" size={16} />{t("materials.openSummaryPdf")}</a>
+            <Link className="btn btn-soft compact" to={`/materials/catalog/${material.slug}/sheets/${sheet.slug}`}><Icon name="arrow-left" size={16} />{t("materials.backToSheet")}</Link>
+          </div>
+        </footer>
+      </article>
     </Page>
   );
 }

@@ -118,7 +118,7 @@ test("Phase 5 routes use server values and keep unsupported client authority dis
   assert.match(layout, /isKnownNotificationRoute/);
   assert.match(layout, /error\.status === 410/);
   assert.match(layout, /motivationApi\.notificationSummary/);
-  assert.match(layout, /Protect your streak for 1 week/);
+  assert.match(layout, /streak\.freezeHint/);
   assert.match(progress, /motivationApi\.xpLedger/);
   assert.match(achievements, /motivationApi\.achievements/);
   assert.match(ranked, /motivationApi\.updateRankingProfile/);

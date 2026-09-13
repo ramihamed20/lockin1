@@ -7,6 +7,7 @@ from .admin_views import (
     AdminSheetDetailView,
     AdminSheetPdfView,
     AdminSheetReorderView,
+    AdminSheetSummaryPdfView,
     AdminSubjectListView,
     AdminSubjectSheetListView,
 )
@@ -61,6 +62,11 @@ urlpatterns = [
         "operations/admin/content/sheets/<uuid:sheet_id>/pdf",
         AdminSheetPdfView.as_view(),
         name="admin-sheet-pdf",
+    ),
+    path(
+        "operations/admin/content/sheets/<uuid:sheet_id>/summary-pdf",
+        AdminSheetSummaryPdfView.as_view(),
+        name="admin-sheet-summary-pdf",
     ),
     path(
         "operations/admin/content/sheets/<uuid:sheet_id>/reorder",

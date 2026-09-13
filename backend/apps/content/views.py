@@ -30,6 +30,7 @@ from .models import (
     CatalogWorkspaceReceipt,
     CatalogWorkspaceSnapshot,
     LearningObject,
+    LearningObjectAsset,
 )
 from .policies import can_view_learning_object
 from .selectors import (
@@ -176,6 +177,7 @@ def _published_documents_by_subject(
             "version__learning_object__active_study_settings",
         )
         .prefetch_related("version__learning_object__active_study_question_content")
+        .prefetch_related("version__assets__managed_file")
         .order_by("version__learning_object__position", "sheet_slug", "id")
     )
     grouped: dict[UUID, list[CatalogDocument]] = {subject.id: [] for subject in subjects}
@@ -233,6 +235,14 @@ class CatalogMaterialListView(APIView):
             sheets = []
             for number, document in enumerate(documents, start=1):
                 version = document.version
+                summary_asset = next(
+                    (
+                        asset
+                        for asset in version.assets.all()
+                        if asset.role == LearningObjectAsset.Role.SUMMARY
+                    ),
+                    None,
+                )
                 settings = getattr(version.learning_object, "active_study_settings", None)
                 page_count = version.page_count
                 readiness = readiness_payload(sheet=version.learning_object)
@@ -247,7 +257,15 @@ class CatalogMaterialListView(APIView):
                         "learningObjectId": str(version.learning_object_id),
                         "number": number,
                         "title": version.title,
-                        "summary": version.summary,
+                        "summaryPdf": (
+                            {
+                                "viewUrl": f"/api/v1/files/{summary_asset.managed_file_id}/view",
+                                "pageCount": summary_asset.managed_file.pdf_page_count,
+                            }
+                            if summary_asset is not None
+                            and managed_file_delivery_size(summary_asset.managed_file) is not None
+                            else None
+                        ),
                         "pageCount": (
                             page_count if isinstance(page_count, int) and page_count > 0 else None
                         ),

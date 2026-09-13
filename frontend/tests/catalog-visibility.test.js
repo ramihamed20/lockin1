@@ -16,11 +16,11 @@ test("every catalogue screen separates 'not loaded yet' from 'nothing here'", as
   const materials = await read("../src/pages/Materials.jsx");
   const workspace = await read("../src/pages/CatalogFocusWorkspace.jsx");
 
-  // Materials, CatalogMaterialSheets and CatalogSheetStudy all live in this file.
+  // Materials, CatalogMaterialSheets, CatalogSheetStudy and CatalogSheetSummary live here.
   const gates = materials.match(/if \(loading\) return/g) || [];
-  assert.equal(gates.length, 3, "each of the three catalogue screens gates on loading");
+  assert.equal(gates.length, 4, "each of the four catalogue screens gates on loading");
   const errorGates = materials.match(/if \(error\) return/g) || [];
-  assert.equal(errorGates.length, 3, "each of the three screens offers a retry instead of 404");
+  assert.equal(errorGates.length, 4, "each of the four screens offers a retry instead of 404");
   assert.match(materials, /onRetry=\{reload\}/);
   // The empty state is only reachable after a successful, genuinely empty load.
   assert.ok(

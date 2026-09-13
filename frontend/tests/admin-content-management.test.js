@@ -28,6 +28,11 @@ test("sheet and question administration use real Django endpoints", () => {
   assert.match(page, /Archive selected/);
   assert.match(page, /Move to/);
   assert.match(page, /Delete permanently/);
+  assert.match(page, /summary_file_id: summaryManaged\?\.id \|\| null/);
+  assert.match(page, /Choose Sheet Summary PDF/);
+  assert.match(page, /replaceSheetSummaryPdf/);
+  assert.match(page, /removeSheetSummaryPdf/);
+  assert.match(page, /Normal Mode only/);
 });
 
 test("strict JSON import includes presets, validation, preview, and safe undo", () => {
