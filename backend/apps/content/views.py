@@ -20,6 +20,7 @@ from apps.education.policies import is_content_administrator
 from apps.entitlements.services import require_entitlement
 from apps.files.models import ManagedFile
 from apps.files.services import managed_file_delivery_size
+from apps.focus.selectors import annotation_collection_revision
 
 from .active_study_readiness import readiness_payload
 from .admin_services import archive_catalog_learning_object, publish_catalog_learning_object
@@ -275,8 +276,35 @@ class CatalogWorkspaceView(APIView):
     def get(self, request: Request, document_id: UUID) -> Response:
         user = _user(request)
         document = _catalog_document_by_id(user=user, document_id=document_id)
+        collection_revision = annotation_collection_revision(
+            user_id=user.id,
+            document_id=document.version.learning_object_id,
+        )
+        if request.query_params.get("probe") == "1":
+            workspace_revision = (
+                CatalogWorkspaceSnapshot.objects.filter(user=user, document=document)
+                .values_list("revision", flat=True)
+                .first()
+                or 0
+            )
+            return Response(
+                {
+                    "revision": workspace_revision,
+                    "collection_revision": collection_revision,
+                    "document_version_id": str(document.version_id),
+                    "checksum_sha256": document.managed_file.checksum_sha256,
+                }
+            )
         workspace, _ = CatalogWorkspaceSnapshot.objects.get_or_create(user=user, document=document)
-        return Response({"revision": workspace.revision, "state": workspace.state})
+        return Response(
+            {
+                "revision": workspace.revision,
+                "collection_revision": collection_revision,
+                "document_version_id": str(document.version_id),
+                "checksum_sha256": document.managed_file.checksum_sha256,
+                "state": workspace.state,
+            }
+        )
 
     def patch(self, request: Request, document_id: UUID) -> Response:
         user = _user(request)

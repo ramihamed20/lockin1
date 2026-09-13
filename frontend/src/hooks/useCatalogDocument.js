@@ -7,7 +7,7 @@ const VIEW_URL_PATTERN = /^\/api\/v1\/files\/[0-9a-f-]+\/view$/i;
 
 /**
  * @param {unknown} payload
- * @returns {{ id: string, versionId: string, viewUrl: string } | null}
+ * @returns {{ id: string, versionId: string, viewUrl: string, checksum: string } | null}
  */
 export function parseCatalogDocument(payload) {
   const document = payload && typeof payload === "object" ? /** @type {any} */ (payload).document : null;
@@ -19,7 +19,7 @@ export function parseCatalogDocument(payload) {
   ) {
     return null;
   }
-  return { id: document.id, versionId: document.document_version_id, viewUrl: document.view_url };
+  return { id: document.id, versionId: document.document_version_id, viewUrl: document.view_url, checksum: String(document.checksum_sha256 || "") };
 }
 
 /**

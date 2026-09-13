@@ -181,6 +181,11 @@ def test_annotation_sync_is_versioned_idempotent_and_never_mutates_pdf() -> None
     replayed = client.post(
         f"/api/v1/focus/documents/{version_id}/annotations", payload, format="json"
     )
+    reused_for_different_payload = client.post(
+        f"/api/v1/focus/documents/{version_id}/annotations",
+        {**payload, "annotations": [_stroke(str(uuid4()))]},
+        format="json",
+    )
     stale = client.post(
         f"/api/v1/focus/documents/{version_id}/annotations",
         {
@@ -199,6 +204,7 @@ def test_annotation_sync_is_versioned_idempotent_and_never_mutates_pdf() -> None
     assert saved.json()["collection_revision"] == 1
     assert replayed.status_code == 200
     assert replayed.json()["replayed"] is True
+    assert reused_for_different_payload.status_code == 400
     assert stale.status_code == 409
     assert loaded.status_code == 200
     assert loaded.json()["results"][0]["id"] == annotation_id

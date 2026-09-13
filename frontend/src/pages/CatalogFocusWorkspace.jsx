@@ -554,10 +554,10 @@ export default function CatalogFocusWorkspace({ user = null }) {
   if (!sheet.pdfUrl && !catalogDocument.document) {
     return <Page title={sheet.title}><ErrorPanel message={catalogDocument.error || t("materials.sheetNotFoundText")} onRetry={catalogDocument.reload} /></Page>;
   }
-  return <CatalogFocusWorkspaceView user={user} materials={resolvedMaterials} catalogDocument={catalogDocument.document} />;
+  return <CatalogFocusWorkspaceView user={user} materials={resolvedMaterials} catalogDocument={catalogDocument.document} onDocumentChanged={catalogDocument.reload} />;
 }
 
-function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocument = null }) {
+function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocument = null, onDocumentChanged = () => {} }) {
   const { materialSlug, sheetSlug } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -1532,6 +1532,59 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       else if (sync?.hasPending()) void sync.retry();
     }
   }), []);
+
+  // A revision probe is cheap enough to run while the reader is open. Full
+  // state is downloaded only after either durable revision changes.
+  useEffect(() => {
+    let disposed = false;
+    let running = false;
+    const refreshServerState = async () => {
+      if (disposed || running || document.visibilityState === "hidden") return;
+      const sync = serverSyncRef.current;
+      if (!sync?.isLoaded()) return;
+      running = true;
+      try {
+        const result = await sync.refresh({
+          pageCount,
+          local: { annotations: annotationsRef.current, notes: notesRef.current }
+        });
+        if (disposed) return;
+        if (result.documentChanged) {
+          setFocusMessage("This sheet was updated. Your marks are preserved while the new PDF loads.");
+          onDocumentChanged();
+          return;
+        }
+        if (!result.changed) return;
+        if (!result.localChanged) {
+          // The remote revision may have advanced because an earlier response
+          // was lost. Retry any pending mutation against the refreshed base.
+          scheduleServerSync(0);
+          return;
+        }
+        updateAnnotations(result.annotations);
+        notesRef.current = result.notes;
+        setNotes(result.notes);
+        setSelectedIds([]);
+        setUndoHistory([]);
+        setRedoHistory([]);
+      } catch {
+        // The local copy remains authoritative while offline; reconnect and
+        // the next bounded probe will retry without losing edits.
+      } finally {
+        running = false;
+      }
+    };
+    const handleVisibility = () => { if (document.visibilityState === "visible") void refreshServerState(); };
+    window.addEventListener("focus", refreshServerState);
+    document.addEventListener("visibilitychange", handleVisibility);
+    const interval = window.setInterval(refreshServerState, 60_000);
+    return () => {
+      disposed = true;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshServerState);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [onDocumentChanged, pageCount, scheduleServerSync, updateAnnotations]);
 
   useEffect(() => {
     const stage = stageRef.current;

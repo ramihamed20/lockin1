@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.utils import timezone
 
@@ -118,18 +118,25 @@ def sync_annotations(
         annotations=annotations,
         deleted_ids=deleted_ids,
     )
-    User.objects.select_for_update().get(id=user.id)
     collection = FocusAnnotationCollection.objects.filter(
         user=user,
         document_id=document_id,
         merged_into__isnull=True,
     ).first()
     if collection is None:
-        collection = FocusAnnotationCollection.objects.create(
-            user=user,
-            document_id=document_id,
-            document_version_id=document_version_id,
-        )
+        try:
+            with transaction.atomic():
+                collection = FocusAnnotationCollection.objects.create(
+                    user=user,
+                    document_id=document_id,
+                    document_version_id=document_version_id,
+                )
+        except IntegrityError:
+            collection = FocusAnnotationCollection.objects.get(
+                user=user,
+                document_id=document_id,
+                merged_into__isnull=True,
+            )
     collection = FocusAnnotationCollection.objects.select_for_update().get(id=collection.id)
     if collection.document_version_id != document_version_id:
         collection.document_version_id = document_version_id

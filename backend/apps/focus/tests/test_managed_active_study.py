@@ -354,6 +354,19 @@ def test_abandon_retains_attempt_evidence_and_allows_a_fresh_run() -> None:
     assert ActiveStudyAnswer.objects.filter(attempt__run=abandoned).count() == 1
 
 
+def test_active_study_runs_are_strictly_isolated_between_students() -> None:
+    first, sheet, _ = _setup()
+    second = create_user(email="active-study-isolated@example.com")
+    first_run, _ = start(user=first, sheet_id=sheet.id, difficulty="medium")
+    second_run, _ = start(user=second, sheet_id=sheet.id, difficulty="medium")
+
+    assert first_run.id != second_run.id
+    with pytest.raises(ManagedActiveStudyRuleError):
+        complete_part_reading(user=second, run_id=first_run.id)
+    assert ActiveStudyRun.objects.filter(user=first, sheet=sheet).count() == 1
+    assert ActiveStudyRun.objects.filter(user=second, sheet=sheet).count() == 1
+
+
 @pytest.mark.postgres
 def test_managed_run_lock_targets_only_the_run_row() -> None:
     user, sheet, _ = _setup()

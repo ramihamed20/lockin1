@@ -343,7 +343,20 @@ def test_catalog_workspace_is_revisioned_idempotent_and_owner_isolated() -> None
     assert stale.status_code == 409
     assert restored.json()["state"]["notes"][0]["body"] == "private"
     assert restored_on_second_session.json() == restored.json()
-    assert isolated.json() == {"revision": 0, "state": {}}
+    assert isolated.json() == {
+        "revision": 0,
+        "collection_revision": 0,
+        "document_version_id": str(document.version_id),
+        "checksum_sha256": document.managed_file.checksum_sha256,
+        "state": {},
+    }
+    probe = first_client.get(f"{url}?probe=1")
+    assert probe.json() == {
+        "revision": 1,
+        "collection_revision": 0,
+        "document_version_id": str(document.version_id),
+        "checksum_sha256": document.managed_file.checksum_sha256,
+    }
     assert CatalogWorkspaceSnapshot.objects.filter(document=document).count() == 2
 
 
@@ -377,6 +390,7 @@ def test_catalog_annotations_are_bound_to_immutable_document_version() -> None:
         format="json",
     )
     loaded = client.get(f"/api/v1/focus/documents/{document.version_id}/annotations?pages=1")
+    probe = client.get(f"/api/v1/catalog/documents/{document.id}/workspace?probe=1")
 
     replacement_object = published_pdf(
         actor=document.version.created_by,
@@ -400,5 +414,7 @@ def test_catalog_annotations_are_bound_to_immutable_document_version() -> None:
     assert response.status_code == 200
     assert loaded.status_code == 200
     assert loaded.json()["results"][0]["id"] == annotation_id
+    assert probe.status_code == 200
+    assert probe.json()["collection_revision"] == 1
     assert isolated.status_code == 200
     assert isolated.json()["results"] == []
