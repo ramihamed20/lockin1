@@ -17,7 +17,7 @@ test("visual preferences keep mascot visibility independent from the selected th
   assert.equal(normalizeThemeSettings({ character: "unknown", theme: "unknown" }).character, "white");
 });
 
-test("welcome onboarding uses the shared profile preferences and previews them before completion", async () => {
+test("welcome onboarding uses shared profile preferences without rendering mascot artwork", async () => {
   const [welcome, accounts, app, settings] = await Promise.all([
     readFile(projectFile("src/pages/WelcomeOnboarding.jsx"), "utf8"),
     readFile(projectFile("src/api/accounts.js"), "utf8"),
@@ -25,12 +25,13 @@ test("welcome onboarding uses the shared profile preferences and previews them b
     readFile(projectFile("src/pages/Settings.jsx"), "utf8")
   ]);
 
-  assert.match(welcome, /ResponsiveThemePreview/);
   assert.match(welcome, /chooseLanguage/);
   assert.match(welcome, /mascotPreference: preferences\.settings\.character/);
   assert.match(welcome, /dynamicTheme: preferences\.settings\.autoTheme/);
   assert.match(welcome, /onThemeSettingsChange\?\.\(settings\)/);
-  assert.match(welcome, /preferences\.settings\.character !== "none"/);
+  assert.match(welcome, /welcome-theme-options/);
+  assert.doesNotMatch(welcome, /mascot-study/);
+  assert.doesNotMatch(welcome, /ResponsiveThemePreview/);
   assert.match(accounts, /mascot_preference/);
   assert.match(accounts, /theme_preference/);
   assert.match(accounts, /dynamic_theme/);

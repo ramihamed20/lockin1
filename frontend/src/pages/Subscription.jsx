@@ -210,103 +210,124 @@ export default function Subscription() {
   }
 
   return (
-    <Page title={t("subscription.title")} subtitle={t("subscription.subtitle")}>
-      <ReviewBanner review={review} t={t} />
+    <Page title={t("subscription.title")} headingHandled>
+      <div className="subscription-premium">
+        <ReviewBanner review={review} t={t} />
 
-      {!subscription?.access_allowed && !pendingManualReview && (
-        <section className="subscription-review-banner is-expired" role="status">
-          <div>
-            <h2>{t("subscription.expiredTitle")}</h2>
-            <p>{t("subscription.expiredBody")}</p>
-          </div>
-          <a className="btn btn-primary" href="#libyana-payment">{t("subscription.renew")}</a>
-        </section>
-      )}
-
-      {subscription?.early_renewal_available && (
-        <section className="subscription-saved-banner subscription-early-renewal">
-          <div><h2>{t("subscription.earlyRenewalDays", { count: subscription.remaining_days })}</h2><p>{t("subscription.earlyRenewalPromise")}</p></div>
-          <a className="btn btn-primary" href="#libyana-payment">{t("subscription.renew")}</a>
-        </section>
-      )}
-
-      <section className="subscription-overview">
-        <article className="panel subscription-current-card">
-          <div className="panel-title">
-            <div><p className="eyebrow">{t("subscription.currentAccess")}</p><h2>{subscription?.plan_title || t("subscription.noPlan")}</h2></div>
-            <SubscriptionStatus subscription={subscription} />
-          </div>
-          {subscription?.status === "grace" && <p className="subscription-grace-note">{t("subscription.graceMessage", { count: subscription.remaining_days })}</p>}
-          <dl className="subscription-facts">
-            <div><dt>{t("subscription.currentPlan")}</dt><dd>{subscription?.plan_title || "—"}</dd></div>
-            <div><dt>{subscription?.status === "trialing" ? t("subscription.trialExpiration") : t("subscription.subscriptionExpiration")}</dt><dd>{periodEnd ? formatDate(periodEnd, { dateStyle: "medium" }) : "—"}</dd></div>
-            <div><dt>{t("subscription.remaining")}</dt><dd>{t("subscription.daysRemaining", { count: subscription?.remaining_days || 0 })}</dd></div>
-            <div><dt>{t("subscription.paymentVerification")}</dt><dd>{paymentLabel}</dd></div>
-          </dl>
-        </article>
-
-        <article className="panel subscription-steps-card">
-          <p className="eyebrow">{t("subscription.howItWorks")}</p>
-          <ol className="subscription-steps">
-            <li><span>1</span><strong>{t("subscription.buyCard")}</strong></li>
-            <li><span>2</span><strong>{t("subscription.enterCode")}</strong></li>
-            <li><span>3</span><strong>{t("subscription.keepStudying")}</strong></li>
-          </ol>
-        </article>
-      </section>
-
-      <ComingSoonPlans offers={comingSoon} t={t} />
-
-      <section className="panel subscription-payment" id="libyana-payment" dir={direction}>
-        <div className="panel-title">
-          <div><p className="eyebrow">{t("subscription.renewAccess")}</p><h2>{t("subscription.payLibyana")}</h2><p>{t("subscription.continueImmediately")}</p></div>
-        </div>
-        {!catalog.manualPaymentAvailable || !offers.length ? (
-          <EmptyState title={t("subscription.noOffers")} text={t("subscription.noOffersBody")} />
-        ) : !canSubmit ? (
-          <div className="subscription-payment-unavailable">
-            <h3>{pendingManualReview ? t("subscription.pendingPaymentTitle") : t("subscription.renewalNotYet")}</h3>
-            <p>{pendingManualReview ? t("subscription.pendingPaymentBody") : t("subscription.renewalNotYetBody")}</p>
-          </div>
-        ) : (
-          <form className="libyana-payment-form" onSubmit={submitPayment}>
-            <fieldset className="subscription-plan-options">
-              <legend>{t("subscription.choosePlan")}</legend>
-              {offers.map(({ plan, version, price }) => (
-                <label className={effectivePlan === plan.id ? "selected" : ""} key={plan.id}>
-                  <input type="radio" name="subscription-plan" value={plan.id} checked={effectivePlan === plan.id} onChange={() => { setSelectedPlan(plan.id); setCodes(["", ""]); }} />
-                  <span><strong>{version.title}</strong><small>{version.description}</small></span>
-                  <b>{money(price.amount_minor, price.currency, price.currency_exponent, locale)}</b>
-                </label>
-              ))}
-            </fieldset>
-            <div className="libyana-code-stack">
-              <label className="field libyana-code-field">
-                <span>{t("subscription.rechargeCode")}</span>
-                <input type="text" inputMode="numeric" autoComplete="off" dir="ltr" pattern="[0-9]{13}" minLength={13} maxLength={13} value={codes[0]} onChange={(event) => setCodes([event.target.value.replace(/\D/g, "").slice(0, 13), codes[1]])} placeholder={t("subscription.codePlaceholder")} aria-describedby="libyana-code-hint" required />
-                <small id="libyana-code-hint">{t("subscription.codeHint")}</small>
-              </label>
-              {!oneCardOnly && <label className="field libyana-code-field">
-                <span>{t("subscription.additionalRechargeCode")}</span>
-                <input type="text" inputMode="numeric" autoComplete="off" dir="ltr" pattern="[0-9]{13}" minLength={13} maxLength={13} value={codes[1]} onChange={(event) => setCodes([codes[0], event.target.value.replace(/\D/g, "").slice(0, 13)])} placeholder={t("subscription.codePlaceholder")} />
-              </label>}
-            </div>
-            {error && <p className="form-alert error" role="alert">{error}</p>}
-            {notice && <p className="form-alert success" role="status">{notice}</p>}
-            <button className="btn btn-primary libyana-submit" type="submit" disabled={submitting || codes[0].length !== 13 || (!oneCardOnly && codes[1] && codes[1].length !== 13)}>{submitting ? t("subscription.submitting") : t("subscription.submitCard")}</button>
-            <p className="subscription-code-privacy">{t("subscription.codePrivacy")}</p>
-          </form>
+        {!subscription?.access_allowed && !pendingManualReview && (
+          <section className="subscription-review-banner is-expired" role="status">
+            <div><h2>{t("subscription.expiredTitle")}</h2><p>{t("subscription.expiredBody")}</p></div>
+            <a className="btn btn-primary" href="#libyana-payment">{t("subscription.renew")}</a>
+          </section>
         )}
-      </section>
 
-      <section className="panel subscription-history">
-        <div className="panel-title"><div><p className="eyebrow">{t("subscription.history")}</p><h2>{t("subscription.recentPayments")}</h2></div><span>{recentPayments.length}</span></div>
-        {recentPayments.length ? (
-          <div className="subscription-history-list">
-            {recentPayments.map((payment) => <article className="list-row" key={payment.id}><div><h3>{payment.price_snapshot?.plan_title || t("subscription.payLibyana")}</h3><p>{money(payment.amount_minor, payment.currency, payment.currency_exponent, locale)} · {formatDateTime(payment.created_at)}</p><small>{paymentStatus(payment.manual_submission?.status, t)}</small>{payment.manual_submission?.status === "rejected" && <p className="subscription-rejection"><span>{t("subscription.paymentRejected")}: {payment.manual_submission?.rejection_reason}</span><a href="#libyana-payment">{t("subscription.retryPayment")}</a></p>}</div><span>{(payment.manual_submission?.recharge_codes_masked || []).join(" · ")}</span></article>)}
+        {subscription?.early_renewal_available && (
+          <section className="subscription-saved-banner subscription-early-renewal">
+            <div><h2>{t("subscription.earlyRenewalDays", { count: subscription.remaining_days })}</h2><p>{t("subscription.earlyRenewalPromise")}</p></div>
+            <a className="btn btn-primary" href="#libyana-payment">{t("subscription.renew")}</a>
+          </section>
+        )}
+
+        <header className="subscription-premium-header">
+          <div>
+            <p className="subscription-brand-label">Lock-in <span>{t("subscription.premium")}</span></p>
+            <h1>{t("subscription.choosePlan")}</h1>
+            <p>{t("subscription.premiumLead")}</p>
           </div>
-        ) : <EmptyState title={t("subscription.noPayments")} text={t("subscription.noPaymentsBody")} />}
-      </section>
+          <div className="subscription-current-summary">
+            <span>{t("subscription.currentAccess")}</span>
+            <strong>{subscription?.plan_title || t("subscription.noPlan")}</strong>
+            <SubscriptionStatus subscription={subscription} compact />
+          </div>
+        </header>
+
+        <section className="subscription-purchase" id="libyana-payment" dir={direction} aria-labelledby="subscription-plan-heading">
+          {!catalog.manualPaymentAvailable || !offers.length ? (
+            <EmptyState title={t("subscription.noOffers")} text={t("subscription.noOffersBody")} />
+          ) : !canSubmit ? (
+            <div className="subscription-payment-unavailable">
+              <h2>{pendingManualReview ? t("subscription.pendingPaymentTitle") : t("subscription.renewalNotYet")}</h2>
+              <p>{pendingManualReview ? t("subscription.pendingPaymentBody") : t("subscription.renewalNotYetBody")}</p>
+            </div>
+          ) : (
+            <form className="subscription-checkout" onSubmit={submitPayment}>
+              <fieldset className="subscription-plan-options">
+                <legend id="subscription-plan-heading">{t("subscription.choosePlan")}</legend>
+                <div className="subscription-plan-grid">
+                  {offers.map(({ plan, version, price }) => (
+                    <label className={effectivePlan === plan.id ? "selected" : ""} key={plan.id}>
+                      <input type="radio" name="subscription-plan" value={plan.id} checked={effectivePlan === plan.id} onChange={() => { setSelectedPlan(plan.id); setCodes(["", ""]); }} />
+                      <span className="subscription-plan-copy">
+                        <strong>{version.title}</strong>
+                        <small>{version.description}</small>
+                      </span>
+                      <span className="subscription-plan-price">
+                        <b>{money(price.amount_minor, price.currency, price.currency_exponent, locale)}</b>
+                        {price.first_subscription_only && <small>{t("subscription.firstOffer")}</small>}
+                      </span>
+                      <span className="subscription-plan-check" aria-hidden="true">✓</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
+              {selectedOffer && (
+                <ul className="subscription-benefits" aria-label={t("subscription.included")}>
+                  {[selectedOffer.product.description, selectedOffer.version.description, t("subscription.continueImmediately")]
+                    .filter(Boolean)
+                    .map((benefit, index) => <li key={`${benefit}-${index}`}><span aria-hidden="true">✓</span><span>{benefit}</span></li>)}
+                </ul>
+              )}
+
+              <div className="subscription-payment-step">
+                <div className="subscription-payment-heading">
+                  <span>{t("subscription.paymentStep")}</span>
+                  <h2>{t("subscription.payLibyana")}</h2>
+                </div>
+                <div className="libyana-code-stack">
+                  <label className="field libyana-code-field">
+                    <span>{t("subscription.rechargeCode")}</span>
+                    <input type="text" inputMode="numeric" autoComplete="off" dir="ltr" pattern="[0-9]{13}" minLength={13} maxLength={13} value={codes[0]} onChange={(event) => setCodes([event.target.value.replace(/\D/g, "").slice(0, 13), codes[1]])} placeholder={t("subscription.codePlaceholder")} aria-describedby="libyana-code-hint" required />
+                    <small id="libyana-code-hint">{t("subscription.codeHint")}</small>
+                  </label>
+                  {!oneCardOnly && <label className="field libyana-code-field">
+                    <span>{t("subscription.additionalRechargeCode")}</span>
+                    <input type="text" inputMode="numeric" autoComplete="off" dir="ltr" pattern="[0-9]{13}" minLength={13} maxLength={13} value={codes[1]} onChange={(event) => setCodes([codes[0], event.target.value.replace(/\D/g, "").slice(0, 13)])} placeholder={t("subscription.codePlaceholder")} />
+                  </label>}
+                </div>
+                {error && <p className="form-alert error" role="alert">{error}</p>}
+                {notice && <p className="form-alert success" role="status">{notice}</p>}
+                <button className="btn btn-primary libyana-submit" type="submit" disabled={submitting || codes[0].length !== 13 || (!oneCardOnly && codes[1] && codes[1].length !== 13)}>{submitting ? t("subscription.submitting") : t("subscription.submitCard")}</button>
+                <p className="subscription-code-privacy">{t("subscription.codePrivacy")}</p>
+              </div>
+            </form>
+          )}
+        </section>
+
+        <ComingSoonPlans offers={comingSoon} t={t} />
+
+        <div className="subscription-secondary-sections">
+          <details className="subscription-secondary">
+            <summary><span>{t("subscription.currentAccess")}</span><strong>{subscription?.plan_title || t("subscription.noPlan")}</strong></summary>
+            {subscription?.status === "grace" && <p className="subscription-grace-note">{t("subscription.graceMessage", { count: subscription.remaining_days })}</p>}
+            <dl className="subscription-facts">
+              <div><dt>{t("subscription.currentPlan")}</dt><dd>{subscription?.plan_title || "—"}</dd></div>
+              <div><dt>{subscription?.status === "trialing" ? t("subscription.trialExpiration") : t("subscription.subscriptionExpiration")}</dt><dd>{periodEnd ? formatDate(periodEnd, { dateStyle: "medium" }) : "—"}</dd></div>
+              <div><dt>{t("subscription.remaining")}</dt><dd>{t("subscription.daysRemaining", { count: subscription?.remaining_days || 0 })}</dd></div>
+              <div><dt>{t("subscription.paymentVerification")}</dt><dd>{paymentLabel}</dd></div>
+            </dl>
+          </details>
+
+          <details className="subscription-secondary">
+            <summary><span>{t("subscription.recentPayments")}</span><strong>{recentPayments.length}</strong></summary>
+            {recentPayments.length ? (
+              <div className="subscription-history-list">
+                {recentPayments.map((payment) => <article className="list-row" key={payment.id}><div><h3>{payment.price_snapshot?.plan_title || t("subscription.payLibyana")}</h3><p>{money(payment.amount_minor, payment.currency, payment.currency_exponent, locale)} · {formatDateTime(payment.created_at)}</p><small>{paymentStatus(payment.manual_submission?.status, t)}</small>{payment.manual_submission?.status === "rejected" && <p className="subscription-rejection"><span>{t("subscription.paymentRejected")}: {payment.manual_submission?.rejection_reason}</span><a href="#libyana-payment">{t("subscription.retryPayment")}</a></p>}</div><span>{(payment.manual_submission?.recharge_codes_masked || []).join(" · ")}</span></article>)}
+              </div>
+            ) : <EmptyState title={t("subscription.noPayments")} text={t("subscription.noPaymentsBody")} />}
+          </details>
+        </div>
+      </div>
     </Page>
   );
 }

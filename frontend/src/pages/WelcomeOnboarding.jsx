@@ -4,9 +4,8 @@ import { authApi } from "../lib/api.js";
 import { useSubscriptionSession } from "../lib/SubscriptionSessionContext.jsx";
 import { formatDateTime } from "../lib/i18n.js";
 import { assetPath, autoThemeForDate, normalizeThemeSettings } from "../lib/utils.js";
-import { characterOptions, defaultThemeSettings, themeOptions } from "../lib/constants.js";
+import { defaultThemeSettings, themeOptions } from "../lib/constants.js";
 import { useI18n } from "../components/I18nProvider.jsx";
-import { ResponsiveThemePreview } from "../components/shared/ResponsiveThemePreview.jsx";
 import { ErrorPanel, LoadingPanel } from "../components/ui/index.jsx";
 
 function initialPreferences(user, locale) {
@@ -38,17 +37,14 @@ export default function WelcomeOnboarding({ user, onUserUpdate, onThemeSettingsC
     setLocale(language);
   }
 
-  function useDefaults() {
-    chooseSettings(defaultThemeSettings);
-    chooseLanguage("en");
-  }
-
   async function continueTo(destination) {
     if (pending) return;
     setPending(destination);
     setError("");
     try {
       const updatedUser = await authApi.completeWelcome({
+        // Mascot choice is intentionally absent from first-run UI. Preserve
+        // the existing profile value so this redesign cannot reset it.
         mascotPreference: preferences.settings.character,
         themePreference: preferences.settings.theme,
         dynamicTheme: preferences.settings.autoTheme,
@@ -76,79 +72,81 @@ export default function WelcomeOnboarding({ user, onUserUpdate, onThemeSettingsC
     : 7;
 
   return (
-    <main className="welcome-onboarding" dir={direction}>
-      <section className="welcome-onboarding-copy" aria-labelledby="welcome-title">
-        <img className="welcome-onboarding-mark" src={assetPath("/icons/lockin-light-192-v2.png")} width="56" height="56" alt="" />
-        <div>
-          <p className="welcome-kicker">Lock-in</p>
-          <h1 id="welcome-title">{t("welcome.title")}</h1>
-          <p className="welcome-lead">{t("welcome.lead")}</p>
-        </div>
-        <dl className="welcome-trial-facts">
-          {/* Counted from the trial the server actually granted rather than
-              printed as a constant: the plan's trial length is configuration,
-              and a welcome screen promising seven days over a window of some
-              other length is the kind of lie nobody notices until a reader
-              does. */}
-          <div><dt>{t("welcome.access")}</dt><dd>{t("welcome.trialLength", { count: trialDays })}</dd></div>
-          <div><dt>{t("welcome.expires")}</dt><dd>{formatDateTime(subscriptionSession.subscription.trial_ends_at)}</dd></div>
-        </dl>
-        <section className="welcome-personalization" aria-labelledby="welcome-personalization-title">
-          <div className="welcome-personalization-head">
-            <div>
-              <p className="welcome-kicker">{t("welcome.personalizeKicker")}</p>
-              <h2 id="welcome-personalization-title">{t("welcome.personalizeTitle")}</h2>
-              <p>{t("welcome.personalizeLead")}</p>
-            </div>
-            <div className="welcome-live-preview">
-              <ResponsiveThemePreview
-                character={preferences.settings.character}
-                theme={previewTheme}
-                alt={t("welcome.previewAlt")}
-                sizes="(max-width: 639px) 44vw, 180px"
-              />
-              <span>{t("welcome.livePreview")}</span>
-            </div>
+    <main className="welcome-onboarding" data-preview-theme={previewTheme} dir={direction}>
+      <div className="welcome-onboarding-shell">
+        <header className="welcome-onboarding-header">
+          <span className="welcome-brand">
+            <img src={assetPath("/icons/lockin-light-192-v2.png")} width="40" height="40" alt="" />
+            <strong>Lock-in</strong>
+          </span>
+          <span className="welcome-trial-badge">{t("subscription.freeTrial")} · {t("welcome.trialLength", { count: trialDays })}</span>
+        </header>
+
+        <section className="welcome-onboarding-content" aria-labelledby="welcome-title">
+          <div className="welcome-intro">
+            <h1 id="welcome-title">{t("welcome.title")}</h1>
+            <p>{t("welcome.themeLead")}</p>
           </div>
-          <fieldset className="welcome-choice-group">
-            <legend>{t("welcome.mascot")}</legend>
-            <div className="welcome-choice-row" role="radiogroup" aria-label={t("welcome.mascot")}>
-              {characterOptions.map((option) => {
-                const selected = preferences.settings.character === option.id;
-                const label = option.id === "none" ? t("welcome.noMascot") : option.id === "black" ? t("welcome.blackCat") : t("welcome.whiteCat");
-                return <button className={`welcome-choice ${selected ? "selected" : ""}`} type="button" role="radio" aria-checked={selected} key={option.id} onClick={() => chooseSettings({ ...preferences.settings, character: option.id })}>{label}</button>;
-              })}
-            </div>
-          </fieldset>
-          <fieldset className="welcome-choice-group">
+
+          <fieldset className="welcome-choice-group welcome-theme-group" role="radiogroup" aria-label={t("welcome.theme")}>
             <legend>{t("welcome.theme")}</legend>
-            <div className="welcome-theme-options" role="radiogroup" aria-label={t("welcome.theme")}>
+            <div className="welcome-theme-options">
               {themeOptions.map((option) => {
                 const selected = !preferences.settings.autoTheme && preferences.settings.theme === option.id;
-                return <button className={`welcome-theme-choice ${option.id} ${selected ? "selected" : ""}`} type="button" role="radio" aria-checked={selected} key={option.id} onClick={() => chooseSettings({ ...preferences.settings, theme: option.id, autoTheme: false })}><span>{option.label}</span></button>;
+                return (
+                  <button
+                    className={`welcome-theme-choice ${option.id} ${selected ? "selected" : ""}`}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    key={option.id}
+                    onClick={() => chooseSettings({ ...preferences.settings, theme: option.id, autoTheme: false })}
+                  >
+                    <span className="welcome-theme-sample" aria-hidden="true"><span /></span>
+                    <span className="welcome-theme-label">
+                      <strong>{t(`welcome.theme.${option.id}`)}</strong>
+                      <small>{option.time}</small>
+                    </span>
+                    <span className="welcome-selection-mark" aria-hidden="true">✓</span>
+                  </button>
+                );
               })}
-              <button className={`welcome-theme-choice dynamic ${preferences.settings.autoTheme ? "selected" : ""}`} type="button" role="radio" aria-checked={preferences.settings.autoTheme} onClick={() => chooseSettings({ ...preferences.settings, autoTheme: true })}><span>{t("welcome.dynamicTheme")}</span></button>
             </div>
+            <button
+              className={`welcome-auto-theme ${preferences.settings.autoTheme ? "selected" : ""}`}
+              type="button"
+              role="radio"
+              aria-checked={preferences.settings.autoTheme}
+              onClick={() => chooseSettings({ ...preferences.settings, autoTheme: true })}
+            >
+              <span><strong>{t("welcome.dynamicTheme")}</strong><small>{t("welcome.dynamicThemeHint")}</small></span>
+              <span className="welcome-auto-state" aria-hidden="true">{preferences.settings.autoTheme ? "✓" : ""}</span>
+            </button>
           </fieldset>
-          <fieldset className="welcome-choice-group">
-            <legend>{t("welcome.language")}</legend>
-            <div className="welcome-choice-row" role="radiogroup" aria-label={t("welcome.language")}>
-              <button className={`welcome-choice ${preferences.language === "en" ? "selected" : ""}`} type="button" role="radio" aria-checked={preferences.language === "en"} onClick={() => chooseLanguage("en")}>{t("welcome.english")}</button>
-              <button className={`welcome-choice ${preferences.language === "ar" ? "selected" : ""}`} type="button" role="radio" aria-checked={preferences.language === "ar"} onClick={() => chooseLanguage("ar")}>{t("welcome.arabic")}</button>
-            </div>
-          </fieldset>
-          <button className="welcome-skip" type="button" onClick={useDefaults}>{t("welcome.useDefaults")}</button>
+
+          <div className="welcome-preference-row">
+            <fieldset className="welcome-choice-group welcome-language-group" role="radiogroup" aria-label={t("welcome.language")}>
+              <legend>{t("welcome.language")}</legend>
+              <div className="welcome-language-options">
+                <button className={preferences.language === "en" ? "selected" : ""} type="button" role="radio" aria-checked={preferences.language === "en"} onClick={() => chooseLanguage("en")}>{t("welcome.english")}</button>
+                <button className={preferences.language === "ar" ? "selected" : ""} type="button" role="radio" aria-checked={preferences.language === "ar"} onClick={() => chooseLanguage("ar")}>{t("welcome.arabic")}</button>
+              </div>
+            </fieldset>
+
+            <dl className="welcome-trial-facts">
+              <div><dt>{t("welcome.access")}</dt><dd>{t("welcome.trialLength", { count: trialDays })}</dd></div>
+              <div><dt>{t("welcome.expires")}</dt><dd>{formatDateTime(trialEnd)}</dd></div>
+            </dl>
+          </div>
+
+          {error && <p className="form-alert error" role="alert">{error}</p>}
         </section>
-        <p className="welcome-data-note">{t("welcome.saved")}</p>
-        {error && <p className="form-alert error" role="alert">{error}</p>}
-        <div className="welcome-actions">
+
+        <footer className="welcome-actions">
           <button className="btn btn-primary" type="button" disabled={Boolean(pending)} onClick={() => void continueTo("/dashboard")}>{pending === "/dashboard" ? t("welcome.starting") : t("welcome.start")}</button>
-          <button className="btn btn-outline" type="button" disabled={Boolean(pending)} onClick={() => void continueTo("/subscription")}>{pending === "/subscription" ? t("welcome.opening") : t("welcome.subscribe")}</button>
-        </div>
-      </section>
-      <aside className="welcome-onboarding-visual" aria-hidden="true">
-        {preferences.settings.character !== "none" && <img src={assetPath("/assets/mascot-study-640.webp")} alt="" width="640" height="640" />}
-      </aside>
+          <button className="welcome-subscribe-link" type="button" disabled={Boolean(pending)} onClick={() => void continueTo("/subscription")}>{pending === "/subscription" ? t("welcome.opening") : t("welcome.subscribe")}</button>
+        </footer>
+      </div>
     </main>
   );
 }
