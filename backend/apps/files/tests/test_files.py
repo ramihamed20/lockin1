@@ -210,6 +210,7 @@ def test_owner_delivery_covers_full_suffix_and_invalid_ranges() -> None:
 
     assert full.status_code == 200
     assert full["Content-Disposition"].startswith("inline")
+    assert full["X-Frame-Options"] == "SAMEORIGIN"
     assert suffix.status_code == 206
     assert suffix["Content-Length"] == "4"
     assert invalid.status_code == 416

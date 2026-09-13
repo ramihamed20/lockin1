@@ -187,6 +187,7 @@ function MobileDrawerNavigation({ user, operationsSession, pathname, tabIndex, o
 // --- StreakCard ---
 
 export function StreakCard() {
+  const { t } = useI18n();
   const [state, setState] = useState({ loading: true, error: "", data: null });
 
   useEffect(() => {
@@ -214,11 +215,11 @@ export function StreakCard() {
   }, []);
 
   if (state.loading) {
-    return <div className="streak-card streak-card--loading" aria-label="Loading study streak" aria-busy="true"><div className="streak-card-heading"><Skeleton className="streak-skeleton-icon" /><Skeleton className="streak-skeleton-heading" /></div><Skeleton className="streak-skeleton-value" /><SkeletonText className="streak-skeleton-copy" lines={1} /><Skeleton className="streak-skeleton-track" /></div>;
+    return <div className="streak-card streak-card--loading" aria-label={t("streak.loading")} aria-busy="true"><div className="streak-card-heading"><Skeleton className="streak-skeleton-icon" /><Skeleton className="streak-skeleton-heading" /></div><Skeleton className="streak-skeleton-value" /><SkeletonText className="streak-skeleton-copy" lines={1} /><Skeleton className="streak-skeleton-track" /></div>;
   }
 
   if (state.error || !state.data) {
-    return <div className="streak-card streak-card--unavailable" role="group" aria-label="Study streak unavailable"><div className="streak-card-heading"><Icon name="flame" size={18} /><span>Study streak</span><small>30 days</small></div><strong className="streak-card-value">— <small>day</small></strong><span className="streak-card-track"><i style={{ width: "0%" }} /></span><FreezeRow /></div>;
+    return <div className="streak-card streak-card--unavailable" role="group" aria-label={t("streak.unavailable")}><div className="streak-card-heading"><Icon name="flame" size={18} /><span>{t("streak.title")}</span><small>{t("streak.thirtyDays")}</small></div><strong className="streak-card-value">— <small>{t("streak.day")}</small></strong><span className="streak-card-track"><i style={{ width: "0%" }} /></span><FreezeRow /></div>;
   }
 
   const currentDays = Number(state.data.current_days) || 0;
@@ -227,9 +228,9 @@ export function StreakCard() {
   return (
     // A reading, not a destination: it reports the streak and goes nowhere, so
     // it is not a link and takes no place in the tab order.
-    <div className={`streak-card ${currentDays ? "streak-card--active" : "streak-card--ready"}`} role="group" aria-label={`${currentDays} day study streak`} style={streakStyle}>
-      <div className="streak-card-heading"><Icon name="flame" size={18} /><span>Study streak</span><small>30 days</small></div>
-      <strong className="streak-card-value">{currentDays} <small>day</small></strong>
+    <div className={`streak-card ${currentDays ? "streak-card--active" : "streak-card--ready"}`} role="group" aria-label={t("streak.daysLabel", { count: currentDays })} style={streakStyle}>
+      <div className="streak-card-heading"><Icon name="flame" size={18} /><span>{t("streak.title")}</span><small>{t("streak.thirtyDays")}</small></div>
+      <strong className="streak-card-value">{currentDays} <small>{t("streak.day")}</small></strong>
       <span className="streak-card-track"><i style={{ width: `${streakTier.progress}%` }} /></span>
       <FreezeRow />
     </div>
@@ -237,7 +238,8 @@ export function StreakCard() {
 }
 
 function FreezeRow() {
-  return <div className="streak-freeze"><span className="streak-freeze-icon"><Icon name="snowflake" size={16} /></span><div><strong>Freeze</strong><small>Protect your streak for 1 week</small></div><em>Soon</em></div>;
+  const { t } = useI18n();
+  return <div className="streak-freeze"><span className="streak-freeze-icon"><Icon name="snowflake" size={16} /></span><div><strong>{t("streak.freeze")}</strong><small>{t("streak.freezeHint")}</small></div><em>{t("common.soon")}</em></div>;
 }
 
 // --- Sidebar ---

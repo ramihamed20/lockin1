@@ -169,6 +169,7 @@ class LearningObjectVersion(models.Model):
 class LearningObjectAsset(models.Model):
     class Role(models.TextChoices):
         PRIMARY = "primary", "Primary file"
+        SUMMARY = "summary", "Sheet summary PDF"
         TRANSCRIPT = "transcript", "Transcript"
         CAPTION = "caption", "Caption"
         COVER = "cover", "Cover"

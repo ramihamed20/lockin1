@@ -46,11 +46,12 @@ test("PWA, Apple touch, and browser icon metadata use the versioned primary icon
 });
 
 test("app icon preference is persistent and the Settings UI exposes all three choices", async () => {
-  const [constants, utils, app, settings] = await Promise.all([
+  const [constants, utils, app, settings, messages] = await Promise.all([
     readFile(new URL("../src/lib/constants.js", import.meta.url), "utf8"),
     readFile(new URL("../src/lib/utils.js", import.meta.url), "utf8"),
     readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/pages/Settings.jsx", import.meta.url), "utf8")
+    readFile(new URL("../src/pages/Settings.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/lib/i18n.js", import.meta.url), "utf8")
   ]);
 
   assert.match(constants, /export const appIconOptions = \[/);
@@ -65,7 +66,8 @@ test("app icon preference is persistent and the Settings UI exposes all three ch
   // row of independent toggle buttons each reporting aria-pressed.
   assert.match(settings, /<RadioGroup className="app-icon-grid"/);
   assert.match(settings, /<RadioOption/);
-  assert.match(settings, /cannot change an existing Home Screen icon/);
+  assert.match(settings, /settings\.appIconPlatformNote/);
+  assert.match(messages, /reinstall the Home Screen app/);
 });
 
 test("PWA registration and browser-owned installation are centralized at bootstrap", async () => {

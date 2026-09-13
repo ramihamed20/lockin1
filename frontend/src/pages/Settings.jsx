@@ -74,7 +74,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
       onUserUpdate(updated);
     } catch (requestError) {
       onSettingsChange(previous);
-      setError(requestError.message || "Theme settings could not be saved.");
+      setError(requestError.message || t("settings.themeSaveError"));
     } finally {
       setSaving("");
     }
@@ -90,7 +90,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
         const permission = await Notification.requestPermission();
         if (permission !== "granted") {
           onReminderSettingsChange({ ...normalized, enabled: false });
-          setReminderError("Notifications were not allowed, so the reminder stays off.");
+          setReminderError(t("settings.notificationsDenied"));
           return;
         }
       }
@@ -104,36 +104,36 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
   async function testReminder() {
     setReminderError("");
     if (!window.Notification) {
-      setReminderError("Notifications are not supported in this browser.");
+      setReminderError(t("settings.notificationsUnsupported"));
       return;
     }
     if (Notification.permission !== "granted") {
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
-        setReminderError("Permission denied, so test reminder could not be shown.");
+        setReminderError(t("settings.testReminderDenied"));
         return;
       }
     }
-    new Notification("Lock-in study reminder", {
-      body: "This is a test reminder from Lock-in."
+    new Notification(t("settings.reminderNotificationTitle"), {
+      body: t("settings.reminderNotificationBody")
     });
   }
 
   return (
-    <Page title="Settings" subtitle="Choose your study character, app icon, theme, reminders, and account preferences.">
+    <Page title={t("settings.pageTitle")} subtitle={t("settings.pageSubtitle")}>
       <section className="themes-page" data-active-section={activeSection}>
         {(error || reminderError) && <ErrorPanel message={error || reminderError} />}
-        <nav className="settings-local-nav" aria-label="Settings sections">
-          {[["character", "Character"], ["app-icon", "App Icon"], ["themes", "Themes"], ["reminder", "Reminder"], ["account", "Account"]].map(([section, label]) => <button type="button" key={section} onClick={() => openSection(section)} aria-controls={`settings-${section}`} aria-current={activeSection === section ? "location" : undefined}>{label}</button>)}
+        <nav className="settings-local-nav" aria-label={t("settings.sectionsLabel")}>
+          {[["character", "settings.character"], ["app-icon", "settings.appIcon"], ["themes", "settings.themes"], ["reminder", "settings.reminder"], ["account", "common.account"]].map(([section, labelKey]) => <button type="button" key={section} onClick={() => openSection(section)} aria-controls={`settings-${section}`} aria-current={activeSection === section ? "location" : undefined}>{t(labelKey)}</button>)}
         </nav>
         <article className="theme-section" id="settings-character" aria-labelledby="settings-character-heading">
           <div className="theme-section-head">
-            <div><p className="eyebrow">Section 1</p><h2 id="settings-character-heading" tabIndex={-1}>Character</h2></div>
-            <span className="pill">{settings.character === "black" ? "Black Cat" : settings.character === "white" ? "White Cat" : "No mascot"}</span>
+            <div><p className="eyebrow">{t("settings.personalization")}</p><h2 id="settings-character-heading" tabIndex={-1}>{t("settings.character")}</h2></div>
+            <span className="pill">{t(`settings.character.${settings.character}`)}</span>
           </div>
           {/* One character is in use, so this is a single choice. The options
               used to be independent toggles reporting aria-pressed. */}
-          <RadioGroup className="character-grid" label="Study character" value={settings.character} onChange={(next) => saveSettings({ ...settings, character: next }, `character-${next}`)}>
+          <RadioGroup className="character-grid" label={t("settings.studyCharacter")} value={settings.character} onChange={(next) => saveSettings({ ...settings, character: next }, `character-${next}`)}>
             {characterOptions.map((option) => {
               const selected = settings.character === option.id;
               return (
@@ -142,8 +142,8 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
                   key={option.id}
                   value={option.id}
                 >
-                  <ResponsiveThemePreview character={option.id} theme={activeTheme} alt={`${option.label} preview`} sizes="(max-width: 639px) 42vw, 210px" />
-                  <span>{option.label}</span>
+                  <ResponsiveThemePreview character={option.id} theme={activeTheme} alt={t("settings.previewNamed", { name: t(`settings.character.${option.id}`) })} sizes="(max-width: 639px) 42vw, 210px" />
+                  <span>{t(`settings.character.${option.id}`)}</span>
                   {selected && <i><Icon name="check" size={18} /></i>}
                 </RadioOption>
               );
@@ -154,13 +154,13 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
         <article className="theme-section app-icon-section" id="settings-app-icon" aria-labelledby="settings-app-icon-heading">
           <div className="theme-section-head">
             <div>
-              <p className="eyebrow">Section 2</p>
-              <h2 id="settings-app-icon-heading" tabIndex={-1}>App Icon</h2>
-              <p className="app-icon-description">Choose the icon used in this browser and saved on this device.</p>
+              <p className="eyebrow">{t("settings.personalization")}</p>
+              <h2 id="settings-app-icon-heading" tabIndex={-1}>{t("settings.appIcon")}</h2>
+              <p className="app-icon-description">{t("settings.appIconDescription")}</p>
             </div>
-            <span className="pill">{appIconOptions.find((option) => option.id === settings.appIcon)?.label}</span>
+            <span className="pill">{t(`settings.appIcon.${settings.appIcon}`)}</span>
           </div>
-          <RadioGroup className="app-icon-grid" label="App icon choices" value={settings.appIcon} onChange={(next) => saveSettings({ ...settings, appIcon: next }, `app-icon-${next}`)}>
+          <RadioGroup className="app-icon-grid" label={t("settings.appIconChoices")} value={settings.appIcon} onChange={(next) => saveSettings({ ...settings, appIcon: next }, `app-icon-${next}`)}>
             {appIconOptions.map((option) => {
               const selected = settings.appIcon === option.id;
               return (
@@ -170,21 +170,21 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
                   value={option.id}
                 >
                   <img src={assetPath(option.preview)} alt="" />
-                  <span>{option.label}</span>
+                  <span>{t(`settings.appIcon.${option.id}`)}</span>
                   {selected && <i aria-hidden="true"><Icon name="check" size={15} /></i>}
                 </RadioOption>
               );
             })}
           </RadioGroup>
-          <p className="app-icon-platform-note">Installed PWA icons are chosen when the app is installed. iPhone and iPad cannot change an existing Home Screen icon from the website; reinstall to use a different one there.</p>
+          <p className="app-icon-platform-note">{t("settings.appIconPlatformNote")}</p>
         </article>
 
         <article className="theme-section" id="settings-themes" aria-labelledby="settings-themes-heading">
           <div className="theme-section-head">
-            <div><p className="eyebrow">Section 3</p><h2 id="settings-themes-heading" tabIndex={-1}>Choose Theme</h2></div>
-            <span className="pill">{settings.autoTheme ? `Auto: ${activeTheme}` : themeOptions.find((theme) => theme.id === settings.theme)?.label}</span>
+            <div><p className="eyebrow">{t("common.appearance")}</p><h2 id="settings-themes-heading" tabIndex={-1}>{t("settings.chooseTheme")}</h2></div>
+            <span className="pill">{settings.autoTheme ? t("settings.autoThemeValue", { name: t(`settings.theme.${activeTheme}`) }) : t(`settings.theme.${settings.theme}`)}</span>
           </div>
-          <RadioGroup className={`theme-grid ${settings.autoTheme ? "manual-disabled" : ""}`} label="Theme" value={settings.autoTheme ? "" : settings.theme} onChange={(next) => saveSettings({ ...settings, theme: next, autoTheme: false }, `theme-${next}`)}>
+          <RadioGroup className={`theme-grid ${settings.autoTheme ? "manual-disabled" : ""}`} label={t("settings.themeLabel")} value={settings.autoTheme ? "" : settings.theme} onChange={(next) => saveSettings({ ...settings, theme: next, autoTheme: false }, `theme-${next}`)}>
             {themeOptions.map((option) => {
               const selected = settings.theme === option.id && !settings.autoTheme;
               return (
@@ -194,8 +194,8 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
                   value={option.id}
                   disabled={settings.autoTheme}
                 >
-                  <ResponsiveThemePreview character={settings.character} theme={option.id} alt={`${option.label} theme preview`} sizes="(max-width: 639px) 42vw, 210px" />
-                  <span>{option.label}</span>
+                  <ResponsiveThemePreview character={settings.character} theme={option.id} alt={t("settings.themePreviewNamed", { name: t(`settings.theme.${option.id}`) })} sizes="(max-width: 639px) 42vw, 210px" />
+                  <span>{t(`settings.theme.${option.id}`)}</span>
                   <small>{option.time}</small>
                   {selected && <i><Icon name="check" size={18} /></i>}
                 </RadioOption>
@@ -206,49 +206,49 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
 
         <article className="auto-theme-card">
           <div>
-            <p className="eyebrow">Section 4</p>
-            <h2>Auto Theme</h2>
-            <p>Automatically switch themes based on the current time of day.</p>
+            <p className="eyebrow">{t("common.appearance")}</p>
+            <h2>{t("settings.autoTheme")}</h2>
+            <p>{t("settings.autoThemeDescription")}</p>
           </div>
           <ToggleButton
             className={`auto-toggle ${settings.autoTheme ? "on" : ""}`}
-            label="Automatic theme"
+            label={t("settings.automaticTheme")}
             pressed={settings.autoTheme}
             onClick={() => saveSettings({ ...settings, autoTheme: !settings.autoTheme }, "auto")}
           >
-            <span>{settings.autoTheme ? "ON" : "OFF"}</span>
+            <span>{t(settings.autoTheme ? "settings.on" : "settings.off")}</span>
             <i />
           </ToggleButton>
           <div className="theme-schedule">
-            {themeOptions.map((option) => <span key={option.id}><strong>{option.label}</strong>{option.time}</span>)}
+            {themeOptions.map((option) => <span key={option.id}><strong>{t(`settings.theme.${option.id}`)}</strong>{option.time}</span>)}
           </div>
         </article>
 
         <article className="theme-section reminder-section" id="settings-reminder" aria-labelledby="settings-reminder-heading">
           <div className="theme-section-head">
             <div>
-              <p className="eyebrow">Section 5</p>
-              <h2 id="settings-reminder-heading" tabIndex={-1}>Study Reminder</h2>
+              <p className="eyebrow">{t("settings.studyRoutine")}</p>
+              <h2 id="settings-reminder-heading" tabIndex={-1}>{t("settings.studyReminder")}</h2>
             </div>
-            <span className={`pill ${reminderSettings.enabled ? "success" : ""}`}>{reminderSettings.enabled ? "Enabled" : "Off"}</span>
+            <span className={`pill ${reminderSettings.enabled ? "success" : ""}`}>{t(reminderSettings.enabled ? "settings.enabled" : "settings.off")}</span>
           </div>
           <div className="reminder-grid">
             <label className="field">
-              <span>Reminder time</span>
+              <span>{t("settings.reminderTime")}</span>
               <input type="time" value={reminderSettings.time} onChange={(event) => saveReminder({ ...reminderSettings, time: event.target.value }, "reminder-time")} />
             </label>
             <ToggleButton
               className={`auto-toggle ${reminderSettings.enabled ? "on" : ""}`}
-              label="Daily study reminder"
+              label={t("settings.dailyStudyReminder")}
               pressed={reminderSettings.enabled}
               onClick={() => saveReminder({ ...reminderSettings, enabled: !reminderSettings.enabled }, "reminder-toggle")}
             >
-              <span>{reminderSettings.enabled ? "ON" : "OFF"}</span>
+              <span>{t(reminderSettings.enabled ? "settings.on" : "settings.off")}</span>
               <i />
             </ToggleButton>
-            <button className="btn btn-soft" type="button" onClick={testReminder}>Test reminder</button>
+            <button className="btn btn-soft" type="button" onClick={testReminder}>{t("settings.testReminder")}</button>
           </div>
-          <p className="save-hint">Lock-in will ping once per day after the selected time while the app is open.</p>
+          <p className="save-hint">{t("settings.reminderHint")}</p>
         </article>
 
         <section className="settings-account-management" id="settings-account" aria-labelledby="settings-account-heading">
@@ -275,9 +275,9 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
 
         {isAdministrator && <NotificationPreferences />}
         {isAdministrator && <section className="settings-panel compact">
-          <div className="settings-row"><div><h2>API mode</h2><p>Connected to the live service.</p></div><span className="pill success">Live</span></div>
+          <div className="settings-row"><div><h2>{t("settings.apiMode")}</h2><p>{t("settings.liveService")}</p></div><span className="pill success">{t("settings.live")}</span></div>
         </section>}
-        {saving && <p className="save-hint">Saving theme settings...</p>}
+        {saving && <p className="save-hint">{t("settings.saving")}</p>}
       </section>
     </Page>
   );
@@ -449,6 +449,7 @@ function ConnectedAccountsCard({ email }) {
 }
 
 function NotificationPreferences() {
+  const { t } = useI18n();
   const preferenceData = useAsyncData(() => motivationApi.notificationPreferences(), []);
   const [preferences, setPreferences] = useState([]);
   const [saving, setSaving] = useState("");
@@ -468,7 +469,7 @@ function NotificationPreferences() {
       const updated = await motivationApi.updateNotificationPreferences(next);
       setPreferences(updated);
     } catch (requestError) {
-      setError(requestError.message || "Notification preferences could not be saved.");
+      setError(requestError.message || t("settings.notificationSaveError"));
     } finally {
       setSaving("");
     }
@@ -477,23 +478,23 @@ function NotificationPreferences() {
   return (
     <article className="theme-section">
       <div className="theme-section-head">
-        <div><p className="eyebrow">Section 5</p><h2>Server Notifications</h2></div>
-        <span className="pill">Preferences</span>
+        <div><p className="eyebrow">{t("settings.notifications")}</p><h2>{t("settings.serverNotifications")}</h2></div>
+        <span className="pill">{t("settings.preferences")}</span>
       </div>
-      <p className="save-hint">These are server notification preferences. The study reminders above stay on this device.</p>
-      {preferenceData.loading && <p className="save-hint">Loading notification preferences…</p>}
+      <p className="save-hint">{t("settings.serverNotificationsHint")}</p>
+      {preferenceData.loading && <p className="save-hint">{t("settings.loadingNotifications")}</p>}
       {preferenceData.error && <ErrorPanel message={preferenceData.error} onRetry={preferenceData.reload} />}
       {error && <ErrorPanel message={error} onRetry={preferenceData.reload} />}
       {!preferenceData.loading && !preferenceData.error && <section className="settings-panel compact">
-        {!preferences.length && <p className="save-hint">No notification preference categories are available for this account.</p>}
+        {!preferences.length && <p className="save-hint">{t("settings.noNotificationCategories")}</p>}
         {preferences.map((preference, index) => {
           const unavailable = !preference.available;
           const locked = preference.required;
           const isSaving = saving === `${preference.category}-${preference.channel}`;
           return (
             <div className="settings-row" key={`${preference.category}-${preference.channel}`}>
-              <div><h2>{preference.category} · {preference.channel.replace("_", " ")}</h2><p>{locked ? "Always on" : unavailable ? "This delivery channel is not available yet" : preference.enabled ? "Enabled" : "Disabled"}</p></div>
-              <ToggleButton className={`auto-toggle ${preference.enabled ? "on" : ""}`} label={`${preference.category} ${preference.channel.replace("_", " ")} notifications`} pressed={preference.enabled} onClick={() => { void togglePreference(index); }} disabled={locked || unavailable || Boolean(saving)}><span>{isSaving ? "…" : preference.enabled ? "ON" : "OFF"}</span><i /></ToggleButton>
+              <div><h2 dir="auto">{preference.category} · {preference.channel.replace("_", " ")}</h2><p>{t(locked ? "settings.alwaysOn" : unavailable ? "settings.channelUnavailable" : preference.enabled ? "settings.enabled" : "settings.disabled")}</p></div>
+              <ToggleButton className={`auto-toggle ${preference.enabled ? "on" : ""}`} label={t("settings.notificationToggleLabel", { category: preference.category, channel: preference.channel.replace("_", " ") })} pressed={preference.enabled} onClick={() => { void togglePreference(index); }} disabled={locked || unavailable || Boolean(saving)}><span>{isSaving ? "…" : t(preference.enabled ? "settings.on" : "settings.off")}</span><i /></ToggleButton>
             </div>
           );
         })}

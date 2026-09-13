@@ -112,6 +112,142 @@
   font-family: var(--font-body);
 }
 
+/* Pre-launch surface refinement: compact task UI, truthful sheet-summary state. */
+.catalog-sheet-entry {
+  grid-template-columns: minmax(0, 1fr) minmax(190px, .34fr) minmax(210px, .38fr);
+  align-items: stretch;
+}
+
+.catalog-sheet-actions--primary { grid-column: 1 / -1; }
+
+.catalog-summary-card {
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--muted);
+  background: var(--surface-2);
+  text-decoration: none;
+}
+
+.catalog-summary-card > span {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: inherit;
+  background: var(--surface-3);
+}
+
+.catalog-summary-card > div { min-width: 0; display: grid; gap: 2px; }
+.catalog-summary-card strong { color: inherit; font-size: var(--text-sm); }
+.catalog-summary-card small { color: inherit; font-size: var(--text-xs); }
+.catalog-summary-card.is-unavailable { opacity: .68; }
+.catalog-summary-card.is-available {
+  border-color: color-mix(in srgb, var(--gold) 52%, var(--border));
+  color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 9%, var(--surface-2));
+  transition: border-color var(--motion-fast), background var(--motion-fast);
+}
+.catalog-summary-card.is-available:hover:where(html.ix-hover *) {
+  border-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 14%, var(--surface-2));
+}
+
+.sheet-summary-reader {
+  width: 100%;
+  display: grid;
+  gap: var(--space-5);
+  margin-inline: auto;
+  padding: var(--space-5);
+  border-block: 1px solid var(--border);
+}
+.sheet-summary-reader header,
+.sheet-summary-reader footer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.sheet-summary-reader header > span { width: 42px; height: 42px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 11px; color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, var(--surface-2)); }
+.sheet-summary-reader h2,
+.sheet-summary-reader p { margin: 0; }
+.sheet-summary-pdf-frame { min-height: 70vh; overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
+.sheet-summary-pdf-frame iframe { display: block; width: 100%; min-height: 70vh; border: 0; background: white; }
+.sheet-summary-footer-actions { display: flex; align-items: center; gap: var(--space-2); }
+.sheet-summary-reader footer > span { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--muted); font-size: var(--text-xs); }
+.admin-sheet-summary-field { grid-column: 1 / -1; }
+.admin-sheet-summary-field > span { display: flex; justify-content: space-between; gap: var(--space-3); }
+.admin-sheet-summary-field small { color: var(--muted); font-weight: 650; }
+.admin-sheet-summary-field textarea { min-height: 112px; resize: vertical; }
+
+/* Recent mistakes are scan-first: one compact row, two clearly labelled answers. */
+.recent-mistake {
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-3);
+  padding: 12px 0;
+}
+.recent-mistake-marker { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; color: var(--color-danger); background: color-mix(in srgb, var(--color-danger) 11%, var(--surface-3)); }
+.recent-mistake-copy { min-width: 0; display: grid; gap: 8px; }
+.recent-mistake-topline { justify-content: flex-start; }
+.recent-mistake-topline time { margin-inline-start: auto; }
+.recent-mistake h3 { font-size: var(--text-sm); line-height: 1.42; }
+.recent-mistake-answers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.recent-mistake-answers div { min-width: 0; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--surface-3); }
+.recent-mistake-answers .is-wrong { background: color-mix(in srgb, var(--color-danger) 7%, var(--surface-3)); }
+.recent-mistake-answers .is-correct { background: color-mix(in srgb, var(--color-success) 7%, var(--surface-3)); }
+.recent-mistake-answers dd { margin-top: 1px; font-size: var(--text-xs); }
+.recent-mistake-source { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent-mistake-chevron { align-self: center; color: var(--muted); }
+
+/* The rail owns its height; only navigation scrolls and the streak never overlaps it. */
+.sidebar { min-height: 0; overflow: hidden; }
+.sidebar .nav-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.sidebar .streak-card { flex: 0 0 auto; min-width: 0; margin-top: var(--space-2); }
+.sidebar .streak-card-heading { min-width: 0; }
+.sidebar .streak-card-heading span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Settings uses one restrained surface vocabulary and denser spacing. */
+.themes-page { gap: var(--space-4); }
+.themes-page .theme-section,
+.themes-page .auto-theme-card {
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  box-shadow: none;
+}
+.themes-page .theme-card { gap: 8px; padding: 10px; border-width: 1px; border-radius: var(--radius-md); box-shadow: none; }
+.themes-page .theme-card:hover:where(html.ix-hover *):not(:disabled) { transform: translateY(-1px); box-shadow: none; }
+.themes-page .theme-card:is(.dawn, .day, .sunset, .night).selected { box-shadow: none; }
+.themes-page .settings-local-nav { box-shadow: none; }
+.themes-page .account-management-grid { gap: var(--space-3); }
+.themes-page .account-management-card { padding: var(--space-4); box-shadow: none; }
+
+@media (max-width: 760px) {
+  .catalog-sheet-entry { grid-template-columns: 1fr; }
+  .catalog-sheet-actions--primary { grid-column: auto; }
+  .sheet-summary-reader { padding: var(--space-4) 0; }
+  .sheet-summary-reader footer { align-items: stretch; flex-direction: column; }
+  .sheet-summary-footer-actions { flex-direction: column; }
+  .sheet-summary-reader footer .btn { width: 100%; }
+}
+
+@media (max-width: 480px) {
+  .recent-mistake { grid-template-columns: 28px minmax(0, 1fr); }
+  .recent-mistake-marker { width: 28px; height: 28px; }
+  .recent-mistake-chevron { display: none; }
+  .recent-mistake-answers { grid-template-columns: 1fr; }
+  .recent-mistake-source { white-space: normal; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .catalog-summary-card.is-available,
+  .themes-page .theme-card { transition: none; }
+}
+
 .connection-status {
   position: fixed;
   z-index: var(--z-connection);
@@ -18793,6 +18929,23 @@ html {
   .lock-in-coming-soon > section { padding: var(--space-6) var(--space-4); }
   .lock-in-coming-soon > section > div { width: 100%; }
   .lock-in-coming-soon .btn { width: 100%; }
+}
+
+/* Final cascade settlement for the release surfaces above. */
+.catalog-sheet-entry { grid-template-columns: minmax(0, 1fr) minmax(190px, .34fr) minmax(210px, .38fr); align-items: stretch; }
+.catalog-sheet-actions--primary { grid-column: 1 / -1; }
+.recent-mistake { grid-template-columns: 32px minmax(0, 1fr) auto; gap: var(--space-3); padding-block: 12px; }
+.recent-mistake-answers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.recent-mistake-answers div { min-width: 0; padding: 8px 10px; }
+
+@media (max-width: 760px) {
+  .catalog-sheet-entry { grid-template-columns: 1fr; }
+  .catalog-sheet-actions--primary { grid-column: auto; }
+}
+
+@media (max-width: 480px) {
+  .recent-mistake { grid-template-columns: 28px minmax(0, 1fr); }
+  .recent-mistake-answers { grid-template-columns: 1fr; }
 }
 
 }

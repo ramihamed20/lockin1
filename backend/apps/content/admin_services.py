@@ -48,6 +48,7 @@ from .services import (
 )
 
 logger = logging.getLogger("lockin.catalog")
+_PRESERVE_SUMMARY = object()
 
 
 def has_publication_history(sheet: LearningObject) -> bool:
@@ -309,6 +310,7 @@ def create_sheet(
     actor: User,
     subject: EducationNode,
     managed_file: ManagedFile,
+    summary_file: ManagedFile | None = None,
     title: str,
     summary: str,
     position: int,
@@ -326,6 +328,7 @@ def create_sheet(
             title=title,
             summary=summary,
             primary_file=managed_file,
+            summary_file=summary_file,
             position=position,
             allow_download=allow_download,
         ),
@@ -347,10 +350,14 @@ def _current_input(
     title: str | None = None,
     summary: str | None = None,
     position: int | None = None,
+    summary_file: ManagedFile | None | object = _PRESERVE_SUMMARY,
 ) -> LearningObjectInput:
     version = sheet.current_version
     if version is None:
         raise ContentRuleError("The sheet has no current version.")
+    preserved_summary_file = (
+        _summary_file(sheet) if summary_file is _PRESERVE_SUMMARY else summary_file
+    )
     return LearningObjectInput(
         academic_node=version.academic_node,
         content_type=LearningObjectVersion.ContentType.PDF,
@@ -362,6 +369,7 @@ def _current_input(
         available_from=version.available_from,
         available_until=version.available_until,
         primary_file=primary_file,
+        summary_file=cast(ManagedFile | None, preserved_summary_file),
         position=sheet.position if position is None else position,
     )
 
@@ -378,6 +386,18 @@ def _primary_file(sheet: LearningObject) -> ManagedFile:
     if asset is None:
         raise ContentRuleError("Upload a PDF before editing this sheet.")
     return asset.managed_file
+
+
+def _summary_file(sheet: LearningObject) -> ManagedFile | None:
+    version = sheet.current_version
+    if version is None:
+        raise ContentRuleError("The sheet has no current version.")
+    asset = (
+        version.assets.select_related("managed_file")
+        .filter(role=LearningObjectAsset.Role.SUMMARY)
+        .first()
+    )
+    return asset.managed_file if asset is not None else None
 
 
 @transaction.atomic
@@ -437,6 +457,54 @@ def replace_pdf(
 
 
 @transaction.atomic
+def replace_summary_pdf(
+    *, actor: User, sheet_id: UUID, expected_revision: int, managed_file: ManagedFile
+) -> LearningObject:
+    current = LearningObject.objects.select_related("current_version__academic_node").get(
+        id=sheet_id
+    )
+    was_published = current.workflow_status == LearningObject.WorkflowStatus.PUBLISHED
+    sheet = revise_learning_object(
+        actor=actor,
+        learning_object_id=sheet_id,
+        expected_revision=expected_revision,
+        data=_current_input(
+            sheet=current,
+            primary_file=_primary_file(current),
+            summary_file=managed_file,
+        ),
+    )
+    if was_published:
+        sheet = _publish_current(actor=actor, sheet=sheet)
+        _sync_catalog_document(sheet)
+    _audit(actor=actor, action="content.summary_pdf_replaced", sheet=sheet)
+    return sheet
+
+
+@transaction.atomic
+def delete_summary_pdf(*, actor: User, sheet_id: UUID, expected_revision: int) -> LearningObject:
+    current = LearningObject.objects.select_related("current_version__academic_node").get(
+        id=sheet_id
+    )
+    was_published = current.workflow_status == LearningObject.WorkflowStatus.PUBLISHED
+    sheet = revise_learning_object(
+        actor=actor,
+        learning_object_id=sheet_id,
+        expected_revision=expected_revision,
+        data=_current_input(
+            sheet=current,
+            primary_file=_primary_file(current),
+            summary_file=None,
+        ),
+    )
+    if was_published:
+        sheet = _publish_current(actor=actor, sheet=sheet)
+        _sync_catalog_document(sheet)
+    _audit(actor=actor, action="content.summary_pdf_removed", sheet=sheet)
+    return sheet
+
+
+@transaction.atomic
 def unpublish_sheet(*, actor: User, sheet_id: UUID, expected_revision: int) -> LearningObject:
     sheet = LearningObject.objects.select_for_update().get(id=sheet_id)
     if sheet.revision != expected_revision:
@@ -473,6 +541,7 @@ def delete_pdf(*, actor: User, sheet_id: UUID, expected_revision: int) -> Learni
     version = sheet.current_version
     if version is None:
         raise ContentRuleError("The sheet has no current version.")
+    summary_file = _summary_file(sheet)
     replacement = LearningObjectVersion.objects.create(
         learning_object=sheet,
         version_number=version.version_number + 1,
@@ -487,6 +556,12 @@ def delete_pdf(*, actor: User, sheet_id: UUID, expected_revision: int) -> Learni
         available_until=version.available_until,
         created_by=actor,
     )
+    if summary_file is not None:
+        LearningObjectAsset.objects.create(
+            version=replacement,
+            managed_file=summary_file,
+            role=LearningObjectAsset.Role.SUMMARY,
+        )
     sheet.current_version = replacement
     sheet.published_version = None
     sheet.workflow_status = LearningObject.WorkflowStatus.DRAFT
