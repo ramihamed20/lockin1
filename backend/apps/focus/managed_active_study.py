@@ -61,6 +61,21 @@ def _plan_for_sheet(sheet: LearningObject) -> dict[str, Any]:
         raise ManagedActiveStudyRuleError("Active Study is disabled for this sheet.")
     if settings.total_pdf_pages is None:
         raise ManagedActiveStudyRuleError("Active Study is not configured for this sheet.")
+    source_version = sheet.published_version or sheet.current_version
+    if settings.source_version_id is not None and (
+        source_version is None or settings.source_version_id != source_version.id
+    ):
+        raise ManagedActiveStudyRuleError(
+            "Active Study needs review because the source PDF changed."
+        )
+    if (
+        source_version is not None
+        and source_version.page_count is not None
+        and source_version.page_count != settings.total_pdf_pages
+    ):
+        raise ManagedActiveStudyRuleError(
+            "Active Study needs review because the PDF pagination changed."
+        )
     return cast(
         dict[str, Any],
         plan_payload(
@@ -98,6 +113,13 @@ def _content(
     if content.plan_signature != _signature(plan):
         raise ManagedActiveStudyRuleError(
             "Active Study questions need review after the page plan changed."
+        )
+    source_version = sheet.published_version or sheet.current_version
+    if content.source_version_id is not None and (
+        source_version is None or content.source_version_id != source_version.id
+    ):
+        raise ManagedActiveStudyRuleError(
+            "Active Study questions need review because the source PDF changed."
         )
     try:
         validate_active_study_questions(
@@ -530,4 +552,17 @@ def retry_final(*, user: User, run_id: UUID) -> ActiveStudyRun:
     run.stage = ActiveStudyRun.Stage.FINAL
     run.last_outcome = "retry_final"
     run.save(update_fields=("stage", "last_outcome", "updated_at"))
+    return run
+
+
+@transaction.atomic
+def abandon(*, user: User, run_id: UUID) -> ActiveStudyRun:
+    """Retain a stranded run and all evidence while allowing a clean restart."""
+
+    run = _locked_run(user=user, run_id=run_id)
+    if run.status != ActiveStudyRun.Status.ACTIVE:
+        raise ManagedActiveStudyRuleError("Only an active Active Study run can be abandoned.")
+    run.status = ActiveStudyRun.Status.ABANDONED
+    run.last_outcome = "abandoned"
+    run.save(update_fields=("status", "last_outcome", "updated_at"))
     return run

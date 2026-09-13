@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Brain, CheckCircle2, CircleAlert, Trophy } from "lucide-react";
 import { focusApi } from "../../api/focus.js";
 import { LoadingPanel } from "../ui/index.jsx";
+import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 
 const LABELS = { easy: "Easy", medium: "Medium", hard: "Hard" };
 
@@ -76,7 +77,7 @@ function QuestionRunner({ session, onUpdated }) {
 }
 
 function ResultPanel({ run, result, onUpdated }) {
-  const isFinal = run.stage === "final";
+  const isFinal = run.stage === "final" || run.stage === "final_result";
   const passed = result.passed;
   async function action(action) {
     const response = await focusApi.managedActiveStudyAction(run.id, action);
@@ -95,17 +96,20 @@ export function ActiveStudyPlayer({ sheetId, viewUrl }) {
   const [session, setSession] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [abandonOpen, setAbandonOpen] = useState(false);
   const selected = useMemo(() => session || availability?.difficulties?.find((item) => item.progress)?.progress || null, [availability, session]);
   const reload = useCallback(() => focusApi.getManagedActiveStudyAvailability(sheetId).then(setAvailability).catch((reason) => setError(reason.message || "Active Study could not be loaded.")), [sheetId]);
   useEffect(() => { reload(); }, [reload]);
   async function start(difficulty) { setBusy(true); setError(""); try { const response = await focusApi.startManagedActiveStudy({ sheetId, difficulty }); setSession(response.run); await reload(); } catch (reason) { setError(reason.message || "Active Study could not be started."); } finally { setBusy(false); } }
   async function completeReading() { if (!selected) return; setBusy(true); try { const response = await focusApi.managedActiveStudyAction(selected.id, "complete-reading"); setSession(response.run); } catch (reason) { setError(reason.message || "The checkpoint could not be opened."); } finally { setBusy(false); } }
+  async function abandon() { if (!selected || busy) return; setBusy(true); setError(""); try { await focusApi.managedActiveStudyAction(selected.id, "abandon"); setSession(null); setAbandonOpen(false); await reload(); } catch (reason) { setError(reason.message || "The Active Study run could not be abandoned."); } finally { setBusy(false); } }
   function updateRun(run) { setSession(run); reload(); }
   if (!availability && !error) return <LoadingPanel />;
   if (!availability?.enabled) return null;
   return <section className="panel active-study-player" aria-labelledby="active-study-heading"><header><span className="active-study-player__icon"><Brain size={22} /></span><div><p>Active Study</p><h2 id="active-study-heading">Learn in focused parts</h2></div></header>
     {error && <p className="inline-error" role="alert">{error}</p>}
-    {!selected ? <div className="active-study-player__difficulty-list">{availability.difficulties.map((item) => <DifficultyCard item={item} busy={busy} onStart={start} key={item.difficulty} />)}</div> : <ActiveStudySession run={selected} viewUrl={viewUrl} busy={busy} onCompleteReading={completeReading} onUpdated={updateRun} onExit={() => setSession(null)} />}
+    {!selected ? <div className="active-study-player__difficulty-list">{availability.difficulties.map((item) => <DifficultyCard item={item} busy={busy} onStart={start} key={item.difficulty} />)}</div> : <><ActiveStudySession run={selected} viewUrl={viewUrl} busy={busy} onCompleteReading={completeReading} onUpdated={updateRun} onExit={() => setSession(null)} />{selected.status === "active" && <button type="button" className="btn btn-outline compact" disabled={busy} onClick={() => setAbandonOpen(true)}>Abandon and restart</button>}</>}
+    <ConfirmDialog open={abandonOpen} title="Abandon this Active Study run?" message="Your attempts and progress will be retained. You can start a fresh run after the sheet plan is ready." confirmLabel={busy ? "Abandoning…" : "Abandon run"} onCancel={() => setAbandonOpen(false)} onConfirm={abandon} />
   </section>;
 }
 

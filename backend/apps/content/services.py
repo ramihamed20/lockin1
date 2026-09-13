@@ -91,6 +91,12 @@ def _create_version(
         language=data.language,
         allow_download=data.allow_download,
         metadata=data.metadata,
+        page_count=(
+            data.primary_file.pdf_page_count
+            if data.content_type == LearningObjectVersion.ContentType.PDF
+            and data.primary_file is not None
+            else None
+        ),
         available_from=data.available_from,
         available_until=data.available_until,
         created_by=actor,

@@ -5,20 +5,54 @@ from pathlib import Path
 from typing import Literal
 from uuid import UUID
 
+from botocore.exceptions import BotoCoreError, ClientError
 from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
 from django.utils import timezone
+from pypdf import PdfReader
+from pypdf.errors import PdfReadError
 
 from apps.accounts.models import User
 from apps.audit.services import record_audit
-from platform_core.storage import ManagedObjectUnavailable, open_managed_object
+from platform_core.storage import (
+    ManagedObjectUnavailable,
+    open_managed_object,
+)
 
 from .models import ManagedFile
 
 
 class FileValidationError(ValueError):
     pass
+
+
+@dataclass(frozen=True, slots=True)
+class PdfObjectInspection:
+    page_count: int | None
+    stored_size: int | None
+    error: str | None = None
+
+
+def inspect_managed_pdf(managed_file: ManagedFile) -> PdfObjectInspection:
+    """Read operator-owned PDF metadata without changing the stored object."""
+
+    if managed_file.kind != ManagedFile.Kind.PDF:
+        return PdfObjectInspection(None, None, "not_pdf")
+    handle = None
+    try:
+        stored_size = int(managed_file.blob.storage.size(managed_file.blob.name))
+    except (BotoCoreError, ClientError, OSError, TypeError, ValueError):
+        return PdfObjectInspection(None, None, "missing_object")
+    try:
+        handle = managed_file.blob.storage.open(managed_file.blob.name, "rb")
+        count = len(PdfReader(handle, strict=False).pages)
+    except (BotoCoreError, ClientError, PdfReadError, OSError, TypeError, ValueError):
+        return PdfObjectInspection(None, stored_size, "unreadable_pdf")
+    finally:
+        if handle is not None:
+            handle.close()
+    return PdfObjectInspection(count if count > 0 else None, stored_size)
 
 
 def managed_file_delivery_size(managed_file: ManagedFile) -> int | None:
@@ -51,6 +85,7 @@ class ValidatedUpload:
     content_type: str
     size_bytes: int
     checksum_sha256: str
+    pdf_page_count: int | None
 
 
 PDF_SIGNATURE = b"%PDF-"
@@ -101,6 +136,17 @@ def _checksum(upload: UploadedFile) -> str:
     return digest.hexdigest()
 
 
+def _pdf_page_count(upload: UploadedFile) -> int | None:
+    upload.seek(0)
+    try:
+        count = len(PdfReader(upload, strict=False).pages)
+    except (PdfReadError, OSError, TypeError, ValueError):
+        count = 0
+    finally:
+        upload.seek(0)
+    return count if count > 0 else None
+
+
 def validate_upload(*, upload: UploadedFile, kind: str) -> ValidatedUpload:
     if upload.size is None or upload.size <= 0:
         raise FileValidationError("The selected file is empty.")
@@ -148,6 +194,7 @@ def validate_upload(*, upload: UploadedFile, kind: str) -> ValidatedUpload:
         content_type=canonical_type,
         size_bytes=upload.size,
         checksum_sha256=_checksum(upload),
+        pdf_page_count=_pdf_page_count(upload) if kind == ManagedFile.Kind.PDF else None,
     )
 
 
@@ -164,6 +211,7 @@ def create_managed_file(*, owner: User, upload: UploadedFile, kind: str) -> Mana
         content_type=validated.content_type,
         size_bytes=validated.size_bytes,
         checksum_sha256=validated.checksum_sha256,
+        pdf_page_count=validated.pdf_page_count,
         validation_status=ManagedFile.ValidationStatus.READY,
         scan_status=(
             ManagedFile.ScanStatus.PENDING

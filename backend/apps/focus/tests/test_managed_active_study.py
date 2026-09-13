@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 from typing import Any
+from uuid import uuid4
 
 import pytest
 from django.contrib.auth.models import Group
 from django.db import close_old_connections, connection
 from django.test.utils import CaptureQueriesContext
+from django.utils import timezone
+from rest_framework.test import APIClient
 
 from apps.accounts.roles import Role
 from apps.accounts.tests.helpers import create_user
@@ -14,11 +18,13 @@ from apps.content.active_study import plan_payload
 from apps.content.models import ActiveStudyQuestionContent, ActiveStudySettings
 from apps.content.tests.helpers import published_pdf
 from apps.education.tests.helpers import create_admin, published_path
+from apps.entitlements.models import EntitlementDefinition, EntitlementGrant
 from apps.review.models import ReviewItem
 from apps.xp.models import XpTransaction
 
 from ..managed_active_study import (
     ManagedActiveStudyRuleError,
+    abandon,
     answer,
     availability,
     complete_part_reading,
@@ -93,6 +99,22 @@ def _answer_count(user: Any, run: Any, payload: dict[str, Any], count: int) -> N
             position=item["position"],
             selected_answer=selected,
         )
+
+
+def _grant_focus(user: Any) -> None:
+    EntitlementGrant.objects.create(
+        user=user,
+        entitlement=EntitlementDefinition.objects.get(code="focus.workspace"),
+        source_type=EntitlementGrant.SourceType.MANUAL,
+        source_id=uuid4(),
+        starts_at=timezone.now() - timedelta(minutes=1),
+    )
+
+
+def _client(user: Any) -> APIClient:
+    client = APIClient()
+    client.force_authenticate(user)
+    return client
 
 
 def test_ready_availability_uses_the_existing_content_status_and_resumes() -> None:
@@ -171,6 +193,114 @@ def test_final_exam_requires_all_parts_and_awards_completion_xp_once() -> None:
     assert XpTransaction.objects.filter(user=user, rule_code="active_study_medium_v1").count() == 1
 
 
+def test_admin_configured_real_sheet_completes_through_student_managed_api() -> None:
+    admin = create_admin(email="active-study-api-admin@example.com")
+    _, subject, _ = published_path(admin=admin)
+    sheet = published_pdf(actor=admin, node=subject, title="Managed API sheet")
+    admin_client = _client(admin)
+    configured = admin_client.patch(
+        f"/api/v1/operations/admin/content/sheets/{sheet.id}/active-study",
+        {
+            "expected_revision": 0,
+            "enabled": True,
+            "total_pdf_pages": 22,
+            "excluded_start_pages": 1,
+            "excluded_end_pages": 0,
+        },
+        format="json",
+    )
+    assert configured.status_code == 200
+    imported = admin_client.put(
+        f"/api/v1/operations/admin/content/sheets/{sheet.id}/active-study/questions/medium",
+        {"expected_revision": 0, "payload": _payload()},
+        format="json",
+    )
+    assert imported.status_code == 200
+
+    student = create_user(email="active-study-api-student@example.com")
+    _grant_focus(student)
+    client = _client(student)
+    started = client.post(
+        "/api/v1/focus/managed-active-study/start",
+        {"sheet_id": str(sheet.id), "difficulty": "medium"},
+        format="json",
+    )
+    assert started.status_code == 201
+    run = started.json()["run"]
+
+    for _ in range(4):
+        opened = client.post(
+            f"/api/v1/focus/managed-active-study/{run['id']}/complete-reading", {}, format="json"
+        )
+        assert opened.status_code == 200
+        quiz = client.get(
+            f"/api/v1/focus/managed-active-study/{run['id']}/questions"
+        ).json()
+        for question in quiz["questions"]:
+            answer_response = client.post(
+                f"/api/v1/focus/managed-active-study/{run['id']}/answer",
+                {
+                    "attempt_id": quiz["attempt_id"],
+                    "position": question["position"],
+                    "selected_answer": "B",
+                },
+                format="json",
+            )
+            assert answer_response.status_code == 200
+        submitted = client.post(
+            f"/api/v1/focus/managed-active-study/{run['id']}/submit",
+            {"attempt_id": quiz["attempt_id"]},
+            format="json",
+        )
+        assert submitted.status_code == 200
+        run = submitted.json()["run"]
+
+    assert run["stage"] == "final"
+    final = client.get(
+        f"/api/v1/focus/managed-active-study/{run['id']}/questions"
+    ).json()
+    for question in final["questions"]:
+        selected = "B" if question["position"] <= 35 else "A"
+        assert client.post(
+            f"/api/v1/focus/managed-active-study/{run['id']}/answer",
+            {
+                "attempt_id": final["attempt_id"],
+                "position": question["position"],
+                "selected_answer": selected,
+            },
+            format="json",
+        ).status_code == 200
+    completed = client.post(
+        f"/api/v1/focus/managed-active-study/{run['id']}/submit",
+        {"attempt_id": final["attempt_id"]},
+        format="json",
+    )
+
+    assert completed.status_code == 200
+    assert completed.json()["result"]["completed"] is True
+    assert completed.json()["result"]["xp_awarded"] > 0
+    assert ReviewItem.objects.filter(user=student, canonical_key__contains=":final:").count() == 15
+
+
+def test_legacy_api_refuses_new_runs_but_keeps_existing_runtime_intact() -> None:
+    student = create_user(email="legacy-start-disabled@example.com")
+    _grant_focus(student)
+
+    response = _client(student).post(
+        "/api/v1/focus/active-study/start",
+        {
+            "material_slug": "oral-histology",
+            "sheet_slug": "sheet-4",
+            "difficulty": "medium",
+            "page_count": 16,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "managed sheet reader" in response.json()["error"]["message"]
+
+
 def test_final_score_34_does_not_complete_and_records_wrong_answers() -> None:
     user, sheet, _ = _setup()
     run, _ = start(user=user, sheet_id=sheet.id, difficulty="medium")
@@ -202,6 +332,26 @@ def test_answer_is_server_scored_and_cannot_be_rewritten() -> None:
             position=1,
             selected_answer="B",
         )
+
+
+def test_abandon_retains_attempt_evidence_and_allows_a_fresh_run() -> None:
+    user, sheet, _ = _setup()
+    run, payload = _open_checkpoint(user, sheet)
+    answer(
+        user=user,
+        run_id=run.id,
+        attempt_id=payload["attempt_id"],
+        position=1,
+        selected_answer="A",
+    )
+
+    abandoned = abandon(user=user, run_id=run.id)
+    restarted, created = start(user=user, sheet_id=sheet.id, difficulty="medium")
+
+    assert abandoned.status == ActiveStudyRun.Status.ABANDONED
+    assert restarted.id != abandoned.id and created is True
+    assert ActiveStudyAttempt.objects.filter(run=abandoned).count() == 1
+    assert ActiveStudyAnswer.objects.filter(attempt__run=abandoned).count() == 1
 
 
 @pytest.mark.postgres

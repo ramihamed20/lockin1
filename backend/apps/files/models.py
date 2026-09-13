@@ -40,6 +40,7 @@ class ManagedFile(models.Model):
     content_type = models.CharField(max_length=100)
     size_bytes = models.PositiveBigIntegerField()
     checksum_sha256 = models.CharField(max_length=64, db_index=True)
+    pdf_page_count = models.PositiveIntegerField(null=True, blank=True)
     validation_status = models.CharField(
         max_length=16,
         choices=ValidationStatus.choices,

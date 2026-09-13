@@ -10,6 +10,7 @@
 /**
  * @typedef {object} CatalogSheet
  * @property {string} slug
+ * @property {string=} learningObjectId
  * @property {number} number
  * @property {string} title
  * @property {string=} summary

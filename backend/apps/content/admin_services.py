@@ -7,6 +7,7 @@ from uuid import UUID
 
 from django.db import transaction
 from django.db.models import QuerySet
+from django.utils import timezone
 from django.utils.text import slugify
 
 from apps.accounts.models import User
@@ -542,6 +543,8 @@ def permanently_delete_sheet(*, actor: User, sheet_id: UUID) -> None:
         dependencies.append("questions")
     if sheet.active_study_question_content.exists():
         dependencies.append("Active Study question content")
+    if hasattr(sheet, "active_study_settings"):
+        dependencies.append("Active Study settings")
     if has_publication_history(sheet):
         dependencies.append("publication history")
     if dependencies:
@@ -808,6 +811,7 @@ def save_active_study_question_content(
             difficulty=difficulty_key,
             payload=validation.payload,
             plan_signature=_plan_signature(difficulty_plan),
+            source_version=sheet.published_version or sheet.current_version,
             checkpoint_question_count=validation.checkpoint_question_count,
             final_exam_question_count=validation.final_exam_question_count,
             revision=1,
@@ -820,6 +824,7 @@ def save_active_study_question_content(
             raise ContentConflictError("This Active Study content changed. Reload and try again.")
         content.payload = validation.payload
         content.plan_signature = _plan_signature(difficulty_plan)
+        content.source_version = sheet.published_version or sheet.current_version
         content.checkpoint_question_count = validation.checkpoint_question_count
         content.final_exam_question_count = validation.final_exam_question_count
         content.updated_by = actor
@@ -828,6 +833,7 @@ def save_active_study_question_content(
             update_fields=(
                 "payload",
                 "plan_signature",
+                "source_version",
                 "checkpoint_question_count",
                 "final_exam_question_count",
                 "updated_by",
@@ -903,11 +909,21 @@ def update_active_study_settings(
         raise ContentConflictError("These Active Study settings changed. Reload and try again.")
     if created:
         settings.revision = 0
-    resolved_total = total_pdf_pages if total_pdf_pages is not None else settings.total_pdf_pages
+    source_version = sheet.published_version or sheet.current_version
+    derived_total = source_version.page_count if source_version is not None else None
+    if derived_total is not None and total_pdf_pages not in {None, derived_total}:
+        raise ContentRuleError(
+            "The configured page count does not match the uploaded PDF. Reload the sheet metadata."
+        )
+    resolved_total = (
+        derived_total
+        if derived_total is not None
+        else total_pdf_pages if total_pdf_pages is not None else settings.total_pdf_pages
+    )
     if enabled and resolved_total is None:
         raise ContentRuleError("Enter the PDF's total page count before enabling Active Study.")
     if enabled:
-        version = sheet.current_version
+        version = source_version
         has_pdf = (
             version is not None
             and LearningObjectAsset.objects.filter(
@@ -933,7 +949,9 @@ def update_active_study_settings(
         or settings.excluded_end_pages != excluded_end_pages
     )
     has_existing_questions = (
-        sheet.question_versions.exists() or sheet.question_import_batches.exists()
+        sheet.question_versions.exists()
+        or sheet.question_import_batches.exists()
+        or sheet.active_study_question_content.exists()
     )
     if boundaries_changed and has_existing_questions and not confirm_boundary_change:
         raise ContentRuleError(
@@ -943,6 +961,10 @@ def update_active_study_settings(
     previous = active_study_payload(sheet=sheet)
     settings.enabled = enabled
     settings.total_pdf_pages = resolved_total
+    settings.source_version = source_version
+    settings.page_count_verified_at = (
+        timezone.now() if derived_total is not None and resolved_total == derived_total else None
+    )
     settings.excluded_start_pages = excluded_start_pages
     settings.excluded_end_pages = excluded_end_pages
     settings.revision += 1
@@ -950,6 +972,8 @@ def update_active_study_settings(
         update_fields=(
             "enabled",
             "total_pdf_pages",
+            "source_version",
+            "page_count_verified_at",
             "excluded_start_pages",
             "excluded_end_pages",
             "revision",

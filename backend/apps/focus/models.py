@@ -266,6 +266,7 @@ class ActiveStudyRun(models.Model):
     class Status(models.TextChoices):
         ACTIVE = "active", "Active"
         COMPLETED = "completed", "Completed"
+        ABANDONED = "abandoned", "Abandoned"
 
     class Stage(models.TextChoices):
         READING = "reading", "Reading"

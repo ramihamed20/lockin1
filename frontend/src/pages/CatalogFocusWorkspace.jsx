@@ -57,6 +57,7 @@ import { generateIdempotencyKey } from "../api/pagination.js";
 import { rememberLastOpenedCatalogSheet } from "../lib/materialCatalog.js";
 import { useCatalogMaterials } from "../hooks/useCatalogMaterials.js";
 import { useCatalogDocument } from "../hooks/useCatalogDocument.js";
+import { ActiveStudyPlayer } from "../components/learning/ActiveStudyPlayer.jsx";
 import { subscribeConnection } from "../lib/connectionState.js";
 import { createCatalogServerSync } from "../workspace/catalog/catalogServerSync.js";
 import { cssVars } from "../lib/utils.js";
@@ -3520,23 +3521,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
 
   async function chooseActiveStudy() {
     if (activeStudyBusy || !sheet?.hasActiveStudy) return;
-    setActiveStudyBusy(true);
     setActiveStudyError("");
-    try {
-      const payload = await focusApi.startActiveStudy({ materialSlug, sheetSlug, difficulty: activeDifficulty, pageCount });
-      const run = /** @type {any} */ (payload.run);
-      setActiveStudy(run);
-      setActiveDifficulty(run.difficulty);
-      setStudyMode("active");
-      setModeDialogOpen(false);
-      setPage(1);
-      requestAnimationFrame(() => jumpToPagePosition(1));
-      setFocusMessage(payload.resumed ? "Active Study resumed." : "Active Study started. Pages 1–3 are unlocked.");
-    } catch (error) {
-      setActiveStudyError(error.message || "Active Study could not be started.");
-    } finally {
-      setActiveStudyBusy(false);
-    }
+    setStudyMode("active");
+    setModeDialogOpen(false);
+    setFocusMessage("Choose a managed Active Study difficulty to start or resume.");
   }
 
   async function openActiveQuiz() {
@@ -4025,6 +4013,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       </div>}
       {modeDialogOpen && <StudyModeDialog difficulty={activeDifficulty} setDifficulty={setActiveDifficulty} activeAvailable={Boolean(sheet.hasActiveStudy)} busy={activeStudyBusy} error={activeStudyError} onNormal={chooseNormalStudy} onActive={chooseActiveStudy} />}
       {activeQuiz && activeStudy && <ActiveStudyQuiz quiz={activeQuiz} answers={activeAnswers} setAnswers={setActiveAnswers} result={activeResult} busy={activeStudyBusy} onSubmit={submitActiveQuiz} onDismiss={dismissActiveQuiz} onRetake={retakeActiveQuiz} onContinue={continueActiveStudyAnyway} />}
+      {studyMode === "active" && sheet.learningObjectId && <div className="workspace-v2-managed-active-study"><ActiveStudyPlayer sheetId={sheet.learningObjectId} viewUrl={sheet.pdfUrl} /></div>}
     </main>
   );
 }

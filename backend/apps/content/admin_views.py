@@ -164,6 +164,7 @@ def serialize_sheet(sheet: LearningObject) -> dict[str, object]:
                 "file_id": str(asset.managed_file_id),
                 "original_name": asset.managed_file.original_name,
                 "size_bytes": asset.managed_file.size_bytes,
+                "page_count": version.page_count,
                 "content_type": asset.managed_file.content_type,
                 "view_url": f"/api/v1/files/{asset.managed_file_id}/view",
             }

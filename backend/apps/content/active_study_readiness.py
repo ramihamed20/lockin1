@@ -9,7 +9,7 @@ from .active_study_questions import (
     ActiveStudyQuestionValidationError,
     validate_active_study_questions,
 )
-from .models import ActiveStudyQuestionContent, ActiveStudySettings, LearningObject
+from .models import ActiveStudySettings, LearningObject
 
 
 def _signature(plan: dict[str, object]) -> dict[str, object]:
@@ -31,8 +31,20 @@ def readiness_payload(*, sheet: LearningObject) -> dict[str, object]:
     excluded_end = settings.excluded_end_pages if settings is not None else 0
     content_by_difficulty = {
         content.difficulty: content
-        for content in ActiveStudyQuestionContent.objects.filter(sheet=sheet)
+        for content in sheet.active_study_question_content.all()
     }
+    source_version = sheet.published_version or sheet.current_version
+    settings_stale = bool(
+        settings is not None
+        and settings.source_version_id is not None
+        and (source_version is None or settings.source_version_id != source_version.id)
+    )
+    page_count_stale = bool(
+        settings is not None
+        and source_version is not None
+        and source_version.page_count is not None
+        and settings.total_pdf_pages != source_version.page_count
+    )
     plan: dict[str, object] | None = None
     plan_error: str | None = None
     if total_pages is not None:
@@ -66,7 +78,17 @@ def readiness_payload(*, sheet: LearningObject) -> dict[str, object]:
         )
         status, reason = "not_configured", "Active Study is disabled."
         content = content_by_difficulty.get(rule.key)
-        if not enabled:
+        content_stale = bool(
+            content is not None
+            and content.source_version_id is not None
+            and (source_version is None or content.source_version_id != source_version.id)
+        )
+        if settings_stale or page_count_stale or content_stale:
+            status, reason = (
+                "needs_review",
+                "The source PDF changed; verify pagination and reimport questions.",
+            )
+        elif not enabled:
             # Disabled sheets stay unavailable. Still surface a stale imported
             # plan when page boundaries changed, so later enabling is explicit.
             if (
@@ -110,6 +132,8 @@ def readiness_payload(*, sheet: LearningObject) -> dict[str, object]:
 
     return {
         "enabled": enabled,
+        "source_version_id": str(settings.source_version_id) if settings else None,
+        "current_version_id": str(source_version.id) if source_version else None,
         "total_pdf_pages": total_pages,
         "excluded_start_pages": excluded_start,
         "excluded_end_pages": excluded_end,

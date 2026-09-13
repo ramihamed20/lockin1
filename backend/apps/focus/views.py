@@ -30,7 +30,6 @@ from .active_study import (
     active_quiz,
     active_study_payload,
     continue_active_study,
-    start_active_study,
     submit_active_quiz,
 )
 from .annotation_services import (
@@ -43,6 +42,9 @@ from .integrations import resolve_focus_document
 from .managed_active_study import (
     ManagedActiveStudyRuleError,
     complete_part_reading,
+)
+from .managed_active_study import (
+    abandon as abandon_managed_active_study,
 )
 from .managed_active_study import (
     answer as answer_managed_active_study,
@@ -148,23 +150,9 @@ class ActiveStudyStartView(APIView):
         responses={200: OpenApiTypes.OBJECT, 201: OpenApiTypes.OBJECT},
     )
     def post(self, request: Request) -> Response:
-        user = _authorize(request)
-        serializer = ActiveStudyStartSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        try:
-            run, created = start_active_study(
-                user=user,
-                material_slug=str(data["material_slug"]),
-                sheet_slug=str(data["sheet_slug"]),
-                difficulty=str(data["difficulty"]),
-                page_count=int(data["page_count"]),
-            )
-        except ActiveStudyRuleError as error:
-            raise FocusRejected(str(error)) from error
-        return Response(
-            {"run": active_study_payload(run), "resumed": not created},
-            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        _authorize(request)
+        raise FocusRejected(
+            "New legacy Active Study sessions are disabled. Start from the managed sheet reader."
         )
 
 
@@ -263,6 +251,9 @@ class ManagedActiveStudyRunView(APIView):
                 return Response({"run": managed_active_study_run_payload(run)})
             if action == "retry-final":
                 run = retry_managed_active_study(user=user, run_id=run_id)
+                return Response({"run": managed_active_study_run_payload(run)})
+            if action == "abandon":
+                run = abandon_managed_active_study(user=user, run_id=run_id)
                 return Response({"run": managed_active_study_run_payload(run)})
         except ManagedActiveStudyRuleError as error:
             raise FocusRejected(str(error)) from error
@@ -395,14 +386,7 @@ def _lock_in_materials(*, user: User) -> list[dict[str, object]]:
         asset = next(iter(getattr(version, "primary_assets", [])), None)
         if asset is None or asset.managed_file.content_type != "application/pdf":
             continue
-        raw_page_count = version.metadata.get("page_count")
-        page_count = (
-            raw_page_count
-            if isinstance(raw_page_count, int)
-            and not isinstance(raw_page_count, bool)
-            and 1 <= raw_page_count <= 10_000
-            else None
-        )
+        page_count = version.page_count
         materials.append(
             {
                 "document_id": str(learning_object.id),

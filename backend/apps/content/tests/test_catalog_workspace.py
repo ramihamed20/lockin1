@@ -159,6 +159,7 @@ def test_catalog_materials_are_cohort_scoped_and_published_from_content_studio()
             "sheets": [
                 {
                     "slug": document.sheet_slug,
+                    "learningObjectId": str(sheet.id),
                     "number": 1,
                     "title": "Head and neck",
                     "summary": "",

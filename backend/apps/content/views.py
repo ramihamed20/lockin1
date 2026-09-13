@@ -1,6 +1,6 @@
 import hashlib
 import json
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from django.conf import settings
@@ -21,6 +21,7 @@ from apps.entitlements.services import require_entitlement
 from apps.files.models import ManagedFile
 from apps.files.services import managed_file_delivery_size
 
+from .active_study_readiness import readiness_payload
 from .admin_services import archive_catalog_learning_object, publish_catalog_learning_object
 from .models import (
     CatalogDocument,
@@ -174,6 +175,7 @@ def _published_documents_by_subject(
             "version__academic_node",
             "version__learning_object__active_study_settings",
         )
+        .prefetch_related("version__learning_object__active_study_question_content")
         .order_by("version__learning_object__position", "sheet_slug", "id")
     )
     grouped: dict[UUID, list[CatalogDocument]] = {subject.id: [] for subject in subjects}
@@ -232,21 +234,24 @@ class CatalogMaterialListView(APIView):
             for number, document in enumerate(documents, start=1):
                 version = document.version
                 settings = getattr(version.learning_object, "active_study_settings", None)
-                page_count = (
-                    version.metadata.get("page_count")
-                    if isinstance(version.metadata, dict)
-                    else None
+                page_count = version.page_count
+                readiness = readiness_payload(sheet=version.learning_object)
+                difficulties = cast(list[dict[str, object]], readiness["difficulties"])
+                active_ready = any(
+                    cast(dict[str, object], item["readiness"])["ready"] is True
+                    for item in difficulties
                 )
                 sheets.append(
                     {
                         "slug": document.sheet_slug,
+                        "learningObjectId": str(version.learning_object_id),
                         "number": number,
                         "title": version.title,
                         "summary": version.summary,
                         "pageCount": (
                             page_count if isinstance(page_count, int) and page_count > 0 else None
                         ),
-                        "hasActiveStudy": bool(settings and settings.enabled),
+                        "hasActiveStudy": bool(settings and settings.enabled and active_ready),
                         "deliverable": managed_file_delivery_size(document.managed_file)
                         is not None,
                     }
