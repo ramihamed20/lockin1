@@ -122,6 +122,9 @@ docker run --rm --network "$network" --entrypoint sh "$storage_client_image" -c 
 pass "bucket created"
 
 log "starting the application image"
+# This smoke topology intentionally does not start the opt-in scanning profile.
+# State that deployment choice explicitly so production's secure default cannot
+# turn a scanner-free runtime check into a false failure.
 docker run --detach --name "$app_container" --network "$network" \
     --publish "127.0.0.1:$published_port:10000" \
     --env DJANGO_SETTINGS_MODULE=config.settings.production \
@@ -145,6 +148,7 @@ docker run --detach --name "$app_container" --network "$network" \
     --env STORAGE_REGION=auto \
     --env "STORAGE_ACCESS_KEY_ID=$storage_key" \
     --env "STORAGE_SECRET_ACCESS_KEY=$storage_secret" \
+    --env CONTENT_REQUIRE_CLEAN_SCAN=false \
     --env FILE_SCAN_HOST=clamav.invalid \
     --env DJANGO_EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend \
     --env "DEFAULT_FROM_EMAIL=Lock-in <no-reply@$public_host>" \
