@@ -223,28 +223,17 @@ export function createCatalogServerSync({
   }
 
   async function sendAnnotations(annotations, deletedIds) {
-    for (let attempt = 0; ; attempt += 1) {
-      const expected = collectionRevision;
-      const idempotencyKey = keyFor(annotationSyncKey, { expected, annotations, deletedIds });
-      try {
-        const result = await focus.syncAnnotations(documentVersionId, {
-          expectedCollectionRevision: expected,
-          idempotencyKey,
-          annotations,
-          deletedIds
-        });
-        if (typeof result?.collection_revision !== "number") throw unavailable("The annotation sync response was incomplete.");
-        annotationSyncKey.current = null;
-        collectionRevision = result.collection_revision;
-        return;
-      } catch (error) {
-        if (Number(error?.status) !== 409 || attempt > 0) throw error;
-        // Another device wrote first. Upserts are keyed by id and deleting an id
-        // the server lacks is a no-op, so the same mutations are safe to replay
-        // against the newer revision; that device's other annotations remain.
-        collectionRevision = (await focus.getAnnotations(documentVersionId, { pages: [1] })).collection_revision;
-      }
-    }
+    const expected = collectionRevision;
+    const idempotencyKey = keyFor(annotationSyncKey, { expected, annotations, deletedIds });
+    const result = await focus.syncAnnotations(documentVersionId, {
+      expectedCollectionRevision: expected,
+      idempotencyKey,
+      annotations,
+      deletedIds
+    });
+    if (typeof result?.collection_revision !== "number") throw unavailable("The annotation sync response was incomplete.");
+    annotationSyncKey.current = null;
+    collectionRevision = result.collection_revision;
   }
 
   async function pushAnnotations(annotations) {
@@ -281,25 +270,15 @@ export function createCatalogServerSync({
     const notesChanged = notePrints.size !== syncedNotes.size || [...notePrints].some(([id, print]) => syncedNotes.get(id) !== print);
     if (!notesChanged && JSON.stringify(view) === syncedView) return;
     const state = { savedAt: snapshot.savedAt, view, notes };
-    for (let attempt = 0; ; attempt += 1) {
-      const expected = workspaceRevision;
-      const idempotencyKey = keyFor(workspaceSyncKey, { expected, state });
-      try {
-        const result = await catalog.save(documentId, expected, state, idempotencyKey);
-        if (typeof result?.revision !== "number") throw unavailable("The catalog workspace response was incomplete.");
-        workspaceSyncKey.current = null;
-        workspaceRevision = result.revision;
-        syncedNotes = notePrints;
-        syncedView = JSON.stringify(view);
-        saveBaseline();
-        return;
-      } catch (error) {
-        if (Number(error?.status) !== 409 || attempt > 0) throw error;
-        // The reader state is one record, so a concurrent write is resolved in
-        // favour of this device, the one in use.
-        workspaceRevision = (await catalog.get(documentId)).revision;
-      }
-    }
+    const expected = workspaceRevision;
+    const idempotencyKey = keyFor(workspaceSyncKey, { expected, state });
+    const result = await catalog.save(documentId, expected, state, idempotencyKey);
+    if (typeof result?.revision !== "number") throw unavailable("The catalog workspace response was incomplete.");
+    workspaceSyncKey.current = null;
+    workspaceRevision = result.revision;
+    syncedNotes = notePrints;
+    syncedView = JSON.stringify(view);
+    saveBaseline();
   }
 
   async function drain() {
@@ -338,11 +317,32 @@ export function createCatalogServerSync({
     return latest && !inFlight ? push(latest) : Promise.resolve({ status: pending ? "offline" : "synced" });
   }
 
+  /** Check revisions cheaply, downloading full state only when they moved. */
+  async function refresh({ pageCount, local }) {
+    if (disabled || workspaceRevision === null) return { changed: false, unavailable: true };
+    const result = await catalog.probe(documentId);
+    if (
+      typeof result?.revision !== "number"
+      || typeof result?.collection_revision !== "number"
+      || typeof result?.document_version_id !== "string"
+    ) throw unavailable("The catalog workspace probe was incomplete.");
+    if (result.document_version_id !== documentVersionId) {
+      return { changed: false, documentChanged: true };
+    }
+    if (
+      result.revision === workspaceRevision
+      && result.collection_revision === collectionRevision
+    ) return { changed: false };
+    await load({ pageCount });
+    return { changed: true, ...reconcile(local) };
+  }
+
   return {
     load,
     reconcile,
     push,
     retry,
+    refresh,
     hasPending: () => pending,
     isLoaded: () => workspaceRevision !== null && !disabled
   };

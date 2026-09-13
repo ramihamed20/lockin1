@@ -32,6 +32,11 @@ def _provider_error_types() -> tuple[type[BaseException], ...]:
 # Every provider failure means the same thing to the caller: the object is not
 # readable, and the request must answer as if it does not exist.
 UNREADABLE_OBJECT_ERRORS: tuple[type[BaseException], ...] = (OSError, *_provider_error_types())
+OBJECT_METADATA_ERRORS: tuple[type[BaseException], ...] = (
+    TypeError,
+    ValueError,
+    *UNREADABLE_OBJECT_ERRORS,
+)
 
 
 class ManagedObjectUnavailable(Exception):
@@ -41,9 +46,18 @@ class ManagedObjectUnavailable(Exception):
 class ManagedObject:
     """An open handle that can stream any byte range from the stored object."""
 
-    def __init__(self, handle: Any, remote: Any | None) -> None:
+    def __init__(self, handle: Any, remote: Any | None, *, size: int | None = None) -> None:
         self._handle = handle
         self._remote = remote
+        self._size = size
+
+    @property
+    def size(self) -> int:
+        """Return the provider's current object size, never a database estimate."""
+
+        if self._size is None:
+            raise ManagedObjectUnavailable("The stored object size is unavailable.")
+        return self._size
 
     @property
     def uses_ranged_reads(self) -> bool:
@@ -133,12 +147,13 @@ def open_managed_object(field_file: FieldFile) -> ManagedObject:
     if not field_file.name:
         raise ManagedObjectUnavailable("The managed file has no stored object.")
     try:
+        size = int(field_file.storage.size(field_file.name))
         handle = field_file.storage.open(field_file.name, "rb")
-    except UNREADABLE_OBJECT_ERRORS as error:
+    except OBJECT_METADATA_ERRORS as error:
         raise ManagedObjectUnavailable(str(error)) from error
     # django-storages exposes the boto3 object as a documented attribute; its
     # absence simply means a filesystem-backed deployment.
-    return ManagedObject(handle, getattr(handle, "obj", None))
+    return ManagedObject(handle, getattr(handle, "obj", None), size=size)
 
 
 class SequentialReader:

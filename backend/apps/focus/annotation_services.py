@@ -5,7 +5,8 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.accounts.models import User
@@ -117,17 +118,34 @@ def sync_annotations(
         annotations=annotations,
         deleted_ids=deleted_ids,
     )
-    User.objects.select_for_update().get(id=user.id)
-    collection, _ = FocusAnnotationCollection.objects.get_or_create(
+    collection = FocusAnnotationCollection.objects.filter(
         user=user,
-        document_version_id=document_version_id,
-        defaults={"document_id": document_id},
-    )
+        document_id=document_id,
+        merged_into__isnull=True,
+    ).first()
+    if collection is None:
+        try:
+            with transaction.atomic():
+                collection = FocusAnnotationCollection.objects.create(
+                    user=user,
+                    document_id=document_id,
+                    document_version_id=document_version_id,
+                )
+        except IntegrityError:
+            collection = FocusAnnotationCollection.objects.get(
+                user=user,
+                document_id=document_id,
+                merged_into__isnull=True,
+            )
     collection = FocusAnnotationCollection.objects.select_for_update().get(id=collection.id)
-    if collection.document_id != document_id:
-        raise FocusValidationError("The annotation document reference does not match.")
+    if collection.document_version_id != document_version_id:
+        collection.document_version_id = document_version_id
+        collection.version_changed_at = timezone.now()
+        collection.save(update_fields=("document_version_id", "version_changed_at", "updated_at"))
     receipt = FocusSyncReceipt.objects.filter(
-        collection=collection,
+        collection__in=FocusAnnotationCollection.objects.filter(
+            Q(id=collection.id) | Q(merged_into=collection)
+        ),
         idempotency_key=idempotency_key,
     ).first()
     if receipt is not None:

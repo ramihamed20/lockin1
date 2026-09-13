@@ -7,6 +7,15 @@ export function CatalogSheetCard({ material, sheet, to, actionLabel = "", detail
   const { t } = useI18n();
   const title = sheet.title || `${material.title} Sheet ${sheet.number}`;
   const action = actionLabel || t("materials.openSheet");
+  if (sheet.deliverable === false) {
+    return (
+      <article className="sheet-card catalog-sheet-card is-unavailable" data-unavailable="true">
+        <span className="catalog-sheet-icon"><Icon name="file" size={20} /></span>
+        <span className="catalog-sheet-copy"><strong dir="auto">{title}</strong><small dir="auto">{t("materials.sheetNotFoundText")}</small></span>
+        <span className="catalog-sheet-end" aria-hidden="true"><Icon name="lock" size={18} /></span>
+      </article>
+    );
+  }
   return (
     <Link className="sheet-card catalog-sheet-card" to={to} aria-label={`${action}: ${title}`}>
       <span className="catalog-sheet-icon"><Icon name="file" size={20} /></span>

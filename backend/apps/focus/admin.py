@@ -60,12 +60,14 @@ class FocusWorkspaceSnapshotAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
 
 @admin.register(FocusAnnotationCollection)
 class FocusAnnotationCollectionAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
-    list_display = ("id", "user", "document_version_id", "revision", "updated_at")
-    search_fields = ("user__email", "document_version_id")
+    list_display = ("id", "user", "document_id", "document_version_id", "revision", "updated_at")
+    search_fields = ("user__email", "document_id", "document_version_id")
     readonly_fields = (
         "user",
         "document_id",
         "document_version_id",
+        "version_changed_at",
+        "merged_into",
         "revision",
         "created_at",
         "updated_at",

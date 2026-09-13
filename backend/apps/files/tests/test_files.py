@@ -217,6 +217,32 @@ def test_owner_delivery_covers_full_suffix_and_invalid_ranges() -> None:
     assert invalid_disposition.status_code == 404
 
 
+def test_delivery_ranges_use_the_real_object_size_when_database_metadata_is_stale() -> None:
+    admin = create_admin()
+    managed_file = create_managed_file(owner=admin, upload=pdf_upload(), kind="pdf")
+    actual_size = managed_file.blob.storage.size(managed_file.blob.name)
+    ManagedFile.objects.filter(id=managed_file.id).update(size_bytes=actual_size + 999_999)
+    client = APIClient()
+    client.force_authenticate(admin)
+
+    full = client.get(f"/api/v1/files/{managed_file.id}/view")
+    suffix = client.get(f"/api/v1/files/{managed_file.id}/view", HTTP_RANGE="bytes=-4")
+    invalid = client.get(
+        f"/api/v1/files/{managed_file.id}/view",
+        HTTP_RANGE=f"bytes={actual_size}-",
+    )
+
+    assert full.status_code == 200
+    assert int(full["Content-Length"]) == actual_size
+    assert len(b"".join(cast(Iterable[bytes], full.streaming_content))) == actual_size
+    assert suffix.status_code == 206
+    assert suffix["Content-Range"] == f"bytes {actual_size - 4}-{actual_size - 1}/{actual_size}"
+    assert suffix["Content-Length"] == "4"
+    assert b"".join(cast(Iterable[bytes], suffix.streaming_content)) == b"ent\n"
+    assert invalid.status_code == 416
+    assert invalid["Content-Range"] == f"bytes */{actual_size}"
+
+
 def test_audio_validation_and_unknown_kind_rules() -> None:
     validated = validate_upload(upload=audio_upload(), kind="audio")
     assert validated.content_type == "audio/mpeg"

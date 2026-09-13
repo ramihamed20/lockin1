@@ -31,6 +31,9 @@ test("subscription access is centralized and expired accounts retain safe routes
   assert.match(provider, /setInterval/);
   assert.match(provider, /visibilitychange/);
   assert.match(provider, /addEventListener\("focus"/);
+  assert.match(provider, /RETRY_BASE_DELAY_MS/);
+  assert.match(provider, /window\.setTimeout\(\(\) => void refresh\(\), delay\)/);
+  assert.doesNotMatch(provider, /state\.ready \|\| state\.error/);
   assert.match(guard, /<ExpiredAccess \/>/);
   assert.match(expired, /Navigate replace to="\/subscription"/);
   assert.match(app, /SubscriptionSessionProvider/);
@@ -47,6 +50,7 @@ test("subscription UI preserves LTR recharge entry inside Arabic RTL and uses se
   assert.match(page, /effectivePlan/);
   assert.match(page, /billingApi\.submitLibyana\(/);
   assert.match(page, /early_renewal_available/);
+  assert.match(page, /status === "active" && subscription\?\.access_allowed/);
   assert.match(page, /pattern="\[0-9\]\{13\}"/);
   assert.match(page, /setAuthoritativeSubscription\(result\.subscription\)/);
   assert.doesNotMatch(page, /billingApi\.currentSubscription/);

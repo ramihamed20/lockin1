@@ -1,4 +1,5 @@
 import json
+import socket
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,19 @@ from platform_core.production.database import (
     collect_database_evidence,
     evidence_as_dict,
 )
+
+
+def scanner_is_reachable() -> bool:
+    host = str(settings.FILE_SCAN_HOST).strip()
+    port = int(settings.FILE_SCAN_PORT)
+    timeout = max(0.1, min(float(settings.FILE_SCAN_CONNECT_TIMEOUT_SECONDS), 5.0))
+    if not host:
+        return False
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
 
 
 class Command(BaseCommand):
@@ -46,6 +60,11 @@ class Command(BaseCommand):
         clean_scan_enforced = bool(settings.CONTENT_REQUIRE_CLEAN_SCAN)
         unsafe_files = 0
         if clean_scan_enforced:
+            if not scanner_is_reachable():
+                raise CommandError(
+                    "CONTENT_REQUIRE_CLEAN_SCAN is enabled but the scanner is unreachable. "
+                    "Start the file-scanning profile or explicitly disable clean-scan enforcement."
+                )
             unsafe_files = (
                 ManagedFile.objects.exclude(scan_status=ManagedFile.ScanStatus.CLEAN)
                 # The exact published-version relation is authoritative even while
@@ -92,6 +111,7 @@ class Command(BaseCommand):
             "database": evidence_as_dict(database),
             "unapplied_migrations": 0,
             "clean_scan_enforced": clean_scan_enforced,
+            "scanner_reachable": clean_scan_enforced,
             "unsafe_published_files": unsafe_files,
             "static_assets": "present",
             "telegram_payment_operators": telegram_operators,

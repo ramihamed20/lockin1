@@ -110,11 +110,11 @@ test("trial welcome and provisional Libyana payment work on production viewports
   await expect(page.getByRole("heading", { name: "Welcome to Lock-in" })).toBeVisible();
 
   await responsiveAudit(page, [
+    { width: 320, height: 568 },
     { width: 390, height: 844 },
-    { width: 844, height: 390 },
-    { width: 768, height: 1024 },
-    { width: 1024, height: 768 },
-    { width: 1440, height: 900 }
+    { width: 430, height: 932 },
+    { width: 834, height: 1194 },
+    { width: 1194, height: 834 }
   ], "welcome");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: `${SCREENSHOT_DIR}/welcome-phone-portrait.png`, fullPage: true });
@@ -130,7 +130,7 @@ test("trial welcome and provisional Libyana payment work on production viewports
   await expect(page.getByRole("heading", { name: "Plans coming soon" })).toBeVisible();
   await expect(page.getByText("نصف السنة - طب الأسنان", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Coming Soon", exact: true })).toBeDisabled();
-  const code = page.getByLabel("Recharge card code");
+  const code = page.locator("#libyana-payment input[required]");
   await expect(code).toHaveAttribute("dir", "ltr");
   await code.fill("4567890123456");
   await page.getByRole("button", { name: "Submit card and continue" }).click();
@@ -140,11 +140,11 @@ test("trial welcome and provisional Libyana payment work on production viewports
   await expect(page.getByText("4567890123456", { exact: true })).toHaveCount(0);
 
   await responsiveAudit(page, [
+    { width: 320, height: 568 },
     { width: 390, height: 844 },
-    { width: 844, height: 390 },
-    { width: 768, height: 1024 },
-    { width: 1024, height: 768 },
-    { width: 1440, height: 900 }
+    { width: 430, height: 932 },
+    { width: 834, height: 1194 },
+    { width: 1194, height: 834 }
   ], "payment");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: `${SCREENSHOT_DIR}/payment-pending-phone.png`, fullPage: true });
@@ -362,7 +362,7 @@ test("early renewal preserves paid days through pending, rejection, and approval
   await renewalPage.reload();
   const afterRejection = (await currentSubscription(renewalPage)).subscription;
   expect(afterRejection.current_period_ends_at).toBe(before.current_period_ends_at);
-  await expect(renewalPage.getByText("Payment could not be confirmed", { exact: false })).toBeVisible();
+  await expect(renewalPage.getByRole("heading", { name: "Your payment was not approved" })).toBeVisible();
 
   await renewalPage.getByRole("radio", { name: /Monthly/ }).check();
   await renewalPage.getByRole("textbox", { name: /^Recharge card code/ }).fill("7000000000002");

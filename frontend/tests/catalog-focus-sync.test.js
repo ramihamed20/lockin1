@@ -51,8 +51,11 @@ function fakeServer() {
     receipts: new Map(),
     calls: [],
     failNext: null,
+    dropNextAnnotationResponse: false,
+    documentVersionId: VERSION_ID,
     focus: {
       async getAnnotations(_version, { pages }) {
+        server.calls.push({ kind: "annotation-read", pages });
         const results = [...server.annotations.values()].filter((item) => pages.includes(item.page_number));
         return { collection_revision: server.collectionRevision, count: results.length, next: null, results };
       },
@@ -66,11 +69,24 @@ function fakeServer() {
         server.collectionRevision += 1;
         const result = { collection_revision: server.collectionRevision };
         server.receipts.set(body.idempotencyKey, result);
+        if (server.dropNextAnnotationResponse) {
+          server.dropNextAnnotationResponse = false;
+          throw Object.assign(new Error("response lost"), { code: "network_error", status: 0 });
+        }
         return result;
       }
     },
     catalog: {
-      async get() { return clone(server.workspace); },
+      async get() { server.calls.push({ kind: "workspace-read" }); return clone(server.workspace); },
+      async probe() {
+        server.calls.push({ kind: "probe" });
+        return {
+          revision: server.workspace.revision,
+          collection_revision: server.collectionRevision,
+          document_version_id: server.documentVersionId,
+          checksum_sha256: "checksum"
+        };
+      },
       async save(_document, expected, state, key) {
         server.calls.push({ kind: "workspace", expected, state, key });
         if (server.receipts.has(key)) return server.receipts.get(key);
@@ -166,6 +182,11 @@ test("a three-way merge tells local deletions from remote additions", () => {
   // b was deleted on another device and untouched here.
   assert.deepEqual(mergeById({ local: [a, b], remote: [a], base, print }).items.map((item) => item.id), [a.id]);
 
+  // A concurrent edit wins over a delete regardless of which side made it.
+  const editedB = strokeWith(ids[1], 70);
+  assert.equal(mergeById({ local: [a], remote: [a, editedB], base, print }).items[1], editedB);
+  assert.equal(mergeById({ local: [a, editedB], remote: [a], base, print }).items[1], editedB);
+
   // A clean second device takes everything the server holds.
   assert.deepEqual(mergeById({ local: [], remote: [a, b], base: new Map(), print }).items.map((item) => item.id), [a.id, b.id]);
 });
@@ -205,7 +226,42 @@ test("offline work is pushed with the key it was first sent with", async () => {
   assert.equal(sync.hasPending(), false);
 });
 
-test("a write from another device is replayed against the newer revision", async () => {
+test("a cold second device receives the first device's ink notes and page state", async () => {
+  const server = fakeServer();
+  const first = syncFor(server, memoryStorage());
+  await first.load({ pageCount: 20 });
+  first.reconcile({ annotations: [], notes: [] });
+  const annotations = [strokeWith(ids[0], 0), { ...strokeWith(ids[1], 5), page: 4 }, { ...strokeWith(ids[2], 10), page: 17 }];
+  const notes = [{ id: "note-17", page: 17, body: "Device A" }];
+  assert.equal((await first.push({ savedAt: "t1", view: { page: 17, zoom: 1.2 }, notes, annotations })).status, "synced");
+
+  const second = syncFor(server, memoryStorage());
+  await second.load({ pageCount: 20 });
+  const cold = second.reconcile({ annotations: [], notes: [] });
+
+  assert.deepEqual(cold.annotations.map((item) => item.page), [2, 4, 17]);
+  assert.deepEqual(cold.notes, notes);
+  assert.equal(server.workspace.state.view.page, 17);
+});
+
+test("a lost response retries one logical mutation with the same idempotency key", async () => {
+  const server = fakeServer();
+  const sync = syncFor(server);
+  await sync.load({ pageCount: 4 });
+  sync.reconcile({ annotations: [], notes: [] });
+  server.dropNextAnnotationResponse = true;
+
+  assert.equal((await sync.push({ savedAt: "t1", view: null, notes: [], annotations: [stroke] })).status, "offline");
+  assert.equal(server.annotations.size, 1);
+  assert.equal(server.collectionRevision, 1);
+  assert.equal((await sync.retry()).status, "synced");
+  const calls = annotationCalls(server);
+  assert.equal(calls[0].idempotencyKey, calls[1].idempotencyKey);
+  assert.equal(server.annotations.size, 1);
+  assert.equal(server.collectionRevision, 1);
+});
+
+test("a revision conflict refreshes and merges before replay so both devices converge", async () => {
   const server = fakeServer();
   const sync = syncFor(server);
   await sync.load({ pageCount: 4 });
@@ -216,9 +272,45 @@ test("a write from another device is replayed against the newer revision", async
   server.annotations.set(other.id, other);
   server.collectionRevision += 1;
 
-  const result = await sync.push({ savedAt: "2026-09-11T10:00:00Z", view: null, notes: [], annotations: [stroke] });
-  assert.equal(result.status, "synced");
+  const local = { annotations: [stroke], notes: [] };
+  const result = await sync.push({ savedAt: "2026-09-11T10:00:00Z", view: null, ...local });
+  assert.equal(result.status, "failed");
+  const refreshed = await sync.refresh({ pageCount: 4, local });
+  assert.equal(refreshed.changed, true);
+  assert.deepEqual(refreshed.annotations.map((item) => item.id).sort(), [ids[0], ids[1]].sort());
+  const converged = await sync.push({ savedAt: "2026-09-11T10:01:00Z", view: null, notes: [], annotations: refreshed.annotations });
+  assert.equal(converged.status, "synced");
   assert.deepEqual([...server.annotations.keys()].sort(), [ids[0], ids[1]].sort(), "the other device's stroke survives");
+});
+
+test("an unchanged revision probe does not download workspace or annotation state", async () => {
+  const server = fakeServer();
+  const sync = syncFor(server);
+  await sync.load({ pageCount: 20 });
+  sync.reconcile({ annotations: [], notes: [] });
+  server.calls.length = 0;
+
+  const result = await sync.refresh({ pageCount: 20, local: { annotations: [], notes: [] } });
+
+  assert.equal(result.changed, false);
+  assert.deepEqual(server.calls.map((call) => call.kind), ["probe"]);
+});
+
+test("offline reconnect drains more than one bounded annotation batch", async () => {
+  const server = fakeServer();
+  const sync = syncFor(server);
+  await sync.load({ pageCount: 4 });
+  sync.reconcile({ annotations: [], notes: [] });
+  const annotations = Array.from({ length: 150 }, (_, index) => strokeWith(
+    `${String(index + 1).padStart(8, "0")}-1111-4111-8111-111111111111`,
+    index
+  ));
+  server.failNext = Object.assign(new Error("offline"), { code: "network_error", status: 0 });
+
+  assert.equal((await sync.push({ savedAt: "t1", view: null, notes: [], annotations })).status, "offline");
+  assert.equal((await sync.retry()).status, "synced");
+  assert.equal(server.annotations.size, 150);
+  assert.deepEqual(annotationCalls(server).slice(-2).map((call) => call.annotations.length), [100, 50]);
 });
 
 test("only changed annotations are sent, and device-only ones never are", async () => {
@@ -271,6 +363,26 @@ test("notes sync through the reader state and unchanged state is not re-sent", a
   assert.deepEqual(server.workspace.state.notes, notes);
 });
 
+test("simultaneous notes merge after a workspace revision conflict", async () => {
+  const server = fakeServer();
+  const first = syncFor(server, memoryStorage());
+  const second = syncFor(server, memoryStorage());
+  await first.load({ pageCount: 1 });
+  await second.load({ pageCount: 1 });
+  first.reconcile({ annotations: [], notes: [] });
+  second.reconcile({ annotations: [], notes: [] });
+  const noteA = { id: "note-a", page: 1, body: "A" };
+  const noteB = { id: "note-b", page: 1, body: "B" };
+
+  assert.equal((await first.push({ savedAt: "t1", view: null, notes: [noteA], annotations: [] })).status, "synced");
+  assert.equal((await second.push({ savedAt: "t2", view: null, notes: [noteB], annotations: [] })).status, "failed");
+  const mergedSecond = await second.refresh({ pageCount: 1, local: { annotations: [], notes: [noteB] } });
+  assert.deepEqual(new Set(mergedSecond.notes.map((note) => note.id)), new Set(["note-a", "note-b"]));
+  assert.equal((await second.push({ savedAt: "t3", view: null, notes: mergedSecond.notes, annotations: [] })).status, "synced");
+  const mergedFirst = await first.refresh({ pageCount: 1, local: { annotations: [], notes: [noteA] } });
+  assert.deepEqual(new Set(mergedFirst.notes.map((note) => note.id)), new Set(["note-a", "note-b"]));
+});
+
 test("lost access stops the sync instead of retrying forever", async () => {
   const server = fakeServer();
   const sync = syncFor(server);
@@ -285,9 +397,23 @@ test("lost access stops the sync instead of retrying forever", async () => {
   assert.equal(isTransientSyncError({ status: 500, code: "invalid_response" }), false);
 });
 
+test("a PDF replacement is detected by the probe without discarding local work", async () => {
+  const server = fakeServer();
+  const sync = syncFor(server);
+  await sync.load({ pageCount: 4 });
+  sync.reconcile({ annotations: [stroke], notes: [] });
+  server.documentVersionId = ids[2];
+
+  const result = await sync.refresh({ pageCount: 4, local: { annotations: [stroke], notes: [] } });
+
+  assert.equal(result.documentChanged, true);
+  assert.equal(result.changed, false);
+  assert.equal(sync.hasPending(), false);
+});
+
 test("only a protected same-origin file resolves as the sheet's document", () => {
-  const document = { id: DOCUMENT_ID, document_version_id: VERSION_ID, view_url: `/api/v1/files/${DOCUMENT_ID}/view` };
-  assert.deepEqual(parseCatalogDocument({ document }), { id: DOCUMENT_ID, versionId: VERSION_ID, viewUrl: document.view_url });
+  const document = { id: DOCUMENT_ID, document_version_id: VERSION_ID, view_url: `/api/v1/files/${DOCUMENT_ID}/view`, checksum_sha256: "abc123" };
+  assert.deepEqual(parseCatalogDocument({ document }), { id: DOCUMENT_ID, versionId: VERSION_ID, viewUrl: document.view_url, checksum: "abc123" });
   assert.equal(parseCatalogDocument({ document: { ...document, view_url: "https://elsewhere.test/a.pdf" } }), null);
   assert.equal(parseCatalogDocument({ count: 0, results: [] }), null);
 });
@@ -302,4 +428,7 @@ test("the workspace resolves its document and syncs when the connection returns"
   assert.match(source, /createCatalogServerSync\(/);
   assert.match(source, /subscribeConnection\(\(connection\)/);
   assert.match(source, /connection\.status === "connected"/);
+  assert.match(source, /window\.setInterval\(refreshServerState, 60_000\)/);
+  assert.match(source, /document\.addEventListener\("visibilitychange", handleVisibility\)/);
+  assert.match(source, /window\.addEventListener\("focus", refreshServerState\)/);
 });

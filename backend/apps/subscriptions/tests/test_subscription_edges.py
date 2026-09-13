@@ -54,6 +54,45 @@ def test_subscription_serializer_exposes_the_current_access_deadline() -> None:
     assert SubscriptionSerializer(subscription).data["expires_at"] is None
 
 
+def test_refresh_expires_an_active_subscription_without_any_period() -> None:
+    _, subscription = _trial("active-without-period@example.com")
+    subscription.status = Subscription.Status.ACTIVE
+    subscription.trial_started_at = None
+    subscription.trial_ends_at = None
+    subscription.current_period_started_at = None
+    subscription.current_period_ends_at = None
+    subscription.grace_ends_at = None
+    subscription.save()
+
+    refreshed = refresh_subscription(subscription=subscription)
+
+    assert refreshed.status == Subscription.Status.EXPIRED
+    assert refreshed.status_reason == "active_period_missing"
+
+
+def test_repair_missing_subscription_periods_is_dry_run_by_default_and_idempotent() -> None:
+    _, subscription = _trial("repair-active-without-period@example.com")
+    subscription.status = Subscription.Status.ACTIVE
+    subscription.trial_started_at = None
+    subscription.trial_ends_at = None
+    subscription.current_period_started_at = None
+    subscription.current_period_ends_at = None
+    subscription.grace_ends_at = None
+    subscription.save()
+    output = StringIO()
+
+    call_command("repair_subscriptions_without_period", stdout=output)
+    subscription.refresh_from_db()
+    assert subscription.status == Subscription.Status.ACTIVE
+    assert '"affected": 1' in output.getvalue()
+    assert '"mode": "dry-run"' in output.getvalue()
+
+    call_command("repair_subscriptions_without_period", apply=True, stdout=StringIO())
+    call_command("repair_subscriptions_without_period", apply=True, stdout=StringIO())
+    subscription.refresh_from_db()
+    assert subscription.status == Subscription.Status.EXPIRED
+
+
 def test_subscription_api_current_cancel_and_admin_transition() -> None:
     empty_user = create_user(email="no-subscription@example.com", username="no_subscription")
     empty_client = APIClient()

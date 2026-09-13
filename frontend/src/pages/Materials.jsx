@@ -79,12 +79,13 @@ export function CatalogSheetStudy({ user = null }) {
   const sheet = material?.sheets.find((item) => item.slug === sheetSlug) || null;
 
   useEffect(() => {
-    rememberLastOpenedCatalogSheet(materialSlug, sheetSlug);
-  }, [materialSlug, sheetSlug]);
+    if (sheet?.deliverable !== false) rememberLastOpenedCatalogSheet(materialSlug, sheetSlug);
+  }, [materialSlug, sheet?.deliverable, sheetSlug]);
 
   if (loading) return <Page title={t("materials.coreCatalogTitle")}><LoadingPanel /></Page>;
   if (error) return <Page title={t("materials.sheetNotFoundTitle")}><ErrorPanel message={error} onRetry={reload} /></Page>;
   if (!material || !sheet) return <Page title={t("materials.sheetNotFoundTitle")}><ErrorPanel message={t("materials.sheetNotFoundText")} /></Page>;
+  if (sheet.deliverable === false) return <Page title={sheet.title}><ErrorPanel message={t("materials.sheetNotFoundText")} /></Page>;
 
   return (
     <Page title={sheet.title}>

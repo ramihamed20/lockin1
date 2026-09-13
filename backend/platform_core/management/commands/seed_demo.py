@@ -891,7 +891,10 @@ class Command(BaseCommand):
             },
         )
         collection, _ = FocusAnnotationCollection.objects.get_or_create(
-            user=primary, document_id=doc.learning_object_id, document_version_id=doc.id
+            user=primary,
+            document_id=doc.learning_object_id,
+            merged_into__isnull=True,
+            defaults={"document_version_id": doc.id},
         )
         FocusAnnotation.objects.get_or_create(
             collection=collection,

@@ -1,6 +1,6 @@
 import hashlib
 import json
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from django.conf import settings
@@ -19,7 +19,11 @@ from apps.education.permissions import IsCreatorOrAdministrator
 from apps.education.policies import is_content_administrator
 from apps.entitlements.services import require_entitlement
 from apps.files.models import ManagedFile
+from apps.files.services import managed_file_delivery_size
+from apps.focus.selectors import annotation_collection_revision
 
+from .active_study_readiness import readiness_payload
+from .admin_services import archive_catalog_learning_object, publish_catalog_learning_object
 from .models import (
     CatalogDocument,
     CatalogSubject,
@@ -46,9 +50,7 @@ from .services import (
     ContentConflictError,
     ContentRuleError,
     LearningObjectInput,
-    archive_learning_object,
     create_learning_object,
-    publish_learning_object,
     reject_learning_object,
     revise_learning_object,
     submit_for_review,
@@ -71,6 +73,12 @@ class CatalogWorkspaceConflict(APIException):
     status_code = status.HTTP_409_CONFLICT
     default_detail = "Catalog workspace changed. Reload and merge before saving."
     default_code = "catalog_workspace_conflict"
+
+
+class CatalogFileUnavailable(APIException):
+    status_code = status.HTTP_409_CONFLICT
+    default_detail = "This sheet is published, but its file is currently unavailable."
+    default_code = "file_unavailable"
 
 
 def _user(request: Request) -> User:
@@ -104,6 +112,8 @@ def _catalog_document(*, user: User, material_slug: str, sheet_slug: str) -> Cat
         or not can_view_learning_object(user=user, learning_object=version.learning_object)
     ):
         raise PermissionDenied("You cannot access this catalog document.")
+    if managed_file_delivery_size(document.managed_file) is None:
+        raise CatalogFileUnavailable()
     return document
 
 
@@ -142,23 +152,43 @@ def _published_documents_by_subject(
 
     if not subjects:
         return {}
-    by_key = {(subject.material_slug, subject.source_node_id): subject.id for subject in subjects}
+    scoped_subjects = [
+        (subject, subject.source_node) for subject in subjects if subject.source_node is not None
+    ]
+    if not scoped_subjects:
+        return {subject.id: [] for subject in subjects}
+    condition = models.Q()
+    for subject, source_node in scoped_subjects:
+        condition |= models.Q(
+            material_slug=subject.material_slug,
+            version__academic_node__path__startswith=source_node.path,
+        )
     documents = (
-        CatalogDocument.objects.filter(
-            material_slug__in={subject.material_slug for subject in subjects},
+        CatalogDocument.objects.filter(condition)
+        .filter(
             is_active=True,
-            version__academic_node_id__in={
-                subject.source_node_id for subject in subjects if subject.source_node_id
-            },
             version__learning_object__published_version_id=models.F("version_id"),
             version__learning_object__archived_at__isnull=True,
         )
-        .select_related("version__learning_object__active_study_settings")
+        .select_related(
+            "managed_file",
+            "version__academic_node",
+            "version__learning_object__active_study_settings",
+        )
+        .prefetch_related("version__learning_object__active_study_question_content")
         .order_by("version__learning_object__position", "sheet_slug", "id")
     )
     grouped: dict[UUID, list[CatalogDocument]] = {subject.id: [] for subject in subjects}
     for document in documents:
-        subject_id = by_key.get((document.material_slug, document.version.academic_node_id))
+        subject_id = next(
+            (
+                subject.id
+                for subject, source_node in scoped_subjects
+                if subject.material_slug == document.material_slug
+                and document.version.academic_node.path.startswith(source_node.path)
+            ),
+            None,
+        )
         if subject_id is not None:
             grouped[subject_id].append(document)
     return grouped
@@ -174,7 +204,9 @@ class CatalogMaterialListView(APIView):
 
     def get(self, request: Request) -> Response:
         user = _user(request)
-        subjects = CatalogSubject.objects.filter(is_active=True).select_related("cohort__program")
+        subjects = CatalogSubject.objects.filter(is_active=True).select_related(
+            "cohort__program", "source_node"
+        )
         if not is_content_administrator(user):
             cohort = user.cohort
             if cohort is None or not cohort.is_active:
@@ -202,21 +234,26 @@ class CatalogMaterialListView(APIView):
             for number, document in enumerate(documents, start=1):
                 version = document.version
                 settings = getattr(version.learning_object, "active_study_settings", None)
-                page_count = (
-                    version.metadata.get("page_count")
-                    if isinstance(version.metadata, dict)
-                    else None
+                page_count = version.page_count
+                readiness = readiness_payload(sheet=version.learning_object)
+                difficulties = cast(list[dict[str, object]], readiness["difficulties"])
+                active_ready = any(
+                    cast(dict[str, object], item["readiness"])["ready"] is True
+                    for item in difficulties
                 )
                 sheets.append(
                     {
                         "slug": document.sheet_slug,
+                        "learningObjectId": str(version.learning_object_id),
                         "number": number,
                         "title": version.title,
                         "summary": version.summary,
                         "pageCount": (
                             page_count if isinstance(page_count, int) and page_count > 0 else None
                         ),
-                        "hasActiveStudy": bool(settings and settings.enabled),
+                        "hasActiveStudy": bool(settings and settings.enabled and active_ready),
+                        "deliverable": managed_file_delivery_size(document.managed_file)
+                        is not None,
                     }
                 )
             results.append(
@@ -238,8 +275,35 @@ class CatalogWorkspaceView(APIView):
     def get(self, request: Request, document_id: UUID) -> Response:
         user = _user(request)
         document = _catalog_document_by_id(user=user, document_id=document_id)
+        collection_revision = annotation_collection_revision(
+            user_id=user.id,
+            document_id=document.version.learning_object_id,
+        )
+        if request.query_params.get("probe") == "1":
+            workspace_revision = (
+                CatalogWorkspaceSnapshot.objects.filter(user=user, document=document)
+                .values_list("revision", flat=True)
+                .first()
+                or 0
+            )
+            return Response(
+                {
+                    "revision": workspace_revision,
+                    "collection_revision": collection_revision,
+                    "document_version_id": str(document.version_id),
+                    "checksum_sha256": document.managed_file.checksum_sha256,
+                }
+            )
         workspace, _ = CatalogWorkspaceSnapshot.objects.get_or_create(user=user, document=document)
-        return Response({"revision": workspace.revision, "state": workspace.state})
+        return Response(
+            {
+                "revision": workspace.revision,
+                "collection_revision": collection_revision,
+                "document_version_id": str(document.version_id),
+                "checksum_sha256": document.managed_file.checksum_sha256,
+                "state": workspace.state,
+            }
+        )
 
     def patch(self, request: Request, document_id: UUID) -> Response:
         user = _user(request)
@@ -464,11 +528,11 @@ class SubmitLearningObjectView(_RevisionActionView):
 
 
 class PublishLearningObjectView(_RevisionActionView):
-    service_action = staticmethod(publish_learning_object)
+    service_action = staticmethod(publish_catalog_learning_object)
 
 
 class ArchiveLearningObjectView(_RevisionActionView):
-    service_action = staticmethod(archive_learning_object)
+    service_action = staticmethod(archive_catalog_learning_object)
 
 
 class RejectLearningObjectView(APIView):

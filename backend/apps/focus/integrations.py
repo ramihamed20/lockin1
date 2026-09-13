@@ -38,14 +38,7 @@ def resolve_focus_document(*, user: User, document_version_id: UUID) -> FocusDoc
     )
     if asset is None or asset.managed_file.content_type != "application/pdf":
         raise NotFound("Focus document not found.")
-    raw_page_count = version.metadata.get("page_count")
-    page_count = (
-        raw_page_count
-        if isinstance(raw_page_count, int)
-        and not isinstance(raw_page_count, bool)
-        and 1 <= raw_page_count <= 10_000
-        else None
-    )
+    page_count = version.page_count
     return FocusDocumentReference(
         document_id=learning_object.id,
         document_version_id=version.id,

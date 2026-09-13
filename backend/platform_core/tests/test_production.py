@@ -11,6 +11,7 @@ from django.db import connection
 from django.test import override_settings
 
 from config.settings.env import require_secret_env, secret_env
+from platform_core.management.commands.production_preflight import scanner_is_reachable
 from platform_core.production.checks import production_security_checks
 from platform_core.production.database import (
     DatabaseEvidence,
@@ -78,6 +79,21 @@ def test_disabled_clean_scan_enforcement_warns_without_blocking_boot() -> None:
     assert not any(message.is_serious() for message in messages)
     # The operator is told how to turn enforcement back on, not just that it is off.
     assert "CONTENT_REQUIRE_CLEAN_SCAN=true" in str(messages[0].hint)
+
+
+def test_scanner_reachability_fails_closed_when_worker_endpoint_is_absent() -> None:
+    with (
+        override_settings(
+            FILE_SCAN_HOST="clamav",
+            FILE_SCAN_PORT=3310,
+            FILE_SCAN_CONNECT_TIMEOUT_SECONDS=1,
+        ),
+        patch(
+            "platform_core.management.commands.production_preflight.socket.create_connection",
+            side_effect=OSError("unreachable"),
+        ),
+    ):
+        assert scanner_is_reachable() is False
 
 
 def test_secret_environment_supports_file_or_direct_value(
@@ -175,6 +191,10 @@ def test_production_preflight_emits_machine_readable_success_evidence(tmp_path: 
             "platform_core.management.commands.production_preflight.cohorts_without_branches",
             return_value=[],
         ),
+        patch(
+            "platform_core.management.commands.production_preflight.scanner_is_reachable",
+            return_value=True,
+        ),
     ):
         call_command("production_preflight", stdout=output)
 
@@ -182,6 +202,7 @@ def test_production_preflight_emits_machine_readable_success_evidence(tmp_path: 
     report = json.loads(output.getvalue())
     assert report["status"] == "ready"
     assert report["clean_scan_enforced"] is True
+    assert report["scanner_reachable"] is True
     assert report["unsafe_published_files"] == 0
     # Two configuration gaps a green release used to hide: a Telegram webhook
     # nobody is linked to, and a cohort whose students would see no subjects.
@@ -242,6 +263,7 @@ def test_production_preflight_records_intentionally_disabled_scanning(tmp_path: 
     report = json.loads(output.getvalue())
     assert report["status"] == "ready"
     assert report["clean_scan_enforced"] is False
+    assert report["scanner_reachable"] is False
     # Scan evidence is not collected where it is not enforced.
     managed_file.objects.exclude.assert_not_called()
 

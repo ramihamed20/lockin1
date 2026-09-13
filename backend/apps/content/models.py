@@ -129,6 +129,7 @@ class LearningObjectVersion(models.Model):
     language = models.CharField(max_length=12, default="en")
     allow_download = models.BooleanField(default=False)
     metadata = models.JSONField(default=dict, blank=True)
+    page_count = models.PositiveIntegerField(null=True, blank=True)
     available_from = models.DateTimeField(null=True, blank=True)
     available_until = models.DateTimeField(null=True, blank=True)
     created_by = models.ForeignKey(
@@ -290,6 +291,14 @@ class ActiveStudySettings(models.Model):
     )
     enabled = models.BooleanField(default=False)
     total_pdf_pages = models.PositiveIntegerField(null=True, blank=True)
+    source_version = models.ForeignKey(
+        LearningObjectVersion,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="active_study_settings_sources",
+    )
+    page_count_verified_at = models.DateTimeField(null=True, blank=True)
     excluded_start_pages = models.PositiveIntegerField(default=0)
     excluded_end_pages = models.PositiveIntegerField(default=0)
     revision = models.PositiveBigIntegerField(default=1)
@@ -320,6 +329,13 @@ class ActiveStudyQuestionContent(models.Model):
     payload = models.JSONField()
     # Captures the server-computed part/page boundaries at import time.
     plan_signature = models.JSONField()
+    source_version = models.ForeignKey(
+        LearningObjectVersion,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="active_study_question_sources",
+    )
     checkpoint_question_count = models.PositiveIntegerField()
     final_exam_question_count = models.PositiveIntegerField()
     revision = models.PositiveBigIntegerField(default=1)

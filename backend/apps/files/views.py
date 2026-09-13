@@ -147,7 +147,9 @@ class ManagedFileDeliveryView(APIView):
         except ManagedObjectUnavailable as error:
             raise NotFound("File not found.") from error
 
-        size = managed_file.size_bytes
+        # The object store is authoritative. Database metadata can lag after a
+        # migration or interrupted replacement and must never shape HTTP ranges.
+        size = stored_object.size
         range_header = request.headers.get("Range")
         response: HttpResponseBase
         if range_header and not is_download:

@@ -14,6 +14,7 @@ export const catalogWorkspaceApi = {
     return request(`/catalog/documents/${encodeURIComponent(materialSlug)}/${encodeURIComponent(sheetSlug)}`, { signal });
   },
   get(documentId) { return request(`/catalog/documents/${documentId}/workspace`); },
+  probe(documentId) { return request(`/catalog/documents/${documentId}/workspace?probe=1`); },
   save(documentId, expectedRevision, state, idempotencyKey = generateIdempotencyKey()) {
     return request(`/catalog/documents/${documentId}/workspace`, {
       method: "PATCH", retryable: true, allowOfflineQueue: true,

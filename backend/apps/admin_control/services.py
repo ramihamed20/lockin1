@@ -296,6 +296,9 @@ def manage_subscription(
     now = timezone.now()
     normalized_action = action.strip()
     if normalized_action in {"activate", "reactivate"}:
+        effective_period_end = period_ends_at or subscription.current_period_ends_at
+        if effective_period_end is None or effective_period_end <= now:
+            raise AdminControlError("A future expiration date is required to activate paid access.")
         result = transition_subscription(
             subscription_id=subscription.id,
             to_status=Subscription.Status.ACTIVE,
@@ -304,6 +307,10 @@ def manage_subscription(
             effective_at=now,
             idempotency_key=key,
             actor=actor,
+            period_started_at=(
+                now if period_ends_at is not None else subscription.current_period_started_at
+            ),
+            period_ends_at=effective_period_end,
         )
         subscription = result.subscription
     elif normalized_action == "suspend":

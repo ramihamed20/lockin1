@@ -7,6 +7,7 @@ from uuid import UUID
 
 from django.db import transaction
 from django.db.models import QuerySet
+from django.utils import timezone
 from django.utils.text import slugify
 
 from apps.accounts.models import User
@@ -15,6 +16,7 @@ from apps.audit.services import record_audit
 from apps.discovery.indexing import remove_search_entry
 from apps.education.models import EducationNode
 from apps.files.models import ManagedFile
+from apps.files.services import managed_file_delivery_size
 from apps.notifications.models import Notification
 from apps.notifications.services import create_notification
 
@@ -175,8 +177,24 @@ def _sync_catalog_document(sheet: LearningObject) -> bool:
         return True
     document.version = version
     document.managed_file = asset.managed_file
+    if document.material_slug != catalog_subject.material_slug:
+        if (
+            CatalogDocument.objects.filter(
+                material_slug=catalog_subject.material_slug,
+                sheet_slug=document.sheet_slug,
+            )
+            .exclude(id=document.id)
+            .exists()
+        ):
+            raise ContentRuleError(
+                "The sheet slug is already in use in the destination Catalog subject. "
+                "The existing sheet slug was preserved; resolve the mapping conflict first."
+            )
+        document.material_slug = catalog_subject.material_slug
     document.is_active = True
-    document.save(update_fields=("version", "managed_file", "is_active", "updated_at"))
+    document.save(
+        update_fields=("material_slug", "version", "managed_file", "is_active", "updated_at")
+    )
     return True
 
 
@@ -191,9 +209,12 @@ def is_student_visible(sheet: LearningObject) -> bool:
 
     if sheet.published_version_id is None or sheet.archived_at is not None:
         return False
-    return CatalogDocument.objects.filter(
-        version_id=sheet.published_version_id, is_active=True
-    ).exists()
+    document = (
+        CatalogDocument.objects.filter(version_id=sheet.published_version_id, is_active=True)
+        .select_related("managed_file")
+        .first()
+    )
+    return bool(document and managed_file_delivery_size(document.managed_file) is not None)
 
 
 def _notify_students(*, actor: User, sheet: LearningObject) -> int:
@@ -201,7 +222,15 @@ def _notify_students(*, actor: User, sheet: LearningObject) -> int:
     if version is None:
         return 0
     subject = _subject_for_node(version.academic_node)
-    recipients = User.objects.filter(status=User.Status.ACTIVE, is_active=True).exclude(id=actor.id)
+    catalog_subject = _catalog_subject_for_node(version.academic_node)
+    document = CatalogDocument.objects.filter(version=version, is_active=True).first()
+    if catalog_subject is None or document is None:
+        return 0
+    recipients = User.objects.filter(
+        status=User.Status.ACTIVE,
+        is_active=True,
+        cohort_id=catalog_subject.cohort_id,
+    ).exclude(id=actor.id)
     created = 0
     for recipient_id in recipients.values_list("id", flat=True).iterator():
         _, was_created = create_notification(
@@ -219,10 +248,41 @@ def _notify_students(*, actor: User, sheet: LearningObject) -> int:
             },
             target_type="learning_object",
             target_id=sheet.id,
-            target_route=f"/materials/objects/{sheet.id}",
+            target_route=(
+                f"/materials/catalog/{document.material_slug}/sheets/{document.sheet_slug}"
+            ),
         )
         created += int(was_created)
     return created
+
+
+@transaction.atomic
+def publish_catalog_learning_object(
+    *, actor: User, learning_object_id: UUID, expected_revision: int
+) -> LearningObject:
+    """Publish through the generic API and maintain the Catalog projection."""
+
+    sheet = publish_learning_object(
+        actor=actor,
+        learning_object_id=learning_object_id,
+        expected_revision=expected_revision,
+    )
+    if sheet.published_version and sheet.published_version.content_type == "pdf":
+        _sync_catalog_document(sheet)
+    return sheet
+
+
+@transaction.atomic
+def archive_catalog_learning_object(
+    *, actor: User, learning_object_id: UUID, expected_revision: int
+) -> LearningObject:
+    sheet = archive_learning_object(
+        actor=actor,
+        learning_object_id=learning_object_id,
+        expected_revision=expected_revision,
+    )
+    _sync_catalog_document(sheet)
+    return sheet
 
 
 def _publish_current(*, actor: User, sheet: LearningObject) -> LearningObject:
@@ -489,6 +549,8 @@ def permanently_delete_sheet(*, actor: User, sheet_id: UUID) -> None:
         dependencies.append("questions")
     if sheet.active_study_question_content.exists():
         dependencies.append("Active Study question content")
+    if hasattr(sheet, "active_study_settings"):
+        dependencies.append("Active Study settings")
     if has_publication_history(sheet):
         dependencies.append("publication history")
     if dependencies:
@@ -755,6 +817,7 @@ def save_active_study_question_content(
             difficulty=difficulty_key,
             payload=validation.payload,
             plan_signature=_plan_signature(difficulty_plan),
+            source_version=sheet.published_version or sheet.current_version,
             checkpoint_question_count=validation.checkpoint_question_count,
             final_exam_question_count=validation.final_exam_question_count,
             revision=1,
@@ -767,6 +830,7 @@ def save_active_study_question_content(
             raise ContentConflictError("This Active Study content changed. Reload and try again.")
         content.payload = validation.payload
         content.plan_signature = _plan_signature(difficulty_plan)
+        content.source_version = sheet.published_version or sheet.current_version
         content.checkpoint_question_count = validation.checkpoint_question_count
         content.final_exam_question_count = validation.final_exam_question_count
         content.updated_by = actor
@@ -775,6 +839,7 @@ def save_active_study_question_content(
             update_fields=(
                 "payload",
                 "plan_signature",
+                "source_version",
                 "checkpoint_question_count",
                 "final_exam_question_count",
                 "updated_by",
@@ -850,11 +915,23 @@ def update_active_study_settings(
         raise ContentConflictError("These Active Study settings changed. Reload and try again.")
     if created:
         settings.revision = 0
-    resolved_total = total_pdf_pages if total_pdf_pages is not None else settings.total_pdf_pages
+    source_version = sheet.published_version or sheet.current_version
+    derived_total = source_version.page_count if source_version is not None else None
+    if derived_total is not None and total_pdf_pages not in {None, derived_total}:
+        raise ContentRuleError(
+            "The configured page count does not match the uploaded PDF. Reload the sheet metadata."
+        )
+    resolved_total = (
+        derived_total
+        if derived_total is not None
+        else total_pdf_pages
+        if total_pdf_pages is not None
+        else settings.total_pdf_pages
+    )
     if enabled and resolved_total is None:
         raise ContentRuleError("Enter the PDF's total page count before enabling Active Study.")
     if enabled:
-        version = sheet.current_version
+        version = source_version
         has_pdf = (
             version is not None
             and LearningObjectAsset.objects.filter(
@@ -880,7 +957,9 @@ def update_active_study_settings(
         or settings.excluded_end_pages != excluded_end_pages
     )
     has_existing_questions = (
-        sheet.question_versions.exists() or sheet.question_import_batches.exists()
+        sheet.question_versions.exists()
+        or sheet.question_import_batches.exists()
+        or sheet.active_study_question_content.exists()
     )
     if boundaries_changed and has_existing_questions and not confirm_boundary_change:
         raise ContentRuleError(
@@ -890,6 +969,10 @@ def update_active_study_settings(
     previous = active_study_payload(sheet=sheet)
     settings.enabled = enabled
     settings.total_pdf_pages = resolved_total
+    settings.source_version = source_version
+    settings.page_count_verified_at = (
+        timezone.now() if derived_total is not None and resolved_total == derived_total else None
+    )
     settings.excluded_start_pages = excluded_start_pages
     settings.excluded_end_pages = excluded_end_pages
     settings.revision += 1
@@ -897,6 +980,8 @@ def update_active_study_settings(
         update_fields=(
             "enabled",
             "total_pdf_pages",
+            "source_version",
+            "page_count_verified_at",
             "excluded_start_pages",
             "excluded_end_pages",
             "revision",

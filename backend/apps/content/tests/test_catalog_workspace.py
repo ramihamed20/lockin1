@@ -159,11 +159,13 @@ def test_catalog_materials_are_cohort_scoped_and_published_from_content_studio()
             "sheets": [
                 {
                     "slug": document.sheet_slug,
+                    "learningObjectId": str(sheet.id),
                     "number": 1,
                     "title": "Head and neck",
                     "summary": "",
                     "pageCount": None,
                     "hasActiveStudy": False,
+                    "deliverable": True,
                 }
             ],
             "cohort": {"program_code": "catalog-materials", "cohort_code": "own", "name": "Own"},
@@ -178,6 +180,105 @@ def test_catalog_materials_are_cohort_scoped_and_published_from_content_studio()
         own_subject.material_slug,
         "catalog-materials-other-dental-anatomy",
     } <= {item["slug"] for item in founder_directory.json()["results"]}
+
+    document.managed_file.scan_status = document.managed_file.ScanStatus.QUARANTINED
+    document.managed_file.save(update_fields=("scan_status",))
+    unavailable_directory = client_for(own_student).get("/api/v1/catalog/materials")
+    unavailable_resolver = client_for(own_student).get(
+        f"/api/v1/catalog/documents/{document.material_slug}/{document.sheet_slug}"
+    )
+    assert unavailable_directory.json()["results"][0]["sheets"][0]["deliverable"] is False
+    assert unavailable_resolver.status_code == 409
+    assert unavailable_resolver.json()["error"]["code"] == "file_unavailable"
+
+
+@override_settings(COHORT_CONTENT_ENFORCEMENT=True)
+def test_generic_publish_projects_lesson_pdf_into_owning_catalog_subject() -> None:
+    admin = create_admin(email="generic-catalog-publish@example.com")
+    _, subject, lesson = published_path(admin=admin)
+    program = AcademicProgram.objects.create(
+        code="generic-catalog", name_en="Generic", name_ar="Generic"
+    )
+    cohort = StudentCohort.objects.create(
+        program=program, code="year-1", name_en="Year 1", name_ar="Year 1"
+    )
+    cohort.content_nodes.add(subject)
+    catalog_subject = CatalogSubject.objects.create(
+        cohort=cohort,
+        source_node=subject,
+        title="Anatomy",
+        slug="anatomy",
+        material_slug="generic-catalog-anatomy",
+    )
+    managed_file = create_managed_file(owner=admin, upload=pdf_upload(), kind="pdf")
+    client = client_for(admin)
+    created = client.post(
+        "/api/v1/management/content",
+        {
+            "academic_node_id": str(lesson.id),
+            "content_type": "pdf",
+            "title": "Lesson-level atlas",
+            "primary_file_id": str(managed_file.id),
+        },
+        format="json",
+    ).json()
+    submitted = client.post(
+        f"/api/v1/management/content/{created['id']}/submit",
+        {"expected_revision": created["revision"]},
+        format="json",
+    ).json()
+
+    published = client.post(
+        f"/api/v1/management/content/{created['id']}/publish",
+        {"expected_revision": submitted["revision"]},
+        format="json",
+    )
+
+    assert published.status_code == 200
+    document = CatalogDocument.objects.get(version__learning_object_id=created["id"])
+    assert document.material_slug == catalog_subject.material_slug
+    student = create_user(email="generic-catalog-student@example.com", cohort=cohort)
+    directory = client_for(student).get("/api/v1/catalog/materials")
+    assert directory.json()["results"][0]["sheets"][0]["slug"] == document.sheet_slug
+
+
+def test_catalog_sync_refreshes_material_slug_without_changing_sheet_slug() -> None:
+    from apps.content.admin_services import _sync_catalog_document
+
+    admin = create_admin(email="catalog-slug-refresh@example.com")
+    _, subject, _ = published_path(admin=admin)
+    program = AcademicProgram.objects.create(code="slug-refresh", name_en="Slug", name_ar="Slug")
+    cohort = StudentCohort.objects.create(
+        program=program, code="year-1", name_en="Year 1", name_ar="Year 1"
+    )
+    cohort.content_nodes.add(subject)
+    catalog_subject = CatalogSubject.objects.create(
+        cohort=cohort,
+        source_node=subject,
+        title="Anatomy",
+        slug="anatomy",
+        material_slug="slug-refresh-old",
+    )
+    sheet = create_sheet(
+        actor=admin,
+        subject=subject,
+        managed_file=create_managed_file(owner=admin, upload=pdf_upload(), kind="pdf"),
+        title="Stable route sheet",
+        summary="",
+        position=0,
+        publish=True,
+        notify_students=False,
+        allow_download=False,
+    )
+    document = CatalogDocument.objects.get(version__learning_object=sheet)
+    sheet_slug = document.sheet_slug
+    catalog_subject.material_slug = "slug-refresh-new"
+    catalog_subject.save(update_fields=("material_slug", "updated_at"))
+
+    assert _sync_catalog_document(sheet) is True
+    document.refresh_from_db()
+    assert document.material_slug == "slug-refresh-new"
+    assert document.sheet_slug == sheet_slug
 
 
 def test_founder_content_panel_exposes_every_configured_catalog_branch() -> None:
@@ -240,7 +341,20 @@ def test_catalog_workspace_is_revisioned_idempotent_and_owner_isolated() -> None
     assert stale.status_code == 409
     assert restored.json()["state"]["notes"][0]["body"] == "private"
     assert restored_on_second_session.json() == restored.json()
-    assert isolated.json() == {"revision": 0, "state": {}}
+    assert isolated.json() == {
+        "revision": 0,
+        "collection_revision": 0,
+        "document_version_id": str(document.version_id),
+        "checksum_sha256": document.managed_file.checksum_sha256,
+        "state": {},
+    }
+    probe = first_client.get(f"{url}?probe=1")
+    assert probe.json() == {
+        "revision": 1,
+        "collection_revision": 0,
+        "document_version_id": str(document.version_id),
+        "checksum_sha256": document.managed_file.checksum_sha256,
+    }
     assert CatalogWorkspaceSnapshot.objects.filter(document=document).count() == 2
 
 
@@ -274,6 +388,7 @@ def test_catalog_annotations_are_bound_to_immutable_document_version() -> None:
         format="json",
     )
     loaded = client.get(f"/api/v1/focus/documents/{document.version_id}/annotations?pages=1")
+    probe = client.get(f"/api/v1/catalog/documents/{document.id}/workspace?probe=1")
 
     replacement_object = published_pdf(
         actor=document.version.created_by,
@@ -297,5 +412,7 @@ def test_catalog_annotations_are_bound_to_immutable_document_version() -> None:
     assert response.status_code == 200
     assert loaded.status_code == 200
     assert loaded.json()["results"][0]["id"] == annotation_id
+    assert probe.status_code == 200
+    assert probe.json()["collection_revision"] == 1
     assert isolated.status_code == 200
     assert isolated.json()["results"] == []

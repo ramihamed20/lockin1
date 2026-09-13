@@ -11,7 +11,7 @@ from apps.audit.models import AuditRecord
 from apps.education.tests.helpers import create_admin, pdf_upload, published_path
 from apps.files.services import create_managed_file
 
-from ..admin_services import create_sheet
+from ..admin_services import active_study_payload, create_sheet, replace_pdf
 from ..models import ActiveStudyQuestionContent
 
 pytestmark = pytest.mark.django_db
@@ -234,3 +234,35 @@ def test_permissions_disable_retention_and_changed_plan_needs_review() -> None:
     medium = next(item for item in changed.json()["difficulties"] if item["difficulty"] == "medium")
     assert medium["number_of_parts"] == 5
     assert medium["content"]["status"] == "needs_review"
+
+
+def test_replacing_source_pdf_marks_questions_for_review_without_deleting_them() -> None:
+    client, admin, sheet = _configured_client()
+    payload = _payload()
+    saved = client.put(
+        _endpoint(sheet), {"expected_revision": 0, "payload": payload}, format="json"
+    )
+    assert saved.status_code == 200
+    original_version_id = sheet.current_version_id
+
+    replacement = create_managed_file(
+        owner=admin, upload=pdf_upload(name="replacement.pdf"), kind="pdf"
+    )
+    sheet = replace_pdf(
+        actor=admin,
+        sheet_id=sheet.id,
+        expected_revision=sheet.revision,
+        managed_file=replacement,
+        notify_students=False,
+    )
+
+    content = ActiveStudyQuestionContent.objects.get(sheet=sheet, difficulty="medium")
+    medium = next(
+        item
+        for item in active_study_payload(sheet=sheet)["difficulties"]
+        if item["difficulty"] == "medium"
+    )
+    assert sheet.current_version_id != original_version_id
+    assert content.source_version_id == original_version_id
+    assert medium["content"]["status"] == "needs_review"
+    assert content.payload == payload
