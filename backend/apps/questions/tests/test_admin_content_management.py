@@ -103,6 +103,8 @@ def test_sheet_create_publish_notify_update_unpublish_and_safe_delete() -> None:
         program=program, code="year-1", name_en="Skin Year 1", name_ar="Skin Year 1"
     )
     cohort.content_nodes.set([institution])
+    student.cohort = cohort
+    student.save(update_fields=["cohort"])
     managed_file = create_managed_file(owner=admin, upload=pdf_upload(name="skin.pdf"), kind="pdf")
     client = APIClient()
     client.force_authenticate(admin)

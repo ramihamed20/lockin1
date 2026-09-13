@@ -75,6 +75,9 @@ class _FakeStorage:
     def exists(self, name: str) -> bool:
         return name in self._objects
 
+    def size(self, name: str) -> int:
+        return len(self._objects[name])
+
     def delete(self, name: str) -> None:
         self.deleted.append(name)
         self._objects.pop(name, None)
