@@ -5,6 +5,7 @@ import { WORKSPACE_RENDER } from "../config.js";
 import { PdfRenderQueue, pdfRenderGenerationIsCurrent } from "./pdfRenderQueue.js";
 import { loadPdfLibrary } from "./pdfJsAdapter.js";
 import { catalogCanvasPixelBudget } from "./renderBudget.js";
+import { visiblePdfPages } from "./visiblePdfPages.js";
 
 export const A4_PAGE_WIDTH = 595;
 export const A4_PAGE_RATIO = 297 / 210;
@@ -248,6 +249,7 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
  * @param {{
  *   pdfUrl: string,
  *   pageCount: number,
+ *   visiblePageStart?: number,
  *   visiblePageCount?: number,
  *   zoom: number,
  *   stageRef: import("react").RefObject<HTMLDivElement>,
@@ -262,6 +264,7 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
 export function ContinuousA4Pdf({
   pdfUrl,
   pageCount,
+  visiblePageStart = 1,
   visiblePageCount = pageCount,
   zoom,
   stageRef,
@@ -648,7 +651,7 @@ export function ContinuousA4Pdf({
       pageObserver.disconnect();
       documentRoot.removeEventListener("workspace:zoomgeometrysettled", updateCurrentFromGeometry);
     };
-  }, [commitNearbyPages, commitPrimaryPage, documentRootRef, pageCount, pageGeometryReady, stageRef, visiblePageCount]);
+  }, [commitNearbyPages, commitPrimaryPage, documentRootRef, pageCount, pageGeometryReady, stageRef, visiblePageCount, visiblePageStart]);
 
   // Nothing is laid out at a guessed page shape. The sheet knows its page count
   // long before the file is open, so the reader used to raise a full document of
@@ -658,8 +661,10 @@ export function ContinuousA4Pdf({
   // away from the one it was sent to. Page boxes appear once they can be drawn
   // at the size the file actually is.
   const pages = useMemo(() => (
-    pageGeometryReady ? Array.from({ length: Math.min(pageCount, visiblePageCount) }, (_, index) => index + 1) : []
-  ), [pageCount, pageGeometryReady, visiblePageCount]);
+    pageGeometryReady ? visiblePdfPages(pageCount, visiblePageStart, visiblePageCount) : []
+  ), [pageCount, pageGeometryReady, visiblePageCount, visiblePageStart]);
+  const firstVisiblePage = pages[0] || 1;
+  const lastVisiblePage = pages.at(-1) || firstVisiblePage;
   // The render observer's margin is a share of the stage height, so a sheet of
   // short 16:9 slides admits several times more pages than a tall A4 one, and
   // every extra page is a full-size canvas held in memory. This is how far the
@@ -674,14 +679,14 @@ export function ContinuousA4Pdf({
     const next = new Set();
     for (let offset = -A4_RENDER_OVERSCAN_PAGES; offset <= A4_RENDER_OVERSCAN_PAGES; offset += 1) {
       const pageNumber = primaryPage + offset;
-      if (pageNumber >= 1 && pageNumber <= visiblePageCount) next.add(pageNumber);
+      if (pageNumber >= firstVisiblePage && pageNumber <= lastVisiblePage) next.add(pageNumber);
     }
     nearbyPages.forEach((pageNumber) => {
       if (Math.abs(pageNumber - primaryPage) > renderReach) return;
-      if (pageNumber >= 1 && pageNumber <= visiblePageCount) next.add(pageNumber);
+      if (pageNumber >= firstVisiblePage && pageNumber <= lastVisiblePage) next.add(pageNumber);
     });
     return next;
-  }, [nearbyPages, primaryPage, renderReach, visiblePageCount]);
+  }, [firstVisiblePage, lastVisiblePage, nearbyPages, primaryPage, renderReach]);
   const baseDocumentHeight = useMemo(() => pages.reduce((total, pageNumber) => (
     total + A4_PAGE_WIDTH * (pageAspectRatios.get(pageNumber) || defaultPageAspectRatio)
   ), Math.max(0, pages.length - 1) * A4_PAGE_GAP), [defaultPageAspectRatio, pageAspectRatios, pages]);

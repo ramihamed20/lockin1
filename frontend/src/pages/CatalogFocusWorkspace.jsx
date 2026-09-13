@@ -57,7 +57,6 @@ import { generateIdempotencyKey } from "../api/pagination.js";
 import { rememberLastOpenedCatalogSheet } from "../lib/materialCatalog.js";
 import { useCatalogMaterials } from "../hooks/useCatalogMaterials.js";
 import { useCatalogDocument } from "../hooks/useCatalogDocument.js";
-import { ActiveStudyPlayer } from "../components/learning/ActiveStudyPlayer.jsx";
 import { subscribeConnection } from "../lib/connectionState.js";
 import { createCatalogServerSync } from "../workspace/catalog/catalogServerSync.js";
 import { cssVars } from "../lib/utils.js";
@@ -465,7 +464,7 @@ function StudyModeDialog({ difficulty, setDifficulty, activeAvailable, busy, err
           <div className="workspace-v2-mode-card is-active-study">
             <div className="workspace-v2-mode-heading">
               <span className="workspace-v2-mode-icon"><Brain size={20} /></span>
-              <span className="workspace-v2-mode-copy"><strong>Active Study</strong><small>3 pages, then a checkpoint</small></span>
+              <span className="workspace-v2-mode-copy"><strong>Active Study</strong><small>One part, then a checkpoint</small></span>
             </div>
             <div className="workspace-v2-difficulty" role="radiogroup" aria-label="Active Study difficulty">
               {ACTIVE_DIFFICULTIES.map(([id, label, detail]) => <button key={id} type="button" role="radio" aria-label={`${label}: ${detail}`} title={detail} aria-checked={difficulty === id} className={difficulty === id ? "is-selected" : ""} onClick={() => setDifficulty(id)}>{label}</button>)}
@@ -484,7 +483,7 @@ function ActiveStudyQuiz({ quiz, answers, setAnswers, result, busy, onSubmit, on
   const dialogRef = useDialogFocus(onDismiss);
   const question = quiz.questions[index];
   const answered = Object.keys(answers).length;
-  const isFinal = Boolean(quiz.run?.final_ready);
+  const isFinal = quiz.kind === "final";
   if (result) {
     const passed = result.outcome === "passed";
     const advisory = result.outcome === "advisory";
@@ -497,7 +496,7 @@ function ActiveStudyQuiz({ quiz, answers, setAnswers, result, busy, onSubmit, on
       <div className="workspace-v2-result-actions">
         {passed && <button type="button" className="is-primary" onClick={onDismiss}>{isFinal ? "Finish" : "Continue studying"}</button>}
         {advisory && <button type="button" className="is-primary" onClick={onContinue} disabled={busy}>Continue anyway</button>}
-        {!passed && <button type="button" onClick={onRetake} disabled={busy}><RotateCcw size={16} />Retake test</button>}
+        {!passed && <button type="button" onClick={onRetake} disabled={busy}><RotateCcw size={16} />{isFinal ? "Retry final exam" : "Study this part again"}</button>}
         {!passed && <button type="button" onClick={onDismiss}>Return to pages</button>}
       </div>
     </section></div>;
@@ -505,10 +504,10 @@ function ActiveStudyQuiz({ quiz, answers, setAnswers, result, busy, onSubmit, on
   return (
     <div className="workspace-v2-quiz-backdrop">
       <section ref={dialogRef} className="workspace-v2-quiz-dialog" role="dialog" aria-modal="true" aria-labelledby="active-question-title" tabIndex={-1}>
-        <header><div><span>{isFinal ? "Final assessment" : `Pages ${Math.max(1, quiz.run.unlocked_pages - 2)}–${quiz.run.unlocked_pages}`}</span><strong>{answered} of {quiz.questions.length} answered</strong></div><button type="button" onClick={onDismiss} aria-label="Close test"><X size={19} /></button></header>
+        <header><div><span>{isFinal ? "Final assessment" : `Pages ${quiz.run.current_page_range.start_page}–${quiz.run.current_page_range.end_page}`}</span><strong>{answered} of {quiz.questions.length} answered</strong></div><button type="button" onClick={onDismiss} aria-label="Close test"><X size={19} /></button></header>
         <div className="workspace-v2-quiz-progress"><span style={{ width: `${((index + 1) / quiz.questions.length) * 100}%` }} /></div>
         <main>
-          <span className="workspace-v2-question-number">Question {index + 1} of {quiz.questions.length} · Source page {question.page}</span>
+          <span className="workspace-v2-question-number">Question {index + 1} of {quiz.questions.length}</span>
           <h2 id="active-question-title">{question.prompt}</h2>
           <div className="workspace-v2-answer-list" role="radiogroup" aria-label={`Answers for question ${index + 1}`}>
             {question.options.map((option, optionIndex) => <button key={option.id} type="button" role="radio" aria-checked={answers[question.id] === option.id} className={answers[question.id] === option.id ? "is-selected" : ""} onClick={() => setAnswers((current) => ({ ...current, [question.id]: option.id }))}><span>{String.fromCharCode(65 + optionIndex)}</span>{option.text}{answers[question.id] === option.id && <CheckCircle2 size={18} />}</button>)}
@@ -779,8 +778,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
 
   const [topicTitle, topicSummary] = SUBJECT_COPY[materialSlug] || [material?.title || "Study material", sheet?.summary || "Focused study workspace."];
   const sheetRoute = `/materials/catalog/${materialSlug}/sheets/${sheetSlug}`;
-  const accessiblePageCount = activeStudy?.status === "active" ? Math.min(pageCount, activeStudy.unlocked_pages) : pageCount;
-  const activeCheckpointReady = studyMode === "active" && activeStudy?.status === "active" && page >= activeStudy.unlocked_pages;
+  const activePageRange = studyMode === "active" && activeStudy?.status === "active" ? activeStudy.current_page_range : null;
+  const accessiblePageStart = activePageRange?.start_page || 1;
+  const accessiblePageCount = activePageRange?.end_page || pageCount;
+  const activeCheckpointReady = studyMode === "active" && activeStudy?.stage === "reading" && page >= accessiblePageCount;
   const pageAnnotations = useMemo(() => annotations.filter((item) => item.page === page), [annotations, page]);
   const annotationsByPage = useMemo(() => {
     const groups = new Map();
@@ -3343,7 +3344,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
 
   function jumpToPagePosition(nextPage, point = null) {
     stopScrollMomentum();
-    const targetPage = Math.min(accessiblePageCount, Math.max(1, Number(nextPage) || 1));
+    const targetPage = Math.min(accessiblePageCount, Math.max(accessiblePageStart, Number(nextPage) || accessiblePageStart));
     setPage(targetPage);
     const stage = stageRef.current;
     const target = sheet?.pdfUrl ? stage?.querySelector(`[data-pdf-page="${targetPage}"]`) : documentRef.current;
@@ -3574,22 +3575,55 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
 
   async function chooseActiveStudy() {
     if (activeStudyBusy || !sheet?.hasActiveStudy) return;
-    setActiveStudyError("");
-    setStudyMode("active");
-    setModeDialogOpen(false);
-    setFocusMessage("Choose a managed Active Study difficulty to start or resume.");
-  }
-
-  async function openActiveQuiz() {
-    if (!activeStudy || activeStudyBusy || page < activeStudy.unlocked_pages) return;
     setActiveStudyBusy(true);
     setActiveStudyError("");
     try {
-      const payload = await focusApi.getActiveStudyQuiz(activeStudy.id);
-      setActiveStudy(payload.run);
-      setActiveQuiz(payload);
-      setActiveAnswers({});
-      setActiveResult(null);
+      const availability = await focusApi.getManagedActiveStudyAvailability(sheet.learningObjectId);
+      const inProgress = /** @type {any[]} */ (availability.difficulties || []).find((item) => item.progress)?.progress;
+      const difficulty = inProgress?.difficulty || activeDifficulty;
+      const payload = await focusApi.startManagedActiveStudy({ sheetId: sheet.learningObjectId, difficulty });
+      const run = /** @type {any} */ (payload.run);
+      setActiveDifficulty(run.difficulty);
+      setActiveStudy(run);
+      setStudyMode("active");
+      setModeDialogOpen(false);
+      const startPage = run.current_page_range?.start_page || 1;
+      setPage(startPage);
+      requestAnimationFrame(() => jumpToPagePosition(startPage));
+      setFocusMessage(payload.resumed ? `Part ${run.current_part} resumed.` : `Part ${run.current_part} started.`);
+      if (run.stage === "checkpoint" || run.stage === "final") await loadManagedQuestions(run);
+    } catch (error) {
+      setActiveStudyError(error.message || "Active Study could not be started.");
+    } finally {
+      setActiveStudyBusy(false);
+    }
+  }
+
+  async function loadManagedQuestions(run) {
+    const payload = await focusApi.getManagedActiveStudyQuestions(run.id);
+    const existingAnswers = {};
+    const questions = /** @type {any[]} */ (payload.questions).map((question) => {
+      if (question.answered) existingAnswers[String(question.position)] = question.answered;
+      return {
+        id: String(question.position),
+        position: question.position,
+        prompt: question.question,
+        options: Object.entries(question.options).map(([id, text]) => ({ id, text }))
+      };
+    });
+    setActiveStudy(payload.run || run);
+    setActiveQuiz({ ...payload, run: payload.run || run, questions });
+    setActiveAnswers(existingAnswers);
+    setActiveResult(null);
+  }
+
+  async function openActiveQuiz() {
+    if (!activeStudy || activeStudyBusy || activeStudy.stage !== "reading" || page < accessiblePageCount) return;
+    setActiveStudyBusy(true);
+    setActiveStudyError("");
+    try {
+      const payload = await focusApi.managedActiveStudyAction(activeStudy.id, "complete-reading");
+      await loadManagedQuestions(payload.run);
     } catch (error) {
       setFocusMessage(error.message || "The Active Study test could not be loaded.");
     } finally {
@@ -3598,12 +3632,20 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   }
 
   async function submitActiveQuiz() {
-    if (!activeStudy || activeStudyBusy) return;
+    if (!activeStudy || !activeQuiz || activeStudyBusy) return;
     setActiveStudyBusy(true);
     try {
-      const payload = await focusApi.submitActiveStudyQuiz(activeStudy.id, activeAnswers);
+      for (const question of activeQuiz.questions) {
+        await focusApi.answerManagedActiveStudyQuestion(activeStudy.id, {
+          attemptId: activeQuiz.attempt_id,
+          position: question.position,
+          selectedAnswer: activeAnswers[question.id]
+        });
+      }
+      const payload = await focusApi.submitManagedActiveStudy(activeStudy.id, activeQuiz.attempt_id);
+      const result = /** @type {any} */ (payload.result);
       setActiveStudy(payload.run);
-      setActiveResult(payload.result);
+      setActiveResult({ ...result, outcome: result.passed ? "passed" : (activeQuiz.kind === "final" ? "failed" : "advisory") });
     } catch (error) {
       setFocusMessage(error.message || "The Active Study test could not be submitted.");
     } finally {
@@ -3615,13 +3657,16 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     if (!activeStudy || activeStudyBusy) return;
     setActiveStudyBusy(true);
     try {
-      const payload = await focusApi.continueActiveStudy(activeStudy.id);
+      const payload = await focusApi.managedActiveStudyAction(activeStudy.id, "continue");
       const run = /** @type {any} */ (payload.run);
       setActiveStudy(run);
       setActiveQuiz(null);
       setActiveResult(null);
       setActiveAnswers({});
-      setFocusMessage(`Pages 1–${run.unlocked_pages} are now unlocked. A retake is still recommended.`);
+      const startPage = run.current_page_range?.start_page || 1;
+      setPage(startPage);
+      requestAnimationFrame(() => jumpToPagePosition(startPage));
+      setFocusMessage(`Part ${run.current_part} is now available. A retake is still recommended.`);
     } catch (error) {
       setFocusMessage(error.message || "The next pages could not be unlocked.");
     } finally {
@@ -3630,16 +3675,50 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   }
 
   async function retakeActiveQuiz() {
-    setActiveQuiz(null);
-    setActiveResult(null);
-    setActiveAnswers({});
-    await openActiveQuiz();
+    if (!activeStudy || activeStudyBusy) return;
+    setActiveStudyBusy(true);
+    try {
+      const action = activeQuiz?.kind === "final" ? "retry-final" : "study-again";
+      const payload = await focusApi.managedActiveStudyAction(activeStudy.id, action);
+      const run = /** @type {any} */ (payload.run);
+      setActiveStudy(run);
+      setActiveQuiz(null);
+      setActiveResult(null);
+      setActiveAnswers({});
+      if (action === "retry-final") await loadManagedQuestions(run);
+      else {
+        const startPage = run.current_page_range?.start_page || 1;
+        setPage(startPage);
+        requestAnimationFrame(() => jumpToPagePosition(startPage));
+      }
+    } catch (error) {
+      setFocusMessage(error.message || "The Active Study stage could not be reopened.");
+    } finally {
+      setActiveStudyBusy(false);
+    }
   }
 
-  function dismissActiveQuiz() {
+  async function dismissActiveQuiz() {
+    const run = activeStudy;
     setActiveQuiz(null);
     setActiveResult(null);
     setActiveAnswers({});
+    if (run?.stage === "final") {
+      setActiveStudyBusy(true);
+      try {
+        await loadManagedQuestions(run);
+      } catch (error) {
+        setFocusMessage(error.message || "The final exam could not be loaded.");
+      } finally {
+        setActiveStudyBusy(false);
+      }
+      return;
+    }
+    if (run?.stage === "reading") {
+      const startPage = run.current_page_range?.start_page || 1;
+      setPage(startPage);
+      requestAnimationFrame(() => jumpToPagePosition(startPage));
+    }
   }
 
   async function saveNote() {
@@ -3705,7 +3784,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       setPageJumpDraft(String(page));
       return;
     }
-    const clamped = Math.min(accessiblePageCount, Math.max(1, target));
+    const clamped = Math.min(accessiblePageCount, Math.max(accessiblePageStart, target));
     setPageJumpDraft(String(clamped));
     if (clamped !== page) jumpToPagePosition(clamped);
   }
@@ -3890,7 +3969,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
                 <WorkspaceIconButton label="Undo (Ctrl+Z)" disabled={!undoHistory.length} onClick={undoTool}><Undo2 size={18} /></WorkspaceIconButton>
                 <WorkspaceIconButton label="Redo (Ctrl+Shift+Z)" disabled={!redoHistory.length} onClick={redoTool}><Redo2 size={18} /></WorkspaceIconButton>
               </div>
-              <button type="button" className={`workspace-v2-study-mode-button is-${studyMode || "choose"}`} onClick={() => { setOpenSurface(null); setModeDialogOpen(true); }} aria-label={studyMode === "active" && activeStudy ? `Active Study: pages 1 to ${activeStudy.unlocked_pages} unlocked` : "Choose study mode"} title={studyMode === "active" && activeStudy ? `Active Study · pages 1–${activeStudy.unlocked_pages} unlocked` : "Choose study mode"}><Brain size={18} /></button>
+              <button type="button" className={`workspace-v2-study-mode-button is-${studyMode || "choose"}`} onClick={() => { setOpenSurface(null); setModeDialogOpen(true); }} aria-label={studyMode === "active" && activeStudy ? `Active Study: part ${activeStudy.current_part} of ${activeStudy.number_of_parts}` : "Choose study mode"} title={studyMode === "active" && activeStudy ? `Active Study · part ${activeStudy.current_part} of ${activeStudy.number_of_parts}` : "Choose study mode"}><Brain size={18} /></button>
             </div>
             <input ref={imageInputRef} className="workspace-v2-file-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={addImage} tabIndex={-1} aria-hidden="true" />
             <div className="workspace-v2-toolbar-actions" aria-label="Workspace controls">
@@ -3983,7 +4062,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
             onLostPointerCapture={lostWorkspacePointer}
             onPointerLeave={hideStylusHover}
           >
-            {sheet.pdfUrl ? <ContinuousA4Pdf pdfUrl={sheet.pdfUrl} pageCount={pageCount} visiblePageCount={accessiblePageCount} zoom={zoom} stageRef={stageRef} documentRootRef={documentRef} onPageCount={syncPdfPageCount} onDocumentReady={markPdfDocumentReady} onCurrentPageChange={setPage} renderPageOverlay={renderPdfPageOverlay} onPdfPageRendered={recordPdfPageRender} /> : <article ref={documentRef} className="workspace-v2-document" onDoubleClick={smartZoom} style={cssVars({ "--workspace-document-width": `${PAGE_WIDTH * zoom}px`, "--workspace-document-min-height": `${760 * zoom}px`, "--workspace-document-max-width": "none" })}>
+            {sheet.pdfUrl ? <ContinuousA4Pdf pdfUrl={sheet.pdfUrl} pageCount={pageCount} visiblePageStart={accessiblePageStart} visiblePageCount={accessiblePageCount} zoom={zoom} stageRef={stageRef} documentRootRef={documentRef} onPageCount={syncPdfPageCount} onDocumentReady={markPdfDocumentReady} onCurrentPageChange={setPage} renderPageOverlay={renderPdfPageOverlay} onPdfPageRendered={recordPdfPageRender} /> : <article ref={documentRef} className="workspace-v2-document" onDoubleClick={smartZoom} style={cssVars({ "--workspace-document-width": `${PAGE_WIDTH * zoom}px`, "--workspace-document-min-height": `${760 * zoom}px`, "--workspace-document-max-width": "none" })}>
               <svg className={annotationLayerClass} viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-label="Document annotations">
                 <AnnotationVisuals annotations={pageAnnotations} prefix={`document-${page}`} includeHitTargets={activeTool === "select"} />
                 {draftAnnotation && draftAnnotation.type !== "lasso" && <WorkspaceAnnotation annotation={draftAnnotation} draft />}
@@ -4012,8 +4091,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
           {showPageNumber && <div className={`workspace-v2-page-dock${pageNavigatorOpen ? " is-open" : ""}`}>
             {pageNavigatorOpen && <div id="workspace-page-navigator" className="workspace-v2-page-navigator" role="group" aria-label="Page and zoom" onPointerDown={(event) => event.stopPropagation()}>
               <div className="workspace-v2-page-jump">
-                <button type="button" aria-label="Previous page" title="Previous page" disabled={page <= 1} onClick={() => jumpToPagePosition(page - 1)}><ChevronLeft size={16} /></button>
-                <label className="workspace-v2-page-input"><span className="workspace-v2-visually-hidden">Go to page</span><input type="number" inputMode="numeric" min={1} max={accessiblePageCount} value={pageJumpDraft} onChange={(event) => setPageJumpDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commitPageJump(); } }} onBlur={commitPageJump} /></label>
+                <button type="button" aria-label="Previous page" title="Previous page" disabled={page <= accessiblePageStart} onClick={() => jumpToPagePosition(page - 1)}><ChevronLeft size={16} /></button>
+                <label className="workspace-v2-page-input"><span className="workspace-v2-visually-hidden">Go to page</span><input type="number" inputMode="numeric" min={accessiblePageStart} max={accessiblePageCount} value={pageJumpDraft} onChange={(event) => setPageJumpDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commitPageJump(); } }} onBlur={commitPageJump} /></label>
                 <span className="workspace-v2-page-total">/ {accessiblePageCount}</span>
                 <button type="button" aria-label="Next page" title="Next page" disabled={page >= accessiblePageCount} onClick={() => jumpToPagePosition(page + 1)}><ChevronRight size={16} /></button>
               </div>
@@ -4061,12 +4140,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         </aside>
       </div>
       <span className="workspace-v2-visually-hidden" role="status" aria-live="polite">{saveLabel}{focusMessage ? ` · ${focusMessage}` : ""}</span>
-      {studyMode === "active" && activeStudy?.status === "active" && <div className="workspace-v2-checkpoint-dock" role="status" aria-live="polite">
-        <button type="button" className={`workspace-v2-checkpoint-button${activeCheckpointReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeCheckpointReady} aria-label={activeCheckpointReady ? activeStudy.final_ready ? "Open final test" : "Open checkpoint" : `Reach page ${activeStudy.unlocked_pages} to unlock the checkpoint`}>{activeStudy.final_ready ? <><Trophy size={20} /><span className="workspace-v2-checkpoint-copy">Final test · 50</span></> : activeCheckpointReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">Checkpoint · 10</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">Reach page {activeStudy.unlocked_pages}</span></>}</button>
+      {studyMode === "active" && activeStudy?.status === "active" && activeStudy.stage === "reading" && <div className="workspace-v2-checkpoint-dock" role="status" aria-live="polite">
+        <button type="button" className={`workspace-v2-checkpoint-button${activeCheckpointReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeCheckpointReady} aria-label={activeCheckpointReady ? "Open checkpoint" : `Reach page ${accessiblePageCount} to unlock the checkpoint`}>{activeCheckpointReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">Checkpoint</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">Reach page {accessiblePageCount}</span></>}</button>
       </div>}
       {modeDialogOpen && <StudyModeDialog difficulty={activeDifficulty} setDifficulty={setActiveDifficulty} activeAvailable={Boolean(sheet.hasActiveStudy)} busy={activeStudyBusy} error={activeStudyError} onNormal={chooseNormalStudy} onActive={chooseActiveStudy} />}
       {activeQuiz && activeStudy && <ActiveStudyQuiz quiz={activeQuiz} answers={activeAnswers} setAnswers={setActiveAnswers} result={activeResult} busy={activeStudyBusy} onSubmit={submitActiveQuiz} onDismiss={dismissActiveQuiz} onRetake={retakeActiveQuiz} onContinue={continueActiveStudyAnyway} />}
-      {studyMode === "active" && sheet.learningObjectId && <div className="workspace-v2-managed-active-study"><ActiveStudyPlayer sheetId={sheet.learningObjectId} viewUrl={sheet.pdfUrl} /></div>}
     </main>
   );
 }

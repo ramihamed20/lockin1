@@ -1,43 +1,57 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { visiblePdfPages } from "../src/workspace/catalog/visiblePdfPages.js";
 
-const [player, api, study, styles] = await Promise.all([
-  readFile(new URL("../src/components/learning/ActiveStudyPlayer.jsx", import.meta.url), "utf8"),
+const [workspace, continuousPdf, api, study, profile] = await Promise.all([
+  readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../src/workspace/catalog/ContinuousA4Pdf.jsx", import.meta.url), "utf8"),
   readFile(new URL("../src/api/focus.js", import.meta.url), "utf8"),
   readFile(new URL("../src/pages/LearningObjectStudy.jsx", import.meta.url), "utf8"),
-  readFile(new URL("../src/styles.css", import.meta.url), "utf8")
+  readFile(new URL("../src/pages/Profile.jsx", import.meta.url), "utf8")
 ]);
 
-test("managed-sheet Active Study is available from a real learning object and preserves Normal Study", () => {
-  assert.match(study, /ActiveStudyPlayer sheetId=\{learningObject\.id\}/);
-  assert.match(study, /Open material/);
-  assert.match(player, /Easy/);
-  assert.match(player, /Medium/);
-  assert.match(player, /Hard/);
-  assert.match(player, /Resume/);
-  assert.match(player, /item\.status\.replaceAll/);
+test("Active Study mounts only the current part in the primary PDF reader", () => {
+  assert.deepEqual(visiblePdfPages(20, 4, 7), [4, 5, 6, 7]);
+  assert.deepEqual(visiblePdfPages(20, 18, 40), [18, 19, 20]);
+  assert.match(workspace, /visiblePageStart=\{accessiblePageStart\}/);
+  assert.match(workspace, /visiblePageCount=\{accessiblePageCount\}/);
+  assert.match(workspace, /Math\.max\(accessiblePageStart, Number\(nextPage\)/);
+  assert.match(continuousPdf, /visiblePdfPages\(pageCount, visiblePageStart, visiblePageCount\)/);
 });
 
-test("student flow uses server-backed actions for checkpoints, retries, and completion", () => {
+test("managed Active Study is unified with the old one-question quiz experience", () => {
   for (const name of [
-    "getManagedActiveStudyAvailability",
     "startManagedActiveStudy",
     "getManagedActiveStudyQuestions",
     "answerManagedActiveStudyQuestion",
     "submitManagedActiveStudy"
-  ]) assert.match(api, new RegExp(name));
-  assert.match(player, /Study this part again/);
-  assert.match(player, /Continue anyway/);
-  assert.match(player, /Retry Final Exam/);
-  assert.match(player, /Difficulty Completed/);
-  assert.match(player, /Check answer/);
-  assert.match(player, /correct_answer/);
+  ]) assert.match(workspace, new RegExp(`focusApi\\.${name}`));
+  assert.match(workspace, /function ActiveStudyQuiz/);
+  assert.match(workspace, /Question \{index \+ 1\} of \{quiz\.questions\.length\}/);
+  assert.match(workspace, />Previous</);
+  assert.match(workspace, />Next/);
+  assert.match(workspace, /workspace-v2-quiz-progress/);
+  assert.match(workspace, /managedActiveStudyAction\(activeStudy\.id, "complete-reading"\)/);
+  assert.match(workspace, /result\.passed/);
+  assert.match(workspace, /run\?\.stage === "final"/);
 });
 
-test("Active Study has responsive question and reading surfaces", () => {
-  assert.match(styles, /active-study-player__options/);
-  assert.match(styles, /active-study-player__reading iframe/);
-  assert.match(styles, /@media \(max-width: 520px\)[\s\S]*active-study-player__difficulty/);
-  assert.match(styles, /prefers-reduced-motion/);
+test("Active Study has one reader and no iframe or parallel legacy client", () => {
+  assert.equal((workspace.match(/<ContinuousA4Pdf\b/g) || []).length, 1);
+  assert.doesNotMatch(workspace, /ActiveStudyPlayer|<iframe/);
+  assert.doesNotMatch(study, /ActiveStudyPlayer|<iframe/);
+  for (const legacyName of ["startActiveStudy", "getActiveStudyQuiz", "submitActiveStudyQuiz", "continueActiveStudy"]) {
+    assert.doesNotMatch(api, new RegExp(legacyName));
+  }
+});
+
+test("Profile hides future customization, companion, and wallet surfaces without disturbing core account areas", () => {
+  for (const hiddenKey of ["profile.yourWorkspace", "profile.studyCompanion", "profile.storeWallet"]) {
+    assert.doesNotMatch(profile, new RegExp(hiddenKey.replace(".", "\\.")));
+  }
+  assert.match(profile, /ProfilePictureEditor/);
+  assert.match(profile, /College, specialty and year/);
+  assert.match(profile, /Change specialty \/ study path/);
+  assert.match(profile, /AccountFieldErrors/);
 });

@@ -3,13 +3,10 @@ import { accountsApi } from "../api/accounts.js";
 import { motivationApi } from "../api/motivation.js";
 import { progressApi } from "../api/progress.js";
 import { Icon } from "../lib/icons.jsx";
-import { normalizeThemeSettings } from "../lib/utils.js";
 import { Page, ProgressLine, Tab, TabList } from "../components/ui/index.jsx";
 import { AccountFieldErrors, AccountFormAlert, fieldErrorAttributes } from "../components/account/AccountFormErrors.jsx";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { formatDate, formatNumber as formatLocaleNumber } from "../lib/i18n.js";
-import { ResponsiveThemePreview } from "../components/shared/ResponsiveThemePreview.jsx";
-import { ResponsiveMascot } from "../components/shared/ResponsiveMascot.jsx";
 import { UserAvatar } from "../components/shared/UserAvatar.jsx";
 import { ProfilePictureEditor } from "../components/account/ProfilePictureEditor.jsx";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
@@ -216,10 +213,6 @@ export default function Profile({ user, onUserUpdate }) {
     : activeDays > 0
       ? t("profile.insightActive", { count: activeDays })
       : t("profile.insightNone");
-  const theme = normalizeThemeSettings({
-    character: account?.themeSettings?.character,
-    theme: typeof document === "undefined" ? "night" : document.documentElement.dataset.theme
-  });
   const profileRank = optionalNumber(ranking.own_entry?.position);
   const rankScore = optionalNumber(ranking.own_entry?.score);
   const rankEvidence = optionalNumber(ranking.own_entry?.evidence_count);
@@ -366,17 +359,12 @@ export default function Profile({ user, onUserUpdate }) {
         </section>
 
         <section className={`profile-utility-grid profile-mobile-section profile-mobile-personal ${mobileSection === "personal" ? "is-active" : ""}`}>
-          <article className="panel profile-customization-card"><div className="profile-card-heading"><div><p className="eyebrow">{t("profile.yourWorkspace")}</p><h2>{t("profile.myCustomization")}</h2></div><Icon name="palette" size={17} /></div><div className="profile-customization-content"><dl><div><dt>{t("profile.currentTheme")}</dt><dd>{t(`theme.${theme.theme}`)}</dd></div><div><dt>{t("profile.mascotSkin")}</dt><dd>{theme.character === "white" ? "Starsea" : "Starmo"}</dd></div><div><dt>{t("profile.interfaceLanguage")}</dt><dd>{t(account?.preferredLanguage === "ar" ? "profile.arabic" : "profile.english")}</dd></div></dl><ResponsiveThemePreview character={theme.character} theme={theme.theme} alt={t("profile.themePreviewAlt", { theme: t(`theme.${theme.theme}`) })} sizes="96px" /></div></article>
-
-          <article className="panel profile-companion-card"><div className="profile-card-heading"><div><p className="eyebrow">{t("profile.studyCompanion")}</p><h2>{t("profile.starmoCompanion")}</h2></div><span className="profile-heading-count">{t("profile.readyToFocus")}</span></div><div className="profile-companion-content"><ResponsiveMascot alt={t("profile.starmoAlt")} sizes="92px" /><div><p>{t("profile.companionCopy")}</p><ProgressLine value={levelProgress} /><small dir="auto">{t("profile.xpOf", { current: formatNumber(xp.level_progress), target: formatNumber(xp.level_target) })}</small></div></div></article>
-
           <article className="panel profile-rank-card"><div className="profile-card-heading"><div><p className="eyebrow">{t("profile.publishedRanking")}</p><h2>{t("profile.academyRank")}</h2></div><Icon name="trophy" size={18} /></div><strong className="profile-rank-number" dir="auto">{profileRank === null ? "—" : `#${formatNumber(profileRank)}`}</strong><p dir="auto">{ranking.definition?.title || t(profileRank === null ? "profile.noRanking" : "profile.currentPosition")}</p><div className="profile-rank-meta"><span dir="auto">{rankScore === null ? t("profile.pointsUnavailable") : t("profile.pointsValue", { count: rankScore })}</span><span dir="auto">{rankEvidence === null ? t("profile.evidenceUnavailable") : t("profile.evidenceValue", { count: rankEvidence })}</span></div></article>
         </section>
 
         <section className={`profile-bottom-grid profile-mobile-section profile-mobile-personal ${mobileSection === "personal" ? "is-active" : ""}`}>
           <article className="panel profile-consistency-card"><div className="profile-card-heading"><div><p className="eyebrow">{t("profile.learningRhythm")}</p><h2>{t("profile.learningConsistency")}</h2></div><Icon name="calendar" size={17} /></div><div className="profile-consistency-content"><div><span>{t("profile.activeDays")}</span><strong>{activeDays}</strong><small>{t("profile.inLast13")}</small></div><div><span>{t("profile.bestStreak")}</span><strong dir="auto">{formatNumber(streak.longest_days)}</strong><small>{t("profile.daysInRow")}</small></div><ActivityHeatmap cells={recentActivity.slice(-21)} onSelect={setSelectedActivity} compact /></div></article>
 
-          <article className="panel profile-lock-card"><div className="profile-card-heading"><div><p className="eyebrow">{t("profile.storeWallet")}</p><h2>{t("profile.lockStatistics")}</h2></div><Icon name="coins" size={18} /></div><p className="profile-data-unavailable">{t("profile.walletUnavailable")}</p></article>
           <article className="panel profile-lock-card"><div className="profile-card-heading"><div><p className="eyebrow">Study path</p><h2>College, specialty and year</h2></div><Icon name="book-open" size={18} /></div><p>{activeCohort?.name_en || "No study path selected"}</p>{studyPathMessage && <p className="profile-sync-note" role="status">{studyPathMessage}</p>}<AccountFormAlert error={profileError} /><button className="btn btn-soft compact" type="button" onClick={openStudyPathChange} disabled={cohortLoading}>{cohortLoading ? "Loading…" : "Change specialty / study path"}</button>{studyPathOpen && <div className="profile-study-path-fields"><label className="field"><span>College</span><select value={selectedCollegeId} onChange={(event) => { setSelectedCollegeId(event.target.value); setSelectedSpecialtyId(""); setSelectedCohortId(""); }}><option value="">Choose your college</option>{studyPathColleges.map((college) => <option key={college.id} value={college.id}>{college.label}</option>)}</select></label><label className="field"><span>Specialty</span><select value={selectedSpecialtyId} disabled={!selectedCollegeId} onChange={(event) => { setSelectedSpecialtyId(event.target.value); setSelectedCohortId(""); }}><option value="">Choose your specialty</option>{studyPathSpecialties.map((specialty) => <option key={specialty.id} value={specialty.id}>{specialty.label}</option>)}</select></label><label className="field"><span>Year / batch</span><select value={selectedCohortId} disabled={!selectedSpecialtyId} onChange={(event) => setSelectedCohortId(event.target.value)}><option value="">Choose your year / batch</option>{studyPathYears.map((cohort) => <option key={cohort.id} value={cohort.id}>{educationPathFor(cohort).yearLabel}</option>)}</select></label></div>}{studyPathOpen && <div className="profile-edit-actions"><button className="btn btn-primary compact" type="button" disabled={!selectedCohortId || selectedCohortId === activeCohortId} onClick={reviewStudyPathChange}>Review change</button><button className="btn btn-soft compact" type="button" onClick={() => setStudyPathOpen(false)}>Cancel</button></div>}</article>
         </section>
 
