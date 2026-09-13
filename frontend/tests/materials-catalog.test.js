@@ -143,10 +143,20 @@ test("opened-sheet history ignores sheets that were not published by the Catalog
     assert.equal(getLastOpenedCatalogSheet(), null);
     assert.deepEqual(getRecentOpenedCatalogSheets(), []);
 
-    // A sheet that is not in the catalogue is never remembered, so Continue
-    // study cannot offer a link that resolves to nothing.
+    // A sheet without a trusted catalogue record or runtime snapshot is not
+    // remembered, so Continue study cannot offer an unresolved link.
     rememberLastOpenedCatalogSheet("microbiology", "sheet-1");
     assert.equal(data.get("lock-in.materials.recent-opened-sheets"), undefined);
+
+    // Server-published sheets carry their resolved runtime snapshot and open
+    // directly in the real study workspace.
+    rememberLastOpenedCatalogSheet("microbiology", "server-sheet", {
+      material: { slug: "microbiology", title: "Microbiology" },
+      sheet: { slug: "server-sheet", title: "Bacteria", number: 7 }
+    });
+    assert.equal(getLastOpenedCatalogSheet()?.path, "/materials/catalog/microbiology/sheets/server-sheet/workspace");
+    data.delete("lock-in.materials.recent-opened-sheets");
+    data.delete("lock-in.materials.last-opened-sheet");
 
     rememberLastOpenedCatalogSheet("human-medicine-60-biochemistry-1", "vitamin-1");
     assert.deepEqual(getRecentOpenedCatalogSheets(), []);

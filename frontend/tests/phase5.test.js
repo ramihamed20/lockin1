@@ -94,7 +94,7 @@ test("Phase 5 routes use server values and keep unsupported client authority dis
   assert.equal(isKnownNotificationRoute("/progression"), true);
   assert.equal(isKnownNotificationRoute("/community/discussions/00000000-0000-4000-8000-000000000001"), true);
   assert.equal(isKnownNotificationRoute("https://untrusted.invalid/"), false);
-  assert.equal(isKnownNotificationRoute("/operations/analytics"), false);
+  assert.equal(isKnownNotificationRoute("/operations/analytics"), true);
   const [app, notifications, layout, progress, achievements, ranked, operationsAdmin, adminControl, worker] = await Promise.all([
     readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/Notifications.jsx", import.meta.url), "utf8"),

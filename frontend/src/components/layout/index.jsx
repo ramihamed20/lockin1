@@ -5,7 +5,7 @@ import { Icon } from "../../lib/icons.jsx";
 import { getStreakTier } from "../../lib/streakTier.js";
 import { motivationApi } from "../../api/motivation.js";
 import { isApiError } from "../../api/client.js";
-import { isKnownNotificationRoute } from "../../lib/notificationRoutes.js";
+import { isKnownNotificationRoute, notificationFallbackRoute } from "../../lib/notificationRoutes.js";
 import { notificationPresentation } from "../../lib/notificationPresentation.js";
 import { PROGRESSION_UPDATED_EVENT } from "../../lib/progressionEvents.js";
 import { COMPACT_SHELL_QUERY, navItems, themeOptions } from "../../lib/constants.js";
@@ -651,6 +651,8 @@ export function Topbar({ user, theme, onThemeChange, onLogout, onMenu, menuOpen,
         await motivationApi.markNotificationRead(notification.id);
         await refreshNotifications();
         onNotificationsChanged?.();
+        setNotificationsOpen(false);
+        navigate(notificationFallbackRoute(notification));
       }
     } catch (error) {
       setNotificationError(isApiError(error) && error.status === 410 ? "This notification target is no longer available." : error.message || "This notification could not be opened.");

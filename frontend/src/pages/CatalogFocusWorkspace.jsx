@@ -663,8 +663,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const inkDebugEnabled = import.meta.env.DEV && searchParams.get("inkDebug") === "1";
 
   useEffect(() => {
-    rememberLastOpenedCatalogSheet(materialSlug, sheetSlug);
-  }, [materialSlug, sheetSlug]);
+    if (material && sheet) rememberLastOpenedCatalogSheet(materialSlug, sheetSlug, { material, sheet });
+  }, [material, materialSlug, sheet, sheetSlug]);
 
   // Annotations now live in IndexedDB and load asynchronously, so nothing is
   // persisted until the stored document has been read back. Saving before
@@ -679,7 +679,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const configuredPageCount = sheet?.pageCount || (sheet?.pdfUrl ? 1 : PAGE_COUNT);
   const bookmarkedPage = Number.parseInt(searchParams.get("page") || "", 10);
   const [pageCount, setPageCount] = useState(configuredPageCount);
-  const [page, setPage] = useState(() => Math.min(configuredPageCount, bookmarkedPage > 0 ? bookmarkedPage : (sheet?.pdfUrl ? 1 : 52)));
+  const [page, setPage] = useState(() => Math.min(configuredPageCount, bookmarkedPage > 0 ? bookmarkedPage : 1));
   const [zoom, setZoom] = useState(() => {
     if (!sheet?.pdfUrl) return 1.3;
     const fitZoom = fitWidthZoom(window.innerWidth, A4_PAGE_WIDTH, window.innerWidth < 1200 ? 16 : 360);
@@ -779,7 +779,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const [topicTitle, topicSummary] = SUBJECT_COPY[materialSlug] || [material?.title || "Study material", sheet?.summary || "Focused study workspace."];
   const sheetRoute = `/materials/catalog/${materialSlug}/sheets/${sheetSlug}`;
   const activePageRange = studyMode === "active" && activeStudy?.status === "active" ? activeStudy.current_page_range : null;
-  const accessiblePageStart = activePageRange?.start_page || 1;
+  // Active Study unlocks cumulatively. Earlier pages remain available while
+  // the server-owned current range continues to determine checkpoint content.
+  const accessiblePageStart = 1;
   const accessiblePageCount = activePageRange?.end_page || pageCount;
   const activeCheckpointReady = studyMode === "active" && activeStudy?.stage === "reading" && page >= accessiblePageCount;
   const pageAnnotations = useMemo(() => annotations.filter((item) => item.page === page), [annotations, page]);
@@ -1248,7 +1250,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       const stageBounds = stage.getBoundingClientRect();
       const pageBounds = initialPage.getBoundingClientRect();
       const paddingTop = Number.parseFloat(window.getComputedStyle(stage).paddingTop) || 0;
-      const restoreSavedPosition = rememberLastPosition && !(bookmarkedPage > 0) && storedView?.page === page;
+      // Every new reader entry begins at the top of page 1. Explicit page
+      // links remain the only exception; stored position is still saved for
+      // continuity data but never overrides a fresh open.
+      const restoreSavedPosition = bookmarkedPage > 0 && storedView?.page === page;
       const savedOffset = Math.min(1, Math.max(0, Number(storedView?.pageOffset) || 0));
       const targetTop = restoreSavedPosition
         ? stage.scrollTop + pageBounds.top - stageBounds.top + pageBounds.height * savedOffset
@@ -1271,7 +1276,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       initialPageViewRef.current = viewKey;
     };
     requestAnimationFrame(() => requestAnimationFrame(positionInitialPage));
-  }, [bookmarkedPage, materialSlug, minimumPdfZoom, page, rememberLastPosition, rememberZoomLevel, restored, sheetSlug, zoomFromStoredView]);
+  }, [bookmarkedPage, materialSlug, minimumPdfZoom, page, rememberZoomLevel, restored, sheetSlug, zoomFromStoredView]);
 
   const markPdfDocumentReady = useCallback(() => setPdfDocumentReady(true), []);
 
@@ -1457,7 +1462,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       const view = snapshot?.view;
       if (view) {
         viewPositionRef.current = { left: view.scrollLeft, top: view.scrollTop, pageOffset: view.pageOffset };
-        if (rememberLastPositionRef.current && !(bookmarkedPage > 0)) setPage(Math.max(1, view.page));
+        if (bookmarkedPage > 0) setPage(Math.max(1, bookmarkedPage));
         if (rememberZoomLevelRef.current && Number.isFinite(view.zoom)) {
           const nextZoom = zoomFromStoredView(view);
           const storedBasis = Number(view.zoomFitBasis);
@@ -3571,6 +3576,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     setStudyMode("normal");
     setModeDialogOpen(false);
     setActiveStudyError("");
+    setPage(1);
+    requestAnimationFrame(() => jumpToPagePosition(1));
   }
 
   async function chooseActiveStudy() {
@@ -3587,7 +3594,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       setActiveStudy(run);
       setStudyMode("active");
       setModeDialogOpen(false);
-      const startPage = run.current_page_range?.start_page || 1;
+      const startPage = 1;
       setPage(startPage);
       requestAnimationFrame(() => jumpToPagePosition(startPage));
       setFocusMessage(payload.resumed ? `Part ${run.current_part} resumed.` : `Part ${run.current_part} started.`);

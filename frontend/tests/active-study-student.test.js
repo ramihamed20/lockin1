@@ -11,9 +11,11 @@ const [workspace, continuousPdf, api, study, profile] = await Promise.all([
   readFile(new URL("../src/pages/Profile.jsx", import.meta.url), "utf8")
 ]);
 
-test("Active Study mounts only the current part in the primary PDF reader", () => {
-  assert.deepEqual(visiblePdfPages(20, 4, 7), [4, 5, 6, 7]);
+test("Active Study keeps previously unlocked pages in the primary PDF reader", () => {
+  assert.deepEqual(visiblePdfPages(20, 1, 12), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   assert.deepEqual(visiblePdfPages(20, 18, 40), [18, 19, 20]);
+  assert.match(workspace, /const accessiblePageStart = 1/);
+  assert.match(workspace, /const accessiblePageCount = activePageRange\?\.end_page \|\| pageCount/);
   assert.match(workspace, /visiblePageStart=\{accessiblePageStart\}/);
   assert.match(workspace, /visiblePageCount=\{accessiblePageCount\}/);
   assert.match(workspace, /Math\.max\(accessiblePageStart, Number\(nextPage\)/);
