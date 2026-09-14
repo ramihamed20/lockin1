@@ -1250,10 +1250,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       const stageBounds = stage.getBoundingClientRect();
       const pageBounds = initialPage.getBoundingClientRect();
       const paddingTop = Number.parseFloat(window.getComputedStyle(stage).paddingTop) || 0;
-      // Every new reader entry begins at the top of page 1. Explicit page
-      // links remain the only exception; stored position is still saved for
-      // continuity data but never overrides a fresh open.
-      const restoreSavedPosition = bookmarkedPage > 0 && storedView?.page === page;
+      // A sheet with no stored view starts on page one. Returning readers can
+      // still opt into restoring their saved position, while an explicit page
+      // link always wins over that preference.
+      const restoreSavedPosition = rememberLastPosition && !(bookmarkedPage > 0) && storedView?.page === page;
       const savedOffset = Math.min(1, Math.max(0, Number(storedView?.pageOffset) || 0));
       const targetTop = restoreSavedPosition
         ? stage.scrollTop + pageBounds.top - stageBounds.top + pageBounds.height * savedOffset
@@ -1276,7 +1276,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       initialPageViewRef.current = viewKey;
     };
     requestAnimationFrame(() => requestAnimationFrame(positionInitialPage));
-  }, [bookmarkedPage, materialSlug, minimumPdfZoom, page, rememberZoomLevel, restored, sheetSlug, zoomFromStoredView]);
+  }, [bookmarkedPage, materialSlug, minimumPdfZoom, page, rememberLastPosition, rememberZoomLevel, restored, sheetSlug, zoomFromStoredView]);
 
   const markPdfDocumentReady = useCallback(() => setPdfDocumentReady(true), []);
 
@@ -1462,7 +1462,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       const view = snapshot?.view;
       if (view) {
         viewPositionRef.current = { left: view.scrollLeft, top: view.scrollTop, pageOffset: view.pageOffset };
-        if (bookmarkedPage > 0) setPage(Math.max(1, bookmarkedPage));
+        if (rememberLastPositionRef.current && !(bookmarkedPage > 0)) setPage(Math.max(1, view.page));
         if (rememberZoomLevelRef.current && Number.isFinite(view.zoom)) {
           const nextZoom = zoomFromStoredView(view);
           const storedBasis = Number(view.zoomFitBasis);
@@ -3576,8 +3576,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     setStudyMode("normal");
     setModeDialogOpen(false);
     setActiveStudyError("");
-    setPage(1);
-    requestAnimationFrame(() => jumpToPagePosition(1));
   }
 
   async function chooseActiveStudy() {
