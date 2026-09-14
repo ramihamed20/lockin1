@@ -20,6 +20,7 @@ const STUDENT_ACCOUNT = { roles: ["student"], capabilities: null };
 // was capped at 1199px wide.
 const DESKTOP_VIEWPORTS = [
   { width: 1280, height: 800, name: "1280x800" },
+  { width: 1366, height: 1024, name: "iPad Pro landscape" },
   { width: 1440, height: 900, name: "1440x900" },
   { width: 1512, height: 982, name: "1512x982" },
   { width: 1920, height: 1080, name: "1920x1080" }

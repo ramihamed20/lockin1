@@ -3,8 +3,9 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { visiblePdfPages } from "../src/workspace/catalog/visiblePdfPages.js";
 
-const [workspace, continuousPdf, api, study, profile] = await Promise.all([
+const [workspace, workspaceStyles, continuousPdf, api, study, profile] = await Promise.all([
   readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../src/pages/catalog-focus-workspace.css", import.meta.url), "utf8"),
   readFile(new URL("../src/workspace/catalog/ContinuousA4Pdf.jsx", import.meta.url), "utf8"),
   readFile(new URL("../src/api/focus.js", import.meta.url), "utf8"),
   readFile(new URL("../src/pages/LearningObjectStudy.jsx", import.meta.url), "utf8"),
@@ -37,6 +38,20 @@ test("managed Active Study is unified with the old one-question quiz experience"
   assert.match(workspace, /managedActiveStudyAction\(activeStudy\.id, "complete-reading"\)/);
   assert.match(workspace, /result\.passed/);
   assert.match(workspace, /run\?\.stage === "final"/);
+});
+
+test("Active Study quiz surfaces inherit the current application theme", () => {
+  const themedQuiz = workspaceStyles.slice(
+    workspaceStyles.indexOf(".workspace-v2-mode-backdrop"),
+    workspaceStyles.indexOf("@keyframes workspace-options-in")
+  );
+  assert.match(themedQuiz, /workspace-v2-quiz-backdrop[^}]+var\(--workspace-overlay/);
+  assert.match(themedQuiz, /workspace-v2-quiz-dialog,[\s\S]+background: var\(--workspace-panel\)/);
+  assert.match(themedQuiz, /workspace-v2-quiz-dialog > main[^}]+background: var\(--workspace-panel-2\)/);
+  assert.match(themedQuiz, /workspace-v2-answer-list button[^}]+color: var\(--workspace-chrome-text\)[^}]+background: var\(--workspace-control-bg\)/);
+  assert.match(themedQuiz, /workspace-v2-answer-list button\.is-selected[^}]+var\(--workspace-gold\)/);
+  assert.match(themedQuiz, /workspace-v2-quiz-progress span[^}]+background: var\(--workspace-gold\)/);
+  assert.match(themedQuiz, /workspace-v2-result-actions button\.is-primary[^}]+color: var\(--workspace-on-accent\)/);
 });
 
 test("Active Study has one reader and no iframe or parallel legacy client", () => {

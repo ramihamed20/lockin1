@@ -39,17 +39,17 @@ test("the iPad shell uses a labelled sidebar and one continuous safe-area-aware 
   const responsive = await source("../src/responsive.css");
   const tabletShell = responsive.slice(responsive.indexOf("/* iPad / tablet shell"));
 
-  assert.match(tabletShell, /@media \(min-width: 768px\) and \(max-width: 1199px\)/);
-  assert.match(tabletShell, /--tablet-sidebar-width: clamp\(204px, 27vw, 232px\)/);
+  assert.match(tabletShell, /@media \(min-width: 768px\) and \(max-width: 1439px\)/);
+  assert.match(tabletShell, /--tablet-sidebar-width: clamp\(216px, 22vw, 244px\)/);
   assert.match(tabletShell, /grid-template-columns: var\(--tablet-sidebar-width\) minmax\(0, 1fr\)/);
   assert.match(tabletShell, /\.sidebar \{[\s\S]*padding: calc\(var\(--space-4\) \+ var\(--safe-top\)\)/);
-  assert.match(tabletShell, /\.sidebar \.nav-btn \{[\s\S]*min-height: 48px[\s\S]*flex-direction: row/);
-  assert.match(tabletShell, /\.sidebar \.nav-btn\.active \{[\s\S]*background: color-mix\(in srgb, var\(--color-primary\) 9%/);
+  assert.match(tabletShell, /\.sidebar \.nav-btn \{[\s\S]*min-height: 46px[\s\S]*flex-direction: row/);
+  assert.match(tabletShell, /\.sidebar \.nav-btn\.active \{[\s\S]*background: var\(--interactive-selected/);
   assert.match(tabletShell, /\.topbar \{[\s\S]*min-height: calc\(var\(--tablet-header-height\) \+ var\(--safe-top\)\)[\s\S]*background: var\(--tablet-shell-surface\)/);
   assert.match(tabletShell, /@media \(min-width: 900px\) and \(max-width: 1199px\)[\s\S]*\.topbar \.search-box/);
   assert.match(tabletShell, /\.app-shell \{[\s\S]*height: var\(--app-viewport-height\)[\s\S]*overflow: hidden/);
-  assert.match(tabletShell, /\.sidebar \{[\s\S]*grid-template-rows: 48px minmax\(0, 1fr\) auto[\s\S]*overflow: hidden/);
-  assert.match(tabletShell, /\.sidebar \.nav-list \{[\s\S]*min-height: 0[\s\S]*overflow-y: auto[\s\S]*overscroll-behavior: contain[\s\S]*-webkit-overflow-scrolling: touch/);
+  assert.match(tabletShell, /\.sidebar \{[\s\S]*grid-template-rows: 52px minmax\(0, 1fr\) auto[\s\S]*overflow: hidden/);
+  assert.match(tabletShell, /\.sidebar \.nav-list \{[\s\S]*min-height: 0[\s\S]*overflow-y: auto[\s\S]*overscroll-behavior: contain[\s\S]*-webkit-overflow-scrolling: touch[\s\S]*scrollbar-width: thin/);
   assert.match(tabletShell, /\.content-frame \{[\s\S]*grid-template-rows: auto minmax\(0, 1fr\)[\s\S]*overflow: hidden/);
   assert.match(tabletShell, /\.page-shell \{[\s\S]*min-height: 0[\s\S]*overflow-y: auto[\s\S]*overscroll-behavior: contain/);
   assert.match(tabletShell, /\.topbar \.search-box \{[\s\S]*display: flex[\s\S]*width: clamp\(132px, 22vw, 288px\)/);

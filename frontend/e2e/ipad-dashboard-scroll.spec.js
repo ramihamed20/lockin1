@@ -25,6 +25,7 @@ const IPADS = [
   { name: "portrait 834x1112", width: 834, height: 1112 },
   { name: "landscape 1112x834", width: 1112, height: 834 },
   { name: "pro portrait 1024x1366", width: 1024, height: 1366 },
+  { name: "pro landscape 1366x1024", width: 1366, height: 1024 },
   { name: "mini 768x1024", width: 768, height: 1024 }
 ];
 

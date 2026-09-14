@@ -2524,9 +2524,9 @@
   * rail becomes a compact, labelled sidebar and shares one continuous surface
   * with the top bar. The safe inset belongs to those two shell surfaces, not
   * to a spacer above the content. */
-@media (min-width: 768px) and (max-width: 1199px) and (min-height: 560px) {
+@media (min-width: 768px) and (max-width: 1439px) and (min-height: 560px) {
   .app-shell {
-    --tablet-sidebar-width: clamp(204px, 27vw, 232px);
+    --tablet-sidebar-width: clamp(216px, 22vw, 244px);
     --tablet-header-height: 76px;
     --tablet-shell-surface: color-mix(in srgb, var(--frame) 96%, var(--bg));
     grid-template-columns: var(--tablet-sidebar-width) minmax(0, 1fr);
@@ -2542,7 +2542,7 @@
     min-height: 0;
     align-self: stretch;
     display: grid;
-    grid-template-rows: 48px minmax(0, 1fr) auto;
+    grid-template-rows: 52px minmax(0, 1fr) auto;
     padding: calc(var(--space-4) + var(--safe-top)) var(--space-3) calc(var(--space-3) + var(--safe-bottom));
     border: 0;
     border-inline-end: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
@@ -2554,7 +2554,7 @@
 
   .sidebar .brand {
     width: 100%;
-    min-height: 48px;
+    min-height: 52px;
     justify-content: flex-start;
     margin: 0;
     padding: 0 var(--space-2);
@@ -2574,21 +2574,33 @@
 
   .sidebar .nav-list {
     width: 100%;
+    max-height: 100%;
     min-height: 0;
     align-self: stretch;
-    gap: var(--space-1);
-    margin-top: var(--space-5);
-    padding: 0 var(--space-1) var(--space-1);
+    gap: 3px;
+    margin-top: var(--space-4);
+    padding: var(--space-1) var(--space-1) var(--space-3);
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
+    scroll-padding-block: var(--space-2);
     -webkit-overflow-scrolling: touch;
     touch-action: pan-y;
-    scrollbar-width: none;
+    scrollbar-color: color-mix(in srgb, var(--accent) 42%, var(--border)) transparent;
+    scrollbar-width: thin;
   }
 
   .sidebar .nav-list::-webkit-scrollbar {
-    display: none;
+    width: 5px;
+  }
+
+  .sidebar .nav-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .sidebar .nav-list::-webkit-scrollbar-thumb {
+    border-radius: var(--radius-full);
+    background: color-mix(in srgb, var(--accent) 42%, var(--border));
   }
 
   .sidebar .nav-entry {
@@ -2598,10 +2610,10 @@
 
   .sidebar .nav-section-label {
     display: block;
-    margin: var(--space-5) var(--space-3) var(--space-2);
-    color: color-mix(in srgb, var(--muted) 78%, transparent);
+    margin: var(--space-4) var(--space-3) var(--space-1);
+    color: var(--muted);
     font-size: 0.67rem;
-    letter-spacing: 0.075em;
+    letter-spacing: 0.055em;
   }
 
   .sidebar .nav-entry:first-child .nav-section-label {
@@ -2609,10 +2621,10 @@
   }
 
   .sidebar .nav-btn {
-    min-height: 48px;
+    min-height: 46px;
     flex-direction: row;
     justify-content: flex-start;
-    gap: var(--space-3);
+    gap: 10px;
     padding: 0 var(--space-3);
     border: 0;
     border-radius: var(--radius-md);
@@ -2635,10 +2647,10 @@
   }
 
   .sidebar .nav-btn.active {
-    color: var(--color-primary);
-    background: color-mix(in srgb, var(--color-primary) 9%, var(--surface-2));
+    color: var(--accent-text);
+    background: var(--interactive-selected, color-mix(in srgb, var(--color-primary) 11%, var(--surface-2)));
     border-color: transparent;
-    box-shadow: none;
+    box-shadow: inset 0 0 0 1px var(--accent-border, color-mix(in srgb, var(--color-primary) 28%, transparent));
   }
 
   @media (hover: hover) and (pointer: fine) {
@@ -2649,13 +2661,13 @@
   }
 
   .sidebar .streak-card {
-    display: block;
+    display: grid;
     margin-top: var(--space-3);
     padding: var(--space-3);
-    border: 0;
+    border: 1px solid color-mix(in srgb, var(--streak-tier-color, var(--accent)) 24%, var(--border));
     border-radius: var(--radius-md);
-    background: color-mix(in srgb, var(--surface-2) 84%, transparent);
-    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--border) 80%, transparent);
+    background: color-mix(in srgb, var(--streak-tier-color, var(--accent)) 8%, var(--surface-2));
+    box-shadow: none;
   }
 
   .sidebar .streak-card-value {
@@ -3310,37 +3322,108 @@
   .mobile-drawer .streak-card {
     /* Reports the streak; it is not a destination. */
     cursor: default;
-    display: block;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 7px var(--space-2);
     margin-top: auto;
     padding: var(--space-3);
-    border: 1px solid var(--border);
+    border: 1px solid color-mix(in srgb, var(--streak-tier-color, var(--accent)) 24%, var(--border));
     border-radius: var(--radius-md);
-    background: var(--surface-2);
+    background: color-mix(in srgb, var(--streak-tier-color, var(--accent)) 8%, var(--surface-2));
     box-shadow: none;
   }
 
   /* The parts are settled here as well, not only in styles.css: rules later in
      this file would otherwise bring them back for the drawer copy. */
   .sidebar .streak-card-heading small,
-  .sidebar .streak-card-track,
   .sidebar .streak-freeze,
   .mobile-drawer .streak-card-heading small,
-  .mobile-drawer .streak-card-track,
   .mobile-drawer .streak-freeze {
     display: none;
   }
 
   .sidebar .streak-card-heading,
   .mobile-drawer .streak-card-heading {
+    grid-column: 1;
     margin: 0;
     min-width: 0;
+    gap: var(--space-2);
+    color: var(--streak-tier-color, var(--accent));
+    font-size: var(--text-xs);
+    line-height: 1.2;
+  }
+
+  .sidebar .streak-card-heading > svg,
+  .mobile-drawer .streak-card-heading > svg {
+    width: 26px;
+    height: 26px;
+    flex: 0 0 auto;
+    padding: 5px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--streak-tier-color, var(--accent)) 14%, transparent);
+  }
+
+  .sidebar .streak-card-heading > span:not(.skeleton),
+  .mobile-drawer .streak-card-heading > span:not(.skeleton) {
+    width: auto;
+    height: auto;
+    min-width: 0;
+    border: 0;
+    border-radius: 0;
+    color: var(--text);
+    background: transparent;
+    font-weight: 750;
   }
 
   .sidebar .streak-card-value,
   .mobile-drawer .streak-card-value {
+    grid-column: 2;
+    align-self: center;
     margin: 0;
-    font-size: 1.05rem;
+    color: var(--streak-tier-color, var(--text));
+    font-size: 1.22rem;
+    letter-spacing: -0.02em;
     white-space: nowrap;
+  }
+
+  .sidebar .streak-card-value small,
+  .mobile-drawer .streak-card-value small {
+    color: var(--muted);
+    font-size: 0.67rem;
+  }
+
+  .sidebar .streak-card-track,
+  .mobile-drawer .streak-card-track {
+    grid-column: 1 / -1;
+    display: block;
+    width: 100%;
+    height: 5px;
+    overflow: hidden;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: color-mix(in srgb, var(--surface-3) 84%, var(--bg));
+  }
+
+  .sidebar .streak-card-track > i,
+  .mobile-drawer .streak-card-track > i {
+    display: block;
+    height: 100%;
+    padding: 0;
+    border-radius: inherit;
+    background: var(--streak-tier-color, var(--accent));
+    box-shadow: none;
+    transition: width 220ms cubic-bezier(.2, 0, 0, 1), background-color var(--motion-theme);
+  }
+
+  .sidebar .streak-card--loading,
+  .mobile-drawer .streak-card--loading {
+    min-height: 70px;
+    align-content: center;
+  }
+
+  .sidebar .streak-card--loading .streak-skeleton-copy,
+  .mobile-drawer .streak-card--loading .streak-skeleton-copy {
+    display: none;
   }
 
 /* Release settlement: the navigation is the scroll region and streak is a fixed footer. */
