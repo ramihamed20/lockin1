@@ -92,6 +92,28 @@ def test_third_year_is_not_offered_as_a_selectable_study_path() -> None:
     assert "cohort_id" in rejected.json()["error"]["fields"]
 
 
+def test_password_rule_failures_name_the_password_field() -> None:
+    """A form can only point at a field it is told about.
+
+    Raised bare from ``validate()`` these land in ``non_field_errors``, where the
+    create-account screen has nowhere to put them: the reader saw a generic
+    failure with no box marked.
+    """
+    client, csrf = csrf_client()
+
+    response = client.post(
+        "/api/v1/auth/register",
+        {**REGISTRATION, "password": "12345678", "password_confirm": "12345678"},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+
+    assert response.status_code == 400
+    fields = response.json()["error"]["fields"]
+    assert "non_field_errors" not in fields
+    assert len(fields["password"]) >= 1
+
+
 def test_duplicate_registration_does_not_reveal_account_existence() -> None:
     client, csrf = csrf_client()
     first = client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)

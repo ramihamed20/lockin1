@@ -65,9 +65,11 @@ test("study-path choices expose college, specialty, and year while excluding Thi
   assert.equal(isSelectableStudyPath(thirdYear), false);
 
   const source = readFileSync(new URL("../src/components/auth/AuthPage.jsx", import.meta.url), "utf8");
-  assert.match(source, /label htmlFor="auth-college">College/);
-  assert.match(source, /label htmlFor="auth-specialty">Specialty/);
-  assert.match(source, /label htmlFor="auth-cohort">Year \/ batch/);
+  // The three labels are translated like the rest of the form, so the source
+  // names their keys rather than the English words.
+  assert.match(source, /label htmlFor="auth-college">\{t\("auth\.college"\)\}/);
+  assert.match(source, /label htmlFor="auth-specialty">\{t\("auth\.specialty"\)\}/);
+  assert.match(source, /label htmlFor="auth-cohort">\{t\("auth\.yearBatch"\)\}/);
 });
 
 // The email links are single-use routes. TokenActionPage strips the token from
@@ -154,8 +156,8 @@ test("the username step submits the username alone, never a name beside it", () 
 
   // While a username is required, the name is withheld and only the username
   // is sent; the name is offered only once the username step is behind us.
-  assert.match(source, /username: requiresUsername \? form\.username : undefined/);
-  assert.match(source, /fullName: !requiresUsername && requiresName \? form\.name : undefined/);
+  assert.match(source, /username: requiresUsername \? form\.username\.trim\(\) : undefined/);
+  assert.match(source, /fullName: !requiresUsername && requiresName \? form\.name\.trim\(\) : undefined/);
   // Nothing builds a display string out of the two identities together.
   assert.doesNotMatch(source, /form\.name\s*\+/);
   assert.doesNotMatch(source, /\$\{form\.name\}[^`]*\$\{form\.username\}/);

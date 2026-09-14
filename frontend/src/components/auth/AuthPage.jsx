@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Icon } from "../../lib/icons.jsx";
 import { authApi } from "../../lib/api.js";
@@ -6,6 +6,7 @@ import { assetPath } from "../../lib/utils.js";
 import { educationPathFor, isSelectableStudyPath, uniqueEducationOptions } from "../../lib/educationPath.js";
 import { useI18n } from "../I18nProvider.jsx";
 import { AccountFieldErrors, AccountFormAlert, fieldErrorAttributes } from "../account/AccountFormErrors.jsx";
+import { firstInvalidField, focusAuthField, normalizeAuthError, validateAuthForm } from "../../lib/authValidation.js";
 import "./auth.css";
 
 const EMPTY_FORM = Object.freeze({
@@ -21,6 +22,19 @@ const EMPTY_FORM = Object.freeze({
   acceptPolicies: false
 });
 
+/** Which error messages a change to each form field answers. */
+const FORM_FIELD_ERRORS = Object.freeze({
+  username: ["username"],
+  name: ["full_name"],
+  email: ["email"],
+  password: ["password", "password_confirm"],
+  confirm: ["password_confirm"],
+  collegeId: ["college", "specialty", "cohort_id"],
+  specialtyId: ["specialty", "cohort_id"],
+  cohortId: ["cohort_id"],
+  acceptPolicies: ["accept_policies"]
+});
+
 function GoogleIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20">
@@ -32,18 +46,20 @@ function GoogleIcon() {
   );
 }
 
-function PasswordField({ id, label, value, onChange, autoComplete, placeholder, error, show, onToggle, t }) {
+function PasswordField({ id, label, value, onChange, autoComplete, placeholder, error, show, onToggle, t, hint = "" }) {
   const field = id === "auth-confirm" ? "password_confirm" : "password";
   const errorId = `${id}-error`;
+  const hintId = hint ? `${id}-hint` : "";
   return (
     <div className="auth-v2-field">
       <label htmlFor={id}>{label}</label>
       <div className="auth-v2-input-shell auth-v2-password-shell">
-        <input id={id} type={show ? "text" : "password"} value={value} onChange={onChange} autoComplete={autoComplete} placeholder={placeholder} required {...fieldErrorAttributes(error, field, errorId)} />
+        <input id={id} type={show ? "text" : "password"} value={value} onChange={onChange} autoComplete={autoComplete} placeholder={placeholder} {...fieldErrorAttributes(error, field, errorId, hintId)} />
         <button className="auth-v2-password-toggle" type="button" onClick={onToggle} aria-label={show ? t("auth.hidePassword") : t("auth.showPassword")} aria-pressed={show}>
           <Icon name={show ? "eye-off" : "eye"} size={18} />
         </button>
       </div>
+      {hint && <p className="auth-v2-field-hint" id={hintId}>{hint}</p>}
       <AccountFieldErrors error={error} field={field} id={errorId} />
     </div>
   );
@@ -66,14 +82,21 @@ function oauthMessage(t, outcome, code) {
 export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, notice = "", onDismissNotice = null }) {
   const { locale, direction, setLocale, t } = useI18n();
   const [mode, setMode] = useState(completionUser ? "complete" : "login");
-  const [form, setForm] = useState(() => ({
-    ...EMPTY_FORM,
-    username: completionUser?.username || "",
-    name: completionUser?.name || "",
-    collegeId: educationPathFor(completionUser?.cohort).collegeId || "",
-    specialtyId: educationPathFor(completionUser?.cohort).specialtyId || "",
-    cohortId: completionUser?.cohort?.id || ""
-  }));
+  const [form, setForm] = useState(() => {
+    // Only a real cohort has a study path. Asked about nothing, `educationPathFor`
+    // answers with its "other" placeholders, and seeding those made the form
+    // believe a college and a specialty had already been chosen -- while both
+    // selects showed empty, because no option carries that id.
+    const path = completionUser?.cohort ? educationPathFor(completionUser.cohort) : null;
+    return {
+      ...EMPTY_FORM,
+      username: completionUser?.username || "",
+      name: completionUser?.name || "",
+      collegeId: path?.collegeId || "",
+      specialtyId: path?.specialtyId || "",
+      cohortId: completionUser?.cohort?.id || ""
+    };
+  });
   const [cohorts, setCohorts] = useState([]);
   const [cohortLoading, setCohortLoading] = useState(true);
   const [cohortError, setCohortError] = useState(false);
@@ -86,6 +109,10 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, no
   const [socialLoading, setSocialLoading] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  // State lags a click by a render, so two clicks inside one frame both saw
+  // `loading === false` and both submitted. A ref is written before the first
+  // one returns, which is what a second click actually needs to read.
+  const submitting = useRef(false);
   const requiresName = !completionUser || completionUser.requiredProfileFields.includes("full_name");
   const requiresCohort = !completionUser || completionUser.requiredProfileFields.includes("cohort");
   const requiresUsername = Boolean(completionUser?.usernameRequired);
@@ -169,8 +196,24 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, no
 
   useEffect(() => { document.title = `${heading[0]} — Lock-in`; }, [heading]);
 
+  // Editing a box answers its own complaint. Clearing only that field's message
+  // leaves every other one standing, so fixing one mistake never hides the next.
+  function clearFieldError(...fieldKeys) {
+    setError((current) => {
+      if (!current?.fields) return current;
+      const remaining = { ...current.fields };
+      let changed = false;
+      for (const key of fieldKeys) if (key in remaining) { delete remaining[key]; changed = true; }
+      if (!changed) return current;
+      const messages = Object.values(remaining).flat();
+      if (!messages.length && !current.code) return null;
+      return { ...current, fields: remaining, message: messages.length ? current.message : "" };
+    });
+  }
+
   function updateForm(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
+    clearFieldError(...(FORM_FIELD_ERRORS[field] || []));
   }
 
   function changeMode(nextMode) {
@@ -209,45 +252,90 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, no
     }
   }
 
+  async function resendVerification() {
+    if (submitting.current || loading) return;
+    submitting.current = true;
+    setLoading(true);
+    setError(null);
+    try {
+      await authApi.resendVerification(form.email.trim());
+      setMessage(t("auth.verificationSent"));
+    } catch (nextError) {
+      setError(normalizeAuthError(nextError, { t, mode }));
+    } finally {
+      submitting.current = false;
+      setLoading(false);
+    }
+  }
+
+  /**
+   * Show the messages, then put the caret in the first box that needs changing.
+   * Focus is what turns "something is wrong" into "change this", and on a phone
+   * it also opens the keyboard on the right field instead of the top of a form
+   * the reader then has to hunt through.
+   */
+  function reportFieldErrors(nextError) {
+    setError(nextError);
+    // Focused straight away rather than from an animation frame: every field
+    // this can name is already mounted, and a frame callback never runs while
+    // the tab is in the background -- which is exactly where a slow request
+    // finishes.
+    const target = firstInvalidField(nextError?.fields, mode);
+    if (target) focusAuthField(target);
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
+    // A second submit while the first is still in flight would create a second
+    // account or a second session. The button is disabled for the same reason;
+    // this covers the Enter key and an assistive click that races it.
+    if (submitting.current || loading || socialLoading) return;
+    submitting.current = true;
     onDismissNotice?.();
     setError(null);
     setMessage("");
-    if (mode === "signup" && form.password !== form.confirm) {
-      setError({ message: t("auth.passwordMismatch"), fields: { password_confirm: [t("auth.passwordMismatch")] } });
+
+    const invalid = validateAuthForm({ mode, form, t, requiresName, requiresCohort, requiresUsername });
+    if (Object.keys(invalid).length) {
+      submitting.current = false;
+      reportFieldErrors({ message: Object.values(invalid).flat()[0], fields: invalid, code: "client_validation" });
       return;
     }
+
     setLoading(true);
     try {
       if (mode === "forgot") {
-        await authApi.requestPasswordReset(form.email);
+        await authApi.requestPasswordReset(form.email.trim());
         setMessage(t("auth.resetSent"));
       } else if (mode === "signup") {
-        await authApi.register({ fullName: form.name, email: form.email, password: form.password, passwordConfirm: form.confirm, preferredLanguage: locale, cohortId: form.cohortId, acceptPolicies: form.acceptPolicies });
+        await authApi.register({ fullName: form.name.trim(), email: form.email.trim(), password: form.password, passwordConfirm: form.confirm, preferredLanguage: locale, cohortId: form.cohortId, acceptPolicies: form.acceptPolicies });
         setMessage(t("auth.accountCreated"));
         setVerificationPending(true);
       } else if (mode === "complete") {
         const nextUser = await authApi.updateProfile({
-          username: requiresUsername ? form.username : undefined,
-          fullName: !requiresUsername && requiresName ? form.name : undefined,
+          username: requiresUsername ? form.username.trim() : undefined,
+          fullName: !requiresUsername && requiresName ? form.name.trim() : undefined,
           cohortId: !requiresUsername && requiresCohort ? form.cohortId : undefined,
           preferredLanguage: locale
         });
         onAuthed(nextUser, { newSession: false });
       } else {
-        const result = await authApi.login({ email: form.email, password: form.password, remember: form.remember });
+        const result = await authApi.login({ email: form.email.trim(), password: form.password, remember: form.remember });
         onAuthed(result.user, { newSession: true });
       }
     } catch (nextError) {
-      setError(nextError);
+      reportFieldErrors(normalizeAuthError(nextError, { t, mode }));
     } finally {
+      submitting.current = false;
       setLoading(false);
     }
   }
 
   const busy = loading || Boolean(socialLoading);
-  const socialVisible = mode === "login" || mode === "signup";
+  // Once the account exists the form has nothing left to ask, and leaving it on
+  // screen invited a second submit for an account that was already created.
+  const signedUp = mode === "signup" && verificationPending;
+  const socialVisible = (mode === "login" || mode === "signup") && !signedUp;
 
   return (
     <main className="auth-v2" dir={direction}>
@@ -287,7 +375,26 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, no
               </div>
             )}
 
-            <form className="auth-v2-form" onSubmit={handleSubmit}>
+            {signedUp && (
+              <div className="auth-v2-sent" role="status">
+                <span className="auth-v2-sent-icon" aria-hidden="true"><Icon name="check" size={22} /></span>
+                <h2>{t("auth.signupCheckInbox")}</h2>
+                <p>{t("auth.accountCreated")}</p>
+                <p className="auth-v2-sent-address" dir="ltr">{form.email.trim()}</p>
+                <p className="auth-v2-sent-note">{t("auth.signupExistingHint")}</p>
+                <AccountFormAlert error={error} message={error ? "" : message !== t("auth.accountCreated") ? message : ""} />
+                <div className="auth-v2-sent-actions">
+                  <button className="auth-v2-primary" type="button" disabled={busy} onClick={() => changeMode("login")}>{t("auth.goToLogin")}</button>
+                  <button className="auth-v2-text-action" type="button" disabled={busy} onClick={resendVerification}>{loading ? t("auth.working") : t("auth.resendVerification")}</button>
+                </div>
+              </div>
+            )}
+
+            {/* The browser's own bubbles cannot be placed under the field, cannot
+                be translated, and stop at the first box. This form states every
+                problem itself, beside the box it belongs to. */}
+            {!signedUp && (
+            <form className="auth-v2-form" onSubmit={handleSubmit} noValidate>
               {mode === "complete" && requiresUsername && (
                 <div className="auth-v2-field auth-v2-username-step">
                   <label htmlFor="auth-username">{t("auth.username")}</label>
@@ -306,7 +413,6 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, no
                     maxLength={30}
                     placeholder={t("auth.usernamePlaceholder")}
                     {...fieldErrorAttributes(error, "username", "auth-username-error", "auth-username-hint")}
-                    required
                   />
                   <p id="auth-username-hint" className="auth-v2-cohort-status">{t("auth.usernameHint")}</p>
                   <AccountFieldErrors error={error} field="username" id="auth-username-error" />
@@ -316,7 +422,7 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, no
               {(mode === "signup" || (mode === "complete" && !requiresUsername && requiresName)) && (
                 <div className="auth-v2-field">
                   <label htmlFor="auth-name">{t("auth.fullName")}</label>
-                  <input id="auth-name" type="text" value={form.name} onChange={(event) => updateForm("name", event.target.value)} autoComplete="name" enterKeyHint="next" placeholder={t("auth.fullNamePlaceholder")} required {...fieldErrorAttributes(error, "full_name", "auth-name-error")} />
+                  <input id="auth-name" type="text" value={form.name} onChange={(event) => updateForm("name", event.target.value)} autoComplete="name" enterKeyHint="next" placeholder={t("auth.fullNamePlaceholder")} {...fieldErrorAttributes(error, "full_name", "auth-name-error")} />
                   <AccountFieldErrors error={error} field="full_name" id="auth-name-error" />
                 </div>
               )}
@@ -324,27 +430,29 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, no
               {(mode === "signup" || (mode === "complete" && !requiresUsername && requiresCohort)) && (
                 <>
                 <div className="auth-v2-field">
-                  <label htmlFor="auth-college">College</label>
-                  <select id="auth-college" value={form.collegeId} onChange={(event) => setForm((current) => ({ ...current, collegeId: event.target.value, specialtyId: "", cohortId: "" }))} required disabled={cohortLoading || !colleges.length || busy} aria-describedby={cohortLoading || cohortError ? "auth-cohort-status" : undefined}>
-                    <option value="">{cohortLoading ? t("auth.loadingPrograms") : "Choose your college"}</option>
+                  <label htmlFor="auth-college">{t("auth.college")}</label>
+                  <select id="auth-college" value={form.collegeId} onChange={(event) => { setForm((current) => ({ ...current, collegeId: event.target.value, specialtyId: "", cohortId: "" })); clearFieldError("college", "specialty", "cohort_id"); }} disabled={cohortLoading || !colleges.length || busy} aria-describedby={cohortLoading || cohortError ? "auth-cohort-status" : undefined} {...fieldErrorAttributes(error, "college", "auth-college-error")}>
+                    <option value="">{cohortLoading ? t("auth.loadingPrograms") : t("auth.chooseCollege")}</option>
                     {colleges.map((college) => <option value={college.id} key={college.id}>{college.label}</option>)}
                   </select>
                   {cohortLoading && <p id="auth-cohort-status" className="auth-v2-cohort-status" role="status">{t("auth.loadingPrograms")}</p>}
                   {cohortError && <div id="auth-cohort-status" className="auth-v2-cohort-status auth-v2-cohort-error" role="alert"><span>{t("auth.cohortsUnavailable")}</span><button type="button" onClick={() => setCohortRetry((current) => current + 1)}>{t("common.tryAgain")}</button></div>}
+                  <AccountFieldErrors error={error} field="college" id="auth-college-error" />
                 </div>
 
                 <div className="auth-v2-field">
-                  <label htmlFor="auth-specialty">Specialty</label>
-                  <select id="auth-specialty" value={form.specialtyId} onChange={(event) => setForm((current) => ({ ...current, specialtyId: event.target.value, cohortId: "" }))} required disabled={!form.collegeId || cohortLoading || !specialties.length || busy}>
-                    <option value="">Choose your specialty</option>
+                  <label htmlFor="auth-specialty">{t("auth.specialty")}</label>
+                  <select id="auth-specialty" value={form.specialtyId} onChange={(event) => { setForm((current) => ({ ...current, specialtyId: event.target.value, cohortId: "" })); clearFieldError("specialty", "cohort_id"); }} disabled={!form.collegeId || cohortLoading || !specialties.length || busy} {...fieldErrorAttributes(error, "specialty", "auth-specialty-error")}>
+                    <option value="">{t("auth.chooseSpecialty")}</option>
                     {specialties.map((specialty) => <option value={specialty.id} key={specialty.id}>{specialty.label}</option>)}
                   </select>
+                  <AccountFieldErrors error={error} field="specialty" id="auth-specialty-error" />
                 </div>
 
                 <div className="auth-v2-field">
-                  <label htmlFor="auth-cohort">Year / batch</label>
-                  <select id="auth-cohort" value={form.cohortId} onChange={(event) => updateForm("cohortId", event.target.value)} required disabled={!form.specialtyId || cohortLoading || !availableCohorts.length || busy} {...fieldErrorAttributes(error, "cohort_id", "auth-cohort-error")}>
-                    <option value="">Choose your year / batch</option>
+                  <label htmlFor="auth-cohort">{t("auth.yearBatch")}</label>
+                  <select id="auth-cohort" value={form.cohortId} onChange={(event) => updateForm("cohortId", event.target.value)} disabled={!form.specialtyId || cohortLoading || !availableCohorts.length || busy} {...fieldErrorAttributes(error, "cohort_id", "auth-cohort-error")}>
+                    <option value="">{t("auth.chooseYear")}</option>
                     {availableCohorts.map((cohort) => <option value={cohort.id} key={cohort.id}>{educationPathFor(cohort, locale).yearLabel}</option>)}
                   </select>
                   <AccountFieldErrors error={error} field="cohort_id" id="auth-cohort-error" />
@@ -355,12 +463,12 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, no
               {mode !== "complete" && (
                 <div className="auth-v2-field">
                   <label htmlFor="auth-email">{t("auth.email")}</label>
-                  <input id="auth-email" className="auth-v2-email" type="email" value={form.email} onChange={(event) => updateForm("email", event.target.value)} inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck="false" enterKeyHint={mode === "forgot" ? "send" : "next"} placeholder={t("auth.emailPlaceholder")} required {...fieldErrorAttributes(error, "email", "auth-email-error")} />
+                  <input id="auth-email" className="auth-v2-email" type="email" value={form.email} onChange={(event) => updateForm("email", event.target.value)} inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck="false" enterKeyHint={mode === "forgot" ? "send" : "next"} placeholder={t("auth.emailPlaceholder")} {...fieldErrorAttributes(error, "email", "auth-email-error")} />
                   <AccountFieldErrors error={error} field="email" id="auth-email-error" />
                 </div>
               )}
 
-              {(mode === "login" || mode === "signup") && <PasswordField id="auth-password" label={t("auth.password")} value={form.password} onChange={(event) => updateForm("password", event.target.value)} autoComplete={mode === "signup" ? "new-password" : "current-password"} placeholder={t("auth.passwordPlaceholder")} error={error} show={showPassword} onToggle={() => setShowPassword((current) => !current)} t={t} />}
+              {(mode === "login" || mode === "signup") && <PasswordField id="auth-password" label={t("auth.password")} value={form.password} onChange={(event) => updateForm("password", event.target.value)} autoComplete={mode === "signup" ? "new-password" : "current-password"} placeholder={t("auth.passwordPlaceholder")} error={error} show={showPassword} onToggle={() => setShowPassword((current) => !current)} t={t} hint={mode === "signup" ? t("auth.passwordRule") : ""} />}
               {mode === "signup" && <PasswordField id="auth-confirm" label={t("auth.confirmPassword")} value={form.confirm} onChange={(event) => updateForm("confirm", event.target.value)} autoComplete="new-password" placeholder={t("auth.confirmPasswordPlaceholder")} error={error} show={showConfirm} onToggle={() => setShowConfirm((current) => !current)} t={t} />}
 
               {mode === "login" && (
@@ -373,27 +481,31 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, no
               {mode === "signup" && (
                 <div>
                   <label className="auth-v2-check auth-v2-policy">
-                    <input type="checkbox" checked={form.acceptPolicies} onChange={(event) => updateForm("acceptPolicies", event.target.checked)} required {...fieldErrorAttributes(error, "accept_policies", "auth-policies-error")} />
+                    <input id="auth-policies" type="checkbox" checked={form.acceptPolicies} onChange={(event) => updateForm("acceptPolicies", event.target.checked)} {...fieldErrorAttributes(error, "accept_policies", "auth-policies-error")} />
                     <span>{t("auth.termsPrefix")} <Link to="/terms">{t("auth.terms")}</Link> {t("auth.and")} <Link to="/privacy">{t("auth.privacy")}</Link></span>
                   </label>
                   <AccountFieldErrors error={error} field="accept_policies" id="auth-policies-error" />
                 </div>
               )}
 
-              <AccountFormAlert error={error} message={message} />
-              <button className="auth-v2-primary" type="submit" disabled={busy || (requiresUsername && form.username.length < 3) || ((mode === "signup" || mode === "complete") && !requiresUsername && requiresCohort && (cohortLoading || cohortError || !form.collegeId || !form.specialtyId || !form.cohortId))}>
+              <AccountFormAlert error={error} message={verificationPending ? "" : message} />
+
+              {/* A rejected sign-in is most often an account whose email was
+                  never verified -- which the server cannot say out loud without
+                  telling a stranger the address is registered. Offering the
+                  resend here gives the reader the way out either way. */}
+              {mode === "login" && error?.code === "invalid_credentials" && (
+                <p className="auth-v2-inline-hint">
+                  {t("auth.loginVerifyHint")}{" "}
+                  <button type="button" disabled={busy} onClick={resendVerification}>{t("auth.resendVerification")}</button>
+                </p>
+              )}
+
+              <button className="auth-v2-primary" type="submit" disabled={busy}>
                 {loading && <span className="auth-v2-spinner auth-v2-spinner-light" aria-hidden="true" />}<span>{loading ? t("auth.working") : mode === "signup" ? t("auth.create") : mode === "forgot" ? t("auth.sendReset") : mode === "complete" ? t("auth.continue") : t("auth.login")}</span>
               </button>
-
-              {mode === "signup" && verificationPending && (
-                <button className="auth-v2-text-action" type="button" disabled={busy} onClick={async () => {
-                  setLoading(true); setError(null);
-                  try { await authApi.resendVerification(form.email); setMessage(t("auth.verificationSent")); }
-                  catch (nextError) { setError(nextError); }
-                  finally { setLoading(false); }
-                }}>{t("auth.resendVerification")}</button>
-              )}
             </form>
+            )}
 
             <div className="auth-v2-switch">
               {mode === "login" && <p>{t("auth.noAccount")} <button type="button" onClick={() => changeMode("signup")}>{t("auth.create")}</button></p>}

@@ -35,11 +35,20 @@ def validate_username(value: str, *, user: User | None = None) -> str:
     return username
 
 
-def _validate_new_password(password: str, *, user: User | None = None) -> str:
+def _validate_new_password(
+    password: str, *, user: User | None = None, field: str = "password"
+) -> str:
+    """Validate a new password, attributing every failure to its own field.
+
+    Raised from ``validate()`` a bare list lands in ``non_field_errors``, where
+    a form has nowhere to show it: the reader was told only that the request
+    failed, with the box that needs changing unmarked. Naming the field keeps
+    "too short", "too common" and "entirely numeric" beside the password.
+    """
     try:
         validate_password(password, user=user)
     except DjangoValidationError as error:
-        raise serializers.ValidationError(list(error.messages)) from error
+        raise serializers.ValidationError({field: list(error.messages)}) from error
     return password
 
 
@@ -93,7 +102,9 @@ class PasswordResetConfirmSerializer(TokenSerializer):
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         if attrs["new_password"] != attrs["new_password_confirm"]:
             raise serializers.ValidationError({"new_password_confirm": ["Passwords do not match."]})
-        attrs["new_password"] = _validate_new_password(str(attrs["new_password"]))
+        attrs["new_password"] = _validate_new_password(
+            str(attrs["new_password"]), field="new_password"
+        )
         return attrs
 
 
@@ -254,7 +265,9 @@ class PasswordChangeSerializer(StrictSerializer):
             )
         if attrs["new_password"] != attrs["new_password_confirm"]:
             raise serializers.ValidationError({"new_password_confirm": ["Passwords do not match."]})
-        attrs["new_password"] = _validate_new_password(str(attrs["new_password"]), user=user)
+        attrs["new_password"] = _validate_new_password(
+            str(attrs["new_password"]), user=user, field="new_password"
+        )
         return attrs
 
 

@@ -30,8 +30,8 @@ function userPayload(overrides = {}) {
   };
 }
 
-async function mockAuth(page, { sessionUser = null, profileUser = null, logoutStatus = 200, logoutDelay = 0, verifyResponse = null, loginDelay = 0, cohortFailures = 0, sessionFailures = 0, sessionFailureStatus = 503, isDisconnected = () => false } = {}) {
-  const captured = { registration: null, profile: null, sessionRequests: 0, oauthStarts: [], logouts: 0 };
+async function mockAuth(page, { sessionUser = null, profileUser = null, logoutStatus = 200, logoutDelay = 0, verifyResponse = null, loginDelay = 0, cohortFailures = 0, sessionFailures = 0, sessionFailureStatus = 503, isDisconnected = () => false, loginRejects = false, registerFieldErrors = null } = {}) {
+  const captured = { registration: null, registrations: 0, profile: null, sessionRequests: 0, oauthStarts: [], logouts: 0, logins: 0, resends: 0 };
   let cohortRequests = 0;
   await page.route("https://accounts.google.com/**", async (route) => {
     await route.fulfill({ contentType: "text/html", body: "<title>Google</title>Provider consent screen" });
@@ -76,12 +76,29 @@ async function mockAuth(page, { sessionUser = null, profileUser = null, logoutSt
       return;
     }
     if (pathname === "/api/v1/auth/login" && request.method() === "POST") {
+      captured.logins += 1;
       if (loginDelay) await new Promise((resolve) => setTimeout(resolve, loginDelay));
+      if (loginRejects) {
+        // Django answers a rejected sign-in with 403 and no field of its own.
+        await route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ error: { code: "invalid_credentials", message: "The email or password is incorrect.", fields: null } }) });
+        return;
+      }
       await route.fulfill({ contentType: "application/json", body: JSON.stringify({ user: userPayload() }) });
+      return;
+    }
+    if (pathname === "/api/v1/auth/resend-verification" && request.method() === "POST") {
+      captured.resends += 1;
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ status: "sent" }) });
       return;
     }
     if (pathname === "/api/v1/auth/register" && request.method() === "POST") {
       captured.registration = request.postDataJSON();
+      captured.registrations += 1;
+      if (registerFieldErrors) {
+        // DRF states the detail in `fields` and leaves `message` a placeholder.
+        await route.fulfill({ status: 400, contentType: "application/json", body: JSON.stringify({ error: { code: "invalid", message: "The request could not be completed.", fields: registerFieldErrors } }) });
+        return;
+      }
       await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ status: "verification_required" }) });
       return;
     }
@@ -891,4 +908,132 @@ test("the session-expired notice reads correctly in Arabic", async ({ page }) =>
   // Right-to-left is preserved and the phone viewport does not overflow.
   expect(await page.evaluate(() => document.documentElement.dir)).toBe("rtl");
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+});
+
+// Every message the form can show has to arrive beside the box the reader must
+// change, with the caret already in it. A banner alone -- worse, a generic one
+// -- leaves them hunting through a form they cannot see all of on a phone.
+async function fillValidSignup(page, overrides = {}) {
+  const values = { name: "New Student", email: "new@example.test", password: "Lock-in-test-pass-2026", confirm: "Lock-in-test-pass-2026", ...overrides };
+  await page.getByLabel("Full name").fill(values.name);
+  await page.getByRole("combobox", { name: "College" }).selectOption("tripoli");
+  await page.getByRole("combobox", { name: "Specialty" }).selectOption("human-medicine");
+  await page.getByRole("combobox", { name: "Year / batch" }).selectOption("cohort-61");
+  await page.getByLabel("Email").fill(values.email);
+  await page.getByLabel("Password", { exact: true }).fill(values.password);
+  await page.getByLabel("Confirm password").fill(values.confirm);
+  if (values.accept !== false) await page.locator(".auth-v2-policy input").check();
+}
+
+for (const device of [
+  { name: "phone", width: 390, height: 844 },
+  { name: "iPad", width: 768, height: 1024 },
+  { name: "laptop", width: 1440, height: 900 }
+]) {
+  test(`create-account errors land on their own field and take the caret, on ${device.name}`, async ({ page }) => {
+    const captured = await mockAuth(page);
+    await page.setViewportSize({ width: device.width, height: device.height });
+    await page.goto("/#/");
+    await page.getByRole("button", { name: "Create account" }).click();
+    await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
+
+    // An empty form: every missing field says so, and the first one is focused.
+    await page.locator(".auth-v2-form").evaluate((form) => form.requestSubmit());
+    await expect(page.locator("#auth-name-error")).toHaveText("This field is required.");
+    await expect(page.locator("#auth-college-error")).toHaveText("This field is required.");
+    await expect(page.locator("#auth-email-error")).toHaveText("This field is required.");
+    await expect(page.locator("#auth-policies-error")).toBeVisible();
+    await expect(page.locator("#auth-name")).toBeFocused();
+    // Nothing was sent: the form answered on its own.
+    expect(captured.registrations).toBe(0);
+
+    // Fixing one field clears that message and nothing else.
+    await page.getByLabel("Full name").fill("New Student");
+    await expect(page.locator("#auth-name-error")).toHaveCount(0);
+    await expect(page.locator("#auth-email-error")).toBeVisible();
+
+    // A malformed address is named as such, next to the address.
+    await fillValidSignup(page, { email: "new@@example" });
+    await page.locator(".auth-v2-form").evaluate((form) => form.requestSubmit());
+    await expect(page.locator("#auth-email-error")).toHaveText(/valid email address/);
+    await expect(page.locator("#auth-email")).toBeFocused();
+    expect(captured.registrations).toBe(0);
+
+    // Two different passwords are reported on the second box.
+    await fillValidSignup(page, { confirm: "Lock-in-test-pass-2027" });
+    await page.locator(".auth-v2-form").evaluate((form) => form.requestSubmit());
+    await expect(page.locator("#auth-confirm-error")).toHaveText("Passwords do not match.");
+    await expect(page.locator("#auth-confirm")).toBeFocused();
+
+    // The focused field is on screen, and the form never scrolls sideways.
+    const visible = await page.locator("#auth-confirm").evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      return bounds.top >= 0 && bounds.bottom <= window.innerHeight;
+    });
+    expect(visible).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  });
+}
+
+test("a password the server refuses is explained on the password, not as a bare failure", async ({ page }) => {
+  await mockAuth(page, { registerFieldErrors: { password: ["This password is too common.", "This password is entirely numeric."] } });
+  await page.goto("/#/");
+  await page.getByRole("button", { name: "Create account" }).click();
+  await fillValidSignup(page, { password: "12345678", confirm: "12345678" });
+  await page.locator(".auth-v2-form").evaluate((form) => form.requestSubmit());
+
+  await expect(page.locator("#auth-password-error")).toHaveText(/too common.*as well as numbers/s);
+  await expect(page.locator("#auth-password")).toBeFocused();
+  // DRF's placeholder never reaches the reader.
+  await expect(page.getByText("The request could not be completed.")).toHaveCount(0);
+  // Everything else they typed is still there.
+  await expect(page.getByLabel("Full name")).toHaveValue("New Student");
+  await expect(page.getByRole("combobox", { name: "Year / batch" })).toHaveValue("cohort-61");
+});
+
+test("a created account ends the form and offers the two things left to do", async ({ page }) => {
+  const captured = await mockAuth(page);
+  await page.goto("/#/");
+  await page.getByRole("button", { name: "Create account" }).click();
+  await fillValidSignup(page);
+  await page.locator(".auth-v2-form").evaluate((form) => form.requestSubmit());
+
+  await expect(page.getByRole("heading", { name: "Check your inbox" })).toBeVisible();
+  await expect(page.getByText("new@example.test")).toBeVisible();
+  // The form is gone, so the account cannot be submitted a second time.
+  await expect(page.locator(".auth-v2-form")).toHaveCount(0);
+  await page.getByRole("button", { name: "Resend verification email" }).click();
+  await expect.poll(() => captured.resends).toBe(1);
+  await page.getByRole("button", { name: "Go to sign in" }).click();
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+});
+
+test("a rejected sign-in marks the password, keeps the typing, and offers verification", async ({ page }) => {
+  const captured = await mockAuth(page, { loginRejects: true });
+  await page.goto("/#/");
+  // The session check remounts the form; typing before it settles is lost.
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+  await page.getByLabel("Email").fill("student@example.test");
+  await page.getByLabel("Password", { exact: true }).fill("wrong-password-here");
+  await page.locator(".auth-v2-form").evaluate((form) => form.requestSubmit());
+
+  await expect(page.locator("#auth-password-error")).toHaveText("The email or password is incorrect.");
+  await expect(page.locator("#auth-password")).toBeFocused();
+  await expect(page.getByLabel("Email")).toHaveValue("student@example.test");
+  // The commonest cause the server may not name out loud: an unverified email.
+  await page.getByRole("button", { name: "Resend verification email" }).click();
+  await expect.poll(() => captured.resends).toBe(1);
+});
+
+test("one sign-in at a time, however many times the button is pressed", async ({ page }) => {
+  const captured = await mockAuth(page, { loginDelay: 1500 });
+  await page.goto("/#/");
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+  await page.getByLabel("Email").fill("student@example.test");
+  await page.getByLabel("Password", { exact: true }).fill("Lock-in-test-pass-2026");
+  const submit = page.locator(".auth-v2-primary");
+  await submit.evaluate((button) => { button.click(); button.click(); button.click(); });
+  await expect(submit).toBeDisabled();
+  await expect(submit).toContainText("Please wait…");
+  await expect.poll(() => captured.logins).toBe(1);
 });
