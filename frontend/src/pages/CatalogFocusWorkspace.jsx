@@ -3583,16 +3583,16 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     setActiveStudyBusy(true);
     setActiveStudyError("");
     try {
-      const availability = await focusApi.getManagedActiveStudyAvailability(sheet.learningObjectId);
-      const inProgress = /** @type {any[]} */ (availability.difficulties || []).find((item) => item.progress)?.progress;
-      const difficulty = inProgress?.difficulty || activeDifficulty;
-      const payload = await focusApi.startManagedActiveStudy({ sheetId: sheet.learningObjectId, difficulty });
+      // The selected difficulty owns its own run.  Never substitute a different
+      // in-progress difficulty here: it can already be at a checkpoint and
+      // would make choosing Easy / Medium / Hard appear to open a quiz.
+      const payload = await focusApi.startManagedActiveStudy({ sheetId: sheet.learningObjectId, difficulty: activeDifficulty });
       const run = /** @type {any} */ (payload.run);
       setActiveDifficulty(run.difficulty);
       setActiveStudy(run);
       setStudyMode("active");
       setModeDialogOpen(false);
-      const startPage = 1;
+      const startPage = run.current_page_range?.start_page || 1;
       setPage(startPage);
       requestAnimationFrame(() => jumpToPagePosition(startPage));
       setFocusMessage(payload.resumed ? `Part ${run.current_part} resumed.` : `Part ${run.current_part} started.`);

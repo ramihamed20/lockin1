@@ -40,6 +40,17 @@ test("managed Active Study is unified with the old one-question quiz experience"
   assert.match(workspace, /run\?\.stage === "final"/);
 });
 
+test("Active Study starts the selected difficulty in reading, then opens its checkpoint only from the dock", () => {
+  assert.match(workspace, /startManagedActiveStudy\(\{ sheetId: sheet\.learningObjectId, difficulty: activeDifficulty \}\)/);
+  assert.doesNotMatch(workspace, /inProgress\?\.difficulty \|\| activeDifficulty/);
+  assert.match(workspace, /const startPage = run\.current_page_range\?\.start_page \|\| 1/);
+  assert.match(workspace, /run\.stage === "checkpoint" \|\| run\.stage === "final"/);
+  assert.match(workspace, /activeStudy\?\.stage === "reading" && page >= accessiblePageCount/);
+  assert.match(workspace, /disabled=\{activeStudyBusy \|\| !activeCheckpointReady\}/);
+  assert.match(workspace, /managedActiveStudyAction\(activeStudy\.id, "complete-reading"\)/);
+  assert.match(workspaceStyles, /\.workspace-v2-checkpoint-dock \{[^}]+right: 0;[^}]+left: auto;/);
+});
+
 test("Active Study quiz surfaces inherit the current application theme", () => {
   const themedQuiz = workspaceStyles.slice(
     workspaceStyles.indexOf(".workspace-v2-mode-backdrop"),
