@@ -228,7 +228,12 @@ for (const { viewport, name } of [
  */
 async function focusAccountPassword(page) {
   const tab = page.getByRole("button", { name: "Account", exact: true });
-  if (await tab.isVisible()) await tab.click();
+  // The shell can become geometrically stable while the lazy Settings route is
+  // still resolving under CI load.  Wait for the real navigation affordance
+  // instead of sampling it once and then looking for a field in the hidden
+  // default section.
+  await expect(tab).toBeVisible();
+  await tab.click();
   const field = page.locator(".page-shell input[type='password']").first();
   await expect(field).toBeVisible();
   await field.scrollIntoViewIfNeeded();
