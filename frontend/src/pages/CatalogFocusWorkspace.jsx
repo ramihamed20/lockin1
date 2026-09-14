@@ -663,8 +663,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const inkDebugEnabled = import.meta.env.DEV && searchParams.get("inkDebug") === "1";
 
   useEffect(() => {
-    rememberLastOpenedCatalogSheet(materialSlug, sheetSlug);
-  }, [materialSlug, sheetSlug]);
+    if (material && sheet) rememberLastOpenedCatalogSheet(materialSlug, sheetSlug, { material, sheet });
+  }, [material, materialSlug, sheet, sheetSlug]);
 
   // Annotations now live in IndexedDB and load asynchronously, so nothing is
   // persisted until the stored document has been read back. Saving before
@@ -679,7 +679,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const configuredPageCount = sheet?.pageCount || (sheet?.pdfUrl ? 1 : PAGE_COUNT);
   const bookmarkedPage = Number.parseInt(searchParams.get("page") || "", 10);
   const [pageCount, setPageCount] = useState(configuredPageCount);
-  const [page, setPage] = useState(() => Math.min(configuredPageCount, bookmarkedPage > 0 ? bookmarkedPage : (sheet?.pdfUrl ? 1 : 52)));
+  const [page, setPage] = useState(() => Math.min(configuredPageCount, bookmarkedPage > 0 ? bookmarkedPage : 1));
   const [zoom, setZoom] = useState(() => {
     if (!sheet?.pdfUrl) return 1.3;
     const fitZoom = fitWidthZoom(window.innerWidth, A4_PAGE_WIDTH, window.innerWidth < 1200 ? 16 : 360);
@@ -779,7 +779,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const [topicTitle, topicSummary] = SUBJECT_COPY[materialSlug] || [material?.title || "Study material", sheet?.summary || "Focused study workspace."];
   const sheetRoute = `/materials/catalog/${materialSlug}/sheets/${sheetSlug}`;
   const activePageRange = studyMode === "active" && activeStudy?.status === "active" ? activeStudy.current_page_range : null;
-  const accessiblePageStart = activePageRange?.start_page || 1;
+  // Active Study unlocks cumulatively. Earlier pages remain available while
+  // the server-owned current range continues to determine checkpoint content.
+  const accessiblePageStart = 1;
   const accessiblePageCount = activePageRange?.end_page || pageCount;
   const activeCheckpointReady = studyMode === "active" && activeStudy?.stage === "reading" && page >= accessiblePageCount;
   const pageAnnotations = useMemo(() => annotations.filter((item) => item.page === page), [annotations, page]);
@@ -1248,6 +1250,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       const stageBounds = stage.getBoundingClientRect();
       const pageBounds = initialPage.getBoundingClientRect();
       const paddingTop = Number.parseFloat(window.getComputedStyle(stage).paddingTop) || 0;
+      // A sheet with no stored view starts on page one. Returning readers can
+      // still opt into restoring their saved position, while an explicit page
+      // link always wins over that preference.
       const restoreSavedPosition = rememberLastPosition && !(bookmarkedPage > 0) && storedView?.page === page;
       const savedOffset = Math.min(1, Math.max(0, Number(storedView?.pageOffset) || 0));
       const targetTop = restoreSavedPosition
@@ -3587,7 +3592,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       setActiveStudy(run);
       setStudyMode("active");
       setModeDialogOpen(false);
-      const startPage = run.current_page_range?.start_page || 1;
+      const startPage = 1;
       setPage(startPage);
       requestAnimationFrame(() => jumpToPagePosition(startPage));
       setFocusMessage(payload.resumed ? `Part ${run.current_part} resumed.` : `Part ${run.current_part} started.`);

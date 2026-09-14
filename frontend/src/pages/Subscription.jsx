@@ -12,7 +12,7 @@ function money(amountMinor, currency, exponent = 3, locale = "en") {
   const amount = Number(amountMinor) / (10 ** Number(exponent));
   if (!Number.isFinite(amount)) return "—";
   try {
-    return new Intl.NumberFormat(locale === "ar" ? "ar-LY" : "en-LY", {
+    return new Intl.NumberFormat(locale === "ar" ? "ar-LY-u-nu-latn" : "en-LY", {
       style: "currency",
       currency: String(currency || "LYD").toUpperCase(),
       minimumFractionDigits: 0,
@@ -56,6 +56,18 @@ function ComingSoonPlans({ offers, t }) {
 
 function isFiveLyd(price) {
   return Number(price?.amount_minor) === 5 * (10 ** Number(price?.currency_exponent || 0));
+}
+
+const PLAN_COPY = {
+  lockin_first_month: { en: ["First month", "One-month subscription"], ar: ["الشهر الأول", "اشتراك لمدة شهر"] },
+  lockin_two_months: { en: ["Two months", "Two-month subscription"], ar: ["شهران", "اشتراك لمدة شهرين"] },
+  lockin_three_months: { en: ["Three months", "Three-month subscription"], ar: ["3 أشهر", "اشتراك لمدة ثلاثة أشهر"] },
+  lockin_four_months: { en: ["Four months", "Four-month subscription"], ar: ["4 أشهر", "اشتراك لمدة أربعة أشهر"] }
+};
+
+function offerCopy(plan, version, locale) {
+  const translated = PLAN_COPY[plan.code]?.[locale];
+  return translated ? { title: translated[0], description: translated[1] } : { title: version.title, description: version.description };
 }
 
 /**
@@ -157,7 +169,7 @@ export default function Subscription() {
   // with nothing on the screen telling them why.
   const pendingManualReview = subscriptionSession.pendingManualPayment;
   const renewalBlocked = subscription?.status === "active" && subscription?.access_allowed && !subscription?.early_renewal_available;
-  const canSubmit = !renewalBlocked && !pendingManualReview;
+  const canSubmit = review?.status === "rejected" || (!renewalBlocked && !pendingManualReview);
   const periodEnd = subscription?.status === "trialing"
     ? subscription?.trial_ends_at
     : subscription?.current_period_ends_at;
@@ -254,12 +266,14 @@ export default function Subscription() {
               <fieldset className="subscription-plan-options">
                 <legend id="subscription-plan-heading">{t("subscription.choosePlan")}</legend>
                 <div className="subscription-plan-grid">
-                  {offers.map(({ plan, version, price }) => (
+                  {offers.map(({ plan, version, price }) => {
+                    const copy = offerCopy(plan, version, locale);
+                    return (
                     <label className={effectivePlan === plan.id ? "selected" : ""} key={plan.id}>
                       <input type="radio" name="subscription-plan" value={plan.id} checked={effectivePlan === plan.id} onChange={() => { setSelectedPlan(plan.id); setCodes(["", ""]); }} />
                       <span className="subscription-plan-copy">
-                        <strong>{version.title}</strong>
-                        <small>{version.description}</small>
+                        <strong>{copy.title}</strong>
+                        <small>{copy.description}</small>
                       </span>
                       <span className="subscription-plan-price">
                         <b>{money(price.amount_minor, price.currency, price.currency_exponent, locale)}</b>
@@ -267,13 +281,14 @@ export default function Subscription() {
                       </span>
                       <span className="subscription-plan-check" aria-hidden="true">✓</span>
                     </label>
-                  ))}
+                    );
+                  })}
                 </div>
               </fieldset>
 
               {selectedOffer && (
                 <ul className="subscription-benefits" aria-label={t("subscription.included")}>
-                  {[selectedOffer.product.description, selectedOffer.version.description, t("subscription.continueImmediately")]
+                  {[offerCopy(selectedOffer.plan, selectedOffer.version, locale).description]
                     .filter(Boolean)
                     .map((benefit, index) => <li key={`${benefit}-${index}`}><span aria-hidden="true">✓</span><span>{benefit}</span></li>)}
                 </ul>

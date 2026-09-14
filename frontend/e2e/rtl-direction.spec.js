@@ -98,17 +98,18 @@ test("the same run is unchanged in English", async ({ page }) => {
   expect(meta).toMatch(/^\d+ sheets?$/);
 });
 
-// A count is not one string with a number dropped in: Arabic has six count
-// categories and reads its own digits.
+// Arabic keeps its grammatical count forms while the product consistently
+// renders Latin digits in every locale.
 test("a count is written and numbered the way Arabic writes counts", async ({ page }) => {
   await signIn(page, "ar");
 
   const counts = await page.evaluate(() => [...document.querySelectorAll(".catalog-tile__copy small")].map((node) => node.textContent));
   expect(counts.length).toBeGreaterThan(0);
   for (const count of counts) {
-    // Either Arabic-Indic digits followed by an Arabic word, or the wordy
-    // zero form that carries no digit - never Latin digits, never "sheets".
-    expect(count, "the count is not localised").toMatch(/^(?:[٠-٩]+\s)?[؀-ۿ]+(?:\s[؀-ۿ]+)*$/);
+    // Either Latin digits followed by Arabic copy, or the wordy zero form that
+    // carries no digit. Eastern Arabic digits and English labels are forbidden.
+    expect(count, "the count is not localised").toMatch(/^(?:[0-9]+\s)?[؀-ۿ]+(?:\s[؀-ۿ]+)*$/);
+    expect(count).not.toMatch(/[٠-٩]|sheets?/i);
   }
   // Subjects with no sheets read differently from the one with three: the
   // plural category is chosen, not appended to a number.

@@ -11,7 +11,8 @@ test("shared localization owns English and Arabic direction, messages, and numbe
   assert.equal(directionForLocale("en"), "ltr");
   assert.equal(translate("ar", "nav.materials"), "المواد");
   assert.equal(translate("en", "nav.materials"), "Materials");
-  assert.notEqual(formatNumber(1234, {}, "ar"), formatNumber(1234, {}, "en"));
+  assert.match(formatNumber(1234, {}, "ar"), /1/);
+  assert.doesNotMatch(formatNumber(1234, {}, "ar"), /[٠-٩]/);
 });
 
 test("route metadata is authoritative for shell, document, and accessible page identity", () => {

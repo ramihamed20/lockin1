@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motivationApi } from "../api/motivation.js";
 import { isApiError } from "../api/client.js";
-import { isKnownNotificationRoute } from "../lib/notificationRoutes.js";
+import { isKnownNotificationRoute, notificationFallbackRoute } from "../lib/notificationRoutes.js";
 import { notificationPresentation } from "../lib/notificationPresentation.js";
 import { Icon } from "../lib/icons.jsx";
 import { useAsyncData } from "../hooks/useAsyncData.js";
@@ -99,6 +99,7 @@ export default function Notifications({ onNotificationsChanged }) {
         await motivationApi.markNotificationRead(notification.id);
         onNotificationsChanged?.();
         refresh();
+        navigate(notificationFallbackRoute(notification));
       }
     } catch (error) {
       if (isApiError(error) && error.status === 410) {

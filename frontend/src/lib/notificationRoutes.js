@@ -6,8 +6,26 @@ const NOTIFICATION_DESTINATIONS = new Set([
   "/achievements",
   "/profile",
   "/security",
-  "/subscription"
+  "/subscription",
+  "/settings",
+  "/materials",
+  "/questions",
+  "/review",
+  "/bookmarks",
+  "/notifications",
+  "/store"
 ]);
+
+const NOTIFICATION_DESTINATION_PREFIXES = [
+  "/materials/catalog/",
+  "/questions/",
+  "/review/",
+  "/community/",
+  "/ranked/",
+  "/admin/",
+  "/operations/",
+  "/moderation/"
+];
 
 /**
  * Django returns application-relative target routes after it marks a
@@ -19,5 +37,22 @@ const NOTIFICATION_DESTINATIONS = new Set([
 export function isKnownNotificationRoute(route) {
   if (typeof route !== "string" || !route.startsWith("/") || route.startsWith("//") || route.includes("\\") || /^[a-z][a-z\d+.-]*:/i.test(route)) return false;
   const pathname = route.split(/[?#]/, 1)[0];
-  return NOTIFICATION_DESTINATIONS.has(pathname) || /^\/community\/discussions\/[^/]+$/.test(pathname);
+  if (pathname.split("/").includes("..")) return false;
+  return NOTIFICATION_DESTINATIONS.has(pathname)
+    || NOTIFICATION_DESTINATION_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+/** Gives informational notifications a useful destination even when the
+ * producer did not attach a specific object route. */
+export function notificationFallbackRoute(notification) {
+  return {
+    account: "/profile",
+    learning: "/materials",
+    achievement: "/achievements",
+    community: "/community",
+    moderation: "/moderation",
+    billing: "/subscription",
+    platform: "/dashboard",
+    update: "/dashboard"
+  }[notification?.category] || "/notifications";
 }

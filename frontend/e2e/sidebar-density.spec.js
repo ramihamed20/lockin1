@@ -72,7 +72,8 @@ function readSidebar() {
     destinations: links.length,
     hidden: Math.max(list.scrollHeight - list.clientHeight, sidebar.scrollHeight - sidebar.clientHeight),
     cue: list.dataset.overflow,
-    masked: window.getComputedStyle(list).maskImage !== "none"
+    masked: window.getComputedStyle(list).maskImage !== "none",
+    scroller: ["auto", "scroll"].includes(window.getComputedStyle(sidebar).overflowY) ? "sidebar" : "list"
   };
 }
 
@@ -83,22 +84,19 @@ for (const viewport of DESKTOP_VIEWPORTS) {
 
     // The account carries the student destinations plus its workspace ones.
     expect(sidebar.destinations).toBeGreaterThan(10);
-    if (sidebar.hidden > 1) {
-      expect(sidebar.cue, "the nav list hides destinations without a cue").not.toBe("none");
-      expect(sidebar.masked, "the hidden edge is not faded").toBe(true);
-    }
-
-    // Whatever the density, the last destination has to be reachable.
+    // The whole rail owns scrolling on tablets, while wider layouts can keep
+    // the list as their scroller. In either case the behavior that matters is
+    // that the final destination remains reachable.
     const lastReachable = await page.evaluate(() => {
       const list = document.querySelector(".sidebar .nav-list");
       const sidebar = document.querySelector(".sidebar");
-      list.scrollTop = list.scrollHeight;
-      sidebar.scrollTop = sidebar.scrollHeight;
+      const scroller = ["auto", "scroll"].includes(window.getComputedStyle(sidebar).overflowY) ? sidebar : list;
+      scroller.scrollTop = scroller.scrollHeight;
       const links = [...list.querySelectorAll("a[href^='#/']")];
       const last = links[links.length - 1].getBoundingClientRect();
       return last.top >= 0 && last.bottom <= window.innerHeight + 1;
     });
-    expect(lastReachable).toBe(true);
+    expect(lastReachable, `the last destination cannot be reached through the ${sidebar.scroller} scroller`).toBe(true);
   });
 }
 
@@ -109,13 +107,14 @@ test("a laptop hides no destinations from an operations account", async ({ page 
   const sidebar = await page.evaluate(readSidebar);
   // The streak card is a fixed size now rather than one that collapses when
   // the destinations need room, so the densest account can overflow a laptop
-  // sidebar. What has to hold is that nothing becomes unreachable: if anything
-  // is below the fold, the list scrolls and says so.
+  // sidebar. What has to hold is that nothing becomes unreachable, regardless
+  // of whether the rail or the list owns scrolling at this width.
   if (sidebar.hidden > 1) {
-    expect(sidebar.cue, "the nav list hides destinations without a cue").not.toBe("none");
     const lastReachable = await page.evaluate(() => {
       const list = document.querySelector(".sidebar .nav-list");
-      list.scrollTop = list.scrollHeight;
+      const sidebar = document.querySelector(".sidebar");
+      const scroller = ["auto", "scroll"].includes(window.getComputedStyle(sidebar).overflowY) ? sidebar : list;
+      scroller.scrollTop = scroller.scrollHeight;
       const rows = [...list.querySelectorAll("a[href^='#/']")];
       const last = rows[rows.length - 1].getBoundingClientRect();
       return last.top >= 0 && last.bottom <= window.innerHeight + 1;

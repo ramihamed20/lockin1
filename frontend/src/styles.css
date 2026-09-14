@@ -2407,7 +2407,7 @@ a.streak-card:hover:where(html.ix-hover *) {
 .notifications-dropdown {
   position: absolute;
   top: 54px;
-  right: 0;
+  inset-inline-end: 0;
   z-index: var(--z-navigation);
   width: 320px;
   border-radius: 18px;
@@ -2419,6 +2419,10 @@ a.streak-card:hover:where(html.ix-hover *) {
   transform-origin: top right;
   animation: toast-rise 220ms cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
+}
+
+[dir="rtl"] .notifications-dropdown {
+  transform-origin: top left;
 }
 
 .notifications-header {
@@ -2555,7 +2559,7 @@ a.streak-card:hover:where(html.ix-hover *) {
   background: transparent;
   font-weight: 700;
   font-size: var(--text-sm);
-  text-align: left;
+  text-align: start;
   transition:
     color var(--motion-fast),
     background var(--motion-fast),
@@ -18894,6 +18898,135 @@ html {
 .streak-freeze strong { color: var(--text); font-size: var(--text-xs); }
 .streak-freeze small { color: var(--muted); font-size: .66rem; font-weight: 700; line-height: 1.25; }
 .streak-freeze em { padding: 3px 5px; border-radius: var(--radius-sm); color: var(--muted); background: var(--surface-2); font-size: .62rem; font-style: normal; font-weight: 850; }
+
+/* Release UX refinements -------------------------------------------------
+   The whole rail owns scrolling on touch tablets. This avoids nested scroll
+   regions and keeps the streak in the natural document flow. */
+.sidebar {
+  max-height: var(--app-viewport-height);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sidebar .nav-list {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.sidebar .streak-card {
+  margin-top: var(--space-4);
+  border-color: color-mix(in srgb, var(--streak-tier-color) 28%, var(--border));
+  background: color-mix(in srgb, var(--streak-tier-color) 5%, var(--surface-2));
+}
+
+/* Dashboard metrics read as compact instruments rather than decorative
+   template cards. Accent is reserved for the source icon and live state. */
+.dashboard-stats-grid .stat-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  box-shadow: none;
+}
+
+.dashboard-stats-grid .stat-card-spotlight {
+  display: none;
+}
+
+.dashboard-stats-grid .stat-icon {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--card-theme-color);
+  background: color-mix(in srgb, var(--card-theme-color) 11%, var(--surface-3));
+  box-shadow: none;
+}
+
+.dashboard-stats-grid .stat-card-value {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.dashboard-stats-grid .stat-card-chevron {
+  border-radius: 8px;
+  background: transparent;
+}
+
+.subscription-secondary summary {
+  position: relative;
+  padding-inline-end: 36px;
+  cursor: pointer;
+  list-style: none;
+  transition: color var(--motion-fast), background-color var(--motion-fast);
+}
+
+.subscription-secondary summary::-webkit-details-marker {
+  display: none;
+}
+
+.subscription-secondary summary::after {
+  position: absolute;
+  inset-inline-end: var(--space-2);
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  content: "+";
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.subscription-secondary[open] summary::after {
+  content: "−";
+}
+
+.subscription-secondary summary:hover:where(html.ix-hover *),
+.subscription-secondary summary:focus-visible {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 5%, transparent);
+}
+
+@media (min-width: 640px) and (max-width: 1199px) {
+  .sidebar {
+    position: sticky;
+    height: var(--app-viewport-height);
+    max-height: var(--app-viewport-height);
+  }
+
+  .sidebar .streak-card {
+    display: grid !important;
+    justify-items: center;
+    gap: 5px;
+    width: 100%;
+    padding: 9px 4px;
+  }
+
+  .sidebar .streak-card-heading span,
+  .sidebar .streak-card-heading small,
+  .sidebar .streak-card-track,
+  .sidebar .streak-freeze {
+    display: none;
+  }
+
+  .sidebar .streak-card-heading svg {
+    display: block;
+  }
+
+  .sidebar .streak-card-value {
+    margin: 0;
+    font-size: .9rem;
+  }
+
+  .sidebar .streak-card-value small {
+    display: none;
+  }
+}
 
 @media (max-width: 639px) {
   .catalog-material-grid,

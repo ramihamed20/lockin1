@@ -788,8 +788,8 @@
   .profile-menu {
     position: fixed;
     top: calc(52px + var(--safe-top) + 8px);
-    right: 12px;
-    left: 12px;
+    right: max(12px, var(--safe-right));
+    left: max(12px, var(--safe-left));
     width: auto;
     max-width: none;
     max-height: calc(var(--app-viewport-height) - 68px - var(--safe-top) - max(var(--safe-bottom), var(--keyboard-inset)));

@@ -194,16 +194,22 @@ const LAST_OPENED_SHEET_STORAGE_KEY = "lock-in.materials.last-opened-sheet";
 const RECENT_OPENED_SHEETS_STORAGE_KEY = "lock-in.materials.recent-opened-sheets";
 const MAX_RECENT_OPENED_SHEETS = 4;
 
-export function rememberLastOpenedCatalogSheet(materialSlug, sheetSlug) {
+export function rememberLastOpenedCatalogSheet(materialSlug, sheetSlug, snapshot = null) {
   const { material, sheet } = getCatalogSheet(materialSlug, sheetSlug);
-  if (!material || !sheet) return;
+  const resolvedMaterial = snapshot?.material || material;
+  const resolvedSheet = snapshot?.sheet || sheet;
+  if (!resolvedMaterial || !resolvedSheet || typeof materialSlug !== "string" || typeof sheetSlug !== "string") return;
 
   try {
-    const current = getRecentOpenedCatalogSheets().map((entry) => ({
-      materialSlug: entry.material.slug,
-      sheetSlug: entry.sheet.slug
-    }));
-    const next = [{ materialSlug, sheetSlug }, ...current.filter((entry) => entry.materialSlug !== materialSlug || entry.sheetSlug !== sheetSlug)].slice(0, MAX_RECENT_OPENED_SHEETS);
+    const current = readRecentOpenedSheetEntries();
+    const opened = {
+      materialSlug,
+      sheetSlug,
+      materialTitle: resolvedMaterial.title,
+      sheetTitle: resolvedSheet.title,
+      sheetNumber: resolvedSheet.number
+    };
+    const next = [opened, ...current.filter((entry) => entry.materialSlug !== materialSlug || entry.sheetSlug !== sheetSlug)].slice(0, MAX_RECENT_OPENED_SHEETS);
     globalThis.localStorage?.setItem(RECENT_OPENED_SHEETS_STORAGE_KEY, JSON.stringify(next));
     globalThis.localStorage?.setItem(LAST_OPENED_SHEET_STORAGE_KEY, JSON.stringify(next[0]));
   } catch {
@@ -226,7 +232,9 @@ function readRecentOpenedSheetEntries() {
 function resolveOpenedSheet(entry) {
   if (!entry || typeof entry.materialSlug !== "string" || typeof entry.sheetSlug !== "string") return null;
   const { material, sheet } = getCatalogSheet(entry.materialSlug, entry.sheetSlug);
-  return material && sheet ? { material, sheet, path: `/materials/catalog/${material.slug}/sheets/${sheet.slug}` } : null;
+  const resolvedMaterial = material || (entry.materialTitle ? { slug: entry.materialSlug, title: entry.materialTitle } : null);
+  const resolvedSheet = sheet || (entry.sheetTitle ? { slug: entry.sheetSlug, title: entry.sheetTitle, number: entry.sheetNumber } : null);
+  return resolvedMaterial && resolvedSheet ? { material: resolvedMaterial, sheet: resolvedSheet, path: `/materials/catalog/${entry.materialSlug}/sheets/${entry.sheetSlug}/workspace` } : null;
 }
 
 export function getRecentOpenedCatalogSheets() {
