@@ -15,8 +15,18 @@ export function I18nProvider({ children }) {
   const setLocale = useCallback((value) => setLocaleState(normalizeLocale(value)), []);
 
   useEffect(() => {
-    document.documentElement.lang = locale;
-    document.documentElement.dir = directionForLocale(locale);
+    const root = document.documentElement;
+    root.lang = locale;
+    root.dir = directionForLocale(locale);
+    // Chrome on Android offers to translate a page whose language is not the
+    // reader's, and accepting it re-translates Arabic that is already Arabic --
+    // machine prose over hand-written copy, with the layout it breaks. Marking
+    // the document `translate="no"` (with the class Google's widget also reads)
+    // declines that for the Arabic build only: the English build keeps the
+    // offer, which is useful to a reader who wants it.
+    const declineTranslation = directionForLocale(locale) === "rtl";
+    root.translate = !declineTranslation;
+    root.classList.toggle("notranslate", declineTranslation);
     try {
       window.localStorage.setItem("lock-in.locale", locale);
     } catch { /* The document attributes still provide the correct experience. */ }
