@@ -128,7 +128,9 @@ test("Catalog sheet exposes a Normal Mode summary, opened in the study reader", 
   assert.doesNotMatch(materials, /iframe/);
   assert.doesNotMatch(materials, /CatalogSheetSummary/);
   assert.match(workspace, /const summaryMode = variant === "summary"/);
-  assert.match(workspace, /edition\?\.summaryPdf\?\.viewUrl/);
+  // The summary resolves through the same document endpoint as the study PDF,
+  // which is what gives it the same delivery, caching and server sync.
+  assert.match(workspace, /useCatalogDocument\(\s*sheet \? materialSlug : "",[\s\S]*?summaryMode \? "summary" : ""\s*\)/);
   assert.match(messages, /"materials\.sheetSummary": "Sheet Summary"/);
   assert.match(messages, /"materials\.sheetSummary": "ملخص الشيت"/);
 });

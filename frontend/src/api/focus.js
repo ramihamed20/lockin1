@@ -22,6 +22,18 @@ const LOCK_IN_ACTIONS = new Set(["pause", "resume", "complete", "abandon", "star
 const SIDEBARS = new Set(["closed", "thumbnails", "notes"]);
 const WORKSPACE_TOOLS = new Set(["", "pen", "pencil", "highlighter", "eraser", "line", "arrow", "rectangle", "circle", "text", "sticky-note"]);
 
+/**
+ * Query parameters for one document scope. An empty scope addresses the
+ * University study document, so every existing caller keeps its meaning.
+ * @param {{edition?: string, view?: string}|null} scope
+ */
+function scopeQuery(scope) {
+  return {
+    ...(scope?.edition && scope.edition !== "university" ? { edition: scope.edition } : {}),
+    ...(scope?.view && scope.view !== "study" ? { view: scope.view } : {})
+  };
+}
+
 /** Server-authoritative Focus document, session, workspace, and annotation contracts. */
 export const focusApi = {
   async getManagedActiveStudyAvailability(sheetId, edition = "") {
@@ -222,13 +234,16 @@ export const focusApi = {
     );
   },
 
-  async getAnnotations(documentVersionId, { pages = [1], page = 1, pageSize = 250 } = {}) {
+  // `scope` names which of the sheet's PDFs the marks belong to: an edition
+  // and either its study document or its Sheet Summary. Omitted means the
+  // University study document, which is what this endpoint always meant.
+  async getAnnotations(documentVersionId, { pages = [1], page = 1, pageSize = 250, scope = null } = {}) {
     const validPages = Array.from(new Set(pages.map(Number).filter((value) => Number.isInteger(value) && value > 0))).slice(0, 10);
     if (!validPages.length || pages.length > 10) {
       throw new ApiError(0, null, "Focus annotations can load one to ten valid pages at a time.", "invalid_request");
     }
     const payload = objectPayload(
-      await request(`/focus/documents/${documentVersionId}/annotations` + buildQueryString({ pages: validPages, page, page_size: pageSize })),
+      await request(`/focus/documents/${documentVersionId}/annotations` + buildQueryString({ pages: validPages, page, page_size: pageSize, ...scopeQuery(scope) })),
       "The Focus annotation response was incomplete."
     );
     if (typeof payload.collection_revision !== "number") {
@@ -240,12 +255,12 @@ export const focusApi = {
     };
   },
 
-  async syncAnnotations(documentVersionId, { expectedCollectionRevision, idempotencyKey, annotations = [], deletedIds = [] }) {
+  async syncAnnotations(documentVersionId, { expectedCollectionRevision, idempotencyKey, annotations = [], deletedIds = [], scope = null }) {
     if (annotations.length + deletedIds.length > 100) {
       throw new ApiError(0, null, "A Focus sync can contain at most 100 mutations.", "invalid_request");
     }
     return objectPayload(
-      await request(`/focus/documents/${documentVersionId}/annotations`, {
+      await request(`/focus/documents/${documentVersionId}/annotations` + buildQueryString(scopeQuery(scope)), {
         method: "POST",
         body: {
           expected_collection_revision: expectedCollectionRevision,

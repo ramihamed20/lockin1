@@ -11,6 +11,8 @@ second copy of the code.
 
 from __future__ import annotations
 
+import uuid
+
 UNIVERSITY = "university"
 LOCKIN = "lockin"
 
@@ -74,3 +76,45 @@ def lockin_sheet_slug(university_sheet_slug: str) -> str:
     """
 
     return f"{university_sheet_slug}-lockin"[:120]
+
+
+# A sheet edition can be read in two documents: the study PDF itself, and its
+# Sheet Summary. They are different files, so they are different documents to
+# anyone marking them up.
+STUDY = "study"
+SUMMARY = "summary"
+
+VIEWS: tuple[str, ...] = (STUDY, SUMMARY)
+
+# Fixed namespace for deriving a document's annotation identity. It must never
+# change: every stored collection is addressed by the ids it produces.
+ANNOTATION_NAMESPACE = uuid.UUID("2f6b4c1e-9d33-5a71-b0c6-1b8a5f0d4e27")
+
+
+def normalize_view(value: object, *, default: str = STUDY) -> str:
+    """Accept an absent view as the study PDF, which is what it always meant."""
+
+    if value is None or value == "":
+        return default
+    if isinstance(value, str) and value in VIEWS:
+        return value
+    raise UnknownEditionError("View must be study or summary.")
+
+
+def annotation_document_id(*, learning_object_id: uuid.UUID, edition: str, view: str) -> uuid.UUID:
+    """The identity a reader's marks belong to.
+
+    Annotations are anchored to page numbers, and page numbers only mean
+    something inside one PDF. A sheet's university PDF, its Lock-in PDF and
+    either one's Sheet Summary are therefore separate owners, even though they
+    are one sheet with one question bank.
+
+    The university study document keeps the bare learning-object id it has
+    always used, so marks made before editions existed stay where they are.
+    """
+
+    edition = normalize_edition(edition)
+    view = normalize_view(view)
+    if edition == UNIVERSITY and view == STUDY:
+        return learning_object_id
+    return uuid.uuid5(ANNOTATION_NAMESPACE, f"{learning_object_id}:{edition}:{view}")

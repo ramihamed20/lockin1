@@ -265,3 +265,42 @@ test("the reader never falls back to a document the address did not name", async
   assert.match(workspace, /materials\.editionUnavailable/);
   assert.doesNotMatch(workspace, /entry\.slug === sheetSlug \? \{ \.\.\.entry, pdfUrl/);
 });
+
+test("the reader tells the server which of a sheet's PDFs it is marking", async () => {
+  const [workspace, focusApiSource, sync] = await Promise.all([
+    readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/api/focus.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/workspace/catalog/catalogServerSync.js", import.meta.url), "utf8")
+  ]);
+  // The summary resolves a real document, so its marks sync like any other.
+  assert.match(workspace, /summaryMode \? "summary" : ""/);
+  assert.match(workspace, /catalogDocument=\{catalogDocument\.document\}/);
+  assert.doesNotMatch(workspace, /catalogDocument=\{summaryMode \? null/);
+  // The scope travels with every annotation call.
+  assert.match(workspace, /scope: \{ edition: scopeEdition, view: scopeView \}/);
+  assert.match(sync, /focus\.getAnnotations\(documentVersionId, \{ pages, page, pageSize: 250, scope \}\)/);
+  assert.match(sync, /focus\.syncAnnotations\(documentVersionId, \{\s*\n\s*scope,/);
+  assert.match(focusApiSource, /function scopeQuery\(scope\)/);
+});
+
+test("an omitted scope still addresses the University study document", async () => {
+  const { focusApi } = await import("../src/api/focus.js");
+  const seen = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    seen.push(String(url));
+    return new Response(JSON.stringify({ collection_revision: 0, results: [], count: 0, next: null, previous: null }), { status: 200, headers: { "content-type": "application/json" } });
+  };
+  try {
+    await focusApi.getAnnotations("11111111-1111-1111-1111-111111111111", { pages: [1] });
+    await focusApi.getAnnotations("11111111-1111-1111-1111-111111111111", { pages: [1], scope: { edition: "university", view: "study" } });
+    await focusApi.getAnnotations("11111111-1111-1111-1111-111111111111", { pages: [1], scope: { edition: "lockin", view: "summary" } });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  // The legacy call and an explicit University/study scope are the same request.
+  assert.doesNotMatch(seen[0], /edition=|view=/);
+  assert.doesNotMatch(seen[1], /edition=|view=/);
+  assert.match(seen[2], /edition=lockin/);
+  assert.match(seen[2], /view=summary/);
+});

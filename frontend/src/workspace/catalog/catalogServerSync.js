@@ -117,11 +117,19 @@ function readBaseline(storage, key) {
 }
 
 /**
- * @param {{ documentId: string, documentVersionId: string, owner: string, storage?: Storage | null, catalog?: any, focus?: any, idFactory?: () => string }} options
+ * @param {{ documentId: string, documentVersionId: string, workspaceDocumentId?: string | null, scope?: {edition?: string, view?: string} | null, owner: string, storage?: Storage | null, catalog?: any, focus?: any, idFactory?: () => string }} options
  */
 export function createCatalogServerSync({
   documentId,
   documentVersionId,
+  // Which of the sheet's PDFs these marks belong to. One version publishes
+  // two editions and each of their summaries, so the version alone does not
+  // identify the document the reader is marking.
+  scope = null,
+  // The catalog document whose reader state (notes, last page, zoom) is stored
+  // server-side. A Sheet Summary has annotations but no catalog row of its own,
+  // so it passes null and syncs its marks alone.
+  workspaceDocumentId = documentId,
   owner,
   storage = globalThis.localStorage ?? null,
   catalog = catalogWorkspaceApi,
@@ -129,6 +137,7 @@ export function createCatalogServerSync({
   idFactory = generateIdempotencyKey
 }) {
   const baselineKey = `${BASELINE_PREFIX}.${String(owner || "anonymous").replace(/[^a-zA-Z0-9_-]/g, "_")}.${documentId}`;
+  const hasWorkspace = Boolean(workspaceDocumentId);
   let workspaceRevision = null;
   let collectionRevision = 0;
   let remote = null;
@@ -168,7 +177,7 @@ export function createCatalogServerSync({
     for (let first = 1; first <= pageCount; first += PAGES_PER_READ) {
       const pages = Array.from({ length: Math.min(PAGES_PER_READ, pageCount - first + 1) }, (_, index) => first + index);
       for (let page = 1; ; page += 1) {
-        const result = await focus.getAnnotations(documentVersionId, { pages, page, pageSize: 250 });
+        const result = await focus.getAnnotations(documentVersionId, { pages, page, pageSize: 250, scope });
         revision = Math.max(revision, result.collection_revision);
         annotations.push(...result.results);
         if (!result.next) break;
@@ -182,19 +191,19 @@ export function createCatalogServerSync({
    * @param {{ pageCount: number }} options
    */
   async function load({ pageCount }) {
-    const workspace = await catalog.get(documentId);
-    if (!workspace || typeof workspace.revision !== "number" || !workspace.state || typeof workspace.state !== "object") {
+    const workspace = hasWorkspace ? await catalog.get(workspaceDocumentId) : null;
+    if (hasWorkspace && (!workspace || typeof workspace.revision !== "number" || !workspace.state || typeof workspace.state !== "object")) {
       throw unavailable("The catalog workspace response was incomplete.");
     }
     const collection = await readCollection(Math.max(1, Math.floor(pageCount) || 1));
     const annotations = collection.annotations.map(focusAnnotationToCatalog).filter(Boolean);
-    const notes = Array.isArray(workspace.state.notes) ? workspace.state.notes.filter((note) => typeof note?.id === "string") : [];
-    workspaceRevision = workspace.revision;
+    const notes = Array.isArray(workspace?.state?.notes) ? workspace.state.notes.filter((note) => typeof note?.id === "string") : [];
+    workspaceRevision = workspace ? workspace.revision : 0;
     collectionRevision = collection.revision;
     syncedAnnotations.clear();
     for (const item of annotations) syncedAnnotations.set(item.id, annotationPrint(item));
     syncedNotes = new Map(notes.map((note) => [note.id, notePrint(note)]));
-    syncedView = JSON.stringify(workspace.state.view ?? null);
+    syncedView = JSON.stringify(workspace?.state?.view ?? null);
     remote = { annotations, notes };
   }
 
@@ -226,6 +235,7 @@ export function createCatalogServerSync({
     const expected = collectionRevision;
     const idempotencyKey = keyFor(annotationSyncKey, { expected, annotations, deletedIds });
     const result = await focus.syncAnnotations(documentVersionId, {
+      scope,
       expectedCollectionRevision: expected,
       idempotencyKey,
       annotations,
@@ -264,6 +274,9 @@ export function createCatalogServerSync({
   }
 
   async function pushReaderState(snapshot) {
+    // Nothing to write for a document the catalog does not carry reader state
+    // for; its annotations have already been pushed.
+    if (!hasWorkspace) return;
     const notes = Array.isArray(snapshot.notes) ? snapshot.notes : [];
     const view = snapshot.view ? { page: Number(snapshot.view.page) || 1, zoom: Number(snapshot.view.zoom) || 1 } : null;
     const notePrints = new Map(notes.map((note) => [note.id, notePrint(note)]));
@@ -272,7 +285,7 @@ export function createCatalogServerSync({
     const state = { savedAt: snapshot.savedAt, view, notes };
     const expected = workspaceRevision;
     const idempotencyKey = keyFor(workspaceSyncKey, { expected, state });
-    const result = await catalog.save(documentId, expected, state, idempotencyKey);
+    const result = await catalog.save(workspaceDocumentId, expected, state, idempotencyKey);
     if (typeof result?.revision !== "number") throw unavailable("The catalog workspace response was incomplete.");
     workspaceSyncKey.current = null;
     workspaceRevision = result.revision;
@@ -320,7 +333,16 @@ export function createCatalogServerSync({
   /** Check revisions cheaply, downloading full state only when they moved. */
   async function refresh({ pageCount, local }) {
     if (disabled || workspaceRevision === null) return { changed: false, unavailable: true };
-    const result = await catalog.probe(documentId);
+    if (!hasWorkspace) {
+      // One page is enough to read the collection's revision, which is the only
+      // thing that can have moved for an annotations-only document.
+      const probe = await focus.getAnnotations(documentVersionId, { pages: [1], page: 1, pageSize: 1, scope });
+      if (typeof probe?.collection_revision !== "number") throw unavailable("The Focus annotation response was incomplete.");
+      if (probe.collection_revision === collectionRevision) return { changed: false };
+      await load({ pageCount });
+      return { changed: true, ...reconcile(local) };
+    }
+    const result = await catalog.probe(workspaceDocumentId);
     if (
       typeof result?.revision !== "number"
       || typeof result?.collection_revision !== "number"
