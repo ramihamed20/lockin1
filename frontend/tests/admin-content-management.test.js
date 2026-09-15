@@ -24,7 +24,7 @@ test("sheet and question administration use real Django endpoints", () => {
     "/operations/admin/content/questions/bulk",
     "/operations/admin/content/imports"
   ]) assert.match(api, new RegExp(route.replaceAll("/", "\\/")));
-  assert.match(page, /Replace PDF/);
+  assert.match(page, /Replace \$\{editionLabel\} PDF/);
   assert.match(page, /Archive selected/);
   assert.match(page, /Move to/);
   assert.match(page, /Delete permanently/);
@@ -92,4 +92,48 @@ test("sheet page-count fields stay editable while typing", () => {
   assert.match(activeStudy, /const \[custom, setCustom\] = useState/);
   assert.match(activeStudy, /\{custom && <input type="number" inputMode="numeric"/);
   assert.doesNotMatch(activeStudy, /preset === "custom" &&/);
+});
+
+test("Active Study previews through the backend planner and blames the exact invalid field", () => {
+  assert.match(api, /previewActiveStudyPlan/);
+  assert.match(api, /active-study\/preview/);
+  // Preview drives what the cards render, so parts and ranges match what Save stores.
+  assert.match(page, /adminControlApi\.previewActiveStudyPlan/);
+  assert.match(page, /planned\.difficulties\.find/);
+  assert.match(page, /Previewing unsaved boundaries/);
+  // Field-scoped errors from the envelope land on their own input.
+  assert.match(page, /function fieldErrorMap/);
+  assert.match(page, /<FieldError errors=\{errors\} field="total_pdf_pages"/);
+  assert.match(page, /error=\{errors\.excluded_start_pages\}/);
+  assert.match(page, /error=\{errors\.excluded_end_pages\}/);
+});
+
+test("a blank Active Study field never overwrites saved boundaries", () => {
+  assert.match(page, /function activeStudyBoundaryBody/);
+  assert.match(page, /if \(raw !== "" && Number\.isFinite\(Number\(raw\)\)\) body\[key\] = Number\(raw\)/);
+  assert.match(page, /total_pdf_pages: data\.data\.total_pdf_pages \?\? ""/);
+  assert.doesNotMatch(page, /total_pdf_pages: form\.total_pdf_pages === "" \? null/);
+});
+
+test("the prompt-template warning only fires when a real plan has no template", () => {
+  assert.match(page, /difficulty\.plan_available === false && <p className="form-alert error">Active Study parts cannot be calculated yet/);
+  assert.match(page, /difficulty\.plan_available !== false && !difficulty\.prompt_template_supported/);
+  assert.match(page, /A matching prompt template is not configured yet/);
+});
+
+test("Admin manages both sheet editions through one interface", () => {
+  assert.match(page, /const EDITIONS = \[/);
+  assert.match(page, /function EditionTabs\(/);
+  assert.match(page, /University Sheet/);
+  assert.match(page, /Lockin Sheet/);
+  // The same Active Study panel, PDF and summary controls serve either edition.
+  assert.match(page, /<ActiveStudySettings key=\{edition\} sheet=\{sheet\} edition=\{edition\}/);
+  assert.match(page, /adminControlApi\.replaceSheetLockinPdf/);
+  assert.match(page, /adminControlApi\.removeSheetLockinPdf/);
+  assert.match(page, /replaceSheetSummaryPdf\(sheet\.id, \{ expected_revision: sheet\.revision, summary_file_id: managed\.id \}, edition\)/);
+  assert.match(api, /lockin-pdf/);
+  assert.match(api, /activeStudySettings\(sheetId, edition = ""\)/);
+  // One question bank: it is imported on the University Sheet tab only.
+  assert.match(page, /Questions are shared with the University Sheet/);
+  assert.match(page, /sharedBank=\{Boolean\(plan\.parts_follow_university\)\}/);
 });

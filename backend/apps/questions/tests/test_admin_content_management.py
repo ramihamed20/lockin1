@@ -362,3 +362,55 @@ def test_student_attempt_contract_excludes_source_page() -> None:
         }
     )
     assert multiple_review_answer.is_valid(), multiple_review_answer.errors
+
+
+def test_summary_added_after_publication_reaches_students_and_reports_its_state() -> None:
+    admin = create_admin()
+    student = create_user()
+    institution, subject, _ = published_path(admin=admin)
+    program = AcademicProgram.objects.create(code="sum-program", name_en="S", name_ar="S")
+    cohort = StudentCohort.objects.create(
+        program=program, code="year-1", name_en="S Year 1", name_ar="S Year 1"
+    )
+    cohort.content_nodes.set([institution])
+    student.cohort = cohort
+    student.save(update_fields=["cohort"])
+    sheet = _sheet(admin=admin, subject=subject, title="Anatomy", publish=True)
+    client = APIClient()
+    client.force_authenticate(admin)
+    student_client = APIClient()
+    student_client.force_authenticate(student)
+
+    def student_sheet() -> dict[str, Any]:
+        results = student_client.get("/api/v1/catalog/materials").json()["results"]
+        return next(item for group in results for item in group["sheets"])
+
+    assert student_sheet()["summaryStatus"] == "missing"
+
+    summary_file = create_managed_file(
+        owner=admin, upload=pdf_upload(name="anatomy-summary.pdf"), kind="pdf"
+    )
+    detail = client.get(f"/api/v1/operations/admin/content/sheets/{sheet.id}").json()
+    replaced = client.post(
+        f"/api/v1/operations/admin/content/sheets/{sheet.id}/summary-pdf",
+        {"expected_revision": detail["revision"], "summary_file_id": str(summary_file.id)},
+        format="json",
+    )
+    assert replaced.status_code == 200
+    assert replaced.json()["summary_pdf"]["student_visible"] is True
+    assert replaced.json()["summary_pdf"]["deliverable"] is True
+
+    published = student_sheet()
+    assert published["summaryStatus"] == "available"
+    assert published["summaryPdf"]["viewUrl"].endswith(f"/{summary_file.id}/view")
+    assert student_client.get(published["summaryPdf"]["viewUrl"]).status_code == 200
+
+    # A summary that only exists on an unpublished draft is reported as such
+    # instead of looking live in Content Studio.
+    unpublished = client.post(
+        f"/api/v1/operations/admin/content/sheets/{sheet.id}/actions",
+        {"expected_revision": replaced.json()["revision"], "action": "unpublish"},
+        format="json",
+    )
+    assert unpublished.status_code == 200
+    assert unpublished.json()["summary_pdf"]["student_visible"] is False

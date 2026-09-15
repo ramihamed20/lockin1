@@ -64,13 +64,35 @@ class AdminActiveStudySettingsSerializer(StrictSerializer):
     total_pdf_pages = serializers.IntegerField(
         min_value=1, max_value=10_000, allow_null=True, required=False
     )
+    # No defaults: an omitted or blank field means "keep the stored value", so a
+    # stale Admin form cannot silently reset saved page boundaries to zero.
     excluded_start_pages = serializers.IntegerField(
-        min_value=0, max_value=9_999, required=False, default=0
+        min_value=0, max_value=9_999, allow_null=True, required=False
     )
     excluded_end_pages = serializers.IntegerField(
-        min_value=0, max_value=9_999, required=False, default=0
+        min_value=0, max_value=9_999, allow_null=True, required=False
     )
     confirm_boundary_change = serializers.BooleanField(required=False, default=False)
+
+
+class AdminSheetLockinPdfSerializer(StrictSerializer):
+    expected_revision = serializers.IntegerField(min_value=0)
+    lockin_file_id = serializers.UUIDField()
+
+
+class AdminActiveStudyPlanPreviewSerializer(StrictSerializer):
+    """Unsaved boundaries to plan.  Every field is optional: an omitted field
+    keeps the stored value instead of resetting it to a default."""
+
+    total_pdf_pages = serializers.IntegerField(
+        min_value=1, max_value=10_000, allow_null=True, required=False
+    )
+    excluded_start_pages = serializers.IntegerField(
+        min_value=0, max_value=9_999, allow_null=True, required=False
+    )
+    excluded_end_pages = serializers.IntegerField(
+        min_value=0, max_value=9_999, allow_null=True, required=False
+    )
 
 
 class AdminActiveStudyQuestionValidateSerializer(StrictSerializer):

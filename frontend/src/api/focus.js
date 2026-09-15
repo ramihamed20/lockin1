@@ -24,12 +24,14 @@ const WORKSPACE_TOOLS = new Set(["", "pen", "pencil", "highlighter", "eraser", "
 
 /** Server-authoritative Focus document, session, workspace, and annotation contracts. */
 export const focusApi = {
-  async getManagedActiveStudyAvailability(sheetId) {
-    return objectPayload(await request(`/focus/managed-active-study/sheets/${sheetId}`), "Active Study availability could not be loaded.");
+  async getManagedActiveStudyAvailability(sheetId, edition = "") {
+    return objectPayload(await request(`/focus/managed-active-study/sheets/${sheetId}` + (edition ? `?edition=${encodeURIComponent(edition)}` : "")), "Active Study availability could not be loaded.");
   },
 
-  async startManagedActiveStudy({ sheetId, difficulty }) {
-    return objectPayload(await request("/focus/managed-active-study/start", { method: "POST", body: { sheet_id: sheetId, difficulty } }), "Active Study could not be started.");
+  async startManagedActiveStudy({ sheetId, difficulty, edition = "" }) {
+    // An omitted edition means the University Sheet, which is what this
+    // endpoint always meant.
+    return objectPayload(await request("/focus/managed-active-study/start", { method: "POST", body: { sheet_id: sheetId, difficulty, ...(edition ? { edition } : {}) } }), "Active Study could not be started.");
   },
 
   async managedActiveStudyAction(runId, action) {

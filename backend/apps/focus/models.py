@@ -290,6 +290,10 @@ class ActiveStudyRun(models.Model):
     )
     material_slug = models.SlugField(max_length=80)
     sheet_slug = models.SlugField(max_length=80)
+    # Page numbers belong to one PDF, so reading position and unlocked pages
+    # are per edition. Completion XP is keyed by sheet and difficulty, so it
+    # is still earned once however many editions a student opens.
+    edition = models.CharField(max_length=16, default="university")
     difficulty = models.CharField(max_length=12, choices=Difficulty.choices)
     page_count = models.PositiveIntegerField()
     unlocked_pages = models.PositiveIntegerField(default=3)
@@ -338,7 +342,7 @@ class ActiveStudyRun(models.Model):
             # Legacy catalogue runs carry ``sheet=NULL`` and PostgreSQL treats
             # NULLs as distinct, so they are untouched by this.
             models.UniqueConstraint(
-                fields=("user", "sheet", "difficulty"),
+                fields=("user", "sheet", "difficulty", "edition"),
                 condition=Q(status="active"),
                 name="active_study_one_active_run_per_sheet",
             ),

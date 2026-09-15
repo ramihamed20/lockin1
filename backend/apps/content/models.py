@@ -7,6 +7,8 @@ from django.db.models import F, Q
 from apps.education.models import EducationNode, StudentCohort
 from apps.files.models import ManagedFile
 
+from .editions import UNIVERSITY
+
 
 class CatalogSubject(models.Model):
     """A flat, cohort-owned Catalog branch exposed by Materials and Content Studio."""
@@ -170,6 +172,11 @@ class LearningObjectAsset(models.Model):
     class Role(models.TextChoices):
         PRIMARY = "primary", "Primary file"
         SUMMARY = "summary", "Sheet summary PDF"
+        # The Lock-in edition's own PDF and summary. Separate roles, identical
+        # handling: publication, access policy and delivery treat them exactly
+        # as they treat the university file.
+        LOCKIN_PRIMARY = "lockin_primary", "Lock-in edition PDF"
+        LOCKIN_SUMMARY = "lockin_summary", "Lock-in edition summary PDF"
         TRANSCRIPT = "transcript", "Transcript"
         CAPTION = "caption", "Caption"
         COVER = "cover", "Cover"
@@ -208,9 +215,10 @@ class CatalogDocument(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     material_slug = models.SlugField(max_length=120)
     sheet_slug = models.SlugField(max_length=120)
-    version = models.OneToOneField(
-        LearningObjectVersion, on_delete=models.PROTECT, related_name="catalog_document"
+    version = models.ForeignKey(
+        LearningObjectVersion, on_delete=models.PROTECT, related_name="catalog_documents"
     )
+    edition = models.CharField(max_length=16, default=UNIVERSITY)
     managed_file = models.ForeignKey(
         ManagedFile, on_delete=models.PROTECT, related_name="catalog_documents"
     )
@@ -222,7 +230,10 @@ class CatalogDocument(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=("material_slug", "sheet_slug"), name="content_catalog_alias_unique"
-            )
+            ),
+            models.UniqueConstraint(
+                fields=("version", "edition"), name="content_catalog_version_edition_unique"
+            ),
         ]
         indexes = [
             models.Index(
@@ -232,7 +243,7 @@ class CatalogDocument(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.material_slug}/{self.sheet_slug} -> {self.version_id}"
+        return f"{self.material_slug}/{self.sheet_slug}:{self.edition} -> {self.version_id}"
 
 
 class CatalogWorkspaceSnapshot(models.Model):
@@ -285,11 +296,12 @@ class CatalogWorkspaceReceipt(models.Model):
 class ActiveStudySettings(models.Model):
     """Durable configuration for future Active Study question/template content."""
 
-    sheet = models.OneToOneField(
+    sheet = models.ForeignKey(
         LearningObject,
         on_delete=models.CASCADE,
-        related_name="active_study_settings",
+        related_name="active_study_settings_set",
     )
+    edition = models.CharField(max_length=16, default=UNIVERSITY)
     enabled = models.BooleanField(default=False)
     total_pdf_pages = models.PositiveIntegerField(null=True, blank=True)
     source_version = models.ForeignKey(
@@ -307,10 +319,15 @@ class ActiveStudySettings(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("sheet", "edition"), name="content_active_sheet_edition_unique"
+            )
+        ]
         indexes = [models.Index(fields=("enabled",), name="content_active_enabled_idx")]
 
     def __str__(self) -> str:
-        return f"{self.sheet_id}:active-study"
+        return f"{self.sheet_id}:{self.edition}:active-study"
 
 
 class ActiveStudyQuestionContent(models.Model):

@@ -2,9 +2,11 @@ from django.urls import path
 
 from .admin_views import (
     AdminSheetActionView,
+    AdminSheetActiveStudyPreviewView,
     AdminSheetActiveStudyQuestionsView,
     AdminSheetActiveStudyView,
     AdminSheetDetailView,
+    AdminSheetLockinPdfView,
     AdminSheetPdfView,
     AdminSheetReorderView,
     AdminSheetSummaryPdfView,
@@ -74,9 +76,19 @@ urlpatterns = [
         name="admin-sheet-reorder",
     ),
     path(
+        "operations/admin/content/sheets/<uuid:sheet_id>/lockin-pdf",
+        AdminSheetLockinPdfView.as_view(),
+        name="admin-sheet-lockin-pdf",
+    ),
+    path(
         "operations/admin/content/sheets/<uuid:sheet_id>/active-study",
         AdminSheetActiveStudyView.as_view(),
         name="admin-sheet-active-study",
+    ),
+    path(
+        "operations/admin/content/sheets/<uuid:sheet_id>/active-study/preview",
+        AdminSheetActiveStudyPreviewView.as_view(),
+        name="admin-sheet-active-study-preview",
     ),
     path(
         "operations/admin/content/sheets/<uuid:sheet_id>/active-study/questions/<str:difficulty>",

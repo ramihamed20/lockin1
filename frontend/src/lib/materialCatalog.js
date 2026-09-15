@@ -255,3 +255,38 @@ export function getRecentOpenedCatalogSheets() {
 export function getLastOpenedCatalogSheet() {
   return getRecentOpenedCatalogSheets()[0] || null;
 }
+
+
+/** The editions a sheet can be read in, oldest contract first. */
+export const SHEET_EDITIONS = ["university", "lockin"];
+
+/**
+ * Resolves a catalog address to its sheet and the edition it names.
+ *
+ * A sheet is listed once but readable in two editions, each with its own
+ * catalog slug, page count and Active Study plan. `view` merges the two into
+ * the shape every existing screen already reads, so one reader, one summary
+ * page, one workspace and one set of modes serve both editions unchanged.
+ *
+ * @param {object|null} material
+ * @param {string} slug
+ */
+export function resolveSheetEdition(material, slug) {
+  for (const sheet of material?.sheets || []) {
+    const editions = sheet.editions?.length
+      ? sheet.editions
+      : [{
+        edition: "university",
+        label: "University Sheet",
+        slug: sheet.slug,
+        summaryPdf: sheet.summaryPdf ?? null,
+        summaryStatus: sheet.summaryStatus ?? "missing",
+        pageCount: sheet.pageCount ?? null,
+        hasActiveStudy: sheet.hasActiveStudy ?? false,
+        deliverable: sheet.deliverable
+      }];
+    const edition = editions.find((item) => item.slug === slug);
+    if (edition) return { sheet, edition, editions, view: { ...sheet, ...edition } };
+  }
+  return { sheet: null, edition: null, editions: [], view: null };
+}

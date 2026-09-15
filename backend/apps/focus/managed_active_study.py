@@ -9,12 +9,18 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.accounts.models import User
-from apps.content.active_study import DIFFICULTIES, ActiveStudyDifficulty, plan_payload
+from apps.content.active_study import DIFFICULTIES, ActiveStudyDifficulty
 from apps.content.active_study_questions import (
     ActiveStudyQuestionValidationError,
     validate_active_study_questions,
 )
-from apps.content.active_study_readiness import readiness_payload
+from apps.content.active_study_readiness import (
+    edition_plan,
+    readiness_payload,
+    settings_for,
+    university_parts_by_difficulty,
+)
+from apps.content.editions import UNIVERSITY, normalize_edition
 from apps.content.models import ActiveStudyQuestionContent, ActiveStudySettings, LearningObject
 from apps.content.policies import can_view_learning_object
 from apps.review.contracts import QuestionAttemptEvent
@@ -45,9 +51,15 @@ def _difficulty(key: str) -> ActiveStudyDifficulty:
 
 def _sheet_for_user(*, user: User, sheet_id: UUID) -> LearningObject:
     try:
-        sheet = LearningObject.objects.select_related(
-            "active_study_settings", "published_version__academic_node"
-        ).get(id=sheet_id)
+        sheet = (
+            LearningObject.objects.select_related(
+                "published_version__academic_node", "current_version"
+            )
+            .prefetch_related(
+                "active_study_settings_set", "published_version__assets__managed_file"
+            )
+            .get(id=sheet_id)
+        )
     except LearningObject.DoesNotExist as error:
         raise ManagedActiveStudyRuleError("Sheet not found.") from error
     if not can_view_learning_object(user=user, learning_object=sheet):
@@ -55,8 +67,16 @@ def _sheet_for_user(*, user: User, sheet_id: UUID) -> LearningObject:
     return sheet
 
 
-def _plan_for_sheet(sheet: LearningObject) -> dict[str, Any]:
-    settings = getattr(sheet, "active_study_settings", None)
+def _plan_for_sheet(sheet: LearningObject, *, edition: str = UNIVERSITY) -> dict[str, Any]:
+    """The page plan a student is actually reading against.
+
+    Both editions plan through the content app's own planner, so a Lock-in run
+    and a university run differ only in the page boundaries of the PDF they were
+    built from.
+    """
+
+    edition = normalize_edition(edition)
+    settings = settings_for(sheet=sheet, edition=edition)
     if not isinstance(settings, ActiveStudySettings) or not settings.enabled:
         raise ManagedActiveStudyRuleError("Active Study is disabled for this sheet.")
     if settings.total_pdf_pages is None:
@@ -68,26 +88,26 @@ def _plan_for_sheet(sheet: LearningObject) -> dict[str, Any]:
         raise ManagedActiveStudyRuleError(
             "Active Study needs review because the source PDF changed."
         )
-    if (
-        source_version is not None
-        and source_version.page_count is not None
-        and source_version.page_count != settings.total_pdf_pages
-    ):
-        raise ManagedActiveStudyRuleError(
-            "Active Study needs review because the PDF pagination changed."
-        )
-    return cast(
-        dict[str, Any],
-        plan_payload(
-            total_pdf_pages=settings.total_pdf_pages,
-            excluded_start_pages=settings.excluded_start_pages,
-            excluded_end_pages=settings.excluded_end_pages,
-        ),
+    parts_by_difficulty = None
+    if edition != UNIVERSITY:
+        parts_by_difficulty, _ = university_parts_by_difficulty(sheet=sheet)
+        if parts_by_difficulty is None:
+            raise ManagedActiveStudyRuleError("Active Study is not configured for this sheet.")
+    plan, error = edition_plan(
+        sheet=sheet,
+        edition=edition,
+        source_version=source_version,
+        parts_by_difficulty=parts_by_difficulty,
     )
+    if plan is None:
+        raise ManagedActiveStudyRuleError(error or "Active Study is not configured for this sheet.")
+    return cast(dict[str, Any], plan)
 
 
-def _difficulty_plan(*, sheet: LearningObject, difficulty: str) -> dict[str, Any]:
-    plan = _plan_for_sheet(sheet)
+def _difficulty_plan(
+    *, sheet: LearningObject, difficulty: str, edition: str = UNIVERSITY
+) -> dict[str, Any]:
+    plan = _plan_for_sheet(sheet, edition=edition)
     return next(
         item
         for item in cast(list[dict[str, Any]], plan["difficulties"])
@@ -100,17 +120,31 @@ def _signature(plan: dict[str, Any]) -> dict[str, Any]:
 
 
 def _content(
-    *, sheet: LearningObject, difficulty: str
+    *, sheet: LearningObject, difficulty: str, edition: str = UNIVERSITY
 ) -> tuple[ActiveStudyQuestionContent, dict[str, Any]]:
+    """The sheet's one question bank, with the plan of the chosen edition.
+
+    There is a single bank per sheet and difficulty; the edition only decides
+    which pages each part covers.
+    """
+
+    edition = normalize_edition(edition)
     difficulty_rule = _difficulty(difficulty)
-    plan = _difficulty_plan(sheet=sheet, difficulty=difficulty)
+    plan = _difficulty_plan(sheet=sheet, difficulty=difficulty, edition=edition)
     try:
         content = ActiveStudyQuestionContent.objects.get(sheet=sheet, difficulty=difficulty)
     except ActiveStudyQuestionContent.DoesNotExist as error:
         raise ManagedActiveStudyRuleError(
             "Active Study questions are not configured yet."
         ) from error
-    if content.plan_signature != _signature(plan):
+    # Questions are signed against the university plan, which is the structure
+    # every edition inherits.
+    imported_plan = (
+        plan
+        if edition == UNIVERSITY
+        else _difficulty_plan(sheet=sheet, difficulty=difficulty, edition=UNIVERSITY)
+    )
+    if content.plan_signature != _signature(imported_plan):
         raise ManagedActiveStudyRuleError(
             "Active Study questions need review after the page plan changed."
         )
@@ -132,9 +166,10 @@ def _content(
     return content, plan
 
 
-def availability(*, user: User, sheet_id: UUID) -> dict[str, Any]:
+def availability(*, user: User, sheet_id: UUID, edition: str = UNIVERSITY) -> dict[str, Any]:
+    edition = normalize_edition(edition)
     sheet = _sheet_for_user(user=user, sheet_id=sheet_id)
-    readiness = readiness_payload(sheet=sheet)
+    readiness = readiness_payload(sheet=sheet, edition=edition)
     rows: list[dict[str, Any]] = []
     for item in cast(list[dict[str, Any]], readiness["difficulties"]):
         status = cast(dict[str, str], item["readiness"])["status"]
@@ -143,6 +178,7 @@ def availability(*, user: User, sheet_id: UUID) -> dict[str, Any]:
                 user=user,
                 sheet=sheet,
                 difficulty=item["difficulty"],
+                edition=edition,
                 status=ActiveStudyRun.Status.ACTIVE,
             )
             .order_by("-updated_at")
@@ -152,6 +188,7 @@ def availability(*, user: User, sheet_id: UUID) -> dict[str, Any]:
             user=user,
             sheet=sheet,
             difficulty=item["difficulty"],
+            edition=edition,
             status=ActiveStudyRun.Status.COMPLETED,
         ).exists()
         rows.append(
@@ -194,21 +231,32 @@ def run_payload(run: ActiveStudyRun | None) -> dict[str, Any] | None:
     }
 
 
-def _active_run(*, user: User, sheet: LearningObject, difficulty: str) -> ActiveStudyRun | None:
+def _active_run(
+    *, user: User, sheet: LearningObject, difficulty: str, edition: str = UNIVERSITY
+) -> ActiveStudyRun | None:
     return (
         ActiveStudyRun.objects.select_for_update()
-        .filter(user=user, sheet=sheet, difficulty=difficulty, status=ActiveStudyRun.Status.ACTIVE)
+        .filter(
+            user=user,
+            sheet=sheet,
+            difficulty=difficulty,
+            edition=edition,
+            status=ActiveStudyRun.Status.ACTIVE,
+        )
         .order_by("-updated_at")
         .first()
     )
 
 
 @transaction.atomic
-def start(*, user: User, sheet_id: UUID, difficulty: str) -> tuple[ActiveStudyRun, bool]:
+def start(
+    *, user: User, sheet_id: UUID, difficulty: str, edition: str = UNIVERSITY
+) -> tuple[ActiveStudyRun, bool]:
+    edition = normalize_edition(edition)
     sheet = _sheet_for_user(user=user, sheet_id=sheet_id)
     _difficulty(difficulty)
-    _, plan = _content(sheet=sheet, difficulty=difficulty)
-    existing = _active_run(user=user, sheet=sheet, difficulty=difficulty)
+    _, plan = _content(sheet=sheet, difficulty=difficulty, edition=edition)
+    existing = _active_run(user=user, sheet=sheet, difficulty=difficulty, edition=edition)
     if existing is not None:
         return existing, False
     ranges = cast(list[dict[str, int]], plan["page_ranges"])
@@ -223,11 +271,17 @@ def start(*, user: User, sheet_id: UUID, difficulty: str) -> tuple[ActiveStudyRu
                 sheet=sheet,
                 material_slug="managed-sheet",
                 sheet_slug=str(sheet.id),
+                edition=edition,
                 difficulty=difficulty,
                 # The difficulty plan intentionally contains only
                 # difficulty-specific data.  The PDF page count remains owned by
                 # the sheet settings.
-                page_count=cast(int, sheet.active_study_settings.total_pdf_pages),
+                page_count=cast(
+                    int,
+                    cast(
+                        ActiveStudySettings, settings_for(sheet=sheet, edition=edition)
+                    ).total_pdf_pages,
+                ),
                 unlocked_pages=ranges[0]["end_page"],
                 plan_signature=_signature(plan),
             )
@@ -235,7 +289,7 @@ def start(*, user: User, sheet_id: UUID, difficulty: str) -> tuple[ActiveStudyRu
         # Another request created the run between the read and the insert. Its
         # run is the one that exists, so this caller resumes it rather than
         # reporting a failure the reader did nothing to cause.
-        concurrent = _active_run(user=user, sheet=sheet, difficulty=difficulty)
+        concurrent = _active_run(user=user, sheet=sheet, difficulty=difficulty, edition=edition)
         if concurrent is None:
             raise
         return concurrent, False
@@ -249,8 +303,10 @@ def _locked_run(*, user: User, run_id: UUID) -> ActiveStudyRun:
             # row so PostgreSQL does not attempt to lock the nullable side of
             # the `select_related` outer join below.
             ActiveStudyRun.objects.select_for_update(of=("self",))
-            .select_related(
-                "sheet__active_study_settings", "sheet__published_version__academic_node"
+            .select_related("sheet__published_version__academic_node")
+            .prefetch_related(
+                "sheet__active_study_settings_set",
+                "sheet__published_version__assets__managed_file",
             )
             .get(id=run_id, user=user, sheet__isnull=False)
         )
@@ -265,7 +321,7 @@ def _locked_run(*, user: User, run_id: UUID) -> ActiveStudyRun:
 def _questions_for(run: ActiveStudyRun, *, kind: str, part: int | None) -> list[dict[str, Any]]:
     if run.sheet is None:
         raise ManagedActiveStudyRuleError("Active Study session is not linked to a sheet.")
-    content, _ = _content(sheet=run.sheet, difficulty=run.difficulty)
+    content, _ = _content(sheet=run.sheet, difficulty=run.difficulty, edition=run.edition)
     payload = cast(dict[str, Any], content.payload)
     if kind == ActiveStudyAttempt.Kind.FINAL:
         return cast(list[dict[str, Any]], payload["final_exam"]["questions"])

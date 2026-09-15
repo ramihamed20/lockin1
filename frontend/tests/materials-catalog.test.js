@@ -101,16 +101,16 @@ test("Catalog sheet prioritizes Focus Workspace and keeps only the page count", 
   assert.match(catalogue, /"materials\.lockInMode": "Lock In Mode"/);
   assert.match(materials, /t\("common\.soon"\)/);
   assert.match(catalogue, /"common\.soon": "Soon"/);
-  assert.match(materials, /t\("materials\.pageCount", \{ count: sheet\.pageCount \}\)/);
+  assert.match(materials, /t\("materials\.pageCount", \{ count: edition\.pageCount \}\)/);
   assert.match(catalogue, /"materials\.pageCount\.other": "\{count\} pages"/);
   assert.doesNotMatch(materials, /Sheet source|fileName.*attached|File-based actions/);
-  assert.match(materials, /sheet\.deliverable === false/);
-  assert.match(materials, /if \(sheet\?\.deliverable !== false\) rememberLastOpenedCatalogSheet/);
+  assert.match(materials, /edition\.deliverable === false/);
+  assert.match(materials, /if \(edition\?\.deliverable !== false\) rememberLastOpenedCatalogSheet/);
   assert.match(materials, /<ErrorPanel message=\{t\("materials\.sheetNotFoundText"\)\} \/>/);
   const sheetCard = await readFile(new URL("../src/components/learning/CatalogSheetCard.jsx", import.meta.url), "utf8");
   assert.match(sheetCard, /if \(sheet\.deliverable === false\)/);
   assert.match(sheetCard, /data-unavailable="true"/);
-  assert.match(materials, /sheets\/\$\{sheet\.slug\}\/workspace/);
+  assert.match(materials, /sheets\/\$\{edition\.slug\}\/workspace/);
   assert.match(materials, /returnTo: location\.pathname/);
   assert.match(materials, /rememberLastOpenedCatalogSheet\(materialSlug, sheetSlug\)/);
 });
@@ -120,8 +120,8 @@ test("Catalog sheet exposes a Normal Mode summary without Active Study", async (
   const app = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
   const messages = await readFile(new URL("../src/lib/i18n.js", import.meta.url), "utf8");
   assert.match(materials, /CatalogSheetSummary/);
-  assert.match(materials, /sheet\.summaryPdf\?\.viewUrl/);
-  assert.match(materials, /iframe src=\{sheet\.summaryPdf\.viewUrl\}/);
+  assert.match(materials, /edition\.summaryPdf\?\.viewUrl/);
+  assert.match(materials, /iframe src=\{edition\.summaryPdf\.viewUrl\}/);
   assert.match(materials, /catalog-summary-card is-available/);
   assert.match(materials, /catalog-summary-card is-unavailable/);
   assert.match(materials, /materials\.summaryNormalOnly/);
@@ -366,4 +366,49 @@ test("Catalog Focus Workspace uses a compact contextual toolbar and persistent c
   assert.match(styles, /\.workspace-v2-tool-options \{[^}]*position: absolute/);
   assert.match(styles, /@media \(max-width: 1199px\) \{[\s\S]*width: min\(340px/);
   assert.doesNotMatch(styles, /min-height: 100svh/);
+});
+
+test("a student can open every catalog sheet view, including the Sheet Summary", async () => {
+  const app = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
+  // The summary page is a real route, so the guard must admit it; it used to
+  // fall through and show students "Access unavailable".
+  assert.match(app, /path="\/materials\/catalog\/:materialSlug\/sheets\/:sheetSlug\/summary"/);
+  const student = { id: "student", roles: ["student"] };
+  const base = "/materials/catalog/anatomy-1/sheets/head-and-neck";
+  assert.equal(canAccessRoute(student, base), true);
+  assert.equal(canAccessRoute(student, `${base}/summary`), true);
+  assert.equal(canAccessRoute(student, `${base}/workspace`), true);
+  // The guard stays exact: no unknown child route rides along with it.
+  assert.equal(canAccessRoute(student, `${base}/summary/print`), false);
+  assert.equal(canAccessRoute(student, `${base}/anything-else`), false);
+  assert.equal(canAccessRoute(null, `${base}/summary`), false);
+});
+
+test("a sheet offers its two editions before the study modes, on one shared page", async () => {
+  const [app, materials, catalogue] = await Promise.all([
+    readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/pages/Materials.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/lib/i18n.js", import.meta.url), "utf8")
+  ]);
+  // One route set serves both editions; the slug decides which PDF is opened.
+  const catalogLib = await readFile(new URL("../src/lib/materialCatalog.js", import.meta.url), "utf8");
+  // One resolver, shared by the sheet page, the summary page and the workspace.
+  assert.match(catalogLib, /export function resolveSheetEdition\(material, slug\)/);
+  assert.match(materials, /resolveSheetEdition\(material, sheetSlug\)/);
+  assert.match(materials, /function SheetEditionChooser\(/);
+  const workspace = await readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8");
+  assert.match(workspace, /resolveSheetEdition\(material, sheetSlug\)/);
+  assert.doesNotMatch(workspace, /sheets\.find\(\(item\) => item\.slug === sheetSlug\)/);
+  assert.match(materials, /t\(`materials\.edition\.\$\{item\.edition\}`\)/);
+  assert.match(catalogue, /"materials\.edition\.university": "University Sheet"/);
+  assert.match(catalogue, /"materials\.edition\.lockin": "Lockin Sheet"/);
+  // The chooser renders above the mode cards.
+  const chooserAt = materials.indexOf("<SheetEditionChooser");
+  const lockInCardAt = materials.indexOf('className="catalog-lockin-card"');
+  const summaryCardAt = materials.indexOf("catalog-summary-card is-available");
+  assert.ok(chooserAt > 0 && chooserAt < lockInCardAt && chooserAt < summaryCardAt);
+  // No second route was added for the second edition: one workspace route and
+  // one summary route still serve both.
+  assert.equal(app.match(/sheets\/:sheetSlug\/workspace/g).length, 1);
+  assert.equal(app.match(/sheets\/:sheetSlug\/summary/g).length, 1);
 });

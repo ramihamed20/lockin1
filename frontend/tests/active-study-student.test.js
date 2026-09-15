@@ -41,7 +41,8 @@ test("managed Active Study is unified with the old one-question quiz experience"
 });
 
 test("Active Study starts the selected difficulty in reading, then opens its checkpoint only from the dock", () => {
-  assert.match(workspace, /startManagedActiveStudy\(\{ sheetId: sheet\.learningObjectId, difficulty: activeDifficulty \}\)/);
+  // A run belongs to the edition being read, so its page numbers match the PDF.
+  assert.match(workspace, /startManagedActiveStudy\(\{ sheetId: sheet\.learningObjectId, difficulty: activeDifficulty, edition: sheetEdition\?\.edition \}\)/);
   assert.doesNotMatch(workspace, /inProgress\?\.difficulty \|\| activeDifficulty/);
   assert.match(workspace, /const startPage = run\.current_page_range\?\.start_page \|\| 1/);
   assert.match(workspace, /run\.stage === "checkpoint" \|\| run\.stage === "final"/);

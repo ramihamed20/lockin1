@@ -19,6 +19,7 @@ from rest_framework.views import APIView
 
 from apps.accounts.avatars import avatar_payload
 from apps.accounts.models import User
+from apps.content.editions import UNIVERSITY, UnknownEditionError, normalize_edition
 from apps.content.models import LearningObject, LearningObjectAsset, LearningObjectVersion
 from apps.content.policies import can_view_learning_object, is_version_available
 from apps.education.policies import is_content_administrator
@@ -200,6 +201,15 @@ class ActiveStudyContinueView(APIView):
         return Response({"run": active_study_payload(run)})
 
 
+def _edition(request: Request) -> str:
+    """Which edition of the sheet the student is reading."""
+
+    try:
+        return normalize_edition(request.query_params.get("edition"))
+    except UnknownEditionError as error:
+        raise FocusRejected(str(error)) from error
+
+
 class ManagedActiveStudyAvailabilityView(APIView):
     @extend_schema(
         operation_id="managed_active_study_availability",
@@ -208,7 +218,11 @@ class ManagedActiveStudyAvailabilityView(APIView):
     def get(self, request: Request, sheet_id: UUID) -> Response:
         try:
             return Response(
-                managed_active_study_availability(user=_authorize(request), sheet_id=sheet_id)
+                managed_active_study_availability(
+                    user=_authorize(request),
+                    sheet_id=sheet_id,
+                    edition=_edition(request),
+                )
             )
         except ManagedActiveStudyRuleError as error:
             raise FocusRejected(str(error)) from error
@@ -227,6 +241,7 @@ class ManagedActiveStudyStartView(APIView):
                 user=_authorize(request),
                 sheet_id=serializer.validated_data["sheet_id"],
                 difficulty=str(serializer.validated_data["difficulty"]),
+                edition=str(serializer.validated_data.get("edition") or UNIVERSITY),
             )
         except ManagedActiveStudyRuleError as error:
             raise FocusRejected(str(error)) from error

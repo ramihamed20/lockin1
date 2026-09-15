@@ -42,3 +42,33 @@
 .admin-active-study-copy-status { display: block; width: 100%; color: var(--muted); font-size: var(--text-sm); }
 .admin-active-study-copy-fallback { display: grid; width: 100%; gap: 6px; margin-top: 4px; }
 .admin-active-study-copy-fallback textarea { min-height: 190px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.45; }
+
+
+/* One sheet, two editions, the same controls under each tab. */
+.admin-edition-tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.admin-edition-tab {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--muted);
+  background: var(--surface-2);
+  text-align: start;
+  cursor: pointer;
+}
+
+.admin-edition-tab strong { color: inherit; font-size: var(--text-sm); }
+.admin-edition-tab small { color: inherit; font-size: var(--text-xs); opacity: .8; }
+
+.admin-edition-tab.is-active {
+  border-color: color-mix(in srgb, var(--gold) 58%, var(--border));
+  color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 12%, var(--surface-2));
+}

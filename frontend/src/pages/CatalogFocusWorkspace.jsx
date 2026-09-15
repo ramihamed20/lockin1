@@ -54,7 +54,7 @@ import {
 import { focusApi } from "../api/focus.js";
 import { progressApi } from "../api/progress.js";
 import { generateIdempotencyKey } from "../api/pagination.js";
-import { rememberLastOpenedCatalogSheet } from "../lib/materialCatalog.js";
+import { rememberLastOpenedCatalogSheet, resolveSheetEdition } from "../lib/materialCatalog.js";
 import { useCatalogMaterials } from "../hooks/useCatalogMaterials.js";
 import { useCatalogDocument } from "../hooks/useCatalogDocument.js";
 import { subscribeConnection } from "../lib/connectionState.js";
@@ -531,7 +531,9 @@ export default function CatalogFocusWorkspace({ user = null }) {
   const { t } = useI18n();
   const { materials, loading: materialsLoading, error: materialsError, reload: reloadMaterials } = useCatalogMaterials(user);
   const material = materials.find((item) => item.slug === materialSlug) || null;
-  const sheet = material?.sheets.find((item) => item.slug === sheetSlug) || null;
+  // The address names one edition of the sheet; `view` carries that
+  // edition's page count, summary and Active Study in the sheet's own shape.
+  const { view: sheet } = resolveSheetEdition(material, sheetSlug);
   // The server document behind the sheet: its protected PDF, and the ids its
   // reader state and annotations sync under. A fixture sheet that carries its
   // own pdfUrl opens without it and simply stays local.
@@ -659,7 +661,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   });
 
   const material = materials.find((item) => item.slug === materialSlug) || null;
-  const sheet = material?.sheets.find((item) => item.slug === sheetSlug) || null;
+  // The address names one edition of the sheet; `view` carries that
+  // edition's page count, summary and Active Study in the sheet's own shape.
+  const { view: sheet, edition: sheetEdition } = resolveSheetEdition(material, sheetSlug);
   const inkDebugEnabled = import.meta.env.DEV && searchParams.get("inkDebug") === "1";
 
   useEffect(() => {
@@ -3586,7 +3590,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       // The selected difficulty owns its own run.  Never substitute a different
       // in-progress difficulty here: it can already be at a checkpoint and
       // would make choosing Easy / Medium / Hard appear to open a quiz.
-      const payload = await focusApi.startManagedActiveStudy({ sheetId: sheet.learningObjectId, difficulty: activeDifficulty });
+      const payload = await focusApi.startManagedActiveStudy({ sheetId: sheet.learningObjectId, difficulty: activeDifficulty, edition: sheetEdition?.edition });
       const run = /** @type {any} */ (payload.run);
       setActiveDifficulty(run.difficulty);
       setActiveStudy(run);

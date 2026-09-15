@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from functools import partial
-from typing import cast
+from typing import Any, cast
 from uuid import UUID
 
 from django.db import transaction
@@ -20,13 +21,34 @@ from apps.files.services import managed_file_delivery_size
 from apps.notifications.models import Notification
 from apps.notifications.services import create_notification
 
-from .active_study import DIFFICULTIES, ActiveStudyDifficulty, ActiveStudyPlanError, plan_payload
+from .active_study import (
+    ActiveStudyDifficulty,
+    ActiveStudyPlanError,
+    difficulty_for_key,
+    plan_payload,
+)
 from .active_study_questions import (
     ActiveStudyQuestionValidationResult,
     validate_active_study_questions,
 )
-from .active_study_readiness import readiness_payload
+from .active_study_readiness import (
+    edition_version_page_count,
+    readiness_payload,
+    resolve_total_pdf_pages,
+    settings_for,
+    university_parts_by_difficulty,
+)
 from .catalog_subjects import project_subject_node
+from .editions import (
+    EDITIONS,
+    LOCKIN,
+    UNIVERSITY,
+    edition_label,
+    lockin_sheet_slug,
+    normalize_edition,
+    primary_role,
+    summary_role,
+)
 from .models import (
     ActiveStudyQuestionContent,
     ActiveStudySettings,
@@ -38,6 +60,7 @@ from .models import (
 )
 from .services import (
     ContentConflictError,
+    ContentFieldError,
     ContentRuleError,
     LearningObjectInput,
     archive_learning_object,
@@ -163,21 +186,69 @@ def _sync_catalog_document(sheet: LearningObject) -> bool:
     if asset is None:
         CatalogDocument.objects.filter(version__learning_object_id=sheet.id).update(is_active=False)
         return False
-    document = CatalogDocument.objects.filter(version__learning_object_id=sheet.id).first()
-    if document is None:
-        CatalogDocument.objects.create(
-            material_slug=catalog_subject.material_slug,
-            sheet_slug=_catalog_sheet_slug(
-                material_slug=catalog_subject.material_slug,
-                title=version.title,
-            ),
+    university = _sync_edition_document(
+        sheet=sheet,
+        version=version,
+        catalog_subject=catalog_subject,
+        edition=UNIVERSITY,
+        managed_file=asset.managed_file,
+    )
+    # The Lock-in edition is a catalog document of its own. That is what gives
+    # it the reader, annotations, reading position and file delivery the
+    # university edition has, without a second implementation of any of them.
+    lockin_asset = (
+        version.assets.filter(role=LearningObjectAsset.Role.LOCKIN_PRIMARY)
+        .select_related("managed_file")
+        .first()
+    )
+    if lockin_asset is None:
+        CatalogDocument.objects.filter(version__learning_object_id=sheet.id, edition=LOCKIN).update(
+            is_active=False
+        )
+    else:
+        _sync_edition_document(
+            sheet=sheet,
             version=version,
-            managed_file=asset.managed_file,
+            catalog_subject=catalog_subject,
+            edition=LOCKIN,
+            managed_file=lockin_asset.managed_file,
+            university_sheet_slug=university.sheet_slug,
+        )
+    return True
+
+
+def _sync_edition_document(
+    *,
+    sheet: LearningObject,
+    version: LearningObjectVersion,
+    catalog_subject: CatalogSubject,
+    edition: str,
+    managed_file: ManagedFile,
+    university_sheet_slug: str | None = None,
+) -> CatalogDocument:
+    """Point one edition's catalog alias at the published version."""
+
+    document = CatalogDocument.objects.filter(
+        version__learning_object_id=sheet.id, edition=edition
+    ).first()
+    if document is None:
+        base_slug = (
+            university_sheet_slug
+            if university_sheet_slug is not None
+            else _catalog_sheet_slug(
+                material_slug=catalog_subject.material_slug, title=version.title
+            )
+        )
+        return CatalogDocument.objects.create(
+            material_slug=catalog_subject.material_slug,
+            sheet_slug=lockin_sheet_slug(base_slug) if edition == LOCKIN else base_slug,
+            version=version,
+            edition=edition,
+            managed_file=managed_file,
             is_active=True,
         )
-        return True
     document.version = version
-    document.managed_file = asset.managed_file
+    document.managed_file = managed_file
     if document.material_slug != catalog_subject.material_slug:
         if (
             CatalogDocument.objects.filter(
@@ -196,7 +267,7 @@ def _sync_catalog_document(sheet: LearningObject) -> bool:
     document.save(
         update_fields=("material_slug", "version", "managed_file", "is_active", "updated_at")
     )
-    return True
+    return document
 
 
 def is_student_visible(sheet: LearningObject) -> bool:
@@ -351,12 +422,22 @@ def _current_input(
     summary: str | None = None,
     position: int | None = None,
     summary_file: ManagedFile | None | object = _PRESERVE_SUMMARY,
+    lockin_file: ManagedFile | None | object = _PRESERVE_SUMMARY,
+    lockin_summary_file: ManagedFile | None | object = _PRESERVE_SUMMARY,
 ) -> LearningObjectInput:
     version = sheet.current_version
     if version is None:
         raise ContentRuleError("The sheet has no current version.")
     preserved_summary_file = (
         _summary_file(sheet) if summary_file is _PRESERVE_SUMMARY else summary_file
+    )
+    # Every revision carries both editions forward unless this call is the one
+    # replacing that slot, so editing one edition never drops the other.
+    preserved_lockin_file = _lockin_file(sheet) if lockin_file is _PRESERVE_SUMMARY else lockin_file
+    preserved_lockin_summary = (
+        _lockin_summary_file(sheet)
+        if lockin_summary_file is _PRESERVE_SUMMARY
+        else lockin_summary_file
     )
     return LearningObjectInput(
         academic_node=version.academic_node,
@@ -370,34 +451,47 @@ def _current_input(
         available_until=version.available_until,
         primary_file=primary_file,
         summary_file=cast(ManagedFile | None, preserved_summary_file),
+        lockin_file=cast(ManagedFile | None, preserved_lockin_file),
+        lockin_summary_file=cast(ManagedFile | None, preserved_lockin_summary),
         position=sheet.position if position is None else position,
     )
 
 
-def _primary_file(sheet: LearningObject) -> ManagedFile:
+def _file_in_role(sheet: LearningObject, role: str) -> ManagedFile | None:
+    """One slot of the sheet's current version, whichever edition owns it."""
+
     version = sheet.current_version
     if version is None:
         raise ContentRuleError("The sheet has no current version.")
-    asset = (
-        version.assets.select_related("managed_file")
-        .filter(role=LearningObjectAsset.Role.PRIMARY)
-        .first()
-    )
-    if asset is None:
+    asset = version.assets.select_related("managed_file").filter(role=role).first()
+    return asset.managed_file if asset is not None else None
+
+
+def _primary_file(sheet: LearningObject) -> ManagedFile:
+    managed_file = _file_in_role(sheet, LearningObjectAsset.Role.PRIMARY)
+    if managed_file is None:
         raise ContentRuleError("Upload a PDF before editing this sheet.")
-    return asset.managed_file
+    return managed_file
 
 
 def _summary_file(sheet: LearningObject) -> ManagedFile | None:
-    version = sheet.current_version
-    if version is None:
-        raise ContentRuleError("The sheet has no current version.")
-    asset = (
-        version.assets.select_related("managed_file")
-        .filter(role=LearningObjectAsset.Role.SUMMARY)
-        .first()
-    )
-    return asset.managed_file if asset is not None else None
+    return _file_in_role(sheet, LearningObjectAsset.Role.SUMMARY)
+
+
+def _lockin_file(sheet: LearningObject) -> ManagedFile | None:
+    return _file_in_role(sheet, LearningObjectAsset.Role.LOCKIN_PRIMARY)
+
+
+def _lockin_summary_file(sheet: LearningObject) -> ManagedFile | None:
+    return _file_in_role(sheet, LearningObjectAsset.Role.LOCKIN_SUMMARY)
+
+
+def edition_primary_file(sheet: LearningObject, edition: str) -> ManagedFile | None:
+    return _file_in_role(sheet, primary_role(edition))
+
+
+def edition_summary_file(sheet: LearningObject, edition: str) -> ManagedFile | None:
+    return _file_in_role(sheet, summary_role(edition))
 
 
 @transaction.atomic
@@ -456,51 +550,130 @@ def replace_pdf(
     return sheet
 
 
-@transaction.atomic
-def replace_summary_pdf(
-    *, actor: User, sheet_id: UUID, expected_revision: int, managed_file: ManagedFile
+def _replace_edition_file(
+    *,
+    actor: User,
+    sheet_id: UUID,
+    expected_revision: int,
+    edition: str,
+    slot: str,
+    managed_file: ManagedFile | None,
+    action: str,
+    clear_edition_summary: bool = False,
 ) -> LearningObject:
+    """Set or clear one edition's PDF slot through the ordinary revision flow.
+
+    Both editions and both slots share this, so publication, catalog sync and
+    audit behave identically no matter which file an administrator replaced.
+    """
+
+    edition = normalize_edition(edition)
     current = LearningObject.objects.select_related("current_version__academic_node").get(
         id=sheet_id
     )
     was_published = current.workflow_status == LearningObject.WorkflowStatus.PUBLISHED
+    overrides: dict[str, ManagedFile | None] = {}
+    if slot == "primary" and edition == UNIVERSITY:
+        if managed_file is None:
+            raise ContentRuleError("The University Sheet PDF cannot be removed here.")
+        primary_file: ManagedFile | None = managed_file
+    else:
+        primary_file = _primary_file(current)
+        key = {
+            ("summary", UNIVERSITY): "summary_file",
+            ("primary", LOCKIN): "lockin_file",
+            ("summary", LOCKIN): "lockin_summary_file",
+        }[(slot, edition)]
+        overrides[key] = managed_file
+    if clear_edition_summary:
+        # Removing an edition takes its summary with it; the shared question
+        # bank is deliberately untouched, because it belongs to the sheet.
+        overrides["lockin_summary_file" if edition == LOCKIN else "summary_file"] = None
     sheet = revise_learning_object(
         actor=actor,
         learning_object_id=sheet_id,
         expected_revision=expected_revision,
         data=_current_input(
             sheet=current,
-            primary_file=_primary_file(current),
-            summary_file=managed_file,
+            primary_file=primary_file,
+            **cast(dict[str, Any], overrides),
         ),
     )
     if was_published:
         sheet = _publish_current(actor=actor, sheet=sheet)
         _sync_catalog_document(sheet)
-    _audit(actor=actor, action="content.summary_pdf_replaced", sheet=sheet)
+    _audit(actor=actor, action=action, sheet=sheet)
     return sheet
 
 
 @transaction.atomic
-def delete_summary_pdf(*, actor: User, sheet_id: UUID, expected_revision: int) -> LearningObject:
-    current = LearningObject.objects.select_related("current_version__academic_node").get(
-        id=sheet_id
-    )
-    was_published = current.workflow_status == LearningObject.WorkflowStatus.PUBLISHED
-    sheet = revise_learning_object(
+def replace_summary_pdf(
+    *,
+    actor: User,
+    sheet_id: UUID,
+    expected_revision: int,
+    managed_file: ManagedFile,
+    edition: str = UNIVERSITY,
+) -> LearningObject:
+    return _replace_edition_file(
         actor=actor,
-        learning_object_id=sheet_id,
+        sheet_id=sheet_id,
         expected_revision=expected_revision,
-        data=_current_input(
-            sheet=current,
-            primary_file=_primary_file(current),
-            summary_file=None,
-        ),
+        edition=edition,
+        slot="summary",
+        managed_file=managed_file,
+        action="content.summary_pdf_replaced",
     )
-    if was_published:
-        sheet = _publish_current(actor=actor, sheet=sheet)
-        _sync_catalog_document(sheet)
-    _audit(actor=actor, action="content.summary_pdf_removed", sheet=sheet)
+
+
+@transaction.atomic
+def delete_summary_pdf(
+    *, actor: User, sheet_id: UUID, expected_revision: int, edition: str = UNIVERSITY
+) -> LearningObject:
+    return _replace_edition_file(
+        actor=actor,
+        sheet_id=sheet_id,
+        expected_revision=expected_revision,
+        edition=edition,
+        slot="summary",
+        managed_file=None,
+        action="content.summary_pdf_removed",
+    )
+
+
+@transaction.atomic
+def replace_lockin_pdf(
+    *, actor: User, sheet_id: UUID, expected_revision: int, managed_file: ManagedFile
+) -> LearningObject:
+    return _replace_edition_file(
+        actor=actor,
+        sheet_id=sheet_id,
+        expected_revision=expected_revision,
+        edition=LOCKIN,
+        slot="primary",
+        managed_file=managed_file,
+        action="content.lockin_pdf_replaced",
+    )
+
+
+@transaction.atomic
+def delete_lockin_pdf(*, actor: User, sheet_id: UUID, expected_revision: int) -> LearningObject:
+    """Remove the Lock-in edition entirely: its PDF, summary and settings."""
+
+    sheet = _replace_edition_file(
+        actor=actor,
+        sheet_id=sheet_id,
+        expected_revision=expected_revision,
+        edition=LOCKIN,
+        slot="primary",
+        managed_file=None,
+        action="content.lockin_pdf_removed",
+        clear_edition_summary=True,
+    )
+    ActiveStudySettings.objects.filter(sheet_id=sheet_id, edition=LOCKIN).delete()
+    CatalogDocument.objects.filter(version__learning_object_id=sheet_id, edition=LOCKIN).update(
+        is_active=False
+    )
     return sheet
 
 
@@ -624,7 +797,7 @@ def permanently_delete_sheet(*, actor: User, sheet_id: UUID) -> None:
         dependencies.append("questions")
     if sheet.active_study_question_content.exists():
         dependencies.append("Active Study question content")
-    if hasattr(sheet, "active_study_settings"):
+    if sheet.active_study_settings_set.exists():
         dependencies.append("Active Study settings")
     if has_publication_history(sheet):
         dependencies.append("publication history")
@@ -723,9 +896,10 @@ def reorder_sheet(
     return sheet
 
 
-def active_study_payload(*, sheet: LearningObject) -> dict[str, object]:
-    readiness = readiness_payload(sheet=sheet)
-    settings = getattr(sheet, "active_study_settings", None)
+def active_study_payload(*, sheet: LearningObject, edition: str = UNIVERSITY) -> dict[str, object]:
+    edition = normalize_edition(edition)
+    readiness = readiness_payload(sheet=sheet, edition=edition)
+    settings = settings_for(sheet=sheet, edition=edition)
     content_by_difficulty = {
         content.difficulty: content
         for content in ActiveStudyQuestionContent.objects.filter(sheet=sheet)
@@ -757,6 +931,9 @@ def active_study_payload(*, sheet: LearningObject) -> dict[str, object]:
         or bool(content_by_difficulty)
     )
     return {
+        "edition": edition,
+        "edition_label": edition_label(edition),
+        "editions": sheet_edition_summaries(sheet=sheet),
         "enabled": settings.enabled if settings is not None else False,
         "revision": settings.revision if settings is not None else 0,
         "excluded_start_pages": readiness["excluded_start_pages"],
@@ -782,30 +959,186 @@ def _plan_signature(difficulty_plan: dict[str, object]) -> dict[str, object]:
 
 
 def _difficulty_for_key(key: str) -> ActiveStudyDifficulty:
-    for difficulty in DIFFICULTIES:
-        if difficulty.key == key:
-            return difficulty
-    raise ContentRuleError("Active Study difficulty must be easy, medium, or hard.")
+    try:
+        return difficulty_for_key(key)
+    except ActiveStudyPlanError as error:
+        raise ContentRuleError(str(error)) from error
+
+
+def _parts_pinned_to_university(*, sheet: LearningObject, edition: str) -> dict[str, int] | None:
+    """The part count the Lock-in edition must match, or None for the university one.
+
+    One sheet, one question bank: the university edition decides how many parts
+    each difficulty has, and the Lock-in edition divides its own pages into that
+    same number.
+    """
+
+    if normalize_edition(edition) != LOCKIN:
+        return None
+    parts, error = university_parts_by_difficulty(sheet=sheet)
+    if parts is None:
+        raise ContentFieldError(
+            error
+            if error and error != "PDF page count is missing."
+            else (
+                "Configure the University Sheet's Active Study pages first; the Lockin "
+                "Sheet follows its part count."
+            ),
+            field="total_pdf_pages",
+        )
+    return parts
+
+
+def sheet_edition_summaries(*, sheet: LearningObject) -> list[dict[str, object]]:
+    """What each edition of this sheet currently holds, for Admin and students."""
+
+    rows: list[dict[str, object]] = []
+    for key in EDITIONS:
+        managed_file = edition_primary_file(sheet, key)
+        summary_file = edition_summary_file(sheet, key)
+        settings = ActiveStudySettings.objects.filter(sheet=sheet, edition=key).first()
+        rows.append(
+            {
+                "edition": key,
+                "label": edition_label(key),
+                "available": managed_file is not None,
+                "page_count": managed_file.pdf_page_count if managed_file else None,
+                "file_id": str(managed_file.id) if managed_file else None,
+                "original_name": managed_file.original_name if managed_file else None,
+                "size_bytes": managed_file.size_bytes if managed_file else None,
+                "view_url": f"/api/v1/files/{managed_file.id}/view" if managed_file else None,
+                "summary_file_id": str(summary_file.id) if summary_file else None,
+                "summary_view_url": (
+                    f"/api/v1/files/{summary_file.id}/view" if summary_file else None
+                ),
+                "active_study_enabled": bool(settings and settings.enabled),
+            }
+        )
+    return rows
+
+
+@dataclass(frozen=True, slots=True)
+class ResolvedActiveStudyInput:
+    """The page boundaries a plan is actually built from."""
+
+    total_pdf_pages: int | None
+    total_pdf_pages_source: str | None
+    excluded_start_pages: int
+    excluded_end_pages: int
+    settings: ActiveStudySettings | None
+    source_version: LearningObjectVersion | None
+    derived_total: int | None
+
+
+def resolve_active_study_input(
+    *,
+    sheet: LearningObject,
+    total_pdf_pages: int | None = None,
+    excluded_start_pages: int | None = None,
+    excluded_end_pages: int | None = None,
+    settings: ActiveStudySettings | None = None,
+    edition: str = UNIVERSITY,
+) -> ResolvedActiveStudyInput:
+    """Merge submitted values with what the sheet already knows.
+
+    ``None`` means "not supplied" for every field, and a value that was not
+    supplied falls back to the stored setting -- so a stale or half-loaded Admin
+    form can never blank out page boundaries that are already valid.  A missing
+    page count falls further back to the uploaded PDF's own count, which is what
+    lets a correctly uploaded sheet plan a positive number of parts on its own.
+    """
+
+    edition = normalize_edition(edition)
+    if settings is None:
+        settings = ActiveStudySettings.objects.filter(sheet=sheet, edition=edition).first()
+    source_version = sheet.published_version or sheet.current_version
+    derived_total = edition_version_page_count(source_version=source_version, edition=edition)
+    stored_total, stored_source = resolve_total_pdf_pages(
+        settings=settings, source_version=source_version, edition=edition
+    )
+    if total_pdf_pages is not None:
+        resolved_total: int | None = total_pdf_pages
+        resolved_source: str | None = "submitted"
+    else:
+        resolved_total, resolved_source = stored_total, stored_source
+    return ResolvedActiveStudyInput(
+        total_pdf_pages=resolved_total,
+        total_pdf_pages_source=resolved_source,
+        excluded_start_pages=(
+            excluded_start_pages
+            if excluded_start_pages is not None
+            else (settings.excluded_start_pages if settings is not None else 0)
+        ),
+        excluded_end_pages=(
+            excluded_end_pages
+            if excluded_end_pages is not None
+            else (settings.excluded_end_pages if settings is not None else 0)
+        ),
+        settings=settings,
+        source_version=source_version,
+        derived_total=derived_total,
+    )
+
+
+def active_study_plan_preview(
+    *,
+    sheet: LearningObject,
+    total_pdf_pages: int | None = None,
+    excluded_start_pages: int | None = None,
+    excluded_end_pages: int | None = None,
+    edition: str = UNIVERSITY,
+) -> dict[str, object]:
+    """Plan the supplied boundaries without persisting anything.
+
+    Admin previews through this, and :func:`update_active_study_settings` saves
+    through the same resolver and the same ``plan_payload`` call, so a preview
+    can never disagree with what a save stores.
+    """
+
+    edition = normalize_edition(edition)
+    resolved = resolve_active_study_input(
+        sheet=sheet,
+        total_pdf_pages=total_pdf_pages,
+        excluded_start_pages=excluded_start_pages,
+        excluded_end_pages=excluded_end_pages,
+        edition=edition,
+    )
+    if resolved.total_pdf_pages is None:
+        raise ContentFieldError(
+            "Enter the PDF's total page count. The uploaded PDF did not report one.",
+            field="total_pdf_pages",
+        )
+    try:
+        plan = plan_payload(
+            total_pdf_pages=resolved.total_pdf_pages,
+            excluded_start_pages=resolved.excluded_start_pages,
+            excluded_end_pages=resolved.excluded_end_pages,
+            parts_by_difficulty=_parts_pinned_to_university(sheet=sheet, edition=edition),
+        )
+    except ActiveStudyPlanError as error:
+        raise ContentFieldError(str(error), field=error.field) from error
+    return {
+        **plan,
+        "edition": edition,
+        "total_pdf_pages_source": resolved.total_pdf_pages_source,
+        "pdf_total_pdf_pages": resolved.derived_total,
+        "excluded_start_pages": resolved.excluded_start_pages,
+        "excluded_end_pages": resolved.excluded_end_pages,
+    }
 
 
 def _difficulty_plan_for_sheet(
     *, sheet: LearningObject, difficulty_key: str
 ) -> tuple[ActiveStudyDifficulty, dict[str, object]]:
-    settings = ActiveStudySettings.objects.filter(sheet=sheet).first()
-    total_pages = settings.total_pdf_pages if settings is not None else None
-    if settings is None or total_pages is None:
-        raise ContentRuleError(
-            "Configure the Active Study PDF page count before importing questions."
-        )
-    try:
-        plan = plan_payload(
-            total_pdf_pages=total_pages,
-            excluded_start_pages=settings.excluded_start_pages,
-            excluded_end_pages=settings.excluded_end_pages,
-        )
-    except ActiveStudyPlanError as error:
-        raise ContentRuleError(str(error)) from error
+    """The plan the sheet's question bank is written against.
+
+    Questions are stored once per sheet and difficulty, so they are always
+    validated and signed against the university edition; the Lock-in edition
+    inherits that part count rather than defining one.
+    """
+
     difficulty = _difficulty_for_key(difficulty_key)
+    plan = active_study_plan_preview(sheet=sheet, edition=UNIVERSITY)
     difficulty_plan = next(
         item
         for item in cast(list[dict[str, object]], plan["difficulties"])
@@ -978,58 +1311,78 @@ def update_active_study_settings(
     expected_revision: int,
     enabled: bool,
     total_pdf_pages: int | None,
-    excluded_start_pages: int,
-    excluded_end_pages: int,
+    excluded_start_pages: int | None,
+    excluded_end_pages: int | None,
     confirm_boundary_change: bool,
+    edition: str = UNIVERSITY,
 ) -> LearningObject:
+    edition = normalize_edition(edition)
     sheet = LearningObject.objects.select_for_update().get(id=sheet_id)
-    settings, created = ActiveStudySettings.objects.select_for_update().get_or_create(sheet=sheet)
+    if edition == LOCKIN and edition_primary_file(sheet, LOCKIN) is None:
+        raise ContentFieldError(
+            "Upload the Lockin Sheet PDF before configuring its Active Study.",
+            field="total_pdf_pages",
+        )
+    settings, created = ActiveStudySettings.objects.select_for_update().get_or_create(
+        sheet=sheet, edition=edition
+    )
     if not created and settings.revision != expected_revision:
         raise ContentConflictError("These Active Study settings changed. Reload and try again.")
     if created and expected_revision != 0:
         raise ContentConflictError("These Active Study settings changed. Reload and try again.")
     if created:
         settings.revision = 0
-    source_version = sheet.published_version or sheet.current_version
-    derived_total = source_version.page_count if source_version is not None else None
-    if derived_total is not None and total_pdf_pages not in {None, derived_total}:
-        raise ContentRuleError(
-            "The configured page count does not match the uploaded PDF. Reload the sheet metadata."
-        )
-    resolved_total = (
-        derived_total
-        if derived_total is not None
-        else total_pdf_pages
-        if total_pdf_pages is not None
-        else settings.total_pdf_pages
+    resolved = resolve_active_study_input(
+        sheet=sheet,
+        total_pdf_pages=total_pdf_pages,
+        excluded_start_pages=excluded_start_pages,
+        excluded_end_pages=excluded_end_pages,
+        settings=settings,
+        edition=edition,
     )
+    source_version = resolved.source_version
+    derived_total = resolved.derived_total
+    if derived_total is not None and total_pdf_pages not in {None, derived_total}:
+        raise ContentFieldError(
+            f"Total PDF pages must be {derived_total} to match the uploaded PDF.",
+            field="total_pdf_pages",
+        )
+    resolved_total = derived_total if derived_total is not None else resolved.total_pdf_pages
+    resolved_start = resolved.excluded_start_pages
+    resolved_end = resolved.excluded_end_pages
     if enabled and resolved_total is None:
-        raise ContentRuleError("Enter the PDF's total page count before enabling Active Study.")
+        raise ContentFieldError(
+            "Enter the PDF's total page count before enabling Active Study.",
+            field="total_pdf_pages",
+        )
     if enabled:
         version = source_version
         has_pdf = (
             version is not None
             and LearningObjectAsset.objects.filter(
                 version=version,
-                role=LearningObjectAsset.Role.PRIMARY,
+                role=primary_role(edition),
                 managed_file__content_type="application/pdf",
             ).exists()
         )
         if not has_pdf:
             raise ContentRuleError("Upload a valid PDF before enabling Active Study.")
     if resolved_total is not None:
+        # The identical call Admin previews through, so a saved plan always
+        # matches the previewed part counts and page ranges.
         try:
             plan_payload(
                 total_pdf_pages=resolved_total,
-                excluded_start_pages=excluded_start_pages,
-                excluded_end_pages=excluded_end_pages,
+                excluded_start_pages=resolved_start,
+                excluded_end_pages=resolved_end,
+                parts_by_difficulty=_parts_pinned_to_university(sheet=sheet, edition=edition),
             )
         except ActiveStudyPlanError as error:
-            raise ContentRuleError(str(error)) from error
+            raise ContentFieldError(str(error), field=error.field) from error
     boundaries_changed = (
         settings.total_pdf_pages != resolved_total
-        or settings.excluded_start_pages != excluded_start_pages
-        or settings.excluded_end_pages != excluded_end_pages
+        or settings.excluded_start_pages != resolved_start
+        or settings.excluded_end_pages != resolved_end
     )
     has_existing_questions = (
         sheet.question_versions.exists()
@@ -1041,15 +1394,15 @@ def update_active_study_settings(
             "Changing excluded pages changes Active Study part boundaries. Existing question "
             "configuration may no longer match this sheet; confirm before saving."
         )
-    previous = active_study_payload(sheet=sheet)
+    previous = active_study_payload(sheet=sheet, edition=edition)
     settings.enabled = enabled
     settings.total_pdf_pages = resolved_total
     settings.source_version = source_version
     settings.page_count_verified_at = (
         timezone.now() if derived_total is not None and resolved_total == derived_total else None
     )
-    settings.excluded_start_pages = excluded_start_pages
-    settings.excluded_end_pages = excluded_end_pages
+    settings.excluded_start_pages = resolved_start
+    settings.excluded_end_pages = resolved_end
     settings.revision += 1
     settings.save(
         update_fields=(
