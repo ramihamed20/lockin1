@@ -66,6 +66,7 @@ from .serializers import (
     RoleUpdateSerializer,
     TokenSerializer,
     UserSerializer,
+    VerificationCodeSerializer,
     WelcomePreferencesSerializer,
 )
 from .services import (
@@ -96,7 +97,8 @@ from .services import (
     resend_verification,
     send_account_email,
     touch_account_session,
-    verify_email,
+    verification_code_resend_wait,
+    verify_email_code,
 )
 
 
@@ -169,13 +171,22 @@ def _enforce_sensitive_request_limit(*, request: Request, scope: str, identifier
     record_auth_attempt(key_hash=source_hash, scope=source_scope)
 
 
-def _send_verification_email(*, user: User, raw_token: str) -> None:
-    link = build_account_link(path="/verify-email", raw_token=raw_token)
+def _send_verification_code_email(*, user: User, code: str) -> None:
+    """Mail the six-digit code. Delivery is the existing durable queue, unchanged."""
+
     enqueue_account_email(
         user=user,
-        token=OneTimeToken.objects.get(token_digest=_token_digest(raw_token)),
-        subject="Verify your Lock-in account",
-        body=f"Verify your Lock-in account using this single-use link:\n\n{link}",
+        token=OneTimeToken.objects.get(
+            token_digest=_token_digest(code, scope=str(user.id)),
+            kind=OneTimeToken.Kind.EMAIL_VERIFICATION,
+        ),
+        subject="Your Lock-in verification code",
+        body=(
+            f"Your Lock-in verification code is {code}\n\n"
+            "Enter it in the app to finish creating your account. "
+            "It expires in 10 minutes and can be used once.\n\n"
+            "If you did not ask for this code, you can ignore this email."
+        ),
     )
 
 
@@ -224,7 +235,7 @@ class RegisterView(APIView):
             if not User.objects.filter(email=str(data["email"])).exists():
                 raise
         else:
-            _send_verification_email(user=user, raw_token=token.raw_token)
+            _send_verification_code_email(user=user, code=token.raw_token)
         return Response({"status": "verification_required"}, status=status.HTTP_201_CREATED)
 
 
@@ -232,20 +243,28 @@ class VerifyEmailView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request: Request) -> Response:
-        serializer = TokenSerializer(data=request.data)
+        serializer = VerificationCodeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        email = str(serializer.validated_data["email"])
+        # Two bounds, for two different abuses: this address (a guesser working
+        # one account) and this source (a guesser working many). The per-code
+        # attempt count in the token bounds the third -- guesses against one
+        # issued code.
         _enforce_sensitive_request_limit(
             request=request,
             scope="email_verification",
-            identifier=str(serializer.validated_data["token"]),
+            identifier=email,
         )
+        user = User.objects.filter(email=email, email_verified_at__isnull=True).first()
+        if user is None:
+            raise InvalidAccountToken()
         try:
-            user = verify_email(raw_token=str(serializer.validated_data["token"]))
+            user = verify_email_code(user=user, code=str(serializer.validated_data["code"]))
         except AccountTokenError as error:
             raise InvalidAccountToken() from error
-        # Spending the link proves control of the mailbox, which is the same
-        # evidence a sign-in asks for -- and the token was single-use, unexpired
-        # and checked on the server before reaching this line. So the reader
+        # Entering the code proves control of the mailbox, which is the same
+        # evidence a sign-in asks for -- and it was single-use, unexpired and
+        # checked on the server before reaching this line. So the reader
         # continues into the product rather than being sent to a login form for
         # an account they just proved is theirs. The session is the one every
         # other entry point creates, with a rotated key and a recorded event.
@@ -277,10 +296,15 @@ class ResendVerificationView(APIView):
             status=User.Status.ACTIVE,
             email_verified_at__isnull=True,
         ).first()
-        if user is not None:
+        # The same minute the screen counts down is enforced here, so a held
+        # button, a reload, or a direct call cannot turn one mailbox into a
+        # flood. The answer stays the same either way: whether an address is
+        # registered is not something this endpoint tells a stranger.
+        wait = verification_code_resend_wait(user=user) if user is not None else 0
+        if user is not None and wait == 0:
             token = resend_verification(user=user)
-            _send_verification_email(user=user, raw_token=token.raw_token)
-        return Response({"status": "accepted"})
+            _send_verification_code_email(user=user, code=token.raw_token)
+        return Response({"status": "accepted", "retry_after_seconds": wait})
 
 
 class PasswordResetRequestView(APIView):

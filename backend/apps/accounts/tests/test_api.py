@@ -14,10 +14,17 @@ from apps.accounts.models import (
     User,
 )
 from apps.accounts.roles import Role
+from apps.accounts.services import VERIFICATION_CODE_ATTEMPT_LIMIT
 from apps.audit.models import AuditRecord
 from apps.education.models import AcademicProgram, StudentCohort
 
-from .helpers import PASSWORD, create_user, csrf_client, token_from_latest_email
+from .helpers import (
+    PASSWORD,
+    code_from_latest_email,
+    create_user,
+    csrf_client,
+    token_from_latest_email,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -63,9 +70,12 @@ def test_registration_is_strict_and_creates_unverified_account(settings: Any) ->
     assert not user.is_email_verified
     assert not user.groups.exists()
     token = OneTimeToken.objects.get(kind=OneTimeToken.Kind.EMAIL_VERIFICATION)
-    raw_token = token_from_latest_email()
-    assert raw_token not in token.token_digest
-    assert token.token_digest != raw_token
+    code = code_from_latest_email()
+    assert len(code) == 6 and code.isdigit()
+    # What is stored is a hash of the code and the account together, never the
+    # code itself.
+    assert code not in token.token_digest
+    assert token.token_digest != code
 
 
 def test_third_year_is_not_offered_as_a_selectable_study_path() -> None:
@@ -90,6 +100,28 @@ def test_third_year_is_not_offered_as_a_selectable_study_path() -> None:
     )
     assert rejected.status_code == 400
     assert "cohort_id" in rejected.json()["error"]["fields"]
+
+
+def test_password_rule_failures_name_the_password_field() -> None:
+    """A form can only point at a field it is told about.
+
+    Raised bare from ``validate()`` these land in ``non_field_errors``, where the
+    create-account screen has nowhere to put them: the reader saw a generic
+    failure with no box marked.
+    """
+    client, csrf = csrf_client()
+
+    response = client.post(
+        "/api/v1/auth/register",
+        {**REGISTRATION, "password": "12345678", "password_confirm": "12345678"},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+
+    assert response.status_code == 400
+    fields = response.json()["error"]["fields"]
+    assert "non_field_errors" not in fields
+    assert len(fields["password"]) >= 1
 
 
 def test_duplicate_registration_does_not_reveal_account_existence() -> None:
@@ -130,14 +162,15 @@ def test_registration_source_bucket_blocks_multi_identity_flooding(settings: Any
     assert AuthAttempt.objects.filter(scope="registration_source").count() == 1
 
 
-def test_email_verification_token_is_single_use() -> None:
+def test_email_verification_code_is_single_use() -> None:
     client, csrf = csrf_client()
     client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
-    raw_token = token_from_latest_email()
+    code = code_from_latest_email()
+    email = str(REGISTRATION["email"]).strip().lower()
 
     first = client.post(
         "/api/v1/auth/verify-email",
-        {"token": raw_token},
+        {"email": email, "code": code},
         format="json",
         HTTP_X_CSRFTOKEN=csrf,
     )
@@ -145,7 +178,7 @@ def test_email_verification_token_is_single_use() -> None:
     # login; the browser reads the fresh cookie before its next unsafe request.
     second = client.post(
         "/api/v1/auth/verify-email",
-        {"token": raw_token},
+        {"email": email, "code": code},
         format="json",
         HTTP_X_CSRFTOKEN=client.get("/api/v1/auth/csrf").json()["csrf_token"],
     )
@@ -638,11 +671,14 @@ def test_account_emails_link_into_the_client_router_with_the_token(settings: Any
     client, csrf = csrf_client()
 
     client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
-    verification_link = _latest_email_link()
-    raw_token = token_from_latest_email()
+    code = code_from_latest_email()
 
-    assert verification_link.startswith("https://app.example.test/#/verify-email?token=")
-    assert raw_token in verification_link
+    # Verification is a code now, so its email carries no link to lose.
+    from django.core import mail as django_mail
+
+    assert not [
+        line for line in django_mail.outbox[-1].body.splitlines() if line.startswith("http")
+    ]
 
     client.post(
         "/api/v1/auth/password-reset",
@@ -654,7 +690,7 @@ def test_account_emails_link_into_the_client_router_with_the_token(settings: Any
     # message is still the verification one. Verify first, then check the reset.
     client.post(
         "/api/v1/auth/verify-email",
-        {"token": raw_token},
+        {"email": "new@example.com", "code": code},
         format="json",
         HTTP_X_CSRFTOKEN=csrf,
     )
@@ -692,12 +728,12 @@ def test_email_change_and_deletion_links_use_the_same_router_form(settings: Any)
     assert _latest_email_link().startswith("https://app.example.test/#/settings?token=")
 
 
-def test_verification_link_token_completes_registration_and_enables_login() -> None:
-    """The full production path: register, follow the mailed link, then sign in."""
+def test_verification_code_completes_registration_and_enables_login() -> None:
+    """The full production path: register, enter the mailed code, then sign in."""
 
     client, csrf = csrf_client()
     client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
-    raw_token = token_from_latest_email()
+    code = code_from_latest_email()
 
     before_login = client.post(
         "/api/v1/auth/login",
@@ -707,7 +743,7 @@ def test_verification_link_token_completes_registration_and_enables_login() -> N
     )
     verified = client.post(
         "/api/v1/auth/verify-email",
-        {"token": raw_token},
+        {"email": "new@example.com", "code": code},
         format="json",
         HTTP_X_CSRFTOKEN=csrf,
     )
@@ -735,13 +771,13 @@ def test_verification_link_token_completes_registration_and_enables_login() -> N
     assert after_login.json()["user"]["is_email_verified"] is True
 
 
-def test_verify_email_rejects_an_unknown_token_without_touching_any_account() -> None:
+def test_verify_email_rejects_an_unknown_code_without_touching_any_account() -> None:
     client, csrf = csrf_client()
     client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
 
     response = client.post(
         "/api/v1/auth/verify-email",
-        {"token": "not-a-real-token"},
+        {"email": "new@example.com", "code": "000000"},
         format="json",
         HTTP_X_CSRFTOKEN=csrf,
     )
@@ -751,15 +787,15 @@ def test_verify_email_rejects_an_unknown_token_without_touching_any_account() ->
     assert not User.objects.get().is_email_verified
 
 
-def test_verify_email_rejects_an_expired_token(settings: Any) -> None:
+def test_verify_email_rejects_an_expired_code(settings: Any) -> None:
     settings.ACCOUNT_EMAIL_VERIFICATION_TTL_SECONDS = 0
     client, csrf = csrf_client()
     client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
-    raw_token = token_from_latest_email()
+    code = code_from_latest_email()
 
     response = client.post(
         "/api/v1/auth/verify-email",
-        {"token": raw_token},
+        {"email": "new@example.com", "code": code},
         format="json",
         HTTP_X_CSRFTOKEN=csrf,
     )
@@ -769,10 +805,53 @@ def test_verify_email_rejects_an_expired_token(settings: Any) -> None:
     assert not User.objects.get().is_email_verified
 
 
-def test_resend_verification_supersedes_the_previous_link_and_verifies() -> None:
+def test_wrong_codes_are_bounded_per_code_and_per_address(settings: Any) -> None:
+    """Six digits are only safe while guessing is bounded.
+
+    Two limits meet here: the endpoint's own per-address window, and the count
+    kept on the issued code. The second is what stops a guesser who waits out
+    the first -- the code itself dies after a handful of wrong answers.
+    """
+
+    settings.ACCOUNT_SENSITIVE_REQUEST_LIMIT = 50
     client, csrf = csrf_client()
     client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
-    first_token = token_from_latest_email()
+    code = code_from_latest_email()
+    wrong = "000000" if code != "000000" else "111111"
+
+    refused = [
+        client.post(
+            "/api/v1/auth/verify-email",
+            {"email": "new@example.com", "code": wrong},
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf,
+        ).status_code
+        for _ in range(VERIFICATION_CODE_ATTEMPT_LIMIT)
+    ]
+    # The real code is now worthless: the guessing spent it.
+    after = client.post(
+        "/api/v1/auth/verify-email",
+        {"email": "new@example.com", "code": code},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+
+    assert refused == [400] * VERIFICATION_CODE_ATTEMPT_LIMIT
+    assert after.status_code == 400
+    assert not User.objects.get().is_email_verified
+
+
+def test_a_second_code_cannot_be_requested_within_the_cooldown() -> None:
+    """The minute the screen counts down is the minute the server holds to.
+
+    Without it, holding the button -- or calling the endpoint directly -- turns
+    one mailbox into a mail flood, and every new code invalidates the one the
+    reader is in the middle of typing.
+    """
+
+    client, csrf = csrf_client()
+    client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
+    first_code = code_from_latest_email()
 
     resent = client.post(
         "/api/v1/auth/resend-verification",
@@ -780,22 +859,50 @@ def test_resend_verification_supersedes_the_previous_link_and_verifies() -> None
         format="json",
         HTTP_X_CSRFTOKEN=csrf,
     )
-    second_token = token_from_latest_email()
+
+    assert resent.status_code == 200
+    assert 0 < resent.json()["retry_after_seconds"] <= 60
+    # No second email, and the code already in the reader's hands still works.
+    assert code_from_latest_email() == first_code
+    verified = client.post(
+        "/api/v1/auth/verify-email",
+        {"email": "new@example.com", "code": first_code},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+    assert verified.status_code == 200
+
+
+def test_resend_verification_supersedes_the_previous_code_and_verifies(settings: Any) -> None:
+    # The minute between sends has its own test below; this one is about what a
+    # second code does to the first.
+    settings.ACCOUNT_VERIFICATION_RESEND_COOLDOWN_SECONDS = 0
+    client, csrf = csrf_client()
+    client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
+    first_code = code_from_latest_email()
+
+    resent = client.post(
+        "/api/v1/auth/resend-verification",
+        {"email": REGISTRATION["email"]},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+    second_code = code_from_latest_email()
     superseded = client.post(
         "/api/v1/auth/verify-email",
-        {"token": first_token},
+        {"email": "new@example.com", "code": first_code},
         format="json",
         HTTP_X_CSRFTOKEN=csrf,
     )
     accepted = client.post(
         "/api/v1/auth/verify-email",
-        {"token": second_token},
+        {"email": "new@example.com", "code": second_code},
         format="json",
         HTTP_X_CSRFTOKEN=csrf,
     )
 
     assert resent.status_code == 200
-    assert second_token != first_token
+    assert second_code != first_code
     assert superseded.status_code == 400
     assert accepted.status_code == 200
     assert User.objects.get().is_email_verified
@@ -809,10 +916,10 @@ def test_email_case_and_spacing_are_normalized_across_register_verify_and_login(
         format="json",
         HTTP_X_CSRFTOKEN=csrf,
     )
-    raw_token = token_from_latest_email()
+    code = code_from_latest_email()
     client.post(
         "/api/v1/auth/verify-email",
-        {"token": raw_token},
+        {"email": "mixed.case@example.com", "code": code},
         format="json",
         HTTP_X_CSRFTOKEN=csrf,
     )
@@ -830,17 +937,17 @@ def test_email_case_and_spacing_are_normalized_across_register_verify_and_login(
 
 
 def test_verification_signs_the_reader_in_without_a_second_credential() -> None:
-    """The reported friction: the mailed link verified the account and then sent
-    the reader to a login form for the account they had just proved is theirs."""
+    """The reported friction: verifying used to hand the reader back to a login
+    form for the account they had just proved is theirs."""
 
     client, csrf = csrf_client()
     client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
-    raw_token = token_from_latest_email()
+    code = code_from_latest_email()
 
     anonymous_before = client.get("/api/v1/auth/session")
     verified = client.post(
         "/api/v1/auth/verify-email",
-        {"token": raw_token},
+        {"email": "new@example.com", "code": code},
         format="json",
         HTTP_X_CSRFTOKEN=csrf,
     )
@@ -873,19 +980,22 @@ def test_verification_signs_the_reader_in_without_a_second_credential() -> None:
     ).exists()
 
 
-def test_a_spent_verification_link_cannot_be_replayed_into_a_session() -> None:
+def test_a_spent_verification_code_cannot_be_replayed_into_a_session() -> None:
     client, csrf = csrf_client()
     client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
-    raw_token = token_from_latest_email()
+    code = code_from_latest_email()
     client.post(
-        "/api/v1/auth/verify-email", {"token": raw_token}, format="json", HTTP_X_CSRFTOKEN=csrf
+        "/api/v1/auth/verify-email",
+        {"email": "new@example.com", "code": code},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
     )
 
-    # A second reader holding a copy of the same link gets nothing from it.
+    # A second reader holding a copy of the same code gets nothing from it.
     replay_client, replay_csrf = csrf_client()
     replayed = replay_client.post(
         "/api/v1/auth/verify-email",
-        {"token": raw_token},
+        {"email": "new@example.com", "code": code},
         format="json",
         HTTP_X_CSRFTOKEN=replay_csrf,
     )
@@ -896,13 +1006,13 @@ def test_a_spent_verification_link_cannot_be_replayed_into_a_session() -> None:
     assert AccountSession.objects.count() == 1
 
 
-def test_an_expired_or_unknown_link_creates_no_session() -> None:
+def test_an_expired_or_unknown_code_creates_no_session() -> None:
     client, csrf = csrf_client()
     client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
 
     unknown = client.post(
         "/api/v1/auth/verify-email",
-        {"token": "not-a-real-token"},
+        {"email": "new@example.com", "code": "000000"},
         format="json",
         HTTP_X_CSRFTOKEN=csrf,
     )
@@ -918,9 +1028,13 @@ def test_verification_without_csrf_neither_verifies_nor_signs_anyone_in() -> Non
 
     client, csrf = csrf_client()
     client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
-    raw_token = token_from_latest_email()
+    code = code_from_latest_email()
 
-    response = client.post("/api/v1/auth/verify-email", {"token": raw_token}, format="json")
+    response = client.post(
+        "/api/v1/auth/verify-email",
+        {"email": "new@example.com", "code": code},
+        format="json",
+    )
 
     assert response.status_code == 403
     assert not User.objects.get().is_email_verified
@@ -932,12 +1046,12 @@ def test_verification_without_csrf_neither_verifies_nor_signs_anyone_in() -> Non
 def test_a_suspended_account_is_verified_but_is_not_signed_in() -> None:
     client, csrf = csrf_client()
     client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
-    raw_token = token_from_latest_email()
+    code = code_from_latest_email()
     User.objects.update(status=User.Status.SUSPENDED)
 
     response = client.post(
         "/api/v1/auth/verify-email",
-        {"token": raw_token},
+        {"email": "new@example.com", "code": code},
         format="json",
         HTTP_X_CSRFTOKEN=csrf,
     )

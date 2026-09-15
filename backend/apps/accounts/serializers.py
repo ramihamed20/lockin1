@@ -35,11 +35,20 @@ def validate_username(value: str, *, user: User | None = None) -> str:
     return username
 
 
-def _validate_new_password(password: str, *, user: User | None = None) -> str:
+def _validate_new_password(
+    password: str, *, user: User | None = None, field: str = "password"
+) -> str:
+    """Validate a new password, attributing every failure to its own field.
+
+    Raised from ``validate()`` a bare list lands in ``non_field_errors``, where
+    a form has nowhere to show it: the reader was told only that the request
+    failed, with the box that needs changing unmarked. Naming the field keeps
+    "too short", "too common" and "entirely numeric" beside the password.
+    """
     try:
         validate_password(password, user=user)
     except DjangoValidationError as error:
-        raise serializers.ValidationError(list(error.messages)) from error
+        raise serializers.ValidationError({field: list(error.messages)}) from error
     return password
 
 
@@ -86,6 +95,20 @@ class TokenSerializer(StrictSerializer):
     token = serializers.CharField(max_length=256, trim_whitespace=True)
 
 
+class VerificationCodeSerializer(StrictSerializer):
+    """The six digits a reader copies out of their inbox, and who they are.
+
+    A code this short is only meaningful for one account, so the address is
+    part of the request rather than something the code alone could identify.
+    """
+
+    email = serializers.EmailField(max_length=254)
+    code = serializers.RegexField(r"^\d{6}$", trim_whitespace=True)
+
+    def validate_email(self, value: str) -> str:
+        return normalize_email(value)
+
+
 class PasswordResetConfirmSerializer(TokenSerializer):
     new_password = serializers.CharField(write_only=True, trim_whitespace=False)
     new_password_confirm = serializers.CharField(write_only=True, trim_whitespace=False)
@@ -93,7 +116,9 @@ class PasswordResetConfirmSerializer(TokenSerializer):
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         if attrs["new_password"] != attrs["new_password_confirm"]:
             raise serializers.ValidationError({"new_password_confirm": ["Passwords do not match."]})
-        attrs["new_password"] = _validate_new_password(str(attrs["new_password"]))
+        attrs["new_password"] = _validate_new_password(
+            str(attrs["new_password"]), field="new_password"
+        )
         return attrs
 
 
@@ -254,7 +279,9 @@ class PasswordChangeSerializer(StrictSerializer):
             )
         if attrs["new_password"] != attrs["new_password_confirm"]:
             raise serializers.ValidationError({"new_password_confirm": ["Passwords do not match."]})
-        attrs["new_password"] = _validate_new_password(str(attrs["new_password"]), user=user)
+        attrs["new_password"] = _validate_new_password(
+            str(attrs["new_password"]), user=user, field="new_password"
+        )
         return attrs
 
 

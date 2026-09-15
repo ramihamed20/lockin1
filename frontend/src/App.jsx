@@ -485,12 +485,11 @@ function App() {
     );
   }
 
-  if (["/verify-email", "/confirm-email", "/reset-password"].includes(location.pathname)) {
-    const tokenType = location.pathname === "/verify-email"
-      ? "verify"
-      : location.pathname === "/confirm-email"
-        ? "confirm-email"
-        : "reset-password";
+  // Email verification is a six-digit code entered in the app, so there is no
+  // /verify-email route any more. The remaining two flows are still links,
+  // because both act on an account the reader may not be signed in to.
+  if (["/confirm-email", "/reset-password"].includes(location.pathname)) {
+    const tokenType = location.pathname === "/confirm-email" ? "confirm-email" : "reset-password";
     return <TokenActionPage type={tokenType} onAccountChanged={refreshActiveAccount} />;
   }
 

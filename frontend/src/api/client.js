@@ -94,6 +94,25 @@ function apiPath(path) {
   return url.pathname + url.search;
 }
 
+/**
+ * The language the reader is using, for Django's own messages.
+ *
+ * Django translates its validator prose ("This password is too common") from
+ * the request's Accept-Language. Left to the browser's header, an English
+ * screen could answer in Arabic and an Arabic screen in English; the surface
+ * the reader chose is the one that should decide.
+ */
+function readerLanguage() {
+  if (typeof document === "undefined") return "";
+  const documentLanguage = document.documentElement?.lang;
+  if (documentLanguage) return documentLanguage;
+  try {
+    return localStorage.getItem("lock-in.locale") || "";
+  } catch {
+    return "";
+  }
+}
+
 function isFormData(value) {
   return typeof FormData !== "undefined" && value instanceof FormData;
 }
@@ -376,6 +395,8 @@ export async function request(path, options = {}) {
   }
   const headers = new Headers(options.headers || {});
   const body = normaliseRequestBody(options.body, headers);
+  const language = readerLanguage();
+  if (language && !headers.has("Accept-Language")) headers.set("Accept-Language", language);
 
   if (options.idempotencyKey) {
     headers.set("Idempotency-Key", options.idempotencyKey);

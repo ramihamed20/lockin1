@@ -52,7 +52,7 @@ test("profile, email, password, verification-token and session actions use exact
   await accountsApi.changePassword("old", "new", "new");
   await accountsApi.requestEmailChange("next@example.test", "old");
   await accountsApi.confirmPasswordReset("one-time", "new", "new");
-  await accountsApi.verifyEmail("verify-once");
+  await accountsApi.verifyEmailCode({ email: "a@example.test", code: "123456" });
   await accountsApi.resendVerification("a@example.test");
   await accountsApi.confirmEmailChange("confirm-once");
   const sessions = await accountsApi.listSessions();
@@ -63,7 +63,7 @@ test("profile, email, password, verification-token and session actions use exact
     { url: "/api/v1/account/password", method: "POST", body: { current_password: "old", new_password: "new", new_password_confirm: "new" } },
     { url: "/api/v1/account/email", method: "POST", body: { new_email: "next@example.test", current_password: "old" } },
     { url: "/api/v1/auth/password-reset/confirm", method: "POST", body: { token: "one-time", new_password: "new", new_password_confirm: "new" } },
-    { url: "/api/v1/auth/verify-email", method: "POST", body: { token: "verify-once" } },
+    { url: "/api/v1/auth/verify-email", method: "POST", body: { email: "a@example.test", code: "123456" } },
     { url: "/api/v1/auth/resend-verification", method: "POST", body: { email: "a@example.test" } },
     { url: "/api/v1/account/email/confirm", method: "POST", body: { token: "confirm-once" } },
     { url: "/api/v1/account/sessions", method: "GET", body: undefined },
@@ -84,7 +84,10 @@ test("account token routes and direct privileged-route guards are attached to th
     readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/auth/TokenActionPage.jsx", import.meta.url), "utf8")
   ]);
-  assert.match(app, /"\/verify-email", "\/confirm-email", "\/reset-password"/);
+  // Verification is a code entered in the app, so /verify-email is gone; the
+  // two flows that still act on an account nobody is signed in to remain links.
+  assert.match(app, /"\/confirm-email", "\/reset-password"/);
+  assert.doesNotMatch(app, /"\/verify-email"/);
   assert.match(app, /path="\/admin\/\*"/);
   assert.match(app, /path="\/operations\/\*"/);
   assert.match(app, /onSignedOut=\{clearAuthenticatedUi\}/);

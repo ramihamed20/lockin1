@@ -231,6 +231,57 @@
 @keyframes auth-v2-spin { to { transform: rotate(360deg); } }
 .auth-v2 .form-hint { margin: 0; font-size: 12px; line-height: 1.4; }
 .auth-v2 .form-hint.danger { color: #ff9c94; }
+.auth-v2-field-hint { margin: 0; color: var(--auth-quiet); font-size: 12px; line-height: 1.4; }
+
+/* A field the reader must change is marked by more than the sentence under it:
+   the box itself carries the colour, so the problem is visible at a glance on a
+   phone screen where only part of the form is in view. */
+.auth-v2 input[aria-invalid="true"]:not([type="checkbox"]),
+.auth-v2 select[aria-invalid="true"] { border-color: #e06a63; background: #2a1a1c; }
+.auth-v2 input[aria-invalid="true"]:not([type="checkbox"]):focus,
+.auth-v2 select[aria-invalid="true"]:focus { border-color: #ff9c94; box-shadow: 0 0 0 3px rgba(224, 106, 99, .22); }
+.auth-v2 input[type="checkbox"][aria-invalid="true"] { outline: 2px solid #e06a63; outline-offset: 3px; }
+.auth-v2 .form-hint.danger::before { content: "!"; display: inline-grid; place-items: center; width: 14px; height: 14px; margin-inline-end: 6px; border-radius: 50%; color: #2b1820; background: #ff9c94; font-size: 10px; font-weight: 800; vertical-align: -2px; }
+
+.auth-v2-inline-hint { margin: -4px 0 0; color: var(--auth-muted); font-size: 12px; line-height: 1.5; }
+.auth-v2-inline-hint button { min-height: 32px; padding: 0 2px; border: 0; color: var(--auth-gold); background: transparent; font: 650 12px/1.4 inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+
+/* The create-account screen after the account exists: one thing said clearly,
+   and the two things the reader may still need to do. */
+/* The code screen: one field, centred, with nothing competing for the eye --
+   on a phone it is the whole screen above the keyboard. */
+.auth-v2-code { display: grid; justify-items: center; gap: 10px; padding: 6px 0 2px; text-align: center; }
+.auth-v2-code h2 { margin: 0; color: var(--auth-ink); font-size: 18px; font-weight: 700; }
+.auth-v2-code > p { margin: 0; max-width: 34ch; color: var(--auth-muted); font-size: 13px; line-height: 1.55; }
+.auth-v2-code-form { display: grid; justify-items: center; gap: 8px; width: 100%; margin-top: 6px; }
+.auth-v2-code-form .auth-v2-field { width: 100%; justify-items: center; }
+.auth-v2-code-label { color: #d8dfec; font-size: 13px; font-weight: 650; }
+.auth-v2 input.auth-v2-code-input {
+  width: 100%;
+  max-width: 260px;
+  min-height: 58px;
+  padding: 0 8px;
+  text-align: center;
+  /* Wide enough that six digits read as six, without the six separate boxes
+     that break one-time-code autofill and paste. */
+  font-size: 30px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.32em;
+  text-indent: 0.32em;
+}
+.auth-v2 input.auth-v2-code-input::placeholder { color: #55617a; letter-spacing: 0.32em; }
+.auth-v2-code-status { margin: 0; color: var(--auth-muted); font-size: 12px; }
+.auth-v2-code .form-alert, .auth-v2-code .form-hint { width: 100%; text-align: start; }
+
+.auth-v2-sent { display: grid; justify-items: center; gap: 10px; padding: 6px 0 2px; text-align: center; }
+.auth-v2-sent-icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; color: #9ee7bc; background: #10281f; }
+.auth-v2-sent h2 { margin: 0; color: var(--auth-ink); font-size: 18px; font-weight: 700; }
+.auth-v2-sent p { margin: 0; max-width: 34ch; color: var(--auth-muted); font-size: 13px; line-height: 1.55; }
+.auth-v2-sent-address { overflow-wrap: anywhere; color: var(--auth-ink) !important; font-weight: 650; }
+.auth-v2-sent-note { color: var(--auth-quiet) !important; font-size: 12px !important; }
+.auth-v2-sent-actions { display: grid; gap: 6px; width: 100%; margin-top: 6px; }
+.auth-v2-sent .form-alert { width: 100%; }
 .auth-v2-session-notice { margin-bottom: 14px; }
 .auth-v2 .form-alert { margin: 0; padding: 11px 12px; border-radius: 10px; font-size: 12px; line-height: 1.45; }
 .auth-v2 .form-alert.error { border: 1px solid #7f3a41; color: #ffb1aa; background: #2b1820; }

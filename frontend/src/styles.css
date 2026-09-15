@@ -5079,9 +5079,22 @@ a.streak-card:hover:where(html.ix-hover *) {
   inset: 0;
   object-fit: cover;
   object-position: center;
-  transform: none;
+  /* One knob for how close the scene is framed. Every rule that touches this
+     transform reads it, so a zoom set per theme is not cancelled by hover. */
+  transform: scale(var(--scene-zoom, 1));
+  transform-origin: var(--scene-zoom-origin, center);
   display: block;
   transition: opacity 220ms ease, transform 300ms ease;
+}
+
+/* Dawn and Sunset are the two low-light scenes: the cat sits against a dim
+   room and a bright window, and at card size it read as small and washed out.
+   A few percent closer, centred on the cat, is a crop change only -- the
+   artwork, the palette and the layout are untouched. */
+:root[data-theme="dawn"] .scene-card,
+:root[data-theme="sunset"] .scene-card {
+  --scene-zoom: 1.1;
+  --scene-zoom-origin: 56% 64%;
 }
 
 .dashboard-right .scene-card .scene-theme {
@@ -5089,7 +5102,7 @@ a.streak-card:hover:where(html.ix-hover *) {
 }
 
 .scene-card:hover:where(html.ix-hover *) .scene-theme {
-  transform: none;
+  transform: scale(var(--scene-zoom, 1));
 }
 
 @media (max-width: 639px) {
@@ -18900,8 +18913,8 @@ html {
 .streak-freeze em { padding: 3px 5px; border-radius: var(--radius-sm); color: var(--muted); background: var(--surface-2); font-size: .62rem; font-style: normal; font-weight: 850; }
 
 /* Release UX refinements -------------------------------------------------
-   The whole rail owns scrolling on touch tablets. This avoids nested scroll
-   regions and keeps the streak in the natural document flow. */
+   The rail is bounded by the viewport; inside it, the navigation is the part
+   that scrolls and the streak card is a fixed footer. */
 .sidebar {
   max-height: var(--app-viewport-height);
   overflow-x: hidden;
@@ -18911,9 +18924,23 @@ html {
   -webkit-overflow-scrolling: touch;
 }
 
+/* `flex: 0 0 auto` here was left from an earlier settlement in which the whole
+   rail scrolled and the list never needed to give way. The rail stopped
+   scrolling (`.sidebar { overflow: hidden }` in responsive.css) but this did
+   not follow: below 768px -- an iPad mini in portrait, an iPad in Split View --
+   the list kept its full natural height, so the last entries were clipped with
+   nothing to scroll and the streak card was pushed off the screen entirely.
+   It shrinks to the space available and scrolls; it still never grows, so a
+   sidebar with room to spare looks exactly as it did. */
 .sidebar .nav-list {
-  flex: 0 0 auto;
-  overflow: visible;
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  scroll-padding-block: var(--space-2);
 }
 
 .sidebar .streak-card {

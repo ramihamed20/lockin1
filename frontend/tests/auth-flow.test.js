@@ -65,9 +65,11 @@ test("study-path choices expose college, specialty, and year while excluding Thi
   assert.equal(isSelectableStudyPath(thirdYear), false);
 
   const source = readFileSync(new URL("../src/components/auth/AuthPage.jsx", import.meta.url), "utf8");
-  assert.match(source, /label htmlFor="auth-college">College/);
-  assert.match(source, /label htmlFor="auth-specialty">Specialty/);
-  assert.match(source, /label htmlFor="auth-cohort">Year \/ batch/);
+  // The three labels are translated like the rest of the form, so the source
+  // names their keys rather than the English words.
+  assert.match(source, /label htmlFor="auth-college">\{t\("auth\.college"\)\}/);
+  assert.match(source, /label htmlFor="auth-specialty">\{t\("auth\.specialty"\)\}/);
+  assert.match(source, /label htmlFor="auth-cohort">\{t\("auth\.yearBatch"\)\}/);
 });
 
 // The email links are single-use routes. TokenActionPage strips the token from
@@ -88,12 +90,12 @@ test("every token route the app mounts is reachable by the type it passes", () =
   const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
   const tokenPage = readFileSync(new URL("../src/components/auth/TokenActionPage.jsx", import.meta.url), "utf8");
 
-  const routes = app.match(/\["\/verify-email", "\/confirm-email", "\/reset-password"\]/);
-  assert.ok(routes, "App must still branch on the three token routes");
-  // The two non-reset flows are keyed by type in the page's FLOW table.
-  for (const type of ["verify", "confirm-email"]) {
-    assert.ok(tokenPage.includes(`"${type}"`) || tokenPage.includes(`${type}:`), `FLOW must define ${type}`);
-  }
+  const routes = app.match(/\["\/confirm-email", "\/reset-password"\]/);
+  assert.ok(routes, "App must still branch on the two remaining token routes");
+  // Only one non-reset flow is left keyed by type in the page's FLOW table:
+  // email verification is a code typed in the app, not a link.
+  assert.ok(tokenPage.includes('"confirm-email"'), "FLOW must define confirm-email");
+  assert.doesNotMatch(tokenPage, /verifyEmail|token\.verifyTitle/);
 });
 
 // The reported failure: "Continue with Google" from the login screen sent
@@ -154,8 +156,8 @@ test("the username step submits the username alone, never a name beside it", () 
 
   // While a username is required, the name is withheld and only the username
   // is sent; the name is offered only once the username step is behind us.
-  assert.match(source, /username: requiresUsername \? form\.username : undefined/);
-  assert.match(source, /fullName: !requiresUsername && requiresName \? form\.name : undefined/);
+  assert.match(source, /username: requiresUsername \? form\.username\.trim\(\) : undefined/);
+  assert.match(source, /fullName: !requiresUsername && requiresName \? form\.name\.trim\(\) : undefined/);
   // Nothing builds a display string out of the two identities together.
   assert.doesNotMatch(source, /form\.name\s*\+/);
   assert.doesNotMatch(source, /\$\{form\.name\}[^`]*\$\{form\.username\}/);
@@ -253,27 +255,23 @@ test("the logout confirmation is written in both locales", async () => {
 
 // Verification proves control of the mailbox, which is the evidence a sign-in
 // asks for. The reader continues into the product instead of a login form.
-test("a verification that signed the reader in refreshes state and leaves the token route", () => {
-  const page = readFileSync(new URL("../src/components/auth/TokenActionPage.jsx", import.meta.url), "utf8");
+test("a code that verifies the account signs the reader straight in", () => {
   const api = readFileSync(new URL("../src/api/accounts.js", import.meta.url), "utf8");
+  const page = readFileSync(new URL("../src/components/auth/AuthPage.jsx", import.meta.url), "utf8");
 
-  // The client treats the returned account as the signal, and mirrors the
-  // CSRF rotation that any other sign-in causes.
-  assert.match(api, /async verifyEmail\(token\)/);
-  const verifyEmail = api.split("async verifyEmail(token)")[1].split("resendVerification")[0];
-  assert.match(verifyEmail, /clearCsrfToken\(\);/);
-  assert.match(verifyEmail, /setSessionMarker\(true\);/);
+  // The code identifies an account only together with the address it was sent
+  // to, and the client mirrors the CSRF rotation any other sign-in causes.
+  assert.match(api, /async verifyEmailCode\(\{ email, code \}\)/);
+  const verify = api.split("async verifyEmailCode({ email, code })")[1].split("resendVerification")[0];
+  assert.match(verify, /body: \{ email, code \}/);
+  assert.match(verify, /clearCsrfToken\(\);/);
+  assert.match(verify, /setSessionMarker\(true\);/);
   // Nothing from the URL is trusted as authentication; the cookie does that.
-  assert.doesNotMatch(verifyEmail, /location|searchParams/);
+  assert.doesNotMatch(verify, /location|searchParams/);
 
-  assert.match(page, /authenticated = Boolean\(result\?\.user\)/);
-  // State is refreshed first, then the authed destination replaces this route.
-  assert.match(page, /refreshedUser = \(await onAccountChanged\?\.\(\)\) \|\| null/);
-  assert.match(page, /if \(authenticated && refreshedUser\) \{[\s\S]*?navigate\("\/", \{ replace: true \}\)/);
-  // The token is still stripped from the visible URL the moment it is captured.
-  assert.match(page, /navigate\(routePath, \{ replace: true \}\)/);
-  // A verification that did not authenticate keeps the previous behaviour.
-  assert.match(page, /state: \{ accountActionMessage:/);
+  // The returned account is the signal, exactly as the link flow used it.
+  assert.match(page, /if \(result\.user\) onVerified\(result\.user\)/);
+  assert.match(page, /onVerified=\{\(user\) => onAuthed\(user, \{ newSession: true \}\)\}/);
 });
 
 test("the manifest asks for the standards-compliant launch behaviour only", async () => {

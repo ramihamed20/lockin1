@@ -30,11 +30,12 @@ import { acquireBodyScrollLock } from "../../lib/bodyScrollLock.js";
 
 export function Brand() {
   return (
-    <div className="brand">
+    <div className="brand" translate="no">
       <span className="brand-mark">
         <img src={assetPath("/icons/lockin-light-192-v2.png")} alt="Lock-in Logo" className="brand-logo-img" draggable="false" />
       </span>
-      <strong>lock-in</strong>
+      {/* A name, not a word: machine translation turns it into prose. */}
+      <strong className="notranslate">lock-in</strong>
     </div>
   );
 }

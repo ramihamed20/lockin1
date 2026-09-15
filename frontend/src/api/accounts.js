@@ -141,8 +141,11 @@ export const accountsApi = {
     return authorizationUrl;
   },
 
-  async verifyEmail(token) {
-    const payload = await request("/auth/verify-email", { method: "POST", body: { token } });
+  async verifyEmailCode({ email, code }) {
+    const payload = await request("/auth/verify-email", {
+      method: "POST",
+      body: { email, code }
+    });
     const source = payload && typeof payload === "object" ? payload : null;
     // A verified account that may sign in is signed in by the server, in the
     // same response. Nothing about the session travels in the URL: the cookie

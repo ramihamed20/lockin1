@@ -6,15 +6,9 @@ import { assetPath } from "../../lib/utils.js";
 import { AccountFieldErrors, AccountFormAlert, fieldErrorAttributes } from "../account/AccountFormErrors.jsx";
 import { useI18n } from "../I18nProvider.jsx";
 
+// Email verification left this page when it became a code typed in the app.
+// What remains are the two flows that are still links.
 const FLOW = {
-  verify: {
-    titleKey: "token.verifyTitle",
-    subtitleKey: "token.verifySubtitle",
-    actionKey: "token.verifyAction",
-    run: (token) => authApi.verifyEmail(token),
-    successKey: "token.verifySuccess",
-    successAuthenticatedKey: "token.verifySuccessAuthenticated"
-  },
   "confirm-email": {
     titleKey: "token.confirmEmailTitle",
     subtitleKey: "token.confirmEmailSubtitle",

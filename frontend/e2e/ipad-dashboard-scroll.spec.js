@@ -252,3 +252,79 @@ test("a real orientation change still re-measures the shell", async ({ page }) =
   expect(landscape.shell).toBeLessThan(portrait.shell);
   expect(landscape.overflowX).toBe(0);
 });
+
+// Reported from an iPad in portrait: the sidebar could not be scrolled to its
+// last entries, and the four dashboard cards split across two rows that pushed
+// the study surfaces below the fold.
+test("the sidebar scrolls to its last entry in portrait, streak card and all", async ({ page }) => {
+  await mockDashboard(page);
+  // 744 is an iPad mini in portrait, and any iPad in Split View. Below 768 the
+  // rail is a flex column, which is where the list used to be cut off.
+  await page.setViewportSize({ width: 744, height: 700 });
+  await page.goto("/#/");
+  await expect(page.locator(".sidebar")).toBeVisible();
+
+  // An account whose roles add Workspace entries: more than the rail can show.
+  await page.evaluate(() => {
+    const list = document.querySelector(".sidebar .nav-list");
+    const entry = list.lastElementChild;
+    for (let index = 0; index < 4; index += 1) list.appendChild(entry.cloneNode(true));
+  });
+
+  const measured = await page.evaluate(async () => {
+    const list = document.querySelector(".sidebar .nav-list");
+    list.scrollTop = list.scrollHeight;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const rail = document.querySelector(".sidebar").getBoundingClientRect();
+    const last = list.lastElementChild.getBoundingClientRect();
+    const streak = document.querySelector(".sidebar .streak-card")?.getBoundingClientRect();
+    return {
+      scrolls: list.scrollHeight > list.clientHeight + 1,
+      scrolled: list.scrollTop > 0,
+      lastEntryInside: last.bottom <= rail.bottom + 1 && last.top >= rail.top - 1,
+      streakInside: Boolean(streak) && streak.bottom <= rail.bottom + 1
+    };
+  });
+
+  expect(measured).toEqual({ scrolls: true, scrolled: true, lastEntryInside: true, streakInside: true });
+});
+
+for (const ipad of IPADS.filter((device) => device.height > device.width)) {
+  test(`dashboard cards stay on one scrollable row on ${ipad.name}`, async ({ page }) => {
+    await mockDashboard(page);
+    await page.setViewportSize({ width: ipad.width, height: ipad.height });
+    await page.goto("/#/");
+    const row = page.locator(".dashboard-stats-grid");
+    await expect(row).toBeVisible();
+
+    const measured = await row.evaluate((element) => {
+      const cards = [...element.children].map((card) => card.getBoundingClientRect());
+      const gap = Number.parseFloat(getComputedStyle(element).columnGap) || 0;
+      return {
+        count: cards.length,
+        rows: new Set(cards.map((card) => Math.round(card.top))).size,
+        scrolls: element.scrollWidth > element.clientWidth + 1,
+        // The card keeps exactly the width the two-column grid gave it.
+        widthMatchesGrid: cards.every((card) => Math.abs(card.width - (element.clientWidth - gap) / 2) <= 1),
+        pageScrollsSideways: document.documentElement.scrollWidth > window.innerWidth + 1
+      };
+    });
+
+    expect(measured.count).toBeGreaterThan(2);
+    expect(measured.rows).toBe(1);
+    expect(measured.scrolls).toBe(true);
+    expect(measured.widthMatchesGrid).toBe(true);
+    expect(measured.pageScrollsSideways).toBe(false);
+  });
+}
+
+// Landscape has the width for the whole row, so it keeps the grid it had.
+test("landscape keeps the dashboard cards in their grid", async ({ page }) => {
+  await mockDashboard(page);
+  await page.setViewportSize({ width: 1112, height: 834 });
+  await page.goto("/#/");
+  const row = page.locator(".dashboard-stats-grid");
+  await expect(row).toBeVisible();
+
+  expect(await row.evaluate((element) => getComputedStyle(element).display)).toBe("grid");
+});

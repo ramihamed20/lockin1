@@ -81,3 +81,15 @@ test("content management has tablet, phone, and reduced-motion styling", () => {
   assert.match(styles, /padding-inline-start/);
   assert.match(styles, /admin-subject-list > button[\s\S]*background: transparent/);
 });
+
+test("sheet page-count fields stay editable while typing", () => {
+  const activeStudy = page.slice(page.indexOf("function ExclusionField"));
+  // The total page count must never be readOnly/disabled: admins type and clear it.
+  assert.doesNotMatch(activeStudy, /readOnly=\{Boolean\(sheet\.pdf\?\.page_count\)\}/);
+  assert.match(activeStudy, /<span>Total PDF pages<\/span><input type="number" inputMode="numeric"/);
+  assert.match(activeStudy, /value=\{form\.total_pdf_pages\} onChange=\{\(event\) => change\("total_pdf_pages", event\.target\.value\)\}/);
+  // Custom exclusion mode is held in state, so clearing the box cannot unmount it.
+  assert.match(activeStudy, /const \[custom, setCustom\] = useState/);
+  assert.match(activeStudy, /\{custom && <input type="number" inputMode="numeric"/);
+  assert.doesNotMatch(activeStudy, /preset === "custom" &&/);
+});

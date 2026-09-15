@@ -143,3 +143,40 @@ test("directional icons are left alone in English", async ({ page }) => {
   const chevron = await page.evaluate(() => window.getComputedStyle(document.querySelector(".catalog-tile__end svg[data-mirror-rtl]")).transform);
   expect(chevron).toBe("none");
 });
+
+// Reported from Android: Chrome offered to translate the Arabic build, and
+// accepting it replaced hand-written Arabic with machine Arabic -- and broke
+// the layout it rewrote. The page declines the offer for itself.
+test("the Arabic build declines machine translation and says what language it is", async ({ page }) => {
+  await signIn(page, "ar");
+  await page.goto("/#/");
+  await expect(page.locator(".sidebar, .mobile-drawer-toggle").first()).toBeVisible();
+
+  const document_ = await page.evaluate(() => ({
+    lang: document.documentElement.lang,
+    dir: document.documentElement.dir,
+    translate: document.documentElement.getAttribute("translate"),
+    // The class the Google widget reads, alongside the standard attribute.
+    notranslate: document.documentElement.classList.contains("notranslate"),
+    brand: document.querySelector(".brand")?.getAttribute("translate") || ""
+  }));
+
+  expect(document_).toEqual({ lang: "ar", dir: "rtl", translate: "no", notranslate: true, brand: "no" });
+});
+
+test("the English build leaves translation available", async ({ page }) => {
+  await signIn(page, "en");
+  await page.goto("/#/");
+  await expect(page.locator(".sidebar, .mobile-drawer-toggle").first()).toBeVisible();
+
+  const document_ = await page.evaluate(() => ({
+    lang: document.documentElement.lang,
+    dir: document.documentElement.dir,
+    translate: document.documentElement.getAttribute("translate"),
+    notranslate: document.documentElement.classList.contains("notranslate"),
+    // The product's own name is still never translated, in either language.
+    brand: document.querySelector(".brand")?.getAttribute("translate") || ""
+  }));
+
+  expect(document_).toEqual({ lang: "en", dir: "ltr", translate: "yes", notranslate: false, brand: "no" });
+});
