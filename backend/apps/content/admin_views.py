@@ -5,7 +5,12 @@ from uuid import UUID
 from django.db.models import Q, QuerySet
 from django.shortcuts import get_object_or_404
 from rest_framework import status
-from rest_framework.exceptions import APIException, NotFound, PermissionDenied
+from rest_framework.exceptions import (
+    APIException,
+    NotFound,
+    PermissionDenied,
+    ValidationError,
+)
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -15,10 +20,12 @@ from apps.administration.catalog import Capability
 from apps.administration.permissions import HasOperationalCapability
 from apps.education.models import EducationNode
 from apps.files.models import ManagedFile
+from apps.files.services import managed_file_delivery_size
 from apps.questions.models import Question
 
 from .active_study_questions import ActiveStudyQuestionValidationError
 from .admin_serializers import (
+    AdminActiveStudyPlanPreviewSerializer,
     AdminActiveStudyQuestionDeleteSerializer,
     AdminActiveStudyQuestionSaveSerializer,
     AdminActiveStudyQuestionValidateSerializer,
@@ -33,6 +40,7 @@ from .admin_serializers import (
 )
 from .admin_services import (
     active_study_payload,
+    active_study_plan_preview,
     active_study_question_content_payload,
     change_sheet_status,
     create_sheet,
@@ -51,7 +59,7 @@ from .admin_services import (
     validate_active_study_question_content,
 )
 from .models import CatalogSubject, LearningObject, LearningObjectAsset, LearningObjectVersion
-from .services import ContentConflictError, ContentRuleError
+from .services import ContentConflictError, ContentFieldError, ContentRuleError
 
 
 class AdminContentRejected(APIException):
@@ -73,6 +81,10 @@ def _user(request: Request) -> User:
 def _raise_rule(error: Exception) -> None:
     if isinstance(error, ContentConflictError):
         raise AdminContentConflict(str(error)) from error
+    if isinstance(error, ContentFieldError):
+        # Field-scoped rejections travel in the envelope's ``fields`` map so
+        # Admin can mark the offending input rather than the whole form.
+        raise ValidationError(error.fields) from error
     raise AdminContentRejected(str(error)) from error
 
 
@@ -136,6 +148,19 @@ def _summary_asset(sheet: LearningObject):  # type: ignore[no-untyped-def]
     )
 
 
+def _summary_is_published(*, sheet: LearningObject, managed_file_id: UUID) -> bool:
+    """Whether the published version carries this very summary file."""
+
+    published = sheet.published_version
+    if published is None:
+        return False
+    return LearningObjectAsset.objects.filter(
+        version=published,
+        role=LearningObjectAsset.Role.SUMMARY,
+        managed_file_id=managed_file_id,
+    ).exists()
+
+
 def serialize_sheet(sheet: LearningObject) -> dict[str, object]:
     version = sheet.current_version
     if version is None:
@@ -193,6 +218,13 @@ def serialize_sheet(sheet: LearningObject) -> dict[str, object]:
                 "page_count": summary_asset.managed_file.pdf_page_count,
                 "content_type": summary_asset.managed_file.content_type,
                 "view_url": f"/api/v1/files/{summary_asset.managed_file_id}/view",
+                # Content Studio shows the draft version; students only ever see
+                # the published one.  These two say whether what is shown here is
+                # the summary a student can actually open.
+                "deliverable": managed_file_delivery_size(summary_asset.managed_file) is not None,
+                "student_visible": _summary_is_published(
+                    sheet=sheet, managed_file_id=summary_asset.managed_file_id
+                ),
             }
             if summary_asset is not None
             else None
@@ -473,14 +505,38 @@ class AdminSheetActiveStudyView(_ContentPermissionView):
                 expected_revision=int(data["expected_revision"]),
                 enabled=bool(data["enabled"]),
                 total_pdf_pages=data.get("total_pdf_pages"),
-                excluded_start_pages=int(data["excluded_start_pages"]),
-                excluded_end_pages=int(data["excluded_end_pages"]),
+                excluded_start_pages=data.get("excluded_start_pages"),
+                excluded_end_pages=data.get("excluded_end_pages"),
                 confirm_boundary_change=bool(data["confirm_boundary_change"]),
             )
         except (LearningObject.DoesNotExist, ContentRuleError) as error:
             _raise_rule(error)
         sheet = self._sheet(sheet.id)
         return Response(active_study_payload(sheet=sheet))
+
+
+class AdminSheetActiveStudyPreviewView(_ContentPermissionView):
+    """Plan unsaved page boundaries with the calculation that Save uses."""
+
+    def post(self, request: Request, sheet_id: UUID) -> Response:
+        serializer = AdminActiveStudyPlanPreviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        sheet = get_object_or_404(
+            LearningObject.objects.select_related("active_study_settings"),
+            id=sheet_id,
+            current_version__content_type=LearningObjectVersion.ContentType.PDF,
+        )
+        try:
+            plan = active_study_plan_preview(
+                sheet=sheet,
+                total_pdf_pages=data.get("total_pdf_pages"),
+                excluded_start_pages=data.get("excluded_start_pages"),
+                excluded_end_pages=data.get("excluded_end_pages"),
+            )
+        except (LearningObject.DoesNotExist, ContentRuleError) as error:
+            _raise_rule(error)
+        return Response(plan)
 
 
 class AdminSheetActiveStudyQuestionsView(_ContentPermissionView):

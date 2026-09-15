@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from functools import partial
 from typing import cast
 from uuid import UUID
@@ -20,12 +21,17 @@ from apps.files.services import managed_file_delivery_size
 from apps.notifications.models import Notification
 from apps.notifications.services import create_notification
 
-from .active_study import DIFFICULTIES, ActiveStudyDifficulty, ActiveStudyPlanError, plan_payload
+from .active_study import (
+    ActiveStudyDifficulty,
+    ActiveStudyPlanError,
+    difficulty_for_key,
+    plan_payload,
+)
 from .active_study_questions import (
     ActiveStudyQuestionValidationResult,
     validate_active_study_questions,
 )
-from .active_study_readiness import readiness_payload
+from .active_study_readiness import readiness_payload, resolve_total_pdf_pages
 from .catalog_subjects import project_subject_node
 from .models import (
     ActiveStudyQuestionContent,
@@ -38,6 +44,7 @@ from .models import (
 )
 from .services import (
     ContentConflictError,
+    ContentFieldError,
     ContentRuleError,
     LearningObjectInput,
     archive_learning_object,
@@ -782,30 +789,120 @@ def _plan_signature(difficulty_plan: dict[str, object]) -> dict[str, object]:
 
 
 def _difficulty_for_key(key: str) -> ActiveStudyDifficulty:
-    for difficulty in DIFFICULTIES:
-        if difficulty.key == key:
-            return difficulty
-    raise ContentRuleError("Active Study difficulty must be easy, medium, or hard.")
+    try:
+        return difficulty_for_key(key)
+    except ActiveStudyPlanError as error:
+        raise ContentRuleError(str(error)) from error
+
+
+@dataclass(frozen=True, slots=True)
+class ResolvedActiveStudyInput:
+    """The page boundaries a plan is actually built from."""
+
+    total_pdf_pages: int | None
+    total_pdf_pages_source: str | None
+    excluded_start_pages: int
+    excluded_end_pages: int
+    settings: ActiveStudySettings | None
+    source_version: LearningObjectVersion | None
+    derived_total: int | None
+
+
+def resolve_active_study_input(
+    *,
+    sheet: LearningObject,
+    total_pdf_pages: int | None = None,
+    excluded_start_pages: int | None = None,
+    excluded_end_pages: int | None = None,
+    settings: ActiveStudySettings | None = None,
+) -> ResolvedActiveStudyInput:
+    """Merge submitted values with what the sheet already knows.
+
+    ``None`` means "not supplied" for every field, and a value that was not
+    supplied falls back to the stored setting -- so a stale or half-loaded Admin
+    form can never blank out page boundaries that are already valid.  A missing
+    page count falls further back to the uploaded PDF's own count, which is what
+    lets a correctly uploaded sheet plan a positive number of parts on its own.
+    """
+
+    if settings is None:
+        settings = ActiveStudySettings.objects.filter(sheet=sheet).first()
+    source_version = sheet.published_version or sheet.current_version
+    derived_total = source_version.page_count if source_version is not None else None
+    stored_total, stored_source = resolve_total_pdf_pages(
+        settings=settings, source_version=source_version
+    )
+    if total_pdf_pages is not None:
+        resolved_total: int | None = total_pdf_pages
+        resolved_source: str | None = "submitted"
+    else:
+        resolved_total, resolved_source = stored_total, stored_source
+    return ResolvedActiveStudyInput(
+        total_pdf_pages=resolved_total,
+        total_pdf_pages_source=resolved_source,
+        excluded_start_pages=(
+            excluded_start_pages
+            if excluded_start_pages is not None
+            else (settings.excluded_start_pages if settings is not None else 0)
+        ),
+        excluded_end_pages=(
+            excluded_end_pages
+            if excluded_end_pages is not None
+            else (settings.excluded_end_pages if settings is not None else 0)
+        ),
+        settings=settings,
+        source_version=source_version,
+        derived_total=derived_total,
+    )
+
+
+def active_study_plan_preview(
+    *,
+    sheet: LearningObject,
+    total_pdf_pages: int | None = None,
+    excluded_start_pages: int | None = None,
+    excluded_end_pages: int | None = None,
+) -> dict[str, object]:
+    """Plan the supplied boundaries without persisting anything.
+
+    Admin previews through this, and :func:`update_active_study_settings` saves
+    through the same resolver and the same ``plan_payload`` call, so a preview
+    can never disagree with what a save stores.
+    """
+
+    resolved = resolve_active_study_input(
+        sheet=sheet,
+        total_pdf_pages=total_pdf_pages,
+        excluded_start_pages=excluded_start_pages,
+        excluded_end_pages=excluded_end_pages,
+    )
+    if resolved.total_pdf_pages is None:
+        raise ContentFieldError(
+            "Enter the PDF's total page count. The uploaded PDF did not report one.",
+            field="total_pdf_pages",
+        )
+    try:
+        plan = plan_payload(
+            total_pdf_pages=resolved.total_pdf_pages,
+            excluded_start_pages=resolved.excluded_start_pages,
+            excluded_end_pages=resolved.excluded_end_pages,
+        )
+    except ActiveStudyPlanError as error:
+        raise ContentFieldError(str(error), field=error.field) from error
+    return {
+        **plan,
+        "total_pdf_pages_source": resolved.total_pdf_pages_source,
+        "pdf_total_pdf_pages": resolved.derived_total,
+        "excluded_start_pages": resolved.excluded_start_pages,
+        "excluded_end_pages": resolved.excluded_end_pages,
+    }
 
 
 def _difficulty_plan_for_sheet(
     *, sheet: LearningObject, difficulty_key: str
 ) -> tuple[ActiveStudyDifficulty, dict[str, object]]:
-    settings = ActiveStudySettings.objects.filter(sheet=sheet).first()
-    total_pages = settings.total_pdf_pages if settings is not None else None
-    if settings is None or total_pages is None:
-        raise ContentRuleError(
-            "Configure the Active Study PDF page count before importing questions."
-        )
-    try:
-        plan = plan_payload(
-            total_pdf_pages=total_pages,
-            excluded_start_pages=settings.excluded_start_pages,
-            excluded_end_pages=settings.excluded_end_pages,
-        )
-    except ActiveStudyPlanError as error:
-        raise ContentRuleError(str(error)) from error
     difficulty = _difficulty_for_key(difficulty_key)
+    plan = active_study_plan_preview(sheet=sheet)
     difficulty_plan = next(
         item
         for item in cast(list[dict[str, object]], plan["difficulties"])
@@ -978,8 +1075,8 @@ def update_active_study_settings(
     expected_revision: int,
     enabled: bool,
     total_pdf_pages: int | None,
-    excluded_start_pages: int,
-    excluded_end_pages: int,
+    excluded_start_pages: int | None,
+    excluded_end_pages: int | None,
     confirm_boundary_change: bool,
 ) -> LearningObject:
     sheet = LearningObject.objects.select_for_update().get(id=sheet_id)
@@ -990,21 +1087,28 @@ def update_active_study_settings(
         raise ContentConflictError("These Active Study settings changed. Reload and try again.")
     if created:
         settings.revision = 0
-    source_version = sheet.published_version or sheet.current_version
-    derived_total = source_version.page_count if source_version is not None else None
-    if derived_total is not None and total_pdf_pages not in {None, derived_total}:
-        raise ContentRuleError(
-            "The configured page count does not match the uploaded PDF. Reload the sheet metadata."
-        )
-    resolved_total = (
-        derived_total
-        if derived_total is not None
-        else total_pdf_pages
-        if total_pdf_pages is not None
-        else settings.total_pdf_pages
+    resolved = resolve_active_study_input(
+        sheet=sheet,
+        total_pdf_pages=total_pdf_pages,
+        excluded_start_pages=excluded_start_pages,
+        excluded_end_pages=excluded_end_pages,
+        settings=settings,
     )
+    source_version = resolved.source_version
+    derived_total = resolved.derived_total
+    if derived_total is not None and total_pdf_pages not in {None, derived_total}:
+        raise ContentFieldError(
+            f"Total PDF pages must be {derived_total} to match the uploaded PDF.",
+            field="total_pdf_pages",
+        )
+    resolved_total = derived_total if derived_total is not None else resolved.total_pdf_pages
+    resolved_start = resolved.excluded_start_pages
+    resolved_end = resolved.excluded_end_pages
     if enabled and resolved_total is None:
-        raise ContentRuleError("Enter the PDF's total page count before enabling Active Study.")
+        raise ContentFieldError(
+            "Enter the PDF's total page count before enabling Active Study.",
+            field="total_pdf_pages",
+        )
     if enabled:
         version = source_version
         has_pdf = (
@@ -1018,18 +1122,20 @@ def update_active_study_settings(
         if not has_pdf:
             raise ContentRuleError("Upload a valid PDF before enabling Active Study.")
     if resolved_total is not None:
+        # The identical call Admin previews through, so a saved plan always
+        # matches the previewed part counts and page ranges.
         try:
             plan_payload(
                 total_pdf_pages=resolved_total,
-                excluded_start_pages=excluded_start_pages,
-                excluded_end_pages=excluded_end_pages,
+                excluded_start_pages=resolved_start,
+                excluded_end_pages=resolved_end,
             )
         except ActiveStudyPlanError as error:
-            raise ContentRuleError(str(error)) from error
+            raise ContentFieldError(str(error), field=error.field) from error
     boundaries_changed = (
         settings.total_pdf_pages != resolved_total
-        or settings.excluded_start_pages != excluded_start_pages
-        or settings.excluded_end_pages != excluded_end_pages
+        or settings.excluded_start_pages != resolved_start
+        or settings.excluded_end_pages != resolved_end
     )
     has_existing_questions = (
         sheet.question_versions.exists()
@@ -1048,8 +1154,8 @@ def update_active_study_settings(
     settings.page_count_verified_at = (
         timezone.now() if derived_total is not None and resolved_total == derived_total else None
     )
-    settings.excluded_start_pages = excluded_start_pages
-    settings.excluded_end_pages = excluded_end_pages
+    settings.excluded_start_pages = resolved_start
+    settings.excluded_end_pages = resolved_end
     settings.revision += 1
     settings.save(
         update_fields=(

@@ -76,6 +76,9 @@ export const adminControlApi = {
   updateActiveStudySettings(sheetId, body) {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study`, { method: "PATCH", body });
   },
+  previewActiveStudyPlan(sheetId, body) {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study/preview`, { method: "POST", body });
+  },
   activeStudyQuestions(sheetId, difficulty) {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study/questions/${difficulty}`);
   },

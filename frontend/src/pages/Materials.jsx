@@ -109,7 +109,7 @@ export function CatalogSheetStudy({ user = null }) {
         ) : (
           <div className="catalog-summary-card is-unavailable" aria-disabled="true">
             <span><Icon name="book-open" size={18} /></span>
-            <div><strong>{t("materials.sheetSummary")}</strong><small>{t("materials.summaryUnavailable")}</small></div>
+            <div><strong>{t("materials.sheetSummary")}</strong><small>{t(sheet.summaryStatus === "processing" ? "materials.summaryProcessing" : "materials.summaryUnavailable")}</small></div>
           </div>
         )}
         <Link className="btn btn-soft compact catalog-sheet-back" to={`/materials/catalog/${material.slug}`}><Icon name="arrow-left" size={16} /> {t("materials.backToSheets")}</Link>
@@ -128,7 +128,7 @@ export function CatalogSheetSummary({ user = null }) {
   if (loading) return <Page title={t("materials.sheetSummary")}><LoadingPanel /></Page>;
   if (error) return <Page title={t("materials.sheetSummary")}><ErrorPanel message={error} onRetry={reload} /></Page>;
   if (!material || !sheet) return <Page title={t("materials.sheetSummary")}><ErrorPanel message={t("materials.sheetNotFoundText")} /></Page>;
-  if (!sheet.summaryPdf?.viewUrl) return <Page title={t("materials.sheetSummary")}><ErrorPanel message={t("materials.summaryUnavailable")} /></Page>;
+  if (!sheet.summaryPdf?.viewUrl) return <Page title={t("materials.sheetSummary")}><ErrorPanel message={t(sheet.summaryStatus === "processing" ? "materials.summaryProcessing" : "materials.summaryUnavailable")} /></Page>;
 
   return (
     <Page title={t("materials.sheetSummary")} subtitle={sheet.title}>

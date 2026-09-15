@@ -1,6 +1,9 @@
+import io
 from typing import Any
 
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
+from pypdf import PdfWriter
 from rest_framework.test import APIClient
 
 from apps.education.tests.helpers import create_admin, pdf_upload, published_path
@@ -182,3 +185,185 @@ def test_admin_reorder_persists_and_content_permissions_guard_settings() -> None
     assert anonymous.patch(
         endpoint, {"expected_revision": 0, "enabled": False}, format="json"
     ).status_code in {401, 403}
+
+
+def _real_pdf_upload(*, pages: int, name: str = "paginated.pdf") -> SimpleUploadedFile:
+    """A PDF whose page count pypdf can actually read."""
+
+    writer = PdfWriter()
+    for _ in range(pages):
+        writer.add_blank_page(width=200, height=200)
+    buffer = io.BytesIO()
+    writer.write(buffer)
+    return SimpleUploadedFile(name, buffer.getvalue(), content_type="application/pdf")
+
+
+def _paginated_sheet(*, admin: Any, subject: Any, pages: int, title: str = "Paginated"):
+    return create_sheet(
+        actor=admin,
+        subject=subject,
+        managed_file=create_managed_file(
+            owner=admin, upload=_real_pdf_upload(pages=pages), kind="pdf"
+        ),
+        title=title,
+        summary="",
+        position=0,
+        publish=False,
+        notify_students=False,
+        allow_download=False,
+    )
+
+
+def test_every_difficulty_plans_positive_parts_from_the_uploaded_pdf_without_admin_input() -> None:
+    admin = create_admin()
+    _, subject, _ = published_path(admin=admin)
+    sheet = _paginated_sheet(admin=admin, subject=subject, pages=22)
+    client = APIClient()
+    client.force_authenticate(admin)
+
+    payload = client.get(f"/api/v1/operations/admin/content/sheets/{sheet.id}/active-study").json()
+    assert payload["total_pdf_pages"] == 22
+    assert payload["total_pdf_pages_source"] == "pdf"
+    assert payload["eligible_study_pages"] == 22
+    assert payload["plan_error"] is None
+    parts = {item["difficulty"]: item["number_of_parts"] for item in payload["difficulties"]}
+    assert parts == {"easy": 3, "medium": 4, "hard": 5}
+    for item in payload["difficulties"]:
+        # A calculated plan must never be reported as a missing prompt template.
+        assert item["plan_available"] is True
+        assert item["prompt_template_supported"] is True
+        assert item["page_ranges"][0]["start_page"] == 1
+        assert item["page_ranges"][-1]["end_page"] == 22
+
+
+def test_unplannable_sheet_reports_the_page_field_not_a_missing_prompt_template() -> None:
+    admin = create_admin()
+    _, subject, _ = published_path(admin=admin)
+    sheet = _sheet(admin=admin, subject=subject, title="Unreadable", position=0)
+    client = APIClient()
+    client.force_authenticate(admin)
+    endpoint = f"/api/v1/operations/admin/content/sheets/{sheet.id}/active-study"
+
+    payload = client.get(endpoint).json()
+    assert payload["total_pdf_pages"] is None
+    for item in payload["difficulties"]:
+        assert item["number_of_parts"] == 0
+        assert item["plan_available"] is False
+        assert item["plan_error"] == "PDF page count is missing."
+        assert item["prompt_template_supported"] is True
+
+    preview = client.post(f"{endpoint}/preview", {}, format="json")
+    assert preview.status_code == 400
+    assert "total_pdf_pages" in preview.json()["error"]["fields"]
+
+
+def test_preview_and_save_agree_on_parts_for_easy_medium_and_hard() -> None:
+    admin = create_admin()
+    _, subject, _ = published_path(admin=admin)
+    sheet = _paginated_sheet(admin=admin, subject=subject, pages=30)
+    client = APIClient()
+    client.force_authenticate(admin)
+    endpoint = f"/api/v1/operations/admin/content/sheets/{sheet.id}/active-study"
+
+    preview = client.post(
+        f"{endpoint}/preview",
+        {"total_pdf_pages": 30, "excluded_start_pages": 2, "excluded_end_pages": 1},
+        format="json",
+    )
+    assert preview.status_code == 200
+    previewed = {item["difficulty"]: item for item in preview.json()["difficulties"]}
+    assert preview.json()["eligible_study_pages"] == 27
+    assert [previewed[key]["number_of_parts"] for key in ("easy", "medium", "hard")] == [4, 5, 6]
+
+    saved = client.patch(
+        endpoint,
+        {
+            "expected_revision": 0,
+            "enabled": True,
+            "total_pdf_pages": 30,
+            "excluded_start_pages": 2,
+            "excluded_end_pages": 1,
+        },
+        format="json",
+    )
+    assert saved.status_code == 200
+    stored = {item["difficulty"]: item for item in saved.json()["difficulties"]}
+    for key in ("easy", "medium", "hard"):
+        assert stored[key]["number_of_parts"] == previewed[key]["number_of_parts"] > 0
+        assert stored[key]["page_ranges"] == previewed[key]["page_ranges"]
+        assert stored[key]["page_ranges"][0]["start_page"] == 3
+        assert stored[key]["page_ranges"][-1]["end_page"] == 29
+
+
+def test_blank_boundary_fields_never_overwrite_saved_active_study_settings() -> None:
+    admin = create_admin()
+    _, subject, _ = published_path(admin=admin)
+    sheet = _paginated_sheet(admin=admin, subject=subject, pages=22)
+    client = APIClient()
+    client.force_authenticate(admin)
+    endpoint = f"/api/v1/operations/admin/content/sheets/{sheet.id}/active-study"
+
+    saved = client.patch(
+        endpoint,
+        {
+            "expected_revision": 0,
+            "enabled": True,
+            "total_pdf_pages": 22,
+            "excluded_start_pages": 2,
+            "excluded_end_pages": 1,
+        },
+        format="json",
+    )
+    assert saved.status_code == 200
+    assert saved.json()["eligible_study_pages"] == 19
+
+    stale = client.patch(
+        endpoint,
+        {
+            "expected_revision": saved.json()["revision"],
+            "enabled": True,
+            "confirm_boundary_change": True,
+        },
+        format="json",
+    )
+    assert stale.status_code == 200
+    assert stale.json()["total_pdf_pages"] == 22
+    assert stale.json()["excluded_start_pages"] == 2
+    assert stale.json()["excluded_end_pages"] == 1
+    assert stale.json()["eligible_study_pages"] == 19
+    medium = next(item for item in stale.json()["difficulties"] if item["difficulty"] == "medium")
+    assert medium["number_of_parts"] == 3
+
+
+def test_invalid_boundaries_name_the_offending_admin_field() -> None:
+    admin = create_admin()
+    _, subject, _ = published_path(admin=admin)
+    sheet = _paginated_sheet(admin=admin, subject=subject, pages=22)
+    client = APIClient()
+    client.force_authenticate(admin)
+    endpoint = f"/api/v1/operations/admin/content/sheets/{sheet.id}/active-study"
+
+    rejected = client.patch(
+        endpoint,
+        {
+            "expected_revision": 0,
+            "enabled": True,
+            "total_pdf_pages": 22,
+            "excluded_start_pages": 20,
+            "excluded_end_pages": 5,
+        },
+        format="json",
+    )
+    assert rejected.status_code == 400
+    # The larger exclusion is the one Admin is told to reduce.
+    fields = rejected.json()["error"]["fields"]
+    assert "excluded_start_pages" in fields
+    assert "leaves no study pages" in fields["excluded_start_pages"][0]
+
+    mismatched = client.patch(
+        endpoint,
+        {"expected_revision": 0, "enabled": True, "total_pdf_pages": 21},
+        format="json",
+    )
+    assert mismatched.status_code == 400
+    assert "total_pdf_pages" in mismatched.json()["error"]["fields"]

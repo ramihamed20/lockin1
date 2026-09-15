@@ -93,3 +93,30 @@ test("sheet page-count fields stay editable while typing", () => {
   assert.match(activeStudy, /\{custom && <input type="number" inputMode="numeric"/);
   assert.doesNotMatch(activeStudy, /preset === "custom" &&/);
 });
+
+test("Active Study previews through the backend planner and blames the exact invalid field", () => {
+  assert.match(api, /previewActiveStudyPlan/);
+  assert.match(api, /active-study\/preview/);
+  // Preview drives what the cards render, so parts and ranges match what Save stores.
+  assert.match(page, /adminControlApi\.previewActiveStudyPlan/);
+  assert.match(page, /planned\.difficulties\.find/);
+  assert.match(page, /Previewing unsaved boundaries/);
+  // Field-scoped errors from the envelope land on their own input.
+  assert.match(page, /function fieldErrorMap/);
+  assert.match(page, /<FieldError errors=\{errors\} field="total_pdf_pages"/);
+  assert.match(page, /error=\{errors\.excluded_start_pages\}/);
+  assert.match(page, /error=\{errors\.excluded_end_pages\}/);
+});
+
+test("a blank Active Study field never overwrites saved boundaries", () => {
+  assert.match(page, /function activeStudyBoundaryBody/);
+  assert.match(page, /if \(raw !== "" && Number\.isFinite\(Number\(raw\)\)\) body\[key\] = Number\(raw\)/);
+  assert.match(page, /total_pdf_pages: data\.data\.total_pdf_pages \?\? ""/);
+  assert.doesNotMatch(page, /total_pdf_pages: form\.total_pdf_pages === "" \? null/);
+});
+
+test("the prompt-template warning only fires when a real plan has no template", () => {
+  assert.match(page, /difficulty\.plan_available === false && <p className="form-alert error">Active Study parts cannot be calculated yet/);
+  assert.match(page, /difficulty\.plan_available !== false && !difficulty\.prompt_template_supported/);
+  assert.match(page, /A matching prompt template is not configured yet/);
+});

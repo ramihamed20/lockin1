@@ -31,6 +31,24 @@ class ContentConflictError(ContentRuleError):
     pass
 
 
+class ContentFieldError(ContentRuleError):
+    """A rule violation that names the form field responsible.
+
+    The API surfaces ``fields`` in the error envelope so Admin can mark the
+    exact input instead of showing an unattributed page-level message.
+    """
+
+    def __init__(self, message: str, *, field: str | None = None) -> None:
+        super().__init__(message)
+        self.field = field
+
+    @property
+    def fields(self) -> dict[str, list[str] | str]:
+        # "detail" carries the same text into the envelope's ``message`` so the
+        # response reads correctly even where only the message is shown.
+        return {self.field or "non_field_errors": [str(self)], "detail": str(self)}
+
+
 @dataclass(frozen=True, slots=True)
 class LearningObjectInput:
     academic_node: EducationNode

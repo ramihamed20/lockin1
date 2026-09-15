@@ -251,6 +251,10 @@ class CatalogMaterialListView(APIView):
                     cast(dict[str, object], item["readiness"])["ready"] is True
                     for item in difficulties
                 )
+                summary_deliverable = (
+                    summary_asset is not None
+                    and managed_file_delivery_size(summary_asset.managed_file) is not None
+                )
                 sheets.append(
                     {
                         "slug": document.sheet_slug,
@@ -262,9 +266,17 @@ class CatalogMaterialListView(APIView):
                                 "viewUrl": f"/api/v1/files/{summary_asset.managed_file_id}/view",
                                 "pageCount": summary_asset.managed_file.pdf_page_count,
                             }
-                            if summary_asset is not None
-                            and managed_file_delivery_size(summary_asset.managed_file) is not None
+                            if summary_asset is not None and summary_deliverable
                             else None
+                        ),
+                        # "Not uploaded" and "uploaded but not deliverable yet"
+                        # are different problems, and the student is told which.
+                        "summaryStatus": (
+                            "available"
+                            if summary_deliverable
+                            else "processing"
+                            if summary_asset is not None
+                            else "missing"
                         ),
                         "pageCount": (
                             page_count if isinstance(page_count, int) and page_count > 0 else None
