@@ -545,11 +545,14 @@ export default function CatalogFocusWorkspace({ user = null, variant = "study" }
   // reader state and annotations sync under. A fixture sheet that carries its
   // own pdfUrl opens without it and simply stays local.
   const summaryMode = variant === "summary";
-  const summaryUrl = summaryMode ? edition?.summaryPdf?.viewUrl || "" : "";
-  // A summary is read from its own file, so the sheet's catalog document is not
-  // fetched for it; everything else about the reader is identical.
-  const catalogDocument = useCatalogDocument(sheet && !summaryMode ? materialSlug : "", sheet && !summaryMode ? sheetSlug : "");
-  const viewUrl = summaryMode ? summaryUrl : catalogDocument.document?.viewUrl || "";
+  // A summary resolves through the same endpoint as the study PDF, so it is
+  // delivered, cached and synced by the same code -- only the file differs.
+  const catalogDocument = useCatalogDocument(
+    sheet ? materialSlug : "",
+    sheet ? sheetSlug : "",
+    summaryMode ? "summary" : ""
+  );
+  const viewUrl = catalogDocument.document?.viewUrl || "";
   const resolvedMaterials = useMemo(() => (viewUrl && sheet && !sheet.pdfUrl
     ? withEditionPdfUrl(materials, {
       materialSlug,
@@ -559,6 +562,10 @@ export default function CatalogFocusWorkspace({ user = null, variant = "study" }
       hasActiveStudy: summaryMode ? false : undefined
     })
     : materials), [edition, materialSlug, materials, sheet, sheetSlug, summaryMode, viewUrl]);
+  const documentScope = useMemo(
+    () => ({ edition: edition?.edition || "university", view: summaryMode ? "summary" : "study" }),
+    [edition, summaryMode]
+  );
   const title = summaryMode ? t("materials.sheetSummary") : t("materials.coreCatalogTitle");
   if (materialsLoading) return <Page title={title}><LoadingPanel /></Page>;
   if (materialsError) return <Page title={t("materials.sheetNotFoundTitle")}><ErrorPanel message={materialsError} onRetry={reloadMaterials} /></Page>;
@@ -568,13 +575,13 @@ export default function CatalogFocusWorkspace({ user = null, variant = "study" }
     if (missingEdition) return <Page title={t("materials.sheetNotFoundTitle")}><ErrorPanel message={t("materials.editionUnavailable")} /></Page>;
     return <Page title={t("materials.sheetNotFoundTitle")}><EmptyState icon="study" title={t("materials.noSheetsTitle")} text={t("materials.noSheetsText")} /></Page>;
   }
-  if (summaryMode && !summaryUrl) {
-    return <Page title={title}><ErrorPanel message={t(sheet.summaryStatus === "processing" ? "materials.summaryProcessing" : "materials.summaryUnavailable")} /></Page>;
-  }
   // The workspace sizes itself from the PDF when it first mounts, so it waits
   // for the document rather than mounting without one.
-  if (!sheet.pdfUrl && !summaryMode && catalogDocument.loading) return <Page title={sheet.title}><LoadingPanel /></Page>;
-  if (!sheet.pdfUrl && !summaryMode && !catalogDocument.document) {
+  if (!sheet.pdfUrl && catalogDocument.loading) return <Page title={title}><LoadingPanel /></Page>;
+  if (!sheet.pdfUrl && !catalogDocument.document) {
+    if (summaryMode) {
+      return <Page title={title}><ErrorPanel message={t(sheet.summaryStatus === "processing" ? "materials.summaryProcessing" : "materials.summaryUnavailable")} onRetry={catalogDocument.reload} /></Page>;
+    }
     return <Page title={sheet.title}><ErrorPanel message={catalogDocument.error || t("materials.sheetNotFoundText")} onRetry={catalogDocument.reload} /></Page>;
   }
   // Last guard before the reader: a catalog sheet without its own PDF must
@@ -586,11 +593,15 @@ export default function CatalogFocusWorkspace({ user = null, variant = "study" }
   if (!readable?.pdfUrl) {
     return <Page title={sheet.title}><ErrorPanel message={t("materials.editionUnavailable")} onRetry={summaryMode ? undefined : catalogDocument.reload} /></Page>;
   }
-  return <CatalogFocusWorkspaceView user={user} materials={resolvedMaterials} catalogDocument={summaryMode ? null : catalogDocument.document} onDocumentChanged={summaryMode ? undefined : catalogDocument.reload} summaryMode={summaryMode} />;
+  return <CatalogFocusWorkspaceView user={user} materials={resolvedMaterials} catalogDocument={catalogDocument.document} documentScope={documentScope} onDocumentChanged={catalogDocument.reload} summaryMode={summaryMode} />;
 }
 
-function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocument = null, onDocumentChanged = () => {}, summaryMode = false }) {
+function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocument = null, documentScope = null, onDocumentChanged = () => {}, summaryMode = false }) {
   const { materialSlug, sheetSlug } = useParams();
+  // A Sheet Summary is a different document from the sheet it belongs to, and
+  // the local cache is keyed by slug, so it needs a key of its own or the two
+  // sets of marks would be cached over each other on this device.
+  const storageSlug = summaryMode ? `${sheetSlug}--summary` : sheetSlug;
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const rootRef = useRef(null);
@@ -802,7 +813,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const [noteDraft, setNoteDraft] = useState("");
   const [noteBusy, setNoteBusy] = useState(false);
   const [studyMode, setStudyMode] = useState(null);
-  const [modeDialogOpen, setModeDialogOpen] = useState(true);
+  // A Sheet Summary is Normal Mode only, so it opens straight into reading
+  // rather than asking which study mode to use.
+  const [modeDialogOpen, setModeDialogOpen] = useState(!summaryMode);
   const [activeDifficulty, setActiveDifficulty] = useState("medium");
   const [activeStudy, setActiveStudy] = useState(null);
   const [activeStudyBusy, setActiveStudyBusy] = useState(false);
@@ -1395,7 +1408,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
    */
   const persistWorkspace = useCallback(async (target = null) => {
     if (!hydratedRef.current) return;
-    const document = target || { owner: ownerKey, materialSlug, sheetSlug };
+    const document = target || { owner: ownerKey, materialSlug, sheetSlug: storageSlug };
     const view = {
       page: pageRef.current,
       zoom: zoomRef.current,
@@ -1446,7 +1459,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       setSaveState("error");
       setSaveErrorReason(error?.message || "Marks could not be saved on this device.");
     }
-  }, [materialSlug, minimumPdfZoom, ownerKey, scheduleServerSync, sheetSlug]);
+  }, [materialSlug, minimumPdfZoom, ownerKey, scheduleServerSync, storageSlug]);
 
   persistWorkspaceRef.current = persistWorkspace;
 
@@ -1455,7 +1468,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     // Switching sheet or account keeps this component mounted, so the sheet
     // being left has to be written before its state is replaced.
     const previous = openDocumentRef.current;
-    if (hydratedRef.current && previous && (previous.materialSlug !== materialSlug || previous.sheetSlug !== sheetSlug || previous.owner !== ownerKey)) {
+    if (hydratedRef.current && previous && (previous.materialSlug !== materialSlug || previous.sheetSlug !== storageSlug || previous.owner !== ownerKey)) {
       persistWorkspaceRef.current?.(previous);
     }
     hydratedRef.current = false;
@@ -1463,7 +1476,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     setRestored(null);
     setSaveState("idle");
     setSaveErrorReason("");
-    const legacyKey = catalogWorkspaceStorageKey(ownerKey, materialSlug, sheetSlug);
+    const legacyKey = catalogWorkspaceStorageKey(ownerKey, materialSlug, storageSlug);
     const store = annotationStoreRef.current;
 
     async function hydrate() {
@@ -1473,18 +1486,18 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         await store.migrateLegacyDocument({
           owner: ownerKey,
           materialSlug,
-          sheetSlug,
+          sheetSlug: storageSlug,
           legacyKey,
           parse: parseCatalogWorkspace
         });
-        snapshot = await store.readDocument({ owner: ownerKey, materialSlug, sheetSlug });
+        snapshot = await store.readDocument({ owner: ownerKey, materialSlug, sheetSlug: storageSlug });
         storageModeRef.current = "indexeddb";
       } catch {
         // Private browsing modes can refuse IndexedDB entirely. The workspace
         // stays usable on the previous localStorage path rather than losing
         // persistence altogether.
         storageModeRef.current = "local";
-        const legacy = loadStoredWorkspace(ownerKey, materialSlug, sheetSlug);
+        const legacy = loadStoredWorkspace(ownerKey, materialSlug, storageSlug);
         snapshot = legacy ? { view: legacy, notes: legacy.notes, annotations: legacy.annotations } : null;
       }
       if (!active) return;
@@ -1510,7 +1523,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         }
       }
       hydratedRef.current = true;
-      openDocumentRef.current = { owner: ownerKey, materialSlug, sheetSlug };
+      openDocumentRef.current = { owner: ownerKey, materialSlug, sheetSlug: storageSlug };
       setRestored(snapshot || {});
       setSaveState(snapshot ? "saved" : "idle");
     }
@@ -1519,16 +1532,28 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     return () => { active = false; };
   // `clampReaderZoom` and the remember-* refs are read once per document load.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookmarkedPage, materialSlug, ownerKey, sheetSlug]);
+  }, [bookmarkedPage, materialSlug, ownerKey, storageSlug]);
 
   // One server mirror per document and account. A sheet without a server
   // document (a build fixture, or one the reader cannot reach) stays local.
   const catalogDocumentId = catalogDocument?.id || "";
   const catalogDocumentVersionId = catalogDocument?.versionId || "";
+  // The scope travels with the sync so the server files these marks under the
+  // document that was actually marked, not under the sheet's version.
+  const scopeEdition = documentScope?.edition || "university";
+  const scopeView = documentScope?.view || "study";
   const [serverLoadAttempt, setServerLoadAttempt] = useState(0);
   useEffect(() => {
     const sync = catalogDocumentId && catalogDocumentVersionId
-      ? createCatalogServerSync({ documentId: catalogDocumentId, documentVersionId: catalogDocumentVersionId, owner: ownerKey })
+      ? createCatalogServerSync({
+        documentId: catalogDocumentId,
+        documentVersionId: catalogDocumentVersionId,
+        scope: { edition: scopeEdition, view: scopeView },
+        // A Sheet Summary has no catalog document of its own, so its marks sync
+        // while its notes and last page stay on the device.
+        workspaceDocumentId: scopeView === "summary" ? null : catalogDocumentId,
+        owner: ownerKey
+      })
       : null;
     serverSyncRef.current = sync;
     serverLoadStartedRef.current = null;
@@ -1537,7 +1562,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       serverSyncTimerRef.current = null;
       if (serverSyncRef.current === sync) serverSyncRef.current = null;
     };
-  }, [catalogDocumentId, catalogDocumentVersionId, ownerKey]);
+  }, [catalogDocumentId, catalogDocumentVersionId, ownerKey, scopeEdition, scopeView]);
 
   // The server's copy is read once the local one is restored and the PDF has
   // reported its page count, then merged into what this device holds.

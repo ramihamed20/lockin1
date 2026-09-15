@@ -38,11 +38,18 @@ def focus_session_history(*, user_id: UUID) -> QuerySet[FocusSession]:
     )
 
 
-def latest_workspace(*, user_id: UUID, document_version_id: UUID) -> FocusWorkspaceSnapshot | None:
+def latest_workspace(*, user_id: UUID, document_id: UUID) -> FocusWorkspaceSnapshot | None:
+    """The reader's last position in one document.
+
+    Keyed by document rather than by version: one version now publishes two
+    editions and their summaries, and a page number in one of them means nothing
+    in another.
+    """
+
     return (
         FocusWorkspaceSnapshot.objects.filter(
             user_id=user_id,
-            document_version_id=document_version_id,
+            document_id=document_id,
         )
         .select_related("session")
         .order_by("-updated_at")

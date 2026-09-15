@@ -24,7 +24,17 @@ from apps.focus.selectors import annotation_collection_revision
 
 from .active_study_readiness import readiness_payload, settings_for
 from .admin_services import archive_catalog_learning_object, publish_catalog_learning_object
-from .editions import UNIVERSITY, edition_label, primary_role, summary_role
+from .edition_documents import edition_asset
+from .editions import (
+    STUDY,
+    UNIVERSITY,
+    UnknownEditionError,
+    annotation_document_id,
+    edition_label,
+    normalize_view,
+    primary_role,
+    summary_role,
+)
 from .models import (
     CatalogDocument,
     CatalogSubject,
@@ -121,17 +131,55 @@ def _catalog_document(*, user: User, material_slug: str, sheet_slug: str) -> Cat
 
 
 class CatalogDocumentResolveView(APIView):
+    """Resolve one reader address to the exact file behind it.
+
+    ``view=summary`` resolves the Sheet Summary of the same edition. It is the
+    same reader, the same delivery path and the same annotation storage; only
+    the file differs, so it resolves here rather than through a second endpoint.
+    """
+
     def get(self, request: Request, material_slug: str, sheet_slug: str) -> Response:
         document = _catalog_document(
             user=_user(request), material_slug=material_slug, sheet_slug=sheet_slug
         )
+        try:
+            view = normalize_view(request.query_params.get("view"))
+        except UnknownEditionError as error:
+            raise ContentRejected(str(error)) from error
+        if view == STUDY:
+            return Response(
+                {
+                    "document": {
+                        "id": str(document.id),
+                        "document_version_id": str(document.version_id),
+                        "file_id": str(document.managed_file_id),
+                        "view_url": f"/api/v1/files/{document.managed_file_id}/view",
+                    }
+                }
+            )
+        asset, owning_edition = edition_asset(
+            version=document.version, edition=document.edition, view=view
+        )
+        if asset is None:
+            raise NotFound("This sheet has no summary.")
+        if managed_file_delivery_size(asset.managed_file) is None:
+            raise CatalogFileUnavailable()
         return Response(
             {
                 "document": {
-                    "id": str(document.id),
+                    # The identity the server stores this document's marks
+                    # under, so the reader's local cache is scoped to the same
+                    # document the server is.
+                    "id": str(
+                        annotation_document_id(
+                            learning_object_id=document.version.learning_object_id,
+                            edition=owning_edition,
+                            view=view,
+                        )
+                    ),
                     "document_version_id": str(document.version_id),
-                    "file_id": str(document.managed_file_id),
-                    "view_url": f"/api/v1/files/{document.managed_file_id}/view",
+                    "file_id": str(asset.managed_file_id),
+                    "view_url": f"/api/v1/files/{asset.managed_file_id}/view",
                 }
             }
         )
@@ -352,9 +400,15 @@ class CatalogWorkspaceView(APIView):
     def get(self, request: Request, document_id: UUID) -> Response:
         user = _user(request)
         document = _catalog_document_by_id(user=user, document_id=document_id)
+        # The revision of this edition's own collection: a Lock-in reader must
+        # not be told the University document changed, or the other way round.
         collection_revision = annotation_collection_revision(
             user_id=user.id,
-            document_id=document.version.learning_object_id,
+            document_id=annotation_document_id(
+                learning_object_id=document.version.learning_object_id,
+                edition=document.edition,
+                view=STUDY,
+            ),
         )
         if request.query_params.get("probe") == "1":
             workspace_revision = (

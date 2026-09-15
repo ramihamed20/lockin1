@@ -19,7 +19,12 @@ from rest_framework.views import APIView
 
 from apps.accounts.avatars import avatar_payload
 from apps.accounts.models import User
-from apps.content.editions import UNIVERSITY, UnknownEditionError, normalize_edition
+from apps.content.editions import (
+    UNIVERSITY,
+    UnknownEditionError,
+    normalize_edition,
+    normalize_view,
+)
 from apps.content.models import LearningObject, LearningObjectAsset, LearningObjectVersion
 from apps.content.policies import can_view_learning_object, is_version_available
 from apps.education.policies import is_content_administrator
@@ -206,6 +211,15 @@ def _edition(request: Request) -> str:
 
     try:
         return normalize_edition(request.query_params.get("edition"))
+    except UnknownEditionError as error:
+        raise FocusRejected(str(error)) from error
+
+
+def _view(request: Request) -> str:
+    """Whether the reader has the study PDF open or its Sheet Summary."""
+
+    try:
+        return normalize_view(request.query_params.get("view"))
     except UnknownEditionError as error:
         raise FocusRejected(str(error)) from error
 
@@ -584,11 +598,13 @@ class FocusDocumentView(APIView):
     @extend_schema(operation_id="focus_document_retrieve", responses={200: OpenApiTypes.OBJECT})
     def get(self, request: Request, document_version_id: UUID) -> Response:
         user = _authorize(request)
-        document = resolve_focus_document(user=user, document_version_id=document_version_id)
-        workspace = latest_workspace(
-            user_id=user.id,
-            document_version_id=document.document_version_id,
+        document = resolve_focus_document(
+            user=user,
+            document_version_id=document_version_id,
+            edition=_edition(request),
+            view=_view(request),
         )
+        workspace = latest_workspace(user_id=user.id, document_id=document.document_id)
         annotation_revision, _ = annotations_for_pages(
             user_id=user.id,
             document_id=document.document_id,
@@ -995,12 +1011,14 @@ class FocusAnnotationsView(APIView):
     @extend_schema(operation_id="focus_annotations_list", responses={200: OpenApiTypes.OBJECT})
     def get(self, request: Request, document_version_id: UUID) -> Response:
         user = _authorize(request)
-        document = resolve_focus_document(user=user, document_version_id=document_version_id)
-        pages = _page_numbers(request.query_params.get("pages"))
-        previous_workspace = latest_workspace(
-            user_id=user.id,
-            document_version_id=document.document_version_id,
+        document = resolve_focus_document(
+            user=user,
+            document_version_id=document_version_id,
+            edition=_edition(request),
+            view=_view(request),
         )
+        pages = _page_numbers(request.query_params.get("pages"))
+        previous_workspace = latest_workspace(user_id=user.id, document_id=document.document_id)
         page_count = document.page_count or (
             previous_workspace.page_count if previous_workspace is not None else None
         )
@@ -1029,14 +1047,16 @@ class FocusAnnotationsView(APIView):
     )
     def post(self, request: Request, document_version_id: UUID) -> Response:
         user = _authorize(request)
-        document = resolve_focus_document(user=user, document_version_id=document_version_id)
+        document = resolve_focus_document(
+            user=user,
+            document_version_id=document_version_id,
+            edition=_edition(request),
+            view=_view(request),
+        )
         serializer = AnnotationSyncSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        previous_workspace = latest_workspace(
-            user_id=user.id,
-            document_version_id=document.document_version_id,
-        )
+        previous_workspace = latest_workspace(user_id=user.id, document_id=document.document_id)
         page_count = document.page_count or (
             previous_workspace.page_count if previous_workspace is not None else None
         )

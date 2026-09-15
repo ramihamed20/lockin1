@@ -27,11 +27,12 @@ export function parseCatalogDocument(payload) {
  * and the identifiers its workspace state and annotations are stored under.
  * @param {string} materialSlug
  * @param {string} sheetSlug
+ * @param {string} [view] "summary" opens that document's Sheet Summary instead.
  */
-export function useCatalogDocument(materialSlug, sheetSlug) {
+export function useCatalogDocument(materialSlug, sheetSlug, view = "") {
   const result = useAsyncData(
-    (signal) => (materialSlug && sheetSlug ? catalogWorkspaceApi.resolve(materialSlug, sheetSlug, { signal }) : Promise.resolve(null)),
-    [materialSlug, sheetSlug]
+    (signal) => (materialSlug && sheetSlug ? catalogWorkspaceApi.resolve(materialSlug, sheetSlug, { signal, view }) : Promise.resolve(null)),
+    [materialSlug, sheetSlug, view]
   );
   // useAsyncData keeps the previous result while reloading; after a sheet change
   // that would be the previous sheet's document, and its sync would receive this

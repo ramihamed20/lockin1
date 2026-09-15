@@ -449,7 +449,13 @@ class FocusWorkspaceSnapshot(models.Model):
             models.Index(
                 fields=("user", "document_version_id", "-updated_at"),
                 name="focus_workspace_restore_idx",
-            )
+            ),
+            # Restores are looked up per document now, because one version
+            # publishes two editions and each of their summaries.
+            models.Index(
+                fields=("user", "document_id", "-updated_at"),
+                name="focus_workspace_doc_idx",
+            ),
         ]
         constraints = [
             models.CheckConstraint(
