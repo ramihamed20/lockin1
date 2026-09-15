@@ -577,6 +577,7 @@ test("logging out asks first, and cancelling keeps the reader signed in", async 
   await page.goto("/#/");
 
   await page.getByRole("button", { name: "Open profile menu" }).click();
+  await expect(page.locator(".account-menu")).toBeVisible();
   await page.locator(".account-menu-signout").click();
 
   const dialog = page.getByRole("alertdialog");
@@ -599,6 +600,7 @@ test("logging out asks first, and cancelling keeps the reader signed in", async 
 
   // Escape is the same answer as Cancel.
   await page.getByRole("button", { name: "Open profile menu" }).click();
+  await expect(page.locator(".account-menu")).toBeVisible();
   await page.locator(".account-menu-signout").click();
   await expect(page.getByRole("alertdialog")).toBeVisible();
   await page.keyboard.press("Escape");
@@ -613,6 +615,7 @@ test("confirming logs out exactly once, however many times the button is pressed
   await page.goto("/#/");
 
   await page.getByRole("button", { name: "Open profile menu" }).click();
+  await expect(page.locator(".account-menu")).toBeVisible();
   await page.locator(".account-menu-signout").click();
   const dialog = page.getByRole("alertdialog");
   // Addressed by role in the dialog, because the label changes while busy.
@@ -639,6 +642,7 @@ test("a failed logout keeps the reader signed in and says why", async ({ page })
   await page.goto("/#/");
 
   await page.getByRole("button", { name: "Open profile menu" }).click();
+  await expect(page.locator(".account-menu")).toBeVisible();
   await page.locator(".account-menu-signout").click();
   await page.getByRole("alertdialog").locator(".btn-danger").click();
 
@@ -658,6 +662,7 @@ test("the logout confirmation reads correctly in Arabic", async ({ page }) => {
   await page.goto("/#/");
 
   await page.getByRole("button", { name: "فتح قائمة الملف الشخصي" }).click();
+  await expect(page.locator(".account-menu")).toBeVisible();
   await page.locator(".account-menu-signout").click();
 
   const dialog = page.getByRole("alertdialog");
@@ -734,12 +739,16 @@ test("going back after logout never shows the account again", async ({ page }) =
   await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
 
   await page.goto("/#/");
-  await expect(page.getByRole("button", { name: "Open profile menu" })).toBeVisible();
+  // A cold start of the production bundle under a loaded CI machine routinely
+  // needs longer than the default expect timeout, as two other specs here
+  // already allow for.
+  await expect(page.getByRole("button", { name: "Open profile menu" })).toBeVisible({ timeout: 15_000 });
   // Build real protected history to walk back through.
   await page.goto("/#/profile");
   await page.goto("/#/settings");
 
   await page.getByRole("button", { name: "Open profile menu" }).click();
+  await expect(page.locator(".account-menu")).toBeVisible();
   await page.locator(".account-menu-signout").click();
   await page.getByRole("alertdialog").locator(".btn-danger").click();
   await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible({ timeout: 15_000 });
