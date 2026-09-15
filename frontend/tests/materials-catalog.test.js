@@ -367,3 +367,19 @@ test("Catalog Focus Workspace uses a compact contextual toolbar and persistent c
   assert.match(styles, /@media \(max-width: 1199px\) \{[\s\S]*width: min\(340px/);
   assert.doesNotMatch(styles, /min-height: 100svh/);
 });
+
+test("a student can open every catalog sheet view, including the Sheet Summary", async () => {
+  const app = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
+  // The summary page is a real route, so the guard must admit it; it used to
+  // fall through and show students "Access unavailable".
+  assert.match(app, /path="\/materials\/catalog\/:materialSlug\/sheets\/:sheetSlug\/summary"/);
+  const student = { id: "student", roles: ["student"] };
+  const base = "/materials/catalog/anatomy-1/sheets/head-and-neck";
+  assert.equal(canAccessRoute(student, base), true);
+  assert.equal(canAccessRoute(student, `${base}/summary`), true);
+  assert.equal(canAccessRoute(student, `${base}/workspace`), true);
+  // The guard stays exact: no unknown child route rides along with it.
+  assert.equal(canAccessRoute(student, `${base}/summary/print`), false);
+  assert.equal(canAccessRoute(student, `${base}/anything-else`), false);
+  assert.equal(canAccessRoute(null, `${base}/summary`), false);
+});

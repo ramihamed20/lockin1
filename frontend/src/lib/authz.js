@@ -96,7 +96,10 @@ export function canAccessRoute(userOrSession, path, operationsSession) {
 
   if (CURRENT_AUTHENTICATED_ROUTES.has(currentPath)) return true;
   return (
-    /^\/materials\/catalog\/[^/]+(?:\/sheets\/[^/]+(?:\/workspace)?)?$/.test(currentPath) ||
+    // Every student-facing view of one catalog sheet: the sheet itself, its
+    // Sheet Summary, and its Focus workspace. Django still authorises the PDF
+    // behind each of them.
+    /^\/materials\/catalog\/[^/]+(?:\/sheets\/[^/]+(?:\/(?:workspace|summary))?)?$/.test(currentPath) ||
     // This client-side route guard only establishes authentication. Django's
     // Focus API remains the authority for Lock In entitlement decisions.
     /^\/lock-in(?:\/[^/]+)?$/.test(currentPath) ||
