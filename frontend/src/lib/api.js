@@ -38,7 +38,7 @@ export const authApi = {
 
   requestPasswordReset: (email) => accountsApi.requestPasswordReset(email),
   resendVerification: (email) => accountsApi.resendVerification(email),
-  verifyEmail: (token) => accountsApi.verifyEmail(token),
+  verifyEmailCode: (payload) => accountsApi.verifyEmailCode(payload),
   confirmPasswordReset: (token, password, passwordConfirm) =>
     accountsApi.confirmPasswordReset(token, password, passwordConfirm),
   confirmEmailChange: (token) => accountsApi.confirmEmailChange(token),

@@ -8,12 +8,14 @@ from apps.accounts.events import UserRegistered, UserRolesChanged
 from apps.accounts.models import AccountSecurityEvent, OneTimeToken
 from apps.accounts.roles import Role, RoleChangeError, replace_managed_roles
 from apps.accounts.services import (
+    VERIFICATION_CODE_ATTEMPT_LIMIT,
     AccountStateError,
     AccountTokenError,
     issue_token,
+    issue_verification_code,
     register_user,
     request_email_change,
-    verify_email,
+    verify_email_code,
 )
 from apps.education.models import StudentCohort
 from platform_core.events import DomainEvent, domain_events
@@ -54,37 +56,83 @@ def test_registration_event_is_published_only_after_commit(
     ).exists()
 
 
-def test_expired_verification_token_is_rejected() -> None:
+def test_expired_verification_code_is_rejected() -> None:
     user = create_user(verified=False)
     token = issue_token(
         user=user,
         kind=OneTimeToken.Kind.EMAIL_VERIFICATION,
         lifetime=timedelta(seconds=-1),
+        value="123456",
+        scope=str(user.id),
     )
 
     with pytest.raises(AccountTokenError):
-        verify_email(raw_token=token.raw_token)
+        verify_email_code(user=user, code=token.raw_token)
 
     user.refresh_from_db()
     assert not user.is_email_verified
 
 
-def test_issuing_new_token_revokes_previous_token() -> None:
+def test_issuing_a_new_code_revokes_the_previous_one() -> None:
     user = create_user(verified=False)
-    first = issue_token(
-        user=user,
-        kind=OneTimeToken.Kind.EMAIL_VERIFICATION,
-        lifetime=timedelta(hours=1),
-    )
-    second = issue_token(
-        user=user,
-        kind=OneTimeToken.Kind.EMAIL_VERIFICATION,
-        lifetime=timedelta(hours=1),
-    )
+    first = issue_verification_code(user=user)
+    second = issue_verification_code(user=user)
 
     with pytest.raises(AccountTokenError):
-        verify_email(raw_token=first.raw_token)
-    assert verify_email(raw_token=second.raw_token) == user
+        verify_email_code(user=user, code=first.raw_token)
+    assert verify_email_code(user=user, code=second.raw_token) == user
+
+
+def test_a_code_is_six_digits_and_belongs_to_one_account_only() -> None:
+    """Six digits collide across accounts; the stored hash must not.
+
+    `OneTimeToken.token_digest` is unique, so hashing the code alone would make
+    two accounts holding "123456" impossible -- and would let either one's code
+    verify the other. The digest is taken over the account and the code
+    together, which is also the only lookup that makes sense for a value this
+    short.
+    """
+
+    first = create_user(email="code-one@example.com", verified=False)
+    second = create_user(email="code-two@example.com", verified=False)
+    issue_token(
+        user=first,
+        kind=OneTimeToken.Kind.EMAIL_VERIFICATION,
+        lifetime=timedelta(minutes=10),
+        value="123456",
+        scope=str(first.id),
+    )
+    issue_token(
+        user=second,
+        kind=OneTimeToken.Kind.EMAIL_VERIFICATION,
+        lifetime=timedelta(minutes=10),
+        value="123456",
+        scope=str(second.id),
+    )
+
+    third = create_user(email="code-three@example.com", verified=False)
+    issued = issue_verification_code(user=third)
+    assert len(issued.raw_token) == 6
+    assert issued.raw_token.isdigit()
+    # Each account's code verifies that account, and only that account.
+    assert verify_email_code(user=first, code="123456") == first
+    assert verify_email_code(user=second, code="123456") == second
+
+
+def test_a_code_survives_only_a_bounded_number_of_wrong_guesses() -> None:
+    user = create_user(verified=False)
+    issued = issue_verification_code(user=user)
+
+    wrong = "000000" if issued.raw_token != "000000" else "111111"
+    for _ in range(VERIFICATION_CODE_ATTEMPT_LIMIT):
+        with pytest.raises(AccountTokenError):
+            verify_email_code(user=user, code=wrong)
+
+    # The code is spent even though it was never guessed: a new one is required.
+    with pytest.raises(AccountTokenError):
+        verify_email_code(user=user, code=issued.raw_token)
+    user.refresh_from_db()
+    assert not user.is_email_verified
 
 
 def test_email_change_rejects_an_address_owned_by_another_user() -> None:

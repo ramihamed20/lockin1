@@ -1,3 +1,4 @@
+import re
 from urllib.parse import parse_qs, urlparse
 
 from django.core import mail
@@ -46,6 +47,16 @@ def csrf_client() -> tuple[APIClient, str]:
     response = client.get("/api/v1/auth/csrf")
     assert response.status_code == 200
     return client, response.json()["csrf_token"]
+
+
+def code_from_latest_email() -> str:
+    """The six digits the verification email now carries instead of a link."""
+
+    dispatch_due_account_emails()
+    assert mail.outbox
+    codes = re.findall(r"\d{6}", mail.outbox[-1].body)
+    assert len(codes) == 1, mail.outbox[-1].body
+    return codes[0]
 
 
 def token_from_latest_email() -> str:

@@ -248,6 +248,32 @@
 
 /* The create-account screen after the account exists: one thing said clearly,
    and the two things the reader may still need to do. */
+/* The code screen: one field, centred, with nothing competing for the eye --
+   on a phone it is the whole screen above the keyboard. */
+.auth-v2-code { display: grid; justify-items: center; gap: 10px; padding: 6px 0 2px; text-align: center; }
+.auth-v2-code h2 { margin: 0; color: var(--auth-ink); font-size: 18px; font-weight: 700; }
+.auth-v2-code > p { margin: 0; max-width: 34ch; color: var(--auth-muted); font-size: 13px; line-height: 1.55; }
+.auth-v2-code-form { display: grid; justify-items: center; gap: 8px; width: 100%; margin-top: 6px; }
+.auth-v2-code-form .auth-v2-field { width: 100%; justify-items: center; }
+.auth-v2-code-label { color: #d8dfec; font-size: 13px; font-weight: 650; }
+.auth-v2 input.auth-v2-code-input {
+  width: 100%;
+  max-width: 260px;
+  min-height: 58px;
+  padding: 0 8px;
+  text-align: center;
+  /* Wide enough that six digits read as six, without the six separate boxes
+     that break one-time-code autofill and paste. */
+  font-size: 30px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.32em;
+  text-indent: 0.32em;
+}
+.auth-v2 input.auth-v2-code-input::placeholder { color: #55617a; letter-spacing: 0.32em; }
+.auth-v2-code-status { margin: 0; color: var(--auth-muted); font-size: 12px; }
+.auth-v2-code .form-alert, .auth-v2-code .form-hint { width: 100%; text-align: start; }
+
 .auth-v2-sent { display: grid; justify-items: center; gap: 10px; padding: 6px 0 2px; text-align: center; }
 .auth-v2-sent-icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; color: #9ee7bc; background: #10281f; }
 .auth-v2-sent h2 { margin: 0; color: var(--auth-ink); font-size: 18px; font-weight: 700; }

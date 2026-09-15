@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Icon } from "../../lib/icons.jsx";
 import { authApi } from "../../lib/api.js";
@@ -61,6 +61,132 @@ function PasswordField({ id, label, value, onChange, autoComplete, placeholder, 
       </div>
       {hint && <p className="auth-v2-field-hint" id={hintId}>{hint}</p>}
       <AccountFieldErrors error={error} field={field} id={errorId} />
+    </div>
+  );
+}
+
+const VERIFICATION_CODE_LENGTH = 6;
+// The server holds the same minute; see ACCOUNT_VERIFICATION_RESEND_COOLDOWN_SECONDS.
+const RESEND_COOLDOWN_SECONDS = 60;
+
+/**
+ * The six digits mailed to a new account, and nothing else on screen.
+ *
+ * One input, not six boxes: a single `autocomplete="one-time-code"` field is
+ * what iOS and Android offer to fill from the message, what a paste lands in
+ * whole, and what a screen reader announces once instead of six times.
+ *
+ * It verifies itself the moment the sixth digit arrives -- a reader who has
+ * typed the code has already told us everything the button would.
+ */
+function VerificationCodeStep({ email, error, message, busy, loading, t, onVerified, onFailed, onResend, onUseAnotherEmail }) {
+  const [code, setCode] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [wait, setWait] = useState(RESEND_COOLDOWN_SECONDS);
+  const attempted = useRef("");
+  const field = useRef(null);
+
+  useEffect(() => {
+    if (wait <= 0) return undefined;
+    const timer = setTimeout(() => setWait((current) => current - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [wait]);
+
+  useEffect(() => { field.current?.focus(); }, []);
+
+  const verify = useCallback(async (value) => {
+    // Each code is tried once: without this the auto-submit fires again on
+    // every keystroke-shaped re-render, spending the account's attempts.
+    if (checking || attempted.current === value) return;
+    attempted.current = value;
+    setChecking(true);
+    try {
+      const result = await authApi.verifyEmailCode({ email, code: value });
+      if (result.user) onVerified(result.user);
+      // Verified, but the server will not open a session for this account (a
+      // suspended one). Saying so is kinder than a generic failure on a code
+      // that was, in fact, correct.
+      else onFailed({ message: t("auth.codeVerifiedNoSession"), fields: {}, code: "inactive_account" });
+    } catch (nextError) {
+      onFailed(normalizeAuthError(nextError, { t, mode: "verify" }));
+      setCode("");
+      attempted.current = "";
+      field.current?.focus();
+    } finally {
+      setChecking(false);
+    }
+  }, [checking, email, onFailed, onVerified, t]);
+
+  function change(value) {
+    // Digits only, however they arrive: a pasted "123 456" or a code copied
+    // with its surrounding words still reaches the field as six digits.
+    const digits = value.replace(/\D/g, "").slice(0, VERIFICATION_CODE_LENGTH);
+    setCode(digits);
+    if (digits.length < VERIFICATION_CODE_LENGTH) attempted.current = "";
+    if (digits.length === VERIFICATION_CODE_LENGTH) verify(digits);
+  }
+
+  async function resend() {
+    setCode("");
+    attempted.current = "";
+    setWait(RESEND_COOLDOWN_SECONDS);
+    await onResend();
+    field.current?.focus();
+  }
+
+  const working = checking || loading;
+  return (
+    <div className="auth-v2-code">
+      <span className="auth-v2-sent-icon" aria-hidden="true"><Icon name="check" size={22} /></span>
+      <h2>{t("auth.codeTitle")}</h2>
+      <p>{t("auth.codeSubtitle")}</p>
+      <p className="auth-v2-sent-address" dir="ltr">{email}</p>
+
+      <form
+        className="auth-v2-code-form"
+        onSubmit={(event) => { event.preventDefault(); if (code.length === VERIFICATION_CODE_LENGTH) verify(code); }}
+        noValidate
+      >
+        <label className="auth-v2-field">
+          <span className="auth-v2-code-label">{t("auth.codeLabel")}</span>
+          <input
+            ref={field}
+            id="auth-code"
+            className="auth-v2-code-input"
+            type="text"
+            dir="ltr"
+            value={code}
+            onChange={(event) => change(event.target.value)}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck="false"
+            enterKeyHint="go"
+            // No maxLength: the browser would clip a paste to six characters
+            // *before* this field saw it, so "123 456" arrived as "123 45" and
+            // five digits never submit. The change handler keeps the six digits
+            // it wants out of whatever arrives.
+            placeholder="------"
+            aria-label={t("auth.codeLabel")}
+            aria-describedby="auth-code-hint"
+            {...fieldErrorAttributes(error, "code", "auth-code-error", "auth-code-hint")}
+          />
+        </label>
+        <p id="auth-code-hint" className="auth-v2-field-hint">{t("auth.codeHint")}</p>
+        <AccountFieldErrors error={error} field="code" id="auth-code-error" />
+        <AccountFormAlert error={error?.fields?.code ? null : error} message={message} />
+        {working && <p className="auth-v2-code-status" role="status">{t("auth.codeChecking")}</p>}
+      </form>
+
+      <div className="auth-v2-sent-actions">
+        <button className="auth-v2-text-action" type="button" disabled={busy || checking || wait > 0} onClick={resend}>
+          {wait > 0 ? t("auth.codeResendIn", { seconds: wait }) : t("auth.resendVerification")}
+        </button>
+        <button className="auth-v2-text-action" type="button" disabled={busy || checking} onClick={onUseAnotherEmail}>
+          {t("auth.codeChangeEmail")}
+        </button>
+      </div>
     </div>
   );
 }
@@ -268,6 +394,17 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, no
     }
   }
 
+  /** Send a fresh code and open the screen that asks for it. */
+  async function startVerification() {
+    const email = form.email.trim();
+    if (!email) {
+      reportFieldErrors({ message: t("auth.errorRequired"), fields: { email: [t("auth.errorRequired")] }, code: "client_validation" });
+      return;
+    }
+    await resendVerification();
+    setVerificationPending(true);
+  }
+
   /**
    * Show the messages, then put the caret in the first box that needs changing.
    * Focus is what turns "something is wrong" into "change this", and on a phone
@@ -309,7 +446,9 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, no
         setMessage(t("auth.resetSent"));
       } else if (mode === "signup") {
         await authApi.register({ fullName: form.name.trim(), email: form.email.trim(), password: form.password, passwordConfirm: form.confirm, preferredLanguage: locale, cohortId: form.cohortId, acceptPolicies: form.acceptPolicies });
-        setMessage(t("auth.accountCreated"));
+        // The code screen that follows states where the code went and what to
+        // do with it; a banner repeating it would only push the field down.
+        setMessage("");
         setVerificationPending(true);
       } else if (mode === "complete") {
         const nextUser = await authApi.updateProfile({
@@ -334,7 +473,9 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, no
   const busy = loading || Boolean(socialLoading);
   // Once the account exists the form has nothing left to ask, and leaving it on
   // screen invited a second submit for an account that was already created.
-  const signedUp = mode === "signup" && verificationPending;
+  // Reached two ways: straight after creating an account, and from a sign-in
+  // that was refused because the address has never been verified.
+  const signedUp = verificationPending && (mode === "signup" || mode === "login");
   const socialVisible = (mode === "login" || mode === "signup") && !signedUp;
 
   return (
@@ -376,18 +517,18 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, no
             )}
 
             {signedUp && (
-              <div className="auth-v2-sent" role="status">
-                <span className="auth-v2-sent-icon" aria-hidden="true"><Icon name="check" size={22} /></span>
-                <h2>{t("auth.signupCheckInbox")}</h2>
-                <p>{t("auth.accountCreated")}</p>
-                <p className="auth-v2-sent-address" dir="ltr">{form.email.trim()}</p>
-                <p className="auth-v2-sent-note">{t("auth.signupExistingHint")}</p>
-                <AccountFormAlert error={error} message={error ? "" : message !== t("auth.accountCreated") ? message : ""} />
-                <div className="auth-v2-sent-actions">
-                  <button className="auth-v2-primary" type="button" disabled={busy} onClick={() => changeMode("login")}>{t("auth.goToLogin")}</button>
-                  <button className="auth-v2-text-action" type="button" disabled={busy} onClick={resendVerification}>{loading ? t("auth.working") : t("auth.resendVerification")}</button>
-                </div>
-              </div>
+              <VerificationCodeStep
+                email={form.email.trim()}
+                error={error}
+                message={message}
+                busy={busy}
+                loading={loading}
+                t={t}
+                onVerified={(user) => onAuthed(user, { newSession: true })}
+                onFailed={(nextError) => setError(nextError)}
+                onResend={resendVerification}
+                onUseAnotherEmail={() => { setVerificationPending(false); setError(null); setMessage(""); }}
+              />
             )}
 
             {/* The browser's own bubbles cannot be placed under the field, cannot
@@ -497,7 +638,7 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, no
               {mode === "login" && error?.code === "invalid_credentials" && (
                 <p className="auth-v2-inline-hint">
                   {t("auth.loginVerifyHint")}{" "}
-                  <button type="button" disabled={busy} onClick={resendVerification}>{t("auth.resendVerification")}</button>
+                  <button type="button" disabled={busy} onClick={startVerification}>{t("auth.codeSendNew")}</button>
                 </p>
               )}
 

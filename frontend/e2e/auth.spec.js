@@ -30,8 +30,8 @@ function userPayload(overrides = {}) {
   };
 }
 
-async function mockAuth(page, { sessionUser = null, profileUser = null, logoutStatus = 200, logoutDelay = 0, verifyResponse = null, loginDelay = 0, cohortFailures = 0, sessionFailures = 0, sessionFailureStatus = 503, isDisconnected = () => false, loginRejects = false, registerFieldErrors = null } = {}) {
-  const captured = { registration: null, registrations: 0, profile: null, sessionRequests: 0, oauthStarts: [], logouts: 0, logins: 0, resends: 0 };
+async function mockAuth(page, { sessionUser = null, profileUser = null, logoutStatus = 200, logoutDelay = 0, verifyResponse = null, loginDelay = 0, cohortFailures = 0, sessionFailures = 0, sessionFailureStatus = 503, isDisconnected = () => false, loginRejects = false, registerFieldErrors = null, verifyRejects = "" } = {}) {
+  const captured = { registration: null, registrations: 0, profile: null, sessionRequests: 0, oauthStarts: [], logouts: 0, logins: 0, resends: 0, verifications: [] };
   let cohortRequests = 0;
   await page.route("https://accounts.google.com/**", async (route) => {
     await route.fulfill({ contentType: "text/html", body: "<title>Google</title>Provider consent screen" });
@@ -117,6 +117,16 @@ async function mockAuth(page, { sessionUser = null, profileUser = null, logoutSt
       return;
     }
     if (pathname === "/api/v1/auth/verify-email" && request.method() === "POST") {
+      const submitted = request.postDataJSON();
+      captured.verifications.push(submitted);
+      if (verifyRejects && submitted.code !== verifyRejects) {
+        await route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({ error: { code: "invalid_or_expired_token", message: "This code is invalid or has expired." } })
+        });
+        return;
+      }
       await route.fulfill({ contentType: "application/json", body: JSON.stringify(verifyResponse || { status: "verified", user: null }) });
       return;
     }
@@ -294,7 +304,7 @@ test("registration requires and sends the selected college, specialty, and year 
   await page.locator(".auth-v2-policy input").check();
   await page.locator(".auth-v2-form").evaluate((form) => form.requestSubmit());
   await expect.poll(() => captured.registration?.cohort_id).toBe("cohort-61");
-  await expect(page.getByText(/Account created/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Enter your code" })).toBeVisible();
 
   await page.getByRole("button", { name: "Log in" }).click();
   await page.getByLabel("Email").fill("student@example.test");
@@ -403,57 +413,79 @@ test("an offline start explains itself and recovers when the connection returns"
   expect(captured.sessionRequests).toBe(2);
 });
 
-// The production report: the verification link came back to the site and the
-// interface behaved as though registration had to start over. Following the
-// mailed link has to land on the confirmation page, keep the token long enough
-// to spend it, and then leave the token out of the visible URL.
-test("the mailed verification link confirms the account instead of restarting registration", async ({ page }) => {
-  await mockAuth(page);
-  const verifications = [];
-  await page.route("**/api/v1/auth/verify-email", async (route) => {
-    verifications.push(route.request().postDataJSON());
-    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ status: "verified" }) });
-  });
+// Registration hands the reader a code screen. These cover what that screen is
+// for: the six digits, how they are submitted, and what a wrong one does.
+async function signUpToCodeScreen(page) {
+  await page.goto("/#/");
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+  await page.getByRole("button", { name: "Create account" }).click();
+  await fillValidSignup(page);
+  await page.locator(".auth-v2-form").evaluate((form) => form.requestSubmit());
+  await expect(page.getByRole("heading", { name: "Enter your code" })).toBeVisible();
+}
 
-  // Exactly the shape the account email produces for a hash-router client.
-  await page.goto("/#/verify-email?token=mailed-verification-token");
+test("the code screen is filled the way a phone fills one, and verifies itself", async ({ page }) => {
+  const verified = userPayload({ is_email_verified: true });
+  const captured = await mockAuth(page, { verifyResponse: { status: "verified", user: verified } });
+  await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
+  await signUpToCodeScreen(page);
 
-  await expect(page.getByRole("heading", { name: "Verify your email" })).toBeVisible();
-  // The signup form is not what the reader should be looking at.
-  await expect(page.getByRole("heading", { name: "Create your account" })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Welcome back" })).toHaveCount(0);
-  // The token is off the address bar before anything is submitted.
-  await expect.poll(() => new URL(page.url()).hash).toBe("#/verify-email");
+  const field = page.locator("#auth-code");
+  // What iOS and Android need to offer the code from the message.
+  await expect(field).toHaveAttribute("autocomplete", "one-time-code");
+  await expect(field).toHaveAttribute("inputmode", "numeric");
+  // Deliberately no maxlength: it would clip a pasted "123 456" to six
+  // characters before the field could strip the space out of it.
+  await expect(field).not.toHaveAttribute("maxlength", /.*/);
+  await expect(field).toBeFocused();
+  // The address it went to is on screen, so the reader knows where to look.
+  await expect(page.getByText("new@example.test")).toBeVisible();
 
-  await page.getByRole("button", { name: "Verify email" }).click();
-
-  await expect(page.getByText("Your email is verified. You can now sign in.")).toBeVisible();
-  expect(verifications).toEqual([{ token: "mailed-verification-token" }]);
-  expect(new URL(page.url()).hash).toBe("#/verify-email");
-  await expect(page.getByRole("button", { name: "Continue to sign in" })).toBeVisible();
+  // A code pasted with the spaces a mail client adds still arrives as digits,
+  // and the sixth digit submits it without anyone pressing anything.
+  await field.fill("123 456");
+  await expect.poll(() => captured.verifications).toEqual([{ email: "new@example.test", code: "123456" }]);
 });
 
-test("an invalid verification link reports the failure on the confirmation page", async ({ page }) => {
-  await mockAuth(page);
-  await page.route("**/api/v1/auth/verify-email", async (route) => {
-    await route.fulfill({
-      status: 400,
-      contentType: "application/json",
-      body: JSON.stringify({ error: { code: "invalid_or_expired_token", message: "This link is invalid or has expired." } })
-    });
-  });
+test("a wrong code is reported on the field and the box is cleared to retype", async ({ page }) => {
+  await mockAuth(page, { verifyRejects: "123456" });
+  await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
+  await signUpToCodeScreen(page);
 
-  await page.goto("/#/verify-email?token=spent-token");
-  await page.getByRole("button", { name: "Verify email" }).click();
+  await page.locator("#auth-code").fill("999999");
 
-  await expect(page.getByText("This link is invalid or has expired.")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Verify your email" })).toBeVisible();
+  await expect(page.locator("#auth-code-error")).toHaveText(/wrong or has expired/);
+  await expect(page.locator("#auth-code")).toHaveAttribute("aria-invalid", "true");
+  // Cleared and focused: the next attempt is typed, not edited.
+  await expect(page.locator("#auth-code")).toHaveValue("");
+  await expect(page.locator("#auth-code")).toBeFocused();
 });
 
-// The reported failure: a first-time Google user starting from the login
-// screen was rejected because that screen sent accept_policies=false. The
-// button now states the consent, so it can truthfully carry it from either
-// screen — and the reader can read what they are agreeing to before pressing.
+test("the resend button waits out its minute before it can be pressed", async ({ page }) => {
+  const captured = await mockAuth(page);
+  await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
+  await signUpToCodeScreen(page);
+
+  const resend = page.getByRole("button", { name: /Resend code in \d+s/ });
+  await expect(resend).toBeVisible();
+  await expect(resend).toBeDisabled();
+  // Nothing was re-sent while the countdown was running.
+  expect(captured.resends).toBe(0);
+});
+
+test("email verification no longer has a link route to land on", async ({ page }) => {
+  await mockAuth(page);
+  await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
+
+  // An old email in someone's inbox must not strand them on a dead screen: the
+  // route is gone, so the app shows the sign-in form it shows for any unknown
+  // path, and the code screen is one press away from there.
+  await page.goto("/#/verify-email?token=an-old-mailed-token");
+
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Verify your email" })).toHaveCount(0);
+});
+
 test("the Google button states its consent and carries it from login and from create-account", async ({ page }) => {
   const captured = await mockAuth(page);
   await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
@@ -639,10 +671,10 @@ test("the logout confirmation reads correctly in Arabic", async ({ page }) => {
 
 // The reported friction: the mailed link verified the account and then sent the
 // reader to a login form for the account they had just proved is theirs.
-test("a verification that signs the reader in lands them in the app, not on a login form", async ({ page }) => {
+test("a verified code lands the reader in the app, not on a login form", async ({ page }) => {
   const verified = userPayload({ is_email_verified: true });
   let sessionUser = null;
-  const captured = await mockAuth(page, {
+  await mockAuth(page, {
     verifyResponse: { status: "verified", user: verified },
     get sessionUser() { return sessionUser; }
   });
@@ -659,34 +691,25 @@ test("a verification that signs the reader in lands them in the app, not on a lo
     await route.fulfill({ contentType: "application/json", body: JSON.stringify({ user: sessionUser || verified }) });
   });
   await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
-
-  await page.goto("/#/verify-email?token=mailed-verification-token");
-  await expect(page.getByRole("heading", { name: "Verify your email" })).toBeVisible();
-  // The token is off the address bar before anything is submitted.
-  await expect.poll(() => new URL(page.url()).hash).toBe("#/verify-email");
+  await signUpToCodeScreen(page);
 
   sessionUser = verified;
-  await page.getByRole("button", { name: "Verify email" }).click();
+  await page.locator("#auth-code").fill("123456");
 
-  // Landed in the authenticated app: no sign-in form, no token in the URL.
+  // Landed in the authenticated app: no sign-in form, nothing left to press.
   await expect(page.getByRole("button", { name: "Open profile menu" })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("heading", { name: "Welcome back" })).toHaveCount(0);
-  await expect(page.getByText("Continue to sign in")).toHaveCount(0);
-  expect(new URL(page.url()).hash).toBe("#/");
-  expect(page.url()).not.toContain("token");
+  await expect(page.getByRole("heading", { name: "Enter your code" })).toHaveCount(0);
 });
 
-test("a verification that did not sign anyone in keeps the existing sign-in hand-off", async ({ page }) => {
+test("a correct code for an account that may not sign in says exactly that", async ({ page }) => {
   await mockAuth(page, { verifyResponse: { status: "verified", user: null } });
   await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
+  await signUpToCodeScreen(page);
 
-  await page.goto("/#/verify-email?token=mailed-verification-token");
-  await page.getByRole("button", { name: "Verify email" }).click();
+  await page.locator("#auth-code").fill("123456");
 
-  await expect(page.getByText("Your email is verified. You can now sign in.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Continue to sign in" })).toBeVisible();
-  expect(new URL(page.url()).hash).toBe("#/verify-email");
-  expect(page.url()).not.toContain("token");
+  await expect(page.getByText("Your email is verified, but this account cannot sign in right now.")).toBeVisible();
 });
 
 // After a sign-out the reader must not be able to walk back into the account.
@@ -991,21 +1014,19 @@ test("a password the server refuses is explained on the password, not as a bare 
   await expect(page.getByRole("combobox", { name: "Year / batch" })).toHaveValue("cohort-61");
 });
 
-test("a created account ends the form and offers the two things left to do", async ({ page }) => {
-  const captured = await mockAuth(page);
+test("a created account ends the form and asks for the code instead", async ({ page }) => {
+  await mockAuth(page);
   await page.goto("/#/");
   await page.getByRole("button", { name: "Create account" }).click();
   await fillValidSignup(page);
   await page.locator(".auth-v2-form").evaluate((form) => form.requestSubmit());
 
-  await expect(page.getByRole("heading", { name: "Check your inbox" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Enter your code" })).toBeVisible();
   await expect(page.getByText("new@example.test")).toBeVisible();
-  // The form is gone, so the account cannot be submitted a second time.
-  await expect(page.locator(".auth-v2-form")).toHaveCount(0);
-  await page.getByRole("button", { name: "Resend verification email" }).click();
-  await expect.poll(() => captured.resends).toBe(1);
-  await page.getByRole("button", { name: "Go to sign in" }).click();
-  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+  // The create-account form is gone, so it cannot be submitted a second time.
+  await expect(page.getByLabel("Confirm password")).toHaveCount(0);
+  await page.getByRole("button", { name: "Use a different email" }).click();
+  await expect(page.getByLabel("Confirm password")).toBeVisible();
 });
 
 test("a rejected sign-in marks the password, keeps the typing, and offers verification", async ({ page }) => {
@@ -1021,8 +1042,10 @@ test("a rejected sign-in marks the password, keeps the typing, and offers verifi
   await expect(page.locator("#auth-password")).toBeFocused();
   await expect(page.getByLabel("Email")).toHaveValue("student@example.test");
   // The commonest cause the server may not name out loud: an unverified email.
-  await page.getByRole("button", { name: "Resend verification email" }).click();
+  // Asking for a code sends one and opens the screen that takes it.
+  await page.getByRole("button", { name: "Send me a code" }).click();
   await expect.poll(() => captured.resends).toBe(1);
+  await expect(page.getByRole("heading", { name: "Enter your code" })).toBeVisible();
 });
 
 test("one sign-in at a time, however many times the button is pressed", async ({ page }) => {

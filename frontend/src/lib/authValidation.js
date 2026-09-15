@@ -37,6 +37,7 @@ export const AUTH_FIELD_ORDER = Object.freeze({
     "accept_policies"
   ],
   forgot: ["email"],
+  verify: ["code"],
   complete: ["username", "full_name", "college", "specialty", "cohort_id"]
 });
 
@@ -75,12 +76,14 @@ const BACKEND_MESSAGE_KEYS = [
   [/too similar to/i, "auth.errorPasswordSimilar"],
   [/username is unavailable/i, "auth.errorUsernameTaken"],
   [/email or password is incorrect/i, "auth.errorInvalidCredentials"],
+  [/code is invalid or has expired|link is invalid or has expired/i, "auth.codeInvalid"],
   [/policy acceptance is required/i, "auth.acceptRequired"],
   [/invalid pk|object does not exist|not a valid/i, "auth.errorSelectionInvalid"]
 ];
 
 const ERROR_CODE_KEYS = {
   invalid_credentials: "auth.errorInvalidCredentials",
+  invalid_or_expired_token: "auth.codeInvalid",
   too_many_attempts: "auth.errorTooManyAttempts",
   throttled: "auth.errorTooManyAttempts",
   registration_unavailable: "auth.errorRegistrationClosed",
@@ -91,7 +94,8 @@ const ERROR_CODE_KEYS = {
 
 /** Which field a whole-request failure belongs beside. */
 const ERROR_CODE_FIELDS = {
-  invalid_credentials: "password"
+  invalid_credentials: "password",
+  invalid_or_expired_token: "code"
 };
 
 function translateBackendMessage(message, t) {

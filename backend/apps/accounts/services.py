@@ -119,10 +119,20 @@ def available_username_for_email(email: str) -> str:
     return candidate
 
 
-def _token_digest(raw_token: str) -> str:
+def _token_digest(raw_token: str, *, scope: str = "") -> str:
+    """Hash a one-time value, optionally inside a scope.
+
+    A 32-byte link token is unguessable on its own, so it is hashed bare and can
+    be looked up globally. A six-digit code is not: there are only a million of
+    them, several accounts can hold the same one at the same time, and
+    `token_digest` is unique. Hashing the code together with the account it was
+    issued for keeps the column unique and makes the lookup what it should be
+    anyway -- this account's code, not anyone's.
+    """
+
     return salted_hmac(
         "lockin.accounts.one-time-token",
-        raw_token,
+        f"{scope}:{raw_token}" if scope else raw_token,
         secret=settings.SECRET_KEY,
         algorithm="sha256",
     ).hexdigest()
@@ -132,6 +142,19 @@ def _new_token_value() -> str:
     return secrets.token_urlsafe(32)
 
 
+VERIFICATION_CODE_LENGTH = 6
+# How many wrong guesses one code survives. A million codes and a ten-minute
+# life make guessing hopeless only if guessing is bounded; five is enough for
+# a reader mistyping what they can see in front of them.
+VERIFICATION_CODE_ATTEMPT_LIMIT = 5
+
+
+def _new_verification_code() -> str:
+    """A six-digit code, uniformly random including the ones that start with 0."""
+
+    return f"{secrets.randbelow(10**VERIFICATION_CODE_LENGTH):0{VERIFICATION_CODE_LENGTH}d}"
+
+
 @transaction.atomic
 def issue_token(
     *,
@@ -139,19 +162,33 @@ def issue_token(
     kind: str,
     lifetime: timedelta,
     payload: dict[str, str] | None = None,
+    value: str = "",
+    scope: str = "",
 ) -> IssuedToken:
     now = timezone.now()
     OneTimeToken.objects.filter(user=user, kind=kind, used_at__isnull=True).update(used_at=now)
-    raw_token = _new_token_value()
+    raw_token = value or _new_token_value()
     expires_at = now + lifetime
     OneTimeToken.objects.create(
         user=user,
         kind=kind,
-        token_digest=_token_digest(raw_token),
+        token_digest=_token_digest(raw_token, scope=scope),
         payload=payload or {},
         expires_at=expires_at,
     )
     return IssuedToken(raw_token=raw_token, expires_at=expires_at)
+
+
+def issue_verification_code(*, user: User) -> IssuedToken:
+    """Replace this account's verification code with a fresh one."""
+
+    return issue_token(
+        user=user,
+        kind=OneTimeToken.Kind.EMAIL_VERIFICATION,
+        lifetime=_token_lifetime("ACCOUNT_EMAIL_VERIFICATION_TTL_SECONDS", 600),
+        value=_new_verification_code(),
+        scope=str(user.id),
+    )
 
 
 def _get_usable_token(*, raw_token: str, kind: str) -> OneTimeToken:
@@ -202,38 +239,103 @@ def register_user(
     token = issue_token(
         user=user,
         kind=OneTimeToken.Kind.EMAIL_VERIFICATION,
-        lifetime=_token_lifetime("ACCOUNT_EMAIL_VERIFICATION_TTL_SECONDS", 86_400),
+        lifetime=_token_lifetime("ACCOUNT_EMAIL_VERIFICATION_TTL_SECONDS", 600),
+        value=_new_verification_code(),
+        scope=str(user.id),
     )
     publish_after_commit(UserRegistered(user_id=user.id, actor_id=user.id))
     return user, token
 
 
-@transaction.atomic
-def verify_email(*, raw_token: str) -> User:
-    token = _get_usable_token(raw_token=raw_token, kind=OneTimeToken.Kind.EMAIL_VERIFICATION)
-    now = timezone.now()
-    user = token.user
-    user.email_verified_at = now
-    user.save(update_fields=("email_verified_at", "updated_at"))
-    token.used_at = now
-    token.save(update_fields=("used_at",))
-    AccountSecurityEvent.objects.create(
-        user=user,
-        actor=user,
-        event_type=AccountSecurityEvent.EventType.EMAIL_VERIFIED,
-    )
-    publish_after_commit(UserEmailVerified(user_id=user.id, actor_id=user.id))
-    return user
+def verify_email_code(*, user: User, code: str) -> User:
+    """Spend this account's verification code.
+
+    The code is compared against the one active token for the account, and each
+    wrong guess is counted on that token: after
+    `VERIFICATION_CODE_ATTEMPT_LIMIT` the code is burned, so a guesser gets five
+    tries per issued code rather than five tries per minute forever.
+
+    The failure is raised after the transaction commits, not inside it. Raising
+    from within would roll the attempt count back with everything else, and a
+    counter that resets on every wrong guess counts nothing.
+    """
+
+    verified: User | None = None
+    with transaction.atomic():
+        token = (
+            OneTimeToken.objects.select_for_update()
+            .select_related("user")
+            .filter(
+                user=user,
+                kind=OneTimeToken.Kind.EMAIL_VERIFICATION,
+                used_at__isnull=True,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+        usable = token is not None and token.is_usable
+        matched = (
+            usable
+            and token is not None
+            and secrets.compare_digest(
+                token.token_digest,
+                _token_digest(code.strip(), scope=str(user.id)),
+            )
+        )
+        if token is not None and usable and not matched:
+            attempts = int(token.payload.get("attempts", 0)) + 1
+            token.payload = {**token.payload, "attempts": attempts}
+            fields = ["payload"]
+            if attempts >= VERIFICATION_CODE_ATTEMPT_LIMIT:
+                token.used_at = timezone.now()
+                fields.append("used_at")
+            token.save(update_fields=fields)
+        elif matched and token is not None:
+            now = timezone.now()
+            verified = token.user
+            verified.email_verified_at = now
+            verified.save(update_fields=("email_verified_at", "updated_at"))
+            token.used_at = now
+            token.save(update_fields=("used_at",))
+            AccountSecurityEvent.objects.create(
+                user=verified,
+                actor=verified,
+                event_type=AccountSecurityEvent.EventType.EMAIL_VERIFIED,
+            )
+            publish_after_commit(UserEmailVerified(user_id=verified.id, actor_id=verified.id))
+    if verified is None:
+        raise AccountTokenError("This code is invalid or has expired.")
+    return verified
 
 
 def resend_verification(*, user: User) -> IssuedToken:
     if user.is_email_verified:
         raise AccountStateError("This account is already verified.")
-    return issue_token(
-        user=user,
-        kind=OneTimeToken.Kind.EMAIL_VERIFICATION,
-        lifetime=_token_lifetime("ACCOUNT_EMAIL_VERIFICATION_TTL_SECONDS", 86_400),
+    return issue_verification_code(user=user)
+
+
+def verification_code_resend_wait(*, user: User) -> int:
+    """Seconds still to wait before this account may be sent another code.
+
+    The screen offers the button again after a minute; the server keeps the same
+    minute, so holding the button down, reloading, or calling the endpoint
+    directly cannot turn one mailbox into a mail flood.
+    """
+
+    latest = (
+        OneTimeToken.objects.filter(
+            user=user,
+            kind=OneTimeToken.Kind.EMAIL_VERIFICATION,
+        )
+        .order_by("-created_at")
+        .values_list("created_at", flat=True)
+        .first()
     )
+    if latest is None:
+        return 0
+    cooldown = int(getattr(settings, "ACCOUNT_VERIFICATION_RESEND_COOLDOWN_SECONDS", 60))
+    elapsed = (timezone.now() - latest).total_seconds()
+    return max(0, int(cooldown - elapsed))
 
 
 def request_password_reset(*, email: str) -> tuple[User, IssuedToken] | None:

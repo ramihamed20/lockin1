@@ -95,6 +95,20 @@ class TokenSerializer(StrictSerializer):
     token = serializers.CharField(max_length=256, trim_whitespace=True)
 
 
+class VerificationCodeSerializer(StrictSerializer):
+    """The six digits a reader copies out of their inbox, and who they are.
+
+    A code this short is only meaningful for one account, so the address is
+    part of the request rather than something the code alone could identify.
+    """
+
+    email = serializers.EmailField(max_length=254)
+    code = serializers.RegexField(r"^\d{6}$", trim_whitespace=True)
+
+    def validate_email(self, value: str) -> str:
+        return normalize_email(value)
+
+
 class PasswordResetConfirmSerializer(TokenSerializer):
     new_password = serializers.CharField(write_only=True, trim_whitespace=False)
     new_password_confirm = serializers.CharField(write_only=True, trim_whitespace=False)
