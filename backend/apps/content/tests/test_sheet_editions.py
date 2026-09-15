@@ -16,7 +16,7 @@ from apps.education.tests.helpers import create_admin, published_path
 from apps.files.services import create_managed_file
 
 from ..active_study import part_sizes_for_count
-from ..admin_services import create_sheet
+from ..admin_services import _primary_file, create_sheet
 from ..editions import LOCKIN, UNIVERSITY
 
 pytestmark = pytest.mark.django_db
@@ -238,3 +238,80 @@ def test_removing_the_lockin_edition_keeps_the_sheet_and_its_questions() -> None
     questions = client.get(f"{base}/active-study/questions/easy").json()
     assert questions["content"]["revision"] == 1
     assert questions["number_of_parts"] == 3
+
+
+def test_each_edition_document_points_at_its_own_file_through_replacements() -> None:
+    """The Catalog address of an edition must never serve another edition's PDF."""
+
+    admin = create_admin()
+    student = create_user()
+    institution, subject, _ = published_path(admin=admin)
+    program = AcademicProgram.objects.create(code="bind", name_en="B", name_ar="B")
+    cohort = StudentCohort.objects.create(
+        program=program, code="year-1", name_en="Y1", name_ar="Y1"
+    )
+    cohort.content_nodes.set([institution])
+    student.cohort = cohort
+    student.save(update_fields=["cohort"])
+    sheet = _sheet(admin=admin, subject=subject, pages=22)
+    client = APIClient()
+    client.force_authenticate(admin)
+    base = f"/api/v1/operations/admin/content/sheets/{sheet.id}"
+    student_client = APIClient()
+    student_client.force_authenticate(student)
+
+    def addresses() -> dict[str, str]:
+        results = student_client.get("/api/v1/catalog/materials").json()["results"]
+        group = results[0]
+        rows = {}
+        for row in group["sheets"][0]["editions"]:
+            resolved = student_client.get(
+                f"/api/v1/catalog/documents/{group['slug']}/{row['slug']}"
+            )
+            rows[row["edition"]] = (
+                resolved.json()["document"]["file_id"] if resolved.status_code == 200 else ""
+            )
+        return rows
+
+    university_file = _primary_file(sheet).id
+    lockin_file = create_managed_file(owner=admin, upload=_pdf(18, "lockin.pdf"), kind="pdf")
+    revision = client.get(base).json()["revision"]
+    uploaded = client.post(
+        f"{base}/lockin-pdf",
+        {"expected_revision": revision, "lockin_file_id": str(lockin_file.id)},
+        format="json",
+    )
+    assert uploaded.status_code == 200
+    resolved = addresses()
+    assert resolved[UNIVERSITY] == str(university_file)
+    assert resolved[LOCKIN] == str(lockin_file.id)
+
+    # Replacing one edition's PDF moves only that edition's address.
+    replacement = create_managed_file(owner=admin, upload=_pdf(12, "lockin-v2.pdf"), kind="pdf")
+    replaced = client.post(
+        f"{base}/lockin-pdf",
+        {"expected_revision": uploaded.json()["revision"], "lockin_file_id": str(replacement.id)},
+        format="json",
+    )
+    assert replaced.status_code == 200
+    resolved = addresses()
+    assert resolved[UNIVERSITY] == str(university_file)
+    assert resolved[LOCKIN] == str(replacement.id)
+
+    # With the Lock-in edition removed, its address resolves to nothing at all
+    # rather than falling back to the edition that still exists.
+    removed = client.delete(
+        f"{base}/lockin-pdf",
+        {"expected_revision": replaced.json()["revision"]},
+        format="json",
+    )
+    assert removed.status_code == 200
+    group = student_client.get("/api/v1/catalog/materials").json()["results"][0]
+    assert [row["edition"] for row in group["sheets"][0]["editions"]] == [UNIVERSITY]
+    orphan = student_client.get(
+        f"/api/v1/catalog/documents/{group['slug']}/{group['sheets'][0]['slug']}-lockin"
+    )
+    assert orphan.status_code == 404
+    assert student_client.get(
+        f"/api/v1/catalog/documents/{group['slug']}/{group['sheets'][0]['slug']}"
+    ).json()["document"]["file_id"] == str(university_file)

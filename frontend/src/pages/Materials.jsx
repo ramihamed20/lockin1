@@ -150,36 +150,3 @@ function SheetEditionChooser({ material, editions, current }) {
   );
 }
 
-export function CatalogSheetSummary({ user = null }) {
-  const { materialSlug, sheetSlug } = useParams();
-  const { t } = useI18n();
-  const { materials, loading, error, reload } = useCatalogMaterials(user);
-  const material = materials.find((item) => item.slug === materialSlug) || null;
-  const { sheet, edition } = resolveSheetEdition(material, sheetSlug);
-
-  if (loading) return <Page title={t("materials.sheetSummary")}><LoadingPanel /></Page>;
-  if (error) return <Page title={t("materials.sheetSummary")}><ErrorPanel message={error} onRetry={reload} /></Page>;
-  if (!material || !sheet || !edition) return <Page title={t("materials.sheetSummary")}><ErrorPanel message={t("materials.sheetNotFoundText")} /></Page>;
-  if (!edition.summaryPdf?.viewUrl) return <Page title={t("materials.sheetSummary")}><ErrorPanel message={t(edition.summaryStatus === "processing" ? "materials.summaryProcessing" : "materials.summaryUnavailable")} /></Page>;
-
-  return (
-    <Page title={t("materials.sheetSummary")} subtitle={sheet.title}>
-      <article className="sheet-summary-reader">
-        <header>
-          <span><Icon name="book-open" size={20} /></span>
-          <div><p className="eyebrow">{t("materials.normalMode")}</p><h2 dir="auto">{sheet.title}</h2></div>
-        </header>
-        <div className="sheet-summary-pdf-frame">
-          <iframe src={edition.summaryPdf.viewUrl} title={`${t("materials.sheetSummary")} — ${sheet.title}`} />
-        </div>
-        <footer>
-          <span><Icon name="info" size={16} />{t("materials.summaryNormalOnly")}</span>
-          <div className="sheet-summary-footer-actions">
-            <a className="btn btn-primary compact" href={edition.summaryPdf.viewUrl} target="_blank" rel="noreferrer"><Icon name="expand" size={16} />{t("materials.openSummaryPdf")}</a>
-            <Link className="btn btn-soft compact" to={`/materials/catalog/${material.slug}/sheets/${edition.slug}`}><Icon name="arrow-left" size={16} />{t("materials.backToSheet")}</Link>
-          </div>
-        </footer>
-      </article>
-    </Page>
-  );
-}

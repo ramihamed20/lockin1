@@ -260,6 +260,9 @@ export function getLastOpenedCatalogSheet() {
 /** The editions a sheet can be read in, oldest contract first. */
 export const SHEET_EDITIONS = ["university", "lockin"];
 
+/** The suffix the server gives a sheet's Lock-in catalog address. */
+export const LOCKIN_SLUG_SUFFIX = "-lockin";
+
 /**
  * Resolves a catalog address to its sheet and the edition it names.
  *
@@ -273,7 +276,10 @@ export const SHEET_EDITIONS = ["university", "lockin"];
  */
 export function resolveSheetEdition(material, slug) {
   for (const sheet of material?.sheets || []) {
-    const editions = sheet.editions?.length
+    // A sheet the server published with editions owns its PDF per edition. A
+    // fixture sheet without them keeps carrying its own.
+    const published = Boolean(sheet.editions?.length);
+    const editions = published
       ? sheet.editions
       : [{
         edition: "university",
@@ -285,8 +291,65 @@ export function resolveSheetEdition(material, slug) {
         hasActiveStudy: sheet.hasActiveStudy ?? false,
         deliverable: sheet.deliverable
       }];
+    // Only an exact slug match counts. There is deliberately no "closest
+    // edition" fallback: opening one edition's address must never serve
+    // another edition's PDF.
     const edition = editions.find((item) => item.slug === slug);
-    if (edition) return { sheet, edition, editions, view: { ...sheet, ...edition } };
+    if (edition) {
+      // `pdfUrl` is taken from the edition alone. Letting a sheet-level URL
+      // survive this merge is how one edition ends up rendering the other
+      // edition's file.
+      const view = { ...sheet, ...edition };
+      if (published) view.pdfUrl = edition.pdfUrl || "";
+      return { sheet, edition, editions, view, missingEdition: "" };
+    }
   }
-  return { sheet: null, edition: null, editions: [], view: null };
+  // An address the server no longer publishes. Naming the edition lets the
+  // page say what is unavailable instead of claiming the sheet is gone.
+  if (slug.endsWith(LOCKIN_SLUG_SUFFIX)) {
+    const base = slug.slice(0, -LOCKIN_SLUG_SUFFIX.length);
+    const sheet = (material?.sheets || []).find((item) => item.slug === base) || null;
+    if (sheet) return { sheet, edition: null, editions: sheet.editions || [], view: null, missingEdition: "lockin" };
+  }
+  return { sheet: null, edition: null, editions: [], view: null, missingEdition: "" };
+}
+
+/**
+ * Attaches a resolved PDF URL to exactly the edition the address names.
+ *
+ * The reader reads `pdfUrl` off the sheet it is given. Keying this by the
+ * sheet's own slug used to leave a Lock-in address with no URL at all, and the
+ * workspace then fell back to its built-in placeholder document -- a file the
+ * administrator never uploaded. Writing it onto the matching edition is what
+ * keeps each address bound to its own PDF.
+ *
+ * @param {Array<object>} materials
+ * @param {{materialSlug: string, slug: string, pdfUrl: string, pageCount?: number|null, hasActiveStudy?: boolean}} options
+ */
+export function withEditionPdfUrl(materials, { materialSlug, slug, pdfUrl, pageCount, hasActiveStudy }) {
+  if (!pdfUrl) return materials;
+  const extra = {
+    pdfUrl,
+    ...(pageCount ? { pageCount } : {}),
+    ...(hasActiveStudy === undefined ? {} : { hasActiveStudy })
+  };
+  return (materials || []).map((material) => {
+    if (material.slug !== materialSlug) return material;
+    return {
+      ...material,
+      sheets: (material.sheets || []).map((sheet) => {
+        const editions = sheet.editions || [];
+        if (editions.length) {
+          // Written onto the edition only, never onto the sheet: a sheet-level
+          // URL would be inherited by every edition that lacks one.
+          if (!editions.some((item) => item.slug === slug)) return sheet;
+          return {
+            ...sheet,
+            editions: editions.map((item) => (item.slug === slug ? { ...item, ...extra } : item))
+          };
+        }
+        return sheet.slug === slug ? { ...sheet, ...extra } : sheet;
+      })
+    };
+  });
 }

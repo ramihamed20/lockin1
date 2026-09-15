@@ -35,7 +35,6 @@ const Dashboard = lazyWithRecovery(() => import("./pages/Dashboard.jsx"));
 const Materials = lazyWithRecovery(() => import("./pages/Materials.jsx"));
 const CatalogMaterialSheets = lazyWithRecovery(() => import("./pages/Materials.jsx").then((m) => ({ default: m.CatalogMaterialSheets })));
 const CatalogSheetStudy = lazyWithRecovery(() => import("./pages/Materials.jsx").then((m) => ({ default: m.CatalogSheetStudy })));
-const CatalogSheetSummary = lazyWithRecovery(() => import("./pages/Materials.jsx").then((m) => ({ default: m.CatalogSheetSummary })));
 const CatalogFocusWorkspace = lazyWithRecovery(() => import("./pages/CatalogFocusWorkspace.jsx"));
 const LockInMode = lazyWithRecovery(() => import("./pages/LockInMode.jsx"));
 const Search = lazyWithRecovery(() => import("./pages/Search.jsx"));
@@ -544,7 +543,7 @@ function App() {
                 <Route path="/materials/catalog" element={<NotFoundPage variant="material-catalog" />} />
                 <Route path="/materials/catalog/:materialSlug" element={<CatalogMaterialSheets user={user} />} />
                 <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug" element={<CatalogSheetStudy user={user} />} />
-                <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug/summary" element={<CatalogSheetSummary user={user} />} />
+                <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug/summary" element={<CatalogFocusWorkspace user={user} variant="summary" />} />
                 <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug/workspace" element={<CatalogFocusWorkspace user={user} />} />
                 <Route path="/lock-in" element={<LockInMode user={user} />} />
                 <Route path="/lock-in/:sessionId" element={<LockInMode user={user} />} />

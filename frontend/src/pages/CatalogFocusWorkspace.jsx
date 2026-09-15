@@ -54,7 +54,7 @@ import {
 import { focusApi } from "../api/focus.js";
 import { progressApi } from "../api/progress.js";
 import { generateIdempotencyKey } from "../api/pagination.js";
-import { rememberLastOpenedCatalogSheet, resolveSheetEdition } from "../lib/materialCatalog.js";
+import { rememberLastOpenedCatalogSheet, resolveSheetEdition, withEditionPdfUrl } from "../lib/materialCatalog.js";
 import { useCatalogMaterials } from "../hooks/useCatalogMaterials.js";
 import { useCatalogDocument } from "../hooks/useCatalogDocument.js";
 import { subscribeConnection } from "../lib/connectionState.js";
@@ -526,39 +526,70 @@ function ActiveStudyQuiz({ quiz, answers, setAnswers, result, busy, onSubmit, on
  * The workspace mounts a large annotation and PDF stack, so the sheet is
  * resolved before it renders rather than through an early return inside it.
  */
-export default function CatalogFocusWorkspace({ user = null }) {
+/**
+ * The one catalog reader.
+ *
+ * `variant` picks which of the sheet's PDFs it opens -- the edition's study
+ * PDF, or that edition's Sheet Summary. Controls, theme, zoom, navigation and
+ * file delivery are the same either way, because they are the same reader.
+ */
+export default function CatalogFocusWorkspace({ user = null, variant = "study" }) {
   const { materialSlug, sheetSlug } = useParams();
   const { t } = useI18n();
   const { materials, loading: materialsLoading, error: materialsError, reload: reloadMaterials } = useCatalogMaterials(user);
   const material = materials.find((item) => item.slug === materialSlug) || null;
   // The address names one edition of the sheet; `view` carries that
   // edition's page count, summary and Active Study in the sheet's own shape.
-  const { view: sheet } = resolveSheetEdition(material, sheetSlug);
+  const { view: sheet, edition, missingEdition } = resolveSheetEdition(material, sheetSlug);
   // The server document behind the sheet: its protected PDF, and the ids its
   // reader state and annotations sync under. A fixture sheet that carries its
   // own pdfUrl opens without it and simply stays local.
-  const catalogDocument = useCatalogDocument(sheet ? materialSlug : "", sheet ? sheetSlug : "");
-  const viewUrl = catalogDocument.document?.viewUrl || "";
+  const summaryMode = variant === "summary";
+  const summaryUrl = summaryMode ? edition?.summaryPdf?.viewUrl || "" : "";
+  // A summary is read from its own file, so the sheet's catalog document is not
+  // fetched for it; everything else about the reader is identical.
+  const catalogDocument = useCatalogDocument(sheet && !summaryMode ? materialSlug : "", sheet && !summaryMode ? sheetSlug : "");
+  const viewUrl = summaryMode ? summaryUrl : catalogDocument.document?.viewUrl || "";
   const resolvedMaterials = useMemo(() => (viewUrl && sheet && !sheet.pdfUrl
-    ? materials.map((item) => (item.slug === materialSlug
-      ? { ...item, sheets: item.sheets.map((entry) => (entry.slug === sheetSlug ? { ...entry, pdfUrl: viewUrl } : entry)) }
-      : item))
-    : materials), [materialSlug, materials, sheet, sheetSlug, viewUrl]);
-  if (materialsLoading) return <Page title={t("materials.coreCatalogTitle")}><LoadingPanel /></Page>;
+    ? withEditionPdfUrl(materials, {
+      materialSlug,
+      slug: sheetSlug,
+      pdfUrl: viewUrl,
+      pageCount: summaryMode ? edition?.summaryPdf?.pageCount : undefined,
+      hasActiveStudy: summaryMode ? false : undefined
+    })
+    : materials), [edition, materialSlug, materials, sheet, sheetSlug, summaryMode, viewUrl]);
+  const title = summaryMode ? t("materials.sheetSummary") : t("materials.coreCatalogTitle");
+  if (materialsLoading) return <Page title={title}><LoadingPanel /></Page>;
   if (materialsError) return <Page title={t("materials.sheetNotFoundTitle")}><ErrorPanel message={materialsError} onRetry={reloadMaterials} /></Page>;
   if (!material || !sheet) {
+    // A named-but-unpublished edition says so, rather than being reported as a
+    // missing sheet or quietly opening the edition that does exist.
+    if (missingEdition) return <Page title={t("materials.sheetNotFoundTitle")}><ErrorPanel message={t("materials.editionUnavailable")} /></Page>;
     return <Page title={t("materials.sheetNotFoundTitle")}><EmptyState icon="study" title={t("materials.noSheetsTitle")} text={t("materials.noSheetsText")} /></Page>;
+  }
+  if (summaryMode && !summaryUrl) {
+    return <Page title={title}><ErrorPanel message={t(sheet.summaryStatus === "processing" ? "materials.summaryProcessing" : "materials.summaryUnavailable")} /></Page>;
   }
   // The workspace sizes itself from the PDF when it first mounts, so it waits
   // for the document rather than mounting without one.
-  if (!sheet.pdfUrl && catalogDocument.loading) return <Page title={sheet.title}><LoadingPanel /></Page>;
-  if (!sheet.pdfUrl && !catalogDocument.document) {
+  if (!sheet.pdfUrl && !summaryMode && catalogDocument.loading) return <Page title={sheet.title}><LoadingPanel /></Page>;
+  if (!sheet.pdfUrl && !summaryMode && !catalogDocument.document) {
     return <Page title={sheet.title}><ErrorPanel message={catalogDocument.error || t("materials.sheetNotFoundText")} onRetry={catalogDocument.reload} /></Page>;
   }
-  return <CatalogFocusWorkspaceView user={user} materials={resolvedMaterials} catalogDocument={catalogDocument.document} onDocumentChanged={catalogDocument.reload} />;
+  // Last guard before the reader: a catalog sheet without its own PDF must
+  // never reach the view, whose no-PDF branch renders a placeholder document.
+  const readable = resolveSheetEdition(
+    resolvedMaterials.find((item) => item.slug === materialSlug) || null,
+    sheetSlug
+  ).view;
+  if (!readable?.pdfUrl) {
+    return <Page title={sheet.title}><ErrorPanel message={t("materials.editionUnavailable")} onRetry={summaryMode ? undefined : catalogDocument.reload} /></Page>;
+  }
+  return <CatalogFocusWorkspaceView user={user} materials={resolvedMaterials} catalogDocument={summaryMode ? null : catalogDocument.document} onDocumentChanged={summaryMode ? undefined : catalogDocument.reload} summaryMode={summaryMode} />;
 }
 
-function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocument = null, onDocumentChanged = () => {} }) {
+function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocument = null, onDocumentChanged = () => {}, summaryMode = false }) {
   const { materialSlug, sheetSlug } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -667,8 +698,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const inkDebugEnabled = import.meta.env.DEV && searchParams.get("inkDebug") === "1";
 
   useEffect(() => {
-    if (material && sheet) rememberLastOpenedCatalogSheet(materialSlug, sheetSlug, { material, sheet });
-  }, [material, materialSlug, sheet, sheetSlug]);
+    // A summary is a reference read, not the sheet a student left off in.
+    if (material && sheet && !summaryMode) rememberLastOpenedCatalogSheet(materialSlug, sheetSlug, { material, sheet });
+  }, [material, materialSlug, sheet, sheetSlug, summaryMode]);
 
   // Annotations now live in IndexedDB and load asynchronously, so nothing is
   // persisted until the stored document has been read back. Saving before
@@ -809,7 +841,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const annotationLayerClass = `workspace-v2-annotation-layer${activeTool !== "hand" ? " is-interactive" : ""}${DRAWING_TOOLS.has(activeTool) ? " is-touch-drawing" : ""}`;
   const sortedNotes = useMemo(() => [...notes].sort((first, second) => first.page - second.page || first.createdAt.localeCompare(second.createdAt)), [notes]);
 
-  usePageTitle(sheet ? `${sheet.title} · Workspace` : "Focus Workspace");
+  usePageTitle(sheet ? `${sheet.title} · ${summaryMode ? "Sheet Summary" : "Workspace"}` : "Focus Workspace");
 
   const updateAnnotations = useCallback((updater) => {
     setAnnotations((current) => {
