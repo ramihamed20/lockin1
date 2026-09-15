@@ -16,6 +16,7 @@ from apps.accounts.models import User
 from apps.accounts.tests.helpers import create_user
 from apps.content.admin_services import create_sheet, is_student_visible
 from apps.content.catalog_subjects import cohorts_without_branches, project_all
+from apps.content.editions import UNIVERSITY
 from apps.content.models import CatalogSubject, LearningObject
 from apps.education.models import AcademicProgram, EducationNode, StudentCohort
 from apps.education.services import create_node, set_node_status
@@ -282,7 +283,7 @@ def test_sheet_notification_only_targets_the_owning_cohort_with_a_valid_route() 
         allow_download=False,
     )
 
-    document = sheet.published_version.catalog_document
+    document = sheet.published_version.catalog_documents.get(edition=UNIVERSITY)
     notification = Notification.objects.get(
         recipient=own_student, template_key="content.sheet_published"
     )

@@ -62,6 +62,10 @@ class LearningObjectInput:
     available_until: datetime | None = None
     primary_file: ManagedFile | None = None
     summary_file: ManagedFile | None = None
+    # The Lock-in edition's PDF and summary ride on the same version, so a
+    # revision, publication or access decision covers both editions at once.
+    lockin_file: ManagedFile | None = None
+    lockin_summary_file: ManagedFile | None = None
     position: int = 0
 
 
@@ -91,15 +95,21 @@ def _validate_input(*, actor: User, data: LearningObjectInput) -> None:
     expected_kind = expected_kinds.get(data.content_type)
     if expected_kind is None or data.primary_file.kind != expected_kind:
         raise ContentRuleError("The primary file does not match the content type.")
-    if data.summary_file is not None:
+    for companion, label in (
+        (data.summary_file, "summary PDF"),
+        (data.lockin_file, "Lockin Sheet PDF"),
+        (data.lockin_summary_file, "Lockin Sheet summary PDF"),
+    ):
+        if companion is None:
+            continue
         if data.content_type != LearningObjectVersion.ContentType.PDF:
-            raise ContentRuleError("A summary PDF can only be attached to PDF content.")
-        if not is_content_administrator(actor) and data.summary_file.owner_id != actor.id:
-            raise ContentRuleError("You cannot attach another creator's summary file.")
-        if data.summary_file.validation_status != ManagedFile.ValidationStatus.READY:
-            raise ContentRuleError("The summary PDF did not pass validation.")
-        if data.summary_file.kind != ManagedFile.Kind.PDF:
-            raise ContentRuleError("The sheet summary must be a PDF file.")
+            raise ContentRuleError(f"A {label} can only be attached to PDF content.")
+        if not is_content_administrator(actor) and companion.owner_id != actor.id:
+            raise ContentRuleError(f"You cannot attach another creator's {label}.")
+        if companion.validation_status != ManagedFile.ValidationStatus.READY:
+            raise ContentRuleError(f"The {label} did not pass validation.")
+        if companion.kind != ManagedFile.Kind.PDF:
+            raise ContentRuleError(f"The {label} must be a PDF file.")
 
 
 def _create_version(
@@ -135,12 +145,13 @@ def _create_version(
             managed_file=data.primary_file,
             role=LearningObjectAsset.Role.PRIMARY,
         )
-    if data.summary_file is not None:
-        LearningObjectAsset.objects.create(
-            version=version,
-            managed_file=data.summary_file,
-            role=LearningObjectAsset.Role.SUMMARY,
-        )
+    for companion, role in (
+        (data.summary_file, LearningObjectAsset.Role.SUMMARY),
+        (data.lockin_file, LearningObjectAsset.Role.LOCKIN_PRIMARY),
+        (data.lockin_summary_file, LearningObjectAsset.Role.LOCKIN_SUMMARY),
+    ):
+        if companion is not None:
+            LearningObjectAsset.objects.create(version=version, managed_file=companion, role=role)
     return version
 
 

@@ -22,15 +22,15 @@ from apps.files.models import ManagedFile
 from apps.files.services import managed_file_delivery_size
 from apps.focus.selectors import annotation_collection_revision
 
-from .active_study_readiness import readiness_payload
+from .active_study_readiness import readiness_payload, settings_for
 from .admin_services import archive_catalog_learning_object, publish_catalog_learning_object
+from .editions import UNIVERSITY, edition_label, primary_role, summary_role
 from .models import (
     CatalogDocument,
     CatalogSubject,
     CatalogWorkspaceReceipt,
     CatalogWorkspaceSnapshot,
     LearningObject,
-    LearningObjectAsset,
 )
 from .policies import can_view_learning_object
 from .selectors import (
@@ -108,7 +108,9 @@ def _catalog_document(*, user: User, material_slug: str, sheet_slug: str) -> Cat
     if (
         version.content_type != version.ContentType.PDF
         or document.managed_file_id
-        not in version.assets.filter(role="primary").values_list("managed_file_id", flat=True)
+        not in version.assets.filter(role=primary_role(document.edition)).values_list(
+            "managed_file_id", flat=True
+        )
         or version.learning_object.published_version_id != version.id
         or not can_view_learning_object(user=user, learning_object=version.learning_object)
     ):
@@ -174,8 +176,8 @@ def _published_documents_by_subject(
         .select_related(
             "managed_file",
             "version__academic_node",
-            "version__learning_object__active_study_settings",
         )
+        .prefetch_related("version__learning_object__active_study_settings_set")
         .prefetch_related("version__learning_object__active_study_question_content")
         .prefetch_related("version__assets__managed_file")
         .order_by("version__learning_object__position", "sheet_slug", "id")
@@ -194,6 +196,73 @@ def _published_documents_by_subject(
         if subject_id is not None:
             grouped[subject_id].append(document)
     return grouped
+
+
+def _sheet_edition(*, document: CatalogDocument) -> dict[str, object]:
+    """One edition of one sheet, in the shape the sheet itself already had.
+
+    Both editions are described by the same function, which is what keeps the
+    Lock-in edition identical in capability to the university edition without a
+    second code path for any of it.
+    """
+
+    version = document.version
+    edition = document.edition
+    summary_asset = next(
+        (asset for asset in version.assets.all() if asset.role == summary_role(edition)),
+        None,
+    )
+    if summary_asset is None and edition != UNIVERSITY:
+        # An edition without its own summary falls back to the sheet's, which is
+        # prose about the same material rather than page-indexed content.
+        summary_asset = next(
+            (asset for asset in version.assets.all() if asset.role == summary_role(UNIVERSITY)),
+            None,
+        )
+    primary_asset = next(
+        (asset for asset in version.assets.all() if asset.role == primary_role(edition)),
+        None,
+    )
+    settings = settings_for(sheet=version.learning_object, edition=edition)
+    readiness = readiness_payload(sheet=version.learning_object, edition=edition)
+    active_ready = any(
+        cast(dict[str, object], item["readiness"])["ready"] is True
+        for item in cast(list[dict[str, object]], readiness["difficulties"])
+    )
+    summary_deliverable = (
+        summary_asset is not None
+        and managed_file_delivery_size(summary_asset.managed_file) is not None
+    )
+    page_count = (
+        version.page_count
+        if edition == UNIVERSITY
+        else (primary_asset.managed_file.pdf_page_count if primary_asset else None)
+    )
+    return {
+        "edition": edition,
+        "label": edition_label(edition),
+        "slug": document.sheet_slug,
+        "summaryPdf": (
+            {
+                "viewUrl": f"/api/v1/files/{summary_asset.managed_file_id}/view",
+                "pageCount": summary_asset.managed_file.pdf_page_count,
+            }
+            if summary_asset is not None and summary_deliverable
+            else None
+        ),
+        # "Not uploaded" and "uploaded but not deliverable yet" are different
+        # problems, and the student is told which.
+        "summaryStatus": (
+            "available"
+            if summary_deliverable
+            else "processing"
+            if summary_asset is not None
+            else "missing"
+        ),
+        "pageCount": page_count if isinstance(page_count, int) and page_count > 0 else None,
+        "hasActiveStudy": bool(settings and settings.enabled and active_ready),
+        "deliverable": managed_file_delivery_size(document.managed_file) is not None,
+    }
 
 
 class CatalogMaterialListView(APIView):
@@ -232,58 +301,36 @@ class CatalogMaterialListView(APIView):
             # something has been published into it.
             if subject.cohort.code == "year-3" and not documents:
                 continue
+            # One sheet can be published in two editions. They are grouped so a
+            # student sees one sheet and chooses which PDF to open, instead of
+            # the same material appearing twice in the directory.
+            by_sheet: dict[UUID, list[CatalogDocument]] = {}
+            for document in documents:
+                by_sheet.setdefault(document.version.learning_object_id, []).append(document)
             sheets = []
-            for number, document in enumerate(documents, start=1):
-                version = document.version
-                summary_asset = next(
-                    (
-                        asset
-                        for asset in version.assets.all()
-                        if asset.role == LearningObjectAsset.Role.SUMMARY
-                    ),
-                    None,
+            for number, (_, editions) in enumerate(by_sheet.items(), start=1):
+                university = next(
+                    (item for item in editions if item.edition == UNIVERSITY), editions[0]
                 )
-                settings = getattr(version.learning_object, "active_study_settings", None)
-                page_count = version.page_count
-                readiness = readiness_payload(sheet=version.learning_object)
-                difficulties = cast(list[dict[str, object]], readiness["difficulties"])
-                active_ready = any(
-                    cast(dict[str, object], item["readiness"])["ready"] is True
-                    for item in difficulties
-                )
-                summary_deliverable = (
-                    summary_asset is not None
-                    and managed_file_delivery_size(summary_asset.managed_file) is not None
+                rows = [_sheet_edition(document=item) for item in editions]
+                rows.sort(key=lambda row: 0 if row["edition"] == UNIVERSITY else 1)
+                primary = next(
+                    (row for row in rows if row["edition"] == university.edition), rows[0]
                 )
                 sheets.append(
                     {
-                        "slug": document.sheet_slug,
-                        "learningObjectId": str(version.learning_object_id),
+                        "slug": university.sheet_slug,
+                        "learningObjectId": str(university.version.learning_object_id),
                         "number": number,
-                        "title": version.title,
-                        "summaryPdf": (
-                            {
-                                "viewUrl": f"/api/v1/files/{summary_asset.managed_file_id}/view",
-                                "pageCount": summary_asset.managed_file.pdf_page_count,
-                            }
-                            if summary_asset is not None and summary_deliverable
-                            else None
-                        ),
-                        # "Not uploaded" and "uploaded but not deliverable yet"
-                        # are different problems, and the student is told which.
-                        "summaryStatus": (
-                            "available"
-                            if summary_deliverable
-                            else "processing"
-                            if summary_asset is not None
-                            else "missing"
-                        ),
-                        "pageCount": (
-                            page_count if isinstance(page_count, int) and page_count > 0 else None
-                        ),
-                        "hasActiveStudy": bool(settings and settings.enabled and active_ready),
-                        "deliverable": managed_file_delivery_size(document.managed_file)
-                        is not None,
+                        "title": university.version.title,
+                        # The university edition stays the shape every existing
+                        # client reads; ``editions`` adds the choice beside it.
+                        "summaryPdf": primary["summaryPdf"],
+                        "summaryStatus": primary["summaryStatus"],
+                        "pageCount": primary["pageCount"],
+                        "hasActiveStudy": primary["hasActiveStudy"],
+                        "deliverable": primary["deliverable"],
+                        "editions": rows,
                     }
                 )
             results.append(

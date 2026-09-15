@@ -6,6 +6,7 @@ from .admin_views import (
     AdminSheetActiveStudyQuestionsView,
     AdminSheetActiveStudyView,
     AdminSheetDetailView,
+    AdminSheetLockinPdfView,
     AdminSheetPdfView,
     AdminSheetReorderView,
     AdminSheetSummaryPdfView,
@@ -73,6 +74,11 @@ urlpatterns = [
         "operations/admin/content/sheets/<uuid:sheet_id>/reorder",
         AdminSheetReorderView.as_view(),
         name="admin-sheet-reorder",
+    ),
+    path(
+        "operations/admin/content/sheets/<uuid:sheet_id>/lockin-pdf",
+        AdminSheetLockinPdfView.as_view(),
+        name="admin-sheet-lockin-pdf",
     ),
     path(
         "operations/admin/content/sheets/<uuid:sheet_id>/active-study",

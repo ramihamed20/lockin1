@@ -114,24 +114,57 @@ def part_sizes(*, eligible_pages: int, target_pages_per_part: int) -> tuple[int,
     return (target,) * (full_parts - 1) + (target + remainder,)
 
 
+def part_sizes_for_count(*, eligible_pages: int, number_of_parts: int) -> tuple[int, ...]:
+    """Split pages into an exact number of parts.
+
+    The Lock-in edition plans through this. A sheet has one question bank, so
+    both editions must have the same number of parts; only the page boundaries
+    differ, because only the PDFs differ. Earlier parts stay equal and the last
+    absorbs the remainder, matching how :func:`part_sizes` shapes a plan.
+    """
+
+    pages = _whole_number(eligible_pages, field="total_pdf_pages")
+    parts = _whole_number(number_of_parts, field="number_of_parts")
+    if parts < 1:
+        raise ActiveStudyPlanError("Number of parts must be at least 1.", field="number_of_parts")
+    if pages < parts:
+        raise ActiveStudyPlanError(
+            f"This PDF has only {pages} study page(s) but the sheet's questions are written "
+            f"for {parts} parts. Add pages or reduce the excluded pages.",
+            field="total_pdf_pages",
+        )
+    size, remainder = divmod(pages, parts)
+    return (size,) * (parts - 1) + (size + remainder,)
+
+
 def page_ranges(
     *,
     total_pdf_pages: int,
     excluded_start_pages: int,
     excluded_end_pages: int,
     target_pages_per_part: int,
+    number_of_parts: int | None = None,
 ) -> tuple[tuple[int, int], ...]:
+    """Plan one edition's page boundaries.
+
+    ``number_of_parts`` pins the plan to a part count decided elsewhere -- the
+    sheet's university edition -- instead of deriving it from the difficulty's
+    target. Everything downstream is identical either way.
+    """
+
     eligible = eligible_study_pages(
         total_pdf_pages=total_pdf_pages,
         excluded_start_pages=excluded_start_pages,
         excluded_end_pages=excluded_end_pages,
     )
+    sizes = (
+        part_sizes_for_count(eligible_pages=eligible, number_of_parts=number_of_parts)
+        if number_of_parts is not None
+        else part_sizes(eligible_pages=eligible, target_pages_per_part=target_pages_per_part)
+    )
     start = excluded_start_pages + 1
     ranges: list[tuple[int, int]] = []
-    for size in part_sizes(
-        eligible_pages=eligible,
-        target_pages_per_part=target_pages_per_part,
-    ):
+    for size in sizes:
         end = start + size - 1
         ranges.append((start, end))
         start = end + 1
@@ -144,6 +177,7 @@ def difficulty_plan(
     total_pdf_pages: int,
     excluded_start_pages: int,
     excluded_end_pages: int,
+    number_of_parts: int | None = None,
 ) -> dict[str, object]:
     """Plan one difficulty.  Always yields at least one part or raises."""
 
@@ -152,6 +186,7 @@ def difficulty_plan(
         excluded_start_pages=excluded_start_pages,
         excluded_end_pages=excluded_end_pages,
         target_pages_per_part=difficulty.target_pages_per_part,
+        number_of_parts=number_of_parts,
     )
     return {
         "difficulty": difficulty.key,
@@ -195,7 +230,15 @@ def plan_payload(
     total_pdf_pages: int | None,
     excluded_start_pages: int,
     excluded_end_pages: int,
+    parts_by_difficulty: dict[str, int] | None = None,
 ) -> dict[str, object]:
+    """Plan every difficulty for one edition.
+
+    ``parts_by_difficulty`` pins each difficulty's part count, which is how a
+    sheet's Lock-in edition inherits the university edition's structure and
+    therefore its question bank.
+    """
+
     if total_pdf_pages is None:
         reason = "PDF page count is missing."
         return {
@@ -222,6 +265,7 @@ def plan_payload(
                 total_pdf_pages=total_pdf_pages,
                 excluded_start_pages=excluded_start_pages,
                 excluded_end_pages=excluded_end_pages,
+                number_of_parts=(parts_by_difficulty or {}).get(difficulty.key),
             )
             for difficulty in DIFFICULTIES
         ],

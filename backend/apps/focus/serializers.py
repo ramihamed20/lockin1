@@ -218,6 +218,11 @@ class ActiveStudySubmitSerializer(StrictSerializer):
 class ManagedActiveStudyStartSerializer(StrictSerializer):
     sheet_id = serializers.UUIDField()
     difficulty = serializers.ChoiceField(choices=("easy", "medium", "hard"))
+    # Which PDF the student is reading. Omitted means the university edition,
+    # so every existing client keeps working unchanged.
+    edition = serializers.ChoiceField(
+        choices=("university", "lockin"), required=False, allow_null=True
+    )
 
 
 class ManagedActiveStudyAnswerSerializer(StrictSerializer):

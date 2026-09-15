@@ -24,7 +24,7 @@ test("sheet and question administration use real Django endpoints", () => {
     "/operations/admin/content/questions/bulk",
     "/operations/admin/content/imports"
   ]) assert.match(api, new RegExp(route.replaceAll("/", "\\/")));
-  assert.match(page, /Replace PDF/);
+  assert.match(page, /Replace \$\{editionLabel\} PDF/);
   assert.match(page, /Archive selected/);
   assert.match(page, /Move to/);
   assert.match(page, /Delete permanently/);
@@ -119,4 +119,21 @@ test("the prompt-template warning only fires when a real plan has no template", 
   assert.match(page, /difficulty\.plan_available === false && <p className="form-alert error">Active Study parts cannot be calculated yet/);
   assert.match(page, /difficulty\.plan_available !== false && !difficulty\.prompt_template_supported/);
   assert.match(page, /A matching prompt template is not configured yet/);
+});
+
+test("Admin manages both sheet editions through one interface", () => {
+  assert.match(page, /const EDITIONS = \[/);
+  assert.match(page, /function EditionTabs\(/);
+  assert.match(page, /University Sheet/);
+  assert.match(page, /Lockin Sheet/);
+  // The same Active Study panel, PDF and summary controls serve either edition.
+  assert.match(page, /<ActiveStudySettings key=\{edition\} sheet=\{sheet\} edition=\{edition\}/);
+  assert.match(page, /adminControlApi\.replaceSheetLockinPdf/);
+  assert.match(page, /adminControlApi\.removeSheetLockinPdf/);
+  assert.match(page, /replaceSheetSummaryPdf\(sheet\.id, \{ expected_revision: sheet\.revision, summary_file_id: managed\.id \}, edition\)/);
+  assert.match(api, /lockin-pdf/);
+  assert.match(api, /activeStudySettings\(sheetId, edition = ""\)/);
+  // One question bank: it is imported on the University Sheet tab only.
+  assert.match(page, /Questions are shared with the University Sheet/);
+  assert.match(page, /sharedBank=\{Boolean\(plan\.parts_follow_university\)\}/);
 });

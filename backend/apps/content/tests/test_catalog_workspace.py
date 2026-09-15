@@ -167,6 +167,20 @@ def test_catalog_materials_are_cohort_scoped_and_published_from_content_studio()
                     "pageCount": None,
                     "hasActiveStudy": False,
                     "deliverable": True,
+                    # A sheet with no Lockin Sheet uploaded offers the one
+                    # edition it has.
+                    "editions": [
+                        {
+                            "edition": "university",
+                            "label": "University Sheet",
+                            "slug": document.sheet_slug,
+                            "summaryPdf": None,
+                            "summaryStatus": "missing",
+                            "pageCount": None,
+                            "hasActiveStudy": False,
+                            "deliverable": True,
+                        }
+                    ],
                 }
             ],
             "cohort": {"program_code": "catalog-materials", "cohort_code": "own", "name": "Own"},

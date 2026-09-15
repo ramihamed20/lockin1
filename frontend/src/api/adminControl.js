@@ -70,14 +70,16 @@ export const adminControlApi = {
   reorderSheet(sheetId, body) {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/reorder`, { method: "POST", body });
   },
-  activeStudySettings(sheetId) {
-    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study`);
+  // Every edition-aware call takes the same optional edition; omitting it
+  // addresses the University Sheet, which is what these endpoints always meant.
+  activeStudySettings(sheetId, edition = "") {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study` + buildQueryString({ edition }));
   },
-  updateActiveStudySettings(sheetId, body) {
-    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study`, { method: "PATCH", body });
+  updateActiveStudySettings(sheetId, body, edition = "") {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study` + buildQueryString({ edition }), { method: "PATCH", body });
   },
-  previewActiveStudyPlan(sheetId, body) {
-    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study/preview`, { method: "POST", body });
+  previewActiveStudyPlan(sheetId, body, edition = "") {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study/preview` + buildQueryString({ edition }), { method: "POST", body });
   },
   activeStudyQuestions(sheetId, difficulty) {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study/questions/${difficulty}`);
@@ -100,11 +102,17 @@ export const adminControlApi = {
   removeSheetPdf(sheetId, expectedRevision) {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/pdf`, { method: "DELETE", body: { expected_revision: Number(expectedRevision) } });
   },
-  replaceSheetSummaryPdf(sheetId, body) {
-    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/summary-pdf`, { method: "POST", body });
+  replaceSheetSummaryPdf(sheetId, body, edition = "") {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/summary-pdf` + buildQueryString({ edition }), { method: "POST", body });
   },
-  removeSheetSummaryPdf(sheetId, expectedRevision) {
-    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/summary-pdf`, { method: "DELETE", body: { expected_revision: Number(expectedRevision) } });
+  removeSheetSummaryPdf(sheetId, expectedRevision, edition = "") {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/summary-pdf` + buildQueryString({ edition }), { method: "DELETE", body: { expected_revision: Number(expectedRevision) } });
+  },
+  replaceSheetLockinPdf(sheetId, body) {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/lockin-pdf`, { method: "POST", body });
+  },
+  removeSheetLockinPdf(sheetId, expectedRevision) {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/lockin-pdf`, { method: "DELETE", body: { expected_revision: Number(expectedRevision) } });
   },
   deleteSheet(sheetId) {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}`, { method: "DELETE" });

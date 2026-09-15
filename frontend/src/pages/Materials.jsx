@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { Icon } from "../lib/icons.jsx";
-import { rememberLastOpenedCatalogSheet } from "../lib/materialCatalog.js";
+import { rememberLastOpenedCatalogSheet, resolveSheetEdition } from "../lib/materialCatalog.js";
 import { useCatalogMaterials } from "../hooks/useCatalogMaterials.js";
 import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
 import { CatalogSheetCard } from "../components/learning/CatalogSheetCard.jsx";
@@ -76,16 +76,16 @@ export function CatalogSheetStudy({ user = null }) {
   const { t } = useI18n();
   const { materials, loading, error, reload } = useCatalogMaterials(user);
   const material = materials.find((item) => item.slug === materialSlug) || null;
-  const sheet = material?.sheets.find((item) => item.slug === sheetSlug) || null;
+  const { sheet, edition, editions } = resolveSheetEdition(material, sheetSlug);
 
   useEffect(() => {
-    if (sheet?.deliverable !== false) rememberLastOpenedCatalogSheet(materialSlug, sheetSlug);
-  }, [materialSlug, sheet?.deliverable, sheetSlug]);
+    if (edition?.deliverable !== false) rememberLastOpenedCatalogSheet(materialSlug, sheetSlug);
+  }, [materialSlug, edition?.deliverable, sheetSlug]);
 
   if (loading) return <Page title={t("materials.coreCatalogTitle")}><LoadingPanel /></Page>;
   if (error) return <Page title={t("materials.sheetNotFoundTitle")}><ErrorPanel message={error} onRetry={reload} /></Page>;
-  if (!material || !sheet) return <Page title={t("materials.sheetNotFoundTitle")}><ErrorPanel message={t("materials.sheetNotFoundText")} /></Page>;
-  if (sheet.deliverable === false) return <Page title={sheet.title}><ErrorPanel message={t("materials.sheetNotFoundText")} /></Page>;
+  if (!material || !sheet || !edition) return <Page title={t("materials.sheetNotFoundTitle")}><ErrorPanel message={t("materials.sheetNotFoundText")} /></Page>;
+  if (edition.deliverable === false) return <Page title={sheet.title}><ErrorPanel message={t("materials.sheetNotFoundText")} /></Page>;
 
   return (
     <Page title={sheet.title}>
@@ -93,15 +93,16 @@ export function CatalogSheetStudy({ user = null }) {
         <article className="panel catalog-sheet-actions catalog-sheet-actions--primary">
           <div className="catalog-sheet-entry-heading">
             <span className="catalog-sheet-entry-icon"><Icon name="file" size={22} /></span>
-            <div><h2>{sheet.title}</h2>{sheet.pageCount && <p id="catalog-sheet-file-status" dir="auto">{t("materials.pageCount", { count: sheet.pageCount })}</p>}</div>
+            <div><h2>{sheet.title}</h2>{edition.pageCount && <p id="catalog-sheet-file-status" dir="auto">{t("materials.pageCount", { count: edition.pageCount })}</p>}</div>
           </div>
-          <Link className="btn btn-primary catalog-sheet-focus-action" to={`/materials/catalog/${material.slug}/sheets/${sheet.slug}/workspace`} state={{ returnTo: location.pathname, scrollY: window.scrollY }}><Icon name="expand" size={17} /> {t("materials.openWorkspace")}</Link>
+          <Link className="btn btn-primary catalog-sheet-focus-action" to={`/materials/catalog/${material.slug}/sheets/${edition.slug}/workspace`} state={{ returnTo: location.pathname, scrollY: window.scrollY }}><Icon name="expand" size={17} /> {t("materials.openWorkspace")}</Link>
         </article>
+        <SheetEditionChooser material={material} editions={editions} current={edition} />
         <article className="catalog-lockin-card" aria-label={t("materials.lockInSoonLabel")}>
           <span><Icon name="lock" size={18} /></span><div><strong>{t("materials.lockInMode")}</strong><small>{t("common.soon")}</small></div>
         </article>
-        {sheet.summaryPdf?.viewUrl ? (
-          <Link className="catalog-summary-card is-available" to={`/materials/catalog/${material.slug}/sheets/${sheet.slug}/summary`}>
+        {edition.summaryPdf?.viewUrl ? (
+          <Link className="catalog-summary-card is-available" to={`/materials/catalog/${material.slug}/sheets/${edition.slug}/summary`}>
             <span><Icon name="book-open" size={18} /></span>
             <div><strong>{t("materials.sheetSummary")}</strong><small>{t("materials.summaryAvailable")}</small></div>
             <Icon name="chevron-right" size={17} aria-hidden="true" />
@@ -109,7 +110,7 @@ export function CatalogSheetStudy({ user = null }) {
         ) : (
           <div className="catalog-summary-card is-unavailable" aria-disabled="true">
             <span><Icon name="book-open" size={18} /></span>
-            <div><strong>{t("materials.sheetSummary")}</strong><small>{t(sheet.summaryStatus === "processing" ? "materials.summaryProcessing" : "materials.summaryUnavailable")}</small></div>
+            <div><strong>{t("materials.sheetSummary")}</strong><small>{t(edition.summaryStatus === "processing" ? "materials.summaryProcessing" : "materials.summaryUnavailable")}</small></div>
           </div>
         )}
         <Link className="btn btn-soft compact catalog-sheet-back" to={`/materials/catalog/${material.slug}`}><Icon name="arrow-left" size={16} /> {t("materials.backToSheets")}</Link>
@@ -118,17 +119,48 @@ export function CatalogSheetStudy({ user = null }) {
   );
 }
 
+/** The two editions of one sheet, chosen before a study mode. */
+function SheetEditionChooser({ material, editions, current }) {
+  const { t } = useI18n();
+  if (editions.length < 2) return null;
+  return (
+    <section className="catalog-edition-chooser" aria-label={t("materials.editionLabel")}>
+      <p className="eyebrow">{t("materials.editionLabel")}</p>
+      <div className="catalog-edition-options" role="group">
+        {editions.map((item) => {
+          const active = item.slug === current.slug;
+          return (
+            <Link
+              key={item.edition}
+              className={`catalog-edition-option${active ? " is-active" : ""}`}
+              aria-current={active ? "true" : undefined}
+              to={`/materials/catalog/${material.slug}/sheets/${item.slug}`}
+              replace
+            >
+              <Icon name={item.edition === "lockin" ? "lock" : "file"} size={17} />
+              <span>
+                <strong>{t(`materials.edition.${item.edition}`)}</strong>
+                {item.pageCount ? <small>{t("materials.pageCount", { count: item.pageCount })}</small> : null}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export function CatalogSheetSummary({ user = null }) {
   const { materialSlug, sheetSlug } = useParams();
   const { t } = useI18n();
   const { materials, loading, error, reload } = useCatalogMaterials(user);
   const material = materials.find((item) => item.slug === materialSlug) || null;
-  const sheet = material?.sheets.find((item) => item.slug === sheetSlug) || null;
+  const { sheet, edition } = resolveSheetEdition(material, sheetSlug);
 
   if (loading) return <Page title={t("materials.sheetSummary")}><LoadingPanel /></Page>;
   if (error) return <Page title={t("materials.sheetSummary")}><ErrorPanel message={error} onRetry={reload} /></Page>;
-  if (!material || !sheet) return <Page title={t("materials.sheetSummary")}><ErrorPanel message={t("materials.sheetNotFoundText")} /></Page>;
-  if (!sheet.summaryPdf?.viewUrl) return <Page title={t("materials.sheetSummary")}><ErrorPanel message={t(sheet.summaryStatus === "processing" ? "materials.summaryProcessing" : "materials.summaryUnavailable")} /></Page>;
+  if (!material || !sheet || !edition) return <Page title={t("materials.sheetSummary")}><ErrorPanel message={t("materials.sheetNotFoundText")} /></Page>;
+  if (!edition.summaryPdf?.viewUrl) return <Page title={t("materials.sheetSummary")}><ErrorPanel message={t(edition.summaryStatus === "processing" ? "materials.summaryProcessing" : "materials.summaryUnavailable")} /></Page>;
 
   return (
     <Page title={t("materials.sheetSummary")} subtitle={sheet.title}>
@@ -138,13 +170,13 @@ export function CatalogSheetSummary({ user = null }) {
           <div><p className="eyebrow">{t("materials.normalMode")}</p><h2 dir="auto">{sheet.title}</h2></div>
         </header>
         <div className="sheet-summary-pdf-frame">
-          <iframe src={sheet.summaryPdf.viewUrl} title={`${t("materials.sheetSummary")} — ${sheet.title}`} />
+          <iframe src={edition.summaryPdf.viewUrl} title={`${t("materials.sheetSummary")} — ${sheet.title}`} />
         </div>
         <footer>
           <span><Icon name="info" size={16} />{t("materials.summaryNormalOnly")}</span>
           <div className="sheet-summary-footer-actions">
-            <a className="btn btn-primary compact" href={sheet.summaryPdf.viewUrl} target="_blank" rel="noreferrer"><Icon name="expand" size={16} />{t("materials.openSummaryPdf")}</a>
-            <Link className="btn btn-soft compact" to={`/materials/catalog/${material.slug}/sheets/${sheet.slug}`}><Icon name="arrow-left" size={16} />{t("materials.backToSheet")}</Link>
+            <a className="btn btn-primary compact" href={edition.summaryPdf.viewUrl} target="_blank" rel="noreferrer"><Icon name="expand" size={16} />{t("materials.openSummaryPdf")}</a>
+            <Link className="btn btn-soft compact" to={`/materials/catalog/${material.slug}/sheets/${edition.slug}`}><Icon name="arrow-left" size={16} />{t("materials.backToSheet")}</Link>
           </div>
         </footer>
       </article>

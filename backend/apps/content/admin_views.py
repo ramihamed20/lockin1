@@ -33,6 +33,7 @@ from .admin_serializers import (
     AdminSheetActionSerializer,
     AdminSheetCreateSerializer,
     AdminSheetDeletePdfSerializer,
+    AdminSheetLockinPdfSerializer,
     AdminSheetReorderSerializer,
     AdminSheetReplacePdfSerializer,
     AdminSheetSummaryPdfSerializer,
@@ -45,19 +46,23 @@ from .admin_services import (
     change_sheet_status,
     create_sheet,
     delete_active_study_question_content,
+    delete_lockin_pdf,
     delete_pdf,
     delete_summary_pdf,
     has_publication_history,
     is_student_visible,
     permanently_delete_sheet,
     reorder_sheet,
+    replace_lockin_pdf,
     replace_pdf,
     replace_summary_pdf,
     save_active_study_question_content,
+    sheet_edition_summaries,
     update_active_study_settings,
     update_sheet,
     validate_active_study_question_content,
 )
+from .editions import UnknownEditionError, normalize_edition
 from .models import CatalogSubject, LearningObject, LearningObjectAsset, LearningObjectVersion
 from .services import ContentConflictError, ContentFieldError, ContentRuleError
 
@@ -70,6 +75,15 @@ class AdminContentRejected(APIException):
 class AdminContentConflict(APIException):
     status_code = status.HTTP_409_CONFLICT
     default_code = "revision_conflict"
+
+
+def _edition(request: Request) -> str:
+    """The edition a request addresses; an absent one means the university edition."""
+
+    try:
+        return normalize_edition(request.query_params.get("edition"))
+    except UnknownEditionError as error:
+        raise ValidationError({"edition": [str(error)], "detail": str(error)}) from error
 
 
 def _user(request: Request) -> User:
@@ -108,7 +122,7 @@ def _sheets(subject: EducationNode) -> QuerySet[LearningObject]:
             current_version__academic_node__path__startswith=subject.path,
         )
         .select_related("owner", "current_version__academic_node", "published_version")
-        .select_related("active_study_settings")
+        .prefetch_related("active_study_settings_set")
         .prefetch_related("current_version__assets__managed_file")
         .order_by("position", "current_version__title", "id")
     )
@@ -195,8 +209,10 @@ def serialize_sheet(sheet: LearningObject) -> dict[str, object]:
         "published_at": sheet.published_at,
         "archived_at": sheet.archived_at,
         "question_count": question_count,
-        "active_study_enabled": getattr(sheet, "active_study_settings", None) is not None
-        and sheet.active_study_settings.enabled,
+        "active_study_enabled": any(row.enabled for row in sheet.active_study_settings_set.all()),
+        # Both editions in one place, so Content Studio offers the same
+        # controls for each without a second serializer.
+        "editions": sheet_edition_summaries(sheet=sheet),
         "can_permanently_delete": not has_history,
         "pdf": (
             {
@@ -442,6 +458,7 @@ class AdminSheetSummaryPdfView(_ContentPermissionView):
         managed_file = get_object_or_404(ManagedFile, id=data["summary_file_id"])
         try:
             sheet = replace_summary_pdf(
+                edition=_edition(request),
                 actor=_user(request),
                 sheet_id=sheet_id,
                 expected_revision=int(data["expected_revision"]),
@@ -456,6 +473,40 @@ class AdminSheetSummaryPdfView(_ContentPermissionView):
         serializer.is_valid(raise_exception=True)
         try:
             sheet = delete_summary_pdf(
+                edition=_edition(request),
+                actor=_user(request),
+                sheet_id=sheet_id,
+                expected_revision=int(serializer.validated_data["expected_revision"]),
+            )
+        except (LearningObject.DoesNotExist, ContentRuleError) as error:
+            _raise_rule(error)
+        return Response(serialize_sheet(sheet))
+
+
+class AdminSheetLockinPdfView(_ContentPermissionView):
+    """The Lock-in edition's PDF, managed exactly like the university one."""
+
+    def post(self, request: Request, sheet_id: UUID) -> Response:
+        serializer = AdminSheetLockinPdfSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        managed_file = get_object_or_404(ManagedFile, id=data["lockin_file_id"])
+        try:
+            sheet = replace_lockin_pdf(
+                actor=_user(request),
+                sheet_id=sheet_id,
+                expected_revision=int(data["expected_revision"]),
+                managed_file=managed_file,
+            )
+        except (LearningObject.DoesNotExist, ContentRuleError) as error:
+            _raise_rule(error)
+        return Response(serialize_sheet(sheet))
+
+    def delete(self, request: Request, sheet_id: UUID) -> Response:
+        serializer = AdminSheetDeletePdfSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            sheet = delete_lockin_pdf(
                 actor=_user(request),
                 sheet_id=sheet_id,
                 expected_revision=int(serializer.validated_data["expected_revision"]),
@@ -486,13 +537,15 @@ class AdminSheetReorderView(_ContentPermissionView):
 class AdminSheetActiveStudyView(_ContentPermissionView):
     def _sheet(self, sheet_id: UUID) -> LearningObject:
         return get_object_or_404(
-            LearningObject.objects.select_related("active_study_settings"),
+            LearningObject.objects.prefetch_related("active_study_settings_set"),
             id=sheet_id,
             current_version__content_type=LearningObjectVersion.ContentType.PDF,
         )
 
     def get(self, request: Request, sheet_id: UUID) -> Response:
-        return Response(active_study_payload(sheet=self._sheet(sheet_id)))
+        return Response(
+            active_study_payload(sheet=self._sheet(sheet_id), edition=_edition(request))
+        )
 
     def patch(self, request: Request, sheet_id: UUID) -> Response:
         serializer = AdminActiveStudySettingsSerializer(data=request.data)
@@ -508,11 +561,12 @@ class AdminSheetActiveStudyView(_ContentPermissionView):
                 excluded_start_pages=data.get("excluded_start_pages"),
                 excluded_end_pages=data.get("excluded_end_pages"),
                 confirm_boundary_change=bool(data["confirm_boundary_change"]),
+                edition=_edition(request),
             )
         except (LearningObject.DoesNotExist, ContentRuleError) as error:
             _raise_rule(error)
         sheet = self._sheet(sheet.id)
-        return Response(active_study_payload(sheet=sheet))
+        return Response(active_study_payload(sheet=sheet, edition=_edition(request)))
 
 
 class AdminSheetActiveStudyPreviewView(_ContentPermissionView):
@@ -523,7 +577,7 @@ class AdminSheetActiveStudyPreviewView(_ContentPermissionView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         sheet = get_object_or_404(
-            LearningObject.objects.select_related("active_study_settings"),
+            LearningObject.objects.prefetch_related("active_study_settings_set"),
             id=sheet_id,
             current_version__content_type=LearningObjectVersion.ContentType.PDF,
         )
@@ -533,6 +587,7 @@ class AdminSheetActiveStudyPreviewView(_ContentPermissionView):
                 total_pdf_pages=data.get("total_pdf_pages"),
                 excluded_start_pages=data.get("excluded_start_pages"),
                 excluded_end_pages=data.get("excluded_end_pages"),
+                edition=_edition(request),
             )
         except (LearningObject.DoesNotExist, ContentRuleError) as error:
             _raise_rule(error)
@@ -542,7 +597,7 @@ class AdminSheetActiveStudyPreviewView(_ContentPermissionView):
 class AdminSheetActiveStudyQuestionsView(_ContentPermissionView):
     def _sheet(self, sheet_id: UUID) -> LearningObject:
         return get_object_or_404(
-            LearningObject.objects.select_related("active_study_settings"),
+            LearningObject.objects.prefetch_related("active_study_settings_set"),
             id=sheet_id,
             current_version__content_type=LearningObjectVersion.ContentType.PDF,
         )

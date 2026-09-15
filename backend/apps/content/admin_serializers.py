@@ -75,6 +75,11 @@ class AdminActiveStudySettingsSerializer(StrictSerializer):
     confirm_boundary_change = serializers.BooleanField(required=False, default=False)
 
 
+class AdminSheetLockinPdfSerializer(StrictSerializer):
+    expected_revision = serializers.IntegerField(min_value=0)
+    lockin_file_id = serializers.UUIDField()
+
+
 class AdminActiveStudyPlanPreviewSerializer(StrictSerializer):
     """Unsaved boundaries to plan.  Every field is optional: an omitted field
     keeps the stored value instead of resetting it to a default."""
