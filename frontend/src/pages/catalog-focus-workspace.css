@@ -746,3 +746,27 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
     background: var(--border);
   }
 }
+
+/* Laptop and desktop zoom bar. Only a wide screen driven by a mouse or trackpad
+   with no touchscreen gets it; phones and iPads (including an iPad with a
+   trackpad, which still reports a coarse pointer) keep pinch zoom and the page
+   dock unchanged. There it replaces the zoom row inside the page popover, so a
+   reader never sees two sets of the same controls. */
+.workspace-v2-zoom-bar { display: none; }
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  .workspace-v2-zoom-bar { position: absolute; z-index: 6; inset-inline-end: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 2px; padding: 4px; border: 1px solid var(--workspace-border); border-radius: 12px; color: #e8ecf8; background: rgba(13,19,39,.92); box-shadow: 0 6px 16px rgba(0,0,0,.32); }
+  .workspace-v2-zoom-bar button { display: inline-flex; min-width: 34px; height: 34px; align-items: center; justify-content: center; gap: 5px; padding: 0 8px; border: 0; border-radius: 8px; color: #cbd3e6; background: transparent; cursor: pointer; font: inherit; font-size: .7rem; font-weight: 700; }
+  .workspace-v2-zoom-bar button:hover:not(:disabled) { color: #fff; background: rgba(118,80,237,.28); }
+  .workspace-v2-zoom-bar button:focus-visible { outline: 2px solid var(--workspace-gold); outline-offset: 1px; }
+  .workspace-v2-zoom-bar button:disabled { opacity: .35; cursor: not-allowed; }
+  .workspace-v2-zoom-bar output { min-width: 50px; color: #eef1fb; font-size: .72rem; font-variant-numeric: tabular-nums; font-weight: 750; text-align: center; }
+  .workspace-v2-zoom-bar-divider { width: 1px; height: 20px; margin-inline: 4px; background: var(--workspace-border); }
+  .workspace-v2-page-navigator .workspace-v2-zoom-control { display: none; }
+}
+@media (any-pointer: coarse) {
+  .workspace-v2-zoom-bar { display: none; }
+  .workspace-v2-page-navigator .workspace-v2-zoom-control { display: flex; }
+}
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2-zoom-bar { color: var(--workspace-chrome-text); border-color: var(--workspace-control-border); background: var(--surface); }
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2-zoom-bar button,
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2-zoom-bar output { color: var(--workspace-chrome-text); }

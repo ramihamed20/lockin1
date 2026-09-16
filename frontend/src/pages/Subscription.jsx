@@ -78,7 +78,7 @@ function offerCopy(plan, version, locale) {
  * administrator reaches this screen on its own. The payment-history list below
  * is a record; this is the live state.
  */
-function ReviewBanner({ review, t }) {
+function ReviewBanner({ review, t, onRetry }) {
   if (!review) return null;
   const tone = { pending: "pending", approved: "approved", rejected: "rejected" }[review.status];
   if (!tone) return null;
@@ -105,9 +105,36 @@ function ReviewBanner({ review, t }) {
         )}
       </div>
       {tone === "rejected" && (
-        <a className="btn btn-primary" href="#libyana-payment">{t("subscription.submitAnotherCard")}</a>
+        <a className="btn btn-primary" href="#libyana-payment" onClick={onRetry}>{t("subscription.submitAnotherCard")}</a>
       )}
     </section>
+  );
+}
+
+const CHECKOUT_STEPS = ["plan", "review", "pay"];
+
+/**
+ * Where the reader is in the purchase: choose a plan, see what it costs and
+ * includes, then pay. Earlier steps stay clickable so a plan can be changed
+ * without starting over.
+ */
+function CheckoutStepper({ step, onStep, t }) {
+  const current = CHECKOUT_STEPS.indexOf(step);
+  const labels = { plan: t("subscription.stepPlan"), review: t("subscription.stepReview"), pay: t("subscription.stepPay") };
+  return (
+    <ol className="subscription-stepper" aria-label={t("subscription.stepsLabel")}>
+      {CHECKOUT_STEPS.map((key, index) => {
+        const state = index < current ? "done" : index === current ? "current" : "upcoming";
+        return (
+          <li key={key} className={`is-${state}`}>
+            <button type="button" disabled={index > current} aria-current={state === "current" ? "step" : undefined} onClick={() => onStep(key)}>
+              <span className="subscription-stepper-index" aria-hidden="true">{state === "done" ? "✓" : index + 1}</span>
+              <span>{labels[key]}</span>
+            </button>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
@@ -126,6 +153,8 @@ export default function Subscription() {
   const subscriptionSession = useSubscriptionSession();
   const details = useAsyncData(() => billingApi.details(), []);
   const [selectedPlan, setSelectedPlan] = useState("");
+  const [step, setStep] = useState("plan");
+  const purchaseRef = useRef(null);
   const [codes, setCodes] = useState(["", ""]);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState("");
@@ -190,8 +219,17 @@ export default function Subscription() {
     );
   }
 
+  // Moving between steps keeps the purchase in view: on a phone the next step
+  // would otherwise open below the fold with nothing telling the reader it did.
+  function goToStep(next) {
+    setStep(next);
+    setError("");
+    window.requestAnimationFrame(() => purchaseRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }));
+  }
+
   async function submitPayment(event) {
     event.preventDefault();
+    if (step !== "pay") { goToStep(step === "plan" ? "review" : "pay"); return; }
     if (!effectivePlan || submitting) return;
     setSubmitting(true);
     setError("");
@@ -212,6 +250,7 @@ export default function Subscription() {
       paymentAttemptKey.current = "";
       subscriptionSession.setAuthoritativeSubscription(result.subscription);
       setCodes(["", ""]);
+      setStep("plan");
       setNotice(t("subscription.submitted"));
       details.reload();
     } catch (requestError) {
@@ -224,19 +263,19 @@ export default function Subscription() {
   return (
     <Page title={t("subscription.title")} headingHandled>
       <div className="subscription-premium">
-        <ReviewBanner review={review} t={t} />
+        <ReviewBanner review={review} t={t} onRetry={() => setStep("plan")} />
 
         {!subscription?.access_allowed && !pendingManualReview && (
           <section className="subscription-review-banner is-expired" role="status">
             <div><h2>{t("subscription.expiredTitle")}</h2><p>{t("subscription.expiredBody")}</p></div>
-            <a className="btn btn-primary" href="#libyana-payment">{t("subscription.renew")}</a>
+            <a className="btn btn-primary" href="#libyana-payment" onClick={() => setStep("plan")}>{t("subscription.renew")}</a>
           </section>
         )}
 
         {subscription?.early_renewal_available && (
           <section className="subscription-saved-banner subscription-early-renewal">
             <div><h2>{t("subscription.earlyRenewalDays", { count: subscription.remaining_days })}</h2><p>{t("subscription.earlyRenewalPromise")}</p></div>
-            <a className="btn btn-primary" href="#libyana-payment">{t("subscription.renew")}</a>
+            <a className="btn btn-primary" href="#libyana-payment" onClick={() => setStep("plan")}>{t("subscription.renew")}</a>
           </section>
         )}
 
@@ -253,7 +292,7 @@ export default function Subscription() {
           </div>
         </header>
 
-        <section className="subscription-purchase" id="libyana-payment" dir={direction} aria-labelledby="subscription-plan-heading">
+        <section className="subscription-purchase" id="libyana-payment" ref={purchaseRef} dir={direction} aria-labelledby="subscription-plan-heading">
           {!catalog.manualPaymentAvailable || !offers.length ? (
             <EmptyState title={t("subscription.noOffers")} text={t("subscription.noOffersBody")} />
           ) : !canSubmit ? (
@@ -263,8 +302,11 @@ export default function Subscription() {
             </div>
           ) : (
             <form className="subscription-checkout" onSubmit={submitPayment}>
-              <fieldset className="subscription-plan-options">
+              <CheckoutStepper step={step} onStep={goToStep} t={t} />
+
+              {step === "plan" && <fieldset className="subscription-plan-options">
                 <legend id="subscription-plan-heading">{t("subscription.choosePlan")}</legend>
+                <p className="subscription-step-lead">{t("subscription.stepPlanLead")}</p>
                 <div className="subscription-plan-grid">
                   {offers.map(({ plan, version, price }) => {
                     const copy = offerCopy(plan, version, locale);
@@ -284,17 +326,50 @@ export default function Subscription() {
                     );
                   })}
                 </div>
-              </fieldset>
+              </fieldset>}
 
-              {selectedOffer && (
-                <ul className="subscription-benefits" aria-label={t("subscription.included")}>
-                  {[offerCopy(selectedOffer.plan, selectedOffer.version, locale).description]
-                    .filter(Boolean)
-                    .map((benefit, index) => <li key={`${benefit}-${index}`}><span aria-hidden="true">✓</span><span>{benefit}</span></li>)}
-                </ul>
+              {step !== "plan" && selectedOffer && (
+                <section className="subscription-order-summary" aria-labelledby="subscription-order-title">
+                  <div className="subscription-order-plan">
+                    <span>{t("subscription.selectedPlan")}</span>
+                    <h2 id="subscription-order-title">{offerCopy(selectedOffer.plan, selectedOffer.version, locale).title}</h2>
+                    <p>{offerCopy(selectedOffer.plan, selectedOffer.version, locale).description}</p>
+                  </div>
+                  <div className="subscription-order-price">
+                    <span>{t("subscription.total")}</span>
+                    <b>{money(selectedOffer.price.amount_minor, selectedOffer.price.currency, selectedOffer.price.currency_exponent, locale)}</b>
+                    {selectedOffer.price.first_subscription_only && <small>{t("subscription.firstOffer")}</small>}
+                  </div>
+                  {step === "pay" && <button className="btn btn-soft compact subscription-change-plan" type="button" onClick={() => goToStep("plan")}>{t("subscription.changePlan")}</button>}
+                </section>
               )}
 
-              <div className="subscription-payment-step">
+              {step === "review" && selectedOffer && (
+                <div className="subscription-review-step">
+                  <ul className="subscription-benefits" aria-label={t("subscription.included")}>
+                    {[offerCopy(selectedOffer.plan, selectedOffer.version, locale).description, t("subscription.allCollegesYears")]
+                      .filter(Boolean)
+                      .map((benefit, index) => <li key={`${benefit}-${index}`}><span aria-hidden="true">✓</span><span>{benefit}</span></li>)}
+                  </ul>
+                  <section className="subscription-how" aria-labelledby="subscription-how-title">
+                    <h3 id="subscription-how-title">{t("subscription.howItWorks")}</h3>
+                    <ol>
+                      <li>{oneCardOnly ? t("subscription.howBuyOneCard") : t("subscription.howBuyCards")}</li>
+                      <li>{t("subscription.howEnterCode")}</li>
+                      <li>{t("subscription.howReview")}</li>
+                    </ol>
+                  </section>
+                </div>
+              )}
+
+              {step !== "pay" && (
+                <div className="subscription-step-actions">
+                  {step === "review" && <button className="btn btn-soft" type="button" onClick={() => goToStep("plan")}>{t("subscription.back")}</button>}
+                  <button className="btn btn-primary" type="submit" disabled={!selectedOffer}>{step === "plan" ? t("subscription.continueToDetails") : t("subscription.continueToPayment")}</button>
+                </div>
+              )}
+
+              {step === "pay" && <div className="subscription-payment-step">
                 <div className="subscription-payment-heading">
                   <span>{t("subscription.paymentStep")}</span>
                   <h2>{t("subscription.payLibyana")}</h2>
@@ -314,7 +389,8 @@ export default function Subscription() {
                 {notice && <p className="form-alert success" role="status">{notice}</p>}
                 <button className="btn btn-primary libyana-submit" type="submit" disabled={submitting || codes[0].length !== 13 || (!oneCardOnly && codes[1] && codes[1].length !== 13)}>{submitting ? t("subscription.submitting") : t("subscription.submitCard")}</button>
                 <p className="subscription-code-privacy">{t("subscription.codePrivacy")}</p>
-              </div>
+              </div>}
+              {step !== "pay" && notice && <p className="form-alert success" role="status">{notice}</p>}
             </form>
           )}
         </section>

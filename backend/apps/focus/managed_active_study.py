@@ -16,12 +16,16 @@ from apps.content.active_study_questions import (
 )
 from apps.content.active_study_readiness import (
     edition_plan,
+    edition_source_changed,
+    effective_settings,
+    lockin_plan_inputs,
     readiness_payload,
+    resolve_total_pdf_pages,
     settings_for,
-    university_parts_by_difficulty,
+    source_version_for,
 )
 from apps.content.editions import UNIVERSITY, normalize_edition
-from apps.content.models import ActiveStudyQuestionContent, ActiveStudySettings, LearningObject
+from apps.content.models import ActiveStudyQuestionContent, LearningObject
 from apps.content.policies import can_view_learning_object
 from apps.review.contracts import QuestionAttemptEvent
 from apps.review.models import ReviewItem
@@ -76,28 +80,32 @@ def _plan_for_sheet(sheet: LearningObject, *, edition: str = UNIVERSITY) -> dict
     """
 
     edition = normalize_edition(edition)
-    settings = settings_for(sheet=sheet, edition=edition)
-    if not isinstance(settings, ActiveStudySettings) or not settings.enabled:
+    effective = effective_settings(sheet=sheet, edition=edition)
+    if not effective.enabled:
         raise ManagedActiveStudyRuleError("Active Study is disabled for this sheet.")
-    if settings.total_pdf_pages is None:
+    settings = effective.own
+    if settings is not None and settings.total_pdf_pages is None:
         raise ManagedActiveStudyRuleError("Active Study is not configured for this sheet.")
-    source_version = sheet.published_version or sheet.current_version
-    if settings.source_version_id is not None and (
-        source_version is None or settings.source_version_id != source_version.id
+    source_version = source_version_for(sheet)
+    if settings is not None and edition_source_changed(
+        recorded_version_id=settings.source_version_id,
+        current_version=source_version,
+        edition=edition,
     ):
         raise ManagedActiveStudyRuleError(
             "Active Study needs review because the source PDF changed."
         )
-    parts_by_difficulty = None
+    pinned: dict[str, Any] = {}
     if edition != UNIVERSITY:
-        parts_by_difficulty, _ = university_parts_by_difficulty(sheet=sheet)
-        if parts_by_difficulty is None:
+        inputs, _ = lockin_plan_inputs(sheet=sheet, source_version=source_version)
+        if inputs is None:
             raise ManagedActiveStudyRuleError("Active Study is not configured for this sheet.")
+        pinned = inputs
     plan, error = edition_plan(
         sheet=sheet,
         edition=edition,
         source_version=source_version,
-        parts_by_difficulty=parts_by_difficulty,
+        **pinned,
     )
     if plan is None:
         raise ManagedActiveStudyRuleError(error or "Active Study is not configured for this sheet.")
@@ -139,18 +147,28 @@ def _content(
         ) from error
     # Questions are signed against the university plan, which is the structure
     # every edition inherits.
-    imported_plan = (
-        plan
-        if edition == UNIVERSITY
-        else _difficulty_plan(sheet=sheet, difficulty=difficulty, edition=UNIVERSITY)
-    )
+    imported_plan = plan
+    if edition != UNIVERSITY:
+        university_plan, _ = edition_plan(sheet=sheet, edition=UNIVERSITY)
+        imported_plan = next(
+            (
+                item
+                for item in cast(
+                    list[dict[str, Any]], (university_plan or {}).get("difficulties", [])
+                )
+                if item["difficulty"] == difficulty
+            ),
+            {"number_of_parts": 0, "page_ranges": []},
+        )
     if content.plan_signature != _signature(imported_plan):
         raise ManagedActiveStudyRuleError(
             "Active Study questions need review after the page plan changed."
         )
-    source_version = sheet.published_version or sheet.current_version
-    if content.source_version_id is not None and (
-        source_version is None or content.source_version_id != source_version.id
+    # Only replacing the University PDF the questions describe makes them stale.
+    if edition_source_changed(
+        recorded_version_id=content.source_version_id,
+        current_version=source_version_for(sheet),
+        edition=UNIVERSITY,
     ):
         raise ManagedActiveStudyRuleError(
             "Active Study questions need review because the source PDF changed."
@@ -260,6 +278,13 @@ def start(
     if existing is not None:
         return existing, False
     ranges = cast(list[dict[str, int]], plan["page_ranges"])
+    # The edition's own configured count, or its PDF's count when a Lock-in
+    # edition is following the University Sheet's settings.
+    plan_total_pages, _ = resolve_total_pdf_pages(
+        settings=settings_for(sheet=sheet, edition=edition),
+        source_version=source_version_for(sheet),
+        edition=edition,
+    )
     try:
         # A nested atomic block, so losing the race rolls back only this insert
         # and leaves the caller's transaction usable. The read above cannot lock
@@ -276,12 +301,7 @@ def start(
                 # The difficulty plan intentionally contains only
                 # difficulty-specific data.  The PDF page count remains owned by
                 # the sheet settings.
-                page_count=cast(
-                    int,
-                    cast(
-                        ActiveStudySettings, settings_for(sheet=sheet, edition=edition)
-                    ).total_pdf_pages,
-                ),
+                page_count=cast(int, plan_total_pages),
                 unlocked_pages=ranges[0]["end_page"],
                 plan_signature=_signature(plan),
             )

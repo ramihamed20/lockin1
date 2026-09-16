@@ -102,3 +102,26 @@ test("the admin console never offers an action the server would refuse", () => {
   assert.match(subscriptions, /availableActions/);
   assert.match(subscriptions, /effectiveAction/);
 });
+
+test("plans are one click from the sidebar, directly under Store", async () => {
+  const { navItems } = await import("../src/lib/constants.js");
+  const paths = navItems.map((item) => item.path);
+  assert.equal(paths[paths.indexOf("/store") + 1], "/subscription");
+  const plans = navItems.find((item) => item.path === "/subscription");
+  assert.equal(plans.labelKey, "nav.subscription");
+  assert.equal(plans.group, navItems.find((item) => item.path === "/store").group);
+  const { translate } = await import("../src/lib/i18n.js");
+  assert.notEqual(translate("en", "nav.subscription"), "nav.subscription");
+  assert.notEqual(translate("ar", "nav.subscription"), "nav.subscription");
+});
+
+test("subscribing is a guided flow: plan, then price and details, then payment", () => {
+  const page = source("../src/pages/Subscription.jsx");
+  assert.match(page, /const CHECKOUT_STEPS = \["plan", "review", "pay"\]/);
+  assert.match(page, /aria-current=\{state === "current" \? "step" : undefined\}/);
+  // Payment codes are only asked for once a plan and its price have been seen.
+  assert.match(page, /\{step === "pay" && <div className="subscription-payment-step">/);
+  assert.match(page, /if \(step !== "pay"\) \{ goToStep\(step === "plan" \? "review" : "pay"\); return; \}/);
+  assert.match(page, /subscription\.continueToPayment/);
+  assert.match(page, /subscription\.changePlan/);
+});

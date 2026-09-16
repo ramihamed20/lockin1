@@ -13,6 +13,12 @@ async function useLocale(page, locale) {
   }, locale);
 }
 
+/** The checkout is guided: a plan, its price and details, then payment. */
+async function continueToPayment(page) {
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Continue to payment" }).click();
+}
+
 async function login(page, email, password, locale = "en") {
   await useLocale(page, locale);
   await page.goto("/#/");
@@ -126,6 +132,7 @@ test("trial welcome and provisional Libyana payment work on production viewports
   await page.screenshot({ path: `${SCREENSHOT_DIR}/welcome-ipad-landscape.png`, fullPage: true });
 
   await page.getByRole("button", { name: "Subscribe now" }).click();
+  await continueToPayment(page);
   await expect(page.getByRole("heading", { name: "Pay with Libyana" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Plans coming soon" })).toBeVisible();
   await expect(page.getByText("نصف السنة - طب الأسنان", { exact: true })).toBeVisible();
@@ -338,6 +345,7 @@ test("early renewal preserves paid days through pending, rejection, and approval
   await renewalPage.screenshot({ path: `${SCREENSHOT_DIR}/early-renewal-desktop.png`, fullPage: true });
 
   await renewalPage.getByRole("radio", { name: /Monthly/ }).check();
+  await continueToPayment(renewalPage);
   await renewalPage.getByRole("textbox", { name: /^Recharge card code/ }).fill("7000000000001");
   const pendingResponse = renewalPage.waitForResponse((response) => response.url().includes("/payments/manual-libyana") && response.status() === 201);
   await renewalPage.getByRole("button", { name: "Submit card and continue" }).click();
@@ -365,6 +373,7 @@ test("early renewal preserves paid days through pending, rejection, and approval
   await expect(renewalPage.getByRole("heading", { name: "Your payment was not approved" })).toBeVisible();
 
   await renewalPage.getByRole("radio", { name: /Monthly/ }).check();
+  await continueToPayment(renewalPage);
   await renewalPage.getByRole("textbox", { name: /^Recharge card code/ }).fill("7000000000002");
   const approvedPendingResponse = renewalPage.waitForResponse((response) => response.url().includes("/payments/manual-libyana") && response.status() === 201);
   await renewalPage.getByRole("button", { name: "Submit card and continue" }).click();
