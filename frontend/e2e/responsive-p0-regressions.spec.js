@@ -111,7 +111,11 @@ async function waitForNavigationToSettle(page) {
   await expect.poll(async () => page.evaluate(async () => {
     const list = document.querySelector(".sidebar .nav-list");
     if (!list) return false;
-    const signature = () => `${list.scrollHeight}x${list.clientHeight}:${list.dataset.overflow}`;
+    // An announcement still waiting for its confirming frame is not a decision:
+    // the list mounts more than once while the shell resolves, and each mount
+    // starts from "none" before it confirms what it hides.
+    if (list.dataset.overflowPending === "true") return false;
+    const signature = () => `${list.scrollHeight}x${list.clientHeight}:${list.dataset.overflow}:${list.dataset.overflowPending || ""}`;
     const before = signature();
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     return before === signature();
