@@ -2827,8 +2827,12 @@
   * Compact tightens the destination rows and collapses the streak card to a
   * single row, keeping its reading and its link to Lock In. Anything still
   * below the fold is faded by the overflow cue above rather than hidden. */
+/* Compact spacing is space-2 above the list and above each group label. With
+  * the Plans destination a student list was otherwise 2px taller than a
+  * 1080x810 tablet: a fade over nothing, and a cue that flickered on the
+  * threshold. This leaves it about 14px to spare. */
 .sidebar[data-density="compact"] .nav-list {
-  margin-top: var(--space-3);
+  margin-top: var(--space-2);
   gap: var(--space-1);
 }
 
@@ -2841,7 +2845,7 @@
 }
 
 .sidebar[data-density="compact"] .nav-section-label {
-  margin-top: var(--space-3);
+  margin-top: var(--space-2);
   margin-bottom: var(--space-1);
 }
 

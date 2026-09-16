@@ -4179,6 +4179,18 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
               onClick={() => setOpenSurface((current) => current === "pages" ? null : "pages")}
             ><Hash size={12} aria-hidden="true" /><strong>{page}</strong><span>/ {accessiblePageCount}</span></button>
           </div>}
+          {/* Laptop and desktop readers get a zoom bar that is always on screen. CSS
+              shows it only for a fine pointer without a touchscreen, so phones and
+              iPads keep pinch zoom and the page dock exactly as they were. */}
+          {sheet.pdfUrl && <div className="workspace-v2-zoom-bar" role="group" aria-label="Zoom" onPointerDown={(event) => event.stopPropagation()}>
+            <button type="button" aria-label="Zoom out" title="Zoom out" disabled={zoom <= clampReaderZoom(MIN_FOCUS_ZOOM) + .001} onClick={() => zoomByStep(1 / 1.25)}><Minus size={16} /></button>
+            <output aria-label={`Current zoom ${Math.round(zoom * 100)} percent`}>{Math.round(zoom * 100)}%</output>
+            <button type="button" aria-label="Zoom in" title="Zoom in" disabled={zoom >= MAX_FOCUS_ZOOM - .001} onClick={() => zoomByStep(1.25)}><Plus size={16} /></button>
+            <span className="workspace-v2-zoom-bar-divider" aria-hidden="true" />
+            {/* The reader never zooms below the page width, so fitting the width
+                is also the reset: it is the zoom every sheet opens at. */}
+            <button type="button" aria-label="Fit width" title="Reset zoom to fit the page width" onClick={fitPdfWidth}><MoveHorizontal size={14} aria-hidden="true" /><span>Reset to fit</span></button>
+          </div>}
           {saveState === "error" && <p className="workspace-v2-save-warning" role="alert"><Zap size={14} aria-hidden="true" />This device cannot store more workspace data. Recent marks may be lost when you leave.</p>}
           {focusMessage && !sideOpen && <p className="workspace-v2-toast" aria-hidden="true">{focusMessage}</p>}
         </section>

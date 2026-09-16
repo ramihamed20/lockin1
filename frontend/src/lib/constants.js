@@ -20,6 +20,9 @@ export const navItems = [
   { path: "/review", label: "Review", labelKey: "nav.review", icon: "target", group: "Review", groupKey: "group.review" },
   { path: "/bookmarks", label: "Bookmarks", labelKey: "nav.bookmarks", icon: "bookmark", group: "Review", groupKey: "group.review" },
   { path: "/store", label: "Store", labelKey: "nav.store", icon: "shopping-bag", group: "Personal", groupKey: "group.personal" },
+  // Directly under Store: students looked for plans there and could not find
+  // them, because the page was only reachable from the account menu and banners.
+  { path: "/subscription", label: "Plans", labelKey: "nav.subscription", icon: "sparkles", group: "Personal", groupKey: "group.personal" },
   { path: "/progress", label: "Progress", labelKey: "nav.progress", icon: "activity", group: "Personal", groupKey: "group.personal" },
   { path: "/community", label: "Community", labelKey: "nav.community", icon: "messages", group: "Social", groupKey: "group.social" },
   { path: "/ranked", label: "Ranked", labelKey: "nav.ranked", icon: "trophy", group: "Social", groupKey: "group.social" }

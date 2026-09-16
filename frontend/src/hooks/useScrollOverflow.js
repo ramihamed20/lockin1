@@ -32,10 +32,20 @@ export function useScrollOverflow() {
 
     let pendingConfirmation = 0;
 
+    // While an announcement waits for its confirming frame the published cue
+    // still says "none" over a list that may hide rows. Saying so lets anything
+    // that reads the cue -- tests in particular -- wait for the decision rather
+    // than reading the placeholder.
+    function setPending(pending) {
+      if (pending) element.dataset.overflowPending = "true";
+      else delete element.dataset.overflowPending;
+    }
+
     function cancelConfirmation() {
       if (!pendingConfirmation) return;
       window.cancelAnimationFrame(pendingConfirmation);
       pendingConfirmation = 0;
+      setPending(false);
     }
 
     function update() {
@@ -58,6 +68,7 @@ export function useScrollOverflow() {
         element.dataset.overflow = next;
         return;
       }
+      setPending(true);
       pendingConfirmation = window.requestAnimationFrame(() => {
         // A nested frame deliberately measures after the browser has had a
         // chance to apply late style and font metrics.  In particular, an
@@ -67,6 +78,7 @@ export function useScrollOverflow() {
         // destination.
         pendingConfirmation = window.requestAnimationFrame(() => {
           pendingConfirmation = 0;
+          setPending(false);
           const confirmed = measure();
           if (confirmed !== "none") element.dataset.overflow = confirmed;
         });

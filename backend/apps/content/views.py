@@ -22,7 +22,7 @@ from apps.files.models import ManagedFile
 from apps.files.services import managed_file_delivery_size
 from apps.focus.selectors import annotation_collection_revision
 
-from .active_study_readiness import readiness_payload, settings_for
+from .active_study_readiness import readiness_payload
 from .admin_services import archive_catalog_learning_object, publish_catalog_learning_object
 from .edition_documents import edition_asset
 from .editions import (
@@ -271,7 +271,6 @@ def _sheet_edition(*, document: CatalogDocument) -> dict[str, object]:
         (asset for asset in version.assets.all() if asset.role == primary_role(edition)),
         None,
     )
-    settings = settings_for(sheet=version.learning_object, edition=edition)
     readiness = readiness_payload(sheet=version.learning_object, edition=edition)
     active_ready = any(
         cast(dict[str, object], item["readiness"])["ready"] is True
@@ -308,7 +307,9 @@ def _sheet_edition(*, document: CatalogDocument) -> dict[str, object]:
             else "missing"
         ),
         "pageCount": page_count if isinstance(page_count, int) and page_count > 0 else None,
-        "hasActiveStudy": bool(settings and settings.enabled and active_ready),
+        # ``enabled`` already accounts for a Lock-in edition that shares the
+        # University Sheet's settings and question bank.
+        "hasActiveStudy": bool(readiness["enabled"] and active_ready),
         "deliverable": managed_file_delivery_size(document.managed_file) is not None,
     }
 

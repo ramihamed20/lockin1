@@ -33,10 +33,11 @@ from .active_study_questions import (
 )
 from .active_study_readiness import (
     edition_version_page_count,
+    effective_settings,
+    lockin_plan_inputs,
     readiness_payload,
     resolve_total_pdf_pages,
     settings_for,
-    university_parts_by_difficulty,
 )
 from .catalog_subjects import project_subject_node
 from .editions import (
@@ -934,7 +935,9 @@ def active_study_payload(*, sheet: LearningObject, edition: str = UNIVERSITY) ->
         "edition": edition,
         "edition_label": edition_label(edition),
         "editions": sheet_edition_summaries(sheet=sheet),
-        "enabled": settings.enabled if settings is not None else False,
+        # A Lock-in edition with no settings of its own follows the University
+        # Sheet, so it reports the enabled state students actually get.
+        "enabled": readiness["enabled"],
         "revision": settings.revision if settings is not None else 0,
         "excluded_start_pages": readiness["excluded_start_pages"],
         "excluded_end_pages": readiness["excluded_end_pages"],
@@ -965,28 +968,20 @@ def _difficulty_for_key(key: str) -> ActiveStudyDifficulty:
         raise ContentRuleError(str(error)) from error
 
 
-def _parts_pinned_to_university(*, sheet: LearningObject, edition: str) -> dict[str, int] | None:
-    """The part count the Lock-in edition must match, or None for the university one.
+def _pinned_to_university(*, sheet: LearningObject, edition: str) -> dict[str, Any]:
+    """The structure the Lock-in edition must follow; nothing for the university one.
 
     One sheet, one question bank: the university edition decides how many parts
-    each difficulty has, and the Lock-in edition divides its own pages into that
-    same number.
+    each difficulty has, and the Lock-in edition divides its own study pages
+    into that same number. The raw PDF page counts are free to differ.
     """
 
     if normalize_edition(edition) != LOCKIN:
-        return None
-    parts, error = university_parts_by_difficulty(sheet=sheet)
-    if parts is None:
-        raise ContentFieldError(
-            error
-            if error and error != "PDF page count is missing."
-            else (
-                "Configure the University Sheet's Active Study pages first; the Lockin "
-                "Sheet follows its part count."
-            ),
-            field="total_pdf_pages",
-        )
-    return parts
+        return {}
+    inputs, error = lockin_plan_inputs(sheet=sheet)
+    if inputs is None:
+        raise ContentFieldError(error, field="total_pdf_pages")
+    return inputs
 
 
 def sheet_edition_summaries(*, sheet: LearningObject) -> list[dict[str, object]]:
@@ -996,7 +991,7 @@ def sheet_edition_summaries(*, sheet: LearningObject) -> list[dict[str, object]]
     for key in EDITIONS:
         managed_file = edition_primary_file(sheet, key)
         summary_file = edition_summary_file(sheet, key)
-        settings = ActiveStudySettings.objects.filter(sheet=sheet, edition=key).first()
+        enabled = effective_settings(sheet=sheet, edition=key).enabled
         rows.append(
             {
                 "edition": key,
@@ -1011,7 +1006,7 @@ def sheet_edition_summaries(*, sheet: LearningObject) -> list[dict[str, object]]
                 "summary_view_url": (
                     f"/api/v1/files/{summary_file.id}/view" if summary_file else None
                 ),
-                "active_study_enabled": bool(settings and settings.enabled),
+                "active_study_enabled": enabled,
             }
         )
     return rows
@@ -1108,17 +1103,29 @@ def active_study_plan_preview(
             "Enter the PDF's total page count. The uploaded PDF did not report one.",
             field="total_pdf_pages",
         )
+    pinned = _pinned_to_university(sheet=sheet, edition=edition)
     try:
         plan = plan_payload(
             total_pdf_pages=resolved.total_pdf_pages,
             excluded_start_pages=resolved.excluded_start_pages,
             excluded_end_pages=resolved.excluded_end_pages,
-            parts_by_difficulty=_parts_pinned_to_university(sheet=sheet, edition=edition),
+            **pinned,
         )
     except ActiveStudyPlanError as error:
         raise ContentFieldError(str(error), field=error.field) from error
+    university_eligible = (
+        sum(next(iter(pinned["sizes_by_difficulty"].values()), ())) if pinned else None
+    )
     return {
         **plan,
+        # Editions are compared by the pages students actually study, never by
+        # the raw PDF page counts, which are free to differ.
+        "university_eligible_study_pages": university_eligible,
+        "study_pages_match_university": (
+            None
+            if university_eligible is None
+            else plan["eligible_study_pages"] == university_eligible
+        ),
         "edition": edition,
         "total_pdf_pages_source": resolved.total_pdf_pages_source,
         "pdf_total_pdf_pages": resolved.derived_total,
@@ -1344,7 +1351,9 @@ def update_active_study_settings(
     derived_total = resolved.derived_total
     if derived_total is not None and total_pdf_pages not in {None, derived_total}:
         raise ContentFieldError(
-            f"Total PDF pages must be {derived_total} to match the uploaded PDF.",
+            f"Total PDF pages must be {derived_total} to match the uploaded "
+            f"{edition_label(edition)} PDF. Editions may have different page counts; "
+            "use the excluded pages to set this edition's study range.",
             field="total_pdf_pages",
         )
     resolved_total = derived_total if derived_total is not None else resolved.total_pdf_pages
@@ -1375,7 +1384,7 @@ def update_active_study_settings(
                 total_pdf_pages=resolved_total,
                 excluded_start_pages=resolved_start,
                 excluded_end_pages=resolved_end,
-                parts_by_difficulty=_parts_pinned_to_university(sheet=sheet, edition=edition),
+                **_pinned_to_university(sheet=sheet, edition=edition),
             )
         except ActiveStudyPlanError as error:
             raise ContentFieldError(str(error), field=error.field) from error
@@ -1384,7 +1393,10 @@ def update_active_study_settings(
         or settings.excluded_start_pages != resolved_start
         or settings.excluded_end_pages != resolved_end
     )
-    has_existing_questions = (
+    # Questions are written against the University Sheet's parts. A Lock-in
+    # boundary only moves its own page ranges, never the shared bank, so it
+    # needs no confirmation.
+    has_existing_questions = edition == UNIVERSITY and (
         sheet.question_versions.exists()
         or sheet.question_import_batches.exists()
         or sheet.active_study_question_content.exists()
@@ -1425,6 +1437,6 @@ def update_active_study_settings(
         reason="Active Study settings updated.",
         source="content_management.api",
         previous_state=previous,
-        new_state=active_study_payload(sheet=sheet),
+        new_state=active_study_payload(sheet=sheet, edition=edition),
     )
     return sheet

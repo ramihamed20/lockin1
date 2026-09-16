@@ -144,12 +144,19 @@ def page_ranges(
     excluded_end_pages: int,
     target_pages_per_part: int,
     number_of_parts: int | None = None,
+    mirrored_sizes: tuple[int, ...] | None = None,
 ) -> tuple[tuple[int, int], ...]:
     """Plan one edition's page boundaries.
 
     ``number_of_parts`` pins the plan to a part count decided elsewhere -- the
     sheet's university edition -- instead of deriving it from the difficulty's
     target. Everything downstream is identical either way.
+
+    ``mirrored_sizes`` are the University Sheet's own part sizes. When this
+    edition's study range holds exactly as many pages -- a 22-page University
+    PDF with its first and last page excluded against a 20-page Lock-in PDF --
+    every part covers the same number of pages in both editions. Otherwise the
+    study pages are split evenly into the same number of parts.
     """
 
     eligible = eligible_study_pages(
@@ -157,11 +164,18 @@ def page_ranges(
         excluded_start_pages=excluded_start_pages,
         excluded_end_pages=excluded_end_pages,
     )
-    sizes = (
-        part_sizes_for_count(eligible_pages=eligible, number_of_parts=number_of_parts)
-        if number_of_parts is not None
-        else part_sizes(eligible_pages=eligible, target_pages_per_part=target_pages_per_part)
-    )
+    if mirrored_sizes and number_of_parts is None:
+        number_of_parts = len(mirrored_sizes)
+    if (
+        mirrored_sizes
+        and sum(mirrored_sizes) == eligible
+        and len(mirrored_sizes) == number_of_parts
+    ):
+        sizes = tuple(mirrored_sizes)
+    elif number_of_parts is not None:
+        sizes = part_sizes_for_count(eligible_pages=eligible, number_of_parts=number_of_parts)
+    else:
+        sizes = part_sizes(eligible_pages=eligible, target_pages_per_part=target_pages_per_part)
     start = excluded_start_pages + 1
     ranges: list[tuple[int, int]] = []
     for size in sizes:
@@ -178,6 +192,7 @@ def difficulty_plan(
     excluded_start_pages: int,
     excluded_end_pages: int,
     number_of_parts: int | None = None,
+    mirrored_sizes: tuple[int, ...] | None = None,
 ) -> dict[str, object]:
     """Plan one difficulty.  Always yields at least one part or raises."""
 
@@ -187,6 +202,7 @@ def difficulty_plan(
         excluded_end_pages=excluded_end_pages,
         target_pages_per_part=difficulty.target_pages_per_part,
         number_of_parts=number_of_parts,
+        mirrored_sizes=mirrored_sizes,
     )
     return {
         "difficulty": difficulty.key,
@@ -231,6 +247,7 @@ def plan_payload(
     excluded_start_pages: int,
     excluded_end_pages: int,
     parts_by_difficulty: dict[str, int] | None = None,
+    sizes_by_difficulty: dict[str, tuple[int, ...]] | None = None,
 ) -> dict[str, object]:
     """Plan every difficulty for one edition.
 
@@ -266,6 +283,7 @@ def plan_payload(
                 excluded_start_pages=excluded_start_pages,
                 excluded_end_pages=excluded_end_pages,
                 number_of_parts=(parts_by_difficulty or {}).get(difficulty.key),
+                mirrored_sizes=(sizes_by_difficulty or {}).get(difficulty.key),
             )
             for difficulty in DIFFICULTIES
         ],
