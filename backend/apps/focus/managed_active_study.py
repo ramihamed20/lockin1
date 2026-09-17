@@ -127,6 +127,39 @@ def _signature(plan: dict[str, Any]) -> dict[str, Any]:
     return {"number_of_parts": plan["number_of_parts"], "page_ranges": plan["page_ranges"]}
 
 
+def _synchronize_run_to_plan(
+    *, run: ActiveStudyRun, plan: dict[str, Any], total_pdf_pages: int
+) -> ActiveStudyRun:
+    """Refresh persisted run metadata without touching learner progress.
+
+    A run can outlive an Admin settings save.  Its progress belongs to the
+    learner, but its page ranges are derived configuration and must follow the
+    current saved plan whenever the learner resumes it.
+    """
+
+    ranges = cast(list[dict[str, int]], plan["page_ranges"])
+    if run.current_part > len(ranges):
+        raise ManagedActiveStudyRuleError(
+            "This Active Study session cannot be mapped to the current page plan. "
+            "Review the saved progress before resuming."
+        )
+    signature = _signature(plan)
+    updates: list[str] = []
+    if run.plan_signature != signature:
+        run.plan_signature = signature
+        updates.append("plan_signature")
+    if run.page_count != total_pdf_pages:
+        run.page_count = total_pdf_pages
+        updates.append("page_count")
+    unlocked_pages = ranges[run.current_part - 1]["end_page"]
+    if run.unlocked_pages != unlocked_pages:
+        run.unlocked_pages = unlocked_pages
+        updates.append("unlocked_pages")
+    if updates:
+        run.save(update_fields=[*updates, "updated_at"])
+    return run
+
+
 def _content(
     *, sheet: LearningObject, difficulty: str, edition: str = UNIVERSITY
 ) -> tuple[ActiveStudyQuestionContent, dict[str, Any]]:
@@ -274,10 +307,6 @@ def start(
     sheet = _sheet_for_user(user=user, sheet_id=sheet_id)
     _difficulty(difficulty)
     _, plan = _content(sheet=sheet, difficulty=difficulty, edition=edition)
-    existing = _active_run(user=user, sheet=sheet, difficulty=difficulty, edition=edition)
-    if existing is not None:
-        return existing, False
-    ranges = cast(list[dict[str, int]], plan["page_ranges"])
     # The edition's own configured count, or its PDF's count when a Lock-in
     # edition is following the University Sheet's settings.
     plan_total_pages, _ = resolve_total_pdf_pages(
@@ -285,6 +314,14 @@ def start(
         source_version=source_version_for(sheet),
         edition=edition,
     )
+    if plan_total_pages is None:
+        raise ManagedActiveStudyRuleError("Active Study is not configured for this sheet.")
+    existing = _active_run(user=user, sheet=sheet, difficulty=difficulty, edition=edition)
+    if existing is not None:
+        return _synchronize_run_to_plan(
+            run=existing, plan=plan, total_pdf_pages=cast(int, plan_total_pages)
+        ), False
+    ranges = cast(list[dict[str, int]], plan["page_ranges"])
     try:
         # A nested atomic block, so losing the race rolls back only this insert
         # and leaves the caller's transaction usable. The read above cannot lock

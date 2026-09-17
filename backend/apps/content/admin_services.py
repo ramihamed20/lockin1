@@ -1116,6 +1116,47 @@ def active_study_plan_preview(
     university_eligible = (
         sum(next(iter(pinned["sizes_by_difficulty"].values()), ())) if pinned else None
     )
+    saved_plan: dict[str, object] | None = None
+    saved_total, _ = resolve_total_pdf_pages(
+        settings=resolved.settings,
+        source_version=resolved.source_version,
+        edition=edition,
+    )
+    if saved_total is not None:
+        try:
+            saved_plan = plan_payload(
+                total_pdf_pages=saved_total,
+                excluded_start_pages=(
+                    resolved.settings.excluded_start_pages
+                    if resolved.settings is not None
+                    else 0
+                ),
+                excluded_end_pages=(
+                    resolved.settings.excluded_end_pages
+                    if resolved.settings is not None
+                    else 0
+                ),
+                **_pinned_to_university(sheet=sheet, edition=edition),
+            )
+        except ActiveStudyPlanError:
+            saved_plan = None
+    saved_signatures = {
+        str(item["difficulty"]): _plan_signature(item)
+        for item in cast(
+            list[dict[str, object]], saved_plan["difficulties"] if saved_plan else []
+        )
+    }
+    proposed_signatures = {
+        str(item["difficulty"]): _plan_signature(item)
+        for item in cast(list[dict[str, object]], plan["difficulties"])
+    }
+    boundary_change_requires_confirmation = edition == UNIVERSITY and (
+        saved_signatures != proposed_signatures
+        and any(
+            content.plan_signature != proposed_signatures.get(content.difficulty)
+            for content in sheet.active_study_question_content.all()
+        )
+    )
     return {
         **plan,
         # Editions are compared by the pages students actually study, never by
@@ -1131,11 +1172,12 @@ def active_study_plan_preview(
         "pdf_total_pdf_pages": resolved.derived_total,
         "excluded_start_pages": resolved.excluded_start_pages,
         "excluded_end_pages": resolved.excluded_end_pages,
+        "boundary_change_requires_confirmation": boundary_change_requires_confirmation,
     }
 
 
 def _difficulty_plan_for_sheet(
-    *, sheet: LearningObject, difficulty_key: str
+    *, sheet: LearningObject, difficulty_key: str, edition: str = UNIVERSITY
 ) -> tuple[ActiveStudyDifficulty, dict[str, object]]:
     """The plan the sheet's question bank is written against.
 
@@ -1145,7 +1187,11 @@ def _difficulty_plan_for_sheet(
     """
 
     difficulty = _difficulty_for_key(difficulty_key)
-    plan = active_study_plan_preview(sheet=sheet, edition=UNIVERSITY)
+    # The plan is resolved from the saved settings for the edition addressed
+    # by the request.  Lock-in still gets the University's part structure via
+    # the shared-bank planner, but it must use its own current PDF/exclusions
+    # when resolving the edition plan.
+    plan = active_study_plan_preview(sheet=sheet, edition=normalize_edition(edition))
     difficulty_plan = next(
         item
         for item in cast(list[dict[str, object]], plan["difficulties"])
@@ -1155,10 +1201,10 @@ def _difficulty_plan_for_sheet(
 
 
 def validate_active_study_question_content(
-    *, sheet: LearningObject, difficulty_key: str, payload: object
+    *, sheet: LearningObject, difficulty_key: str, payload: object, edition: str = UNIVERSITY
 ) -> ActiveStudyQuestionValidationResult:
     difficulty, difficulty_plan = _difficulty_plan_for_sheet(
-        sheet=sheet, difficulty_key=difficulty_key
+        sheet=sheet, difficulty_key=difficulty_key, edition=edition
     )
     return validate_active_study_questions(
         payload,
@@ -1168,17 +1214,23 @@ def validate_active_study_question_content(
 
 
 def active_study_question_content_payload(
-    *, sheet: LearningObject, difficulty_key: str
+    *, sheet: LearningObject, difficulty_key: str, edition: str = UNIVERSITY
 ) -> dict[str, object]:
     difficulty, difficulty_plan = _difficulty_plan_for_sheet(
-        sheet=sheet, difficulty_key=difficulty_key
+        sheet=sheet, difficulty_key=difficulty_key, edition=edition
     )
     content = ActiveStudyQuestionContent.objects.filter(
         sheet=sheet, difficulty=difficulty.key
     ).first()
+    edition = normalize_edition(edition)
+    effective = effective_settings(sheet=sheet, edition=edition)
+    university_settings = settings_for(sheet=sheet, edition=UNIVERSITY)
     readiness = next(
         item
-        for item in cast(list[dict[str, object]], readiness_payload(sheet=sheet)["difficulties"])
+        for item in cast(
+            list[dict[str, object]],
+            readiness_payload(sheet=sheet, edition=edition)["difficulties"],
+        )
         if item["difficulty"] == difficulty.key
     )
     readiness_detail = cast(dict[str, object], readiness["readiness"])
@@ -1187,6 +1239,15 @@ def active_study_question_content_payload(
         "difficulty": difficulty.key,
         "number_of_parts": difficulty_plan["number_of_parts"],
         "page_ranges": difficulty_plan["page_ranges"],
+        "configuration_revision": (
+            effective.own.revision
+            if effective.own is not None
+            else (
+                university_settings.revision
+                if university_settings is not None
+                else 0
+            )
+        ),
         "content": {
             "status": status,
             "revision": content.revision if content is not None else 0,
@@ -1213,12 +1274,18 @@ def save_active_study_question_content(
     difficulty_key: str,
     payload: object,
     expected_revision: int,
+    edition: str = UNIVERSITY,
 ) -> ActiveStudyQuestionContent:
     sheet = LearningObject.objects.select_for_update().get(id=sheet_id)
     validation = validate_active_study_question_content(
-        sheet=sheet, difficulty_key=difficulty_key, payload=payload
+        sheet=sheet, difficulty_key=difficulty_key, payload=payload, edition=edition
     )
-    _, difficulty_plan = _difficulty_plan_for_sheet(sheet=sheet, difficulty_key=difficulty_key)
+    # The question bank is shared by both PDFs and its signature is therefore
+    # always the University's structure.  The selected edition above still
+    # determines the current expected count and readiness before this write.
+    _, difficulty_plan = _difficulty_plan_for_sheet(
+        sheet=sheet, difficulty_key=difficulty_key, edition=UNIVERSITY
+    )
     content = (
         ActiveStudyQuestionContent.objects.select_for_update()
         .filter(sheet=sheet, difficulty=difficulty_key)
@@ -1388,20 +1455,50 @@ def update_active_study_settings(
             )
         except ActiveStudyPlanError as error:
             raise ContentFieldError(str(error), field=error.field) from error
-    boundaries_changed = (
-        settings.total_pdf_pages != resolved_total
-        or settings.excluded_start_pages != resolved_start
-        or settings.excluded_end_pages != resolved_end
+    # Compare the proposed ranges with the ranges currently saved on each
+    # Active Study question document.  A raw exclusion-field edit is not
+    # enough to require confirmation, and an already-confirmed/stored change
+    # must not prompt again on the next save.
+    proposed_plan: dict[str, object] | None = None
+    if resolved_total is not None:
+        proposed_plan = plan_payload(
+            total_pdf_pages=resolved_total,
+            excluded_start_pages=resolved_start,
+            excluded_end_pages=resolved_end,
+            **_pinned_to_university(sheet=sheet, edition=edition),
+        )
+    proposed_signatures = {
+        str(item["difficulty"]): _plan_signature(item)
+        for item in cast(
+            list[dict[str, object]], proposed_plan["difficulties"] if proposed_plan else []
+        )
+    }
+    current_plan: dict[str, object] | None = None
+    current_total, _ = resolve_total_pdf_pages(
+        settings=settings, source_version=source_version, edition=edition
     )
-    # Questions are written against the University Sheet's parts. A Lock-in
-    # boundary only moves its own page ranges, never the shared bank, so it
-    # needs no confirmation.
-    has_existing_questions = edition == UNIVERSITY and (
-        sheet.question_versions.exists()
-        or sheet.question_import_batches.exists()
-        or sheet.active_study_question_content.exists()
+    if current_total is not None:
+        try:
+            current_plan = plan_payload(
+                total_pdf_pages=current_total,
+                excluded_start_pages=settings.excluded_start_pages,
+                excluded_end_pages=settings.excluded_end_pages,
+                **_pinned_to_university(sheet=sheet, edition=edition),
+            )
+        except ActiveStudyPlanError:
+            current_plan = None
+    current_signatures = {
+        str(item["difficulty"]): _plan_signature(item)
+        for item in cast(
+            list[dict[str, object]], current_plan["difficulties"] if current_plan else []
+        )
+    }
+    plan_will_change = current_signatures != proposed_signatures
+    saved_question_conflict = edition == UNIVERSITY and plan_will_change and any(
+        content.plan_signature != proposed_signatures.get(content.difficulty)
+        for content in sheet.active_study_question_content.all()
     )
-    if boundaries_changed and has_existing_questions and not confirm_boundary_change:
+    if saved_question_conflict and not confirm_boundary_change:
         raise ContentRuleError(
             "Changing excluded pages changes Active Study part boundaries. Existing question "
             "configuration may no longer match this sheet; confirm before saving."

@@ -724,9 +724,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const initialRememberLastPosition = storedWorkspaceSettings.rememberLastPosition !== false;
   const initialRememberZoomLevel = storedWorkspaceSettings.rememberZoomLevel !== false;
   const configuredPageCount = sheet?.pageCount || (sheet?.pdfUrl ? 1 : PAGE_COUNT);
-  const bookmarkedPage = Number.parseInt(searchParams.get("page") || "", 10);
   const [pageCount, setPageCount] = useState(configuredPageCount);
-  const [page, setPage] = useState(() => Math.min(configuredPageCount, bookmarkedPage > 0 ? bookmarkedPage : 1));
+  // A sheet always opens at the visual beginning.  The stored reader view is
+  // still written for diagnostics/backup, but it never overrides this entry
+  // position or any server-owned Active Study progress.
+  const [page, setPage] = useState(1);
   const [zoom, setZoom] = useState(() => {
     if (!sheet?.pdfUrl) return 1.3;
     const fitZoom = fitWidthZoom(window.innerWidth, A4_PAGE_WIDTH, window.innerWidth < 1200 ? 16 : 360);
@@ -820,6 +822,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const [activeStudy, setActiveStudy] = useState(null);
   const [activeStudyBusy, setActiveStudyBusy] = useState(false);
   const [activeStudyError, setActiveStudyError] = useState("");
+  const [activeStudyAvailability, setActiveStudyAvailability] = useState(null);
+  const [activeStudyAvailabilityLoading, setActiveStudyAvailabilityLoading] = useState(false);
   const [activeQuiz, setActiveQuiz] = useState(null);
   const [activeAnswers, setActiveAnswers] = useState({});
   const [activeResult, setActiveResult] = useState(null);
@@ -832,7 +836,25 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   // the server-owned current range continues to determine checkpoint content.
   const accessiblePageStart = 1;
   const accessiblePageCount = activePageRange?.end_page || pageCount;
-  const activeCheckpointReady = studyMode === "active" && activeStudy?.stage === "reading" && page >= accessiblePageCount;
+  const activeStudyButtonReady = studyMode === "active"
+    && activeStudy?.status === "active"
+    && (activeStudy.stage === "checkpoint" || activeStudy.stage === "final" || (activeStudy.stage === "reading" && page >= accessiblePageCount));
+  const selectedActiveStudyAvailability = activeStudyAvailability?.difficulties?.find((item) => item.difficulty === activeDifficulty);
+  // The catalog flag is only an optimistic fallback while the mode dialog's
+  // live readiness request is in flight. Starting itself remains server-owned.
+  const activeStudyReady = selectedActiveStudyAvailability?.status === "ready"
+    || (activeStudyAvailability === null && Boolean(sheet?.hasActiveStudy));
+
+  useEffect(() => {
+    if (summaryMode || !modeDialogOpen || !sheet?.learningObjectId) return undefined;
+    let cancelled = false;
+    setActiveStudyAvailabilityLoading(true);
+    focusApi.getManagedActiveStudyAvailability(sheet.learningObjectId, sheetEdition?.edition)
+      .then((payload) => { if (!cancelled) setActiveStudyAvailability(payload); })
+      .catch(() => { if (!cancelled) setActiveStudyAvailability(null); })
+      .finally(() => { if (!cancelled) setActiveStudyAvailabilityLoading(false); });
+    return () => { cancelled = true; };
+  }, [modeDialogOpen, sheet?.learningObjectId, sheetEdition?.edition, summaryMode]);
   const pageAnnotations = useMemo(() => annotations.filter((item) => item.page === page), [annotations, page]);
   const annotationsByPage = useMemo(() => {
     const groups = new Map();
@@ -1278,11 +1300,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
 
   const resetInitialPdfPosition = useCallback(() => {
     const viewKey = `${materialSlug}/${sheetSlug}`;
-    // Positioning has to wait for the stored view, otherwise the reader is
-    // parked on page one before their saved position has even loaded.
     if (!hydratedRef.current || initialPageViewRef.current === viewKey) return;
     const stage = stageRef.current;
-    if (!stage?.querySelector(`[data-pdf-page="${page}"]`)) return;
+    if (!stage?.querySelector('[data-pdf-page="1"]')) return;
     const storedView = restored?.view;
     const fitZoom = minimumPdfZoom();
     const initialZoom = rememberZoomLevel ? zoomFromStoredView(storedView) : fitZoom;
@@ -1294,22 +1314,13 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     zoomRef.current = initialZoom;
     setZoom(initialZoom);
     const positionInitialPage = () => {
-      const initialPage = stage.querySelector(`[data-pdf-page="${page}"]`);
+      const initialPage = stage.querySelector('[data-pdf-page="1"]');
       if (!initialPage) return;
       const stageBounds = stage.getBoundingClientRect();
       const pageBounds = initialPage.getBoundingClientRect();
       const paddingTop = Number.parseFloat(window.getComputedStyle(stage).paddingTop) || 0;
-      // A sheet with no stored view starts on page one. Returning readers can
-      // still opt into restoring their saved position, while an explicit page
-      // link always wins over that preference.
-      const restoreSavedPosition = rememberLastPosition && !(bookmarkedPage > 0) && storedView?.page === page;
-      const savedOffset = Math.min(1, Math.max(0, Number(storedView?.pageOffset) || 0));
-      const targetTop = restoreSavedPosition
-        ? stage.scrollTop + pageBounds.top - stageBounds.top + pageBounds.height * savedOffset
-        : stage.scrollTop + pageBounds.top - stageBounds.top - paddingTop;
-      const desiredLeft = restoreSavedPosition && rememberZoomLevel
-        ? Number(storedView?.scrollLeft) || 0
-        : stage.scrollLeft + pageBounds.left - stageBounds.left - Math.max(0, (stage.clientWidth - pageBounds.width) / 2);
+      const targetTop = stage.scrollTop + pageBounds.top - stageBounds.top - paddingTop;
+      const desiredLeft = stage.scrollLeft + pageBounds.left - stageBounds.left - Math.max(0, (stage.clientWidth - pageBounds.width) / 2);
       // A right-to-left reader scrolls from 0 down to negative, so an offset
       // saved in the other direction is out of range and would park the page
       // outside the viewport. Clamp to the range this direction actually has.
@@ -1321,13 +1332,40 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         top: Math.max(0, targetTop),
         behavior: "auto"
       });
-      viewPositionRef.current = { left: stage.scrollLeft, top: stage.scrollTop, pageOffset: savedOffset };
+      pageRef.current = 1;
+      setPage(1);
+      setPageJumpDraft("1");
+      viewPositionRef.current = { left: stage.scrollLeft, top: stage.scrollTop, pageOffset: 0 };
       initialPageViewRef.current = viewKey;
     };
     requestAnimationFrame(() => requestAnimationFrame(positionInitialPage));
-  }, [bookmarkedPage, materialSlug, minimumPdfZoom, page, rememberLastPosition, rememberZoomLevel, restored, sheetSlug, zoomFromStoredView]);
+  }, [materialSlug, minimumPdfZoom, rememberZoomLevel, restored, sheetSlug, zoomFromStoredView]);
 
   const markPdfDocumentReady = useCallback(() => setPdfDocumentReady(true), []);
+
+  const resetReaderToPageOne = useCallback(() => {
+    pageRef.current = 1;
+    setPage(1);
+    setPageJumpDraft("1");
+    const placeAtBeginning = () => {
+      const stage = stageRef.current;
+      const firstPage = stage?.querySelector('[data-pdf-page="1"]');
+      if (!stage || !firstPage) return;
+      const stageBounds = stage.getBoundingClientRect();
+      const pageBounds = firstPage.getBoundingClientRect();
+      const paddingTop = Number.parseFloat(window.getComputedStyle(stage).paddingTop) || 0;
+      const rightToLeft = window.getComputedStyle(stage).direction === "rtl";
+      const desiredLeft = pageBounds.left - stageBounds.left + stage.scrollLeft
+        - Math.max(0, (stage.clientWidth - pageBounds.width) / 2);
+      stage.scrollTo({
+        left: rightToLeft ? 0 : Math.max(0, desiredLeft),
+        top: Math.max(0, pageBounds.top - stageBounds.top + stage.scrollTop - paddingTop),
+        behavior: "auto"
+      });
+      viewPositionRef.current = { left: stage.scrollLeft, top: stage.scrollTop, pageOffset: 0 };
+    };
+    requestAnimationFrame(() => requestAnimationFrame(placeAtBeginning));
+  }, []);
 
   useEffect(() => {
     if (!pdfDocumentReady || !restored) return;
@@ -1335,6 +1373,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   }, [pdfDocumentReady, resetInitialPdfPosition, restored]);
 
   useEffect(() => {
+    setPage(1);
+    pageRef.current = 1;
+    setPageJumpDraft("1");
+    viewPositionRef.current = { left: 0, top: 0, pageOffset: 0 };
     setPdfDocumentReady(false);
     initialPageViewRef.current = "";
   }, [materialSlug, sheetSlug]);
@@ -1511,7 +1553,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       const view = snapshot?.view;
       if (view) {
         viewPositionRef.current = { left: view.scrollLeft, top: view.scrollTop, pageOffset: view.pageOffset };
-        if (rememberLastPositionRef.current && !(bookmarkedPage > 0)) setPage(Math.max(1, view.page));
         if (rememberZoomLevelRef.current && Number.isFinite(view.zoom)) {
           const nextZoom = zoomFromStoredView(view);
           const storedBasis = Number(view.zoomFitBasis);
@@ -1532,7 +1573,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     return () => { active = false; };
   // `clampReaderZoom` and the remember-* refs are read once per document load.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookmarkedPage, materialSlug, ownerKey, storageSlug]);
+  }, [materialSlug, ownerKey, storageSlug]);
 
   // One server mirror per document and account. A sheet without a server
   // document (a build fixture, or one the reader cannot reach) stays local.
@@ -3640,7 +3681,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   }
 
   async function chooseActiveStudy() {
-    if (activeStudyBusy || !sheet?.hasActiveStudy) return;
+    if (activeStudyBusy || !activeStudyReady) return;
     setActiveStudyBusy(true);
     setActiveStudyError("");
     try {
@@ -3653,11 +3694,13 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       setActiveStudy(run);
       setStudyMode("active");
       setModeDialogOpen(false);
-      const startPage = run.current_page_range?.start_page || 1;
-      setPage(startPage);
-      requestAnimationFrame(() => jumpToPagePosition(startPage));
+      // Difficulty selection always returns to the reader's visual beginning.
+      // The run's current part/stage remains server-owned and untouched.
+      setPage(1);
+      pageRef.current = 1;
+      setPageJumpDraft("1");
+      resetReaderToPageOne();
       setFocusMessage(payload.resumed ? `Part ${run.current_part} resumed.` : `Part ${run.current_part} started.`);
-      if (run.stage === "checkpoint" || run.stage === "final") await loadManagedQuestions(run);
     } catch (error) {
       setActiveStudyError(error.message || "Active Study could not be started.");
     } finally {
@@ -3684,12 +3727,14 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   }
 
   async function openActiveQuiz() {
-    if (!activeStudy || activeStudyBusy || activeStudy.stage !== "reading" || page < accessiblePageCount) return;
+    if (!activeStudy || activeStudyBusy || !activeStudyButtonReady) return;
     setActiveStudyBusy(true);
     setActiveStudyError("");
     try {
-      const payload = await focusApi.managedActiveStudyAction(activeStudy.id, "complete-reading");
-      await loadManagedQuestions(payload.run);
+      const run = activeStudy.stage === "reading"
+        ? (await focusApi.managedActiveStudyAction(activeStudy.id, "complete-reading")).run
+        : activeStudy;
+      await loadManagedQuestions(run);
     } catch (error) {
       setFocusMessage(error.message || "The Active Study test could not be loaded.");
     } finally {
@@ -3729,9 +3774,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       setActiveQuiz(null);
       setActiveResult(null);
       setActiveAnswers({});
-      const startPage = run.current_page_range?.start_page || 1;
-      setPage(startPage);
-      requestAnimationFrame(() => jumpToPagePosition(startPage));
+      setPage(1);
+      pageRef.current = 1;
+      setPageJumpDraft("1");
+      resetReaderToPageOne();
       setFocusMessage(`Part ${run.current_part} is now available. A retake is still recommended.`);
     } catch (error) {
       setFocusMessage(error.message || "The next pages could not be unlocked.");
@@ -3753,9 +3799,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       setActiveAnswers({});
       if (action === "retry-final") await loadManagedQuestions(run);
       else {
-        const startPage = run.current_page_range?.start_page || 1;
-        setPage(startPage);
-        requestAnimationFrame(() => jumpToPagePosition(startPage));
+        setPage(1);
+        pageRef.current = 1;
+        setPageJumpDraft("1");
+        resetReaderToPageOne();
       }
     } catch (error) {
       setFocusMessage(error.message || "The Active Study stage could not be reopened.");
@@ -3769,21 +3816,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     setActiveQuiz(null);
     setActiveResult(null);
     setActiveAnswers({});
-    if (run?.stage === "final") {
-      setActiveStudyBusy(true);
-      try {
-        await loadManagedQuestions(run);
-      } catch (error) {
-        setFocusMessage(error.message || "The final exam could not be loaded.");
-      } finally {
-        setActiveStudyBusy(false);
-      }
-      return;
-    }
-    if (run?.stage === "reading") {
-      const startPage = run.current_page_range?.start_page || 1;
-      setPage(startPage);
-      requestAnimationFrame(() => jumpToPagePosition(startPage));
+    if (run?.stage === "reading" || run?.stage === "final") {
+      setPage(1);
+      pageRef.current = 1;
+      setPageJumpDraft("1");
+      resetReaderToPageOne();
     }
   }
 
@@ -4093,7 +4130,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
                 <ToolRange label="Stroke smoothing" value={strokeSmoothing} displayValue={`${Math.round(strokeSmoothing * 100)}%`} min={0} max={1} step={.05} onChange={setStrokeSmoothing} color={activeColor} />
               </section>
               {sheet.pdfUrl && <section aria-labelledby="workspace-pdf-settings"><h2 id="workspace-pdf-settings">PDF</h2>
-                <SettingsToggle icon={Bookmark} label="Remember last position" description="Restore the last page and scroll position" checked={rememberLastPosition} onChange={setRememberLastPosition} />
+                <SettingsToggle icon={Bookmark} label="Remember last position" description="Keep the last position in your backup" checked={rememberLastPosition} onChange={setRememberLastPosition} />
                 <SettingsToggle icon={ZoomIn} label="Remember zoom level" description="Restore this sheet at the same zoom" checked={rememberZoomLevel} onChange={setRememberZoomLevel} />
                 <button type="button" className="workspace-v2-settings-action" onClick={fitPdfWidth}><MoveHorizontal size={17} /><span><strong>Fit Width</strong><small>Fill the reader without side gaps</small></span></button>
                 <SettingsToggle icon={Eye} label="Show page number" description="Display the current page over the PDF" checked={showPageNumber} onChange={setShowPageNumber} />
@@ -4218,10 +4255,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         </aside>
       </div>
       <span className="workspace-v2-visually-hidden" role="status" aria-live="polite">{saveLabel}{focusMessage ? ` · ${focusMessage}` : ""}</span>
-      {studyMode === "active" && activeStudy?.status === "active" && activeStudy.stage === "reading" && <div className="workspace-v2-checkpoint-dock" role="status" aria-live="polite">
-        <button type="button" className={`workspace-v2-checkpoint-button${activeCheckpointReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeCheckpointReady} aria-label={activeCheckpointReady ? "Open checkpoint" : `Reach page ${accessiblePageCount} to unlock the checkpoint`}>{activeCheckpointReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">Checkpoint</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">Reach page {accessiblePageCount}</span></>}</button>
+      {studyMode === "active" && activeStudy?.status === "active" && ["reading", "checkpoint", "final"].includes(activeStudy.stage) && <div className="workspace-v2-checkpoint-dock" role="status" aria-live="polite">
+        <button type="button" className={`workspace-v2-checkpoint-button${activeStudyButtonReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeStudyButtonReady} aria-label={activeStudyButtonReady ? (activeStudy.stage === "final" ? "Open final exam" : "Open checkpoint") : `Reach page ${accessiblePageCount} to unlock the checkpoint`}>{activeStudyButtonReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{activeStudy.stage === "final" ? "Final Exam" : "Checkpoint"}</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">Reach page {accessiblePageCount}</span></>}</button>
       </div>}
-      {modeDialogOpen && <StudyModeDialog difficulty={activeDifficulty} setDifficulty={setActiveDifficulty} activeAvailable={Boolean(sheet.hasActiveStudy)} busy={activeStudyBusy} error={activeStudyError} onNormal={chooseNormalStudy} onActive={chooseActiveStudy} />}
+      {modeDialogOpen && <StudyModeDialog difficulty={activeDifficulty} setDifficulty={setActiveDifficulty} activeAvailable={activeStudyReady} busy={activeStudyBusy || activeStudyAvailabilityLoading} error={activeStudyError} onNormal={chooseNormalStudy} onActive={chooseActiveStudy} />}
       {activeQuiz && activeStudy && <ActiveStudyQuiz quiz={activeQuiz} answers={activeAnswers} setAnswers={setActiveAnswers} result={activeResult} busy={activeStudyBusy} onSubmit={submitActiveQuiz} onDismiss={dismissActiveQuiz} onRetake={retakeActiveQuiz} onContinue={continueActiveStudyAnyway} />}
     </main>
   );

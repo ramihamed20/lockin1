@@ -606,7 +606,9 @@ class AdminSheetActiveStudyQuestionsView(_ContentPermissionView):
         try:
             return Response(
                 active_study_question_content_payload(
-                    sheet=self._sheet(sheet_id), difficulty_key=difficulty
+                    sheet=self._sheet(sheet_id),
+                    difficulty_key=difficulty,
+                    edition=_edition(request),
                 )
             )
         except ContentRuleError as error:
@@ -621,6 +623,7 @@ class AdminSheetActiveStudyQuestionsView(_ContentPermissionView):
                 sheet=self._sheet(sheet_id),
                 difficulty_key=difficulty,
                 payload=serializer.validated_data["payload"],
+                edition=_edition(request),
             )
         except ActiveStudyQuestionValidationError as error:
             return Response(
@@ -640,6 +643,7 @@ class AdminSheetActiveStudyQuestionsView(_ContentPermissionView):
                 difficulty_key=difficulty,
                 payload=serializer.validated_data["payload"],
                 expected_revision=int(serializer.validated_data["expected_revision"]),
+                edition=_edition(request),
             )
         except ActiveStudyQuestionValidationError as error:
             return Response(
@@ -649,7 +653,9 @@ class AdminSheetActiveStudyQuestionsView(_ContentPermissionView):
             _raise_rule(error)
         return Response(
             active_study_question_content_payload(
-                sheet=self._sheet(sheet_id), difficulty_key=content.difficulty
+                sheet=self._sheet(sheet_id),
+                difficulty_key=content.difficulty,
+                edition=_edition(request),
             )
         )
 
