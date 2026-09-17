@@ -333,7 +333,7 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   expect(pageErrors).toEqual([]);
 });
 
-test("PDF view preferences restore position and zoom only while enabled @chromium-only", async ({ page }) => {
+test("PDF sheets open at page one and restore zoom only while enabled @chromium-only", async ({ page }) => {
   test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
   await page.goto("/");
@@ -384,41 +384,17 @@ test("PDF view preferences restore position and zoom only while enabled @chromiu
   await page.goto(WORKSPACE_ROUTE);
   await page.getByRole("button", { name: /Normal Study/ }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
-  // The indicator names the page holding most of the stage, not the page the
-  // stored view was anchored to -- restoring a quarter of the way into page 3
-  // can leave either page 3 or page 4 covering more of the reader, depending on
-  // how tall the document's pages are.
-  //
-  // So assert the rule rather than one document's arithmetic: whichever page
-  // covers the most of the stage is the one the indicator names. The offset
-  // assertion below is what guards the restore itself.
-  await expect.poll(async () => page.evaluate(() => {
-    const stage = document.querySelector(".workspace-v2-document-stage").getBoundingClientRect();
-    let bestPage = 0;
-    let bestVisible = 0;
-    for (const element of document.querySelectorAll("[data-pdf-page]")) {
-      const box = element.getBoundingClientRect();
-      const visible = Math.min(stage.bottom, box.bottom) - Math.max(stage.top, box.top);
-      if (visible > bestVisible) {
-        bestVisible = visible;
-        bestPage = Number(element.getAttribute("data-pdf-page"));
-      }
-    }
-    const label = document.querySelector(".workspace-v2-page-number")?.getAttribute("aria-label");
-    return {
-      namesTheDominantPage: label === `Page ${bestPage} of 17`,
-      // The restore is anchored a quarter into page 3, so the page covering
-      // most of the stage is 3 or 4 and never anywhere else in the document.
-      landedAtTheAnchor: bestPage === 3 || bestPage === 4,
-      label
-    };
-  })).toMatchObject({ namesTheDominantPage: true, landedAtTheAnchor: true });
+  // A sheet always opens at its visual beginning: the stored view keeps its
+  // page and offset for backup, but never moves the reader. Zoom is still
+  // restored while "Remember zoom level" is on.
+  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "Page 1 of 17");
   await expect.poll(async () => page.locator(".workspace-v2-a4-document").evaluate((node) => Number(getComputedStyle(node).getPropertyValue("--workspace-a4-zoom")))).toBeCloseTo(2.2, 5);
   await expect.poll(async () => page.evaluate(() => {
-    const stage = document.querySelector(".workspace-v2-document-stage").getBoundingClientRect();
-    const thirdPage = document.querySelector('[data-pdf-page="3"]').getBoundingClientRect();
-    return Math.abs((stage.top - thirdPage.top) / thirdPage.height - .25);
-  })).toBeLessThan(.03);
+    const stage = document.querySelector(".workspace-v2-document-stage");
+    const firstPage = document.querySelector('[data-pdf-page="1"]').getBoundingClientRect();
+    const paddingTop = Number.parseFloat(getComputedStyle(stage).paddingTop) || 0;
+    return Math.abs(firstPage.top - (stage.getBoundingClientRect().top + paddingTop));
+  })).toBeLessThan(2);
 
   await page.getByRole("button", { name: "Workspace settings", exact: true }).click();
   const settings = page.getByRole("dialog", { name: "Workspace settings" });

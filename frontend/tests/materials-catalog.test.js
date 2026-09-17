@@ -77,8 +77,9 @@ test("Active Study stays closed until a sheet has questions, and Quizzes is not 
   // and no sheet sets it yet.
   assert.ok(COHORT_CATALOGS.every((catalog) => catalog.materials.every((material) => material.sheets.every((sheet) => !sheet.hasActiveStudy))));
   const workspace = await readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8");
-  assert.match(workspace, /activeAvailable=\{Boolean\(sheet\.hasActiveStudy\)\}/);
-  assert.match(workspace, /if \(activeStudyBusy \|\| !sheet\?\.hasActiveStudy\) return;/);
+  assert.match(workspace, /activeAvailable=\{activeStudyReady\}/);
+  assert.match(workspace, /getManagedActiveStudyAvailability\(sheet\.learningObjectId, sheetEdition\?\.edition\)/);
+  assert.match(workspace, /if \(activeStudyBusy \|\| !activeStudyReady\) return;/);
   assert.match(workspace, /"Questions not ready yet"/);
   assert.doesNotMatch(workspace, /isTestSheet/);
 

@@ -36,19 +36,26 @@ test("managed Active Study is unified with the old one-question quiz experience"
   assert.match(workspace, />Next/);
   assert.match(workspace, /workspace-v2-quiz-progress/);
   assert.match(workspace, /managedActiveStudyAction\(activeStudy\.id, "complete-reading"\)/);
+  assert.match(workspace, /activeStudy\.stage === "checkpoint" \|\| activeStudy\.stage === "final"/);
   assert.match(workspace, /result\.passed/);
-  assert.match(workspace, /run\?\.stage === "final"/);
+  assert.doesNotMatch(workspace, /if \(run\?\.stage === "final"\)[\s\S]*loadManagedQuestions/);
 });
 
 test("Active Study starts the selected difficulty in reading, then opens its checkpoint only from the dock", () => {
   // A run belongs to the edition being read, so its page numbers match the PDF.
   assert.match(workspace, /startManagedActiveStudy\(\{ sheetId: sheet\.learningObjectId, difficulty: activeDifficulty, edition: sheetEdition\?\.edition \}\)/);
+  assert.match(workspace, /getManagedActiveStudyAvailability\(sheet\.learningObjectId, sheetEdition\?\.edition\)/);
+  assert.match(workspace, /selectedActiveStudyAvailability\?\.status === "ready"/);
   assert.doesNotMatch(workspace, /inProgress\?\.difficulty \|\| activeDifficulty/);
-  assert.match(workspace, /const startPage = run\.current_page_range\?\.start_page \|\| 1/);
-  assert.match(workspace, /run\.stage === "checkpoint" \|\| run\.stage === "final"/);
-  assert.match(workspace, /activeStudy\?\.stage === "reading" && page >= accessiblePageCount/);
-  assert.match(workspace, /disabled=\{activeStudyBusy \|\| !activeCheckpointReady\}/);
+  assert.match(workspace, /setPage\(1\);[\s\S]*resetReaderToPageOne\(\)/);
+  assert.doesNotMatch(workspace, /if \(run\.stage === "checkpoint" \|\| run\.stage === "final"\) await loadManagedQuestions\(run\)/);
+  assert.match(workspace, /const activeStudyButtonReady = studyMode === "active"/);
+  assert.match(workspace, /\["reading", "checkpoint", "final"\]\.includes\(activeStudy\.stage\)/);
+  assert.match(workspace, /disabled=\{activeStudyBusy \|\| !activeStudyButtonReady\}/);
   assert.match(workspace, /managedActiveStudyAction\(activeStudy\.id, "complete-reading"\)/);
+  assert.match(workspace, /activeStudy\.stage === "final" \? "Final Exam" : "Checkpoint"/);
+  assert.match(workspace, /const \[page, setPage\] = useState\(1\)/);
+  assert.doesNotMatch(workspace, /setPage\(Math\.max\(1, view\.page\)\)/);
   assert.match(workspaceStyles, /\.workspace-v2-checkpoint-dock \{[^}]+right: 0;[^}]+left: auto;/);
 });
 

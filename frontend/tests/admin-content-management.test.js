@@ -52,6 +52,8 @@ test("Active Study JSON management validates, previews, replaces, and deletes on
   assert.match(api, /saveActiveStudyQuestions/);
   assert.match(api, /deleteActiveStudyQuestions/);
   assert.match(api, /active-study\/questions\//);
+  assert.match(api, /activeStudyQuestions\(sheetId, difficulty, edition = ""\)/);
+  assert.match(api, /buildQueryString\(\{ edition \}\)/);
   assert.match(page, /Import JSON/);
   assert.match(page, /Edit \/ Replace JSON/);
   assert.match(page, /Delete content/);
@@ -59,6 +61,8 @@ test("Active Study JSON management validates, previews, replaces, and deletes on
   assert.match(page, /ActiveStudyQuestionPreview/);
   assert.match(page, /Needs Review/);
   assert.match(page, /Validate the current JSON before saving/);
+  assert.match(page, /settingsRevision={plan\.revision}/);
+  assert.match(page, /boundary_change_requires_confirmation/);
 });
 
 test("multiple-select answers work in attempts and review", () => {

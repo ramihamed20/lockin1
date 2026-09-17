@@ -81,17 +81,17 @@ export const adminControlApi = {
   previewActiveStudyPlan(sheetId, body, edition = "") {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study/preview` + buildQueryString({ edition }), { method: "POST", body });
   },
-  activeStudyQuestions(sheetId, difficulty) {
-    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study/questions/${difficulty}`);
+  activeStudyQuestions(sheetId, difficulty, edition = "") {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study/questions/${difficulty}` + buildQueryString({ edition }));
   },
-  validateActiveStudyQuestions(sheetId, difficulty, payload) {
-    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study/questions/${difficulty}`, { method: "POST", body: { payload } });
+  validateActiveStudyQuestions(sheetId, difficulty, payload, edition = "") {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study/questions/${difficulty}` + buildQueryString({ edition }), { method: "POST", body: { payload } });
   },
-  saveActiveStudyQuestions(sheetId, difficulty, body) {
-    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study/questions/${difficulty}`, { method: "PUT", body });
+  saveActiveStudyQuestions(sheetId, difficulty, body, edition = "") {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study/questions/${difficulty}` + buildQueryString({ edition }), { method: "PUT", body });
   },
-  deleteActiveStudyQuestions(sheetId, difficulty, expectedRevision) {
-    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study/questions/${difficulty}`, { method: "DELETE", body: { expected_revision: Number(expectedRevision) } });
+  deleteActiveStudyQuestions(sheetId, difficulty, expectedRevision, edition = "") {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study/questions/${difficulty}` + buildQueryString({ edition }), { method: "DELETE", body: { expected_revision: Number(expectedRevision) } });
   },
   sheetAction(sheetId, body) {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/actions`, { method: "POST", body });

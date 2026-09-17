@@ -102,6 +102,135 @@ def test_valid_content_import_is_saved_ordered_and_audited() -> None:
     assert AuditRecord.objects.filter(action="content.active_study_questions_imported").exists()
 
 
+def test_question_validation_uses_the_latest_saved_configuration_for_the_selected_edition() -> None:
+    client, _, sheet = _configured_client()
+    settings_endpoint = f"/api/v1/operations/admin/content/sheets/{sheet.id}/active-study"
+
+    # The original configuration produces four Easy parts.  Saving a new
+    # twelve-page study range must immediately make two parts authoritative.
+    current = client.get(settings_endpoint).json()
+    updated = client.patch(
+        settings_endpoint,
+        {
+            "expected_revision": current["revision"],
+            "enabled": True,
+            "total_pdf_pages": 13,
+            "excluded_start_pages": 1,
+            "excluded_end_pages": 0,
+        },
+        format="json",
+    )
+    assert updated.status_code == 200
+    easy = client.get(f"{_endpoint(sheet).replace('/medium', '/easy')}?edition=university")
+    assert easy.status_code == 200
+    assert easy.json()["number_of_parts"] == 2
+    assert easy.json()["configuration_revision"] == updated.json()["revision"]
+    saved_easy = next(
+        item for item in updated.json()["difficulties"] if item["difficulty"] == "easy"
+    )
+    assert easy.json()["page_ranges"] == saved_easy["page_ranges"]
+
+    validated = client.post(
+        f"{_endpoint(sheet).replace('/medium', '/easy')}?edition=university",
+        {"payload": _payload(parts=2)},
+        format="json",
+    )
+    assert validated.status_code == 200, validated.json()
+    saved = client.put(
+        f"{_endpoint(sheet).replace('/medium', '/easy')}?edition=university",
+        {"expected_revision": 0, "payload": _payload(parts=2)},
+        format="json",
+    )
+    assert saved.status_code == 200, saved.json()
+    assert saved.json()["number_of_parts"] == 2
+
+
+def test_boundary_confirmation_only_applies_to_a_new_conflicting_plan_and_is_not_repeated() -> None:
+    client, _, sheet = _configured_client()
+    question_endpoint = _endpoint(sheet).replace("/medium", "/easy")
+    settings_endpoint = f"/api/v1/operations/admin/content/sheets/{sheet.id}/active-study"
+    payload = _payload(parts=3)
+    assert (
+        client.put(
+            question_endpoint,
+            {"expected_revision": 0, "payload": payload},
+            format="json",
+        ).status_code
+        == 200
+    )
+
+    current = client.get(settings_endpoint).json()
+    # Re-saving the same saved configuration is safe and must not prompt.
+    unchanged = client.patch(
+        settings_endpoint,
+        {
+            "expected_revision": current["revision"],
+            "enabled": True,
+            "total_pdf_pages": 22,
+            "excluded_start_pages": 1,
+            "excluded_end_pages": 0,
+        },
+        format="json",
+    )
+    assert unchanged.status_code == 200
+
+    current = unchanged.json()
+    # Changing raw PDF totals while keeping the actual study range identical
+    # must not prompt: 22/1/0 and 23/1/1 both study pages 2–22.
+    same_boundaries = client.patch(
+        settings_endpoint,
+        {
+            "expected_revision": current["revision"],
+            "enabled": True,
+            "total_pdf_pages": 23,
+            "excluded_start_pages": 1,
+            "excluded_end_pages": 1,
+        },
+        format="json",
+    )
+    assert same_boundaries.status_code == 200
+    current = same_boundaries.json()
+    changed = client.patch(
+        settings_endpoint,
+        {
+            "expected_revision": current["revision"],
+            "enabled": True,
+            "total_pdf_pages": 22,
+            "excluded_start_pages": 2,
+            "excluded_end_pages": 0,
+        },
+        format="json",
+    )
+    assert changed.status_code == 400
+    assert "confirm before saving" in changed.json()["error"]["message"]
+
+    confirmed = client.patch(
+        settings_endpoint,
+        {
+            "expected_revision": current["revision"],
+            "enabled": True,
+            "total_pdf_pages": 22,
+            "excluded_start_pages": 2,
+            "excluded_end_pages": 0,
+            "confirm_boundary_change": True,
+        },
+        format="json",
+    )
+    assert confirmed.status_code == 200
+    repeated = client.patch(
+        settings_endpoint,
+        {
+            "expected_revision": confirmed.json()["revision"],
+            "enabled": True,
+            "total_pdf_pages": 22,
+            "excluded_start_pages": 2,
+            "excluded_end_pages": 0,
+        },
+        format="json",
+    )
+    assert repeated.status_code == 200
+
+
 @pytest.mark.parametrize(
     "payload",
     [

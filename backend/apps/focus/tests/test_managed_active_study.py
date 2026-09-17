@@ -128,6 +128,35 @@ def test_ready_availability_uses_the_existing_content_status_and_resumes() -> No
     assert run.current_page_range if False else run.current_part == 1
 
 
+def test_resuming_an_existing_run_refreshes_ranges_without_resetting_progress() -> None:
+    user, sheet, settings = _setup()
+    run, _ = start(user=user, sheet_id=sheet.id, difficulty="medium")
+    run.current_part = 2
+    run.completed_parts = [1]
+    run.unlocked_pages = run.plan_signature["page_ranges"][1]["end_page"]
+    run.save(update_fields=("current_part", "completed_parts", "unlocked_pages", "updated_at"))
+
+    settings.excluded_start_pages = 2
+    settings.save(update_fields=("excluded_start_pages", "updated_at"))
+    plan = plan_payload(total_pdf_pages=22, excluded_start_pages=2, excluded_end_pages=0)
+    medium = next(item for item in plan["difficulties"] if item["difficulty"] == "medium")
+    content = ActiveStudyQuestionContent.objects.get(sheet=sheet, difficulty="medium")
+    content.plan_signature = {
+        "number_of_parts": medium["number_of_parts"],
+        "page_ranges": medium["page_ranges"],
+    }
+    content.save(update_fields=("plan_signature", "updated_at"))
+
+    resumed, created = start(user=user, sheet_id=sheet.id, difficulty="medium")
+
+    assert created is False
+    assert resumed.id == run.id
+    assert resumed.current_part == 2
+    assert resumed.completed_parts == [1]
+    assert resumed.plan_signature == content.plan_signature
+    assert resumed.unlocked_pages == medium["page_ranges"][1]["end_page"]
+
+
 def test_availability_is_per_difficulty_and_pdf_rendering_is_not_a_readiness_input() -> None:
     user, sheet, settings = _setup()
     payload = availability(user=user, sheet_id=sheet.id)
