@@ -319,7 +319,7 @@ def start(
     existing = _active_run(user=user, sheet=sheet, difficulty=difficulty, edition=edition)
     if existing is not None:
         return _synchronize_run_to_plan(
-            run=existing, plan=plan, total_pdf_pages=cast(int, plan_total_pages)
+            run=existing, plan=plan, total_pdf_pages=plan_total_pages
         ), False
     ranges = cast(list[dict[str, int]], plan["page_ranges"])
     try:
@@ -338,7 +338,7 @@ def start(
                 # The difficulty plan intentionally contains only
                 # difficulty-specific data.  The PDF page count remains owned by
                 # the sheet settings.
-                page_count=cast(int, plan_total_pages),
+                page_count=plan_total_pages,
                 unlocked_pages=ranges[0]["end_page"],
                 plan_signature=_signature(plan),
             )
