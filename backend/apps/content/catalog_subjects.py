@@ -69,6 +69,110 @@ class ProjectionResult:
         return len(self.created) + len(self.updated)
 
 
+@dataclass(frozen=True, slots=True)
+class StudyPath:
+    """The College -> Specialty -> Year a branch sits under.
+
+    Each level is read from the record that owns it: the college and specialty
+    from the cohort's program name, and the Year from the ``academic_year`` node
+    the subject actually hangs off in the education tree.
+
+    The previous derivation guessed all three from display names -- it read the
+    tail of the cohort's own name as the Year and hard-coded specialty
+    "Dentistry" for every program that was not Human Medicine. A program named
+    "Preparatory Medical Sciences -- Tripoli" was therefore filed under
+    specialty "Dentistry" and Year "Tripoli", which is what made the Year filter
+    in Admin -> Questions unusable for it.
+
+    Each label carries a key, and the filters match on the key. Two colleges
+    legitimately both have a "First Year", so the key keeps them one choice in
+    the Year list while each still resolves to its own cohort's subjects --
+    which is what keeps one year's questions out of another's.
+    """
+
+    college_title: str
+    college_key: str
+    specialty_title: str
+    specialty_key: str
+    academic_year_title: str
+    academic_year_key: str
+
+
+def _slugify_key(value: str) -> str:
+    return "-".join("".join(c if c.isalnum() else " " for c in value.lower()).split()) or "unknown"
+
+
+def _cohort_year_title(cohort: StudentCohort) -> str:
+    """The Year a cohort names when its tree has no academic year above it.
+
+    The cohort code is the structured fallback: ``year-1`` is a year, a bare
+    number is an intake batch, and anything else names itself. It is never the
+    cohort's display name, whose tail is what the old derivation misread.
+    """
+
+    code = str(cohort.code).strip()
+    if code.lower().startswith("year-") and code[5:].isdigit():
+        return f"Year {int(code[5:])}"
+    if code.isdigit():
+        return f"Batch {code}"
+    return code.replace("-", " ").title() or str(cohort.name_en)
+
+
+def study_paths_for(subjects: list[CatalogSubject]) -> dict[UUID, StudyPath]:
+    """Resolve the study path of many branches, in one extra query.
+
+    The Year is the title of the nearest ``academic_year`` ancestor, so it is
+    the curriculum's own name for that year rather than anything reconstructed.
+    Ancestors for every branch are fetched together: this runs on a list that,
+    for a founder, is every branch in the deployment.
+    """
+
+    ancestors: dict[UUID, list[UUID]] = {}
+    wanted: set[UUID] = set()
+    for subject in subjects:
+        source_node = subject.source_node
+        ids = _ancestor_ids(source_node) if source_node is not None else []
+        ancestors[subject.id] = ids
+        wanted.update(ids)
+
+    year_titles: dict[UUID, str] = {}
+    if wanted:
+        year_titles = dict(
+            EducationNode.objects.filter(
+                id__in=wanted, kind=EducationNode.Kind.ACADEMIC_YEAR
+            ).values_list("id", "title")
+        )
+
+    paths: dict[UUID, StudyPath] = {}
+    for subject in subjects:
+        program = subject.cohort.program
+        # Programs are named "<specialty> - <college>" wherever one specialty
+        # runs on several campuses. A single-campus program carries only its
+        # specialty, and its college is the deployment's home campus.
+        specialty, _, college = str(program.name_en).partition(" — ")
+        specialty = specialty.strip()
+        college = college.strip() or "Tripoli"
+
+        year = next(
+            (
+                year_titles[node_id]
+                for node_id in reversed(ancestors[subject.id])
+                if node_id in year_titles
+            ),
+            "",
+        ) or _cohort_year_title(subject.cohort)
+
+        paths[subject.id] = StudyPath(
+            college_title=college,
+            college_key=_slugify_key(college),
+            specialty_title=specialty,
+            specialty_key=_slugify_key(specialty),
+            academic_year_title=year,
+            academic_year_key=_slugify_key(year),
+        )
+    return paths
+
+
 def material_slug_for(*, cohort: StudentCohort, node_slug: str) -> str:
     """The public Materials route key, qualified so two colleges never collide."""
 

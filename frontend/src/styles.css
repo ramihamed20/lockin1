@@ -8106,11 +8106,20 @@ a.streak-card:hover:where(html.ix-hover *) {
 
 .subscription-premium-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: end;
   justify-content: space-between;
   gap: var(--space-8);
   padding: var(--space-4) var(--space-2) var(--space-6);
   border-bottom: 1px solid var(--border);
+}
+
+/* The heading column yields before the access summary does. Without a basis of
+   its own it kept its max-content width on a tablet and squeezed the summary
+   down to its 190px floor, which is what shredded the plan name. */
+.subscription-premium-header > div:first-child {
+  flex: 1 1 24rem;
+  min-width: 0;
 }
 
 .subscription-premium-header h1,
@@ -8147,8 +8156,11 @@ a.streak-card:hover:where(html.ix-hover *) {
   font-size: var(--text-xs);
 }
 
+/* Wide enough for a plan name beside its state pill, and allowed to drop onto
+   its own header row rather than be compressed into one. */
 .subscription-current-summary {
-  min-width: 190px;
+  flex: 0 1 auto;
+  min-width: min(100%, 17rem);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -8163,9 +8175,18 @@ a.streak-card:hover:where(html.ix-hover *) {
   font-size: var(--text-xs);
 }
 
+/* `anywhere` also shrinks this cell's min-content width to a single character,
+   so "Free Trial" was broken one letter per line on an iPad. `break-word`
+   keeps the longest word as the floor and still prevents overflow. */
 .subscription-current-summary > strong {
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+}
+
+@media (max-width: 26rem) {
+  .subscription-current-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Clears the sticky top bar when a checkout step scrolls into view. */
@@ -8460,11 +8481,6 @@ a.streak-card:hover:where(html.ix-hover *) {
   background: var(--primary);
 }
 
-.subscription-step-lead {
-  margin: calc(-1 * var(--space-2)) 0 var(--space-3);
-  color: var(--muted);
-}
-
 .subscription-order-summary {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -8610,10 +8626,6 @@ a.streak-card:hover:where(html.ix-hover *) {
 
   .subscription-premium-header h1 {
     font-size: var(--text-2xl);
-  }
-
-  .subscription-current-summary {
-    min-width: 0;
   }
 
   .subscription-plan-grid {
@@ -8909,6 +8921,13 @@ a.streak-card:hover:where(html.ix-hover *) {
 .questions-category-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+/* One sheet's questions, stacked. A practice card is already a full-width
+   reading surface, so this only owns the rhythm between them. */
+.questions-practice-list {
+  display: grid;
   gap: var(--space-4);
 }
 

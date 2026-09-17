@@ -31,8 +31,10 @@ from apps.review.contracts import QuestionAttemptEvent
 from apps.review.models import ReviewItem
 from apps.review.services import record_question_attempt
 from apps.xp.services import award_xp
+from platform_core.events import publish_after_commit
 
 from .active_study import XP_BY_DIFFICULTY
+from .events import ActiveStudyExamPassed
 from .models import ActiveStudyAnswer, ActiveStudyAttempt, ActiveStudyRun
 
 
@@ -606,6 +608,25 @@ def submit(*, user: User, run_id: UUID, attempt_id: UUID) -> tuple[ActiveStudyRu
             )
             run.xp_awarded = award.points if created else 0
     run.save()
+    if passed:
+        # Published rather than recorded here: the streak, XP and achievement
+        # ledgers are fed through one integration boundary, so this stays the
+        # fact ("an exam was passed") and not a decision about what it earns.
+        publish_after_commit(
+            ActiveStudyExamPassed(
+                run_id=run.id,
+                attempt_id=attempt.id,
+                user_id=user.id,
+                sheet_id=cast(UUID, run.sheet_id),
+                difficulty=run.difficulty,
+                kind=attempt.kind,
+                score=score,
+                total=attempt.total,
+                run_completed=run.status == ActiveStudyRun.Status.COMPLETED,
+                occurred_at=attempt.submitted_at,
+                actor_id=user.id,
+            )
+        )
     return run, {
         "score": score,
         "total": attempt.total,

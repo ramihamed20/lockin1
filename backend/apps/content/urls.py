@@ -17,6 +17,8 @@ from .views import (
     ArchiveLearningObjectView,
     CatalogDocumentResolveView,
     CatalogMaterialListView,
+    CatalogQuestionMaterialListView,
+    CatalogSheetQuestionListView,
     CatalogWorkspaceView,
     ManagementLearningObjectDetailView,
     ManagementLearningObjectListView,
@@ -36,6 +38,16 @@ urlpatterns = [
     # GET/PATCH requests and return 404/405 before authorization is evaluated.
     path("catalog/documents/<uuid:document_id>/workspace", CatalogWorkspaceView.as_view()),
     path("catalog/materials", CatalogMaterialListView.as_view(), name="catalog-materials"),
+    path(
+        "catalog/questions",
+        CatalogQuestionMaterialListView.as_view(),
+        name="catalog-questions",
+    ),
+    path(
+        "catalog/sheets/<uuid:sheet_id>/questions",
+        CatalogSheetQuestionListView.as_view(),
+        name="catalog-sheet-questions",
+    ),
     path(
         "catalog/documents/<slug:material_slug>/<slug:sheet_slug>",
         CatalogDocumentResolveView.as_view(),

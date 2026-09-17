@@ -306,7 +306,6 @@ export default function Subscription() {
 
               {step === "plan" && <fieldset className="subscription-plan-options">
                 <legend id="subscription-plan-heading">{t("subscription.choosePlan")}</legend>
-                <p className="subscription-step-lead">{t("subscription.stepPlanLead")}</p>
                 <div className="subscription-plan-grid">
                   {offers.map(({ plan, version, price }) => {
                     const copy = offerCopy(plan, version, locale);
