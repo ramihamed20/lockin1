@@ -30,6 +30,26 @@ const QUESTION_PRESETS = {
   custom: { label: "Custom", mcq: 10, true_false: 0, multiple_select: 0 }
 };
 
+/**
+ * The study-path filters read the server's stable key, not its display name.
+ * A label is presentation: two colleges legitimately both have a "Year 2", and
+ * an unnamed branch used to be filtered as the literal string "Unassigned",
+ * which silently grouped unrelated branches together.
+ */
+function studyKey(subject, field) {
+  return String(subject[`${field}_key`] || "") || "unassigned";
+}
+
+/** Distinct {key, title} choices for one study-path level, in list order. */
+function studyOptions(subjects, field) {
+  const options = new Map();
+  for (const subject of subjects) {
+    const key = studyKey(subject, field);
+    if (!options.has(key)) options.set(key, { key, title: subject[`${field}_title`] || "Unassigned" });
+  }
+  return [...options.values()];
+}
+
 function humanize(value) {
   return String(value || "Not available").replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
@@ -77,13 +97,15 @@ function SubjectBrowser({ selected, onSelect, purpose = "sheets" }) {
   if (data.error) return <ErrorPanel message={data.error} onRetry={data.reload} />;
   if (selected) return null;
   const subjects = data.data.results || [];
-  const colleges = [...new Set(subjects.map((item) => item.college_title || "Unassigned"))];
-  const specialties = [...new Set(subjects.filter((item) => !college || (item.college_title || "Unassigned") === college).map((item) => item.specialty_title || "Unassigned"))];
-  const years = [...new Set(subjects.filter((item) => (!college || (item.college_title || "Unassigned") === college) && (!specialty || (item.specialty_title || "Unassigned") === specialty)).map((item) => item.academic_year_title || "Unassigned"))];
-  const visibleSubjects = subjects.filter((item) => (!college || (item.college_title || "Unassigned") === college) && (!specialty || (item.specialty_title || "Unassigned") === specialty) && (!year || (item.academic_year_title || "Unassigned") === year));
+  const inCollege = (item) => !college || studyKey(item, "college") === college;
+  const inSpecialty = (item) => inCollege(item) && (!specialty || studyKey(item, "specialty") === specialty);
+  const colleges = studyOptions(subjects, "college");
+  const specialties = studyOptions(subjects.filter(inCollege), "specialty");
+  const years = studyOptions(subjects.filter(inSpecialty), "academic_year");
+  const visibleSubjects = subjects.filter((item) => inSpecialty(item) && (!year || studyKey(item, "academic_year") === year));
   return <section className="admin-content-section">
     <div className="admin-content-toolbar"><div><h2>Sheets by study path</h2><p>Choose the existing specialty, year or batch, then subject to manage its {purpose}.</p></div><label className="field admin-content-search"><span>Search subjects</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Histology 1" /></label></div>
-    <div className="admin-content-filters"><label className="field"><span>College</span><select value={college} onChange={(event) => { setCollege(event.target.value); setSpecialty(""); setYear(""); }}><option value="">All colleges</option>{colleges.map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label className="field"><span>Specialty</span><select value={specialty} onChange={(event) => { setSpecialty(event.target.value); setYear(""); }}><option value="">All specialties</option>{specialties.map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label className="field"><span>Year / batch</span><select value={year} onChange={(event) => setYear(event.target.value)}><option value="">All years / batches</option>{years.map((value) => <option key={value} value={value}>{value}</option>)}</select></label></div>
+    <div className="admin-content-filters"><label className="field"><span>College</span><select value={college} onChange={(event) => { setCollege(event.target.value); setSpecialty(""); setYear(""); }}><option value="">All colleges</option>{colleges.map(({ key, title }) => <option key={key} value={key}>{title}</option>)}</select></label><label className="field"><span>Specialty</span><select value={specialty} onChange={(event) => { setSpecialty(event.target.value); setYear(""); }}><option value="">All specialties</option>{specialties.map(({ key, title }) => <option key={key} value={key}>{title}</option>)}</select></label><label className="field"><span>Year / batch</span><select value={year} onChange={(event) => setYear(event.target.value)}><option value="">All years / batches</option>{years.map(({ key, title }) => <option key={key} value={key}>{title}</option>)}</select></label></div>
     <div className="admin-subject-list">{visibleSubjects.length ? visibleSubjects.map((subject) => <button type="button" key={subject.id} onClick={() => onSelect(subject)}><span className="stat-icon"><Icon name="book-open" /></span><span><strong>{subject.title}</strong><small>{subject.college_title || "Unassigned"} · {subject.specialty_title || "Unassigned"} · {subject.academic_year_title || "Unassigned"} · {subject.sheet_count} sheets · {subject.published_count} published</small></span><Icon name="chevron-right" size={18} /></button>) : <EmptyState title="No Catalog subjects found" text="The selected Catalog study path has no configured subjects." />}</div>
   </section>;
 }
@@ -103,7 +125,7 @@ function SheetList({ subject, canManage, onBack, selectMode = false, onSelectShe
     {message && <AdminNotice message={message} />}
     {createOpen && <AddSheetForm subject={subject} onCreated={() => { setCreateOpen(false); setMessage("Sheet saved successfully."); data.reload(); }} />}
     <div className="admin-content-filters"><label className="field"><span>Search sheets</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} /></label><label className="field"><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">All</option>{["draft", "in_review", "published", "rejected", "archived"].map((value) => <option key={value} value={value}>{humanize(value)}</option>)}</select></label></div>
-    {data.loading ? <LoadingPanel /> : data.error ? <ErrorPanel message={data.error} onRetry={data.reload} /> : <div className="admin-sheet-list">{data.data.results.length ? data.data.results.map((sheet, index) => selectMode ? <button className="admin-sheet-select" type="button" key={sheet.id} onClick={() => onSelectSheet?.(sheet)}><span><strong>{sheet.title}</strong><small>{sheet.question_count} questions · {humanize(sheet.workflow_status)}</small></span><Icon name="chevron-right" size={18} /></button> : <SheetRow key={sheet.id} sheet={sheet} sheets={data.data.results} index={index} canManage={canManage} onChanged={data.reload} />) : <EmptyState title="No sheets in this view" text="Change the filters or add the first PDF sheet." />}</div>}
+    {data.loading ? <LoadingPanel /> : data.error ? <ErrorPanel message={data.error} onRetry={data.reload} /> : <div className="admin-sheet-list">{data.data.results.length ? data.data.results.map((sheet, index) => selectMode ? <button className="admin-sheet-select" type="button" key={sheet.id} onClick={() => onSelectSheet?.(sheet)}><span><strong>{sheet.title}</strong><small>{sheet.question_count} questions · {sheet.published_question_count ?? 0} live to students · {humanize(sheet.workflow_status)}</small></span><Icon name="chevron-right" size={18} /></button> : <SheetRow key={sheet.id} sheet={sheet} sheets={data.data.results} index={index} canManage={canManage} onChanged={data.reload} />) : <EmptyState title="No sheets in this view" text="Change the filters or add the first PDF sheet." />}</div>}
   </section>;
 }
 

@@ -62,6 +62,7 @@ from .admin_services import (
     update_sheet,
     validate_active_study_question_content,
 )
+from .catalog_subjects import study_paths_for
 from .editions import UnknownEditionError, normalize_edition
 from .models import CatalogSubject, LearningObject, LearningObjectAsset, LearningObjectVersion
 from .services import ContentConflictError, ContentFieldError, ContentRuleError
@@ -184,6 +185,14 @@ def serialize_sheet(sheet: LearningObject) -> dict[str, object]:
     question_count = Question.objects.filter(
         current_version__source_learning_object=sheet,
     ).count()
+    # What a student in this sheet's cohort can actually open. Without it the
+    # only count on screen was the drafted total, so an import saved as a draft
+    # looked identical to one students can answer.
+    published_question_count = Question.objects.filter(
+        published_version__source_learning_object=sheet,
+        published_version__isnull=False,
+        retired_at__isnull=True,
+    ).count()
     has_history = (
         sheet.progress_records.exists()
         or sheet.bookmarks.exists()
@@ -209,6 +218,7 @@ def serialize_sheet(sheet: LearningObject) -> dict[str, object]:
         "published_at": sheet.published_at,
         "archived_at": sheet.archived_at,
         "question_count": question_count,
+        "published_question_count": published_question_count,
         "active_study_enabled": any(row.enabled for row in sheet.active_study_settings_set.all()),
         # Both editions in one place, so Content Studio offers the same
         # controls for each without a second serializer.
@@ -259,8 +269,10 @@ class AdminSubjectListView(_ContentPermissionView):
         query = request.query_params.get("q", "").strip()[:100]
         if query:
             subjects = subjects.filter(title__icontains=query)
+        branches = list(subjects)
+        study_paths = study_paths_for(branches)
         results = []
-        for subject in subjects:
+        for subject in branches:
             source_node = subject.source_node
             if source_node is None:
                 continue
@@ -270,16 +282,7 @@ class AdminSubjectListView(_ContentPermissionView):
             # rather than silently deleting or concealing real work.
             if subject.cohort.code == "year-3" and not sheets.exists():
                 continue
-            program = subject.cohort.program
-            college = (
-                "Tripoli" if program.code == "human-medicine" else program.name_en.split(" — ")[-1]
-            )
-            specialty = "Human Medicine" if program.code == "human-medicine" else "Dentistry"
-            year = (
-                f"Batch {subject.cohort.code}"
-                if program.code == "human-medicine"
-                else subject.cohort.name_en.split(" — ")[-1]
-            )
+            path = study_paths[subject.id]
             results.append(
                 {
                     "id": str(subject.id),
@@ -297,9 +300,14 @@ class AdminSubjectListView(_ContentPermissionView):
                             LearningObject.WorkflowStatus.REJECTED,
                         )
                     ).count(),
-                    "specialty_title": specialty,
-                    "college_title": college,
-                    "academic_year_title": year,
+                    "cohort_id": str(subject.cohort_id),
+                    "cohort_code": subject.cohort.code,
+                    "specialty_title": path.specialty_title,
+                    "specialty_key": path.specialty_key,
+                    "college_title": path.college_title,
+                    "college_key": path.college_key,
+                    "academic_year_title": path.academic_year_title,
+                    "academic_year_key": path.academic_year_key,
                 }
             )
         return Response({"count": len(results), "results": results})

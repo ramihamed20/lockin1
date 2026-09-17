@@ -6,6 +6,21 @@ export const catalogWorkspaceApi = {
     return request("/catalog/materials");
   },
   /**
+   * The Questions directory. Same subjects and same sheet names as
+   * `materials()`, narrowed to the sheets that carry published questions.
+   */
+  questionMaterials() {
+    return request("/catalog/questions");
+  },
+  /**
+   * One Material sheet's published questions.
+   * @param {string} sheetId
+   * @param {{ signal?: AbortSignal }} [options]
+   */
+  sheetQuestions(sheetId, { signal } = {}) {
+    return request(`/catalog/sheets/${encodeURIComponent(sheetId)}/questions`, { signal });
+  },
+  /**
    * @param {string} materialSlug
    * @param {string} sheetSlug
    * @param {{ signal?: AbortSignal, view?: string }} [options] `view: "summary"`

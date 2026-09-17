@@ -21,6 +21,8 @@ from apps.entitlements.services import require_entitlement
 from apps.files.models import ManagedFile
 from apps.files.services import managed_file_delivery_size
 from apps.focus.selectors import annotation_collection_revision
+from apps.focus.services import touch_reading_session
+from apps.questions.models import Question
 
 from .active_study_readiness import readiness_payload
 from .admin_services import archive_catalog_learning_object, publish_catalog_learning_object
@@ -397,6 +399,236 @@ class CatalogMaterialListView(APIView):
         return Response({"count": len(results), "results": results})
 
 
+def _catalog_subjects_for(user: User) -> list[CatalogSubject]:
+    """The Catalog branches this reader owns, in directory order.
+
+    This is the same scope Materials resolves, which is the point: Questions is
+    a second view of one catalog, not a catalog of its own. A sheet appears in
+    Questions because the reader's cohort owns the subject it already sits
+    under, so there is never a separate question sheet to keep in step.
+    """
+
+    subjects = CatalogSubject.objects.filter(is_active=True).select_related(
+        "cohort__program", "source_node"
+    )
+    if not is_content_administrator(user):
+        cohort = user.cohort
+        if cohort is None or not cohort.is_active:
+            return []
+        subjects = subjects.filter(cohort_id=cohort.id)
+    return list(
+        subjects.exclude(source_node__isnull=True).order_by(
+            "cohort__program__position", "cohort__position", "position", "title", "id"
+        )
+    )
+
+
+def _subject_for_path(subjects: list[CatalogSubject], path: str) -> CatalogSubject | None:
+    """The one branch containing this academic path.
+
+    The longest matching prefix wins, so a subject nested under another branch
+    is attributed to itself rather than to its ancestor.
+    """
+
+    best: CatalogSubject | None = None
+    best_depth = -1
+    for subject in subjects:
+        source_node = subject.source_node
+        if source_node is None or not path.startswith(source_node.path):
+            continue
+        depth = len(source_node.path)
+        if depth > best_depth:
+            best, best_depth = subject, depth
+    return best
+
+
+def _published_question_counts(subjects: list[CatalogSubject]) -> dict[UUID, int]:
+    """Published, unretired question counts per sheet, for these branches only.
+
+    One query for the whole directory: a reader who is not cohort-scoped
+    receives every branch in the deployment, and a count per sheet would
+    otherwise make this endpoint's cost grow with the curriculum.
+    """
+
+    if not subjects:
+        return {}
+    condition = models.Q()
+    for subject in subjects:
+        source_node = subject.source_node
+        if source_node is not None:
+            condition |= models.Q(
+                published_version__academic_node__path__startswith=source_node.path
+            )
+    rows = (
+        Question.objects.filter(condition)
+        .filter(
+            published_version__isnull=False,
+            retired_at__isnull=True,
+            published_version__source_learning_object__isnull=False,
+        )
+        .values("published_version__source_learning_object")
+        .annotate(total=models.Count("id"))
+    )
+    return {
+        cast(UUID, row["published_version__source_learning_object"]): int(row["total"])
+        for row in rows
+    }
+
+
+def _question_sheets_by_subject(
+    subjects: list[CatalogSubject],
+) -> dict[UUID, list[LearningObject]]:
+    """Every live sheet under these branches, grouped by branch.
+
+    Grouping is by the sheet's own academic path, so a sheet is attributed to
+    the one branch that contains it. A year's questions therefore cannot reach
+    another year: a sheet belongs to exactly one subject, and a subject to
+    exactly one cohort.
+    """
+
+    if not subjects:
+        return {}
+    condition = models.Q()
+    for subject in subjects:
+        source_node = subject.source_node
+        if source_node is not None:
+            condition |= models.Q(current_version__academic_node__path__startswith=source_node.path)
+    sheets = (
+        LearningObject.objects.filter(condition)
+        .filter(current_version__isnull=False, archived_at__isnull=True)
+        .select_related("current_version__academic_node")
+        .order_by("position", "current_version__title", "id")
+    )
+    grouped: dict[UUID, list[LearningObject]] = {subject.id: [] for subject in subjects}
+    for sheet in sheets:
+        version = sheet.current_version
+        if version is None:
+            continue
+        owner = _subject_for_path(subjects, version.academic_node.path)
+        if owner is not None:
+            grouped[owner.id].append(sheet)
+    return grouped
+
+
+class CatalogQuestionMaterialListView(APIView):
+    """The Questions directory: the reader's own subjects and their sheets.
+
+    A sheet is listed once it has at least one published question, because a
+    sheet with none is a Materials entry rather than a question set. The names
+    are the sheet's own, so a student and an administrator always see the same
+    sheet under the same title.
+    """
+
+    def get(self, request: Request) -> Response:
+        user = _user(request)
+        subjects = _catalog_subjects_for(user)
+        counts = _published_question_counts(subjects)
+        sheets_by_subject = _question_sheets_by_subject(subjects)
+        results = []
+        for subject in subjects:
+            sheets: list[dict[str, object]] = []
+            subject_total = 0
+            for number, sheet in enumerate(sheets_by_subject.get(subject.id, []), start=1):
+                total = counts.get(sheet.id, 0)
+                if not total:
+                    continue
+                version = sheet.current_version
+                subject_total += total
+                sheets.append(
+                    {
+                        "id": str(sheet.id),
+                        "slug": str(sheet.id),
+                        "number": number,
+                        "title": version.title if version is not None else "Sheet",
+                        "questionCount": total,
+                    }
+                )
+            if not sheets:
+                continue
+            results.append(
+                {
+                    "slug": subject.material_slug,
+                    "title": subject.title,
+                    "sheets": sheets,
+                    "questionCount": subject_total,
+                }
+            )
+        return Response({"count": len(results), "results": results})
+
+
+class CatalogSheetQuestionListView(APIView):
+    """One Material sheet's published questions, for the reader who owns it."""
+
+    def get(self, request: Request, sheet_id: UUID) -> Response:
+        # Subscription access is not checked here on purpose: every route in
+        # this app already passes through SubscriptionProtectedPermission, which
+        # gates the whole content domain on ``content.premium`` and reconciles
+        # the trial a newly verified account should hold. A second check here
+        # would be the same test written twice, and the weaker of the two.
+        user = _user(request)
+        sheet = get_object_or_404(
+            LearningObject.objects.select_related("current_version__academic_node"),
+            id=sheet_id,
+            archived_at__isnull=True,
+        )
+        version = sheet.current_version
+        if version is None:
+            raise NotFound("This sheet has no current version.")
+        subject = _subject_for_path(_catalog_subjects_for(user), version.academic_node.path)
+        # Not "no questions": a sheet outside the reader's own cohort is a sheet
+        # they were never offered, and answering with an empty list would hide a
+        # misconfiguration behind something that looks normal.
+        if subject is None:
+            raise PermissionDenied("You cannot access this sheet's questions.")
+        questions = (
+            Question.objects.filter(
+                published_version__source_learning_object=sheet,
+                published_version__isnull=False,
+                retired_at__isnull=True,
+            )
+            .select_related("published_version")
+            .prefetch_related("published_version__options")
+            .order_by("published_version__source_page", "created_at", "id")
+        )
+        results = []
+        for question in questions:
+            published = question.published_version
+            if published is None:
+                continue
+            results.append(
+                {
+                    "id": str(question.id),
+                    "question_type": published.question_type,
+                    "prompt": published.prompt,
+                    "explanation": published.explanation,
+                    "topic": published.topic,
+                    "difficulty": published.difficulty,
+                    "source_page": published.source_page,
+                    "choices": [
+                        {
+                            "id": str(option.id),
+                            "text": option.text,
+                            "position": option.position,
+                            "is_correct": option.is_correct,
+                        }
+                        for option in published.options.all()
+                    ],
+                }
+            )
+        return Response(
+            {
+                "sheet": {
+                    "id": str(sheet.id),
+                    "title": version.title,
+                    "material_slug": subject.material_slug,
+                    "subject_title": subject.title,
+                },
+                "count": len(results),
+                "results": results,
+            }
+        )
+
+
 class CatalogWorkspaceView(APIView):
     def get(self, request: Request, document_id: UUID) -> Response:
         user = _user(request)
@@ -481,6 +713,11 @@ class CatalogWorkspaceView(APIView):
                 request_digest=digest,
                 response_payload=payload,
             )
+        # The reader is demonstrably still on this document. Carrying that onto
+        # its Focus session is what lets a sitting be measured if the reader
+        # never closes the tab, and it is the only continuous evidence of
+        # reading the server receives.
+        touch_reading_session(user=user, document_version_id=document.version_id)
         return Response(payload)
 
 

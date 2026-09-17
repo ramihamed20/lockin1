@@ -105,7 +105,10 @@ export function canAccessRoute(userOrSession, path, operationsSession) {
     /^\/lock-in(?:\/[^/]+)?$/.test(currentPath) ||
     /^\/review\/(?:bank(?:\/[^/]+)?|weekly)$/.test(currentPath) ||
     /^\/questions\/(?:quizzes|attempts|results)\/[^/]+$/.test(currentPath) ||
-    /^\/questions\/categories\/[^/]+(?:\/subjects\/[^/]+)?$/.test(currentPath) ||
+    // A question source, one of its subjects, and one of that subject's
+    // sheets. Django still decides which sheets and questions the reader
+    // may actually receive.
+    /^\/questions\/categories\/[^/]+(?:\/subjects\/[^/]+(?:\/sheets\/[^/]+)?)?$/.test(currentPath) ||
     /^\/community\/(?:discussions|spaces|reports)\/[^/]+$/.test(currentPath) ||
     /^\/community\/context\/(?:lesson|learning_object|question|quiz)\/[^/]+$/.test(currentPath)
   );

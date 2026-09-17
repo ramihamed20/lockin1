@@ -57,6 +57,7 @@ import { generateIdempotencyKey } from "../api/pagination.js";
 import { rememberLastOpenedCatalogSheet, resolveSheetEdition, withEditionPdfUrl } from "../lib/materialCatalog.js";
 import { useCatalogMaterials } from "../hooks/useCatalogMaterials.js";
 import { useCatalogDocument } from "../hooks/useCatalogDocument.js";
+import { useReadingSession } from "../hooks/useReadingSession.js";
 import { subscribeConnection } from "../lib/connectionState.js";
 import { createCatalogServerSync } from "../workspace/catalog/catalogServerSync.js";
 import { cssVars } from "../lib/utils.js";
@@ -602,6 +603,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   // the local cache is keyed by slug, so it needs a key of its own or the two
   // sets of marks would be cached over each other on this device.
   const storageSlug = summaryMode ? `${sheetSlug}--summary` : sheetSlug;
+  // Reading a sheet is what the streak is meant to count, so the sitting is
+  // reported. A Sheet Summary is a reference lookup rather than a study
+  // sitting, and a fixture sheet has no server document to report against.
+  useReadingSession(catalogDocument?.versionId || "", { enabled: !summaryMode });
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const rootRef = useRef(null);

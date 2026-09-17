@@ -141,3 +141,20 @@ test("Admin manages both sheet editions through one interface", () => {
   assert.match(page, /Questions are shared with the University Sheet/);
   assert.match(page, /sharedBank=\{Boolean\(plan\.parts_follow_university\)\}/);
 });
+
+test("the study-path filters navigate College -> Specialty -> Year on the server's keys", () => {
+  // Matching on the label grouped every unnamed branch under the literal
+  // string "Unassigned" and could never distinguish two colleges' years.
+  assert.ok(!page.includes('(item.college_title || "Unassigned") === college'));
+  assert.ok(page.includes("function studyKey(subject, field)"));
+  assert.ok(page.includes("`${field}_key`"));
+  // Each level narrows the one below it, so Year lists only the years the
+  // chosen college and specialty actually have.
+  assert.ok(page.includes('studyOptions(subjects, "college")'));
+  assert.ok(page.includes('studyOptions(subjects.filter(inCollege), "specialty")'));
+  assert.ok(page.includes('studyOptions(subjects.filter(inSpecialty), "academic_year")'));
+  assert.ok(page.includes('!year || studyKey(item, "academic_year") === year'));
+  assert.match(page, /All years \/ batches/);
+  // The administrator can see what a student can actually open.
+  assert.ok(page.includes("published_question_count"));
+});

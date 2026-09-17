@@ -109,6 +109,59 @@ def start_focus_session(
     return session
 
 
+def _settle_open_reading_sessions(*, user: User) -> int:
+    """Complete this reader's still-open study sessions, at their last activity.
+
+    ``complete_owned_focus_session`` measures up to *now*, which is right for a
+    session the reader is closing and wrong for one they walked away from: an
+    overnight tab would otherwise be credited with eight hours of reading on
+    the wrong day. Measuring up to ``last_activity_at`` keeps both the duration
+    and the day honest.
+    """
+
+    stale = list(
+        FocusSession.objects.filter(
+            user=user,
+            context_type=FocusSession.ContextType.STUDY,
+            status__in=(
+                FocusSession.Status.ACTIVE,
+                FocusSession.Status.PAUSED,
+                FocusSession.Status.ON_BREAK,
+            ),
+        )
+    )
+    for session in stale:
+        complete_focus_session(
+            session_id=session.id,
+            active_duration_seconds=_active_duration(
+                session=session, until=session.last_activity_at
+            ),
+            completed_at=session.last_activity_at,
+        )
+    return len(stale)
+
+
+def touch_reading_session(*, user: User, document_version_id: UUID) -> bool:
+    """Record that this reader is still reading this document.
+
+    The reader reports its state as the page, zoom or marks change, and those
+    saves are the only continuous evidence of a reading sitting. Carrying them
+    onto the session's ``last_activity_at`` is what lets an abandoned session be
+    measured afterwards instead of discarded -- and it is a single UPDATE, so it
+    adds nothing measurable to a save the reader already makes.
+    """
+
+    return (
+        FocusSession.objects.filter(
+            user=user,
+            context_type=FocusSession.ContextType.STUDY,
+            context_id=document_version_id,
+            status=FocusSession.Status.ACTIVE,
+        ).update(last_activity_at=timezone.now())
+        > 0
+    )
+
+
 @transaction.atomic
 def start_workspace_session(
     *,
@@ -132,6 +185,13 @@ def start_workspace_session(
                 "The client session identifier was already used for another workspace."
             )
         return existing, existing.workspace, False
+
+    # A reader who closed the tab left their last session open, and an open
+    # session is never measured, so its study time was lost. Settling it here
+    # is what makes the previous sitting count without a scheduler: the clamp
+    # to its own last activity keeps an abandoned session from being credited
+    # with the hours the tab sat idle.
+    _settle_open_reading_sessions(user=user)
 
     previous = (
         FocusWorkspaceSnapshot.objects.filter(
@@ -510,6 +570,10 @@ def complete_focus_session(
             context_type=session.context_type,
             context_id=session.context_id,
             active_duration_seconds=active_duration_seconds,
+            # When the sitting ended, not when this ran. A session settled the
+            # next morning was otherwise credited to the wrong day, which for a
+            # streak is the difference between a run continuing and restarting.
+            occurred_at=finished_at,
             actor_id=session.user_id,
         )
     )

@@ -15,7 +15,12 @@ test("Questions offers cohort question sources and lists subjects under AI Sheet
   assert.doesNotMatch(questions, /quizzes/i);
   assert.doesNotMatch(catalogue, /"questions\.quizzes"/);
   assert.match(questions, /id: "ai-sheet".*available: true/);
-  assert.match(questions, /getCohortMaterials\(user\)/);
+  // The subject list is the server's catalog, not a table compiled into the
+  // client: a sheet reaches Questions because the reader's cohort owns the
+  // subject it already sits under, so a published question is reachable.
+  assert.doesNotMatch(questions, /getCohortMaterials/);
+  assert.match(questions, /catalogWorkspaceApi\.questionMaterials\(\)/);
+  assert.match(questions, /catalogWorkspaceApi\.sheetQuestions\(sheetId/);
   assert.match(questions, /getCohortQuestionCategories\(user\)/);
   assert.match(questions, /t\("questions\.noQuestionsTitle"\)/);
   assert.match(catalogue, /"questions\.noQuestionsTitle": "No questions yet"/);
@@ -33,6 +38,7 @@ test("quiz launch bypasses attempt details and the player keeps grading server-a
   ]);
   assert.match(app, /path="\/questions\/categories\/:categoryId"/);
   assert.match(app, /path="\/questions\/categories\/:categoryId\/subjects\/:subjectId"/);
+  assert.match(app, /path="\/questions\/categories\/:categoryId\/subjects\/:subjectId\/sheets\/:sheetId"/);
   assert.doesNotMatch(app, /questions\/demo/);
   assert.match(launch, /assessmentsApi\.startAttempt\(quizId/);
   assert.doesNotMatch(launch, /Start or resume|Practice size|configured questions/);

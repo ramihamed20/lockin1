@@ -40,7 +40,8 @@ const LockInMode = lazyWithRecovery(() => import("./pages/LockInMode.jsx"));
 const Search = lazyWithRecovery(() => import("./pages/Search.jsx"));
 const Questions = lazyWithRecovery(() => import("./pages/Questions.jsx"));
 const QuestionCategory = lazyWithRecovery(() => import("./pages/Questions.jsx").then((module) => ({ default: module.QuestionCategory })));
-const QuestionSubjectQuestions = lazyWithRecovery(() => import("./pages/Questions.jsx").then((module) => ({ default: module.QuestionSubjectQuestions })));
+const QuestionSubjectSheets = lazyWithRecovery(() => import("./pages/Questions.jsx").then((module) => ({ default: module.QuestionSubjectSheets })));
+const QuestionSheetQuestions = lazyWithRecovery(() => import("./pages/Questions.jsx").then((module) => ({ default: module.QuestionSheetQuestions })));
 const QuizDetail = lazyWithRecovery(() => import("./pages/QuizDetail.jsx"));
 const Attempt = lazyWithRecovery(() => import("./pages/Attempt.jsx"));
 const AssessmentResult = lazyWithRecovery(() => import("./pages/AssessmentResult.jsx"));
@@ -550,7 +551,8 @@ function App() {
                 <Route path="/search" element={<Search />} />
                 <Route path="/questions" element={<Questions user={user} />} />
                 <Route path="/questions/categories/:categoryId" element={<QuestionCategory user={user} />} />
-                <Route path="/questions/categories/:categoryId/subjects/:subjectId" element={<QuestionSubjectQuestions user={user} />} />
+                <Route path="/questions/categories/:categoryId/subjects/:subjectId" element={<QuestionSubjectSheets user={user} />} />
+                <Route path="/questions/categories/:categoryId/subjects/:subjectId/sheets/:sheetId" element={<QuestionSheetQuestions user={user} />} />
                 <Route path="/questions/quizzes/:quizId" element={<QuizDetail />} />
                 <Route path="/questions/attempts/:attemptId" element={<Attempt />} />
                 <Route path="/questions/results/:resultId" element={<AssessmentResult />} />

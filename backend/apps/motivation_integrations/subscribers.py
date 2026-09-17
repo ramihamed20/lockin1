@@ -3,7 +3,7 @@ from apps.achievements.events import AchievementEarned
 from apps.achievements.services import record_evidence
 from apps.assessments.events import QuizAttemptSubmitted
 from apps.community.events import DiscussionCreated, DiscussionReplyCreated
-from apps.focus.events import FocusSessionCompleted
+from apps.focus.events import ActiveStudyExamPassed, FocusSessionCompleted
 from apps.moderation.events import ModeratorActionRecorded
 from apps.notifications.models import Notification
 from apps.notifications.services import create_notification
@@ -84,6 +84,41 @@ def _focus_completed(event: FocusSessionCompleted) -> None:
         source_object_id=event.session_id,
         value=min(event.active_duration_seconds // 60, 120),
         occurred_at=event.occurred_at,
+    )
+
+
+def _active_study_exam_passed(event: ActiveStudyExamPassed) -> None:
+    """A passed Active Study exam is a study day and a passed assessment.
+
+    ``assessment.passed`` is already one of the streak policy's qualifying
+    activity types, so this needs no rule change: it reports the evidence the
+    policy was always written to accept. The source key is the attempt, which
+    is created once, so re-submitting the same attempt cannot add a second day.
+    """
+
+    source = f"active-study-exam:{event.attempt_id}"
+    record_activity(
+        user_id=event.user_id,
+        source_key=source,
+        activity_type="assessment.passed",
+        source_object_id=event.attempt_id,
+        occurred_at=event.occurred_at,
+        metadata={
+            "sheet_id": str(event.sheet_id),
+            "difficulty": event.difficulty,
+            "kind": event.kind,
+            "score": event.score,
+            "total": event.total,
+        },
+    )
+    record_evidence(
+        user_id=event.user_id,
+        source_key=source,
+        evidence_type="assessment.passed",
+        source_object_id=event.attempt_id,
+        value=1,
+        occurred_at=event.occurred_at,
+        metadata={"difficulty": event.difficulty, "kind": event.kind},
     )
 
 
@@ -234,6 +269,7 @@ def register_subscribers() -> None:
     domain_events.subscribe(LessonCompleted, _lesson_completed)
     domain_events.subscribe(FocusSessionCompleted, _focus_completed)
     domain_events.subscribe(QuizAttemptSubmitted, _assessment_submitted)
+    domain_events.subscribe(ActiveStudyExamPassed, _active_study_exam_passed)
     domain_events.subscribe(DiscussionCreated, _discussion_created)
     domain_events.subscribe(DiscussionReplyCreated, _reply_created)
     domain_events.subscribe(UserEmailVerified, _email_verified)
