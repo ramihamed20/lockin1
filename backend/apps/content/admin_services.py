@@ -1127,14 +1127,10 @@ def active_study_plan_preview(
             saved_plan = plan_payload(
                 total_pdf_pages=saved_total,
                 excluded_start_pages=(
-                    resolved.settings.excluded_start_pages
-                    if resolved.settings is not None
-                    else 0
+                    resolved.settings.excluded_start_pages if resolved.settings is not None else 0
                 ),
                 excluded_end_pages=(
-                    resolved.settings.excluded_end_pages
-                    if resolved.settings is not None
-                    else 0
+                    resolved.settings.excluded_end_pages if resolved.settings is not None else 0
                 ),
                 **_pinned_to_university(sheet=sheet, edition=edition),
             )
@@ -1142,9 +1138,7 @@ def active_study_plan_preview(
             saved_plan = None
     saved_signatures = {
         str(item["difficulty"]): _plan_signature(item)
-        for item in cast(
-            list[dict[str, object]], saved_plan["difficulties"] if saved_plan else []
-        )
+        for item in cast(list[dict[str, object]], saved_plan["difficulties"] if saved_plan else [])
     }
     proposed_signatures = {
         str(item["difficulty"]): _plan_signature(item)
@@ -1242,11 +1236,7 @@ def active_study_question_content_payload(
         "configuration_revision": (
             effective.own.revision
             if effective.own is not None
-            else (
-                university_settings.revision
-                if university_settings is not None
-                else 0
-            )
+            else (university_settings.revision if university_settings is not None else 0)
         ),
         "content": {
             "status": status,
@@ -1494,9 +1484,13 @@ def update_active_study_settings(
         )
     }
     plan_will_change = current_signatures != proposed_signatures
-    saved_question_conflict = edition == UNIVERSITY and plan_will_change and any(
-        content.plan_signature != proposed_signatures.get(content.difficulty)
-        for content in sheet.active_study_question_content.all()
+    saved_question_conflict = (
+        edition == UNIVERSITY
+        and plan_will_change
+        and any(
+            content.plan_signature != proposed_signatures.get(content.difficulty)
+            for content in sheet.active_study_question_content.all()
+        )
     )
     if saved_question_conflict and not confirm_boundary_change:
         raise ContentRuleError(

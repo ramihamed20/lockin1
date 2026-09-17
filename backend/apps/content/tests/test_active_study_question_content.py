@@ -150,11 +150,14 @@ def test_boundary_confirmation_only_applies_to_a_new_conflicting_plan_and_is_not
     question_endpoint = _endpoint(sheet).replace("/medium", "/easy")
     settings_endpoint = f"/api/v1/operations/admin/content/sheets/{sheet.id}/active-study"
     payload = _payload(parts=3)
-    assert client.put(
-        question_endpoint,
-        {"expected_revision": 0, "payload": payload},
-        format="json",
-    ).status_code == 200
+    assert (
+        client.put(
+            question_endpoint,
+            {"expected_revision": 0, "payload": payload},
+            format="json",
+        ).status_code
+        == 200
+    )
 
     current = client.get(settings_endpoint).json()
     # Re-saving the same saved configuration is safe and must not prompt.
