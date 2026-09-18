@@ -28,7 +28,6 @@ from apps.questions.models import Question, QuestionAnswer
 from apps.xp.models import XpBalance, XpTransaction
 
 from .helpers import published_pdf
-from .test_catalog_questions import _year_fixture
 
 pytestmark = pytest.mark.django_db
 
@@ -339,19 +338,21 @@ def test_a_submission_that_loses_the_race_returns_the_recorded_answer() -> None:
 
 
 @pytest.mark.postgres
-@pytest.mark.django_db(transaction=True)
+# The fixture reads the migration-seeded education tree, and an earlier
+# transactional test will have flushed it. serialized_rollback reloads it first.
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 @override_settings(COHORT_CONTENT_ENFORCEMENT=True)
 def test_concurrent_submissions_record_one_answer_and_one_award() -> None:
-    """Real concurrent requests against PostgreSQL's unique index."""
+    """Real concurrent requests against PostgreSQL's unique index.
 
-    fixture = _year_fixture()
-    years = fixture["years"]
-    assert isinstance(years, dict)
-    sheet, student = years["year-1"]["sheet"], years["year-1"]["student"]
+    The fixture creates no CatalogSubject by hand: in a transactional test the
+    catalog projection runs on commit and has already created every branch.
+    """
+
+    fixture = _fixture()
+    sheet, student = fixture["zawiya_sheet"], fixture["zawiya_student"]
     assert isinstance(sheet, LearningObject) and isinstance(student, User)
-    question = (
-        _client(student).get(f"/api/v1/catalog/sheets/{sheet.id}/questions").json()["results"][0]
-    )
+    question = _questions(_client(student), sheet)["easy"]
     url = f"/api/v1/catalog/sheets/{sheet.id}/questions/{question['id']}/answer"
     choices = [choice["id"] for choice in question["choices"]]
     barrier = Barrier(4)

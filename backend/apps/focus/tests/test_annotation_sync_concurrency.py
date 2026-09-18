@@ -11,7 +11,11 @@ from .test_workspace import _client, _stroke, _workspace_fixture
 
 
 @pytest.mark.postgres
-@pytest.mark.django_db(transaction=True)
+# A transactional test runs against whatever the previous one left, and every
+# transactional test ends by flushing the database -- migration-seeded groups
+# included. serialized_rollback reloads that seed first, so this test no longer
+# depends on being the first transactional test in the run.
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 def test_two_devices_conflict_then_replay_without_losing_either_addition() -> None:
     _, student, _, version_id = _workspace_fixture()
     barrier = Barrier(2)
