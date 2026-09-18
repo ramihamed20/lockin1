@@ -210,3 +210,37 @@ class QuestionImportBatch(models.Model):
 
     def __str__(self) -> str:
         return f"question_import_{self.id}"
+
+
+class QuestionAnswer(models.Model):
+    """A student's one answer to a published question.
+
+    One row per student and question, enforced by the database, so the answer
+    is locked the moment it is recorded: a retry, a refresh or a second tab
+    reads this row back instead of grading again. The XP it earned is kept here
+    as a receipt; the authoritative award is the ``XpTransaction`` it caused.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="question_answers",
+    )
+    question = models.ForeignKey(Question, on_delete=models.PROTECT, related_name="answers")
+    version = models.ForeignKey(QuestionVersion, on_delete=models.PROTECT, related_name="answers")
+    selected_option_ids = models.JSONField(default=list)
+    is_correct = models.BooleanField()
+    xp_awarded = models.PositiveSmallIntegerField(default=0)
+    answered_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ("-answered_at", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("user", "question"), name="question_answer_user_question_unique"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.question_id}"

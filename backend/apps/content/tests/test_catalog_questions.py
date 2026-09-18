@@ -152,7 +152,10 @@ def test_a_material_sheet_with_published_questions_reaches_its_own_students() ->
     assert body["count"] == 1
     question = body["results"][0]
     assert question["prompt"] == "Which layer is named in First Year?"
-    assert [choice["text"] for choice in question["choices"] if choice["is_correct"]] == ["Basal"]
+    # Correctness stays on the server until the student answers.
+    assert [choice["text"] for choice in question["choices"]][0] == "Basal"
+    assert question["answer"] is None
+    assert all("is_correct" not in choice for choice in question["choices"])
 
 
 @override_settings(COHORT_CONTENT_ENFORCEMENT=True)

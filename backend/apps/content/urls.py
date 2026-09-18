@@ -18,6 +18,7 @@ from .views import (
     CatalogDocumentResolveView,
     CatalogMaterialListView,
     CatalogQuestionMaterialListView,
+    CatalogSheetQuestionAnswerView,
     CatalogSheetQuestionListView,
     CatalogWorkspaceView,
     ManagementLearningObjectDetailView,
@@ -47,6 +48,11 @@ urlpatterns = [
         "catalog/sheets/<uuid:sheet_id>/questions",
         CatalogSheetQuestionListView.as_view(),
         name="catalog-sheet-questions",
+    ),
+    path(
+        "catalog/sheets/<uuid:sheet_id>/questions/<uuid:question_id>/answer",
+        CatalogSheetQuestionAnswerView.as_view(),
+        name="catalog-sheet-question-answer",
     ),
     path(
         "catalog/documents/<slug:material_slug>/<slug:sheet_slug>",

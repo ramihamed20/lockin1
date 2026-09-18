@@ -254,6 +254,20 @@
     box-shadow: none;
   }
 
+  /* A graded Questions choice is locked because it is a result, not because it
+     is unavailable: it keeps full strength and its verdict colour, hovered or
+     not, while the untouched distractors fade. */
+  .question-player-card .choices button.correct:disabled {
+    opacity: 1;
+    color: var(--color-success);
+    background-color: color-mix(in srgb, var(--color-success) 12%, var(--surface-2));
+  }
+  .question-player-card .choices button.wrong:disabled {
+    opacity: 1;
+    color: var(--color-danger);
+    background-color: color-mix(in srgb, var(--color-danger) 12%, var(--surface-2));
+  }
+
   :where(button, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [data-ix]):disabled:hover,
   :where(button, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [data-ix])[aria-disabled="true"]:hover {
     background-color: inherit;

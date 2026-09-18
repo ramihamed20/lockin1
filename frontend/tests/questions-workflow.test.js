@@ -54,3 +54,27 @@ test("quiz launch bypasses attempt details and the player keeps grading server-a
   assert.match(result, /"assessment\.explainQuestion"/);
   assert.match(result, /question\.correct/);
 });
+
+test("sheet questions are answered one tap at a time and graded by the server", async () => {
+  const [questions, api, catalogue] = await Promise.all([
+    readFile(new URL("../src/pages/Questions.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/api/catalogWorkspace.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/lib/i18n.js", import.meta.url), "utf8")
+  ]);
+  // The server decides correctness and XP; the client never reads either
+  // from the question it was sent.
+  assert.match(api, /answerQuestion\(sheetId, questionId, choiceIds\)/);
+  assert.match(api, /\/answer`, \{\s*method: "POST"/);
+  assert.doesNotMatch(questions, /choice\.is_correct|question\.explanation/);
+  assert.match(questions, /answer\.correct_choice_ids|answer\?\.correct_choice_ids/);
+  assert.match(questions, /answer\.xp_awarded/);
+  // A single-answer tap submits; only multiple-select keeps a check button.
+  assert.match(questions, /if \(!multiple\) \{\s*setSelected\(\[id\]\);\s*submit\(\[id\]\);/);
+  assert.match(questions, /\{multiple && !answer && \(\s*<button[^>]*onClick=\{\(\) => submit\(selected\)\}/);
+  assert.match(questions, /inFlight\.current/);
+  assert.doesNotMatch(questions, /questions\.tryAgain/);
+  assert.match(questions, /t\("questions\.progress", \{ index: position, total \}\)/);
+  assert.match(questions, /t\("questions\.remaining", \{ count: total - position \}\)/);
+  assert.match(catalogue, /"questions\.progress": "Question \{index\} of \{total\}"/);
+  assert.match(catalogue, /"questions\.xpEarned": "\+\{count\} XP"/);
+});

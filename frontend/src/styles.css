@@ -8924,11 +8924,167 @@ a.streak-card:hover:where(html.ix-hover *) {
   gap: var(--space-4);
 }
 
-/* One sheet's questions, stacked. A practice card is already a full-width
-   reading surface, so this only owns the rhythm between them. */
-.questions-practice-list {
+/* One sheet's questions, one at a time: progress, the card, then navigation.
+   Every colour comes from the theme tokens, so each Lock-in theme restyles it. */
+.question-player {
+  width: min(100%, 760px);
+  margin-inline: auto;
   display: grid;
   gap: var(--space-4);
+}
+
+.question-progress {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.question-progress-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.question-progress-meta strong {
+  color: var(--text);
+  font-size: var(--text-md);
+  font-variant-numeric: tabular-nums;
+}
+
+.question-progress-track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-text-primary) 10%, transparent);
+}
+
+.question-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary);
+  transform-origin: left center;
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[dir="rtl"] .question-progress-track span {
+  transform-origin: right center;
+}
+
+.question-player-card {
+  display: grid;
+  gap: var(--space-3);
+  padding: clamp(18px, 4vw, 28px);
+}
+
+.question-player-card h2 {
+  margin: 0;
+  font-size: clamp(1.05rem, 2.4vw, 1.3rem);
+  line-height: 1.45;
+  overflow-wrap: break-word;
+}
+
+.question-player-card .choices {
+  margin-top: 0;
+}
+
+.question-player-card .choices button {
+  min-height: 56px;
+  padding-block: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.question-card-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+}
+
+.question-difficulty {
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--color-text-primary) 8%, transparent);
+}
+
+.question-difficulty.is-easy { color: var(--color-success); background: color-mix(in srgb, var(--color-success) 14%, transparent); }
+.question-difficulty.is-medium { color: var(--color-warning); background: color-mix(in srgb, var(--color-warning) 14%, transparent); }
+.question-difficulty.is-hard { color: var(--color-danger); background: color-mix(in srgb, var(--color-danger) 14%, transparent); }
+
+.question-answer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.question-xp-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-self: center;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  font-weight: 800;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 16%, transparent);
+  animation: answer-pop 260ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.question-pending,
+.question-error {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.question-error {
+  color: var(--color-danger);
+}
+
+.question-player-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.question-player-actions .btn {
+  min-height: 48px;
+}
+
+.question-player-summary {
+  justify-items: center;
+  text-align: center;
+  padding: clamp(24px, 5vw, 40px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+
+.question-player-summary h2,
+.question-player-summary p {
+  margin: 0;
+}
+
+@media (max-width: 560px) {
+  .question-player-actions .btn {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .question-progress-track span,
+  .question-xp-chip {
+    transition: none;
+    animation: none;
+  }
 }
 
 .question-launch-panel {
