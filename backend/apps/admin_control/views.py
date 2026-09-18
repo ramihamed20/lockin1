@@ -28,6 +28,7 @@ from platform_core.api.pagination import LockinPagination
 from platform_core.network import client_ip
 
 from .models import AdminInternalNote, NotificationCampaign, PaymentStatusCorrection
+from .scope_analytics import ScopeRejected, scoped_analytics
 from .selectors import (
     PURCHASE_ORDERINGS,
     SUBSCRIPTION_ORDERINGS,
@@ -722,6 +723,25 @@ class AdminEntitlementRevokeView(APIView):
         from apps.entitlements.serializers import EntitlementGrantSerializer
 
         return Response(EntitlementGrantSerializer(grant).data)
+
+
+class AdminScopedAnalyticsView(APIView):
+    """Platform totals for Overall, one University, one Specialty or one Year."""
+
+    permission_classes = [HasOperationalCapability]
+    required_capability = Capability.ANALYTICS_VIEW
+
+    def get(self, request: Request) -> Response:
+        try:
+            return Response(
+                scoped_analytics(
+                    university=request.query_params.get("university"),
+                    specialty=request.query_params.get("specialty"),
+                    year=request.query_params.get("year"),
+                )
+            )
+        except ScopeRejected as error:
+            raise RequestRejected(str(error), code="analytics_scope_invalid") from error
 
 
 class AdminAnalyticsDashboardView(APIView):

@@ -2,7 +2,8 @@
 
 The client sends only which choices it picked. Correctness, the explanation and
 the XP are all decided here from the published version, so nothing the browser
-claims about the answer or its reward is trusted.
+claims about the answer or its reward is trusted. XP is earned only by a correct
+answer; a wrong one is recorded, locked and worth nothing.
 
 Idempotency has two independent locks. ``QuestionAnswer`` is unique per student
 and question, so a second submission -- a double tap, a retry after a dropped
@@ -70,19 +71,24 @@ def answer_question(
         raise AnswerRejected("This question is not available.")
     selected = _selection(version, choice_ids)
     correct = {option.id for option in version.options.all() if option.is_correct}
+    is_correct = set(selected) == correct
     points = XP_BY_DIFFICULTY.get(version.difficulty, XP_BY_DIFFICULTY["medium"])
     now = timezone.now()
 
     try:
         with transaction.atomic():
+            # The row is written whatever the verdict: a wrong answer is locked
+            # exactly like a right one, so it can never be retaken for XP.
             answer = QuestionAnswer.objects.create(
                 user=user,
                 question=question,
                 version=version,
                 selected_option_ids=[str(choice_id) for choice_id in selected],
-                is_correct=set(selected) == correct,
+                is_correct=is_correct,
                 answered_at=now,
             )
+            if not is_correct:
+                return answer, True
             award, created = award_xp(
                 user_id=user.id,
                 source_key=xp_source_key(user_id=user.id, question_id=question.id),

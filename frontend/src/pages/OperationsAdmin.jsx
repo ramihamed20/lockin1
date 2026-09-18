@@ -10,6 +10,7 @@ import { formatDateTime, formatNumber } from "../lib/i18n.js";
 import AdminContentManagement from "./AdminContentManagement.jsx";
 import PaymentsConsole from "./admin/PaymentsConsole.jsx";
 import SubscriptionsConsole from "./admin/SubscriptionsConsole.jsx";
+import ScopeAnalytics from "./admin/ScopeAnalytics.jsx";
 import "./creator-studio.css";
 
 const TABS = [
@@ -175,6 +176,7 @@ function Analytics() {
   if (data.error) return <ErrorPanel message={data.error} onRetry={data.reload} />;
   const analytics = data.data;
   return <div className="creator-analytics">
+    <ScopeAnalytics />
     <div className="creator-page-tools"><div><p>Stored aggregates</p><h2>Learning and business signals</h2><span>{analytics.period.from} — {analytics.period.to} · UTC</span></div><RangePicker days={days} onChange={setDays} /></div>
     <section className="creator-metrics creator-metrics-four">
       <MetricCard label="Active learners" value={formatNumber(analytics.learning.active_learners)} hint={`${formatNumber(analytics.learning.focus_sessions)} Focus sessions`} icon="user" />

@@ -117,7 +117,8 @@ async function mockStudent(page, { directory = DIRECTORY, submissions = [] } = {
         correct_choice_ids: [grading.correct],
         is_correct: choiceIds.length === 1 && choiceIds[0] === grading.correct,
         explanation: grading.explanation,
-        xp_awarded: grading.xp,
+        // XP is earned only by a correct answer.
+        xp_awarded: choiceIds.length === 1 && choiceIds[0] === grading.correct ? grading.xp : 0,
         answered_at: "2026-09-18T10:00:00Z"
       };
       return json({ question_id: questionId, created, answer: recorded[questionId], xp_total: 0 }, created ? 201 : 200);
@@ -164,7 +165,8 @@ test("a published sheet is reachable from Questions and its questions can be ans
 
   await expect(card.getByText("Not quite")).toBeVisible();
   await expect(card.getByText("Melanocytes reside in the basal layer.")).toBeVisible();
-  await expect(card.getByText("+5 XP")).toBeVisible();
+  // A wrong answer earns nothing, so no reward is shown.
+  await expect(card.getByText(/\+\d+ XP/)).toHaveCount(0);
   await expect(card.getByRole("button", { name: /Basal/ })).toHaveClass(/correct/);
   await expect(card.getByRole("button", { name: /Spinous/ })).toHaveClass(/wrong/);
   // Locked: a second tap cannot submit again.
@@ -183,7 +185,7 @@ test("a published sheet is reachable from Questions and its questions can be ans
 
   await page.getByRole("button", { name: "Finish" }).click();
   await expect(page.getByText("1 of 2 correct")).toBeVisible();
-  await expect(page.getByText("+15 XP")).toBeVisible();
+  await expect(page.locator(".question-player-summary").getByText("+10 XP")).toBeVisible();
 
   await page.screenshot({ path: testInfo.outputPath("questions-sheet-practice.png") });
 });

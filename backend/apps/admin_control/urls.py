@@ -16,6 +16,7 @@ from .views import (
     AdminPurchaseListView,
     AdminPurchaseRefundView,
     AdminRoleCatalogView,
+    AdminScopedAnalyticsView,
     AdminSubscriptionActionView,
     AdminSubscriptionDetailView,
     AdminSubscriptionListView,
@@ -105,6 +106,11 @@ urlpatterns = [
         "operations/admin/analytics/dashboard",
         AdminAnalyticsDashboardView.as_view(),
         name="analytics-dashboard",
+    ),
+    path(
+        "operations/admin/analytics/scope",
+        AdminScopedAnalyticsView.as_view(),
+        name="analytics-scope",
     ),
     path(
         "operations/admin/notifications/campaigns",

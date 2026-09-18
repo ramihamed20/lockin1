@@ -78,3 +78,27 @@ test("sheet questions are answered one tap at a time and graded by the server", 
   assert.match(catalogue, /"questions\.progress": "Question \{index\} of \{total\}"/);
   assert.match(catalogue, /"questions\.xpEarned": "\+\{count\} XP"/);
 });
+
+test("only a correct answer shows an XP reward", async () => {
+  const questions = await readFile(new URL("../src/pages/Questions.jsx", import.meta.url), "utf8");
+  // The reward chip reads the server's award, which is zero for a wrong answer.
+  assert.match(questions, /\{answer\.xp_awarded > 0 && <span className="question-xp-chip">/);
+  assert.doesNotMatch(questions, /xp_value[^;]*xpEarned/);
+});
+
+test("admin scope analytics is server-aggregated and filtered by node ids", async () => {
+  const [page, api, admin] = await Promise.all([
+    readFile(new URL("../src/pages/admin/ScopeAnalytics.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/api/adminControl.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/pages/OperationsAdmin.jsx", import.meta.url), "utf8")
+  ]);
+  assert.match(api, /request\("\/operations\/admin\/analytics\/scope" \+ buildQueryString\(\{ university, specialty, year \}\)\)/);
+  assert.match(admin, /<ScopeAnalytics \/>/);
+  // Choosing a level clears the ones beneath it, so a Specialty id is never
+  // sent without the University it belongs to.
+  assert.match(page, /setScope\(\{ \.\.\.EMPTY_SCOPE, university: value \}\)/);
+  assert.match(page, /specialty: value, year: ""/);
+  // No client-side totals: every figure is read from the response.
+  assert.doesNotMatch(page, /\.reduce\(/);
+  assert.match(page, /No data in this scope yet/);
+});

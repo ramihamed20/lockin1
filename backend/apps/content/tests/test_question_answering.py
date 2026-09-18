@@ -4,10 +4,14 @@ The fixture uses the seeded education tree rather than a synthetic one, so these
 tests fail if the real Zawiya Year 2 branch ever stops reaching its students.
 """
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
+from threading import Barrier
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
+from django.db import close_old_connections
 from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -19,10 +23,12 @@ from apps.education.models import StudentCohort
 from apps.education.tests.helpers import create_admin
 from apps.entitlements.models import EntitlementDefinition, EntitlementGrant
 from apps.questions.admin_services import import_questions
+from apps.questions.answering import answer_question
 from apps.questions.models import Question, QuestionAnswer
 from apps.xp.models import XpBalance, XpTransaction
 
 from .helpers import published_pdf
+from .test_catalog_questions import _year_fixture
 
 pytestmark = pytest.mark.django_db
 
@@ -169,50 +175,76 @@ def test_zawiya_second_year_questions_are_scoped_to_zawiya() -> None:
     ]
 
 
+def _questions(client: APIClient, sheet: LearningObject) -> dict[str, dict]:  # type: ignore[type-arg]
+    listed = client.get(f"/api/v1/catalog/sheets/{sheet.id}/questions").json()["results"]
+    return {item["difficulty"]: item for item in listed}
+
+
 @override_settings(COHORT_CONTENT_ENFORCEMENT=True)
-def test_answering_awards_difficulty_xp_once_and_locks_the_question() -> None:
+@pytest.mark.parametrize(("difficulty", "points"), [("easy", 5), ("medium", 10), ("hard", 15)])
+def test_a_correct_answer_earns_its_difficulty_xp_exactly_once(
+    difficulty: str, points: int
+) -> None:
     fixture = _fixture()
     sheet, student = fixture["zawiya_sheet"], fixture["zawiya_student"]
     assert isinstance(sheet, LearningObject) and isinstance(student, User)
     client = _client(student)
-    questions = client.get(f"/api/v1/catalog/sheets/{sheet.id}/questions").json()["results"]
-    by_prompt = {item["prompt"]: item for item in questions}
-    easy, medium, hard = (by_prompt[f"Zawiya {level}"] for level in ("easy", "medium", "hard"))
+    question = _questions(client, sheet)[difficulty]
 
-    first = _answer(client, sheet, easy, "Basal")
+    first = _answer(client, sheet, question, "Basal")
     assert first.status_code == 201
     body = first.json()
     assert body["created"] is True
     assert body["answer"]["is_correct"] is True
-    assert body["answer"]["xp_awarded"] == 5
-    assert body["answer"]["explanation"] == "Explained: Zawiya easy"
-    assert body["xp_total"] == 5
+    assert body["answer"]["xp_awarded"] == points
+    assert body["answer"]["explanation"] == f"Explained: Zawiya {difficulty}"
+    assert body["xp_total"] == points
 
-    # A wrong answer is graded wrong, reveals the right choice, and still earns
-    # its difficulty's XP once.
-    wrong = _answer(client, sheet, medium, "Spinous").json()
-    basal = next(item["id"] for item in medium["choices"] if item["text"] == "Basal")
-    assert wrong["answer"]["is_correct"] is False
-    assert wrong["answer"]["correct_choice_ids"] == [basal]
-    assert wrong["answer"]["xp_awarded"] == 10
-    assert _answer(client, sheet, hard, "Basal").json()["answer"]["xp_awarded"] == 15
-
-    # Retrying, including with a different choice, returns the recorded answer.
-    for choice in ("Basal", "Granular"):
-        again = _answer(client, sheet, easy, choice)
+    # Double taps and retries, with the same or another choice, read the
+    # recorded answer back and award nothing more.
+    for choice in ("Basal", "Basal", "Granular"):
+        again = _answer(client, sheet, question, choice)
         assert again.status_code == 200
         assert again.json()["created"] is False
-        assert again.json()["answer"]["is_correct"] is True
-        assert again.json()["xp_total"] == 30
+        assert again.json()["answer"]["xp_awarded"] == points
+        assert again.json()["xp_total"] == points
 
-    assert QuestionAnswer.objects.filter(user=student).count() == 3
-    assert XpTransaction.objects.filter(user=student).count() == 3
-    assert XpBalance.objects.get(user=student).total_points == 30
+    assert QuestionAnswer.objects.filter(user=student).count() == 1
+    assert XpTransaction.objects.filter(user=student).count() == 1
+    assert XpBalance.objects.get(user=student).total_points == points
 
-    # Reopening the sheet shows each question already answered.
+
+@override_settings(COHORT_CONTENT_ENFORCEMENT=True)
+def test_a_wrong_answer_earns_nothing_and_stays_locked() -> None:
+    fixture = _fixture()
+    sheet, student = fixture["zawiya_sheet"], fixture["zawiya_student"]
+    assert isinstance(sheet, LearningObject) and isinstance(student, User)
+    client = _client(student)
+    hard = _questions(client, sheet)["hard"]
+    basal = next(item["id"] for item in hard["choices"] if item["text"] == "Basal")
+
+    wrong = _answer(client, sheet, hard, "Spinous")
+    assert wrong.status_code == 201
+    body = wrong.json()
+    assert body["answer"]["is_correct"] is False
+    assert body["answer"]["correct_choice_ids"] == [basal]
+    assert body["answer"]["explanation"] == "Explained: Zawiya hard"
+    assert body["answer"]["xp_awarded"] == 0
+    assert body["xp_total"] == 0
+
+    # Submitting the right answer afterwards cannot convert it into XP.
+    retry = _answer(client, sheet, hard, "Basal")
+    assert retry.status_code == 200
+    assert retry.json()["created"] is False
+    assert retry.json()["answer"]["is_correct"] is False
+    assert retry.json()["answer"]["xp_awarded"] == 0
+
+    assert QuestionAnswer.objects.get(user=student).is_correct is False
+    assert not XpTransaction.objects.filter(user=student).exists()
     reopened = client.get(f"/api/v1/catalog/sheets/{sheet.id}/questions").json()
-    assert reopened["answered"] == 3
-    assert sorted(item["answer"]["xp_awarded"] for item in reopened["results"]) == [5, 10, 15]
+    assert reopened["answered"] == 1
+    answered = next(item for item in reopened["results"] if item["answer"])
+    assert answered["answer"] == body["answer"]
 
 
 @override_settings(COHORT_CONTENT_ENFORCEMENT=True)
@@ -268,3 +300,79 @@ def test_a_draft_question_cannot_be_listed_or_answered() -> None:
     )
     assert response.status_code == 404
     assert not XpTransaction.objects.filter(user=student).exists()
+
+
+@override_settings(COHORT_CONTENT_ENFORCEMENT=True)
+def test_a_submission_that_loses_the_race_returns_the_recorded_answer() -> None:
+    """The window between the "already answered?" read and the insert.
+
+    A second request that passes the read before the first commits must fall
+    back on the unique constraint, not grade again or award again.
+    """
+
+    fixture = _fixture()
+    sheet, student = fixture["zawiya_sheet"], fixture["zawiya_student"]
+    assert isinstance(sheet, LearningObject) and isinstance(student, User)
+    question_id = _questions(_client(student), sheet)["medium"]["id"]
+    question = Question.objects.get(id=question_id)
+    version = question.published_version
+    assert version is not None
+    correct = [option.id for option in version.options.all() if option.is_correct]
+    wrong = [option.id for option in version.options.all() if not option.is_correct][:1]
+
+    first, created = answer_question(user=student, question=question, choice_ids=correct)
+    assert created is True and first.xp_awarded == 10
+
+    class _Unseen:
+        def first(self) -> None:
+            return None
+
+    with patch.object(QuestionAnswer.objects, "filter", return_value=_Unseen()):
+        second, created_again = answer_question(user=student, question=question, choice_ids=wrong)
+
+    assert created_again is False
+    assert second.id == first.id
+    assert second.is_correct is True
+    assert QuestionAnswer.objects.filter(user=student).count() == 1
+    assert XpTransaction.objects.filter(user=student).count() == 1
+    assert XpBalance.objects.get(user=student).total_points == 10
+
+
+@pytest.mark.postgres
+@pytest.mark.django_db(transaction=True)
+@override_settings(COHORT_CONTENT_ENFORCEMENT=True)
+def test_concurrent_submissions_record_one_answer_and_one_award() -> None:
+    """Real concurrent requests against PostgreSQL's unique index."""
+
+    fixture = _year_fixture()
+    years = fixture["years"]
+    assert isinstance(years, dict)
+    sheet, student = years["year-1"]["sheet"], years["year-1"]["student"]
+    assert isinstance(sheet, LearningObject) and isinstance(student, User)
+    question = (
+        _client(student).get(f"/api/v1/catalog/sheets/{sheet.id}/questions").json()["results"][0]
+    )
+    url = f"/api/v1/catalog/sheets/{sheet.id}/questions/{question['id']}/answer"
+    choices = [choice["id"] for choice in question["choices"]]
+    barrier = Barrier(4)
+
+    def submit(choice_id: str) -> int:
+        close_old_connections()
+        try:
+            client = _client(student)
+            barrier.wait(timeout=10)
+            return client.post(url, {"choice_ids": [choice_id]}, format="json").status_code
+        finally:
+            close_old_connections()
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        statuses = list(pool.map(submit, [choices[0], choices[0], choices[1], choices[0]]))
+
+    assert sorted(statuses) == [200, 200, 200, 201]
+    answer = QuestionAnswer.objects.get(user=student)
+    awards = XpTransaction.objects.filter(user=student)
+    expected = 5 if answer.is_correct else 0
+    assert answer.xp_awarded == expected
+    assert awards.count() == (1 if answer.is_correct else 0)
+    balance = XpBalance.objects.filter(user=student).first()
+    assert (balance.total_points if balance else 0) == expected
