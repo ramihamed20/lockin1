@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useMemo, useRef, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { catalogWorkspaceApi } from "../api/catalogWorkspace.js";
 import { getCohortQuestionCategories } from "../lib/materialCatalog.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
@@ -136,13 +136,21 @@ export function QuestionSubjectSheets({ user = null }) {
   );
 }
 
-/** One sheet's published questions, answered at the reader's own pace. */
+/**
+ * One sheet's published questions, one at a time.
+ *
+ * The server grades every answer: the payload carries no correct choice and no
+ * explanation until the student has answered, and the reply to that answer is
+ * what reveals both along with the XP it earned. An answered question comes
+ * back answered on every later visit, so reopening a sheet can neither re-grade
+ * nor re-award it.
+ */
 export function QuestionSheetQuestions({ user = null }) {
-  const { categoryId, sheetId } = useParams();
+  const { categoryId, subjectId, sheetId } = useParams();
   const { t } = useI18n();
   const category = cohortCategories(user).find((item) => item.id === categoryId);
   const data = useAsyncData((signal) => catalogWorkspaceApi.sheetQuestions(sheetId, { signal }), [sheetId]);
-  const questions = Array.isArray(data.data?.results) ? data.data.results : [];
+  const questions = useMemo(() => (Array.isArray(data.data?.results) ? data.data.results : []), [data.data]);
   const sheetTitle = data.data?.sheet?.title || t("questions.aiSheet");
 
   if (!category?.available) return <Page title={t("materials.notFoundTitle")}><ErrorPanel message={t("questions.subjectUnavailable")} /></Page>;
@@ -154,90 +162,188 @@ export function QuestionSheetQuestions({ user = null }) {
     // The sheet name is shown here rather than hidden: nothing else on this
     // page names the sheet, so a student would otherwise have no way to
     // confirm which one they opened.
-    <Page
-      title={sheetTitle}
-      subtitle={t("questions.questionCount", { count: questions.length })}
-      showHeading
-    >
-      <section className="questions-practice-list" aria-label={t("questions.sheetQuestionsLabel")}>
-        {questions.map((question, index) => (
-          <PracticeItem key={question.id} question={question} number={index + 1} />
-        ))}
-      </section>
+    <Page title={sheetTitle} showHeading>
+      <QuestionPlayer
+        key={sheetId}
+        sheetId={sheetId}
+        questions={questions}
+        backTo={`/questions/categories/${categoryId}/subjects/${subjectId}`}
+      />
     </Page>
   );
 }
 
-/**
- * A practice card: the reader answers, and only then sees whether they were
- * right and why. Correctness is in the payload because this is practice rather
- * than a graded attempt, so the card reveals it on the reader's own action and
- * never before.
- */
-function PracticeItem({ question, number }) {
-  const { t } = useI18n();
-  const [selected, setSelected] = useState([]);
-  const [revealed, setRevealed] = useState(false);
-  const multiple = question.question_type === "multiple_select";
-  const choices = Array.isArray(question.choices) ? question.choices : [];
+function initialAnswers(questions) {
+  return Object.fromEntries(questions.filter((question) => question.answer).map((question) => [question.id, question.answer]));
+}
 
-  function choose(id) {
-    if (revealed) return;
-    setSelected((current) => {
-      if (!multiple) return [id];
-      return current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
-    });
+function QuestionPlayer({ sheetId, questions, backTo }) {
+  const { t } = useI18n();
+  const [answers, setAnswers] = useState(() => initialAnswers(questions));
+  // A reopened sheet resumes at the first question still to answer.
+  const [index, setIndex] = useState(() => Math.max(questions.findIndex((question) => !question.answer), 0));
+  const [finished, setFinished] = useState(false);
+  const total = questions.length;
+  const question = questions[index];
+  const position = index + 1;
+
+  function record(questionId, answer) {
+    setAnswers((current) => (current[questionId] ? current : { ...current, [questionId]: answer }));
   }
 
-  const correctIds = choices.filter((choice) => choice.is_correct).map((choice) => choice.id);
-  const wasCorrect = revealed
-    && selected.length === correctIds.length
-    && correctIds.every((id) => selected.includes(id));
+  if (finished) {
+    const results = Object.values(answers);
+    const correct = results.filter((answer) => answer.is_correct).length;
+    const xp = results.reduce((sum, answer) => sum + (answer.xp_awarded || 0), 0);
+    return (
+      <section className="question-player question-player-summary" aria-live="polite">
+        <span className="stat-icon"><Icon name="check" /></span>
+        <h2>{t("questions.sheetComplete")}</h2>
+        <p className="muted">{t("questions.sheetScore", { correct, total })}</p>
+        {xp > 0 && <span className="question-xp-chip">{t("questions.xpEarned", { count: xp })}</span>}
+        <div className="question-player-actions">
+          <button className="btn btn-soft" type="button" onClick={() => { setFinished(false); setIndex(0); }}>{t("questions.reviewAnswers")}</button>
+          <Link className="btn btn-primary" to={backTo}>{t("questions.backToSheets")}</Link>
+        </div>
+      </section>
+    );
+  }
 
   return (
-    <article className={`question-card${revealed ? (wasCorrect ? " answered-correct" : " answered-wrong") : ""}`}>
-      <div className="card-head">
-        <div>
-          <span className="pill" dir="auto">{`${t("questions.questionLabel", { number })} · ${question.difficulty}`}</span>
-          <h2 dir="auto">{question.prompt}</h2>
+    <section className="question-player" aria-label={t("questions.sheetQuestionsLabel")}>
+      <header className="question-progress">
+        <div className="question-progress-meta">
+          <strong aria-live="polite">{t("questions.progress", { index: position, total })}</strong>
+          <span className="muted">{t("questions.remaining", { count: total - position })}</span>
         </div>
-        <span className="stat-icon"><Icon name="help" /></span>
+        <div
+          className="question-progress-track"
+          role="progressbar"
+          aria-label={t("questions.progressLabel")}
+          aria-valuemin={0}
+          aria-valuemax={total}
+          aria-valuenow={position}
+        >
+          <span style={{ transform: `scaleX(${position / total})` }} />
+        </div>
+      </header>
+      <PracticeItem
+        key={question.id}
+        sheetId={sheetId}
+        question={question}
+        answer={answers[question.id] || null}
+        onAnswered={record}
+      />
+      <nav className="question-player-actions" aria-label={t("questions.navigationLabel")}>
+        <button className="btn btn-soft" type="button" disabled={index === 0} onClick={() => setIndex(index - 1)}>
+          <Icon name="chevron-left" size={17} /> {t("questions.previousQuestion")}
+        </button>
+        {position < total ? (
+          <button className={`btn ${answers[question.id] ? "btn-primary" : "btn-soft"}`} type="button" onClick={() => setIndex(index + 1)}>
+            {t("questions.nextQuestion")} <Icon name="chevron-right" size={17} />
+          </button>
+        ) : (
+          <button className="btn btn-primary" type="button" disabled={!Object.keys(answers).length} onClick={() => setFinished(true)}>
+            {t("questions.finishSheet")}
+          </button>
+        )}
+      </nav>
+    </section>
+  );
+}
+
+/**
+ * A question card. A single-answer question is submitted by the tap that picks
+ * it; a multiple-select question needs the student to say when the set is
+ * complete, so only that type keeps a check button. The card locks while the
+ * request is in flight and for good once the server has graded it.
+ */
+function PracticeItem({ sheetId, question, answer, onAnswered }) {
+  const { t } = useI18n();
+  const [selected, setSelected] = useState([]);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+  const inFlight = useRef(false);
+  const multiple = question.question_type === "multiple_select";
+  const choices = Array.isArray(question.choices) ? question.choices : [];
+  const locked = Boolean(answer) || pending;
+  const picked = answer ? answer.selected_choice_ids : selected;
+  const correctIds = answer?.correct_choice_ids || [];
+
+  async function submit(choiceIds) {
+    if (answer || inFlight.current || !choiceIds.length) return;
+    inFlight.current = true;
+    setPending(true);
+    setError("");
+    try {
+      const response = await catalogWorkspaceApi.answerQuestion(sheetId, question.id, choiceIds);
+      if (response?.answer) onAnswered(question.id, response.answer);
+    } catch (reason) {
+      setSelected([]);
+      setError(reason?.message || t("questions.answerFailed"));
+    } finally {
+      inFlight.current = false;
+      setPending(false);
+    }
+  }
+
+  function choose(id) {
+    if (locked) return;
+    if (!multiple) {
+      setSelected([id]);
+      submit([id]);
+      return;
+    }
+    setSelected((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+  }
+
+  const tone = answer ? (answer.is_correct ? " answered-correct" : " answered-wrong") : "";
+  return (
+    <article className={`question-card question-player-card${tone}`} aria-busy={pending}>
+      <div className="question-card-meta">
+        <span className={`question-difficulty is-${question.difficulty}`}>{t(`questions.difficulty.${question.difficulty}`)}</span>
+        {question.xp_value > 0 && !answer && <span className="muted">{t("questions.xpValue", { count: question.xp_value })}</span>}
       </div>
-      {multiple && <p className="save-hint">{t("assessment.selectEvery")}</p>}
+      <h2 dir="auto">{question.prompt}</h2>
+      {multiple && !answer && <p className="save-hint">{t("assessment.selectEvery")}</p>}
       <div className="choices">
-        {choices.map((choice, index) => {
-          const isSelected = selected.includes(choice.id);
+        {choices.map((choice, choiceIndex) => {
+          const isSelected = picked.includes(choice.id);
+          const isCorrect = correctIds.includes(choice.id);
           // The existing answer vocabulary, so a practice card reads exactly
           // like a released attempt result rather than inventing a second one.
-          const tone = revealed ? (choice.is_correct ? " correct" : isSelected ? " wrong" : "") : "";
+          const state = answer ? (isCorrect ? " correct" : isSelected ? " wrong" : "") : "";
           return (
             <button
               key={choice.id}
               type="button"
-              className={`${isSelected ? "selected" : ""}${tone}`}
+              // Once graded, the pick is shown as right or wrong, not as a selection.
+              className={answer ? state.trim() : isSelected ? "selected" : ""}
               aria-pressed={isSelected}
-              disabled={revealed}
+              disabled={locked}
               onClick={() => choose(choice.id)}
             >
-              <span className="choice-prefix">{String.fromCharCode(65 + index)}</span>
+              <span className="choice-prefix">{String.fromCharCode(65 + choiceIndex)}</span>
               <span dir="auto">{choice.text}</span>
-              {revealed && choice.is_correct && <Icon name="check" size={18} aria-hidden="true" />}
+              {answer && isCorrect && <Icon name="check" size={18} aria-hidden="true" />}
             </button>
           );
         })}
       </div>
-      {!revealed && (
-        <button className="btn btn-primary compact" type="button" disabled={!selected.length} onClick={() => setRevealed(true)}>
+      {multiple && !answer && (
+        <button className="btn btn-primary compact" type="button" disabled={!selected.length || pending} onClick={() => submit(selected)}>
           {t("questions.checkAnswer")}
         </button>
       )}
-      {revealed && (
-        <div className={`answer-note ${wasCorrect ? "correct" : "wrong"}`} role="status">
-          <strong>{wasCorrect ? t("questions.answerCorrect") : t("questions.answerIncorrect")}</strong>
-          {question.explanation && <p dir="auto">{question.explanation}</p>}
-          <button className="btn btn-soft compact" type="button" onClick={() => { setRevealed(false); setSelected([]); }}>
-            {t("questions.tryAgain")}
-          </button>
+      {pending && <p className="muted question-pending" role="status">{t("questions.submitting")}</p>}
+      {error && <p className="question-error" role="alert">{error}</p>}
+      {answer && (
+        <div className={`answer-note ${answer.is_correct ? "correct" : "wrong"}`} role="status">
+          <div className="question-answer-head">
+            <strong>{answer.is_correct ? t("questions.answerCorrect") : t("questions.answerIncorrect")}</strong>
+            {answer.xp_awarded > 0 && <span className="question-xp-chip">{t("questions.xpEarned", { count: answer.xp_awarded })}</span>}
+          </div>
+          {answer.explanation && <p dir="auto">{answer.explanation}</p>}
         </div>
       )}
     </article>

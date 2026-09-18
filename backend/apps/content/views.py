@@ -22,7 +22,9 @@ from apps.files.models import ManagedFile
 from apps.files.services import managed_file_delivery_size
 from apps.focus.selectors import annotation_collection_revision
 from apps.focus.services import touch_reading_session
-from apps.questions.models import Question
+from apps.questions.answering import XP_BY_DIFFICULTY, AnswerRejected, answer_question
+from apps.questions.models import Question, QuestionAnswer, QuestionVersion
+from apps.xp.models import XpBalance
 
 from .active_study_readiness import readiness_payload
 from .admin_services import archive_catalog_learning_object, publish_catalog_learning_object
@@ -43,6 +45,7 @@ from .models import (
     CatalogWorkspaceReceipt,
     CatalogWorkspaceSnapshot,
     LearningObject,
+    LearningObjectVersion,
 )
 from .policies import can_view_learning_object
 from .selectors import (
@@ -75,6 +78,11 @@ class ContentConflict(APIException):
     status_code = status.HTTP_409_CONFLICT
     default_detail = "This content changed. Reload it and try again."
     default_code = "revision_conflict"
+
+
+class AnswerInvalid(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_code = "answer_rejected"
 
 
 class ContentRejected(APIException):
@@ -556,6 +564,80 @@ class CatalogQuestionMaterialListView(APIView):
         return Response({"count": len(results), "results": results})
 
 
+def _owned_question_sheet(user: User, sheet_id: UUID) -> tuple[LearningObject, CatalogSubject]:
+    """The sheet, if the reader's own cohort owns the subject it sits under."""
+
+    sheet = get_object_or_404(
+        LearningObject.objects.select_related("current_version__academic_node"),
+        id=sheet_id,
+        archived_at__isnull=True,
+    )
+    version = sheet.current_version
+    if version is None:
+        raise NotFound("This sheet has no current version.")
+    subject = _subject_for_path(_catalog_subjects_for(user), version.academic_node.path)
+    # Not "no questions": a sheet outside the reader's own cohort is a sheet
+    # they were never offered, and answering with an empty list would hide a
+    # misconfiguration behind something that looks normal.
+    if subject is None:
+        raise PermissionDenied("You cannot access this sheet's questions.")
+    return sheet, subject
+
+
+def _sheet_questions(sheet: LearningObject) -> models.QuerySet[Question]:
+    """Published, unretired questions only: a draft never reaches a student."""
+
+    return (
+        Question.objects.filter(
+            published_version__source_learning_object=sheet,
+            published_version__isnull=False,
+            retired_at__isnull=True,
+        )
+        .select_related("published_version")
+        .prefetch_related("published_version__options")
+        .order_by("published_version__source_page", "created_at", "id")
+    )
+
+
+def _answer_payload(answer: QuestionAnswer) -> dict[str, object]:
+    """The graded result, revealed from the version the student answered."""
+
+    options = list(answer.version.options.all())
+    return {
+        "selected_choice_ids": [str(item) for item in answer.selected_option_ids],
+        "correct_choice_ids": [str(option.id) for option in options if option.is_correct],
+        "is_correct": answer.is_correct,
+        "explanation": answer.version.explanation,
+        "xp_awarded": answer.xp_awarded,
+        "answered_at": answer.answered_at.isoformat(),
+    }
+
+
+def _student_question(question: Question, answer: QuestionAnswer | None) -> dict[str, object]:
+    """A question as a student sees it.
+
+    Correctness and the explanation are withheld until the server has graded
+    the student's own answer: the answer is decided here, so the payload must
+    not carry it to a client that could read it first.
+    """
+
+    published = cast(QuestionVersion, question.published_version)
+    return {
+        "id": str(question.id),
+        "question_type": published.question_type,
+        "prompt": published.prompt,
+        "topic": published.topic,
+        "difficulty": published.difficulty,
+        "xp_value": XP_BY_DIFFICULTY.get(published.difficulty, 0),
+        "source_page": published.source_page,
+        "choices": [
+            {"id": str(option.id), "text": option.text, "position": option.position}
+            for option in published.options.all()
+        ],
+        "answer": _answer_payload(answer) if answer is not None else None,
+    }
+
+
 class CatalogSheetQuestionListView(APIView):
     """One Material sheet's published questions, for the reader who owns it."""
 
@@ -566,55 +648,20 @@ class CatalogSheetQuestionListView(APIView):
         # the trial a newly verified account should hold. A second check here
         # would be the same test written twice, and the weaker of the two.
         user = _user(request)
-        sheet = get_object_or_404(
-            LearningObject.objects.select_related("current_version__academic_node"),
-            id=sheet_id,
-            archived_at__isnull=True,
-        )
-        version = sheet.current_version
-        if version is None:
-            raise NotFound("This sheet has no current version.")
-        subject = _subject_for_path(_catalog_subjects_for(user), version.academic_node.path)
-        # Not "no questions": a sheet outside the reader's own cohort is a sheet
-        # they were never offered, and answering with an empty list would hide a
-        # misconfiguration behind something that looks normal.
-        if subject is None:
-            raise PermissionDenied("You cannot access this sheet's questions.")
-        questions = (
-            Question.objects.filter(
-                published_version__source_learning_object=sheet,
-                published_version__isnull=False,
-                retired_at__isnull=True,
-            )
-            .select_related("published_version")
-            .prefetch_related("published_version__options")
-            .order_by("published_version__source_page", "created_at", "id")
-        )
-        results = []
-        for question in questions:
-            published = question.published_version
-            if published is None:
-                continue
-            results.append(
-                {
-                    "id": str(question.id),
-                    "question_type": published.question_type,
-                    "prompt": published.prompt,
-                    "explanation": published.explanation,
-                    "topic": published.topic,
-                    "difficulty": published.difficulty,
-                    "source_page": published.source_page,
-                    "choices": [
-                        {
-                            "id": str(option.id),
-                            "text": option.text,
-                            "position": option.position,
-                            "is_correct": option.is_correct,
-                        }
-                        for option in published.options.all()
-                    ],
-                }
-            )
+        sheet, subject = _owned_question_sheet(user, sheet_id)
+        questions = [
+            question
+            for question in _sheet_questions(sheet)
+            if question.published_version is not None
+        ]
+        answers = {
+            answer.question_id: answer
+            for answer in QuestionAnswer.objects.filter(
+                user=user, question__in=questions
+            ).prefetch_related("version__options")
+        }
+        results = [_student_question(question, answers.get(question.id)) for question in questions]
+        version = cast(LearningObjectVersion, sheet.current_version)
         return Response(
             {
                 "sheet": {
@@ -624,8 +671,43 @@ class CatalogSheetQuestionListView(APIView):
                     "subject_title": subject.title,
                 },
                 "count": len(results),
+                "answered": len(answers),
                 "results": results,
             }
+        )
+
+
+class CatalogSheetQuestionAnswerView(APIView):
+    """Grade one answer, once, and award its XP on the server.
+
+    Repeating the request is safe by construction: the recorded answer is
+    returned with ``created`` false and no second award is made.
+    """
+
+    def post(self, request: Request, sheet_id: UUID, question_id: UUID) -> Response:
+        user = _user(request)
+        sheet, _ = _owned_question_sheet(user, sheet_id)
+        question = get_object_or_404(_sheet_questions(sheet), id=question_id)
+        raw = request.data.get("choice_ids") if isinstance(request.data, dict) else None
+        if not isinstance(raw, list) or not raw:
+            raise AnswerInvalid("Choose an answer.")
+        try:
+            choice_ids = [UUID(str(item)) for item in raw]
+        except ValueError as error:
+            raise AnswerInvalid("That choice does not belong to this question.") from error
+        try:
+            answer, created = answer_question(user=user, question=question, choice_ids=choice_ids)
+        except AnswerRejected as error:
+            raise AnswerInvalid(str(error)) from error
+        balance = XpBalance.objects.filter(user=user).first()
+        return Response(
+            {
+                "question_id": str(question.id),
+                "created": created,
+                "answer": _answer_payload(answer),
+                "xp_total": balance.total_points if balance is not None else 0,
+            },
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
 
 

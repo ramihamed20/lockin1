@@ -21,6 +21,18 @@ export const catalogWorkspaceApi = {
     return request(`/catalog/sheets/${encodeURIComponent(sheetId)}/questions`, { signal });
   },
   /**
+   * Submit one answer. The server grades it and awards its XP exactly once, so
+   * a retry returns the answer already recorded rather than a second award.
+   * @param {string} sheetId
+   * @param {string} questionId
+   * @param {string[]} choiceIds
+   */
+  answerQuestion(sheetId, questionId, choiceIds) {
+    return request(`/catalog/sheets/${encodeURIComponent(sheetId)}/questions/${encodeURIComponent(questionId)}/answer`, {
+      method: "POST", retryable: true, body: { choice_ids: choiceIds }
+    });
+  },
+  /**
    * @param {string} materialSlug
    * @param {string} sheetSlug
    * @param {{ signal?: AbortSignal, view?: string }} [options] `view: "summary"`

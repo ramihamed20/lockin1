@@ -54,3 +54,51 @@ test("quiz launch bypasses attempt details and the player keeps grading server-a
   assert.match(result, /"assessment\.explainQuestion"/);
   assert.match(result, /question\.correct/);
 });
+
+test("sheet questions are answered one tap at a time and graded by the server", async () => {
+  const [questions, api, catalogue] = await Promise.all([
+    readFile(new URL("../src/pages/Questions.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/api/catalogWorkspace.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/lib/i18n.js", import.meta.url), "utf8")
+  ]);
+  // The server decides correctness and XP; the client never reads either
+  // from the question it was sent.
+  assert.match(api, /answerQuestion\(sheetId, questionId, choiceIds\)/);
+  assert.match(api, /\/answer`, \{\s*method: "POST"/);
+  assert.doesNotMatch(questions, /choice\.is_correct|question\.explanation/);
+  assert.match(questions, /answer\.correct_choice_ids|answer\?\.correct_choice_ids/);
+  assert.match(questions, /answer\.xp_awarded/);
+  // A single-answer tap submits; only multiple-select keeps a check button.
+  assert.match(questions, /if \(!multiple\) \{\s*setSelected\(\[id\]\);\s*submit\(\[id\]\);/);
+  assert.match(questions, /\{multiple && !answer && \(\s*<button[^>]*onClick=\{\(\) => submit\(selected\)\}/);
+  assert.match(questions, /inFlight\.current/);
+  assert.doesNotMatch(questions, /questions\.tryAgain/);
+  assert.match(questions, /t\("questions\.progress", \{ index: position, total \}\)/);
+  assert.match(questions, /t\("questions\.remaining", \{ count: total - position \}\)/);
+  assert.match(catalogue, /"questions\.progress": "Question \{index\} of \{total\}"/);
+  assert.match(catalogue, /"questions\.xpEarned": "\+\{count\} XP"/);
+});
+
+test("only a correct answer shows an XP reward", async () => {
+  const questions = await readFile(new URL("../src/pages/Questions.jsx", import.meta.url), "utf8");
+  // The reward chip reads the server's award, which is zero for a wrong answer.
+  assert.match(questions, /\{answer\.xp_awarded > 0 && <span className="question-xp-chip">/);
+  assert.doesNotMatch(questions, /xp_value[^;]*xpEarned/);
+});
+
+test("admin scope analytics is server-aggregated and filtered by node ids", async () => {
+  const [page, api, admin] = await Promise.all([
+    readFile(new URL("../src/pages/admin/ScopeAnalytics.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/api/adminControl.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/pages/OperationsAdmin.jsx", import.meta.url), "utf8")
+  ]);
+  assert.match(api, /request\("\/operations\/admin\/analytics\/scope" \+ buildQueryString\(\{ university, specialty, year \}\)\)/);
+  assert.match(admin, /<ScopeAnalytics \/>/);
+  // Choosing a level clears the ones beneath it, so a Specialty id is never
+  // sent without the University it belongs to.
+  assert.match(page, /setScope\(\{ \.\.\.EMPTY_SCOPE, university: value \}\)/);
+  assert.match(page, /specialty: value, year: ""/);
+  // No client-side totals: every figure is read from the response.
+  assert.doesNotMatch(page, /\.reduce\(/);
+  assert.match(page, /No data in this scope yet/);
+});

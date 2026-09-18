@@ -43,6 +43,11 @@ export const adminControlApi = {
   overview: () => request("/operations/dashboards/overview"),
   /** @param {{from?: string, to?: string}} [options] */
   analytics: ({ from, to } = {}) => request("/operations/admin/analytics/dashboard" + buildQueryString({ from, to })),
+  /**
+   * Totals for Overall, a University, a Specialty inside it, or a Year inside that.
+   * @param {{university?: string, specialty?: string, year?: string}} [scope]
+   */
+  scopedAnalytics: ({ university, specialty, year } = {}) => request("/operations/admin/analytics/scope" + buildQueryString({ university, specialty, year })),
   systemHealth: () => request("/operations/system-health"),
   configurations: () => request("/operations/configuration"),
   updateConfiguration(key, { value, expectedVersion, changeReason }) {

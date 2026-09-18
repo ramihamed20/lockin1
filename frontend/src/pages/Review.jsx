@@ -130,7 +130,7 @@ function ReviewQuestionCard({ item, selectedIds = [], onSelect, outcome, busy, e
       <div className="review-question-source"><span>{t("review.originallyFrom")}</span><strong dir="auto">{sourceDescription(item, t)}</strong></div>
       <h2 dir="auto">{item.prompt}</h2>
       <fieldset className="review-choice-list" disabled={busy || Boolean(outcome)}>
-        <legend className="sr-only">{t(multiple ? "review.chooseEvery" : "review.chooseOne")}</legend>
+        <legend className="visually-hidden">{t(multiple ? "review.chooseEvery" : "review.chooseOne")}</legend>
         {(item.options || []).map((option, index) => {
           const selected = selectedIds.includes(option.id);
           const isCorrect = Boolean(outcome) && correctIds.has(option.id);
