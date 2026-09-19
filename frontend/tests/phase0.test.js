@@ -277,6 +277,6 @@ test("PWA configuration has no API runtime caching and the application wires its
   assert.match(serviceWorker, /caches\.delete\(legacyPrivateCacheName\)/);
   assert.match(
     app,
-    /<Route element=\{<ProtectedRoute user=\{user\} operationsSession=\{operationsSession\} \/>\}>/
+    /<Route element=\{<ProtectedRoute user=\{user\} operationsSession=\{operationsSession\} operationsSessionPending=\{operationsSessionPending\} \/>\}>/
   );
 });

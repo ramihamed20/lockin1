@@ -112,6 +112,10 @@ function App() {
   // mutation is allowed; a missing/ended session clears this snapshot.
   const [user, setUser] = useState(readSessionUserSnapshot);
   const [operationsSession, setOperationsSession] = useState(null);
+  // "Not loaded yet" and "no capabilities" are different answers. A restored
+  // session paints routes before /operations/session returns, and treating the
+  // first as the second flashed "Access unavailable" on every admin reload.
+  const [operationsSessionPending, setOperationsSessionPending] = useState(true);
   const operationsRequestRef = useRef(0);
   const [booting, setBooting] = useState(() => !user);
   const [bootError, setBootError] = useState(null);
@@ -141,11 +145,13 @@ function App() {
   const clearOperationsSession = useCallback(() => {
     operationsRequestRef.current += 1;
     setOperationsSession(null);
+    setOperationsSessionPending(false);
   }, []);
 
   const loadOperationsSession = useCallback(async () => {
     const requestId = operationsRequestRef.current + 1;
     operationsRequestRef.current = requestId;
+    setOperationsSessionPending(true);
     try {
       const nextOperationsSession = await authApi.operationsSession();
       if (operationsRequestRef.current === requestId) {
@@ -157,6 +163,8 @@ function App() {
       // missing or failed capability response must never grant fallback access.
       if (operationsRequestRef.current === requestId) setOperationsSession(null);
       return null;
+    } finally {
+      if (operationsRequestRef.current === requestId) setOperationsSessionPending(false);
     }
   }, []);
 
@@ -357,6 +365,9 @@ function App() {
       })
       .catch((error) => {
         if (!active) return;
+        // Capabilities are only requested after a confirmed user, so a failed
+        // bootstrap settles them as absent rather than leaving them pending.
+        setOperationsSessionPending(false);
         // GET /auth/session is authentication-specific: this Django setup uses
         // 403 for anonymous sessions and 401 for expired session credentials.
         if (isApiError(error) && (error.status === 401 || error.status === 403)) {
@@ -536,7 +547,7 @@ function App() {
             resolve in place instead of replacing the screen with a loader. */}
         <Suspense fallback={null}>
           <Routes>
-              <Route element={<ProtectedRoute user={user} operationsSession={operationsSession} />}>
+              <Route element={<ProtectedRoute user={user} operationsSession={operationsSession} operationsSessionPending={operationsSessionPending} />}>
                 <Route path="/" element={<Dashboard themeSettings={themeSettings} activeTheme={activeTheme} />} />
                 <Route path="/dashboard" element={<Dashboard themeSettings={themeSettings} activeTheme={activeTheme} />} />
                 <Route path="/study-plan/*" element={<FeatureComingSoon featureId="study-plan" />} />
