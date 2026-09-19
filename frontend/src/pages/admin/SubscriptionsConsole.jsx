@@ -318,11 +318,11 @@ export default function SubscriptionsConsole({ canManage }) {
                           <small>{subscription.user.email || "—"}</small>
                         </button>
                       </th>
-                      <td><StatusBadge state={subscriptionState(subscription)} /></td>
-                      <td className="ops-cell-plan">{subscription.plan_title || subscription.plan_code}</td>
-                      <td>{when(subscription.current_period_ends_at || subscription.trial_ends_at)}</td>
-                      <td className="ops-cell-amount">{subscription.remaining_days ?? "—"}</td>
-                      <td>{humanize(subscription.payment_verification)}</td>
+                      <td data-label="Status"><StatusBadge state={subscriptionState(subscription)} /></td>
+                      <td data-label="Plan" className="ops-cell-plan">{subscription.plan_title || subscription.plan_code}</td>
+                      <td data-label="Expires">{when(subscription.current_period_ends_at || subscription.trial_ends_at)}</td>
+                      <td data-label="Days left" className="ops-cell-amount">{subscription.remaining_days ?? "—"}</td>
+                      <td data-label="Verification">{humanize(subscription.payment_verification)}</td>
                     </tr>
                   ))}
                 </tbody>

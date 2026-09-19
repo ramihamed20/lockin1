@@ -203,15 +203,15 @@ function PaymentRow({ payment, selected, onSelect }) {
           </small>
         </button>
       </th>
-      <td><StatusBadge state={state} /></td>
-      <td className="ops-cell-plan">{payment.plan_title || payment.plan_code || "—"}</td>
-      <td className="ops-cell-amount">{money(payment.amount_minor, payment.currency, payment.currency_exponent)}</td>
-      <td>{humanize(payment.method)}</td>
-      <td>
+      <td data-label="Status"><StatusBadge state={state} /></td>
+      <td data-label="Plan" className="ops-cell-plan">{payment.plan_title || payment.plan_code || "—"}</td>
+      <td data-label="Amount" className="ops-cell-amount">{money(payment.amount_minor, payment.currency, payment.currency_exponent)}</td>
+      <td data-label="Method">{humanize(payment.method)}</td>
+      <td data-label="Submitted">
         {when(manual?.submitted_at || payment.created_at)}
         {waiting && <small className="ops-cell-note">waiting {waiting}</small>}
       </td>
-      <td>
+      <td data-label="Reviewed">
         {manual?.reviewed_at ? (
           <>
             {when(manual.reviewed_at)}
