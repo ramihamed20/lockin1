@@ -97,7 +97,15 @@ function CardGridSkeleton({ count = 6, card = "standard" }) {
 }
 
 function DashboardSkeleton() {
-  return <div className="skeleton-page skeleton-page--dashboard"><CardGridSkeleton count={4} card="stat" /><section className="skeleton-dashboard-layout"><div><SkeletonCard className="skeleton-continue-card"><SkeletonText lines={2} /><Skeleton className="skeleton-progress" /><SkeletonButton /></SkeletonCard><SkeletonCard className="skeleton-list-card"><SkeletonText lines={1} />{Array.from({ length: 3 }, (_, index) => <div className="skeleton-list-row" key={index}><SkeletonAvatar /><SkeletonText lines={2} /></div>)}</SkeletonCard></div><div><SkeletonCard className="skeleton-visual-card"><Skeleton className="skeleton-visual" /></SkeletonCard><SkeletonCard><SkeletonText lines={3} /><SkeletonButton /></SkeletonCard></div></section></div>;
+  return <div className="skeleton-page skeleton-page--dashboard"><section className="skeleton-dashboard-layout"><div><SkeletonCard className="skeleton-continue-card"><SkeletonText lines={2} /><Skeleton className="skeleton-progress" /><SkeletonButton /></SkeletonCard><SkeletonCard className="skeleton-list-card"><SkeletonText lines={1} />{Array.from({ length: 3 }, (_, index) => <div className="skeleton-list-row" key={index}><SkeletonAvatar /><SkeletonText lines={2} /></div>)}</SkeletonCard></div><div><SkeletonCard className="skeleton-visual-card"><Skeleton className="skeleton-visual" /></SkeletonCard></div></section><SkeletonHeader /><CardGridSkeleton count={5} card="stat" /><SkeletonCard className="skeleton-list-card"><SkeletonText lines={2} />{Array.from({ length: 3 }, (_, index) => <div className="skeleton-list-row" key={index}><SkeletonAvatar /><SkeletonText lines={2} /></div>)}</SkeletonCard></div>;
+}
+
+function MaterialsListSkeleton({ sheets = false }) {
+  return <div className={`skeleton-page skeleton-page--materials${sheets ? " is-sheets" : ""}`}><SkeletonHeader /><section className="skeleton-material-grid">{Array.from({ length: sheets ? 6 : 5 }, (_, index) => <SkeletonCard className="skeleton-material-row" key={index}><SkeletonAvatar /><div><SkeletonText lines={2} />{sheets && <div className="skeleton-capabilities"><Skeleton /><Skeleton /><Skeleton /><Skeleton /></div>}</div><Skeleton className="skeleton-row-end" /></SkeletonCard>)}</section></div>;
+}
+
+function SheetSkeleton() {
+  return <div className="skeleton-page skeleton-page--sheet"><Skeleton className="skeleton-breadcrumb" /><SkeletonCard className="skeleton-sheet-primary"><div className="skeleton-card-heading"><SkeletonAvatar /><SkeletonText lines={3} /></div><SkeletonButton /></SkeletonCard><section className="skeleton-sheet-options">{Array.from({ length: 3 }, (_, index) => <SkeletonCard className="skeleton-material-row" key={index}><SkeletonAvatar /><SkeletonText lines={2} /><Skeleton className="skeleton-row-end" /></SkeletonCard>)}</section></div>;
 }
 
 function ProfileSkeleton() {
@@ -143,6 +151,9 @@ function StandardSkeleton({ variant }) {
   if (variant === "quiz") return <QuizSkeleton />;
   if (variant === "result") return <QuizSkeleton result />;
   if (variant === "document") return <DocumentSkeleton />;
+  if (variant === "material-list") return <MaterialsListSkeleton />;
+  if (variant === "card-list") return <MaterialsListSkeleton sheets />;
+  if (variant === "sheet") return <SheetSkeleton />;
   return <div className="skeleton-page skeleton-page--grid"><SkeletonHeader /><CardGridSkeleton count={6} card={variant === "list" ? "row" : "standard"} /></div>;
 }
 
