@@ -503,6 +503,8 @@
   .operations-mobile-selector > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .operations-mobile-selector select { min-height: 44px; }
   .creator-overview-grid { grid-template-columns: minmax(0, 1fr); }
+  /* One column: the queue an operator acts on comes before the trend chart. */
+  .creator-overview-grid > .creator-attention { order: -1; }
 }
 
 @container studio (max-width: 699px) {

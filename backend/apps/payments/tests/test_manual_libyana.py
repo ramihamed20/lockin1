@@ -487,3 +487,24 @@ def test_lifecycle_reminders_grace_and_expiration_are_server_driven() -> None:
     expired = refresh_subscription(subscription=grace, now=grace.grace_ends_at)
     assert expired.status == Subscription.Status.EXPIRED
     assert user.__class__.objects.filter(id=user.id).exists()
+
+
+def test_overview_counts_recharge_cards_waiting_for_review() -> None:
+    from apps.administration.selectors import overview_dashboard
+    from apps.education.tests.helpers import create_admin
+
+    admin = create_admin(email="overview-queue-admin@example.com")
+    assert overview_dashboard(user=admin, days=7)["queues"]["pending_payment_reviews"] == 0
+
+    user, _ = _trial_user(email="overview-queue@example.com")
+    plan, _ = _monthly_plan_and_price()
+    client = APIClient()
+    client.force_authenticate(user)
+    response = _submit(client, plan=plan, code="9876598765987", key="overview-queue-key-1")
+    assert response.status_code in {200, 201}, response.content
+
+    pending = ManualRechargeSubmission.objects.filter(
+        status=ManualRechargeSubmission.Status.PENDING
+    ).count()
+    assert pending == 1
+    assert overview_dashboard(user=admin, days=7)["queues"]["pending_payment_reviews"] == 1

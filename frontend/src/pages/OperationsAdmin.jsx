@@ -129,6 +129,7 @@ function Overview() {
   if (data.error) return <ErrorPanel message={data.error} onRetry={data.reload} />;
   const { analytics, overview, audit } = data.data;
   const needs = [
+    ["Payments awaiting approval", overview.queues?.pending_payment_reviews ?? 0, "billing", "purchases"],
     ["Content awaiting review", analytics.creators.content_awaiting_review, "content", "questions"],
     ["Failed payments", overview.queues?.failed_payments ?? analytics.revenue.failed_payments, "billing", "purchases"],
     ["Failed notifications", overview.queues?.failed_notifications ?? analytics.operations.failed_notification_deliveries, "notifications", "notifications"],
