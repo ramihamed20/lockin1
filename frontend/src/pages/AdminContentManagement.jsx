@@ -124,6 +124,16 @@ function BreadcrumbButton({ onClick, children }) {
   return <button className="admin-content-crumb" type="button" onClick={onClick}><Icon name="chevron-left" size={16} />{children}</button>;
 }
 
+function HierarchyBreadcrumb({ subject, onBack, sheetTitle = "" }) {
+  const context = [subject.college_title, subject.specialty_title, subject.academic_year_title].filter(Boolean);
+  return <nav className="admin-hierarchy-breadcrumb" aria-label="Content hierarchy">
+    {onBack ? <button type="button" onClick={onBack}>All subjects</button> : <span>Content</span>}
+    {context.map((label) => <span className="is-context" key={label}><Icon name="chevron-right" size={13} /><b>{label}</b></span>)}
+    <span><Icon name="chevron-right" size={13} /><b>{subject.title || "Subject"}</b></span>
+    {sheetTitle && <span aria-current="page"><Icon name="chevron-right" size={13} /><strong>{sheetTitle}</strong></span>}
+  </nav>;
+}
+
 export default function AdminContentManagement({ operationsSession, initialArea = "sheets" }) {
   const visible = CONTENT_AREAS.filter(([, , capability]) => hasOperationalCapability(operationsSession, capability));
   const [area, setArea] = useState(initialArea);
@@ -180,15 +190,17 @@ function SheetsArea({ canManage }) {
 function SheetList({ subject, canManage, onBack, selectMode = false, onSelectSheet = null }) {
   const [status, setStatus] = useState(""); const [query, setQuery] = useState(""); const [createOpen, setCreateOpen] = useState(false); const [message, setMessage] = useState(""); const [attentionOnly, setAttentionOnly] = useState(false);
   const searchQuery = useDebouncedValue(query.trim());
+  const catalog = useAsyncData(() => adminControlApi.contentSubjects({}), []);
   const data = useAsyncData(() => adminControlApi.subjectSheets(subject.id, { status, query: searchQuery }), [subject.id, status, searchQuery], { keepPreviousData: true });
+  const subjectInfo = (catalog.data?.results || []).find((item) => item.id === subject.id) || { ...subject, title: data.data?.subject?.title || subject.title };
   return <section className="admin-content-section">
-    <BreadcrumbButton onClick={onBack}>All subjects</BreadcrumbButton>
+    <HierarchyBreadcrumb subject={subjectInfo} onBack={onBack} />
     <div className="admin-content-toolbar"><div><h2>{data.data?.subject?.title || subject.title || "Subject"}</h2><p>{selectMode ? "Choose a sheet to manage its questions." : "Published order is shared with the student Materials view."}</p></div>{canManage && !selectMode && <button className="btn btn-primary" type="button" onClick={() => setCreateOpen((value) => !value)}><Icon name="plus" size={17} />{createOpen ? "Close" : "Add sheet"}</button>}</div>
     {message && <AdminNotice message={message} />}
     {createOpen && <AddSheetForm subject={{ ...subject, title: data.data?.subject?.title || subject.title || "this subject" }} onCreated={() => { setCreateOpen(false); setMessage("Sheet saved successfully."); data.reload(); }} />}
     <div className="admin-content-filters"><label className="field"><span>Search sheets</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} aria-busy={data.refreshing || undefined} /></label><label className="field"><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">All</option>{["draft", "in_review", "published", "rejected", "archived"].map((value) => <option key={value} value={value}>{humanize(value)}</option>)}</select></label></div>
     {data.data && !selectMode && <ReadinessBar sheets={data.data.results} attentionOnly={attentionOnly} onToggle={() => setAttentionOnly((value) => !value)} />}
-    {data.loading ? <LoadingPanel variant="list" /> : data.error ? <ErrorPanel message={data.error} onRetry={data.reload} /> : <div className={`admin-sheet-list${data.refreshing ? " is-refreshing" : ""}`}>{visibleSheets(data.data.results, attentionOnly && !selectMode).length ? visibleSheets(data.data.results, attentionOnly && !selectMode).map((sheet) => selectMode ? <button className="admin-sheet-select" type="button" key={sheet.id} onClick={() => onSelectSheet?.(sheet)}><span><strong>{sheet.title}</strong><small>{sheet.question_count} questions · {sheet.published_question_count ?? 0} live to students · {humanize(sheet.workflow_status)}</small></span><Icon name="chevron-right" size={18} /></button> : <SheetRow key={sheet.id} sheet={sheet} sheets={data.data.results} index={data.data.results.indexOf(sheet)} canManage={canManage} onChanged={data.reload} />) : attentionOnly ? <EmptyState title="Nothing needs attention" text="Every sheet in this view is ready or a draft by choice." /> : <EmptyState title="No sheets in this view" text="Change the filters or add the first PDF sheet." />}</div>}
+    {data.loading ? <LoadingPanel variant="list" /> : data.error ? <ErrorPanel message={data.error} onRetry={data.reload} /> : <div className={`admin-sheet-list${data.refreshing ? " is-refreshing" : ""}`}>{visibleSheets(data.data.results, attentionOnly && !selectMode).length ? visibleSheets(data.data.results, attentionOnly && !selectMode).map((sheet) => selectMode ? <button className="admin-sheet-select" type="button" key={sheet.id} onClick={() => onSelectSheet?.(sheet)}><span><strong>{sheet.title}</strong><small>{sheet.question_count} questions · {sheet.published_question_count ?? 0} live to students · {humanize(sheet.workflow_status)}</small></span><Icon name="chevron-right" size={18} /></button> : <SheetRow key={sheet.id} sheet={sheet} sheets={data.data.results} index={data.data.results.indexOf(sheet)} subject={subjectInfo} canManage={canManage} onChanged={data.reload} />) : attentionOnly ? <EmptyState title="Nothing needs attention" text="Every sheet in this view is ready or a draft by choice." /> : <EmptyState title="No sheets in this view" text="Change the filters or add the first PDF sheet." />}</div>}
   </section>;
 }
 
@@ -308,8 +320,9 @@ function EditionTabs({ sheet, edition, onChange }) {
   })}</div>;
 }
 
-function SheetRow({ sheet, sheets, index, canManage, onChanged }) {
-  const [pending, setPending] = useState(""); const [error, setError] = useState(null); const [confirm, setConfirm] = useState(null); const [replacement, setReplacement] = useState(null); const [summaryReplacement, setSummaryReplacement] = useState(null); const [position, setPosition] = useState(sheet.position); const [title, setTitle] = useState(sheet.title); const [advanced, setAdvanced] = useState(false); const [edition, setEdition] = useState("university");
+function SheetRow({ sheet, sheets, index, subject, canManage, onChanged }) {
+  const navigate = useNavigate();
+  const [pending, setPending] = useState(""); const [error, setError] = useState(null); const [confirm, setConfirm] = useState(null); const [replacement, setReplacement] = useState(null); const [summaryReplacement, setSummaryReplacement] = useState(null); const [position, setPosition] = useState(sheet.position); const [title, setTitle] = useState(sheet.title); const [manageTab, setManageTab] = useState("overview"); const [edition, setEdition] = useState("university");
   // Rows stay mounted while the list refreshes, so the editable copy follows the
   // server whenever the sheet itself changes (a reorder renumbers positions);
   // otherwise Save details could send a stale position and undo the move.
@@ -318,6 +331,10 @@ function SheetRow({ sheet, sheets, index, canManage, onChanged }) {
   const editionRow = (Array.isArray(sheet.editions) ? sheet.editions : []).find((item) => item.edition === edition) || {};
   const readiness = sheetReadiness(sheet);
   const editionLabel = EDITIONS.find(([key]) => key === edition)?.[1] || "Sheet";
+  const totalQuestions = Number(sheet.question_count) || 0;
+  const publishedQuestions = Number(sheet.published_question_count) || 0;
+  const draftQuestions = Math.max(0, totalQuestions - publishedQuestions);
+  const studentVisibility = sheet.workflow_status === "published" && sheet.pdf ? "Visible to eligible students" : sheet.workflow_status === "published" ? "Published, but blocked because the PDF is unavailable" : `Not visible — ${humanize(sheet.workflow_status)}`;
   return (
     <article className="admin-sheet-row">
       <div className="admin-sheet-primary">
@@ -328,59 +345,73 @@ function SheetRow({ sheet, sheets, index, canManage, onChanged }) {
       {error && <AdminNotice error={error} />}
       {canManage && (
         <details>
-          <summary>Manage sheet <Icon name="chevron-right" size={17} /></summary>
-          <EditionTabs sheet={sheet} edition={edition} onChange={(next) => { setEdition(next); setReplacement(null); setSummaryReplacement(null); setError(null); }} />
-          {edition === "lockin" && !editionRow.available && <p className="form-alert">Upload a Lockin Sheet PDF to give this sheet a second edition. It shares the sheet's question bank and part count; only its pages differ.</p>}
-          <div className="admin-sheet-manage">
-            <section className="admin-manage-group" aria-label="Sheet details">
-              <h4>Details</h4>
+          <summary>Open control center <Icon name="chevron-right" size={17} /></summary>
+          <HierarchyBreadcrumb subject={subject} sheetTitle={sheet.title} />
+          <TabList className="admin-sheet-control-tabs" label="Sheet control center" variant="tint" value={manageTab} onChange={setManageTab}>
+            {[['overview', 'Overview'], ['files', 'Files'], ['questions', 'Questions'], ['active-study', 'Active Study'], ['publication', 'Publication'], ['danger', 'Danger Zone']].map(([key, label]) => <Tab key={key} value={key}>{label}</Tab>)}
+          </TabList>
+          <div className="admin-sheet-control">
+            {manageTab === "overview" && <section className="admin-control-section" aria-labelledby={`sheet-overview-${sheet.id}`}>
+              <div className="admin-control-heading"><div><h4 id={`sheet-overview-${sheet.id}`}>{sheet.title}</h4><p>{subject.title || "Subject"} · {subject.college_title || "College not labelled"} · {subject.specialty_title || "Specialty not labelled"} · {subject.academic_year_title || "Year not labelled"}</p></div><span className={`pill status-${sheet.workflow_status}`}>{humanize(sheet.workflow_status)}</span></div>
+              <SheetReadiness readiness={readiness} />
+              <dl className="admin-control-summary">
+                <div><dt>University Sheet</dt><dd>{sheet.pdf ? `${sheet.pdf.page_count || "—"} pages` : "Missing PDF"}</dd></div>
+                <div><dt>Lock-in Edition</dt><dd>{(sheet.editions || []).find((item) => item.edition === "lockin")?.available ? "Available" : "Not added"}</dd></div>
+                <div><dt>Questions visible</dt><dd>{publishedQuestions} / {totalQuestions}</dd></div>
+                <div><dt>Active Study</dt><dd>{sheet.active_study_enabled ? "Enabled" : "Not enabled"}</dd></div>
+                <div><dt>Student visibility</dt><dd>{studentVisibility}</dd></div>
+              </dl>
               <div className="admin-manage-row">
                 <label className="field"><span>Sheet name</span><input value={title} maxLength={220} required onChange={(event) => setTitle(event.target.value)} /></label>
                 <label className="field compact-field"><span>Position</span><input type="number" min="0" value={position} onChange={(event) => setPosition(event.target.value)} /></label>
-                <button className="btn btn-soft compact" type="button" disabled={Boolean(pending) || !title.trim()} onClick={() => run("details")}>Save details</button>
+                <button className="btn btn-primary compact" type="button" disabled={Boolean(pending) || !title.trim()} onClick={() => run("details")}>Save details</button>
               </div>
               <div className="admin-manage-row">
                 <button className="btn btn-soft compact" type="button" disabled={Boolean(pending) || index === 0} onClick={() => run("reorder", sheets[index - 1], "before")}><Icon name="chevron-up" size={15} />Move up</button>
                 <button className="btn btn-soft compact" type="button" disabled={Boolean(pending) || index === sheets.length - 1} onClick={() => run("reorder", sheets[index + 1], "after")}><Icon name="chevron-down" size={15} />Move down</button>
               </div>
-            </section>
-            <section className="admin-manage-group" aria-label={`${editionLabel} files`}>
-              <h4>{editionLabel} files</h4>
-              <div className="admin-manage-row">
-                <label className="btn btn-soft compact admin-file-button">{replacement ? replacement.name : editionRow.available ? `Replace ${editionLabel} PDF` : `Upload ${editionLabel} PDF`}<input type="file" accept="application/pdf,.pdf" onChange={(event) => setReplacement(event.target.files?.[0] || null)} /></label>
-                {replacement && <button className="btn btn-primary compact" type="button" disabled={Boolean(pending)} onClick={() => run("replace")}>{pending === "replace" ? "Uploading…" : "Confirm replacement"}</button>}
-                {editionRow.view_url && <a className="btn btn-soft compact" href={editionRow.view_url} target="_blank" rel="noreferrer">View {editionLabel} PDF</a>}
+            </section>}
+
+            {manageTab === "files" && <section className="admin-control-section" aria-label="Sheet files">
+              <EditionTabs sheet={sheet} edition={edition} onChange={(next) => { setEdition(next); setReplacement(null); setSummaryReplacement(null); setError(null); }} />
+              {edition === "lockin" && !editionRow.available && <p className="form-alert">Upload a Lockin Sheet PDF to give this sheet a second edition. It shares the sheet's question bank and part count; only its pages differ.</p>}
+              <div className="admin-file-control-list">
+                <section><div><strong>{editionLabel} PDF</strong><small>{editionRow.available ? `${editionRow.page_count || "Unknown"} pages · available` : "No PDF uploaded"}</small></div><div className="admin-manage-row"><label className="btn btn-soft compact admin-file-button">{replacement ? replacement.name : editionRow.available ? `Replace ${editionLabel} PDF` : `Upload ${editionLabel} PDF`}<input type="file" accept="application/pdf,.pdf" onChange={(event) => setReplacement(event.target.files?.[0] || null)} /></label>{replacement && <button className="btn btn-primary compact" type="button" disabled={Boolean(pending)} onClick={() => run("replace")}>{pending === "replace" ? "Uploading…" : "Confirm replacement"}</button>}{editionRow.view_url && <a className="btn btn-soft compact" href={editionRow.view_url} target="_blank" rel="noreferrer">Preview PDF</a>}</div></section>
+                <section><div><strong>Sheet Summary</strong><small>{editionRow.summary_file_id ? "PDF added" : "Not added · optional"}</small></div><div className="admin-manage-row"><label className="btn btn-soft compact admin-file-button">{summaryReplacement ? summaryReplacement.name : editionRow.summary_file_id ? "Replace Summary PDF" : "Add Summary PDF"}<input type="file" accept="application/pdf,.pdf" onChange={(event) => setSummaryReplacement(event.target.files?.[0] || null)} /></label>{summaryReplacement && <button className="btn btn-primary compact" type="button" disabled={Boolean(pending)} onClick={() => run("replace-summary")}>{pending === "replace-summary" ? "Uploading…" : "Confirm summary PDF"}</button>}{editionRow.summary_view_url && <a className="btn btn-soft compact" href={editionRow.summary_view_url} target="_blank" rel="noreferrer">Preview Summary</a>}</div></section>
               </div>
-              <div className="admin-manage-row">
-                <label className="btn btn-soft compact admin-file-button">{summaryReplacement ? summaryReplacement.name : editionRow.summary_file_id ? "Replace Summary PDF" : "Add Summary PDF"}<input type="file" accept="application/pdf,.pdf" onChange={(event) => setSummaryReplacement(event.target.files?.[0] || null)} /></label>
-                {summaryReplacement && <button className="btn btn-primary compact" type="button" disabled={Boolean(pending)} onClick={() => run("replace-summary")}>{pending === "replace-summary" ? "Uploading…" : "Confirm summary PDF"}</button>}
-                {editionRow.summary_view_url && <a className="btn btn-soft compact" href={editionRow.summary_view_url} target="_blank" rel="noreferrer">View Summary PDF</a>}
+              {sheet.summary_pdf && sheet.summary_pdf.student_visible === false && <p className="form-alert">The Summary PDF is attached to the draft version. Publish the sheet before students can open it.</p>}
+              {sheet.summary_pdf && sheet.summary_pdf.deliverable === false && <p className="form-alert error">The Summary PDF is still being validated or scanned, so students cannot open it yet.</p>}
+            </section>}
+
+            {manageTab === "questions" && <section className="admin-control-section" aria-label="Question readiness">
+              <div className="admin-question-readiness"><div><span>Draft</span><strong>{draftQuestions}</strong></div><div><span>Published</span><strong>{publishedQuestions}</strong></div><div><span>Total</span><strong>{totalQuestions}</strong></div></div>
+              {totalQuestions > 0 && publishedQuestions === 0 && <p className="form-alert error"><strong>Students currently see no questions.</strong><small>{totalQuestions} question{totalQuestions === 1 ? " is" : "s are"} still in draft or review.</small></p>}
+              {totalQuestions === 0 && <p className="form-alert">No questions have been added to this sheet yet.</p>}
+              <button className="btn btn-primary" type="button" onClick={() => navigate(`/operations/admin/questions?subject=${encodeURIComponent(subject.id)}&sheet=${encodeURIComponent(sheet.id)}`)}>Manage questions</button>
+            </section>}
+
+            {manageTab === "active-study" && <section className="admin-control-section" aria-label="Active Study administration">
+              <EditionTabs sheet={sheet} edition={edition} onChange={(next) => { setEdition(next); setError(null); }} />
+              {edition === "lockin" && !editionRow.available ? <p className="form-alert">Add the Lock-in Edition PDF in Files before configuring Active Study for it.</p> : <ActiveStudySettings key={edition} sheet={sheet} edition={edition} onSaved={onChanged} />}
+            </section>}
+
+            {manageTab === "publication" && <section className="admin-control-section" aria-label="Publication status">
+              <div className="admin-visibility-state"><span className={`stat-icon ${sheet.workflow_status === "published" ? "is-ready" : ""}`}><Icon name={sheet.workflow_status === "published" ? "eye" : "eye-off"} /></span><div><strong>{studentVisibility}</strong><small>{readiness.issues.length ? `${readiness.issues.length} issue${readiness.issues.length === 1 ? "" : "s"} to resolve` : "No known publication blockers"}</small></div></div>
+              {readiness.issues.length > 0 && <ul className="admin-blocking-list">{readiness.issues.map((issue) => <li key={issue.code}><strong>{issue.label}</strong><span>{issue.detail}</span></li>)}</ul>}
+              <div className="admin-manage-row">{sheet.workflow_status === "published" ? <button className="btn btn-outline" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("unpublish")}>Unpublish from students</button> : sheet.pdf && sheet.workflow_status !== "archived" ? <button className="btn btn-primary" type="button" disabled={Boolean(pending) || readiness.state === "blocked"} onClick={() => run("publish")}>Publish to students</button> : <p className="form-alert">Upload the University Sheet PDF before publishing.</p>}</div>
+            </section>}
+
+            {manageTab === "danger" && <section className="admin-control-section admin-danger-zone" aria-label="Danger Zone">
+              <div><h4>Danger Zone</h4><p>These actions remove student access or permanently remove an unused draft. Each action asks for confirmation.</p></div>
+              <div className="admin-danger-actions">
+                {sheet.workflow_status !== "archived" && <button className="btn btn-outline" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("archive")}>Archive sheet</button>}
+                {editionRow.summary_file_id && <button className="btn btn-outline" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("remove-summary")}>Remove Summary PDF</button>}
+                {edition === "university" && sheet.pdf && <button className="btn btn-outline" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("remove-pdf")}>Remove University PDF</button>}
+                {edition === "lockin" && editionRow.available && <button className="btn btn-outline" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("remove-lockin")}>Remove Lockin Sheet</button>}
+                {sheet.can_permanently_delete && <button className="btn btn-danger" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("delete")}>Delete permanently</button>}
               </div>
-              {sheet.summary_pdf && sheet.summary_pdf.student_visible === false && <p className="form-alert">This Summary PDF is on the draft version only. Publish the sheet so students can open it.</p>}
-              {sheet.summary_pdf && sheet.summary_pdf.deliverable === false && <p className="form-alert error">This Summary PDF cannot be delivered yet (it is still being validated or scanned). Students see it as unavailable until it clears.</p>}
-            </section>
-            <section className="admin-manage-group" aria-label="Active Study">
-              <h4>Active Study</h4>
-              <div className="admin-manage-row">
-                <span className="admin-manage-note">{editionRow.active_study_enabled ? `On for the ${editionLabel}` : `Off for the ${editionLabel}`}</span>
-                <button className="btn btn-soft compact" type="button" aria-expanded={advanced} disabled={edition === "lockin" && !editionRow.available} onClick={() => setAdvanced((value) => !value)}>{advanced ? "Hide Active Study settings" : "Configure Active Study"}</button>
-              </div>
-            </section>
-            <section className="admin-manage-group is-publication" aria-label="Publication">
-              <h4>Publication</h4>
-              <div className="admin-manage-row">
-                {sheet.workflow_status === "published" ? <button className="btn btn-soft compact" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("unpublish")}>Unpublish</button> : sheet.pdf && sheet.workflow_status !== "archived" ? <button className="btn btn-primary compact" type="button" disabled={Boolean(pending)} onClick={() => run("publish")}>Publish</button> : null}
-                {sheet.workflow_status !== "archived" && <button className="btn btn-outline compact" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("archive")}>Archive sheet</button>}
-              </div>
-              <div className="admin-manage-row admin-manage-danger">
-                {editionRow.summary_file_id && <button className="btn btn-soft compact" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("remove-summary")}>Remove Summary PDF</button>}
-                {edition === "university" && sheet.pdf && <button className="btn btn-soft compact" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("remove-pdf")}>Remove PDF</button>}
-                {edition === "lockin" && editionRow.available && <button className="btn btn-soft compact" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("remove-lockin")}>Remove Lockin Sheet</button>}
-                {sheet.can_permanently_delete && <button className="btn btn-danger compact" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("delete")}>Delete permanently</button>}
-              </div>
-            </section>
+            </section>}
           </div>
-          {advanced && (edition === "university" || editionRow.available) && <ActiveStudySettings key={edition} sheet={sheet} edition={edition} onSaved={onChanged} />}
         </details>
       )}
       <ConfirmDialog open={Boolean(confirm)} title={confirm === "delete" ? `Delete “${sheet.title}”?` : confirm === "remove-pdf" ? `Remove the PDF from “${sheet.title}”?` : confirm === "remove-lockin" ? `Remove the Lockin Sheet from “${sheet.title}”?` : confirm === "remove-summary" ? `Remove the Summary PDF from “${sheet.title}”?` : `${humanize(confirm)} “${sheet.title}”?`} message={confirm === "delete" ? "The server verified that this unpublished sheet has no progress, bookmarks, questions, imports, or publication history. This removes its remaining file." : confirm === "remove-pdf" ? "Students will immediately lose access to the published PDF. Historical file data is retained safely, and the sheet becomes a draft." : confirm === "remove-summary" ? "Sheet Summary will become unavailable immediately. The main sheet PDF and Active Study settings are unchanged." : confirm === "archive" ? "The sheet disappears from student discovery while historical progress remains intact." : "The sheet remains stored and can be published again later."} confirmLabel={pending ? "Working…" : humanize(confirm)} onCancel={() => setConfirm(null)} onConfirm={() => run(confirm)} />
@@ -476,8 +507,12 @@ function ActiveStudyDifficultyContent({ sheet, edition = "university", settingsR
   const fallback = difficulty.content || { status: "not_configured", checkpoint_question_count: 0, checkpoint_question_target: difficulty.number_of_parts * difficulty.questions_per_checkpoint, final_exam_question_count: 0, final_exam_question_target: difficulty.final_exam_questions, revision: 0 };
   const content = data.data?.content || fallback;
   const readinessReason = content.readiness?.reason || difficulty.readiness?.reason || "Questions have not been configured.";
+  const payloadParts = Array.isArray(data.data?.content?.payload?.parts) ? data.data.content.payload.parts : [];
+  const completeAggregate = Number(content.checkpoint_question_count) >= Number(content.checkpoint_question_target);
+  const partCount = (part) => payloadParts.length ? payloadParts.find((item) => Number(item.part) === Number(part))?.questions?.length || 0 : completeAggregate ? difficulty.questions_per_checkpoint : 0;
+  const finalCount = data.data?.content?.payload?.final_exam?.questions?.length ?? content.final_exam_question_count ?? 0;
   async function remove() { setPending(true); setError(null); try { await adminControlApi.deleteActiveStudyQuestions(sheet.id, difficulty.difficulty, content.revision, edition); setConfirmDelete(false); setPreview(false); await data.reload(); await onContentChanged(); } catch (requestError) { setError(requestError); } finally { setPending(false); } }
-  return <article className="admin-active-study-difficulty"><header><div><h4>{humanize(difficulty.difficulty)}</h4><p>{difficulty.number_of_parts} parts · {difficulty.target_pages_per_part} target pages per part</p></div><span className={`creator-badge active-study-status-${content.status}`}>{humanize(content.status)}</span></header>{content.status !== "ready" && <p className="form-alert">Unavailable — {readinessReason}</p>}<p className="admin-active-study-rules">Checkpoint questions: {content.checkpoint_question_count} / {content.checkpoint_question_target} · Final exam: {content.final_exam_question_count} / {content.final_exam_question_target}</p><ol>{difficulty.page_ranges.map((range) => <li key={range.part}>Part {range.part}: Pages {range.start_page}–{range.end_page}</li>)}</ol>{data.loading && <small>Loading question content…</small>}{data.error && <AdminNotice error={data.error} />}{error && <AdminNotice error={error} />}{content.status === "needs_review" && <p className="form-alert">Page boundaries changed after this import. Review and replace this JSON before using it.</p>}{sharedBank && <p className="admin-active-study-rules">Questions are shared with the University Sheet. Import or replace them on the University Sheet tab.</p>}{difficulty.plan_available === false && <p className="form-alert error">Active Study parts cannot be calculated yet — {difficulty.plan_error || "check the page settings above."}</p>}{difficulty.plan_available !== false && !difficulty.prompt_template_supported && <p className="form-alert error">This sheet produces {difficulty.number_of_parts} Active Study parts. A matching prompt template is not configured yet.</p>}<div className="admin-active-study-content-actions"><ActiveStudyCopyPromptButton difficulty={difficulty} enabled={activeStudyEnabled} />{!sharedBank && <button className="btn btn-primary compact" type="button" disabled={data.loading} onClick={() => { setEditor(true); setPreview(false); }}>{content.revision ? "Edit / Replace JSON" : "Import JSON"}</button>}{content.revision > 0 && <><button className="btn btn-soft compact" type="button" onClick={() => { setPreview((value) => !value); setEditor(false); }}>{preview ? "Close preview" : "Preview"}</button>{!sharedBank && <button className="btn btn-danger compact" type="button" disabled={pending} onClick={() => setConfirmDelete(true)}>Delete content</button>}</>}</div>{editor && <ActiveStudyJsonEditor sheet={sheet} edition={edition} difficulty={difficulty} existingPayload={data.data?.content?.payload || null} expectedRevision={content.revision} onCancel={() => setEditor(false)} onSaved={async () => { setEditor(false); await data.reload(); await onContentChanged(); }} />}{preview && data.data?.content?.payload && <ActiveStudyQuestionPreview payload={data.data.content.payload} pageRanges={difficulty.page_ranges} />}<ConfirmDialog open={confirmDelete} title={`Delete ${humanize(difficulty.difficulty)} Active Study questions?`} message="Only this difficulty's JSON questions will be deleted. Active Study settings, other difficulties, the sheet, and its PDF remain unchanged." confirmLabel={pending ? "Deleting…" : "Delete content"} onCancel={() => setConfirmDelete(false)} onConfirm={remove} /></article>;
+  return <article className="admin-active-study-difficulty"><header><div><h4>{humanize(difficulty.difficulty)}</h4><p>{difficulty.number_of_parts} parts · {difficulty.target_pages_per_part} target pages per part</p></div><span className={`creator-badge active-study-status-${content.status}`}>{humanize(content.status)}</span></header>{content.status !== "ready" && <p className="form-alert">Active Study is not ready: {readinessReason}</p>}<div className="admin-active-study-readiness-list">{difficulty.page_ranges.map((range) => { const count = partCount(range.part); const missing = Math.max(0, difficulty.questions_per_checkpoint - count); return <div key={range.part}><span><strong>Part {range.part}</strong><small>Pages {range.start_page}–{range.end_page}</small></span><b>{count} / {difficulty.questions_per_checkpoint} questions</b><em className={missing ? "is-missing" : "is-ready"}>{missing ? `Needs ${missing} question${missing === 1 ? "" : "s"}` : "Ready"}</em></div>; })}<div><span><strong>Final Exam</strong><small>All eligible pages</small></span><b>{finalCount} / {difficulty.final_exam_questions} questions</b><em className={finalCount < difficulty.final_exam_questions ? "is-missing" : "is-ready"}>{finalCount < difficulty.final_exam_questions ? `Needs ${difficulty.final_exam_questions - finalCount} question${difficulty.final_exam_questions - finalCount === 1 ? "" : "s"}` : "Ready"}</em></div></div>{data.loading && <small>Loading question content…</small>}{data.error && <AdminNotice error={data.error} />}{error && <AdminNotice error={error} />}{content.status === "needs_review" && <p className="form-alert">Page boundaries changed after this import. Review and replace this JSON before using it.</p>}{sharedBank && <p className="admin-active-study-rules">Questions are shared with the University Sheet. Import or replace them on the University Sheet tab.</p>}{difficulty.plan_available === false && <p className="form-alert error">Active Study parts cannot be calculated yet — {difficulty.plan_error || "check the page settings above."}</p>}{difficulty.plan_available !== false && !difficulty.prompt_template_supported && <p className="form-alert error">This sheet produces {difficulty.number_of_parts} Active Study parts. A matching prompt template is not configured yet.</p>}<div className="admin-active-study-content-actions"><ActiveStudyCopyPromptButton difficulty={difficulty} enabled={activeStudyEnabled} />{!sharedBank && <button className="btn btn-primary compact" type="button" disabled={data.loading} onClick={() => { setEditor(true); setPreview(false); }}>{content.revision ? "Edit / Replace JSON" : "Import JSON"}</button>}{content.revision > 0 && <><button className="btn btn-soft compact" type="button" onClick={() => { setPreview((value) => !value); setEditor(false); }}>{preview ? "Close preview" : "Preview"}</button>{!sharedBank && <button className="btn btn-danger compact" type="button" disabled={pending} onClick={() => setConfirmDelete(true)}>Delete content</button>}</>}</div>{editor && <ActiveStudyJsonEditor sheet={sheet} edition={edition} difficulty={difficulty} existingPayload={data.data?.content?.payload || null} expectedRevision={content.revision} onCancel={() => setEditor(false)} onSaved={async () => { setEditor(false); await data.reload(); await onContentChanged(); }} />}{preview && data.data?.content?.payload && <ActiveStudyQuestionPreview payload={data.data.content.payload} pageRanges={difficulty.page_ranges} />}<ConfirmDialog open={confirmDelete} title={`Delete ${humanize(difficulty.difficulty)} Active Study questions?`} message="Only this difficulty's JSON questions will be deleted. Active Study settings, other difficulties, the sheet, and its PDF remain unchanged." confirmLabel={pending ? "Deleting…" : "Delete content"} onCancel={() => setConfirmDelete(false)} onConfirm={remove} /></article>;
 }
 
 /**
