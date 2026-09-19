@@ -19774,4 +19774,106 @@ html {
   .skeleton-sheet-primary .skeleton-button { width: 100%; }
 }
 
+/* Questions: a quiet directory leading into one focused question at a time. */
+.question-directory,
+.question-session-shell {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.question-breadcrumb {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 750;
+}
+
+.question-breadcrumb a { color: var(--muted); text-decoration: none; }
+.question-breadcrumb a:hover:where(html.ix-hover *) { color: var(--primary); }
+.question-breadcrumb span { min-width: 0; overflow: hidden; color: var(--text); text-overflow: ellipsis; white-space: nowrap; }
+
+.question-session-shell { width: min(100%, 820px); margin-inline: auto; }
+.question-session-shell .question-player { width: 100%; }
+
+.question-player-card,
+.attempt-workspace .question-card {
+  border-color: var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  box-shadow: none;
+}
+
+.question-player-card h2,
+.attempt-workspace .question-card h2 {
+  max-width: 54ch;
+  color: var(--text);
+  text-wrap: pretty;
+}
+
+.question-player-card .choices,
+.attempt-workspace .choices { gap: 10px; }
+
+.question-player-card .choices button,
+.attempt-workspace .choices button {
+  min-height: 54px;
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+
+.question-player-card .answer-note {
+  margin-block-start: var(--space-2);
+  padding: var(--space-4);
+  border-width: 1px;
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+
+.attempt-workspace {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.session-quiz-header { align-items: center; }
+.session-quiz-header h2 { margin-block-start: 3px; font-size: var(--text-xl); }
+.quiz-explanation-hint { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); }
+.quiz-explanation-hint .btn:disabled { min-height: 36px; padding-block: 6px; }
+.attempt-metadata { border-radius: var(--radius-md); box-shadow: none; }
+
+@media (max-width: 720px) {
+  .question-directory,
+  .question-session-shell { gap: var(--space-3); }
+  .question-breadcrumb a:first-child,
+  .question-breadcrumb svg:first-of-type { display: none; }
+  .question-player { gap: var(--space-3); }
+  .question-player-card { padding: var(--space-4); }
+  .question-player-card h2 { font-size: var(--text-lg); line-height: 1.42; }
+  .question-player-card .choices button,
+  .attempt-workspace .choices button { min-height: 56px; padding: 12px; }
+  .question-player-actions,
+  .quiz-navigation {
+    position: sticky;
+    z-index: 4;
+    bottom: calc(var(--mobile-bottom-nav-height) + 6px);
+    margin-inline: calc(var(--space-2) * -1);
+    padding: 10px var(--space-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    box-shadow: var(--shadow-sm);
+  }
+  .app-shell.keyboard-open :is(.question-player-actions, .quiz-navigation) { position: static; }
+  .attempt-workspace { padding: var(--space-3); }
+  .quiz-explanation-hint { align-items: center; flex-direction: row; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .question-breadcrumb a { transition: none; }
+}
+
 }

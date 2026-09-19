@@ -122,7 +122,7 @@ export function CatalogSheetStudy({ user = null }) {
             <div><strong>{t("materials.sheetSummary")}</strong><small>{t(edition.summaryStatus === "processing" ? "materials.summaryProcessing" : "materials.summaryUnavailable")}</small></div>
           </div>
         )}
-        <Link className="catalog-questions-card" to={`/questions/categories/practice/subjects/${material.slug}`}>
+        <Link className="catalog-questions-card" to={`/questions/categories/ai-sheet/subjects/${material.slug}`}>
           <span><Icon name="help" size={18} /></span><div><strong>{t("materials.questions")}</strong><small>{t("materials.questionsDescription")}</small></div><Icon name="chevron-right" size={17} aria-hidden="true" />
         </Link>
         <Link className="btn btn-soft compact catalog-sheet-back" to={`/materials/catalog/${material.slug}`}><Icon name="arrow-left" size={16} /> {t("materials.backToSheets")}</Link>
