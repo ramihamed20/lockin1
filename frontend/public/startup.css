@@ -140,6 +140,42 @@ body {
   outline-offset: 3px;
 }
 
+/* A slow start must not look frozen. The line appears only once loading has
+   taken long enough to be noticed, so a fast start never shows it. */
+.startup-progress {
+  position: relative;
+  inline-size: 72px;
+  block-size: 2px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--startup-muted) 18%, transparent);
+  opacity: 0;
+  animation: startup-progress-in 240ms 800ms ease-out forwards;
+}
+
+.startup-progress > span {
+  position: absolute;
+  inset-block: 0;
+  inline-size: 40%;
+  border-radius: inherit;
+  background: var(--startup-accent);
+  animation: startup-progress-sweep 1200ms 800ms cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  transform: translateX(-100%);
+}
+
+.startup-shell--settled .startup-progress {
+  display: none;
+}
+
+@keyframes startup-progress-in {
+  to { opacity: 1; }
+}
+
+@keyframes startup-progress-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+
 @keyframes startup-logo-continuation {
   0% { transform: scale(1); filter: brightness(1); }
   48% { transform: scale(1.045); filter: brightness(1.06); }
@@ -189,6 +225,15 @@ body {
 
   .startup-shell--continuation .startup-halo {
     opacity: 0.34;
+  }
+
+  /* Still says "working", without movement. */
+  .startup-progress > span {
+    animation: none;
+    inset-inline: 0;
+    inline-size: auto;
+    opacity: 0.5;
+    transform: none;
   }
 }
 }
