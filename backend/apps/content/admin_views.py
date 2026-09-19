@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from uuid import UUID
 
-from django.db.models import Q, QuerySet
+from django.db.models import Count, Model, Q, QuerySet
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.exceptions import (
@@ -18,10 +19,12 @@ from rest_framework.views import APIView
 from apps.accounts.models import User
 from apps.administration.catalog import Capability
 from apps.administration.permissions import HasOperationalCapability
+from apps.audit.models import AuditRecord
 from apps.education.models import EducationNode
 from apps.files.models import ManagedFile
 from apps.files.services import managed_file_delivery_size
-from apps.questions.models import Question
+from apps.progress.models import Bookmark, LearningProgress
+from apps.questions.models import Question, QuestionImportBatch
 
 from .active_study_questions import ActiveStudyQuestionValidationError
 from .admin_serializers import (
@@ -64,7 +67,13 @@ from .admin_services import (
 )
 from .catalog_subjects import study_paths_for
 from .editions import UnknownEditionError, normalize_edition
-from .models import CatalogSubject, LearningObject, LearningObjectAsset, LearningObjectVersion
+from .models import (
+    ActiveStudyQuestionContent,
+    CatalogSubject,
+    LearningObject,
+    LearningObjectAsset,
+    LearningObjectVersion,
+)
 from .services import ContentConflictError, ContentFieldError, ContentRuleError
 
 
@@ -129,6 +138,47 @@ def _sheets(subject: EducationNode) -> QuerySet[LearningObject]:
     )
 
 
+_DRAFT_LIKE_STATUSES = frozenset(
+    {
+        LearningObject.WorkflowStatus.DRAFT,
+        LearningObject.WorkflowStatus.IN_REVIEW,
+        LearningObject.WorkflowStatus.REJECTED,
+    }
+)
+
+
+def _sheet_counts_by_subject_path(subject_paths: set[str]) -> dict[str, dict[str, int]]:
+    """Count every subject's sheets in one query instead of three per subject.
+
+    Membership is the same ``path startswith subject.path`` rule ``_sheets``
+    applies, evaluated in Python against each distinct subject path length, so
+    a nested subject still counts the sheets beneath it exactly as before.
+    """
+    counts = {path: {"total": 0, "published": 0, "draft": 0} for path in subject_paths}
+    if not subject_paths:
+        return counts
+    lengths = sorted({len(path) for path in subject_paths})
+    rows = LearningObject.objects.filter(
+        current_version__content_type=LearningObjectVersion.ContentType.PDF,
+        current_version__academic_node__isnull=False,
+    ).values_list("current_version__academic_node__path", "workflow_status")
+    for node_path, workflow_status in rows.iterator(chunk_size=2000):
+        for length in lengths:
+            # A slice past the end returns the whole path, which would count a
+            # sheet against its own subject once per longer subject path.
+            if length > len(node_path):
+                break
+            bucket = counts.get(node_path[:length])
+            if bucket is None:
+                continue
+            bucket["total"] += 1
+            if workflow_status == LearningObject.WorkflowStatus.PUBLISHED:
+                bucket["published"] += 1
+            elif workflow_status in _DRAFT_LIKE_STATUSES:
+                bucket["draft"] += 1
+    return counts
+
+
 def _catalog_subject_node(subject_id: UUID) -> tuple[CatalogSubject | None, EducationNode]:
     """Resolve the Catalog identifier, while keeping pre-Catalog content operable."""
     catalog_subject = (
@@ -176,31 +226,112 @@ def _summary_is_published(*, sheet: LearningObject, managed_file_id: UUID) -> bo
     ).exists()
 
 
-def serialize_sheet(sheet: LearningObject) -> dict[str, object]:
+@dataclass(frozen=True, slots=True)
+class _SheetListFacts:
+    """Per-sheet counts and history flags for a whole list, in a fixed number of queries.
+
+    ``serialize_sheet`` asks the same questions one sheet at a time; a list of
+    sheets used to repeat roughly ten queries per row. Each answer here is the
+    same query with ``__in`` over the list, so the values are identical.
+    """
+
+    question_counts: dict[UUID, int]
+    published_question_counts: dict[UUID, int]
+    with_history: set[UUID]
+    audited_published: set[str]
+    published_summaries: set[tuple[UUID, UUID]]
+
+    @classmethod
+    def load(cls, sheets: list[LearningObject]) -> _SheetListFacts:
+        ids = [sheet.id for sheet in sheets]
+
+        def grouped(queryset: QuerySet[Question], key: str) -> dict[UUID, int]:
+            return {
+                row[key]: row["total"]
+                for row in queryset.values(key).annotate(total=Count("id")).order_by()
+            }
+
+        def referenced(model: type[Model], field: str) -> set[UUID]:
+            return set(
+                model.objects.filter(**{f"{field}__in": ids})  # type: ignore[attr-defined]
+                .values_list(field, flat=True)
+                .distinct()
+            )
+
+        with_history = (
+            referenced(LearningProgress, "learning_object_id")
+            | referenced(Bookmark, "learning_object_id")
+            | referenced(QuestionImportBatch, "sheet_id")
+            | referenced(ActiveStudyQuestionContent, "sheet_id")
+        )
+        published_version_ids = [s.published_version_id for s in sheets if s.published_version_id]
+        return cls(
+            question_counts=grouped(
+                Question.objects.filter(current_version__source_learning_object_id__in=ids),
+                "current_version__source_learning_object_id",
+            ),
+            published_question_counts=grouped(
+                Question.objects.filter(
+                    published_version__source_learning_object_id__in=ids,
+                    published_version__isnull=False,
+                    retired_at__isnull=True,
+                ),
+                "published_version__source_learning_object_id",
+            ),
+            with_history=with_history,
+            audited_published=set(
+                AuditRecord.objects.filter(
+                    target_type="content.learning_object",
+                    target_id__in=[str(sheet_id) for sheet_id in ids],
+                    new_state__workflow_status=LearningObject.WorkflowStatus.PUBLISHED,
+                ).values_list("target_id", flat=True)
+            ),
+            published_summaries=set(
+                LearningObjectAsset.objects.filter(
+                    version_id__in=published_version_ids, role=LearningObjectAsset.Role.SUMMARY
+                ).values_list("version_id", "managed_file_id")
+            ),
+        )
+
+
+def serialize_sheet(
+    sheet: LearningObject, *, facts: _SheetListFacts | None = None
+) -> dict[str, object]:
     version = sheet.current_version
     if version is None:
         raise AdminContentRejected("The sheet has no current version.")
     asset = _primary_asset(sheet)
     summary_asset = _summary_asset(sheet)
-    question_count = Question.objects.filter(
-        current_version__source_learning_object=sheet,
-    ).count()
-    # What a student in this sheet's cohort can actually open. Without it the
-    # only count on screen was the drafted total, so an import saved as a draft
-    # looked identical to one students can answer.
-    published_question_count = Question.objects.filter(
-        published_version__source_learning_object=sheet,
-        published_version__isnull=False,
-        retired_at__isnull=True,
-    ).count()
-    has_history = (
-        sheet.progress_records.exists()
-        or sheet.bookmarks.exists()
-        or question_count > 0
-        or sheet.question_import_batches.exists()
-        or sheet.active_study_question_content.exists()
-        or has_publication_history(sheet)
-    )
+    if facts is not None:
+        question_count = facts.question_counts.get(sheet.id, 0)
+        published_question_count = facts.published_question_counts.get(sheet.id, 0)
+        has_history = (
+            sheet.id in facts.with_history
+            or question_count > 0
+            or sheet.published_at is not None
+            or sheet.published_version_id is not None
+            or str(sheet.id) in facts.audited_published
+        )
+    else:
+        question_count = Question.objects.filter(
+            current_version__source_learning_object=sheet,
+        ).count()
+        # What a student in this sheet's cohort can actually open. Without it the
+        # only count on screen was the drafted total, so an import saved as a
+        # draft looked identical to one students can answer.
+        published_question_count = Question.objects.filter(
+            published_version__source_learning_object=sheet,
+            published_version__isnull=False,
+            retired_at__isnull=True,
+        ).count()
+        has_history = (
+            sheet.progress_records.exists()
+            or sheet.bookmarks.exists()
+            or question_count > 0
+            or sheet.question_import_batches.exists()
+            or sheet.active_study_question_content.exists()
+            or has_publication_history(sheet)
+        )
     return {
         "id": str(sheet.id),
         "title": version.title,
@@ -248,8 +379,13 @@ def serialize_sheet(sheet: LearningObject) -> dict[str, object]:
                 # the published one.  These two say whether what is shown here is
                 # the summary a student can actually open.
                 "deliverable": managed_file_delivery_size(summary_asset.managed_file) is not None,
-                "student_visible": _summary_is_published(
-                    sheet=sheet, managed_file_id=summary_asset.managed_file_id
+                "student_visible": (
+                    (sheet.published_version_id, summary_asset.managed_file_id)
+                    in facts.published_summaries
+                    if facts is not None
+                    else _summary_is_published(
+                        sheet=sheet, managed_file_id=summary_asset.managed_file_id
+                    )
                 ),
             }
             if summary_asset is not None
@@ -271,16 +407,19 @@ class AdminSubjectListView(_ContentPermissionView):
             subjects = subjects.filter(title__icontains=query)
         branches = list(subjects)
         study_paths = study_paths_for(branches)
+        sheet_counts = _sheet_counts_by_subject_path(
+            {subject.source_node.path for subject in branches if subject.source_node is not None}
+        )
         results = []
         for subject in branches:
             source_node = subject.source_node
             if source_node is None:
                 continue
-            sheets = _sheets(source_node)
+            counts = sheet_counts[source_node.path]
             # Do not offer an empty Third Year placeholder to content staff.
             # If legacy content exists, retain access so it can be reviewed
             # rather than silently deleting or concealing real work.
-            if subject.cohort.code == "year-3" and not sheets.exists():
+            if subject.cohort.code == "year-3" and not counts["total"]:
                 continue
             path = study_paths[subject.id]
             results.append(
@@ -289,17 +428,9 @@ class AdminSubjectListView(_ContentPermissionView):
                     "title": subject.title,
                     "path": f"catalog/{subject.material_slug}",
                     "status": "published",
-                    "sheet_count": sheets.count(),
-                    "published_count": sheets.filter(
-                        workflow_status=LearningObject.WorkflowStatus.PUBLISHED
-                    ).count(),
-                    "draft_count": sheets.filter(
-                        workflow_status__in=(
-                            LearningObject.WorkflowStatus.DRAFT,
-                            LearningObject.WorkflowStatus.IN_REVIEW,
-                            LearningObject.WorkflowStatus.REJECTED,
-                        )
-                    ).count(),
+                    "sheet_count": counts["total"],
+                    "published_count": counts["published"],
+                    "draft_count": counts["draft"],
                     "cohort_id": str(subject.cohort_id),
                     "cohort_code": subject.cohort.code,
                     "specialty_title": path.specialty_title,
@@ -328,7 +459,9 @@ class AdminSubjectSheetListView(_ContentPermissionView):
                 Q(current_version__title__icontains=query)
                 | Q(current_version__summary__icontains=query)
             )
-        results = [serialize_sheet(sheet) for sheet in sheets]
+        rows = list(sheets)
+        facts = _SheetListFacts.load(rows)
+        results = [serialize_sheet(sheet, facts=facts) for sheet in rows]
         return Response(
             {
                 "subject": {
