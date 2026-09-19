@@ -1,5 +1,6 @@
 import { Component } from "react";
 import { isStaleClientError, reloadForUpdate } from "../lib/lazyWithRecovery.js";
+import { reportClientError } from "../lib/clientErrorReporting.js";
 
 export class ErrorBoundary extends Component {
   constructor(props) {
@@ -12,7 +13,18 @@ export class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, errorInfo) {
+    // React keeps errors it catches away from window.onerror, so the global
+    // reporter never saw a crashed page. Report the type and route only.
+    if (!isStaleClientError(error)) reportClientError("error", error);
     this.props.onError?.({ error, errorInfo });
+  }
+
+  componentDidUpdate(previousProps) {
+    // Navigating away from a page that crashed must show the next page, not
+    // the same error: the sidebar otherwise looks broken until "Try again".
+    if (this.state.hasError && previousProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false, error: null });
+    }
   }
 
   render() {

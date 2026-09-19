@@ -542,7 +542,7 @@ function App() {
     <SubscriptionSessionProvider key={user.id} user={user}>
       <>
       <Shell user={user} operationsSession={operationsSession} theme={activeTheme} onThemeChange={setManualTheme} onLogout={requestLogout} notificationVersion={notificationVersion} onNotificationsChanged={() => setNotificationVersion((version) => version + 1)} storeCartCount={storeCartCount} lockBalance={lockBalance} storeCommerceEnabled={false}>
-        <ErrorBoundary>
+        <ErrorBoundary resetKey={location.pathname}>
         {/* Returning from background must keep the shell stable. Route chunks
             resolve in place instead of replacing the screen with a loader. */}
         <Suspense fallback={null}>
