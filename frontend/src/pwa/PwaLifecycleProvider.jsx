@@ -8,6 +8,7 @@ import {
   useSyncExternalStore
 } from "react";
 import { useRegisterSW } from "virtual:pwa-register/react";
+import { scheduleUpdateChecks } from "./updateChecks.js";
 import { Icon } from "../lib/icons.jsx";
 import { assetPath } from "../lib/utils.js";
 import { useI18n } from "../components/I18nProvider.jsx";
@@ -150,6 +151,8 @@ export function PwaLifecycleProvider({ children }) {
   const [installBusy, setInstallBusy] = useState(false);
   const [installError, setInstallError] = useState("");
   const appRootRef = useRef(null);
+  const updateChecksRef = useRef(/** @type {null | (() => void)} */ (null));
+  useEffect(() => () => updateChecksRef.current?.(), []);
 
   const {
     needRefresh: [needRefresh, setNeedRefresh],
@@ -164,6 +167,8 @@ export function PwaLifecycleProvider({ children }) {
         controller: navigator.serviceWorker.controller?.state || "not controlling yet"
       });
       monitorWorkerState(registration);
+      updateChecksRef.current?.();
+      updateChecksRef.current = scheduleUpdateChecks(registration);
       navigator.serviceWorker.ready
         .then((readyRegistration) => {
           monitorWorkerState(readyRegistration);
