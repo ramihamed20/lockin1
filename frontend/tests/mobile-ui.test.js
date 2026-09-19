@@ -207,7 +207,7 @@ test("dashboard summary cards are full-card keyboard links to their real destina
   assert.match(dashboard, /id: "completed",[^\n]*to: "\/materials"/);
   assert.match(dashboard, /id: "saved",[^\n]*to: "\/bookmarks"/);
   assert.match(dashboard, /id: "reviewBank",[^\n]*to: "\/review"/);
-  assert.match(dashboard, /id: "sessions",[^\n]*to: "\/security"/);
+  assert.match(dashboard, /id: "level",[^\n]*to: "\/progress"/);
   assert.match(statsGrid, /<Link\s+className="stat-card-action"/);
   assert.match(statsGrid, /aria-label=/);
   assert.match(styles, /\.dashboard-stats-grid \.stat-card-action[\s\S]*min-height: 92px/);

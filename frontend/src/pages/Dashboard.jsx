@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { dashboardApi } from "../api/learning.js";
 import { progressApi } from "../api/progress.js";
+import { motivationApi } from "../api/motivation.js";
 import { reviewApi } from "../api/review.js";
 import { Icon } from "../lib/icons.jsx";
 import { getRecentOpenedCatalogSheets } from "../lib/materialCatalog.js";
@@ -16,15 +17,17 @@ const STAT_CARDS = [
   { id: "completed", labelKey: "dashboard.completed", subKey: "dashboard.completedSub", icon: "check", to: "/materials", actionKey: "dashboard.openCompleted", variant: "emerald", badgeKey: "dashboard.badgeDone", pulse: false },
   { id: "saved", labelKey: "dashboard.saved", subKey: "dashboard.savedSub", icon: "bookmark", to: "/bookmarks", actionKey: "dashboard.openSaved", variant: "indigo", badgeKey: "dashboard.badgeSaved", pulse: false },
   { id: "reviewBank", labelKey: "dashboard.reviewBank", subKey: "dashboard.reviewBankSub", icon: "target", to: "/review", actionKey: "dashboard.openReviewCenter", variant: "rose" },
-  { id: "sessions", labelKey: "dashboard.sessions", subKey: "dashboard.sessionsSub", icon: "activity", to: "/security", actionKey: "dashboard.openSessions", variant: "amber", badgeKey: "dashboard.badgeLive", pulse: true }
+  // Progress, not account security: active sessions are managed in Settings.
+  { id: "level", labelKey: "dashboard.level", subKey: "dashboard.levelSub", icon: "sparkles", to: "/progress", actionKey: "dashboard.openProgress", variant: "amber", badgeKey: "dashboard.badgeXp", pulse: false }
 ];
 
 async function loadDashboard() {
-  const [accountResult, learningResult, reviewResult, bankResult] = await Promise.allSettled([
+  const [accountResult, learningResult, reviewResult, bankResult, xpResult] = await Promise.allSettled([
     dashboardApi.accountDashboard(),
     progressApi.learningDashboard(),
     reviewApi.getQueue(),
-    reviewApi.getBank()
+    reviewApi.getBank(),
+    motivationApi.xpSummary()
   ]);
   if (accountResult.status === "rejected" && learningResult.status === "rejected" && reviewResult.status === "rejected" && bankResult.status === "rejected") {
     throw accountResult.reason;
@@ -37,7 +40,8 @@ async function loadDashboard() {
     review: reviewResult.status === "fulfilled" ? reviewResult.value : null,
     reviewError: reviewResult.status === "rejected" ? reviewResult.reason : null,
     bank: bankResult.status === "fulfilled" ? bankResult.value : null,
-    bankError: bankResult.status === "rejected" ? bankResult.reason : null
+    bankError: bankResult.status === "rejected" ? bankResult.reason : null,
+    xp: xpResult.status === "fulfilled" ? xpResult.value : null
   };
 }
 
@@ -48,7 +52,7 @@ export default function Dashboard({ themeSettings, activeTheme }) {
   if (dashboard.loading) return <LoadingPanel />;
   if (dashboard.error) return <ErrorPanel message={dashboard.error} onRetry={dashboard.reload} />;
 
-  const { account, accountError, learning, learningError, review, reviewError, bank, bankError } = dashboard.data;
+  const { accountError, learning, learningError, review, reviewError, bank, bankError, xp } = dashboard.data;
   const hasMascot = themeSettings.character !== "none";
   const recentOpenedSheets = getRecentOpenedCatalogSheets();
   const reviewItems = review?.results || [];
@@ -57,13 +61,13 @@ export default function Dashboard({ themeSettings, activeTheme }) {
     completed: learning?.completed_count ?? "—",
     saved: learning?.bookmark_count ?? "—",
     reviewBank: Number.isInteger(activeReviewCount) ? activeReviewCount : "—",
-    sessions: account?.account?.active_sessions ?? "—"
+    level: Number.isInteger(xp?.level) ? t("dashboard.levelValue", { level: xp.level }) : "—"
   };
   const dashboardCards = STAT_CARDS.map((card) => ({
     label: t(card.labelKey),
     value: values[card.id],
     icon: card.icon,
-    sub: t(card.subKey),
+    sub: card.id === "level" && xp ? t("dashboard.levelProgress", { progress: xp.level_progress ?? 0, target: xp.level_target ?? 0 }) : t(card.subKey),
     to: card.to,
     actionLabel: t(card.actionKey),
     variant: card.variant,
