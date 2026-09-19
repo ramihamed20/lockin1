@@ -14,6 +14,7 @@ from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from rest_framework.test import APIClient
 
+from apps.accounts.tests.helpers import create_user
 from apps.content.admin_services import create_sheet
 from apps.content.admin_views import _sheets
 from apps.content.models import CatalogSubject
@@ -151,3 +152,33 @@ def test_subject_list_query_count_does_not_grow_with_subjects() -> None:
         )
     assert {row["published_count"] for row in body["results"]} >= {0, 1}
     assert many <= one, f"{one} queries for one subject, {many} for five"
+
+
+def test_student_materials_directory_query_growth_per_sheet() -> None:
+    admin = create_admin()
+    _, subject, _ = published_path(admin=admin)
+    program = AcademicProgram.objects.create(code="dir", name_en="Dir", name_ar="Dir")
+    cohort = StudentCohort.objects.create(program=program, code="own", name_en="Own", name_ar="Own")
+    cohort.content_nodes.add(subject)
+    CatalogSubject.objects.create(
+        cohort=cohort,
+        source_node=subject,
+        title="Directory subject",
+        slug="directory-subject",
+        material_slug="dir-own-directory-subject",
+    )
+    student = create_user(email="directory-student@example.com", cohort=cohort)
+    client = APIClient()
+    client.force_authenticate(student)
+    path = "/api/v1/catalog/materials"
+
+    _sheet(admin=admin, subject=subject, title="Directory sheet 1", publish=True)
+    one, _ = _query_count(client, path)
+    for number in range(2, 7):
+        _sheet(admin=admin, subject=subject, title=f"Directory sheet {number}", publish=True)
+    many, body = _query_count(client, path)
+
+    assert len(body["results"][0]["sheets"]) == 6
+    # Measured at 12 queries for one sheet and 17 for six: Active Study
+    # readiness is resolved per sheet. Keep it from growing further.
+    assert (many - one) / 5 <= 1.5, f"{one} queries for one sheet, {many} for six"
