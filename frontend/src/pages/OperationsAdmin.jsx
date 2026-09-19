@@ -111,9 +111,9 @@ function RangePicker({ days, onChange }) {
   return <RadioGroup className="creator-range" label="Analytics period" value={String(days)} onChange={(next) => onChange(Number(next))}>{[7, 30, 90].map((value) => <RadioOption key={value} value={String(value)} className={days === value ? "active" : ""}>{value}d</RadioOption>)}</RadioGroup>;
 }
 
-function AttentionItem({ label, count, hint, to, icon, tone = "accent" }) {
+function AttentionItem({ label, count, hint, to, icon, tone = "accent", priority = false }) {
   const waiting = Number(count) > 0;
-  return <Link className={`ov-attention-item${waiting ? ` is-waiting tone-${tone}` : ""}`} to={to}>
+  return <Link className={`ov-attention-item${waiting ? ` is-waiting tone-${tone}` : ""}${priority ? " is-primary" : ""}`} to={to}>
     <span className="ov-attention-icon"><Icon name={icon} size={17} /></span>
     <span className="ov-attention-copy"><strong>{label}</strong><small>{waiting ? hint : "Nothing waiting"}</small></span>
     <b>{formatNumber(count || 0)}</b>
@@ -157,7 +157,7 @@ function Overview({ operationsSession }) {
   const queues = overview.queues || {};
   const health = subjects ? contentHealth(subjects) : null;
   const attention = [
-    { label: "Payments awaiting approval", count: queues.pending_payment_reviews ?? 0, hint: "Recharge cards to check and approve", to: "/operations/admin/purchases", icon: "coins", tone: "warning" },
+    { label: "Payments awaiting approval", count: queues.pending_payment_reviews ?? 0, hint: "Recharge cards to check and approve", to: "/operations/admin/purchases", icon: "coins", tone: "warning", priority: true },
     { label: "Reports to review", count: queues.moderation ?? 0, hint: "Raised by students", to: "/operations/admin/reports", icon: "messages", tone: "warning" },
     { label: "Content awaiting review", count: analytics.creators.content_awaiting_review, hint: "Submitted for publishing", to: "/operations/admin/questions", icon: "file-question" },
     ...(health ? [{ label: "Subjects with draft sheets", count: health.subjectsWithDrafts.length, hint: `${plural(health.drafts, "sheet")} students cannot see yet`, to: "/operations/admin/content", icon: "file" }] : []),

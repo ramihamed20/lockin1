@@ -116,7 +116,27 @@ function DocumentSkeleton() {
   return <div className="skeleton-page skeleton-page--document"><SkeletonCard className="skeleton-document-toolbar"><Skeleton className="skeleton-tool-group" /><Skeleton className="skeleton-tool-group" /><SkeletonButton /></SkeletonCard><SkeletonCard className="skeleton-document-sheet"><Skeleton className="skeleton-document-title" /><SkeletonText lines={6} /><Skeleton className="skeleton-document-image" /><SkeletonText lines={5} /></SkeletonCard></div>;
 }
 
+function AdminOverviewSkeleton() {
+  const rows = (count) => Array.from({ length: count }, (_, index) => (
+    <div className="skeleton-admin-row" key={index}>
+      <SkeletonAvatar />
+      <SkeletonText lines={2} />
+      <Skeleton className="skeleton-admin-count" />
+    </div>
+  ));
+  return <div className="skeleton-page skeleton-admin-overview">
+    <SkeletonCard className="skeleton-admin-attention"><div className="skeleton-admin-heading"><Skeleton className="skeleton-admin-title" /><Skeleton className="skeleton-chip" /></div>{rows(5)}</SkeletonCard>
+    <SkeletonCard className="skeleton-admin-glance"><Skeleton className="skeleton-admin-title" /><div className="skeleton-admin-stats">{Array.from({ length: 4 }, (_, index) => <div key={index}><Skeleton className="skeleton-admin-label" /><Skeleton className="skeleton-admin-value" /><Skeleton className="skeleton-admin-meta" /></div>)}</div></SkeletonCard>
+    <div className="skeleton-admin-secondary">
+      <SkeletonCard className="skeleton-admin-health"><Skeleton className="skeleton-admin-title" /><div className="skeleton-admin-stats">{Array.from({ length: 3 }, (_, index) => <div key={index}><Skeleton className="skeleton-admin-label" /><Skeleton className="skeleton-admin-value" /></div>)}</div>{rows(2)}</SkeletonCard>
+      <SkeletonCard className="skeleton-admin-chart-card"><div className="skeleton-admin-heading"><SkeletonText lines={2} /><Skeleton className="skeleton-admin-range" /></div><Skeleton className="skeleton-admin-chart" /><Skeleton className="skeleton-admin-chart-meta" /></SkeletonCard>
+    </div>
+    <SkeletonCard className="skeleton-admin-recent"><Skeleton className="skeleton-admin-title" />{rows(3)}</SkeletonCard>
+  </div>;
+}
+
 function StandardSkeleton({ variant }) {
+  if (variant === "admin-overview") return <AdminOverviewSkeleton />;
   if (variant === "dashboard") return <DashboardSkeleton />;
   if (variant === "profile") return <ProfileSkeleton />;
   if (variant === "progress") return <ProgressSkeleton />;

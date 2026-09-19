@@ -1164,4 +1164,47 @@ textarea:focus {
   .is-refreshing { transition: none; }
 }
 
+/* Admin overview loading state mirrors the final operational hierarchy. */
+.skeleton-admin-overview { gap: 12px; }
+.skeleton-admin-overview .skeleton-card { min-height: 0; padding: 16px; }
+.skeleton-admin-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.skeleton-admin-title { width: min(180px, 52%); height: 15px; }
+.skeleton-admin-attention { gap: 0; }
+.skeleton-admin-row {
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.skeleton-admin-row:last-child { border-bottom: 0; }
+.skeleton-admin-row .skeleton-avatar { width: 32px; height: 32px; border-radius: var(--radius-md); }
+.skeleton-admin-row .skeleton-text { gap: 6px; }
+.skeleton-admin-row .skeleton-text .skeleton:first-child { width: min(220px, 78%); }
+.skeleton-admin-row .skeleton-text .skeleton:last-child { width: min(150px, 58%); }
+.skeleton-admin-count { width: 28px; height: 20px; justify-self: end; }
+.skeleton-admin-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin-top: 12px; background: var(--border); }
+.skeleton-admin-stats > div { display: grid; gap: 7px; min-height: 78px; padding: 10px 12px; background: var(--surface); }
+.skeleton-admin-label { width: 72%; height: 10px; }
+.skeleton-admin-value { width: 42%; height: 24px; }
+.skeleton-admin-meta { width: 64%; height: 9px; }
+.skeleton-admin-secondary { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 12px; }
+.skeleton-admin-health .skeleton-admin-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.skeleton-admin-chart-card { gap: 12px; }
+.skeleton-admin-range { width: 112px; height: 34px; }
+.skeleton-admin-chart { width: 100%; height: 190px; }
+.skeleton-admin-chart-meta { width: 55%; height: 12px; }
+.skeleton-admin-recent { gap: 0; }
+
+@media (max-width: 819px) {
+  .skeleton-admin-secondary { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 599px) {
+  .skeleton-admin-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .skeleton-admin-health .skeleton-admin-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .skeleton-admin-chart { height: 150px; }
+}
+
 }
