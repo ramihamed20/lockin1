@@ -10,6 +10,7 @@ import { buildActiveStudyJsonPrompt } from "../lib/activeStudyPrompt.js";
 import { copyTextToClipboard } from "../lib/clipboard.js";
 import { Icon } from "../lib/icons.jsx";
 import { formatDateTime, formatNumber } from "../lib/i18n.js";
+import { readinessSummary, sheetReadiness } from "../lib/sheetReadiness.js";
 import "./admin-active-study.css";
 
 const EDITIONS = [
@@ -65,8 +66,11 @@ function bytes(value) {
 function AdminNotice({ error = null, message = "" }) {
   if (!error && !message) return null;
   const importErrors = Array.isArray(error?.payload?.errors) ? error.payload.errors : [];
+  // useAsyncData reports load failures as strings; request handlers pass the
+  // error object. Both must show their text, never an empty red box.
+  const text = typeof error === "string" ? error : error?.message || (error ? "Something went wrong. Try again." : message);
   return <div className={`form-alert ${error ? "error" : "success"}`} role={error ? "alert" : "status"}>
-    {error?.message || message}
+    {text}
     {importErrors.slice(0, 8).map((item, index) => <small key={`${item.index}-${item.field}-${index}`}>Question {Number(item.index) + 1 || "batch"} · {item.field}: {item.message}</small>)}
   </div>;
 }
@@ -106,6 +110,16 @@ function useContentLocation() {
   return { params, open, back, setFilter };
 }
 
+const READINESS_ICON = { ready: "check", attention: "alert-triangle", blocked: "alert-triangle", draft: "pencil" };
+
+/** One line naming the sheet state, then what to do about each open issue. */
+function SheetReadiness({ readiness }) {
+  return <div className={`admin-readiness is-${readiness.state}`}>
+    <span className="admin-readiness-state"><Icon name={READINESS_ICON[readiness.state]} size={14} />{readiness.label}</span>
+    {readiness.issues.length > 0 && <ul>{readiness.issues.map((issue) => <li key={issue.code} className={`is-${issue.tone}`}><strong>{issue.label}</strong> — {issue.detail}</li>)}</ul>}
+  </div>;
+}
+
 function BreadcrumbButton({ onClick, children }) {
   return <button className="admin-content-crumb" type="button" onClick={onClick}><Icon name="chevron-left" size={16} />{children}</button>;
 }
@@ -117,7 +131,7 @@ export default function AdminContentManagement({ operationsSession, initialArea 
   useEffect(() => { setArea(initialArea); }, [initialArea]);
   return <section className="admin-content-shell">
     <header className="admin-content-header">
-      <div><p>Library</p><h1>Content and questions</h1><span>Manage the published learning catalog.</span></div>
+      {/* The Studio top bar already names this area and owns the page h1. */}
       <TabList label="Content management areas" variant="tint" value={active} onChange={setArea}>{visible.map(([key, label, , icon]) => <Tab key={key} value={key}><Icon name={icon} size={17} />{label}</Tab>)}</TabList>
     </header>
     {active === "sheets" && <SheetsArea canManage={hasOperationalCapability(operationsSession, "content.manage")} />}
@@ -164,7 +178,7 @@ function SheetsArea({ canManage }) {
 }
 
 function SheetList({ subject, canManage, onBack, selectMode = false, onSelectSheet = null }) {
-  const [status, setStatus] = useState(""); const [query, setQuery] = useState(""); const [createOpen, setCreateOpen] = useState(false); const [message, setMessage] = useState("");
+  const [status, setStatus] = useState(""); const [query, setQuery] = useState(""); const [createOpen, setCreateOpen] = useState(false); const [message, setMessage] = useState(""); const [attentionOnly, setAttentionOnly] = useState(false);
   const searchQuery = useDebouncedValue(query.trim());
   const data = useAsyncData(() => adminControlApi.subjectSheets(subject.id, { status, query: searchQuery }), [subject.id, status, searchQuery], { keepPreviousData: true });
   return <section className="admin-content-section">
@@ -173,8 +187,25 @@ function SheetList({ subject, canManage, onBack, selectMode = false, onSelectShe
     {message && <AdminNotice message={message} />}
     {createOpen && <AddSheetForm subject={{ ...subject, title: data.data?.subject?.title || subject.title || "this subject" }} onCreated={() => { setCreateOpen(false); setMessage("Sheet saved successfully."); data.reload(); }} />}
     <div className="admin-content-filters"><label className="field"><span>Search sheets</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} aria-busy={data.refreshing || undefined} /></label><label className="field"><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">All</option>{["draft", "in_review", "published", "rejected", "archived"].map((value) => <option key={value} value={value}>{humanize(value)}</option>)}</select></label></div>
-    {data.loading ? <LoadingPanel variant="list" /> : data.error ? <ErrorPanel message={data.error} onRetry={data.reload} /> : <div className={`admin-sheet-list${data.refreshing ? " is-refreshing" : ""}`}>{data.data.results.length ? data.data.results.map((sheet, index) => selectMode ? <button className="admin-sheet-select" type="button" key={sheet.id} onClick={() => onSelectSheet?.(sheet)}><span><strong>{sheet.title}</strong><small>{sheet.question_count} questions · {sheet.published_question_count ?? 0} live to students · {humanize(sheet.workflow_status)}</small></span><Icon name="chevron-right" size={18} /></button> : <SheetRow key={sheet.id} sheet={sheet} sheets={data.data.results} index={index} canManage={canManage} onChanged={data.reload} />) : <EmptyState title="No sheets in this view" text="Change the filters or add the first PDF sheet." />}</div>}
+    {data.data && !selectMode && <ReadinessBar sheets={data.data.results} attentionOnly={attentionOnly} onToggle={() => setAttentionOnly((value) => !value)} />}
+    {data.loading ? <LoadingPanel variant="list" /> : data.error ? <ErrorPanel message={data.error} onRetry={data.reload} /> : <div className={`admin-sheet-list${data.refreshing ? " is-refreshing" : ""}`}>{visibleSheets(data.data.results, attentionOnly && !selectMode).length ? visibleSheets(data.data.results, attentionOnly && !selectMode).map((sheet) => selectMode ? <button className="admin-sheet-select" type="button" key={sheet.id} onClick={() => onSelectSheet?.(sheet)}><span><strong>{sheet.title}</strong><small>{sheet.question_count} questions · {sheet.published_question_count ?? 0} live to students · {humanize(sheet.workflow_status)}</small></span><Icon name="chevron-right" size={18} /></button> : <SheetRow key={sheet.id} sheet={sheet} sheets={data.data.results} index={data.data.results.indexOf(sheet)} canManage={canManage} onChanged={data.reload} />) : attentionOnly ? <EmptyState title="Nothing needs attention" text="Every sheet in this view is ready or a draft by choice." /> : <EmptyState title="No sheets in this view" text="Change the filters or add the first PDF sheet." />}</div>}
   </section>;
+}
+
+function visibleSheets(sheets, attentionOnly) {
+  return attentionOnly ? sheets.filter((sheet) => ["blocked", "attention"].includes(sheetReadiness(sheet).state)) : sheets;
+}
+
+function ReadinessBar({ sheets, attentionOnly, onToggle }) {
+  const summary = readinessSummary(sheets);
+  const needsWork = summary.blocked + summary.attention;
+  if (!sheets.length) return null;
+  return <div className="admin-readiness-bar" role="status">
+    <span><b>{summary.ready}</b> ready</span>
+    <span className={needsWork ? "is-attention" : ""}><b>{needsWork}</b> need attention</span>
+    <span><b>{summary.draft}</b> drafts</span>
+    {(needsWork > 0 || attentionOnly) && <button className="btn btn-soft compact" type="button" aria-pressed={attentionOnly} onClick={onToggle}>{attentionOnly ? "Show all sheets" : "Show only what needs attention"}</button>}
+  </div>;
 }
 
 function AddSheetForm({ subject, onCreated }) {
@@ -281,14 +312,14 @@ function SheetRow({ sheet, sheets, index, canManage, onChanged }) {
   const [pending, setPending] = useState(""); const [error, setError] = useState(null); const [confirm, setConfirm] = useState(null); const [replacement, setReplacement] = useState(null); const [summaryReplacement, setSummaryReplacement] = useState(null); const [position, setPosition] = useState(sheet.position); const [title, setTitle] = useState(sheet.title); const [advanced, setAdvanced] = useState(false); const [edition, setEdition] = useState("university");
   async function run(action, target = null, placement = null) { setPending(action); setError(null); try { if (action === "replace") { const managed = await managementApi.uploadFile({ kind: "pdf", file: replacement }); if (edition === "lockin") await adminControlApi.replaceSheetLockinPdf(sheet.id, { expected_revision: sheet.revision, lockin_file_id: managed.id }); else await adminControlApi.replaceSheetPdf(sheet.id, { expected_revision: sheet.revision, primary_file_id: managed.id, notify_students: false }); setReplacement(null); } else if (action === "replace-summary") { const managed = await managementApi.uploadFile({ kind: "pdf", file: summaryReplacement }); await adminControlApi.replaceSheetSummaryPdf(sheet.id, { expected_revision: sheet.revision, summary_file_id: managed.id }, edition); setSummaryReplacement(null); } else if (action === "remove-summary") await adminControlApi.removeSheetSummaryPdf(sheet.id, sheet.revision, edition); else if (action === "remove-lockin") await adminControlApi.removeSheetLockinPdf(sheet.id, sheet.revision); else if (action === "reorder") await adminControlApi.reorderSheet(sheet.id, { expected_revision: sheet.revision, target_sheet_id: target.id, placement }); else if (action === "remove-pdf") await adminControlApi.removeSheetPdf(sheet.id, sheet.revision); else if (action === "delete") await adminControlApi.deleteSheet(sheet.id); else if (action === "details") await adminControlApi.updateSheet(sheet.id, { expected_revision: sheet.revision, title: title.trim(), position: Number(position) }); else await adminControlApi.sheetAction(sheet.id, { expected_revision: sheet.revision, action, notify_students: false }); setConfirm(null); onChanged(); } catch (requestError) { setError(requestError); } finally { setPending(""); } }
   const editionRow = (Array.isArray(sheet.editions) ? sheet.editions : []).find((item) => item.edition === edition) || {};
+  const readiness = sheetReadiness(sheet);
   const editionLabel = EDITIONS.find(([key]) => key === edition)?.[1] || "Sheet";
   return (
     <article className="admin-sheet-row">
       <div className="admin-sheet-primary">
         <span className="admin-order">{sheet.position}</span>
-        <div><h3>{sheet.title}</h3><p>{sheet.pdf ? `${sheet.pdf.original_name} · ${bytes(sheet.pdf.size_bytes)}` : "No PDF attached"}</p><small>{sheet.question_count} questions · Sheet Summary PDF {sheet.summary_pdf ? "added" : "not added"} · Active Study {sheet.active_study_enabled ? "enabled" : "disabled"} · Updated {formatDateTime(sheet.updated_at)}</small></div>
+        <div><h3>{sheet.title}</h3><p>{sheet.pdf ? `${sheet.pdf.original_name} · ${bytes(sheet.pdf.size_bytes)}${sheet.pdf.page_count ? ` · ${sheet.pdf.page_count} pages` : ""}` : "No PDF attached"}</p><small>{sheet.question_count} questions · Summary {sheet.summary_pdf ? "added" : "not added"} · Active Study {sheet.active_study_enabled ? "on" : "off"} · Updated {formatDateTime(sheet.updated_at)}</small><SheetReadiness readiness={readiness} /></div>
         <span className={`pill status-${sheet.workflow_status}`}>{humanize(sheet.workflow_status)}</span>
-        {sheet.workflow_status === "published" && sheet.student_visible === false && <span className="pill status-rejected" title="This subject is not inside any cohort's content root, so the Catalog cannot reach the sheet.">Not visible to students</span>}
       </div>
       {error && <AdminNotice error={error} />}
       {canManage && (
@@ -296,27 +327,54 @@ function SheetRow({ sheet, sheets, index, canManage, onChanged }) {
           <summary>Manage sheet <Icon name="chevron-right" size={17} /></summary>
           <EditionTabs sheet={sheet} edition={edition} onChange={(next) => { setEdition(next); setReplacement(null); setSummaryReplacement(null); setError(null); }} />
           {edition === "lockin" && !editionRow.available && <p className="form-alert">Upload a Lockin Sheet PDF to give this sheet a second edition. It shares the sheet's question bank and part count; only its pages differ.</p>}
-          <div className="admin-sheet-actions">
-            <label className="field"><span>Sheet name</span><input value={title} maxLength={220} required onChange={(event) => setTitle(event.target.value)} /></label>
-            <label className="field compact-field"><span>Position</span><input type="number" min="0" value={position} onChange={(event) => setPosition(event.target.value)} /></label>
-            <button className="btn btn-soft compact" type="button" disabled={Boolean(pending) || !title.trim()} onClick={() => run("details")}>Save details</button>
-            <button className="btn btn-soft compact" type="button" disabled={Boolean(pending) || index === 0} onClick={() => run("reorder", sheets[index - 1], "before")}>Move before</button>
-            <button className="btn btn-soft compact" type="button" disabled={Boolean(pending) || index === sheets.length - 1} onClick={() => run("reorder", sheets[index + 1], "after")}>Move after</button>
-            <button className="btn btn-soft compact" type="button" onClick={() => setAdvanced((value) => !value)}>Advanced</button>
-            {sheet.workflow_status === "published" ? <button className="btn btn-soft compact" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("unpublish")}>Unpublish</button> : sheet.pdf && sheet.workflow_status !== "archived" ? <button className="btn btn-primary compact" type="button" disabled={Boolean(pending)} onClick={() => run("publish")}>Publish</button> : null}
-            <label className="btn btn-soft compact admin-file-button">{replacement ? replacement.name : editionRow.available ? `Replace ${editionLabel} PDF` : `Upload ${editionLabel} PDF`}<input type="file" accept="application/pdf,.pdf" onChange={(event) => setReplacement(event.target.files?.[0] || null)} /></label>
-            {replacement && <button className="btn btn-primary compact" type="button" disabled={Boolean(pending)} onClick={() => run("replace")}>{pending === "replace" ? "Uploading…" : "Confirm replacement"}</button>}
-            <label className="btn btn-soft compact admin-file-button">{summaryReplacement ? summaryReplacement.name : editionRow.summary_file_id ? "Replace Summary PDF" : "Add Summary PDF"}<input type="file" accept="application/pdf,.pdf" onChange={(event) => setSummaryReplacement(event.target.files?.[0] || null)} /></label>
-            {summaryReplacement && <button className="btn btn-primary compact" type="button" disabled={Boolean(pending)} onClick={() => run("replace-summary")}>{pending === "replace-summary" ? "Uploading…" : "Confirm summary PDF"}</button>}
-            {editionRow.view_url && <a className="btn btn-soft compact" href={editionRow.view_url} target="_blank" rel="noreferrer">View {editionLabel} PDF</a>}
-            {editionRow.summary_view_url && <a className="btn btn-soft compact" href={editionRow.summary_view_url} target="_blank" rel="noreferrer">View Summary PDF</a>}
-            {sheet.summary_pdf && sheet.summary_pdf.student_visible === false && <p className="form-alert">This Summary PDF is on the draft version only. Publish the sheet so students can open it.</p>}
-            {sheet.summary_pdf && sheet.summary_pdf.deliverable === false && <p className="form-alert error">This Summary PDF cannot be delivered yet (it is still being validated or scanned). Students see it as unavailable until it clears.</p>}
-            {editionRow.summary_file_id && <button className="btn btn-soft compact" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("remove-summary")}>Remove Summary PDF</button>}
-            {edition === "university" && sheet.pdf && <button className="btn btn-soft compact" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("remove-pdf")}>Remove PDF</button>}
-            {edition === "lockin" && editionRow.available && <button className="btn btn-soft compact" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("remove-lockin")}>Remove Lockin Sheet</button>}
-            {sheet.workflow_status !== "archived" && <button className="btn btn-outline compact" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("archive")}>Archive sheet</button>}
-            {sheet.can_permanently_delete && <button className="btn btn-danger compact" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("delete")}>Delete permanently</button>}
+          <div className="admin-sheet-manage">
+            <section className="admin-manage-group" aria-label="Sheet details">
+              <h4>Details</h4>
+              <div className="admin-manage-row">
+                <label className="field"><span>Sheet name</span><input value={title} maxLength={220} required onChange={(event) => setTitle(event.target.value)} /></label>
+                <label className="field compact-field"><span>Position</span><input type="number" min="0" value={position} onChange={(event) => setPosition(event.target.value)} /></label>
+                <button className="btn btn-soft compact" type="button" disabled={Boolean(pending) || !title.trim()} onClick={() => run("details")}>Save details</button>
+              </div>
+              <div className="admin-manage-row">
+                <button className="btn btn-soft compact" type="button" disabled={Boolean(pending) || index === 0} onClick={() => run("reorder", sheets[index - 1], "before")}><Icon name="chevron-up" size={15} />Move up</button>
+                <button className="btn btn-soft compact" type="button" disabled={Boolean(pending) || index === sheets.length - 1} onClick={() => run("reorder", sheets[index + 1], "after")}><Icon name="chevron-down" size={15} />Move down</button>
+              </div>
+            </section>
+            <section className="admin-manage-group" aria-label={`${editionLabel} files`}>
+              <h4>{editionLabel} files</h4>
+              <div className="admin-manage-row">
+                <label className="btn btn-soft compact admin-file-button">{replacement ? replacement.name : editionRow.available ? `Replace ${editionLabel} PDF` : `Upload ${editionLabel} PDF`}<input type="file" accept="application/pdf,.pdf" onChange={(event) => setReplacement(event.target.files?.[0] || null)} /></label>
+                {replacement && <button className="btn btn-primary compact" type="button" disabled={Boolean(pending)} onClick={() => run("replace")}>{pending === "replace" ? "Uploading…" : "Confirm replacement"}</button>}
+                {editionRow.view_url && <a className="btn btn-soft compact" href={editionRow.view_url} target="_blank" rel="noreferrer">View {editionLabel} PDF</a>}
+              </div>
+              <div className="admin-manage-row">
+                <label className="btn btn-soft compact admin-file-button">{summaryReplacement ? summaryReplacement.name : editionRow.summary_file_id ? "Replace Summary PDF" : "Add Summary PDF"}<input type="file" accept="application/pdf,.pdf" onChange={(event) => setSummaryReplacement(event.target.files?.[0] || null)} /></label>
+                {summaryReplacement && <button className="btn btn-primary compact" type="button" disabled={Boolean(pending)} onClick={() => run("replace-summary")}>{pending === "replace-summary" ? "Uploading…" : "Confirm summary PDF"}</button>}
+                {editionRow.summary_view_url && <a className="btn btn-soft compact" href={editionRow.summary_view_url} target="_blank" rel="noreferrer">View Summary PDF</a>}
+              </div>
+              {sheet.summary_pdf && sheet.summary_pdf.student_visible === false && <p className="form-alert">This Summary PDF is on the draft version only. Publish the sheet so students can open it.</p>}
+              {sheet.summary_pdf && sheet.summary_pdf.deliverable === false && <p className="form-alert error">This Summary PDF cannot be delivered yet (it is still being validated or scanned). Students see it as unavailable until it clears.</p>}
+            </section>
+            <section className="admin-manage-group" aria-label="Active Study">
+              <h4>Active Study</h4>
+              <div className="admin-manage-row">
+                <span className="admin-manage-note">{editionRow.active_study_enabled ? `On for the ${editionLabel}` : `Off for the ${editionLabel}`}</span>
+                <button className="btn btn-soft compact" type="button" aria-expanded={advanced} disabled={edition === "lockin" && !editionRow.available} onClick={() => setAdvanced((value) => !value)}>{advanced ? "Hide Active Study settings" : "Configure Active Study"}</button>
+              </div>
+            </section>
+            <section className="admin-manage-group is-publication" aria-label="Publication">
+              <h4>Publication</h4>
+              <div className="admin-manage-row">
+                {sheet.workflow_status === "published" ? <button className="btn btn-soft compact" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("unpublish")}>Unpublish</button> : sheet.pdf && sheet.workflow_status !== "archived" ? <button className="btn btn-primary compact" type="button" disabled={Boolean(pending)} onClick={() => run("publish")}>Publish</button> : null}
+                {sheet.workflow_status !== "archived" && <button className="btn btn-outline compact" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("archive")}>Archive sheet</button>}
+              </div>
+              <div className="admin-manage-row admin-manage-danger">
+                {editionRow.summary_file_id && <button className="btn btn-soft compact" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("remove-summary")}>Remove Summary PDF</button>}
+                {edition === "university" && sheet.pdf && <button className="btn btn-soft compact" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("remove-pdf")}>Remove PDF</button>}
+                {edition === "lockin" && editionRow.available && <button className="btn btn-soft compact" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("remove-lockin")}>Remove Lockin Sheet</button>}
+                {sheet.can_permanently_delete && <button className="btn btn-danger compact" type="button" disabled={Boolean(pending)} onClick={() => setConfirm("delete")}>Delete permanently</button>}
+              </div>
+            </section>
           </div>
           {advanced && (edition === "university" || editionRow.available) && <ActiveStudySettings key={edition} sheet={sheet} edition={edition} onSaved={onChanged} />}
         </details>

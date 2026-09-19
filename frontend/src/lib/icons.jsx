@@ -54,6 +54,7 @@ import {
   Trash2,
   Minus,
   GripVertical,
+  ChevronDown,
   ChevronUp,
   Undo2,
   Redo2,
@@ -86,6 +87,7 @@ import {
 const icons = {
   grip: GripVertical,
   "chevron-up": ChevronUp,
+  "chevron-down": ChevronDown,
   minus: Minus,
   highlighter: Highlighter,
   eraser: Eraser,
