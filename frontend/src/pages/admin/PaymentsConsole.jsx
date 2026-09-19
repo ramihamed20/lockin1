@@ -323,14 +323,16 @@ function ReviewActions({ payment, canManage, onReviewed }) {
             >
               {pending ? "Working…" : "Approve payment"}
             </button>
-            <button
-              type="button"
-              className="btn btn-danger"
-              disabled={pending || reason.trim().length < 3}
-              onClick={() => setDecision("reject")}
-            >
-              Reject payment
-            </button>
+            <span className="ops-reject-action">
+              <button
+                type="button"
+                className="btn btn-danger"
+                disabled={pending || reason.trim().length < 3}
+                onClick={() => setDecision("reject")}
+              >
+                Reject payment
+              </button>
+            </span>
           </div>
         </div>
       )}

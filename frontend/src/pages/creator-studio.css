@@ -262,6 +262,8 @@
 .creator-table td:first-child small { margin-top: 3px; color: var(--soft); }
 .creator-table tbody tr:hover:where(html.ix-hover *) { background: var(--surface-3); }
 .creator-table .btn { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.creator-table td[data-label="Cohort"],
+.creator-table td[data-label="Roles"] { max-width: 18rem; overflow-wrap: anywhere; }
 
 /* Stacked records -----------------------------------------------------------
  * Six columns need 740px. Below that the table was a 740px grid inside a
@@ -298,6 +300,11 @@
     border: 1px solid var(--border);
     border-radius: 10px;
     background: var(--surface-2);
+  }
+
+  .creator-table tr:has(.creator-badge.is-suspended),
+  .creator-table tr:has(.creator-badge.is-deleted) {
+    border-color: color-mix(in srgb, var(--danger) 26%, var(--border));
   }
 
   .creator-table td {
@@ -815,6 +822,18 @@
   align-items: center;
 }
 
+.ops-review-actions .ops-actions {
+  justify-content: space-between;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.ops-reject-action {
+  display: inline-flex;
+  padding-inline-start: var(--space-5);
+  border-inline-start: 1px solid var(--border);
+}
+
 .ops-form {
   display: grid;
   gap: var(--space-3);
@@ -895,6 +914,24 @@
   .ops-metric strong {
     font-size: var(--text-xl);
   }
+
+  .ops-review-actions .ops-actions {
+    align-items: stretch;
+  }
+
+  .ops-review-actions .ops-actions > .btn,
+  .ops-reject-action,
+  .ops-reject-action .btn {
+    width: 100%;
+  }
+
+  .ops-reject-action {
+    margin-top: var(--space-2);
+    padding-block-start: var(--space-4);
+    padding-inline-start: 0;
+    border-block-start: 1px solid var(--border);
+    border-inline-start: 0;
+  }
 }
 
 /* Scope analytics: University -> Specialty -> Year filters, KPIs, breakdown. */
@@ -928,7 +965,9 @@
   .ops-table th,
   .ops-table td { display: block; width: 100%; }
   .ops-table tbody { display: grid; gap: 10px; }
-  .ops-table tr { padding: 12px 14px; border: 1px solid var(--creator-border, var(--border)); border-radius: 10px; }
+  .ops-table tr { padding: 12px 14px; border: 1px solid var(--creator-border, var(--border)); border-radius: 10px; background: var(--surface); }
+  .ops-table tr:has(.ops-badge.is-warning) { border-color: color-mix(in srgb, var(--warning) 28%, var(--border)); }
+  .ops-table tr:has(.ops-badge.is-danger) { border-color: color-mix(in srgb, var(--danger) 28%, var(--border)); }
   .ops-table th[scope="row"] { padding: 0 0 9px; margin-bottom: 4px; border-bottom: 1px solid var(--creator-border, var(--border)); }
   .ops-table th[scope="row"] .ops-row-link { width: 100%; min-height: 44px; align-content: center; }
   .ops-table td { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 5px 0; border: 0; text-align: end; }
