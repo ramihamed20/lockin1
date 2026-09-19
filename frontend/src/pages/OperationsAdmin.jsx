@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { adminControlApi } from "../api/adminControl.js";
 import { hasOperationalCapability } from "../lib/authz.js";
+import { STUDIO_AREAS } from "../lib/studioAreas.js";
 import { Icon } from "../lib/icons.jsx";
 import { useAsyncData, useDebouncedValue } from "../hooks/useAsyncData.js";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
@@ -13,21 +14,7 @@ import SubscriptionsConsole from "./admin/SubscriptionsConsole.jsx";
 import ScopeAnalytics from "./admin/ScopeAnalytics.jsx";
 import "./creator-studio.css";
 
-const TABS = [
-  ["overview", "Overview", "overview.view", "home", "Workspace"],
-  ["analytics", "Analytics", "analytics.view", "analytics", "Workspace"],
-  ["users", "Students", "users.view", "user", "Learning"],
-  ["subscriptions", "Subscriptions", "subscriptions.view", "layers", "Learning"],
-  ["content", "Content", "content.view", "file", "Library"],
-  ["questions", "Questions", "assessments.view", "file-question", "Library"],
-  ["notifications", "Notifications", "notifications.view", "bell", "Engagement"],
-  ["reports", "Moderation", "moderation.view", "messages", "Engagement"],
-  ["audit", "Activity", "audit.view", "activity", "Governance"],
-  ["purchases", "Payments", "payments.view", "coins", "Governance"],
-  ["exports", "Exports", "reports.export", "file", "Governance"],
-  ["system", "System", "system_health.view", "activity", "Platform"],
-  ["settings", "Settings", "configuration.view", "settings", "Platform"]
-];
+const TABS = STUDIO_AREAS;
 
 const NAV_GROUPS = ["Workspace", "Learning", "Library", "Engagement", "Governance", "Platform"];
 

@@ -6,9 +6,12 @@ import test from "node:test";
 const page = await readFile(new URL("../src/pages/OperationsAdmin.jsx", import.meta.url), "utf8");
 const styles = await readFile(new URL("../src/pages/creator-studio.css", import.meta.url), "utf8");
 
+const areas = await readFile(new URL("../src/lib/studioAreas.js", import.meta.url), "utf8");
+
 test("Creator Studio exposes the unified operational information architecture", () => {
+  assert.match(page, /const TABS = STUDIO_AREAS;/);
   for (const area of ["Overview", "Students", "Subscriptions", "Content", "Questions", "Analytics", "Notifications", "Activity", "System", "Settings"]) {
-    assert.match(page, new RegExp(`\\"${area}\\"`));
+    assert.match(areas, new RegExp(`\\"${area}\\"`));
   }
   assert.match(page, /CreatorStudioHeader/);
   assert.match(page, /creator-global-search/);

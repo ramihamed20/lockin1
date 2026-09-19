@@ -283,7 +283,7 @@ export function BottomNav({ onMore, menuOpen, inert = false }) {
 
 // --- Topbar ---
 
-export function Topbar({ user, theme, onThemeChange, onLogout, onMenu, menuOpen, menuButtonRef, onDropdownOpenChange, notificationVersion, onNotificationsChanged, storeCartCount = 0, lockBalance = 0, storeCommerceEnabled = false }) {
+export function Topbar({ user, operationsSession = null, theme, onThemeChange, onLogout, onMenu, menuOpen, menuButtonRef, onDropdownOpenChange, notificationVersion, onNotificationsChanged, storeCartCount = 0, lockBalance = 0, storeCommerceEnabled = false }) {
   const { t, locale } = useI18n();
   const [profileMenuState, setProfileMenuState] = useState("closed");
   const [isPhone, setIsPhone] = useState(() => window.matchMedia(COMPACT_SHELL_QUERY).matches);
@@ -739,7 +739,7 @@ export function Topbar({ user, theme, onThemeChange, onLogout, onMenu, menuOpen,
           <p>{t("shell.greetingLine", { greeting: localizedGreeting, audience: t("shell.futureDentist") })}</p>
         </div>
       )}
-      <GlobalSearch onOpenChange={setGlobalSearchOpen} />
+      <GlobalSearch onOpenChange={setGlobalSearchOpen} operationsSession={operationsSession} />
       <button className="icon-btn" onClick={() => onThemeChange(theme === "night" ? "day" : "night")} aria-label={t("shell.toggleTheme")}>
         <Icon name={theme === "night" ? "sun" : "moon"} />
       </button>
@@ -1014,6 +1014,7 @@ export function Shell({ children, user, operationsSession, theme, onThemeChange,
         <div className="content-frame" inert={drawerOpen ? "" : undefined} aria-hidden={drawerOpen || undefined}>
           <Topbar
             user={user}
+            operationsSession={operationsSession}
             theme={theme}
             onThemeChange={onThemeChange}
             onLogout={onLogout}
