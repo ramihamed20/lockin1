@@ -19876,4 +19876,44 @@ html {
   .question-breadcrumb a { transition: none; }
 }
 
+.subscription-state-flow {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  list-style: none;
+}
+
+.subscription-state-flow li {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.subscription-state-flow li + li { border-inline-start: 1px solid var(--border); }
+.subscription-state-flow li > span { width: 24px; height: 24px; display: grid; flex: 0 0 auto; place-items: center; border-radius: 50%; color: var(--muted); background: var(--surface-3); font-size: .68rem; font-weight: 850; }
+.subscription-state-flow strong { min-width: 0; overflow-wrap: anywhere; font-size: inherit; }
+.subscription-state-flow .is-done { color: var(--text); }
+.subscription-state-flow .is-done > span { color: var(--success); background: var(--success-soft); }
+.subscription-state-flow .is-current { color: var(--text); background: color-mix(in srgb, var(--primary) 6%, transparent); }
+.subscription-state-flow .is-current > span { color: var(--on-accent); background: var(--primary); }
+.subscription-state-flow[data-outcome="rejected"] li:last-child > span,
+.subscription-state-flow[data-outcome="expired"] li:last-child > span { color: var(--text); background: var(--danger); }
+.subscription-state-flow[data-outcome="trial"] li:last-child > span { color: var(--warning-ink, var(--text)); background: var(--warning-soft); }
+
+@media (max-width: 760px) {
+  .subscription-state-flow { grid-template-columns: 1fr; }
+  .subscription-state-flow li { min-height: 44px; padding: 8px 10px; }
+  .subscription-state-flow li + li { border-inline-start: 0; border-block-start: 1px solid var(--border); }
+  .subscription-state-flow .is-upcoming { display: none; }
+}
+
 }

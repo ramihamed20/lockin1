@@ -495,6 +495,26 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v2-tool-range input { min-height: 44px; }
 }
 
+/* Active Study keeps its place visible without taking reading space from the
+   PDF. The compact toolbar chip replaces an icon-only state once a run starts. */
+.workspace-v2-study-mode-button.has-progress {
+  width: auto;
+  min-width: 44px;
+  grid-auto-flow: column;
+  gap: 7px;
+  padding-inline: 10px;
+  color: var(--workspace-chrome-text);
+  border-color: var(--accent-border);
+}
+
+.workspace-v2-study-mode-status { min-width: 0; display: grid; justify-items: start; gap: 1px; line-height: 1; }
+.workspace-v2-study-mode-status strong { font-size: .68rem; }
+.workspace-v2-study-mode-status small { color: var(--workspace-chrome-secondary); font-size: .58rem; font-weight: 700; }
+
+@media (max-width: 560px) {
+  .workspace-v2-study-mode-button.has-progress { width: auto; max-width: 108px; }
+}
+
 /* Mobile Safari magnifies the whole page whenever it focuses a control whose
    text is smaller than 16px, and it does not undo that magnification when the
    keyboard closes. The workspace is a fixed, immersive surface with nowhere to
