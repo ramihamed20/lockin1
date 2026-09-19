@@ -88,7 +88,7 @@ test("Creator Studio follows the shared hidden visual-page-heading default", asy
   // The Studio top bar renders the page's one <h1>, so the Page fallback
   // heading is switched off rather than duplicated.
   assert.match(operationsPage, /<Page title="Creator Studio" showHeading=\{false\} headingHandled>/);
-  assert.match(operationsPage, /<header className="creator-studio-topbar">[\s\S]*?<h1>/);
+  assert.match(operationsPage, /<header className="studio-header">[\s\S]*?<h1>/);
   assert.doesNotMatch(operationsPage, /Creator Studio" subtitle=/);
 });
 

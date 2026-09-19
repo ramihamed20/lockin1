@@ -13,8 +13,11 @@ test("Creator Studio exposes the unified operational information architecture", 
   for (const area of ["Overview", "Students", "Subscriptions", "Content", "Questions", "Analytics", "Notifications", "Activity", "System", "Settings"]) {
     assert.match(areas, new RegExp(`\\"${area}\\"`));
   }
-  assert.match(page, /CreatorStudioHeader/);
-  assert.match(page, /creator-global-search/);
+  // One navigation: the app sidebar carries the Studio areas, and each area
+  // opens with a breadcrumbed header instead of a second rail and top bar.
+  assert.match(page, /function StudioHeader/);
+  assert.match(page, /className="ui-breadcrumb"/);
+  assert.doesNotMatch(page, /creator-studio-rail|operations-mobile-selector/);
 });
 
 test("overview uses stored analytics without fake metric fallbacks", () => {

@@ -136,7 +136,7 @@ test("the document, the shell and the opening frame share one height authority",
   assert.match(startup, /^\/\*[\s\S]*?\*\/\s*@layer startup \{/);
   assert.match(startup, /html,\s*body,\s*#root \{[\s\S]*min-block-size: 100lvh/);
   assert.doesNotMatch(startup, /html,\s*body,\s*#root \{[\s\S]*min-block-size: 100%/);
-  assert.match(layers, /@layer startup, primitives, app, interaction;/);
+  assert.match(layers, /@layer startup, primitives, app, tokens, system, interaction;/);
 });
 
 test("one module owns a stable application viewport and observes keyboard occlusion", async () => {

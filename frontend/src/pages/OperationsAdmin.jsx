@@ -6,7 +6,7 @@ import { STUDIO_AREAS } from "../lib/studioAreas.js";
 import { Icon } from "../lib/icons.jsx";
 import { useAsyncData, useDebouncedValue } from "../hooks/useAsyncData.js";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
-import { EmptyState, ErrorPanel, LoadingPanel, NavItem, Page, RadioGroup, RadioOption, Tab, TabList } from "../components/ui/index.jsx";
+import { EmptyState, ErrorPanel, LoadingPanel, Page, RadioGroup, RadioOption, Tab, TabList } from "../components/ui/index.jsx";
 import { formatDateTime, formatNumber } from "../lib/i18n.js";
 import AdminContentManagement from "./AdminContentManagement.jsx";
 import PaymentsConsole from "./admin/PaymentsConsole.jsx";
@@ -15,8 +15,6 @@ import ScopeAnalytics from "./admin/ScopeAnalytics.jsx";
 import "./creator-studio.css";
 
 const TABS = STUDIO_AREAS;
-
-const NAV_GROUPS = ["Workspace", "Learning", "Library", "Engagement", "Governance", "Platform"];
 
 function humanize(value) {
   return String(value || "Not available").replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -55,38 +53,30 @@ function Pager({ page, count, onPage }) {
   return <div className="operations-pager"><span>{count} server record{count === 1 ? "" : "s"}</span><div><button className="btn btn-soft compact" type="button" disabled={!canBack} onClick={() => onPage(page - 1)}>Previous</button><button className="btn btn-soft compact" type="button" disabled={!canNext} onClick={() => onPage(page + 1)}>Next</button></div></div>;
 }
 
-function AdminTabs({ operationsSession, active }) {
-  const visibleTabs = TABS.filter(([, , capability]) => hasOperationalCapability(operationsSession, capability));
-  const [collapsed, setCollapsed] = useState(false);
-  return <aside className={`creator-studio-rail ${collapsed ? "is-collapsed" : ""}`}>
-    <div className="creator-studio-brand"><span className="creator-studio-mark">L</span><span><strong>LOCK IN</strong><small>Creator Studio</small></span><button type="button" onClick={() => setCollapsed((value) => !value)} aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}><Icon name={collapsed ? "chevron-right" : "chevron-left"} size={17} /></button></div>
-    <nav aria-label="Creator Studio areas">{NAV_GROUPS.map((group) => {
-      const items = visibleTabs.filter(([, , , , itemGroup]) => itemGroup === group);
-      if (!items.length) return null;
-      return <section key={group}><p>{group}</p>{items.map(([key, label, , icon]) => <NavItem key={key} to={`/operations/admin/${key}`} current={active === key} className={active === key ? "active" : ""}><Icon name={icon} size={18} /><span>{label}</span></NavItem>)}</section>;
-    })}</nav>
-    <div className="creator-studio-rail-note"><Icon name="lock" size={16} /><span>Server-authorized controls</span></div>
-  </aside>;
-}
+// One line under the page title says what the area is for; the sidebar and
+// the top bar already say where the operator is.
+const AREA_DESCRIPTIONS = {
+  overview: "What needs your attention today.",
+  analytics: "Learning and business signals from stored aggregates.",
+  users: "Find a student, check their access and manage their account.",
+  purchases: "Approve Libyana recharge cards and follow each payment to the access it grants.",
+  subscriptions: "Student subscriptions, trials and plan pricing.",
+  content: "Subjects, sheets, PDFs, summaries and Active Study.",
+  questions: "Question banks for every sheet.",
+  notifications: "Campaigns sent to students.",
+  reports: "Reports raised by students.",
+  audit: "Every administrative action, with its actor and reason.",
+  exports: "Download reports as CSV or Excel.",
+  system: "Health of the core services.",
+  settings: "Platform configuration. Every change is versioned and audited."
+};
 
-function CreatorStudioHeader({ active, allowed }) {
-  const navigate = useNavigate();
-  const location = useLocation();
+function StudioHeader({ active, allowed }) {
   const activeTab = allowed.find(([key]) => key === active);
-  const [query, setQuery] = useState(() => new URLSearchParams(location.search).get("q") || "");
-  function search(event) {
-    event.preventDefault();
-    const clean = query.trim();
-    navigate(`/operations/admin/users${clean ? `?q=${encodeURIComponent(clean)}` : ""}`);
-  }
-  return <header className="creator-studio-topbar">
-    <div><p>Creator Studio</p><h1>{activeTab?.[1] || "Overview"}</h1></div>
-    {/* This shortcut jumps to the student list with the query applied. On that
-        list it would be a second field driving the same search, so the screen
-        keeps only its own. */}
-    {active !== "users" && <form className="creator-global-search" role="search" onSubmit={search}><Icon name="search" size={18} /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a student by name or email" aria-label="Search Creator Studio" /><kbd>Enter</kbd></form>}
-    <label className="field operations-mobile-selector"><span>Studio area</span><select value={active} onChange={(event) => navigate(`/operations/admin/${event.target.value}`)}>{allowed.map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select></label>
-    <div className="creator-operator"><span><Icon name="shield-alert" size={18} /></span><div><strong>Operator</strong><small>Protected session</small></div></div>
+  return <header className="studio-header">
+    <nav className="ui-breadcrumb" aria-label="Breadcrumb"><Link to="/operations/admin/overview">Creator Studio</Link><Icon name="chevron-right" size={14} /><span aria-current="page">{activeTab?.[1] || "Overview"}</span></nav>
+    <h1>{activeTab?.[1] || "Overview"}</h1>
+    {AREA_DESCRIPTIONS[active] && <p>{AREA_DESCRIPTIONS[active]}</p>}
   </header>;
 }
 
@@ -110,7 +100,7 @@ function ActivityChart({ points, days }) {
   const coords = filled.map((point, index) => ({ ...point, x: pad + (index / Math.max(1, filled.length - 1)) * (width - pad * 2), y: height - pad - (point.value / max) * (height - pad * 2) }));
   const line = coords.map((point, index) => `${index ? "L" : "M"}${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" ");
   const area = coords.length ? `${line} L${coords.at(-1).x},${height - pad} L${coords[0].x},${height - pad} Z` : "";
-  return <div className="creator-chart"><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Daily study sessions over ${days} days`} preserveAspectRatio="none"><defs><linearGradient id="creator-chart-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--creator-purple)" stopOpacity=".34" /><stop offset="1" stopColor="var(--creator-purple)" stopOpacity="0" /></linearGradient></defs>{[0, 1, 2, 3].map((row) => <line key={row} x1={pad} x2={width - pad} y1={pad + row * ((height - pad * 2) / 3)} y2={pad + row * ((height - pad * 2) / 3)} />)}<path className="creator-chart-area" d={area} /><path className="creator-chart-line" d={line} /></svg><div className="creator-chart-axis"><span>{filled[0]?.day || "—"}</span><span>Peak {formatNumber(max)}</span><span>{filled.at(-1)?.day || "—"}</span></div></div>;
+  return <div className="creator-chart"><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Daily study sessions over ${days} days`} preserveAspectRatio="none"><defs><linearGradient id="creator-chart-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--accent)" stopOpacity=".34" /><stop offset="1" stopColor="var(--accent)" stopOpacity="0" /></linearGradient></defs>{[0, 1, 2, 3].map((row) => <line key={row} x1={pad} x2={width - pad} y1={pad + row * ((height - pad * 2) / 3)} y2={pad + row * ((height - pad * 2) / 3)} />)}<path className="creator-chart-area" d={area} /><path className="creator-chart-line" d={line} /></svg><div className="creator-chart-axis"><span>{filled[0]?.day || "—"}</span><span>Peak {formatNumber(max)}</span><span>{filled.at(-1)?.day || "—"}</span></div></div>;
 }
 
 function MetricCard({ label, value, hint, icon, tone = "purple" }) {
@@ -121,37 +111,96 @@ function RangePicker({ days, onChange }) {
   return <RadioGroup className="creator-range" label="Analytics period" value={String(days)} onChange={(next) => onChange(Number(next))}>{[7, 30, 90].map((value) => <RadioOption key={value} value={String(value)} className={days === value ? "active" : ""}>{value}d</RadioOption>)}</RadioGroup>;
 }
 
-function Overview() {
+function AttentionItem({ label, count, hint, to, icon, tone = "accent" }) {
+  const waiting = Number(count) > 0;
+  return <Link className={`ov-attention-item${waiting ? ` is-waiting tone-${tone}` : ""}`} to={to}>
+    <span className="ov-attention-icon"><Icon name={icon} size={17} /></span>
+    <span className="ov-attention-copy"><strong>{label}</strong><small>{waiting ? hint : "Nothing waiting"}</small></span>
+    <b>{formatNumber(count || 0)}</b>
+    <Icon className="ov-attention-chevron" name="chevron-right" size={16} />
+  </Link>;
+}
+
+function GlanceStat({ label, value, detail = "" }) {
+  return <div className="ui-stat"><span>{label}</span><strong>{value}</strong>{detail && <small>{detail}</small>}</div>;
+}
+
+// Content health from the subject list the Content area already serves: no
+// extra endpoint, and every number links to where it is fixed.
+function contentHealth(subjects) {
+  const list = Array.isArray(subjects) ? subjects : [];
+  const withSheets = list.filter((subject) => Number(subject.sheet_count) > 0);
+  return {
+    subjects: withSheets.length,
+    published: withSheets.reduce((total, subject) => total + (Number(subject.published_count) || 0), 0),
+    drafts: withSheets.reduce((total, subject) => total + (Number(subject.draft_count) || 0), 0),
+    subjectsWithDrafts: withSheets.filter((subject) => Number(subject.draft_count) > 0),
+    empty: list.filter((subject) => !Number(subject.sheet_count)).length
+  };
+}
+
+const plural = (count, word) => `${formatNumber(count)} ${word}${Number(count) === 1 ? "" : "s"}`;
+
+function Overview({ operationsSession }) {
   const [days, setDays] = useState(30);
   const period = useMemo(() => dateWindow(days), [days]);
-  const data = useAsyncData(() => Promise.all([adminControlApi.overview(), adminControlApi.analytics(period), adminControlApi.audit({ page: 1, pageSize: 6 })]).then(([overview, analytics, audit]) => ({ overview, analytics, audit })), [period.from, period.to]);
-  if (data.loading) return <LoadingPanel />;
+  const canSeeContent = hasOperationalCapability(operationsSession, "content.view");
+  const data = useAsyncData(() => Promise.all([
+    adminControlApi.overview(),
+    adminControlApi.analytics(period),
+    adminControlApi.audit({ page: 1, pageSize: 5 }),
+    canSeeContent ? adminControlApi.contentSubjects().catch(() => null) : Promise.resolve(null)
+  ]).then(([overview, analytics, audit, subjects]) => ({ overview, analytics, audit, subjects: subjects?.results || subjects })), [period.from, period.to, canSeeContent], { keepPreviousData: true });
+  if (data.loading) return <LoadingPanel variant="admin-overview" />;
   if (data.error) return <ErrorPanel message={data.error} onRetry={data.reload} />;
-  const { analytics, overview, audit } = data.data;
-  const needs = [
-    ["Payments awaiting approval", overview.queues?.pending_payment_reviews ?? 0, "billing", "purchases"],
-    ["Content awaiting review", analytics.creators.content_awaiting_review, "content", "questions"],
-    ["Failed payments", overview.queues?.failed_payments ?? analytics.revenue.failed_payments, "billing", "purchases"],
-    ["Failed notifications", overview.queues?.failed_notifications ?? analytics.operations.failed_notification_deliveries, "notifications", "notifications"],
-    ["Expiring in 14 days", analytics.subscriptions.upcoming_expirations, "subscriptions", "subscriptions"]
+  const { analytics, overview, audit, subjects } = data.data;
+  const queues = overview.queues || {};
+  const health = subjects ? contentHealth(subjects) : null;
+  const attention = [
+    { label: "Payments awaiting approval", count: queues.pending_payment_reviews ?? 0, hint: "Recharge cards to check and approve", to: "/operations/admin/purchases", icon: "coins", tone: "warning" },
+    { label: "Reports to review", count: queues.moderation ?? 0, hint: "Raised by students", to: "/operations/admin/reports", icon: "messages", tone: "warning" },
+    { label: "Content awaiting review", count: analytics.creators.content_awaiting_review, hint: "Submitted for publishing", to: "/operations/admin/questions", icon: "file-question" },
+    ...(health ? [{ label: "Subjects with draft sheets", count: health.subjectsWithDrafts.length, hint: `${plural(health.drafts, "sheet")} students cannot see yet`, to: "/operations/admin/content", icon: "file" }] : []),
+    { label: "Failed payments", count: queues.failed_payments ?? analytics.revenue.failed_payments, hint: "Check the payment and contact the student", to: "/operations/admin/purchases", icon: "alert-triangle", tone: "danger" },
+    { label: "Failed notifications", count: queues.failed_notifications ?? analytics.operations.failed_notification_deliveries, hint: "Deliveries that did not reach students", to: "/operations/admin/notifications", icon: "bell", tone: "danger" },
+    { label: "Subscriptions ending within 14 days", count: analytics.subscriptions.upcoming_expirations, hint: "Students who may need to renew", to: "/operations/admin/subscriptions", icon: "layers" }
   ];
-  return <div className="creator-overview">
-    <section className="creator-metrics" aria-label="Platform summary">
-      <MetricCard label="Total students" value={formatNumber(analytics.users.total)} hint={`${formatNumber(analytics.users.new_week)} joined this week`} icon="user" />
-      <MetricCard label="Active subscriptions" value={formatNumber(analytics.subscriptions.active)} hint={`${formatNumber(analytics.subscriptions.trial)} trials`} icon="layers" tone="gold" />
-      <MetricCard label="Online now" value={formatNumber(analytics.users.online_now)} hint="Seen in the last 5 minutes" icon="activity" tone="green" />
-      <MetricCard label="Seen today" value={formatNumber(analytics.users.seen_today)} hint="Recorded account sessions" icon="eye" />
-      <MetricCard label="New this week" value={formatNumber(analytics.users.new_week)} hint="Verified database accounts" icon="plus" />
-      <MetricCard label="Study sessions today" value={formatNumber(analytics.learning.focus_sessions_today)} hint="Focus sessions started today" icon="clock" tone="gold" />
+  // Anything waiting rises to the top. An empty queue stays listed so the
+  // operator can see it was checked, but it no longer competes for attention.
+  const isWaiting = (item) => Number(item.count) > 0;
+  const ordered = [...attention.filter(isWaiting), ...attention.filter((item) => !isWaiting(item))];
+  const waiting = attention.filter(isWaiting).length;
+  return <div className={`ov-layout${data.refreshing ? " is-refreshing" : ""}`}>
+    <section className="ui-section ov-attention" aria-labelledby="ov-attention-title">
+      <header className="ui-section-head"><h2 id="ov-attention-title">Needs your attention</h2><span className={`ui-badge ${waiting ? "tone-warning" : "tone-success"}`}>{waiting ? `${waiting} waiting` : "All clear"}</span></header>
+      <div className="ov-attention-list">{ordered.map((item) => <AttentionItem key={item.label} {...item} />)}</div>
     </section>
-    <section className="creator-overview-grid">
-      <article className="creator-panel creator-panel-wide"><div className="creator-panel-heading"><div><p>Study activity</p><h2>Daily Focus sessions</h2><span>{analytics.period.from} — {analytics.period.to} · UTC</span></div><RangePicker days={days} onChange={setDays} /></div><ActivityChart points={analytics.learning.focus_activity || []} days={days} /><div className="creator-chart-summary"><span><b>{formatNumber(analytics.learning.focus_sessions)}</b> sessions</span><span><b>{formatNumber(analytics.learning.active_learners)}</b> learners</span><span><b>{Math.round(analytics.learning.focus_seconds / 3600)}h</b> focused</span></div></article>
-      <article className="creator-panel creator-attention"><div className="creator-panel-heading"><div><p>Operations</p><h2>Needs attention</h2></div><span className="creator-status-dot">Live</span></div>{needs.map(([label, value, kind, target]) => <Link key={label} to={`/operations/admin/${target}`}><span className={`creator-attention-icon is-${kind}`}><Icon name={kind === "billing" ? "coins" : kind === "content" ? "file-question" : kind === "subscriptions" ? "layers" : "bell"} size={17} /></span><span><strong>{label}</strong><small>{Number(value) ? "Review queue" : "Nothing waiting"}</small></span><b>{formatNumber(value)}</b></Link>)}</article>
+    <section className="ui-section ov-glance" aria-labelledby="ov-glance-title">
+      <header className="ui-section-head"><h2 id="ov-glance-title">At a glance</h2></header>
+      <div className="ui-stat-row">
+        <GlanceStat label="Active subscriptions" value={formatNumber(analytics.subscriptions.active)} detail={`${formatNumber(analytics.subscriptions.trial)} on trial`} />
+        <GlanceStat label="Students" value={formatNumber(analytics.users.total)} detail={`${formatNumber(analytics.users.new_week)} new this week`} />
+        <GlanceStat label="Online now" value={formatNumber(analytics.users.online_now)} detail={`${formatNumber(analytics.users.seen_today)} seen today`} />
+        <GlanceStat label="Study sessions today" value={formatNumber(analytics.learning.focus_sessions_today)} />
+      </div>
     </section>
-    <section className="creator-lower-grid">
-      <article className="creator-panel"><div className="creator-panel-heading"><div><p>Subjects</p><h2>Most active</h2></div></div>{analytics.learning.most_active_subjects?.length ? analytics.learning.most_active_subjects.slice(0, 5).map((subject, index) => <div className="creator-ranked-row" key={subject.learning_object__published_version__academic_node_id}><span>{index + 1}</span><div><strong>{subject.learning_object__published_version__academic_node__title}</strong><small>{formatNumber(subject.learners)} learners</small></div><b>{formatNumber(subject.uses)}</b></div>) : <EmptyState title="No subject activity" text="Activity appears after students open published learning material." />}</article>
-      <article className="creator-panel"><div className="creator-panel-heading"><div><p>Content</p><h2>Most opened sheets</h2></div><Link to="/operations/admin/content">View library</Link></div>{analytics.learning.most_used_materials.length ? analytics.learning.most_used_materials.slice(0, 5).map((material, index) => <div className="creator-ranked-row" key={material.learning_object_id}><span>{index + 1}</span><div><strong>{material.learning_object__published_version__title || "Untitled sheet"}</strong><small>Stored learning progress</small></div><b>{formatNumber(material.uses)}</b></div>) : <EmptyState title="No sheet activity" text="Published sheet usage will appear here." />}</article>
-      <article className="creator-panel creator-recent"><div className="creator-panel-heading"><div><p>Governance</p><h2>Recent activity</h2></div><Link to="/operations/admin/audit">Open log</Link></div>{audit.results.length ? audit.results.slice(0, 5).map((record) => <div className="creator-activity-row" key={record.id}><span><Icon name="activity" size={16} /></span><div><strong>{humanize(record.action)}</strong><small>{record.actor_name || "System"} · {shortDate(record.occurred_at)}</small></div></div>) : <EmptyState title="No recent activity" text="Authorized actions will appear in the immutable audit log." />}</article>
+    {health && <section className="ui-section ov-health" aria-labelledby="ov-health-title">
+      <header className="ui-section-head"><h2 id="ov-health-title">Content health</h2><Link className="ui-section-link" to="/operations/admin/content">Open Content</Link></header>
+      <div className="ui-stat-row">
+        <GlanceStat label="Published sheets" value={formatNumber(health.published)} detail={`in ${plural(health.subjects, "subject")}`} />
+        <GlanceStat label="Draft sheets" value={formatNumber(health.drafts)} detail="Not visible to students" />
+        <GlanceStat label="Subjects without sheets" value={formatNumber(health.empty)} />
+      </div>
+      {health.subjectsWithDrafts.length > 0 && <ul className="ui-list ov-draft-list">{health.subjectsWithDrafts.slice(0, 4).map((subject) => <li key={subject.id}><Link className="ui-list-row is-link" to={`/operations/admin/content?subject=${encodeURIComponent(subject.id)}`}><div><strong>{subject.title}</strong><small>{plural(subject.draft_count, "draft sheet")}</small></div><Icon name="chevron-right" size={16} /></Link></li>)}</ul>}
+    </section>}
+    <section className="ui-section ov-activity" aria-labelledby="ov-activity-title">
+      <header className="ui-section-head"><div><h2 id="ov-activity-title">Study activity</h2><small>{analytics.period.from} — {analytics.period.to} · UTC</small></div><RangePicker days={days} onChange={setDays} /></header>
+      <ActivityChart points={analytics.learning.focus_activity || []} days={days} />
+      <div className="creator-chart-summary"><span><b>{formatNumber(analytics.learning.focus_sessions)}</b> sessions</span><span><b>{formatNumber(analytics.learning.active_learners)}</b> learners</span><span><b>{Math.round(analytics.learning.focus_seconds / 3600)}h</b> focused</span></div>
+    </section>
+    <section className="ui-section ov-recent" aria-labelledby="ov-recent-title">
+      <header className="ui-section-head"><h2 id="ov-recent-title">Recent activity</h2><Link className="ui-section-link" to="/operations/admin/audit">Open log</Link></header>
+      {audit.results.length ? <ul className="ui-list">{audit.results.slice(0, 5).map((record) => <li className="ui-list-row" key={record.id}><div><strong>{humanize(record.action)}</strong><small>{record.actor_name || "System"} · {shortDate(record.occurred_at)}</small></div></li>)}</ul> : <EmptyState title="No administrative activity yet" text="Approvals, publishing and account changes will be listed here with who made them." />}
     </section>
   </div>;
 }
@@ -176,6 +225,9 @@ function Analytics() {
       <article className="creator-panel creator-panel-wide"><div className="creator-panel-heading"><div><p>Engagement</p><h2>Daily Focus sessions</h2></div><span>{formatNumber(analytics.learning.active_learners)} unique learners</span></div><ActivityChart points={analytics.learning.focus_activity || []} days={days} /></article>
       <article className="creator-panel"><div className="creator-panel-heading"><div><p>Assessment quality</p><h2>Outcomes</h2></div></div><div className="creator-fact-list"><div><span>Quiz attempts</span><b>{formatNumber(analytics.learning.quiz_attempts)}</b></div><div><span>Exam attempts</span><b>{formatNumber(analytics.learning.exam_attempts)}</b></div><div><span>Average score</span><b>{analytics.learning.average_score == null ? "—" : `${Math.round(analytics.learning.average_score)}%`}</b></div><div><span>Pass rate</span><b>{analytics.learning.pass_rate == null ? "—" : `${analytics.learning.pass_rate}%`}</b></div></div></article>
     </section>
+    <section className="creator-lower-grid creator-lower-grid-two"><article className="creator-panel"><div className="creator-panel-heading"><div><p>Subjects</p><h2>Most active</h2></div></div>{analytics.learning.most_active_subjects?.length ? analytics.learning.most_active_subjects.slice(0, 5).map((subject, index) => <div className="creator-ranked-row" key={subject.learning_object__published_version__academic_node_id}><span>{index + 1}</span><div><strong>{subject.learning_object__published_version__academic_node__title}</strong><small>{formatNumber(subject.learners)} learners</small></div><b>{formatNumber(subject.uses)}</b></div>) : <EmptyState title="No subject activity" text="Activity appears after students open published learning material." />}</article>
+      <article className="creator-panel"><div className="creator-panel-heading"><div><p>Content</p><h2>Most opened sheets</h2></div><Link to="/operations/admin/content">View library</Link></div>{analytics.learning.most_used_materials.length ? analytics.learning.most_used_materials.slice(0, 5).map((material, index) => <div className="creator-ranked-row" key={material.learning_object_id}><span>{index + 1}</span><div><strong>{material.learning_object__published_version__title || "Untitled sheet"}</strong><small>Stored learning progress</small></div><b>{formatNumber(material.uses)}</b></div>) : <EmptyState title="No sheet activity" text="Published sheet usage will appear here." />}</article>
+      </section>
     <section className="creator-lower-grid creator-lower-grid-two">
       <article className="creator-panel"><div className="creator-panel-heading"><div><p>Subscriptions</p><h2>Lifecycle</h2></div></div><div className="creator-fact-list"><div><span>Active</span><b>{formatNumber(analytics.subscriptions.active)}</b></div><div><span>Trial</span><b>{formatNumber(analytics.subscriptions.trial)}</b></div><div><span>Expired</span><b>{formatNumber(analytics.subscriptions.expired)}</b></div><div><span>Cancelled</span><b>{formatNumber(analytics.subscriptions.cancelled)}</b></div></div></article>
       <article className="creator-panel"><div className="creator-panel-heading"><div><p>Revenue</p><h2>Payment health</h2></div></div><div className="creator-fact-list"><div><span>Gross</span><b>{money(analytics.revenue.gross_minor)}</b></div><div><span>Refunded</span><b>{money(analytics.revenue.refund_total_minor)}</b></div><div><span>Average order</span><b>{money(analytics.revenue.average_order_minor)}</b></div><div><span>Failed payments</span><b>{formatNumber(analytics.revenue.failed_payments)}</b></div></div></article>
@@ -310,6 +362,6 @@ export default function OperationsAdmin({ operationsSession }) {
   const active = allowed.some(([key]) => key === requested) ? requested : allowed[0]?.[0] || "overview";
   useEffect(() => { if (allowed.length && requested !== active) navigate(`/operations/admin/${active}`, { replace: true }); }, [active, allowed.length, navigate, requested]);
   const initialQuery = new URLSearchParams(location.search).get("q") || "";
-  const content = active === "overview" ? <Overview /> : active === "analytics" ? <Analytics /> : active === "users" ? <Users operationsSession={operationsSession} initialQuery={initialQuery} /> : active === "content" ? <AdminContentManagement operationsSession={operationsSession} initialArea="sheets" /> : active === "questions" ? <AdminContentManagement operationsSession={operationsSession} initialArea="questions" /> : active === "purchases" ? <PaymentsConsole canManage={hasOperationalCapability(operationsSession, "payments.manage")} /> : active === "subscriptions" ? <><SubscriptionsConsole canManage={hasOperationalCapability(operationsSession, "subscriptions.manage")} /><Plans operationsSession={operationsSession} /></> : active === "notifications" ? <Notifications operationsSession={operationsSession} /> : active === "reports" ? <ReportsCenter operationsSession={operationsSession} /> : active === "audit" ? <AuditLog /> : active === "settings" ? <SettingsArea operationsSession={operationsSession} /> : active === "system" ? <SystemStatus /> : active === "exports" ? <Exports /> : <ErrorPanel message="This Creator Studio area is not available for the current server permission." />;
-  return <Page title="Creator Studio" showHeading={false} headingHandled><div className="creator-studio-frame"><div className="creator-studio"><AdminTabs operationsSession={operationsSession} active={active} /><main className="creator-studio-main"><CreatorStudioHeader active={active} allowed={allowed} /><div className="creator-studio-content">{content}</div></main></div></div></Page>;
+  const content = active === "overview" ? <Overview operationsSession={operationsSession} /> : active === "analytics" ? <Analytics /> : active === "users" ? <Users operationsSession={operationsSession} initialQuery={initialQuery} /> : active === "content" ? <AdminContentManagement operationsSession={operationsSession} initialArea="sheets" /> : active === "questions" ? <AdminContentManagement operationsSession={operationsSession} initialArea="questions" /> : active === "purchases" ? <PaymentsConsole canManage={hasOperationalCapability(operationsSession, "payments.manage")} /> : active === "subscriptions" ? <><SubscriptionsConsole canManage={hasOperationalCapability(operationsSession, "subscriptions.manage")} /><Plans operationsSession={operationsSession} /></> : active === "notifications" ? <Notifications operationsSession={operationsSession} /> : active === "reports" ? <ReportsCenter operationsSession={operationsSession} /> : active === "audit" ? <AuditLog /> : active === "settings" ? <SettingsArea operationsSession={operationsSession} /> : active === "system" ? <SystemStatus /> : active === "exports" ? <Exports /> : <ErrorPanel message="This Creator Studio area is not available for the current server permission." />;
+  return <Page title="Creator Studio" showHeading={false} headingHandled><div className="creator-studio-frame"><div className="creator-studio"><StudioHeader active={active} allowed={allowed} /><div className="creator-studio-content">{content}</div></div></div></Page>;
 }

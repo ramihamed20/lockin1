@@ -25,6 +25,7 @@ import { GlobalSearch } from "../search/GlobalSearch.jsx";
 import { LockinIcon } from "../../lib/lockinIcons.jsx";
 import { getFeatureForNavigationPath, isFeatureComingSoon } from "../../lib/featureAvailability.js";
 import { acquireBodyScrollLock } from "../../lib/bodyScrollLock.js";
+import { STUDIO_AREAS, STUDIO_GROUPS, STUDIO_PRIMARY_AREAS, isStudioRoute, studioAreaFromPath } from "../../lib/studioAreas.js";
 
 // --- Brand ---
 
@@ -95,6 +96,46 @@ export function NavList({ tabIndex = undefined, onNavigate = undefined, user, op
   );
 }
 
+// --- Creator Studio navigation ---
+// Inside the Studio the one sidebar (and the phone's bottom bar and drawer)
+// carries the Studio's areas instead of the study destinations, so the admin
+// is one product with one navigation rather than a second app nested inside
+// the first. "Back to Lock-in" is always the first entry.
+
+function studioAreasFor(operationsSession) {
+  return STUDIO_AREAS.filter(([, , capability]) => hasOperationalCapability(operationsSession, capability));
+}
+
+export function StudioNavList({ operationsSession, tabIndex = undefined, onNavigate = undefined, className = "nav-list" }) {
+  const location = useLocation();
+  const scrollRef = useScrollOverflow();
+  const active = studioAreaFromPath(location.pathname);
+  const areas = studioAreasFor(operationsSession);
+  return (
+    <nav className={`${className} studio-nav`} aria-label="Creator Studio" ref={scrollRef}>
+      <div className="nav-entry">
+        <NavItem to="/" current={false} className="nav-btn studio-nav-exit" tabIndex={tabIndex} onClick={onNavigate}>
+          <Icon name="chevron-left" size={18} />
+          <span>Back to Lock-in</span>
+        </NavItem>
+      </div>
+      {STUDIO_GROUPS.map((group) => {
+        const items = areas.filter(([, , , , itemGroup]) => itemGroup === group);
+        if (!items.length) return null;
+        return items.map(([key, label, , icon], index) => (
+          <div className="nav-entry" key={key}>
+            {index === 0 && <span className="nav-section-label">{group}</span>}
+            <NavItem to={`/operations/admin/${key}`} current={active === key} className={`nav-btn ${active === key ? "active" : ""}`.trim()} tabIndex={tabIndex} onClick={onNavigate}>
+              <Icon name={icon} size={18} />
+              <span>{label}</span>
+            </NavItem>
+          </div>
+        ));
+      })}
+    </nav>
+  );
+}
+
 // --- DrawerThemeSelector ---
 
 export function DrawerThemeSelector({ activeTheme, onThemeChange, tabIndex }) {
@@ -159,8 +200,19 @@ function DrawerNavGroup({ label, items, pathname, tabIndex, onNavigate, children
   );
 }
 
-function MobileDrawerNavigation({ user, operationsSession, pathname, tabIndex, onNavigate, onLogout }) {
+function MobileDrawerNavigation({ user, operationsSession, pathname, tabIndex, onNavigate, onLogout, studio = false }) {
   const { t } = useI18n();
+  if (studio) {
+    return (
+      <nav className="drawer-navigation" aria-label={t("shell.mobileDestinations")}>
+        <StudioNavList operationsSession={operationsSession} tabIndex={tabIndex} onNavigate={onNavigate} className="drawer-nav-items" />
+        <button className="nav-btn drawer-logout" type="button" tabIndex={tabIndex} onClick={onLogout}>
+          <Icon name="logout" size={19} />
+          <span>{t("common.logout")}</span>
+        </button>
+      </nav>
+    );
+  }
   const primaryPaths = new Set(["/", "/materials", "/questions", "/review"]);
   const primaryItems = navItems.filter((item) => primaryPaths.has(item.path));
   const exploreItems = [
@@ -245,23 +297,32 @@ function FreezeRow() {
 
 // --- Sidebar ---
 
-export function Sidebar({ user, operationsSession, inert = false }) {
+export function Sidebar({ user, operationsSession, studio = false, inert = false }) {
   const densityRef = useSidebarDensity();
   return (
-    <aside className="sidebar" ref={densityRef} aria-label="Main navigation" inert={inert ? "" : undefined} aria-hidden={inert || undefined}>
-      <Brand />
-      <NavList user={user} operationsSession={operationsSession} />
-      <StreakCard />
+    <aside className={`sidebar ${studio ? "sidebar--studio" : ""}`.trim()} ref={densityRef} aria-label="Main navigation" inert={inert ? "" : undefined} aria-hidden={inert || undefined}>
+      <div className="sidebar-brand-row">
+        <Brand />
+        {studio && <span className="studio-badge">Studio</span>}
+      </div>
+      {studio ? <StudioNavList operationsSession={operationsSession} /> : <NavList user={user} operationsSession={operationsSession} />}
+      {!studio && <StreakCard />}
     </aside>
   );
 }
 
 // --- BottomNav ---
 
-export function BottomNav({ onMore, menuOpen, inert = false }) {
+export function BottomNav({ onMore, menuOpen, inert = false, studio = false, operationsSession = null }) {
   const location = useLocation();
   const { t } = useI18n();
-  const items = navItems.filter((item) => ["/", "/materials", "/questions", "/review"].includes(item.path));
+  const studioItems = studio
+    ? STUDIO_PRIMARY_AREAS
+      .map((key) => studioAreasFor(operationsSession).find(([areaKey]) => areaKey === key))
+      .filter(Boolean)
+      .map(([key, label, , icon]) => ({ path: `/operations/admin/${key}`, label, labelKey: label, icon }))
+    : null;
+  const items = studioItems || navItems.filter((item) => ["/", "/materials", "/questions", "/review"].includes(item.path));
   return (
     <nav className="bottom-nav" aria-label={t("shell.mobileNavigation")} inert={inert ? "" : undefined} aria-hidden={inert || undefined}>
       {items.map((item) => {
@@ -309,6 +370,7 @@ export function Topbar({ user, operationsSession = null, theme, onThemeChange, o
   const navigate = useNavigate();
   const isStoreRoute = location.pathname === "/store";
   const isDashboardRoute = location.pathname === "/" || location.pathname === "/dashboard";
+  const studioArea = STUDIO_AREAS.find(([key]) => key === studioAreaFromPath(location.pathname));
   const currentRoute = routeMetadata(location.pathname, t);
   const localizedGreeting = t(greetingKey());
   const profileMenuOpen = profileMenuState !== "closed";
@@ -729,7 +791,12 @@ export function Topbar({ user, operationsSession = null, theme, onThemeChange, o
       <button className="icon-btn mobile-menu" ref={menuButtonRef} onClick={onMenu} aria-label={t("shell.openNavigation")} aria-expanded={menuOpen} aria-controls="mobile-drawer">
         <Icon name="menu" />
       </button>
-      {isDashboardRoute ? (
+      {studioArea ? (
+        <div className="page-title">
+          <strong>{studioArea[1]}</strong>
+          <p>Creator Studio</p>
+        </div>
+      ) : isDashboardRoute ? (
         <div className="page-title">
           <strong>{localizedGreeting}</strong>
         </div>
@@ -1007,10 +1074,11 @@ export function Shell({ children, user, operationsSession, theme, onThemeChange,
   if (location.pathname === "/lock-in" || location.pathname.startsWith("/lock-in/") || location.pathname.endsWith("/workspace")) {
     return children;
   }
+  const studio = isStudioRoute(location.pathname);
 
   return (
       <div className={`app-shell ${keyboardOpen ? "keyboard-open" : ""}`.trim()}>
-        <Sidebar user={user} operationsSession={operationsSession} inert={drawerOpen} />
+        <Sidebar user={user} operationsSession={operationsSession} studio={studio} inert={drawerOpen} />
         <div className="content-frame" inert={drawerOpen ? "" : undefined} aria-hidden={drawerOpen || undefined}>
           <Topbar
             user={user}
@@ -1030,7 +1098,7 @@ export function Shell({ children, user, operationsSession, theme, onThemeChange,
           />
           <main className="page-shell" id="main-content" tabIndex={-1} aria-label="Lock-in page content">{children}</main>
         </div>
-        <BottomNav onMore={openDrawer} menuOpen={drawerOpen} inert={drawerOpen} />
+        <BottomNav onMore={openDrawer} menuOpen={drawerOpen} inert={drawerOpen} studio={studio} operationsSession={operationsSession} />
         <div className={`dropdown-backdrop ${dropdownActive ? "open" : ""}`} />
         <div className={`drawer-backdrop ${drawerOpen ? "open" : ""}`} ref={drawerBackdropRef} aria-hidden="true" onClick={() => closeDrawer()} />
         <aside
@@ -1056,12 +1124,12 @@ export function Shell({ children, user, operationsSession, theme, onThemeChange,
             </button>
           </div>
           <div className="drawer-scroll" ref={drawerScrollRef}>
-            <MobileDrawerNavigation user={user} operationsSession={operationsSession} pathname={location.pathname} tabIndex={drawerTabIndex} onNavigate={() => closeDrawer({ restoreFocus: false })} onLogout={() => { closeDrawer({ restoreFocus: false }); onLogout(); }} />
+            <MobileDrawerNavigation studio={studio} user={user} operationsSession={operationsSession} pathname={location.pathname} tabIndex={drawerTabIndex} onNavigate={() => closeDrawer({ restoreFocus: false })} onLogout={() => { closeDrawer({ restoreFocus: false }); onLogout(); }} />
             <DrawerThemeSelector activeTheme={theme} onThemeChange={onThemeChange} tabIndex={drawerTabIndex} />
             {/* The same streak the sidebar shows, in the place the phone keeps
                 its navigation. It is the identical component, so it reads the
                 same here as it does on a tablet or a laptop. */}
-            <StreakCard />
+            {!studio && <StreakCard />}
           </div>
         </aside>
       </div>

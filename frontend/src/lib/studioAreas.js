@@ -10,18 +10,30 @@ import { normalizeSearchText } from "./globalSearch.js";
 export const STUDIO_AREAS = [
   ["overview", "Overview", "overview.view", "home", "Workspace"],
   ["analytics", "Analytics", "analytics.view", "analytics", "Workspace"],
-  ["users", "Students", "users.view", "user", "Learning"],
-  ["subscriptions", "Subscriptions", "subscriptions.view", "layers", "Learning"],
+  ["users", "Students", "users.view", "user", "Students"],
+  ["purchases", "Payments", "payments.view", "coins", "Students"],
+  ["subscriptions", "Subscriptions", "subscriptions.view", "layers", "Students"],
   ["content", "Content", "content.view", "file", "Library"],
   ["questions", "Questions", "assessments.view", "file-question", "Library"],
   ["notifications", "Notifications", "notifications.view", "bell", "Engagement"],
   ["reports", "Moderation", "moderation.view", "messages", "Engagement"],
-  ["audit", "Activity", "audit.view", "activity", "Governance"],
-  ["purchases", "Payments", "payments.view", "coins", "Governance"],
-  ["exports", "Exports", "reports.export", "file", "Governance"],
+  ["audit", "Activity", "audit.view", "activity", "Platform"],
+  ["exports", "Exports", "reports.export", "file", "Platform"],
   ["system", "System", "system_health.view", "activity", "Platform"],
   ["settings", "Settings", "configuration.view", "settings", "Platform"]
 ];
+
+/** Sidebar group order. */
+export const STUDIO_GROUPS = ["Workspace", "Students", "Library", "Engagement", "Platform"];
+
+/** What a phone keeps in its bottom bar, in order, when the operator may open it. */
+export const STUDIO_PRIMARY_AREAS = ["overview", "purchases", "content", "users"];
+
+/** The Studio area a pathname points at, or "" outside the Studio. */
+export function studioAreaFromPath(pathname) {
+  const match = /^\/operations\/admin\/([^/?#]+)/.exec(String(pathname || ""));
+  return match ? match[1] : "";
+}
 
 // Words an operator types for an area that are not its label.
 const AREA_ALIASES = {

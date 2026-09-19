@@ -15,4 +15,9 @@
    the layer itself; repeating it here is what keeps the order correct if that
    sheet is ever absent, and records that the opening frame sits underneath the
    application rather than over it. */
-@layer startup, primitives, app, interaction;
+/* `tokens` and `system` sit above `app`: tokens.css owns every colour, space
+   and type value, and system.css owns the shared components (shell, buttons,
+   fields, panels, lists, skeletons, dialogs). The historical rules in `app`
+   still apply wherever the system layer is silent, which is what lets screens
+   migrate one at a time. */
+@layer startup, primitives, app, tokens, system, interaction;
