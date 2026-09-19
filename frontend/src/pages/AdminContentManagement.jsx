@@ -124,7 +124,7 @@ function BreadcrumbButton({ onClick, children }) {
   return <button className="admin-content-crumb" type="button" onClick={onClick}><Icon name="chevron-left" size={16} />{children}</button>;
 }
 
-function HierarchyBreadcrumb({ subject, onBack, sheetTitle = "" }) {
+function HierarchyBreadcrumb({ subject, onBack = null, sheetTitle = "" }) {
   const context = [subject.college_title, subject.specialty_title, subject.academic_year_title].filter(Boolean);
   return <nav className="admin-hierarchy-breadcrumb" aria-label="Content hierarchy">
     {onBack ? <button type="button" onClick={onBack}>All subjects</button> : <span>Content</span>}

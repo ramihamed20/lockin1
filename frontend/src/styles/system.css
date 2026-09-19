@@ -187,6 +187,8 @@ body::after {
   }
 
   .sidebar .nav-list {
+    align-content: start;
+    grid-auto-rows: max-content;
     gap: 1px;
     margin-top: 12px;
     padding: 2px 2px 8px;

@@ -145,6 +145,7 @@
 
     --skeleton-base: #161b26;
     --skeleton-highlight: #1e2433;
+    --skeleton-border: var(--border);
     --workspace-stage: #0b0e16;
   }
 
@@ -243,6 +244,7 @@
 
     --gold: var(--accent);
     --gold-2: var(--accent-hover);
+    --accent-subtle: var(--accent-soft);
     --purple: var(--accent);
     --green: var(--success);
     --primary: var(--accent);
@@ -269,6 +271,7 @@
     --color-text-inverse: var(--on-accent);
     --color-border: var(--border);
     --color-ring: var(--accent);
+    --color-focus-contrast: var(--on-accent);
 
     /* Retired effects: kept defined so old rules resolve, but to nothing. */
     --glass-blur: 0px;
