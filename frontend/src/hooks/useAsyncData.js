@@ -14,22 +14,35 @@ import { normalizeUserError } from "../lib/errors.js";
  * cancelled by a navigation, because the write may already have happened on the
  * server; those calls own their own lifetime and do not pass this signal.
  *
+ * `keepPreviousData` is for lists refined in place (search, filters, paging):
+ * once something has loaded, a refetch keeps showing it with `refreshing` set
+ * instead of dropping back to `loading`, so the screen does not flash to a
+ * skeleton on every keystroke. Leave it off wherever the dependencies change
+ * *which record* is shown -- a detail view must never display the previous
+ * record's data while the next one loads.
+ *
  * @param {(signal: AbortSignal) => Promise<any>} loader
  * @param {unknown[]} deps
+ * @param {{ keepPreviousData?: boolean }} [options]
  */
-export function useAsyncData(loader, deps = []) {
-  const [state, setState] = useState({ loading: true, error: "", data: null });
+export function useAsyncData(loader, deps = [], { keepPreviousData = false } = {}) {
+  const [state, setState] = useState({ loading: true, refreshing: false, error: "", data: null });
   const [reloadVersion, setReloadVersion] = useState(0);
 
   /* eslint-disable react-hooks/exhaustive-deps -- callers provide the loader's semantic dependency list */
   useEffect(() => {
     let active = true;
     const controller = typeof AbortController === "undefined" ? null : new AbortController();
-    setState((prev) => ({ ...prev, loading: true, error: "" }));
+    setState((prev) => {
+      const keep = keepPreviousData && prev.data !== null && !prev.error;
+      return keep
+        ? { ...prev, loading: false, refreshing: true }
+        : { ...prev, loading: true, refreshing: false, error: "" };
+    });
     Promise.resolve()
       .then(() => loader(controller?.signal))
       .then((data) => {
-        if (active) setState({ loading: false, error: "", data });
+        if (active) setState({ loading: false, refreshing: false, error: "", data });
       })
       .catch((error) => {
         // A cancelled request is not a failure the reader should see: it was
@@ -37,6 +50,7 @@ export function useAsyncData(loader, deps = []) {
         if (!active || error?.code === "aborted" || error?.name === "AbortError") return;
         setState({
           loading: false,
+          refreshing: false,
           error: normalizeUserError(error?.message, "This information could not be loaded."),
           data: null
         });
@@ -54,4 +68,24 @@ export function useAsyncData(loader, deps = []) {
     ...state,
     reload
   };
+}
+
+/**
+ * The value, once it has stopped changing for `delay` milliseconds. Search
+ * fields use it so a request is sent for what the reader typed, not for every
+ * letter on the way there.
+ *
+ * @template T
+ * @param {T} value
+ * @param {number} [delay]
+ * @returns {T}
+ */
+export function useDebouncedValue(value, delay = 300) {
+  const [settled, setSettled] = useState(value);
+  useEffect(() => {
+    if (Object.is(value, settled)) return undefined;
+    const timer = setTimeout(() => setSettled(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay, settled]);
+  return settled;
 }

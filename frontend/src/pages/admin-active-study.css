@@ -72,3 +72,22 @@
   color: var(--gold);
   background: color-mix(in srgb, var(--gold) 12%, var(--surface-2));
 }
+
+/* A list being refined keeps its rows on screen, dimmed, instead of flashing
+   back to a skeleton on every keystroke. */
+.admin-sheet-list,
+.admin-question-list {
+  transition: opacity 160ms ease;
+}
+
+.admin-sheet-list.is-refreshing,
+.admin-question-list.is-refreshing {
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-sheet-list,
+  .admin-question-list {
+    transition: none;
+  }
+}

@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { adminControlApi } from "../api/adminControl.js";
 import { managementApi } from "../api/management.js";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
 import { EmptyState, ErrorPanel, LoadingPanel, RadioGroup, RadioOption, Tab, TabList } from "../components/ui/index.jsx";
-import { useAsyncData } from "../hooks/useAsyncData.js";
+import { useAsyncData, useDebouncedValue } from "../hooks/useAsyncData.js";
 import { hasOperationalCapability } from "../lib/authz.js";
 import { buildActiveStudyJsonPrompt } from "../lib/activeStudyPrompt.js";
 import { copyTextToClipboard } from "../lib/clipboard.js";
@@ -70,6 +71,41 @@ function AdminNotice({ error = null, message = "" }) {
   </div>;
 }
 
+/**
+ * Where the administrator is in Subject -> Sheet lives in the URL, not in
+ * component state. Going back (the button, the browser, or an iPad swipe)
+ * then returns to the list with its filters intact instead of leaving the
+ * Studio, and a sheet can be linked to directly.
+ */
+function useContentLocation() {
+  const [params, setParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const open = useCallback((key, value) => {
+    const next = new URLSearchParams(params);
+    next.set(key, value);
+    navigate({ pathname: location.pathname, search: next.toString() }, { state: { contentStep: true } });
+  }, [location.pathname, navigate, params]);
+  const back = useCallback((...keys) => {
+    // Pop the entry this screen pushed; a deep link has none, so replace it.
+    if (location.state?.contentStep) { navigate(-1); return; }
+    const next = new URLSearchParams(params);
+    keys.forEach((key) => next.delete(key));
+    setParams(next, { replace: true });
+  }, [location.state, navigate, params, setParams]);
+  // Filters replace the current entry (typing must not stack history) and keep
+  // its state, so Back still knows this screen was reached from a list.
+  const historyStateRef = useRef(location.state);
+  historyStateRef.current = location.state;
+  const setFilter = useCallback((key, value) => {
+    if ((params.get(key) || "") === (value || "")) return;
+    const next = new URLSearchParams(params);
+    if (value) next.set(key, value); else next.delete(key);
+    setParams(next, { replace: true, state: historyStateRef.current });
+  }, [params, setParams]);
+  return { params, open, back, setFilter };
+}
+
 function BreadcrumbButton({ onClick, children }) {
   return <button className="admin-content-crumb" type="button" onClick={onClick}><Icon name="chevron-left" size={16} />{children}</button>;
 }
@@ -90,13 +126,21 @@ export default function AdminContentManagement({ operationsSession, initialArea 
   </section>;
 }
 
-function SubjectBrowser({ selected, onSelect, purpose = "sheets" }) {
-  const [query, setQuery] = useState(""); const [college, setCollege] = useState(""); const [specialty, setSpecialty] = useState(""); const [year, setYear] = useState("");
-  const data = useAsyncData(() => adminControlApi.contentSubjects({ query }), [query]);
-  if (data.loading) return <LoadingPanel />;
+function SubjectBrowser({ onSelect, purpose = "sheets" }) {
+  const { params, setFilter } = useContentLocation();
+  const [query, setQueryState] = useState(() => params.get("find") || "");
+  const college = params.get("college") || ""; const specialty = params.get("specialty") || ""; const year = params.get("year") || "";
+  const settledQuery = useDebouncedValue(query.trim(), 250);
+  useEffect(() => { setFilter("find", settledQuery); }, [setFilter, settledQuery]);
+  // setFilter is a no-op when the URL already holds the value, so this settles.
+  const setQuery = setQueryState;
+  const setCollege = (value) => setFilter("college", value); const setSpecialty = (value) => setFilter("specialty", value); const setYear = (value) => setFilter("year", value);
+  // The server returns every subject in one response, so search filters the
+  // loaded list instead of refetching (and unmounting this field) per keystroke.
+  const data = useAsyncData(() => adminControlApi.contentSubjects({}), []);
   if (data.error) return <ErrorPanel message={data.error} onRetry={data.reload} />;
-  if (selected) return null;
-  const subjects = data.data.results || [];
+  const needle = query.trim().toLocaleLowerCase();
+  const subjects = (data.data?.results || []).filter((item) => !needle || String(item.title || "").toLocaleLowerCase().includes(needle));
   const inCollege = (item) => !college || studyKey(item, "college") === college;
   const inSpecialty = (item) => inCollege(item) && (!specialty || studyKey(item, "specialty") === specialty);
   const colleges = studyOptions(subjects, "college");
@@ -105,27 +149,31 @@ function SubjectBrowser({ selected, onSelect, purpose = "sheets" }) {
   const visibleSubjects = subjects.filter((item) => inSpecialty(item) && (!year || studyKey(item, "academic_year") === year));
   return <section className="admin-content-section">
     <div className="admin-content-toolbar"><div><h2>Sheets by study path</h2><p>Choose the existing specialty, year or batch, then subject to manage its {purpose}.</p></div><label className="field admin-content-search"><span>Search subjects</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Histology 1" /></label></div>
+    {data.loading ? <LoadingPanel variant="list" /> : <>
     <div className="admin-content-filters"><label className="field"><span>College</span><select value={college} onChange={(event) => { setCollege(event.target.value); setSpecialty(""); setYear(""); }}><option value="">All colleges</option>{colleges.map(({ key, title }) => <option key={key} value={key}>{title}</option>)}</select></label><label className="field"><span>Specialty</span><select value={specialty} onChange={(event) => { setSpecialty(event.target.value); setYear(""); }}><option value="">All specialties</option>{specialties.map(({ key, title }) => <option key={key} value={key}>{title}</option>)}</select></label><label className="field"><span>Year / batch</span><select value={year} onChange={(event) => setYear(event.target.value)}><option value="">All years / batches</option>{years.map(({ key, title }) => <option key={key} value={key}>{title}</option>)}</select></label></div>
-    <div className="admin-subject-list">{visibleSubjects.length ? visibleSubjects.map((subject) => <button type="button" key={subject.id} onClick={() => onSelect(subject)}><span className="stat-icon"><Icon name="book-open" /></span><span><strong>{subject.title}</strong><small>{subject.college_title || "Unassigned"} · {subject.specialty_title || "Unassigned"} · {subject.academic_year_title || "Unassigned"} · {subject.sheet_count} sheets · {subject.published_count} published</small></span><Icon name="chevron-right" size={18} /></button>) : <EmptyState title="No Catalog subjects found" text="The selected Catalog study path has no configured subjects." />}</div>
+    <div className="admin-subject-list">{visibleSubjects.length ? visibleSubjects.map((subject) => <button type="button" key={subject.id} onClick={() => onSelect(subject)}><span className="stat-icon"><Icon name="book-open" /></span><span><strong>{subject.title}</strong><small>{subject.college_title || "Unassigned"} · {subject.specialty_title || "Unassigned"} · {subject.academic_year_title || "Unassigned"} · {subject.sheet_count} sheets · {subject.published_count} published</small></span><Icon name="chevron-right" size={18} /></button>) : <EmptyState title={needle ? "No subject matches this search" : "No Catalog subjects found"} text={needle ? "Try a shorter name, or clear the College, Specialty and Year filters." : "The selected Catalog study path has no configured subjects."} />}</div>
+    </>}
   </section>;
 }
 
 function SheetsArea({ canManage }) {
-  const [subject, setSubject] = useState(null);
-  if (!subject) return <SubjectBrowser selected={subject} onSelect={setSubject} />;
-  return <SheetList subject={subject} canManage={canManage} onBack={() => setSubject(null)} />;
+  const { params, open, back } = useContentLocation();
+  const subjectId = params.get("subject");
+  if (!subjectId) return <SubjectBrowser onSelect={(subject) => open("subject", subject.id)} />;
+  return <SheetList subject={{ id: subjectId }} canManage={canManage} onBack={() => back("subject")} />;
 }
 
 function SheetList({ subject, canManage, onBack, selectMode = false, onSelectSheet = null }) {
   const [status, setStatus] = useState(""); const [query, setQuery] = useState(""); const [createOpen, setCreateOpen] = useState(false); const [message, setMessage] = useState("");
-  const data = useAsyncData(() => adminControlApi.subjectSheets(subject.id, { status, query }), [subject.id, status, query]);
+  const searchQuery = useDebouncedValue(query.trim());
+  const data = useAsyncData(() => adminControlApi.subjectSheets(subject.id, { status, query: searchQuery }), [subject.id, status, searchQuery], { keepPreviousData: true });
   return <section className="admin-content-section">
     <BreadcrumbButton onClick={onBack}>All subjects</BreadcrumbButton>
-    <div className="admin-content-toolbar"><div><h2>{subject.title}</h2><p>{selectMode ? "Choose a sheet to manage its questions." : "Published order is shared with the student Materials view."}</p></div>{canManage && !selectMode && <button className="btn btn-primary" type="button" onClick={() => setCreateOpen((value) => !value)}><Icon name="plus" size={17} />{createOpen ? "Close" : "Add sheet"}</button>}</div>
+    <div className="admin-content-toolbar"><div><h2>{data.data?.subject?.title || subject.title || "Subject"}</h2><p>{selectMode ? "Choose a sheet to manage its questions." : "Published order is shared with the student Materials view."}</p></div>{canManage && !selectMode && <button className="btn btn-primary" type="button" onClick={() => setCreateOpen((value) => !value)}><Icon name="plus" size={17} />{createOpen ? "Close" : "Add sheet"}</button>}</div>
     {message && <AdminNotice message={message} />}
-    {createOpen && <AddSheetForm subject={subject} onCreated={() => { setCreateOpen(false); setMessage("Sheet saved successfully."); data.reload(); }} />}
-    <div className="admin-content-filters"><label className="field"><span>Search sheets</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} /></label><label className="field"><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">All</option>{["draft", "in_review", "published", "rejected", "archived"].map((value) => <option key={value} value={value}>{humanize(value)}</option>)}</select></label></div>
-    {data.loading ? <LoadingPanel /> : data.error ? <ErrorPanel message={data.error} onRetry={data.reload} /> : <div className="admin-sheet-list">{data.data.results.length ? data.data.results.map((sheet, index) => selectMode ? <button className="admin-sheet-select" type="button" key={sheet.id} onClick={() => onSelectSheet?.(sheet)}><span><strong>{sheet.title}</strong><small>{sheet.question_count} questions · {sheet.published_question_count ?? 0} live to students · {humanize(sheet.workflow_status)}</small></span><Icon name="chevron-right" size={18} /></button> : <SheetRow key={sheet.id} sheet={sheet} sheets={data.data.results} index={index} canManage={canManage} onChanged={data.reload} />) : <EmptyState title="No sheets in this view" text="Change the filters or add the first PDF sheet." />}</div>}
+    {createOpen && <AddSheetForm subject={{ ...subject, title: data.data?.subject?.title || subject.title || "this subject" }} onCreated={() => { setCreateOpen(false); setMessage("Sheet saved successfully."); data.reload(); }} />}
+    <div className="admin-content-filters"><label className="field"><span>Search sheets</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} aria-busy={data.refreshing || undefined} /></label><label className="field"><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">All</option>{["draft", "in_review", "published", "rejected", "archived"].map((value) => <option key={value} value={value}>{humanize(value)}</option>)}</select></label></div>
+    {data.loading ? <LoadingPanel variant="list" /> : data.error ? <ErrorPanel message={data.error} onRetry={data.reload} /> : <div className={`admin-sheet-list${data.refreshing ? " is-refreshing" : ""}`}>{data.data.results.length ? data.data.results.map((sheet, index) => selectMode ? <button className="admin-sheet-select" type="button" key={sheet.id} onClick={() => onSelectSheet?.(sheet)}><span><strong>{sheet.title}</strong><small>{sheet.question_count} questions · {sheet.published_question_count ?? 0} live to students · {humanize(sheet.workflow_status)}</small></span><Icon name="chevron-right" size={18} /></button> : <SheetRow key={sheet.id} sheet={sheet} sheets={data.data.results} index={index} canManage={canManage} onChanged={data.reload} />) : <EmptyState title="No sheets in this view" text="Change the filters or add the first PDF sheet." />}</div>}
   </section>;
 }
 
@@ -415,20 +463,24 @@ function ActiveStudyQuestionPreview({ payload, pageRanges }) {
 }
 
 function QuestionsArea({ canManage }) {
-  const [subject, setSubject] = useState(null); const [sheet, setSheet] = useState(null);
-  if (!subject) return <SubjectBrowser selected={subject} onSelect={setSubject} purpose="question sheets" />;
-  if (!sheet) return <SheetList subject={subject} canManage={false} selectMode onSelectSheet={setSheet} onBack={() => setSubject(null)} />;
-  return <QuestionList subject={subject} sheet={sheet} canManage={canManage} onBack={() => setSheet(null)} />;
+  const { params, open, back } = useContentLocation();
+  const subjectId = params.get("subject"); const sheetId = params.get("sheet");
+  if (!subjectId) return <SubjectBrowser onSelect={(subject) => open("subject", subject.id)} purpose="question sheets" />;
+  if (!sheetId) return <SheetList subject={{ id: subjectId }} canManage={false} selectMode onSelectSheet={(sheet) => open("sheet", sheet.id)} onBack={() => back("subject", "sheet")} />;
+  return <QuestionList key={sheetId} subject={{ id: subjectId }} sheet={{ id: sheetId }} canManage={canManage} onBack={() => back("sheet")} />;
 }
 
 function QuestionList({ subject, sheet, canManage, onBack }) {
   const [filters, setFilters] = useState({ query: "", status: "", type: "", difficulty: "", topic: "" }); const [selected, setSelected] = useState([]); const [importOpen, setImportOpen] = useState(false); const [editing, setEditing] = useState(null); const [error, setError] = useState(null); const [pending, setPending] = useState(""); const [confirm, setConfirm] = useState(null); const [targetSheetId, setTargetSheetId] = useState("");
-  const data = useAsyncData(() => adminControlApi.sheetQuestions(sheet.id, filters), [sheet.id, filters.query, filters.status, filters.type, filters.difficulty, filters.topic]);
+  const query = useDebouncedValue(filters.query.trim()); const topic = useDebouncedValue(filters.topic.trim());
+  const data = useAsyncData(() => adminControlApi.sheetQuestions(sheet.id, { ...filters, query, topic }), [sheet.id, query, filters.status, filters.type, filters.difficulty, topic], { keepPreviousData: true });
   const sheetOptions = useAsyncData(() => adminControlApi.subjectSheets(subject.id), [subject.id]);
+  const sheetDetail = { ...sheet, ...(data.data?.sheet || {}) };
+  const subjectTitle = sheetOptions.data?.subject?.title || subject.title || "Sheets";
   function change(key, value) { setFilters((current) => ({ ...current, [key]: value })); setSelected([]); }
   async function bulk(action) { if (!selected.length || (action === "move" && !targetSheetId)) return; setPending(action); setError(null); try { await adminControlApi.bulkQuestions(selected, action, action === "move" ? targetSheetId : null); setSelected([]); setConfirm(null); data.reload(); } catch (requestError) { setError(requestError); } finally { setPending(""); } }
   const results = data.data?.results || []; const allSelected = results.length > 0 && results.every((item) => selected.includes(item.id));
-  return <section className="admin-content-section"><BreadcrumbButton onClick={onBack}>{subject.title}</BreadcrumbButton><div className="admin-content-toolbar"><div><h2>{sheet.title}</h2><p>{data.data ? `${data.data.count} questions · ${Object.entries(data.data.type_counts).map(([key, value]) => `${value} ${humanize(key)}`).join(" · ") || "No types"}` : "Loading question summary…"}</p></div>{canManage && <button className="btn btn-primary" type="button" onClick={() => setImportOpen((value) => !value)}><Icon name="plus" size={17} />{importOpen ? "Close importer" : "Add questions"}</button>}</div>{importOpen && <QuestionImporter sheet={sheet} onImported={() => { setImportOpen(false); data.reload(); }} />}<div className="admin-question-filters"><label className="field"><span>Search</span><input type="search" value={filters.query} onChange={(event) => change("query", event.target.value)} /></label><label className="field"><span>Topic</span><input value={filters.topic} onChange={(event) => change("topic", event.target.value)} /></label><label className="field"><span>Type</span><select value={filters.type} onChange={(event) => change("type", event.target.value)}><option value="">All</option>{["single_choice", "true_false", "multiple_select"].map((value) => <option key={value} value={value}>{humanize(value)}</option>)}</select></label><label className="field"><span>Status</span><select value={filters.status} onChange={(event) => change("status", event.target.value)}><option value="">All</option>{["draft", "in_review", "published", "rejected", "retired"].map((value) => <option key={value} value={value}>{humanize(value)}</option>)}</select></label><label className="field"><span>Difficulty</span><select value={filters.difficulty} onChange={(event) => change("difficulty", event.target.value)}><option value="">All</option>{["easy", "medium", "hard"].map((value) => <option key={value}>{humanize(value)}</option>)}</select></label></div>{error && <AdminNotice error={error} />}{canManage && results.length > 0 && <div className="admin-bulk-bar"><label className="check-row"><input type="checkbox" checked={allSelected} onChange={() => setSelected(allSelected ? selected.filter((id) => !results.some((item) => item.id === id)) : [...new Set([...selected, ...results.map((item) => item.id)])])} /> Select all</label><span>{selected.length} selected</span><button className="btn btn-soft compact" disabled={!selected.length || Boolean(pending)} type="button" onClick={() => bulk("publish")}>Publish</button><button className="btn btn-soft compact" disabled={!selected.length || Boolean(pending)} type="button" onClick={() => bulk("unpublish")}>Unpublish</button><label className="field compact-field"><span>Move to</span><select value={targetSheetId} onChange={(event) => setTargetSheetId(event.target.value)}><option value="">Choose sheet</option>{(sheetOptions.data?.results || []).filter((item) => item.id !== sheet.id).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label><button className="btn btn-soft compact" disabled={!selected.length || !targetSheetId || Boolean(pending)} type="button" onClick={() => bulk("move")}>Move</button><button className="btn btn-danger compact" disabled={!selected.length || Boolean(pending)} type="button" onClick={() => setConfirm("delete")}>Archive selected</button></div>}{data.loading ? <LoadingPanel /> : data.error ? <ErrorPanel message={data.error} onRetry={data.reload} /> : <div className="admin-question-list">{results.length ? results.map((question, index) => <article key={question.id}><label className="admin-question-select"><input type="checkbox" checked={selected.includes(question.id)} onChange={() => setSelected((current) => current.includes(question.id) ? current.filter((id) => id !== question.id) : [...current, question.id])} /><span>Q{index + 1}</span></label><div className="admin-question-copy"><h3>{question.question}</h3><p>{humanize(question.question_type)} · {humanize(question.difficulty)}{question.topic ? ` · ${question.topic}` : ""}</p><small>{question.explanation || "No explanation"}</small></div><div className="admin-question-meta"><span className={`pill status-${question.workflow_status}`}>{humanize(question.workflow_status)}</span>{canManage && <button className="btn btn-soft compact" type="button" onClick={() => setEditing(editing === question.id ? null : question.id)}><Icon name="pencil" size={15} />Edit</button>}{canManage && <button className="btn btn-danger compact" type="button" onClick={() => { setSelected([question.id]); setConfirm("delete"); }}><Icon name="trash" size={15} />Archive</button>}</div>{editing === question.id && <QuestionEditor question={question} sheet={data.data.sheet} onSaved={() => { setEditing(null); data.reload(); }} />}</article>) : <EmptyState title="No questions found" text="Import a JSON batch or change the filters." />}</div>}<ConfirmDialog open={confirm === "delete"} title={`Archive ${selected.length} questions?`} message="The questions will be retired from future quizzes. Student attempts, Review Bank entries, analytics, and immutable question versions remain intact." confirmLabel={pending ? "Working…" : "Archive questions"} onCancel={() => setConfirm(null)} onConfirm={() => bulk("delete")} /></section>;
+  return <section className="admin-content-section"><BreadcrumbButton onClick={onBack}>{subjectTitle}</BreadcrumbButton><div className="admin-content-toolbar"><div><h2>{sheetDetail.title || "Sheet"}</h2><p>{data.data ? `${data.data.count} questions · ${Object.entries(data.data.type_counts).map(([key, value]) => `${value} ${humanize(key)}`).join(" · ") || "No types"}` : "Loading question summary…"}</p></div>{canManage && <button className="btn btn-primary" type="button" onClick={() => setImportOpen((value) => !value)}><Icon name="plus" size={17} />{importOpen ? "Close importer" : "Add questions"}</button>}</div>{importOpen && <QuestionImporter sheet={sheetDetail} onImported={() => { setImportOpen(false); data.reload(); }} />}<div className="admin-question-filters"><label className="field"><span>Search</span><input type="search" value={filters.query} onChange={(event) => change("query", event.target.value)} /></label><label className="field"><span>Topic</span><input value={filters.topic} onChange={(event) => change("topic", event.target.value)} /></label><label className="field"><span>Type</span><select value={filters.type} onChange={(event) => change("type", event.target.value)}><option value="">All</option>{["single_choice", "true_false", "multiple_select"].map((value) => <option key={value} value={value}>{humanize(value)}</option>)}</select></label><label className="field"><span>Status</span><select value={filters.status} onChange={(event) => change("status", event.target.value)}><option value="">All</option>{["draft", "in_review", "published", "rejected", "retired"].map((value) => <option key={value} value={value}>{humanize(value)}</option>)}</select></label><label className="field"><span>Difficulty</span><select value={filters.difficulty} onChange={(event) => change("difficulty", event.target.value)}><option value="">All</option>{["easy", "medium", "hard"].map((value) => <option key={value}>{humanize(value)}</option>)}</select></label></div>{error && <AdminNotice error={error} />}{canManage && results.length > 0 && <div className="admin-bulk-bar"><label className="check-row"><input type="checkbox" checked={allSelected} onChange={() => setSelected(allSelected ? selected.filter((id) => !results.some((item) => item.id === id)) : [...new Set([...selected, ...results.map((item) => item.id)])])} /> Select all</label><span>{selected.length} selected</span><button className="btn btn-soft compact" disabled={!selected.length || Boolean(pending)} type="button" onClick={() => bulk("publish")}>Publish</button><button className="btn btn-soft compact" disabled={!selected.length || Boolean(pending)} type="button" onClick={() => bulk("unpublish")}>Unpublish</button><label className="field compact-field"><span>Move to</span><select value={targetSheetId} onChange={(event) => setTargetSheetId(event.target.value)}><option value="">Choose sheet</option>{(sheetOptions.data?.results || []).filter((item) => item.id !== sheet.id).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label><button className="btn btn-soft compact" disabled={!selected.length || !targetSheetId || Boolean(pending)} type="button" onClick={() => bulk("move")}>Move</button><button className="btn btn-danger compact" disabled={!selected.length || Boolean(pending)} type="button" onClick={() => setConfirm("delete")}>Archive selected</button></div>}{data.loading ? <LoadingPanel variant="list" /> : data.error ? <ErrorPanel message={data.error} onRetry={data.reload} /> : <div className={`admin-question-list${data.refreshing ? " is-refreshing" : ""}`}>{results.length ? results.map((question, index) => <article key={question.id}><label className="admin-question-select"><input type="checkbox" checked={selected.includes(question.id)} onChange={() => setSelected((current) => current.includes(question.id) ? current.filter((id) => id !== question.id) : [...current, question.id])} /><span>Q{index + 1}</span></label><div className="admin-question-copy"><h3>{question.question}</h3><p>{humanize(question.question_type)} · {humanize(question.difficulty)}{question.topic ? ` · ${question.topic}` : ""}</p><small>{question.explanation || "No explanation"}</small></div><div className="admin-question-meta"><span className={`pill status-${question.workflow_status}`}>{humanize(question.workflow_status)}</span>{canManage && <button className="btn btn-soft compact" type="button" onClick={() => setEditing(editing === question.id ? null : question.id)}><Icon name="pencil" size={15} />Edit</button>}{canManage && <button className="btn btn-danger compact" type="button" onClick={() => { setSelected([question.id]); setConfirm("delete"); }}><Icon name="trash" size={15} />Archive</button>}</div>{editing === question.id && <QuestionEditor question={question} sheet={data.data.sheet} onSaved={() => { setEditing(null); data.reload(); }} />}</article>) : <EmptyState title="No questions found" text="Import a JSON batch or change the filters." />}</div>}<ConfirmDialog open={confirm === "delete"} title={`Archive ${selected.length} questions?`} message="The questions will be retired from future quizzes. Student attempts, Review Bank entries, analytics, and immutable question versions remain intact." confirmLabel={pending ? "Working…" : "Archive questions"} onCancel={() => setConfirm(null)} onConfirm={() => bulk("delete")} /></section>;
 }
 
 function QuestionEditor({ question, sheet, onSaved }) {

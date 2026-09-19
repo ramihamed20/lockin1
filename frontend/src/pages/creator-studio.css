@@ -301,7 +301,9 @@
 
 .creator-table-panel { padding: 0; overflow: hidden; }
 .creator-table-panel > .creator-panel-heading { padding: 17px 17px 0; }
-.creator-table-wrap { max-width: 100%; overflow-x: auto; }
+.creator-table-wrap { max-width: 100%; overflow-x: auto; transition: opacity 160ms ease; }
+.creator-table-wrap.is-refreshing { opacity: .55; }
+@media (prefers-reduced-motion: reduce) { .creator-table-wrap { transition: none; } }
 .creator-table { width: 100%; min-width: 740px; border-collapse: collapse; }
 .creator-table th,
 .creator-table td { padding: 12px 14px; border-top: 1px solid var(--creator-border); text-align: left; vertical-align: middle; }
