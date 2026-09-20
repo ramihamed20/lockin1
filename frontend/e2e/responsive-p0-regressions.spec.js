@@ -322,7 +322,7 @@ test("the Arabic reader opens on the page, not beside it", async ({ page }) => {
   await mockStudent(page, { language: "ar" });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(WORKSPACE_ROUTE);
-  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await page.getByRole("button", { name: /Normal Study|الدراسة العادية/ }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
 
   await expect.poll(async () => page.evaluate(() => {
