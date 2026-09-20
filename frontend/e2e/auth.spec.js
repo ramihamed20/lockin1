@@ -737,10 +737,14 @@ test("going back after logout never shows the account again", async ({ page }) =
   await expect(page.getByRole("button", { name: "Open profile menu" })).toBeVisible();
   // Build real protected history to walk back through.
   await page.goto("/#/profile");
+  await expect(page).toHaveTitle(/Profile/);
   await page.goto("/#/settings");
+  await expect(page).toHaveTitle(/Settings/);
 
   await page.getByRole("button", { name: "Open profile menu" }).click();
-  await page.locator(".account-menu-signout").click();
+  const accountMenu = page.getByRole("menu");
+  await expect(accountMenu).toBeVisible();
+  await accountMenu.getByRole("menuitem", { name: /Log out/ }).click();
   await page.getByRole("alertdialog").locator(".btn-danger").click();
   await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible({ timeout: 15_000 });
 
