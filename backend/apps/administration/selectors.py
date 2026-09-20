@@ -13,7 +13,7 @@ from apps.content.models import LearningObject
 from apps.education.models import EducationNode
 from apps.moderation.models import Report
 from apps.notifications.models import NotificationDelivery
-from apps.payments.models import Payment
+from apps.payments.models import ManualRechargeSubmission, Payment
 from apps.questions.models import Question
 from apps.subscriptions.models import Subscription
 from platform_core.observability.health import collect_health_status
@@ -113,6 +113,11 @@ def overview_dashboard(*, user: User, days: int) -> dict[str, Any]:
             status__in=(Report.Status.OPEN, Report.Status.TRIAGED, Report.Status.IN_PROGRESS)
         ).count(),
         "failed_payments": Payment.objects.filter(status=Payment.Status.FAILED).count(),
+        # Recharge cards waiting for an operator: the queue a student is
+        # actually blocked on, so the overview leads with it.
+        "pending_payment_reviews": ManualRechargeSubmission.objects.filter(
+            status=ManualRechargeSubmission.Status.PENDING
+        ).count(),
         "failed_notifications": NotificationDelivery.objects.filter(
             status=NotificationDelivery.Status.FAILED
         ).count(),

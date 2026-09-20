@@ -73,6 +73,17 @@ function CategoryCard({ category }) {
   return <CatalogTile title={t(category.titleKey)} meta={t(category.metaKey)} icon={category.icon} kind="question" to={category.available ? `/questions/categories/${category.id}` : ""} status={category.available ? "" : t("common.soon")} />;
 }
 
+function QuestionBreadcrumbs({ category, material = null, sheetTitle = "" }) {
+  const { t } = useI18n();
+  return <nav className="question-breadcrumb" aria-label={t("questions.breadcrumbs")}>
+    <Link to="/questions">{t("route.questions")}</Link>
+    <Icon name="chevron-right" size={14} aria-hidden="true" />
+    {material ? <Link to={`/questions/categories/${category.id}`}>{t(category.titleKey)}</Link> : <span aria-current="page">{t(category.titleKey)}</span>}
+    {material && <><Icon name="chevron-right" size={14} aria-hidden="true" />{sheetTitle ? <Link to={`/questions/categories/${category.id}/subjects/${material.slug}`} dir="auto">{material.title}</Link> : <span aria-current="page" dir="auto">{material.title}</span>}</>}
+    {sheetTitle && <><Icon name="chevron-right" size={14} aria-hidden="true" /><span aria-current="page" dir="auto">{sheetTitle}</span></>}
+  </nav>;
+}
+
 export function QuestionCategory({ user = null }) {
   const { categoryId } = useParams();
   const { t } = useI18n();
@@ -83,22 +94,25 @@ export function QuestionCategory({ user = null }) {
   if (!category.available) return <Page title={t(category.titleKey)}>{categoryEmptyState(category, t)}</Page>;
   // A directory still in flight is not an empty directory, and a failed one is
   // not a curriculum with nothing in it.
-  if (loading) return <Page title={t(category.titleKey)}><LoadingPanel /></Page>;
+  if (loading) return <Page title={t(category.titleKey)}><LoadingPanel variant="material-list" /></Page>;
   if (error) return <Page title={t(category.titleKey)}><ErrorPanel message={error} onRetry={reload} /></Page>;
   if (!materials.length) return <Page title={t(category.titleKey)}><EmptyState icon="study" title={t("questions.noQuestionsTitle")} text={t("questions.noQuestionsText")} /></Page>;
 
   return (
     <Page title={t(category.titleKey)} subtitle={t("questions.chooseSubject")}>
-      <section className="material-grid catalog-material-grid" aria-label={t("questions.subjectsLabel")}>
-        {materials.map((material) => (
-          <CatalogTile
-            key={material.slug}
-            title={material.title}
-            meta={t("questions.questionCount", { count: material.questionCount || 0 })}
-            icon="book-open"
-            to={`/questions/categories/${category.id}/subjects/${material.slug}`}
-          />
-        ))}
+      <section className="question-directory">
+        <QuestionBreadcrumbs category={category} />
+        <section className="material-grid catalog-material-grid" aria-label={t("questions.subjectsLabel")}>
+          {materials.map((material) => (
+            <CatalogTile
+              key={material.slug}
+              title={material.title}
+              meta={t("questions.questionCount", { count: material.questionCount || 0 })}
+              icon="book-open"
+              to={`/questions/categories/${category.id}/subjects/${material.slug}`}
+            />
+          ))}
+        </section>
       </section>
     </Page>
   );
@@ -113,24 +127,27 @@ export function QuestionSubjectSheets({ user = null }) {
   const material = materials.find((item) => item.slug === subjectId) || null;
 
   if (!category?.available) return <Page title={t("materials.notFoundTitle")}><ErrorPanel message={t("questions.subjectUnavailable")} /></Page>;
-  if (loading) return <Page title={t(category.titleKey)}><LoadingPanel /></Page>;
+  if (loading) return <Page title={t(category.titleKey)}><LoadingPanel variant="card-list" /></Page>;
   if (error) return <Page title={t(category.titleKey)}><ErrorPanel message={error} onRetry={reload} /></Page>;
   if (!material) return <Page title={t("materials.notFoundTitle")}><ErrorPanel message={t("questions.subjectUnavailable")} /></Page>;
   if (!material.sheets.length) return <Page title={material.title}><EmptyState icon="study" title={t("questions.noQuestionsTitle")} text={t("questions.noQuestionsText")} /></Page>;
 
   return (
     <Page title={material.title} subtitle={t("questions.chooseSheet")}>
-      <section className="material-grid catalog-material-grid" aria-label={t("questions.sheetsLabel")}>
-        {material.sheets.map((sheet) => (
-          <CatalogTile
-            key={sheet.id}
-            title={sheet.title}
-            meta={t("questions.questionCount", { count: sheet.questionCount || 0 })}
-            icon="file-question"
-            kind="question"
-            to={`/questions/categories/${category.id}/subjects/${material.slug}/sheets/${sheet.id}`}
-          />
-        ))}
+      <section className="question-directory">
+        <QuestionBreadcrumbs category={category} material={material} />
+        <section className="material-grid catalog-material-grid" aria-label={t("questions.sheetsLabel")}>
+          {material.sheets.map((sheet) => (
+            <CatalogTile
+              key={sheet.id}
+              title={sheet.title}
+              meta={t("questions.questionCount", { count: sheet.questionCount || 0 })}
+              icon="file-question"
+              kind="question"
+              to={`/questions/categories/${category.id}/subjects/${material.slug}/sheets/${sheet.id}`}
+            />
+          ))}
+        </section>
       </section>
     </Page>
   );
@@ -154,7 +171,7 @@ export function QuestionSheetQuestions({ user = null }) {
   const sheetTitle = data.data?.sheet?.title || t("questions.aiSheet");
 
   if (!category?.available) return <Page title={t("materials.notFoundTitle")}><ErrorPanel message={t("questions.subjectUnavailable")} /></Page>;
-  if (data.loading) return <Page title={t(category.titleKey)}><LoadingPanel /></Page>;
+  if (data.loading) return <Page title={t(category.titleKey)}><LoadingPanel variant="quiz" /></Page>;
   if (data.error) return <Page title={t(category.titleKey)}><ErrorPanel message={data.error} onRetry={data.reload} /></Page>;
   if (!questions.length) return <Page title={sheetTitle}><EmptyState icon="study" title={t("questions.noQuestionsTitle")} text={t("questions.noQuestionsText")} /></Page>;
 
@@ -163,12 +180,15 @@ export function QuestionSheetQuestions({ user = null }) {
     // page names the sheet, so a student would otherwise have no way to
     // confirm which one they opened.
     <Page title={sheetTitle} showHeading>
-      <QuestionPlayer
-        key={sheetId}
-        sheetId={sheetId}
-        questions={questions}
-        backTo={`/questions/categories/${categoryId}/subjects/${subjectId}`}
-      />
+      <section className="question-session-shell">
+        <QuestionBreadcrumbs category={category} material={{ slug: subjectId, title: data.data?.sheet?.subject_title || t("questions.aiSheet") }} sheetTitle={sheetTitle} />
+        <QuestionPlayer
+          key={sheetId}
+          sheetId={sheetId}
+          questions={questions}
+          backTo={`/questions/categories/${categoryId}/subjects/${subjectId}`}
+        />
+      </section>
     </Page>
   );
 }

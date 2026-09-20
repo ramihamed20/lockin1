@@ -66,7 +66,8 @@ for (const device of [
   { name: "mobile", width: 390, height: 844 },
   { name: "iPad portrait", width: 834, height: 1112 },
   { name: "iPad landscape", width: 1112, height: 834 },
-  { name: "desktop", width: 1440, height: 960 }
+  { name: "desktop", width: 1440, height: 960 },
+  { name: "wide desktop", width: 2560, height: 1440 }
 ]) {
   test(`None mascot removes the Dashboard illustration slot (${device.name})`, async ({ page }) => {
     await mockDashboard(page, "none");

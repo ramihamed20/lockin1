@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -8,17 +7,13 @@ const stylesPath = fileURLToPath(new URL("../src/styles.css", import.meta.url));
 const appPath = fileURLToPath(new URL("../src/App.jsx", import.meta.url));
 const focusPath = fileURLToPath(new URL("../src/pages/catalog-focus-workspace.css", import.meta.url));
 const lockInPath = fileURLToPath(new URL("../src/pages/lock-in-reference.css", import.meta.url));
+const tokensPath = fileURLToPath(new URL("../src/styles/tokens.css", import.meta.url));
 const styles = readFileSync(stylesPath, "utf8");
+const tokenStyles = readFileSync(tokensPath, "utf8");
 
-function normalizedHash(value) {
-  return createHash("sha256").update(value.replaceAll("\r\n", "\n")).digest("hex");
-}
-
-function blockAfterMarker(marker, selectorPattern) {
-  const markerIndex = styles.indexOf(marker);
-  assert.notEqual(markerIndex, -1, `Missing marker: ${marker}`);
-  const match = styles.slice(markerIndex).match(new RegExp(`${selectorPattern}\\s*\\{([\\s\\S]*?)\\n\\}`));
-  assert.ok(match, `Missing selector after ${marker}: ${selectorPattern}`);
+function selectorBlock(source, selectorPattern) {
+  const match = source.match(new RegExp(`${selectorPattern}\\s*\\{([\\s\\S]*?)\\n\\s*\\}`));
+  assert.ok(match, `Missing selector: ${selectorPattern}`);
   return match[1];
 }
 
@@ -46,36 +41,6 @@ const palettes = {
   }
 };
 
-const expectedCss = {
-  day: {
-    "--bg": "oklch(97% 0.003 264.5)", "--bg-2": "oklch(94.9% 0.006 264.5)", "--surface": "oklch(99.1% 0.002 247.8)",
-    "--surface-2": "oklch(96.6% 0.005 258.3)", "--surface-elevated": "oklch(100% 0 89.9)", "--text": "oklch(22% 0.016 279.4)",
-    "--muted": "oklch(42.9% 0.022 271.9)", "--soft": "oklch(51.5% 0.024 270.9)", "--disabled-text": "oklch(63.4% 0.022 270.1)",
-    "--border": "oklch(89.4% 0.012 264.5)", "--border-subtle": "oklch(93.3% 0.009 264.5)", "--accent": "oklch(50.1% 0.18 283.5)",
-    "--accent-hover": "oklch(45.5% 0.167 283.4)", "--accent-active": "oklch(40.7% 0.146 284.2)", "--accent-subtle": "oklch(94.9% 0.019 292.6)",
-    "--accent-border": "oklch(83.6% 0.06 291.4)", "--accent-text": "oklch(41.9% 0.15 283.5)", "--green": "oklch(52% 0.099 160.1)",
-    "--highlight": "oklch(51.1% 0.102 71.8)", "--danger": "oklch(54.5% 0.15 23.5)", "--color-info": "oklch(51.2% 0.116 249.4)"
-  },
-  dawn: {
-    "--bg": "oklch(95.8% 0.007 88.6)", "--bg-2": "oklch(92.8% 0.01 93.6)", "--surface": "oklch(98.8% 0.004 91.4)",
-    "--surface-2": "oklch(94.9% 0.008 91.5)", "--surface-elevated": "oklch(99.4% 0.006 84.6)", "--text": "oklch(27% 0.014 131.7)",
-    "--muted": "oklch(44.8% 0.018 132.7)", "--soft": "oklch(52.2% 0.018 136.1)", "--disabled-text": "oklch(63.1% 0.017 136.1)",
-    "--border": "oklch(87.2% 0.011 95.2)", "--border-subtle": "oklch(91.3% 0.008 91.5)", "--accent": "oklch(49.8% 0.066 187)",
-    "--accent-hover": "oklch(44.7% 0.059 187.3)", "--accent-active": "oklch(39.4% 0.051 187.7)", "--accent-subtle": "oklch(94.2% 0.014 180.7)",
-    "--accent-border": "oklch(85.3% 0.032 181.7)", "--accent-text": "oklch(43.3% 0.058 187.1)", "--green": "oklch(52.3% 0.097 154.7)",
-    "--highlight": "oklch(52.7% 0.1 73.8)", "--danger": "oklch(53.9% 0.129 23.6)", "--color-info": "oklch(51.8% 0.078 241)"
-  },
-  sunset: {
-    "--bg": "oklch(94.8% 0.008 36.6)", "--bg-2": "oklch(90.8% 0.012 37.4)", "--surface": "oklch(98.1% 0.004 56.4)",
-    "--surface-2": "oklch(93.9% 0.01 41.9)", "--surface-elevated": "oklch(99.5% 0.003 48.7)", "--text": "oklch(27.5% 0.026 329)",
-    "--muted": "oklch(43.6% 0.033 333.9)", "--soft": "oklch(51% 0.028 336.6)", "--disabled-text": "oklch(62.3% 0.023 338)",
-    "--border": "oklch(85.9% 0.014 17.4)", "--border-subtle": "oklch(91% 0.01 25.1)", "--accent": "oklch(45.9% 0.103 336.6)",
-    "--accent-hover": "oklch(40.7% 0.093 335.7)", "--accent-active": "oklch(35.9% 0.08 335.5)", "--accent-subtle": "oklch(93% 0.019 338.7)",
-    "--accent-border": "oklch(80.6% 0.049 339.3)", "--accent-text": "oklch(40.7% 0.093 335.7)", "--green": "oklch(52% 0.081 157.1)",
-    "--highlight": "oklch(53.1% 0.104 69.8)", "--danger": "oklch(54% 0.13 18.8)", "--color-info": "oklch(52.9% 0.066 252.1)"
-  }
-};
-
 function rgb(hex) {
   const value = Number.parseInt(hex.slice(1), 16);
   return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
@@ -93,34 +58,32 @@ function contrast(a, b) {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-test("Night root layers remain byte-stable after newline normalization", () => {
-  // styles.css is wrapped in `@layer app { … }`, so the first :root block no
-  // longer starts at byte zero. Its contents are unchanged, which is what the
-  // hashes below pin. The initial hash was re-pinned when `--z-connection`
-  // joined the z-index tokens; no colour changed.
-  const initialRoot = styles.match(/^:root\s*\{[\s\S]*?\n\}/m)?.[0];
-  const premiumRoot = styles.slice(styles.indexOf("/* Premium UI refresh layer */")).match(/:root\s*\{[\s\S]*?\n\}/)?.[0];
-  assert.ok(initialRoot);
-  assert.ok(premiumRoot);
-  assert.equal(normalizedHash(initialRoot), "5a2a5c5745a0c337c790f810994375caa31b83d3e4abbdd6c4bc303f486a2a7a");
-  assert.equal(normalizedHash(premiumRoot), "3144102caf84efa76d3a32bf1566a7c489bd40313a1cc0437b442fa8710f1e3f");
-  assert.doesNotMatch(styles, /:root\[data-theme="night"\][^{]*\{[^}]*--/s);
+test("design tokens are the single source for the Night palette", () => {
+  const root = tokenMap(selectorBlock(tokenStyles, ":root"));
+  assert.equal(root["--bg"], "#090c14");
+  assert.equal(root["--surface"], "#0f131c");
+  assert.equal(root["--text"], "#edf0f6");
+  assert.equal(root["--accent"], "#f1c04f");
+  assert.equal(root["--danger"], "#f27272");
+  assert.doesNotMatch(styles, /\s--(?:bg|surface|text|accent|gold|primary):/);
+  assert.doesNotMatch(styles, /\/\* Premium UI refresh layer \*\//);
 });
 
-test("the final light blocks provide the required OKLCH color contracts", () => {
-  const marker = "/* Premium UI refresh layer */";
-  const blocks = {
-    day: blockAfterMarker(marker, ':root\\[data-theme="light"\\],\\s*:root\\[data-theme="day"\\]'),
-    dawn: blockAfterMarker(marker, ':root\\[data-theme="dawn"\\]'),
-    sunset: blockAfterMarker(marker, ':root\\[data-theme="sunset"\\]')
-  };
-  for (const [theme, expected] of Object.entries(expectedCss)) {
-    const tokens = tokenMap(blocks[theme]);
-    for (const [token, value] of Object.entries(expected)) assert.equal(tokens[token], value, `${theme} ${token}`);
-    for (const token of ["--text-placeholder", "--interactive-hover", "--interactive-selected", "--overlay", "--shadow-color", "--skeleton-base", "--scrollbar-thumb", "--data-series-1", "--workspace-stage"]) {
-      assert.ok(tokens[token], `${theme} is missing ${token}`);
-    }
-  }
+test("light themes share neutrals and keep one deliberate accent each", () => {
+  const shared = tokenMap(selectorBlock(tokenStyles, ':root:is\\(\\[data-theme="day"\\], \\[data-theme="light"\\], \\[data-theme="dawn"\\], \\[data-theme="sunset"\\]\\)'));
+  const day = tokenMap(selectorBlock(tokenStyles, ':root:is\\(\\[data-theme="day"\\], \\[data-theme="light"\\]\\)'));
+  const dawn = tokenMap(selectorBlock(tokenStyles, ':root\\[data-theme="dawn"\\]'));
+  const sunset = tokenMap(selectorBlock(tokenStyles, ':root\\[data-theme="sunset"\\]'));
+
+  assert.equal(shared["--surface"], "#ffffff");
+  assert.equal(shared["--text"], "#141821");
+  assert.equal(shared["--danger"], "#c73b3b");
+  assert.equal(shared["--workspace-stage"], "#e8eaef");
+  assert.equal(day["--accent"], "#5b4bd6");
+  assert.equal(dawn["--accent"], "#1f7a78");
+  assert.equal(sunset["--accent"], "#a8356f");
+  assert.equal(dawn["--on-accent"], "#ffffff");
+  assert.equal(sunset["--on-accent"], "#ffffff");
 });
 
 test("light text, accent, selection, and semantic combinations meet WCAG AA", () => {

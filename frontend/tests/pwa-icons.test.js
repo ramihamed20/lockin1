@@ -154,3 +154,17 @@ test("startup shell continues the Android splash frame before React mounts", asy
     await assert.rejects(stat(new URL(`../public/${legacyIcon}`, import.meta.url)), { code: "ENOENT" });
   }
 });
+
+test("a slow start shows a delayed, motion-safe progress line", async () => {
+  const [styles, page, shared] = await Promise.all([
+    readFile(new URL("../public/startup.css", import.meta.url), "utf8"),
+    readFile(new URL("../index.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/shared/index.jsx", import.meta.url), "utf8")
+  ]);
+  assert.match(page, /<span class="startup-progress" aria-hidden="true">/);
+  assert.match(shared, /\{startup && <span className="startup-progress" aria-hidden="true">/);
+  // Invisible until loading has taken long enough to notice.
+  assert.match(styles, /animation: startup-progress-in 240ms 800ms/);
+  assert.match(styles, /\.startup-shell--settled \.startup-progress \{\n  display: none;/);
+  assert.match(styles, /prefers-reduced-motion: reduce[\s\S]*\.startup-progress > span \{\n    animation: none;/);
+});

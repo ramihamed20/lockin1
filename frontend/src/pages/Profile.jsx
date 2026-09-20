@@ -3,7 +3,7 @@ import { accountsApi } from "../api/accounts.js";
 import { motivationApi } from "../api/motivation.js";
 import { progressApi } from "../api/progress.js";
 import { Icon } from "../lib/icons.jsx";
-import { Page, ProgressLine, Tab, TabList } from "../components/ui/index.jsx";
+import { LoadingPanel, Page, ProgressLine, Tab, TabList } from "../components/ui/index.jsx";
 import { AccountFieldErrors, AccountFormAlert, fieldErrorAttributes } from "../components/account/AccountFormErrors.jsx";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { formatDate, formatNumber as formatLocaleNumber } from "../lib/i18n.js";
@@ -291,6 +291,8 @@ export default function Profile({ user, onUserUpdate }) {
     }
     finally { setChangingCohort(false); }
   }
+
+  if (profile.loading) return <Page title="My Profile"><LoadingPanel variant="profile" /></Page>;
 
   return (
     <Page title="My Profile" subtitle={t("profile.subtitle")}>

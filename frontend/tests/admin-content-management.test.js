@@ -8,10 +8,13 @@ const operations = await readFile(new URL("../src/pages/OperationsAdmin.jsx", im
 const attempt = await readFile(new URL("../src/pages/Attempt.jsx", import.meta.url), "utf8");
 const review = await readFile(new URL("../src/pages/Review.jsx", import.meta.url), "utf8");
 const styles = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+const studioAreas = await readFile(new URL("../src/lib/studioAreas.js", import.meta.url), "utf8");
 
 test("operations admin exposes capability-gated content management", () => {
   assert.match(operations, /AdminContentManagement/);
-  assert.match(operations, /content\.view/);
+  // The area list (and its capability gates) is shared with global search.
+  assert.match(operations, /STUDIO_AREAS/);
+  assert.match(studioAreas, /\["content", "Content", "content\.view"/);
   assert.match(page, /hasOperationalCapability/);
   assert.match(page, /content\.manage/);
   assert.match(page, /assessments\.manage/);

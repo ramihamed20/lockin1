@@ -568,7 +568,7 @@ export default function CatalogFocusWorkspace({ user = null, variant = "study" }
     [edition, summaryMode]
   );
   const title = summaryMode ? t("materials.sheetSummary") : t("materials.coreCatalogTitle");
-  if (materialsLoading) return <Page title={title}><LoadingPanel /></Page>;
+  if (materialsLoading) return <Page title={title}><LoadingPanel variant="document" /></Page>;
   if (materialsError) return <Page title={t("materials.sheetNotFoundTitle")}><ErrorPanel message={materialsError} onRetry={reloadMaterials} /></Page>;
   if (!material || !sheet) {
     // A named-but-unpublished edition says so, rather than being reported as a
@@ -4077,7 +4077,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
                 <WorkspaceIconButton label="Undo (Ctrl+Z)" disabled={!undoHistory.length} onClick={undoTool}><Undo2 size={18} /></WorkspaceIconButton>
                 <WorkspaceIconButton label="Redo (Ctrl+Shift+Z)" disabled={!redoHistory.length} onClick={redoTool}><Redo2 size={18} /></WorkspaceIconButton>
               </div>
-              <button type="button" className={`workspace-v2-study-mode-button is-${studyMode || "choose"}`} onClick={() => { setOpenSurface(null); setModeDialogOpen(true); }} aria-label={studyMode === "active" && activeStudy ? `Active Study: part ${activeStudy.current_part} of ${activeStudy.number_of_parts}` : "Choose study mode"} title={studyMode === "active" && activeStudy ? `Active Study · part ${activeStudy.current_part} of ${activeStudy.number_of_parts}` : "Choose study mode"}><Brain size={18} /></button>
+              <button type="button" className={`workspace-v2-study-mode-button is-${studyMode || "choose"}${studyMode === "active" && activeStudy ? " has-progress" : ""}`} onClick={() => { setOpenSurface(null); setModeDialogOpen(true); }} aria-label={studyMode === "active" && activeStudy ? `Active Study: part ${activeStudy.current_part} of ${activeStudy.number_of_parts}` : "Choose study mode"} title={studyMode === "active" && activeStudy ? `Active Study · part ${activeStudy.current_part} of ${activeStudy.number_of_parts}` : "Choose study mode"}><Brain size={18} />{studyMode === "active" && activeStudy && <span className="workspace-v2-study-mode-status"><strong>Active</strong><small>Part {activeStudy.current_part}/{activeStudy.number_of_parts}</small></span>}</button>
             </div>
             <input ref={imageInputRef} className="workspace-v2-file-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={addImage} tabIndex={-1} aria-hidden="true" />
             <div className="workspace-v2-toolbar-actions" aria-label="Workspace controls">

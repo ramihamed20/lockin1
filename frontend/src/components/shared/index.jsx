@@ -24,6 +24,7 @@ export function FullScreenState({ message, actionLabel = "", onAction = null, st
         </span>
       </span>
       <p className="startup-message" role="status" aria-live="polite">{message}</p>
+      {startup && <span className="startup-progress" aria-hidden="true"><span /></span>}
       {actionLabel && onAction && <button className="btn btn-soft" type="button" onClick={onAction}>{actionLabel}</button>}
     </main>
   );

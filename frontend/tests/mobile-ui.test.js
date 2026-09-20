@@ -136,7 +136,7 @@ test("the document, the shell and the opening frame share one height authority",
   assert.match(startup, /^\/\*[\s\S]*?\*\/\s*@layer startup \{/);
   assert.match(startup, /html,\s*body,\s*#root \{[\s\S]*min-block-size: 100lvh/);
   assert.doesNotMatch(startup, /html,\s*body,\s*#root \{[\s\S]*min-block-size: 100%/);
-  assert.match(layers, /@layer startup, primitives, app, interaction;/);
+  assert.match(layers, /@layer startup, primitives, app, tokens, system, interaction;/);
 });
 
 test("one module owns a stable application viewport and observes keyboard occlusion", async () => {
@@ -207,7 +207,7 @@ test("dashboard summary cards are full-card keyboard links to their real destina
   assert.match(dashboard, /id: "completed",[^\n]*to: "\/materials"/);
   assert.match(dashboard, /id: "saved",[^\n]*to: "\/bookmarks"/);
   assert.match(dashboard, /id: "reviewBank",[^\n]*to: "\/review"/);
-  assert.match(dashboard, /id: "sessions",[^\n]*to: "\/security"/);
+  assert.match(dashboard, /id: "level",[^\n]*to: "\/progress"/);
   assert.match(statsGrid, /<Link\s+className="stat-card-action"/);
   assert.match(statsGrid, /aria-label=/);
   assert.match(styles, /\.dashboard-stats-grid \.stat-card-action[\s\S]*min-height: 92px/);

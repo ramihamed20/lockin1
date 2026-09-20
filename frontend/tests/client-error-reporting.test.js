@@ -62,3 +62,28 @@ test("global handlers report errors and rejections without leaking their message
   assert.match(serialized, /TypeError/);
   assert.match(serialized, /unhandledrejection/);
 });
+
+test("reports name the hash route with identifiers collapsed", async () => {
+  const { reportedRoute } = await import("../src/lib/clientErrorReporting.js");
+  assert.equal(
+    reportedRoute({ pathname: "/", hash: "#/operations/admin/content?subject=4d1e255e-4d86-4018-859e-9d8a203ab97c" }),
+    "/operations/admin/content"
+  );
+  assert.equal(
+    reportedRoute({ pathname: "/", hash: "#/questions/attempts/4d1e255e-4d86-4018-859e-9d8a203ab97c" }),
+    "/questions/attempts/:id"
+  );
+  assert.equal(reportedRoute({ pathname: "/lock-in/42", hash: "" }), "/lock-in/:id");
+  assert.equal(reportedRoute({ pathname: "/", hash: "" }), "/");
+});
+
+test("the route error boundary resets on navigation and reports what it catches", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const [boundary, app] = await Promise.all([
+    readFile(new URL("../src/components/ErrorBoundary.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/App.jsx", import.meta.url), "utf8")
+  ]);
+  assert.match(boundary, /previousProps\.resetKey !== this\.props\.resetKey/);
+  assert.match(boundary, /reportClientError\("error", error\)/);
+  assert.match(app, /<ErrorBoundary resetKey=\{location\.pathname\}>/);
+});

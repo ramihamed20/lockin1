@@ -138,6 +138,31 @@ function CheckoutStepper({ step, onStep, t }) {
   );
 }
 
+function SubscriptionStateFlow({ subscription, review, t }) {
+  const trial = subscription?.status === "trialing";
+  const outcome = review?.status === "rejected"
+    ? { key: "rejected", label: t("subscription.rejected") }
+    : trial
+      ? { key: "trial", label: t("subscription.stateTrial") }
+      : !subscription?.access_allowed && subscription
+        ? { key: "expired", label: t("subscription.expired") }
+        : { key: "approved", label: t("subscription.approved") };
+  const current = review?.status === "pending" ? 3 : review?.status || subscription ? 4 : 0;
+  const labels = [
+    t("subscription.stepPlan"),
+    t("subscription.paymentStep"),
+    t("subscription.stateSubmitted"),
+    t("subscription.stateUnderReview"),
+    outcome.label
+  ];
+  return <ol className="subscription-state-flow" data-outcome={outcome.key} aria-label={t("subscription.stateFlowLabel")}>
+    {labels.map((label, index) => {
+      const state = index === current ? "current" : (!trial && index < current ? "done" : "upcoming");
+      return <li className={`is-${state}`} key={`${index}-${label}`} aria-current={state === "current" ? "step" : undefined}><span aria-hidden="true">{state === "done" ? "✓" : index + 1}</span><strong>{label}</strong></li>;
+    })}
+  </ol>;
+}
+
 function paymentStatus(value, t) {
   const labels = {
     pending: t("subscription.pending"),
@@ -183,7 +208,7 @@ export default function Subscription() {
     reloadDetails();
   }, [reloadDetails, reviewStamp]);
 
-  if (details.loading) return <LoadingPanel />;
+  if (details.loading) return <LoadingPanel variant="list" />;
   if (details.error) return <ErrorPanel message={details.error} onRetry={details.reload} />;
 
   const { subscription, directAccess, accessExempt } = subscriptionSession;
@@ -291,6 +316,7 @@ export default function Subscription() {
             <SubscriptionStatus subscription={subscription} compact />
           </div>
         </header>
+        <SubscriptionStateFlow subscription={subscription} review={review} t={t} />
 
         <section className="subscription-purchase" id="libyana-payment" ref={purchaseRef} dir={direction} aria-labelledby="subscription-plan-heading">
           {!catalog.manualPaymentAvailable || !offers.length ? (

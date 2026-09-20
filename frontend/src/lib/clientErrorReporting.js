@@ -11,11 +11,25 @@ function safeErrorType(value) {
   return /^[A-Za-z]/.test(normalized) ? normalized : "UnknownError";
 }
 
+const IDENTIFIER_SEGMENT = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\d+)$/i;
+
+/**
+ * The route an error happened on. The app uses a hash router, so the path is
+ * always "/" and the route lives in the hash; identifiers are collapsed so
+ * reports group by screen and carry no record ids.
+ */
+export function reportedRoute(location) {
+  const hash = String(location?.hash || "");
+  const raw = hash.startsWith("#/") ? hash.slice(1) : String(location?.pathname || "/");
+  const path = raw.split(/[?#]/)[0] || "/";
+  return path.split("/").map((segment) => (IDENTIFIER_SEGMENT.test(segment) ? ":id" : segment)).join("/").slice(0, 200) || "/";
+}
+
 export function buildClientErrorEnvelope(eventType, value, location = window.location) {
   return {
     event_type: eventType,
     error_type: safeErrorType(value),
-    route: String(location?.pathname || "/").slice(0, 200),
+    route: reportedRoute(location),
     release: APP_VERSION.slice(0, 80)
   };
 }

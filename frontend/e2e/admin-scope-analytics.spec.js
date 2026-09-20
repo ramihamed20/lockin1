@@ -17,7 +17,19 @@ const ZAWIYA_DENTISTRY_Y2 = "0b7e7f7a-0000-4000-8000-000000000021";
 const DASHBOARD = {
   period: { from: "2026-08-20", to: "2026-09-18" },
   users: { total: 0 },
-  learning: { active_learners: 0, focus_sessions: 0, completion_rate: 0, material_completions: 0, focus_activity: [], quiz_attempts: 0, exam_attempts: 0, average_score: null, pass_rate: null },
+  learning: {
+    active_learners: 0,
+    focus_sessions: 0,
+    completion_rate: 0,
+    material_completions: 0,
+    focus_activity: [],
+    quiz_attempts: 0,
+    exam_attempts: 0,
+    average_score: null,
+    pass_rate: null,
+    most_used_materials: [],
+    most_active_subjects: []
+  },
   revenue: { net_minor: 0, paying_users: 0, gross_minor: 0, refund_total_minor: 0, average_order_minor: 0, failed_payments: 0 },
   subscriptions: { churn_rate: null, renewals: 0, active: 0, trial: 0, expired: 0, cancelled: 0 }
 };

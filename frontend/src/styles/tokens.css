@@ -1,0 +1,296 @@
+/* ==========================================================================
+   Design tokens — the one place colour, type, space, shape, depth, motion and
+   stacking are decided.
+
+   The `tokens` layer sits after `app`, so the values here replace the
+   palettes that earlier refresh passes appended to styles.css, whichever file
+   happens to load last. Components never hard-code a colour; they read one of
+   the semantic names below.
+
+   Semantic names (use these in new CSS):
+     --bg                  page background
+     --surface             cards, panels, sidebar, top bar
+     --surface-2           inputs, raised rows, segmented tracks
+     --surface-3           hover fill, chips, sunken wells
+     --border, --border-strong
+     --text, --muted, --soft
+     --accent, --accent-hover, --accent-soft, --accent-text, --on-accent
+     --success / --warning / --danger / --info, each with a -soft fill
+     --radius-xs … --radius-xl, --radius-full
+     --space-1 … --space-10
+     --text-xs … --text-3xl, --font-body, --font-mono
+     --shadow-sm / --shadow-md / --shadow-lg (overlays only)
+     --motion-fast / --motion-base
+     --z-* stacking layers
+
+   Older names (--gold, --primary, --color-*, --surface-elevated …) are kept as
+   aliases at the bottom so the historical stylesheets follow the same palette
+   until they are migrated.
+
+   Themes: `night` is the dark theme. `day` (alias `light`), `dawn` and `sunset`
+   share the light neutrals and differ only in accent, which is what gives each
+   its character without four separate visual systems.
+   ========================================================================== */
+
+@layer tokens {
+  :root {
+    color-scheme: dark;
+
+    /* Neutrals — dark */
+    --bg: #090c14;
+    --surface: #0f131c;
+    --surface-2: #151a25;
+    --surface-3: #1c2230;
+    --border: #222938;
+    --border-strong: #2f3748;
+    --text: #edf0f6;
+    --muted: #a2abbc;
+    --soft: #7f889a;
+    --overlay: rgb(3 5 10 / 0.62);
+
+    /* Accent — Lock-in gold */
+    --accent: #f1c04f;
+    --accent-hover: #f6cd6c;
+    --accent-active: #e3ae37;
+    --accent-soft: rgb(241 192 79 / 0.12);
+    --accent-border: rgb(241 192 79 / 0.38);
+    --accent-text: #f4c95f;
+    --on-accent: #1b1506;
+
+    /* Status */
+    --success: #45cf8f;
+    --success-soft: rgb(69 207 143 / 0.12);
+    --warning: #f0a54a;
+    --warning-soft: rgb(240 165 74 / 0.13);
+    --danger: #f27272;
+    --danger-soft: rgb(242 114 114 / 0.13);
+    --info: #72a8ff;
+    --info-soft: rgb(114 168 255 / 0.13);
+
+    /* Depth: borders carry structure; shadows are for things that float. */
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.28);
+    --shadow-md: 0 6px 20px rgb(0 0 0 / 0.32);
+    --shadow-lg: 0 18px 48px rgb(0 0 0 / 0.45);
+
+    /* Shape */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-2xl: 16px;
+    --radius-full: 999px;
+
+    /* Space (4px grid) */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+
+    /* Type */
+    --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", system-ui, Roboto, "Noto Sans", "Noto Sans Arabic", "Helvetica Neue", Arial, sans-serif;
+    --font-heading: var(--font-body);
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+    --text-xs: 0.75rem;
+    --text-sm: 0.8125rem;
+    --text-md: 0.875rem;
+    --text-base: 0.9375rem;
+    --text-lg: 1.0625rem;
+    --text-xl: 1.25rem;
+    --text-2xl: 1.5rem;
+    --text-3xl: 1.875rem;
+    --text-4xl: 2.25rem;
+    --text-5xl: 2.75rem;
+    --weight-regular: 450;
+    --weight-medium: 560;
+    --weight-semibold: 640;
+    --weight-bold: 720;
+
+    /* Controls */
+    --control-h: 38px;
+    --control-h-sm: 32px;
+    --control-h-lg: 44px;
+    --touch-target: 44px;
+
+    /* Motion */
+    --motion-fast: 120ms cubic-bezier(0.2, 0, 0, 1);
+    --motion-base: 180ms cubic-bezier(0.2, 0, 0, 1);
+    --motion-theme: 180ms cubic-bezier(0.2, 0, 0, 1);
+    --motion-spring: 240ms cubic-bezier(0.16, 1, 0.3, 1);
+
+    /* Stacking */
+    --z-content: 0;
+    --z-sticky: 20;
+    --z-navigation: 40;
+    --z-dropdown: 60;
+    --z-backdrop: 70;
+    --z-drawer: 80;
+    --z-popover: 90;
+    --z-modal-backdrop: 100;
+    --z-modal: 110;
+    --z-toast: 120;
+    --z-immersive: 130;
+    --z-connection: 140;
+
+    /* Data series (charts) */
+    --data-series-1: var(--accent);
+    --data-series-2: var(--info);
+    --data-series-3: var(--success);
+    --data-series-4: var(--warning);
+    --data-series-5: var(--danger);
+
+    --skeleton-base: #161b26;
+    --skeleton-highlight: #1e2433;
+    --skeleton-border: var(--border);
+    --workspace-stage: #0b0e16;
+  }
+
+  /* Light neutrals, shared by every light theme. */
+  :root:is([data-theme="day"], [data-theme="light"], [data-theme="dawn"], [data-theme="sunset"]) {
+    color-scheme: light;
+    --bg: #f5f6f8;
+    --surface: #ffffff;
+    --surface-2: #f3f4f7;
+    --surface-3: #eaecf1;
+    --border: #e3e6ec;
+    --border-strong: #cfd4dd;
+    --text: #141821;
+    --muted: #535b6b;
+    --soft: #6f7787;
+    --overlay: rgb(15 18 26 / 0.38);
+
+    --success: #1d8a57;
+    --success-soft: #e5f5ed;
+    --warning: #b4630b;
+    --warning-soft: #fcf1e2;
+    --danger: #c73b3b;
+    --danger-soft: #fcebeb;
+    --info: #2a64c7;
+    --info-soft: #e8effb;
+
+    --shadow-sm: 0 1px 2px rgb(20 24 33 / 0.06);
+    --shadow-md: 0 6px 20px rgb(20 24 33 / 0.08);
+    --shadow-lg: 0 18px 48px rgb(20 24 33 / 0.16);
+
+    --skeleton-base: #eceef2;
+    --skeleton-highlight: #f7f8fa;
+    --workspace-stage: #e8eaef;
+  }
+
+  /* Day: violet. */
+  :root:is([data-theme="day"], [data-theme="light"]) {
+    --accent: #5b4bd6;
+    --accent-hover: #4d3ec4;
+    --accent-active: #4234ad;
+    --accent-soft: #efedfc;
+    --accent-border: #cbc5f3;
+    --accent-text: #4a3bbf;
+    --on-accent: #ffffff;
+  }
+
+  /* Dawn: teal, on slightly warm paper. */
+  :root[data-theme="dawn"] {
+    --bg: #f4f3ef;
+    --surface-2: #f2f1ec;
+    --surface-3: #e8e7e0;
+    --border: #e2e0d8;
+    --accent: #1f7a78;
+    --accent-hover: #196866;
+    --accent-active: #145653;
+    --accent-soft: #e4f2f1;
+    --accent-border: #b9dcda;
+    --accent-text: #186563;
+    --on-accent: #ffffff;
+  }
+
+  /* Sunset: berry, on slightly rose paper. */
+  :root[data-theme="sunset"] {
+    --bg: #f5f2f2;
+    --surface-2: #f4f0f0;
+    --surface-3: #ebe5e5;
+    --border: #e7dfdf;
+    --accent: #a8356f;
+    --accent-hover: #922c60;
+    --accent-active: #7c2451;
+    --accent-soft: #f8e9f0;
+    --accent-border: #e6bfd3;
+    --accent-text: #8f2b5d;
+    --on-accent: #ffffff;
+  }
+
+  /* ---------------------------------------------------------------------
+     Aliases for the historical stylesheets. New code uses the names above.
+     --------------------------------------------------------------------- */
+  :root {
+    --bg-2: var(--bg);
+    --frame: var(--bg);
+    --surface-elevated: var(--surface);
+    --surface-subtle: var(--surface-2);
+    --text-2: var(--muted);
+    --text-placeholder: var(--soft);
+    --decorative-muted: var(--soft);
+    --disabled-text: var(--soft);
+    --border-subtle: var(--border);
+    --border-hover: var(--border-strong);
+    --bg-hover: var(--surface-3);
+    --interactive-hover: var(--surface-3);
+    --interactive-selected: var(--accent-soft);
+    --scrollbar-track: transparent;
+    --scrollbar-thumb: var(--border-strong);
+
+    --gold: var(--accent);
+    --gold-2: var(--accent-hover);
+    --accent-subtle: var(--accent-soft);
+    --purple: var(--accent);
+    --green: var(--success);
+    --primary: var(--accent);
+    --secondary: var(--accent-hover);
+    --highlight: var(--warning);
+    --button-text: var(--on-accent);
+    --focus: color-mix(in srgb, var(--accent) 70%, transparent);
+    --color-info: var(--info);
+    --color-error: var(--danger);
+
+    --color-primary: var(--accent);
+    --color-secondary: var(--accent-hover);
+    --color-accent: var(--accent);
+    --color-success: var(--success);
+    --color-danger: var(--danger);
+    --color-warning: var(--warning);
+    --color-surface-0: var(--bg);
+    --color-surface-1: var(--surface);
+    --color-surface-2: var(--surface-2);
+    --color-surface-3: var(--surface-3);
+    --color-text-primary: var(--text);
+    --color-text-secondary: var(--muted);
+    --color-text-tertiary: var(--soft);
+    --color-text-inverse: var(--on-accent);
+    --color-border: var(--border);
+    --color-ring: var(--accent);
+    --color-focus-contrast: var(--on-accent);
+
+    /* Retired effects: kept defined so old rules resolve, but to nothing. */
+    --glass-blur: 0px;
+    --ambient-1: transparent;
+    --ambient-2: transparent;
+    --ambient-3: transparent;
+    --glow-1: transparent;
+    --glow-2: transparent;
+    --inner-border: 0 0 0 0 transparent;
+    --gradient-gold: var(--accent);
+    --gradient-surface: var(--surface);
+    --shadow-glow: none;
+    --shadow-color: rgb(0 0 0 / 0.2);
+    --warm-shadow: rgb(0 0 0 / 0.2);
+    --shadow: var(--shadow-lg);
+    --shadow-soft: var(--shadow-md);
+    --shadow-card: none;
+    --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+
+    font-family: var(--font-body);
+  }
+}

@@ -5,6 +5,8 @@ import { discoveryApi } from "../../api/learning.js";
 import { COMPACT_SHELL_QUERY } from "../../lib/constants.js";
 import { mergeSearchResults, normalizeSearchText } from "../../lib/globalSearch.js";
 import { Icon } from "../../lib/icons.jsx";
+import { hasOperationalCapability } from "../../lib/authz.js";
+import { isStudioRoute, studioSearchResults } from "../../lib/studioAreas.js";
 import { useI18n } from "../I18nProvider.jsx";
 
 const TYPE_PRESENTATION = {
@@ -14,7 +16,10 @@ const TYPE_PRESENTATION = {
   pdf: { icon: "file", label: "search.typePdf" },
   quiz: { icon: "list-checks", label: "search.typeQuiz" },
   question: { icon: "file-question", label: "search.typeQuestions" },
-  review: { icon: "target", label: "search.typeReview" }
+  review: { icon: "target", label: "search.typeReview" },
+  studio: { icon: "settings", label: "search.typeStudio" },
+  "studio-subject": { icon: "book-open", label: "search.typeStudioSubject" },
+  "studio-student": { icon: "user", label: "search.typeStudent" }
 };
 
 function HighlightMatch({ value, query }) {
@@ -34,7 +39,7 @@ function resultPresentation(type) {
 }
 
 /** Reusable global-search field and type-ahead result surface. */
-export function GlobalSearch({ onOpenChange }) {
+export function GlobalSearch({ onOpenChange, operationsSession = null }) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
@@ -54,7 +59,15 @@ export function GlobalSearch({ onOpenChange }) {
   const [error, setError] = useState("");
   const [activeIndex, setActiveIndex] = useState(-1);
   const [position, setPosition] = useState({ left: 12, top: 12, width: 320 });
-  const results = useMemo(() => mergeSearchResults(query, serverResults), [query, serverResults]);
+  // In the Studio, the same search also jumps to Studio areas, subjects and
+  // the student directory, so Ctrl/Cmd+K works as the operator quick switcher.
+  const inStudio = isStudioRoute(location.pathname) && Boolean(operationsSession);
+  const [studioSubjects, setStudioSubjects] = useState([]);
+  const studioSubjectsRequestedRef = useRef(false);
+  const results = useMemo(() => {
+    const studio = inStudio ? studioSearchResults(query, operationsSession, studioSubjects) : [];
+    return [...studio, ...mergeSearchResults(query, serverResults)].slice(0, 16);
+  }, [inStudio, operationsSession, query, serverResults, studioSubjects]);
   const normalizedQuery = normalizeSearchText(query);
 
   const close = useCallback(({ restoreFocus = false } = {}) => {
@@ -94,6 +107,17 @@ export function GlobalSearch({ onOpenChange }) {
   }, [location.pathname]);
 
   useEffect(() => () => requestAbortRef.current?.abort(), []);
+
+  useEffect(() => {
+    if (!open || !inStudio || studioSubjectsRequestedRef.current) return;
+    if (!hasOperationalCapability(operationsSession, "content.view")) return;
+    studioSubjectsRequestedRef.current = true;
+    // Loaded on first use and kept: the subject list is small and complete.
+    import("../../api/adminControl.js")
+      .then(({ adminControlApi }) => adminControlApi.contentSubjects({}))
+      .then((payload) => setStudioSubjects(Array.isArray(payload?.results) ? payload.results : []))
+      .catch(() => { studioSubjectsRequestedRef.current = false; });
+  }, [inStudio, open, operationsSession]);
 
   useEffect(() => {
     if (!open || !normalizedQuery) {

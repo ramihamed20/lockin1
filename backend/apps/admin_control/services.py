@@ -985,7 +985,12 @@ def entitlement_inspection(*, user: User) -> dict[str, object]:
 
 
 def serialize_plan(plan: Plan) -> dict[str, object]:
-    versions = plan.versions.prefetch_related("prices", "entitlement_rules__entitlement").all()
+    # Reuse the list view's prefetch when it exists: calling prefetch_related on
+    # the relation again throws that cache away and costs three queries a plan.
+    if "versions" in getattr(plan, "_prefetched_objects_cache", {}):
+        versions = plan.versions.all()
+    else:
+        versions = plan.versions.prefetch_related("prices", "entitlement_rules__entitlement").all()
     return {
         "id": plan.id,
         "code": plan.code,
