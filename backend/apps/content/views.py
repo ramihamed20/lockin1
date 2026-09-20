@@ -19,7 +19,10 @@ from apps.education.permissions import IsCreatorOrAdministrator
 from apps.education.policies import is_content_administrator
 from apps.entitlements.services import require_entitlement
 from apps.files.models import ManagedFile
-from apps.files.services import managed_file_delivery_size
+from apps.files.services import (
+    managed_file_delivery_ready,
+    managed_file_delivery_size,
+)
 from apps.focus.selectors import annotation_collection_revision
 from apps.focus.services import touch_reading_session
 from apps.questions.answering import XP_BY_DIFFICULTY, AnswerRejected, answer_question
@@ -288,7 +291,7 @@ def _sheet_edition(*, document: CatalogDocument) -> dict[str, object]:
     )
     summary_deliverable = (
         summary_asset is not None
-        and managed_file_delivery_size(summary_asset.managed_file) is not None
+        and managed_file_delivery_ready(summary_asset.managed_file)
     )
     page_count = (
         version.page_count
@@ -320,7 +323,7 @@ def _sheet_edition(*, document: CatalogDocument) -> dict[str, object]:
         # ``enabled`` already accounts for a Lock-in edition that shares the
         # University Sheet's settings and question bank.
         "hasActiveStudy": bool(readiness["enabled"] and active_ready),
-        "deliverable": managed_file_delivery_size(document.managed_file) is not None,
+        "deliverable": managed_file_delivery_ready(document.managed_file),
     }
 
 

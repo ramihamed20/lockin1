@@ -431,3 +431,74 @@ def test_catalog_annotations_are_bound_to_immutable_document_version() -> None:
     assert probe.json()["collection_revision"] == 1
     assert isolated.status_code == 200
     assert isolated.json()["results"] == []
+
+
+@override_settings(COHORT_CONTENT_ENFORCEMENT=True)
+def test_materials_directory_does_not_open_storage_for_delivery_metadata(monkeypatch) -> None:
+    admin = create_admin(email="materials-no-storage-admin@example.com")
+    _, subject, _ = published_path(admin=admin)
+
+    program = AcademicProgram.objects.create(
+        code="materials-no-storage",
+        name_en="Materials no storage",
+        name_ar="Materials no storage",
+    )
+    cohort = StudentCohort.objects.create(
+        program=program,
+        code="year-1",
+        name_en="Year 1",
+        name_ar="Year 1",
+    )
+    cohort.content_nodes.add(subject)
+
+    catalog_subject = CatalogSubject.objects.create(
+        cohort=cohort,
+        source_node=subject,
+        title="Anatomy",
+        slug="anatomy",
+        material_slug="materials-no-storage-year-1-anatomy",
+    )
+
+    sheet = create_sheet(
+        actor=admin,
+        subject=subject,
+        managed_file=create_managed_file(
+            owner=admin,
+            upload=pdf_upload(),
+            kind="pdf",
+        ),
+        title="Storage-free directory sheet",
+        summary="",
+        position=0,
+        publish=True,
+        notify_students=False,
+        allow_download=False,
+    )
+
+    document = CatalogDocument.objects.get(version__learning_object=sheet)
+    assert document.material_slug == catalog_subject.material_slug
+
+    student = create_user(
+        email="materials-no-storage-student@example.com",
+        cohort=cohort,
+    )
+
+    def unexpected_storage_open(*args, **kwargs):
+        raise AssertionError(
+            "Materials directory must not open managed objects just to build listing metadata"
+        )
+
+    monkeypatch.setattr(
+        "apps.files.services.open_managed_object",
+        unexpected_storage_open,
+    )
+
+    response = client_for(student).get("/api/v1/catalog/materials")
+
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["count"] == 1
+    assert len(body["results"]) == 1
+    assert len(body["results"][0]["sheets"]) == 1
+    assert body["results"][0]["sheets"][0]["deliverable"] is True
