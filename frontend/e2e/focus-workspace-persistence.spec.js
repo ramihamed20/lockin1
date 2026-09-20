@@ -87,6 +87,7 @@ test("marks are stored per page in IndexedDB and survive a reload", async ({ pag
   await mockWorkspace(page);
   await openWorkspace(page);
 
+  await page.getByRole("button", { name: "Write" }).click();
   await page.getByRole("button", { name: "Pen", exact: true }).click();
   await drawStroke(page, 61, 0);
   await drawStroke(page, 62, 1);
@@ -116,6 +117,7 @@ test("two accounts on one device never see each other's marks", async ({ page })
   test.setTimeout(90_000);
   await mockWorkspace(page, { userId: "student-one" });
   await openWorkspace(page);
+  await page.getByRole("button", { name: "Write" }).click();
   await page.getByRole("button", { name: "Pen", exact: true }).click();
   await drawStroke(page, 71, 0);
   await expect(visibleInk(page)).toHaveCount(1);
@@ -184,10 +186,12 @@ test("a backup exports, restores, and refuses to cross into another sheet unaske
   test.setTimeout(120_000);
   await mockWorkspace(page);
   await openWorkspace(page);
+  await page.getByRole("button", { name: "Write" }).click();
   await page.getByRole("button", { name: "Pen", exact: true }).click();
   await drawStroke(page, 81, 0);
   await expect(visibleInk(page)).toHaveCount(1);
 
+  await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings" }).click();
   const [download] = await Promise.all([
     page.waitForEvent("download"),
@@ -234,9 +238,11 @@ test("a malformed backup is refused without disturbing the sheet", async ({ page
   test.setTimeout(90_000);
   await mockWorkspace(page);
   await openWorkspace(page);
+  await page.getByRole("button", { name: "Write" }).click();
   await page.getByRole("button", { name: "Pen", exact: true }).click();
   await drawStroke(page, 91, 0);
   await expect(visibleInk(page)).toHaveCount(1);
+  await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings" }).click();
   const input = page.locator('input[accept="application/json,.json"]');
 

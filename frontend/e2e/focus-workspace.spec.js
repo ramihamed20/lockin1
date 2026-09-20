@@ -47,6 +47,15 @@ async function mockAuthenticatedWorkspace(page) {
       await route.fulfill({ contentType: "application/json", body: JSON.stringify({ active_session: null }) });
       return;
     }
+    if (pathname.startsWith("/api/v1/focus/managed-active-study/sheets/") && route.request().method() === "GET") {
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ difficulties: ["easy", "medium", "hard"].map((difficulty) => ({ difficulty, status: "ready" })) }) });
+      return;
+    }
+    if (pathname === "/api/v1/focus/managed-active-study/start" && route.request().method() === "POST") {
+      const { difficulty = "medium" } = route.request().postDataJSON() || {};
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ resumed: false, run: { id: "visual-active-run", difficulty, status: "active", stage: "reading", current_part: 1, number_of_parts: 4, current_page_range: { start_page: 1, end_page: 10 } } }) });
+      return;
+    }
     if (pathname.startsWith("/api/v1/bookmarks/catalog/")) {
       if (route.request().method() === "DELETE") {
         catalogBookmarked = false;
@@ -166,10 +175,12 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await expect(page.locator(".workspace-v2-header, .workspace-v2-tool-inspector, .workspace-v2-mobile-panel")).toHaveCount(0);
   await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-desktop-1440x900.png`, fullPage: false });
 
+  await page.getByRole("button", { name: "Switch to Write mode" }).click();
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-desktop-write-1440x900.png`, fullPage: false });
+
   await expectViewportOwnedWorkspace(page, 1194, 834);
   await expect(page.getByRole("complementary", { name: "Workspace notes and actions" })).toBeHidden();
   const penTool = page.locator('[data-workspace-tool="pen"]');
-  await penTool.click();
   await expect(penTool).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("#workspace-pen-options")).toHaveCount(0);
   await penTool.click();
@@ -185,8 +196,9 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await expect(penThickness).toHaveValue("9");
   await expect(penOpacity).toHaveValue("0.55");
   await expect(penOptions.getByText("Scribble erase")).toHaveCount(0);
-  const settingsButton = page.getByRole("button", { name: "Workspace settings", exact: true });
   await expect(page.getByRole("button", { name: "Enter full screen" })).toHaveCount(0);
+  await page.getByRole("button", { name: "More workspace actions" }).click();
+  const settingsButton = page.getByRole("button", { name: "Workspace settings", exact: true });
   await settingsButton.click();
   await expect(penOptions).toHaveCount(0);
   const settings = page.getByRole("dialog", { name: "Workspace settings" });
@@ -207,19 +219,19 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await expect.poll(async () => page.evaluate(() => window.__workspaceWakeLock.requests)).toBe(1);
   await wakeToggle.click();
   await expect.poll(async () => page.evaluate(() => window.__workspaceWakeLock.releases)).toBeGreaterThan(0);
+  await expect(settings.getByRole("button", { name: /Enter fullscreen/ })).toBeVisible();
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-settings-ipad-landscape.png`, fullPage: false });
   const stageForFit = page.locator(".workspace-v2-document-stage");
   const fitPoint = await stageForFit.boundingBox();
   await stageForFit.dispatchEvent("wheel", { bubbles: true, cancelable: true, clientX: fitPoint.x + fitPoint.width / 2, clientY: fitPoint.y + 160, ctrlKey: true, deltaY: -120 });
   await expect.poll(async () => page.locator(".workspace-v2-a4-live-layer").evaluate((node) => node.getBoundingClientRect().width)).toBeGreaterThan(fitPoint.width + 20);
-  await settings.getByRole("button", { name: /Fit Width/ }).click();
+  await settings.getByRole("button", { name: "Close workspace settings" }).click();
+  await page.getByRole("button", { name: "Fit width", exact: true }).click();
   await expect.poll(async () => page.evaluate(() => {
     const stage = document.querySelector(".workspace-v2-document-stage").getBoundingClientRect();
     const pdf = document.querySelector(".workspace-v2-a4-live-layer").getBoundingClientRect();
     return Math.abs(stage.width - pdf.width);
   })).toBeLessThan(1.5);
-  await expect(settings.getByRole("button", { name: /Enter fullscreen/ })).toBeVisible();
-  await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-settings-ipad-landscape.png`, fullPage: false });
-  await settingsButton.click();
   await expect(settings).toHaveCount(0);
   const notesTool = page.locator('[data-workspace-tool="note"]');
   await notesTool.click();
@@ -243,6 +255,9 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await expect(highlighterOptions.getByRole("slider", { name: "Opacity" })).toBeVisible();
   await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-ipad-portrait-834x1194.png`, fullPage: false });
   await page.locator('[data-workspace-tool="highlighter"]').click();
+  await page.getByRole("button", { name: "Switch to Read mode" }).click();
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-ipad-portrait-read-834x1194.png`, fullPage: false });
+  await page.getByRole("button", { name: "Switch to Write mode" }).click();
 
   const lassoTool = page.locator('[data-workspace-tool="select"]');
   await lassoTool.click();
@@ -254,13 +269,15 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await lassoTool.click();
 
   const shapeTool = page.locator('[data-workspace-tool="shapes"]');
+  await page.getByRole("button", { name: "Add" }).click();
   await shapeTool.click();
+  await page.getByRole("button", { name: "Add" }).click();
   await shapeTool.click();
   const shapeOptions = page.locator("#workspace-shapes-options");
   await expect(shapeOptions.getByRole("button", { name: "Rectangle" })).toBeVisible();
   await expect(shapeOptions.getByRole("button", { name: "Circle" })).toBeVisible();
   await expect(shapeOptions.getByRole("button", { name: "Triangle" })).toBeVisible();
-  await shapeTool.click();
+  await page.keyboard.press("Escape");
 
   await expectViewportOwnedWorkspace(page, 844, 390);
   await expect(page.locator(".workspace-v2-toolbar")).toBeVisible();
@@ -310,27 +327,54 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await expect(studyDialog).toBeVisible();
   await studyDialog.getByRole("button", { name: /Normal Study/ }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
-  await penTool.click();
+  await page.getByRole("button", { name: "Switch to Write mode" }).click();
   await penTool.click();
   await expect(penOptions.getByRole("button", { name: "Use #123456" })).toHaveCount(0);
   await expect(penOptions.getByRole("button", { name: "Use #6789ab" })).toHaveCount(1);
   await expect(penOptions.getByRole("slider", { name: "Thickness" })).toHaveValue("9");
   await expect(penOptions.getByRole("slider", { name: "Opacity" })).toHaveValue("0.55");
-  await expect(page.locator('[data-workspace-tool="text"]')).toHaveCount(0);
+  await page.getByRole("button", { name: "Add" }).click();
+  await expect(page.locator('[data-workspace-tool="text"]')).toBeVisible();
+  await page.getByRole("button", { name: "Close Add menu" }).click();
   await page.locator('[data-workspace-tool="pen"]').click();
+  await page.getByRole("button", { name: "More workspace actions" }).click();
   const bookmark = page.getByRole("button", { name: "Save to Bookmarks" });
   await bookmark.click();
   await expect(page.getByRole("button", { name: "Remove from Bookmarks" })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Remove from Bookmarks" }).click();
   await expect(page.getByRole("button", { name: "Save to Bookmarks" })).toHaveAttribute("aria-pressed", "false");
+  await page.getByRole("button", { name: "More workspace actions" }).click();
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-iphone-portrait-390x844.png`, fullPage: false });
   await notesTool.click();
   await expect(sidePanel).toBeVisible();
   await expectContainedInViewport(sidePanel, 390, 844);
-  await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-iphone-portrait-390x844.png`, fullPage: false });
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-iphone-portrait-notes-390x844.png`, fullPage: false });
   await notesTool.click();
   await expect(sidePanel).toBeHidden();
 
   expect(pageErrors).toEqual([]);
+});
+
+test("Active Study reading chrome and checkpoint remain unobstructed @chromium-only", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  await page.setViewportSize({ width: 834, height: 1194 });
+  await page.goto(SHARED_TEST_SHEET_ROUTE);
+  const dialog = page.getByRole("dialog", { name: "Choose study mode" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: /Start Active Study/ }).click();
+  await expect(page.getByRole("button", { name: "Active Study: part 1 of 4" })).toBeVisible();
+  const checkpoint = page.locator(".workspace-v2-checkpoint-dock");
+  await expect(checkpoint).toBeVisible();
+  await expect(page.getByRole("button", { name: "Reach page 10 to unlock the checkpoint" })).toBeVisible();
+  const overlap = await page.evaluate(() => {
+    const dock = document.querySelector(".workspace-v2-checkpoint-dock")?.getBoundingClientRect();
+    const pageDock = document.querySelector(".workspace-v2-page-dock")?.getBoundingClientRect();
+    const toolbar = document.querySelector(".workspace-v2-toolbar")?.getBoundingClientRect();
+    const intersects = (a, b) => a && b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+    return { pageDock: intersects(dock, pageDock), toolbar: intersects(dock, toolbar) };
+  });
+  expect(overlap).toEqual({ pageDock: false, toolbar: false });
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-active-study-reading-834x1194.png`, fullPage: false });
 });
 
 test("PDF sheets open at page one and restore zoom only while enabled @chromium-only", async ({ page }) => {
@@ -396,6 +440,7 @@ test("PDF sheets open at page one and restore zoom only while enabled @chromium-
     return Math.abs(firstPage.top - (stage.getBoundingClientRect().top + paddingTop));
   })).toBeLessThan(2);
 
+  await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings", exact: true }).click();
   const settings = page.getByRole("dialog", { name: "Workspace settings" });
   await settings.getByRole("switch", { name: /Remember last position/ }).click();

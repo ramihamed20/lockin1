@@ -62,6 +62,7 @@ async function openWorkspace(page, viewport) {
   if (page.url().includes(ROUTE.slice(1))) await page.goto("about:blank");
   await page.goto(ROUTE);
   await page.getByRole("button", { name: /Normal Study/ }).click();
+  await page.getByRole("button", { name: "Switch to Write mode" }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
   await expect.poll(async () => page.locator(".workspace-v2-a4-canvas.is-visible").first().evaluate((canvas) => canvas.width > 0 && canvas.height > 0)).toBe(true);
 }
@@ -427,17 +428,16 @@ test("a horizontal one-finger drag pans a zoomed sheet without changing Y", asyn
   expect(afterMomentum.left).not.toBe(before.left);
 });
 
-test("zoom-out clamps live translation and settles at the full-width minimum", async ({ page }) => {
+test("zoom-out reaches overview scale and settles with the sheet centered", async ({ page }) => {
   test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 1280, height: 800 });
-  const minimumScale = await readerScale(page);
   await exactPinch(page, { xRatio: 0.5, yRatio: 0.08, targetScale: 2.478 });
   const stage = page.locator(".workspace-v2-document-stage");
   const viewport = await stage.boundingBox();
   const center = { x: viewport.x + viewport.width / 2, y: viewport.y + viewport.height / 2 };
   const halfSpan = 80;
-  const targetScale = minimumScale;
+  const targetScale = 0.35;
   const targetHalfSpan = halfSpan * (targetScale / 2.478);
   const movedCenter = { x: center.x + 500, y: center.y + 400 };
   await dispatchTouch(stage, "pointerdown", 41, center.x - halfSpan, center.y);
@@ -469,6 +469,7 @@ test("zoom-out clamps live translation and settles at the full-width minimum", a
   });
   expect(settled.horizontalCenterError).toBeLessThan(1.5);
   expect(settled.leadingGap).toBeLessThanOrEqual(20.5);
+  expect(await readerScale(page)).toBeCloseTo(targetScale, 2);
 });
 
 test("single-finger scrolling and Apple Pencil with palm contact remain intact @chromium-only", async ({ page }) => {
@@ -508,7 +509,6 @@ test("opaque Ball Pen stays color-stable and Precision Eraser splits only touche
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 834, height: 1194 });
   await page.getByRole("button", { name: "Pen", exact: true }).click();
-  await page.locator('[data-workspace-tool="pen"]').click();
   await page.getByRole("button", { name: "Use #239ed1" }).click();
   await page.locator('[data-workspace-tool="pen"]').click();
   const stage = page.locator(".workspace-v2-document-stage");
@@ -566,12 +566,14 @@ test("Pencil supports 100 percent opacity without internal color stacking", asyn
   test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 834, height: 1194 });
-  await page.getByRole("button", { name: "Pencil", exact: true }).click();
+  await page.getByRole("button", { name: "Add" }).click();
+  await page.locator('[data-workspace-tool="pencil"]').click();
+  await page.getByRole("button", { name: "Add" }).click();
   await page.locator('[data-workspace-tool="pencil"]').click();
   const opacity = page.locator(".workspace-v2-tool-range.is-opacity input");
   await opacity.fill("1");
   await expect(page.locator(".workspace-v2-tool-range.is-opacity output")).toHaveText("100%");
-  await page.locator('[data-workspace-tool="pencil"]').click();
+  await page.keyboard.press("Escape");
 
   const stage = page.locator(".workspace-v2-document-stage");
   const pageBounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
@@ -661,22 +663,15 @@ test("circle erase removes enclosed ink once and remains undoable", async ({ pag
   await expect(page.locator('[data-annotation-type="pen"]')).toHaveCount(0);
 });
 
-test("iPad orientation changes enforce full-width minimum zoom and preserve rendering", async ({ page }) => {
+test("iPad orientation changes preserve an overview zoom below fit width", async ({ page }) => {
   test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 834, height: 1194 });
-  await exactPinch(page, { xRatio: 0.63, yRatio: 0.045, targetScale: 1.836, moveX: 34, moveY: 27 });
+  await exactPinch(page, { xRatio: 0.63, yRatio: 0.045, targetScale: 0.5, moveX: 34, moveY: 27 });
   const portraitScale = await readerScale(page);
   await page.setViewportSize({ width: 1194, height: 834 });
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-  expect(await readerScale(page)).toBeGreaterThan(portraitScale);
-  const horizontal = await page.evaluate(() => {
-    const viewport = document.querySelector(".workspace-v2-document-stage").getBoundingClientRect();
-    const pdf = document.querySelector(".workspace-v2-a4-live-layer").getBoundingClientRect();
-    return { left: pdf.left - viewport.left, right: viewport.right - pdf.right };
-  });
-  expect(Math.abs(horizontal.left)).toBeLessThan(1.5);
-  expect(Math.abs(horizontal.right)).toBeLessThan(1.5);
+  expect(await readerScale(page)).toBeCloseTo(portraitScale, 2);
   const canvas = page.locator(".workspace-v2-a4-canvas.is-visible").first();
   await expect(canvas).toBeVisible();
   await expect.poll(async () => canvas.evaluate((node) => node.width > 0 && node.height > 0)).toBe(true);

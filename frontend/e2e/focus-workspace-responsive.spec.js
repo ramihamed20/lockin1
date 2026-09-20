@@ -93,19 +93,25 @@ for (const orientation of ["portrait", "landscape"]) {
       await page.goto(ROUTE);
       await page.getByRole("button", { name: /Normal Study/ }).click();
       await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
+      await page.getByRole("button", { name: "Switch to Write mode" }).click();
 
       // The reader always fills the viewport, and the page dock is reachable.
       await auditViewport(page, viewport);
       await expect(page.locator(".workspace-v2-page-number")).toBeVisible();
       await page.locator(".workspace-v2-page-number").click();
       await expect(page.locator(".workspace-v2-page-navigator")).toBeVisible();
+      const directPinchLayout = await page.evaluate(() => window.innerWidth < 1024 || matchMedia("(any-pointer: coarse)").matches);
+      if (directPinchLayout) {
+        await expect(page.locator(".workspace-v2-page-navigator .workspace-v2-zoom-control")).toBeHidden();
+        await expect(page.locator(".workspace-v2-page-navigator .workspace-v4-zoom-presets")).toBeHidden();
+        await expect(page.locator(".workspace-v2-zoom-bar")).toBeHidden();
+      }
       await auditViewport(page, viewport);
       await page.locator(".workspace-v2-page-number").click();
 
       // The pen palette is the widest surface the toolbar can open.
       const pen = page.locator('[data-workspace-tool="pen"]');
       await pen.scrollIntoViewIfNeeded();
-      await pen.click();
       await pen.click();
       await expect(page.locator("#workspace-pen-options")).toBeVisible();
       const optionsFit = await page.locator("#workspace-pen-options").evaluate((node, size) => {
@@ -117,22 +123,106 @@ for (const orientation of ["portrait", "landscape"]) {
       expect(optionsFit.bottom).toBeLessThanOrEqual(viewport.height + 1);
       await auditViewport(page, viewport);
 
-      // Every tool stays reachable through the horizontally scrollable rail,
-      // and the rail keeps them on a single line at every width.
+      // V3 keeps primary tools fixed. Secondary creation tools live in Add,
+      // so the toolbar never needs horizontal discovery.
       const rail = await page.locator(".workspace-v2-tool-list").evaluate((list) => {
-        const scroller = list.closest(".workspace-v2-toolbar-scroll");
-        scroller.scrollLeft = scroller.scrollWidth;
+        const scroller = list.closest(".workspace-v3-primary");
         const buttons = [...list.querySelectorAll("button")];
+        const visibleButtons = buttons.filter((button) => button.getBoundingClientRect().width > 0);
         return {
           tools: buttons.length,
-          rows: new Set(buttons.map((button) => Math.round(button.getBoundingClientRect().top))).size,
-          scrollsSideways: scroller.scrollWidth > scroller.clientWidth + 1
+          rows: new Set(visibleButtons.map((button) => Math.round(button.getBoundingClientRect().top))).size,
+          clipsOverflow: getComputedStyle(scroller).overflowX === "hidden"
         };
       });
-      expect(rail.tools).toBe(9);
+      expect(rail.tools).toBe(6);
       expect(rail.rows, `the tool rail wrapped on ${viewport.name}`).toBe(1);
-      // A phone cannot hold the whole rail, so it has to be the part that scrolls.
-      if (viewport.width < 560) expect(rail.scrollsSideways).toBe(true);
+      expect(rail.clipsOverflow, `the primary toolbar exposed horizontal scrolling on ${viewport.name}`).toBe(true);
     });
   }
 }
+
+for (const viewport of [
+  { width: 1440, height: 900, name: "desktop-1440" },
+  { width: 2560, height: 1440, name: "desktop-2560" }
+]) {
+  test(`the workspace keeps a stable fixed toolbar at ${viewport.name}`, async ({ page }) => {
+    await mockAuthenticatedWorkspace(page);
+    await page.setViewportSize(viewport);
+    await page.goto(ROUTE);
+    await page.getByRole("button", { name: /Normal Study/ }).click();
+    await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
+    await auditViewport(page, viewport);
+    await page.getByRole("button", { name: "Switch to Write mode" }).click();
+    await auditViewport(page, viewport);
+    await expect(page.locator(".workspace-v2-toolbar")).toHaveCSS("overflow-x", "hidden");
+  });
+}
+
+test("Read and Write preserve tool state while every secondary tool remains reachable", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto(ROUTE);
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await page.getByRole("button", { name: "Switch to Write mode" }).click();
+  const pen = page.locator('[data-workspace-tool="pen"]');
+  await pen.click();
+  await page.getByRole("slider", { name: "Thickness" }).fill("9");
+  await pen.click();
+  await page.getByRole("button", { name: "Switch to Read mode" }).click();
+  await expect(pen).toHaveCount(0);
+  await page.getByRole("button", { name: "Switch to Write mode" }).click();
+  await expect(pen).toHaveAttribute("aria-pressed", "true");
+  await pen.click();
+  await expect(page.getByRole("slider", { name: "Thickness" })).toHaveValue("9");
+
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  for (const label of ["Pencil", "Shapes", "Image", "Text"]) await expect(page.getByRole("button", { name: label, exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Text", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Add text annotation" })).toBeVisible();
+  await page.getByRole("button", { name: "Close text editor" }).click();
+
+  await page.getByRole("button", { name: "More workspace actions" }).click();
+  for (const label of ["Pan", "Highlight", "Eraser", "Lasso", "Save to Bookmarks", "Fullscreen", "settings"]) await expect(page.getByRole("button", { name: new RegExp(label, "i") })).toBeVisible();
+  const toolbar = page.locator(".workspace-v2-toolbar");
+  await expect.poll(async () => toolbar.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
+});
+
+test("the contextual inspector overlays the reader and preserves page and zoom", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  await page.setViewportSize({ width: 834, height: 1194 });
+  await page.goto(ROUTE);
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await page.getByRole("button", { name: "Switch to Write mode" }).click();
+  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "Page 1 of 41");
+  const before = await page.locator(".workspace-v2-document-stage").evaluate((node) => ({ height: node.clientHeight, zoom: getComputedStyle(document.querySelector(".workspace-v2-a4-document")).getPropertyValue("--workspace-a4-zoom") }));
+  const pen = page.locator('[data-workspace-tool="pen"]');
+  await pen.click();
+  await expect(page.getByRole("dialog", { name: "Pen options" })).toBeVisible();
+  const opened = await page.locator(".workspace-v2-document-stage").evaluate((node) => ({ height: node.clientHeight, zoom: getComputedStyle(document.querySelector(".workspace-v2-a4-document")).getPropertyValue("--workspace-a4-zoom") }));
+  expect(opened).toEqual(before);
+  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "Page 1 of 41");
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Pen options" })).toHaveCount(0);
+  const closed = await page.locator(".workspace-v2-document-stage").evaluate((node) => ({ height: node.clientHeight, zoom: getComputedStyle(document.querySelector(".workspace-v2-a4-document")).getPropertyValue("--workspace-a4-zoom") }));
+  expect(closed).toEqual(before);
+  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "Page 1 of 41");
+  await expect(pen).toBeFocused();
+});
+
+test("touch iPad uses pinch zoom without visible zoom controls", async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 834, height: 1194 }, hasTouch: true });
+  const page = await context.newPage();
+  await mockAuthenticatedWorkspace(page);
+  await page.goto(ROUTE);
+  const continueInBrowser = page.getByRole("button", { name: "Continue in browser" });
+  if (await continueInBrowser.isVisible().catch(() => false)) await continueInBrowser.click();
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
+  await expect.poll(() => page.evaluate(() => matchMedia("(any-pointer: coarse)").matches)).toBe(true);
+  await expect(page.locator(".workspace-v2-zoom-bar")).toBeHidden();
+  await page.locator(".workspace-v2-page-number").click();
+  await expect(page.locator(".workspace-v2-page-navigator .workspace-v2-zoom-control")).toBeHidden();
+  await expect(page.locator(".workspace-v2-page-navigator .workspace-v4-zoom-presets")).toBeHidden();
+  await context.close();
+});

@@ -32,6 +32,7 @@ async function openWorkspace(page, viewport = { width: 1280, height: 900 }) {
   await page.setViewportSize(viewport);
   await page.goto(ROUTE);
   await page.getByRole("button", { name: /Normal Study/ }).click();
+  await page.getByRole("button", { name: "Switch to Write mode" }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
   await expect.poll(async () => page.locator(".workspace-v2-a4-canvas.is-visible").first().evaluate((canvas) => canvas.width > 0)).toBe(true);
 }
@@ -67,20 +68,20 @@ async function drawStroke(stage, pointerId, points) {
 test("browser and OS shortcuts never hijack the tool palette", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page);
-  const shapes = page.locator('[data-workspace-tool="shapes"]');
+  await page.getByRole("button", { name: "Add" }).click();
   const pen = page.locator('[data-workspace-tool="pen"]');
 
   for (const combination of ["Control+s", "Control+p", "Control+e", "Control+l", "Alt+s"]) {
     await page.keyboard.press(combination);
   }
-  await expect(shapes).toHaveAttribute("aria-pressed", "false");
-  await expect(pen).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator(".workspace-v2-document-stage")).not.toHaveClass(/is-tool-shapes/);
+  await expect(pen).toHaveAttribute("aria-pressed", "true");
 
   // Unmodified letters remain the fast tool switches.
   await page.keyboard.press("p");
   await expect(pen).toHaveAttribute("aria-pressed", "true");
   await page.keyboard.press("s");
-  await expect(shapes).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".workspace-v2-document-stage")).toHaveClass(/is-tool-shapes/);
 });
 
 test("Space activates the focused toolbar button and still pans elsewhere", async ({ page }) => {
@@ -254,6 +255,7 @@ test("the lasso recolours a selection and the settings panel clears one page", a
   await page.getByRole("button", { name: "Undo (Ctrl+Z)" }).click();
   await expect(marks.first()).not.toHaveAttribute("fill", "#20b982");
 
+  await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings" }).click();
   await page.getByRole("button", { name: /Clear ink on page/ }).click();
   await expect(marks).toHaveCount(0);
@@ -317,6 +319,7 @@ test("the live ink layer paints while the stroke is still down and carries its o
 
   // Draw-and-hold would straighten these strokes into vector shapes and clear
   // the live layer, which is a different feature from the one under test.
+  await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings" }).click();
   await page.getByRole("switch", { name: /Hold to shape/ }).click();
   await page.getByRole("button", { name: "Close workspace settings" }).click();
