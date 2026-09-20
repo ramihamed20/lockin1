@@ -51,21 +51,23 @@ export default function Questions({ user = null }) {
   const categories = cohortCategories(user);
 
   return (
-    <Page title="Questions">
-      <section aria-labelledby="question-sources-heading">
-        <div className="panel-title">
-          <div>
-            <p className="eyebrow">{t("questions.sourcesLabel")}</p>
-            <h2 id="question-sources-heading">{t("questions.sourcesTitle")}</h2>
-            <p className="muted">{t("questions.sourcesSubtitle")}</p>
-          </div>
-        </div>
+    <Page title="Questions" headingHandled>
+      <section className="question-directory" aria-labelledby="question-sources-heading">
+        <QuestionDirectoryHeader id="question-sources-heading" title={t("route.questions")} subtitle={t("questions.sourcesSubtitle")} />
         <section className="questions-category-grid" aria-label={t("questions.categoriesLabel")}>
           {categories.map((category) => <CategoryCard key={category.id} category={category} />)}
         </section>
       </section>
     </Page>
   );
+}
+
+function QuestionDirectoryHeader({ id, title, subtitle = "", backTo = "", backLabel = "", breadcrumbs = null }) {
+  return <header className="catalog-directory-header">
+    {backTo && <Link className="catalog-back-link" to={backTo}><Icon name="arrow-left" size={18} aria-hidden="true" /><span dir="auto">{backLabel}</span></Link>}
+    {breadcrumbs}
+    <div className="catalog-directory-title"><h1 id={id} dir="auto">{title}</h1>{subtitle && <p dir="auto">{subtitle}</p>}</div>
+  </header>;
 }
 
 function CategoryCard({ category }) {
@@ -99,9 +101,9 @@ export function QuestionCategory({ user = null }) {
   if (!materials.length) return <Page title={t(category.titleKey)}><EmptyState icon="study" title={t("questions.noQuestionsTitle")} text={t("questions.noQuestionsText")} /></Page>;
 
   return (
-    <Page title={t(category.titleKey)} subtitle={t("questions.chooseSubject")}>
-      <section className="question-directory">
-        <QuestionBreadcrumbs category={category} />
+    <Page title={t(category.titleKey)} headingHandled>
+      <section className="question-directory" aria-labelledby="question-category-heading">
+        <QuestionDirectoryHeader id="question-category-heading" title={t(category.titleKey)} subtitle={t("questions.chooseSubject")} backTo="/questions" backLabel={t("route.questions")} breadcrumbs={<QuestionBreadcrumbs category={category} />} />
         <section className="material-grid catalog-material-grid" aria-label={t("questions.subjectsLabel")}>
           {materials.map((material) => (
             <CatalogTile
@@ -133,9 +135,9 @@ export function QuestionSubjectSheets({ user = null }) {
   if (!material.sheets.length) return <Page title={material.title}><EmptyState icon="study" title={t("questions.noQuestionsTitle")} text={t("questions.noQuestionsText")} /></Page>;
 
   return (
-    <Page title={material.title} subtitle={t("questions.chooseSheet")}>
-      <section className="question-directory">
-        <QuestionBreadcrumbs category={category} material={material} />
+    <Page title={material.title} headingHandled>
+      <section className="question-directory" aria-labelledby="question-subject-heading">
+        <QuestionDirectoryHeader id="question-subject-heading" title={material.title} subtitle={t("questions.chooseSheet")} backTo={`/questions/categories/${category.id}`} backLabel={t(category.titleKey)} breadcrumbs={<QuestionBreadcrumbs category={category} material={material} />} />
         <section className="material-grid catalog-material-grid" aria-label={t("questions.sheetsLabel")}>
           {material.sheets.map((sheet) => (
             <CatalogTile
@@ -175,18 +177,17 @@ export function QuestionSheetQuestions({ user = null }) {
   if (data.error) return <Page title={t(category.titleKey)}><ErrorPanel message={data.error} onRetry={data.reload} /></Page>;
   if (!questions.length) return <Page title={sheetTitle}><EmptyState icon="study" title={t("questions.noQuestionsTitle")} text={t("questions.noQuestionsText")} /></Page>;
 
+  const subjectTitle = data.data?.sheet?.subject_title || t("questions.aiSheet");
+  const backTo = `/questions/categories/${categoryId}/subjects/${subjectId}`;
   return (
-    // The sheet name is shown here rather than hidden: nothing else on this
-    // page names the sheet, so a student would otherwise have no way to
-    // confirm which one they opened.
-    <Page title={sheetTitle} showHeading>
-      <section className="question-session-shell">
-        <QuestionBreadcrumbs category={category} material={{ slug: subjectId, title: data.data?.sheet?.subject_title || t("questions.aiSheet") }} sheetTitle={sheetTitle} />
+    <Page title={sheetTitle} headingHandled>
+      <section className="question-session-shell" aria-labelledby="question-sheet-heading">
+        <QuestionDirectoryHeader id="question-sheet-heading" title={sheetTitle} subtitle={subjectTitle} backTo={backTo} backLabel={subjectTitle} breadcrumbs={<QuestionBreadcrumbs category={category} material={{ slug: subjectId, title: subjectTitle }} sheetTitle={sheetTitle} />} />
         <QuestionPlayer
           key={sheetId}
           sheetId={sheetId}
           questions={questions}
-          backTo={`/questions/categories/${categoryId}/subjects/${subjectId}`}
+          backTo={backTo}
         />
       </section>
     </Page>
@@ -200,6 +201,7 @@ function initialAnswers(questions) {
 function QuestionPlayer({ sheetId, questions, backTo }) {
   const { t } = useI18n();
   const [answers, setAnswers] = useState(() => initialAnswers(questions));
+  const [started, setStarted] = useState(false);
   // A reopened sheet resumes at the first question still to answer.
   const [index, setIndex] = useState(() => Math.max(questions.findIndex((question) => !question.answer), 0));
   const [finished, setFinished] = useState(false);
@@ -209,6 +211,14 @@ function QuestionPlayer({ sheetId, questions, backTo }) {
 
   function record(questionId, answer) {
     setAnswers((current) => (current[questionId] ? current : { ...current, [questionId]: answer }));
+  }
+
+  if (!started) {
+    return <section className="question-session-intro" aria-labelledby="question-session-intro-title">
+      <span className="question-session-intro-icon"><Icon name="file-question" size={22} /></span>
+      <div><h2 id="question-session-intro-title">{t("questions.readyTitle")}</h2><p>{t("questions.sessionIntro", { count: total })}</p></div>
+      <button className="btn btn-primary" type="button" onClick={() => setStarted(true)}>{t("questions.startQuestions")}</button>
+    </section>;
   }
 
   if (finished) {

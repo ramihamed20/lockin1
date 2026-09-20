@@ -2222,18 +2222,18 @@
   }
 }
 
-/* The student dashboard always has four summaries. Keep the tablet pairings
-   intentional, then transition straight to one balanced row on wide shells
-   instead of leaving a lone fifth-column gap. */
+/* Five live summaries now share the historical compact strip. Portrait tablet
+   rules below turn the strip into one horizontal row; landscape and wider
+   content panes keep all five visible without creating a large orphan row. */
 @container page-shell (min-width: 640px) {
   .dashboard-stats-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-@container page-shell (min-width: 860px) {
+@container page-shell (min-width: 700px) {
   .dashboard-stats-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 
@@ -3472,14 +3472,14 @@
   }
 }
 
-/* Dashboard summary cards on a portrait tablet ---------------------------
-   In portrait there is width for one row of these and not for two: the
-   two-column grid split four cards across two rows, which pushed the study
-   surfaces below the fold and left the fourth card reading as an afterthought.
-   The row scrolls sideways instead, exactly as it does on a phone. The cards
-   keep the width, height, padding and type they already had here -- only their
+/* Dashboard summary cards in the compact tablet shell --------------------
+   The labelled sidebar leaves a phone-sized content pane here, including in
+   short browser windows that report landscape. Keep the historical summaries
+   together as one scan row instead of allowing the fifth card to create a
+   tall orphan row. The cards keep their existing size and type; only their
    arrangement changes. */
-@media (min-width: 640px) and (max-width: 1199px) and (orientation: portrait) {
+@media (min-width: 640px) and (max-width: 1199px) and (orientation: portrait),
+       (min-width: 640px) and (max-width: 899px) {
   .dashboard-stats-grid {
     display: flex;
     flex-wrap: nowrap;
@@ -3516,5 +3516,85 @@
     min-width: 0;
     max-width: none;
     scroll-snap-align: start;
+  }
+}
+
+/* Tablet Streak settlement ------------------------------------------------
+   This follows the legacy density rules intentionally: the tablet sidebar now
+   has room for the real utility card, so it must not fall back to the former
+   icon-and-number rail treatment. */
+@media (min-width: 768px) and (max-width: 1199px) and (min-height: 560px) {
+  .sidebar .streak-card,
+  .sidebar[data-density="compact"] .streak-card {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: stretch;
+    gap: 10px;
+    width: 100%;
+    margin-block-start: 12px;
+    padding: 14px;
+  }
+
+  .sidebar .streak-card-heading {
+    grid-column: 1;
+    display: flex !important;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .sidebar .streak-card-heading small {
+    display: block;
+    margin: 0;
+    margin-inline-start: auto;
+  }
+
+  .sidebar .streak-card-value,
+  .sidebar[data-density="compact"] .streak-card-value {
+    grid-column: 1;
+    justify-self: start;
+    margin: 0;
+    font-size: 1.75rem;
+    line-height: 1.05;
+  }
+
+  .sidebar .streak-card-value small {
+    display: inline;
+    font-size: var(--text-xs);
+  }
+
+  .sidebar .streak-card-track,
+  .sidebar[data-density="compact"] .streak-card-track {
+    grid-column: 1;
+    display: block;
+    width: 100%;
+    height: 7px !important;
+    margin: 0;
+  }
+
+  .sidebar .streak-freeze,
+  .sidebar[data-density="compact"] .streak-freeze {
+    grid-column: 1;
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    align-items: center !important;
+    gap: 8px !important;
+    margin: 0;
+    padding: 10px 0 0;
+    border: 0;
+    border-block-start: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+    border-radius: 0;
+    color: inherit !important;
+    background: transparent;
+  }
+
+  .sidebar .streak-freeze-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .sidebar .streak-freeze small {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
   }
 }

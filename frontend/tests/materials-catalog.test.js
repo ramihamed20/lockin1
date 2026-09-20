@@ -80,7 +80,7 @@ test("Active Study stays closed until a sheet has questions, and Quizzes is not 
   assert.match(workspace, /activeAvailable=\{activeStudyReady\}/);
   assert.match(workspace, /getManagedActiveStudyAvailability\(sheet\.learningObjectId, sheetEdition\?\.edition\)/);
   assert.match(workspace, /if \(activeStudyBusy \|\| !activeStudyReady\) return;/);
-  assert.match(workspace, /"Questions not ready yet"/);
+  assert.match(workspace, /"materials\.activeStudyUnavailable"/);
   assert.doesNotMatch(workspace, /isTestSheet/);
 
   assert.ok(COHORT_CATALOGS.every((catalog) => !catalog.questionCategories.includes("quizzes")));
@@ -98,11 +98,8 @@ test("Catalog sheet prioritizes Focus Workspace and keeps only the page count", 
   assert.match(materials, /t\("materials\.openWorkspace"\)/);
   assert.match(catalogue, /"materials\.openWorkspace": "Open Focus Workspace"/);
   assert.match(materials, /CatalogSheetCard/);
-  assert.match(materials, /t\("materials\.lockInMode"\)/);
-  assert.match(catalogue, /"materials\.lockInMode": "Lock In Mode"/);
-  assert.match(materials, /t\("common\.soon"\)/);
-  assert.match(catalogue, /"common\.soon": "Soon"/);
-  assert.match(materials, /t\("materials\.pageCount", \{ count: edition\.pageCount \}\)/);
+  assert.doesNotMatch(materials, /catalog-lockin-card/);
+  assert.match(materials, /t\("materials\.pageCount", \{ count: item\.pageCount \}\)/);
   assert.match(catalogue, /"materials\.pageCount\.other": "\{count\} pages"/);
   assert.doesNotMatch(materials, /Sheet source|fileName.*attached|File-based actions/);
   assert.match(materials, /edition\.deliverable === false/);
@@ -122,8 +119,9 @@ test("Catalog sheet exposes a Normal Mode summary, opened in the study reader", 
   const workspace = await readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8");
   const messages = await readFile(new URL("../src/lib/i18n.js", import.meta.url), "utf8");
   assert.match(materials, /edition\.summaryPdf\?\.viewUrl/);
-  assert.match(materials, /catalog-summary-card is-available/);
-  assert.match(materials, /catalog-summary-card is-unavailable/);
+  assert.match(materials, /materials\.resourcesSection/);
+  assert.match(materials, /materials\.summaryDescription/);
+  assert.doesNotMatch(materials, /catalog-summary-card is-unavailable/);
   // The summary opens in the study reader, not in a viewer of its own.
   assert.match(app, /sheets\/:sheetSlug\/summary" element=\{<CatalogFocusWorkspace user=\{user\} variant="summary"/);
   assert.doesNotMatch(materials, /iframe/);
@@ -249,8 +247,8 @@ test("Catalog Focus Workspace uses a compact contextual toolbar and persistent c
   assert.match(workspace, /label="Show page number"/);
   assert.match(workspace, /navigator\.wakeLock\.request\("screen"\)/);
   assert.doesNotMatch(workspace, /MoreHorizontal|Open workspace panel/);
-  assert.match(workspace, /Normal Study/);
-  assert.match(workspace, /Active Study/);
+  assert.match(workspace, /"materials\.normalStudy"/);
+  assert.match(workspace, /"materials\.activeStudy"/);
   assert.match(workspace, /ACTIVE_DIFFICULTIES/);
   assert.match(workspace, /focusApi\.startManagedActiveStudy/);
   assert.match(workspace, /getManagedActiveStudyQuestions/);
@@ -407,11 +405,14 @@ test("a sheet offers its two editions before the study modes, on one shared page
   assert.match(materials, /t\(`materials\.edition\.\$\{item\.edition\}`\)/);
   assert.match(catalogue, /"materials\.edition\.university": "University Sheet"/);
   assert.match(catalogue, /"materials\.edition\.lockin": "Lockin Sheet"/);
-  // The chooser renders above the mode cards.
+  // The chooser renders before study, practice and supporting resources.
   const chooserAt = materials.indexOf("<SheetEditionChooser");
-  const lockInCardAt = materials.indexOf('className="catalog-lockin-card"');
-  const summaryCardAt = materials.indexOf("catalog-summary-card is-available");
-  assert.ok(chooserAt > 0 && chooserAt < lockInCardAt && chooserAt < summaryCardAt);
+  const studyAt = materials.indexOf('id="catalog-study-heading"');
+  const practiceAt = materials.indexOf('id="catalog-practice-heading"');
+  const resourcesAt = materials.indexOf('id="catalog-resources-heading"');
+  assert.ok(chooserAt > 0 && chooserAt < studyAt && studyAt < practiceAt && practiceAt < resourcesAt);
+  assert.match(materials, /studyMode: "normal"/);
+  assert.match(materials, /studyMode: "active"/);
   // No second route was added for the second edition: one workspace route and
   // one summary route still serve both.
   assert.equal(app.match(/sheets\/:sheetSlug\/workspace/g).length, 1);

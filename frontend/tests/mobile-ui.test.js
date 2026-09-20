@@ -36,7 +36,10 @@ test("the iPad shell, overlays, and immersive workspaces preserve safe areas", a
 });
 
 test("the iPad shell uses a labelled sidebar and one continuous safe-area-aware navigation surface", async () => {
-  const responsive = await source("../src/responsive.css");
+  const [responsive, system] = await Promise.all([
+    source("../src/responsive.css"),
+    source("../src/styles/system.css")
+  ]);
   const tabletShell = responsive.slice(responsive.indexOf("/* iPad / tablet shell"));
 
   assert.match(tabletShell, /@media \(min-width: 768px\) and \(max-width: 1439px\)/);
@@ -53,6 +56,11 @@ test("the iPad shell uses a labelled sidebar and one continuous safe-area-aware 
   assert.match(tabletShell, /\.content-frame \{[\s\S]*grid-template-rows: auto minmax\(0, 1fr\)[\s\S]*overflow: hidden/);
   assert.match(tabletShell, /\.page-shell \{[\s\S]*min-height: 0[\s\S]*overflow-y: auto[\s\S]*overscroll-behavior: contain/);
   assert.match(tabletShell, /\.topbar \.search-box \{[\s\S]*display: flex[\s\S]*width: clamp\(132px, 22vw, 288px\)/);
+  assert.match(system, /@media \(min-width: 768px\) and \(max-width: 1199px\)[\s\S]*--shell-sidebar-width: clamp\(232px, 24vw, 248px\)/);
+  assert.match(system, /@media \(min-width: 768px\) and \(max-width: 1199px\)[\s\S]*\.sidebar \.nav-btn \{[\s\S]*min-height: 48px[\s\S]*\.sidebar\[data-density="compact"\] \.nav-btn \{[\s\S]*min-height: 44px/);
+  assert.match(system, /\.sidebar \.nav-entry:not\(:first-child\) \.nav-section-label[\s\S]*border-block-start:/);
+  assert.match(responsive, /\/\* Tablet Streak settlement[\s\S]*\.sidebar \.streak-card-track,[\s\S]*display: block/);
+  assert.match(responsive, /\/\* Tablet Streak settlement[\s\S]*\.sidebar \.streak-freeze,[\s\S]*display: grid/);
 });
 
 test("confirmation dialogs keep focus and scrolling contained on small screens", async () => {
@@ -197,10 +205,11 @@ test("the production Focus workspace is server-backed and keeps its responsive s
 });
 
 test("dashboard summary cards are full-card keyboard links to their real destinations", async () => {
-  const [dashboard, statsGrid, styles] = await Promise.all([
+  const [dashboard, statsGrid, styles, translations] = await Promise.all([
     source("../src/pages/Dashboard.jsx"),
     source("../src/components/shared/StatsGrid.jsx"),
-    source("../src/styles.css")
+    source("../src/styles.css"),
+    source("../src/lib/i18n.js")
   ]);
 
   assert.match(dashboard, /className="dashboard-stats-grid"/);
@@ -208,6 +217,9 @@ test("dashboard summary cards are full-card keyboard links to their real destina
   assert.match(dashboard, /id: "saved",[^\n]*to: "\/bookmarks"/);
   assert.match(dashboard, /id: "reviewBank",[^\n]*to: "\/review"/);
   assert.match(dashboard, /id: "level",[^\n]*to: "\/progress"/);
+  assert.ok(dashboard.indexOf('className="dashboard-stats-grid"') < dashboard.indexOf('className={`dashboard-main'), "compact summaries should precede the study composition");
+  assert.doesNotMatch(dashboard, /dashboard-progress-section|dashboard\.yourProgress|dashboard\.progressOverview|dashboard\.openProgress/);
+  assert.doesNotMatch(translations, /"dashboard\.(?:yourProgress|progressOverview|openProgress)"/);
   assert.match(statsGrid, /<Link\s+className="stat-card-action"/);
   assert.match(statsGrid, /aria-label=/);
   assert.match(styles, /\.dashboard-stats-grid \.stat-card-action[\s\S]*min-height: 92px/);
@@ -215,6 +227,25 @@ test("dashboard summary cards are full-card keyboard links to their real destina
   // The keyboard focus ring is centralised in styles/interaction.css.
   // Per-component rings are what produced stacked focus indicators.
   assert.doesNotMatch(styles, /\.dashboard-stats-grid \.stat-card-action:focus-visible/);
+});
+
+test("student Materials and Questions use one stacked library navigation language", async () => {
+  const [materials, questions, sheetCard, styles] = await Promise.all([
+    source("../src/pages/Materials.jsx"),
+    source("../src/pages/Questions.jsx"),
+    source("../src/components/learning/CatalogSheetCard.jsx"),
+    source("../src/styles.css")
+  ]);
+
+  assert.match(styles, /\.catalog-material-grid,[\s\S]*\.catalog-sheet-grid,[\s\S]*grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(styles, /\.catalog-directory,[\s\S]*width: min\(100%, 860px\)/);
+  assert.match(materials, /materials\.editionLabel/);
+  assert.match(materials, /studyMode: "normal"/);
+  assert.match(materials, /studyMode: "active"/);
+  assert.doesNotMatch(materials, /catalog-lockin-card/);
+  assert.doesNotMatch(sheetCard, /catalog-sheet-capabilities/);
+  assert.match(questions, /question-session-intro/);
+  assert.match(questions, /questions\.startQuestions/);
 });
 
 test("dashboard continue and recent sheets share actual opened-sheet history", async () => {
@@ -255,7 +286,7 @@ test("the dashboard uses compact responsive cards and a contained cat illustrati
 
   assert.match(styles, /\.dashboard-main\s*\{[\s\S]*grid-template-columns: minmax\(280px, 0\.82fr\) minmax\(360px, 1\.3fr\)/);
   assert.match(styles, /\.dashboard-left \.continue-card\s*\{[\s\S]*min-height: 184px;[\s\S]*padding: 16px 18px;/);
-  assert.match(styles, /\.dashboard-left \.dashboard-recent-sheets\s*\{[\s\S]*height: auto;[\s\S]*flex: 0 0 auto;/);
+  assert.match(styles, /\.dashboard-left \.dashboard-recent-sheets\s*\{[\s\S]*height: auto;[\s\S]*flex: 1 1 auto;/);
   assert.match(styles, /\.dashboard-recent-sheets \.dashboard-review-item\s*\{[\s\S]*min-height: 44px;/);
   // The card fills its column: it is the only thing in it, so any cap below
   // 100% just leaves a gap down both sides (measured at 103px on a 1536px

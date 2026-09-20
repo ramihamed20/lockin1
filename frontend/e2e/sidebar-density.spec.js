@@ -141,12 +141,10 @@ function readStreak() {
   };
 }
 
-// The streak card used to be laid out by `data-density`, which is measured from
-// how much room the destinations leave, and by width bands and a pointer-type
-// query on top of that. The same account therefore saw a different card on a
-// laptop than on an iPad, and an iPad changed it simply by being rotated. It is
-// one shape now, wherever it renders.
-test("the study streak looks the same on every viewport", async ({ page }) => {
+// Tablet has enough width for the complete utility card, while desktop keeps
+// its existing compact footer. Each context must stay internally consistent:
+// in particular, rotating an iPad must not drop status content.
+test("the study streak stays complete and consistent across tablet orientations", async ({ page }) => {
   const shapes = [];
   for (const viewport of [
     { width: 1920, height: 1080, name: "desktop" },
@@ -164,12 +162,21 @@ test("the study streak looks the same on every viewport", async ({ page }) => {
     // The label is kept everywhere; one width band used to drop it entirely.
     expect(shape.label, `${shape.name} drops the label`).toBe("Study streak");
   }
-  // Every viewport renders the same parts at the same size.
-  const reference = shapes[0];
-  for (const shape of shapes.slice(1)) {
+  const desktopReference = shapes[0];
+  for (const shape of shapes.slice(1, 3)) {
     expect({ n: shape.name, parts: shape.parts, padding: shape.padding })
-      .toEqual({ n: shape.name, parts: reference.parts, padding: reference.padding });
-    expect(Math.abs(shape.height - reference.height), `${shape.name} height differs`).toBeLessThanOrEqual(2);
+      .toEqual({ n: shape.name, parts: desktopReference.parts, padding: desktopReference.padding });
+    expect(Math.abs(shape.height - desktopReference.height), `${shape.name} desktop height differs`).toBeLessThanOrEqual(2);
+  }
+
+  const tabletReference = shapes[3];
+  expect(tabletReference.parts).toContain("streak-freeze");
+  expect(tabletReference.parts).toContain("streak-card-track");
+  expect(tabletReference.height).toBeGreaterThan(desktopReference.height);
+  for (const shape of shapes.slice(4)) {
+    expect({ n: shape.name, parts: shape.parts, padding: shape.padding })
+      .toEqual({ n: shape.name, parts: tabletReference.parts, padding: tabletReference.padding });
+    expect(Math.abs(shape.height - tabletReference.height), `${shape.name} tablet height differs`).toBeLessThanOrEqual(2);
   }
 });
 

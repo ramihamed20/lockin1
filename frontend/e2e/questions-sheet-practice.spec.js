@@ -150,6 +150,12 @@ test("a published sheet is reachable from Questions and its questions can be ans
   await expect(sheet).toBeVisible();
   await sheet.click();
 
+  // The sheet names the size of the practice set before asking the student to
+  // begin; entering a directory row no longer submits them straight into Q1.
+  await expect(page.getByRole("heading", { name: "Ready to practice?" })).toBeVisible();
+  await expect(page.getByText("2 published questions")).toBeVisible();
+  await page.getByRole("button", { name: "Start Questions" }).click();
+
   // One question at a time, with its place in the sheet.
   await expect(page.getByRole("heading", { name: "Which layer contains melanocytes?" })).toBeVisible();
   await expect(page.getByText("Question 1 of 2")).toBeVisible();
