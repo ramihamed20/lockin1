@@ -101,7 +101,7 @@ function DashboardSkeleton() {
 }
 
 function MaterialsListSkeleton({ sheets = false }) {
-  return <div className={`skeleton-page skeleton-page--materials${sheets ? " is-sheets" : ""}`}><SkeletonHeader /><section className="skeleton-material-grid">{Array.from({ length: sheets ? 6 : 5 }, (_, index) => <SkeletonCard className="skeleton-material-row" key={index}><SkeletonAvatar /><div><SkeletonText lines={2} />{sheets && <div className="skeleton-capabilities"><Skeleton /><Skeleton /><Skeleton /><Skeleton /></div>}</div><Skeleton className="skeleton-row-end" /></SkeletonCard>)}</section></div>;
+  return <div className={`skeleton-page skeleton-page--materials${sheets ? " is-sheets" : ""}`}><SkeletonHeader /><section className="skeleton-material-grid">{Array.from({ length: sheets ? 6 : 5 }, (_, index) => <SkeletonCard className="skeleton-material-row" key={index}><SkeletonAvatar /><div><SkeletonText lines={2} /></div><Skeleton className="skeleton-row-end" /></SkeletonCard>)}</section></div>;
 }
 
 function SheetSkeleton() {

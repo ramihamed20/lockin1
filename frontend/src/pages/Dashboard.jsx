@@ -16,8 +16,8 @@ import { useI18n } from "../components/I18nProvider.jsx";
 const STAT_CARDS = [
   { id: "completed", labelKey: "dashboard.completed", subKey: "dashboard.completedSub", icon: "check", to: "/materials", actionKey: "dashboard.openCompleted", variant: "emerald", badgeKey: "dashboard.badgeDone", pulse: false },
   // Progress, not account security: active sessions are managed in Settings.
-  { id: "level", labelKey: "dashboard.level", subKey: "dashboard.levelSub", icon: "sparkles", to: "/progress", actionKey: "dashboard.openProgress", variant: "amber", badgeKey: "dashboard.badgeXp", pulse: false },
-  { id: "streak", labelKey: "dashboard.streak", subKey: "dashboard.streakSub", icon: "flame", to: "/progress", actionKey: "dashboard.openProgress", variant: "amber", badgeKey: "dashboard.badgeActive", pulse: false },
+  { id: "level", labelKey: "dashboard.level", subKey: "dashboard.levelSub", icon: "sparkles", to: "/progress", variant: "amber", badgeKey: "dashboard.badgeXp", pulse: false },
+  { id: "streak", labelKey: "dashboard.streak", subKey: "dashboard.streakSub", icon: "flame", to: "/progress", variant: "amber", badgeKey: "dashboard.badgeActive", pulse: false },
   { id: "reviewBank", labelKey: "dashboard.reviewBank", subKey: "dashboard.reviewBankSub", icon: "target", to: "/review", actionKey: "dashboard.openReviewCenter", variant: "rose" },
   { id: "saved", labelKey: "dashboard.saved", subKey: "dashboard.savedSub", icon: "bookmark", to: "/bookmarks", actionKey: "dashboard.openSaved", variant: "indigo", badgeKey: "dashboard.badgeSaved", pulse: false }
 ];
@@ -77,7 +77,7 @@ export default function Dashboard({ themeSettings, activeTheme }) {
         ? t("dashboard.streakBest", { count: streak.longest_days ?? 0 })
         : t(card.subKey),
     to: card.to,
-    actionLabel: t(card.actionKey),
+    actionLabel: card.actionKey ? t(card.actionKey) : undefined,
     variant: card.variant,
     badge: card.id === "reviewBank" ? t(activeReviewCount > 0 ? "dashboard.badgeDue" : "dashboard.badgeClear") : t(card.badgeKey),
     pulse: card.id === "reviewBank" ? activeReviewCount > 0 : card.pulse
@@ -85,6 +85,7 @@ export default function Dashboard({ themeSettings, activeTheme }) {
   return (
     <Page title="Dashboard" showHeading={false}>
       <div className="dashboard-layout">
+        <StatsGrid cards={dashboardCards} className="dashboard-stats-grid" />
         <section className={`dashboard-main${hasMascot ? "" : " dashboard-main--no-mascot"}`}>
           <div className="dashboard-left">
             <ContinueCard sheetEntry={recentOpenedSheets[0] || null} />
@@ -93,13 +94,6 @@ export default function Dashboard({ themeSettings, activeTheme }) {
           {hasMascot && <div className="dashboard-right">
             <DashboardHero character={themeSettings.character} theme={activeTheme} />
           </div>}
-        </section>
-        <section className="dashboard-progress-section" aria-labelledby="dashboard-progress-title">
-          <header className="dashboard-section-heading">
-            <div><p className="eyebrow">{t("dashboard.yourProgress")}</p><h2 id="dashboard-progress-title">{t("dashboard.progressOverview")}</h2></div>
-            <Link to="/progress">{t("dashboard.openProgress")} <Icon name="arrow-up-right" size={15} /></Link>
-          </header>
-          <StatsGrid cards={dashboardCards} className="dashboard-stats-grid" />
         </section>
         <ReviewQueue items={reviewItems} />
         {(accountError || learningError || reviewError || bankError) && <p className="save-hint">{t("dashboard.partialData")}</p>}

@@ -23,6 +23,8 @@ test("Questions offers cohort question sources and lists subjects under AI Sheet
   assert.match(questions, /catalogWorkspaceApi\.sheetQuestions\(sheetId/);
   assert.match(questions, /getCohortQuestionCategories\(user\)/);
   assert.match(questions, /t\("questions\.noQuestionsTitle"\)/);
+  assert.match(questions, /t\("questions\.startQuestions"\)/);
+  assert.match(questions, /const \[started, setStarted\] = useState\(false\)/);
   assert.match(catalogue, /"questions\.noQuestionsTitle": "No questions yet"/);
   assert.match(questions, /text=\{t\("common\.soon"\)\}/);
   assert.doesNotMatch(questions, /Practice mode is coming soon\.|has not been published by the server yet/);

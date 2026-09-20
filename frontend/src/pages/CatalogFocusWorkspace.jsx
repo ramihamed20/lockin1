@@ -1,5 +1,5 @@
 import { memo, startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowRight,
   ArrowLeft,
@@ -444,33 +444,34 @@ function useDialogFocus(onEscape = null) {
 }
 
 const ACTIVE_DIFFICULTIES = [
-  ["easy", "Easy", "3 choices · 100 XP"],
-  ["medium", "Medium", "4 choices · 150 XP"],
-  ["hard", "Hard", "5 choices · 200 XP"]
+  ["easy", "questions.difficulty.easy", "materials.activeDifficulty.easy"],
+  ["medium", "questions.difficulty.medium", "materials.activeDifficulty.medium"],
+  ["hard", "questions.difficulty.hard", "materials.activeDifficulty.hard"]
 ];
 
-function StudyModeDialog({ difficulty, setDifficulty, activeAvailable, busy, error, onNormal, onActive }) {
+function StudyModeDialog({ difficulty, setDifficulty, activeAvailable, busy, error, onNormal, onActive, activeOnly = false }) {
+  const { t } = useI18n();
   const dialogRef = useDialogFocus();
   return (
     <div className="workspace-v2-mode-backdrop">
       <section ref={dialogRef} className="workspace-v2-mode-dialog" role="dialog" aria-modal="true" aria-labelledby="study-mode-title" aria-describedby="study-mode-hint" tabIndex={-1}>
-        <h1 id="study-mode-title">Choose study mode</h1>
-        <p id="study-mode-hint" dir="auto">You can switch modes later.</p>
+        <h1 id="study-mode-title">{t(activeOnly ? "materials.startActiveStudy" : "materials.chooseStudyMode")}</h1>
+        <p id="study-mode-hint" dir="auto">{t(activeOnly ? "materials.chooseDifficulty" : "materials.switchModesLater")}</p>
         <div className="workspace-v2-mode-grid">
-          <button type="button" className="workspace-v2-mode-card" onClick={onNormal} disabled={busy}>
+          {!activeOnly && <button type="button" className="workspace-v2-mode-card" onClick={onNormal} disabled={busy}>
             <span className="workspace-v2-mode-icon"><BookOpen size={20} /></span>
-            <span className="workspace-v2-mode-copy"><strong>Normal Study</strong><small>Read every page freely</small></span>
+            <span className="workspace-v2-mode-copy"><strong>{t("materials.normalStudy")}</strong><small>{t("materials.readSheetDescription")}</small></span>
             <ChevronRight className="workspace-v2-mode-chevron" size={18} aria-hidden="true" />
-          </button>
+          </button>}
           <div className="workspace-v2-mode-card is-active-study">
             <div className="workspace-v2-mode-heading">
               <span className="workspace-v2-mode-icon"><Brain size={20} /></span>
-              <span className="workspace-v2-mode-copy"><strong>Active Study</strong><small>One part, then a checkpoint</small></span>
+              <span className="workspace-v2-mode-copy"><strong>{t("materials.activeStudy")}</strong><small>{t("materials.activeStudyDescription")}</small></span>
             </div>
             <div className="workspace-v2-difficulty" role="radiogroup" aria-label="Active Study difficulty">
-              {ACTIVE_DIFFICULTIES.map(([id, label, detail]) => <button key={id} type="button" role="radio" aria-label={`${label}: ${detail}`} title={detail} aria-checked={difficulty === id} className={difficulty === id ? "is-selected" : ""} onClick={() => setDifficulty(id)}>{label}</button>)}
+              {ACTIVE_DIFFICULTIES.map(([id, labelKey, detailKey]) => <button key={id} type="button" role="radio" aria-label={`${t(labelKey)}: ${t(detailKey)}`} title={t(detailKey)} aria-checked={difficulty === id} className={difficulty === id ? "is-selected" : ""} onClick={() => setDifficulty(id)}>{t(labelKey)}</button>)}
             </div>
-            <button type="button" className="workspace-v2-active-start" onClick={onActive} disabled={busy || !activeAvailable}>{busy ? "Starting…" : activeAvailable ? "Start Active" : "Questions not ready yet"}<ChevronRight size={16} /></button>
+            <button type="button" className="workspace-v2-active-start" onClick={onActive} disabled={busy || !activeAvailable}>{t(busy ? "materials.activeStudyStarting" : activeAvailable ? "materials.startActiveStudy" : "materials.activeStudyUnavailable")}<ChevronRight size={16} /></button>
           </div>
         </div>
         {error && <p className="workspace-v2-mode-error" role="alert">{error}</p>}
@@ -536,6 +537,7 @@ function ActiveStudyQuiz({ quiz, answers, setAnswers, result, busy, onSubmit, on
  */
 export default function CatalogFocusWorkspace({ user = null, variant = "study" }) {
   const { materialSlug, sheetSlug } = useParams();
+  const location = useLocation();
   const { t } = useI18n();
   const { materials, loading: materialsLoading, error: materialsError, reload: reloadMaterials } = useCatalogMaterials(user);
   const material = materials.find((item) => item.slug === materialSlug) || null;
@@ -594,10 +596,11 @@ export default function CatalogFocusWorkspace({ user = null, variant = "study" }
   if (!readable?.pdfUrl) {
     return <Page title={sheet.title}><ErrorPanel message={t("materials.editionUnavailable")} onRetry={summaryMode ? undefined : catalogDocument.reload} /></Page>;
   }
-  return <CatalogFocusWorkspaceView user={user} materials={resolvedMaterials} catalogDocument={catalogDocument.document} documentScope={documentScope} onDocumentChanged={catalogDocument.reload} summaryMode={summaryMode} />;
+  const preferredMode = location.state?.studyMode === "normal" || location.state?.studyMode === "active" ? location.state.studyMode : "";
+  return <CatalogFocusWorkspaceView user={user} materials={resolvedMaterials} catalogDocument={catalogDocument.document} documentScope={documentScope} onDocumentChanged={catalogDocument.reload} summaryMode={summaryMode} preferredMode={preferredMode} />;
 }
 
-function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocument = null, documentScope = null, onDocumentChanged = () => {}, summaryMode = false }) {
+function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocument = null, documentScope = null, onDocumentChanged = () => {}, summaryMode = false, preferredMode = "" }) {
   const { materialSlug, sheetSlug } = useParams();
   // A Sheet Summary is a different document from the sheet it belongs to, and
   // the local cache is keyed by slug, so it needs a key of its own or the two
@@ -819,10 +822,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const [focusMessage, setFocusMessage] = useState("");
   const [noteDraft, setNoteDraft] = useState("");
   const [noteBusy, setNoteBusy] = useState(false);
-  const [studyMode, setStudyMode] = useState(null);
+  const [studyMode, setStudyMode] = useState(preferredMode === "normal" ? "normal" : null);
   // A Sheet Summary is Normal Mode only, so it opens straight into reading
   // rather than asking which study mode to use.
-  const [modeDialogOpen, setModeDialogOpen] = useState(!summaryMode);
+  const [modeDialogOpen, setModeDialogOpen] = useState(!summaryMode && preferredMode !== "normal");
+  const [entryModePreference, setEntryModePreference] = useState(preferredMode);
   const [activeDifficulty, setActiveDifficulty] = useState("medium");
   const [activeStudy, setActiveStudy] = useState(null);
   const [activeStudyBusy, setActiveStudyBusy] = useState(false);
@@ -3682,6 +3686,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   function chooseNormalStudy() {
     setStudyMode("normal");
     setModeDialogOpen(false);
+    setEntryModePreference("");
     setActiveStudyError("");
   }
 
@@ -3699,6 +3704,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       setActiveStudy(run);
       setStudyMode("active");
       setModeDialogOpen(false);
+      setEntryModePreference("");
       // Difficulty selection always returns to the reader's visual beginning.
       // The run's current part/stage remains server-owned and untouched.
       setPage(1);
@@ -4263,7 +4269,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       {studyMode === "active" && activeStudy?.status === "active" && ["reading", "checkpoint", "final"].includes(activeStudy.stage) && <div className="workspace-v2-checkpoint-dock" role="status" aria-live="polite">
         <button type="button" className={`workspace-v2-checkpoint-button${activeStudyButtonReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeStudyButtonReady} aria-label={activeStudyButtonReady ? (activeStudy.stage === "final" ? "Open final exam" : "Open checkpoint") : `Reach page ${accessiblePageCount} to unlock the checkpoint`}>{activeStudyButtonReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{activeStudy.stage === "final" ? "Final Exam" : "Checkpoint"}</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">Reach page {accessiblePageCount}</span></>}</button>
       </div>}
-      {modeDialogOpen && <StudyModeDialog difficulty={activeDifficulty} setDifficulty={setActiveDifficulty} activeAvailable={activeStudyReady} busy={activeStudyBusy || activeStudyAvailabilityLoading} error={activeStudyError} onNormal={chooseNormalStudy} onActive={chooseActiveStudy} />}
+      {modeDialogOpen && <StudyModeDialog difficulty={activeDifficulty} setDifficulty={setActiveDifficulty} activeAvailable={activeStudyReady} busy={activeStudyBusy || activeStudyAvailabilityLoading} error={activeStudyError} onNormal={chooseNormalStudy} onActive={chooseActiveStudy} activeOnly={entryModePreference === "active"} />}
       {activeQuiz && activeStudy && <ActiveStudyQuiz quiz={activeQuiz} answers={activeAnswers} setAnswers={setActiveAnswers} result={activeResult} busy={activeStudyBusy} onSubmit={submitActiveQuiz} onDismiss={dismissActiveQuiz} onRetake={retakeActiveQuiz} onContinue={continueActiveStudyAnyway} />}
     </main>
   );
