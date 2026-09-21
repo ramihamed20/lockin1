@@ -34,6 +34,7 @@ async function openWorkspace(page, viewport = { width: 1280, height: 900 }) {
   await page.setViewportSize(viewport);
   await page.goto(ROUTE);
   await page.getByRole("button", { name: /Normal Study/ }).click();
+  await page.getByRole("button", { name: "Switch to Write mode" }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
 }
 
@@ -55,13 +56,14 @@ test("every reachable control has an accessible name and a visible focus ring", 
   // Open every surface so the audit covers the palettes and the settings panel.
   const pen = page.locator('[data-workspace-tool="pen"]');
   await pen.click();
-  await pen.click();
   await expect(page.locator("#workspace-pen-options")).toBeVisible();
   const unnamedInPalette = await page.evaluate(() => [...document.querySelectorAll(".workspace-v2-tool-options button, .workspace-v2-tool-options input")]
     .filter((control) => !(control.getAttribute("aria-label") || control.textContent || "").trim())
     .map((control) => control.className));
   expect(unnamedInPalette).toEqual([]);
 
+  const moreButton = page.getByRole("button", { name: "More workspace actions" });
+  await moreButton.click();
   await page.getByRole("button", { name: "Workspace settings", exact: true }).click();
   const settings = page.getByRole("dialog", { name: "Workspace settings" });
   await expect(settings).toBeVisible();
@@ -81,7 +83,7 @@ test("every reachable control has an accessible name and a visible focus ring", 
   // and it has to hand focus back to the control that owns the panel.
   await page.keyboard.press("Escape");
   await expect(settings).toBeHidden();
-  await expect(page.getByRole("button", { name: "Workspace settings", exact: true })).toBeFocused();
+  await expect(moreButton).toBeFocused();
 
   // Keyboard focus is visible, not just present.
   const focusRing = await page.evaluate(() => {
@@ -114,11 +116,11 @@ test("global shortcuts never fire while a field or a control has focus", async (
   await pageInput.press("ArrowRight");
   await pageInput.press("ArrowLeft");
   await expect(indicator).toHaveAttribute("aria-label", "Page 1 of 41");
-  await expect(page.locator('[data-workspace-tool="pen"]')).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator('[data-workspace-tool="pen"]')).toHaveAttribute("aria-pressed", "true");
   await pageInput.fill("5");
   await pageInput.press("Enter");
   await expect(indicator).toHaveAttribute("aria-label", "Page 5 of 41");
-  await expect(page.locator('[data-workspace-tool="pen"]')).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator('[data-workspace-tool="pen"]')).toHaveAttribute("aria-pressed", "true");
   await page.locator(".workspace-v2-page-number").click();
   await waitForScrollToSettle(page);
 
@@ -173,9 +175,11 @@ test("status, save failures, and popovers are announced and reachable", async ({
   await expect(liveRegion).toHaveAttribute("aria-live", "polite");
 
   // Popovers announce their expanded state on the control that owns them.
-  const settingsButton = page.getByRole("button", { name: "Workspace settings", exact: true });
+  const settingsButton = page.getByRole("button", { name: "More workspace actions" });
   await expect(settingsButton).toHaveAttribute("aria-expanded", "false");
   await settingsButton.click();
+  await expect(settingsButton).toHaveAttribute("aria-expanded", "true");
+  await page.getByRole("button", { name: "Workspace settings", exact: true }).click();
   await expect(settingsButton).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByRole("dialog", { name: "Workspace settings" })).toBeVisible();
 

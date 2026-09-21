@@ -146,6 +146,7 @@ test("a heavily annotated sheet opens, stays interactive, and only rewrites the 
   await waitForReaderToSettle(page);
   const bounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
   const y = bounds.y + bounds.height * 0.5;
+  await page.getByRole("button", { name: "Write" }).click();
   await page.getByRole("button", { name: "Pen", exact: true }).click();
   const send = (type, x) => stage.dispatchEvent(type, {
     pointerId: 201, pointerType: "pen", isPrimary: true, clientX: x, clientY: y,
@@ -209,6 +210,7 @@ test("erasing across a dense page stays responsive and undoes exactly", async ({
   const stage = page.locator(".workspace-v2-document-stage");
   await waitForReaderToSettle(page);
   const bounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
+  await page.getByRole("button", { name: "Write" }).click();
   await page.getByRole("button", { name: "Eraser", exact: true }).click();
   const started = Date.now();
   const send = (type, x, y) => stage.dispatchEvent(type, {

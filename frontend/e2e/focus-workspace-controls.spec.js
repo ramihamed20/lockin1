@@ -32,6 +32,7 @@ async function openWorkspace(page, viewport = { width: 1280, height: 900 }) {
   await page.setViewportSize(viewport);
   await page.goto(ROUTE);
   await page.getByRole("button", { name: /Normal Study/ }).click();
+  await page.getByRole("button", { name: "Switch to Write mode" }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
   await expect.poll(async () => page.locator(".workspace-v2-a4-canvas.is-visible").first().evaluate((canvas) => canvas.width > 0)).toBe(true);
 }
@@ -67,20 +68,20 @@ async function drawStroke(stage, pointerId, points) {
 test("browser and OS shortcuts never hijack the tool palette", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page);
-  const shapes = page.locator('[data-workspace-tool="shapes"]');
+  await page.getByRole("button", { name: "Add" }).click();
   const pen = page.locator('[data-workspace-tool="pen"]');
 
   for (const combination of ["Control+s", "Control+p", "Control+e", "Control+l", "Alt+s"]) {
     await page.keyboard.press(combination);
   }
-  await expect(shapes).toHaveAttribute("aria-pressed", "false");
-  await expect(pen).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator(".workspace-v2-document-stage")).not.toHaveClass(/is-tool-shapes/);
+  await expect(pen).toHaveAttribute("aria-pressed", "true");
 
   // Unmodified letters remain the fast tool switches.
   await page.keyboard.press("p");
   await expect(pen).toHaveAttribute("aria-pressed", "true");
   await page.keyboard.press("s");
-  await expect(shapes).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".workspace-v2-document-stage")).toHaveClass(/is-tool-shapes/);
 });
 
 test("Space activates the focused toolbar button and still pans elsewhere", async ({ page }) => {
@@ -254,6 +255,7 @@ test("the lasso recolours a selection and the settings panel clears one page", a
   await page.getByRole("button", { name: "Undo (Ctrl+Z)" }).click();
   await expect(marks.first()).not.toHaveAttribute("fill", "#20b982");
 
+  await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings" }).click();
   await page.getByRole("button", { name: /Clear ink on page/ }).click();
   await expect(marks).toHaveCount(0);
@@ -271,7 +273,7 @@ test("pinching past a zoom limit rubber-bands and settles back to a legal scale"
   const box = await stage.boundingBox();
   const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   const readerScale = () => document.evaluate((node) => Number(getComputedStyle(node).getPropertyValue("--workspace-a4-zoom")));
-  const minimumScale = await readerScale();
+  const startingScale = await readerScale();
 
   const touch = (type, pointerId, x, y) => stage.dispatchEvent(type, {
     pointerId, pointerType: "touch", isPrimary: pointerId === 11, clientX: x, clientY: y,
@@ -291,13 +293,17 @@ test("pinching past a zoom limit rubber-bands and settles back to a legal scale"
     return matrix.a;
   });
   expect(liveScale).toBeLessThan(.97);
-  expect(liveScale).toBeGreaterThan(1 / 1.25);
+  // The overview zoom floor is intentionally below fit-to-width. The live
+  // transform may therefore shrink substantially, but must still resist the
+  // raw 60/520 finger-distance ratio rather than following it without bounds.
+  expect(liveScale).toBeGreaterThan(60 / 520);
 
   await touch("pointerup", 11, center.x - 30, center.y);
   await touch("pointerup", 12, center.x + 30, center.y);
   await expect(layer).not.toHaveClass(/is-live-pinching|is-zoom-settling|is-springing-back/);
   // Only the legal scale is ever committed.
-  expect(await readerScale()).toBeCloseTo(minimumScale, 3);
+  expect(startingScale).toBeGreaterThan(.35);
+  expect(await readerScale()).toBeCloseTo(.35, 3);
   expect(await layer.evaluate((node) => getComputedStyle(node).transform)).toMatch(/^(none|matrix\(1, 0, 0, 1, 0, 0\))$/);
 });
 
@@ -317,6 +323,7 @@ test("the live ink layer paints while the stroke is still down and carries its o
 
   // Draw-and-hold would straighten these strokes into vector shapes and clear
   // the live layer, which is a different feature from the one under test.
+  await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings" }).click();
   await page.getByRole("switch", { name: /Hold to shape/ }).click();
   await page.getByRole("button", { name: "Close workspace settings" }).click();

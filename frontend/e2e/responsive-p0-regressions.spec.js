@@ -48,6 +48,34 @@ async function mockStudent(page, { language = "en" } = {}) {
   });
 }
 
+async function pinchReaderIn(page) {
+  const stage = page.locator(".workspace-v2-document-stage");
+  const bounds = await stage.boundingBox();
+  const centerX = bounds.x + bounds.width / 2;
+  const centerY = bounds.y + Math.min(bounds.height / 2, 280);
+  const dispatch = (type, pointerId, clientX) => stage.dispatchEvent(type, {
+    pointerId,
+    pointerType: "touch",
+    isPrimary: pointerId === 81,
+    clientX,
+    clientY: centerY,
+    button: 0,
+    buttons: type === "pointerup" ? 0 : 1,
+    pressure: type === "pointerup" ? 0 : .5,
+    width: 9,
+    height: 9,
+    bubbles: true,
+    cancelable: true
+  });
+  await dispatch("pointerdown", 81, centerX - 55);
+  await dispatch("pointerdown", 82, centerX + 55);
+  await dispatch("pointermove", 81, centerX - 78);
+  await dispatch("pointermove", 82, centerX + 78);
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await dispatch("pointerup", 81, centerX - 78);
+  await dispatch("pointerup", 82, centerX + 78);
+}
+
 /** Which shell is on screen, and whether any destination is out of reach. */
 function readShell() {
   return {
@@ -163,12 +191,8 @@ for (const viewport of LANDSCAPE_TABLETS) {
   });
 }
 
-// P0: fifteen 44px controls were laid out in a single scrolling strip about
-// 240px wide, so seven of them - undo and redo among them - sat off screen
-// behind a scroller with no scrollbar and no fade. The toolbar still holds one
-// line, but the tools now live in a rail that scrolls sideways and fades the
-// edge that hides more: exit and the workspace actions stay pinned outside it,
-// and anything the rail hides has to be reachable by scrolling it.
+// P0: the phone toolbar stays one fixed row. Secondary creation and utility
+// actions live in Add and More rather than behind horizontal discovery.
 for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 430, height: 932 }]) {
   test(`every workspace control is reachable at ${viewport.width}x${viewport.height}`, async ({ page }) => {
     test.setTimeout(60_000);
@@ -177,32 +201,22 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     await page.goto(WORKSPACE_ROUTE);
     await page.getByRole("button", { name: /Normal Study/ }).click();
     await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
+    await page.getByRole("button", { name: "Switch to Write mode" }).click();
 
     const toolbar = await page.evaluate((size) => {
       const nav = document.querySelector(".workspace-v2-toolbar");
-      const rail = nav.querySelector(".workspace-v2-toolbar-scroll");
-      const controls = [...nav.querySelectorAll("button")];
+      const controls = [...nav.querySelectorAll("button")].filter((control) => {
+        const bounds = control.getBoundingClientRect();
+        return bounds.width > 0 && bounds.height > 0;
+      });
       const escaped = (bounds) => bounds.bottom > size.height + 1 || bounds.top < -1;
       return {
         total: controls.length,
         rows: new Set(controls.map((control) => Math.round(control.getBoundingClientRect().top))).size,
-        // A pinned control has nowhere to scroll to, so it must be on screen.
-        pinnedOffScreen: controls
-          .filter((control) => !rail.contains(control))
+        offScreen: controls
           .filter((control) => {
             const bounds = control.getBoundingClientRect();
             return escaped(bounds) || bounds.right > size.width + 1 || bounds.left < -1;
-          })
-          .map((control) => control.getAttribute("aria-label")),
-        // A railed control may sit outside the viewport horizontally, never
-        // vertically, and never outside the rail's own scrollable track.
-        railedOutOfTrack: controls
-          .filter((control) => rail.contains(control))
-          .filter((control) => {
-            const bounds = control.getBoundingClientRect();
-            const track = rail.getBoundingClientRect();
-            const start = bounds.left - track.left + rail.scrollLeft;
-            return escaped(bounds) || start < -1 || start + bounds.width > rail.scrollWidth + 1;
           })
           .map((control) => control.getAttribute("aria-label")),
         underTouchSize: controls
@@ -211,37 +225,27 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
             return bounds.width < 44 || bounds.height < 44;
           })
           .map((control) => control.getAttribute("aria-label")),
-        railFades: rail.style.getPropertyValue("--workspace-fade-right").trim(),
-        railScrollsSideways: rail.scrollWidth > rail.clientWidth + 1,
+        horizontalOverflow: nav.scrollWidth - nav.clientWidth,
         // The surfaces that hang below the toolbar follow its measured height.
         publishedHeight: getComputedStyle(document.querySelector(".workspace-v2")).getPropertyValue("--workspace-toolbar-height").trim(),
         actualHeight: `${Math.round(nav.getBoundingClientRect().height)}px`
       };
     }, viewport);
 
-    expect(toolbar.pinnedOffScreen, "pinned workspace controls are off screen").toEqual([]);
-    expect(toolbar.railedOutOfTrack, "railed controls are unreachable").toEqual([]);
+    expect(toolbar.offScreen, "workspace controls are off screen").toEqual([]);
     expect(toolbar.underTouchSize, "workspace controls are under the touch minimum").toEqual([]);
-    expect(toolbar.total).toBeGreaterThanOrEqual(15);
+    expect(toolbar.total).toBeGreaterThanOrEqual(7);
     expect(toolbar.rows, "the toolbar wrapped to a second row").toBe(1);
-    expect(toolbar.railScrollsSideways, "a phone cannot hold the whole rail").toBe(true);
-    expect(toolbar.railFades, "the hidden edge of the rail is not faded").not.toBe("0px");
+    expect(toolbar.horizontalOverflow, "the primary toolbar requires horizontal discovery").toBeLessThanOrEqual(1);
     expect(toolbar.publishedHeight).toBe(toolbar.actualHeight);
 
-    // Undo and redo are attached and reach the viewport once the rail is scrolled.
-    const historyReachable = await page.evaluate(() => {
-      const rail = document.querySelector(".workspace-v2-toolbar-scroll");
-      // The rail scrolls smoothly by default, so the jump has to be instant to
-      // be measurable in the same frame.
-      rail.scrollTo({ left: rail.scrollWidth, behavior: "instant" });
-      return ["Undo", "Redo"].map((name) => {
-        const button = [...rail.querySelectorAll("button")].find((node) => node.getAttribute("aria-label")?.startsWith(name));
-        const bounds = button.getBoundingClientRect();
-        const track = rail.getBoundingClientRect();
-        return bounds.left >= track.left - 1 && bounds.right <= track.right + 1;
-      });
-    });
-    expect(historyReachable, "undo and redo cannot be scrolled into the rail").toEqual([true, true]);
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    for (const label of ["Pencil", "Shapes", "Image", "Text"]) await expect(page.getByRole("button", { name: label, exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "More workspace actions" }).click();
+    for (const label of ["Pan", "Highlight", "Eraser", "Lasso", "Bookmarks", "Fullscreen", "settings"]) {
+      await expect(page.getByRole("button", { name: new RegExp(label, "i") })).toBeVisible();
+    }
   });
 }
 
@@ -293,8 +297,7 @@ test("fit-width PDF follows a live resize while manual zoom preserves magnificat
   await page.getByRole("button", { name: /Normal Study/ }).click();
   const canvas = page.locator(".workspace-v2-a4-canvas.is-visible").first();
   await expect(canvas).toBeVisible({ timeout: 20_000 });
-  await page.locator(".workspace-v2-page-number").click();
-  await page.getByRole("button", { name: "Fit width" }).click();
+  await page.locator(".workspace-v2-zoom-bar").getByRole("button", { name: "Fit width", exact: true }).click();
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect.poll(() => page.evaluate(() => {
@@ -303,7 +306,7 @@ test("fit-width PDF follows a live resize while manual zoom preserves magnificat
     return Math.round(pageCanvas.getBoundingClientRect().width) <= stage.clientWidth + 1;
   })).toBe(true);
 
-  await page.getByRole("button", { name: "Zoom in" }).click();
+  await pinchReaderIn(page);
   const manualZoom = await page.locator(".workspace-v2-a4-document").evaluate((node) => (
     Number(getComputedStyle(node).getPropertyValue("--workspace-a4-zoom"))
   ));

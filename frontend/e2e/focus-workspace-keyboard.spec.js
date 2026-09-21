@@ -67,7 +67,36 @@ async function openWorkspace(page) {
   });
   await page.goto(ROUTE);
   await page.getByRole("button", { name: /Normal Study/ }).click();
+  await page.getByRole("button", { name: "Switch to Write mode" }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 25_000 });
+}
+
+async function pinchReaderIn(page) {
+  const stage = page.locator(".workspace-v2-document-stage");
+  const bounds = await stage.boundingBox();
+  const centerX = bounds.x + bounds.width / 2;
+  const centerY = bounds.y + Math.min(bounds.height / 2, 280);
+  const dispatch = (type, pointerId, clientX) => stage.dispatchEvent(type, {
+    pointerId,
+    pointerType: "touch",
+    isPrimary: pointerId === 71,
+    clientX,
+    clientY: centerY,
+    button: 0,
+    width: 9,
+    height: 9,
+    pressure: type === "pointerup" ? 0 : .5,
+    buttons: type === "pointerup" ? 0 : 1,
+    bubbles: true,
+    cancelable: true
+  });
+  await dispatch("pointerdown", 71, centerX - 55);
+  await dispatch("pointerdown", 72, centerX + 55);
+  await dispatch("pointermove", 71, centerX - 78);
+  await dispatch("pointermove", 72, centerX + 78);
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await dispatch("pointerup", 71, centerX - 78);
+  await dispatch("pointerup", 72, centerX + 78);
 }
 
 /**
@@ -191,9 +220,7 @@ for (const { viewport, mode } of KEYBOARD_SESSIONS) {
     await waitForStableReader(page);
 
     // Step 2 of the report: leave the PDF somewhere that is not the default.
-    await page.locator(".workspace-v2-page-number").click();
-    await page.getByRole("button", { name: "Zoom in" }).click();
-    await page.locator(".workspace-v2-page-number").click();
+    await pinchReaderIn(page);
     await page.evaluate(() => {
       const stage = document.querySelector(".workspace-v2-document-stage");
       stage.scrollTo({ top: 220, left: 0, behavior: "instant" });

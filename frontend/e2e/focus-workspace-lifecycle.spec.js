@@ -35,6 +35,7 @@ async function openWorkspace(page, viewport = { width: 1280, height: 900 }) {
   if (page.url().includes(ROUTE.slice(1))) await page.goto("about:blank");
   await page.goto(ROUTE);
   await page.getByRole("button", { name: /Normal Study/ }).click();
+  await page.getByRole("button", { name: "Switch to Write mode" }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
 }
 
@@ -211,19 +212,21 @@ test("resizing while zoomed and while a palette is open keeps the reader usable"
 
   const pen = page.locator('[data-workspace-tool="pen"]');
   await pen.click();
-  await pen.click();
   await expect(page.locator("#workspace-pen-options")).toBeVisible();
 
   // Rotate to landscape phone geometry with the palette open.
   await page.setViewportSize({ width: 844, height: 390 });
   await expect(page.locator("#workspace-pen-options")).toBeVisible();
-  const optionsFit = await page.locator("#workspace-pen-options").evaluate((node) => {
-    const bounds = node.getBoundingClientRect();
-    return { left: bounds.left, right: bounds.right, bottom: bounds.bottom };
-  });
+  let optionsFit;
+  await expect.poll(async () => {
+    optionsFit = await page.locator("#workspace-pen-options").evaluate((node) => {
+      const bounds = node.getBoundingClientRect();
+      return { left: bounds.left, right: bounds.right, bottom: bounds.bottom };
+    });
+    return optionsFit.bottom;
+  }).toBeLessThanOrEqual(391);
   expect(optionsFit.left).toBeGreaterThanOrEqual(-1);
   expect(optionsFit.right).toBeLessThanOrEqual(845);
-  expect(optionsFit.bottom).toBeLessThanOrEqual(391);
 
   // The reader never drops below fit width after the viewport changes.
   await expect.poll(async () => page.evaluate(() => {

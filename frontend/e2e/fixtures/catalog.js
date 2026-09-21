@@ -33,7 +33,7 @@ export const E2E_FIXTURE_URL_PREFIX = "/e2e-fixtures/pdf";
  */
 export const E2E_CATALOG_MATERIALS = {
   "biochemistry-1": [
-    { slug: "vitamin-1", number: 1, title: "Vitamin -1", file: "sheet-41.pdf", pageCount: 41 },
+    { slug: "vitamin-1", number: 1, title: "Vitamin -1", file: "sheet-41.pdf", pageCount: 41, learningObjectId: "e2e-vitamin-1", hasActiveStudy: true },
     { slug: "vitamin-2", number: 2, title: "Vitamin -2", file: "sheet-17.pdf", pageCount: 17 },
     { slug: "vitamin-3", number: 3, title: "Vitamin -3", file: "sheet-33.pdf", pageCount: 33 },
     // Large enough that pdf.js reads it in ranges rather than one GET, which is
@@ -54,13 +54,15 @@ export function e2eCatalogMaterials() {
   return Object.fromEntries(
     Object.entries(E2E_CATALOG_MATERIALS).map(([materialSlug, sheets]) => [
       materialSlug,
-      sheets.map(({ slug, number, title, file, pageCount }) => ({
+      sheets.map(({ slug, number, title, file, pageCount, learningObjectId, hasActiveStudy }) => ({
         slug,
         number,
         title,
         fileName: file,
         pdfUrl: `${E2E_FIXTURE_URL_PREFIX}/${file}`,
-        pageCount
+        pageCount,
+        ...(learningObjectId ? { learningObjectId } : {}),
+        ...(hasActiveStudy === undefined ? {} : { hasActiveStudy })
       }))
     ])
   );
