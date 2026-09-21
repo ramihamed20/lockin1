@@ -5,7 +5,7 @@ import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
 /**
  * Laptop and desktop readers have a zoom bar that is always on screen. Phones
- * and iPads keep pinch zoom and the zoom row in the page dock, unchanged.
+ * and iPads use direct pinch zoom without duplicate on-screen zoom controls.
  */
 
 const MATERIAL = "zoom-anatomy";
@@ -85,7 +85,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 1920, height: 108
     await bar.getByRole("button", { name: "Zoom in", exact: true }).click();
     await bar.getByRole("button", { name: "Zoom in", exact: true }).click();
     const reset = bar.getByRole("button", { name: "Fit width", exact: true });
-    await expect(reset).toHaveText("Reset to fit");
+    await expect(reset).toHaveText("Fit");
     await reset.click();
     await expect.poll(() => readerScale(page)).toBeCloseTo(start, 1);
 
@@ -110,7 +110,8 @@ for (const device of [
     await openReader(page);
     await expect(page.locator(".workspace-v2-zoom-bar")).toBeHidden();
     await page.locator(".workspace-v2-page-number").click();
-    await expect(page.locator(".workspace-v2-page-navigator .workspace-v2-zoom-control")).toBeVisible();
+    await expect(page.locator(".workspace-v2-page-navigator .workspace-v2-zoom-control")).toBeHidden();
+    await expect(page.locator(".workspace-v2-page-navigator .workspace-v4-zoom-presets")).toBeHidden();
     await context.close();
   });
 }
