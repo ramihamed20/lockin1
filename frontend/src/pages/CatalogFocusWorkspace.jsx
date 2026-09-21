@@ -165,9 +165,6 @@ const PAGE_COUNT = 342;
 const PAGE_WIDTH = 690;
 const PAGE_SPACE = 1000;
 const MIN_FOCUS_ZOOM = WORKSPACE_ZOOM.minimum;
-// The catalog reader may zoom below fit-to-width so a student can scan a full
-// page, or two consecutive pages, without introducing a second reader mode.
-const MIN_PDF_OVERVIEW_ZOOM = .35;
 const MAX_FOCUS_ZOOM = WORKSPACE_ZOOM.catalogMaximum;
 const AUTOSAVE_IDLE_MS = 750;
 // The server mirror trails the local save, so a burst of strokes or a scroll
@@ -859,9 +856,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   }, [sheet?.pdfUrl]);
 
   const clampReaderZoom = useCallback((value) => {
-    const minimum = sheet?.pdfUrl ? MIN_PDF_OVERVIEW_ZOOM : MIN_FOCUS_ZOOM;
+    const minimum = sheet?.pdfUrl ? minimumPdfZoom() : MIN_FOCUS_ZOOM;
     return Math.min(MAX_FOCUS_ZOOM, Math.max(minimum, Number.isFinite(Number(value)) ? Number(value) : 1));
-  }, [sheet?.pdfUrl]);
+  }, [minimumPdfZoom, sheet?.pdfUrl]);
 
   /**
    * A stored zoom is an absolute page scale, so replaying it on a device with a
@@ -1357,7 +1354,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     const stage = stageRef.current;
     const keepPdfFitted = () => {
       const minimum = minimumPdfZoom();
-      const nextZoom = pdfZoomModeRef.current === "fit" ? minimum : clampReaderZoom(zoomRef.current);
+      const nextZoom = pdfZoomModeRef.current === "fit" ? minimum : Math.max(zoomRef.current, minimum);
       const previousStageWidth = fittedStageWidthRef.current;
       const stageWidth = stage.clientWidth;
       fittedStageWidthRef.current = stageWidth;
@@ -1389,7 +1386,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     const observer = new window.ResizeObserver(keepPdfFitted);
     observer.observe(stage);
     return () => observer.disconnect();
-  }, [clampReaderZoom, materialSlug, minimumPdfZoom, sheet?.pdfUrl, sheetSlug]);
+  }, [materialSlug, minimumPdfZoom, sheet?.pdfUrl, sheetSlug]);
 
   const resetInitialPdfPosition = useCallback(() => {
     const viewKey = `${materialSlug}/${sheetSlug}`;
@@ -3229,10 +3226,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         initialScale: gesture.pinch.initialScale,
         initialDistance: gesture.pinch.initialFingerDistance,
         currentDistance: distance,
-        minimum: MIN_PDF_OVERVIEW_ZOOM * .2,
+        minimum: MIN_FOCUS_ZOOM * .2,
         maximum: MAX_FOCUS_ZOOM * 4
       });
-      const elasticZoom = elasticZoomScale(rawScale, sheet?.pdfUrl ? MIN_PDF_OVERVIEW_ZOOM : MIN_FOCUS_ZOOM, MAX_FOCUS_ZOOM, ZOOM_OVERSHOOT_RATIO);
+      const elasticZoom = elasticZoomScale(rawScale, minimumPdfZoom(), MAX_FOCUS_ZOOM, ZOOM_OVERSHOOT_RATIO);
       gesture.pinch.currentScale = elasticZoom.legal;
       gesture.pinch.displayScale = elasticZoom.display;
       scheduleLivePinchFrame();
@@ -4442,13 +4439,13 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
                 <button type="button" aria-label="Next page" title="Next page" disabled={page >= accessiblePageCount} onClick={() => jumpToPagePosition(page + 1)}><ChevronRight size={16} /></button>
               </div>
               <div className="workspace-v2-zoom-control" role="group" aria-label="Zoom">
-                <button type="button" aria-label="Zoom out" title="Zoom out" disabled={zoom <= clampReaderZoom(MIN_PDF_OVERVIEW_ZOOM) + .001} onClick={() => zoomByStep(1 / 1.25)}><Minus size={16} /></button>
+                <button type="button" aria-label="Zoom out" title="Zoom out" disabled={zoom <= clampReaderZoom(MIN_FOCUS_ZOOM) + .001} onClick={() => zoomByStep(1 / 1.25)}><Minus size={16} /></button>
                 <output aria-label={`Current zoom ${Math.round(zoom * 100)} percent`}>{Math.round(zoom * 100)}%</output>
                 <button type="button" aria-label="Zoom in" title="Zoom in" disabled={zoom >= MAX_FOCUS_ZOOM - .001} onClick={() => zoomByStep(1.25)}><Plus size={16} /></button>
                 {sheet.pdfUrl && <button type="button" className="workspace-v2-fit-width" aria-label="Fit width" title="Fit width" onClick={fitPdfWidth}><MoveHorizontal size={16} /></button>}
               </div>
               {sheet.pdfUrl && <div className="workspace-v4-zoom-presets" role="group" aria-label="Quick zoom presets">
-                {[.5, .75, 1, 1.25, 1.5, 2].map((multiple) => <button key={multiple} type="button" className={Math.abs(zoom / minimumPdfZoom() - multiple) < .04 ? "is-active" : ""} aria-label={multiple === 1 ? "Set zoom to fit width preset" : `Zoom to ${multiple} times fit width`} onClick={() => zoomToFitMultiple(multiple)}>{multiple === 1 ? "Fit" : `${multiple}×`}</button>)}
+                {[1, 1.25, 1.5, 2].map((multiple) => <button key={multiple} type="button" className={Math.abs(zoom / minimumPdfZoom() - multiple) < .04 ? "is-active" : ""} aria-label={multiple === 1 ? "Set zoom to fit width preset" : `Zoom to ${multiple} times fit width`} onClick={() => zoomToFitMultiple(multiple)}>{multiple === 1 ? "Fit" : `${multiple}×`}</button>)}
               </div>}
             </div>}
             <button
@@ -4465,13 +4462,13 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
               shows it only for a fine pointer without a touchscreen, so phones and
               iPads keep pinch zoom and the page dock exactly as they were. */}
           {sheet.pdfUrl && <div className="workspace-v2-zoom-bar" role="group" aria-label="Zoom" onPointerDown={(event) => event.stopPropagation()}>
-            <button type="button" aria-label="Zoom out" title="Zoom out" disabled={zoom <= clampReaderZoom(MIN_PDF_OVERVIEW_ZOOM) + .001} onClick={() => zoomByStep(1 / 1.25)}><Minus size={16} /></button>
+            <button type="button" aria-label="Zoom out" title="Zoom out" disabled={zoom <= clampReaderZoom(MIN_FOCUS_ZOOM) + .001} onClick={() => zoomByStep(1 / 1.25)}><Minus size={16} /></button>
             <output aria-label={`Current zoom ${Math.round(zoom * 100)} percent`}>{Math.round(zoom * 100)}%</output>
             <button type="button" aria-label="Zoom in" title="Zoom in" disabled={zoom >= MAX_FOCUS_ZOOM - .001} onClick={() => zoomByStep(1.25)}><Plus size={16} /></button>
             <span className="workspace-v2-zoom-bar-divider" aria-hidden="true" />
             <button type="button" className="workspace-v4-zoom-fit" aria-label="Fit width" title="Reset zoom to fit the page width" onClick={fitPdfWidth}><MoveHorizontal size={14} aria-hidden="true" /><span>Fit</span></button>
             <div className="workspace-v4-zoom-presets is-compact" role="group" aria-label="Quick zoom presets">
-              {[.5, .75, 1.25, 1.5, 2].map((multiple) => <button key={multiple} type="button" className={Math.abs(zoom / minimumPdfZoom() - multiple) < .04 ? "is-active" : ""} aria-label={`Zoom to ${multiple} times fit width`} onClick={() => zoomToFitMultiple(multiple)}>{multiple}×</button>)}
+              {[1.25, 1.5, 2].map((multiple) => <button key={multiple} type="button" className={Math.abs(zoom / minimumPdfZoom() - multiple) < .04 ? "is-active" : ""} aria-label={`Zoom to ${multiple} times fit width`} onClick={() => zoomToFitMultiple(multiple)}>{multiple}×</button>)}
             </div>
           </div>}
           {sheet.pdfUrl && <output className={`workspace-v4-zoom-hud${zoomHud.visible ? " is-visible" : ""}`} aria-live="polite" aria-label={`Zoom ${Math.round(zoom * 100)} percent`}><strong>{Math.round(zoom * 100)}%</strong><span>{zoomHud.label && !zoomHud.label.endsWith("%") ? zoomHud.label : pdfZoomModeRef.current === "fit" ? "Fit width" : "Zoom"}</span></output>}

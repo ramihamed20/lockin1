@@ -61,6 +61,25 @@ async function openReader(page) {
 
 const readerScale = (page) => page.locator(".workspace-v2-a4-document").evaluate((node) => Number(getComputedStyle(node).getPropertyValue("--workspace-a4-zoom")));
 
+async function pinchBelowFitWidth(page) {
+  const stage = page.locator(".workspace-v2-document-stage");
+  const bounds = await stage.boundingBox();
+  const centerX = bounds.x + bounds.width / 2;
+  const centerY = bounds.y + Math.min(bounds.height / 2, 300);
+  const touch = (type, pointerId, clientX) => stage.dispatchEvent(type, {
+    pointerId, pointerType: "touch", isPrimary: pointerId === 91, clientX, clientY: centerY,
+    button: 0, buttons: type === "pointerup" ? 0 : 1, pressure: type === "pointerup" ? 0 : .5,
+    width: 9, height: 9, bubbles: true, cancelable: true
+  });
+  await touch("pointerdown", 91, centerX - 180);
+  await touch("pointerdown", 92, centerX + 180);
+  await touch("pointermove", 91, centerX - 25);
+  await touch("pointermove", 92, centerX + 25);
+  await touch("pointerup", 91, centerX - 25);
+  await touch("pointerup", 92, centerX + 25);
+  await expect(page.locator(".workspace-v2-a4-live-layer")).not.toHaveClass(/is-live-pinching|is-zoom-settling|is-springing-back/);
+}
+
 for (const viewport of [{ width: 1280, height: 800 }, { width: 1920, height: 1080 }]) {
   test(`a ${viewport.width}px laptop reader has a zoom bar with zoom in, zoom out and reset to fit`, async ({ page }, testInfo) => {
     test.setTimeout(60_000);
@@ -88,6 +107,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 1920, height: 108
     await expect(reset).toHaveText("Fit");
     await reset.click();
     await expect.poll(() => readerScale(page)).toBeCloseTo(start, 1);
+    await expect(bar.getByRole("button", { name: "Zoom out", exact: true })).toBeDisabled();
 
     // One set of zoom controls: the page dock drops its zoom row here.
     await page.locator(".workspace-v2-page-number").click();
@@ -109,6 +129,9 @@ for (const device of [
     await mockReader(page);
     await openReader(page);
     await expect(page.locator(".workspace-v2-zoom-bar")).toBeHidden();
+    const fitWidth = await readerScale(page);
+    await pinchBelowFitWidth(page);
+    await expect.poll(() => readerScale(page)).toBeCloseTo(fitWidth, 3);
     await page.locator(".workspace-v2-page-number").click();
     await expect(page.locator(".workspace-v2-page-navigator .workspace-v2-zoom-control")).toBeHidden();
     await expect(page.locator(".workspace-v2-page-navigator .workspace-v4-zoom-presets")).toBeHidden();
