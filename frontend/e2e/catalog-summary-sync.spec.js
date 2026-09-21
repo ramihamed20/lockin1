@@ -136,6 +136,7 @@ async function openReader(page, route) {
     await chooseNormal.click();
     await expect(chooseNormal).toBeHidden();
   }
+  await page.getByRole("button", { name: "Switch to Write mode" }).click();
 }
 
 function visibleInk(page) {

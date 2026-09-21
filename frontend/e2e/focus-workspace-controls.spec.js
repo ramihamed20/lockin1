@@ -273,7 +273,7 @@ test("pinching past a zoom limit rubber-bands and settles back to a legal scale"
   const box = await stage.boundingBox();
   const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   const readerScale = () => document.evaluate((node) => Number(getComputedStyle(node).getPropertyValue("--workspace-a4-zoom")));
-  const minimumScale = await readerScale();
+  const startingScale = await readerScale();
 
   const touch = (type, pointerId, x, y) => stage.dispatchEvent(type, {
     pointerId, pointerType: "touch", isPrimary: pointerId === 11, clientX: x, clientY: y,
@@ -293,13 +293,17 @@ test("pinching past a zoom limit rubber-bands and settles back to a legal scale"
     return matrix.a;
   });
   expect(liveScale).toBeLessThan(.97);
-  expect(liveScale).toBeGreaterThan(1 / 1.25);
+  // The overview zoom floor is intentionally below fit-to-width. The live
+  // transform may therefore shrink substantially, but must still resist the
+  // raw 60/520 finger-distance ratio rather than following it without bounds.
+  expect(liveScale).toBeGreaterThan(60 / 520);
 
   await touch("pointerup", 11, center.x - 30, center.y);
   await touch("pointerup", 12, center.x + 30, center.y);
   await expect(layer).not.toHaveClass(/is-live-pinching|is-zoom-settling|is-springing-back/);
   // Only the legal scale is ever committed.
-  expect(await readerScale()).toBeCloseTo(minimumScale, 3);
+  expect(startingScale).toBeGreaterThan(.35);
+  expect(await readerScale()).toBeCloseTo(.35, 3);
   expect(await layer.evaluate((node) => getComputedStyle(node).transform)).toMatch(/^(none|matrix\(1, 0, 0, 1, 0, 0\))$/);
 });
 
