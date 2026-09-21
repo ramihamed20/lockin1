@@ -127,15 +127,16 @@ async function mockServer(page, server) {
 async function openReader(page, route) {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(route);
-  await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
   // A study sheet asks which mode to read in; a summary is Normal Mode only and
-  // opens straight into reading. Dismissing it only if it appears keeps this
-  // helper usable for both without racing the dialog.
-  const chooseNormal = page.getByRole("button", { name: /Normal Study/ });
-  if (await chooseNormal.isVisible().catch(() => false)) {
+  // opens straight into reading. The route tells us which contract applies;
+  // checking visibility once raced the asynchronously mounted study dialog.
+  if (route === STUDY_ROUTE) {
+    const chooseNormal = page.getByRole("button", { name: /Normal Study/ });
+    await expect(chooseNormal).toBeVisible({ timeout: 20_000 });
     await chooseNormal.click();
     await expect(chooseNormal).toBeHidden();
   }
+  await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
 }
 
 function visibleInk(page) {
