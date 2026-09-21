@@ -62,7 +62,6 @@ async function openWorkspace(page, viewport) {
   if (page.url().includes(ROUTE.slice(1))) await page.goto("about:blank");
   await page.goto(ROUTE);
   await page.getByRole("button", { name: /Normal Study/ }).click();
-  await page.getByRole("button", { name: "Switch to Write mode" }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
   await expect.poll(async () => page.locator(".workspace-v2-a4-canvas.is-visible").first().evaluate((canvas) => canvas.width > 0 && canvas.height > 0)).toBe(true);
 }
@@ -428,7 +427,7 @@ test("a horizontal one-finger drag pans a zoomed sheet without changing Y", asyn
   expect(afterMomentum.left).not.toBe(before.left);
 });
 
-test("zoom-out reaches overview scale and settles with the sheet centered", async ({ page }) => {
+test("zoom-out rubber-bands and settles back to fit width", async ({ page }) => {
   test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 1280, height: 800 });
@@ -469,7 +468,12 @@ test("zoom-out reaches overview scale and settles with the sheet centered", asyn
   });
   expect(settled.horizontalCenterError).toBeLessThan(1.5);
   expect(settled.leadingGap).toBeLessThanOrEqual(20.5);
-  expect(await readerScale(page)).toBeCloseTo(targetScale, 2);
+  const fit = await page.evaluate(() => {
+    const viewportBounds = document.querySelector(".workspace-v2-document-stage").getBoundingClientRect();
+    const pdf = document.querySelector(".workspace-v2-a4-live-layer").getBoundingClientRect();
+    return { viewportWidth: viewportBounds.width, pdfWidth: pdf.width };
+  });
+  expect(Math.abs(fit.pdfWidth - fit.viewportWidth)).toBeLessThan(1.5);
 });
 
 test("single-finger scrolling and Apple Pencil with palm contact remain intact @chromium-only", async ({ page }) => {
@@ -637,6 +641,7 @@ test("circle erase removes enclosed ink once and remains undoable", async ({ pag
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 834, height: 1194 });
   await page.getByRole("button", { name: "Pen", exact: true }).click();
+  await page.getByRole("switch", { name: /Circle erase/ }).click();
   const stage = page.locator(".workspace-v2-document-stage");
   const pageBounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
   const center = { x: pageBounds.x + pageBounds.width * .5, y: pageBounds.y + pageBounds.height * .34 };
@@ -663,15 +668,32 @@ test("circle erase removes enclosed ink once and remains undoable", async ({ pag
   await expect(page.locator('[data-annotation-type="pen"]')).toHaveCount(0);
 });
 
-test("iPad orientation changes preserve an overview zoom below fit width", async ({ page }) => {
+test("iPad orientation changes preserve the fit-width minimum", async ({ page }) => {
   test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 834, height: 1194 });
-  await exactPinch(page, { xRatio: 0.63, yRatio: 0.045, targetScale: 0.5, moveX: 34, moveY: 27 });
-  const portraitScale = await readerScale(page);
+  const stage = page.locator(".workspace-v2-document-stage");
+  const viewport = await stage.boundingBox();
+  const center = { x: viewport.x + viewport.width * .63, y: viewport.y + viewport.height * .2 };
+  await dispatchTouch(stage, "pointerdown", 51, center.x - 70, center.y);
+  await dispatchTouch(stage, "pointerdown", 52, center.x + 70, center.y);
+  await dispatchTouch(stage, "pointermove", 51, center.x - 12, center.y + 27);
+  await dispatchTouch(stage, "pointermove", 52, center.x + 12, center.y + 27);
+  await dispatchTouch(stage, "pointerup", 51, center.x - 12, center.y + 27);
+  await dispatchTouch(stage, "pointerup", 52, center.x + 12, center.y + 27);
+  await expect(page.locator(".workspace-v2-a4-live-layer")).not.toHaveClass(/is-live-pinching|is-zoom-settling|is-springing-back/);
+  const portrait = await page.evaluate(() => ({
+    stage: document.querySelector(".workspace-v2-document-stage").getBoundingClientRect().width,
+    pdf: document.querySelector(".workspace-v2-a4-live-layer").getBoundingClientRect().width
+  }));
+  expect(Math.abs(portrait.pdf - portrait.stage)).toBeLessThan(1.5);
   await page.setViewportSize({ width: 1194, height: 834 });
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-  expect(await readerScale(page)).toBeCloseTo(portraitScale, 2);
+  await expect.poll(async () => page.evaluate(() => {
+    const stage = document.querySelector(".workspace-v2-document-stage").getBoundingClientRect().width;
+    const pdf = document.querySelector(".workspace-v2-a4-live-layer").getBoundingClientRect().width;
+    return Math.abs(pdf - stage);
+  })).toBeLessThan(1.5);
   const canvas = page.locator(".workspace-v2-a4-canvas.is-visible").first();
   await expect(canvas).toBeVisible();
   await expect.poll(async () => canvas.evaluate((node) => node.width > 0 && node.height > 0)).toBe(true);

@@ -165,9 +165,6 @@ const PAGE_COUNT = 342;
 const PAGE_WIDTH = 690;
 const PAGE_SPACE = 1000;
 const MIN_FOCUS_ZOOM = WORKSPACE_ZOOM.minimum;
-// The catalog reader may zoom below fit-to-width so a student can scan a full
-// page, or two consecutive pages, without introducing a second reader mode.
-const MIN_PDF_OVERVIEW_ZOOM = .35;
 const MAX_FOCUS_ZOOM = WORKSPACE_ZOOM.catalogMaximum;
 const AUTOSAVE_IDLE_MS = 750;
 // The server mirror trails the local save, so a burst of strokes or a scroll
@@ -204,7 +201,6 @@ const TOOL_ITEMS = [
 
 /** @type {Array<[string, string, import("lucide-react").LucideIcon, string]>} */
 const PRIMARY_WRITE_TOOLS = [
-  ["hand", "Pan", Hand, "is-pointer-primary"],
   ["pen", "Pen", PenLine, ""],
   ["highlighter", "Highlight", Highlighter, "is-phone-secondary"],
   ["eraser", "Eraser", Eraser, "is-phone-secondary"],
@@ -611,7 +607,8 @@ export default function CatalogFocusWorkspace({ user = null, variant = "study" }
   const catalogDocument = useCatalogDocument(
     sheet ? materialSlug : "",
     sheet ? sheetSlug : "",
-    summaryMode ? "summary" : ""
+    summaryMode ? "summary" : "",
+    user?.id || ""
   );
   const viewUrl = catalogDocument.document?.viewUrl || "";
   const resolvedMaterials = useMemo(() => (viewUrl && sheet && !sheet.pdfUrl
@@ -700,7 +697,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const wakeLockRef = useRef(null);
   const transformRef = useRef(null);
   const previousToolRef = useRef("hand");
-  const previousWritingToolRef = useRef("pen");
   const zoomRef = useRef(1);
   const pdfZoomModeRef = useRef("fit");
   // A refit caused by the stage changing width has to land on the same reading
@@ -793,6 +789,14 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const storedCircleErase = storedWorkspaceSettings.circleToErase ?? storedWorkspaceSettings.circleToLasso;
   const initialRememberLastPosition = storedWorkspaceSettings.rememberLastPosition !== false;
   const initialRememberZoomLevel = storedWorkspaceSettings.rememberZoomLevel !== false;
+  const rememberedWritingTool = (() => {
+    const remembered = String(toolMemoryRef.current.lastWritingTool || "pen");
+    return DRAWING_TOOLS.has(remembered) && remembered !== "hand" ? remembered : "pen";
+  })();
+  const rememberedPenProfile = String(toolMemoryRef.current.lastPenProfile || PEN_PROFILE.BALL);
+  const initialToolSettings = toolMemoryRef.current[
+    rememberedWritingTool === "pen" ? `pen:${rememberedPenProfile}` : rememberedWritingTool
+  ] || {};
   const configuredPageCount = sheet?.pageCount || (sheet?.pdfUrl ? 1 : PAGE_COUNT);
   const [pageCount, setPageCount] = useState(configuredPageCount);
   // A sheet always opens at the visual beginning.  The stored reader view is
@@ -804,26 +808,25 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     const fitZoom = fitWidthZoom(window.innerWidth, A4_PAGE_WIDTH, window.innerWidth < 1200 ? 16 : 360);
     return Math.min(MAX_FOCUS_ZOOM, Math.max(MIN_FOCUS_ZOOM, fitZoom));
   });
-  const [activeTool, setActiveTool] = useState("hand");
-  const [workspacePosture, setWorkspacePosture] = useState("read");
-  const [activeColor, setActiveColor] = useState(COLORS[0]);
+  const [activeTool, setActiveTool] = useState(rememberedWritingTool);
+  const [activeColor, setActiveColor] = useState(initialToolSettings.color || COLORS[0]);
   const [bookmarked, setBookmarked] = useState(false);
   const [bookmarkBusy, setBookmarkBusy] = useState(false);
   const [sideTab, setSideTab] = useState("notes");
   const [openSurface, setOpenSurface] = useState(null);
-  const [brushSize, setBrushSize] = useState(4);
-  const [brushOpacity, setBrushOpacity] = useState(1);
-  const [pencilOpacity, setPencilOpacity] = useState(.78);
-  const [highlighterOpacity, setHighlighterOpacity] = useState(.34);
-  const [penProfile, setPenProfile] = useState(() => String(PEN_PROFILE.BALL));
-  const [pressureSensitivity, setPressureSensitivity] = useState(.55);
-  const [strokeSmoothing, setStrokeSmoothing] = useState(.5);
-  const [eraserMode, setEraserMode] = useState(() => String(ERASER_MODE.PRECISION));
-  const [shapeStyle, setShapeStyle] = useState("rectangle");
+  const [brushSize, setBrushSize] = useState(() => Number(initialToolSettings.size) || 4);
+  const [brushOpacity, setBrushOpacity] = useState(() => rememberedWritingTool === "pen" ? Number(initialToolSettings.opacity) || 1 : 1);
+  const [pencilOpacity, setPencilOpacity] = useState(() => rememberedWritingTool === "pencil" ? Number(initialToolSettings.opacity) || .78 : .78);
+  const [highlighterOpacity, setHighlighterOpacity] = useState(() => rememberedWritingTool === "highlighter" ? Number(initialToolSettings.opacity) || .34 : .34);
+  const [penProfile, setPenProfile] = useState(rememberedPenProfile);
+  const [pressureSensitivity, setPressureSensitivity] = useState(() => Number.isFinite(Number(initialToolSettings.pressureSensitivity)) ? Number(initialToolSettings.pressureSensitivity) : .55);
+  const [strokeSmoothing, setStrokeSmoothing] = useState(() => Number.isFinite(Number(initialToolSettings.smoothing)) ? Number(initialToolSettings.smoothing) : .5);
+  const [eraserMode, setEraserMode] = useState(() => String(initialToolSettings.eraserMode || ERASER_MODE.PRECISION));
+  const [shapeStyle, setShapeStyle] = useState(() => String(initialToolSettings.shapeStyle || "rectangle"));
   const [lassoMode, setLassoMode] = useState("freeform");
   const [scribbleToErase, setScribbleToErase] = useState(storedWorkspaceSettings.scribbleToErase !== false);
   const [drawAndHold, setDrawAndHold] = useState(storedWorkspaceSettings.drawAndHold !== false);
-  const [circleToErase, setCircleToErase] = useState(storedCircleErase !== false);
+  const [circleToErase, setCircleToErase] = useState(storedCircleErase === true);
   const [recentColors, setRecentColors] = useState(loadRecentColors);
   const [favoriteColors, setFavoriteColors] = useState(() => loadStringList(FAVORITE_COLORS_KEY, 5));
   const [penPresets, setPenPresets] = useState(loadPenPresets);
@@ -859,9 +862,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   }, [sheet?.pdfUrl]);
 
   const clampReaderZoom = useCallback((value) => {
-    const minimum = sheet?.pdfUrl ? MIN_PDF_OVERVIEW_ZOOM : MIN_FOCUS_ZOOM;
+    const minimum = sheet?.pdfUrl ? minimumPdfZoom() : MIN_FOCUS_ZOOM;
     return Math.min(MAX_FOCUS_ZOOM, Math.max(minimum, Number.isFinite(Number(value)) ? Number(value) : 1));
-  }, [sheet?.pdfUrl]);
+  }, [minimumPdfZoom, sheet?.pdfUrl]);
 
   /**
    * A stored zoom is an absolute page scale, so replaying it on a device with a
@@ -1148,6 +1151,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       shapeStyle
     };
     if (activeTool === "pen") toolMemoryRef.current.lastPenProfile = penProfile;
+    toolMemoryRef.current.lastWritingTool = activeTool;
     try { window.localStorage.setItem(TOOL_MEMORY_KEY, JSON.stringify(toolMemoryRef.current)); } catch { /* Tool memory is a best-effort local preference. */ }
   }, [activeColor, activeTool, brushOpacity, brushSize, eraserMode, highlighterOpacity, penProfile, pencilOpacity, pressureSensitivity, shapeStyle, strokeSmoothing]);
   useEffect(() => {
@@ -1357,7 +1361,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     const stage = stageRef.current;
     const keepPdfFitted = () => {
       const minimum = minimumPdfZoom();
-      const nextZoom = pdfZoomModeRef.current === "fit" ? minimum : clampReaderZoom(zoomRef.current);
+      const nextZoom = pdfZoomModeRef.current === "fit" ? minimum : Math.max(zoomRef.current, minimum);
       const previousStageWidth = fittedStageWidthRef.current;
       const stageWidth = stage.clientWidth;
       fittedStageWidthRef.current = stageWidth;
@@ -1389,7 +1393,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     const observer = new window.ResizeObserver(keepPdfFitted);
     observer.observe(stage);
     return () => observer.disconnect();
-  }, [clampReaderZoom, materialSlug, minimumPdfZoom, sheet?.pdfUrl, sheetSlug]);
+  }, [materialSlug, minimumPdfZoom, sheet?.pdfUrl, sheetSlug]);
 
   const resetInitialPdfPosition = useCallback(() => {
     const viewKey = `${materialSlug}/${sheetSlug}`;
@@ -1972,8 +1976,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         const shortcutTool = shortcuts[event.key.toLowerCase()];
         if (shortcutTool) {
           event.preventDefault();
-          setWorkspacePosture("write");
-          previousWritingToolRef.current = shortcutTool;
           setActiveTool(shortcutTool);
           setOpenSurface(null);
         }
@@ -3229,10 +3231,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         initialScale: gesture.pinch.initialScale,
         initialDistance: gesture.pinch.initialFingerDistance,
         currentDistance: distance,
-        minimum: MIN_PDF_OVERVIEW_ZOOM * .2,
+        minimum: MIN_FOCUS_ZOOM * .2,
         maximum: MAX_FOCUS_ZOOM * 4
       });
-      const elasticZoom = elasticZoomScale(rawScale, sheet?.pdfUrl ? MIN_PDF_OVERVIEW_ZOOM : MIN_FOCUS_ZOOM, MAX_FOCUS_ZOOM, ZOOM_OVERSHOOT_RATIO);
+      const elasticZoom = elasticZoomScale(rawScale, minimumPdfZoom(), MAX_FOCUS_ZOOM, ZOOM_OVERSHOOT_RATIO);
       gesture.pinch.currentScale = elasticZoom.legal;
       gesture.pinch.displayScale = elasticZoom.display;
       scheduleLivePinchFrame();
@@ -3684,27 +3686,12 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       if (nextTool === "shapes" && remembered.shapeStyle) setShapeStyle(remembered.shapeStyle);
     }
     setActiveTool(nextTool);
-    if (nextTool !== "hand") previousWritingToolRef.current = nextTool;
     setOpenSurface(null);
     setCustomColorEditorOpen(false);
     if (nextTool !== "select") setSelectedIds([]);
   }
 
-  function showReadMode() {
-    if (activeTool !== "hand") previousWritingToolRef.current = activeTool;
-    setWorkspacePosture("read");
-    setActiveTool("hand");
-    setSelectedIds([]);
-    setOpenSurface(null);
-  }
-
-  function showWriteMode() {
-    setWorkspacePosture("write");
-    selectTool(previousWritingToolRef.current || "pen");
-  }
-
   function chooseWritingTool(tool) {
-    setWorkspacePosture("write");
     selectTool(tool);
   }
 
@@ -4246,10 +4233,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
               </div>
             </div>
             <div className="workspace-v3-primary" ref={toolRailRef}>
-              <button type="button" className={`workspace-v3-posture${workspacePosture === "write" ? " is-writing" : ""}`} onClick={workspacePosture === "read" ? showWriteMode : showReadMode} aria-label={workspacePosture === "read" ? "Switch to Write mode" : "Switch to Read mode"} aria-pressed={workspacePosture === "write"}>
-                {workspacePosture === "read" ? <><PenLine size={18} /><span>Write</span></> : <><Eye size={18} /><span>Read</span></>}
-              </button>
-              {workspacePosture === "write" && <div className="workspace-v2-tool-list" aria-label="Writing tools">
+              <div className="workspace-v2-tool-list" aria-label="Writing tools">
                 {PRIMARY_WRITE_TOOLS.map(([id, label, ToolIcon, responsiveClass]) => {
                   const expanded = activeTool === id && toolOptionsOpen === id;
                   return <WorkspaceIconButton
@@ -4265,11 +4249,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
                   ><ToolIcon size={19} /></WorkspaceIconButton>;
                 })}
                 <WorkspaceIconButton label="Add" active={openSurface === "add"} aria-expanded={openSurface === "add"} aria-controls="workspace-add-popover" data-workspace-surface="add" onClick={() => setOpenSurface((current) => current === "add" ? null : "add")}><Plus size={20} /></WorkspaceIconButton>
-              </div>}
-              {workspacePosture === "write" && <div className="workspace-v2-history" aria-label="Edit history">
+              </div>
+              <div className="workspace-v2-history" aria-label="Edit history">
                 <WorkspaceIconButton label="Undo (Ctrl+Z)" disabled={!undoHistory.length} onClick={undoTool}><Undo2 size={18} /></WorkspaceIconButton>
                 <WorkspaceIconButton label="Redo (Ctrl+Shift+Z)" disabled={!redoHistory.length} onClick={redoTool}><Redo2 size={18} /></WorkspaceIconButton>
-              </div>}
+              </div>
             </div>
             <input ref={imageInputRef} className="workspace-v2-file-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={addImage} tabIndex={-1} aria-hidden="true" />
             <div className="workspace-v2-toolbar-actions" aria-label="Workspace controls">
@@ -4299,7 +4283,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
           {openSurface === "more" && <section id="workspace-more-popover" className="workspace-v2-action-popover is-more" role="dialog" aria-label="More workspace actions" onPointerDown={(event) => event.stopPropagation()}>
             <header><strong>Workspace</strong><button type="button" aria-label="Close workspace actions" onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="more"]')}><X size={17} /></button></header>
             <div className="workspace-v3-menu-list">
-              <button type="button" className="workspace-v3-touch-pan" onClick={() => chooseWritingTool("hand")}><Hand size={18} /><span><strong>Pan</strong><small>Navigate with one finger or a mouse</small></span></button>
               <button type="button" className="workspace-v3-phone-only" onClick={() => chooseWritingTool("highlighter")}><Highlighter size={18} /><span><strong>Highlight</strong><small>Mark important passages</small></span></button>
               <button type="button" className="workspace-v3-phone-only" onClick={() => chooseWritingTool("eraser")}><Eraser size={18} /><span><strong>Eraser</strong><small>Remove ink precisely</small></span></button>
               <button type="button" className="workspace-v3-phone-only" onClick={() => chooseWritingTool("select")}><MousePointer2 size={18} /><span><strong>Lasso</strong><small>Select and transform marks</small></span></button>
@@ -4319,6 +4302,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
                   <button type="button" aria-label={`Delete pen preset ${index + 1}`} onClick={() => setPenPresets((items) => items.filter((item) => item.id !== preset.id))}><X size={10} /></button>
                 </span>)}
                 <button type="button" className="workspace-v4-save-preset" aria-label="Save current pen preset" onClick={savePenPreset} disabled={penPresets.length >= 4}><Plus size={14} /><span>Preset</span></button>
+              </div>
+              <div className="workspace-v4-pen-gestures" aria-label="Pen gestures">
+                <SettingsToggle icon={Shapes} label="Hold to shape" description="Pause at the end to refine lines and shapes" checked={drawAndHold} onChange={setDrawAndHold} />
+                <SettingsToggle icon={Circle} label="Circle erase" description="Circle marks and hold to erase them" checked={circleToErase} onChange={setCircleToErase} />
               </div>
             </>}
             {activeTool === "eraser" && <IconChoiceGroup label="Eraser mode" value={eraserMode} options={ERASER_MODE_OPTIONS} onChange={setEraserMode} />}
@@ -4442,13 +4429,13 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
                 <button type="button" aria-label="Next page" title="Next page" disabled={page >= accessiblePageCount} onClick={() => jumpToPagePosition(page + 1)}><ChevronRight size={16} /></button>
               </div>
               <div className="workspace-v2-zoom-control" role="group" aria-label="Zoom">
-                <button type="button" aria-label="Zoom out" title="Zoom out" disabled={zoom <= clampReaderZoom(MIN_PDF_OVERVIEW_ZOOM) + .001} onClick={() => zoomByStep(1 / 1.25)}><Minus size={16} /></button>
+                <button type="button" aria-label="Zoom out" title="Zoom out" disabled={zoom <= clampReaderZoom(MIN_FOCUS_ZOOM) + .001} onClick={() => zoomByStep(1 / 1.25)}><Minus size={16} /></button>
                 <output aria-label={`Current zoom ${Math.round(zoom * 100)} percent`}>{Math.round(zoom * 100)}%</output>
                 <button type="button" aria-label="Zoom in" title="Zoom in" disabled={zoom >= MAX_FOCUS_ZOOM - .001} onClick={() => zoomByStep(1.25)}><Plus size={16} /></button>
                 {sheet.pdfUrl && <button type="button" className="workspace-v2-fit-width" aria-label="Fit width" title="Fit width" onClick={fitPdfWidth}><MoveHorizontal size={16} /></button>}
               </div>
               {sheet.pdfUrl && <div className="workspace-v4-zoom-presets" role="group" aria-label="Quick zoom presets">
-                {[.5, .75, 1, 1.25, 1.5, 2].map((multiple) => <button key={multiple} type="button" className={Math.abs(zoom / minimumPdfZoom() - multiple) < .04 ? "is-active" : ""} aria-label={multiple === 1 ? "Set zoom to fit width preset" : `Zoom to ${multiple} times fit width`} onClick={() => zoomToFitMultiple(multiple)}>{multiple === 1 ? "Fit" : `${multiple}×`}</button>)}
+                {[1, 1.25, 1.5, 2].map((multiple) => <button key={multiple} type="button" className={Math.abs(zoom / minimumPdfZoom() - multiple) < .04 ? "is-active" : ""} aria-label={multiple === 1 ? "Set zoom to fit width preset" : `Zoom to ${multiple} times fit width`} onClick={() => zoomToFitMultiple(multiple)}>{multiple === 1 ? "Fit" : `${multiple}×`}</button>)}
               </div>}
             </div>}
             <button
@@ -4465,13 +4452,13 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
               shows it only for a fine pointer without a touchscreen, so phones and
               iPads keep pinch zoom and the page dock exactly as they were. */}
           {sheet.pdfUrl && <div className="workspace-v2-zoom-bar" role="group" aria-label="Zoom" onPointerDown={(event) => event.stopPropagation()}>
-            <button type="button" aria-label="Zoom out" title="Zoom out" disabled={zoom <= clampReaderZoom(MIN_PDF_OVERVIEW_ZOOM) + .001} onClick={() => zoomByStep(1 / 1.25)}><Minus size={16} /></button>
+            <button type="button" aria-label="Zoom out" title="Zoom out" disabled={zoom <= clampReaderZoom(MIN_FOCUS_ZOOM) + .001} onClick={() => zoomByStep(1 / 1.25)}><Minus size={16} /></button>
             <output aria-label={`Current zoom ${Math.round(zoom * 100)} percent`}>{Math.round(zoom * 100)}%</output>
             <button type="button" aria-label="Zoom in" title="Zoom in" disabled={zoom >= MAX_FOCUS_ZOOM - .001} onClick={() => zoomByStep(1.25)}><Plus size={16} /></button>
             <span className="workspace-v2-zoom-bar-divider" aria-hidden="true" />
             <button type="button" className="workspace-v4-zoom-fit" aria-label="Fit width" title="Reset zoom to fit the page width" onClick={fitPdfWidth}><MoveHorizontal size={14} aria-hidden="true" /><span>Fit</span></button>
             <div className="workspace-v4-zoom-presets is-compact" role="group" aria-label="Quick zoom presets">
-              {[.5, .75, 1.25, 1.5, 2].map((multiple) => <button key={multiple} type="button" className={Math.abs(zoom / minimumPdfZoom() - multiple) < .04 ? "is-active" : ""} aria-label={`Zoom to ${multiple} times fit width`} onClick={() => zoomToFitMultiple(multiple)}>{multiple}×</button>)}
+              {[1.25, 1.5, 2].map((multiple) => <button key={multiple} type="button" className={Math.abs(zoom / minimumPdfZoom() - multiple) < .04 ? "is-active" : ""} aria-label={`Zoom to ${multiple} times fit width`} onClick={() => zoomToFitMultiple(multiple)}>{multiple}×</button>)}
             </div>
           </div>}
           {sheet.pdfUrl && <output className={`workspace-v4-zoom-hud${zoomHud.visible ? " is-visible" : ""}`} aria-live="polite" aria-label={`Zoom ${Math.round(zoom * 100)} percent`}><strong>{Math.round(zoom * 100)}%</strong><span>{zoomHud.label && !zoomHud.label.endsWith("%") ? zoomHud.label : pdfZoomModeRef.current === "fit" ? "Fit width" : "Zoom"}</span></output>}

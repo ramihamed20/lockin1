@@ -142,10 +142,9 @@ export function suspiciousPalmContact({ event, activePenCount, lastPenAt, lastPe
   // deliberate contacts away from the tip remain eligible for navigation.
   if (activePenCount > 0) return contactSize >= 18 || distanceFromPen < 82;
   const elapsed = now - (Number(lastPenAt) || 0);
-  if (elapsed > 700) return false;
-  if (contactSize >= 24) return true;
-  if (!lastPenPosition) return false;
-  return distanceFromPen < 72;
+  // Once the stylus is up, a normal fingertip means navigation immediately.
+  // Retain only a brief guard for a broad palm landing during pen lift.
+  return elapsed <= 180 && contactSize >= 24;
 }
 
 export function isTypingTarget(target) {

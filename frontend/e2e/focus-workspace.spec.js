@@ -175,7 +175,6 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await expect(page.locator(".workspace-v2-header, .workspace-v2-tool-inspector, .workspace-v2-mobile-panel")).toHaveCount(0);
   await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-desktop-1440x900.png`, fullPage: false });
 
-  await page.getByRole("button", { name: "Switch to Write mode" }).click();
   await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-desktop-write-1440x900.png`, fullPage: false });
 
   await expectViewportOwnedWorkspace(page, 1194, 834);
@@ -255,9 +254,7 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await expect(highlighterOptions.getByRole("slider", { name: "Opacity" })).toBeVisible();
   await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-ipad-portrait-834x1194.png`, fullPage: false });
   await page.locator('[data-workspace-tool="highlighter"]').click();
-  await page.getByRole("button", { name: "Switch to Read mode" }).click();
-  await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-ipad-portrait-read-834x1194.png`, fullPage: false });
-  await page.getByRole("button", { name: "Switch to Write mode" }).click();
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-ipad-portrait-write-834x1194.png`, fullPage: false });
 
   const lassoTool = page.locator('[data-workspace-tool="select"]');
   await lassoTool.click();
@@ -327,7 +324,6 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await expect(studyDialog).toBeVisible();
   await studyDialog.getByRole("button", { name: /Normal Study/ }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
-  await page.getByRole("button", { name: "Switch to Write mode" }).click();
   await penTool.click();
   await expect(penOptions.getByRole("button", { name: "Use #123456" })).toHaveCount(0);
   await expect(penOptions.getByRole("button", { name: "Use #6789ab" })).toHaveCount(1);

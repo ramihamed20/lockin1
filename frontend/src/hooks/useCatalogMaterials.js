@@ -69,6 +69,11 @@ export function clearCatalogMaterialsCache() {
   cache.clear();
 }
 
+/** Warm the shared directory before the student opens Materials. */
+export function preloadCatalogMaterials(user) {
+  return load(cacheKey(user)).promise.catch(() => undefined);
+}
+
 export function useCatalogMaterials(user) {
   const key = cacheKey(user);
   const cached = cache.get(key);

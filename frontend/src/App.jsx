@@ -32,9 +32,10 @@ import { FeatureComingSoon } from "./components/FeatureComingSoon.jsx";
 
 // --- Lazy-loaded pages ---
 const Dashboard = lazyWithRecovery(() => import("./pages/Dashboard.jsx"));
-const Materials = lazyWithRecovery(() => import("./pages/Materials.jsx"));
-const CatalogMaterialSheets = lazyWithRecovery(() => import("./pages/Materials.jsx").then((m) => ({ default: m.CatalogMaterialSheets })));
-const CatalogSheetStudy = lazyWithRecovery(() => import("./pages/Materials.jsx").then((m) => ({ default: m.CatalogSheetStudy })));
+const loadMaterialsPage = () => import("./pages/Materials.jsx");
+const Materials = lazyWithRecovery(loadMaterialsPage);
+const CatalogMaterialSheets = lazyWithRecovery(() => loadMaterialsPage().then((m) => ({ default: m.CatalogMaterialSheets })));
+const CatalogSheetStudy = lazyWithRecovery(() => loadMaterialsPage().then((m) => ({ default: m.CatalogSheetStudy })));
 const CatalogFocusWorkspace = lazyWithRecovery(() => import("./pages/CatalogFocusWorkspace.jsx"));
 const LockInMode = lazyWithRecovery(() => import("./pages/LockInMode.jsx"));
 const Search = lazyWithRecovery(() => import("./pages/Search.jsx"));
@@ -185,6 +186,17 @@ function App() {
 
   useEffect(() => {
     writeSessionUserSnapshot(user);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user?.id || user.onboardingRequired || user.welcomeRequired) return;
+    // Materials is a primary destination. Warm both its small route chunk and
+    // its shared server directory after sign-in so tapping the nav does not
+    // begin two cold requests while leaving the previous page on screen.
+    void loadMaterialsPage();
+    void import("./hooks/useCatalogMaterials.js")
+      .then(({ preloadCatalogMaterials }) => preloadCatalogMaterials(user))
+      .catch(() => undefined);
   }, [user]);
 
   const refreshActiveAccount = useCallback(async () => {

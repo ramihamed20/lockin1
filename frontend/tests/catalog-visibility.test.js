@@ -42,6 +42,7 @@ test("the directory is fetched once per enrolment, not once per screen", async (
   assert.match(hook, /const cache = new Map\(\)/);
   assert.match(hook, /function cacheKey\(user\)/);
   assert.match(hook, /export function clearCatalogMaterialsCache/);
+  assert.match(hook, /export function preloadCatalogMaterials/);
   // A failed list must never be cached as a result, or a retry inherits it.
   assert.match(hook, /cache\.delete\(key\)/);
   // The local fallback stays gone: the server is the only catalog authority.

@@ -93,7 +93,6 @@ for (const orientation of ["portrait", "landscape"]) {
       await page.goto(ROUTE);
       await page.getByRole("button", { name: /Normal Study/ }).click();
       await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
-      await page.getByRole("button", { name: "Switch to Write mode" }).click();
 
       // The reader always fills the viewport, and the page dock is reachable.
       await auditViewport(page, viewport);
@@ -135,7 +134,7 @@ for (const orientation of ["portrait", "landscape"]) {
           clipsOverflow: getComputedStyle(scroller).overflowX === "hidden"
         };
       });
-      expect(rail.tools).toBe(6);
+      expect(rail.tools).toBe(5);
       expect(rail.rows, `the tool rail wrapped on ${viewport.name}`).toBe(1);
       expect(rail.clipsOverflow, `the primary toolbar exposed horizontal scrolling on ${viewport.name}`).toBe(true);
     });
@@ -153,25 +152,20 @@ for (const viewport of [
     await page.getByRole("button", { name: /Normal Study/ }).click();
     await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
     await auditViewport(page, viewport);
-    await page.getByRole("button", { name: "Switch to Write mode" }).click();
     await auditViewport(page, viewport);
     await expect(page.locator(".workspace-v2-toolbar")).toHaveCSS("overflow-x", "hidden");
   });
 }
 
-test("Read and Write preserve tool state while every secondary tool remains reachable", async ({ page }) => {
+test("writing controls open immediately and preserve tool state while every secondary tool remains reachable", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto(ROUTE);
   await page.getByRole("button", { name: /Normal Study/ }).click();
-  await page.getByRole("button", { name: "Switch to Write mode" }).click();
   const pen = page.locator('[data-workspace-tool="pen"]');
   await pen.click();
   await page.getByRole("slider", { name: "Thickness" }).fill("9");
   await pen.click();
-  await page.getByRole("button", { name: "Switch to Read mode" }).click();
-  await expect(pen).toHaveCount(0);
-  await page.getByRole("button", { name: "Switch to Write mode" }).click();
   await expect(pen).toHaveAttribute("aria-pressed", "true");
   await pen.click();
   await expect(page.getByRole("slider", { name: "Thickness" })).toHaveValue("9");
@@ -183,7 +177,7 @@ test("Read and Write preserve tool state while every secondary tool remains reac
   await page.getByRole("button", { name: "Close text editor" }).click();
 
   await page.getByRole("button", { name: "More workspace actions" }).click();
-  for (const label of ["Pan", "Highlight", "Eraser", "Lasso", "Save to Bookmarks", "Fullscreen", "settings"]) await expect(page.getByRole("button", { name: new RegExp(label, "i") })).toBeVisible();
+  for (const label of ["Highlight", "Eraser", "Lasso", "Bookmarks", "Fullscreen", "settings"]) await expect(page.getByRole("button", { name: new RegExp(label, "i") })).toBeVisible();
   const toolbar = page.locator(".workspace-v2-toolbar");
   await expect.poll(async () => toolbar.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
 });
@@ -193,7 +187,6 @@ test("the contextual inspector overlays the reader and preserves page and zoom",
   await page.setViewportSize({ width: 834, height: 1194 });
   await page.goto(ROUTE);
   await page.getByRole("button", { name: /Normal Study/ }).click();
-  await page.getByRole("button", { name: "Switch to Write mode" }).click();
   await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "Page 1 of 41");
   const before = await page.locator(".workspace-v2-document-stage").evaluate((node) => ({ height: node.clientHeight, zoom: getComputedStyle(document.querySelector(".workspace-v2-a4-document")).getPropertyValue("--workspace-a4-zoom") }));
   const pen = page.locator('[data-workspace-tool="pen"]');

@@ -853,6 +853,8 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 .workspace-v3-text-entry input { width: 100%; min-height: 42px; padding: 8px 10px; border: 1px solid var(--workspace-control-border); border-radius: 9px; color: var(--workspace-chrome-text); background: var(--workspace-control-bg); }
 .workspace-v3-menu-primary { min-height: 42px; margin: 2px 10px 10px; padding: 0 14px; border: 0; border-radius: 9px; color: var(--workspace-on-accent); background: var(--workspace-gold); cursor: pointer; font-size: .72rem; font-weight: 800; }
 .workspace-v3-menu-primary:disabled { opacity: .45; cursor: not-allowed; }
+.workspace-v4-pen-gestures { min-width: min(360px, 100%); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding-inline-start: 8px; border-inline-start: 1px solid var(--workspace-border); }
+.workspace-v4-pen-gestures .workspace-v2-settings-toggle { min-height: 44px; }
 
 /* The contextual inspector is a popover, never a second toolbar row. */
 .workspace-v2-tool-options {
@@ -911,6 +913,7 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
     border-radius: 12px;
     transform: none;
   }
+  .workspace-v4-pen-gestures { width: 100%; grid-template-columns: 1fr; padding: 6px 0 0; border-inline-start: 0; border-block-start: 1px solid var(--workspace-border); }
   .workspace-v2-tool-options-title { width: 100%; grid-auto-flow: column; justify-content: start; gap: 4px; padding: 5px 7px 2px; }
   .workspace-v2-tool-settings { width: 100%; flex-wrap: wrap; }
   .workspace-v2-tool-range { width: 100%; flex-basis: 100%; }
