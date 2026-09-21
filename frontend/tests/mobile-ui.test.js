@@ -241,7 +241,8 @@ test("student Materials and Questions use one stacked library navigation languag
   assert.match(styles, /\.catalog-directory,[\s\S]*width: min\(100%, 860px\)/);
   assert.match(materials, /materials\.editionLabel/);
   assert.match(materials, /studyMode: "normal"/);
-  assert.match(materials, /studyMode: "active"/);
+  assert.doesNotMatch(materials, /studyMode: "active"/);
+  assert.match(materials, /catalog-edition-open/);
   assert.doesNotMatch(materials, /catalog-lockin-card/);
   assert.doesNotMatch(sheetCard, /catalog-sheet-capabilities/);
   assert.match(questions, /question-session-intro/);

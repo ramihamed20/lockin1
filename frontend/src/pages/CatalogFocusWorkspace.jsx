@@ -608,7 +608,8 @@ export default function CatalogFocusWorkspace({ user = null, variant = "study" }
   const catalogDocument = useCatalogDocument(
     sheet ? materialSlug : "",
     sheet ? sheetSlug : "",
-    summaryMode ? "summary" : ""
+    summaryMode ? "summary" : "",
+    user?.id || ""
   );
   const viewUrl = catalogDocument.document?.viewUrl || "";
   const resolvedMaterials = useMemo(() => (viewUrl && sheet && !sheet.pdfUrl

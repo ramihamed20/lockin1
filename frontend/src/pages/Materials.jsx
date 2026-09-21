@@ -3,6 +3,7 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import { Icon } from "../lib/icons.jsx";
 import { rememberLastOpenedCatalogSheet, resolveSheetEdition } from "../lib/materialCatalog.js";
 import { useCatalogMaterials } from "../hooks/useCatalogMaterials.js";
+import { preloadCatalogDocument } from "../hooks/useCatalogDocument.js";
 import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
 import { CatalogSheetCard } from "../components/learning/CatalogSheetCard.jsx";
 import { CatalogTile } from "../components/learning/CatalogTile.jsx";
@@ -89,12 +90,20 @@ export function CatalogSheetStudy({ user = null }) {
     if (edition?.deliverable !== false) rememberLastOpenedCatalogSheet(materialSlug, sheetSlug);
   }, [materialSlug, edition?.deliverable, sheetSlug]);
 
+  useEffect(() => {
+    if (!material || !editions.length) return;
+    // Focus is the primary action from this page. Warm its route and each
+    // available edition's protected-document resolution while the student is
+    // reading the choices, so Open does not begin from two cold loads.
+    void import("./CatalogFocusWorkspace.jsx");
+    editions.forEach((item) => { void preloadCatalogDocument(material.slug, item.slug, "", user?.id || ""); });
+  }, [editions, material, user?.id]);
+
   if (loading) return <Page title={t("materials.coreCatalogTitle")}><LoadingPanel variant="sheet" /></Page>;
   if (error) return <Page title={t("materials.sheetNotFoundTitle")}><ErrorPanel message={error} onRetry={reload} /></Page>;
   if (!material || !sheet || !edition) return <Page title={t("materials.sheetNotFoundTitle")}><ErrorPanel message={t("materials.sheetNotFoundText")} /></Page>;
   if (edition.deliverable === false) return <Page title={sheet.title}><ErrorPanel message={t("materials.sheetNotFoundText")} /></Page>;
 
-  const workspace = `/materials/catalog/${material.slug}/sheets/${edition.slug}/workspace`;
   const navigationState = { returnTo: location.pathname, scrollY: window.scrollY };
 
   return (
@@ -108,20 +117,7 @@ export function CatalogSheetStudy({ user = null }) {
           backLabel={material.title}
           breadcrumb={<nav className="catalog-sheet-breadcrumb" aria-label={t("materials.breadcrumbs")}><Link to="/materials">{t("route.materials")}</Link><Icon name="chevron-right" size={14} aria-hidden="true" /><Link to={`/materials/catalog/${material.slug}`} dir="auto">{material.title}</Link><Icon name="chevron-right" size={14} aria-hidden="true" /><span dir="auto" aria-current="page">{sheet.title}</span></nav>}
         />
-        <SheetEditionChooser material={material} editions={editions} current={edition} />
-        <section className="catalog-sheet-section" aria-labelledby="catalog-study-heading">
-          <div className="catalog-sheet-section-heading"><h2 id="catalog-study-heading">{t("materials.studySection")}</h2><p>{t(`materials.edition.${edition.edition || "university"}`)}</p></div>
-          <div className="catalog-action-list">
-            <Link className="catalog-action-row is-primary" title={t("materials.openWorkspace")} to={workspace} state={{ ...navigationState, studyMode: "normal" }}><span className="catalog-action-icon"><Icon name="book-open" size={20} /></span><span><strong>{t("materials.readSheet")}</strong><small>{t("materials.readSheetDescription")}</small></span><Icon name="chevron-right" size={18} aria-hidden="true" /></Link>
-            {edition.hasActiveStudy
-              ? <Link className="catalog-action-row" to={workspace} state={{ ...navigationState, studyMode: "active" }} aria-label={t("materials.openActiveStudy")}><span className="catalog-action-icon"><Icon name="target" size={20} /></span><span><strong>{t("materials.activeStudy")}</strong><small>{t("materials.activeStudyDescription")}</small></span><Icon name="chevron-right" size={18} aria-hidden="true" /></Link>
-              : <p className="catalog-action-note"><Icon name="target" size={17} aria-hidden="true" />{t("materials.activeStudyUnavailable")}</p>}
-          </div>
-        </section>
-        <section className="catalog-sheet-section" aria-labelledby="catalog-practice-heading">
-          <div className="catalog-sheet-section-heading"><h2 id="catalog-practice-heading">{t("materials.practiceSection")}</h2></div>
-          <div className="catalog-action-list"><Link className="catalog-action-row" to={`/questions/categories/ai-sheet/subjects/${material.slug}`}><span className="catalog-action-icon"><Icon name="help" size={20} /></span><span><strong>{t("materials.questions")}</strong><small>{t("materials.questionsDescription")}</small></span><Icon name="chevron-right" size={18} aria-hidden="true" /></Link></div>
-        </section>
+        <SheetEditionChooser material={material} editions={editions} navigationState={navigationState} />
         {edition.summaryPdf?.viewUrl && <section className="catalog-sheet-section" aria-labelledby="catalog-resources-heading">
           <div className="catalog-sheet-section-heading"><h2 id="catalog-resources-heading">{t("materials.resourcesSection")}</h2></div>
           <div className="catalog-action-list"><Link className="catalog-action-row" to={`/materials/catalog/${material.slug}/sheets/${edition.slug}/summary`}><span className="catalog-action-icon"><Icon name="file" size={20} /></span><span><strong>{t("materials.sheetSummary")}</strong><small>{t("materials.summaryDescription")}</small></span><Icon name="chevron-right" size={18} aria-hidden="true" /></Link></div>
@@ -131,8 +127,8 @@ export function CatalogSheetStudy({ user = null }) {
   );
 }
 
-/** The two editions of one sheet, chosen before a study mode. */
-function SheetEditionChooser({ material, editions, current }) {
+/** Each available edition opens its Focus Workspace directly. */
+function SheetEditionChooser({ material, editions, navigationState }) {
   const { t } = useI18n();
   if (!editions.length) return null;
   return (
@@ -140,21 +136,19 @@ function SheetEditionChooser({ material, editions, current }) {
       <div className="catalog-sheet-section-heading"><h2>{t("materials.editionLabel")}</h2></div>
       <div className="catalog-edition-options" role="group">
         {editions.map((item) => {
-          const active = item.slug === current.slug;
           return (
             <Link
               key={item.edition}
-              className={`catalog-edition-option${active ? " is-active" : ""}`}
-              aria-current={active ? "true" : undefined}
-              to={`/materials/catalog/${material.slug}/sheets/${item.slug}`}
-              replace
+              className="catalog-edition-option"
+              to={`/materials/catalog/${material.slug}/sheets/${item.slug}/workspace`}
+              state={{ ...navigationState, studyMode: "normal" }}
             >
               <Icon name={item.edition === "lockin" ? "lock" : "file"} size={17} />
               <span>
                 <strong>{t(`materials.edition.${item.edition}`)}</strong>
                 <small>{t(`materials.editionDescription.${item.edition}`)}{item.pageCount ? ` · ${t("materials.pageCount", { count: item.pageCount })}` : ""}</small>
               </span>
-              <Icon name="check" size={18} aria-hidden="true" />
+              <span className="catalog-edition-open">{t("common.open")}</span>
             </Link>
           );
         })}
