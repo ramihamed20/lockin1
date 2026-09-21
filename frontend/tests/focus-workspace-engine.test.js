@@ -531,6 +531,14 @@ test("palm filtering rejects a nearby broad contact but preserves a second inten
     activeTouchCount: 0
   }), true);
   assert.equal(suspiciousPalmContact({
+    event: { pointerType: "touch", width: 8, height: 8, clientX: 112, clientY: 108 },
+    activePenCount: 0,
+    lastPenAt: 990,
+    lastPenPosition: { x: 100, y: 100 },
+    now: 1000,
+    activeTouchCount: 0
+  }), false);
+  assert.equal(suspiciousPalmContact({
     event: broadContact,
     activePenCount: 1,
     lastPenAt: 900,

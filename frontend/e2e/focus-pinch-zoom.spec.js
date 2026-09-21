@@ -62,7 +62,6 @@ async function openWorkspace(page, viewport) {
   if (page.url().includes(ROUTE.slice(1))) await page.goto("about:blank");
   await page.goto(ROUTE);
   await page.getByRole("button", { name: /Normal Study/ }).click();
-  await page.getByRole("button", { name: "Switch to Write mode" }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
   await expect.poll(async () => page.locator(".workspace-v2-a4-canvas.is-visible").first().evaluate((canvas) => canvas.width > 0 && canvas.height > 0)).toBe(true);
 }

@@ -32,7 +32,6 @@ async function openWorkspace(page, viewport = { width: 1280, height: 900 }) {
   await page.setViewportSize(viewport);
   await page.goto(ROUTE);
   await page.getByRole("button", { name: /Normal Study/ }).click();
-  await page.getByRole("button", { name: "Switch to Write mode" }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
   await expect.poll(async () => page.locator(".workspace-v2-a4-canvas.is-visible").first().evaluate((canvas) => canvas.width > 0)).toBe(true);
 }
@@ -96,9 +95,26 @@ test("Space activates the focused toolbar button and still pans elsewhere", asyn
   await page.locator(".workspace-v2-document-stage").evaluate((node) => node.focus?.());
   await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
   await page.keyboard.down("Space");
-  await expect(page.locator('[data-workspace-tool="hand"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".workspace-v2-document-stage")).toHaveClass(/is-tool-hand/);
   await page.keyboard.up("Space");
   await expect(highlighter).toHaveAttribute("aria-pressed", "true");
+});
+
+test("a finger scroll starts immediately after a Pencil stroke ends", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  await openWorkspace(page, { width: 834, height: 1194 });
+  const stage = page.locator(".workspace-v2-document-stage");
+  const bounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
+  const x = bounds.x + bounds.width * .45;
+  const y = bounds.y + bounds.height * .35;
+
+  await drawStroke(stage, 301, [{ x, y }, { x: x + 70, y: y + 12 }]);
+  const before = await stage.evaluate((node) => node.scrollTop);
+  await dispatchPointer(stage, "pointerdown", 302, x + 4, y + 5, "touch");
+  await dispatchPointer(stage, "pointermove", 302, x + 4, y - 170, "touch");
+  await dispatchPointer(stage, "pointerup", 302, x + 4, y - 170, "touch");
+
+  await expect.poll(async () => stage.evaluate((node) => node.scrollTop)).toBeGreaterThan(before + 40);
 });
 
 test("page keys move the reader instead of only relabelling the indicator", async ({ page }) => {

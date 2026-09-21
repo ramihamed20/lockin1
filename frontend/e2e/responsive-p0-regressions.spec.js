@@ -201,7 +201,6 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     await page.goto(WORKSPACE_ROUTE);
     await page.getByRole("button", { name: /Normal Study/ }).click();
     await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
-    await page.getByRole("button", { name: "Switch to Write mode" }).click();
 
     const toolbar = await page.evaluate((size) => {
       const nav = document.querySelector(".workspace-v2-toolbar");
@@ -234,7 +233,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
 
     expect(toolbar.offScreen, "workspace controls are off screen").toEqual([]);
     expect(toolbar.underTouchSize, "workspace controls are under the touch minimum").toEqual([]);
-    expect(toolbar.total).toBeGreaterThanOrEqual(7);
+    expect(toolbar.total).toBeGreaterThanOrEqual(6);
     expect(toolbar.rows, "the toolbar wrapped to a second row").toBe(1);
     expect(toolbar.horizontalOverflow, "the primary toolbar requires horizontal discovery").toBeLessThanOrEqual(1);
     expect(toolbar.publishedHeight).toBe(toolbar.actualHeight);
@@ -243,7 +242,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     for (const label of ["Pencil", "Shapes", "Image", "Text"]) await expect(page.getByRole("button", { name: label, exact: true })).toBeVisible();
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "More workspace actions" }).click();
-    for (const label of ["Pan", "Highlight", "Eraser", "Lasso", "Bookmarks", "Fullscreen", "settings"]) {
+    for (const label of ["Highlight", "Eraser", "Lasso", "Bookmarks", "Fullscreen", "settings"]) {
       await expect(page.getByRole("button", { name: new RegExp(label, "i") })).toBeVisible();
     }
   });

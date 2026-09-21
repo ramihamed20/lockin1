@@ -129,7 +129,7 @@ test("Catalog sheet exposes a Normal Mode summary, opened in the study reader", 
   assert.match(workspace, /const summaryMode = variant === "summary"/);
   // The summary resolves through the same document endpoint as the study PDF,
   // which is what gives it the same delivery, caching and server sync.
-  assert.match(workspace, /useCatalogDocument\(\s*sheet \? materialSlug : "",[\s\S]*?summaryMode \? "summary" : ""\s*\)/);
+  assert.match(workspace, /useCatalogDocument\(\s*sheet \? materialSlug : "",[\s\S]*?summaryMode \? "summary" : "",[\s\S]*?user\?\.id \|\| ""\s*\)/);
   assert.match(messages, /"materials\.sheetSummary": "Sheet Summary"/);
   assert.match(messages, /"materials\.sheetSummary": "ملخص الشيت"/);
 });
@@ -249,7 +249,8 @@ test("Catalog Focus Workspace uses a compact contextual toolbar and persistent c
   assert.match(workspace, /label="Show page number"/);
   assert.match(workspace, /navigator\.wakeLock\.request\("screen"\)/);
   assert.match(workspace, /MoreHorizontal/);
-  assert.match(workspace, /workspacePosture/);
+  assert.doesNotMatch(workspace, /workspacePosture|Switch to Read mode/);
+  assert.match(workspace, /lastWritingTool/);
   assert.match(workspace, /"materials\.normalStudy"/);
   assert.match(workspace, /"materials\.activeStudy"/);
   assert.match(workspace, /ACTIVE_DIFFICULTIES/);
