@@ -289,9 +289,8 @@ def _sheet_edition(*, document: CatalogDocument) -> dict[str, object]:
         cast(dict[str, object], item["readiness"])["ready"] is True
         for item in cast(list[dict[str, object]], readiness["difficulties"])
     )
-    summary_deliverable = (
-        summary_asset is not None
-        and managed_file_delivery_ready(summary_asset.managed_file)
+    summary_deliverable = summary_asset is not None and managed_file_delivery_ready(
+        summary_asset.managed_file
     )
     page_count = (
         version.page_count
