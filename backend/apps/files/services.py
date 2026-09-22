@@ -55,20 +55,28 @@ def inspect_managed_pdf(managed_file: ManagedFile) -> PdfObjectInspection:
     return PdfObjectInspection(count if count > 0 else None, stored_size)
 
 
-def managed_file_delivery_size(managed_file: ManagedFile) -> int | None:
-    """Return the current stored size only when the file can be delivered."""
+def managed_file_delivery_ready(managed_file: ManagedFile) -> bool:
+    """Return whether persisted file state permits delivery without touching storage."""
 
     if managed_file.validation_status != ManagedFile.ValidationStatus.READY:
-        return None
+        return False
     if managed_file.scan_status in {
         ManagedFile.ScanStatus.QUARANTINED,
         ManagedFile.ScanStatus.FAILED,
     }:
-        return None
+        return False
     if (
         settings.CONTENT_REQUIRE_CLEAN_SCAN
         and managed_file.scan_status != ManagedFile.ScanStatus.CLEAN
     ):
+        return False
+    return bool(managed_file.blob.name and managed_file.size_bytes > 0)
+
+
+def managed_file_delivery_size(managed_file: ManagedFile) -> int | None:
+    """Return the current stored size only when the file can be delivered."""
+
+    if not managed_file_delivery_ready(managed_file):
         return None
     try:
         stored = open_managed_object(managed_file.blob)
