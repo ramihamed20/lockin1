@@ -335,7 +335,7 @@ function SettingsToggle({ icon: ToggleIcon, label, description, checked, onChang
 }
 
 const WorkspaceAnnotation = memo(
-/** @param {{ annotation: any, draft?: boolean, interactionOnly?: boolean }} props */
+/** @param {{ annotation: any, draft?: boolean, interactionOnly?: boolean, groupedHighlighter?: boolean }} props */
 function WorkspaceAnnotation({ annotation, draft = false, interactionOnly = false, groupedHighlighter = false }) {
   const common = { "data-annotation-id": annotation.id, "data-annotation-type": annotation.type };
   if (["pen", "pencil", "highlighter"].includes(annotation.type)) {
@@ -4959,7 +4959,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
                 <button type="button" aria-label="Next page" title="Next page" disabled={page >= accessiblePageCount} onClick={() => jumpToPagePosition(page + 1)}><ChevronRight size={16} /></button>
               </div>
               <div className="workspace-v2-page-jump" role="group" aria-label="Workspace pages">
-                <button type="button" onClick={addBlankPage}><Plus size={16} />Add Page</button>
+                <button type="button" onClick={() => addBlankPage()}><Plus size={16} />Add Page</button>
                 {activeVirtualPageId !== null && <button type="button" onClick={deleteBlankPage}><Trash2 size={16} />Delete blank page</button>}
               </div>
               <div className="workspace-v2-zoom-control" role="group" aria-label="Zoom">
