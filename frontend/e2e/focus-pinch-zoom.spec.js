@@ -509,6 +509,33 @@ test("single-finger scrolling and Apple Pencil with palm contact remain intact @
   await expect(page.locator(".workspace-v2-a4-live-layer")).not.toHaveClass(/is-live-pinching/);
 });
 
+test("Pen keeps fingers for navigation after the old drawing preference and Undo restores ink", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("lock-in.catalog-workspace.drawing-input", "stylus-and-finger");
+  });
+  await mockAuthenticatedWorkspace(page);
+  await keepRawInk(page);
+  await openWorkspace(page, { width: 834, height: 1194 });
+  await page.getByRole("button", { name: "Pen", exact: true }).click();
+  const stage = page.locator(".workspace-v2-document-stage");
+  const bounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
+  const start = { x: bounds.x + bounds.width * .3, y: bounds.y + bounds.height * .3 };
+  const marks = page.locator('.workspace-v2-annotation-layer [data-annotation-id]');
+
+  await drawPointerPath(stage, 61, [start, { x: start.x + 90, y: start.y + 45 }], "pen");
+  await expect(marks).toHaveCount(1);
+  await drawPointerPath(stage, 62, [
+    { x: start.x, y: start.y + 120 },
+    { x: start.x + 90, y: start.y + 165 }
+  ], "touch");
+  await expect(marks).toHaveCount(1);
+
+  await page.getByRole("button", { name: /Undo/ }).click();
+  await expect(marks).toHaveCount(0);
+  await page.getByRole("button", { name: /Redo/ }).click();
+  await expect(marks).toHaveCount(1);
+});
+
 test("opaque Ball Pen stays color-stable and Precision Eraser masks only touched geometry", async ({ page }) => {
   test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
