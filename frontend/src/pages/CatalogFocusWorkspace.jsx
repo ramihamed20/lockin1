@@ -572,9 +572,10 @@ const ACTIVE_DIFFICULTIES = [
   ["hard", "questions.difficulty.hard", "materials.activeDifficulty.hard"]
 ];
 
-function StudyModeDialog({ difficulty, setDifficulty, activeAvailable, busy, error, onNormal, onActive, activeOnly = false }) {
+function StudyModeDialog({ difficulty, setDifficulty, activeAvailable, restartProgress, busy, error, onNormal, onActive, onRestart, activeOnly = false }) {
   const { t } = useI18n();
   const dialogRef = useDialogFocus();
+  const [confirmRestart, setConfirmRestart] = useState(false);
   return (
     <div className="workspace-v2-mode-backdrop">
       <section ref={dialogRef} className="workspace-v2-mode-dialog" role="dialog" aria-modal="true" aria-labelledby="study-mode-title" aria-describedby="study-mode-hint" tabIndex={-1}>
@@ -592,9 +593,15 @@ function StudyModeDialog({ difficulty, setDifficulty, activeAvailable, busy, err
               <span className="workspace-v2-mode-copy"><strong>{t("materials.activeStudy")}</strong><small>{t("materials.activeStudyDescription")}</small></span>
             </div>
             <div className="workspace-v2-difficulty" role="radiogroup" aria-label="Active Study difficulty">
-              {ACTIVE_DIFFICULTIES.map(([id, labelKey, detailKey]) => <button key={id} type="button" role="radio" aria-label={`${t(labelKey)}: ${t(detailKey)}`} title={t(detailKey)} aria-checked={difficulty === id} className={difficulty === id ? "is-selected" : ""} onClick={() => setDifficulty(id)}>{t(labelKey)}</button>)}
+              {ACTIVE_DIFFICULTIES.map(([id, labelKey, detailKey]) => <button key={id} type="button" role="radio" aria-label={`${t(labelKey)}: ${t(detailKey)}`} title={t(detailKey)} aria-checked={difficulty === id} className={difficulty === id ? "is-selected" : ""} onClick={() => { setDifficulty(id); setConfirmRestart(false); }}>{t(labelKey)}</button>)}
             </div>
             <button type="button" className="workspace-v2-active-start" onClick={onActive} disabled={busy || !activeAvailable}>{t(busy ? "materials.activeStudyStarting" : activeAvailable ? "materials.startActiveStudy" : "materials.activeStudyUnavailable")}<ChevronRight size={16} /></button>
+            {restartProgress && <div className="workspace-v2-study-restart">
+              {!confirmRestart ? <button type="button" onClick={() => setConfirmRestart(true)} disabled={busy}>{t("materials.restartSavedStudy", { difficulty: t(`questions.difficulty.${difficulty}`) })}</button> : <>
+                <p>{t("materials.restartStudyConfirm")}</p>
+                <div><button type="button" onClick={() => setConfirmRestart(false)} disabled={busy}>{t("common.cancel")}</button><button type="button" className="is-confirm" onClick={onRestart} disabled={busy}>{t(busy ? "materials.restartingStudy" : "materials.restartStudyNow")}</button></div>
+              </>}
+            </div>}
           </div>
         </div>
         {error && <p className="workspace-v2-mode-error" role="alert">{error}</p>}
@@ -605,6 +612,7 @@ function StudyModeDialog({ difficulty, setDifficulty, activeAvailable, busy, err
 
 function ActiveStudyQuiz({ quiz, answers, setAnswers, result, busy, onSubmit, onDismiss, onRetake, onContinue }) {
   const [index, setIndex] = useState(0);
+  const [questionDirection, setQuestionDirection] = useState("next");
   const dialogRef = useDialogFocus(onDismiss);
   const question = quiz.questions[index];
   const answered = Object.keys(answers).length;
@@ -631,7 +639,7 @@ function ActiveStudyQuiz({ quiz, answers, setAnswers, result, busy, onSubmit, on
       <section ref={dialogRef} className="workspace-v2-quiz-dialog" role="dialog" aria-modal="true" aria-labelledby="active-question-title" tabIndex={-1}>
         <header><div><span>{isFinal ? "Final assessment" : `Pages ${quiz.run.current_page_range.start_page}–${quiz.run.current_page_range.end_page}`}</span><strong>{answered} of {quiz.questions.length} answered</strong></div><button type="button" onClick={onDismiss} aria-label="Close test"><X size={19} /></button></header>
         <div className="workspace-v2-quiz-progress"><span style={{ width: `${((index + 1) / quiz.questions.length) * 100}%` }} /></div>
-        <main>
+        <main key={index} data-question-direction={questionDirection}>
           <span className="workspace-v2-question-number">Question {index + 1} of {quiz.questions.length}</span>
           <h2 id="active-question-title">{question.prompt}</h2>
           <div className="workspace-v2-answer-list" role="radiogroup" aria-label={`Answers for question ${index + 1}`}>
@@ -639,8 +647,8 @@ function ActiveStudyQuiz({ quiz, answers, setAnswers, result, busy, onSubmit, on
           </div>
         </main>
         <footer>
-          <button type="button" onClick={() => setIndex((value) => Math.max(0, value - 1))} disabled={index === 0}><ChevronLeft size={17} />Previous</button>
-          {index < quiz.questions.length - 1 ? <button type="button" className="is-primary" onClick={() => setIndex((value) => value + 1)} disabled={!answers[question.id]}>Next<ChevronRight size={17} /></button> : <button type="button" className="is-primary" onClick={onSubmit} disabled={busy || answered !== quiz.questions.length}>{busy ? "Checking…" : "Submit test"}</button>}
+          <button type="button" onClick={() => { setQuestionDirection("previous"); setIndex((value) => Math.max(0, value - 1)); }} disabled={index === 0}><ChevronLeft size={17} />Previous</button>
+          {index < quiz.questions.length - 1 ? <button type="button" className="is-primary" onClick={() => { setQuestionDirection("next"); setIndex((value) => value + 1); }} disabled={!answers[question.id]}>Next<ChevronRight size={17} /></button> : <button type="button" className="is-primary" onClick={onSubmit} disabled={busy || answered !== quiz.questions.length}>{busy ? "Checking…" : "Submit test"}</button>}
         </footer>
       </section>
     </div>
@@ -725,6 +733,7 @@ export default function CatalogFocusWorkspace({ user = null, variant = "study" }
 }
 
 function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocument = null, documentScope = null, onDocumentChanged = () => {}, summaryMode = false, preferredMode = "" }) {
+  const { t } = useI18n();
   const { materialSlug, sheetSlug } = useParams();
   // A Sheet Summary is a different document from the sheet it belongs to, and
   // the local cache is keyed by slug, so it needs a key of its own or the two
@@ -740,7 +749,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const readerRef = useRef(null);
   const toolbarRef = useRef(null);
   const toolRailRef = useRef(null);
+  const toolListRef = useRef(null);
+  const toolIndicatorRef = useRef(null);
   const toolOptionsRef = useRef(null);
+  const previousToolOptionsHeightRef = useRef(null);
   const stageRef = useRef(null);
   const documentRef = useRef(null);
   const imageInputRef = useRef(null);
@@ -937,6 +949,21 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const [pendingImport, setPendingImport] = useState(null);
   const [draftAnnotation, setDraftAnnotation] = useState(null);
   const toolOptionsOpen = openSurface?.startsWith("tool:") ? openSurface.slice(5) : null;
+  const [lastToolOptions, setLastToolOptions] = useState(null);
+  useEffect(() => {
+    if (toolOptionsOpen) {
+      setLastToolOptions(toolOptionsOpen);
+      return undefined;
+    }
+    if (!lastToolOptions) return undefined;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      setLastToolOptions(null);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => setLastToolOptions(null), 170);
+    return () => window.clearTimeout(timer);
+  }, [lastToolOptions, toolOptionsOpen]);
+  const displayedToolOptions = toolOptionsOpen || lastToolOptions;
   const sideOpen = openSurface === "notes";
   const settingsOpen = openSurface === "settings";
   const wakeLockSupported = typeof navigator !== "undefined" && "wakeLock" in navigator;
@@ -951,10 +978,15 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     )));
   }, [sheet?.pdfUrl]);
 
+  // Fit width is the opening/reset scale, not the lower pinch limit. Keep a
+  // half-width view available on tablets while retaining a readable floor.
+  const minimumAllowedZoom = useCallback(() => sheet?.pdfUrl
+    ? Math.min(minimumPdfZoom(), Math.max(0.3, minimumPdfZoom() * 0.5))
+    : MIN_FOCUS_ZOOM, [minimumPdfZoom, sheet?.pdfUrl]);
+
   const clampReaderZoom = useCallback((value) => {
-    const minimum = sheet?.pdfUrl ? minimumPdfZoom() : MIN_FOCUS_ZOOM;
-    return Math.min(MAX_FOCUS_ZOOM, Math.max(minimum, Number.isFinite(Number(value)) ? Number(value) : 1));
-  }, [minimumPdfZoom, sheet?.pdfUrl]);
+    return Math.min(MAX_FOCUS_ZOOM, Math.max(minimumAllowedZoom(), Number.isFinite(Number(value)) ? Number(value) : 1));
+  }, [minimumAllowedZoom]);
 
   /**
    * A stored zoom is an absolute page scale, so replaying it on a device with a
@@ -1135,6 +1167,31 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     rail.scrollBy({ left: delta, behavior: still ? "auto" : "smooth" });
   }, [activeTool]);
+  // One persistent capsule follows the selected tool. Measuring toolbar chrome
+  // here never changes the PDF stage or its viewport/annotation coordinates.
+  useLayoutEffect(() => {
+    const list = toolListRef.current;
+    const indicator = toolIndicatorRef.current;
+    if (!list || !indicator) return undefined;
+    let readyFrame = 0;
+    const position = () => {
+      const target = list.querySelector(`[data-workspace-tool="${activeTool}"]`);
+      if (!target || target.getClientRects().length === 0) {
+        indicator.style.opacity = "0";
+        return;
+      }
+      indicator.style.width = `${target.offsetWidth}px`;
+      indicator.style.height = `${target.offsetHeight}px`;
+      indicator.style.transform = `translate3d(${target.offsetLeft}px, ${target.offsetTop}px, 0)`;
+      indicator.style.opacity = "1";
+      if (!indicator.dataset.ready) readyFrame = requestAnimationFrame(() => { indicator.dataset.ready = "true"; });
+    };
+    position();
+    const observer = typeof window.ResizeObserver === "undefined" ? null : new window.ResizeObserver(position);
+    if (observer) observer.observe(list);
+    window.addEventListener("resize", position, { passive: true });
+    return () => { cancelAnimationFrame(readyFrame); observer?.disconnect(); window.removeEventListener("resize", position); };
+  }, [activeTool]);
   // Keep each inspector attached to its tool without letting it leave the
   // reader at tablet widths. The phone inspector retains its full-width sheet.
   useLayoutEffect(() => {
@@ -1163,6 +1220,29 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     position();
     window.addEventListener("resize", position, { passive: true });
     return () => { window.cancelAnimationFrame(resetScroll); window.removeEventListener("resize", position); };
+  }, [toolOptionsOpen]);
+  // The inspector stays mounted while switching writing tools. Interpolate its
+  // own height after content changes; it is absolutely positioned and does not
+  // resize the reader or trigger PDF canvas work during this transition.
+  useLayoutEffect(() => {
+    if (!toolOptionsOpen) {
+      previousToolOptionsHeightRef.current = null;
+      return undefined;
+    }
+    const panel = toolOptionsRef.current;
+    if (!panel) return undefined;
+    const previousHeight = previousToolOptionsHeightRef.current;
+    const nextHeight = panel.offsetHeight;
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const animation = previousHeight && Math.abs(previousHeight - nextHeight) > 2 && !reduceMotion
+      ? panel.animate([{ height: `${previousHeight}px` }, { height: `${nextHeight}px` }], {
+        duration: 230, easing: "cubic-bezier(0.22, 1, 0.36, 1)"
+      })
+      : null;
+    return () => {
+      previousToolOptionsHeightRef.current = panel.getBoundingClientRect().height;
+      animation?.cancel();
+    };
   }, [toolOptionsOpen]);
   /**
    * Keyboard-aware layout for the note editor.
@@ -1484,10 +1564,15 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     if (!sheet?.pdfUrl || !stageRef.current) return undefined;
     const stage = stageRef.current;
     const keepPdfFitted = () => {
-      const minimum = minimumPdfZoom();
-      const nextZoom = pdfZoomModeRef.current === "fit" ? minimum : Math.max(zoomRef.current, minimum);
       const previousStageWidth = fittedStageWidthRef.current;
       const stageWidth = stage.clientWidth;
+      const fitZoom = minimumPdfZoom();
+      const previousFitZoom = previousStageWidth
+        ? Math.min(MAX_FOCUS_ZOOM, Math.max(MIN_FOCUS_ZOOM, fitWidthZoom(previousStageWidth, A4_PAGE_WIDTH, 0)))
+        : fitZoom;
+      const nextZoom = pdfZoomModeRef.current === "fit"
+        ? fitZoom
+        : clampReaderZoom(zoomRef.current * fitZoom / previousFitZoom);
       fittedStageWidthRef.current = stageWidth;
       if (Math.abs(zoomRef.current - nextZoom) < .001) return;
       // Docking the side panel narrows the stage, and a narrower stage fits the
@@ -1517,7 +1602,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     const observer = new window.ResizeObserver(keepPdfFitted);
     observer.observe(stage);
     return () => observer.disconnect();
-  }, [materialSlug, minimumPdfZoom, sheet?.pdfUrl, sheetSlug]);
+  }, [clampReaderZoom, materialSlug, minimumPdfZoom, sheet?.pdfUrl, sheetSlug]);
 
   const resetInitialPdfPosition = useCallback(() => {
     const viewKey = `${materialSlug}/${sheetSlug}`;
@@ -3433,7 +3518,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         minimum: MIN_FOCUS_ZOOM * .2,
         maximum: MAX_FOCUS_ZOOM * 4
       });
-      const elasticZoom = elasticZoomScale(rawScale, minimumPdfZoom(), MAX_FOCUS_ZOOM, ZOOM_OVERSHOOT_RATIO);
+      const elasticZoom = elasticZoomScale(rawScale, minimumAllowedZoom(), MAX_FOCUS_ZOOM, ZOOM_OVERSHOOT_RATIO);
       gesture.pinch.currentScale = elasticZoom.legal;
       gesture.pinch.displayScale = elasticZoom.display;
       scheduleLivePinchFrame();
@@ -3769,11 +3854,29 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     const bounds = stage.getBoundingClientRect();
     const x = clientX ?? bounds.left + bounds.width / 2;
     const y = clientY ?? bounds.top + bounds.height / 2;
-    const anchored = zoomScrollForAnchor({ scrollLeft: stage.scrollLeft, scrollTop: stage.scrollTop, viewportLeft: bounds.left, viewportTop: bounds.top, clientX: x, clientY: y, fromScale: zoomRef.current, toScale: clampReaderZoom(nextZoom) });
-    zoomRef.current = anchored.zoom;
-    setZoom(anchored.zoom);
-    revealZoomHud(anchored.zoom, label || (mode === "fit" ? "Fit width" : ""));
-    requestAnimationFrame(() => { stage.scrollLeft = anchored.scrollLeft; stage.scrollTop = anchored.scrollTop; });
+    const finalZoom = clampReaderZoom(nextZoom);
+    if (Math.abs(finalZoom - zoomRef.current) < .001) {
+      revealZoomHud(finalZoom, label || (mode === "fit" ? "Fit width" : ""));
+      return;
+    }
+    const documentElement = documentRef.current?.querySelector(".workspace-v2-a4-document");
+    const documentBounds = documentElement?.getBoundingClientRect();
+    if (sheet?.pdfUrl && documentBounds?.width > 0 && documentBounds.height > 0) {
+      const anchor = documentAnchorFromClient(x, y, documentBounds, zoomRef.current);
+      pendingFitAnchorRef.current = {
+        finalZoom,
+        documentAnchorX: anchor.x,
+        documentAnchorY: anchor.y,
+        focalClientX: x,
+        focalClientY: y
+      };
+    } else {
+      const anchored = zoomScrollForAnchor({ scrollLeft: stage.scrollLeft, scrollTop: stage.scrollTop, viewportLeft: bounds.left, viewportTop: bounds.top, clientX: x, clientY: y, fromScale: zoomRef.current, toScale: finalZoom });
+      requestAnimationFrame(() => { stage.scrollLeft = anchored.scrollLeft; stage.scrollTop = anchored.scrollTop; });
+    }
+    zoomRef.current = finalZoom;
+    setZoom(finalZoom);
+    revealZoomHud(finalZoom, label || (mode === "fit" ? "Fit width" : ""));
   }
 
   function smartZoom(event) {
@@ -3948,7 +4051,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       if (nextTool === "shapes" && remembered.shapeStyle) setShapeStyle(remembered.shapeStyle);
     }
     setActiveTool(nextTool);
-    setOpenSurface(null);
+    setOpenSurface(openSurface?.startsWith("tool:") && CONFIGURABLE_TOOLS.has(nextTool) ? `tool:${nextTool}` : null);
     setCustomColorEditorOpen(false);
     if (nextTool !== "select" && nextTool !== "eraser") setSelectedIds([]);
   }
@@ -4477,6 +4580,37 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     setFocusMessage(`Backed up ${payload.annotations.length} mark${payload.annotations.length === 1 ? "" : "s"} and ${payload.notes.length} note${payload.notes.length === 1 ? "" : "s"}.`);
   }
 
+  async function restartActiveStudy() {
+    const progress = selectedActiveStudyAvailability?.progress;
+    if (!progress?.id || activeStudyBusy || !activeStudyReady) return;
+    setActiveStudyBusy(true);
+    setActiveStudyError("");
+    try {
+      const payload = await focusApi.managedActiveStudyAction(progress.id, "restart");
+      const run = /** @type {any} */ (payload.run);
+      setActiveStudyAvailability((current) => current ? {
+        ...current,
+        difficulties: current.difficulties.map((item) => item.difficulty === run.difficulty ? { ...item, progress: run } : item)
+      } : current);
+      setActiveStudy(run);
+      setActiveQuiz(null);
+      setActiveResult(null);
+      setActiveAnswers({});
+      setStudyMode("active");
+      setModeDialogOpen(false);
+      setEntryModePreference("");
+      setPage(1);
+      pageRef.current = 1;
+      setPageJumpDraft("1");
+      resetReaderToPageOne();
+      setFocusMessage(t("materials.studyRestarted"));
+    } catch (error) {
+      setActiveStudyError(error.message || t("materials.studyRestartFailed"));
+    } finally {
+      setActiveStudyBusy(false);
+    }
+  }
+
   function applyQuickPenPreset(kind) {
     setActiveTool("pen");
     setPenProfile(kind === "bold" ? PEN_PROFILE.BRUSH : PEN_PROFILE.BALL);
@@ -4697,7 +4831,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
               </div>
             </div>
             <div className="workspace-v3-primary" ref={toolRailRef}>
-              <div className="workspace-v2-tool-list" aria-label="Writing tools">
+              <div className="workspace-v2-tool-list" ref={toolListRef} aria-label="Writing tools">
+                <span className="workspace-v2-tool-indicator" ref={toolIndicatorRef} aria-hidden="true" />
                 {PRIMARY_WRITE_TOOLS.map(([id, label, ToolIcon, responsiveClass]) => {
                   const expanded = activeTool === id && toolOptionsOpen === id;
                   return <WorkspaceIconButton
@@ -4812,7 +4947,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
             <div className="workspace-v3-menu-list workspace-v6-history"><p>Edits from this session. Use Undo to restore an earlier step.</p><strong>{undoHistory.length} edit{undoHistory.length === 1 ? "" : "s"} available</strong><button type="button" onClick={undoTool} disabled={!undoHistory.length}><Undo2 size={18} /><span><strong>Undo most recent edit</strong><small>Redo remains available in the toolbar</small></span></button></div>
           </section>}
 
-          {toolOptionsOpen && <div ref={toolOptionsRef} id={`workspace-${toolOptionsOpen}-options`} className="workspace-v2-tool-options" data-workspace-tool={activeTool} role="dialog" aria-label={`${activeToolLabel} options`} onPointerDown={(event) => event.stopPropagation()}>
+          {displayedToolOptions && <div ref={toolOptionsRef} id={`workspace-${displayedToolOptions}-options`} className={`workspace-v2-tool-options${toolOptionsOpen ? "" : " is-exiting"}`} data-workspace-tool={displayedToolOptions} role="dialog" aria-label={`${activeToolLabel} options`} aria-hidden={!toolOptionsOpen} inert={toolOptionsOpen ? undefined : ""} onPointerDown={(event) => event.stopPropagation()}>
             <div className="workspace-v2-tool-options-title"><span><strong>{activeToolLabel}</strong><small>{activeTool === "highlighter" ? "Transparent marking" : activeTool === "eraser" ? "Erase only beneath the tip" : activeTool === "select" ? "Select and transform marks" : activeTool === "shapes" ? "Precise geometry" : "Draw on your workspace"}</small></span><span className={`workspace-v5-stroke-preview is-${activeTool}`} style={cssVars({ "--workspace-tool-color": activeColor, "--workspace-preview-size": `${Math.max(2, brushSize)}px`, "--workspace-preview-opacity": activeToolOpacity })} aria-hidden="true" /></div>
             {activeTool === "eraser" && <section className="workspace-v5-inspector-section"><h3>Eraser size</h3><ToolRange label="Eraser size" value={eraserSize} displayValue={`${eraserSize}px`} min={6} max={48} step={2} preview="eraser" onChange={setEraserSize} /><p>The tip removes only the area it crosses.</p></section>}
             {activeTool === "pen" && <section className="workspace-v5-inspector-section"><h3>Pen type</h3><PenProfilePicker value={penProfile} onChange={changePenProfile} color={activeColor} /></section>}
@@ -4963,7 +5098,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
                 {activeVirtualPageId !== null && <button type="button" onClick={deleteBlankPage}><Trash2 size={16} />Delete blank page</button>}
               </div>
               <div className="workspace-v2-zoom-control" role="group" aria-label="Zoom">
-                <button type="button" aria-label="Zoom out" title="Zoom out" disabled={zoom <= clampReaderZoom(MIN_FOCUS_ZOOM) + .001} onClick={() => zoomByStep(1 / 1.25)}><Minus size={16} /></button>
+                <button type="button" aria-label="Zoom out" title="Zoom out" disabled={zoom <= minimumAllowedZoom() + .001} onClick={() => zoomByStep(1 / 1.25)}><Minus size={16} /></button>
                 <output aria-label={`Current zoom ${Math.round(zoom * 100)} percent`}>{Math.round(zoom * 100)}%</output>
                 <button type="button" aria-label="Zoom in" title="Zoom in" disabled={zoom >= MAX_FOCUS_ZOOM - .001} onClick={() => zoomByStep(1.25)}><Plus size={16} /></button>
                 {sheet.pdfUrl && <button type="button" className="workspace-v2-fit-width" aria-label="Fit width" title="Fit width" onClick={fitPdfWidth}><MoveHorizontal size={16} /></button>}
@@ -4986,7 +5121,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
               shows it only for a fine pointer without a touchscreen, so phones and
               iPads keep pinch zoom and the page dock exactly as they were. */}
           {sheet.pdfUrl && <div className="workspace-v2-zoom-bar" role="group" aria-label="Zoom" onPointerDown={(event) => event.stopPropagation()}>
-            <button type="button" aria-label="Zoom out" title="Zoom out" disabled={zoom <= clampReaderZoom(MIN_FOCUS_ZOOM) + .001} onClick={() => zoomByStep(1 / 1.25)}><Minus size={16} /></button>
+            <button type="button" aria-label="Zoom out" title="Zoom out" disabled={zoom <= minimumAllowedZoom() + .001} onClick={() => zoomByStep(1 / 1.25)}><Minus size={16} /></button>
             <output aria-label={`Current zoom ${Math.round(zoom * 100)} percent`}>{Math.round(zoom * 100)}%</output>
             <button type="button" aria-label="Zoom in" title="Zoom in" disabled={zoom >= MAX_FOCUS_ZOOM - .001} onClick={() => zoomByStep(1.25)}><Plus size={16} /></button>
             <span className="workspace-v2-zoom-bar-divider" aria-hidden="true" />
@@ -5026,7 +5161,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       {studyMode === "active" && activeStudy?.status === "active" && ["reading", "checkpoint", "final"].includes(activeStudy.stage) && <div className="workspace-v2-checkpoint-dock" role="status" aria-live="polite">
         <button type="button" className={`workspace-v2-checkpoint-button${activeStudyButtonReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeStudyButtonReady} aria-label={activeStudyButtonReady ? (activeStudy.stage === "final" ? "Open final exam" : "Open checkpoint") : `Reach page ${accessiblePageCount} to unlock the checkpoint`}>{activeStudyButtonReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{activeStudy.stage === "final" ? "Final Exam" : "Checkpoint"}</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">Reach page {accessiblePageCount}</span></>}</button>
       </div>}
-      {modeDialogOpen && <StudyModeDialog difficulty={activeDifficulty} setDifficulty={setActiveDifficulty} activeAvailable={activeStudyReady} busy={activeStudyBusy || activeStudyAvailabilityLoading} error={activeStudyError} onNormal={chooseNormalStudy} onActive={chooseActiveStudy} activeOnly={entryModePreference === "active"} />}
+      {modeDialogOpen && <StudyModeDialog difficulty={activeDifficulty} setDifficulty={setActiveDifficulty} activeAvailable={activeStudyReady} restartProgress={selectedActiveStudyAvailability?.progress} busy={activeStudyBusy || activeStudyAvailabilityLoading} error={activeStudyError} onNormal={chooseNormalStudy} onActive={chooseActiveStudy} onRestart={restartActiveStudy} activeOnly={entryModePreference === "active"} />}
       {activeQuiz && activeStudy && <ActiveStudyQuiz quiz={activeQuiz} answers={activeAnswers} setAnswers={setActiveAnswers} result={activeResult} busy={activeStudyBusy} onSubmit={submitActiveQuiz} onDismiss={dismissActiveQuiz} onRetake={retakeActiveQuiz} onContinue={continueActiveStudyAnyway} />}
     </main>
   );

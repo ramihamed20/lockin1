@@ -428,7 +428,7 @@ test("a horizontal one-finger drag pans a zoomed sheet without changing Y", asyn
   expect(afterMomentum.left).not.toBe(before.left);
 });
 
-test("zoom-out rubber-bands and settles back to fit width", async ({ page }) => {
+test("zoom-out rubber-bands and settles at the half-width limit", async ({ page }) => {
   test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 1280, height: 800 });
@@ -474,7 +474,7 @@ test("zoom-out rubber-bands and settles back to fit width", async ({ page }) => 
     const pdf = document.querySelector(".workspace-v2-a4-live-layer").getBoundingClientRect();
     return { viewportWidth: viewportBounds.width, pdfWidth: pdf.width };
   });
-  expect(Math.abs(fit.pdfWidth - fit.viewportWidth)).toBeLessThan(1.5);
+  expect(Math.abs(fit.pdfWidth - fit.viewportWidth * .5)).toBeLessThan(1.5);
 });
 
 test("single-finger scrolling and Apple Pencil with palm contact remain intact @chromium-only", async ({ page }) => {
@@ -715,7 +715,7 @@ test("circle erase removes enclosed ink once and remains undoable", async ({ pag
   await expect(page.locator('[data-annotation-type="pen"]')).toHaveCount(0);
 });
 
-test("iPad orientation changes preserve the fit-width minimum", async ({ page }) => {
+test("iPad orientation changes preserve a manual zoom below fit width", async ({ page }) => {
   test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 834, height: 1194 });
@@ -733,14 +733,14 @@ test("iPad orientation changes preserve the fit-width minimum", async ({ page })
     stage: document.querySelector(".workspace-v2-document-stage").getBoundingClientRect().width,
     pdf: document.querySelector(".workspace-v2-a4-live-layer").getBoundingClientRect().width
   }));
-  expect(Math.abs(portrait.pdf - portrait.stage)).toBeLessThan(1.5);
+  expect(portrait.pdf).toBeLessThan(portrait.stage * .75);
   await page.setViewportSize({ width: 1194, height: 834 });
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   await expect.poll(async () => page.evaluate(() => {
     const stage = document.querySelector(".workspace-v2-document-stage").getBoundingClientRect().width;
     const pdf = document.querySelector(".workspace-v2-a4-live-layer").getBoundingClientRect().width;
-    return Math.abs(pdf - stage);
-  })).toBeLessThan(1.5);
+    return pdf / stage;
+  })).toBeCloseTo(portrait.pdf / portrait.stage, 2);
   const canvas = page.locator(".workspace-v2-a4-canvas.is-visible").first();
   await expect(canvas).toBeVisible();
   await expect.poll(async () => canvas.evaluate((node) => node.width > 0 && node.height > 0)).toBe(true);

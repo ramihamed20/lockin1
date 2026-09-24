@@ -66,6 +66,56 @@ async function drawStroke(stage, pointerId, points) {
   await dispatchPointer(stage, "pointerup", pointerId, points.at(-1).x, points.at(-1).y);
 }
 
+test("the writing tool capsule follows its button and respects reduced motion", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  await openWorkspace(page);
+  const capsule = page.locator(".workspace-v2-tool-indicator");
+  const highlighter = page.locator('[data-workspace-tool="highlighter"]').first();
+  await highlighter.click();
+  await expect.poll(async () => {
+    const target = await highlighter.boundingBox();
+    const indicator = await capsule.boundingBox();
+    return Math.abs(target.x - indicator.x) < 2 && Math.abs(target.width - indicator.width) < 2;
+  }).toBe(true);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect.poll(async () => Number.parseFloat(await capsule.evaluate((node) => getComputedStyle(node).transitionDuration))).toBeLessThan(0.001);
+  await page.locator('[data-workspace-tool="eraser"]').first().click();
+  await expect.poll(async () => {
+    const target = await page.locator('[data-workspace-tool="eraser"]').first().boundingBox();
+    const indicator = await capsule.boundingBox();
+    return Math.abs(target.x - indicator.x) < 2;
+  }).toBe(true);
+});
+
+test("tool settings stay connected while switching writing tools", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  await openWorkspace(page);
+  await page.getByRole("button", { name: "Pen", exact: true }).click();
+  const inspector = page.getByRole("dialog", { name: "Pen options" });
+  await expect(inspector).toBeVisible();
+  const original = await inspector.elementHandle();
+  await page.getByRole("button", { name: "Highlight", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Highlight options" })).toBeVisible();
+  expect(await original.evaluate((element) => element.isConnected && element.getAttribute("data-workspace-tool") === "highlighter")).toBe(true);
+});
+
+test("tool settings exit sooner and unmount immediately with reduced motion", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  await openWorkspace(page);
+  const pen = page.getByRole("button", { name: "Pen", exact: true });
+  await pen.click();
+  const inspector = page.locator(".workspace-v2-tool-options");
+  await expect(inspector).toBeVisible();
+  await pen.click();
+  await expect(inspector).toHaveClass(/is-exiting/);
+  await expect(inspector).toHaveCount(0);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await pen.click();
+  await expect(inspector).toBeVisible();
+  await pen.click();
+  await expect(inspector).toHaveCount(0);
+});
+
 test("a study card exports on the current PDF page", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page);
@@ -436,7 +486,7 @@ test("pinching past a zoom limit rubber-bands and settles back to a legal scale"
   const box = await stage.boundingBox();
   const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   const readerScale = () => document.evaluate((node) => Number(getComputedStyle(node).getPropertyValue("--workspace-a4-zoom")));
-  const minimumScale = await readerScale();
+  const fitScale = await readerScale();
 
   const touch = (type, pointerId, x, y) => stage.dispatchEvent(type, {
     pointerId, pointerType: "touch", isPrimary: pointerId === 11, clientX: x, clientY: y,
@@ -455,14 +505,14 @@ test("pinching past a zoom limit rubber-bands and settles back to a legal scale"
     const matrix = new DOMMatrixReadOnly(getComputedStyle(node).transform);
     return matrix.a;
   });
-  expect(liveScale).toBeLessThan(.97);
-  expect(liveScale).toBeGreaterThan(1 / 1.25);
+  expect(liveScale).toBeLessThan(.5);
+  expect(liveScale).toBeGreaterThan(.5 / 1.25);
 
   await touch("pointerup", 11, center.x - 30, center.y);
   await touch("pointerup", 12, center.x + 30, center.y);
   await expect(layer).not.toHaveClass(/is-live-pinching|is-zoom-settling|is-springing-back/);
   // Only the legal scale is ever committed.
-  expect(await readerScale()).toBeCloseTo(minimumScale, 3);
+  expect(await readerScale()).toBeCloseTo(fitScale * .5, 3);
   expect(await layer.evaluate((node) => getComputedStyle(node).transform)).toMatch(/^(none|matrix\(1, 0, 0, 1, 0, 0\))$/);
 });
 

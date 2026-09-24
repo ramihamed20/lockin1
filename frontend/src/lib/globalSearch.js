@@ -2,6 +2,17 @@ export function normalizeSearchText(value) {
   return String(value || "").normalize("NFKC").toLocaleLowerCase().trim().replace(/\s+/g, " ");
 }
 
+/** Local navigation/actions that complement the server-indexed study content. */
+export function searchActions(query, actions = []) {
+  const normalizedQuery = normalizeSearchText(query);
+  if (!normalizedQuery) return [];
+  return actions.filter((action) => normalizeSearchText([
+    action.title,
+    action.subtitle,
+    ...(action.keywords || [])
+  ].join(" ")).includes(normalizedQuery)).map(({ keywords, ...action }) => action);
+}
+
 function resultRank(result, query) {
   const title = normalizeSearchText(result.title);
   const subtitle = normalizeSearchText(result.subtitle);

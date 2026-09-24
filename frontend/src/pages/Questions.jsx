@@ -54,7 +54,7 @@ export default function Questions({ user = null }) {
   return (
     <Page title="Questions" headingHandled>
       <section className="question-directory" aria-labelledby="question-sources-heading">
-        <QuestionDirectoryHeader id="question-sources-heading" title={t("route.questions")} subtitle={t("questions.sourcesSubtitle")} />
+        <QuestionDirectoryHeader id="question-sources-heading" title={t("route.questions")} />
         <section className="questions-category-grid" aria-label={t("questions.categoriesLabel")}>
           {categories.map((category) => <CategoryCard key={category.id} category={category} />)}
         </section>
@@ -104,7 +104,7 @@ export function QuestionCategory({ user = null }) {
   return (
     <Page title={t(category.titleKey)} headingHandled>
       <section className="question-directory" aria-labelledby="question-category-heading">
-        <QuestionDirectoryHeader id="question-category-heading" title={t(category.titleKey)} subtitle={t("questions.chooseSubject")} backTo="/questions" backLabel={t("route.questions")} breadcrumbs={<QuestionBreadcrumbs category={category} />} />
+        <QuestionDirectoryHeader id="question-category-heading" title={t(category.titleKey)} backTo="/questions" backLabel={t("route.questions")} breadcrumbs={<QuestionBreadcrumbs category={category} />} />
         <section className="material-grid catalog-material-grid" aria-label={t("questions.subjectsLabel")}>
           {materials.map((material) => (
             <CatalogTile
@@ -138,7 +138,7 @@ export function QuestionSubjectSheets({ user = null }) {
   return (
     <Page title={material.title} headingHandled>
       <section className="question-directory" aria-labelledby="question-subject-heading">
-        <QuestionDirectoryHeader id="question-subject-heading" title={material.title} subtitle={t("questions.chooseSheet")} backTo={`/questions/categories/${category.id}`} backLabel={t(category.titleKey)} breadcrumbs={<QuestionBreadcrumbs category={category} material={material} />} />
+        <QuestionDirectoryHeader id="question-subject-heading" title={material.title} backTo={`/questions/categories/${category.id}`} backLabel={t(category.titleKey)} breadcrumbs={<QuestionBreadcrumbs category={category} material={material} />} />
         <section className="material-grid catalog-material-grid" aria-label={t("questions.sheetsLabel")}>
           {material.sheets.map((sheet) => (
             <CatalogTile

@@ -22,7 +22,7 @@ export default function Materials({ user = null }) {
   return (
     <Page title="Materials" headingHandled>
       <section className="catalog-directory" aria-labelledby="cohort-materials-heading">
-        <CatalogDirectoryHeader id="cohort-materials-heading" title={t("route.materials")} subtitle={t("materials.chooseSubject")} />
+        <CatalogDirectoryHeader id="cohort-materials-heading" title={t("route.materials")} />
         {materials.length === 0
           ? <EmptyState icon="study" title={t("materials.noCohortMaterialsTitle")} text={t("materials.noCohortMaterialsText")} />
           : (
@@ -67,7 +67,7 @@ export function CatalogMaterialSheets({ user = null }) {
   return (
     <Page title={material.title} headingHandled>
       <section className="catalog-directory" aria-labelledby="catalog-subject-heading">
-        <CatalogDirectoryHeader id="catalog-subject-heading" title={material.title} subtitle={t("materials.chooseSheet")} backTo="/materials" backLabel={t("route.materials")} />
+        <CatalogDirectoryHeader id="catalog-subject-heading" title={material.title} backTo="/materials" backLabel={t("route.materials")} />
         <section className="sheet-grid catalog-sheet-grid" aria-label={t("materials.sheetsOf", { name: material.title })}>
           {material.sheets.map((sheet) => (
             <CatalogSheetCard key={sheet.slug} material={material} sheet={sheet} to={`/materials/catalog/${material.slug}/sheets/${sheet.slug}`} />

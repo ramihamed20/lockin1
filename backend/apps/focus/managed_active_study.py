@@ -700,3 +700,22 @@ def abandon(*, user: User, run_id: UUID) -> ActiveStudyRun:
     run.last_outcome = "abandoned"
     run.save(update_fields=("status", "last_outcome", "updated_at"))
     return run
+
+
+@transaction.atomic
+def restart(*, user: User, run_id: UUID) -> ActiveStudyRun:
+    """Replace this difficulty's active run with a fresh first-part run atomically."""
+
+    current = _locked_run(user=user, run_id=run_id)
+    if current.status != ActiveStudyRun.Status.ACTIVE:
+        raise ManagedActiveStudyRuleError("Only an active Active Study run can be restarted.")
+    sheet_id = cast(UUID, current.sheet_id)
+    difficulty = current.difficulty
+    edition = current.edition
+    abandon(user=user, run_id=run_id)
+    fresh, created = start(
+        user=user, sheet_id=sheet_id, difficulty=difficulty, edition=edition
+    )
+    if not created:
+        raise ManagedActiveStudyRuleError("Active Study could not be restarted. Try again.")
+    return fresh

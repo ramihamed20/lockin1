@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import { discoveryApi } from "../../api/learning.js";
 import { COMPACT_SHELL_QUERY } from "../../lib/constants.js";
-import { mergeSearchResults, normalizeSearchText } from "../../lib/globalSearch.js";
+import { mergeSearchResults, normalizeSearchText, searchActions } from "../../lib/globalSearch.js";
 import { Icon } from "../../lib/icons.jsx";
 import { hasOperationalCapability } from "../../lib/authz.js";
 import { isStudioRoute, studioSearchResults } from "../../lib/studioAreas.js";
@@ -19,7 +19,8 @@ const TYPE_PRESENTATION = {
   review: { icon: "target", label: "search.typeReview" },
   studio: { icon: "settings", label: "search.typeStudio" },
   "studio-subject": { icon: "book-open", label: "search.typeStudioSubject" },
-  "studio-student": { icon: "user", label: "search.typeStudent" }
+  "studio-student": { icon: "user", label: "search.typeStudent" },
+  action: { icon: "user", label: "search.typeAction" }
 };
 
 function HighlightMatch({ value, query }) {
@@ -64,10 +65,33 @@ export function GlobalSearch({ onOpenChange, operationsSession = null }) {
   const inStudio = isStudioRoute(location.pathname) && Boolean(operationsSession);
   const [studioSubjects, setStudioSubjects] = useState([]);
   const studioSubjectsRequestedRef = useRef(false);
+  const actionResults = searchActions(query, [
+    {
+      type: "action",
+      title: t("search.action.account"),
+      subtitle: t("search.action.accountSubtitle"),
+      destination: "/settings?section=account",
+      keywords: ["account", "profile", "security", "email", "sessions", "الحساب", "الملف الشخصي", "الأمان", "البريد", "الجلسات"]
+    },
+    {
+      type: "action",
+      title: t("search.action.changeUsername"),
+      subtitle: t("search.action.accountSubtitle"),
+      destination: "/settings?section=account&focus=username",
+      keywords: ["username", "user name", "change username", "edit username", "handle", "اسم المستخدم", "تغيير اسم المستخدم", "تعديل اسم المستخدم"]
+    },
+    {
+      type: "action",
+      title: t("search.action.changePassword"),
+      subtitle: t("search.action.accountSubtitle"),
+      destination: "/settings?section=account&focus=password",
+      keywords: ["password", "change password", "reset password", "كلمة المرور", "تغيير كلمة المرور", "إعادة تعيين كلمة المرور"]
+    }
+  ]);
   const results = useMemo(() => {
     const studio = inStudio ? studioSearchResults(query, operationsSession, studioSubjects) : [];
-    return [...studio, ...mergeSearchResults(query, serverResults)].slice(0, 16);
-  }, [inStudio, operationsSession, query, serverResults, studioSubjects]);
+    return [...studio, ...mergeSearchResults(query, [...actionResults, ...serverResults])].slice(0, 16);
+  }, [actionResults, inStudio, operationsSession, query, serverResults, studioSubjects]);
   const normalizedQuery = normalizeSearchText(query);
 
   const close = useCallback(({ restoreFocus = false } = {}) => {

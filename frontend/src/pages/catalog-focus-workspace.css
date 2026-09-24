@@ -1528,3 +1528,97 @@ html.ix-hover .workspace-v2-action-popover .workspace-v3-menu-grid > button:not(
 
 /* Keep the first writing tool reachable when the rail is wider than its slot. */
 .workspace-v2-toolbar .workspace-v3-primary { justify-content: flex-start; }
+
+.workspace-v2-study-restart { display: grid; gap: 8px; border-block-start: 1px solid var(--workspace-border); padding-block-start: 10px; }
+.workspace-v2-study-restart > button { min-height: 40px; border: 0; color: var(--workspace-chrome-secondary); background: transparent; cursor: pointer; font-size: .7rem; }
+.workspace-v2-study-restart > button:hover { color: var(--workspace-chrome-text); }
+.workspace-v2-study-restart p { margin: 0; color: var(--workspace-chrome-secondary); font-size: .72rem; line-height: 1.45; }
+.workspace-v2-study-restart > div { display: flex; justify-content: flex-end; gap: 8px; }
+.workspace-v2-study-restart > div button { min-height: 40px; padding-inline: 12px; border: 1px solid var(--workspace-control-border); border-radius: 9px; color: var(--workspace-chrome-text); background: var(--workspace-control-bg); cursor: pointer; font-size: .7rem; }
+.workspace-v2-study-restart > div button.is-confirm { border-color: var(--workspace-gold); color: var(--workspace-on-accent); background: var(--workspace-gold); font-weight: 750; }
+.workspace-v2-study-restart button:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Spatial motion: only chrome and newly inserted workspace content move.
+   The PDF stage, page canvas, ink input and pinch transform stay immediate. */
+.workspace-v2-tool-list { position: relative; }
+.workspace-v2-tool-indicator {
+  position: absolute;
+  inset: 0 auto auto 0;
+  z-index: 0;
+  width: 0;
+  height: 0;
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--workspace-violet) 27%, var(--workspace-control-bg));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--workspace-violet-bright) 25%, transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+.workspace-v2-tool-indicator[data-ready="true"] {
+  transition: transform var(--motion-panel-duration) var(--motion-enter-ease),
+    width var(--motion-panel-duration) var(--motion-enter-ease),
+    height var(--motion-panel-duration) var(--motion-enter-ease),
+    opacity var(--motion-micro-duration) var(--motion-enter-ease);
+}
+.workspace-v2-toolbar .workspace-v2-tool-list > button { position: relative; z-index: 1; }
+.workspace-v2-toolbar .workspace-v2-tool-list > .workspace-v3-tool-button.is-active {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.workspace-v2-tool-options { transform-origin: var(--workspace-popover-origin, 50%) top; }
+.workspace-v2-action-popover.is-add,
+.workspace-v2-action-popover.is-text { transform-origin: center top; }
+.workspace-v2-action-popover.is-more,
+.workspace-v2-page-navigator { transform-origin: right top; }
+[dir="rtl"] .workspace-v2-action-popover.is-more,
+[dir="rtl"] .workspace-v2-page-navigator { transform-origin: left top; }
+.workspace-v2-quiz-progress span { transition: width var(--motion-panel-duration) var(--motion-enter-ease); }
+
+@keyframes workspace-motion-enter { from { opacity: .78; } to { opacity: 1; } }
+@keyframes workspace-motion-toolbar { from { opacity: .55; transform: translateY(-5px) scale(.992); } to { opacity: 1; transform: none; } }
+@keyframes workspace-motion-modal { from { opacity: 0; transform: translateY(6px) scale(.975); } to { opacity: 1; transform: none; } }
+@keyframes workspace-motion-reveal { from { opacity: .25; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+@keyframes workspace-motion-selection { from { opacity: 0; } to { opacity: 1; } }
+@keyframes workspace-motion-side { from { opacity: .4; } to { opacity: 1; } }
+@keyframes workspace-motion-inspector-content { from { opacity: .45; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+@keyframes workspace-question-next { from { opacity: .55; transform: translateX(8px); } to { opacity: 1; transform: none; } }
+@keyframes workspace-question-previous { from { opacity: .55; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+@keyframes workspace-inspector-exit { from { opacity: 1; transform: translateX(-50%); } to { opacity: 0; transform: translateX(-50%) translateY(-3px) scale(.99); } }
+@keyframes workspace-inspector-exit-compact { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-3px) scale(.99); } }
+
+@media (prefers-reduced-motion: no-preference) {
+  .workspace-v2 { animation: workspace-motion-enter var(--motion-page-duration) var(--motion-enter-ease) both; }
+  .workspace-v2-toolbar { animation: workspace-motion-toolbar var(--motion-panel-duration) var(--motion-enter-ease) both; }
+  .workspace-v2-toolbar-actions,
+  .workspace-v3-quick-colors { animation: workspace-motion-selection var(--motion-control-duration) var(--motion-enter-ease) 45ms both; }
+  .workspace-v2-tool-options > .workspace-v5-inspector-section { animation: workspace-motion-inspector-content var(--motion-control-duration) var(--motion-enter-ease) both; }
+  .workspace-v2-mode-dialog,
+  .workspace-v2-quiz-dialog,
+  .workspace-v2-quiz-result { animation: workspace-motion-modal var(--motion-panel-duration) var(--motion-enter-ease) both; }
+  .workspace-v2-a4-page.is-virtual { animation: workspace-motion-reveal var(--motion-panel-duration) var(--motion-enter-ease) both; }
+  .workspace-v2-selection-box { animation: workspace-motion-selection var(--motion-micro-duration) var(--motion-enter-ease) both; }
+  .workspace-v2-side.is-open { animation: workspace-motion-side var(--motion-panel-duration) var(--motion-enter-ease) both; }
+  .workspace-v2-quiz-dialog > main[data-question-direction="next"] { animation: workspace-question-next var(--motion-popover-duration) var(--motion-enter-ease) both; }
+  .workspace-v2-quiz-dialog > main[data-question-direction="previous"] { animation: workspace-question-previous var(--motion-popover-duration) var(--motion-enter-ease) both; }
+  .workspace-v2-tool-options { animation-duration: var(--motion-popover-duration); }
+  .workspace-v2-tool-options.is-exiting { pointer-events: none; animation: workspace-inspector-exit var(--motion-exit-duration) var(--motion-exit-ease) both !important; }
+  .workspace-v2-action-popover,
+  .workspace-v2-page-navigator { animation-duration: var(--motion-popover-duration); }
+}
+@media (prefers-reduced-motion: no-preference) and (max-width: 900px) {
+  .workspace-v2-tool-options.is-exiting { animation-name: workspace-inspector-exit-compact !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-v2-tool-indicator { transition: none !important; }
+  .workspace-v2-toolbar-actions,
+  .workspace-v3-quick-colors,
+  .workspace-v2-tool-options > .workspace-v5-inspector-section { animation: none !important; }
+  .workspace-v2,
+  .workspace-v2-mode-dialog,
+  .workspace-v2-quiz-dialog,
+  .workspace-v2-quiz-result,
+  .workspace-v2-a4-page.is-virtual,
+  .workspace-v2-selection-box,
+  .workspace-v2-side.is-open { animation: none !important; }
+  .workspace-v2-quiz-dialog > main { animation: none !important; }
+  .workspace-v2-quiz-progress span { transition: none; }
+}

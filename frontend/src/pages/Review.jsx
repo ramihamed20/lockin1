@@ -51,9 +51,8 @@ export default function ReviewCenter() {
           <div className="review-bank-entry-copy">
             <span className="review-feature-icon"><Icon name="target" size={22} /></span>
             <div>
-              <p className="eyebrow">{t("review.personalized")}</p>
               <h2 id="review-bank-title">{t("review.bank")}</h2>
-              <p dir="auto">{bank.active_count ? t("review.needReview", { count: bank.active_count, subjects: t("review.subjectCount", { count: bank.subjects.length }) }) : t("review.allCaughtUp")}</p>
+              {!bank.active_count && <p dir="auto">{t("review.allCaughtUp")}</p>}
             </div>
           </div>
           <div className="review-bank-entry-actions">
@@ -74,12 +73,12 @@ export default function ReviewCenter() {
         </section>
 
         <section className="review-center-section" aria-labelledby="subjects-title">
-          <header className="review-section-heading"><div><h2 id="subjects-title">{t("review.subjectsTitle")}</h2><p>{t("review.subjectsCopy")}</p></div><Link to="/review/bank">{t("review.viewAll")}</Link></header>
+          <header className="review-section-heading"><h2 id="subjects-title">{t("review.subjectsTitle")}</h2><Link to="/review/bank">{t("review.viewAll")}</Link></header>
           {bank.subjects.length ? <div className="review-subject-list">{bank.subjects.slice(0, 4).map((subject) => <SubjectRow key={subject.subject_key} subject={subject} />)}</div> : <EmptyState title={t("review.caughtUpTitle")} text={t("review.caughtUpText")} />}
         </section>
 
         <section className="review-center-section" aria-labelledby="recent-mistakes-title">
-          <header className="review-section-heading"><div><h2 id="recent-mistakes-title">{t("review.recentMistakes")}</h2><p>{t("review.recentMistakesCopy")}</p></div><span>{queue.count}</span></header>
+          <header className="review-section-heading"><h2 id="recent-mistakes-title">{t("review.recentMistakes")}</h2><span>{queue.count}</span></header>
           {queue.results.length ? <div className="recent-mistake-list">{queue.results.map((item) => <RecentMistake key={item.id} item={item} />)}</div> : <EmptyState title={t("review.noMistakesTitle")} text={t("review.noMistakesText")} />}
         </section>
       </div>

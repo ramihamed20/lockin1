@@ -61,7 +61,6 @@ export default function Ranked() {
     <Page title="Ranked" subtitle={t("ranked.subtitle")}>
       <section className="ranked-hero">
         <div>
-          <p className="eyebrow">{t("ranked.currentRanking")}</p>
           <h2 dir="auto">{definition?.title || t("ranked.noRankingPublished")}</h2>
           <p dir="auto">{definition ? `${definition.period?.replaceAll("_", " ") || t("ranked.current")} · ${definition.tie_strategy || t("ranked.rankingRules")}` : t("ranked.noSnapshotYet")}</p>
           {ranking.snapshot && <span className="pill success" dir="auto"><Icon name="trophy" size={16} /> {snapshotLabel(ranking.snapshot, t)}</span>}
@@ -76,7 +75,7 @@ export default function Ranked() {
       <section className="dashboard-main">
         <Leaderboard entries={Array.isArray(ranking.entries) ? ranking.entries : []} />
         <article className="settings-panel">
-          <div className="panel-title"><div><p className="eyebrow">{t("ranked.privacy")}</p><h2>{t("ranked.visibility")}</h2></div><span><Icon name="eye" size={16} /></span></div>
+          <div className="panel-title"><h2>{t("ranked.visibility")}</h2><span><Icon name="eye" size={16} /></span></div>
           {saveError && <ErrorPanel message={saveError} />}
           {profile && <form className="password-form" onSubmit={saveProfile}>
             <label className="form-row"><span>{t("ranked.includeScore")}</span><input type="checkbox" checked={profile.included === true} onChange={(event) => setProfile((current) => ({ ...current, included: event.target.checked }))} /></label>
@@ -93,7 +92,7 @@ function Leaderboard({ entries }) {
   const { t } = useI18n();
   return (
     <article className="panel leaderboard-card">
-      <div className="panel-title"><div><p className="eyebrow">{t("ranked.publishedEntries")}</p><h2>{t("ranked.leaderboard")}</h2></div><span><Icon name="medal" size={16} /></span></div>
+      <div className="panel-title"><h2>{t("ranked.leaderboard")}</h2><span><Icon name="medal" size={16} /></span></div>
       {!entries.length ? <EmptyState title={t("ranked.noEntriesTitle")} text={t("ranked.noEntriesText")} /> : (
         <div className="rank-list">
           {entries.map((entry) => (

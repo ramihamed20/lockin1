@@ -146,7 +146,7 @@ export default function StudyPlan() {
 
       <section className="study-plan-grid">
         <article className="panel study-plan-composer">
-          <div className="panel-title"><div><p className="eyebrow">{t("studyPlan.addBlock")}</p><h2>{t("studyPlan.planSession")}</h2></div><span><Icon name="plus" size={16} /></span></div>
+          <div className="panel-title"><h2>{t("studyPlan.planSession")}</h2><span><Icon name="plus" size={16} /></span></div>
           <form onSubmit={submitTask}>
             <label className="study-plan-field study-plan-field--wide">{t("studyPlan.taskTitle")}<input autoComplete="off" maxLength={180} placeholder={t("studyPlan.taskPlaceholder")} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label>
             <label className="study-plan-field">{t("studyPlan.subject")} <span>{t("studyPlan.optional")}</span><input autoComplete="off" maxLength={120} placeholder={t("studyPlan.subjectPlaceholder")} value={form.subject} onChange={(event) => setForm({ ...form, subject: event.target.value })} /></label>
@@ -159,7 +159,7 @@ export default function StudyPlan() {
 
         <section className="study-plan-week" aria-label={t("studyPlan.weekLabel")}>
           <header className="study-plan-weekbar">
-            <div><p className="eyebrow">{t("studyPlan.weekOf")}</p><h2 dir="auto">{readableDate(range.from, { month: "long", day: "numeric" })} – {readableDate(range.to, { month: "short", day: "numeric" })}</h2></div>
+            <h2 dir="auto">{readableDate(range.from, { month: "long", day: "numeric" })} – {readableDate(range.to, { month: "short", day: "numeric" })}</h2>
             <div className="study-plan-week-actions">
               <button type="button" aria-label={t("studyPlan.previousWeek")} onClick={() => setWeekStart(addDays(weekStart, -7))}><Icon name="chevron-left" size={18} /></button>
               {!isCurrentWeek && <button className="study-plan-today" type="button" onClick={() => setWeekStart(startOfWeek())}>{t("studyPlan.today")}</button>}

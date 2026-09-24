@@ -121,6 +121,15 @@
     --motion-base: 180ms cubic-bezier(0.2, 0, 0, 1);
     --motion-theme: 180ms cubic-bezier(0.2, 0, 0, 1);
     --motion-spring: 240ms cubic-bezier(0.16, 1, 0.3, 1);
+    /* Shared spatial motion contract. Prefer these for new UI state changes. */
+    --motion-micro-duration: 150ms;
+    --motion-control-duration: 190ms;
+    --motion-popover-duration: 230ms;
+    --motion-panel-duration: 320ms;
+    --motion-page-duration: 380ms;
+    --motion-exit-duration: 170ms;
+    --motion-enter-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --motion-exit-ease: cubic-bezier(0.4, 0, 1, 1);
 
     /* Stacking */
     --z-content: 0;

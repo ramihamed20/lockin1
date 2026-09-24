@@ -53,7 +53,7 @@ export default function Search() {
         <label className="field"><span>{t("search.fieldLabel")}</span><input ref={inputRef} type="search" value={draft} onChange={(event) => setDraft(event.target.value.slice(0, 120))} placeholder={t("search.placeholder")} maxLength={120} /></label>
       </form>
 
-      {!normalizedDraft ? <p className="muted">{t("search.typeToSearch")}</p> : results.loading ? <LoadingPanel /> : results.error ? <ErrorPanel message={results.error} onRetry={results.reload} /> : mergedResults.length ? <section className="list-panel">
+      {!normalizedDraft ? null : results.loading ? <LoadingPanel /> : results.error ? <ErrorPanel message={results.error} onRetry={results.reload} /> : mergedResults.length ? <section className="list-panel">
         {mergedResults.map((result) => <ListRow key={`${result.destination}-${result.type}`} title={result.title} meta={[result.subtitle, t(TYPE_KEYS[result.type] || "search.typeTopic")].filter(Boolean).join(" · ")} icon="search" action={<Link className="btn btn-soft compact" to={result.destination}>{t("common.open")}</Link>} />)}
       </section> : <p className="muted">{t("search.noResults")}</p>}
     </Page>
