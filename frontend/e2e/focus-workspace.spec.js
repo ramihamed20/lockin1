@@ -203,7 +203,7 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   const settings = page.getByRole("dialog", { name: "Workspace settings" });
   await expect(settings).toBeVisible();
   await expect(settings.getByRole("switch", { name: /Scribble to erase/ })).toBeVisible();
-  await expect(settings.getByRole("switch", { name: /Hold to shape/ })).toBeVisible();
+  await expect(settings.getByRole("switch", { name: /Perfect shapes on release/ })).toBeVisible();
   await settings.getByRole("button", { name: /Gestures Touch and shortcuts/ }).click();
   await expect(settings.getByRole("switch", { name: /Circle to erase/ })).toBeVisible();
   await settings.getByRole("button", { name: /Workspace Pages and study tools/ }).click();

@@ -80,7 +80,11 @@ def validate_payload(*, tool: str, value: object) -> dict[str, Any]:
 
     if tool in STROKE_TOOLS:
         allowed = {"kind", "samples", "erasures"}
-        if not {"kind", "samples"}.issubset(payload) or not set(payload).issubset(allowed) or payload.get("kind") != "stroke":
+        if (
+            not {"kind", "samples"}.issubset(payload)
+            or not set(payload).issubset(allowed)
+            or payload.get("kind") != "stroke"
+        ):
             raise FocusValidationError("A drawing annotation requires stroke samples.")
         samples = payload["samples"]
         if (
@@ -119,7 +123,7 @@ def validate_payload(*, tool: str, value: object) -> dict[str, Any]:
                     ),
                 }
             )
-        result: dict[str, Any] = {"kind": "stroke", "samples": normalized}
+        stroke_result: dict[str, Any] = {"kind": "stroke", "samples": normalized}
         if "erasures" in payload:
             erasures = payload["erasures"]
             if (
@@ -133,14 +137,22 @@ def validate_payload(*, tool: str, value: object) -> dict[str, Any]:
                 if not isinstance(erasure, Mapping) or set(erasure) != {"radius", "points"}:
                     raise FocusValidationError(f"Ink erasure {index} has an invalid shape.")
                 points = erasure["points"]
-                if not isinstance(points, Sequence) or isinstance(points, (str, bytes)) or not 1 <= len(points) <= 96:
+                if (
+                    not isinstance(points, Sequence)
+                    or isinstance(points, (str, bytes))
+                    or not 1 <= len(points) <= 96
+                ):
                     raise FocusValidationError(f"Ink erasure {index} has invalid points.")
-                normalized_erasures.append({
-                    "radius": _number(erasure["radius"], label="erasure.radius", minimum=0.0005, maximum=0.08),
-                    "points": [_point(point, label="erasure.point") for point in points],
-                })
-            result["erasures"] = normalized_erasures
-        return result
+                normalized_erasures.append(
+                    {
+                        "radius": _number(
+                            erasure["radius"], label="erasure.radius", minimum=0.0005, maximum=0.08
+                        ),
+                        "points": [_point(point, label="erasure.point") for point in points],
+                    }
+                )
+            stroke_result["erasures"] = normalized_erasures
+        return stroke_result
 
     if tool in SHAPE_TOOLS:
         if set(payload) != {"kind", "start", "end"} or payload.get("kind") != "shape":

@@ -1,11 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { withoutServiceWorker } from "./helpers/serviceWorker.js";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
+import { keepRawInk } from "./helpers/workspaceSettings.js";
 
 const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 
 async function mockWorkspace(page) {
   await withoutServiceWorker(page);
+  await keepRawInk(page);
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     // The gated routes need the access contract answered before they render.
@@ -203,6 +205,7 @@ test("erasing across a dense page stays responsive and undoes exactly", async ({
   await page.getByRole("button", { name: /Normal Study/ }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 30_000 });
   const inkOnPageOne = page.locator('[data-pdf-page="1"] .workspace-v2-annotation-layer [data-annotation-type="pen"]');
+  const eraseMasksOnPageOne = page.locator('[data-pdf-page="1"] .workspace-v2-annotation-layer mask[id^="workspace-erase-"]');
   await expect.poll(async () => inkOnPageOne.count(), { timeout: 30_000 }).toBe(100);
   const before = await inkOnPageOne.count();
 
@@ -223,10 +226,12 @@ test("erasing across a dense page stays responsive and undoes exactly", async ({
   await send("pointerup", bounds.x + bounds.width * 0.8, bounds.y + bounds.height * 0.54);
   const eraseDuration = Date.now() - started;
 
-  await expect.poll(async () => inkOnPageOne.count()).not.toBe(before);
+  await expect.poll(async () => eraseMasksOnPageOne.count()).toBeGreaterThan(0);
+  await expect(inkOnPageOne).toHaveCount(before);
   expect(eraseDuration).toBeLessThan(20_000);
 
   // A single undo restores the page exactly, however many strokes were touched.
   await page.getByRole("button", { name: "Undo (Ctrl+Z)" }).click();
   await expect.poll(async () => inkOnPageOne.count()).toBe(before);
+  await expect(eraseMasksOnPageOne).toHaveCount(0);
 });

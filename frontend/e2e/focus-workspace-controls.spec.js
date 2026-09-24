@@ -150,7 +150,7 @@ test("study cards move directly and settings fill the workspace in each theme", 
   expect(colors.day).not.toBe(colors.night);
 });
 
-test("holding pen and highlighter lines straightens them while aiming", async ({ page }) => {
+test("pen and highlighter lines straighten immediately on release", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
   await page.addInitScript(() => { Object.defineProperty(globalThis, "indexedDB", { configurable: true, value: undefined }); });
   await openWorkspace(page);
@@ -161,8 +161,7 @@ test("holding pen and highlighter lines straightens them while aiming", async ({
   for (const [index, tool, pointerId, offset] of [[0, "pen", 21, 0], [1, "highlighter", 22, 130]]) {
     if (tool === "highlighter") await page.getByRole("button", { name: "Highlight", exact: true }).click();
     await dispatchPointer(stage, "pointerdown", pointerId, x, y + offset);
-    for (let step = 1; step <= 5; step += 1) await dispatchPointer(stage, "pointermove", pointerId, x + step * 15, y + offset + step);
-    await page.waitForTimeout(650);
+    for (let step = 1; step <= 5; step += 1) await dispatchPointer(stage, "pointermove", pointerId, x + step * 15, y + offset + step * 10);
     await dispatchPointer(stage, "pointermove", pointerId, x + 125, y + offset + 85);
     await dispatchPointer(stage, "pointerup", pointerId, x + 125, y + offset + 85);
     const lines = page.locator('.workspace-v2-annotation-layer [data-annotation-type="shape"][data-annotation-shape="line"] line');
@@ -485,7 +484,7 @@ test("the live ink layer paints while the stroke is still down and carries its o
   // the live layer, which is a different feature from the one under test.
   await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings" }).click();
-  await page.getByRole("switch", { name: /Hold to shape/ }).click();
+  await page.getByRole("switch", { name: /Perfect shapes on release/ }).click();
   await page.getByRole("button", { name: "Close workspace settings" }).click();
 
   await page.getByRole("button", { name: "Pen", exact: true }).click();

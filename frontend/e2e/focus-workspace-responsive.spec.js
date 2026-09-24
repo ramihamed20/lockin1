@@ -132,12 +132,12 @@ for (const orientation of ["portrait", "landscape"]) {
         return {
           tools: buttons.length,
           rowSpread: Math.max(...tops) - Math.min(...tops),
-          clipsOverflow: getComputedStyle(scroller).overflowX === "hidden"
+          scrollsHorizontally: getComputedStyle(scroller).overflowX === "auto"
         };
       });
-      expect(rail.tools).toBe(6);
+      expect(rail.tools).toBe(7);
       expect(rail.rowSpread, `the tool rail wrapped on ${viewport.name}`).toBeLessThan(2);
-      expect(rail.clipsOverflow, `the primary toolbar exposed horizontal scrolling on ${viewport.name}`).toBe(true);
+      expect(rail.scrollsHorizontally, `the primary toolbar cannot scroll on ${viewport.name}`).toBe(true);
     });
   }
 }
@@ -241,7 +241,7 @@ test("the iPad toolbar keeps direct tools, quick colors, and Active Study usable
   await eraser.click();
   await eraser.click();
   await expect(eraser).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByRole("dialog", { name: "Eraser options" })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Eraser options" })).toBeVisible();
   await expect(toolbar.locator(".workspace-v3-quick-color").first()).toBeDisabled();
   await page.screenshot({ path: testInfo.outputPath("ipad-precision-eraser-night.png") });
   const lasso = toolbar.getByRole("button", { name: "Lasso", exact: true });

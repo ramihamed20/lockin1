@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
 import { WORKSPACE_GESTURE } from "../src/workspace/config.js";
+import { keepRawInk } from "./helpers/workspaceSettings.js";
 
 const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 
@@ -508,9 +509,10 @@ test("single-finger scrolling and Apple Pencil with palm contact remain intact @
   await expect(page.locator(".workspace-v2-a4-live-layer")).not.toHaveClass(/is-live-pinching/);
 });
 
-test("opaque Ball Pen stays color-stable and Precision Eraser splits only touched geometry", async ({ page }) => {
+test("opaque Ball Pen stays color-stable and Precision Eraser masks only touched geometry", async ({ page }) => {
   test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
+  await keepRawInk(page);
   await openWorkspace(page, { width: 834, height: 1194 });
   await page.getByRole("button", { name: "Pen", exact: true }).click();
   await page.getByRole("button", { name: "Use #239ed1" }).click();
@@ -549,25 +551,21 @@ test("opaque Ball Pen stays color-stable and Precision Eraser splits only touche
   await dispatchPointer(stage, "pointermove", 91, middleX, start.y + 24, "pen", 2);
   await dispatchPointer(stage, "pointerup", 91, middleX, start.y + 24, "pen", 2);
 
-  await expect(penMarks).toHaveCount(21);
+  await expect(penMarks).toHaveCount(11);
   await expect(page.locator(`[data-annotation-id="${nearbyId}"]`)).toHaveAttribute("d", nearbyPath);
-  const fragmentBoxes = await penMarks.evaluateAll((nodes, untouchedId) => nodes
-    .filter((node) => node.getAttribute("data-annotation-id") !== untouchedId)
-    .map((node) => {
-      const bounds = node.getBBox();
-      return { left: bounds.x, right: bounds.x + bounds.width };
-    }), nearbyId);
-  const erasedDocumentX = ((middleX - pageBounds.x) / pageBounds.width) * 1000;
-  expect(fragmentBoxes.every((bounds) => bounds.right < erasedDocumentX || bounds.left > erasedDocumentX)).toBe(true);
+  const eraseMasks = page.locator('.workspace-v2-annotation-layer mask[id^="workspace-erase-"]');
+  await expect(eraseMasks).toHaveCount(10);
 
   await page.getByRole("button", { name: /Undo/ }).click();
   await expect(penMarks).toHaveCount(11);
+  await expect(eraseMasks).toHaveCount(0);
   await page.getByRole("button", { name: /Redo/ }).click();
-  await expect(penMarks).toHaveCount(21);
+  await expect(eraseMasks).toHaveCount(10);
 });
 
 test("precision eraser leaves nearby parallel ink unchanged", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
+  await keepRawInk(page);
   await openWorkspace(page, { width: 834, height: 1194 });
   await page.getByRole("button", { name: "Pen", exact: true }).click();
   const stage = page.locator(".workspace-v2-document-stage");
@@ -589,12 +587,14 @@ test("precision eraser leaves nearby parallel ink unchanged", async ({ page }) =
   await dispatchPointer(stage, "pointermove", 203, x + length * .7, y, "pen", 2);
   await dispatchPointer(stage, "pointerup", 203, x + length * .7, y, "pen", 2);
   await expect(page.locator(`[data-annotation-id="${adjacentId}"]`)).toHaveAttribute("d", adjacentPath);
-  await expect(marks).toHaveCount(3);
+  await expect(marks).toHaveCount(2);
+  await expect(page.locator('.workspace-v2-annotation-layer mask[id^="workspace-erase-"]')).toHaveCount(1);
 });
 
 test("Pencil supports 100 percent opacity without internal color stacking", async ({ page }) => {
   test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
+  await keepRawInk(page);
   await openWorkspace(page, { width: 834, height: 1194 });
   await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("dialog", { name: "More workspace actions" }).getByRole("button", { name: /Pencil/ }).click();
@@ -620,7 +620,7 @@ test("Pencil supports 100 percent opacity without internal color stacking", asyn
   )))).toBe(true);
 });
 
-test("smart ink gestures erase scribbles, straighten on hold, and preserve raw-stroke history", async ({ page }) => {
+test("smart ink gestures erase scribbles, straighten on release, and preserve raw-stroke history", async ({ page }) => {
   test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 834, height: 1194 });
@@ -631,7 +631,7 @@ test("smart ink gestures erase scribbles, straighten on hold, and preserve raw-s
 
   await drawPointerPath(stage, 120, [
     { x: center.x - 82, y: center.y },
-    { x: center.x, y: center.y + 1 },
+    { x: center.x, y: center.y + 24 },
     { x: center.x + 82, y: center.y }
   ]);
   await expect(page.locator('[data-annotation-type="pen"]')).toHaveCount(1);
@@ -651,16 +651,10 @@ test("smart ink gestures erase scribbles, straighten on hold, and preserve raw-s
   }));
   await dispatchPointer(stage, "pointerdown", 122, heldLine[0].x, heldLine[0].y, "pen", 2);
   for (let index = 1; index < heldLine.length; index += 1) await dispatchPointer(stage, "pointermove", 122, heldLine[index].x, heldLine[index].y, "pen", 2);
-  await page.waitForTimeout(650);
-  const straightLine = page.locator('[data-annotation-type="shape"][data-annotation-shape="line"] line');
-  await expect(straightLine).toHaveCount(1);
-  const anchoredStart = await straightLine.evaluate((line) => [line.getAttribute("x1"), line.getAttribute("y1")]);
-  const heldEnd = await straightLine.evaluate((line) => [Number(line.getAttribute("x2")), Number(line.getAttribute("y2"))]);
-  const adjustedEnd = { x: heldLine.at(-1).x + 25, y: heldLine.at(-1).y + 35 };
+  const adjustedEnd = { x: heldLine.at(-1).x + 25, y: heldLine.at(-1).y + 1 };
   await dispatchPointer(stage, "pointermove", 122, adjustedEnd.x, adjustedEnd.y, "pen", 2);
-  await expect.poll(() => straightLine.evaluate((line) => Number(line.getAttribute("y2")))).toBeGreaterThan(heldEnd[1] + 10);
-  expect(await straightLine.evaluate((line) => [line.getAttribute("x1"), line.getAttribute("y1")])).toEqual(anchoredStart);
   await dispatchPointer(stage, "pointerup", 122, adjustedEnd.x, adjustedEnd.y, "pen", 2);
+  const straightLine = page.locator('[data-annotation-type="shape"][data-annotation-shape="line"] line');
   await expect(straightLine).toHaveCount(1);
   await page.getByRole("button", { name: /Undo/ }).click();
   await expect(page.locator('[data-annotation-type="shape"]')).toHaveCount(0);
@@ -669,7 +663,7 @@ test("smart ink gestures erase scribbles, straighten on hold, and preserve raw-s
   await expect(page.locator('[data-annotation-type="shape"][data-annotation-shape="line"]')).toHaveCount(1);
 });
 
-test("highlighter hold makes a vertical line with a fixed starting point", async ({ page }) => {
+test("highlighter makes a vertical line as soon as the stroke is released", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 834, height: 1194 });
   await page.getByRole("button", { name: "Highlight", exact: true }).click();
@@ -679,13 +673,13 @@ test("highlighter hold makes a vertical line with a fixed starting point", async
   const end = { x: start.x + 3, y: start.y + 180 };
   await dispatchPointer(stage, "pointerdown", 123, start.x, start.y, "pen", 2);
   await dispatchPointer(stage, "pointermove", 123, end.x, end.y, "pen", 2);
-  await expect(page.locator('[data-annotation-type="shape"][data-annotation-shape="line"] line')).toHaveCount(1, { timeout: 3000 });
+  await dispatchPointer(stage, "pointermove", 123, end.x + 1, end.y + 20, "pen", 2);
+  await dispatchPointer(stage, "pointerup", 123, end.x + 1, end.y + 20, "pen", 2);
   const line = page.locator('[data-annotation-type="shape"][data-annotation-shape="line"] line');
-  const origin = await line.evaluate((node) => [node.getAttribute("x1"), node.getAttribute("y1")]);
-  await dispatchPointer(stage, "pointermove", 123, end.x + 20, end.y + 20, "pen", 2);
-  expect(await line.evaluate((node) => [node.getAttribute("x1"), node.getAttribute("y1")])).toEqual(origin);
-  await dispatchPointer(stage, "pointerup", 123, end.x + 20, end.y + 20, "pen", 2);
   await expect(line).toHaveCount(1);
+  const lineStart = await line.evaluate((node) => [Number(node.getAttribute("x1")), Number(node.getAttribute("y1"))]);
+  const lineEnd = await line.evaluate((node) => [Number(node.getAttribute("x2")), Number(node.getAttribute("y2"))]);
+  expect(lineEnd[1] - lineStart[1]).toBeGreaterThan(50);
 });
 
 test("circle erase removes enclosed ink once and remains undoable", async ({ page }) => {
@@ -700,7 +694,7 @@ test("circle erase removes enclosed ink once and remains undoable", async ({ pag
   const center = { x: pageBounds.x + pageBounds.width * .5, y: pageBounds.y + pageBounds.height * .34 };
   await drawPointerPath(stage, 130, [
     { x: center.x - 45, y: center.y },
-    { x: center.x, y: center.y + 2 },
+    { x: center.x, y: center.y + 20 },
     { x: center.x + 45, y: center.y }
   ]);
   const original = page.locator('[data-annotation-type="pen"]').first();

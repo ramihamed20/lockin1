@@ -470,9 +470,7 @@ def _filter_question_source(
     return queryset
 
 
-def _published_question_counts(
-    subjects: list[CatalogSubject], source: str = ""
-) -> dict[UUID, int]:
+def _published_question_counts(subjects: list[CatalogSubject], source: str = "") -> dict[UUID, int]:
     """Published, unretired question counts per sheet, for these branches only.
 
     One query for the whole directory: a reader who is not cohort-scoped
