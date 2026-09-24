@@ -290,7 +290,8 @@ test("the iPad toolbar keeps direct tools, quick colors, and Active Study usable
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.evaluate(() => { document.documentElement.dataset.theme = "day"; });
   await expect(toolbar.locator(".workspace-v2-tool-caption").first()).toBeVisible();
-  await expect.poll(() => toolbar.locator(".workspace-v3-tool-button.is-active").evaluate((node) => getComputedStyle(node).backgroundColor)).not.toBe("rgba(0, 0, 0, 0)");
+  await expect.poll(() => toolbar.locator(".workspace-v2-tool-indicator").evaluate((node) => getComputedStyle(node).opacity)).toBe("1");
+  await expect.poll(() => toolbar.locator(".workspace-v2-tool-indicator").evaluate((node) => getComputedStyle(node).backgroundColor)).not.toBe("rgba(0, 0, 0, 0)");
   await expect.poll(async () => toolbar.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
   await page.screenshot({ path: testInfo.outputPath("ipad-landscape-day.png") });
 });
