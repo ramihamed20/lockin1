@@ -363,6 +363,7 @@ test("Active Study reading chrome and checkpoint remain unobstructed @chromium-o
   const checkpoint = page.locator(".workspace-v2-checkpoint-dock");
   await expect(checkpoint).toBeVisible();
   await expect(page.getByRole("button", { name: "Reach page 10 to unlock the checkpoint" })).toBeVisible();
+  await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]").first()).toBeVisible();
   const sourcePageCount = await page.locator(".workspace-v2-a4-page[data-pdf-page]").count();
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await page.getByRole("button", { name: "Add Page" }).click();
