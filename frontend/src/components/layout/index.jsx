@@ -777,11 +777,11 @@ export function Topbar({ user, operationsSession = null, theme, onThemeChange, o
         </div>
       </div>
       <nav className="account-menu-actions" role={isPhone ? undefined : "none"} aria-label={isPhone ? t("shell.profileMenu") : undefined}>
-        <Link to="/profile" role={isPhone ? undefined : "menuitem"} onClick={() => closeProfileMenu({ restoreFocus: false })}><span className="account-menu-icon"><Icon name="user" size={18} /></span><span><b>{t("common.profile")}</b><small>{t("shell.profileDescription")}</small></span><Icon className="account-menu-chevron" name="chevron-right" size={17} /></Link>
-        <Link to="/settings" role={isPhone ? undefined : "menuitem"} onClick={() => closeProfileMenu({ restoreFocus: false })}><span className="account-menu-icon"><Icon name="settings" size={18} /></span><span><b>{t("common.settings")}</b><small>{t("shell.settingsDescription")}</small></span><Icon className="account-menu-chevron" name="chevron-right" size={17} /></Link>
+        <Link to="/profile" role={isPhone ? undefined : "menuitem"} onClick={() => closeProfileMenu({ restoreFocus: false })}><span className="account-menu-icon"><Icon name="user" size={18} /></span><span><b>{t("common.profile")}</b></span><Icon className="account-menu-chevron" name="chevron-right" size={17} /></Link>
+        <Link to="/settings" role={isPhone ? undefined : "menuitem"} onClick={() => closeProfileMenu({ restoreFocus: false })}><span className="account-menu-icon"><Icon name="settings" size={18} /></span><span><b>{t("common.settings")}</b></span><Icon className="account-menu-chevron" name="chevron-right" size={17} /></Link>
       </nav>
       <div className="account-menu-separator" aria-hidden="true" />
-      <button className="account-menu-signout" type="button" role={isPhone ? undefined : "menuitem"} onClick={logoutFromMenu}><span className="account-menu-icon"><Icon name="logout" size={18} /></span><span><b>{t("common.logout")}</b><small>{t("shell.logoutDescription")}</small></span></button>
+      <button className="account-menu-signout" type="button" role={isPhone ? undefined : "menuitem"} onClick={logoutFromMenu}><span className="account-menu-icon"><Icon name="logout" size={18} /></span><span><b>{t("common.logout")}</b></span></button>
     </section>
   </> : null;
 
@@ -803,7 +803,6 @@ export function Topbar({ user, operationsSession = null, theme, onThemeChange, o
       ) : (
         <div className="page-title">
           <strong>{currentRoute.shellLabel}</strong>
-          <p>{t("shell.greetingLine", { greeting: localizedGreeting, audience: t("shell.futureDentist") })}</p>
         </div>
       )}
       <GlobalSearch onOpenChange={setGlobalSearchOpen} operationsSession={operationsSession} />

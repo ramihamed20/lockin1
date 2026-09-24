@@ -79,7 +79,6 @@ export default function Community() {
       {actionError && <ErrorPanel message={actionError} onRetry={home.reload} />}
       <section className="community-top">
         <article className="panel community-composer">
-          <p className="eyebrow">{t("community.contextualLearning")}</p>
           <h2>{t("community.startWith")}</h2>
           <p className="muted">{t("community.noPublicPosts")}</p>
           <div className="focus-timer-actions"><Link className="btn btn-primary" to="/materials"><Icon name="book-open" size={17} /> {t("dashboard.browseMaterials")}</Link><Link className="btn btn-soft" to="/questions"><Icon name="help" size={17} /> {t("community.browseQuizzes")}</Link></div>
@@ -105,7 +104,7 @@ export default function Community() {
         </article>
         <aside className="community-rail">
           <article className="study-buddy-card">
-            <div><p className="eyebrow">{t("community.creatorSpaces")}</p><h2>{t("community.privateSpaces")}</h2><p>{t("community.spacesNote")}</p></div>
+            <div><h2>{t("community.privateSpaces")}</h2><p>{t("community.spacesNote")}</p></div>
             <div className="announcement-list">
               {spaces.length ? spaces.map((space) => <Link className="announcement-item" key={space.id} to={`/community/spaces/${space.id}`}><span className="stat-icon"><Icon name="lock" /></span><div><h3 dir="auto">{space.title}</h3><p dir="auto">{space.context_title || t("community.learningContext")}</p><small dir="auto">{t("community.memberCount", { count: space.member_count || 0 })}</small></div></Link>) : <p className="muted">{t("community.noSpaces")}</p>}
             </div>

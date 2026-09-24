@@ -166,9 +166,9 @@ export default function Progress() {
   const consistencyRate = Math.min(100, Math.round((activity.activeDays / 28) * 100));
 
   return (
-    <Page title={t("progress.title")} subtitle={t("progress.subtitle")} showHeading={false} headingHandled>
+    <Page title={t("progress.title")} showHeading={false} headingHandled>
       <header className="progress-page-heading">
-        <div><h1>{t("progress.title")} <Icon name="sparkles" size={20} /></h1><p>{t("progress.subtitle")}</p></div>
+        <h1>{t("progress.title")}</h1>
         <label className="progress-range-control"><Icon name="calendar" size={16} /><select value={range} onChange={(event) => { setRange(event.target.value); setPage(1); }} aria-label={t("progress.period")}><option value="week">{t("progress.weekThis")}</option><option value="month">{t("progress.rangeMonth")}</option><option value="all">{t("progress.rangeAll")}</option></select></label>
       </header>
 
@@ -180,7 +180,7 @@ export default function Progress() {
 
       <section className={`progress-level-hero progress-mobile-section ${progressSection === "summary" ? "is-active" : ""}`}>
         <div className="progress-level-orb" aria-label={t("progress.levelLabel", { level: xp.level ?? 1 })}><small>{t("progress.yourLevel")}</small><strong>{xp.level ?? 1}</strong></div>
-        <div className="progress-level-copy"><h2 dir="auto">{t("progress.levelTitle", { level: xp.level ?? 1 })}</h2><p>{t("progress.levelCopy")}</p><div className="progress-level-bar" role="progressbar" aria-label={t("progress.xpProgress")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={levelProgress}><i style={{ width: String(levelProgress) + "%" }} /></div><small dir="auto">{t("progress.xpToNext", { current: formatNumber(xp.level_progress || 0), target: formatNumber(xp.level_target || 0), next: Number(xp.level ?? 1) + 1 })}</small></div>
+        <div className="progress-level-copy"><h2 dir="auto">{t("progress.levelTitle", { level: xp.level ?? 1 })}</h2><div className="progress-level-bar" role="progressbar" aria-label={t("progress.xpProgress")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={levelProgress}><i style={{ width: String(levelProgress) + "%" }} /></div><small dir="auto">{t("progress.xpToNext", { current: formatNumber(xp.level_progress || 0), target: formatNumber(xp.level_target || 0), next: Number(xp.level ?? 1) + 1 })}</small></div>
         <div className="progress-xp-arc"><small>{t("progress.xpProgress")}</small><svg viewBox="0 0 120 72" aria-hidden="true"><path className="progress-xp-arc-track" pathLength="100" d="M 12 60 A 48 48 0 0 1 108 60" /><path className="progress-xp-arc-value" pathLength="100" strokeDasharray={String(levelProgress) + " 100"} d="M 12 60 A 48 48 0 0 1 108 60" /></svg><strong>{levelProgress}%</strong><span dir="auto">{t("progress.xpInLevel", { current: formatNumber(xp.level_progress || 0), target: formatNumber(xp.level_target || 0) })}<br />{t("progress.inThisLevel")}</span></div>
       </section>
 
@@ -192,7 +192,7 @@ export default function Progress() {
 
       <section className="progress-detail-grid">
         <article className={`progress-ledger-panel progress-mobile-section ${progressSection === "history" ? "is-active" : ""}`}>
-          <header><div><p>{t("progress.xpLedger")}</p><h2>{t("progress.awardHistory")}</h2><span>{t("progress.recentEarnings")}</span></div><Icon name="activity" size={18} /></header>
+          <header><h2>{t("progress.awardHistory")}</h2><Icon name="activity" size={18} /></header>
           <div className="progress-ledger-list">
             {ledgerPreview.length ? ledgerPreview.map((entry) => <article className="progress-ledger-row" key={entry.id}><span className={"progress-ledger-icon progress-ledger-icon--" + (entry.category || "default")}><Icon name={ledgerIcon(entry.category)} size={17} /></span><div><strong dir="auto">{entry.reason || t("progress.xpAward")}</strong><small dir="auto">{dateLabel(entry.occurred_at, t)}</small></div><b dir="auto">{Number(entry.points || 0) >= 0 ? "+" : ""}{entry.points ?? 0} {t("progress.xp")}</b></article>) : <p className="progress-empty-ledger">{t("progress.noAwards")}</p>}
           </div>
@@ -200,7 +200,7 @@ export default function Progress() {
         </article>
 
         <article className={`progress-calendar-panel progress-mobile-section ${progressSection === "calendar" ? "is-active" : ""}`}>
-          <header><div><p>{t("progress.streakOverview")}</p><h2>{t("progress.meaningfulDays")}</h2><span>{t("progress.consistencyCopy")}</span></div></header>
+          <header><h2>{t("progress.meaningfulDays")}</h2></header>
           <ProgressCalendarGrid activity={activity} selectedDay={selectedDay} onSelect={setSelectedDay} />
           {selectedDay && <p className="activity-cell-detail" role="status"><strong dir="auto">{selectedDay.day}, {selectedDay.key}</strong><span>{t(selectedDay.state === "active" || selectedDay.state === "qualified" ? "progress.dayActivity" : selectedDay.state === "future" ? "progress.dayFuture" : "progress.dayNone")}</span></p>}
           <div className="progress-calendar-legend"><span><i className="active" /> {t("progress.legendActivity")}</span><span><i className="qualified" /> {t("progress.legendQualified")}</span><span><i className="empty" /> {t("progress.legendNone")}</span></div>

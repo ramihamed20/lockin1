@@ -382,6 +382,43 @@ test("Active Study reading chrome and checkpoint remain unobstructed @chromium-o
   await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-active-study-reading-834x1194.png`, fullPage: false });
 });
 
+test("Active Study can restart saved progress from Part 1 without changing the PDF", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  let restartRequests = 0;
+  await page.route("**/api/v1/focus/managed-active-study/**", async (route) => {
+    const { pathname } = new URL(route.request().url());
+    if (pathname.includes("/sheets/") && route.request().method() === "GET") {
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify({
+        difficulties: ["easy", "medium", "hard"].map((difficulty) => ({
+          difficulty, status: "ready", progress: difficulty === "medium" ? {
+            id: "saved-active-run", difficulty, status: "active", stage: "reading",
+            current_part: 3, number_of_parts: 4, completed_parts: [1, 2]
+          } : null
+        }))
+      }) });
+      return;
+    }
+    if (pathname.endsWith("/saved-active-run/restart") && route.request().method() === "POST") {
+      restartRequests += 1;
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ run: {
+        id: "fresh-active-run", difficulty: "medium", status: "active", stage: "reading",
+        current_part: 1, number_of_parts: 4, completed_parts: [], current_page_range: { start_page: 1, end_page: 10 }
+      } }) });
+      return;
+    }
+    await route.fallback();
+  });
+  await page.goto(SHARED_TEST_SHEET_ROUTE);
+  const dialog = page.getByRole("dialog", { name: "Choose study mode" });
+  await expect(dialog.getByRole("button", { name: "Restart Medium from the beginning" })).toBeVisible();
+  await dialog.getByRole("button", { name: "Restart Medium from the beginning" }).click();
+  await expect(dialog.getByText(/Your PDF notes and annotations stay/)).toBeVisible();
+  await dialog.getByRole("button", { name: "Restart from Part 1" }).click();
+  await expect(page.getByRole("button", { name: "Active Study: part 1 of 4" })).toBeVisible();
+  await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]").first()).toBeVisible();
+  expect(restartRequests).toBe(1);
+});
+
 test("PDF sheets open at page one and restore zoom only while enabled @chromium-only", async ({ page }) => {
   test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);

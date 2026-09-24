@@ -120,7 +120,7 @@ export default function Notifications({ onNotificationsChanged }) {
         <header className="notifications-inbox-header">
           <div className="notifications-inbox-title">
             <span className="notifications-inbox-icon"><Icon name="bell" size={19} /></span>
-            <div><p className="eyebrow">{t("common.inbox")}</p><h2>{t("notifications.activityForYou")}</h2><p>{t("notifications.inboxHint")}</p></div>
+            <div><h2>{t("notifications.activityForYou")}</h2></div>
           </div>
           <div className="notifications-inbox-actions">
             <span className={`notifications-unread-summary ${feed.data.summary.unread_count ? "has-unread" : ""}`} dir="auto"><i />{t("notifications.unreadCount", { count: feed.data.summary.unread_count || 0 })}</span>

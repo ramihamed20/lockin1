@@ -3,6 +3,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from typing import Any
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -30,6 +31,7 @@ from ..managed_active_study import (
     complete_part_reading,
     continue_anyway,
     questions,
+    restart,
     start,
     study_again,
     submit,
@@ -380,6 +382,64 @@ def test_abandon_retains_attempt_evidence_and_allows_a_fresh_run() -> None:
     assert restarted.id != abandoned.id and created is True
     assert ActiveStudyAttempt.objects.filter(run=abandoned).count() == 1
     assert ActiveStudyAnswer.objects.filter(attempt__run=abandoned).count() == 1
+
+
+def test_restart_returns_part_one_without_resuming_saved_progress() -> None:
+    user, sheet, _ = _setup()
+    old, attempt = _open_checkpoint(user, sheet)
+    answer(
+        user=user,
+        run_id=old.id,
+        attempt_id=attempt["attempt_id"],
+        position=1,
+        selected_answer="A",
+    )
+    old.current_part = 2
+    old.completed_parts = [1]
+    old.save(update_fields=("current_part", "completed_parts"))
+
+    fresh = restart(user=user, run_id=old.id)
+    old.refresh_from_db()
+    resumed, created = start(user=user, sheet_id=sheet.id, difficulty="medium")
+
+    assert old.status == ActiveStudyRun.Status.ABANDONED
+    assert fresh.id != old.id and fresh.current_part == 1
+    assert fresh.completed_parts == [] and fresh.stage == ActiveStudyRun.Stage.READING
+    assert resumed.id == fresh.id and created is False
+    assert ActiveStudyAnswer.objects.filter(attempt__run=old).count() == 1
+
+
+def test_restart_action_is_scoped_to_the_student_who_owns_the_run() -> None:
+    owner, sheet, _ = _setup()
+    other = create_user(email="active-study-reset-other@example.com")
+    _grant_focus(owner)
+    _grant_focus(other)
+    run, _ = start(user=owner, sheet_id=sheet.id, difficulty="medium")
+    path = f"/api/v1/focus/managed-active-study/{run.id}/restart"
+
+    denied = _client(other).post(path, {}, format="json")
+    assert denied.status_code == 400
+    accepted = _client(owner).post(path, {}, format="json")
+    assert accepted.status_code == 200
+    assert accepted.json()["run"]["id"] != str(run.id)
+    assert accepted.json()["run"]["current_part"] == 1
+
+
+def test_restart_rolls_back_abandon_if_fresh_start_fails() -> None:
+    user, sheet, _ = _setup()
+    run, _ = start(user=user, sheet_id=sheet.id, difficulty="medium")
+
+    with (
+        patch(
+            "apps.focus.managed_active_study.start",
+            side_effect=ManagedActiveStudyRuleError("Unavailable"),
+        ),
+        pytest.raises(ManagedActiveStudyRuleError, match="Unavailable"),
+    ):
+        restart(user=user, run_id=run.id)
+
+    run.refresh_from_db()
+    assert run.status == ActiveStudyRun.Status.ACTIVE
 
 
 def test_active_study_runs_are_strictly_isolated_between_students() -> None:

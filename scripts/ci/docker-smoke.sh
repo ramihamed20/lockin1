@@ -20,8 +20,8 @@ public_host="lockin.example.test"
 bucket="lockin-media"
 
 postgres_image="${LOCKIN_POSTGRES_IMAGE:-postgres:18.4-alpine}"
-storage_image="${LOCKIN_STORAGE_IMAGE:-quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z}"
-storage_client_image="${LOCKIN_STORAGE_CLIENT_IMAGE:-quay.io/minio/mc:RELEASE.2025-04-16T18-13-26Z}"
+storage_image="${LOCKIN_STORAGE_IMAGE:-cgr.dev/chainguard/minio:latest}"
+storage_client_image="${LOCKIN_STORAGE_CLIENT_IMAGE:-cgr.dev/chainguard/minio-client:latest}"
 
 # Test-only values. Every one is thrown away with the network at the end.
 owner_password="smoke-owner-password"
@@ -51,6 +51,10 @@ cleanup() {
         else
             log "the application container was never started"
         fi
+        if docker inspect "$storage_container" > /dev/null 2>&1; then
+            log "object storage logs"
+            docker logs "$storage_container" 2>&1 | tail -n 40 || true
+        fi
     fi
     docker rm --force "$app_container" "$storage_container" "$db_container" > /dev/null 2>&1 || true
     docker network rm "$network" > /dev/null 2>&1 || true
@@ -65,6 +69,7 @@ await() {
     until "$@" > /dev/null 2>&1; do
         count=$((count + 1))
         if [ "$count" -ge "$attempts" ]; then
+            "$@" >&2 || true
             fail "$description did not become ready"
             return 1
         fi
@@ -111,13 +116,15 @@ pass "runtime role created"
 
 log "starting S3-compatible object storage"
 docker run --detach --name "$storage_container" --network "$network" --network-alias storage \
+    --tmpfs /data:rw,uid=65532,gid=65532 \
     --env MINIO_ROOT_USER="$storage_key" \
     --env MINIO_ROOT_PASSWORD="$storage_secret" \
     "$storage_image" server /data > /dev/null
-await "object storage" 30 docker run --rm --network "$network" --entrypoint sh \
-    "$storage_client_image" -c "mc alias set smoke http://storage:9000 $storage_key $storage_secret"
-docker run --rm --network "$network" --entrypoint sh "$storage_client_image" -c \
-    "mc alias set smoke http://storage:9000 $storage_key $storage_secret && mc mb --ignore-existing smoke/$bucket" \
+storage_client_host="http://$storage_key:$storage_secret@storage:9000"
+await "object storage" 30 docker run --rm --network "$network" \
+    --env "MC_HOST_smoke=$storage_client_host" "$storage_client_image" ls smoke
+docker run --rm --network "$network" --env "MC_HOST_smoke=$storage_client_host" \
+    "$storage_client_image" mb --ignore-existing "smoke/$bucket" \
     > /dev/null
 pass "bucket created"
 

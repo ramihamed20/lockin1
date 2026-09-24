@@ -24,9 +24,7 @@ export default function Achievements() {
     <Page title="Achievements" subtitle={t("achievements.subtitle")}>
       <section className="achievement-hero">
         <div>
-          <p className="eyebrow">{t("achievements.badgeRoom")}</p>
           <h2 dir="auto">{t("achievements.unlockedOf", { unlocked: unlocked.length, total: achievements.data.length })}</h2>
-          <p>{t("achievements.sourceNote")}</p>
         </div>
         <div className="achievement-ring">{completion}%</div>
       </section>

@@ -40,8 +40,10 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
 
   useEffect(() => {
     if (!requestedSection) return undefined;
-    const section = document.getElementById(`settings-${activeSection}`);
-    const heading = document.getElementById(`settings-${activeSection}-heading`);
+    const focus = new URLSearchParams(location.search).get("focus");
+    const focusTarget = focus === "username" || focus === "password" ? focus : "";
+    const section = document.getElementById(`settings-${focusTarget || activeSection}`);
+    const heading = document.getElementById(`settings-${focusTarget || activeSection}-heading`);
     if (!section || !heading) return undefined;
     const frame = window.requestAnimationFrame(() => {
       section.scrollIntoView({
@@ -51,11 +53,12 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
       heading.focus({ preventScroll: true });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [activeSection, requestedSection]);
+  }, [activeSection, location.search, requestedSection]);
 
   function openSection(section) {
     const search = new URLSearchParams(location.search);
     search.set("section", section);
+    search.delete("focus");
     navigate({ pathname: "/settings", search: `?${search.toString()}` });
   }
 
@@ -128,7 +131,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
         </nav>
         <article className="theme-section" id="settings-character" aria-labelledby="settings-character-heading">
           <div className="theme-section-head">
-            <div><p className="eyebrow">{t("settings.personalization")}</p><h2 id="settings-character-heading" tabIndex={-1}>{t("settings.character")}</h2></div>
+            <div><h2 id="settings-character-heading" tabIndex={-1}>{t("settings.character")}</h2></div>
             <span className="pill">{t(`settings.character.${settings.character}`)}</span>
           </div>
           {/* One character is in use, so this is a single choice. The options
@@ -154,7 +157,6 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
         <article className="theme-section app-icon-section" id="settings-app-icon" aria-labelledby="settings-app-icon-heading">
           <div className="theme-section-head">
             <div>
-              <p className="eyebrow">{t("settings.personalization")}</p>
               <h2 id="settings-app-icon-heading" tabIndex={-1}>{t("settings.appIcon")}</h2>
               <p className="app-icon-description">{t("settings.appIconDescription")}</p>
             </div>
@@ -181,7 +183,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
 
         <article className="theme-section" id="settings-themes" aria-labelledby="settings-themes-heading">
           <div className="theme-section-head">
-            <div><p className="eyebrow">{t("common.appearance")}</p><h2 id="settings-themes-heading" tabIndex={-1}>{t("settings.chooseTheme")}</h2></div>
+            <div><h2 id="settings-themes-heading" tabIndex={-1}>{t("settings.chooseTheme")}</h2></div>
             <span className="pill">{settings.autoTheme ? t("settings.autoThemeValue", { name: t(`settings.theme.${activeTheme}`) }) : t(`settings.theme.${settings.theme}`)}</span>
           </div>
           <RadioGroup className={`theme-grid ${settings.autoTheme ? "manual-disabled" : ""}`} label={t("settings.themeLabel")} value={settings.autoTheme ? "" : settings.theme} onChange={(next) => saveSettings({ ...settings, theme: next, autoTheme: false }, `theme-${next}`)}>
@@ -206,7 +208,6 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
 
         <article className="auto-theme-card">
           <div>
-            <p className="eyebrow">{t("common.appearance")}</p>
             <h2>{t("settings.autoTheme")}</h2>
             <p>{t("settings.autoThemeDescription")}</p>
           </div>
@@ -227,7 +228,6 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
         <article className="theme-section reminder-section" id="settings-reminder" aria-labelledby="settings-reminder-heading">
           <div className="theme-section-head">
             <div>
-              <p className="eyebrow">{t("settings.studyRoutine")}</p>
               <h2 id="settings-reminder-heading" tabIndex={-1}>{t("settings.studyReminder")}</h2>
             </div>
             <span className={`pill ${reminderSettings.enabled ? "success" : ""}`}>{t(reminderSettings.enabled ? "settings.enabled" : "settings.off")}</span>
@@ -254,16 +254,15 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
         <section className="settings-account-management" id="settings-account" aria-labelledby="settings-account-heading">
           <div className="settings-account-heading">
             <div>
-              <p className="eyebrow">{t("common.account")}</p>
               <h2 id="settings-account-heading" tabIndex={-1}>{t("settings.accountSecurity")}</h2>
-              <p>{t("settings.accountDescription")}</p>
             </div>
             <span className="pill success">{t("settings.protected")}</span>
           </div>
           <div className="account-management-grid">
             <AccountSubscriptionCard onOpen={() => navigate("/subscription")} />
             <LanguageCard onUserUpdate={onUserUpdate} />
-            <PasswordCard />
+            <UsernameCard user={user} onUserUpdate={onUserUpdate} />
+            <PasswordCard id="settings-password" headingId="settings-password-heading" />
             <ConnectedAccountsCard email={user?.email} />
             <SessionList onCurrentSessionRevoked={onSignedOut} />
             <AccountDeletionCard
@@ -289,7 +288,68 @@ function AccountSubscriptionCard({ onOpen }) {
   return <article className="panel account-management-card"><div className="panel-title"><div><p className="eyebrow">{t("subscription.title")}</p><h2>{subscription?.plan_title || t("subscription.noPlan")}</h2></div><Icon name="coins" size={18} /></div><SubscriptionStatus subscription={subscription} /><button className="btn btn-outline compact" type="button" onClick={onOpen}>{t("subscription.view")}</button></article>;
 }
 
-function PasswordCard() {
+function UsernameCard({ user, onUserUpdate }) {
+  const { t } = useI18n();
+  const [username, setUsername] = useState(user?.username || "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => setUsername(user?.username || ""), [user?.username]);
+
+  async function submit(event) {
+    event.preventDefault();
+    setSaving(true);
+    setError(null);
+    setMessage("");
+    try {
+      const updated = await accountsApi.updateProfile({ username: username.trim() });
+      onUserUpdate(updated);
+      setUsername(updated.username || "");
+      setMessage(t("settings.usernameUpdated"));
+    } catch (requestError) {
+      setError(requestError);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <article className="panel account-management-card" id="settings-username">
+      <div className="panel-title">
+        <div><h2 id="settings-username-heading" tabIndex={-1}>{t("settings.changeUsername")}</h2></div>
+        <Icon name="user" size={18} />
+      </div>
+      <form className="account-password-form" onSubmit={submit}>
+        <label className="field">
+          <span>{t("auth.username")}</span>
+          <input
+            type="text"
+            autoComplete="username"
+            value={username}
+            minLength={3}
+            maxLength={30}
+            pattern="[A-Za-z0-9][A-Za-z0-9_]{2,29}"
+            required
+            onChange={(event) => setUsername(event.target.value.toLowerCase())}
+            {...fieldErrorAttributes(error, "username", "settings-username-error")}
+          />
+          <small>{t("settings.usernameHint")}</small>
+          <AccountFieldErrors error={error} field="username" id="settings-username-error" />
+        </label>
+        <AccountFieldErrors error={error} />
+        <div className="account-password-actions">
+          <span role="status">{message}</span>
+          <button className="btn btn-primary compact" type="submit" disabled={saving || !username.trim()}>
+            {saving ? t("settings.saving") : t("settings.saveUsername")}
+          </button>
+        </div>
+      </form>
+    </article>
+  );
+}
+
+function PasswordCard({ id, headingId }) {
   const { t } = useI18n();
   const [form, setForm] = useState({ currentPassword: "", password: "", passwordConfirm: "" });
   const [saving, setSaving] = useState(false);
@@ -316,7 +376,7 @@ function PasswordCard() {
     }
   }
 
-  return <article className="panel account-management-card"><div className="panel-title"><div><p className="eyebrow">{t("settings.accountSecurity")}</p><h2>{t("settings.changePassword")}</h2></div><Icon name="lock" size={18} /></div><form className="account-password-form" onSubmit={submit}><label className="field"><span>{t("settings.currentPassword")}</span><input type="password" autoComplete="current-password" value={form.currentPassword} onChange={(event) => setForm({ ...form, currentPassword: event.target.value })} required {...fieldErrorAttributes(error, "current_password", "settings-current-password-error")} /><AccountFieldErrors error={error} field="current_password" id="settings-current-password-error" /></label><label className="field"><span>{t("settings.newPassword")}</span><input type="password" autoComplete="new-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required {...fieldErrorAttributes(error, "new_password", "settings-new-password-error")} /><AccountFieldErrors error={error} field="new_password" id="settings-new-password-error" /></label><label className="field"><span>{t("settings.confirmNewPassword")}</span><input type="password" autoComplete="new-password" value={form.passwordConfirm} onChange={(event) => setForm({ ...form, passwordConfirm: event.target.value })} required {...fieldErrorAttributes(error, "new_password_confirm", "settings-confirm-password-error")} /><AccountFieldErrors error={error} field="new_password_confirm" id="settings-confirm-password-error" /></label><AccountFieldErrors error={error} /><div className="account-password-actions"><span role="status">{message}</span><button className="btn btn-primary compact" type="submit" disabled={saving}>{saving ? t("settings.updatingPassword") : t("settings.updatePassword")}</button></div></form></article>;
+  return <article className="panel account-management-card" id={id}><div className="panel-title"><div><h2 id={headingId} tabIndex={-1}>{t("settings.changePassword")}</h2></div><Icon name="lock" size={18} /></div><form className="account-password-form" onSubmit={submit}><label className="field"><span>{t("settings.currentPassword")}</span><input type="password" autoComplete="current-password" value={form.currentPassword} onChange={(event) => setForm({ ...form, currentPassword: event.target.value })} required {...fieldErrorAttributes(error, "current_password", "settings-current-password-error")} /><AccountFieldErrors error={error} field="current_password" id="settings-current-password-error" /></label><label className="field"><span>{t("settings.newPassword")}</span><input type="password" autoComplete="new-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required {...fieldErrorAttributes(error, "new_password", "settings-new-password-error")} /><AccountFieldErrors error={error} field="new_password" id="settings-new-password-error" /></label><label className="field"><span>{t("settings.confirmNewPassword")}</span><input type="password" autoComplete="new-password" value={form.passwordConfirm} onChange={(event) => setForm({ ...form, passwordConfirm: event.target.value })} required {...fieldErrorAttributes(error, "new_password_confirm", "settings-confirm-password-error")} /><AccountFieldErrors error={error} field="new_password_confirm" id="settings-confirm-password-error" /></label><AccountFieldErrors error={error} /><div className="account-password-actions"><span role="status">{message}</span><button className="btn btn-primary compact" type="submit" disabled={saving}>{saving ? t("settings.updatingPassword") : t("settings.updatePassword")}</button></div></form></article>;
 }
 
 function AccountDeletionCard({ confirmationToken, onConfirmationHandled }) {

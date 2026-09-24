@@ -1,0 +1,12 @@
+/* Route entry motion is deliberately confined to the page root. No scrolling,
+   PDF canvas, gesture target or persistent shell element is transformed. */
+@keyframes lockin-page-enter {
+  from { opacity: .72; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .page-shell > :not(.workspace-v2) {
+    animation: lockin-page-enter var(--motion-page-duration) var(--motion-enter-ease) both;
+  }
+}

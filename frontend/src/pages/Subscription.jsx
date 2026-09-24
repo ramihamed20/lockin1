@@ -138,31 +138,6 @@ function CheckoutStepper({ step, onStep, t }) {
   );
 }
 
-function SubscriptionStateFlow({ subscription, review, t }) {
-  const trial = subscription?.status === "trialing";
-  const outcome = review?.status === "rejected"
-    ? { key: "rejected", label: t("subscription.rejected") }
-    : trial
-      ? { key: "trial", label: t("subscription.stateTrial") }
-      : !subscription?.access_allowed && subscription
-        ? { key: "expired", label: t("subscription.expired") }
-        : { key: "approved", label: t("subscription.approved") };
-  const current = review?.status === "pending" ? 3 : review?.status || subscription ? 4 : 0;
-  const labels = [
-    t("subscription.stepPlan"),
-    t("subscription.paymentStep"),
-    t("subscription.stateSubmitted"),
-    t("subscription.stateUnderReview"),
-    outcome.label
-  ];
-  return <ol className="subscription-state-flow" data-outcome={outcome.key} aria-label={t("subscription.stateFlowLabel")}>
-    {labels.map((label, index) => {
-      const state = index === current ? "current" : (!trial && index < current ? "done" : "upcoming");
-      return <li className={`is-${state}`} key={`${index}-${label}`} aria-current={state === "current" ? "step" : undefined}><span aria-hidden="true">{state === "done" ? "✓" : index + 1}</span><strong>{label}</strong></li>;
-    })}
-  </ol>;
-}
-
 function paymentStatus(value, t) {
   const labels = {
     pending: t("subscription.pending"),
@@ -237,7 +212,7 @@ export default function Subscription() {
     return (
       <Page title={t("subscription.directAccess")} subtitle={t("subscription.directAccessBody")}>
         <section className="subscription-saved-banner subscription-direct-access">
-          <div><p className="eyebrow">Lock-in</p><h2>{t("subscription.directAccess")}</h2><p>{t("subscription.directAccessBody")}</p></div>
+          <div><h2>{t("subscription.directAccess")}</h2><p>{t("subscription.directAccessBody")}</p></div>
         </section>
         <ComingSoonPlans offers={comingSoon} t={t} />
       </Page>
@@ -306,9 +281,7 @@ export default function Subscription() {
 
         <header className="subscription-premium-header">
           <div>
-            <p className="subscription-brand-label">Lock-in <span>{t("subscription.premium")}</span></p>
             <h1>{t("subscription.choosePlan")}</h1>
-            <p>{t("subscription.premiumLead")}</p>
           </div>
           <div className="subscription-current-summary">
             <span>{t("subscription.currentAccess")}</span>
@@ -316,7 +289,6 @@ export default function Subscription() {
             <SubscriptionStatus subscription={subscription} compact />
           </div>
         </header>
-        <SubscriptionStateFlow subscription={subscription} review={review} t={t} />
 
         <section className="subscription-purchase" id="libyana-payment" ref={purchaseRef} dir={direction} aria-labelledby="subscription-plan-heading">
           {!catalog.manualPaymentAvailable || !offers.length ? (
@@ -331,7 +303,7 @@ export default function Subscription() {
               <CheckoutStepper step={step} onStep={goToStep} t={t} />
 
               {step === "plan" && <fieldset className="subscription-plan-options">
-                <legend id="subscription-plan-heading">{t("subscription.choosePlan")}</legend>
+                <legend className="visually-hidden" id="subscription-plan-heading">{t("subscription.choosePlan")}</legend>
                 <div className="subscription-plan-grid">
                   {offers.map(({ plan, version, price }) => {
                     const copy = offerCopy(plan, version, locale);
@@ -356,9 +328,7 @@ export default function Subscription() {
               {step !== "plan" && selectedOffer && (
                 <section className="subscription-order-summary" aria-labelledby="subscription-order-title">
                   <div className="subscription-order-plan">
-                    <span>{t("subscription.selectedPlan")}</span>
                     <h2 id="subscription-order-title">{offerCopy(selectedOffer.plan, selectedOffer.version, locale).title}</h2>
-                    <p>{offerCopy(selectedOffer.plan, selectedOffer.version, locale).description}</p>
                   </div>
                   <div className="subscription-order-price">
                     <span>{t("subscription.total")}</span>

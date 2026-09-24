@@ -107,7 +107,11 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 1920, height: 108
     await expect(reset).toHaveText("Fit");
     await reset.click();
     await expect.poll(() => readerScale(page)).toBeCloseTo(start, 1);
-    await expect(bar.getByRole("button", { name: "Zoom out", exact: true })).toBeDisabled();
+    await expect(bar.getByRole("button", { name: "Zoom out", exact: true })).toBeEnabled();
+    await bar.getByRole("button", { name: "Zoom out", exact: true }).click();
+    await expect.poll(() => readerScale(page)).toBeLessThan(start - .1);
+    await reset.click();
+    await expect.poll(() => readerScale(page)).toBeCloseTo(start, 1);
 
     // One set of zoom controls: the page dock drops its zoom row here.
     await page.locator(".workspace-v2-page-number").click();
@@ -122,7 +126,7 @@ for (const device of [
   { name: "iPad portrait", viewport: { width: 820, height: 1180 }, isMobile: false },
   { name: "iPad Pro landscape", viewport: { width: 1366, height: 1024 }, isMobile: false }
 ]) {
-  test(`the ${device.name} reader is unchanged and has no laptop zoom bar`, async ({ browser }) => {
+  test(`the ${device.name} reader can pinch below fit without a laptop zoom bar`, async ({ browser }) => {
     test.setTimeout(60_000);
     const context = await browser.newContext({ viewport: device.viewport, hasTouch: true, isMobile: device.isMobile });
     const page = await context.newPage();
@@ -131,7 +135,10 @@ for (const device of [
     await expect(page.locator(".workspace-v2-zoom-bar")).toBeHidden();
     const fitWidth = await readerScale(page);
     await pinchBelowFitWidth(page);
-    await expect.poll(() => readerScale(page)).toBeCloseTo(fitWidth, 3);
+    await expect.poll(() => readerScale(page)).toBeLessThan(fitWidth - .05);
+    const geometry = await page.locator(".workspace-v2-a4-live-layer").boundingBox();
+    const stage = await page.locator(".workspace-v2-document-stage").boundingBox();
+    expect(Math.abs(geometry.x + geometry.width / 2 - stage.x - stage.width / 2)).toBeLessThan(2);
     await page.locator(".workspace-v2-page-number").click();
     await expect(page.locator(".workspace-v2-page-navigator .workspace-v2-zoom-control")).toBeHidden();
     await expect(page.locator(".workspace-v2-page-navigator .workspace-v4-zoom-presets")).toBeHidden();

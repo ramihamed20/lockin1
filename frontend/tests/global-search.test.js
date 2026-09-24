@@ -26,7 +26,7 @@ test("global search has no client-seeded production results", () => {
   assert.doesNotMatch(searchLibrary, /materialCatalog|demoQuizCatalog|MATERIAL_CATALOG|catalogSearchResults|questions\/demo/);
   assert.match(searchLibrary, /serverResults\.forEach/);
   assert.match(searchComponent, /discoveryApi\.search\(\{ query, limit: 12, signal: controller\.signal \}\)/);
-  assert.match(searchComponent, /mergeSearchResults\(query, serverResults\)/);
+  assert.match(searchComponent, /mergeSearchResults\(query, \[\.\.\.actionResults, \.\.\.serverResults\]\)/);
 });
 
 test("the reusable type-ahead uses cancellation and accessible keyboard controls", () => {
