@@ -52,7 +52,10 @@ export function estimateReleaseScrollVelocity(samples, releaseTime, windowMs = P
     const previous = recent[index - 1];
     const current = recent[index];
     const deltaTime = current.time - previous.time;
-    if (deltaTime <= 0 || deltaTime > 50) continue;
+    // Rendering can briefly slow pointer delivery while zoomed in. A valid
+    // segment may span most of the sampling window; rejecting it made these
+    // gestures end at finger-up with no momentum at all.
+    if (deltaTime <= 0 || deltaTime > windowMs) continue;
     const recency = clamp(1 - (releasedAt - current.time) / windowMs, 0, 1);
     const weight = (0.3 + 0.7 * recency * recency) * Math.min(deltaTime, 24);
     weightedX += clamp((previous.x - current.x) / deltaTime, -24, 24) * weight;

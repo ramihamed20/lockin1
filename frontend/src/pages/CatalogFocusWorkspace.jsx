@@ -930,7 +930,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const [keepScreenAwake, setKeepScreenAwake] = useState(storedWorkspaceSettings.keepScreenAwake === true);
   const [zoomHud, setZoomHud] = useState({ visible: false, label: "" });
   const [drawingInput, setDrawingInput] = useState(() => {
-    try { return window.localStorage.getItem("lock-in.catalog-workspace.drawing-input") === DRAWING_INPUT.STYLUS_AND_FINGER ? DRAWING_INPUT.STYLUS_AND_FINGER : DRAWING_INPUT.STYLUS_ONLY; }
+    // v2 leaves out the old value, which was also written automatically when
+    // users selected Pen and could make a resting finger draw after an update.
+    try { return window.localStorage.getItem("lock-in.catalog-workspace.drawing-input.v2") === DRAWING_INPUT.STYLUS_AND_FINGER ? DRAWING_INPUT.STYLUS_AND_FINGER : DRAWING_INPUT.STYLUS_ONLY; }
     catch { return DRAWING_INPUT.STYLUS_ONLY; }
   });
   const [annotations, setAnnotations] = useState([]);
@@ -1004,6 +1006,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   }, [clampReaderZoom, minimumPdfZoom]);
   const [undoHistory, setUndoHistory] = useState([]);
   const [redoHistory, setRedoHistory] = useState([]);
+  const undoHistoryRef = useRef([]);
+  const redoHistoryRef = useRef([]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [selectionActionsOpen, setSelectionActionsOpen] = useState(false);
   const [isDocumentFullscreen, setIsDocumentFullscreen] = useState(false);
@@ -1704,7 +1708,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   }, []);
 
   const recordCommand = useCallback((command) => {
-    setUndoHistory((history) => [...history.slice(-79), command]);
+    const nextUndo = [...undoHistoryRef.current.slice(-79), command];
+    undoHistoryRef.current = nextUndo;
+    redoHistoryRef.current = [];
+    setUndoHistory(nextUndo);
     setRedoHistory([]);
   }, []);
 
@@ -1729,27 +1736,33 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   }, [updateAnnotations]);
 
   const undoTool = useCallback(() => {
-    setUndoHistory((history) => {
-      if (!history.length) return history;
-      const command = history[history.length - 1];
-      if (command.type === "workspace-page") applyWorkspacePageCommand(command, "undo");
-      else updateAnnotations((current) => applyAnnotationCommand(current, command, "undo"));
-      setRedoHistory((items) => [...items.slice(-79), command]);
-      setSelectedIds([]);
-      return history.slice(0, -1);
-    });
+    const history = undoHistoryRef.current;
+    if (!history.length) return;
+    const command = history[history.length - 1];
+    const nextUndo = history.slice(0, -1);
+    const nextRedo = [...redoHistoryRef.current.slice(-79), command];
+    undoHistoryRef.current = nextUndo;
+    redoHistoryRef.current = nextRedo;
+    setUndoHistory(nextUndo);
+    setRedoHistory(nextRedo);
+    if (command.type === "workspace-page") applyWorkspacePageCommand(command, "undo");
+    else updateAnnotations((current) => applyAnnotationCommand(current, command, "undo"));
+    setSelectedIds([]);
   }, [applyWorkspacePageCommand, updateAnnotations]);
 
   const redoTool = useCallback(() => {
-    setRedoHistory((history) => {
-      if (!history.length) return history;
-      const command = history[history.length - 1];
-      if (command.type === "workspace-page") applyWorkspacePageCommand(command, "redo");
-      else updateAnnotations((current) => applyAnnotationCommand(current, command, "redo"));
-      setUndoHistory((items) => [...items.slice(-79), command]);
-      setSelectedIds([]);
-      return history.slice(0, -1);
-    });
+    const history = redoHistoryRef.current;
+    if (!history.length) return;
+    const command = history[history.length - 1];
+    const nextRedo = history.slice(0, -1);
+    const nextUndo = [...undoHistoryRef.current.slice(-79), command];
+    redoHistoryRef.current = nextRedo;
+    undoHistoryRef.current = nextUndo;
+    setRedoHistory(nextRedo);
+    setUndoHistory(nextUndo);
+    if (command.type === "workspace-page") applyWorkspacePageCommand(command, "redo");
+    else updateAnnotations((current) => applyAnnotationCommand(current, command, "redo"));
+    setSelectedIds([]);
   }, [applyWorkspacePageCommand, updateAnnotations]);
 
   /**
@@ -1962,6 +1975,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       notesRef.current = merged.notes;
       setNotes(merged.notes);
       setSelectedIds([]);
+      undoHistoryRef.current = [];
+      redoHistoryRef.current = [];
       setUndoHistory([]);
       setRedoHistory([]);
     }).catch(() => {
@@ -2013,6 +2028,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         notesRef.current = result.notes;
         setNotes(result.notes);
         setSelectedIds([]);
+        undoHistoryRef.current = [];
+        redoHistoryRef.current = [];
         setUndoHistory([]);
         setRedoHistory([]);
       } catch {
@@ -4056,7 +4073,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   }
 
   function chooseWritingTool(tool) {
-    if (tool === "pen" && drawingInput !== DRAWING_INPUT.STYLUS_AND_FINGER) changeDrawingInput(DRAWING_INPUT.STYLUS_AND_FINGER);
     selectTool(tool);
   }
 
@@ -4254,7 +4270,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
 
   function changeDrawingInput(value) {
     setDrawingInput(value);
-    try { window.localStorage.setItem("lock-in.catalog-workspace.drawing-input", value); } catch { /* This non-sensitive preference can remain in memory. */ }
+    try { window.localStorage.setItem("lock-in.catalog-workspace.drawing-input.v2", value); } catch { /* This non-sensitive preference can remain in memory. */ }
   }
 
   function addImage(event) {
