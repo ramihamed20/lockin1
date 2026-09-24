@@ -260,6 +260,7 @@ for (const { viewport, mode } of KEYBOARD_SESSIONS) {
       await setKeyboardInset(page, viewport, 0, mode);
       await page.evaluate(() => document.activeElement?.blur());
       await setKeyboardInset(page, viewport, 0, mode);
+      await expect.poll(async () => (await readerState(page)).toolbarTop).toBe(before.toolbarTop);
       const closed = await readerState(page);
 
       expect(closed.keyboard, `pass ${pass}: the keyboard state stuck`).toBe("closed");
@@ -272,8 +273,8 @@ for (const { viewport, mode } of KEYBOARD_SESSIONS) {
     }
 
     // Drawing has to work again once the note is done with.
-    await page.locator('[data-workspace-tool="pen"]').click();
-    await expect(page.locator('[data-workspace-tool="pen"]')).toHaveClass(/is-active/);
+    await page.locator('button[data-workspace-tool="pen"]').click();
+    await expect(page.locator('button[data-workspace-tool="pen"]')).toHaveClass(/is-active/);
     const after = await readerState(page);
     expect(after.transform).toBe(before.transform);
     expect(after.scrollTop).toBe(before.scrollTop);

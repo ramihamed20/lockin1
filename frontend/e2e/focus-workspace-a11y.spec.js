@@ -106,7 +106,7 @@ test("global shortcuts never fire while a field or a control has focus", async (
   await mockWorkspace(page);
   await openWorkspace(page);
   const indicator = page.locator(".workspace-v2-page-number");
-  await expect(indicator).toHaveAttribute("aria-label", "Page 1 of 41");
+  await expect(indicator).toHaveAttribute("aria-label", "PDF page 1 of 41");
 
   // Typing a page number must not be read as tool shortcuts or page steps.
   await indicator.click();
@@ -114,11 +114,11 @@ test("global shortcuts never fire while a field or a control has focus", async (
   await pageInput.click();
   await pageInput.press("ArrowRight");
   await pageInput.press("ArrowLeft");
-  await expect(indicator).toHaveAttribute("aria-label", "Page 1 of 41");
+  await expect(indicator).toHaveAttribute("aria-label", "PDF page 1 of 41");
   await expect(page.locator('[data-workspace-tool="pen"]')).toHaveAttribute("aria-pressed", "true");
   await pageInput.fill("5");
   await pageInput.press("Enter");
-  await expect(indicator).toHaveAttribute("aria-label", "Page 5 of 41");
+  await expect(indicator).toHaveAttribute("aria-label", "PDF page 5 of 41");
   await expect(page.locator('[data-workspace-tool="pen"]')).toHaveAttribute("aria-pressed", "true");
   await page.locator(".workspace-v2-page-number").click();
   await waitForScrollToSettle(page);
@@ -126,7 +126,7 @@ test("global shortcuts never fire while a field or a control has focus", async (
   // The same keys reach the reader once focus leaves the field.
   await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
   await page.keyboard.press("ArrowRight");
-  await expect(indicator).toHaveAttribute("aria-label", "Page 6 of 41");
+  await expect(indicator).toHaveAttribute("aria-label", "PDF page 6 of 41");
   await waitForScrollToSettle(page);
 
   // A note field swallows every shortcut, including Delete and Backspace.
@@ -137,7 +137,7 @@ test("global shortcuts never fire while a field or a control has focus", async (
   await noteEditor.press("Backspace");
   await noteEditor.press("ArrowLeft");
   await expect(noteEditor).toHaveValue("pencil and erase");
-  await expect(indicator).toHaveAttribute("aria-label", "Page 6 of 41");
+  await expect(indicator).toHaveAttribute("aria-label", "PDF page 6 of 41");
   await expect(page.locator('[data-workspace-tool="eraser"]')).toHaveAttribute("aria-pressed", "false");
 });
 
@@ -183,12 +183,14 @@ test("status, save failures, and popovers are announced and reachable", async ({
   await expect(page.getByRole("dialog", { name: "Workspace settings" })).toBeVisible();
 
   // Backup controls are ordinary named buttons, not icon-only affordances.
-  await expect(page.getByRole("button", { name: /Export marks and notes/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Restore from a backup/ })).toBeVisible();
-  await expect(page.getByRole("switch", { name: /Scribble erase/ })).toHaveAttribute("aria-checked", /true|false/);
+  const settings = page.getByRole("dialog", { name: "Workspace settings" });
+  await expect(settings.getByRole("switch", { name: /Scribble to erase/ })).toHaveAttribute("aria-checked", /true|false/);
+  await settings.getByRole("button", { name: /Export Save and share/ }).click();
+  await expect(settings.getByRole("button", { name: /Export workspace backup/ })).toBeVisible();
+  await expect(settings.getByRole("button", { name: /Restore a backup/ })).toBeVisible();
 
   // The page dock exposes its own expanded state and named zoom controls.
-  await settingsButton.click();
+  await settings.getByRole("button", { name: "Close workspace settings" }).click();
   const pageButton = page.locator(".workspace-v2-page-number");
   await expect(pageButton).toHaveAttribute("aria-expanded", "false");
   await pageButton.click();

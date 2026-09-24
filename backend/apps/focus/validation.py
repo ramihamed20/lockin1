@@ -79,7 +79,8 @@ def validate_payload(*, tool: str, value: object) -> dict[str, Any]:
         raise FocusValidationError("Annotation payload is too large.")
 
     if tool in STROKE_TOOLS:
-        if set(payload) != {"kind", "samples"} or payload.get("kind") != "stroke":
+        allowed = {"kind", "samples", "erasures"}
+        if not {"kind", "samples"}.issubset(payload) or not set(payload).issubset(allowed) or payload.get("kind") != "stroke":
             raise FocusValidationError("A drawing annotation requires stroke samples.")
         samples = payload["samples"]
         if (
@@ -118,7 +119,28 @@ def validate_payload(*, tool: str, value: object) -> dict[str, Any]:
                     ),
                 }
             )
-        return {"kind": "stroke", "samples": normalized}
+        result: dict[str, Any] = {"kind": "stroke", "samples": normalized}
+        if "erasures" in payload:
+            erasures = payload["erasures"]
+            if (
+                not isinstance(erasures, Sequence)
+                or isinstance(erasures, (str, bytes))
+                or len(erasures) > 32
+            ):
+                raise FocusValidationError("Ink erasures are invalid.")
+            normalized_erasures = []
+            for index, erasure in enumerate(erasures):
+                if not isinstance(erasure, Mapping) or set(erasure) != {"radius", "points"}:
+                    raise FocusValidationError(f"Ink erasure {index} has an invalid shape.")
+                points = erasure["points"]
+                if not isinstance(points, Sequence) or isinstance(points, (str, bytes)) or not 1 <= len(points) <= 96:
+                    raise FocusValidationError(f"Ink erasure {index} has invalid points.")
+                normalized_erasures.append({
+                    "radius": _number(erasure["radius"], label="erasure.radius", minimum=0.0005, maximum=0.08),
+                    "points": [_point(point, label="erasure.point") for point in points],
+                })
+            result["erasures"] = normalized_erasures
+        return result
 
     if tool in SHAPE_TOOLS:
         if set(payload) != {"kind", "start", "end"} or payload.get("kind") != "shape":
@@ -130,12 +152,27 @@ def validate_payload(*, tool: str, value: object) -> dict[str, Any]:
         }
 
     expected_kind = "sticky-note" if tool == "sticky-note" else "text"
-    if set(payload) != {"kind", "value"} or payload.get("kind") != expected_kind:
+    allowed = {"kind", "value", "align", "bold"} if tool == "text" else {"kind", "value"}
+    if (
+        not {"kind", "value"}.issubset(payload)
+        or not set(payload).issubset(allowed)
+        or payload.get("kind") != expected_kind
+    ):
         raise FocusValidationError("A note annotation requires the expected text payload.")
     text = payload["value"]
     if not isinstance(text, str) or not text.strip() or len(text) > 4000:
         raise FocusValidationError("Annotation text must contain 1 to 4000 characters.")
-    return {"kind": expected_kind, "value": text.strip()}
+    result: dict[str, Any] = {"kind": expected_kind, "value": text.strip()}
+    if tool == "text":
+        align = payload.get("align", "left")
+        bold = payload.get("bold", False)
+        if align not in {"left", "center", "right"} or not isinstance(bold, bool):
+            raise FocusValidationError("Text formatting is invalid.")
+        if "align" in payload:
+            result["align"] = align
+        if "bold" in payload:
+            result["bold"] = bold
+    return result
 
 
 def validate_color(value: str) -> str:

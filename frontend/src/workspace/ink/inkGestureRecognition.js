@@ -211,9 +211,17 @@ function fittedLine(points) {
   const length = pathLength(points);
   let maximumDeviation = 0;
   for (const point of points) maximumDeviation = Math.max(maximumDeviation, distanceToLine(point, start, end));
-  const confidence = clamp((direct / Math.max(1, length) - .82) / .17) * .55
-    + clamp(1 - maximumDeviation / Math.max(5, direct * .075)) * .45;
-  return { start, end, direct, length, maximumDeviation, confidence };
+  const directionX = (end.x - start.x) / Math.max(1, direct);
+  const directionY = (end.y - start.y) / Math.max(1, direct);
+  let backwardTravel = 0;
+  for (let index = 1; index < points.length; index += 1) {
+    const progress = (points[index].x - points[index - 1].x) * directionX
+      + (points[index].y - points[index - 1].y) * directionY;
+    if (progress < 0) backwardTravel -= progress;
+  }
+  const confidence = clamp((direct / Math.max(1, length) - .68) / .27) * .55
+    + clamp(1 - maximumDeviation / Math.max(7, direct * .13)) * .45;
+  return { start, end, direct, length, maximumDeviation, backwardTravel, confidence };
 }
 
 function recognizeArrow(points, unitsPerCssPixel = 1) {
@@ -244,12 +252,16 @@ function recognizeArrow(points, unitsPerCssPixel = 1) {
 /** Returns a vector shape proposal for draw-and-hold, or null when confidence is low. */
 export function recognizeHeldStroke(points, { unitsPerCssPixel = 1 } = {}) {
   const source = Array.isArray(points) ? points : [];
-  if (source.length < 3) return null;
+  if (source.length < 2) return null;
   const unit = Math.max(.01, finite(unitsPerCssPixel, 1));
   const arrow = recognizeArrow(source, unit);
   if (arrow) return arrow;
   const line = fittedLine(source);
-  if (line.direct >= 24 * unit && line.confidence >= .7 && line.maximumDeviation <= Math.max(8 * unit, line.direct * .1)) {
+  if (line.direct >= 18 * unit
+    && line.length <= line.direct * 2
+    && line.maximumDeviation <= Math.max(24 * unit, line.direct * .28)
+    && line.backwardTravel <= line.direct * .3
+    && line.confidence >= .58) {
     return { kind: "line", confidence: line.confidence, start: line.start, end: line.end };
   }
   const closed = analyzeClosedGesture(source, { unitsPerCssPixel: unit });

@@ -1,3 +1,4 @@
+import { isVirtualPageKey, sanitizeVirtualPages } from "../catalog/virtualPages.js";
 import { sanitizeCatalogAnnotation, sanitizeCatalogNote } from "../catalog/catalogWorkspaceState.js";
 
 /**
@@ -39,7 +40,7 @@ export function workspaceDocumentId(owner, materialSlug, sheetSlug) {
 }
 
 export function workspacePageId(documentId, page) {
-  return `${documentId}::${Math.max(1, Math.round(finite(page, 1)))}`;
+  return `${documentId}::${isVirtualPageKey(page) ? page : Math.max(1, Math.round(finite(page, 1)))}`;
 }
 
 /**
@@ -67,7 +68,7 @@ export function createAnnotationRevisionIndex() {
 export function groupAnnotationsByPage(annotations) {
   const pages = new Map();
   for (const annotation of annotations || []) {
-    const page = Math.max(1, Math.round(finite(annotation?.page, 1)));
+    const page = isVirtualPageKey(annotation?.page) ? annotation.page : Math.max(1, Math.round(finite(annotation?.page, 1)));
     const bucket = pages.get(page);
     if (bucket) bucket.push(annotation);
     else pages.set(page, [annotation]);
@@ -143,7 +144,7 @@ export function sanitizeStoredNotes(notes) {
     .filter(Boolean);
 }
 
-export function buildExportPayload({ materialSlug, sheetSlug, materialTitle = "", sheetTitle = "", annotations, notes, view, savedAt = new Date().toISOString() }) {
+export function buildExportPayload({ materialSlug, sheetSlug, materialTitle = "", sheetTitle = "", annotations, notes, virtualPages, view, savedAt = new Date().toISOString() }) {
   return {
     kind: WORKSPACE_EXPORT_KIND,
     version: WORKSPACE_RECORD_VERSION,
@@ -156,7 +157,8 @@ export function buildExportPayload({ materialSlug, sheetSlug, materialTitle = ""
     },
     view: sanitizeViewState(view),
     annotations: sanitizeStoredAnnotations(annotations).slice(-MAX_IMPORT_ANNOTATIONS),
-    notes: sanitizeStoredNotes(notes).slice(-MAX_IMPORT_NOTES)
+    notes: sanitizeStoredNotes(notes).slice(-MAX_IMPORT_NOTES),
+    virtualPages: sanitizeVirtualPages(virtualPages)
   };
 }
 
@@ -201,7 +203,8 @@ export function parseImportPayload(text, expected = {}) {
   }
   const annotations = sanitizeStoredAnnotations(parsed.annotations).slice(-MAX_IMPORT_ANNOTATIONS);
   const notes = sanitizeStoredNotes(parsed.notes).slice(-MAX_IMPORT_NOTES);
-  if (!annotations.length && !notes.length) return { ok: false, reason: "This backup contains no marks or notes." };
+  const virtualPages = sanitizeVirtualPages(parsed.virtualPages);
+  if (!annotations.length && !notes.length && !virtualPages.length) return { ok: false, reason: "This backup contains no marks, notes, or pages." };
   return {
     ok: true,
     matchesDocument: materialSlug === expected.materialSlug && sheetSlug === expected.sheetSlug,
@@ -212,7 +215,8 @@ export function parseImportPayload(text, expected = {}) {
       sheetTitle: typeof document.sheetTitle === "string" ? document.sheetTitle.slice(0, 200) : "",
       view: sanitizeViewState(parsed.view),
       annotations,
-      notes
+      notes,
+      virtualPages
     }
   };
 }

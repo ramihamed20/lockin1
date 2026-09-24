@@ -57,6 +57,90 @@ async function drawStroke(page, pointerId, offset = 0) {
   await send("pointerup", bounds.x + bounds.width * 0.62);
 }
 
+async function drawOnBlankPage(page, pointerId) {
+  const stage = page.locator(".workspace-v2-document-stage");
+  const bounds = await page.locator(".workspace-v2-a4-page.is-virtual").first().boundingBox();
+  const y = bounds.y + bounds.height * 0.35;
+  const send = (type, x) => stage.dispatchEvent(type, {
+    pointerId, pointerType: "pen", isPrimary: true, clientX: x, clientY: y,
+    button: 0, buttons: type === "pointerup" ? 0 : 1, pressure: type === "pointerup" ? 0 : 0.5,
+    width: 2, height: 2, bubbles: true, cancelable: true
+  });
+  await send("pointerdown", bounds.x + bounds.width * 0.25);
+  await send("pointermove", bounds.x + bounds.width * 0.48);
+  await send("pointerup", bounds.x + bounds.width * 0.6);
+}
+
+test("blank workspace pages hold ink and text across reload without entering PDF count", async ({ page }) => {
+  test.setTimeout(90_000);
+  await mockWorkspace(page);
+  await openWorkspace(page);
+  const originalPdfCount = await page.locator("[data-pdf-page]").count();
+  expect(originalPdfCount).toBeGreaterThan(1);
+  await page.getByRole("button", { name: /^PDF page 1 of/ }).click();
+  await page.getByRole("group", { name: "Workspace pages" }).getByRole("button", { name: "Add Page" }).click();
+  const blank = page.locator(".workspace-v2-a4-page.is-virtual").first();
+  await expect(blank).toBeVisible();
+  const blankId = Number(await blank.getAttribute("data-workspace-page"));
+  expect(blankId).toBeLessThan(0);
+  expect(await page.locator(".workspace-v2-a4-page").evaluateAll((nodes) => nodes.slice(0, 3).map((node) => node.getAttribute("data-pdf-page") || node.getAttribute("data-workspace-page")))).toEqual(["1", String(blankId), "2"]);
+  await expect(page.getByRole("button", { name: /^Blank workspace page after PDF page 1; PDF has/ })).toBeVisible();
+  expect(await page.locator("[data-pdf-page]").count()).toBe(originalPdfCount);
+
+  await page.getByRole("button", { name: "Pen", exact: true }).click();
+  await drawOnBlankPage(page, 94);
+  await expect(blank.locator("[data-annotation-type='pen']:not(.workspace-v2-annotation-hit)")).toHaveCount(1);
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.getByRole("button", { name: "Text", exact: true }).click();
+  await page.getByRole("dialog", { name: "Add text annotation" }).getByRole("textbox", { name: "Annotation text" }).fill("Blank page writing");
+  await page.getByRole("dialog", { name: "Add text annotation" }).getByRole("button", { name: "B Bold" }).click();
+  await page.getByRole("dialog", { name: "Add text annotation" }).getByRole("combobox", { name: "Align" }).selectOption("right");
+  await page.getByRole("button", { name: "Add text", exact: true }).click();
+  await expect(blank.getByText("Blank page writing")).toBeVisible();
+  await expect(blank.locator('[data-annotation-type="text"]')).toHaveAttribute("font-weight", "700");
+  await expect.poll(async () => (await readWorkspaceDatabase(page)).documents[0]?.virtualPages?.length).toBe(1);
+  await expect.poll(async () => (await readWorkspaceDatabase(page)).pages.find((record) => record.page === blankId)?.annotations?.length).toBe(2);
+
+  await openWorkspace(page);
+  await expect(page.locator(`[data-workspace-page="${blankId}"]`)).toBeAttached();
+  await expect(page.locator(`[data-workspace-page="${blankId}"]`).getByText("Blank page writing")).toBeVisible();
+  await expect(page.locator(`[data-workspace-page="${blankId}"] [data-annotation-type="text"]`)).toHaveAttribute("font-weight", "700");
+  await page.locator(`[data-workspace-page="${blankId}"]`).scrollIntoViewIfNeeded();
+  await expect(page.getByRole("button", { name: /^Blank workspace page after PDF page 1; PDF has/ })).toBeVisible();
+  await page.getByRole("button", { name: /^Blank workspace page after PDF page 1; PDF has/ }).click();
+  await page.getByRole("group", { name: "Zoom" }).getByRole("button", { name: "Zoom in" }).click();
+  await expect(page.locator(`[data-workspace-page="${blankId}"]`)).toBeAttached();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("group", { name: "Workspace pages" }).getByRole("button", { name: "Delete blank page" }).click();
+  await expect(page.locator(`[data-workspace-page="${blankId}"]`)).toHaveCount(0);
+  await expect.poll(async () => (await readWorkspaceDatabase(page)).documents[0]?.virtualPages?.length).toBe(0);
+  await page.getByRole("button", { name: "Undo (Ctrl+Z)" }).click();
+  await expect(page.locator(`[data-workspace-page="${blankId}"]`)).toBeAttached();
+  await expect(page.locator(`[data-workspace-page="${blankId}"] [data-annotation-type='pen']:not(.workspace-v2-annotation-hit)`)).toHaveCount(1);
+  await page.getByRole("button", { name: "Redo (Ctrl+Shift+Z)" }).click();
+  await expect(page.locator(`[data-workspace-page="${blankId}"]`)).toHaveCount(0);
+  expect(await page.locator("[data-pdf-page]").count()).toBe(originalPdfCount);
+});
+
+test("a patterned workspace page keeps its background after reload", async ({ page }) => {
+  test.setTimeout(60_000);
+  await mockWorkspace(page, { userId: "pattern-student" });
+  await openWorkspace(page);
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.getByRole("button", { name: "Add Page" }).click();
+  await page.getByRole("dialog", { name: "Choose workspace page background" }).getByRole("button", { name: /Grid/ }).click();
+  const grid = page.locator(".workspace-v2-a4-page.is-virtual.is-background-grid").first();
+  await expect(grid).toBeVisible();
+  const id = Number(await grid.getAttribute("data-workspace-page"));
+  await page.getByRole("button", { name: "Undo (Ctrl+Z)" }).click();
+  await expect(page.locator(`[data-workspace-page="${id}"]`)).toHaveCount(0);
+  await page.getByRole("button", { name: "Redo (Ctrl+Shift+Z)" }).click();
+  await expect(page.locator(`[data-workspace-page="${id}"].is-background-grid`)).toBeAttached();
+  await expect.poll(async () => (await readWorkspaceDatabase(page)).documents[0]?.virtualPages?.[0]?.background).toBe("grid");
+  await openWorkspace(page);
+  await expect(page.locator(`[data-workspace-page="${id}"].is-background-grid`)).toBeAttached();
+});
+
 /** Reads the workspace database exactly as the browser stored it. */
 async function readWorkspaceDatabase(page) {
   return page.evaluate(async () => {
@@ -190,9 +274,10 @@ test("a backup exports, restores, and refuses to cross into another sheet unaske
 
   await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings" }).click();
+  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("button", { name: /Export Save and share/ }).click();
   const [download] = await Promise.all([
     page.waitForEvent("download"),
-    page.getByRole("button", { name: /Export marks and notes/ }).click()
+    page.getByRole("button", { name: /Export workspace backup/ }).click()
   ]);
   const backupPath = await download.path();
   const backup = JSON.parse(await readFile(backupPath, "utf8"));
@@ -201,17 +286,25 @@ test("a backup exports, restores, and refuses to cross into another sheet unaske
   expect(download.suggestedFilename()).toMatch(/^lock-in-biochemistry-1-vitamin-1-\d{4}-\d{2}-\d{2}\.json$/);
 
   // Clear the sheet, then restore it from the file.
-  await page.getByRole("button", { name: /Clear ink on page/ }).click();
+  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("button", { name: /Writing Pens and handwriting/ }).click();
+  await page.getByRole("button", { name: /Clear ink on PDF page/ }).click();
   await expect(visibleInk(page)).toHaveCount(0);
+  await page.getByRole("button", { name: "More workspace actions" }).click();
+  await page.getByRole("button", { name: "Workspace settings" }).click();
+  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("button", { name: /Export Save and share/ }).click();
   await page.locator('input[accept="application/json,.json"]').setInputFiles(backupPath);
   await expect(visibleInk(page)).toHaveCount(1);
   // Restoring is an ordinary edit, so it can be undone.
+  await page.getByRole("button", { name: "Close workspace settings" }).click();
   await page.getByRole("button", { name: "Undo (Ctrl+Z)" }).click();
   await expect(visibleInk(page)).toHaveCount(0);
   await page.getByRole("button", { name: "Redo (Ctrl+Shift+Z)" }).click();
   await expect(visibleInk(page)).toHaveCount(1);
 
   // Restoring the same file again adds nothing, because the ids already exist.
+  await page.getByRole("button", { name: "More workspace actions" }).click();
+  await page.getByRole("button", { name: "Workspace settings" }).click();
+  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("button", { name: /Export Save and share/ }).click();
   await page.locator('input[accept="application/json,.json"]').setInputFiles(backupPath);
   await expect(page.locator(".workspace-v2-toast")).toContainText(/already on this sheet/i);
   await expect(visibleInk(page)).toHaveCount(1);
@@ -240,6 +333,7 @@ test("a malformed backup is refused without disturbing the sheet", async ({ page
   await expect(visibleInk(page)).toHaveCount(1);
   await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings" }).click();
+  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("button", { name: /Export Save and share/ }).click();
   const input = page.locator('input[accept="application/json,.json"]');
 
   for (const [name, body] of [

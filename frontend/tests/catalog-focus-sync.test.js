@@ -42,6 +42,19 @@ function strokeWith(id, x) {
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
+test("formatted multiline text survives the Focus annotation wire contract", () => {
+  const text = { id: ids[1], page: 4, type: "text", text: "First line\nSecond line", x: 500, y: 360, width: 6, color: "#123456", opacity: 1, align: "right", bold: true };
+  const wire = catalogAnnotationToFocus(text);
+  assert.deepEqual(wire.payload, { kind: "text", value: text.text, align: "right", bold: true });
+  const restored = focusAnnotationToCatalog({ ...wire, page_number: 4, thickness: 6, opacity: 1 });
+  assert.equal(restored.text, text.text);
+  assert.equal(restored.align, "right");
+  assert.equal(restored.bold, true);
+  const legacy = focusAnnotationToCatalog({ ...wire, payload: { kind: "text", value: "Old note" }, page_number: 4, thickness: 6, opacity: 1 });
+  assert.equal(legacy.align, "left");
+  assert.equal(legacy.bold, false);
+});
+
 /** Fake backend with the real rules: revisions, 409 on conflict, replay by key. */
 function fakeServer() {
   const server = {
@@ -242,6 +255,36 @@ test("a cold second device receives the first device's ink notes and page state"
   assert.deepEqual(cold.annotations.map((item) => item.page), [2, 4, 17]);
   assert.deepEqual(cold.notes, notes);
   assert.equal(server.workspace.state.view.page, 17);
+});
+
+test("virtual pages and their ink sync without changing PDF annotations or page count", async () => {
+  const server = fakeServer();
+  const first = syncFor(server, memoryStorage());
+  await first.load({ pageCount: 21 });
+  first.reconcile({ annotations: [], notes: [], virtualPages: [] });
+  const virtualPages = [{ id: -220, afterPage: 20, background: "blank" }, { id: -221, afterPage: 20, background: "grid" }];
+  const virtualInk = { ...strokeWith(ids[0], 0), page: -220 };
+  const virtualText = { id: ids[1], page: -221, type: "text", text: "workspace only", x: 100, y: 120 };
+  assert.equal((await first.push({ savedAt: "t1", view: { page: 20, zoom: 1.5 }, notes: [], annotations: [virtualInk, virtualText], virtualPages })).status, "synced");
+  assert.equal(server.annotations.size, 0);
+  assert.equal(server.workspace.state.view.page, 20);
+  assert.deepEqual(server.workspace.state.virtual_pages, virtualPages);
+  assert.deepEqual(server.workspace.state.virtual_annotations.map((item) => item.page), [-220, -221]);
+
+  const second = syncFor(server, memoryStorage());
+  await second.load({ pageCount: 21 });
+  const cold = second.reconcile({ annotations: [], notes: [], virtualPages: [] });
+  assert.deepEqual(cold.virtualPages, virtualPages);
+  assert.deepEqual(cold.annotations.map((item) => item.page), [-220, -221]);
+  assert.equal((await second.push({ savedAt: "t1", view: { page: 20, zoom: 1.5 }, notes: [], annotations: cold.annotations, virtualPages: cold.virtualPages })).status, "synced");
+
+  assert.equal((await first.push({ savedAt: "t2", view: { page: 20, zoom: 1.5 }, notes: [], annotations: [virtualText], virtualPages: [virtualPages[1]] })).status, "synced");
+  assert.deepEqual(server.workspace.state.virtual_pages, [virtualPages[1]]);
+  assert.deepEqual(server.workspace.state.virtual_annotations.map((item) => item.page), [-221]);
+  const refreshed = await second.refresh({ pageCount: 21, local: cold });
+  assert.equal(refreshed.changed, true);
+  assert.deepEqual(refreshed.virtualPages, [virtualPages[1]], "a remotely deleted blank page stays deleted");
+  assert.deepEqual(refreshed.annotations.map((item) => item.page), [-221]);
 });
 
 test("a lost response retries one logical mutation with the same idempotency key", async () => {

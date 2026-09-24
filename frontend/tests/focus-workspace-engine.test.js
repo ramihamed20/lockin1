@@ -845,6 +845,13 @@ test("draw-and-hold recognizes a rough line and closed ellipse without changing 
   const roughLine = Array.from({ length: 18 }, (_, index) => ({ x: 40 + index * 18, y: 220 + Math.sin(index * .8) * 2.2, t: index * 12 }));
   const line = recognizeHeldStroke(roughLine);
   assert.equal(line.kind, "line");
+  assert.equal(recognizeHeldStroke([{ x: 40, y: 220 }, { x: 340, y: 220 }]).kind, "line");
+  const naturalDiagonal = Array.from({ length: 14 }, (_, index) => ({
+    x: 40 + index * 15,
+    y: 100 + index * 8 + Math.sin(index * 1.7) * 5,
+    t: index * 18
+  }));
+  assert.equal(recognizeHeldStroke(naturalDiagonal).kind, "line");
   const raw = { id: "held", page: 1, type: "pen", profile: PEN_PROFILE.FOUNTAIN, color: "#239ed1", width: 6, opacity: 1, points: roughLine };
   const shape = recognizedShapeAnnotation(raw, line);
   assert.equal(shape.type, "shape");

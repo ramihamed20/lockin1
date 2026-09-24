@@ -9,12 +9,11 @@ import { CatalogTile } from "../components/learning/CatalogTile.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
 
 /**
- * Question sources, in display order. "AI sheet" is the only one that opens a
- * subject list today; the rest stay closed until their content is published.
+ * Exam and AI sheet questions share the player, but use separate published banks.
  */
 const QUESTION_CATEGORIES = [
   { id: "practice", titleKey: "questions.practice", metaKey: "questions.practiceMeta", icon: "brain", available: false },
-  { id: "years", titleKey: "questions.years", metaKey: "questions.yearsMeta", icon: "calendar", available: false },
+  { id: "years", titleKey: "questions.years", metaKey: "questions.yearsMeta", icon: "calendar", available: true },
   { id: "ai-sheet", titleKey: "questions.aiSheet", metaKey: "questions.aiSheetMeta", icon: "file-question", available: true },
   { id: "mix", titleKey: "questions.mix", metaKey: "questions.mixMeta", icon: "shuffle", available: false }
 ];
@@ -39,9 +38,11 @@ function categoryEmptyState(category, t) {
  * appears here under the exact title Materials and the Questions admin show,
  * for the cohort that owns it and no other.
  */
-function useQuestionMaterials(user) {
-  const key = [user?.id || "", user?.cohort?.id || ""].join("|");
-  const data = useAsyncData(() => catalogWorkspaceApi.questionMaterials(), [key]);
+function sourceForCategory(categoryId) { return categoryId === "years" ? "exam" : "ai-sheet"; }
+
+function useQuestionMaterials(user, categoryId) {
+  const key = [user?.id || "", user?.cohort?.id || "", categoryId].join("|");
+  const data = useAsyncData(() => catalogWorkspaceApi.questionMaterials(sourceForCategory(categoryId)), [key]);
   const materials = useMemo(() => (Array.isArray(data.data?.results) ? data.data.results : []), [data.data]);
   return { ...data, materials };
 }
@@ -90,7 +91,7 @@ export function QuestionCategory({ user = null }) {
   const { categoryId } = useParams();
   const { t } = useI18n();
   const category = cohortCategories(user).find((item) => item.id === categoryId);
-  const { materials, loading, error, reload } = useQuestionMaterials(user);
+  const { materials, loading, error, reload } = useQuestionMaterials(user, categoryId);
 
   if (!category) return <Page title={t("questions.sourceNotFoundTitle")}><ErrorPanel message={t("questions.sourceNotFoundText")} /></Page>;
   if (!category.available) return <Page title={t(category.titleKey)}>{categoryEmptyState(category, t)}</Page>;
@@ -125,7 +126,7 @@ export function QuestionSubjectSheets({ user = null }) {
   const { categoryId, subjectId } = useParams();
   const { t } = useI18n();
   const category = cohortCategories(user).find((item) => item.id === categoryId);
-  const { materials, loading, error, reload } = useQuestionMaterials(user);
+  const { materials, loading, error, reload } = useQuestionMaterials(user, categoryId);
   const material = materials.find((item) => item.slug === subjectId) || null;
 
   if (!category?.available) return <Page title={t("materials.notFoundTitle")}><ErrorPanel message={t("questions.subjectUnavailable")} /></Page>;
@@ -168,7 +169,7 @@ export function QuestionSheetQuestions({ user = null }) {
   const { categoryId, subjectId, sheetId } = useParams();
   const { t } = useI18n();
   const category = cohortCategories(user).find((item) => item.id === categoryId);
-  const data = useAsyncData((signal) => catalogWorkspaceApi.sheetQuestions(sheetId, { signal }), [sheetId]);
+  const data = useAsyncData((signal) => catalogWorkspaceApi.sheetQuestions(sheetId, { signal, source: sourceForCategory(categoryId) }), [sheetId, categoryId]);
   const questions = useMemo(() => (Array.isArray(data.data?.results) ? data.data.results : []), [data.data]);
   const sheetTitle = data.data?.sheet?.title || t("questions.aiSheet");
 
@@ -184,7 +185,7 @@ export function QuestionSheetQuestions({ user = null }) {
       <section className="question-session-shell" aria-labelledby="question-sheet-heading">
         <QuestionDirectoryHeader id="question-sheet-heading" title={sheetTitle} subtitle={subjectTitle} backTo={backTo} backLabel={subjectTitle} breadcrumbs={<QuestionBreadcrumbs category={category} material={{ slug: subjectId, title: subjectTitle }} sheetTitle={sheetTitle} />} />
         <QuestionPlayer
-          key={sheetId}
+          key={`${categoryId}:${sheetId}`}
           sheetId={sheetId}
           questions={questions}
           backTo={backTo}

@@ -54,7 +54,10 @@ export function catalogAnnotationToFocus(item) {
       pressure: round(clamp(sample.p, 0, 1), 4), tiltX: round(clamp(sample.tiltX, -90, 90), 2),
       tiltY: round(clamp(sample.tiltY, -90, 90), 2), timestamp: Math.max(0, Math.round(Number(sample.t) || 0))
     }));
-    return samples.length >= 2 ? { ...base, tool: item.type, payload: { kind: "stroke", samples } } : null;
+    const erasures = Array.isArray(item.erasures)
+      ? item.erasures.slice(0, 32).map((erasure) => ({ radius: round(clamp(erasure.radius / 1000, .0005, .08), 6), points: (erasure.points || []).slice(0, 96).map(toFocusPoint) })).filter((erasure) => erasure.points.length)
+      : [];
+    return samples.length >= 2 ? { ...base, tool: item.type, payload: { kind: "stroke", samples, ...(erasures.length ? { erasures } : {}) } } : null;
   }
   if (item.type === "shape") {
     const tool = ({ square: "rectangle", ellipse: "circle" })[item.shape] || item.shape;
@@ -62,7 +65,7 @@ export function catalogAnnotationToFocus(item) {
     return { ...base, tool, payload: { kind: "shape", start: toFocusPoint(item.start), end: toFocusPoint(item.end) } };
   }
   const value = String(item.text || "").trim();
-  return value ? { ...base, tool: "text", payload: { kind: "text", value } } : null;
+  return value ? { ...base, tool: "text", payload: { kind: "text", value, align: ["left", "center", "right"].includes(item.align) ? item.align : "left", bold: item.bold === true } } : null;
 }
 
 export function focusAnnotationToCatalog(item) {
@@ -77,7 +80,8 @@ export function focusAnnotationToCatalog(item) {
       points: item.payload.samples.map((sample) => ({
         ...fromFocusPoint(sample), p: sample.pressure, t: sample.timestamp,
         pointer: sample.pointer, tiltX: sample.tiltX, tiltY: sample.tiltY
-      }))
+      })),
+      ...(Array.isArray(item.payload.erasures) ? { erasures: item.payload.erasures.map((erasure) => ({ radius: erasure.radius * 1000, points: erasure.points.map(fromFocusPoint) })) } : {})
     };
   }
   if (["line", "arrow", "rectangle", "circle"].includes(item.tool) && item.payload?.kind === "shape") {
@@ -85,7 +89,7 @@ export function focusAnnotationToCatalog(item) {
   }
   if (item.tool === "text" && item.payload?.kind === "text") {
     const origin = fromFocusPoint(item.bounds || {});
-    return { ...base, type: "text", text: item.payload.value, x: origin.x, y: origin.y, align: "left" };
+    return { ...base, type: "text", text: item.payload.value, x: origin.x, y: origin.y, align: ["left", "center", "right"].includes(item.payload.align) ? item.payload.align : "left", bold: item.payload.bold === true };
   }
   return null;
 }
@@ -95,7 +99,7 @@ export function focusAnnotationToCatalog(item) {
  * annotations with pre-UUID identifiers stay on this device only.
  */
 export function isServerSyncableAnnotation(item) {
-  return UUID_PATTERN.test(String(item?.id || "")) && catalogAnnotationToFocus(item) !== null;
+  return Number.isSafeInteger(item?.page) && item.page >= 1 && UUID_PATTERN.test(String(item?.id || "")) && catalogAnnotationToFocus(item) !== null;
 }
 
 /** The server-visible content of an annotation; equal signatures need no upload. */

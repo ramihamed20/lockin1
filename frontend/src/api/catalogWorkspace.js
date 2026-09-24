@@ -9,16 +9,16 @@ export const catalogWorkspaceApi = {
    * The Questions directory. Same subjects and same sheet names as
    * `materials()`, narrowed to the sheets that carry published questions.
    */
-  questionMaterials() {
-    return request("/catalog/questions");
+  questionMaterials(source = "") {
+    return request("/catalog/questions" + (source ? `?source=${encodeURIComponent(source)}` : ""));
   },
   /**
    * One Material sheet's published questions.
    * @param {string} sheetId
-   * @param {{ signal?: AbortSignal }} [options]
+   * @param {{ signal?: AbortSignal, source?: string }} [options]
    */
-  sheetQuestions(sheetId, { signal } = {}) {
-    return request(`/catalog/sheets/${encodeURIComponent(sheetId)}/questions`, { signal });
+  sheetQuestions(sheetId, { signal, source = "" } = {}) {
+    return request(`/catalog/sheets/${encodeURIComponent(sheetId)}/questions` + (source ? `?source=${encodeURIComponent(source)}` : ""), { signal });
   },
   /**
    * Submit one answer. The server grades it and awards its XP exactly once, so
