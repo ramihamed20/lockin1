@@ -246,7 +246,6 @@ test("the iPad toolbar keeps direct tools, quick colors, and Active Study usable
   await page.screenshot({ path: testInfo.outputPath("ipad-precision-eraser-night.png") });
   const lasso = toolbar.getByRole("button", { name: "Lasso", exact: true });
   await lasso.click();
-  await lasso.click();
   await expect(page.getByRole("dialog", { name: "Lasso options" })).toBeVisible();
   await expect(page.getByRole("group", { name: "Lasso mode" }).getByRole("button")).toHaveCount(2);
   await expect.poll(() => page.getByRole("dialog", { name: "Lasso options" }).evaluate((node) => getComputedStyle(node).opacity)).toBe("1");

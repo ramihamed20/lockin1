@@ -713,9 +713,7 @@ def restart(*, user: User, run_id: UUID) -> ActiveStudyRun:
     difficulty = current.difficulty
     edition = current.edition
     abandon(user=user, run_id=run_id)
-    fresh, created = start(
-        user=user, sheet_id=sheet_id, difficulty=difficulty, edition=edition
-    )
+    fresh, created = start(user=user, sheet_id=sheet_id, difficulty=difficulty, edition=edition)
     if not created:
         raise ManagedActiveStudyRuleError("Active Study could not be restarted. Try again.")
     return fresh

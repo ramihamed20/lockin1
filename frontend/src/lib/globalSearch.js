@@ -10,7 +10,7 @@ export function searchActions(query, actions = []) {
     action.title,
     action.subtitle,
     ...(action.keywords || [])
-  ].join(" ")).includes(normalizedQuery)).map(({ keywords, ...action }) => action);
+  ].join(" ")).includes(normalizedQuery)).map(({ keywords: _keywords, ...action }) => action);
 }
 
 function resultRank(result, query) {

@@ -1117,10 +1117,12 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     publish();
     const observer = new window.ResizeObserver(publish);
     observer.observe(toolbar);
+    toolbar.addEventListener("animationend", publish);
     window.addEventListener("resize", publish, { passive: true });
     window.addEventListener("orientationchange", publish);
     return () => {
       observer.disconnect();
+      toolbar.removeEventListener("animationend", publish);
       window.removeEventListener("resize", publish);
       window.removeEventListener("orientationchange", publish);
     };
@@ -1564,15 +1566,12 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     if (!sheet?.pdfUrl || !stageRef.current) return undefined;
     const stage = stageRef.current;
     const keepPdfFitted = () => {
-      const previousStageWidth = fittedStageWidthRef.current;
       const stageWidth = stage.clientWidth;
       const fitZoom = minimumPdfZoom();
-      const previousFitZoom = previousStageWidth
-        ? Math.min(MAX_FOCUS_ZOOM, Math.max(MIN_FOCUS_ZOOM, fitWidthZoom(previousStageWidth, A4_PAGE_WIDTH, 0)))
-        : fitZoom;
       const nextZoom = pdfZoomModeRef.current === "fit"
         ? fitZoom
-        : clampReaderZoom(zoomRef.current * fitZoom / previousFitZoom);
+        : clampReaderZoom(zoomRef.current);
+      const previousStageWidth = fittedStageWidthRef.current;
       fittedStageWidthRef.current = stageWidth;
       if (Math.abs(zoomRef.current - nextZoom) < .001) return;
       // Docking the side panel narrows the stage, and a narrower stage fits the
@@ -4947,7 +4946,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
             <div className="workspace-v3-menu-list workspace-v6-history"><p>Edits from this session. Use Undo to restore an earlier step.</p><strong>{undoHistory.length} edit{undoHistory.length === 1 ? "" : "s"} available</strong><button type="button" onClick={undoTool} disabled={!undoHistory.length}><Undo2 size={18} /><span><strong>Undo most recent edit</strong><small>Redo remains available in the toolbar</small></span></button></div>
           </section>}
 
-          {displayedToolOptions && <div ref={toolOptionsRef} id={`workspace-${displayedToolOptions}-options`} className={`workspace-v2-tool-options${toolOptionsOpen ? "" : " is-exiting"}`} data-workspace-tool={displayedToolOptions} role="dialog" aria-label={`${activeToolLabel} options`} aria-hidden={!toolOptionsOpen} inert={toolOptionsOpen ? undefined : ""} onPointerDown={(event) => event.stopPropagation()}>
+          {displayedToolOptions && <div ref={toolOptionsRef} id={`workspace-${displayedToolOptions}-options`} className={`workspace-v2-tool-options${toolOptionsOpen ? "" : " is-exiting"}`} data-workspace-tool={toolOptionsOpen ? displayedToolOptions : undefined} role="dialog" aria-label={`${activeToolLabel} options`} aria-hidden={!toolOptionsOpen} inert={toolOptionsOpen ? undefined : ""} onPointerDown={(event) => event.stopPropagation()}>
             <div className="workspace-v2-tool-options-title"><span><strong>{activeToolLabel}</strong><small>{activeTool === "highlighter" ? "Transparent marking" : activeTool === "eraser" ? "Erase only beneath the tip" : activeTool === "select" ? "Select and transform marks" : activeTool === "shapes" ? "Precise geometry" : "Draw on your workspace"}</small></span><span className={`workspace-v5-stroke-preview is-${activeTool}`} style={cssVars({ "--workspace-tool-color": activeColor, "--workspace-preview-size": `${Math.max(2, brushSize)}px`, "--workspace-preview-opacity": activeToolOpacity })} aria-hidden="true" /></div>
             {activeTool === "eraser" && <section className="workspace-v5-inspector-section"><h3>Eraser size</h3><ToolRange label="Eraser size" value={eraserSize} displayValue={`${eraserSize}px`} min={6} max={48} step={2} preview="eraser" onChange={setEraserSize} /><p>The tip removes only the area it crosses.</p></section>}
             {activeTool === "pen" && <section className="workspace-v5-inspector-section"><h3>Pen type</h3><PenProfilePicker value={penProfile} onChange={changePenProfile} color={activeColor} /></section>}
