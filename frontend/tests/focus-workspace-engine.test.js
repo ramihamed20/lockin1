@@ -373,6 +373,17 @@ test("release velocity uses recent weighted pointer samples and ignores an old g
   assert.deepEqual(estimateReleaseScrollVelocity(samples, 260), { x: 0, y: 0, speed: 0 });
 });
 
+test("release velocity survives slower pointer frames while a zoomed PDF renders", () => {
+  const samples = [
+    { x: 100, y: 600, time: 100 },
+    { x: 100, y: 520, time: 160 },
+    { x: 100, y: 440, time: 220 }
+  ];
+  const velocity = estimateReleaseScrollVelocity(samples, 224);
+  assert.ok(velocity.y > 1);
+  assert.equal(velocity.x, 0);
+});
+
 test("scroll intent keeps slow drags precise while fast flicks cross multiple A4 pages", () => {
   const config = momentumConfig({ viewportWidth: 390 });
   const slow = momentumVelocityForIntent({ x: 0, y: 0.2 }, config);

@@ -680,6 +680,9 @@ export function ContinuousA4Pdf({
   const pages = useMemo(() => composeWorkspacePages(pdfPages, virtualPages), [pdfPages, virtualPages]);
   const firstVisiblePage = pdfPages[0] || 1;
   const lastVisiblePage = pdfPages.at(-1) || firstVisiblePage;
+  // Enlarged page bitmaps consume much more GPU memory. Keep fewer off-screen
+  // pages rasterized while zoomed in; retain the wider buffer at fit/zoom-out.
+  const renderOverscanPages = zoom > 1 ? 2 : A4_RENDER_OVERSCAN_PAGES;
   // The render observer's margin is a share of the stage height, so a sheet of
   // short 16:9 slides admits several times more pages than a tall A4 one, and
   // every extra page is a full-size canvas held in memory. This is how far the
@@ -688,11 +691,11 @@ export function ContinuousA4Pdf({
   const renderReach = useMemo(() => {
     const pageHeight = Math.max(1, A4_PAGE_WIDTH * defaultPageAspectRatio * zoom);
     const pagesOnScreen = Math.ceil(stageViewport.height / pageHeight);
-    return Math.max(1, pagesOnScreen) + A4_RENDER_OVERSCAN_PAGES;
-  }, [defaultPageAspectRatio, stageViewport.height, zoom]);
+    return Math.max(1, pagesOnScreen) + renderOverscanPages;
+  }, [defaultPageAspectRatio, renderOverscanPages, stageViewport.height, zoom]);
   const pagesToRender = useMemo(() => {
     const next = new Set();
-    for (let offset = -A4_RENDER_OVERSCAN_PAGES; offset <= A4_RENDER_OVERSCAN_PAGES; offset += 1) {
+    for (let offset = -renderOverscanPages; offset <= renderOverscanPages; offset += 1) {
       const pageNumber = primaryPage + offset;
       if (pageNumber >= firstVisiblePage && pageNumber <= lastVisiblePage) next.add(pageNumber);
     }
@@ -701,7 +704,7 @@ export function ContinuousA4Pdf({
       if (pageNumber >= firstVisiblePage && pageNumber <= lastVisiblePage) next.add(pageNumber);
     });
     return next;
-  }, [firstVisiblePage, lastVisiblePage, nearbyPages, primaryPage, renderReach]);
+  }, [firstVisiblePage, lastVisiblePage, nearbyPages, primaryPage, renderOverscanPages, renderReach]);
   const baseDocumentHeight = useMemo(() => pages.reduce((total, entry) => (
     total + A4_PAGE_WIDTH * (entry.kind === "virtual" ? A4_PAGE_RATIO : pageAspectRatios.get(entry.pdfPage) || defaultPageAspectRatio)
   ), Math.max(0, pages.length - 1) * A4_PAGE_GAP), [defaultPageAspectRatio, pageAspectRatios, pages]);
