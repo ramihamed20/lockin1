@@ -51,6 +51,10 @@ cleanup() {
         else
             log "the application container was never started"
         fi
+        if docker inspect "$storage_container" > /dev/null 2>&1; then
+            log "object storage logs"
+            docker logs "$storage_container" 2>&1 | tail -n 40 || true
+        fi
     fi
     docker rm --force "$app_container" "$storage_container" "$db_container" > /dev/null 2>&1 || true
     docker network rm "$network" > /dev/null 2>&1 || true
@@ -65,6 +69,7 @@ await() {
     until "$@" > /dev/null 2>&1; do
         count=$((count + 1))
         if [ "$count" -ge "$attempts" ]; then
+            "$@" >&2 || true
             fail "$description did not become ready"
             return 1
         fi
