@@ -320,6 +320,7 @@ export function GlobalSearch({ onOpenChange, operationsSession = null }) {
       <label className="search-box global-search-desktop-input" ref={triggerRef}>
         <Icon name="search" size={18} />
         <input ref={desktopInputRef} {...fieldProps} onFocus={openSearch} />
+        <kbd className="global-search-shortcut" aria-hidden="true">/</kbd>
       </label>
       <button className="icon-btn topbar-search-action global-search-mobile-trigger" type="button" onClick={openSearch} aria-label={t("common.search")} aria-expanded={open} aria-controls={listboxId}>
         <Icon name="search" size={19} />
