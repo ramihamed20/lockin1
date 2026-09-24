@@ -227,7 +227,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
         horizontalOverflow: nav.scrollWidth - nav.clientWidth,
         // The surfaces that hang below the toolbar follow its measured height.
         publishedHeight: getComputedStyle(document.querySelector(".workspace-v2")).getPropertyValue("--workspace-toolbar-height").trim(),
-        actualHeight: `${Math.round(nav.getBoundingClientRect().height)}px`
+        actualHeight: `${Math.round(nav.getBoundingClientRect().bottom - document.querySelector(".workspace-v2").getBoundingClientRect().top)}px`
       };
     }, viewport);
 
@@ -239,10 +239,10 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     expect(toolbar.publishedHeight).toBe(toolbar.actualHeight);
 
     await page.getByRole("button", { name: "Add", exact: true }).click();
-    for (const label of ["Pencil", "Shapes", "Image", "Text"]) await expect(page.getByRole("button", { name: label, exact: true })).toBeVisible();
+    for (const label of ["Image", "Text"]) await expect(page.getByRole("button", { name: label, exact: true })).toBeVisible();
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "More workspace actions" }).click();
-    for (const label of ["Highlight", "Eraser", "Lasso", "Bookmarks", "Fullscreen", "settings"]) {
+    for (const label of ["Pencil", "Shapes", "Highlight", "Eraser", "Lasso", "Bookmarks", "Full.screen", "settings"]) {
       await expect(page.getByRole("button", { name: new RegExp(label, "i") })).toBeVisible();
     }
   });

@@ -1,12 +1,14 @@
 import { expect, test } from "@playwright/test";
 import { withoutServiceWorker } from "./helpers/serviceWorker.js";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
+import { keepRawInk } from "./helpers/workspaceSettings.js";
 
 const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 const SHEET_ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1";
 
 async function mockWorkspace(page) {
   await withoutServiceWorker(page);
+  await keepRawInk(page);
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     // The gated routes need the access contract answered before they render.

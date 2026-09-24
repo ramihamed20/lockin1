@@ -2,6 +2,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 
 import { smoothStrokePoints, strokeRenderGeometry, strokeWidthAtPoint } from "./strokeModel.js";
 import { createLiveStrokeGeometry } from "./liveStrokeGeometry.js";
 import { inkCanvasOutputScale } from "../catalog/renderBudget.js";
+import { paintInkErasures } from "./inkErasures.js";
 
 function drawDot(context, point, width, color, opacity) {
   context.globalAlpha = opacity;
@@ -61,6 +62,7 @@ function drawStroke(context, annotation) {
   const geometryTime = window.performance.now() - geometryStarted;
   if (geometry.kind === "dot") {
     drawDot(context, geometry, geometry.radius * 2, annotation.color, geometry.opacity);
+    paintInkErasures(context, annotation.erasures);
     return geometryTime;
   }
   context.save();
@@ -77,6 +79,7 @@ function drawStroke(context, annotation) {
         : smoothed.reduce((total, point) => total + strokeWidthAtPoint(annotation, point), 0) / Math.max(1, smoothed.length)
     }, annotation.color);
   }
+  paintInkErasures(context, annotation.erasures);
   context.restore();
   return geometryTime;
 }

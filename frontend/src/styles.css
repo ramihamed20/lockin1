@@ -2949,8 +2949,13 @@ a.streak-card:hover:where(html.ix-hover *) {
 .admin-question-copy small { display: block; max-width: 75ch; margin-top: 5px; color: var(--muted); line-height: 1.4; }
 .admin-question-meta { display: flex; align-items: center; gap: var(--space-2); }
 .admin-question-editor { grid-column: 2 / -1; min-width: 0; display: grid; gap: var(--space-3); margin-top: 4px; padding: var(--space-4); border-radius: 12px; background: var(--surface-2); }
+.admin-content-section > .admin-question-editor { grid-column: 1 / -1; }
 .admin-option-editor { display: grid; gap: 8px; }
 .admin-option-editor > label { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 9px; }
+.admin-custom-exam-option { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.admin-custom-exam-option > label { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 9px; }
+.admin-custom-exam-option > label > input:last-child { min-width: 0; width: 100%; }
+.admin-content-toolbar:has(.btn + .btn) { flex-wrap: wrap; }
 .admin-option-editor input[type="text"], .admin-option-editor input:not([type]) { width: 100%; }
 
 .admin-preset-list { display: flex; gap: var(--space-2); overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }

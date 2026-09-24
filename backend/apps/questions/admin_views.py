@@ -95,6 +95,8 @@ def serialize_question(question: Question) -> dict[str, object]:
         "difficulty": version.difficulty,
         "topic": version.topic,
         "source_page": version.source_page,
+        "source": "exam" if version.metadata.get("source") == "exam" else "ai-sheet",
+        "metadata": version.metadata,
         "sheet_id": (
             str(version.source_learning_object_id)
             if version.source_learning_object_id is not None
@@ -137,6 +139,16 @@ class AdminSheetQuestionListView(_AssessmentPermissionView):
             .prefetch_related("current_version__options")
             .order_by("-updated_at", "id")
         )
+        source = request.query_params.get("source", "").strip()
+        if source == "exam":
+            questions = questions.filter(current_version__metadata__source="exam")
+        elif source == "ai-sheet":
+            questions = questions.filter(
+                Q(current_version__metadata__source__isnull=True)
+                | ~Q(current_version__metadata__source="exam")
+            )
+        elif source:
+            raise AdminQuestionRejected("The question source filter is invalid.")
         workflow_status = request.query_params.get("status", "").strip()
         if workflow_status:
             if workflow_status not in Question.WorkflowStatus.values:

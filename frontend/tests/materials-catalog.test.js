@@ -270,7 +270,7 @@ test("Catalog Focus Workspace uses a compact contextual toolbar and persistent c
   assert.match(continuousPdf, /className="workspace-v2-a4-live-layer"/);
   assert.match(continuousPdf, /transform: `scale\(\$\{zoom\}\)`/);
   assert.doesNotMatch(continuousPdf, /translateX\(-50%\)/);
-  assert.match(continuousPdf, /width: `\$\{A4_PAGE_WIDTH\}px`,\s*height: `\$\{A4_PAGE_WIDTH \* \(pageAspectRatios/);
+  assert.match(continuousPdf, /width: `\$\{A4_PAGE_WIDTH\}px`,\s*height: `\$\{A4_PAGE_WIDTH \* \(entry\.kind === "virtual" \? A4_PAGE_RATIO : pageAspectRatios/);
   assert.doesNotMatch(continuousPdf, /width: `\$\{A4_PAGE_WIDTH \* zoom\}px`,\s*height: `\$\{A4_PAGE_WIDTH \* \(pageAspectRatios/);
   assert.match(continuousPdf, /MAX_A4_CANVAS_PIXELS = WORKSPACE_RENDER\.maximumCatalogCanvasPixels/);
   assert.match(continuousPdf, /catalogCanvasPixelBudget\(window\.visualViewport\?\.width \|\| window\.innerWidth/);
@@ -288,7 +288,7 @@ test("Catalog Focus Workspace uses a compact contextual toolbar and persistent c
   assert.match(continuousPdf, /retiredCanvasRafRef\.current = requestAnimationFrame/);
   assert.match(continuousPdf, /previousCanvas\.width = 0/);
   assert.match(continuousPdf, /abandonedCanvas\.width = 0/);
-  assert.match(continuousPdf, /key=\{pageNumber\}/);
+  assert.match(continuousPdf, /key=\{entry\.key\}/);
   assert.doesNotMatch(continuousPdf, /key=\{[^}\n]*zoom/);
   assert.match(continuousPdf, /PdfRenderQueue/);
   assert.match(continuousPdf, /SCROLL_SETTLE_MS/);

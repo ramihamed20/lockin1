@@ -212,6 +212,61 @@ def test_annotation_sync_is_versioned_idempotent_and_never_mutates_pdf() -> None
     assert final_checksum == initial_checksum
 
 
+def test_text_annotation_formatting_round_trips_with_legacy_payloads() -> None:
+    _, student, _, version_id = _workspace_fixture()
+    client = _client(student)
+    formatted_id = str(uuid4())
+    legacy_id = str(uuid4())
+    formatted = {
+        **_stroke(formatted_id),
+        "tool": "text",
+        "payload": {
+            "kind": "text",
+            "value": "First line\nSecond line",
+            "align": "right",
+            "bold": True,
+        },
+    }
+    legacy = {
+        **_stroke(legacy_id),
+        "tool": "text",
+        "payload": {"kind": "text", "value": "Old note"},
+    }
+    url = f"/api/v1/focus/documents/{version_id}/annotations"
+    saved = client.post(
+        url,
+        {
+            "expected_collection_revision": 0,
+            "idempotency_key": str(uuid4()),
+            "annotations": [formatted, legacy],
+            "deleted_ids": [],
+        },
+        format="json",
+    )
+    assert saved.status_code == 200
+    loaded = client.get(f"{url}?pages=1")
+    assert loaded.status_code == 200
+    by_id = {item["id"]: item["payload"] for item in loaded.json()["results"]}
+    assert by_id[formatted_id] == formatted["payload"]
+    assert by_id[legacy_id] == legacy["payload"]
+    invalid = {
+        **formatted,
+        "id": str(uuid4()),
+        "payload": {**formatted["payload"], "align": "diagonal"},
+    }
+    rejected = client.post(
+        url,
+        {
+            "expected_collection_revision": 1,
+            "idempotency_key": str(uuid4()),
+            "annotations": [invalid],
+            "deleted_ids": [],
+        },
+        format="json",
+    )
+    assert rejected.status_code == 400
+
+
 def test_replacing_pdf_preserves_annotations_under_the_logical_sheet() -> None:
     admin, student, document_id, old_version_id = _workspace_fixture()
     client = _client(student)

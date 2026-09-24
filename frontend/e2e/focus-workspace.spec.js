@@ -202,9 +202,11 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await expect(penOptions).toHaveCount(0);
   const settings = page.getByRole("dialog", { name: "Workspace settings" });
   await expect(settings).toBeVisible();
-  await expect(settings.getByRole("switch", { name: /Scribble erase/ })).toBeVisible();
-  await expect(settings.getByRole("switch", { name: /Hold to shape/ })).toBeVisible();
-  await expect(settings.getByRole("switch", { name: /Circle erase/ })).toBeVisible();
+  await expect(settings.getByRole("switch", { name: /Scribble to erase/ })).toBeVisible();
+  await expect(settings.getByRole("switch", { name: /Perfect shapes on release/ })).toBeVisible();
+  await settings.getByRole("button", { name: /Gestures Touch and shortcuts/ }).click();
+  await expect(settings.getByRole("switch", { name: /Circle to erase/ })).toBeVisible();
+  await settings.getByRole("button", { name: /Workspace Pages and study tools/ }).click();
   await expect(settings.getByRole("switch", { name: /Remember last position/ })).toHaveAttribute("aria-checked", "true");
   await expect(settings.getByRole("switch", { name: /Remember zoom level/ })).toHaveAttribute("aria-checked", "true");
   const pageNumberToggle = settings.getByRole("switch", { name: /Show page number/ });
@@ -218,7 +220,6 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await expect.poll(async () => page.evaluate(() => window.__workspaceWakeLock.requests)).toBe(1);
   await wakeToggle.click();
   await expect.poll(async () => page.evaluate(() => window.__workspaceWakeLock.releases)).toBeGreaterThan(0);
-  await expect(settings.getByRole("button", { name: /Enter fullscreen/ })).toBeVisible();
   await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-settings-ipad-landscape.png`, fullPage: false });
   const stageForFit = page.locator(".workspace-v2-document-stage");
   const fitPoint = await stageForFit.boundingBox();
@@ -242,21 +243,21 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await expect(sidePanel).toBeHidden();
 
   await expectViewportOwnedWorkspace(page, 834, 1194);
-  const highlighterTool = page.locator('[data-workspace-tool="highlighter"]');
+  const highlighterTool = page.locator('button[data-workspace-tool="highlighter"]');
   await highlighterTool.click();
   await expect(page.locator("#workspace-highlighter-options")).toHaveCount(0);
   await highlighterTool.click();
   const highlighterOptions = page.locator("#workspace-highlighter-options");
   await expect(highlighterOptions).toBeVisible();
   await expectBoundsInViewport(highlighterOptions, 834, 1194);
-  await expect(page.getByRole("button", { name: "Use #8b5cf6" })).toHaveCSS("width", "44px");
+  await expect(highlighterOptions.getByRole("button", { name: "Use #8b5cf6" })).toHaveCSS("width", "44px");
   await expect(highlighterOptions.getByRole("slider", { name: "Thickness" })).toBeVisible();
   await expect(highlighterOptions.getByRole("slider", { name: "Opacity" })).toBeVisible();
   await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-ipad-portrait-834x1194.png`, fullPage: false });
-  await page.locator('[data-workspace-tool="highlighter"]').click();
+  await highlighterTool.click();
   await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-ipad-portrait-write-834x1194.png`, fullPage: false });
 
-  const lassoTool = page.locator('[data-workspace-tool="select"]');
+  const lassoTool = page.locator('button[data-workspace-tool="select"]');
   await lassoTool.click();
   await lassoTool.click();
   const lassoOptions = page.locator("#workspace-select-options");
@@ -265,7 +266,7 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await expect(lassoOptions.getByRole("button", { name: "Freeform lasso" })).toBeVisible();
   await lassoTool.click();
 
-  const shapeTool = page.locator('[data-workspace-tool="shapes"]');
+  const shapeTool = page.locator('.workspace-v2-toolbar [data-workspace-tool="shapes"]');
   await page.getByRole("button", { name: "Add" }).click();
   await shapeTool.click();
   await page.getByRole("button", { name: "Add" }).click();
@@ -301,25 +302,25 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await penTool.click();
   await expect(penOptions).toBeVisible();
   await expectBoundsInViewport(penOptions, 390, 844);
-  for (const color of ["#123456", "#234567", "#345678", "#456789", "#56789a"]) {
+  for (const color of ["#123456", "#234567"]) {
     await penOptions.getByRole("button", { name: "Add Color" }).click();
     await penOptions.locator('input[aria-label="Choose custom color"]').fill(color);
     await penOptions.getByRole("button", { name: "Save custom color" }).click();
     await expect(penOptions.getByRole("button", { name: `Use ${color}` })).toHaveCount(1);
   }
   await expect(penOptions.getByRole("button", { name: "Add Color" })).toHaveCount(0);
-  await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem("lock-in.catalog-workspace.recent-colors.v1") || "[]").length)).toBe(5);
+  await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem("lock-in.catalog-workspace.recent-colors.v1") || "[]").length)).toBe(2);
   await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-pen-colors-phone.png`, fullPage: false });
   await penOptions.getByRole("button", { name: "Use #123456" }).click();
   await penOptions.getByRole("button", { name: "Delete #123456" }).click();
   await expect(penOptions.getByRole("button", { name: "Use #123456" })).toHaveCount(0);
   await expect(penOptions.getByRole("button", { name: "Add Color" })).toBeVisible();
-  await expect(penOptions.getByRole("button", { name: "Use #8b5cf6" })).toHaveAttribute("aria-pressed", "true");
+  await expect(penOptions.getByRole("button", { name: "Use #2196f3" })).toHaveAttribute("aria-pressed", "true");
   await penOptions.getByRole("button", { name: "Add Color" }).click();
   await penOptions.locator('input[aria-label="Choose custom color"]').fill("#6789ab");
   await penOptions.getByRole("button", { name: "Save custom color" }).click();
   await expect(penOptions.getByRole("button", { name: "Add Color" })).toHaveCount(0);
-  await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem("lock-in.catalog-workspace.recent-colors.v1") || "[]").length)).toBe(5);
+  await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem("lock-in.catalog-workspace.recent-colors.v1") || "[]").length)).toBe(2);
   await page.reload();
   await expect(studyDialog).toBeVisible();
   await studyDialog.getByRole("button", { name: /Normal Study/ }).click();
@@ -361,6 +362,14 @@ test("Active Study reading chrome and checkpoint remain unobstructed @chromium-o
   await expect(page.getByRole("button", { name: "Active Study: part 1 of 4" })).toBeVisible();
   const checkpoint = page.locator(".workspace-v2-checkpoint-dock");
   await expect(checkpoint).toBeVisible();
+  await expect(page.getByRole("button", { name: "Reach page 10 to unlock the checkpoint" })).toBeVisible();
+  await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]").first()).toBeVisible();
+  const sourcePageCount = await page.locator(".workspace-v2-a4-page[data-pdf-page]").count();
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.getByRole("button", { name: "Add Page" }).click();
+  await page.getByRole("dialog", { name: "Choose workspace page background" }).getByRole("button", { name: /Blank/ }).click();
+  await expect(page.locator(".workspace-v2-a4-page.is-virtual")).toHaveCount(1);
+  await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]")).toHaveCount(sourcePageCount);
   await expect(page.getByRole("button", { name: "Reach page 10 to unlock the checkpoint" })).toBeVisible();
   const overlap = await page.evaluate(() => {
     const dock = document.querySelector(".workspace-v2-checkpoint-dock")?.getBoundingClientRect();
@@ -427,7 +436,7 @@ test("PDF sheets open at page one and restore zoom only while enabled @chromium-
   // A sheet always opens at its visual beginning: the stored view keeps its
   // page and offset for backup, but never moves the reader. Zoom is still
   // restored while "Remember zoom level" is on.
-  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "Page 1 of 17");
+  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "PDF page 1 of 17");
   await expect.poll(async () => page.locator(".workspace-v2-a4-document").evaluate((node) => Number(getComputedStyle(node).getPropertyValue("--workspace-a4-zoom")))).toBeCloseTo(2.2, 5);
   await expect.poll(async () => page.evaluate(() => {
     const stage = document.querySelector(".workspace-v2-document-stage");
@@ -439,13 +448,14 @@ test("PDF sheets open at page one and restore zoom only while enabled @chromium-
   await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings", exact: true }).click();
   const settings = page.getByRole("dialog", { name: "Workspace settings" });
+  await settings.getByRole("button", { name: /Workspace Pages and study tools/ }).click();
   await settings.getByRole("switch", { name: /Remember last position/ }).click();
   await settings.getByRole("switch", { name: /Remember zoom level/ }).click();
   await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem("lock-in.catalog-workspace.settings.v1")))).toMatchObject({ rememberLastPosition: false, rememberZoomLevel: false });
   await page.reload();
   await page.getByRole("button", { name: /Normal Study/ }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "Page 1 of 17");
+  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "PDF page 1 of 17");
   await expect.poll(async () => page.evaluate(() => {
     const stage = document.querySelector(".workspace-v2-document-stage").getBoundingClientRect();
     const pdf = document.querySelector(".workspace-v2-a4-live-layer").getBoundingClientRect();

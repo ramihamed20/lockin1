@@ -1,4 +1,6 @@
 import { expect, test } from "@playwright/test";
+import { readFile } from "node:fs/promises";
+import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
 const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
@@ -64,6 +66,151 @@ async function drawStroke(stage, pointerId, points) {
   await dispatchPointer(stage, "pointerup", pointerId, points.at(-1).x, points.at(-1).y);
 }
 
+test("a study card exports on the current PDF page", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  await openWorkspace(page);
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.getByRole("button", { name: /Add note card/i }).click();
+  await page.getByRole("group", { name: "Card style" }).getByRole("button", { name: "Revision" }).click();
+  await page.getByRole("textbox", { name: "Card text" }).fill("Review this concept before the exam");
+  await page.getByRole("button", { name: "Add card" }).click();
+  await expect(page.locator('[data-annotation-type="card"]')).toHaveCount(1);
+
+  await page.getByRole("button", { name: "More workspace actions" }).click();
+  await page.getByRole("button", { name: "Export", exact: false }).click();
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("dialog", { name: "Export workspace" }).getByRole("button", { name: /^Current page/i }).click();
+  const download = await downloadPromise;
+  const data = new Uint8Array(await readFile(await download.path()));
+  const task = getDocument({ data, useSystemFonts: true });
+  const document = await task.promise;
+  expect(document.numPages).toBe(1);
+  await task.destroy();
+});
+
+test("iPad downloads leave the workspace mounted for original PDF and page snapshot", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "platform", { configurable: true, value: "MacIntel" });
+    Object.defineProperty(navigator, "maxTouchPoints", { configurable: true, value: 5 });
+    localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now()));
+  });
+  await openWorkspace(page, { width: 834, height: 1194 });
+  const originalUrl = page.url();
+  for (const action of ["Download original", "Page snapshot"]) {
+    await page.getByRole("button", { name: "More workspace actions" }).click();
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("dialog", { name: "More workspace actions" }).getByRole("button", { name: new RegExp(action, "i") }).click();
+    await downloadPromise;
+    await expect(page.locator(".workspace-v2-document-stage")).toBeVisible();
+    expect(page.url()).toBe(originalUrl);
+  }
+});
+
+test("study cards move directly and settings fill the workspace in each theme", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  await openWorkspace(page);
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.getByRole("button", { name: /Add sticky note/i }).click();
+  await page.getByRole("textbox", { name: "Card text" }).fill("Move this note");
+  await page.getByRole("button", { name: "Add card" }).click();
+  const card = page.locator('.workspace-v2-annotation-layer [data-annotation-type="card"]').first();
+  await expect(card).toBeVisible();
+  const beforeX = Number(await card.locator("rect").getAttribute("x"));
+  const bounds = await card.boundingBox();
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + bounds.width / 2 + 45, bounds.y + 45, { steps: 5 });
+  await page.mouse.up();
+  await expect.poll(async () => Number(await card.locator("rect").getAttribute("x"))).toBeGreaterThan(beforeX + 20);
+  const movedX = Number(await card.locator("rect").getAttribute("x"));
+  const movedBounds = await card.boundingBox();
+  const touchX = movedBounds.x + movedBounds.width / 2;
+  const touchY = movedBounds.y + 20;
+  await dispatchPointer(card, "pointerdown", 32, touchX, touchY, "touch");
+  await dispatchPointer(page.locator(".workspace-v2-document-stage"), "pointermove", 32, touchX + 35, touchY + 20, "touch");
+  await dispatchPointer(page.locator(".workspace-v2-document-stage"), "pointerup", 32, touchX + 35, touchY + 20, "touch");
+  await expect.poll(async () => Number(await card.locator("rect").getAttribute("x"))).toBeGreaterThan(movedX + 10);
+
+  await page.getByRole("button", { name: "More workspace actions" }).click();
+  await page.getByRole("button", { name: "Workspace settings" }).click();
+  const settings = page.locator(".workspace-v2-settings-popover");
+  await expect(settings).toBeVisible();
+  const workspace = await page.locator(".workspace-v2").boundingBox();
+  await expect.poll(async () => (await settings.boundingBox()).width).toBeGreaterThanOrEqual(workspace.width - 2);
+  await expect.poll(async () => (await settings.boundingBox()).height).toBeGreaterThanOrEqual(workspace.height - 2);
+  const colors = await page.evaluate(() => {
+    const panelNode = document.querySelector(".workspace-v2-settings-popover");
+    document.documentElement.dataset.theme = "day";
+    const day = getComputedStyle(panelNode).backgroundColor;
+    document.documentElement.dataset.theme = "night";
+    const night = getComputedStyle(panelNode).backgroundColor;
+    return { day, night };
+  });
+  expect(colors.day).not.toBe(colors.night);
+});
+
+test("pen and highlighter lines straighten immediately on release", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  await page.addInitScript(() => { Object.defineProperty(globalThis, "indexedDB", { configurable: true, value: undefined }); });
+  await openWorkspace(page);
+  const stage = page.locator(".workspace-v2-document-stage");
+  const bounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
+  const x = bounds.x + bounds.width * .2;
+  const y = bounds.y + bounds.height * .4;
+  for (const [index, tool, pointerId, offset] of [[0, "pen", 21, 0], [1, "highlighter", 22, 130]]) {
+    if (tool === "highlighter") await page.getByRole("button", { name: "Highlight", exact: true }).click();
+    await dispatchPointer(stage, "pointerdown", pointerId, x, y + offset);
+    for (let step = 1; step <= 5; step += 1) await dispatchPointer(stage, "pointermove", pointerId, x + step * 15, y + offset + step * 10);
+    await dispatchPointer(stage, "pointermove", pointerId, x + 125, y + offset + 85);
+    await dispatchPointer(stage, "pointerup", pointerId, x + 125, y + offset + 85);
+    const lines = page.locator('.workspace-v2-annotation-layer [data-annotation-type="shape"][data-annotation-shape="line"] line');
+    await expect(lines).toHaveCount(index + 1);
+    await expect.poll(async () => Number(await lines.nth(index).getAttribute("y2"))).toBeGreaterThan(Number(await lines.nth(index).getAttribute("y1")) + 20);
+    await expect.poll(async () => page.evaluate(() => {
+      const key = Object.keys(localStorage).find((entry) => entry.startsWith("lock-in.catalog-workspace.v1.user_controls-student."));
+      const snapshot = key ? JSON.parse(localStorage.getItem(key)) : null;
+      return snapshot?.annotations?.filter((item) => item.type === "shape" && item.shape === "line").length ?? 0;
+    })).toBe(index + 1);
+  }
+});
+
+test("handwriting improvement smooths new ink without replacing its saved points", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  await page.addInitScript(() => { Object.defineProperty(globalThis, "indexedDB", { configurable: true, value: undefined }); });
+  await openWorkspace(page);
+  await page.getByRole("button", { name: "More workspace actions" }).click();
+  await page.getByRole("button", { name: "Workspace settings" }).click();
+  const improvement = page.getByRole("switch", { name: "Improve new handwriting" });
+  await improvement.click();
+  await expect(improvement).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("button", { name: "Close workspace settings" }).click();
+
+  const stage = page.locator(".workspace-v2-document-stage");
+  const bounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
+  const x = bounds.x + bounds.width * .2;
+  const y = bounds.y + bounds.height * .4;
+  await dispatchPointer(stage, "pointerdown", 81, x, y);
+  for (let index = 1; index <= 8; index += 1) await dispatchPointer(stage, "pointermove", 81, x + index * 14, y + (index % 2 ? 10 : -7) + index * 3);
+  await dispatchPointer(stage, "pointerup", 81, x + 126, y + 30);
+  await expect(visibleInk(page)).toHaveCount(1);
+  await expect.poll(async () => page.evaluate(() => {
+    const key = Object.keys(localStorage).find((entry) => entry.startsWith("lock-in.catalog-workspace.v1.user_controls-student."));
+    const stroke = key ? JSON.parse(localStorage.getItem(key)).annotations.find((item) => item.type === "pen") : null;
+    return { smoothing: stroke?.smoothing, pointCount: stroke?.points?.length ?? 0 };
+  })).toMatchObject({ smoothing: .8, pointCount: expect.any(Number) });
+  await expect.poll(async () => page.evaluate(() => {
+    const key = Object.keys(localStorage).find((entry) => entry.startsWith("lock-in.catalog-workspace.v1.user_controls-student."));
+    return key ? JSON.parse(localStorage.getItem(key)).annotations.find((item) => item.type === "pen")?.points?.length ?? 0 : 0;
+  })).toBeGreaterThan(2);
+  await page.reload();
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await page.getByRole("button", { name: "More workspace actions" }).click();
+  await page.getByRole("button", { name: "Workspace settings" }).click();
+  await expect(page.getByRole("switch", { name: "Improve new handwriting" })).toHaveAttribute("aria-checked", "true");
+  await expect(visibleInk(page)).toHaveCount(1);
+});
+
 test("browser and OS shortcuts never hijack the tool palette", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page);
@@ -122,21 +269,21 @@ test("page keys move the reader instead of only relabelling the indicator", asyn
   await openWorkspace(page);
   const stage = page.locator(".workspace-v2-document-stage");
   const indicator = page.locator(".workspace-v2-page-number");
-  await expect(indicator).toHaveAttribute("aria-label", "Page 1 of 41");
+  await expect(indicator).toHaveAttribute("aria-label", "PDF page 1 of 41");
   const startScrollTop = await stage.evaluate((node) => node.scrollTop);
 
   await page.keyboard.press("ArrowRight");
-  await expect(indicator).toHaveAttribute("aria-label", "Page 2 of 41");
+  await expect(indicator).toHaveAttribute("aria-label", "PDF page 2 of 41");
   await expect.poll(async () => stage.evaluate((node) => node.scrollTop)).toBeGreaterThan(startScrollTop + 100);
 
   await page.keyboard.press("ArrowLeft");
-  await expect(indicator).toHaveAttribute("aria-label", "Page 1 of 41");
+  await expect(indicator).toHaveAttribute("aria-label", "PDF page 1 of 41");
   await expect.poll(async () => stage.evaluate((node) => node.scrollTop)).toBeLessThan(startScrollTop + 100);
 
   await page.keyboard.press("End");
-  await expect(indicator).toHaveAttribute("aria-label", "Page 41 of 41");
+  await expect(indicator).toHaveAttribute("aria-label", "PDF page 41 of 41");
   await page.keyboard.press("Home");
-  await expect(indicator).toHaveAttribute("aria-label", "Page 1 of 41");
+  await expect(indicator).toHaveAttribute("aria-label", "PDF page 1 of 41");
 });
 
 test("the page dock jumps to a typed page and steps the zoom", async ({ page }) => {
@@ -152,7 +299,7 @@ test("the page dock jumps to a typed page and steps the zoom", async ({ page }) 
   const startScrollTop = await stage.evaluate((node) => node.scrollTop);
   await navigator.locator("input[type='number']").fill("7");
   await navigator.locator("input[type='number']").press("Enter");
-  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "Page 7 of 41");
+  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "PDF page 7 of 41");
   await expect.poll(async () => stage.evaluate((node) => node.scrollTop)).toBeGreaterThan(startScrollTop + 500);
 
   const startScale = await readerScale();
@@ -265,7 +412,7 @@ test("the lasso recolours a selection and the settings panel clears one page", a
   await expect(page.locator(".workspace-v2-selection-menu")).toBeVisible();
 
   await page.locator('[data-workspace-tool="select"]').click();
-  await page.getByRole("button", { name: "Use #20b982" }).click();
+  await page.getByRole("dialog", { name: "Lasso options" }).getByRole("button", { name: "Use #20b982" }).click();
   await expect(marks.first()).toHaveAttribute("fill", "#20b982");
 
   await page.getByRole("button", { name: "Undo (Ctrl+Z)" }).click();
@@ -273,7 +420,7 @@ test("the lasso recolours a selection and the settings panel clears one page", a
 
   await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings" }).click();
-  await page.getByRole("button", { name: /Clear ink on page/ }).click();
+  await page.getByRole("button", { name: /Clear ink on PDF page/ }).click();
   await expect(marks).toHaveCount(0);
   await page.getByRole("button", { name: "Undo (Ctrl+Z)" }).click();
   await expect(marks).toHaveCount(1);
@@ -337,7 +484,7 @@ test("the live ink layer paints while the stroke is still down and carries its o
   // the live layer, which is a different feature from the one under test.
   await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings" }).click();
-  await page.getByRole("switch", { name: /Hold to shape/ }).click();
+  await page.getByRole("switch", { name: /Perfect shapes on release/ }).click();
   await page.getByRole("button", { name: "Close workspace settings" }).click();
 
   await page.getByRole("button", { name: "Pen", exact: true }).click();

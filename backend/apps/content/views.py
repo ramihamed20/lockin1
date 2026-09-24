@@ -7,7 +7,7 @@ from django.conf import settings
 from django.db import models, transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import status
-from rest_framework.exceptions import APIException, NotFound, PermissionDenied
+from rest_framework.exceptions import APIException, NotFound, PermissionDenied, ValidationError
 from rest_framework.generics import ListAPIView
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -452,7 +452,27 @@ def _subject_for_path(subjects: list[CatalogSubject], path: str) -> CatalogSubje
     return best
 
 
-def _published_question_counts(subjects: list[CatalogSubject]) -> dict[UUID, int]:
+def _question_source(request: Request) -> str:
+    source = request.query_params.get("source", "").strip()
+    if source not in {"", "ai-sheet", "exam"}:
+        raise ValidationError("The question source is invalid.")
+    return source
+
+
+def _filter_question_source(
+    queryset: models.QuerySet[Question], source: str, *, version: str
+) -> models.QuerySet[Question]:
+    if source == "exam":
+        return queryset.filter(**{f"{version}__metadata__source": "exam"})
+    if source == "ai-sheet":
+        return queryset.filter(
+            models.Q(**{f"{version}__metadata__source__isnull": True})
+            | ~models.Q(**{f"{version}__metadata__source": "exam"})
+        )
+    return queryset
+
+
+def _published_question_counts(subjects: list[CatalogSubject], source: str = "") -> dict[UUID, int]:
     """Published, unretired question counts per sheet, for these branches only.
 
     One query for the whole directory: a reader who is not cohort-scoped
@@ -470,7 +490,9 @@ def _published_question_counts(subjects: list[CatalogSubject]) -> dict[UUID, int
                 published_version__academic_node__path__startswith=source_node.path
             )
     rows = (
-        Question.objects.filter(condition)
+        _filter_question_source(
+            Question.objects.filter(condition), source, version="published_version"
+        )
         .filter(
             published_version__isnull=False,
             retired_at__isnull=True,
@@ -532,7 +554,7 @@ class CatalogQuestionMaterialListView(APIView):
     def get(self, request: Request) -> Response:
         user = _user(request)
         subjects = _catalog_subjects_for(user)
-        counts = _published_question_counts(subjects)
+        counts = _published_question_counts(subjects, _question_source(request))
         sheets_by_subject = _question_sheets_by_subject(subjects)
         results = []
         for subject in subjects:
@@ -586,14 +608,18 @@ def _owned_question_sheet(user: User, sheet_id: UUID) -> tuple[LearningObject, C
     return sheet, subject
 
 
-def _sheet_questions(sheet: LearningObject) -> models.QuerySet[Question]:
+def _sheet_questions(sheet: LearningObject, source: str = "") -> models.QuerySet[Question]:
     """Published, unretired questions only: a draft never reaches a student."""
 
     return (
-        Question.objects.filter(
-            published_version__source_learning_object=sheet,
-            published_version__isnull=False,
-            retired_at__isnull=True,
+        _filter_question_source(
+            Question.objects.filter(
+                published_version__source_learning_object=sheet,
+                published_version__isnull=False,
+                retired_at__isnull=True,
+            ),
+            source,
+            version="published_version",
         )
         .select_related("published_version")
         .prefetch_related("published_version__options")
@@ -653,7 +679,7 @@ class CatalogSheetQuestionListView(APIView):
         sheet, subject = _owned_question_sheet(user, sheet_id)
         questions = [
             question
-            for question in _sheet_questions(sheet)
+            for question in _sheet_questions(sheet, _question_source(request))
             if question.published_version is not None
         ]
         answers = {

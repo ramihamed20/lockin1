@@ -1,3 +1,4 @@
+import { sanitizeVirtualPages } from "../catalog/virtualPages.js";
 import {
   WORKSPACE_RECORD_VERSION,
   groupAnnotationsByPage,
@@ -118,6 +119,7 @@ export function createAnnotationStore(environment = {}) {
     return {
       view: sanitizeViewState(documentRecord.view),
       notes: sanitizeStoredNotes(documentRecord.notes),
+      virtualPages: sanitizeVirtualPages(documentRecord.virtualPages),
       annotations,
       savedAt: typeof documentRecord.savedAt === "string" ? documentRecord.savedAt : null
     };
@@ -125,9 +127,9 @@ export function createAnnotationStore(environment = {}) {
 
   /**
    * @param {{ owner: string, materialSlug: string, sheetSlug: string, view: WorkspaceView,
-   *   notes: any[], pages: Map<number, any[]>, removedPages?: number[], savedAt?: string }} snapshot
+   *   notes: any[], virtualPages?: any[], pages: Map<number, any[]>, removedPages?: number[], savedAt?: string }} snapshot
    */
-  async function writeDocument({ owner, materialSlug, sheetSlug, view, notes, pages, removedPages = [], savedAt = new Date().toISOString() }) {
+  async function writeDocument({ owner, materialSlug, sheetSlug, view, notes, virtualPages = [], pages, removedPages = [], savedAt = new Date().toISOString() }) {
     const database = await open();
     const id = workspaceDocumentId(owner, materialSlug, sheetSlug);
     try {
@@ -142,7 +144,8 @@ export function createAnnotationStore(environment = {}) {
         version: WORKSPACE_RECORD_VERSION,
         savedAt,
         view: sanitizeViewState(view),
-        notes: sanitizeStoredNotes(notes)
+        notes: sanitizeStoredNotes(notes),
+        virtualPages: sanitizeVirtualPages(virtualPages)
       });
       pages.forEach((annotations, page) => {
         const pageKey = workspacePageId(id, page);
@@ -203,6 +206,7 @@ export function createAnnotationStore(environment = {}) {
       sheetSlug,
       view: sanitizeViewState(snapshot),
       notes: sanitizeStoredNotes(snapshot.notes),
+      virtualPages: sanitizeVirtualPages(snapshot.virtualPages),
       pages: groupAnnotationsByPage(annotations)
     });
     const verified = await readDocument({ owner, materialSlug, sheetSlug });

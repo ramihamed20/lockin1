@@ -123,7 +123,7 @@ export const adminControlApi = {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}`, { method: "DELETE" });
   },
   sheetQuestions(sheetId, options = {}) {
-    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/questions` + buildQueryString({ q: options.query?.trim(), status: options.status, type: options.type, difficulty: options.difficulty, topic: options.topic }));
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/questions` + buildQueryString({ q: options.query?.trim(), status: options.status, type: options.type, difficulty: options.difficulty, topic: options.topic, source: options.source }));
   },
   validateQuestionImport(sheetId, payload) {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/questions/validate`, { method: "POST", body: { payload } });

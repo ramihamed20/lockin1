@@ -1,6 +1,8 @@
 import { catalogWorkspaceApi } from "../../api/catalogWorkspace.js";
 import { focusApi } from "../../api/focus.js";
 import { generateIdempotencyKey } from "../../api/pagination.js";
+import { sanitizeStoredAnnotations } from "../storage/workspaceSnapshot.js";
+import { isVirtualPageKey, sanitizeVirtualPages } from "./virtualPages.js";
 import {
   catalogAnnotationToFocus,
   focusAnnotationSignature,
@@ -63,6 +65,7 @@ export function fingerprint(value) {
 
 const annotationPrint = (item) => fingerprint(focusAnnotationSignature(item));
 const notePrint = (note) => fingerprint(JSON.stringify(note));
+const virtualPrint = (item) => fingerprint(JSON.stringify(item));
 
 /**
  * Three-way merge by id. `base` holds the fingerprints both sides agreed on at
@@ -109,10 +112,12 @@ function readBaseline(storage, key) {
     const stored = JSON.parse(storage?.getItem(key) || "null");
     return {
       annotations: new Map(Object.entries(stored?.annotations || {})),
-      notes: new Map(Object.entries(stored?.notes || {}))
+      notes: new Map(Object.entries(stored?.notes || {})),
+      virtualPages: new Map(Object.entries(stored?.virtualPages || {}).map(([id, print]) => [Number(id), print])),
+      virtualAnnotations: new Map(Object.entries(stored?.virtualAnnotations || {}))
     };
   } catch {
-    return { annotations: new Map(), notes: new Map() };
+    return { annotations: new Map(), notes: new Map(), virtualPages: new Map(), virtualAnnotations: new Map() };
   }
 }
 
@@ -145,6 +150,8 @@ export function createCatalogServerSync({
   const syncedAnnotations = new Map();
   /** @type {Map<string, string>} note id -> fingerprint the server holds */
   let syncedNotes = new Map();
+  let syncedVirtualPages = new Map();
+  let syncedVirtualAnnotations = new Map();
   let syncedView = null;
   const workspaceSyncKey = { current: null };
   const annotationSyncKey = { current: null };
@@ -163,7 +170,9 @@ export function createCatalogServerSync({
     try {
       storage?.setItem(baselineKey, JSON.stringify({
         annotations: Object.fromEntries(syncedAnnotations),
-        notes: Object.fromEntries(syncedNotes)
+        notes: Object.fromEntries(syncedNotes),
+        virtualPages: Object.fromEntries(syncedVirtualPages),
+        virtualAnnotations: Object.fromEntries(syncedVirtualAnnotations)
       }));
     } catch {
       // Without a baseline the next merge treats both sides as additions, which
@@ -198,24 +207,30 @@ export function createCatalogServerSync({
     const collection = await readCollection(Math.max(1, Math.floor(pageCount) || 1));
     const annotations = collection.annotations.map(focusAnnotationToCatalog).filter(Boolean);
     const notes = Array.isArray(workspace?.state?.notes) ? workspace.state.notes.filter((note) => typeof note?.id === "string") : [];
+    const virtualPages = sanitizeVirtualPages(workspace?.state?.virtual_pages);
+    const virtualIds = new Set(virtualPages.map((item) => item.id));
+    const virtualAnnotations = sanitizeStoredAnnotations(workspace?.state?.virtual_annotations)
+      .filter((item) => isVirtualPageKey(item.page) && virtualIds.has(item.page));
     workspaceRevision = workspace ? workspace.revision : 0;
     collectionRevision = collection.revision;
     syncedAnnotations.clear();
     for (const item of annotations) syncedAnnotations.set(item.id, annotationPrint(item));
     syncedNotes = new Map(notes.map((note) => [note.id, notePrint(note)]));
-    syncedView = JSON.stringify(workspace?.state?.view ?? null);
-    remote = { annotations, notes };
+    syncedVirtualPages = new Map(virtualPages.map((item) => [item.id, virtualPrint(item)]));
+    syncedVirtualAnnotations = new Map(virtualAnnotations.map((item) => [item.id, virtualPrint(item)]));
+    syncedView = JSON.stringify({ view: workspace?.state?.view ?? null, virtualPages, virtualAnnotations });
+    remote = { annotations, notes, virtualPages, virtualAnnotations };
   }
 
   /**
    * Merges this device's content with the server's copy read by `load`.
-   * @param {{ annotations: any[], notes: any[] }} local
-   * @returns {{ annotations: any[], notes: any[], localChanged: boolean }}
+   * @param {{ annotations: any[], notes: any[], virtualPages?: any[] }} local
+   * @returns {{ annotations: any[], notes: any[], virtualPages: any[], localChanged: boolean }}
    */
   function reconcile(local) {
-    if (!remote) return { annotations: local.annotations, notes: local.notes, localChanged: false };
+    if (!remote) return { annotations: local.annotations, notes: local.notes, virtualPages: local.virtualPages || [], localChanged: false };
     const base = readBaseline(storage, baselineKey);
-    const deviceOnly = local.annotations.filter((item) => !isServerSyncableAnnotation(item));
+    const deviceOnly = local.annotations.filter((item) => !isVirtualPageKey(item.page) && !isServerSyncableAnnotation(item));
     const annotations = mergeById({
       local: local.annotations.filter(isServerSyncableAnnotation),
       remote: remote.annotations,
@@ -223,11 +238,20 @@ export function createCatalogServerSync({
       print: annotationPrint
     });
     const notes = mergeById({ local: local.notes, remote: remote.notes, base: base.notes, print: notePrint });
+    const virtualPages = mergeById({ local: sanitizeVirtualPages(local.virtualPages), remote: remote.virtualPages, base: base.virtualPages, print: virtualPrint });
+    const validVirtualIds = new Set(virtualPages.items.map((item) => item.id));
+    const virtualAnnotations = mergeById({
+      local: local.annotations.filter((item) => isVirtualPageKey(item.page)),
+      remote: remote.virtualAnnotations,
+      base: base.virtualAnnotations,
+      print: virtualPrint
+    });
     remote = null;
     return {
-      annotations: [...annotations.items, ...deviceOnly],
-      notes: notes.items,
-      localChanged: annotations.localChanged || notes.localChanged
+      annotations: [...annotations.items, ...deviceOnly, ...virtualAnnotations.items.filter((item) => validVirtualIds.has(item.page))],
+      notes: notes.items.filter((item) => !isVirtualPageKey(item.page) || validVirtualIds.has(item.page)),
+      virtualPages: virtualPages.items,
+      localChanged: annotations.localChanged || notes.localChanged || virtualPages.localChanged || virtualAnnotations.localChanged
     };
   }
 
@@ -281,8 +305,13 @@ export function createCatalogServerSync({
     const view = snapshot.view ? { page: Number(snapshot.view.page) || 1, zoom: Number(snapshot.view.zoom) || 1 } : null;
     const notePrints = new Map(notes.map((note) => [note.id, notePrint(note)]));
     const notesChanged = notePrints.size !== syncedNotes.size || [...notePrints].some(([id, print]) => syncedNotes.get(id) !== print);
-    if (!notesChanged && JSON.stringify(view) === syncedView) return;
-    const state = { savedAt: snapshot.savedAt, view, notes };
+    const virtualPages = sanitizeVirtualPages(snapshot.virtualPages);
+    const virtualIds = new Set(virtualPages.map((item) => item.id));
+    const virtualAnnotations = sanitizeStoredAnnotations(snapshot.annotations)
+      .filter((item) => isVirtualPageKey(item.page) && virtualIds.has(item.page));
+    const readerPrint = JSON.stringify({ view, virtualPages, virtualAnnotations });
+    if (!notesChanged && readerPrint === syncedView) return;
+    const state = { savedAt: snapshot.savedAt, view, notes, virtual_pages: virtualPages, virtual_annotations: virtualAnnotations };
     const expected = workspaceRevision;
     const idempotencyKey = keyFor(workspaceSyncKey, { expected, state });
     const result = await catalog.save(workspaceDocumentId, expected, state, idempotencyKey);
@@ -290,7 +319,9 @@ export function createCatalogServerSync({
     workspaceSyncKey.current = null;
     workspaceRevision = result.revision;
     syncedNotes = notePrints;
-    syncedView = JSON.stringify(view);
+    syncedVirtualPages = new Map(virtualPages.map((item) => [item.id, virtualPrint(item)]));
+    syncedVirtualAnnotations = new Map(virtualAnnotations.map((item) => [item.id, virtualPrint(item)]));
+    syncedView = readerPrint;
     saveBaseline();
   }
 

@@ -228,7 +228,7 @@ export function createInkInputController() {
       session = {
         pointerId,
         pointerType: ["pen", "touch", "mouse"].includes(event?.pointerType) ? event.pointerType : "unknown",
-        page: Math.max(1, Math.round(finite(options?.page, 1))),
+        page: Number.isSafeInteger(options?.page) && options.page < 0 ? options.page : Math.max(1, Math.round(finite(options?.page, 1))),
         points: [],
         active: true,
         finalized: false,

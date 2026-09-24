@@ -93,6 +93,7 @@ for (const orientation of ["portrait", "landscape"]) {
       await page.goto(ROUTE);
       await page.getByRole("button", { name: /Normal Study/ }).click();
       await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
+      if (viewport.width < 1200) expect((await page.locator(".workspace-v2-toolbar").boundingBox()).y).toBeGreaterThanOrEqual(34);
 
       // The reader always fills the viewport, and the page dock is reachable.
       await auditViewport(page, viewport);
@@ -122,21 +123,21 @@ for (const orientation of ["portrait", "landscape"]) {
       expect(optionsFit.bottom).toBeLessThanOrEqual(viewport.height + 1);
       await auditViewport(page, viewport);
 
-      // V3 keeps primary tools fixed. Secondary creation tools live in Add,
-      // so the toolbar never needs horizontal discovery.
+      // The primary tools stay on one line in compact layouts.
       const rail = await page.locator(".workspace-v2-tool-list").evaluate((list) => {
         const scroller = list.closest(".workspace-v3-primary");
         const buttons = [...list.querySelectorAll("button")];
         const visibleButtons = buttons.filter((button) => button.getBoundingClientRect().width > 0);
+        const tops = visibleButtons.map((button) => button.getBoundingClientRect().top);
         return {
           tools: buttons.length,
-          rows: new Set(visibleButtons.map((button) => Math.round(button.getBoundingClientRect().top))).size,
-          clipsOverflow: getComputedStyle(scroller).overflowX === "hidden"
+          rowSpread: Math.max(...tops) - Math.min(...tops),
+          scrollsHorizontally: getComputedStyle(scroller).overflowX === "auto"
         };
       });
-      expect(rail.tools).toBe(5);
-      expect(rail.rows, `the tool rail wrapped on ${viewport.name}`).toBe(1);
-      expect(rail.clipsOverflow, `the primary toolbar exposed horizontal scrolling on ${viewport.name}`).toBe(true);
+      expect(rail.tools).toBe(7);
+      expect(rail.rowSpread, `the tool rail wrapped on ${viewport.name}`).toBeLessThan(2);
+      expect(rail.scrollsHorizontally, `the primary toolbar cannot scroll on ${viewport.name}`).toBe(true);
     });
   }
 }
@@ -162,7 +163,7 @@ test("writing controls open immediately and preserve tool state while every seco
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto(ROUTE);
   await page.getByRole("button", { name: /Normal Study/ }).click();
-  const pen = page.locator('[data-workspace-tool="pen"]');
+  const pen = page.locator('.workspace-v2-toolbar [data-workspace-tool="pen"]');
   await pen.click();
   await page.getByRole("slider", { name: "Thickness" }).fill("9");
   await pen.click();
@@ -171,15 +172,128 @@ test("writing controls open immediately and preserve tool state while every seco
   await expect(page.getByRole("slider", { name: "Thickness" })).toHaveValue("9");
 
   await page.getByRole("button", { name: "Add", exact: true }).click();
-  for (const label of ["Pencil", "Shapes", "Image", "Text"]) await expect(page.getByRole("button", { name: label, exact: true })).toBeVisible();
+  for (const label of ["Image", "Text"]) await expect(page.getByRole("button", { name: label, exact: true })).toBeVisible();
+  for (const label of ["Pencil", "Shapes"]) await expect(page.getByRole("dialog", { name: "Add to page" }).getByRole("button", { name: label, exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Text", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Add text annotation" })).toBeVisible();
   await page.getByRole("button", { name: "Close text editor" }).click();
 
   await page.getByRole("button", { name: "More workspace actions" }).click();
-  for (const label of ["Highlight", "Eraser", "Lasso", "Bookmarks", "Fullscreen", "settings"]) await expect(page.getByRole("button", { name: new RegExp(label, "i") })).toBeVisible();
+  for (const label of ["Pencil", "Shapes"]) await expect(page.getByRole("dialog", { name: "More workspace actions" }).getByRole("button", { name: new RegExp(`^${label} `) })).toBeVisible();
+  for (const label of ["Highlight", "Eraser", "Lasso", "Bookmarks", "Full.screen", "settings"]) await expect(page.getByRole("button", { name: new RegExp(label, "i") })).toBeVisible();
   const toolbar = page.locator(".workspace-v2-toolbar");
   await expect.poll(async () => toolbar.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
+});
+
+test("the iPad toolbar keeps direct tools, quick colors, and Active Study usable in both themes", async ({ page }, testInfo) => {
+  test.setTimeout(60_000);
+  await mockAuthenticatedWorkspace(page);
+  await page.setViewportSize({ width: 834, height: 1194 });
+  await page.goto(ROUTE);
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
+  const toolbar = page.locator(".workspace-v2-toolbar");
+  await expect(toolbar).toHaveCSS("border-radius", "26px");
+  expect((await toolbar.boundingBox()).y).toBeGreaterThanOrEqual(34);
+  await expect(toolbar.locator(".workspace-v3-quick-color")).toHaveCount(3);
+  const sizing = await toolbar.evaluate((node) => {
+    const boxes = [...node.querySelectorAll("button")].filter((button) => getComputedStyle(button).display !== "none").map((button) => ({ label: button.getAttribute("aria-label"), box: button.getBoundingClientRect() }));
+    const rail = node.querySelector(".workspace-v3-primary").getBoundingClientRect();
+    return {
+      tooSmall: boxes.filter(({ box }) => box.width < 44 || box.height < 44).map(({ label }) => label),
+      clipped: boxes.filter(({ box, label }) => label && box.left >= rail.left && box.left < rail.right && box.right > rail.right + 3).map(({ label }) => label),
+      toolbarOverflow: node.scrollWidth - node.clientWidth
+    };
+  });
+  expect(sizing.tooSmall).toEqual([]);
+  expect(sizing.clipped).toEqual([]);
+  expect(sizing.toolbarOverflow).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: testInfo.outputPath("ipad-portrait-night.png") });
+
+  const pen = toolbar.getByRole("button", { name: "Pen", exact: true });
+  if (await pen.getAttribute("aria-pressed") !== "true") await pen.click();
+  await expect(pen).toHaveAttribute("aria-pressed", "true");
+  await pen.click();
+  await expect(page.getByRole("dialog", { name: "Pen options" })).toBeVisible();
+  await expect.poll(() => page.locator("#workspace-pen-options").evaluate((node) => node.scrollTop)).toBe(0);
+  await expect.poll(() => page.locator("#workspace-pen-options").evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: testInfo.outputPath("ipad-pen-options-night.png") });
+  await expect(page.getByRole("group", { name: "Pen type" }).getByRole("button")).toHaveCount(3);
+  await page.getByRole("button", { name: "Set thickness to 8" }).click();
+  await expect(page.getByRole("slider", { name: "Thickness" })).toHaveValue("8");
+  await page.getByText("Presets & pen gestures").click();
+  await expect(page.getByRole("slider", { name: "Pressure sensitivity" })).toBeVisible();
+  await expect(page.getByRole("slider", { name: "Stroke smoothing" })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  const color = toolbar.locator(".workspace-v3-quick-color").nth(1);
+  await color.click();
+  await expect(color).toHaveAttribute("aria-pressed", "true");
+  const highlighter = toolbar.getByRole("button", { name: "Highlight", exact: true });
+  await highlighter.click();
+  await highlighter.click();
+  await expect(page.getByRole("dialog", { name: "Highlight options" })).toBeVisible();
+  await expect(page.getByRole("slider", { name: "Opacity" })).toBeVisible();
+  await expect.poll(() => page.getByRole("dialog", { name: "Highlight options" }).evaluate((node) => getComputedStyle(node).opacity)).toBe("1");
+  await page.screenshot({ path: testInfo.outputPath("ipad-highlighter-options-night.png") });
+  await page.keyboard.press("Escape");
+  const eraser = toolbar.getByRole("button", { name: "Eraser", exact: true });
+  await eraser.click();
+  await eraser.click();
+  await expect(eraser).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("dialog", { name: "Eraser options" })).toBeVisible();
+  await expect(toolbar.locator(".workspace-v3-quick-color").first()).toBeDisabled();
+  await page.screenshot({ path: testInfo.outputPath("ipad-precision-eraser-night.png") });
+  const lasso = toolbar.getByRole("button", { name: "Lasso", exact: true });
+  await lasso.click();
+  await lasso.click();
+  await expect(page.getByRole("dialog", { name: "Lasso options" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Lasso mode" }).getByRole("button")).toHaveCount(2);
+  await expect.poll(() => page.getByRole("dialog", { name: "Lasso options" }).evaluate((node) => getComputedStyle(node).opacity)).toBe("1");
+  await page.screenshot({ path: testInfo.outputPath("ipad-lasso-options-night.png") });
+  await page.keyboard.press("Escape");
+  const shapes = toolbar.getByRole("button", { name: "Shapes", exact: true });
+  await shapes.click();
+  await shapes.click();
+  await expect(page.getByRole("dialog", { name: "Shape options" })).toBeVisible();
+  await expect.poll(() => page.locator("#workspace-shapes-options").evaluate((node) => node.scrollTop)).toBe(0);
+  await expect(page.getByRole("group", { name: "Shape type" }).getByRole("button")).toHaveCount(9);
+  await expect.poll(() => page.getByRole("dialog", { name: "Shape options" }).evaluate((node) => getComputedStyle(node).opacity)).toBe("1");
+  await page.screenshot({ path: testInfo.outputPath("ipad-shapes-options-night.png") });
+  await page.keyboard.press("Escape");
+  await toolbar.getByRole("button", { name: "Add", exact: true }).click();
+  const addMenu = page.getByRole("dialog", { name: "Add to page" });
+  for (const label of ["Text", "Image", "Add Page"]) await expect(addMenu.getByRole("button", { name: label, exact: true })).toBeVisible();
+  await expect(addMenu.getByRole("button", { name: "Pencil", exact: true })).toHaveCount(0);
+  await expect(addMenu.getByRole("button", { name: "Shapes", exact: true })).toHaveCount(0);
+  await expect(addMenu.getByRole("button", { name: /Open notes/ })).toBeVisible();
+  await expect(addMenu.getByRole("button", { name: /Bookmark page/ })).toBeVisible();
+  await expect.poll(() => addMenu.evaluate((node) => getComputedStyle(node).opacity)).toBe("1");
+  await page.screenshot({ path: testInfo.outputPath("ipad-add-menu-night.png") });
+  await page.keyboard.press("Escape");
+  await expect(toolbar.getByRole("button", { name: "Redo (Ctrl+Shift+Z)" })).toBeDisabled();
+  await toolbar.getByRole("button", { name: "Open notes" }).click();
+  await expect(page.locator("#workspace-notes-panel")).toBeVisible();
+  await toolbar.getByRole("button", { name: "Close notes" }).click();
+  await toolbar.getByRole("button", { name: "More workspace actions" }).click();
+  await expect(page.getByRole("dialog", { name: "More workspace actions" })).toBeVisible();
+  await expect.poll(() => page.getByRole("dialog", { name: "More workspace actions" }).evaluate((node) => getComputedStyle(node).opacity)).toBe("1");
+  await page.screenshot({ path: testInfo.outputPath("ipad-more-menu-night.png") });
+  await page.getByRole("button", { name: "Workspace settings" }).click();
+  await expect(page.getByRole("dialog", { name: "Workspace settings" })).toBeVisible();
+  await expect.poll(() => page.getByRole("dialog", { name: "Workspace settings" }).evaluate((node) => getComputedStyle(node).opacity)).toBe("1");
+  await page.screenshot({ path: testInfo.outputPath("ipad-settings-night.png") });
+  await page.keyboard.press("Escape");
+  await toolbar.getByRole("button", { name: "Choose study mode" }).click();
+  await expect(page.getByRole("dialog", { name: /Choose study mode/i })).toBeVisible();
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.evaluate(() => { document.documentElement.dataset.theme = "day"; });
+  await expect(toolbar.locator(".workspace-v2-tool-caption").first()).toBeVisible();
+  await expect.poll(() => toolbar.locator(".workspace-v3-tool-button.is-active").evaluate((node) => getComputedStyle(node).backgroundColor)).not.toBe("rgba(0, 0, 0, 0)");
+  await expect.poll(async () => toolbar.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: testInfo.outputPath("ipad-landscape-day.png") });
 });
 
 test("the contextual inspector overlays the reader and preserves page and zoom", async ({ page }) => {
@@ -187,19 +301,19 @@ test("the contextual inspector overlays the reader and preserves page and zoom",
   await page.setViewportSize({ width: 834, height: 1194 });
   await page.goto(ROUTE);
   await page.getByRole("button", { name: /Normal Study/ }).click();
-  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "Page 1 of 41");
+  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "PDF page 1 of 41");
   const before = await page.locator(".workspace-v2-document-stage").evaluate((node) => ({ height: node.clientHeight, zoom: getComputedStyle(document.querySelector(".workspace-v2-a4-document")).getPropertyValue("--workspace-a4-zoom") }));
   const pen = page.locator('[data-workspace-tool="pen"]');
   await pen.click();
   await expect(page.getByRole("dialog", { name: "Pen options" })).toBeVisible();
   const opened = await page.locator(".workspace-v2-document-stage").evaluate((node) => ({ height: node.clientHeight, zoom: getComputedStyle(document.querySelector(".workspace-v2-a4-document")).getPropertyValue("--workspace-a4-zoom") }));
   expect(opened).toEqual(before);
-  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "Page 1 of 41");
+  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "PDF page 1 of 41");
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog", { name: "Pen options" })).toHaveCount(0);
   const closed = await page.locator(".workspace-v2-document-stage").evaluate((node) => ({ height: node.clientHeight, zoom: getComputedStyle(document.querySelector(".workspace-v2-a4-document")).getPropertyValue("--workspace-a4-zoom") }));
   expect(closed).toEqual(before);
-  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "Page 1 of 41");
+  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "PDF page 1 of 41");
   await expect(pen).toBeFocused();
 });
 

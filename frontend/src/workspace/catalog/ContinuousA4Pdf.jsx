@@ -6,6 +6,7 @@ import { PdfRenderQueue, pdfRenderGenerationIsCurrent } from "./pdfRenderQueue.j
 import { loadPdfLibrary } from "./pdfJsAdapter.js";
 import { catalogCanvasPixelBudget } from "./renderBudget.js";
 import { visiblePdfPages } from "./visiblePdfPages.js";
+import { composeWorkspacePages } from "./virtualPages.js";
 
 export const A4_PAGE_WIDTH = 595;
 export const A4_PAGE_RATIO = 297 / 210;
@@ -251,12 +252,13 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
  *   pageCount: number,
  *   visiblePageStart?: number,
  *   visiblePageCount?: number,
+ *   virtualPages?: { id: number, afterPage: number }[],
  *   zoom: number,
  *   stageRef: import("react").RefObject<HTMLDivElement>,
  *   documentRootRef: import("react").RefObject<HTMLDivElement>,
  *   onPageCount: (count: number) => void,
  *   onDocumentReady?: () => void,
- *   onCurrentPageChange: (pageNumber: number) => void,
+ *   onCurrentPageChange: (pageNumber: number, virtualPageId: number | null) => void,
  *   renderPageOverlay: (pageNumber: number) => import("react").ReactNode,
  *   onPdfPageRendered?: (duration: number) => void
  * }} props
@@ -266,6 +268,7 @@ export function ContinuousA4Pdf({
   pageCount,
   visiblePageStart = 1,
   visiblePageCount = pageCount,
+  virtualPages = [],
   zoom,
   stageRef,
   documentRootRef,
@@ -301,6 +304,7 @@ export function ContinuousA4Pdf({
   const pendingPageGeometryRef = useRef(new Map());
   const pendingNearbyPagesRef = useRef(null);
   const primaryPageRef = useRef(1);
+  const primaryPageKeyRef = useRef(1);
   const renderScaleRef = useRef(zoom);
   const renderTimerRef = useRef(null);
   const renderResumeRafRef = useRef(null);
@@ -397,11 +401,12 @@ export function ContinuousA4Pdf({
     entries.forEach(([pageNumber, geometry]) => applyPageGeometry(pageNumber, geometry.width, geometry.height));
   }, [applyPageGeometry]);
 
-  const commitPrimaryPage = useCallback((nextPage) => {
-    if (!Number.isFinite(nextPage) || nextPage < 1 || primaryPageRef.current === nextPage) return;
-    primaryPageRef.current = nextPage;
-    setPrimaryPage(nextPage);
-    onCurrentPageChange(nextPage);
+  const commitPrimaryPage = useCallback((key, pdfPage) => {
+    if (!Number.isSafeInteger(key) || !Number.isSafeInteger(pdfPage) || pdfPage < 1 || primaryPageKeyRef.current === key) return;
+    primaryPageKeyRef.current = key;
+    primaryPageRef.current = pdfPage;
+    setPrimaryPage(pdfPage);
+    onCurrentPageChange(pdfPage, key < 0 ? key : null);
   }, [onCurrentPageChange]);
 
   const commitNearbyPages = useCallback((nextPages) => {
@@ -604,7 +609,7 @@ export function ContinuousA4Pdf({
     const updateCurrentFromGeometry = () => {
       if (geometryIsLocked()) return;
       const stageBounds = stage.getBoundingClientRect();
-      let bestPage = primaryPageRef.current;
+      let bestPage = primaryPageKeyRef.current;
       let bestVisibleArea = 0;
       pageElementsRef.current.forEach((element, pageNumber) => {
         const bounds = element.getBoundingClientRect();
@@ -616,10 +621,16 @@ export function ContinuousA4Pdf({
           bestPage = pageNumber;
         }
       });
-      if (bestVisibleArea > 0) commitPrimaryPage(bestPage);
+      if (bestVisibleArea > 0) {
+        const element = pageElementsRef.current.get(bestPage);
+        commitPrimaryPage(bestPage, Number(element?.dataset.pdfAnchor));
+      }
     };
     const renderObserver = new window.IntersectionObserver((entries) => {
-      entries.forEach((entry) => renderVisibility.set(Number(/** @type {HTMLElement} */ (entry.target).dataset.pdfPage), entry.isIntersecting));
+      entries.forEach((entry) => {
+        const pdfPage = Number(/** @type {HTMLElement} */ (entry.target).dataset.pdfPage);
+        if (pdfPage > 0) renderVisibility.set(pdfPage, entry.isIntersecting);
+      });
       const nextPages = new Set();
       renderVisibility.forEach((isVisible, pageNumber) => {
         if (isVisible) nextPages.add(pageNumber);
@@ -629,9 +640,9 @@ export function ContinuousA4Pdf({
       else commitNearbyPages(nextPages);
     }, { root: stage, rootMargin: "160% 0px", threshold: 0 });
     const pageObserver = new window.IntersectionObserver((entries) => {
-      entries.forEach((entry) => pageRatios.set(Number(/** @type {HTMLElement} */ (entry.target).dataset.pdfPage), entry.isIntersecting ? entry.intersectionRatio : 0));
+      entries.forEach((entry) => pageRatios.set(Number(/** @type {HTMLElement} */ (entry.target).dataset.workspacePage), entry.isIntersecting ? entry.intersectionRatio : 0));
       if (geometryIsLocked()) return;
-      let currentPage = primaryPageRef.current;
+      let currentPage = primaryPageKeyRef.current;
       let currentRatio = 0;
       pageRatios.forEach((ratio, pageNumber) => {
         if (ratio > currentRatio) {
@@ -639,7 +650,10 @@ export function ContinuousA4Pdf({
           currentRatio = ratio;
         }
       });
-      if (currentRatio > 0) commitPrimaryPage(currentPage);
+      if (currentRatio > 0) {
+        const element = pageElementsRef.current.get(currentPage);
+        commitPrimaryPage(currentPage, Number(element?.dataset.pdfAnchor));
+      }
     }, { root: stage, threshold: [0, .15, .5, .85] });
     pageElementsRef.current.forEach((element) => {
       renderObserver.observe(element);
@@ -651,7 +665,7 @@ export function ContinuousA4Pdf({
       pageObserver.disconnect();
       documentRoot.removeEventListener("workspace:zoomgeometrysettled", updateCurrentFromGeometry);
     };
-  }, [commitNearbyPages, commitPrimaryPage, documentRootRef, pageCount, pageGeometryReady, stageRef, visiblePageCount, visiblePageStart]);
+  }, [commitNearbyPages, commitPrimaryPage, documentRootRef, pageCount, pageGeometryReady, stageRef, visiblePageCount, visiblePageStart, virtualPages]);
 
   // Nothing is laid out at a guessed page shape. The sheet knows its page count
   // long before the file is open, so the reader used to raise a full document of
@@ -660,11 +674,12 @@ export function ContinuousA4Pdf({
   // window was resolved against the taller document and left the reader pages
   // away from the one it was sent to. Page boxes appear once they can be drawn
   // at the size the file actually is.
-  const pages = useMemo(() => (
+  const pdfPages = useMemo(() => (
     pageGeometryReady ? visiblePdfPages(pageCount, visiblePageStart, visiblePageCount) : []
   ), [pageCount, pageGeometryReady, visiblePageCount, visiblePageStart]);
-  const firstVisiblePage = pages[0] || 1;
-  const lastVisiblePage = pages.at(-1) || firstVisiblePage;
+  const pages = useMemo(() => composeWorkspacePages(pdfPages, virtualPages), [pdfPages, virtualPages]);
+  const firstVisiblePage = pdfPages[0] || 1;
+  const lastVisiblePage = pdfPages.at(-1) || firstVisiblePage;
   // The render observer's margin is a share of the stage height, so a sheet of
   // short 16:9 slides admits several times more pages than a tall A4 one, and
   // every extra page is a full-size canvas held in memory. This is how far the
@@ -687,8 +702,8 @@ export function ContinuousA4Pdf({
     });
     return next;
   }, [firstVisiblePage, lastVisiblePage, nearbyPages, primaryPage, renderReach]);
-  const baseDocumentHeight = useMemo(() => pages.reduce((total, pageNumber) => (
-    total + A4_PAGE_WIDTH * (pageAspectRatios.get(pageNumber) || defaultPageAspectRatio)
+  const baseDocumentHeight = useMemo(() => pages.reduce((total, entry) => (
+    total + A4_PAGE_WIDTH * (entry.kind === "virtual" ? A4_PAGE_RATIO : pageAspectRatios.get(entry.pdfPage) || defaultPageAspectRatio)
   ), Math.max(0, pages.length - 1) * A4_PAGE_GAP), [defaultPageAspectRatio, pageAspectRatios, pages]);
   const scaledDocumentWidth = A4_PAGE_WIDTH * zoom;
   const surfaceStyle = /** @type {import("react").CSSProperties} */ ({
@@ -712,37 +727,39 @@ export function ContinuousA4Pdf({
     <div className="workspace-v2-a4-zoom-surface" style={surfaceStyle}>
       <div ref={documentRootRef} className="workspace-v2-a4-live-layer" style={liveLayerStyle} aria-busy={Boolean(status)}>
         <div className="workspace-v2-a4-document" style={documentStyle}>
-        {pages.map((pageNumber) => (
+        {pages.map((entry) => (
           <section
-            key={pageNumber}
-            ref={(element) => { if (element) pageElementsRef.current.set(pageNumber, element); else pageElementsRef.current.delete(pageNumber); }}
-            className="workspace-v2-a4-page"
-            data-pdf-page={pageNumber}
+            key={entry.key}
+            ref={(element) => { if (element) pageElementsRef.current.set(entry.key, element); else pageElementsRef.current.delete(entry.key); }}
+            className={`workspace-v2-a4-page${entry.kind === "virtual" ? ` is-virtual is-background-${entry.background}` : ""}`}
+            data-workspace-page={entry.key}
+            data-pdf-anchor={entry.pdfPage}
+            data-pdf-page={entry.kind === "pdf" ? entry.pdfPage : undefined}
             style={{
               width: `${A4_PAGE_WIDTH}px`,
-              height: `${A4_PAGE_WIDTH * (pageAspectRatios.get(pageNumber) || defaultPageAspectRatio)}px`
+              height: `${A4_PAGE_WIDTH * (entry.kind === "virtual" ? A4_PAGE_RATIO : pageAspectRatios.get(entry.pdfPage) || defaultPageAspectRatio)}px`
             }}
-            aria-label={`PDF page ${pageNumber} of ${pageCount}`}
+            aria-label={entry.kind === "virtual" ? `${entry.background} workspace page after PDF page ${entry.pdfPage}` : `PDF page ${entry.pdfPage} of ${pageCount}`}
           >
-            <A4PdfCanvas
+            {entry.kind === "pdf" && <A4PdfCanvas
               documentProxy={documentProxy}
-              pageNumber={pageNumber}
-              pageAspectRatio={pageAspectRatios.get(pageNumber) || defaultPageAspectRatio}
+              pageNumber={entry.pdfPage}
+              pageAspectRatio={pageAspectRatios.get(entry.pdfPage) || defaultPageAspectRatio}
               renderZoom={renderScale}
-              shouldRender={pagesToRender.has(pageNumber)}
-              evictionDelayMs={Math.abs(pageNumber - primaryPage) > renderReach * 2 ? DISTANT_CANVAS_EVICTION_MS : CANVAS_EVICTION_MS}
-              renderRevision={pagesToRender.has(pageNumber) ? renderRevision : 0}
+              shouldRender={pagesToRender.has(entry.pdfPage)}
+              evictionDelayMs={Math.abs(entry.pdfPage - primaryPage) > renderReach * 2 ? DISTANT_CANVAS_EVICTION_MS : CANVAS_EVICTION_MS}
+              renderRevision={pagesToRender.has(entry.pdfPage) ? renderRevision : 0}
               renderController={renderControllerRef.current}
-              priority={pageNumber === primaryPage ? 0 : Math.abs(pageNumber - primaryPage) * 10 + (pageNumber < primaryPage ? 1 : 0)}
+              priority={entry.pdfPage === primaryPage ? 0 : Math.abs(entry.pdfPage - primaryPage) * 10 + (entry.pdfPage < primaryPage ? 1 : 0)}
               renderQueue={renderQueueRef.current}
               onPageGeometry={commitPageGeometry}
               onPageRendered={onPdfPageRendered}
               onPageOutcome={notePageOutcome}
-            />
-            {pagesToRender.has(pageNumber) && renderPageOverlay(pageNumber)}
-            {documentProxy && failedPages.has(pageNumber) && <div className="workspace-v2-a4-status" role="alert">
-              <p>Page {pageNumber} could not be drawn.</p>
-              <button type="button" onClick={() => retryPage(pageNumber)}>Retry page {pageNumber}</button>
+            />}
+            {(entry.kind === "virtual" || pagesToRender.has(entry.pdfPage)) && renderPageOverlay(entry.key)}
+            {entry.kind === "pdf" && documentProxy && failedPages.has(entry.pdfPage) && <div className="workspace-v2-a4-status" role="alert">
+              <p>Page {entry.pdfPage} could not be drawn.</p>
+              <button type="button" onClick={() => retryPage(entry.pdfPage)}>Retry page {entry.pdfPage}</button>
             </div>}
           </section>
         ))}

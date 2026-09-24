@@ -56,7 +56,8 @@ export const PEN_PROFILE_CONFIG = Object.freeze({
 export const ERASER_MODE = Object.freeze({
   PRECISION: "precision",
   SEGMENT: "segment",
-  STROKE: "stroke"
+  STROKE: "stroke",
+  OBJECT: "object"
 });
 
 function finite(value, fallback = 0) {
@@ -111,7 +112,7 @@ function interpolatePoint(first, second, ratio) {
 /** Returns an opaque value for normal ink and isolated transparency for media that intentionally needs it. */
 export function strokeOpacity(annotation) {
   if (annotation?.type === "pen") return 1;
-  if (annotation?.type === "highlighter") return clamp(finite(annotation.opacity, .34), .08, .6);
+  if (annotation?.type === "highlighter") return clamp(finite(annotation.opacity, .34), .08, 1);
   if (annotation?.type === "pencil") return clamp(finite(annotation.opacity, .78), .18, 1);
   return clamp(finite(annotation?.opacity, 1), .05, 1);
 }
@@ -423,12 +424,12 @@ export function distanceBetweenSegments(firstStart, firstEnd, secondStart, secon
   );
 }
 
-export function strokeIntersectsEraserPath(annotation, eraserStart, eraserEnd, radius) {
+export function strokeIntersectsEraserPath(annotation, eraserStart, eraserEnd, radius, includeStrokeWidth = true) {
   const points = annotation?.points || [];
   if (!points.length) return false;
-  if (points.length === 1) return distancePointToSegment(points[0], eraserStart, eraserEnd) <= radius + strokeWidthAtPoint(annotation, points[0]) / 2;
+  if (points.length === 1) return distancePointToSegment(points[0], eraserStart, eraserEnd) <= radius + (includeStrokeWidth ? strokeWidthAtPoint(annotation, points[0]) / 2 : 0);
   for (let index = 1; index < points.length; index += 1) {
-    const strokeRadius = Math.max(strokeWidthAtPoint(annotation, points[index - 1]), strokeWidthAtPoint(annotation, points[index])) / 2;
+    const strokeRadius = includeStrokeWidth ? Math.max(strokeWidthAtPoint(annotation, points[index - 1]), strokeWidthAtPoint(annotation, points[index])) / 2 : 0;
     if (distanceBetweenSegments(points[index - 1], points[index], eraserStart, eraserEnd) <= radius + strokeRadius) return true;
   }
   return false;
@@ -544,14 +545,14 @@ function pointTouchesEraserPath(point, eraserIndex, threshold) {
   );
 }
 
-function strokeIntersectsEraserIndex(annotation, eraserIndex, radius) {
+function strokeIntersectsEraserIndex(annotation, eraserIndex, radius, includeStrokeWidth = true) {
   const points = annotation?.points || [];
   if (!points.length || !eraserIndex.segments.length) return false;
-  if (points.length === 1) return pointTouchesEraserPath(points[0], eraserIndex, radius + strokeWidthAtPoint(annotation, points[0]) / 2);
+  if (points.length === 1) return pointTouchesEraserPath(points[0], eraserIndex, radius + (includeStrokeWidth ? strokeWidthAtPoint(annotation, points[0]) / 2 : 0));
   for (let pointIndex = 1; pointIndex < points.length; pointIndex += 1) {
     const start = points[pointIndex - 1];
     const end = points[pointIndex];
-    const threshold = radius + Math.max(strokeWidthAtPoint(annotation, start), strokeWidthAtPoint(annotation, end)) / 2;
+    const threshold = radius + (includeStrokeWidth ? Math.max(strokeWidthAtPoint(annotation, start), strokeWidthAtPoint(annotation, end)) / 2 : 0);
     if (someEraserSegmentNear(eraserIndex, {
       x: Math.min(start.x, end.x),
       y: Math.min(start.y, end.y),
@@ -654,6 +655,16 @@ export function eraseStrokeWithPolyline(annotation, eraserPoints, radius, mode =
   const eraserIndex = createEraserPathIndex(path, radius);
   if (!strokeIntersectsEraserIndex(annotation, eraserIndex, radius)) return { changed: false, fragments: [annotation] };
   if (mode === ERASER_MODE.STROKE) return { changed: true, fragments: [] };
+  if (mode === ERASER_MODE.PRECISION && (annotation.erasures?.length || 0) < 32) {
+    // A centerline cut removes the whole width of a stroke when the tip touches
+    // its edge. Mask the exact swept area while retaining the original ink.
+    const simplified = simplifyStrokePoints(path, Math.max(.75, radius * .2));
+    const stride = Math.max(1, Math.ceil(simplified.length / 96));
+    const samples = simplified.filter((_, index) => index % stride === 0 || index === simplified.length - 1)
+      .map((point) => ({ x: point.x, y: point.y }));
+    const erasures = [...(annotation.erasures || []), { radius, points: samples }];
+    return { changed: true, fragments: [{ ...annotation, erasures }] };
+  }
   const pointFragments = mode === ERASER_MODE.SEGMENT
     ? fragmentsOutsideTouchedSegments(annotation, eraserIndex, radius)
     : fragmentsOutsidePrecisionPath(annotation, eraserIndex, radius);

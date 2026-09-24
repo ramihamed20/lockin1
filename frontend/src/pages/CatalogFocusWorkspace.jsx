@@ -52,7 +52,18 @@ import {
   Type,
   ClipboardPaste,
   Download,
-  Upload
+  Upload,
+  Lock,
+  Unlock,
+  Layers3,
+  FileText,
+  StickyNote,
+  Share2,
+  Camera,
+  EyeOff,
+  List,
+  Group,
+  Ungroup
 } from "lucide-react";
 import { focusApi } from "../api/focus.js";
 import { progressApi } from "../api/progress.js";
@@ -140,6 +151,9 @@ import {
   translateAnnotation
 } from "../workspace/catalog/catalogWorkspaceState.js";
 import { A4_PAGE_WIDTH, ContinuousA4Pdf } from "../workspace/catalog/ContinuousA4Pdf.jsx";
+import { WORKSPACE_PAGE_BACKGROUNDS, composeWorkspacePages, createVirtualPageId, insertVirtualPage, isVirtualPageKey, removeVirtualPage, sanitizeVirtualPages } from "../workspace/catalog/virtualPages.js";
+import { canvasesToPdf, downloadWorkspaceBlob, renderWorkspacePage } from "../workspace/catalog/workspaceExport.js";
+import { loadPdfLibrary } from "../workspace/catalog/pdfJsAdapter.js";
 import { LiveAnnotationCanvas } from "../workspace/ink/LiveAnnotationCanvas.jsx";
 import { createWorkspacePerformanceMonitor } from "../workspace/catalog/workspacePerformance.js";
 import { addSavedColor, normalizeSavedPalette, normalizeToolColor, removeSavedColor } from "../workspace/catalog/toolPalette.js";
@@ -170,9 +184,9 @@ const AUTOSAVE_IDLE_MS = 750;
 // The server mirror trails the local save, so a burst of strokes or a scroll
 // becomes one request rather than many.
 const SERVER_SYNC_DELAY_MS = 1_500;
-const COLORS = ["#8b5cf6", "#f2b728", "#20b982", "#e65791", "#239ed1"];
-const HOLD_RECOGNITION_MS = 420;
-const HOLD_ENDPOINT_TOLERANCE_PX = 6;
+const COLORS = ["#2196f3", "#ff6472", "#ffe455", "#8b5cf6", "#f2b728", "#20b982", "#e65791", "#239ed1"];
+const HOLD_RECOGNITION_MS = 500;
+const HOLD_ENDPOINT_TOLERANCE_PX = 28;
 const TOOL_MEMORY_KEY = "lock-in.catalog-workspace.tool-memory.v2";
 const RECENT_COLORS_KEY = "lock-in.catalog-workspace.recent-colors.v1";
 const FAVORITE_COLORS_KEY = "lock-in.catalog-workspace.favorite-colors.v1";
@@ -202,9 +216,11 @@ const TOOL_ITEMS = [
 /** @type {Array<[string, string, import("lucide-react").LucideIcon, string]>} */
 const PRIMARY_WRITE_TOOLS = [
   ["pen", "Pen", PenLine, ""],
+  ["hand", "Hand", Hand, ""],
   ["highlighter", "Highlight", Highlighter, "is-phone-secondary"],
   ["eraser", "Eraser", Eraser, "is-phone-secondary"],
-  ["select", "Lasso", MousePointer2, "is-phone-secondary"]
+  ["select", "Lasso", MousePointer2, "is-phone-secondary"],
+  ["shapes", "Shapes", Shapes, "is-tablet-secondary"]
 ];
 
 const DRAWING_TOOLS = new Set(["pen", "pencil", "highlighter", "eraser", "shapes", "select"]);
@@ -215,16 +231,13 @@ const PEN_PROFILE_OPTIONS = [
   [PEN_PROFILE.FOUNTAIN, "Fountain Pen", Feather],
   [PEN_PROFILE.BRUSH, "Brush Pen", Brush]
 ];
-const ERASER_MODE_OPTIONS = [
-  [ERASER_MODE.PRECISION, "Precision Eraser", Eraser],
-  [ERASER_MODE.SEGMENT, "Segment Eraser", Scissors],
-  [ERASER_MODE.STROKE, "Stroke Eraser", Trash2]
-];
 const SHAPE_OPTIONS = [
   ["line", "Line", Minus],
   ["arrow", "Arrow", ArrowRight],
   ["rectangle", "Rectangle", RectangleHorizontal],
   ["square", "Square", Square],
+  ["rounded", "Rounded", RectangleHorizontal],
+  ["polygon", "Polygon", Shapes],
   ["ellipse", "Ellipse", Circle],
   ["circle", "Circle", Circle],
   ["triangle", "Triangle", Triangle]
@@ -235,8 +248,7 @@ const LASSO_MODE_OPTIONS = [
 ];
 /** @type {Array<[number, string]>} */
 const STROKE_FEEL_OPTIONS = [[.25, "Natural"], [.5, "Balanced"], [.8, "Smooth"]];
-const QUICK_THICKNESSES = [2, 4, 7, 10];
-const QUICK_ERASER_SIZES = [3, 8, 14, 20];
+const QUICK_THICKNESSES = [2, 4, 8];
 
 const SUBJECT_COPY = {
   conservative: ["Adhesive Dentistry", "Preserving sound tooth structure is the central principle of conservative treatment."],
@@ -259,8 +271,10 @@ function isStageControl(target) {
   return Boolean(target?.closest?.(STAGE_CONTROL_SELECTOR));
 }
 
-function WorkspaceIconButton({ label, active = false, children, className = "", ...props }) {
-  return <button className={`workspace-v2-icon-button${active ? " is-active" : ""}${className ? ` ${className}` : ""}`} type="button" aria-label={label} title={label} {...props}>{children}</button>;
+function WorkspaceIconButton({ label, caption = null, active = false, children, className = "", ...props }) {
+  return <button className={`workspace-v2-icon-button${active ? " is-active" : ""}${className ? ` ${className}` : ""}`} type="button" aria-label={label} title={label} {...props}>
+    {children}{caption && <span className="workspace-v2-tool-caption" aria-hidden="true">{caption}</span>}
+  </button>;
 }
 
 function ToolRange({ label, value, displayValue = value, min, max, step, onChange, preview = "stroke", color = "#8b5cf6" }) {
@@ -287,7 +301,7 @@ function IconChoiceGroup({ label, value, options, onChange }) {
       title={optionLabel}
       aria-pressed={value === optionValue}
       onClick={() => onChange(optionValue)}
-    ><OptionIcon size={17} /></button>)}
+    ><OptionIcon size={17} /><span className="workspace-v5-choice-label">{optionLabel.replace(/ (Eraser|lasso)$/i, "")}</span></button>)}
   </div>;
 }
 
@@ -321,8 +335,8 @@ function SettingsToggle({ icon: ToggleIcon, label, description, checked, onChang
 }
 
 const WorkspaceAnnotation = memo(
-/** @param {{ annotation: any, draft?: boolean, interactionOnly?: boolean }} props */
-function WorkspaceAnnotation({ annotation, draft = false, interactionOnly = false }) {
+/** @param {{ annotation: any, draft?: boolean, interactionOnly?: boolean, groupedHighlighter?: boolean }} props */
+function WorkspaceAnnotation({ annotation, draft = false, interactionOnly = false, groupedHighlighter = false }) {
   const common = { "data-annotation-id": annotation.id, "data-annotation-type": annotation.type };
   if (["pen", "pencil", "highlighter"].includes(annotation.type)) {
     const geometry = strokeRenderGeometry(annotation);
@@ -330,11 +344,19 @@ function WorkspaceAnnotation({ annotation, draft = false, interactionOnly = fals
       if (geometry.kind === "dot") return <circle {...common} className="workspace-v2-annotation-hit" cx={geometry.x} cy={geometry.y} r={Math.max(geometry.radius, 8)} fill={annotation.color} opacity="0" />;
       return <path {...common} className="workspace-v2-annotation-hit" d={geometry.path} fill={geometry.kind === "outline" ? annotation.color : "none"} stroke={geometry.kind === "centerline" ? annotation.color : "none"} strokeWidth={Math.max(geometry.width || 0, 12)} opacity="0" />;
     }
-    const opacity = draft ? Math.min(geometry.opacity, annotation.type === "pen" ? 1 : .68) : geometry.opacity;
-    if (geometry.kind === "dot") return <circle {...common} cx={geometry.x} cy={geometry.y} r={geometry.radius} fill={annotation.color} opacity={opacity} />;
-    if (geometry.kind === "centerline") return <path {...common} d={geometry.path} fill="none" stroke={annotation.color} strokeWidth={geometry.width} strokeLinecap="round" strokeLinejoin="round" opacity={opacity} />;
-    if (geometry.kind === "outline") return <path {...common} d={geometry.path} fill={annotation.color} opacity={opacity} />;
-    return null;
+    const opacity = groupedHighlighter ? 1 : draft ? Math.min(geometry.opacity, annotation.type === "pen" ? 1 : .68) : geometry.opacity;
+    let mark = null;
+    if (geometry.kind === "dot") mark = <circle {...common} cx={geometry.x} cy={geometry.y} r={geometry.radius} fill={annotation.color} opacity={opacity} />;
+    if (geometry.kind === "centerline") mark = <path {...common} d={geometry.path} fill="none" stroke={annotation.color} strokeWidth={geometry.width} strokeLinecap="round" strokeLinejoin="round" opacity={opacity} />;
+    if (geometry.kind === "outline") mark = <path {...common} d={geometry.path} fill={annotation.color} opacity={opacity} />;
+    if (!annotation.erasures?.length) return mark;
+    const maskId = `workspace-erase-${String(annotation.id).replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+    return <g><defs><mask id={maskId} x="0" y="0" width="1000" height="1000" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse">
+      <rect x="0" y="0" width="1000" height="1000" fill="white" />
+      {annotation.erasures.map((erasure, index) => erasure.points.length === 1
+        ? <circle key={index} cx={erasure.points[0].x} cy={erasure.points[0].y} r={erasure.radius} fill="black" />
+        : <path key={index} d={erasure.points.map((point, pointIndex) => `${pointIndex ? "L" : "M"}${point.x} ${point.y}`).join(" ")} fill="none" stroke="black" strokeWidth={erasure.radius * 2} strokeLinecap="round" strokeLinejoin="round" />)}
+    </mask></defs><g mask={`url(#${maskId})`}>{mark}</g></g>;
   }
   const commonWithOpacity = { ...common, "data-annotation-shape": annotation.type === "shape" ? annotation.shape : undefined, opacity: draft ? 0.68 : annotation.opacity ?? 1 };
   if (annotation.type === "shape") {
@@ -342,6 +364,8 @@ function WorkspaceAnnotation({ annotation, draft = false, interactionOnly = fals
     const y = Math.min(annotation.start.y, annotation.end.y);
     const width = Math.abs(annotation.end.x - annotation.start.x);
     const height = Math.abs(annotation.end.y - annotation.start.y);
+    const fill = annotation.fill ? (annotation.fillColor || annotation.color) : "none";
+    const dash = annotation.dashed ? "18 11" : undefined;
     if (["line", "arrow"].includes(annotation.shape)) {
       const dx = annotation.end.x - annotation.start.x;
       const dy = annotation.end.y - annotation.start.y;
@@ -351,28 +375,61 @@ function WorkspaceAnnotation({ annotation, draft = false, interactionOnly = fals
       const normalY = dx / length;
       const baseX = annotation.end.x - (dx / length) * head;
       const baseY = annotation.end.y - (dy / length) * head;
-      return <g {...commonWithOpacity} fill="none" stroke={annotation.color} strokeWidth={annotation.width} strokeLinecap="round" strokeLinejoin="round">
+      return <g {...commonWithOpacity} fill="none" stroke={annotation.color} strokeWidth={annotation.width} strokeDasharray={dash} strokeLinecap="round" strokeLinejoin="round">
         <line x1={annotation.start.x} y1={annotation.start.y} x2={annotation.end.x} y2={annotation.end.y} />
         {annotation.shape === "arrow" && <polyline points={`${baseX + normalX * head * .45},${baseY + normalY * head * .45} ${annotation.end.x},${annotation.end.y} ${baseX - normalX * head * .45},${baseY - normalY * head * .45}`} />}
       </g>;
     }
-    if (["circle", "ellipse"].includes(annotation.shape)) return <ellipse {...commonWithOpacity} cx={x + width / 2} cy={y + height / 2} rx={width / 2} ry={height / 2} fill="none" stroke={annotation.color} strokeWidth={annotation.width} />;
-    if (annotation.shape === "triangle") return <polygon {...commonWithOpacity} points={`${x + width / 2},${y} ${x + width},${y + height} ${x},${y + height}`} fill="none" stroke={annotation.color} strokeWidth={annotation.width} strokeLinejoin="round" />;
-    return <rect {...commonWithOpacity} x={x} y={y} width={width} height={height} rx="6" fill="none" stroke={annotation.color} strokeWidth={annotation.width} />;
+    if (["circle", "ellipse"].includes(annotation.shape)) return <ellipse {...commonWithOpacity} cx={x + width / 2} cy={y + height / 2} rx={width / 2} ry={height / 2} fill={fill} stroke={annotation.color} strokeWidth={annotation.width} strokeDasharray={dash} />;
+    if (annotation.shape === "triangle" || annotation.shape === "polygon") {
+      const points = annotation.shape === "triangle"
+        ? `${x + width / 2},${y} ${x + width},${y + height} ${x},${y + height}`
+        : Array.from({ length: 6 }, (_, index) => `${x + width / 2 + Math.cos(index * Math.PI / 3) * width / 2},${y + height / 2 + Math.sin(index * Math.PI / 3) * height / 2}`).join(" ");
+      return <polygon {...commonWithOpacity} points={points} fill={fill} stroke={annotation.color} strokeWidth={annotation.width} strokeDasharray={dash} strokeLinejoin="round" />;
+    }
+    return <rect {...commonWithOpacity} x={x} y={y} width={width} height={height} rx={annotation.shape === "rounded" ? "28" : "6"} fill={fill} stroke={annotation.color} strokeWidth={annotation.width} strokeDasharray={dash} />;
   }
   if (annotation.type === "text") {
     const textAnchor = annotation.align === "center" ? "middle" : annotation.align === "right" ? "end" : "start";
-    return <text {...commonWithOpacity} x={annotation.x} y={annotation.y} fill={annotation.color} fontSize={Math.max(18, annotation.width * 5)} fontFamily="system-ui, sans-serif" textAnchor={textAnchor}>{annotation.text}</text>;
+    const fontSize = Math.max(18, annotation.width * 5);
+    return <text {...commonWithOpacity} x={annotation.x} y={annotation.y} fill={annotation.color} fontSize={fontSize} fontWeight={annotation.bold ? 700 : 400} fontFamily="system-ui, sans-serif" textAnchor={textAnchor}>{String(annotation.text).split("\n").map((line, index) => <tspan key={index} x={annotation.x} dy={index ? fontSize * 1.3 : 0}>{line || " "}</tspan>)}</text>;
   }
   if (annotation.type === "image") return <image {...commonWithOpacity} href={annotation.src} x={annotation.x} y={annotation.y} width={annotation.width} height={annotation.height} preserveAspectRatio="xMidYMid meet" />;
+  if (annotation.type === "card") {
+    const colors = { sticky: "#fff3a8", note: "#edf2ff", lined: "#ffffff", revision: "#ffe8ed" };
+    const header = { sticky: "Sticky Note", note: "Note Card", lined: "Lined Card", revision: "Revision Card" }[annotation.cardKind] || "Note Card";
+    const words = String(annotation.text || "").split(/\s+/);
+    const lines = [];
+    for (const word of words) {
+      const last = lines.length - 1;
+      if (last >= 0 && `${lines[last]} ${word}`.length <= Math.max(14, Math.floor(annotation.width / 11))) lines[last] += ` ${word}`;
+      else lines.push(word);
+    }
+    return <g {...commonWithOpacity}>
+      <rect x={annotation.x} y={annotation.y} width={annotation.width} height={annotation.height} rx="16" fill={colors[annotation.cardKind] || colors.note} stroke="#b8c4d6" strokeWidth="2" />
+      <text x={annotation.x + 18} y={annotation.y + 34} fill="#1d3152" fontSize="21" fontWeight="700">{header}</text>
+      {annotation.cardKind === "lined" && Array.from({ length: Math.floor((annotation.height - 65) / 35) }, (_, index) => <line key={index} x1={annotation.x + 14} x2={annotation.x + annotation.width - 14} y1={annotation.y + 70 + index * 35} y2={annotation.y + 70 + index * 35} stroke="#bed4ed" strokeWidth="1.5" />)}
+      <text x={annotation.x + 18} y={annotation.y + 70} fill="#26344e" fontSize="20">{lines.slice(0, Math.floor((annotation.height - 64) / 28)).map((line, index) => <tspan key={index} x={annotation.x + 18} dy={index ? 28 : 0}>{line}</tspan>)}</text>
+    </g>;
+  }
   return null;
 });
 
 const AnnotationVisuals = memo(
 /** @param {{ annotations: any[], hiddenIds?: Set<string>, prefix?: string, includeHitTargets?: boolean }} props */
 function AnnotationVisuals({ annotations, hiddenIds = new Set(), prefix = "annotation", includeHitTargets = false }) {
+  const visible = (annotations || []).filter((annotation) => !hiddenIds.has(annotation.id)).sort((a, b) => (a.zOrder || 0) - (b.zOrder || 0));
+  const highlightGroups = new Map();
+  for (const annotation of visible) if (annotation.type === "highlighter") {
+    const key = `${annotation.color}|${annotation.opacity ?? .34}`;
+    if (!highlightGroups.has(key)) highlightGroups.set(key, []);
+    highlightGroups.get(key).push(annotation);
+  }
   return <>
-    {(annotations || []).filter((annotation) => !hiddenIds.has(annotation.id)).map((annotation) => <WorkspaceAnnotation key={`${prefix}-${annotation.id}`} annotation={annotation} />)}
+    {[...highlightGroups].map(([key, items]) => <g key={`${prefix}-highlight-${key}`} className="workspace-v2-highlighter-group" opacity={items[0].opacity ?? .34} style={{ mixBlendMode: "multiply" }}>
+      {items.map((annotation) => <WorkspaceAnnotation key={`${prefix}-${annotation.id}`} annotation={annotation} groupedHighlighter />)}
+    </g>)}
+    {visible.filter((annotation) => annotation.type !== "highlighter").map((annotation) => <WorkspaceAnnotation key={`${prefix}-${annotation.id}`} annotation={annotation} />)}
     {includeHitTargets && (annotations || []).filter((annotation) => annotation.type === "pen").map((annotation) => <WorkspaceAnnotation key={`${prefix}-hit-${annotation.id}`} annotation={annotation} interactionOnly />)}
   </>;
 });
@@ -432,6 +489,18 @@ function selectionContains(point, bounds) {
 
 function cloneAnnotation(annotation) {
   return JSON.parse(JSON.stringify(annotation));
+}
+
+function copiedAnnotations(items, page, offset) {
+  const groups = new Map();
+  return items.map((item) => {
+    const copy = cloneAnnotation(item);
+    if (copy.groupId) {
+      if (!groups.has(copy.groupId)) groups.set(copy.groupId, generateIdempotencyKey());
+      copy.groupId = groups.get(copy.groupId);
+    }
+    return translateAnnotation({ ...copy, id: generateIdempotencyKey(), page, locked: false }, offset, offset);
+  });
 }
 
 function useDialogFocus(onEscape = null) {
@@ -679,6 +748,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const textInputRef = useRef(null);
   const sideCloseRef = useRef(null);
   const annotationsRef = useRef([]);
+  const virtualPagesRef = useRef([]);
   const performanceMonitorRef = useRef(createWorkspacePerformanceMonitor());
   const annotationSpatialIndexRef = useRef(null);
   const notesRef = useRef([]);
@@ -763,6 +833,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     predictedStrokePoints: [],
     holdTimerId: null,
     holdAnchorPoint: null,
+    holdStartedAt: null,
     holdRawStroke: null,
     holdRecognition: null,
     smartSelectionActivated: false
@@ -803,6 +874,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   // still written for diagnostics/backup, but it never overrides this entry
   // position or any server-owned Active Study progress.
   const [page, setPage] = useState(1);
+  const [virtualPages, setVirtualPages] = useState([]);
+  const [activeVirtualPageId, setActiveVirtualPageId] = useState(null);
+  const activePageKey = activeVirtualPageId ?? page;
   const [zoom, setZoom] = useState(() => {
     if (!sheet?.pdfUrl) return 1.3;
     const fitZoom = fitWidthZoom(window.innerWidth, A4_PAGE_WIDTH, window.innerWidth < 1200 ? 16 : 360);
@@ -821,11 +895,17 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const [penProfile, setPenProfile] = useState(rememberedPenProfile);
   const [pressureSensitivity, setPressureSensitivity] = useState(() => Number.isFinite(Number(initialToolSettings.pressureSensitivity)) ? Number(initialToolSettings.pressureSensitivity) : .55);
   const [strokeSmoothing, setStrokeSmoothing] = useState(() => Number.isFinite(Number(initialToolSettings.smoothing)) ? Number(initialToolSettings.smoothing) : .5);
-  const [eraserMode, setEraserMode] = useState(() => String(initialToolSettings.eraserMode || ERASER_MODE.PRECISION));
+  const [autoImproveHandwriting, setAutoImproveHandwriting] = useState(storedWorkspaceSettings.autoImproveHandwriting === true);
   const [shapeStyle, setShapeStyle] = useState(() => String(initialToolSettings.shapeStyle || "rectangle"));
+  const [shapeFill, setShapeFill] = useState(storedWorkspaceSettings.shapeFill === true);
+  const [shapeFillColor, setShapeFillColor] = useState(storedWorkspaceSettings.shapeFillColor || "#dceeff");
+  const [shapeDashed, setShapeDashed] = useState(storedWorkspaceSettings.shapeDashed === true);
+  const [shapeSnapGrid, setShapeSnapGrid] = useState(storedWorkspaceSettings.shapeSnapGrid === true);
+  const [shapeAngle, setShapeAngle] = useState(Number(storedWorkspaceSettings.shapeAngle) || 0);
   const [lassoMode, setLassoMode] = useState("freeform");
   const [scribbleToErase, setScribbleToErase] = useState(storedWorkspaceSettings.scribbleToErase !== false);
   const [drawAndHold, setDrawAndHold] = useState(storedWorkspaceSettings.drawAndHold !== false);
+  const [eraserSize, setEraserSize] = useState(() => Math.max(6, Math.min(48, Number(storedWorkspaceSettings.eraserSize) || 8)));
   const [circleToErase, setCircleToErase] = useState(storedCircleErase === true);
   const [recentColors, setRecentColors] = useState(loadRecentColors);
   const [favoriteColors, setFavoriteColors] = useState(() => loadStringList(FAVORITE_COLORS_KEY, 5));
@@ -843,7 +923,17 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   });
   const [annotations, setAnnotations] = useState([]);
   const [notes, setNotes] = useState([]);
+  const [annotationsHidden, setAnnotationsHidden] = useState(false);
+  const [cardKind, setCardKind] = useState("sticky");
+  const [cardDraft, setCardDraft] = useState("");
+  const [editingCardId, setEditingCardId] = useState(null);
+  const [clipSelecting, setClipSelecting] = useState(false);
+  const [settingsTab, setSettingsTab] = useState("writing");
   const [backupBusy, setBackupBusy] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportRangeStart, setExportRangeStart] = useState(1);
+  const [exportRangeEnd, setExportRangeEnd] = useState(1);
+  const [includeWorkspacePages, setIncludeWorkspacePages] = useState(storedWorkspaceSettings.includeWorkspacePages !== false);
   const [pendingImport, setPendingImport] = useState(null);
   const [draftAnnotation, setDraftAnnotation] = useState(null);
   const toolOptionsOpen = openSurface?.startsWith("tool:") ? openSurface.slice(5) : null;
@@ -883,6 +973,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const [undoHistory, setUndoHistory] = useState([]);
   const [redoHistory, setRedoHistory] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [selectionActionsOpen, setSelectionActionsOpen] = useState(false);
   const [isDocumentFullscreen, setIsDocumentFullscreen] = useState(false);
   const [saveState, setSaveState] = useState("idle");
   const [saveErrorReason, setSaveErrorReason] = useState("");
@@ -891,6 +982,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const [focusMessage, setFocusMessage] = useState("");
   const [noteDraft, setNoteDraft] = useState("");
   const [textDraft, setTextDraft] = useState("");
+  const [editingTextId, setEditingTextId] = useState(null);
+  const [textFontSize, setTextFontSize] = useState(28);
+  const [textAlign, setTextAlign] = useState("left");
+  const [textBold, setTextBold] = useState(false);
+  const [textColor, setTextColor] = useState(COLORS[0]);
   const [noteBusy, setNoteBusy] = useState(false);
   const [studyMode, setStudyMode] = useState(preferredMode === "normal" ? "normal" : null);
   // A Sheet Summary is Normal Mode only, so it opens straight into reading
@@ -934,7 +1030,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       .finally(() => { if (!cancelled) setActiveStudyAvailabilityLoading(false); });
     return () => { cancelled = true; };
   }, [modeDialogOpen, sheet?.learningObjectId, sheetEdition?.edition, summaryMode]);
-  const pageAnnotations = useMemo(() => annotations.filter((item) => item.page === page), [annotations, page]);
+  const pageAnnotations = useMemo(() => annotations.filter((item) => item.page === activePageKey), [activePageKey, annotations]);
   const annotationsByPage = useMemo(() => {
     const groups = new Map();
     for (const annotation of annotations) {
@@ -983,7 +1079,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     const root = rootRef.current;
     if (!toolbar || !root) return undefined;
     const publish = () => {
-      const height = Math.round(toolbar.getBoundingClientRect().height);
+      const height = Math.round(toolbar.getBoundingClientRect().bottom - root.getBoundingClientRect().top);
       if (height > 0) root.style.setProperty("--workspace-toolbar-height", `${height}px`);
     };
     publish();
@@ -1039,6 +1135,35 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     rail.scrollBy({ left: delta, behavior: still ? "auto" : "smooth" });
   }, [activeTool]);
+  // Keep each inspector attached to its tool without letting it leave the
+  // reader at tablet widths. The phone inspector retains its full-width sheet.
+  useLayoutEffect(() => {
+    if (!toolOptionsOpen) return undefined;
+    const panel = toolOptionsRef.current;
+    const reader = readerRef.current;
+    const source = toolbarRef.current?.querySelector(`[data-workspace-tool="${toolOptionsOpen}"]`);
+    if (!panel || !reader || !source) return undefined;
+    panel.scrollTop = 0;
+    const resetScroll = window.requestAnimationFrame(() => { panel.scrollTop = 0; });
+    const position = () => {
+      if (window.innerWidth <= 560 || window.innerHeight < 600) {
+        panel.style.removeProperty("left");
+        panel.style.removeProperty("--workspace-popover-origin");
+        return;
+      }
+      const readerBounds = reader.getBoundingClientRect();
+      const sourceBounds = source.getBoundingClientRect();
+      const width = panel.getBoundingClientRect().width;
+      const desired = sourceBounds.left + sourceBounds.width / 2 - readerBounds.left;
+      const half = Math.min(width / 2, Math.max(0, readerBounds.width / 2 - 8));
+      const center = Math.max(half + 8, Math.min(readerBounds.width - half - 8, desired));
+      panel.style.left = `${center}px`;
+      panel.style.setProperty("--workspace-popover-origin", `${Math.max(0, Math.min(width, desired - center + width / 2))}px`);
+    };
+    position();
+    window.addEventListener("resize", position, { passive: true });
+    return () => { window.cancelAnimationFrame(resetScroll); window.removeEventListener("resize", position); };
+  }, [toolOptionsOpen]);
   /**
    * Keyboard-aware layout for the note editor.
    *
@@ -1147,16 +1272,15 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       opacity: activeTool === "highlighter" ? highlighterOpacity : activeTool === "pencil" ? pencilOpacity : brushOpacity,
       pressureSensitivity,
       smoothing: strokeSmoothing,
-      eraserMode,
       shapeStyle
     };
     if (activeTool === "pen") toolMemoryRef.current.lastPenProfile = penProfile;
     toolMemoryRef.current.lastWritingTool = activeTool;
     try { window.localStorage.setItem(TOOL_MEMORY_KEY, JSON.stringify(toolMemoryRef.current)); } catch { /* Tool memory is a best-effort local preference. */ }
-  }, [activeColor, activeTool, brushOpacity, brushSize, eraserMode, highlighterOpacity, penProfile, pencilOpacity, pressureSensitivity, shapeStyle, strokeSmoothing]);
+  }, [activeColor, activeTool, brushOpacity, brushSize, highlighterOpacity, penProfile, pencilOpacity, pressureSensitivity, shapeStyle, strokeSmoothing]);
   useEffect(() => {
-    try { window.localStorage.setItem(WORKSPACE_SETTINGS_KEY, JSON.stringify({ scribbleToErase, drawAndHold, circleToErase, rememberLastPosition, rememberZoomLevel, showPageNumber, keepScreenAwake })); } catch { /* Workspace preferences remain available in memory. */ }
-  }, [circleToErase, drawAndHold, keepScreenAwake, rememberLastPosition, rememberZoomLevel, scribbleToErase, showPageNumber]);
+    try { window.localStorage.setItem(WORKSPACE_SETTINGS_KEY, JSON.stringify({ autoImproveHandwriting, scribbleToErase, drawAndHold, eraserSize, circleToErase, rememberLastPosition, rememberZoomLevel, showPageNumber, keepScreenAwake, shapeFill, shapeFillColor, shapeDashed, shapeSnapGrid, shapeAngle, includeWorkspacePages })); } catch { /* Workspace preferences remain available in memory. */ }
+  }, [autoImproveHandwriting, circleToErase, drawAndHold, eraserSize, keepScreenAwake, rememberLastPosition, rememberZoomLevel, scribbleToErase, showPageNumber, shapeFill, shapeFillColor, shapeDashed, shapeSnapGrid, shapeAngle, includeWorkspacePages]);
   useEffect(() => () => {
     const gesture = gestureRef.current;
     if (gesture.pinchRafId !== null) cancelAnimationFrame(gesture.pinchRafId);
@@ -1441,6 +1565,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const markPdfDocumentReady = useCallback(() => setPdfDocumentReady(true), []);
 
   const resetReaderToPageOne = useCallback(() => {
+    setActiveVirtualPageId(null);
     pageRef.current = 1;
     setPage(1);
     setPageJumpDraft("1");
@@ -1470,6 +1595,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   }, [pdfDocumentReady, resetInitialPdfPosition, restored]);
 
   useEffect(() => {
+    setActiveVirtualPageId(null);
     setPage(1);
     pageRef.current = 1;
     setPageJumpDraft("1");
@@ -1477,6 +1603,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     setPdfDocumentReady(false);
     initialPageViewRef.current = "";
   }, [materialSlug, sheetSlug]);
+
+  const handleCurrentWorkspacePage = useCallback((pdfPage, virtualPageId) => {
+    setPage(pdfPage);
+    setActiveVirtualPageId(virtualPageId);
+  }, []);
 
   const syncPdfPageCount = useCallback((count) => {
     if (!Number.isFinite(count) || count < 1) return;
@@ -1498,27 +1629,44 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     recordCommand(command);
   }, [recordCommand, updateAnnotations]);
 
+  const applyWorkspacePageCommand = useCallback((command, direction) => {
+    const pages = direction === "undo" ? command.beforePages : command.afterPages;
+    const pageIds = new Set(pages.map((item) => item.id));
+    const keptMarks = direction === "undo" ? command.beforeItems : command.afterItems;
+    const keptNotes = direction === "undo" ? command.beforeNotes : command.afterNotes;
+    const affectedMarks = new Set([...command.beforeItems, ...command.afterItems].map((item) => item.id));
+    const affectedNotes = new Set([...command.beforeNotes, ...command.afterNotes].map((item) => item.id));
+    virtualPagesRef.current = pages;
+    setVirtualPages(pages);
+    updateAnnotations((current) => [...current.filter((item) => !affectedMarks.has(item.id)), ...keptMarks]);
+    notesRef.current = [...notesRef.current.filter((item) => !affectedNotes.has(item.id)), ...keptNotes];
+    setNotes(notesRef.current);
+    setActiveVirtualPageId((current) => current !== null && !pageIds.has(current) ? null : current);
+  }, [updateAnnotations]);
+
   const undoTool = useCallback(() => {
     setUndoHistory((history) => {
       if (!history.length) return history;
       const command = history[history.length - 1];
-      updateAnnotations((current) => applyAnnotationCommand(current, command, "undo"));
+      if (command.type === "workspace-page") applyWorkspacePageCommand(command, "undo");
+      else updateAnnotations((current) => applyAnnotationCommand(current, command, "undo"));
       setRedoHistory((items) => [...items.slice(-79), command]);
       setSelectedIds([]);
       return history.slice(0, -1);
     });
-  }, [updateAnnotations]);
+  }, [applyWorkspacePageCommand, updateAnnotations]);
 
   const redoTool = useCallback(() => {
     setRedoHistory((history) => {
       if (!history.length) return history;
       const command = history[history.length - 1];
-      updateAnnotations((current) => applyAnnotationCommand(current, command, "redo"));
+      if (command.type === "workspace-page") applyWorkspacePageCommand(command, "redo");
+      else updateAnnotations((current) => applyAnnotationCommand(current, command, "redo"));
       setUndoHistory((items) => [...items.slice(-79), command]);
       setSelectedIds([]);
       return history.slice(0, -1);
     });
-  }, [updateAnnotations]);
+  }, [applyWorkspacePageCommand, updateAnnotations]);
 
   /**
    * Mirrors the local store to the server shortly after it settles. The device
@@ -1535,7 +1683,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         savedAt: new Date().toISOString(),
         view: { page: pageRef.current, zoom: zoomRef.current },
         notes: notesRef.current,
-        annotations: annotationsRef.current
+        annotations: annotationsRef.current,
+        virtualPages: virtualPagesRef.current
       });
     }, delay);
   }, []);
@@ -1563,7 +1712,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       try {
         window.localStorage.setItem(
           catalogWorkspaceStorageKey(document.owner, document.materialSlug, document.sheetSlug),
-          serializeCatalogWorkspace({ annotations: annotationsRef.current, notes: notesRef.current, ...view })
+          serializeCatalogWorkspace({ annotations: annotationsRef.current, notes: notesRef.current, virtualPages: virtualPagesRef.current, ...view })
         );
         savedPageSignaturesRef.current = signatures;
         setSaveState("saved");
@@ -1584,6 +1733,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         sheetSlug: document.sheetSlug,
         view,
         notes: notesRef.current,
+        virtualPages: virtualPagesRef.current,
         pages,
         removedPages: removed
       });
@@ -1637,11 +1787,16 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         // persistence altogether.
         storageModeRef.current = "local";
         const legacy = loadStoredWorkspace(ownerKey, materialSlug, storageSlug);
-        snapshot = legacy ? { view: legacy, notes: legacy.notes, annotations: legacy.annotations } : null;
+        snapshot = legacy ? { view: legacy, notes: legacy.notes, annotations: legacy.annotations, virtualPages: legacy.virtualPages } : null;
       }
       if (!active) return;
-      const restoredAnnotations = snapshot?.annotations || [];
-      const restoredNotes = snapshot?.notes || [];
+      const restoredVirtualPages = sanitizeVirtualPages(snapshot?.virtualPages);
+      const virtualIds = new Set(restoredVirtualPages.map((item) => item.id));
+      const restoredAnnotations = (snapshot?.annotations || []).filter((item) => !isVirtualPageKey(item.page) || virtualIds.has(item.page));
+      const restoredNotes = (snapshot?.notes || []).filter((item) => !isVirtualPageKey(item.page) || virtualIds.has(item.page));
+      virtualPagesRef.current = restoredVirtualPages;
+      setVirtualPages(restoredVirtualPages);
+      setActiveVirtualPageId(null);
       annotationsRef.current = restoredAnnotations;
       notesRef.current = restoredNotes;
       savedPageSignaturesRef.current = pageSignatures(groupAnnotationsByPage(restoredAnnotations), revisionIndexRef.current);
@@ -1710,7 +1865,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     serverLoadStartedRef.current = sync;
     sync.load({ pageCount }).then(() => {
       if (serverSyncRef.current !== sync || !hydratedRef.current) return;
-      const merged = sync.reconcile({ annotations: annotationsRef.current, notes: notesRef.current });
+      const merged = sync.reconcile({ annotations: annotationsRef.current, notes: notesRef.current, virtualPages: virtualPagesRef.current });
       if (!merged.localChanged) {
         scheduleServerSync(0);
         return;
@@ -1718,6 +1873,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       // Another device's work arrives as a change like any other: the autosave
       // writes it to this device and then pushes this device's own changes.
       updateAnnotations(merged.annotations);
+      virtualPagesRef.current = merged.virtualPages;
+      setVirtualPages(merged.virtualPages);
       notesRef.current = merged.notes;
       setNotes(merged.notes);
       setSelectedIds([]);
@@ -1751,7 +1908,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       try {
         const result = await sync.refresh({
           pageCount,
-          local: { annotations: annotationsRef.current, notes: notesRef.current }
+          local: { annotations: annotationsRef.current, notes: notesRef.current, virtualPages: virtualPagesRef.current }
         });
         if (disposed) return;
         if (result.documentChanged) {
@@ -1767,6 +1924,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
           return;
         }
         updateAnnotations(result.annotations);
+        virtualPagesRef.current = result.virtualPages;
+        setVirtualPages(result.virtualPages);
         notesRef.current = result.notes;
         setNotes(result.notes);
         setSelectedIds([]);
@@ -1796,7 +1955,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     if (!stage) return undefined;
     const rememberView = () => {
       const stageBounds = stage.getBoundingClientRect();
-      const currentPage = stage.querySelector(`[data-pdf-page="${page}"]`);
+      const currentPage = stage.querySelector(`[data-workspace-page="${activePageKey}"]`);
       const pageBounds = currentPage?.getBoundingClientRect();
       const pageOffset = pageBounds?.height
         ? Math.min(1, Math.max(0, (stageBounds.top - pageBounds.top) / pageBounds.height))
@@ -1811,7 +1970,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       if (viewSaveTimerRef.current) window.clearTimeout(viewSaveTimerRef.current);
       viewSaveTimerRef.current = null;
     };
-  }, [page, persistWorkspace]);
+  }, [activePageKey, persistWorkspace]);
 
   useEffect(() => {
     if (!restored) return undefined;
@@ -1831,7 +1990,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       else if (saveIdleRef.current !== null) window.clearTimeout(saveIdleRef.current);
       saveIdleRef.current = null;
     };
-  }, [annotations, notes, page, persistWorkspace, restored, zoom]);
+  }, [annotations, notes, page, persistWorkspace, restored, virtualPages, zoom]);
 
   useEffect(() => {
     // `pagehide` is unreliable on mobile, and a debounced save that is still
@@ -1944,7 +2103,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         setFocusMessage(`${selectedAnnotations.length} annotation${selectedAnnotations.length === 1 ? "" : "s"} copied.`);
         return;
       }
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "x" && selectedAnnotations.length) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "x" && selectedAnnotations.length && !selectedAnnotations.some((item) => item.locked)) {
         event.preventDefault();
         selectionClipboardRef.current = selectedAnnotations.map(cloneAnnotation);
         runCommand({ type: "remove", items: selectedAnnotations });
@@ -1953,7 +2112,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v" && selectionClipboardRef.current.length) {
         event.preventDefault();
-        const copies = selectionClipboardRef.current.map((item) => translateAnnotation({ ...cloneAnnotation(item), id: generateIdempotencyKey(), page }, 24, 24));
+        const copies = copiedAnnotations(selectionClipboardRef.current, activePageKey, 24);
         runCommand({ type: "add", items: copies });
         setSelectedIds(copies.map((item) => item.id));
         return;
@@ -2002,7 +2161,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
           jumpToPageRef.current?.(accessiblePageCount);
         }
       }
-      if ((event.key === "Delete" || event.key === "Backspace") && selectedAnnotations.length) runCommand({ type: "remove", items: selectedAnnotations });
+      if ((event.key === "Delete" || event.key === "Backspace") && selectedAnnotations.length && !selectedAnnotations.some((item) => item.locked)) {
+        runCommand({ type: "remove", items: selectedAnnotations });
+        setSelectedIds([]);
+      }
     };
     const handleKeyUp = (event) => {
       if (event.code !== "Space" || !spacePanRef.current) return;
@@ -2013,11 +2175,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
     return () => { window.removeEventListener("keydown", handleKeyDown); window.removeEventListener("keyup", handleKeyUp); };
-  }, [accessiblePageCount, page, redoTool, runCommand, selectedAnnotations, undoTool]);
+  }, [accessiblePageCount, activePageKey, page, redoTool, runCommand, selectedAnnotations, undoTool]);
 
   useEffect(() => {
     setSelectedIds([]);
-  }, [page]);
+  }, [activePageKey]);
 
   // The live canvas keeps the finished stroke until React has painted the same
   // stroke as SVG, so a heavy page hands over without a visible gap.
@@ -2055,7 +2217,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   function pageBoundsFor(annotationPage) {
     const cache = pageGeometryCacheRef.current;
     if (cache.page === annotationPage && cache.bounds) return cache.bounds;
-    const pageElement = stageRef.current?.querySelector(`[data-pdf-page="${annotationPage}"]`) || documentRef.current;
+    const pageElement = stageRef.current?.querySelector(`[data-workspace-page="${annotationPage}"]`) || documentRef.current;
     const bounds = pageElement?.getBoundingClientRect() || stageRef.current?.getBoundingClientRect() || null;
     if (bounds && drawingScrollLockRef.current.active) pageGeometryCacheRef.current = { page: annotationPage, bounds };
     return bounds;
@@ -2071,10 +2233,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       if (!bounds) return { x: 0, y: 0, page: fixedPage };
       return { ...pagePointFromClient(clientX, clientY, bounds, PAGE_SPACE, PAGE_SPACE), page: fixedPage };
     }
-    const pageElement = /** @type {HTMLElement|null} */ (document.elementFromPoint(clientX, clientY)?.closest?.("[data-pdf-page]") || null);
+    const pageElement = /** @type {HTMLElement|null} */ (document.elementFromPoint(clientX, clientY)?.closest?.("[data-workspace-page]") || null);
     const bounds = pageElement?.getBoundingClientRect() || documentRef.current?.getBoundingClientRect() || stageRef.current?.getBoundingClientRect();
     if (!bounds) return { x: 0, y: 0, page };
-    return { ...pagePointFromClient(clientX, clientY, bounds, PAGE_SPACE, PAGE_SPACE), page: Number(pageElement?.dataset.pdfPage) || page };
+    return { ...pagePointFromClient(clientX, clientY, bounds, PAGE_SPACE, PAGE_SPACE), page: Number(pageElement?.dataset.workspacePage) || activePageKey };
   }
 
   function pageUnitsPerCssPixel(annotationPage) {
@@ -2101,7 +2263,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     const hoverPage = documentPoint(point.x, point.y).page;
     const pageWidth = Math.max(1, pageBoundsFor(hoverPage)?.width || PAGE_SPACE);
     const size = activeToolRef.current === "eraser"
-      ? (5 + brushSize * 1.45) * 2
+      ? eraserSize
       : Math.max(5, (brushSize * 2 * pageWidth) / PAGE_SPACE);
     preview.dataset.tool = activeToolRef.current;
     preview.dataset.profile = activeToolRef.current === "pen" ? penProfile : activeToolRef.current;
@@ -2189,6 +2351,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     if (gesture.holdTimerId !== null) window.clearTimeout(gesture.holdTimerId);
     gesture.holdTimerId = null;
     gesture.holdAnchorPoint = null;
+    gesture.holdStartedAt = null;
     draftRef.current = null;
     gesture.predictedStrokePoints = [];
     inkInputControllerRef.current.reset();
@@ -2204,59 +2367,56 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   function lassoSelectionIds(polygon, annotationPage) {
     const bounds = gestureBounds(polygon);
     if (!bounds || polygon.length < 3) return [];
-    return queryAnnotationSpatialIndexBounds(annotationSpatialIndexRef.current, annotationPage, bounds)
+    const hits = queryAnnotationSpatialIndexBounds(annotationSpatialIndexRef.current, annotationPage, bounds)
       .filter((annotation) => annotationIntersectsPolygon(annotation, polygon))
       .map((annotation) => annotation.id);
+    const groups = new Set(annotationsRef.current.filter((item) => hits.includes(item.id) && item.groupId).map((item) => item.groupId));
+    return [...new Set([...hits, ...annotationsRef.current.filter((item) => item.page === annotationPage && groups.has(item.groupId) && item.groupId).map((item) => item.id)])];
+  }
+
+  function applyHeldRecognition(draftId) {
+    const gesture = gestureRef.current;
+    const current = draftRef.current;
+    if (!current || current.id !== draftId || current.points?.length < 2 || gesture.mode !== INTERACTION_STATE.DRAWING) return;
+    const currentEndpoint = current.points.at(-1);
+    if (!gesture.holdAnchorPoint || pagePointScreenDistance(currentEndpoint, gesture.holdAnchorPoint, current.page) > HOLD_ENDPOINT_TOLERANCE_PX) return;
+    const unitsPerCssPixel = pageUnitsPerCssPixel(current.page);
+    const closed = circleToErase && current.type !== "highlighter"
+      ? analyzeClosedGesture(current.points, { unitsPerCssPixel })
+      : null;
+    if (closed?.recognized) {
+      const ids = lassoSelectionIds(current.points, current.page);
+      if (ids.length) {
+        const targetIds = new Set(ids);
+        const targets = annotationsRef.current.filter((item) => targetIds.has(item.id));
+        runCommand({ type: "remove", items: targets });
+        gesture.holdRecognition = { kind: "circle-erase", confidence: closed.confidence };
+        gesture.smartSelectionActivated = true;
+        clearDraft();
+        setFocusMessage(`${targets.length} annotation${targets.length === 1 ? "" : "s"} erased.`);
+        return;
+      }
+    }
+    // Shape recognition happens when the pointer is released. The hold timer is
+    // retained only for the distinct circle-to-erase gesture.
   }
 
   function scheduleHoldRecognition() {
     const gesture = gestureRef.current;
     const draft = draftRef.current;
     const supportsHold = ["pen", "pencil", "highlighter"].includes(activeToolRef.current);
-    if (!supportsHold || !isLiveStroke(draft) || (!drawAndHold && !(circleToErase && draft.type !== "highlighter"))) return;
+    if (!supportsHold || !circleToErase || !isLiveStroke(draft)) return;
     const endpoint = draft.points?.at(-1);
-    if (!endpoint) return;
+    if (!endpoint || pagePointScreenDistance(draft.points[0], endpoint, draft.page) < 18) return;
     if (gesture.holdTimerId !== null && gesture.holdAnchorPoint && pagePointScreenDistance(endpoint, gesture.holdAnchorPoint, draft.page) <= HOLD_ENDPOINT_TOLERANCE_PX) return;
     if (gesture.holdTimerId !== null) window.clearTimeout(gesture.holdTimerId);
     gesture.holdTimerId = null;
     gesture.holdAnchorPoint = { x: endpoint.x, y: endpoint.y };
+    gesture.holdStartedAt = window.performance.now();
     const draftId = draft.id;
     gesture.holdTimerId = window.setTimeout(() => {
       gesture.holdTimerId = null;
-      const current = draftRef.current;
-      if (!current || current.id !== draftId || current.points?.length < 5 || gestureRef.current.mode !== INTERACTION_STATE.DRAWING) return;
-      const currentEndpoint = current.points.at(-1);
-      if (pagePointScreenDistance(currentEndpoint, gesture.holdAnchorPoint, current.page) > HOLD_ENDPOINT_TOLERANCE_PX) return;
-      const rawStroke = cloneAnnotation(current);
-      const unitsPerCssPixel = pageUnitsPerCssPixel(current.page);
-      const closed = circleToErase && current.type !== "highlighter"
-        ? analyzeClosedGesture(current.points, { unitsPerCssPixel })
-        : null;
-      if (closed?.recognized) {
-        const ids = lassoSelectionIds(current.points, current.page);
-        if (ids.length) {
-          const targetIds = new Set(ids);
-          const targets = annotationsRef.current.filter((item) => targetIds.has(item.id));
-          runCommand({ type: "remove", items: targets });
-          gesture.holdRecognition = { kind: "circle-erase", confidence: closed.confidence };
-          gesture.smartSelectionActivated = true;
-          clearDraft();
-          setFocusMessage(`${targets.length} annotation${targets.length === 1 ? "" : "s"} erased.`);
-          return;
-        }
-      }
-      if (!drawAndHold) return;
-      const recognition = recognizeHeldStroke(current.points, { unitsPerCssPixel });
-      if (!recognition) return;
-      if (current.type === "highlighter" && recognition.kind !== "line") return;
-      const shape = current.type === "highlighter"
-        ? { ...current, points: [{ ...current.points[0], ...recognition.start }, { ...currentEndpoint, ...recognition.end }] }
-        : recognizedShapeAnnotation(current, recognition);
-      if (!shape) return;
-      gesture.holdRawStroke = rawStroke;
-      gesture.holdRecognition = recognition;
-      liveStrokeCanvasRef.current?.clear();
-      setDraft(shape);
+      applyHeldRecognition(draftId);
     }, HOLD_RECOGNITION_MS);
   }
 
@@ -2288,10 +2448,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   }
 
   function eraserRadiusForPage(annotationPage) {
-    const pageElement = stageRef.current?.querySelector(`[data-pdf-page="${annotationPage}"]`) || documentRef.current;
-    const renderedWidth = Math.max(1, pageElement?.getBoundingClientRect().width || 1000);
-    const screenRadius = 5 + brushSize * 1.45;
-    return pageRadiusForScreenRadius(screenRadius, renderedWidth, PAGE_SPACE);
+    const bounds = pageBoundsFor(annotationPage);
+    // Page coordinates use 1000 units on both axes even though a PDF is taller
+    // than it is wide. The larger dimension keeps the erased area inside the
+    // visible circular tip on either axis.
+    return pageRadiusForScreenRadius(eraserSize / 2, Math.max(1, bounds?.width || PAGE_SPACE, bounds?.height || PAGE_SPACE), PAGE_SPACE);
   }
 
   function scheduleEraserPreview() {
@@ -2310,14 +2471,14 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   function eraseAtPoint(point, annotationPage = page) {
     const radius = eraserRadiusForPage(annotationPage);
     const previous = eraserSessionRef.current.getLastPoint() || point;
-    const padding = radius + 8;
+    const padding = radius + 2;
     const candidates = queryAnnotationSpatialIndexBounds(annotationSpatialIndexRef.current, annotationPage, {
       x: Math.min(previous.x, point.x) - padding,
       y: Math.min(previous.y, point.y) - padding,
       width: Math.abs(point.x - previous.x) + padding * 2,
       height: Math.abs(point.y - previous.y) + padding * 2
     });
-    const result = eraserSessionRef.current.append(point, { annotationPage, candidates, radius, mode: eraserMode });
+    const result = eraserSessionRef.current.append(point, { annotationPage, candidates, radius, mode: ERASER_MODE.PRECISION });
     for (const annotationId of result.newlyChangedIds) setAnnotationPreviewVisibility(annotationId, false);
     performanceMonitorRef.current.recordValue?.("eraserCandidates", candidates.length);
     if (result.changed) scheduleEraserPreview();
@@ -2425,10 +2586,17 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     gesture.holdAnchorPoint = null;
     gesture.smartSelectionActivated = false;
     lockStageForDrawing(event.pointerId);
-    if (annotationPage !== page) setPage(annotationPage);
+    if (isVirtualPageKey(annotationPage)) {
+      setActiveVirtualPageId(annotationPage);
+      const anchor = virtualPagesRef.current.find((item) => item.id === annotationPage)?.afterPage;
+      if (anchor) setPage(anchor);
+    } else {
+      setActiveVirtualPageId(null);
+      if (annotationPage !== page) setPage(annotationPage);
+    }
     if (activeTool === "select") {
       const resizeHandle = event.target?.dataset?.resizeHandle;
-      if (selectedBounds && (resizeHandle || selectionContains(point, selectedBounds))) {
+      if (selectedBounds && (resizeHandle || selectionContains(point, selectedBounds)) && !selectedAnnotations.some((item) => item.locked)) {
         const before = selectedAnnotations.map(cloneAnnotation);
         transformRef.current = { kind: resizeHandle ? "resize" : "move", handle: resizeHandle, start: point, before, bounds: { ...selectedBounds } };
         gesture.mode = INTERACTION_STATE.OBJECT_TRANSFORMING;
@@ -2448,7 +2616,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     }
     const id = generateIdempotencyKey();
     if (activeTool === "shapes") {
-      setDraft({ id, page: annotationPage, type: "shape", shape: shapeStyle, color: activeColor, width: brushSize * 2, opacity: brushOpacity, start: point, end: point });
+      setDraft({ id, page: annotationPage, type: "shape", shape: shapeStyle, color: activeColor, width: brushSize * 2, opacity: brushOpacity, start: point, end: point, fill: shapeFill, fillColor: shapeFillColor, dashed: shapeDashed });
     } else {
       const nativeEvent = event.nativeEvent || event;
       const input = inkInputControllerRef.current.begin(nativeEvent, {
@@ -2469,7 +2637,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         width: activeTool === "highlighter" ? brushSize * 7 : brushSize * 2,
         opacity: activeTool === "pen" ? brushOpacity : activeTool === "highlighter" ? highlighterOpacity : pencilOpacity,
         pressureSensitivity,
-        smoothing: strokeSmoothing,
+        smoothing: autoImproveHandwriting && activeTool !== "highlighter" ? Math.max(.8, strokeSmoothing) : strokeSmoothing,
         createdAt: new Date().toISOString(),
         points
       });
@@ -3157,6 +3325,15 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       if (gesture.touches.size === 2) {
         if (gesture.mode === INTERACTION_STATE.PINCHING && gesture.pinch?.active) return;
         if (gesture.drawingPointerType === "pen") commitInterruptedLiveStroke({ pointerId: null });
+        if (gesture.mode === INTERACTION_STATE.OBJECT_TRANSFORMING && transformRef.current) {
+          if (gesture.transformRafId !== null) cancelAnimationFrame(gesture.transformRafId);
+          gesture.transformRafId = null;
+          if (transformRef.current.after) {
+            applyObjectTransformPreview(transformRef.current.after);
+            recordCommand({ type: "update", before: transformRef.current.before, after: transformRef.current.after });
+          }
+          transformRef.current = null;
+        }
         clearDraft();
         unlockStageForDrawing(gesture.drawingPointerId);
         gesture.drawingPointerId = null;
@@ -3176,6 +3353,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         event.preventDefault();
         return;
       }
+      if (activeTool !== "hand" && beginDirectObjectMove(event)) return;
       const canTouchDraw = pointerCanDraw(event.pointerType, drawingInput);
       if (activeTool === "hand" || !canTouchDraw) {
         // One-finger navigation and two-finger pinch share the same pointer
@@ -3194,6 +3372,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       event.preventDefault();
       return;
     }
+    if (activeTool !== "hand" && event.pointerType !== "touch" && beginDirectObjectMove(event)) return;
     const canDraw = pointerCanDraw(event.pointerType, drawingInput);
     if (activeTool === "hand" || !canDraw) beginPan(event, GESTURE_DIRECTION.PENDING);
     else if (DRAWING_TOOLS.has(activeTool)) beginAnnotation(event);
@@ -3201,6 +3380,26 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     try { event.currentTarget.setPointerCapture(event.pointerId); captured = true; } catch { /* Pointer capture is progressive enhancement. */ }
     if (gesture.drawingPointerId === event.pointerId) inkInputControllerRef.current.setCapture(captured);
     event.preventDefault();
+  }
+
+  function beginDirectObjectMove(event) {
+    if (annotationsHidden || (event.pointerType === "pen" && !["select", "hand"].includes(activeToolRef.current))) return false;
+    const target = event.target.closest?.('[data-annotation-type="card"], [data-annotation-type="image"]');
+    const id = target?.getAttribute("data-annotation-id");
+    const item = annotationsRef.current.find((annotation) => annotation.id === id);
+    if (!item || item.locked) return false;
+    const before = annotationsRef.current.filter((annotation) => annotation.id === id || (item.groupId && annotation.groupId === item.groupId)).filter((annotation) => !annotation.locked).map(cloneAnnotation);
+    const point = documentPoint(event.clientX, event.clientY, item.page);
+    setSelectedIds(before.map((annotation) => annotation.id));
+    transformRef.current = { kind: "move", start: point, before };
+    gestureRef.current.drawingPointerId = event.pointerId;
+    gestureRef.current.drawingPointerType = event.pointerType;
+    gestureRef.current.annotationPage = item.page;
+    gestureRef.current.mode = INTERACTION_STATE.OBJECT_TRANSFORMING;
+    lockStageForDrawing(event.pointerId);
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Direct movement still works without capture. */ }
+    event.preventDefault();
+    return true;
   }
 
   function moveWorkspacePointer(event) {
@@ -3310,12 +3509,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       else setDraft({ ...draft, end: point, points: [...draft.points, point] });
     }
     else {
-      if (gesture.holdRecognition?.kind === "line" && draft.type === "highlighter") {
-        const start = draft.points[0];
-        setDraft({ ...draft, points: [start, { ...draft.points.at(-1), ...point }] });
-        scheduleLiveStrokeDraw();
-        return;
-      }
       // The controller owns the mutable gesture-local buffer; React only sees
       // the finished annotation command.
       const nativeEvent = event.nativeEvent || event;
@@ -3398,6 +3591,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       if (event.pointerType === "touch") event.preventDefault();
     }
     if (gesture.drawingPointerId !== event.pointerId) return;
+    if (gesture.holdTimerId !== null && gesture.holdStartedAt !== null && window.performance.now() - gesture.holdStartedAt >= HOLD_RECOGNITION_MS) {
+      window.clearTimeout(gesture.holdTimerId);
+      gesture.holdTimerId = null;
+      applyHeldRecognition(draftRef.current?.id);
+    }
     const activeDraft = draftRef.current;
     if (isLiveStroke(activeDraft) && !gesture.holdRecognition && inkInputControllerRef.current.hasActivePointer(event.pointerId)) {
       inkInputControllerRef.current.finish(event.nativeEvent || event);
@@ -3422,23 +3620,44 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     let handedOffInk = null;
     if (draft?.type === "lasso") {
       const polygon = draft.points;
-      const ids = polygon.length >= 3 ? lassoSelectionIds(polygon, draft.page) : [];
-      setSelectedIds(ids);
+      if (clipSelecting) {
+        const bounds = gestureBounds(polygon);
+        if (bounds?.width > 10 && bounds?.height > 10) captureStudyClip(bounds, draft.page);
+        else setFocusMessage("Select a larger area for the study clip.");
+        setClipSelecting(false);
+      } else {
+        const ids = polygon.length >= 3 ? lassoSelectionIds(polygon, draft.page) : [];
+        setSelectedIds(ids);
+      }
     } else if (draft) {
       const meaningful = draft.type === "shape"
         ? Math.abs(draft.end.x - draft.start.x) > 4 || Math.abs(draft.end.y - draft.start.y) > 4
         : isLiveStroke(draft) ? draft.points?.length > 0 : draft.points?.length > 1;
       if (meaningful) {
-        const committed = isLiveStroke(draft) ? { ...draft, points: [...draft.points] } : draft;
-        if (gesture.holdRecognition && gesture.holdRawStroke && draft.type === "shape") {
-          runCommand({ type: "replace", before: [gesture.holdRawStroke], after: [committed] });
-        } else {
-          const scribbled = isLiveStroke(committed) ? scribbleEraseTargets(draft) : [];
-          if (scribbled.length) runCommand({ type: "remove", items: scribbled });
-          else {
-            runCommand({ type: "add", items: [committed] });
-            if (isLiveStroke(committed)) handedOffInk = committed.id;
+        let committed = isLiveStroke(draft) ? { ...draft, points: [...draft.points] } : draft;
+        if (committed.type === "shape" && !gesture.holdRecognition) committed = finalizeShape(committed);
+        const scribbled = isLiveStroke(committed) ? scribbleEraseTargets(draft) : [];
+        let recognizedShape = null;
+        if (!scribbled.length && isLiveStroke(committed) && drawAndHold && !gesture.holdRecognition && committed.points.length >= 2) {
+          const unitsPerCssPixel = pageUnitsPerCssPixel(committed.page);
+          const recognition = recognizeHeldStroke(committed.points, { unitsPerCssPixel });
+          const start = committed.points[0];
+          const end = committed.points.at(-1);
+          const lengthOnScreen = Math.hypot(end.x - start.x, end.y - start.y) / unitsPerCssPixel;
+          const minimumConfidence = recognition?.kind === "line" ? .9 : .78;
+          if (recognition && recognition.confidence >= minimumConfidence && (recognition.kind !== "line" || lengthOnScreen >= 45) && (committed.type !== "highlighter" || recognition.kind === "line")) {
+            recognizedShape = recognizedShapeAnnotation(committed, recognition);
           }
+        }
+        if (recognizedShape) {
+          runCommand({ type: "replace", before: [committed], after: [recognizedShape] });
+        } else if (gesture.holdRecognition && gesture.holdRawStroke && draft.type === "shape") {
+          runCommand({ type: "replace", before: [gesture.holdRawStroke], after: [committed] });
+        } else if (scribbled.length) {
+          runCommand({ type: "remove", items: scribbled });
+        } else {
+          runCommand({ type: "add", items: [committed] });
+          if (isLiveStroke(committed)) handedOffInk = committed.id;
         }
       }
     }
@@ -3447,6 +3666,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     gesture.holdRawStroke = null;
     gesture.holdRecognition = null;
     gesture.holdAnchorPoint = null;
+    gesture.holdStartedAt = null;
     gesture.smartSelectionActivated = false;
     transformRef.current = null;
     unlockStageForDrawing(event.pointerId);
@@ -3566,10 +3786,13 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
 
   function jumpToPagePosition(nextPage, point = null) {
     stopScrollMomentum();
-    const targetPage = Math.min(accessiblePageCount, Math.max(accessiblePageStart, Number(nextPage) || accessiblePageStart));
+    const virtual = isVirtualPageKey(nextPage) ? virtualPagesRef.current.find((item) => item.id === nextPage) : null;
+    const targetPage = virtual?.afterPage || Math.min(accessiblePageCount, Math.max(accessiblePageStart, Number(nextPage) || accessiblePageStart));
+    if (virtual && (targetPage < accessiblePageStart || targetPage > accessiblePageCount)) return;
     setPage(targetPage);
+    setActiveVirtualPageId(virtual?.id ?? null);
     const stage = stageRef.current;
-    const target = sheet?.pdfUrl ? stage?.querySelector(`[data-pdf-page="${targetPage}"]`) : documentRef.current;
+    const target = virtual ? stage?.querySelector(`[data-workspace-page="${virtual.id}"]`) : sheet?.pdfUrl ? stage?.querySelector(`[data-pdf-page="${targetPage}"]`) : documentRef.current;
     if (!stage || !target) return;
     const stageBounds = stage.getBoundingClientRect();
     const targetBounds = target.getBoundingClientRect();
@@ -3587,6 +3810,45 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"
     });
     if (window.matchMedia?.("(max-width: 820px)").matches) setOpenSurface(null);
+  }
+
+  function addBlankPage(background = "blank") {
+    if (!sheet?.pdfUrl || !pdfDocumentReady) return;
+    const selectedBackground = WORKSPACE_PAGE_BACKGROUNDS.includes(background) ? background : "blank";
+    const id = createVirtualPageId(virtualPagesRef.current);
+    const before = virtualPagesRef.current;
+    const next = insertVirtualPage(before, page, id, activeVirtualPageId, selectedBackground);
+    if (next.length === virtualPagesRef.current.length) {
+      setFocusMessage("This workspace has reached its blank page limit.");
+      return;
+    }
+    applyWorkspacePageCommand({ type: "workspace-page", beforePages: before, afterPages: next, beforeItems: [], afterItems: [], beforeNotes: [], afterNotes: [] }, "redo");
+    recordCommand({ type: "workspace-page", beforePages: before, afterPages: next, beforeItems: [], afterItems: [], beforeNotes: [], afterNotes: [] });
+    setActiveVirtualPageId(id);
+    setSelectedIds([]);
+    setOpenSurface(null);
+    requestAnimationFrame(() => requestAnimationFrame(() => jumpToPagePosition(id)));
+    setFocusMessage(`${selectedBackground[0].toUpperCase() + selectedBackground.slice(1)} page added after PDF page ${page}.`);
+  }
+
+  function deleteBlankPage() {
+    const id = activeVirtualPageId;
+    if (!isVirtualPageKey(id)) return;
+    const anchor = virtualPagesRef.current.find((item) => item.id === id)?.afterPage;
+    if (!anchor) return;
+    const marks = annotationsRef.current.filter((item) => item.page === id);
+    const pageNotes = notesRef.current.filter((item) => item.page === id);
+    if ((marks.length || pageNotes.length) && !window.confirm("Delete this blank page and all of its marks and notes?")) return;
+    const before = virtualPagesRef.current;
+    const next = removeVirtualPage(before, id);
+    const command = { type: "workspace-page", beforePages: before, afterPages: next, beforeItems: marks, afterItems: [], beforeNotes: pageNotes, afterNotes: [] };
+    applyWorkspacePageCommand(command, "redo");
+    recordCommand(command);
+    setActiveVirtualPageId(null);
+    setSelectedIds([]);
+    setOpenSurface(null);
+    requestAnimationFrame(() => jumpToPagePosition(anchor));
+    setFocusMessage("Blank workspace page deleted.");
   }
 
   function openNote(note) {
@@ -3652,6 +3914,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   jumpToPageRef.current = jumpToPagePosition;
 
   function selectTool(nextTool) {
+    if (annotationsHidden && ["pen", "pencil", "highlighter", "eraser", "select", "shapes"].includes(nextTool)) setAnnotationsHidden(false);
     if (nextTool === "note") {
       const openingNotes = openSurface !== "notes";
       setSideTab("notes");
@@ -3682,40 +3945,144 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       if (nextTool === "highlighter") setHighlighterOpacity(Number(remembered.opacity) || .34);
       else if (nextTool === "pencil") setPencilOpacity(Number(remembered.opacity) || .78);
       else setBrushOpacity(Number(remembered.opacity) || 1);
-      if (nextTool === "eraser" && remembered.eraserMode) setEraserMode(remembered.eraserMode);
       if (nextTool === "shapes" && remembered.shapeStyle) setShapeStyle(remembered.shapeStyle);
     }
     setActiveTool(nextTool);
     setOpenSurface(null);
     setCustomColorEditorOpen(false);
-    if (nextTool !== "select") setSelectedIds([]);
+    if (nextTool !== "select" && nextTool !== "eraser") setSelectedIds([]);
   }
 
   function chooseWritingTool(tool) {
+    if (tool === "pen" && drawingInput !== DRAWING_INPUT.STYLUS_AND_FINGER) changeDrawingInput(DRAWING_INPUT.STYLUS_AND_FINGER);
     selectTool(tool);
   }
 
   function addTextAnnotation() {
     const value = textDraft.trim();
     if (!value) return;
-    runCommand({
-      type: "add",
-      items: [{
-        id: generateIdempotencyKey(),
-        page,
-        type: "text",
-        text: value,
-        x: 500,
-        y: 360,
-        align: "center",
-        color: activeColor,
-        width: Math.max(4, brushSize),
-        opacity: brushOpacity
-      }]
-    });
+    const existing = annotationsRef.current.find((item) => item.id === editingTextId && item.type === "text");
+    const formatting = { text: value, align: textAlign, bold: textBold, color: textColor, width: textFontSize / 5 };
+    if (existing) runCommand({ type: "update", before: [existing], after: [{ ...existing, ...formatting }] });
+    else runCommand({ type: "add", items: [{ id: generateIdempotencyKey(), page: activePageKey, type: "text", x: textAlign === "left" ? 100 : textAlign === "right" ? 900 : 500, y: 360, opacity: 1, ...formatting }] });
     setTextDraft("");
+    setEditingTextId(null);
     setOpenSurface(null);
-    setFocusMessage(`Text added to page ${page}.`);
+    setFocusMessage(existing ? "Text updated." : `Text added to page ${page}.`);
+  }
+
+  function editSelectedText() {
+    const item = selectedAnnotations.find((annotation) => annotation.type === "text");
+    if (!item || item.locked) return;
+    setEditingTextId(item.id);
+    setTextDraft(item.text);
+    setTextFontSize(Math.round(Math.max(18, item.width * 5)));
+    setTextAlign(item.align || "left");
+    setTextBold(item.bold === true);
+    setTextColor(item.color || COLORS[0]);
+    setOpenSurface("text");
+  }
+
+  function finalizeShape(shape) {
+    const start = shapeSnapGrid
+      ? { ...shape.start, x: Math.round(shape.start.x / 25) * 25, y: Math.round(shape.start.y / 25) * 25 }
+      : shape.start;
+    let end = shapeSnapGrid
+      ? { ...shape.end, x: Math.round(shape.end.x / 25) * 25, y: Math.round(shape.end.y / 25) * 25 }
+      : shape.end;
+    if (["line", "arrow"].includes(shape.shape) && shapeAngle > 0) {
+      const distance = Math.hypot(end.x - start.x, end.y - start.y);
+      const angle = Math.atan2(end.y - start.y, end.x - start.x);
+      const step = shapeAngle * Math.PI / 180;
+      const snapped = Math.round(angle / step) * step;
+      end = { ...end, x: Math.min(1000, Math.max(0, start.x + Math.cos(snapped) * distance)), y: Math.min(1000, Math.max(0, start.y + Math.sin(snapped) * distance)) };
+    }
+    if (["square", "circle"].includes(shape.shape)) {
+      const side = Math.max(Math.abs(end.x - start.x), Math.abs(end.y - start.y));
+      end = { ...end, x: Math.min(1000, Math.max(0, start.x + Math.sign(end.x - start.x || 1) * side)), y: Math.min(1000, Math.max(0, start.y + Math.sign(end.y - start.y || 1) * side)) };
+    }
+    return { ...shape, start, end };
+  }
+
+  function saveCard() {
+    const text = cardDraft.trim();
+    if (!text) return;
+    const existing = annotationsRef.current.find((item) => item.id === editingCardId && item.type === "card");
+    if (existing) runCommand({ type: "update", before: [existing], after: [{ ...existing, cardKind, text }] });
+    else runCommand({ type: "add", items: [{ id: generateIdempotencyKey(), page: activePageKey, type: "card", cardKind, text, x: 325, y: 260, width: 350, height: 250, color: "#1d3152", opacity: 1 }] });
+    setCardDraft("");
+    setEditingCardId(null);
+    setOpenSurface(null);
+    setFocusMessage(existing ? "Card updated. Tap it to move it." : "Study card added. Tap and drag it to move it.");
+  }
+
+  function editSelectedCard() {
+    const card = selectedAnnotations.find((item) => item.type === "card");
+    if (!card) return;
+    setEditingCardId(card.id);
+    setCardKind(card.cardKind);
+    setCardDraft(card.text);
+    setOpenSurface("card");
+  }
+
+  function captureStudyClip(bounds, pageKey) {
+    if (isVirtualPageKey(pageKey)) { setFocusMessage("Choose an area on an original PDF page."); return; }
+    const pageElement = stageRef.current?.querySelector(`[data-workspace-page="${pageKey}"]`);
+    const source = pageElement?.querySelector("canvas.workspace-v2-a4-canvas.is-visible");
+    if (!source || !source.width || !source.height) { setFocusMessage("This page is still rendering. Try again when it appears."); return; }
+    const crop = document.createElement("canvas");
+    const x = Math.max(0, Math.floor(bounds.x / 1000 * source.width));
+    const y = Math.max(0, Math.floor(bounds.y / 1000 * source.height));
+    const width = Math.min(source.width - x, Math.max(1, Math.ceil(bounds.width / 1000 * source.width)));
+    const height = Math.min(source.height - y, Math.max(1, Math.ceil(bounds.height / 1000 * source.height)));
+    crop.width = Math.min(1100, width);
+    crop.height = Math.max(1, Math.round(height * crop.width / width));
+    crop.getContext("2d")?.drawImage(source, x, y, width, height, 0, 0, crop.width, crop.height);
+    const src = crop.toDataURL("image/jpeg", .82);
+    if (src.length > 2_800_000) { setFocusMessage("That area is too large for a saved clip."); return; }
+    const placedWidth = Math.min(470, Math.max(160, bounds.width));
+    const placedHeight = Math.min(470, Math.max(100, placedWidth * height / width));
+    runCommand({ type: "add", items: [{ id: generateIdempotencyKey(), page: pageKey, type: "image", kind: "clip", src, x: Math.min(1000 - placedWidth, bounds.x), y: Math.min(1000 - placedHeight, bounds.y + bounds.height + 20), width: placedWidth, height: placedHeight, color: "#ffffff", opacity: 1 }] });
+    setOpenSurface(null);
+    setFocusMessage("Study clip added. Select it to move or resize it.");
+  }
+
+  function groupSelection() {
+    if (selectedAnnotations.length < 2) return;
+    const groupId = generateIdempotencyKey();
+    runCommand({ type: "update", before: selectedAnnotations, after: selectedAnnotations.map((item) => ({ ...item, groupId })) });
+    setFocusMessage("Selected items grouped.");
+  }
+
+  function ungroupSelection() {
+    const grouped = selectedAnnotations.filter((item) => item.groupId);
+    if (!grouped.length) return;
+    runCommand({ type: "update", before: grouped, after: grouped.map((item) => ({ ...item, groupId: "" })) });
+    setFocusMessage("Selected items ungrouped.");
+  }
+
+  function toggleSelectionLock() {
+    if (!selectedAnnotations.length) return;
+    const locked = !selectedAnnotations.every((item) => item.locked);
+    runCommand({ type: "update", before: selectedAnnotations, after: selectedAnnotations.map((item) => ({ ...item, locked })) });
+    setFocusMessage(locked ? "Selection locked." : "Selection unlocked.");
+  }
+
+  function layerSelection(direction) {
+    if (!selectedAnnotations.length) return;
+    const layers = annotationsRef.current.filter((item) => item.page === activePageKey).map((item) => item.zOrder || 0);
+    const order = direction === "forward" ? Math.max(0, ...layers) + 1 : Math.min(0, ...layers) - 1;
+    runCommand({ type: "update", before: selectedAnnotations, after: selectedAnnotations.map((item) => ({ ...item, zOrder: order })) });
+  }
+
+  function improveSelectedHandwriting() {
+    const strokes = selectedAnnotations.filter((item) => ["pen", "pencil"].includes(item.type) && item.points?.length >= 3);
+    if (!strokes.length) { setFocusMessage("Select handwriting to improve first."); return; }
+    // Stroke points remain untouched. Rendering smooths the path, and Undo can
+    // restore the previous strength without losing the student's input.
+    const after = strokes.map((item) => ({ ...item, smoothing: Math.max(.8, item.smoothing || 0) }));
+    runCommand({ type: "update", before: strokes, after });
+    setFocusMessage(`Smoothed ${strokes.length} handwriting stroke${strokes.length === 1 ? "" : "s"}.`);
   }
 
   function closeSurfaceAndRestoreFocus(selector) {
@@ -3795,7 +4162,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     if (file.size > 2_000_000) { setFocusMessage("Use an image smaller than 2 MB so the local workspace stays responsive."); return; }
     const reader = new window.FileReader();
     reader.onload = () => {
-      runCommand({ type: "add", items: [{ id: generateIdempotencyKey(), page, type: "image", src: String(reader.result), x: 350, y: 300, width: 300, height: 220, opacity: 1, color: activeColor }] });
+      runCommand({ type: "add", items: [{ id: generateIdempotencyKey(), page: activePageKey, type: "image", src: String(reader.result), x: 350, y: 300, width: 300, height: 220, opacity: 1, color: activeColor }] });
       setFocusMessage("Image added and queued for local autosave.");
     };
     reader.onerror = () => setFocusMessage("The selected image could not be read.");
@@ -3804,7 +4171,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
 
   function duplicateSelection() {
     if (!selectedAnnotations.length) return;
-    const copies = selectedAnnotations.map((item) => translateAnnotation({ ...cloneAnnotation(item), id: generateIdempotencyKey() }, 20, 20));
+    const copies = copiedAnnotations(selectedAnnotations, activePageKey, 20);
     runCommand({ type: "add", items: copies });
     setSelectedIds(copies.map((item) => item.id));
   }
@@ -3816,7 +4183,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   }
 
   function cutSelection() {
-    if (!selectedAnnotations.length) return;
+    if (!selectedAnnotations.length || selectedAnnotations.some((item) => item.locked)) return;
     selectionClipboardRef.current = selectedAnnotations.map(cloneAnnotation);
     runCommand({ type: "remove", items: selectedAnnotations });
     setSelectedIds([]);
@@ -3825,13 +4192,13 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
 
   function pasteSelection() {
     if (!selectionClipboardRef.current.length) return;
-    const copies = selectionClipboardRef.current.map((item) => translateAnnotation({ ...cloneAnnotation(item), id: generateIdempotencyKey(), page }, 24, 24));
+    const copies = copiedAnnotations(selectionClipboardRef.current, activePageKey, 24);
     runCommand({ type: "add", items: copies });
     setSelectedIds(copies.map((item) => item.id));
   }
 
   function rotateSelection() {
-    if (!selectedAnnotations.length || !selectedBounds) return;
+    if (!selectedAnnotations.length || !selectedBounds || selectedAnnotations.some((item) => item.locked)) return;
     const after = selectedAnnotations.map((item) => rotateAnnotation(item, selectedBounds));
     runCommand({ type: "update", before: selectedAnnotations, after });
   }
@@ -3998,7 +4365,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   async function saveNote() {
     const body = noteDraft.trim();
     if (!body || noteBusy) return;
-    const savedPage = page;
+    const savedPage = activePageKey;
     const timestamp = new Date().toISOString();
     const localNote = { id: generateIdempotencyKey(), page: savedPage, body, createdAt: timestamp, updatedAt: timestamp };
     setNotes((current) => [...current, localNote]);
@@ -4060,7 +4427,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     }
     const clamped = Math.min(accessiblePageCount, Math.max(accessiblePageStart, target));
     setPageJumpDraft(String(clamped));
-    if (clamped !== page) jumpToPagePosition(clamped);
+    if (clamped !== page || activeVirtualPageId !== null) jumpToPagePosition(clamped);
   }
 
   function zoomByStep(factor) {
@@ -4085,6 +4452,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       sheetTitle: sheet?.title || "",
       annotations: annotationsRef.current,
       notes: notesRef.current,
+      virtualPages: virtualPagesRef.current,
       view: {
         page: pageRef.current,
         zoom: zoomRef.current,
@@ -4093,7 +4461,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         pageOffset: viewPositionRef.current.pageOffset
       }
     });
-    if (!payload.annotations.length && !payload.notes.length) {
+    if (!payload.annotations.length && !payload.notes.length && !payload.virtualPages.length) {
       setFocusMessage("There is nothing to back up on this sheet yet.");
       return;
     }
@@ -4109,10 +4477,93 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     setFocusMessage(`Backed up ${payload.annotations.length} mark${payload.annotations.length === 1 ? "" : "s"} and ${payload.notes.length} note${payload.notes.length === 1 ? "" : "s"}.`);
   }
 
+  function applyQuickPenPreset(kind) {
+    setActiveTool("pen");
+    setPenProfile(kind === "bold" ? PEN_PROFILE.BRUSH : PEN_PROFILE.BALL);
+    setBrushSize(kind === "underline" ? 2 : kind === "bold" ? 8 : 4);
+    setBrushOpacity(1);
+    setStrokeSmoothing(kind === "underline" ? .75 : .5);
+    setFocusMessage(`${kind[0].toUpperCase() + kind.slice(1)} pen preset selected.`);
+  }
+
+  async function exportStudyDocument(kind, { share = false } = {}) {
+    if (exportBusy || !sheet?.pdfUrl) return;
+    if (kind === "original" && studyMode === "active") {
+      setFocusMessage("The original PDF is available for download in Normal Study.");
+      return;
+    }
+    setExportBusy(true);
+    setFocusMessage("Preparing your export…");
+    try {
+      let blob;
+      let extension = "pdf";
+      if (kind === "original") {
+        const response = await fetch(sheet.pdfUrl, { credentials: "include" });
+        if (!response.ok) throw new Error("The original PDF could not be downloaded.");
+        blob = await response.blob();
+      } else {
+        const pdfjs = await loadPdfLibrary();
+        const loadingTask = pdfjs.getDocument({ url: sheet.pdfUrl });
+        const pdf = await loadingTask.promise;
+        try {
+          const lastAllowed = Math.min(pdf.numPages, accessiblePageCount);
+          const from = kind === "range" ? Math.min(lastAllowed, Math.max(1, Number(exportRangeStart) || 1)) : kind === "current" || kind === "png" ? page : 1;
+          const to = kind === "range" ? Math.min(lastAllowed, Math.max(from, Number(exportRangeEnd) || from)) : kind === "current" || kind === "png" ? page : lastAllowed;
+          const pages = kind === "current" || kind === "png"
+            ? [{ kind: activeVirtualPageId === null ? "pdf" : "virtual", key: activeVirtualPageId ?? page, pdfPage: page }]
+            : includeWorkspacePages
+              ? composeWorkspacePages(Array.from({ length: to - from + 1 }, (_, index) => from + index), virtualPagesRef.current)
+              : Array.from({ length: to - from + 1 }, (_, index) => ({ kind: "pdf", key: from + index, pdfPage: from + index }));
+          async function* pageCanvases() {
+            for (const item of pages) {
+              yield await renderWorkspacePage({
+                pdf: item.kind === "pdf" ? pdf : null,
+                pageNumber: item.pdfPage,
+                background: item.background,
+                annotations: annotationsRef.current.filter((annotation) => annotation.page === item.key)
+              });
+            }
+          }
+          if (kind === "png") {
+            const canvas = await pageCanvases().next();
+            const currentCanvas = canvas.value;
+            if (!currentCanvas) throw new Error("Image export failed.");
+            blob = await new Promise((resolve, reject) => currentCanvas.toBlob((value) => value ? resolve(value) : reject(new Error("Image export failed.")), "image/png"));
+            extension = "png";
+          } else blob = await canvasesToPdf(pageCanvases());
+        } finally {
+          await loadingTask.destroy();
+        }
+      }
+      const name = `${sheetSlug}-${kind === "original" ? "original" : kind === "png" ? `page-${page}` : kind === "current" ? `page-${page}` : kind === "range" ? `pages-${exportRangeStart}-${exportRangeEnd}` : "annotated"}.${extension}`;
+      if (share && navigator.share && navigator.canShare?.({ files: [new File([blob], name, { type: blob.type })] })) {
+        await navigator.share({ files: [new File([blob], name, { type: blob.type })], title: sheet.title });
+        setFocusMessage("Document shared.");
+      } else {
+        downloadWorkspaceBlob(blob, name);
+        setFocusMessage(share ? "Sharing is unavailable here, so the file was downloaded." : "Export downloaded.");
+      }
+      setOpenSurface(null);
+    } catch (error) {
+      if (error?.name !== "AbortError") setFocusMessage(error?.message || "Export could not be completed.");
+    } finally {
+      setExportBusy(false);
+    }
+  }
+
   /** Restore only ever adds. Existing ids are left exactly as they are. */
   function applyRestoredBackup(payload) {
-    const { merged: mergedAnnotations, added, skipped } = mergeRestoredAnnotations(annotationsRef.current, payload.annotations);
-    const { merged: mergedNotes, added: addedNotes } = mergeRestoredNotes(notesRef.current, payload.notes);
+    const existingIds = new Set(virtualPagesRef.current.map((item) => item.id));
+    const nextVirtualPages = sanitizeVirtualPages([...virtualPagesRef.current, ...sanitizeVirtualPages(payload.virtualPages).filter((item) => !existingIds.has(item.id))]);
+    const addedPages = nextVirtualPages.length - virtualPagesRef.current.length;
+    if (addedPages) {
+      virtualPagesRef.current = nextVirtualPages;
+      setVirtualPages(nextVirtualPages);
+    }
+    const validPageIds = new Set(nextVirtualPages.map((item) => item.id));
+    const incomingAnnotations = payload.annotations.filter((item) => !isVirtualPageKey(item.page) || validPageIds.has(item.page));
+    const { merged: mergedAnnotations, added, skipped } = mergeRestoredAnnotations(annotationsRef.current, incomingAnnotations);
+    const { merged: mergedNotes, added: addedNotes } = mergeRestoredNotes(notesRef.current, payload.notes.filter((item) => !isVirtualPageKey(item.page) || validPageIds.has(item.page)));
     if (addedNotes) {
       notesRef.current = mergedNotes;
       setNotes(mergedNotes);
@@ -4122,8 +4573,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       runCommand({ type: "add", items: additions });
     }
     setPendingImport(null);
-    if (!added && !addedNotes) setFocusMessage("Everything in that backup is already on this sheet.");
-    else setFocusMessage(`Restored ${added} mark${added === 1 ? "" : "s"} and ${addedNotes} note${addedNotes === 1 ? "" : "s"}.${skipped ? ` ${skipped} already present.` : ""}`);
+    if (!added && !addedNotes && !addedPages) setFocusMessage("Everything in that backup is already on this sheet.");
+    else setFocusMessage(`Restored ${addedPages} blank page${addedPages === 1 ? "" : "s"}, ${added} mark${added === 1 ? "" : "s"}, and ${addedNotes} note${addedNotes === 1 ? "" : "s"}.${skipped ? ` ${skipped} already present.` : ""}`);
   }
 
   async function readWorkspaceBackup(event) {
@@ -4154,11 +4605,12 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   }
 
   function clearPageAnnotations() {
-    const items = annotationsRef.current.filter((item) => item.page === page);
+    const items = annotationsRef.current.filter((item) => item.page === activePageKey && !item.locked);
     if (!items.length) return;
     runCommand({ type: "remove", items });
     setSelectedIds([]);
-    setFocusMessage(`${items.length} mark${items.length === 1 ? "" : "s"} cleared from page ${page}. Undo restores them.`);
+    setOpenSurface(null);
+    setFocusMessage(`${items.length} mark${items.length === 1 ? "" : "s"} cleared from ${activeVirtualPageId === null ? `PDF page ${page}` : "the blank page"}. Undo restores them.`);
   }
 
   function fitPdfWidth() {
@@ -4176,6 +4628,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const customColors = addSavedColor(recentColors, null, MAX_PALETTE_COLORS, COLORS);
   const customColorSet = new Set(customColors);
   const paletteColors = normalizeSavedPalette([...favoriteColors, ...COLORS, ...customColors], MAX_PALETTE_COLORS);
+  const quickColors = normalizeSavedPalette([...favoriteColors, ...recentColors, ...COLORS], 3);
   const activeToolOpacity = activeTool === "highlighter" ? highlighterOpacity : activeTool === "pencil" ? pencilOpacity : brushOpacity;
   const inkToolActive = ["pen", "pencil", "highlighter", "shapes"].includes(activeTool);
   // The lasso only offers colours while they have something to recolour.
@@ -4194,21 +4647,32 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     const stopPointer = (event) => event.stopPropagation();
     return <div className="workspace-v2-selection-menu" style={{ left: `${(selectedBounds.x + selectedBounds.width / 2) / 10}%`, top: `${Math.max(1, selectedBounds.y / 10)}%` }}>
       <button type="button" onPointerDown={stopPointer} onClick={copySelection}><Copy size={15} />Copy</button>
-      <button type="button" onPointerDown={stopPointer} onClick={cutSelection}><Scissors size={15} />Cut</button>
+      <button type="button" onPointerDown={stopPointer} onClick={cutSelection} disabled={selectedAnnotations.some((item) => item.locked)}><Scissors size={15} />Cut</button>
       <button type="button" onPointerDown={stopPointer} onClick={pasteSelection} disabled={!selectionClipboardRef.current.length}><ClipboardPaste size={15} />Paste</button>
       <button type="button" onPointerDown={stopPointer} onClick={duplicateSelection}><Copy size={15} />Duplicate</button>
-      <button type="button" onPointerDown={stopPointer} onClick={rotateSelection}><RotateCw size={15} />Rotate</button>
-      <button type="button" className="is-danger" onPointerDown={stopPointer} onClick={() => { runCommand({ type: "remove", items: selectedAnnotations }); setSelectedIds([]); }}><Eraser size={15} />Delete</button>
+      {selectedAnnotations.some((item) => item.type === "card") && <button type="button" onPointerDown={stopPointer} onClick={editSelectedCard}><FileText size={15} />Edit card</button>}
+      {selectedAnnotations.some((item) => item.type === "text") && <button type="button" onPointerDown={stopPointer} onClick={editSelectedText} disabled={selectedAnnotations.some((item) => item.locked)}><Type size={15} />Edit text</button>}
+      <button type="button" onPointerDown={stopPointer} onClick={toggleSelectionLock}>{selectedAnnotations.every((item) => item.locked) ? <Unlock size={15} /> : <Lock size={15} />}{selectedAnnotations.every((item) => item.locked) ? "Unlock" : "Lock"}</button>
+      <button type="button" onPointerDown={stopPointer} onClick={() => setSelectionActionsOpen((open) => !open)} aria-expanded={selectionActionsOpen}><MoreHorizontal size={15} />Actions</button>
+      {selectionActionsOpen && <>
+        <button type="button" onPointerDown={stopPointer} onClick={improveSelectedHandwriting} disabled={!selectedAnnotations.some((item) => ["pen", "pencil"].includes(item.type))}><Sparkles size={15} />Improve</button>
+        <button type="button" onPointerDown={stopPointer} onClick={groupSelection} disabled={selectedAnnotations.length < 2}><Group size={15} />Group</button>
+        <button type="button" onPointerDown={stopPointer} onClick={ungroupSelection} disabled={!selectedAnnotations.some((item) => item.groupId)}><Ungroup size={15} />Ungroup</button>
+        <button type="button" onPointerDown={stopPointer} onClick={() => layerSelection("forward")} disabled={selectedAnnotations.some((item) => item.locked)}><Layers3 size={15} />Forward</button>
+        <button type="button" onPointerDown={stopPointer} onClick={() => layerSelection("backward")} disabled={selectedAnnotations.some((item) => item.locked)}><Layers3 size={15} />Backward</button>
+        <button type="button" onPointerDown={stopPointer} onClick={rotateSelection} disabled={selectedAnnotations.some((item) => item.locked)}><RotateCw size={15} />Rotate</button>
+        <button type="button" className="is-danger" onPointerDown={stopPointer} disabled={selectedAnnotations.some((item) => item.locked)} onClick={() => { runCommand({ type: "remove", items: selectedAnnotations }); setSelectedIds([]); }}><Eraser size={15} />Delete</button>
+      </>}
     </div>;
   }
 
   function renderPdfPageOverlay(pageNumber) {
     const annotationsOnPage = annotationsByPage.get(pageNumber) || NO_ANNOTATIONS;
-    const pageIsCurrent = pageNumber === page;
+    const pageIsCurrent = pageNumber === activePageKey;
     const handleRadius = 11 * pageUnitsPerCssPixel(pageNumber);
     return <>
-      <svg className={annotationLayerClass} viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-label={`Annotations for PDF page ${pageNumber}`}>
-        <AnnotationVisuals annotations={annotationsOnPage} prefix={`page-${pageNumber}`} includeHitTargets={activeTool === "select"} />
+      <svg className={annotationLayerClass} viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-label={isVirtualPageKey(pageNumber) ? "Annotations for blank workspace page" : `Annotations for PDF page ${pageNumber}`}>
+        <AnnotationVisuals annotations={annotationsHidden ? NO_ANNOTATIONS : annotationsOnPage} prefix={`page-${pageNumber}`} includeHitTargets={activeTool === "select" && !annotationsHidden} />
         {pageIsCurrent && draftAnnotation && draftAnnotation.type !== "lasso" && <WorkspaceAnnotation annotation={draftAnnotation} draft />}
         {pageIsCurrent && selectedBounds && <g className="workspace-v2-selection-box">
           <rect x={selectedBounds.x} y={selectedBounds.y} width={selectedBounds.width} height={selectedBounds.height} />
@@ -4238,80 +4702,151 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
                   const expanded = activeTool === id && toolOptionsOpen === id;
                   return <WorkspaceIconButton
                     key={id}
-                    className={responsiveClass}
+                    className={`workspace-v3-tool-button${id === "pen" ? " is-hero" : ""}${responsiveClass ? ` ${responsiveClass}` : ""}`}
                     label={label}
+                    caption={label}
                     active={activeTool === id}
                     aria-pressed={activeTool === id}
                     aria-expanded={CONFIGURABLE_TOOLS.has(id) ? expanded : undefined}
                     aria-controls={CONFIGURABLE_TOOLS.has(id) ? `workspace-${id}-options` : undefined}
                     data-workspace-tool={id}
+                    style={id === activeTool && ["pen", "highlighter"].includes(id) ? cssVars({ "--workspace-tool-color": activeColor }) : undefined}
                     onClick={() => chooseWritingTool(id)}
                   ><ToolIcon size={19} /></WorkspaceIconButton>;
                 })}
-                <WorkspaceIconButton label="Add" active={openSurface === "add"} aria-expanded={openSurface === "add"} aria-controls="workspace-add-popover" data-workspace-surface="add" onClick={() => setOpenSurface((current) => current === "add" ? null : "add")}><Plus size={20} /></WorkspaceIconButton>
+                <WorkspaceIconButton label="Add" caption="Add" className="workspace-v3-tool-button" active={openSurface === "add"} aria-expanded={openSurface === "add"} aria-controls="workspace-add-popover" data-workspace-surface="add" onClick={() => setOpenSurface((current) => current === "add" ? null : "add")}><Plus size={20} /></WorkspaceIconButton>
+              </div>
+              <div className="workspace-v3-quick-colors" role="group" aria-label="Quick annotation colors">
+                {quickColors.map((color) => <button key={color} type="button" className={`workspace-v3-quick-color${activeColor === color ? " is-active" : ""}`} aria-label={`Use ${color}`} aria-pressed={activeColor === color} title={color} disabled={!showColorPalette} style={cssVars({ "--workspace-tool-color": color })} onClick={() => chooseAnnotationColor(color)}><span /></button>)}
               </div>
               <div className="workspace-v2-history" aria-label="Edit history">
-                <WorkspaceIconButton label="Undo (Ctrl+Z)" disabled={!undoHistory.length} onClick={undoTool}><Undo2 size={18} /></WorkspaceIconButton>
-                <WorkspaceIconButton label="Redo (Ctrl+Shift+Z)" disabled={!redoHistory.length} onClick={redoTool}><Redo2 size={18} /></WorkspaceIconButton>
+                <WorkspaceIconButton label="Undo (Ctrl+Z)" caption="Undo" className="workspace-v3-history-button" disabled={!undoHistory.length} onClick={undoTool}><Undo2 size={18} /></WorkspaceIconButton>
+                <WorkspaceIconButton label="Redo (Ctrl+Shift+Z)" caption="Redo" className="workspace-v3-history-button" disabled={!redoHistory.length} onClick={redoTool}><Redo2 size={18} /></WorkspaceIconButton>
               </div>
             </div>
             <input ref={imageInputRef} className="workspace-v2-file-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={addImage} tabIndex={-1} aria-hidden="true" />
             <div className="workspace-v2-toolbar-actions" aria-label="Workspace controls">
               <WorkspaceIconButton label="Search document (coming later)" className="workspace-v3-search" disabled><Search size={18} /></WorkspaceIconButton>
-              <button type="button" className={`workspace-v2-study-mode-button is-${studyMode || "choose"}${studyMode === "active" && activeStudy ? " has-progress" : ""}`} onClick={() => { setOpenSurface(null); setModeDialogOpen(true); }} aria-label={studyMode === "active" && activeStudy ? `Active Study: part ${activeStudy.current_part} of ${activeStudy.number_of_parts}` : "Choose study mode"} title={studyMode === "active" && activeStudy ? `Active Study · part ${activeStudy.current_part} of ${activeStudy.number_of_parts}` : "Choose study mode"}><Brain size={18} />{studyMode === "active" && activeStudy && <span className="workspace-v2-study-mode-status"><strong>Active</strong><small>Part {activeStudy.current_part}/{activeStudy.number_of_parts}</small></span>}</button>
-              <WorkspaceIconButton label={sideOpen ? "Close notes" : "Open notes"} active={sideOpen} aria-pressed={sideOpen} aria-expanded={sideOpen} aria-controls="workspace-notes-panel" data-workspace-tool="note" onClick={() => selectTool("note")}><MessageSquare size={18} /></WorkspaceIconButton>
-              <WorkspaceIconButton label="More workspace actions" active={openSurface === "more" || settingsOpen} aria-expanded={openSurface === "more" || settingsOpen} aria-controls="workspace-more-popover" data-workspace-surface="more" onClick={() => setOpenSurface((current) => current === "more" ? null : "more")}><MoreHorizontal size={20} /></WorkspaceIconButton>
+              <WorkspaceIconButton label={sideOpen ? "Close notes" : "Open notes"} caption="Comments" className="workspace-v3-utility-button" active={sideOpen} aria-pressed={sideOpen} aria-expanded={sideOpen} aria-controls="workspace-notes-panel" data-workspace-tool="note" onClick={() => selectTool("note")}><MessageSquare size={18} /></WorkspaceIconButton>
+              <button type="button" className={`workspace-v2-study-mode-button is-${studyMode || "choose"}${studyMode === "active" && activeStudy ? " has-progress" : ""}`} onClick={() => { setOpenSurface(null); setModeDialogOpen(true); }} aria-label={studyMode === "active" && activeStudy ? `Active Study: part ${activeStudy.current_part} of ${activeStudy.number_of_parts}` : "Choose study mode"} title={studyMode === "active" && activeStudy ? `Active Study · part ${activeStudy.current_part} of ${activeStudy.number_of_parts}` : "Choose study mode"}><Brain size={18} /><span className="workspace-v2-tool-caption" aria-hidden="true">Study</span>{studyMode === "active" && activeStudy && <span className="workspace-v2-study-mode-status"><strong>Active</strong><small>Part {activeStudy.current_part}/{activeStudy.number_of_parts}</small></span>}</button>
+              <WorkspaceIconButton label="More workspace actions" caption="More" className="workspace-v3-utility-button" active={openSurface === "more" || settingsOpen} aria-expanded={openSurface === "more" || settingsOpen} aria-controls="workspace-more-popover" data-workspace-surface="more" onClick={() => setOpenSurface((current) => current === "more" ? null : "more")}><MoreHorizontal size={20} /></WorkspaceIconButton>
             </div>
           </nav>
 
           {openSurface === "add" && <section id="workspace-add-popover" className="workspace-v2-action-popover is-add" role="dialog" aria-label="Add to page" onPointerDown={(event) => event.stopPropagation()}>
             <header><strong>Add to page {page}</strong><button type="button" aria-label="Close Add menu" onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="add"]')}><X size={17} /></button></header>
-            <div className="workspace-v3-menu-grid">
-              <button type="button" data-workspace-tool="pencil" onClick={() => chooseWritingTool("pencil")}><Pencil size={18} /><span>Pencil</span></button>
-              <button type="button" data-workspace-tool="shapes" onClick={() => chooseWritingTool("shapes")}><Shapes size={18} /><span>Shapes</span></button>
-              <button type="button" data-workspace-tool="image" onClick={() => selectTool("image")}><ImageIcon size={18} /><span>Image</span></button>
-              <button type="button" onClick={() => setOpenSurface("text")} data-workspace-tool="text"><Type size={18} /><span>Text</span></button>
+            <div className="workspace-v3-menu-list workspace-v5-add-list">
+              <button type="button" aria-label="Text" onClick={() => { setEditingTextId(null); setTextDraft(""); setOpenSurface("text"); }} data-workspace-tool="text"><Type size={18} /><span><strong>Add text</strong><small>Place editable text on this page</small></span></button>
+              <button type="button" aria-label="Image" data-workspace-tool="image" onClick={() => selectTool("image")}><ImageIcon size={18} /><span><strong>Add image</strong><small>Insert a photo or image file</small></span></button>
+              <button type="button" onClick={() => selectTool("note")}><MessageSquare size={18} /><span><strong>Open notes</strong><small>Write a note alongside this sheet</small></span></button>
+              <button type="button" onClick={() => { setCardKind("sticky"); setCardDraft(""); setEditingCardId(null); setOpenSurface("card"); }}><StickyNote size={18} /><span><strong>Add sticky note</strong><small>Place a movable note on this page</small></span></button>
+              <button type="button" onClick={() => { setCardKind("note"); setCardDraft(""); setEditingCardId(null); setOpenSurface("card"); }}><FileText size={18} /><span><strong>Add note card</strong><small>Choose a study card style</small></span></button>
+              <button type="button" onClick={toggleBookmark} disabled={bookmarkBusy} aria-pressed={bookmarked}><Bookmark size={18} /><span><strong>{bookmarked ? "Remove bookmark" : "Bookmark page"}</strong><small>Keep PDF page {page} easy to return to</small></span></button>
+              {sheet.pdfUrl && <button type="button" aria-label="Add Page" onClick={() => setOpenSurface("page-background")}><Plus size={18} /><span><strong>Add page</strong><small>Blank, ruled, grid, or dotted after PDF page {page}</small></span></button>}
+              {sheet.pdfUrl && <button type="button" onClick={() => { setClipSelecting(true); setLassoMode("rectangle"); setActiveTool("select"); setSelectedIds([]); setOpenSurface(null); setFocusMessage("Drag a rectangle over the PDF to capture a study clip."); }}><Camera size={18} /><span><strong>Add study clip</strong><small>Select an area of the PDF to reuse</small></span></button>}
             </div>
           </section>}
 
-          {openSurface === "text" && <section className="workspace-v2-action-popover is-text" role="dialog" aria-label="Add text annotation" onPointerDown={(event) => event.stopPropagation()}>
-            <header><strong>Add text to page {page}</strong><button type="button" aria-label="Close text editor" onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="add"]')}><X size={17} /></button></header>
-            <label className="workspace-v3-text-entry"><span>Annotation text</span><input ref={textInputRef} value={textDraft} maxLength={500} onChange={(event) => setTextDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addTextAnnotation(); } }} /></label>
-            <button type="button" className="workspace-v3-menu-primary" onClick={addTextAnnotation} disabled={!textDraft.trim()}>Add text</button>
+          {openSurface === "page-background" && <section className="workspace-v2-action-popover is-add" role="dialog" aria-label="Choose workspace page background" onPointerDown={(event) => event.stopPropagation()}>
+            <header><strong>Add page after PDF page {page}</strong><button type="button" aria-label="Close page backgrounds" onClick={() => setOpenSurface("add")}><X size={17} /></button></header>
+            <div className="workspace-v3-menu-list">
+              {[["blank", "Blank", "Plain writing page"], ["lined", "Ruled", "Lines for handwriting"], ["grid", "Grid", "Graph and diagrams"], ["dot", "Dotted", "Light dot guide"]].map(([background, label, description]) => <button key={background} type="button" onClick={() => addBlankPage(background)}><span className={`workspace-v6-page-pattern is-${background}`} aria-hidden="true" /><span><strong>{label}</strong><small>{description}</small></span></button>)}
+            </div>
+          </section>}
+
+          {openSurface === "card" && <section className="workspace-v2-action-popover is-add workspace-v6-card-editor" role="dialog" aria-label={editingCardId ? "Edit study card" : "Add study card"} onPointerDown={(event) => event.stopPropagation()}>
+            <header><strong>{editingCardId ? "Edit study card" : "Add study card"}</strong><button type="button" aria-label="Close card editor" onClick={() => setOpenSurface(null)}><X size={17} /></button></header>
+            <div className="workspace-v6-card-kinds" role="group" aria-label="Card style">
+              {[["sticky", "Sticky"], ["note", "Note"], ["lined", "Lined"], ["revision", "Revision"]].map(([kind, label]) => <button key={kind} type="button" className={cardKind === kind ? "is-active" : ""} aria-pressed={cardKind === kind} onClick={() => setCardKind(kind)}>{label}</button>)}
+            </div>
+            <label className="workspace-v3-text-entry"><span>Card text</span><textarea value={cardDraft} maxLength={1200} rows={5} onChange={(event) => setCardDraft(event.target.value)} /></label>
+            <button type="button" className="workspace-v3-menu-primary" onClick={saveCard} disabled={!cardDraft.trim()}>{editingCardId ? "Save card" : "Add card"}</button>
+          </section>}
+
+          {openSurface === "text" && <section className="workspace-v2-action-popover is-text" role="dialog" aria-label={editingTextId ? "Edit text annotation" : "Add text annotation"} onPointerDown={(event) => event.stopPropagation()}>
+            <header><strong>{editingTextId ? "Edit text" : activeVirtualPageId === null ? `Add text to PDF page ${page}` : `Add text to workspace page after PDF page ${page}`}</strong><button type="button" aria-label="Close text editor" onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="add"]')}><X size={17} /></button></header>
+            <label className="workspace-v3-text-entry"><span>Annotation text</span><textarea ref={textInputRef} value={textDraft} maxLength={1000} rows={4} onChange={(event) => setTextDraft(event.target.value)} /></label>
+            <div className="workspace-v6-text-controls">
+              <label>Size <input type="number" min="18" max="64" value={textFontSize} onChange={(event) => setTextFontSize(Math.min(64, Math.max(18, Number(event.target.value) || 18)))} /></label>
+              <label>Color <input type="color" value={textColor} onChange={(event) => setTextColor(event.target.value)} /></label>
+              <button type="button" aria-pressed={textBold} className={textBold ? "is-active" : ""} onClick={() => setTextBold((current) => !current)}><strong>B</strong> Bold</button>
+              <label>Align <select value={textAlign} onChange={(event) => setTextAlign(event.target.value)}><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></label>
+            </div>
+            <button type="button" className="workspace-v3-menu-primary" onClick={addTextAnnotation} disabled={!textDraft.trim()}>{editingTextId ? "Save text" : "Add text"}</button>
           </section>}
 
           {openSurface === "more" && <section id="workspace-more-popover" className="workspace-v2-action-popover is-more" role="dialog" aria-label="More workspace actions" onPointerDown={(event) => event.stopPropagation()}>
             <header><strong>Workspace</strong><button type="button" aria-label="Close workspace actions" onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="more"]')}><X size={17} /></button></header>
             <div className="workspace-v3-menu-list">
+              <button type="button" onClick={() => chooseWritingTool("pencil")}><Pencil size={18} /><span><strong>Pencil</strong><small>Sketch with a textured stroke</small></span></button>
+              <button type="button" className="workspace-v3-compact-only" onClick={() => chooseWritingTool("shapes")}><Shapes size={18} /><span><strong>Shapes</strong><small>Draw lines and diagrams</small></span></button>
               <button type="button" className="workspace-v3-phone-only" onClick={() => chooseWritingTool("highlighter")}><Highlighter size={18} /><span><strong>Highlight</strong><small>Mark important passages</small></span></button>
               <button type="button" className="workspace-v3-phone-only" onClick={() => chooseWritingTool("eraser")}><Eraser size={18} /><span><strong>Eraser</strong><small>Remove ink precisely</small></span></button>
               <button type="button" className="workspace-v3-phone-only" onClick={() => chooseWritingTool("select")}><MousePointer2 size={18} /><span><strong>Lasso</strong><small>Select and transform marks</small></span></button>
-              <button type="button" aria-label={bookmarked ? "Remove from Bookmarks" : "Save to Bookmarks"} aria-pressed={bookmarked} onClick={toggleBookmark} disabled={bookmarkBusy}><Star size={18} fill={bookmarked ? "currentColor" : "none"} /><span><strong>{bookmarked ? "Remove bookmark" : "Bookmark page"}</strong><small>Keep page {page} easy to return to</small></span></button>
-              <button type="button" onClick={toggleDocumentFullscreen}>{isDocumentFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}<span><strong>{isDocumentFullscreen ? "Exit fullscreen" : "Fullscreen"}</strong><small>Use the full display for the PDF</small></span></button>
+              <button type="button" onClick={() => exportStudyDocument("original")} disabled={exportBusy || studyMode === "active"}><Download size={18} /><span><strong>Download original</strong><small>Save the source PDF</small></span></button>
+              <button type="button" onClick={() => exportStudyDocument("annotated", { share: true })} disabled={exportBusy}><Share2 size={18} /><span><strong>Share</strong><small>Share or save your annotated work</small></span></button>
+              <button type="button" aria-label={bookmarked ? "Remove from Bookmarks" : "Save to Bookmarks"} aria-pressed={bookmarked} onClick={toggleBookmark} disabled={bookmarkBusy}><Bookmark size={18} fill={bookmarked ? "currentColor" : "none"} /><span><strong>{bookmarked ? "Remove bookmark" : "Bookmark page"}</strong><small>Keep page {page} easy to return to</small></span></button>
+              <button type="button" onClick={() => { setAnnotationsHidden((value) => !value); setSelectedIds([]); setActiveTool("hand"); }} aria-pressed={annotationsHidden}>{annotationsHidden ? <Eye size={18} /> : <EyeOff size={18} />}<span><strong>{annotationsHidden ? "Show annotations" : "Hide annotations"}</strong><small>Temporarily clear the reading view</small></span></button>
+              <button type="button" onClick={() => { setExportRangeStart(page); setExportRangeEnd(page); setOpenSurface("export"); }}><FileText size={18} /><span><strong>Export</strong><small>PDF, page range, or PNG image</small></span></button>
+              <button type="button" onClick={toggleDocumentFullscreen}>{isDocumentFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}<span><strong>{isDocumentFullscreen ? "Exit full-screen writing" : "Full-screen writing mode"}</strong><small>Use the full display for the PDF</small></span></button>
+              <button type="button" onClick={() => exportStudyDocument("png")} disabled={exportBusy}><Camera size={18} /><span><strong>Page snapshot</strong><small>Save this page as a PNG image</small></span></button>
+              <button type="button" onClick={() => setOpenSurface("history")}><List size={18} /><span><strong>Version history</strong><small>Review recent edits in this session</small></span></button>
+              {activeVirtualPageId !== null && <button type="button" onClick={deleteBlankPage}><Trash2 size={18} /><span><strong>Delete blank page</strong><small>Remove this workspace page and its marks</small></span></button>}
               <button type="button" aria-label="Workspace settings" aria-controls="workspace-settings-popover" onClick={() => setOpenSurface("settings")}><Settings size={18} /><span><strong>Settings</strong><small>Drawing, PDF, and backup preferences</small></span></button>
             </div>
           </section>}
 
-          {toolOptionsOpen && <div ref={toolOptionsRef} id={`workspace-${toolOptionsOpen}-options`} className="workspace-v2-tool-options" role="dialog" aria-label={`${activeToolLabel} options`} onPointerDown={(event) => event.stopPropagation()}>
-            <div className="workspace-v2-tool-options-title"><strong>{activeToolLabel}</strong><span>options</span></div>
-            {activeTool === "pen" && <>
-              <PenProfilePicker value={penProfile} onChange={changePenProfile} color={activeColor} />
-              <div className="workspace-v4-pen-presets" aria-label="Saved pen presets">
-                {penPresets.map((preset, index) => <span key={preset.id} className="workspace-v4-pen-preset">
-                  <button type="button" aria-label={`Use pen preset ${index + 1}`} title={`Preset ${index + 1}`} onClick={() => applyPenPreset(preset)} style={cssVars({ "--workspace-tool-color": preset.color, "--workspace-preset-size": `${Math.max(2, Number(preset.size) || 4)}px` })}><i /></button>
-                  <button type="button" aria-label={`Delete pen preset ${index + 1}`} onClick={() => setPenPresets((items) => items.filter((item) => item.id !== preset.id))}><X size={10} /></button>
-                </span>)}
-                <button type="button" className="workspace-v4-save-preset" aria-label="Save current pen preset" onClick={savePenPreset} disabled={penPresets.length >= 4}><Plus size={14} /><span>Preset</span></button>
-              </div>
-              <div className="workspace-v4-pen-gestures" aria-label="Pen gestures">
-                <SettingsToggle icon={Shapes} label="Hold to shape" description="Pause at the end to refine lines and shapes" checked={drawAndHold} onChange={setDrawAndHold} />
-                <SettingsToggle icon={Circle} label="Circle erase" description="Circle marks and hold to erase them" checked={circleToErase} onChange={setCircleToErase} />
-              </div>
-            </>}
-            {activeTool === "eraser" && <IconChoiceGroup label="Eraser mode" value={eraserMode} options={ERASER_MODE_OPTIONS} onChange={setEraserMode} />}
-            {activeTool === "select" && <IconChoiceGroup label="Lasso mode" value={lassoMode} options={LASSO_MODE_OPTIONS} onChange={setLassoMode} />}
-            {activeTool === "shapes" && <IconChoiceGroup label="Shape type" value={shapeStyle} options={SHAPE_OPTIONS} onChange={setShapeStyle} />}
-            {showColorPalette && <>
+          {openSurface === "export" && <section className="workspace-v2-action-popover is-more" role="dialog" aria-label="Export workspace" onPointerDown={(event) => event.stopPropagation()}>
+            <header><strong>Export</strong><button type="button" aria-label="Close export menu" onClick={() => setOpenSurface("more")}><X size={17} /></button></header>
+            <div className="workspace-v3-menu-list">
+              <button type="button" onClick={() => exportStudyDocument("original")} disabled={exportBusy || studyMode === "active"}><Download size={18} /><span><strong>Original PDF</strong><small>Unmodified document</small></span></button>
+              <button type="button" onClick={() => exportStudyDocument("annotated")} disabled={exportBusy}><FileText size={18} /><span><strong>PDF with annotations</strong><small>Include your marks and study objects</small></span></button>
+              <button type="button" onClick={() => exportStudyDocument("current")} disabled={exportBusy}><FileText size={18} /><span><strong>Current page</strong><small>Save the page you are reading</small></span></button>
+              <div className="workspace-v6-export-range"><label>From <input type="number" min="1" max={accessiblePageCount} value={exportRangeStart} onChange={(event) => setExportRangeStart(Number(event.target.value) || 1)} /></label><label>To <input type="number" min="1" max={accessiblePageCount} value={exportRangeEnd} onChange={(event) => setExportRangeEnd(Number(event.target.value) || 1)} /></label><button type="button" onClick={() => exportStudyDocument("range")} disabled={exportBusy}>Export page range</button></div>
+              <button type="button" onClick={() => exportStudyDocument("png")} disabled={exportBusy}><ImageIcon size={18} /><span><strong>Image (PNG)</strong><small>Current page as an image</small></span></button>
+            </div>
+          </section>}
+
+          {openSurface === "history" && <section className="workspace-v2-action-popover is-more" role="dialog" aria-label="Version history" onPointerDown={(event) => event.stopPropagation()}>
+            <header><strong>Version history</strong><button type="button" aria-label="Close version history" onClick={() => setOpenSurface("more")}><X size={17} /></button></header>
+            <div className="workspace-v3-menu-list workspace-v6-history"><p>Edits from this session. Use Undo to restore an earlier step.</p><strong>{undoHistory.length} edit{undoHistory.length === 1 ? "" : "s"} available</strong><button type="button" onClick={undoTool} disabled={!undoHistory.length}><Undo2 size={18} /><span><strong>Undo most recent edit</strong><small>Redo remains available in the toolbar</small></span></button></div>
+          </section>}
+
+          {toolOptionsOpen && <div ref={toolOptionsRef} id={`workspace-${toolOptionsOpen}-options`} className="workspace-v2-tool-options" data-workspace-tool={activeTool} role="dialog" aria-label={`${activeToolLabel} options`} onPointerDown={(event) => event.stopPropagation()}>
+            <div className="workspace-v2-tool-options-title"><span><strong>{activeToolLabel}</strong><small>{activeTool === "highlighter" ? "Transparent marking" : activeTool === "eraser" ? "Erase only beneath the tip" : activeTool === "select" ? "Select and transform marks" : activeTool === "shapes" ? "Precise geometry" : "Draw on your workspace"}</small></span><span className={`workspace-v5-stroke-preview is-${activeTool}`} style={cssVars({ "--workspace-tool-color": activeColor, "--workspace-preview-size": `${Math.max(2, brushSize)}px`, "--workspace-preview-opacity": activeToolOpacity })} aria-hidden="true" /></div>
+            {activeTool === "eraser" && <section className="workspace-v5-inspector-section"><h3>Eraser size</h3><ToolRange label="Eraser size" value={eraserSize} displayValue={`${eraserSize}px`} min={6} max={48} step={2} preview="eraser" onChange={setEraserSize} /><p>The tip removes only the area it crosses.</p></section>}
+            {activeTool === "pen" && <section className="workspace-v5-inspector-section"><h3>Pen type</h3><PenProfilePicker value={penProfile} onChange={changePenProfile} color={activeColor} /></section>}
+            {activeTool === "pen" && <section className="workspace-v5-inspector-section"><h3>Quick presets</h3><div className="workspace-v6-quick-presets" role="group" aria-label="Quick pen presets">{["notes", "underline", "bold"].map((kind) => <button key={kind} type="button" onClick={() => applyQuickPenPreset(kind)}><span className={`is-${kind}`} /><strong>{kind[0].toUpperCase() + kind.slice(1)}</strong></button>)}</div></section>}
+            {activeTool === "select" && <section className="workspace-v5-inspector-section"><h3>Selection mode</h3><IconChoiceGroup label="Lasso mode" value={lassoMode} options={LASSO_MODE_OPTIONS} onChange={setLassoMode} /><p>Select a mark to move, resize, copy, cut, duplicate, rotate, or delete it.</p></section>}
+            {activeTool === "select" && selectedAnnotations.length > 0 && <section className="workspace-v5-inspector-section"><h3>Selection actions</h3><div className="workspace-v6-inspector-actions">
+              <button type="button" onClick={improveSelectedHandwriting} disabled={!selectedAnnotations.some((item) => ["pen", "pencil"].includes(item.type))}><Sparkles size={16} />Improve handwriting</button>
+              <button type="button" onClick={groupSelection} disabled={selectedAnnotations.length < 2}><Group size={16} />Group</button>
+              <button type="button" onClick={ungroupSelection} disabled={!selectedAnnotations.some((item) => item.groupId)}><Ungroup size={16} />Ungroup</button>
+              <button type="button" onClick={toggleSelectionLock}>{selectedAnnotations.every((item) => item.locked) ? <Unlock size={16} /> : <Lock size={16} />}{selectedAnnotations.every((item) => item.locked) ? "Unlock selection" : "Lock selection"}</button>
+              <button type="button" onClick={() => layerSelection("forward")} disabled={selectedAnnotations.some((item) => item.locked)}><Layers3 size={16} />Bring forward</button>
+              <button type="button" onClick={() => layerSelection("backward")} disabled={selectedAnnotations.some((item) => item.locked)}><Layers3 size={16} />Send backward</button>
+              <button type="button" onClick={copySelection}><Copy size={16} />Copy</button>
+              <button type="button" onClick={cutSelection} disabled={selectedAnnotations.some((item) => item.locked)}><Scissors size={16} />Cut</button>
+              <button type="button" onClick={duplicateSelection}><Copy size={16} />Duplicate</button>
+              <button type="button" onClick={() => { runCommand({ type: "remove", items: selectedAnnotations }); setSelectedIds([]); }} disabled={selectedAnnotations.some((item) => item.locked)}><Trash2 size={16} />Delete</button>
+            </div></section>}
+            {activeTool === "shapes" && <section className="workspace-v5-inspector-section"><h3>Shape</h3><IconChoiceGroup label="Shape type" value={shapeStyle} options={SHAPE_OPTIONS} onChange={setShapeStyle} /></section>}
+            {activeTool === "shapes" && <section className="workspace-v5-inspector-section"><h3>Shape style and precision</h3><div className="workspace-v6-shape-settings">
+              <SettingsToggle icon={Shapes} label="Fill shape" description="Use a solid color inside closed shapes" checked={shapeFill} onChange={setShapeFill} />
+              {shapeFill && <label>Fill color <input type="color" value={shapeFillColor} onChange={(event) => setShapeFillColor(event.target.value)} /></label>}
+              <SettingsToggle icon={Minus} label="Dashed line" description="Draw borders and lines as dashes" checked={shapeDashed} onChange={setShapeDashed} />
+              <SettingsToggle icon={Shapes} label="Perfect shapes on release" description="Straighten lines and clean up geometry as soon as you lift" checked={drawAndHold} onChange={setDrawAndHold} />
+              <SettingsToggle icon={Minus} label="Straighten line" description="Snap line and arrow angles" checked={shapeAngle > 0} onChange={(enabled) => setShapeAngle(enabled ? 15 : 0)} />
+              <label>Ruler / angle <select value={shapeAngle} onChange={(event) => setShapeAngle(Number(event.target.value))}><option value="0">Free angle</option><option value="15">15° steps</option><option value="30">30° steps</option><option value="45">45° steps</option><option value="90">90° steps</option></select></label>
+              <SettingsToggle icon={Hash} label="Snap to grid" description="Align endpoints to a 25-unit grid" checked={shapeSnapGrid} onChange={setShapeSnapGrid} />
+            </div></section>}
+            {activeTool !== "select" && activeTool !== "eraser" && <section className="workspace-v5-inspector-section"><h3>{activeTool === "shapes" ? "Stroke width" : "Thickness"}</h3><div className="workspace-v2-tool-settings" aria-label={`${activeToolLabel} controls`}>
+              {inkToolActive && <QuickSizes values={QUICK_THICKNESSES} value={brushSize} onChange={setBrushSize} label={activeTool === "shapes" ? "Border width" : "Thickness"} />}
+              {inkToolActive && <ToolRange label={activeTool === "shapes" ? "Border width" : "Thickness"} value={brushSize} min={1} max={12} step={1} onChange={setBrushSize} color={activeColor} />}
+              {inkToolActive && <ToolRange label="Opacity" value={activeToolOpacity} displayValue={`${Math.round(activeToolOpacity * 100)}%`} min={activeTool === "highlighter" ? .1 : .2} max={1} step={.05} preview="opacity" color={activeColor} onChange={updateActiveToolOpacity} />}
+              {["pen", "pencil"].includes(activeTool) && <StrokeFeelPicker value={strokeSmoothing} onChange={setStrokeSmoothing} />}
+            </div></section>}
+            {showColorPalette && <section className="workspace-v5-inspector-section"><h3>{activeTool === "select" ? "Selected mark color" : "Color"}</h3>
               <div className="workspace-v2-colors" aria-label={activeTool === "select" ? "Selection colors" : "Annotation colors"}>
                 {paletteColors.map((color) => <span key={color} className={`workspace-v2-color-item${customColorSet.has(color) ? " is-custom" : ""}`}>
                   <button type="button" className={`workspace-v2-color-swatch${activeColor === color ? " is-active" : ""}`} aria-label={`Use ${color}`} title={color} aria-pressed={activeColor === color} style={cssVars({ "--workspace-tool-color": color })} onClick={() => chooseAnnotationColor(color)} />
@@ -4324,63 +4859,58 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
                   <button type="button" aria-label="Save custom color" title="Save color" onClick={commitCustomColor}><Check size={16} /></button>
                 </div>}
               </div>
-            </>}
-            <div className="workspace-v2-tool-settings" aria-label={`${activeToolLabel} controls`}>
-              {inkToolActive && <QuickSizes values={QUICK_THICKNESSES} value={brushSize} onChange={setBrushSize} label={activeTool === "shapes" ? "Border width" : "Thickness"} />}
-              {activeTool === "eraser" && <QuickSizes values={QUICK_ERASER_SIZES} value={brushSize} onChange={setBrushSize} label="Eraser size" />}
-              {inkToolActive && <ToolRange label={activeTool === "shapes" ? "Border width" : "Thickness"} value={brushSize} min={1} max={12} step={1} onChange={setBrushSize} color={activeColor} />}
-              {activeTool === "eraser" && <ToolRange label="Eraser size" value={brushSize} min={1} max={20} step={1} onChange={setBrushSize} preview="eraser" />}
-              {["pen", "pencil"].includes(activeTool) && <StrokeFeelPicker value={strokeSmoothing} onChange={setStrokeSmoothing} />}
-              {inkToolActive && <ToolRange
-                label="Opacity"
-                value={activeToolOpacity}
-                displayValue={`${Math.round(activeToolOpacity * 100)}%`}
-                min={activeTool === "highlighter" ? .1 : .2}
-                max={activeTool === "highlighter" ? .6 : 1}
-                step={.05}
-                preview="opacity"
-                color={activeColor}
-                onChange={updateActiveToolOpacity}
-              />}
-            </div>
+            </section>}
+            {["pen", "highlighter"].includes(activeTool) && (recentColors.length > 0 || favoriteColors.length > 0) && <section className="workspace-v5-inspector-section">{recentColors.length > 0 && <><h3>Recent colors</h3><div className="workspace-v6-color-strip">{recentColors.slice(0, 8).map((color) => <button key={color} type="button" aria-label={`Use recent ${color}`} style={{ backgroundColor: color }} onClick={() => chooseAnnotationColor(color)} />)}</div></>}{favoriteColors.length > 0 && <><h3>Favorites</h3><div className="workspace-v6-color-strip">{favoriteColors.map((color) => <button key={color} type="button" aria-label={`Use favorite ${color}`} style={{ backgroundColor: color }} onClick={() => chooseAnnotationColor(color)} />)}</div></>}</section>}
+            {activeTool === "pen" && <details className="workspace-v5-advanced"><summary>Presets &amp; pen gestures</summary><div className="workspace-v4-pen-presets" aria-label="Saved pen presets">
+              {penPresets.map((preset, index) => <span key={preset.id} className="workspace-v4-pen-preset"><button type="button" aria-label={`Use pen preset ${index + 1}`} title={`Preset ${index + 1}`} onClick={() => applyPenPreset(preset)} style={cssVars({ "--workspace-tool-color": preset.color, "--workspace-preset-size": `${Math.max(2, Number(preset.size) || 4)}px` })}><i /></button><button type="button" aria-label={`Delete pen preset ${index + 1}`} onClick={() => setPenPresets((items) => items.filter((item) => item.id !== preset.id))}><X size={10} /></button></span>)}
+              <button type="button" className="workspace-v4-save-preset" aria-label="Save current pen preset" onClick={savePenPreset} disabled={penPresets.length >= 4}><Plus size={14} /><span>Preset</span></button>
+            </div><ToolRange label="Pressure sensitivity" value={pressureSensitivity} displayValue={`${Math.round(pressureSensitivity * 100)}%`} min={0} max={1} step={.05} onChange={setPressureSensitivity} color={activeColor} /><ToolRange label="Stroke smoothing" value={strokeSmoothing} displayValue={`${Math.round(strokeSmoothing * 100)}%`} min={0} max={1} step={.05} onChange={setStrokeSmoothing} color={activeColor} /><div className="workspace-v4-pen-gestures" aria-label="Pen gestures"><SettingsToggle icon={Shapes} label="Perfect shapes on release" description="Refine lines and shapes when you lift" checked={drawAndHold} onChange={setDrawAndHold} /><SettingsToggle icon={Circle} label="Circle erase" description="Circle marks and hold to erase them" checked={circleToErase} onChange={setCircleToErase} /></div></details>}
           </div>}
 
           {settingsOpen && <section id="workspace-settings-popover" className="workspace-v2-settings-popover" role="dialog" aria-label="Workspace settings" onPointerDown={(event) => event.stopPropagation()}>
-            <header><span><Settings size={17} />Workspace settings</span><button type="button" aria-label="Close workspace settings" onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="more"]')}><X size={17} /></button></header>
-            <div className="workspace-v2-settings-content">
-              <section aria-labelledby="workspace-writing-settings"><h2 id="workspace-writing-settings">Writing</h2>
-                <SettingsToggle icon={PenLine} label="Apple Pencil mode" description="Pencil draws while fingers navigate" checked={drawingInput === DRAWING_INPUT.STYLUS_ONLY} onChange={(enabled) => changeDrawingInput(enabled ? DRAWING_INPUT.STYLUS_ONLY : DRAWING_INPUT.STYLUS_AND_FINGER)} />
-              </section>
-              {sheet.pdfUrl && <section aria-labelledby="workspace-view-settings"><h2 id="workspace-view-settings">View</h2>
-                <SettingsToggle icon={Bookmark} label="Remember last position" description="Keep the last position in your backup" checked={rememberLastPosition} onChange={setRememberLastPosition} />
-                <SettingsToggle icon={ZoomIn} label="Remember zoom level" description="Restore this sheet at the same zoom" checked={rememberZoomLevel} onChange={setRememberZoomLevel} />
-                <button type="button" className="workspace-v2-settings-action" onClick={toggleDocumentFullscreen}>{isDocumentFullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}<span><strong>{isDocumentFullscreen ? "Exit fullscreen" : "Enter fullscreen"}</strong><small>Use the full display for the PDF</small></span></button>
-                {wakeLockSupported && <SettingsToggle icon={Power} label="Keep screen awake" description="Prevent sleep while this workspace is open" checked={keepScreenAwake} onChange={setKeepScreenAwake} />}
-              </section>}
-              <section aria-labelledby="workspace-appearance-settings"><h2 id="workspace-appearance-settings">Appearance</h2>
-                <SettingsToggle icon={Eye} label="Show page number" description="Display the current page over the PDF" checked={showPageNumber} onChange={setShowPageNumber} />
-              </section>
-              <section aria-labelledby="workspace-advanced-settings"><h2 id="workspace-advanced-settings">Advanced</h2>
-                <SettingsToggle icon={Eraser} label="Scribble erase" description="Scratch over ink to remove it" checked={scribbleToErase} onChange={setScribbleToErase} />
-                <SettingsToggle icon={Shapes} label="Hold to shape" description="Hold a stroke to straighten it" checked={drawAndHold} onChange={setDrawAndHold} />
-                <SettingsToggle icon={Circle} label="Circle erase" description="Circle ink and hold to erase it" checked={circleToErase} onChange={setCircleToErase} />
-                <ToolRange label="Pressure sensitivity" value={pressureSensitivity} displayValue={`${Math.round(pressureSensitivity * 100)}%`} min={0} max={1} step={.05} onChange={setPressureSensitivity} color={activeColor} />
-                <ToolRange label="Stroke smoothing" value={strokeSmoothing} displayValue={`${Math.round(strokeSmoothing * 100)}%`} min={0} max={1} step={.05} onChange={setStrokeSmoothing} color={activeColor} />
-              </section>
-              <section className="workspace-v4-data-safety" aria-labelledby="workspace-backup-settings"><h2 id="workspace-backup-settings">Data &amp; safety</h2>
-                {saveState === "error" && <p className="workspace-v2-settings-note" role="alert">{saveErrorReason || "Marks could not be saved on this device."}</p>}
-                <button type="button" className="workspace-v2-settings-action" onClick={exportWorkspaceBackup} disabled={backupBusy}><Download size={17} /><span><strong>Export marks and notes</strong><small>Save this sheet&rsquo;s work as a file you keep</small></span></button>
-                <button type="button" className="workspace-v2-settings-action" onClick={() => backupInputRef.current?.click()} disabled={backupBusy}><Upload size={17} /><span><strong>Restore from a backup</strong><small>Adds anything missing and never replaces existing marks</small></span></button>
-                <button type="button" className="workspace-v2-settings-action is-danger" onClick={clearPageAnnotations} disabled={!pageAnnotations.length}><Trash2 size={17} /><span><strong>Clear ink on page {page}</strong><small>{pageAnnotations.length ? `Removes ${pageAnnotations.length} mark${pageAnnotations.length === 1 ? "" : "s"}. Undo restores them.` : "This page has no marks yet"}</small></span></button>
-                {pendingImport && <div className="workspace-v2-settings-confirm" role="group" aria-label="Confirm restore from another sheet">
-                  <p>That backup was made on <strong>{pendingImport.sheetTitle || pendingImport.sheetSlug}</strong>. Restoring copies its {pendingImport.annotations.length} mark{pendingImport.annotations.length === 1 ? "" : "s"} onto this sheet.</p>
-                  <div>
-                    <button type="button" onClick={() => applyRestoredBackup(pendingImport)}>Restore anyway</button>
-                    <button type="button" onClick={() => setPendingImport(null)}>Cancel</button>
-                  </div>
-                </div>}
-                <input ref={backupInputRef} className="workspace-v2-file-input" type="file" accept="application/json,.json" onChange={readWorkspaceBackup} tabIndex={-1} aria-hidden="true" />
-              </section>
+            <header><span><Settings size={19} />Settings</span><button type="button" aria-label="Close workspace settings" onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="more"]')}><X size={19} /></button></header>
+            <div className="workspace-v6-settings-layout">
+              <nav className="workspace-v6-settings-nav" aria-label="Settings sections">
+                {[{ id: "writing", Icon: PenLine, label: "Writing", detail: "Pens and handwriting" }, { id: "gestures", Icon: Hand, label: "Gestures", detail: "Touch and shortcuts" }, { id: "workspace", Icon: BookOpen, label: "Workspace", detail: "Pages and study tools" }, { id: "export", Icon: Share2, label: "Export", detail: "Save and share" }].map(({ id, Icon, label, detail }) => <button key={id} type="button" className={settingsTab === id ? "is-active" : ""} aria-current={settingsTab === id ? "page" : undefined} onClick={() => setSettingsTab(id)}><Icon size={19} /><span><strong>{label}</strong><small>{detail}</small></span></button>)}
+              </nav>
+              <div className="workspace-v2-settings-content">
+                {settingsTab === "writing" && <section aria-labelledby="workspace-writing-settings"><h2 id="workspace-writing-settings">Writing</h2>
+                  <button type="button" className="workspace-v2-settings-action" onClick={() => { setOpenSurface("tool:pen"); setActiveTool("pen"); }}><PenLine size={18} /><span><strong>Pen presets</strong><small>Open your saved and quick pen styles</small></span></button>
+                  <ToolRange label="Pressure sensitivity" value={pressureSensitivity} displayValue={`${Math.round(pressureSensitivity * 100)}%`} min={0} max={1} step={.05} onChange={setPressureSensitivity} color={activeColor} />
+                  <ToolRange label="Stroke smoothing" value={strokeSmoothing} displayValue={`${Math.round(strokeSmoothing * 100)}%`} min={0} max={1} step={.05} onChange={setStrokeSmoothing} color={activeColor} />
+                  <SettingsToggle icon={Sparkles} label="Improve new handwriting" description="Smooth pen and pencil strokes while keeping their original points" checked={autoImproveHandwriting} onChange={setAutoImproveHandwriting} />
+                  <SettingsToggle icon={Eraser} label="Scribble to erase" description="Scratch across your own ink to remove it" checked={scribbleToErase} onChange={setScribbleToErase} />
+                  <SettingsToggle icon={Shapes} label="Perfect shapes on release" description="Refine lines and shapes when you lift" checked={drawAndHold} onChange={setDrawAndHold} />
+                  <button type="button" className="workspace-v2-settings-action" onClick={() => { setOpenSurface("tool:select"); setActiveTool("select"); }}><Sparkles size={18} /><span><strong>Improve handwriting</strong><small>Select pen strokes, then smooth them from Lasso</small></span></button>
+                  <button type="button" className="workspace-v2-settings-action is-danger" onClick={clearPageAnnotations} disabled={!pageAnnotations.some((item) => !item.locked)}><Trash2 size={18} /><span><strong>{activeVirtualPageId === null ? `Clear ink on PDF page ${page}` : "Clear ink on workspace page"}</strong><small>Remove unlocked marks on this page; Undo restores them</small></span></button>
+                </section>}
+                {settingsTab === "gestures" && <section aria-labelledby="workspace-gesture-settings"><h2 id="workspace-gesture-settings">Gestures</h2>
+                  <SettingsToggle icon={PenLine} label="Apple Pencil mode" description="Pencil draws while fingers navigate" checked={drawingInput === DRAWING_INPUT.STYLUS_ONLY} onChange={(enabled) => changeDrawingInput(enabled ? DRAWING_INPUT.STYLUS_ONLY : DRAWING_INPUT.STYLUS_AND_FINGER)} />
+                  <SettingsToggle icon={Shapes} label="Perfect shapes on release" description="Refine lines and shapes when you lift" checked={drawAndHold} onChange={setDrawAndHold} />
+                  <SettingsToggle icon={Circle} label="Circle to erase" description="Circle handwriting and hold to remove it" checked={circleToErase} onChange={setCircleToErase} />
+                </section>}
+                {settingsTab === "workspace" && <section aria-labelledby="workspace-page-settings"><h2 id="workspace-page-settings">Workspace</h2>
+                  <button type="button" className="workspace-v2-settings-action" onClick={() => setOpenSurface("page-background")} disabled={!sheet.pdfUrl}><Plus size={18} /><span><strong>Add page</strong><small>Choose a background after this PDF page</small></span></button>
+                  <button type="button" className="workspace-v2-settings-action" onClick={() => { setCardKind("note"); setOpenSurface("card"); }}><StickyNote size={18} /><span><strong>Add note card</strong><small>Create an editable study card</small></span></button>
+                  <SettingsToggle icon={EyeOff} label="Hide annotations" description="Temporarily show only the source document" checked={annotationsHidden} onChange={(hidden) => { setAnnotationsHidden(hidden); setSelectedIds([]); if (hidden) setActiveTool("hand"); }} />
+                  <button type="button" className="workspace-v2-settings-action" onClick={() => { setClipSelecting(true); setLassoMode("rectangle"); setActiveTool("select"); setOpenSurface(null); }}><Camera size={18} /><span><strong>Study clip behavior</strong><small>Drag a rectangle to save a reusable PDF area</small></span></button>
+                  <SettingsToggle icon={Bookmark} label="Remember last position" description="Keep the last position in your backup" checked={rememberLastPosition} onChange={setRememberLastPosition} />
+                  <SettingsToggle icon={ZoomIn} label="Remember zoom level" description="Restore this sheet at the same zoom" checked={rememberZoomLevel} onChange={setRememberZoomLevel} />
+                  <SettingsToggle icon={Eye} label="Show page number" description="Display the current PDF page" checked={showPageNumber} onChange={setShowPageNumber} />
+                  {wakeLockSupported && <SettingsToggle icon={Power} label="Keep screen awake" description="Prevent sleep during study" checked={keepScreenAwake} onChange={setKeepScreenAwake} />}
+                </section>}
+                {settingsTab === "export" && <section aria-labelledby="workspace-export-settings"><h2 id="workspace-export-settings">Export</h2>
+                  <button type="button" className="workspace-v2-settings-action" onClick={() => exportStudyDocument("annotated")} disabled={exportBusy}><FileText size={18} /><span><strong>Export as PDF</strong><small>Include annotations on accessible pages</small></span></button>
+                  <button type="button" className="workspace-v2-settings-action" onClick={() => exportStudyDocument("png")} disabled={exportBusy}><ImageIcon size={18} /><span><strong>Export as image</strong><small>Save the current page as PNG</small></span></button>
+                  <button type="button" className="workspace-v2-settings-action" onClick={() => exportStudyDocument("annotated", { share: true })} disabled={exportBusy}><Share2 size={18} /><span><strong>Share destination</strong><small>Use the device share sheet when available</small></span></button>
+                  <SettingsToggle icon={BookOpen} label="Include workspace pages" description="Add your inserted pages to PDF exports" checked={includeWorkspacePages} onChange={setIncludeWorkspacePages} />
+                  {saveState === "error" && <p className="workspace-v2-settings-note" role="alert">{saveErrorReason || "Marks could not be saved on this device."}</p>}
+                  <button type="button" className="workspace-v2-settings-action" onClick={exportWorkspaceBackup} disabled={backupBusy}><Download size={18} /><span><strong>Export workspace backup</strong><small>Save editable marks and notes as JSON</small></span></button>
+                  <button type="button" className="workspace-v2-settings-action" onClick={() => backupInputRef.current?.click()} disabled={backupBusy}><Upload size={18} /><span><strong>Restore a backup</strong><small>Add anything missing without replacing current work</small></span></button>
+                  {pendingImport && <div className="workspace-v2-settings-confirm" role="group" aria-label="Confirm restore from another sheet"><p>Restore {pendingImport.annotations.length} marks from {pendingImport.sheetTitle || pendingImport.sheetSlug}?</p><div><button type="button" onClick={() => applyRestoredBackup(pendingImport)}>Restore anyway</button><button type="button" onClick={() => setPendingImport(null)}>Cancel</button></div></div>}
+                  <input ref={backupInputRef} className="workspace-v2-file-input" type="file" accept="application/json,.json" onChange={readWorkspaceBackup} tabIndex={-1} aria-hidden="true" />
+                </section>}
+              </div>
             </div>
           </section>}
 
@@ -4394,9 +4924,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
             onLostPointerCapture={lostWorkspacePointer}
             onPointerLeave={hideStylusHover}
           >
-            {sheet.pdfUrl ? <ContinuousA4Pdf pdfUrl={sheet.pdfUrl} pageCount={pageCount} visiblePageStart={accessiblePageStart} visiblePageCount={accessiblePageCount} zoom={zoom} stageRef={stageRef} documentRootRef={documentRef} onPageCount={syncPdfPageCount} onDocumentReady={markPdfDocumentReady} onCurrentPageChange={setPage} renderPageOverlay={renderPdfPageOverlay} onPdfPageRendered={recordPdfPageRender} /> : <article ref={documentRef} className="workspace-v2-document" onDoubleClick={smartZoom} style={cssVars({ "--workspace-document-width": `${PAGE_WIDTH * zoom}px`, "--workspace-document-min-height": `${760 * zoom}px`, "--workspace-document-max-width": "none" })}>
+            {sheet.pdfUrl ? <ContinuousA4Pdf pdfUrl={sheet.pdfUrl} pageCount={pageCount} visiblePageStart={accessiblePageStart} visiblePageCount={accessiblePageCount} zoom={zoom} stageRef={stageRef} documentRootRef={documentRef} onPageCount={syncPdfPageCount} onDocumentReady={markPdfDocumentReady} onCurrentPageChange={handleCurrentWorkspacePage} virtualPages={virtualPages} renderPageOverlay={renderPdfPageOverlay} onPdfPageRendered={recordPdfPageRender} /> : <article ref={documentRef} className="workspace-v2-document" onDoubleClick={smartZoom} style={cssVars({ "--workspace-document-width": `${PAGE_WIDTH * zoom}px`, "--workspace-document-min-height": `${760 * zoom}px`, "--workspace-document-max-width": "none" })}>
               <svg className={annotationLayerClass} viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-label="Document annotations">
-                <AnnotationVisuals annotations={pageAnnotations} prefix={`document-${page}`} includeHitTargets={activeTool === "select"} />
+                <AnnotationVisuals annotations={annotationsHidden ? [] : pageAnnotations} prefix={`document-${page}`} includeHitTargets={activeTool === "select" && !annotationsHidden} />
                 {draftAnnotation && draftAnnotation.type !== "lasso" && <WorkspaceAnnotation annotation={draftAnnotation} draft />}
                 {selectedBounds && <g className="workspace-v2-selection-box">
                   <rect x={selectedBounds.x} y={selectedBounds.y} width={selectedBounds.width} height={selectedBounds.height} />
@@ -4428,6 +4958,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
                 <span className="workspace-v2-page-total">/ {accessiblePageCount}</span>
                 <button type="button" aria-label="Next page" title="Next page" disabled={page >= accessiblePageCount} onClick={() => jumpToPagePosition(page + 1)}><ChevronRight size={16} /></button>
               </div>
+              <div className="workspace-v2-page-jump" role="group" aria-label="Workspace pages">
+                <button type="button" onClick={() => addBlankPage()}><Plus size={16} />Add Page</button>
+                {activeVirtualPageId !== null && <button type="button" onClick={deleteBlankPage}><Trash2 size={16} />Delete blank page</button>}
+              </div>
               <div className="workspace-v2-zoom-control" role="group" aria-label="Zoom">
                 <button type="button" aria-label="Zoom out" title="Zoom out" disabled={zoom <= clampReaderZoom(MIN_FOCUS_ZOOM) + .001} onClick={() => zoomByStep(1 / 1.25)}><Minus size={16} /></button>
                 <output aria-label={`Current zoom ${Math.round(zoom * 100)} percent`}>{Math.round(zoom * 100)}%</output>
@@ -4441,8 +4975,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
             <button
               type="button"
               className="workspace-v2-page-number"
-              aria-label={`Page ${page} of ${accessiblePageCount}`}
-              title="Page and zoom"
+              aria-label={activeVirtualPageId === null ? `PDF page ${page} of ${accessiblePageCount}` : `Blank workspace page after PDF page ${page}; PDF has ${accessiblePageCount} pages`}
+              title="Page, workspace pages, and zoom"
               aria-expanded={pageNavigatorOpen}
               aria-controls="workspace-page-navigator"
               onClick={() => setOpenSurface((current) => current === "pages" ? null : "pages")}

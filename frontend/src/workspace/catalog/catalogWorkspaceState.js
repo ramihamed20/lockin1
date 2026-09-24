@@ -1,3 +1,4 @@
+import { isVirtualPageKey, sanitizeVirtualPages } from "./virtualPages.js";
 const SNAPSHOT_VERSION = 1;
 const MAX_ANNOTATIONS = 5000;
 const MAX_NOTES = 500;
@@ -39,10 +40,10 @@ export function catalogWorkspaceStorageKey(owner, materialSlug, sheetSlug) {
 
 export function sanitizeCatalogAnnotation(annotation) {
   if (!annotation || typeof annotation !== "object" || typeof annotation.id !== "string") return null;
-  if (!["pen", "pencil", "highlighter", "shape", "text", "image"].includes(annotation.type)) return null;
+  if (!["pen", "pencil", "highlighter", "shape", "text", "image", "card"].includes(annotation.type)) return null;
   const base = {
     id: annotation.id,
-    page: Math.max(1, Math.round(finite(annotation.page, 1))),
+    page: isVirtualPageKey(annotation.page) ? annotation.page : Math.max(1, Math.round(finite(annotation.page, 1))),
     type: annotation.type,
     color: typeof annotation.color === "string" ? annotation.color.slice(0, 32) : "#8b5cf6",
     width: Math.min(120, Math.max(1, finite(annotation.width, 4))),
@@ -52,20 +53,27 @@ export function sanitizeCatalogAnnotation(annotation) {
       : annotation.type === "pencil" ? "pencil" : annotation.type === "highlighter" ? "highlighter" : "ball",
     pressureSensitivity: Math.min(1, Math.max(0, finite(annotation.pressureSensitivity, .55))),
     smoothing: Math.min(1, Math.max(0, finite(annotation.smoothing, .5))),
-    createdAt: Number.isFinite(Date.parse(annotation.createdAt)) ? new Date(annotation.createdAt).toISOString() : new Date().toISOString()
+    createdAt: Number.isFinite(Date.parse(annotation.createdAt)) ? new Date(annotation.createdAt).toISOString() : new Date().toISOString(),
+    groupId: typeof annotation.groupId === "string" ? annotation.groupId.slice(0, 80) : "",
+    locked: annotation.locked === true,
+    zOrder: Math.min(100000, Math.max(-100000, Math.round(finite(annotation.zOrder))))
   };
   if (["pen", "pencil", "highlighter"].includes(annotation.type)) {
     const points = Array.isArray(annotation.points) ? annotation.points.slice(0, 12000).map(safePoint) : [];
-    return points.length ? { ...base, points } : null;
+    const erasures = Array.isArray(annotation.erasures)
+      ? annotation.erasures.slice(0, 32).filter((item) => Array.isArray(item?.points) && item.points.length > 0)
+        .map((item) => ({ radius: Math.min(80, Math.max(.5, finite(item.radius, 4))), points: item.points.slice(0, 96).map((point) => ({ x: safePoint(point).x, y: safePoint(point).y })) }))
+      : [];
+    return points.length ? { ...base, points, ...(erasures.length ? { erasures } : {}) } : null;
   }
   if (annotation.type === "shape") {
-    const shape = ["line", "arrow", "circle", "ellipse", "square", "rectangle", "triangle"].includes(annotation.shape) ? annotation.shape : "rectangle";
-    return { ...base, shape, start: safePoint(annotation.start), end: safePoint(annotation.end) };
+    const shape = ["line", "arrow", "circle", "ellipse", "square", "rectangle", "rounded", "polygon", "triangle"].includes(annotation.shape) ? annotation.shape : "rectangle";
+    return { ...base, shape, start: safePoint(annotation.start), end: safePoint(annotation.end), dashed: annotation.dashed === true, fill: annotation.fill === true, fillColor: typeof annotation.fillColor === "string" ? annotation.fillColor.slice(0, 32) : base.color };
   }
   if (annotation.type === "text") {
-    const text = typeof annotation.text === "string" ? annotation.text.trim().slice(0, 240) : "";
+    const text = typeof annotation.text === "string" ? annotation.text.trim().slice(0, 1000) : "";
     const align = ["left", "center", "right"].includes(annotation.align) ? annotation.align : "left";
-    return text ? { ...base, x: safePoint(annotation).x, y: safePoint(annotation).y, text, align } : null;
+    return text ? { ...base, x: safePoint(annotation).x, y: safePoint(annotation).y, text, align, bold: annotation.bold === true } : null;
   }
   if (annotation.type === "image") {
     const src = typeof annotation.src === "string" && /^data:image\/(?:png|jpeg|webp|gif);base64,/i.test(annotation.src) ? annotation.src : "";
@@ -73,10 +81,23 @@ export function sanitizeCatalogAnnotation(annotation) {
     return {
       ...base,
       src,
+      kind: annotation.kind === "clip" ? "clip" : "image",
       x: safePoint(annotation).x,
       y: safePoint(annotation).y,
       width: Math.min(900, Math.max(20, finite(annotation.width, 300))),
       height: Math.min(900, Math.max(20, finite(annotation.height, 220)))
+    };
+  }
+  if (annotation.type === "card") {
+    const cardKind = ["sticky", "note", "lined", "revision"].includes(annotation.cardKind) ? annotation.cardKind : "note";
+    return {
+      ...base,
+      cardKind,
+      text: String(annotation.text || "").slice(0, 1200),
+      x: safePoint(annotation).x,
+      y: safePoint(annotation).y,
+      width: Math.min(900, Math.max(120, finite(annotation.width, 290))),
+      height: Math.min(900, Math.max(100, finite(annotation.height, 230)))
     };
   }
   return null;
@@ -90,7 +111,7 @@ export function sanitizeCatalogNote(note) {
   const updatedAt = Number.isFinite(Date.parse(note.updatedAt)) ? new Date(note.updatedAt).toISOString() : createdAt;
   return {
     id: note.id.slice(0, 80),
-    page: Math.max(1, Math.round(finite(note.page, 1))),
+    page: isVirtualPageKey(note.page) ? note.page : Math.max(1, Math.round(finite(note.page, 1))),
     body,
     createdAt,
     updatedAt
@@ -119,7 +140,8 @@ export function serializeCatalogWorkspace(snapshot) {
     scrollTop: Math.max(0, finite(snapshot?.scrollTop, 0)),
     pageOffset: Math.min(1, Math.max(0, finite(snapshot?.pageOffset, 0))),
     annotations,
-    notes
+    notes,
+    virtualPages: sanitizeVirtualPages(snapshot?.virtualPages)
   });
 }
 
@@ -143,7 +165,8 @@ export function parseCatalogWorkspace(value) {
       notes: (Array.isArray(snapshot.notes) ? snapshot.notes : [])
         .slice(-MAX_NOTES)
         .map(sanitizeCatalogNote)
-        .filter(Boolean)
+        .filter(Boolean),
+      virtualPages: sanitizeVirtualPages(snapshot.virtualPages)
     };
   } catch {
     return null;
@@ -221,11 +244,13 @@ export function annotationBounds(annotation) {
       height: Math.max(1, Math.abs(annotation.end.y - annotation.start.y))
     };
   }
-  if (annotation.type === "image") return { x: annotation.x, y: annotation.y, width: annotation.width, height: annotation.height };
+  if (annotation.type === "image" || annotation.type === "card") return { x: annotation.x, y: annotation.y, width: annotation.width, height: annotation.height };
   if (annotation.type === "text") {
-    const width = Math.max(60, annotation.text.length * annotation.width * 2.7);
+    const lines = String(annotation.text || "").split("\n");
+    const fontSize = Math.max(18, annotation.width * 5);
+    const width = Math.max(60, Math.max(...lines.map((line) => line.length)) * fontSize * .56);
     const x = annotation.align === "center" ? annotation.x - width / 2 : annotation.align === "right" ? annotation.x - width : annotation.x;
-    return { x, y: annotation.y - annotation.width * 5, width, height: Math.max(24, annotation.width * 6) };
+    return { x, y: annotation.y - fontSize, width, height: fontSize * (1.2 + (lines.length - 1) * 1.3) };
   }
   return null;
 }
@@ -376,7 +401,7 @@ export function annotationIntersectsPolygon(annotation, polygon) {
 
 export function translateAnnotation(annotation, dx, dy) {
   const move = (point) => ({ ...point, x: Math.min(1000, Math.max(0, point.x + dx)), y: Math.min(1000, Math.max(0, point.y + dy)) });
-  if (["pen", "pencil", "highlighter"].includes(annotation.type)) return { ...annotation, points: annotation.points.map(move) };
+  if (["pen", "pencil", "highlighter"].includes(annotation.type)) return { ...annotation, points: annotation.points.map(move), ...(annotation.erasures ? { erasures: annotation.erasures.map((item) => ({ ...item, points: item.points.map(move) })) } : {}) };
   if (annotation.type === "shape") return { ...annotation, start: move(annotation.start), end: move(annotation.end) };
   return { ...annotation, ...move(annotation) };
 }
@@ -390,9 +415,9 @@ export function resizeAnnotation(annotation, fromBounds, toBounds) {
     y: toBounds.y + (point.y - fromBounds.y) * scaleY
   });
   const scaleWidth = Math.sqrt(Math.max(0.01, scaleX * scaleY));
-  if (["pen", "pencil", "highlighter"].includes(annotation.type)) return { ...annotation, width: annotation.width * scaleWidth, points: annotation.points.map(resize) };
+  if (["pen", "pencil", "highlighter"].includes(annotation.type)) return { ...annotation, width: annotation.width * scaleWidth, points: annotation.points.map(resize), ...(annotation.erasures ? { erasures: annotation.erasures.map((item) => ({ radius: item.radius * scaleWidth, points: item.points.map(resize) })) } : {}) };
   if (annotation.type === "shape") return { ...annotation, width: annotation.width * scaleWidth, start: resize(annotation.start), end: resize(annotation.end) };
-  if (annotation.type === "image") return { ...annotation, ...resize(annotation), width: annotation.width * scaleX, height: annotation.height * scaleY };
+  if (annotation.type === "image" || annotation.type === "card") return { ...annotation, ...resize(annotation), width: annotation.width * scaleX, height: annotation.height * scaleY };
   return { ...annotation, ...resize(annotation), width: annotation.width * scaleWidth };
 }
 
@@ -405,7 +430,7 @@ export function rotateAnnotation(annotation, bounds, radians = Math.PI / 2) {
     x: Math.min(1000, Math.max(0, center.x + (point.x - center.x) * cosine - (point.y - center.y) * sine)),
     y: Math.min(1000, Math.max(0, center.y + (point.x - center.x) * sine + (point.y - center.y) * cosine))
   });
-  if (["pen", "pencil", "highlighter"].includes(annotation.type)) return { ...annotation, points: annotation.points.map(rotate) };
+  if (["pen", "pencil", "highlighter"].includes(annotation.type)) return { ...annotation, points: annotation.points.map(rotate), ...(annotation.erasures ? { erasures: annotation.erasures.map((item) => ({ ...item, points: item.points.map(rotate) })) } : {}) };
   if (annotation.type === "shape") return { ...annotation, start: rotate(annotation.start), end: rotate(annotation.end) };
   const rotated = rotate(annotation);
   if (annotation.type === "image") return { ...annotation, ...rotated, width: annotation.height, height: annotation.width };

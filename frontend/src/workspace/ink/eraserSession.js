@@ -1,4 +1,5 @@
 import { eraseStrokeWithPolyline, strokeIntersectsEraserPath } from "./strokeModel.js";
+import { annotationBounds } from "../catalog/catalogWorkspaceState.js";
 
 /**
  * @typedef {Object} AnnotationCommand
@@ -10,7 +11,8 @@ import { eraseStrokeWithPolyline, strokeIntersectsEraserPath } from "./strokeMod
 function cloneAnnotation(annotation) {
   return {
     ...annotation,
-    points: Array.isArray(annotation?.points) ? annotation.points.map((point) => ({ ...point })) : annotation?.points
+    points: Array.isArray(annotation?.points) ? annotation.points.map((point) => ({ ...point })) : annotation?.points,
+    erasures: Array.isArray(annotation?.erasures) ? annotation.erasures.map((erasure) => ({ radius: erasure.radius, points: erasure.points.map((point) => ({ ...point })) })) : undefined
   };
 }
 
@@ -58,7 +60,7 @@ export function createEraserSession({ idFactory = () => String(globalThis.crypto
     if (materializedRevision === revision) return;
     working.clear();
     for (const original of before.values()) {
-      const result = eraseStrokeWithPolyline(original, path, eraserRadius, eraserMode, idFactory);
+      const result = eraserMode === "object" ? { fragments: [] } : eraseStrokeWithPolyline(original, path, eraserRadius, eraserMode, idFactory);
       working.set(original.id, result.fragments);
     }
     materializedRevision = revision;
@@ -74,8 +76,12 @@ export function createEraserSession({ idFactory = () => String(globalThis.crypto
       eraserMode = nextMode;
       candidateCount += candidates.length;
       for (const original of candidates) {
-        if (!["pen", "pencil", "highlighter"].includes(original?.type)) continue;
-        if (!before.has(original.id) && strokeIntersectsEraserPath(original, previous, point, eraserRadius)) {
+        if (original?.locked) continue;
+        const ink = ["pen", "pencil", "highlighter"].includes(original?.type);
+        if (!ink && eraserMode !== "object") continue;
+        const bounds = annotationBounds(original);
+        const hitsObject = eraserMode === "object" && bounds && [previous, point].some((sample) => sample.x >= bounds.x - eraserRadius && sample.x <= bounds.x + bounds.width + eraserRadius && sample.y >= bounds.y - eraserRadius && sample.y <= bounds.y + bounds.height + eraserRadius);
+        if (!before.has(original.id) && (hitsObject || (ink && strokeIntersectsEraserPath(original, previous, point, eraserRadius, eraserMode !== "precision")))) {
           before.set(original.id, cloneAnnotation(original));
           newlyChangedIds.push(original.id);
         }

@@ -716,7 +716,7 @@ test("scribble coverage rejects one incidental crossing but accepts repeated int
   assert.ok(repeated.intersectionRuns >= 2);
 });
 
-test("eraser session previews fragments and commits one atomic replace command", () => {
+test("eraser session previews a masked stroke and commits one atomic replace command", () => {
   let nextId = 0;
   const original = {
     id: "stroke-1",
@@ -734,18 +734,22 @@ test("eraser session previews fragments and commits one atomic replace command",
   const preview = session.getPreview();
   assert.equal(appended.changed, true);
   assert.deepEqual(preview.hiddenIds, [original.id]);
-  assert.equal(preview.annotations.length, 2);
+  assert.equal(preview.annotations.length, 1);
+  assert.equal(preview.annotations[0].erasures.length, 1);
   const { command, replacements } = session.finish();
   assert.equal(command.type, "replace");
   assert.equal(command.before.length, 1);
-  assert.equal(command.after.length, 2);
-  assert.deepEqual(command.after.map((fragment) => fragment.color), [original.color, original.color]);
+  assert.equal(command.after.length, 1);
+  assert.equal(command.after[0].id, original.id);
+  assert.equal(command.after[0].color, original.color);
+  assert.deepEqual(command.after[0].points, original.points);
+  assert.equal(command.after[0].erasures.length, 1);
   assert.deepEqual(replacements.get(original.id).map((fragment) => fragment.id), command.after.map((fragment) => fragment.id));
   const redone = applyAnnotationCommand([original], command, "redo");
-  assert.deepEqual(applyAnnotationCommand(redone, command, "undo"), [original]);
+  assert.deepEqual(applyAnnotationCommand(redone, command, "undo"), command.before);
 });
 
-test("a long eraser drag is clipped once from the immutable stroke without fragment growth", () => {
+test("a long eraser drag keeps one masked stroke without fragment growth", () => {
   const original = {
     id: "long-stroke",
     page: 1,
@@ -759,8 +763,10 @@ test("a long eraser drag is clipped once from the immutable stroke without fragm
   const path = Array.from({ length: 181 }, (_, index) => ({ x: 500 + Math.sin(index * .3) * 2, y: 220 + index * .9 }));
   const clipped = eraseStrokeWithPolyline(original, path, 7, ERASER_MODE.PRECISION, () => "right-fragment");
   assert.equal(clipped.changed, true);
-  assert.equal(clipped.fragments.length, 2);
-  assert.ok(clipped.fragments.reduce((count, fragment) => count + fragment.points.length, 0) < 700);
+  assert.equal(clipped.fragments.length, 1);
+  assert.deepEqual(clipped.fragments[0].points, original.points);
+  assert.equal(clipped.fragments[0].erasures.length, 1);
+  assert.ok(clipped.fragments[0].erasures[0].points.length <= 96);
 
   const session = createEraserSession({ idFactory: () => "session-right" });
   session.begin(path[0], 1);
@@ -768,8 +774,10 @@ test("a long eraser drag is clipped once from the immutable stroke without fragm
     session.append(path[index], { annotationPage: 1, candidates: [original], radius: 7, mode: ERASER_MODE.PRECISION });
   }
   const preview = session.getPreview();
-  assert.equal(preview.annotations.length, 2);
-  assert.ok(preview.annotations.reduce((count, fragment) => count + fragment.points.length, 0) < 700);
+  assert.equal(preview.annotations.length, 1);
+  assert.deepEqual(preview.annotations[0].points, original.points);
+  assert.equal(preview.annotations[0].erasures.length, 1);
+  assert.ok(preview.annotations[0].erasures[0].points.length <= 96);
   assert.equal(session.getDiagnostics().pathPointCount, path.length);
 });
 
@@ -845,6 +853,13 @@ test("draw-and-hold recognizes a rough line and closed ellipse without changing 
   const roughLine = Array.from({ length: 18 }, (_, index) => ({ x: 40 + index * 18, y: 220 + Math.sin(index * .8) * 2.2, t: index * 12 }));
   const line = recognizeHeldStroke(roughLine);
   assert.equal(line.kind, "line");
+  assert.equal(recognizeHeldStroke([{ x: 40, y: 220 }, { x: 340, y: 220 }]).kind, "line");
+  const naturalDiagonal = Array.from({ length: 14 }, (_, index) => ({
+    x: 40 + index * 15,
+    y: 100 + index * 8 + Math.sin(index * 1.7) * 5,
+    t: index * 18
+  }));
+  assert.equal(recognizeHeldStroke(naturalDiagonal).kind, "line");
   const raw = { id: "held", page: 1, type: "pen", profile: PEN_PROFILE.FOUNTAIN, color: "#239ed1", width: 6, opacity: 1, points: roughLine };
   const shape = recognizedShapeAnnotation(raw, line);
   assert.equal(shape.type, "shape");
@@ -912,7 +927,7 @@ test("freeform and rectangle lasso use real segment geometry and bounded spatial
   assert.ok(Math.abs(rotated.points[0].x - rotated.points[1].x) < .001);
 });
 
-test("precision eraser splits only intersected ink and replace history restores exact geometry", () => {
+test("precision eraser masks only intersected ink and replace history restores exact geometry", () => {
   let split = 0;
   const stroke = {
     id: "stroke-1",
@@ -927,9 +942,12 @@ test("precision eraser splits only intersected ink and replace history restores 
   };
   const erased = eraseStrokeWithPath(stroke, { x: 50, y: 35 }, { x: 50, y: 65 }, 4, ERASER_MODE.PRECISION, () => `split-${++split}`);
   assert.equal(erased.changed, true);
-  assert.equal(erased.fragments.length, 2);
-  assert.ok(Math.max(...erased.fragments[0].points.map((point) => point.x)) < 43);
-  assert.ok(Math.min(...erased.fragments[1].points.map((point) => point.x)) > 57);
+  assert.equal(erased.fragments.length, 1);
+  assert.equal(erased.fragments[0].id, stroke.id);
+  assert.deepEqual(erased.fragments[0].points, stroke.points);
+  assert.equal(erased.fragments[0].erasures.length, 1);
+  assert.equal(erased.fragments[0].erasures[0].radius, 4);
+  assert.deepEqual(erased.fragments[0].erasures[0].points, [{ x: 50, y: 35 }, { x: 50, y: 65 }]);
   assert.ok(erased.fragments.every((fragment) => fragment.color === stroke.color && fragment.profile === stroke.profile));
 
   const command = { type: "replace", before: [stroke], after: erased.fragments };

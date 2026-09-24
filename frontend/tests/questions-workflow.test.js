@@ -7,7 +7,7 @@ test("Questions offers cohort question sources and lists subjects under AI Sheet
     readFile(new URL("../src/pages/Questions.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/lib/i18n.js", import.meta.url), "utf8")
   ]);
-  for (const [id, label] of [["practice", "Practice"], ["years", "Years"], ["aiSheet", "AI Sheet"], ["mix", "Mix"]]) {
+  for (const [id, label] of [["practice", "Practice"], ["years", "Exam Questions"], ["aiSheet", "AI Sheet"], ["mix", "Mix"]]) {
     assert.match(questions, new RegExp(`titleKey: "questions\.${id}"`));
     assert.match(catalogue, new RegExp(`"questions\.${id}": "${label}"`));
   }
@@ -15,11 +15,12 @@ test("Questions offers cohort question sources and lists subjects under AI Sheet
   assert.doesNotMatch(questions, /quizzes/i);
   assert.doesNotMatch(catalogue, /"questions\.quizzes"/);
   assert.match(questions, /id: "ai-sheet".*available: true/);
+  assert.match(questions, /id: "years".*available: true/);
   // The subject list is the server's catalog, not a table compiled into the
   // client: a sheet reaches Questions because the reader's cohort owns the
   // subject it already sits under, so a published question is reachable.
   assert.doesNotMatch(questions, /getCohortMaterials/);
-  assert.match(questions, /catalogWorkspaceApi\.questionMaterials\(\)/);
+  assert.match(questions, /catalogWorkspaceApi\.questionMaterials\(sourceForCategory\(categoryId\)\)/);
   assert.match(questions, /catalogWorkspaceApi\.sheetQuestions\(sheetId/);
   assert.match(questions, /getCohortQuestionCategories\(user\)/);
   assert.match(questions, /t\("questions\.noQuestionsTitle"\)/);

@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 import { withoutServiceWorker } from "./helpers/serviceWorker.js";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
+import { keepRawInk } from "./helpers/workspaceSettings.js";
 
 /**
  * A sheet published from the server, as every production sheet is: it carries
@@ -35,6 +36,7 @@ function createServer() {
 
 async function mockServer(page, server) {
   await withoutServiceWorker(page);
+  await keepRawInk(page);
   await page.addInitScript(() => {
     try { window.localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now())); } catch { /* private mode */ }
   });
