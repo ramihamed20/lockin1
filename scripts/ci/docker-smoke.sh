@@ -120,10 +120,11 @@ docker run --detach --name "$storage_container" --network "$network" --network-a
     --env MINIO_ROOT_USER="$storage_key" \
     --env MINIO_ROOT_PASSWORD="$storage_secret" \
     "$storage_image" server /data > /dev/null
-await "object storage" 30 docker run --rm --network "$network" --entrypoint sh \
-    "$storage_client_image" -c "mc alias set smoke http://storage:9000 $storage_key $storage_secret"
-docker run --rm --network "$network" --entrypoint sh "$storage_client_image" -c \
-    "mc alias set smoke http://storage:9000 $storage_key $storage_secret && mc mb --ignore-existing smoke/$bucket" \
+storage_client_host="http://$storage_key:$storage_secret@storage:9000"
+await "object storage" 30 docker run --rm --network "$network" \
+    --env "MC_HOST_smoke=$storage_client_host" "$storage_client_image" ls smoke
+docker run --rm --network "$network" --env "MC_HOST_smoke=$storage_client_host" \
+    "$storage_client_image" mb --ignore-existing "smoke/$bucket" \
     > /dev/null
 pass "bucket created"
 
