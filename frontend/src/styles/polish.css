@@ -227,6 +227,11 @@
   .dashboard-right .scene-card { border-radius: var(--radius-xl); }
   .review-queue-item { border-radius: var(--radius-md); }
 
+  @media (pointer: coarse) {
+    /* Mobile Safari zooms the viewport when a focused text field is under 16px. */
+    .search-box input { font-size: 16px; }
+  }
+
   @media (min-width: 640px) and (min-height: 560px) {
     .topbar { padding-inline: max(24px, var(--safe-left)) max(24px, var(--safe-right)); }
     .page-shell { padding-inline: clamp(22px, 2.2vw, 36px); }
