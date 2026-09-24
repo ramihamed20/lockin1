@@ -136,6 +136,9 @@
     letter-spacing: -0.005em;
   }
   .btn.compact { min-height: 34px; border-radius: var(--radius-sm); }
+  /* Lifecycle controls sit in the app layer; retain their larger touch target
+     when this later system layer refines the shared button. */
+  .pwa-launch-actions .btn { min-height: 48px; }
   .btn-primary,
   :root[data-theme] .btn-primary { box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 17%, transparent); }
   .field input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
