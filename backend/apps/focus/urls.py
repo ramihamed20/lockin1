@@ -1,6 +1,10 @@
 from django.urls import path
 
-from .paper_workspace_views import PaperWorkspaceMediaAdminView, PaperWorkspaceMediaView
+from .paper_workspace_views import (
+    PaperWorkspaceMediaAdminView,
+    PaperWorkspaceMediaView,
+    PaperWorkspaceYouTubeSearchView,
+)
 from .views import (
     ActiveStudyContinueView,
     ActiveStudyQuizView,
@@ -42,6 +46,11 @@ urlpatterns = [
         "focus/paper-workspace/media",
         PaperWorkspaceMediaView.as_view(),
         name="paper-workspace-media",
+    ),
+    path(
+        "focus/paper-workspace/youtube-search",
+        PaperWorkspaceYouTubeSearchView.as_view(),
+        name="paper-workspace-youtube-search",
     ),
     path(
         "operations/admin/paper-workspace/media",

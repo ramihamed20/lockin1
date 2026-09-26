@@ -1,0 +1,4888 @@
+{
+ "unavailable": {
+  "available": false,
+  "academic_year": null,
+  "from_cohort": true,
+  "configured": false,
+  "options": null,
+  "preferences": null,
+  "timetable": {
+   "days": [],
+   "slots": [],
+   "sessions": []
+  }
+ },
+ "year-1": {
+  "unconfigured": {
+   "available": true,
+   "academic_year": "year-1",
+   "from_cohort": true,
+   "configured": false,
+   "options": {
+    "theory_groups": [
+     "A",
+     "B"
+    ],
+    "practical_groups": [
+     "A",
+     "B",
+     "C",
+     "D"
+    ],
+    "subjects": [
+     "general_anatomy",
+     "histology",
+     "physiology",
+     "biochemistry",
+     "dental_materials",
+     "dental_anatomy"
+    ],
+    "per_subject_overrides": false
+   },
+   "preferences": null,
+   "timetable": {
+    "days": [
+     "sunday",
+     "monday",
+     "tuesday",
+     "wednesday",
+     "thursday"
+    ],
+    "slots": [
+     {
+      "start_time": "08:00",
+      "end_time": "10:00"
+     },
+     {
+      "start_time": "10:00",
+      "end_time": "12:00"
+     },
+     {
+      "start_time": "12:00",
+      "end_time": "14:00"
+     },
+     {
+      "start_time": "14:00",
+      "end_time": "16:00"
+     }
+    ],
+    "sessions": []
+   }
+  },
+  "combos": {
+   "A/A": {
+    "available": true,
+    "academic_year": "year-1",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A",
+      "B",
+      "C",
+      "D"
+     ],
+     "subjects": [
+      "general_anatomy",
+      "histology",
+      "physiology",
+      "biochemistry",
+      "dental_materials",
+      "dental_anatomy"
+     ],
+     "per_subject_overrides": false
+    },
+    "preferences": {
+     "academic_year": "year-1",
+     "theory_group": "A",
+     "default_practical_group": "A",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-AA"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "theory",
+       "subject": "histology",
+       "code": "MS120",
+       "day": "sunday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "histology",
+       "code": "MS120",
+       "day": "sunday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "sunday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "A",
+       "practical_group": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "monday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "biochemistry",
+       "code": "MS140",
+       "day": "monday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "monday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "monday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "general_anatomy",
+       "code": "MS110",
+       "day": "tuesday",
+       "start_time": "09:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "biochemistry",
+       "code": "MS140",
+       "day": "tuesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "general_anatomy",
+       "code": "MS110",
+       "day": "tuesday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "A",
+       "practical_group": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "physiology",
+       "code": "MS130",
+       "day": "wednesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "wednesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A",
+       "practical_group": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "physiology",
+       "code": "MS130",
+       "day": "wednesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "thursday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "thursday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "thursday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "A"
+      }
+     ]
+    }
+   },
+   "A/B": {
+    "available": true,
+    "academic_year": "year-1",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A",
+      "B",
+      "C",
+      "D"
+     ],
+     "subjects": [
+      "general_anatomy",
+      "histology",
+      "physiology",
+      "biochemistry",
+      "dental_materials",
+      "dental_anatomy"
+     ],
+     "per_subject_overrides": false
+    },
+    "preferences": {
+     "academic_year": "year-1",
+     "theory_group": "A",
+     "default_practical_group": "B",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-AB"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "theory",
+       "subject": "histology",
+       "code": "MS120",
+       "day": "sunday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "general_anatomy",
+       "code": "MS110",
+       "day": "sunday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "biochemistry",
+       "code": "MS140",
+       "day": "sunday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "A",
+       "practical_group": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "monday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "biochemistry",
+       "code": "MS140",
+       "day": "monday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "monday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "monday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "general_anatomy",
+       "code": "MS110",
+       "day": "tuesday",
+       "start_time": "09:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "physiology",
+       "code": "MS130",
+       "day": "tuesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "tuesday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "A",
+       "practical_group": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "physiology",
+       "code": "MS130",
+       "day": "wednesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "wednesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A",
+       "practical_group": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "wednesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "thursday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "thursday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "histology",
+       "code": "MS120",
+       "day": "thursday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "B"
+      }
+     ]
+    }
+   },
+   "A/C": {
+    "available": true,
+    "academic_year": "year-1",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A",
+      "B",
+      "C",
+      "D"
+     ],
+     "subjects": [
+      "general_anatomy",
+      "histology",
+      "physiology",
+      "biochemistry",
+      "dental_materials",
+      "dental_anatomy"
+     ],
+     "per_subject_overrides": false
+    },
+    "preferences": {
+     "academic_year": "year-1",
+     "theory_group": "A",
+     "default_practical_group": "C",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-AC"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "theory",
+       "subject": "histology",
+       "code": "MS120",
+       "day": "sunday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "sunday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "C"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "sunday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "A",
+       "practical_group": "C"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "monday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "biochemistry",
+       "code": "MS140",
+       "day": "monday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "general_anatomy",
+       "code": "MS110",
+       "day": "monday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "C"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "monday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "general_anatomy",
+       "code": "MS110",
+       "day": "tuesday",
+       "start_time": "09:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "tuesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "C"
+      },
+      {
+       "kind": "practical",
+       "subject": "physiology",
+       "code": "MS130",
+       "day": "tuesday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "A",
+       "practical_group": "C"
+      },
+      {
+       "kind": "theory",
+       "subject": "physiology",
+       "code": "MS130",
+       "day": "wednesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "histology",
+       "code": "MS120",
+       "day": "wednesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A",
+       "practical_group": "C"
+      },
+      {
+       "kind": "practical",
+       "subject": "biochemistry",
+       "code": "MS140",
+       "day": "wednesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "C"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "thursday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "thursday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "thursday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "C"
+      }
+     ]
+    }
+   },
+   "A/D": {
+    "available": true,
+    "academic_year": "year-1",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A",
+      "B",
+      "C",
+      "D"
+     ],
+     "subjects": [
+      "general_anatomy",
+      "histology",
+      "physiology",
+      "biochemistry",
+      "dental_materials",
+      "dental_anatomy"
+     ],
+     "per_subject_overrides": false
+    },
+    "preferences": {
+     "academic_year": "year-1",
+     "theory_group": "A",
+     "default_practical_group": "D",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-AD"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "theory",
+       "subject": "histology",
+       "code": "MS120",
+       "day": "sunday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "sunday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "D"
+      },
+      {
+       "kind": "practical",
+       "subject": "physiology",
+       "code": "MS130",
+       "day": "sunday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "A",
+       "practical_group": "D"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "monday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "biochemistry",
+       "code": "MS140",
+       "day": "monday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "histology",
+       "code": "MS120",
+       "day": "monday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "D"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "monday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "general_anatomy",
+       "code": "MS110",
+       "day": "tuesday",
+       "start_time": "09:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "tuesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "D"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "tuesday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "A",
+       "practical_group": "D"
+      },
+      {
+       "kind": "theory",
+       "subject": "physiology",
+       "code": "MS130",
+       "day": "wednesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "biochemistry",
+       "code": "MS140",
+       "day": "wednesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A",
+       "practical_group": "D"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "wednesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "D"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "thursday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "thursday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "general_anatomy",
+       "code": "MS110",
+       "day": "thursday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "D"
+      }
+     ]
+    }
+   },
+   "B/A": {
+    "available": true,
+    "academic_year": "year-1",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A",
+      "B",
+      "C",
+      "D"
+     ],
+     "subjects": [
+      "general_anatomy",
+      "histology",
+      "physiology",
+      "biochemistry",
+      "dental_materials",
+      "dental_anatomy"
+     ],
+     "per_subject_overrides": false
+    },
+    "preferences": {
+     "academic_year": "year-1",
+     "theory_group": "B",
+     "default_practical_group": "A",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-BA"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "practical",
+       "subject": "histology",
+       "code": "MS120",
+       "day": "sunday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "sunday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "general_anatomy",
+       "code": "MS110",
+       "day": "sunday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "sunday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "monday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "monday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "biochemistry",
+       "code": "MS140",
+       "day": "tuesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "general_anatomy",
+       "code": "MS110",
+       "day": "tuesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "physiology",
+       "code": "MS130",
+       "day": "tuesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "histology",
+       "code": "MS120",
+       "day": "tuesday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "wednesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "general_anatomy",
+       "code": "MS110",
+       "day": "wednesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "wednesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "physiology",
+       "code": "MS130",
+       "day": "thursday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "thursday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "biochemistry",
+       "code": "MS140",
+       "day": "thursday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "thursday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "B"
+      }
+     ]
+    }
+   },
+   "B/B": {
+    "available": true,
+    "academic_year": "year-1",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A",
+      "B",
+      "C",
+      "D"
+     ],
+     "subjects": [
+      "general_anatomy",
+      "histology",
+      "physiology",
+      "biochemistry",
+      "dental_materials",
+      "dental_anatomy"
+     ],
+     "per_subject_overrides": false
+    },
+    "preferences": {
+     "academic_year": "year-1",
+     "theory_group": "B",
+     "default_practical_group": "B",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-BB"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "practical",
+       "subject": "general_anatomy",
+       "code": "MS110",
+       "day": "sunday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "biochemistry",
+       "code": "MS140",
+       "day": "sunday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "general_anatomy",
+       "code": "MS110",
+       "day": "sunday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "sunday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "monday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "monday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "physiology",
+       "code": "MS130",
+       "day": "tuesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "tuesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "physiology",
+       "code": "MS130",
+       "day": "tuesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "histology",
+       "code": "MS120",
+       "day": "tuesday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "wednesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "general_anatomy",
+       "code": "MS110",
+       "day": "wednesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "wednesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "thursday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "histology",
+       "code": "MS120",
+       "day": "thursday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "biochemistry",
+       "code": "MS140",
+       "day": "thursday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "thursday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "B"
+      }
+     ]
+    }
+   },
+   "B/C": {
+    "available": true,
+    "academic_year": "year-1",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A",
+      "B",
+      "C",
+      "D"
+     ],
+     "subjects": [
+      "general_anatomy",
+      "histology",
+      "physiology",
+      "biochemistry",
+      "dental_materials",
+      "dental_anatomy"
+     ],
+     "per_subject_overrides": false
+    },
+    "preferences": {
+     "academic_year": "year-1",
+     "theory_group": "B",
+     "default_practical_group": "C",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-BC"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "practical",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "sunday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "C"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "sunday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "C"
+      },
+      {
+       "kind": "theory",
+       "subject": "general_anatomy",
+       "code": "MS110",
+       "day": "sunday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "sunday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "general_anatomy",
+       "code": "MS110",
+       "day": "monday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "C"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "monday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "tuesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "C"
+      },
+      {
+       "kind": "practical",
+       "subject": "physiology",
+       "code": "MS130",
+       "day": "tuesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "C"
+      },
+      {
+       "kind": "theory",
+       "subject": "physiology",
+       "code": "MS130",
+       "day": "tuesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "histology",
+       "code": "MS120",
+       "day": "tuesday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "histology",
+       "code": "MS120",
+       "day": "wednesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "C"
+      },
+      {
+       "kind": "theory",
+       "subject": "general_anatomy",
+       "code": "MS110",
+       "day": "wednesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "wednesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "biochemistry",
+       "code": "MS140",
+       "day": "thursday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "C"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "thursday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "C"
+      },
+      {
+       "kind": "theory",
+       "subject": "biochemistry",
+       "code": "MS140",
+       "day": "thursday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "thursday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "B"
+      }
+     ]
+    }
+   },
+   "B/D": {
+    "available": true,
+    "academic_year": "year-1",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A",
+      "B",
+      "C",
+      "D"
+     ],
+     "subjects": [
+      "general_anatomy",
+      "histology",
+      "physiology",
+      "biochemistry",
+      "dental_materials",
+      "dental_anatomy"
+     ],
+     "per_subject_overrides": false
+    },
+    "preferences": {
+     "academic_year": "year-1",
+     "theory_group": "B",
+     "default_practical_group": "D",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-BD"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "practical",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "sunday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "D"
+      },
+      {
+       "kind": "practical",
+       "subject": "physiology",
+       "code": "MS130",
+       "day": "sunday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "D"
+      },
+      {
+       "kind": "theory",
+       "subject": "general_anatomy",
+       "code": "MS110",
+       "day": "sunday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "sunday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "histology",
+       "code": "MS120",
+       "day": "monday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "D"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "monday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "tuesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "D"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "tuesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "D"
+      },
+      {
+       "kind": "theory",
+       "subject": "physiology",
+       "code": "MS130",
+       "day": "tuesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "histology",
+       "code": "MS120",
+       "day": "tuesday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "biochemistry",
+       "code": "MS140",
+       "day": "wednesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "D"
+      },
+      {
+       "kind": "theory",
+       "subject": "general_anatomy",
+       "code": "MS110",
+       "day": "wednesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_materials",
+       "code": "DS110",
+       "day": "wednesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "thursday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "D"
+      },
+      {
+       "kind": "practical",
+       "subject": "general_anatomy",
+       "code": "MS110",
+       "day": "thursday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "D"
+      },
+      {
+       "kind": "theory",
+       "subject": "biochemistry",
+       "code": "MS140",
+       "day": "thursday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "dental_anatomy",
+       "code": "DS120",
+       "day": "thursday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "B"
+      }
+     ]
+    }
+   }
+  }
+ },
+ "year-2": {
+  "unconfigured": {
+   "available": true,
+   "academic_year": "year-2",
+   "from_cohort": true,
+   "configured": false,
+   "options": {
+    "theory_groups": [
+     "A",
+     "B"
+    ],
+    "practical_groups": [
+     "A1",
+     "A2",
+     "B1",
+     "B2",
+     "C1",
+     "C2",
+     "D1",
+     "D2"
+    ],
+    "subjects": [
+     "general_pathology",
+     "microbiology",
+     "pharmacology",
+     "oral_histology",
+     "conservative_endodontics_1",
+     "fixed_prosthodontics_1",
+     "removable_prosthodontics_1"
+    ],
+    "per_subject_overrides": true
+   },
+   "preferences": null,
+   "timetable": {
+    "days": [
+     "sunday",
+     "monday",
+     "tuesday",
+     "wednesday",
+     "thursday"
+    ],
+    "slots": [
+     {
+      "start_time": "08:00",
+      "end_time": "10:00"
+     },
+     {
+      "start_time": "10:00",
+      "end_time": "12:00"
+     },
+     {
+      "start_time": "12:00",
+      "end_time": "14:00"
+     },
+     {
+      "start_time": "14:00",
+      "end_time": "16:00"
+     }
+    ],
+    "sessions": []
+   }
+  },
+  "combos": {
+   "A/A1": {
+    "available": true,
+    "academic_year": "year-2",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1",
+      "C2",
+      "D1",
+      "D2"
+     ],
+     "subjects": [
+      "general_pathology",
+      "microbiology",
+      "pharmacology",
+      "oral_histology",
+      "conservative_endodontics_1",
+      "fixed_prosthodontics_1",
+      "removable_prosthodontics_1"
+     ],
+     "per_subject_overrides": true
+    },
+    "preferences": {
+     "academic_year": "year-2",
+     "theory_group": "A",
+     "default_practical_group": "A1",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-AA1"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "theory",
+       "subject": "general_pathology",
+       "day": "sunday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "fixed_prosthodontics_1",
+       "day": "sunday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "oral_histology",
+       "day": "sunday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "A1"
+      },
+      {
+       "kind": "theory",
+       "subject": "microbiology",
+       "day": "monday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "oral_histology",
+       "day": "monday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "fixed_prosthodontics_1",
+       "day": "monday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "A1"
+      },
+      {
+       "kind": "theory",
+       "subject": "pharmacology",
+       "day": "tuesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "pharmacology",
+       "day": "tuesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "A1"
+      },
+      {
+       "kind": "practical",
+       "subject": "microbiology",
+       "day": "tuesday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "A",
+       "practical_group": "A1"
+      },
+      {
+       "kind": "theory",
+       "subject": "conservative_endodontics_1",
+       "day": "wednesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "removable_prosthodontics_1",
+       "day": "wednesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A",
+       "practical_group": "A1"
+      },
+      {
+       "kind": "practical",
+       "subject": "conservative_endodontics_1",
+       "day": "wednesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "A1"
+      },
+      {
+       "kind": "theory",
+       "subject": "removable_prosthodontics_1",
+       "day": "thursday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "general_pathology",
+       "day": "thursday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "A1"
+      }
+     ]
+    }
+   },
+   "A/A2": {
+    "available": true,
+    "academic_year": "year-2",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1",
+      "C2",
+      "D1",
+      "D2"
+     ],
+     "subjects": [
+      "general_pathology",
+      "microbiology",
+      "pharmacology",
+      "oral_histology",
+      "conservative_endodontics_1",
+      "fixed_prosthodontics_1",
+      "removable_prosthodontics_1"
+     ],
+     "per_subject_overrides": true
+    },
+    "preferences": {
+     "academic_year": "year-2",
+     "theory_group": "A",
+     "default_practical_group": "A2",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-AA2"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "theory",
+       "subject": "general_pathology",
+       "day": "sunday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "fixed_prosthodontics_1",
+       "day": "sunday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "fixed_prosthodontics_1",
+       "day": "sunday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "A2"
+      },
+      {
+       "kind": "theory",
+       "subject": "microbiology",
+       "day": "monday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "oral_histology",
+       "day": "monday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "pharmacology",
+       "day": "tuesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "general_pathology",
+       "day": "tuesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "A2"
+      },
+      {
+       "kind": "practical",
+       "subject": "oral_histology",
+       "day": "tuesday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "A",
+       "practical_group": "A2"
+      },
+      {
+       "kind": "theory",
+       "subject": "conservative_endodontics_1",
+       "day": "wednesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "pharmacology",
+       "day": "wednesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A",
+       "practical_group": "A2"
+      },
+      {
+       "kind": "practical",
+       "subject": "microbiology",
+       "day": "wednesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "A2"
+      },
+      {
+       "kind": "theory",
+       "subject": "removable_prosthodontics_1",
+       "day": "thursday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "conservative_endodontics_1",
+       "day": "thursday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A",
+       "practical_group": "A2"
+      },
+      {
+       "kind": "practical",
+       "subject": "removable_prosthodontics_1",
+       "day": "thursday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "A2"
+      }
+     ]
+    }
+   },
+   "A/B1": {
+    "available": true,
+    "academic_year": "year-2",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1",
+      "C2",
+      "D1",
+      "D2"
+     ],
+     "subjects": [
+      "general_pathology",
+      "microbiology",
+      "pharmacology",
+      "oral_histology",
+      "conservative_endodontics_1",
+      "fixed_prosthodontics_1",
+      "removable_prosthodontics_1"
+     ],
+     "per_subject_overrides": true
+    },
+    "preferences": {
+     "academic_year": "year-2",
+     "theory_group": "A",
+     "default_practical_group": "B1",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-AB1"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "theory",
+       "subject": "general_pathology",
+       "day": "sunday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "fixed_prosthodontics_1",
+       "day": "sunday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "removable_prosthodontics_1",
+       "day": "sunday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "B1"
+      },
+      {
+       "kind": "theory",
+       "subject": "microbiology",
+       "day": "monday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "oral_histology",
+       "day": "monday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "conservative_endodontics_1",
+       "day": "monday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "B1"
+      },
+      {
+       "kind": "theory",
+       "subject": "pharmacology",
+       "day": "tuesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "oral_histology",
+       "day": "tuesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "B1"
+      },
+      {
+       "kind": "practical",
+       "subject": "general_pathology",
+       "day": "tuesday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "A",
+       "practical_group": "B1"
+      },
+      {
+       "kind": "theory",
+       "subject": "conservative_endodontics_1",
+       "day": "wednesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "microbiology",
+       "day": "wednesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A",
+       "practical_group": "B1"
+      },
+      {
+       "kind": "practical",
+       "subject": "pharmacology",
+       "day": "wednesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "B1"
+      },
+      {
+       "kind": "theory",
+       "subject": "removable_prosthodontics_1",
+       "day": "thursday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "fixed_prosthodontics_1",
+       "day": "thursday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A",
+       "practical_group": "B1"
+      }
+     ]
+    }
+   },
+   "A/B2": {
+    "available": true,
+    "academic_year": "year-2",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1",
+      "C2",
+      "D1",
+      "D2"
+     ],
+     "subjects": [
+      "general_pathology",
+      "microbiology",
+      "pharmacology",
+      "oral_histology",
+      "conservative_endodontics_1",
+      "fixed_prosthodontics_1",
+      "removable_prosthodontics_1"
+     ],
+     "per_subject_overrides": true
+    },
+    "preferences": {
+     "academic_year": "year-2",
+     "theory_group": "A",
+     "default_practical_group": "B2",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-AB2"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "theory",
+       "subject": "general_pathology",
+       "day": "sunday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "fixed_prosthodontics_1",
+       "day": "sunday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "conservative_endodontics_1",
+       "day": "sunday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "B2"
+      },
+      {
+       "kind": "theory",
+       "subject": "microbiology",
+       "day": "monday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "oral_histology",
+       "day": "monday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "microbiology",
+       "day": "monday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "B2"
+      },
+      {
+       "kind": "theory",
+       "subject": "pharmacology",
+       "day": "tuesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "pharmacology",
+       "day": "tuesday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "A",
+       "practical_group": "B2"
+      },
+      {
+       "kind": "theory",
+       "subject": "conservative_endodontics_1",
+       "day": "wednesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "general_pathology",
+       "day": "wednesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A",
+       "practical_group": "B2"
+      },
+      {
+       "kind": "practical",
+       "subject": "oral_histology",
+       "day": "wednesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "B2"
+      },
+      {
+       "kind": "theory",
+       "subject": "removable_prosthodontics_1",
+       "day": "thursday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "removable_prosthodontics_1",
+       "day": "thursday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A",
+       "practical_group": "B2"
+      },
+      {
+       "kind": "practical",
+       "subject": "fixed_prosthodontics_1",
+       "day": "thursday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "B2"
+      }
+     ]
+    }
+   },
+   "A/C1": {
+    "available": true,
+    "academic_year": "year-2",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1",
+      "C2",
+      "D1",
+      "D2"
+     ],
+     "subjects": [
+      "general_pathology",
+      "microbiology",
+      "pharmacology",
+      "oral_histology",
+      "conservative_endodontics_1",
+      "fixed_prosthodontics_1",
+      "removable_prosthodontics_1"
+     ],
+     "per_subject_overrides": true
+    },
+    "preferences": {
+     "academic_year": "year-2",
+     "theory_group": "A",
+     "default_practical_group": "C1",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-AC1"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "theory",
+       "subject": "general_pathology",
+       "day": "sunday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "fixed_prosthodontics_1",
+       "day": "sunday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "pharmacology",
+       "day": "sunday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "C1"
+      },
+      {
+       "kind": "theory",
+       "subject": "microbiology",
+       "day": "monday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "oral_histology",
+       "day": "monday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "removable_prosthodontics_1",
+       "day": "monday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "C1"
+      },
+      {
+       "kind": "theory",
+       "subject": "pharmacology",
+       "day": "tuesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "conservative_endodontics_1",
+       "day": "tuesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "C1"
+      },
+      {
+       "kind": "theory",
+       "subject": "conservative_endodontics_1",
+       "day": "wednesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "oral_histology",
+       "day": "wednesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A",
+       "practical_group": "C1"
+      },
+      {
+       "kind": "practical",
+       "subject": "fixed_prosthodontics_1",
+       "day": "wednesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "C1"
+      },
+      {
+       "kind": "theory",
+       "subject": "removable_prosthodontics_1",
+       "day": "thursday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "general_pathology",
+       "day": "thursday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A",
+       "practical_group": "C1"
+      },
+      {
+       "kind": "practical",
+       "subject": "microbiology",
+       "day": "thursday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "C1"
+      }
+     ]
+    }
+   },
+   "A/C2": {
+    "available": true,
+    "academic_year": "year-2",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1",
+      "C2",
+      "D1",
+      "D2"
+     ],
+     "subjects": [
+      "general_pathology",
+      "microbiology",
+      "pharmacology",
+      "oral_histology",
+      "conservative_endodontics_1",
+      "fixed_prosthodontics_1",
+      "removable_prosthodontics_1"
+     ],
+     "per_subject_overrides": true
+    },
+    "preferences": {
+     "academic_year": "year-2",
+     "theory_group": "A",
+     "default_practical_group": "C2",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-AC2"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "theory",
+       "subject": "general_pathology",
+       "day": "sunday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "fixed_prosthodontics_1",
+       "day": "sunday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "microbiology",
+       "day": "sunday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "C2"
+      },
+      {
+       "kind": "theory",
+       "subject": "microbiology",
+       "day": "monday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "oral_histology",
+       "day": "monday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "oral_histology",
+       "day": "monday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "C2"
+      },
+      {
+       "kind": "theory",
+       "subject": "pharmacology",
+       "day": "tuesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "removable_prosthodontics_1",
+       "day": "tuesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "C2"
+      },
+      {
+       "kind": "practical",
+       "subject": "fixed_prosthodontics_1",
+       "day": "tuesday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "A",
+       "practical_group": "C2"
+      },
+      {
+       "kind": "theory",
+       "subject": "conservative_endodontics_1",
+       "day": "wednesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "general_pathology",
+       "day": "wednesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "C2"
+      },
+      {
+       "kind": "theory",
+       "subject": "removable_prosthodontics_1",
+       "day": "thursday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "pharmacology",
+       "day": "thursday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A",
+       "practical_group": "C2"
+      },
+      {
+       "kind": "practical",
+       "subject": "conservative_endodontics_1",
+       "day": "thursday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "C2"
+      }
+     ]
+    }
+   },
+   "A/D1": {
+    "available": true,
+    "academic_year": "year-2",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1",
+      "C2",
+      "D1",
+      "D2"
+     ],
+     "subjects": [
+      "general_pathology",
+      "microbiology",
+      "pharmacology",
+      "oral_histology",
+      "conservative_endodontics_1",
+      "fixed_prosthodontics_1",
+      "removable_prosthodontics_1"
+     ],
+     "per_subject_overrides": true
+    },
+    "preferences": {
+     "academic_year": "year-2",
+     "theory_group": "A",
+     "default_practical_group": "D1",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-AD1"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "theory",
+       "subject": "general_pathology",
+       "day": "sunday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "fixed_prosthodontics_1",
+       "day": "sunday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "general_pathology",
+       "day": "sunday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "D1"
+      },
+      {
+       "kind": "theory",
+       "subject": "microbiology",
+       "day": "monday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "oral_histology",
+       "day": "monday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "pharmacology",
+       "day": "monday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "D1"
+      },
+      {
+       "kind": "theory",
+       "subject": "pharmacology",
+       "day": "tuesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "fixed_prosthodontics_1",
+       "day": "tuesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "D1"
+      },
+      {
+       "kind": "practical",
+       "subject": "removable_prosthodontics_1",
+       "day": "tuesday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "A",
+       "practical_group": "D1"
+      },
+      {
+       "kind": "theory",
+       "subject": "conservative_endodontics_1",
+       "day": "wednesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "conservative_endodontics_1",
+       "day": "wednesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A",
+       "practical_group": "D1"
+      },
+      {
+       "kind": "theory",
+       "subject": "removable_prosthodontics_1",
+       "day": "thursday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "microbiology",
+       "day": "thursday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A",
+       "practical_group": "D1"
+      },
+      {
+       "kind": "practical",
+       "subject": "oral_histology",
+       "day": "thursday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "D1"
+      }
+     ]
+    }
+   },
+   "A/D2": {
+    "available": true,
+    "academic_year": "year-2",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1",
+      "C2",
+      "D1",
+      "D2"
+     ],
+     "subjects": [
+      "general_pathology",
+      "microbiology",
+      "pharmacology",
+      "oral_histology",
+      "conservative_endodontics_1",
+      "fixed_prosthodontics_1",
+      "removable_prosthodontics_1"
+     ],
+     "per_subject_overrides": true
+    },
+    "preferences": {
+     "academic_year": "year-2",
+     "theory_group": "A",
+     "default_practical_group": "D2",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-AD2"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "theory",
+       "subject": "general_pathology",
+       "day": "sunday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "fixed_prosthodontics_1",
+       "day": "sunday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "microbiology",
+       "day": "monday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "theory",
+       "subject": "oral_histology",
+       "day": "monday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "general_pathology",
+       "day": "monday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "D2"
+      },
+      {
+       "kind": "theory",
+       "subject": "pharmacology",
+       "day": "tuesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "microbiology",
+       "day": "tuesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "D2"
+      },
+      {
+       "kind": "practical",
+       "subject": "conservative_endodontics_1",
+       "day": "tuesday",
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "schedule_set": "A",
+       "practical_group": "D2"
+      },
+      {
+       "kind": "theory",
+       "subject": "conservative_endodontics_1",
+       "day": "wednesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "fixed_prosthodontics_1",
+       "day": "wednesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A",
+       "practical_group": "D2"
+      },
+      {
+       "kind": "practical",
+       "subject": "removable_prosthodontics_1",
+       "day": "wednesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "D2"
+      },
+      {
+       "kind": "theory",
+       "subject": "removable_prosthodontics_1",
+       "day": "thursday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "A"
+      },
+      {
+       "kind": "practical",
+       "subject": "oral_histology",
+       "day": "thursday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "A",
+       "practical_group": "D2"
+      },
+      {
+       "kind": "practical",
+       "subject": "pharmacology",
+       "day": "thursday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "A",
+       "practical_group": "D2"
+      }
+     ]
+    }
+   },
+   "B/A1": {
+    "available": true,
+    "academic_year": "year-2",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1",
+      "C2",
+      "D1",
+      "D2"
+     ],
+     "subjects": [
+      "general_pathology",
+      "microbiology",
+      "pharmacology",
+      "oral_histology",
+      "conservative_endodontics_1",
+      "fixed_prosthodontics_1",
+      "removable_prosthodontics_1"
+     ],
+     "per_subject_overrides": true
+    },
+    "preferences": {
+     "academic_year": "year-2",
+     "theory_group": "B",
+     "default_practical_group": "A1",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-BA1"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "practical",
+       "subject": "oral_histology",
+       "day": "sunday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "A1"
+      },
+      {
+       "kind": "theory",
+       "subject": "pharmacology",
+       "day": "sunday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "fixed_prosthodontics_1",
+       "day": "monday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "A1"
+      },
+      {
+       "kind": "practical",
+       "subject": "general_pathology",
+       "day": "monday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "A1"
+      },
+      {
+       "kind": "theory",
+       "subject": "conservative_endodontics_1",
+       "day": "monday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "pharmacology",
+       "day": "tuesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "A1"
+      },
+      {
+       "kind": "practical",
+       "subject": "microbiology",
+       "day": "tuesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "A1"
+      },
+      {
+       "kind": "theory",
+       "subject": "removable_prosthodontics_1",
+       "day": "tuesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "removable_prosthodontics_1",
+       "day": "wednesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "A1"
+      },
+      {
+       "kind": "theory",
+       "subject": "general_pathology",
+       "day": "wednesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "fixed_prosthodontics_1",
+       "day": "wednesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "conservative_endodontics_1",
+       "day": "thursday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "A1"
+      },
+      {
+       "kind": "theory",
+       "subject": "microbiology",
+       "day": "thursday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "oral_histology",
+       "day": "thursday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      }
+     ]
+    }
+   },
+   "B/A2": {
+    "available": true,
+    "academic_year": "year-2",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1",
+      "C2",
+      "D1",
+      "D2"
+     ],
+     "subjects": [
+      "general_pathology",
+      "microbiology",
+      "pharmacology",
+      "oral_histology",
+      "conservative_endodontics_1",
+      "fixed_prosthodontics_1",
+      "removable_prosthodontics_1"
+     ],
+     "per_subject_overrides": true
+    },
+    "preferences": {
+     "academic_year": "year-2",
+     "theory_group": "B",
+     "default_practical_group": "A2",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-BA2"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "practical",
+       "subject": "fixed_prosthodontics_1",
+       "day": "sunday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "A2"
+      },
+      {
+       "kind": "practical",
+       "subject": "conservative_endodontics_1",
+       "day": "sunday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "A2"
+      },
+      {
+       "kind": "theory",
+       "subject": "pharmacology",
+       "day": "sunday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "removable_prosthodontics_1",
+       "day": "monday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "A2"
+      },
+      {
+       "kind": "theory",
+       "subject": "conservative_endodontics_1",
+       "day": "monday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "general_pathology",
+       "day": "tuesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "A2"
+      },
+      {
+       "kind": "practical",
+       "subject": "oral_histology",
+       "day": "tuesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "A2"
+      },
+      {
+       "kind": "theory",
+       "subject": "removable_prosthodontics_1",
+       "day": "tuesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "pharmacology",
+       "day": "wednesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "A2"
+      },
+      {
+       "kind": "theory",
+       "subject": "general_pathology",
+       "day": "wednesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "fixed_prosthodontics_1",
+       "day": "wednesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "microbiology",
+       "day": "thursday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "A2"
+      },
+      {
+       "kind": "theory",
+       "subject": "microbiology",
+       "day": "thursday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "oral_histology",
+       "day": "thursday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      }
+     ]
+    }
+   },
+   "B/B1": {
+    "available": true,
+    "academic_year": "year-2",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1",
+      "C2",
+      "D1",
+      "D2"
+     ],
+     "subjects": [
+      "general_pathology",
+      "microbiology",
+      "pharmacology",
+      "oral_histology",
+      "conservative_endodontics_1",
+      "fixed_prosthodontics_1",
+      "removable_prosthodontics_1"
+     ],
+     "per_subject_overrides": true
+    },
+    "preferences": {
+     "academic_year": "year-2",
+     "theory_group": "B",
+     "default_practical_group": "B1",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-BB1"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "practical",
+       "subject": "removable_prosthodontics_1",
+       "day": "sunday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "B1"
+      },
+      {
+       "kind": "practical",
+       "subject": "fixed_prosthodontics_1",
+       "day": "sunday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "B1"
+      },
+      {
+       "kind": "theory",
+       "subject": "pharmacology",
+       "day": "sunday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "conservative_endodontics_1",
+       "day": "monday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "B1"
+      },
+      {
+       "kind": "theory",
+       "subject": "conservative_endodontics_1",
+       "day": "monday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "oral_histology",
+       "day": "tuesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "B1"
+      },
+      {
+       "kind": "practical",
+       "subject": "general_pathology",
+       "day": "tuesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "B1"
+      },
+      {
+       "kind": "theory",
+       "subject": "removable_prosthodontics_1",
+       "day": "tuesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "microbiology",
+       "day": "wednesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "B1"
+      },
+      {
+       "kind": "theory",
+       "subject": "general_pathology",
+       "day": "wednesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "fixed_prosthodontics_1",
+       "day": "wednesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "pharmacology",
+       "day": "thursday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "B1"
+      },
+      {
+       "kind": "theory",
+       "subject": "microbiology",
+       "day": "thursday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "oral_histology",
+       "day": "thursday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      }
+     ]
+    }
+   },
+   "B/B2": {
+    "available": true,
+    "academic_year": "year-2",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1",
+      "C2",
+      "D1",
+      "D2"
+     ],
+     "subjects": [
+      "general_pathology",
+      "microbiology",
+      "pharmacology",
+      "oral_histology",
+      "conservative_endodontics_1",
+      "fixed_prosthodontics_1",
+      "removable_prosthodontics_1"
+     ],
+     "per_subject_overrides": true
+    },
+    "preferences": {
+     "academic_year": "year-2",
+     "theory_group": "B",
+     "default_practical_group": "B2",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-BB2"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "practical",
+       "subject": "conservative_endodontics_1",
+       "day": "sunday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "B2"
+      },
+      {
+       "kind": "practical",
+       "subject": "removable_prosthodontics_1",
+       "day": "sunday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "B2"
+      },
+      {
+       "kind": "theory",
+       "subject": "pharmacology",
+       "day": "sunday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "microbiology",
+       "day": "monday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "B2"
+      },
+      {
+       "kind": "practical",
+       "subject": "fixed_prosthodontics_1",
+       "day": "monday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "B2"
+      },
+      {
+       "kind": "theory",
+       "subject": "conservative_endodontics_1",
+       "day": "monday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "pharmacology",
+       "day": "tuesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "B2"
+      },
+      {
+       "kind": "theory",
+       "subject": "removable_prosthodontics_1",
+       "day": "tuesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "general_pathology",
+       "day": "wednesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "B2"
+      },
+      {
+       "kind": "theory",
+       "subject": "general_pathology",
+       "day": "wednesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "fixed_prosthodontics_1",
+       "day": "wednesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "oral_histology",
+       "day": "thursday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "B2"
+      },
+      {
+       "kind": "theory",
+       "subject": "microbiology",
+       "day": "thursday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "oral_histology",
+       "day": "thursday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      }
+     ]
+    }
+   },
+   "B/C1": {
+    "available": true,
+    "academic_year": "year-2",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1",
+      "C2",
+      "D1",
+      "D2"
+     ],
+     "subjects": [
+      "general_pathology",
+      "microbiology",
+      "pharmacology",
+      "oral_histology",
+      "conservative_endodontics_1",
+      "fixed_prosthodontics_1",
+      "removable_prosthodontics_1"
+     ],
+     "per_subject_overrides": true
+    },
+    "preferences": {
+     "academic_year": "year-2",
+     "theory_group": "B",
+     "default_practical_group": "C1",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-BC1"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "practical",
+       "subject": "pharmacology",
+       "day": "sunday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "C1"
+      },
+      {
+       "kind": "practical",
+       "subject": "general_pathology",
+       "day": "sunday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "C1"
+      },
+      {
+       "kind": "theory",
+       "subject": "pharmacology",
+       "day": "sunday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "removable_prosthodontics_1",
+       "day": "monday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "C1"
+      },
+      {
+       "kind": "practical",
+       "subject": "microbiology",
+       "day": "monday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "C1"
+      },
+      {
+       "kind": "theory",
+       "subject": "conservative_endodontics_1",
+       "day": "monday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "conservative_endodontics_1",
+       "day": "tuesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "C1"
+      },
+      {
+       "kind": "theory",
+       "subject": "removable_prosthodontics_1",
+       "day": "tuesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "oral_histology",
+       "day": "wednesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "C1"
+      },
+      {
+       "kind": "theory",
+       "subject": "general_pathology",
+       "day": "wednesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "fixed_prosthodontics_1",
+       "day": "wednesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "fixed_prosthodontics_1",
+       "day": "thursday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "C1"
+      },
+      {
+       "kind": "theory",
+       "subject": "microbiology",
+       "day": "thursday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "oral_histology",
+       "day": "thursday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      }
+     ]
+    }
+   },
+   "B/C2": {
+    "available": true,
+    "academic_year": "year-2",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1",
+      "C2",
+      "D1",
+      "D2"
+     ],
+     "subjects": [
+      "general_pathology",
+      "microbiology",
+      "pharmacology",
+      "oral_histology",
+      "conservative_endodontics_1",
+      "fixed_prosthodontics_1",
+      "removable_prosthodontics_1"
+     ],
+     "per_subject_overrides": true
+    },
+    "preferences": {
+     "academic_year": "year-2",
+     "theory_group": "B",
+     "default_practical_group": "C2",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-BC2"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "practical",
+       "subject": "microbiology",
+       "day": "sunday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "C2"
+      },
+      {
+       "kind": "practical",
+       "subject": "pharmacology",
+       "day": "sunday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "C2"
+      },
+      {
+       "kind": "theory",
+       "subject": "pharmacology",
+       "day": "sunday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "oral_histology",
+       "day": "monday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "C2"
+      },
+      {
+       "kind": "practical",
+       "subject": "conservative_endodontics_1",
+       "day": "monday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "C2"
+      },
+      {
+       "kind": "theory",
+       "subject": "conservative_endodontics_1",
+       "day": "monday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "removable_prosthodontics_1",
+       "day": "tuesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "C2"
+      },
+      {
+       "kind": "practical",
+       "subject": "fixed_prosthodontics_1",
+       "day": "tuesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "C2"
+      },
+      {
+       "kind": "theory",
+       "subject": "removable_prosthodontics_1",
+       "day": "tuesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "general_pathology",
+       "day": "wednesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "fixed_prosthodontics_1",
+       "day": "wednesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "general_pathology",
+       "day": "thursday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "C2"
+      },
+      {
+       "kind": "theory",
+       "subject": "microbiology",
+       "day": "thursday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "oral_histology",
+       "day": "thursday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      }
+     ]
+    }
+   },
+   "B/D1": {
+    "available": true,
+    "academic_year": "year-2",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1",
+      "C2",
+      "D1",
+      "D2"
+     ],
+     "subjects": [
+      "general_pathology",
+      "microbiology",
+      "pharmacology",
+      "oral_histology",
+      "conservative_endodontics_1",
+      "fixed_prosthodontics_1",
+      "removable_prosthodontics_1"
+     ],
+     "per_subject_overrides": true
+    },
+    "preferences": {
+     "academic_year": "year-2",
+     "theory_group": "B",
+     "default_practical_group": "D1",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-BD1"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "practical",
+       "subject": "general_pathology",
+       "day": "sunday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "D1"
+      },
+      {
+       "kind": "practical",
+       "subject": "microbiology",
+       "day": "sunday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "D1"
+      },
+      {
+       "kind": "theory",
+       "subject": "pharmacology",
+       "day": "sunday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "pharmacology",
+       "day": "monday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "D1"
+      },
+      {
+       "kind": "practical",
+       "subject": "oral_histology",
+       "day": "monday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "D1"
+      },
+      {
+       "kind": "theory",
+       "subject": "conservative_endodontics_1",
+       "day": "monday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "fixed_prosthodontics_1",
+       "day": "tuesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "D1"
+      },
+      {
+       "kind": "practical",
+       "subject": "removable_prosthodontics_1",
+       "day": "tuesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "D1"
+      },
+      {
+       "kind": "theory",
+       "subject": "removable_prosthodontics_1",
+       "day": "tuesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "conservative_endodontics_1",
+       "day": "wednesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "D1"
+      },
+      {
+       "kind": "theory",
+       "subject": "general_pathology",
+       "day": "wednesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "fixed_prosthodontics_1",
+       "day": "wednesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "microbiology",
+       "day": "thursday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "oral_histology",
+       "day": "thursday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      }
+     ]
+    }
+   },
+   "B/D2": {
+    "available": true,
+    "academic_year": "year-2",
+    "from_cohort": true,
+    "configured": true,
+    "options": {
+     "theory_groups": [
+      "A",
+      "B"
+     ],
+     "practical_groups": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1",
+      "C2",
+      "D1",
+      "D2"
+     ],
+     "subjects": [
+      "general_pathology",
+      "microbiology",
+      "pharmacology",
+      "oral_histology",
+      "conservative_endodontics_1",
+      "fixed_prosthodontics_1",
+      "removable_prosthodontics_1"
+     ],
+     "per_subject_overrides": true
+    },
+    "preferences": {
+     "academic_year": "year-2",
+     "theory_group": "B",
+     "default_practical_group": "D2",
+     "practical_overrides": {},
+     "updated_at": "2026-09-26T10:00:00Z-BD2"
+    },
+    "timetable": {
+     "days": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday"
+     ],
+     "slots": [
+      {
+       "start_time": "08:00",
+       "end_time": "10:00"
+      },
+      {
+       "start_time": "10:00",
+       "end_time": "12:00"
+      },
+      {
+       "start_time": "12:00",
+       "end_time": "14:00"
+      },
+      {
+       "start_time": "14:00",
+       "end_time": "16:00"
+      }
+     ],
+     "sessions": [
+      {
+       "kind": "practical",
+       "subject": "oral_histology",
+       "day": "sunday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "D2"
+      },
+      {
+       "kind": "theory",
+       "subject": "pharmacology",
+       "day": "sunday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "general_pathology",
+       "day": "monday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "D2"
+      },
+      {
+       "kind": "practical",
+       "subject": "pharmacology",
+       "day": "monday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "D2"
+      },
+      {
+       "kind": "theory",
+       "subject": "conservative_endodontics_1",
+       "day": "monday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "microbiology",
+       "day": "tuesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "D2"
+      },
+      {
+       "kind": "practical",
+       "subject": "conservative_endodontics_1",
+       "day": "tuesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B",
+       "practical_group": "D2"
+      },
+      {
+       "kind": "theory",
+       "subject": "removable_prosthodontics_1",
+       "day": "tuesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "fixed_prosthodontics_1",
+       "day": "wednesday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "D2"
+      },
+      {
+       "kind": "theory",
+       "subject": "general_pathology",
+       "day": "wednesday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "fixed_prosthodontics_1",
+       "day": "wednesday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "practical",
+       "subject": "removable_prosthodontics_1",
+       "day": "thursday",
+       "start_time": "08:00",
+       "end_time": "10:00",
+       "schedule_set": "B",
+       "practical_group": "D2"
+      },
+      {
+       "kind": "theory",
+       "subject": "microbiology",
+       "day": "thursday",
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "schedule_set": "B"
+      },
+      {
+       "kind": "theory",
+       "subject": "oral_histology",
+       "day": "thursday",
+       "start_time": "12:00",
+       "end_time": "14:00",
+       "schedule_set": "B"
+      }
+     ]
+    }
+   }
+  }
+ }
+}

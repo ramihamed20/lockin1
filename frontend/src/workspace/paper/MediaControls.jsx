@@ -3,6 +3,7 @@ import { useI18n } from "../../components/I18nProvider.jsx";
 import { Icon } from "../../lib/icons.jsx";
 import { cssVars } from "../../lib/utils.js";
 import { YOUTUBE_EMBED_ORIGIN } from "../../lib/youtube.js";
+import { renderLofiLoop } from "./lofiAudio.js";
 import { IDLE_DELAY_MS, SKIP_SECONDS, formatMediaTime, skipTarget } from "./mediaTime.js";
 
 /**
@@ -10,15 +11,16 @@ import { IDLE_DELAY_MS, SKIP_SECONDS, formatMediaTime, skipTarget } from "./medi
  *
  * Every source exposes the same shape, so the bar never branches on where the
  * picture comes from:
- *   { canPlay, canSeek, hasAudio, playing, time, duration, volume, muted,
+ *   { canPlay, canSeek, hasAudio, needsTap, playing, time, duration, volume, muted,
  *     toggle(), seekTo(seconds, final), skip(delta), setVolume(0..1), toggleMute() }
  *
  * - an admin video is a real <video> element;
  * - a YouTube embed is driven over postMessage (see lib/youtube.js);
- * - the built-in canvas scene can only play or pause its animation.
+ * - the default lofi (the built-in scene, or an admin image) plays and pauses
+ *   its generated soundtrack (lofiAudio.js) together with the animation.
  */
 
-const NO_MEDIA = { canPlay: false, canSeek: false, hasAudio: false, playing: false, time: 0, duration: 0, volume: 1, muted: false, toggle() {}, seekTo() {}, skip() {}, setVolume() {}, toggleMute() {} };
+const NO_MEDIA = { canPlay: false, canSeek: false, hasAudio: false, needsTap: false, playing: false, time: 0, duration: 0, volume: 1, muted: false, toggle() {}, seekTo() {}, skip() {}, setVolume() {}, toggleMute() {} };
 
 function reducedMotion() {
   return typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches);
@@ -58,6 +60,7 @@ export function useVideoMedia(ref, { enabled, src }) {
     canPlay: true,
     canSeek: state.duration > 0,
     hasAudio: true,
+    needsTap: false,
     toggle: () => {
       const video = ref.current;
       if (!video) return;
@@ -79,6 +82,10 @@ export function useVideoMedia(ref, { enabled, src }) {
 /** A YouTube embed, driven through the iframe API's postMessage protocol. */
 export function useYouTubeMedia(frameRef, videoId) {
   const [state, setState] = useState({ playing: false, time: 0, duration: 0, volume: 1, muted: false });
+  // Until the video has played once, taps go to the embed itself: iPad and
+  // iPhone Safari only start an embedded video with sound from a tap inside
+  // its frame, never from a command sent by the page.
+  const [started, setStarted] = useState(false);
 
   const command = useCallback((func, args = []) => {
     frameRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func, args, id: 1, channel: "widget" }), YOUTUBE_EMBED_ORIGIN);
@@ -88,6 +95,7 @@ export function useYouTubeMedia(frameRef, videoId) {
     const frame = frameRef.current;
     if (!videoId || !frame) return undefined;
     setState({ playing: false, time: 0, duration: 0, volume: 1, muted: false });
+    setStarted(false);
     let heard = false;
     const listen = () => frame.contentWindow?.postMessage(JSON.stringify({ event: "listening", id: 1, channel: "widget" }), YOUTUBE_EMBED_ORIGIN);
     // The player only reports once it has been asked to, and it may not be
@@ -101,6 +109,7 @@ export function useYouTubeMedia(frameRef, videoId) {
       if (!data || typeof data !== "object") return;
       heard = true;
       const info = data.info;
+      if (info === 1 || info?.playerState === 1) setStarted(true);
       if (data.event === "onStateChange" && typeof info === "number") {
         setState((current) => ({ ...current, playing: info === 1 || info === 3 }));
         return;
@@ -134,6 +143,7 @@ export function useYouTubeMedia(frameRef, videoId) {
     canPlay: true,
     canSeek: state.duration > 0,
     hasAudio: true,
+    needsTap: !started,
     toggle: () => {
       setState((current) => ({ ...current, playing: !current.playing }));
       command(state.playing ? "pauseVideo" : "playVideo");
@@ -153,9 +163,80 @@ export function useYouTubeMedia(frameRef, videoId) {
   };
 }
 
-/** The canvas scene has no timeline or sound: it can only play or pause. */
-export function sceneMedia(playing, setPlaying) {
-  return { ...NO_MEDIA, canPlay: true, playing, toggle: () => setPlaying((value) => !value) };
+/**
+ * The default lofi: its animation (when there is one) and its generated
+ * soundtrack play and pause together. The sound is built on first play and
+ * fades rather than clicks on every change. A browser that refuses to start
+ * audio before a gesture gets it on the reader's next tap or key.
+ */
+export function useLofiMedia({ enabled, playing, setPlaying }) {
+  const [level, setLevel] = useState({ volume: 0.7, muted: false });
+  const engineRef = useRef(/** @type {{ context: AudioContext, gain: GainNode, closed: boolean } | null} */ (null));
+  const supported = typeof window !== "undefined" && Boolean(window.AudioContext || /** @type {any} */ (window).webkitAudioContext);
+  const on = enabled && playing;
+
+  useEffect(() => {
+    if (!on || engineRef.current || !supported) return;
+    const Context = window.AudioContext || /** @type {any} */ (window).webkitAudioContext;
+    const context = /** @type {AudioContext} */ (new Context());
+    const gain = context.createGain();
+    gain.gain.value = 0;
+    gain.connect(context.destination);
+    const engine = { context, gain, closed: false };
+    engineRef.current = engine;
+    // Synthesized after this commit, off the render that started playing.
+    Promise.resolve().then(() => renderLofiLoop(context)).then((buffer) => {
+      if (!buffer || engine.closed) return;
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      source.connect(gain);
+      source.start();
+    }).catch(() => { /* no sound; the scene still plays */ });
+  }, [on, supported]);
+
+  useEffect(() => () => {
+    const engine = engineRef.current;
+    if (!engine) return;
+    engine.closed = true;
+    engineRef.current = null;
+    engine.context.close().catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!engine) return undefined;
+    const { context, gain } = engine;
+    // Squared, so the slider feels even to the ear.
+    const target = on && !level.muted ? level.volume * level.volume : 0;
+    gain.gain.setTargetAtTime(target, context.currentTime, 0.12);
+    if (!on) {
+      const id = window.setTimeout(() => { if (context.state === "running") context.suspend().catch(() => {}); }, 600);
+      return () => window.clearTimeout(id);
+    }
+    const resume = () => { if (context.state !== "running") context.resume().catch(() => {}); };
+    resume();
+    const gestures = ["pointerdown", "keydown", "touchend"];
+    const onGesture = () => { resume(); gestures.forEach((name) => document.removeEventListener(name, onGesture, true)); };
+    gestures.forEach((name) => document.addEventListener(name, onGesture, true));
+    return () => gestures.forEach((name) => document.removeEventListener(name, onGesture, true));
+  }, [on, level]);
+
+  if (!enabled) return NO_MEDIA;
+  return {
+    ...NO_MEDIA,
+    canPlay: true,
+    playing,
+    hasAudio: supported,
+    volume: level.volume,
+    muted: level.muted,
+    toggle: () => setPlaying((value) => !value),
+    setVolume: (value) => {
+      const volume = Math.min(1, Math.max(0, value));
+      setLevel((current) => ({ volume, muted: volume > 0 ? false : current.muted }));
+    },
+    toggleMute: () => setLevel((current) => ({ ...current, muted: !current.muted }))
+  };
 }
 
 /**

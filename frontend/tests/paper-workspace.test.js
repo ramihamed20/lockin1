@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
-import { parseYouTubeVideoId, youTubeEmbedUrl, youTubeSearchUrl } from "../src/lib/youtube.js";
+import { parseYouTubeVideoId, youTubeEmbedUrl } from "../src/lib/youtube.js";
 
 const ID = "dQw4w9WgXcQ";
 
@@ -29,10 +29,49 @@ test("text that is not a YouTube video is not treated as one", () => {
 test("the embed uses the privacy-enhanced host that the CSP admits", async () => {
   assert.match(youTubeEmbedUrl(ID), /^https:\/\/www\.youtube-nocookie\.com\/embed\/dQw4w9WgXcQ\?/);
   assert.equal(youTubeEmbedUrl("not an id"), "");
-  assert.equal(youTubeSearchUrl(" oral histology "), "https://www.youtube.com/results?search_query=oral+histology");
   for (const path of ["../nginx/default.conf", "../../deploy/container-host/nginx.conf.template"]) {
     const config = await readFile(new URL(path, import.meta.url), "utf8");
     assert.match(config, /frame-src 'self' https:\/\/www\.youtube-nocookie\.com;/, path);
+    // Search result thumbnails, and nothing else from YouTube's image host.
+    assert.match(config, /img-src 'self' blob: https:\/\/i\.ytimg\.com;/, path);
+  }
+});
+
+test("search stays inside Lock-in: nothing links or opens youtube.com", async () => {
+  const [page, youtube] = await Promise.all([
+    readFile(new URL("../src/pages/PaperWorkspace.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/lib/youtube.js", import.meta.url), "utf8")
+  ]);
+  assert.doesNotMatch(page, /window\.open|target="_blank"|youtube\.com\/results/);
+  assert.doesNotMatch(youtube, /youtube\.com\/results/);
+  assert.match(page, /focusApi\.searchYouTube\(/);
+});
+
+test("the synthesized lofi loop is audible, never clips, and needs no Web Audio to build", async () => {
+  const { synthesizeLofiLoop, LOFI_LOOP_SECONDS } = await import("../src/workspace/paper/lofiAudio.js");
+  const samples = synthesizeLofiLoop();
+  assert.equal(samples.length, Math.ceil(LOFI_LOOP_SECONDS * 24000));
+  let peak = 0;
+  let energy = 0;
+  for (const value of samples) {
+    assert.ok(Number.isFinite(value));
+    peak = Math.max(peak, Math.abs(value));
+    energy += value * value;
+  }
+  assert.ok(peak < 1, `peak ${peak}`);
+  assert.ok(Math.sqrt(energy / samples.length) > 0.05, "too quiet to hear");
+  // The same loop for everyone.
+  assert.deepEqual(synthesizeLofiLoop().subarray(0, 64), samples.subarray(0, 64));
+});
+
+test("the lofi soundtrack is one seamless loop of whole bars", async () => {
+  const { lofiScore, LOFI_LOOP_SECONDS } = await import("../src/workspace/paper/lofiAudio.js");
+  const events = lofiScore();
+  assert.ok(LOFI_LOOP_SECONDS > 20 && LOFI_LOOP_SECONDS < 40);
+  assert.ok(events.some((event) => event.kind === "keys") && events.some((event) => event.kind === "bass"));
+  for (const event of events) {
+    assert.ok(event.time >= 0 && event.time < LOFI_LOOP_SECONDS, `${event.kind} at ${event.time}`);
+    assert.ok(event.gain > 0 && event.gain <= 1);
   }
 });
 

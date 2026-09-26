@@ -41,6 +41,21 @@ export const focusApi = {
     return objectPayload(await request("/focus/paper-workspace/media"), "The workspace media could not be loaded.");
   },
 
+  /**
+   * Embeddable YouTube videos for the Paper Workspace search box. The server
+   * holds the API key; only ids, titles, channels and thumbnails come back.
+   * @param {string} query
+   * @returns {Promise<Array<{ video_id: string, title: string, channel_title: string, thumbnail: string }>>}
+   */
+  async searchYouTube(query) {
+    const payload = objectPayload(
+      await request(`/focus/paper-workspace/youtube-search${buildQueryString({ q: query })}`),
+      "YouTube search failed."
+    );
+    if (!Array.isArray(payload.results)) throw new ApiError(500, payload, "YouTube search failed.", "invalid_response");
+    return /** @type {any[]} */ (payload.results).filter((item) => item && typeof item.video_id === "string");
+  },
+
   async getManagedActiveStudyAvailability(sheetId, edition = "") {
     return objectPayload(await request(`/focus/managed-active-study/sheets/${sheetId}` + (edition ? `?edition=${encodeURIComponent(edition)}` : "")), "Active Study availability could not be loaded.");
   },

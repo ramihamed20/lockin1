@@ -22,6 +22,15 @@ from .paper_workspace import (
     save_media,
     student_payload,
 )
+from .youtube_search import (
+    MAX_QUERY_LENGTH,
+    YouTubeQuotaExceeded,
+    YouTubeSearchError,
+    YouTubeSearchRateLimited,
+    YouTubeSearchUnavailable,
+    normalize_query,
+    search_videos,
+)
 
 
 class PaperWorkspaceMediaRejected(APIException):
@@ -32,6 +41,34 @@ class PaperWorkspaceMediaRejected(APIException):
 class PaperWorkspaceMediaStale(APIException):
     status_code = status.HTTP_409_CONFLICT
     default_code = "paper_workspace_media_conflict"
+
+
+class YouTubeSearchNotConfigured(APIException):
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    default_code = "youtube_search_unavailable"
+    default_detail = "YouTube search is not available right now. Paste a video link instead."
+
+
+class YouTubeSearchQuota(APIException):
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    default_code = "youtube_quota_exceeded"
+    default_detail = "YouTube search is busy right now. Try again later or paste a video link."
+
+
+class YouTubeSearchTooOften(APIException):
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    default_code = "youtube_search_rate_limited"
+    default_detail = "Too many searches. Wait a few minutes and try again."
+
+
+class YouTubeSearchUpstream(APIException):
+    status_code = status.HTTP_502_BAD_GATEWAY
+    default_code = "youtube_search_failed"
+    default_detail = "YouTube search failed. Try again."
+
+
+class YouTubeSearchQuerySerializer(StrictSerializer):
+    q = serializers.CharField(max_length=MAX_QUERY_LENGTH * 2, trim_whitespace=True)
 
 
 def _actor(request: Request) -> User:
@@ -124,3 +161,32 @@ class PaperWorkspaceMediaAdminView(APIView):
             )
         except PaperWorkspaceMediaError as error:
             raise _translate(error) from error
+
+
+class PaperWorkspaceYouTubeSearchView(APIView):
+    """Embeddable YouTube videos for the Paper Workspace player's search box."""
+
+    @extend_schema(
+        operation_id="paper_workspace_youtube_search",
+        parameters=[YouTubeSearchQuerySerializer],
+        responses={200: OpenApiTypes.OBJECT},
+    )
+    def get(self, request: Request) -> Response:
+        actor = _actor(request)
+        require_entitlement(user=actor, entitlement_code="focus.workspace")
+        serializer = YouTubeSearchQuerySerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        query = normalize_query(serializer.validated_data["q"])
+        if not query:
+            raise PaperWorkspaceMediaRejected("Type something to search for.")
+        try:
+            results = search_videos(query=query, user_id=actor.pk)
+        except YouTubeSearchUnavailable as error:
+            raise YouTubeSearchNotConfigured() from error
+        except YouTubeQuotaExceeded as error:
+            raise YouTubeSearchQuota() from error
+        except YouTubeSearchRateLimited as error:
+            raise YouTubeSearchTooOften() from error
+        except YouTubeSearchError as error:
+            raise YouTubeSearchUpstream() from error
+        return Response({"query": query, "results": results})

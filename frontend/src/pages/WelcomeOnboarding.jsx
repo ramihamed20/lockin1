@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authApi } from "../lib/api.js";
+import { myGroupApi } from "../api/myGroup.js";
+import { MyGroupFlow } from "../components/myGroup/MyGroupControls.jsx";
 import { useSubscriptionSession } from "../lib/SubscriptionSessionContext.jsx";
 import { formatDateTime } from "../lib/i18n.js";
 import { assetPath, autoThemeForDate, normalizeThemeSettings } from "../lib/utils.js";
@@ -22,6 +24,22 @@ export default function WelcomeOnboarding({ user, onUserUpdate, onThemeSettingsC
   const [preferences, setPreferences] = useState(() => initialPreferences(user, locale));
   const [pending, setPending] = useState("");
   const [error, setError] = useState("");
+  // A new University of Tripoli Dentistry student (Year 1 or Year 2) picks
+  // their groups first, now that the cohort is known. Anyone else, and anyone
+  // the request fails for, goes straight to the welcome screen; "Set up later"
+  // leaves the Dashboard's invitation to do it.
+  const [myGroup, setMyGroup] = useState(/** @type {{ stage: "checking" | "choose" | "done", options?: any }} */ ({ stage: "checking" }));
+  useEffect(() => {
+    let cancelled = false;
+    myGroupApi.get()
+      .then((payload) => {
+        if (cancelled) return;
+        const choose = payload.available && payload.from_cohort && !payload.configured && payload.options;
+        setMyGroup(choose ? { stage: "choose", options: payload.options } : { stage: "done" });
+      })
+      .catch(() => { if (!cancelled) setMyGroup({ stage: "done" }); });
+    return () => { cancelled = true; };
+  }, []);
   const previewTheme = preferences.settings.autoTheme
     ? autoThemeForDate()
     : preferences.settings.theme;
@@ -60,7 +78,7 @@ export default function WelcomeOnboarding({ user, onUserUpdate, onThemeSettingsC
     }
   }
 
-  if (!subscriptionSession.ready) return <LoadingPanel />;
+  if (!subscriptionSession.ready || myGroup.stage === "checking") return <LoadingPanel />;
   if (subscriptionSession.error || !subscriptionSession.subscription) {
     return <ErrorPanel message={subscriptionSession.error || t("welcome.error")} onRetry={subscriptionSession.refresh} />;
   }
@@ -70,6 +88,30 @@ export default function WelcomeOnboarding({ user, onUserUpdate, onThemeSettingsC
   const trialDays = Number.isFinite(trialSpan) && trialSpan > 0
     ? Math.round(trialSpan / 86_400_000)
     : 7;
+
+  if (myGroup.stage === "choose") {
+    return (
+      <main className="welcome-onboarding" data-preview-theme={previewTheme} dir={direction}>
+        <div className="welcome-onboarding-shell welcome-onboarding-shell--group">
+          <header className="welcome-onboarding-header">
+            <span className="welcome-brand">
+              <img src={assetPath("/icons/lockin-light-192-v2.png")} width="40" height="40" alt="" />
+              <strong>Lock-in</strong>
+            </span>
+          </header>
+          <section className="welcome-onboarding-content welcome-group-step">
+            <MyGroupFlow
+              options={myGroup.options}
+              idPrefix="welcome-my-group"
+              headingLevel={1}
+              onSaved={() => setMyGroup({ stage: "done" })}
+              onSkip={() => setMyGroup({ stage: "done" })}
+            />
+          </section>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="welcome-onboarding" data-preview-theme={previewTheme} dir={direction}>

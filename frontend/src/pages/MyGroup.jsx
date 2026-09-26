@@ -3,17 +3,19 @@ import { useSearchParams } from "react-router-dom";
 import { myGroupApi } from "../api/myGroup.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { useI18n } from "../components/I18nProvider.jsx";
-import { ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
-import { GroupBadge, GroupChoice, MyGroupSetup } from "../components/myGroup/MyGroupControls.jsx";
+import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
+import { GroupBadge, GroupChoice, MyGroupFlow } from "../components/myGroup/MyGroupControls.jsx";
 import {
   PRACTICAL_GROUPS,
   SUBJECT_KEYS,
   THEORY_GROUPS,
+  clockLabel,
   draftFromPreferences,
   practicalChoices,
+  sessionsByDay,
   slotLabel,
   subjectLabel,
-  timetableGrid,
+  timetableRows,
   withPracticalChoice
 } from "../lib/myGroup.js";
 
@@ -22,25 +24,44 @@ export default function MyGroup() {
   const remote = useAsyncData((signal) => myGroupApi.get(signal), []);
   const [saved, setSaved] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
-  const customizing = searchParams.get("customize") === "1";
+  const panel = searchParams.get("customize") === "1" ? "customize" : searchParams.get("change") === "1" ? "change" : "";
   const data = saved || remote.data;
 
-  function setCustomizing(open) {
-    setSearchParams(open ? { customize: "1" } : {}, { replace: true });
+  function openPanel(name) {
+    setSearchParams(name ? { [name]: "1" } : {}, { replace: true });
   }
 
   if (remote.loading && !data) return <LoadingPanel />;
   if (remote.error && !data) return <ErrorPanel message={t("myGroup.loadError")} onRetry={remote.reload} />;
 
-  if (!data.configured) {
+  if (!data.available) {
     return (
       <Page title="My Group" showHeading={false}>
-        <section className="panel mg-page-card mg-card--setup"><MyGroupSetup idPrefix="page-my-group" onSaved={setSaved} /></section>
+        <section className="panel mg-page-card mg-card--setup">
+          <EmptyState title={t("myGroup.title")} text={t("myGroup.unavailable")} />
+        </section>
       </Page>
     );
   }
 
-  const { preferences, timetable } = data;
+  if (!data.configured) {
+    return (
+      <Page title="My Group" showHeading={false} headingHandled>
+        <section className="panel mg-page-card mg-card--setup">
+          <MyGroupFlow options={data.options} idPrefix="page-my-group" headingLevel={1} onSaved={setSaved} />
+        </section>
+      </Page>
+    );
+  }
+
+  const { preferences, timetable, options } = data;
+  const canCustomize = Boolean(options?.per_subject_overrides);
+  const current = {
+    theoryGroup: preferences.theory_group,
+    practicalGroup: preferences.default_practical_group,
+    practicalOverrides: draftFromPreferences(preferences).practicalOverrides
+  };
+  const onSaved = (next) => { setSaved(next); openPanel(""); };
   return (
     <Page title="My Group" showHeading={false} headingHandled>
       <section className="panel mg-page-card" aria-labelledby="my-group-heading">
@@ -54,24 +75,46 @@ export default function MyGroup() {
               <GroupBadge labelKey="myGroup.theory" code={preferences.theory_group} />
               <GroupBadge labelKey="myGroup.practical" code={preferences.default_practical_group} />
             </span>
-            <button type="button" className={`btn compact ${customizing ? "btn-primary" : "btn-soft"}`} aria-expanded={customizing} aria-controls="my-group-customize" onClick={() => setCustomizing(!customizing)}>{t("myGroup.customize")}</button>
+            <button type="button" className={`btn compact ${panel === "change" ? "btn-primary" : "btn-soft"}`} aria-expanded={panel === "change"} aria-controls="my-group-change" onClick={() => openPanel(panel === "change" ? "" : "change")}>{t("myGroup.changeGroup")}</button>
+            {canCustomize && <button type="button" className={`btn compact ${panel === "customize" ? "btn-primary" : "btn-soft"}`} aria-expanded={panel === "customize"} aria-controls="my-group-customize" onClick={() => openPanel(panel === "customize" ? "" : "customize")}>{t("myGroup.customize")}</button>}
           </div>
         </header>
-        {customizing && <CustomizePanel key={preferences.updated_at} preferences={preferences} onSaved={(next) => { setSaved(next); setCustomizing(false); }} />}
+        {panel === "change" && (
+          <div id="my-group-change" className="mg-change-panel">
+            <MyGroupFlow key={preferences.updated_at} options={options} initial={current} mode="change" idPrefix="change-my-group" onSaved={onSaved} onCancel={() => openPanel("")} />
+          </div>
+        )}
+        {panel === "customize" && canCustomize && <CustomizePanel key={preferences.updated_at} preferences={preferences} onSaved={onSaved} />}
         <Timetable timetable={timetable} />
-        <p className="mg-legend" aria-hidden="true"><span className="mg-dot mg-dot--theory" />{t("myGroup.theory")}<span className="mg-dot mg-dot--practical" />{t("myGroup.practical")}</p>
       </section>
     </Page>
   );
 }
 
-function sessionLabel(t, session) {
-  return `${subjectLabel(t, session.subject)}, ${t(session.kind === "theory" ? "myGroup.theory" : "myGroup.practical")}`;
+const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+
+/**
+ * "Theory · A" / "Practical · A1" (Year 2), "Theory · MS110" (Year 1): the kind
+ * in words, so colour is never the only cue. Year 1 shows the course code the
+ * official sheets use; its groups are already in the page header.
+ */
+function SessionMeta({ session }) {
+  const { t } = useI18n();
+  const code = session.code || (session.kind === "practical" ? session.practical_group : session.schedule_set);
+  return (
+    <span className="mg-session-meta">
+      {t(session.kind === "theory" ? "myGroup.theory" : "myGroup.practical")}
+      {code ? <> · <bdi dir="ltr">{code}</bdi></> : null}
+    </span>
+  );
 }
 
 function Timetable({ timetable }) {
   const { t } = useI18n();
-  const rows = timetableGrid(timetable);
+  const rows = timetableRows(timetable);
+  const days = sessionsByDay(timetable);
+  const today = WEEKDAYS[new Date().getDay()];
+  const todayLabel = <span className="mg-today">{t("myGroup.today")}</span>;
   return (
     <>
       <div className="mg-grid-scroll">
@@ -80,17 +123,27 @@ function Timetable({ timetable }) {
           <thead>
             <tr>
               <th scope="col">{t("myGroup.day")}</th>
-              {timetable.slots.map((slot) => <th scope="col" key={slot.start_time}><bdi>{slotLabel(t, slot)}</bdi></th>)}
+              {timetable.slots.map((slot) => (
+                <th scope="col" key={slot.start_time} aria-label={slotLabel(t, slot)}>
+                  <bdi><span className="mg-slot-start">{clockLabel(t, slot.start_time)}</span> <span className="mg-slot-end">{t("myGroup.until", { time: clockLabel(t, slot.end_time) })}</span></bdi>
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {timetable.days.map((day, dayIndex) => (
-              <tr key={day}>
-                <th scope="row">{t(`myGroup.day.${day}`)}</th>
-                {rows[dayIndex].map((sessions, slotIndex) => (
-                  <td key={timetable.slots[slotIndex].start_time} className={sessions.length ? "" : "is-empty"}>
+            {rows.map(({ day, cells }) => (
+              <tr key={day} className={day === today ? "is-today" : undefined} aria-current={day === today ? "date" : undefined}>
+                <th scope="row"><span className="mg-day-name">{t(`myGroup.day.${day}`)}</span>{day === today && todayLabel}</th>
+                {cells.map(({ slotIndex, span, sessions }) => (
+                  <td key={timetable.slots[slotIndex].start_time} colSpan={span > 1 ? span : undefined} className={sessions.length ? "" : "is-empty"}>
                     {sessions.length > 0 && <div className={`mg-cell-stack${sessions.length > 1 ? " is-clash" : ""}`} title={sessions.length > 1 ? t("myGroup.clash") : undefined}>
-                      {sessions.map((session) => <span key={`${session.kind}-${session.subject}`} className={`mg-session mg-session--${session.kind}`} aria-label={sessionLabel(t, session)}>{subjectLabel(t, session.subject)}</span>)}
+                      {sessions.map((session) => (
+                        <span key={`${session.kind}-${session.subject}-${session.start_time}`} className={`mg-session mg-session--${session.kind}`}>
+                          <span className="mg-session-name">{subjectLabel(t, session.subject)}</span>
+                          <SessionMeta session={session} />
+                          {session.offSlot && <bdi className="mg-session-time">{slotLabel(t, session)}</bdi>}
+                        </span>
+                      ))}
                     </div>}
                   </td>
                 ))}
@@ -99,24 +152,24 @@ function Timetable({ timetable }) {
           </tbody>
         </table>
       </div>
-      {/* Phones get the same data as a day list rather than a crushed grid. */}
+      {/* Phones and narrow cards get the same week as a day list, in time order. */}
       <ol className="mg-agenda">
-        {timetable.days.map((day, dayIndex) => {
-          const entries = rows[dayIndex].flatMap((sessions, slotIndex) => sessions.map((session) => ({ session, slot: timetable.slots[slotIndex] })));
-          return (
-            <li key={day} className="mg-agenda-day">
-              <h2>{t(`myGroup.day.${day}`)}</h2>
-              {entries.length ? <ul>
-                {entries.map(({ session, slot }) => (
-                  <li key={`${session.kind}-${session.subject}`} className={`mg-agenda-item mg-session--${session.kind}`}>
-                    <bdi className="mg-agenda-time">{slotLabel(t, slot)}</bdi>
-                    <span aria-label={sessionLabel(t, session)}>{subjectLabel(t, session.subject)}</span>
-                  </li>
-                ))}
-              </ul> : <p className="mg-agenda-free" aria-hidden="true">—</p>}
-            </li>
-          );
-        })}
+        {days.map(({ day, sessions }) => (
+          <li key={day} className={`mg-agenda-day${day === today ? " is-today" : ""}`}>
+            <h2>{t(`myGroup.day.${day}`)}{day === today && todayLabel}</h2>
+            {sessions.length ? <ul>
+              {sessions.map((session) => (
+                <li key={`${session.kind}-${session.subject}-${session.start_time}`} className={`mg-agenda-item mg-session--${session.kind}`}>
+                  <bdi className="mg-agenda-time">{slotLabel(t, session)}</bdi>
+                  <span className="mg-agenda-body">
+                    <span className="mg-session-name">{subjectLabel(t, session.subject)}</span>
+                    <SessionMeta session={session} />
+                  </span>
+                </li>
+              ))}
+            </ul> : <p className="mg-agenda-free">{t("myGroup.noLectures")}</p>}
+          </li>
+        ))}
       </ol>
     </>
   );

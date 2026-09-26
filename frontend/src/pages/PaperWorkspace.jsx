@@ -11,10 +11,10 @@ import { useExitGuard } from "../hooks/useExitGuard.js";
 import { Icon } from "../lib/icons.jsx";
 import { acquireBodyScrollLock } from "../lib/bodyScrollLock.js";
 import { cssVars } from "../lib/utils.js";
-import { parseYouTubeVideoId, youTubeEmbedUrl, youTubeSearchUrl } from "../lib/youtube.js";
+import { parseYouTubeVideoId, youTubeEmbedUrl } from "../lib/youtube.js";
 import { LofiScene } from "../workspace/paper/LofiScene.jsx";
 import { WorkspaceMedia } from "../workspace/paper/WorkspaceMedia.jsx";
-import { MediaControlBar, sceneMedia, useIdleControls, useVideoMedia, useYouTubeMedia } from "../workspace/paper/MediaControls.jsx";
+import { MediaControlBar, useIdleControls, useLofiMedia, useVideoMedia, useYouTubeMedia } from "../workspace/paper/MediaControls.jsx";
 import "./paper-workspace.css";
 
 /**
@@ -339,10 +339,24 @@ function PaperSession({ session, onSessionChange, onEnd }) {
 
 /* ----------------------------------------------------------------- Player */
 
+/** The reader-facing message for a failed search, by the server's error code. */
+function searchErrorKey(error) {
+  switch (error?.code) {
+    case "youtube_search_unavailable": return "paper.searchUnavailable";
+    case "youtube_quota_exceeded": return "paper.searchBusy";
+    case "youtube_search_rate_limited": return "paper.searchTooOften";
+    default: return "paper.searchFailed";
+  }
+}
+
 function PaperPlayer() {
   const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  // Results belong to the query they were fetched for; editing the text
+  // offers a new search instead of showing stale results.
+  const [search, setSearch] = useState(/** @type {{ status: "idle" | "loading" | "done" | "error", query: string, results: any[], errorKey: string }} */ ({ status: "idle", query: "", results: [], errorKey: "" }));
+  const searchSeq = useRef(0);
   const [videoId, setVideoId] = useState("");
   const [lofiPlaying, setLofiPlaying] = useState(true);
   // The administrator's media when one is published; the built-in scene
@@ -357,6 +371,7 @@ function PaperPlayer() {
   }, []);
   const [fullscreen, setFullscreen] = useState(false);
   const searchRef = useRef(null);
+  const resultsRef = useRef(null);
   const playerRef = useRef(null);
   const videoRef = useRef(null);
   const frameRef = useRef(null);
@@ -366,10 +381,10 @@ function PaperPlayer() {
   const adminVideo = !videoId && media?.media_type === "video";
   const videoMedia = useVideoMedia(videoRef, { enabled: adminVideo, src: media?.url || "" });
   const youTubeMedia = useYouTubeMedia(frameRef, videoId);
-  const source = videoId ? youTubeMedia
-    : adminVideo ? videoMedia
-      : media ? { ...sceneMedia(false, setLofiPlaying), canPlay: false }
-        : sceneMedia(lofiPlaying, setLofiPlaying);
+  // The default lofi (the built-in scene or an admin image) has its own
+  // soundtrack, silenced whenever a YouTube video or an admin video plays.
+  const lofiMedia = useLofiMedia({ enabled: !videoId && !adminVideo, playing: lofiPlaying, setPlaying: setLofiPlaying });
+  const source = videoId ? youTubeMedia : adminVideo ? videoMedia : lofiMedia;
   const controls = useIdleControls();
 
   useEffect(() => {
@@ -393,18 +408,42 @@ function PaperPlayer() {
   }, []);
 
   function play(id) {
+    searchSeq.current += 1;
     setVideoId(id);
     setQuery("");
     setOpen(false);
+    setSearch({ status: "idle", query: "", results: [], errorKey: "" });
+  }
+
+  async function runSearch(text) {
+    const id = searchSeq.current + 1;
+    searchSeq.current = id;
+    setOpen(true);
+    setSearch({ status: "loading", query: text, results: [], errorKey: "" });
+    try {
+      const results = await focusApi.searchYouTube(text);
+      if (id === searchSeq.current) setSearch({ status: "done", query: text, results, errorKey: "" });
+    } catch (error) {
+      if (id === searchSeq.current) setSearch({ status: "error", query: text, results: [], errorKey: searchErrorKey(error) });
+    }
   }
 
   function submit(event) {
     event.preventDefault();
     if (linkId) play(linkId);
-    else if (trimmed) {
-      window.open(youTubeSearchUrl(trimmed), "_blank", "noopener,noreferrer");
-      setOpen(false);
-    }
+    else if (trimmed && !(search.query === trimmed && search.status === "loading")) runSearch(trimmed);
+  }
+
+  /** Arrow keys move between the input and the rows below it. */
+  function moveFocus(event) {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    const rows = /** @type {HTMLElement[]} */ ([...(resultsRef.current?.querySelectorAll("button.paper-result") || [])]);
+    if (!rows.length) return;
+    event.preventDefault();
+    const index = rows.indexOf(/** @type {HTMLElement} */ (document.activeElement));
+    const next = event.key === "ArrowDown" ? index + 1 : index - 1;
+    if (next < 0) searchRef.current?.querySelector("input")?.focus();
+    else rows[Math.min(next, rows.length - 1)].focus();
   }
 
   async function toggleFullscreen() {
@@ -416,9 +455,14 @@ function PaperPlayer() {
     } catch { /* fullscreen refused by the browser */ }
   }
 
+  const current = search.query === trimmed ? search : null;
+
   return (
     <>
-      <form className="paper-search" ref={searchRef} onSubmit={submit} role="search">
+      {/* Results open directly below the box and never leave Lock-in: a
+          chosen video plays in the player below. */}
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- arrow keys between the box and its results */}
+      <form className="paper-search" ref={searchRef} onSubmit={submit} onKeyDown={moveFocus} role="search">
         <div className="paper-search-box">
           <span className="paper-yt-mark" aria-hidden="true" />
           <input
@@ -429,25 +473,50 @@ function PaperPlayer() {
             onKeyDown={(event) => { if (event.key === "Escape") setOpen(false); }}
             placeholder={t("paper.searchPlaceholder")}
             aria-label={t("paper.searchLabel")}
+            aria-controls="paper-search-results"
             autoComplete="off"
             enterKeyHint="search"
             dir="auto"
           />
-          <kbd className="paper-kbd" aria-hidden="true">/</kbd>
+          {current?.status === "loading"
+            ? <span className="paper-search-spinner" aria-hidden="true" />
+            : <kbd className="paper-kbd" aria-hidden="true">/</kbd>}
         </div>
         {open && trimmed && (
-          <div className="paper-results" id="paper-search-results">
+          <div className="paper-results" id="paper-search-results" ref={resultsRef} aria-busy={current?.status === "loading"}>
             {linkId ? (
               <button type="button" className="paper-result" onClick={() => play(linkId)}>
                 <span className="paper-result-thumb"><Icon name="play" size={18} /></span>
                 <span><strong>{t("paper.playLink")}</strong><small dir="ltr">youtu.be/{linkId}</small></span>
               </button>
+            ) : current?.status === "loading" ? (
+              <div className="paper-results-status" role="status">
+                <span className="visually-hidden">{t("paper.searching")}</span>
+                {[0, 1, 2].map((item) => <span key={item} className="paper-result-skeleton" aria-hidden="true"><i /><span><i /><i /></span></span>)}
+              </div>
+            ) : current?.status === "error" ? (
+              <p className="paper-results-message" role="alert" dir="auto">{t(current.errorKey)}</p>
+            ) : current?.status === "done" && !current.results.length ? (
+              <p className="paper-results-message" role="status" dir="auto">{t("paper.noResults")}</p>
+            ) : current?.status === "done" ? (
+              <ul className="paper-result-list" aria-label={t("paper.searchResults")}>
+                {current.results.map((item) => (
+                  <li key={item.video_id}>
+                    <button type="button" className="paper-result is-video" onClick={() => play(item.video_id)}>
+                      <span className="paper-result-video-thumb">
+                        <img src={item.thumbnail} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" />
+                        <Icon name="play" size={16} />
+                      </span>
+                      <span><strong dir="auto">{item.title}</strong><small dir="auto">{item.channel_title}</small></span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
             ) : (
-              <a className="paper-result" href={youTubeSearchUrl(trimmed)} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>
+              <button type="submit" className="paper-result">
                 <span className="paper-result-thumb"><Icon name="search" size={18} /></span>
                 <span><strong dir="auto">{t("paper.searchOnYouTube", { query: trimmed })}</strong><small>{t("paper.searchHint")}</small></span>
-                <Icon name="arrow-up-right" size={17} className="paper-result-out" />
-              </a>
+              </button>
             )}
           </div>
         )}
@@ -471,17 +540,19 @@ function PaperPlayer() {
             : <LofiScene playing={lofiPlaying} label={t("paper.lofiLabel")} />}
         {/* The embed swallows pointer events, so this layer is what notices
             the reader over a YouTube video. A tap on faded controls only
-            brings them back; a tap on visible ones plays or pauses. */}
+            brings them back; a tap on visible ones plays or pauses. Until a
+            video has played once the layer steps aside, so a tap reaches the
+            embed's own Play (the only way iPad Safari starts it with sound). */}
         {/* Pointer-only surface: the bar's Play button is its keyboard equivalent. */}
         <div
-          className="paper-player-hit"
+          className={`paper-player-hit${source.needsTap ? " is-passthrough" : ""}`}
           aria-hidden="true"
           onPointerDown={() => { tapWakesRef.current = controls.idle; }}
           onClick={() => { if (!tapWakesRef.current && source.canPlay) source.toggle(); }}
         />
         {videoId && (
           <div className="paper-player-top">
-            <button type="button" className="paper-glass-button" onClick={() => setVideoId("")}>{t("paper.backToLofi")}</button>
+            <button type="button" className="paper-glass-button" onClick={() => setVideoId("")}><Icon name="headphones" size={15} />{t("paper.backToLofi")}</button>
           </div>
         )}
         <MediaControlBar media={source} fullscreen={fullscreen} onToggleFullscreen={toggleFullscreen} onHold={controls.hold} />
