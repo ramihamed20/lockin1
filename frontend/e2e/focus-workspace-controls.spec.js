@@ -530,6 +530,10 @@ test("the live ink layer paints while the stroke is still down and carries its o
   const stage = page.locator(".workspace-v2-document-stage");
   const pageBounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
   const inkPixels = () => page.locator(".workspace-v2-live-annotation-canvas").evaluate((canvas) => {
+    // The backing store is allocated on the first paint, one frame after the
+    // pointer event, so until then nothing has been painted (and reading a
+    // 0 x 0 canvas would throw instead of saying so).
+    if (!canvas.width || !canvas.height) return { painted: 0, opacity: canvas.style.opacity, blend: canvas.style.mixBlendMode };
     const context = canvas.getContext("2d");
     const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
     let painted = 0;
