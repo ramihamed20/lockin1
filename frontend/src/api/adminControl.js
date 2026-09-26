@@ -77,6 +77,19 @@ export const adminControlApi = {
   },
   // Every edition-aware call takes the same optional edition; omitting it
   // addresses the University Sheet, which is what these endpoints always meant.
+  /** The Paper Workspace player's background media (one global setting). */
+  paperWorkspaceMedia() {
+    return request("/operations/admin/paper-workspace/media");
+  },
+  savePaperWorkspaceMedia({ expectedRevision, fileId = null, enabled, focalX, focalY }) {
+    return request("/operations/admin/paper-workspace/media", {
+      method: "PUT",
+      body: { expected_revision: Number(expectedRevision), ...(fileId ? { file_id: id(fileId, "file identifier") } : {}), enabled: Boolean(enabled), focal_x: Math.round(focalX), focal_y: Math.round(focalY) }
+    });
+  },
+  removePaperWorkspaceMedia(expectedRevision) {
+    return request("/operations/admin/paper-workspace/media", { method: "DELETE", body: { expected_revision: Number(expectedRevision) } });
+  },
   activeStudySettings(sheetId, edition = "") {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study` + buildQueryString({ edition }));
   },

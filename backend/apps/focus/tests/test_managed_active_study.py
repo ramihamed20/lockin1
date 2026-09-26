@@ -30,6 +30,7 @@ from ..managed_active_study import (
     availability,
     complete_part_reading,
     continue_anyway,
+    discard_open_attempt,
     questions,
     restart,
     start,
@@ -423,6 +424,55 @@ def test_restart_action_is_scoped_to_the_student_who_owns_the_run() -> None:
     assert accepted.status_code == 200
     assert accepted.json()["run"]["id"] != str(run.id)
     assert accepted.json()["run"]["current_part"] == 1
+
+
+def test_discard_open_attempt_restarts_the_checkpoint_without_touching_completed_parts() -> None:
+    user, sheet, _ = _setup()
+    run, first = _open_checkpoint(user, sheet)
+    _answer_count(user, run, first, 15)
+    submit(user=user, run_id=run.id, attempt_id=first["attempt_id"])
+    complete_part_reading(user=user, run_id=run.id)
+    second = questions(user=user, run_id=run.id)
+    for position in (1, 2, 3):
+        answer(
+            user=user,
+            run_id=run.id,
+            attempt_id=second["attempt_id"],
+            position=position,
+            selected_answer="B",
+        )
+
+    discarded = discard_open_attempt(user=user, run_id=run.id)
+    fresh = questions(user=user, run_id=run.id)
+
+    assert discarded.completed_parts == [1]
+    assert discarded.current_part == 2
+    assert discarded.stage == ActiveStudyRun.Stage.CHECKPOINT
+    assert fresh["attempt_id"] != second["attempt_id"]
+    assert all(item["answered"] is None for item in fresh["questions"])
+    assert not ActiveStudyAttempt.objects.filter(id=second["attempt_id"]).exists()
+    # The passed part-1 attempt and its answers are evidence and stay.
+    kept = ActiveStudyAttempt.objects.get(id=first["attempt_id"])
+    assert kept.submitted_at is not None and kept.passed is True
+    assert ActiveStudyAnswer.objects.filter(attempt=kept).count() == 15
+
+
+def test_discard_is_refused_outside_a_question_stage_and_for_other_students() -> None:
+    owner, sheet, _ = _setup()
+    other = create_user(email="active-study-discard-other@example.com")
+    _grant_focus(owner)
+    _grant_focus(other)
+    run, _ = start(user=owner, sheet_id=sheet.id, difficulty="medium")
+    path = f"/api/v1/focus/managed-active-study/{run.id}/discard-attempt"
+
+    with pytest.raises(ManagedActiveStudyRuleError):
+        discard_open_attempt(user=owner, run_id=run.id)
+    _open_checkpoint(owner, sheet)
+    assert _client(other).post(path, {}, format="json").status_code == 400
+    accepted = _client(owner).post(path, {}, format="json")
+    assert accepted.status_code == 200
+    assert accepted.json()["run"]["id"] == str(run.id)
+    assert accepted.json()["run"]["stage"] == "checkpoint"
 
 
 def test_restart_rolls_back_abandon_if_fresh_start_fails() -> None:

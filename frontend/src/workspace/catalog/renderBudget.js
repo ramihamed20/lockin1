@@ -17,3 +17,17 @@ export function inkCanvasOutputScale(cssWidth, cssHeight, devicePixelRatio = 1) 
   const budget = Math.sqrt(WORKSPACE_RENDER.maximumInkCanvasPixels / (width * height));
   return Math.max(1, Math.min(desired, budget));
 }
+
+/**
+ * Whether a render continuation should wait for scrolling to settle. Only the
+ * primary page and its immediate neighbours that are still blank keep
+ * rendering during a scroll; anything that already shows a bitmap, or sits
+ * further away, can wait a moment without the reader seeing a gap.
+ * @param {number} priority 0 for the primary page, 10 per page of distance.
+ * @param {HTMLCanvasElement | null | undefined} visibleCanvas
+ */
+export function deferDuringScroll(priority, visibleCanvas) {
+  if (priority === 0) return false;
+  const showsBitmap = Boolean(visibleCanvas && visibleCanvas.width > 0);
+  return showsBitmap || priority > 11;
+}

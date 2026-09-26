@@ -54,7 +54,7 @@ function paintCenterlineFallback(context, geometry, color) {
   context.stroke();
 }
 
-function drawStroke(context, annotation) {
+function drawStroke(context, annotation, pageAspect = 1) {
   const points = annotation?.points || [];
   if (!points.length) return 0;
   const geometryStarted = window.performance.now();
@@ -62,7 +62,7 @@ function drawStroke(context, annotation) {
   const geometryTime = window.performance.now() - geometryStarted;
   if (geometry.kind === "dot") {
     drawDot(context, geometry, geometry.radius * 2, annotation.color, geometry.opacity);
-    paintInkErasures(context, annotation.erasures);
+    paintInkErasures(context, annotation.erasures, pageAspect);
     return geometryTime;
   }
   context.save();
@@ -79,7 +79,7 @@ function drawStroke(context, annotation) {
         : smoothed.reduce((total, point) => total + strokeWidthAtPoint(annotation, point), 0) / Math.max(1, smoothed.length)
     }, annotation.color);
   }
-  paintInkErasures(context, annotation.erasures);
+  paintInkErasures(context, annotation.erasures, pageAspect);
   context.restore();
   return geometryTime;
 }
@@ -128,11 +128,18 @@ function drawDiagnostics(context, diagnostics, cssScale) {
  * The active stroke is painted opaquely and the element carries its opacity, so
  * appending only the geometry that changed can never darken an overlap. That is
  * what lets a long stroke stay incremental instead of repainting every sample.
+ *
+ * The backing store is allocated on the first paint, not on mount. The canvas
+ * moves to whichever page is current, so scrolling through a document would
+ * otherwise allocate (and composite) a full-page transparent bitmap on every
+ * page change even when nothing is ever drawn.
  */
 export const LiveAnnotationCanvas = forwardRef(
-/** @param {{ pageNumber: number }} props */
-function LiveAnnotationCanvas({ pageNumber }, ref) {
+/** @param {{ pageNumber: number, pageAspect?: number }} props */
+function LiveAnnotationCanvas({ pageNumber, pageAspect = 1 }, ref) {
   const canvasRef = useRef(null);
+  const pageAspectRef = useRef(pageAspect);
+  pageAspectRef.current = pageAspect;
   const sizeRef = useRef({ width: 0, height: 0, ratio: 1 });
   const contextRef = useRef(null);
   const frameRef = useRef(null);
@@ -143,11 +150,13 @@ function LiveAnnotationCanvas({ pageNumber }, ref) {
     const canvas = canvasRef.current;
     if (!canvas) return null;
     const cached = sizeRef.current;
+    // Layout size, not the zoom-transformed box: this is the size the
+    // ResizeObserver reports, so a zoom change never reallocates mid-stroke.
     const bounds = observedBounds?.width > 0 && observedBounds?.height > 0
       ? observedBounds
       : cached.width > 0 && cached.height > 0
         ? cached
-        : canvas.getBoundingClientRect();
+        : { width: canvas.clientWidth, height: canvas.clientHeight };
     const cssWidth = Math.max(1, bounds.width);
     const cssHeight = Math.max(1, bounds.height);
     const ratio = inkCanvasOutputScale(cssWidth, cssHeight, window.devicePixelRatio);
@@ -182,12 +191,15 @@ function LiveAnnotationCanvas({ pageNumber }, ref) {
   }, []);
 
   const clear = useCallback(() => {
+    liveGeometryRef.current.reset();
+    frameRef.current = null;
+    const canvas = canvasRef.current;
+    // Nothing has been painted into an unallocated canvas.
+    if (!canvas || !canvas.width || !canvas.height) return;
     const context = ensureSize();
     if (!context) return;
     const { width, height } = resetSurface(context);
     context.clearRect(0, 0, width, height);
-    liveGeometryRef.current.reset();
-    frameRef.current = null;
   }, [ensureSize, resetSurface]);
 
   /** Repaints the active stroke, appending only new geometry when it can. */
@@ -205,7 +217,7 @@ function LiveAnnotationCanvas({ pageNumber }, ref) {
       context.clearRect(0, 0, width, height);
       context.save();
       context.scale(width / 1000, height / 1000);
-      const geometryTime = drawStroke(context, predicted?.length ? { ...annotation, points: [...(annotation.points || []), ...predicted] } : annotation);
+      const geometryTime = drawStroke(context, predicted?.length ? { ...annotation, points: [...(annotation.points || []), ...predicted] } : annotation, pageAspectRef.current);
       drawDiagnostics(context, diagnostics, 1000 / Math.max(1, width));
       context.restore();
       return { geometryTime, incremental: false };
@@ -248,7 +260,7 @@ function LiveAnnotationCanvas({ pageNumber }, ref) {
     const cssScale = 1000 / Math.max(1, width);
     let geometryTime = 0;
     if (frame?.kind === "lasso") drawLasso(context, frame.points, cssScale);
-    else for (const annotation of annotations) geometryTime += drawStroke(context, annotation);
+    else for (const annotation of annotations) geometryTime += drawStroke(context, annotation, pageAspectRef.current);
     context.restore();
     return { geometryTime, incremental: false };
   }, [ensureSize, paintLiveStroke, resetSurface]);
@@ -278,14 +290,19 @@ function LiveAnnotationCanvas({ pageNumber }, ref) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || typeof window.ResizeObserver === "undefined") return undefined;
-    ensureSize(canvas.getBoundingClientRect());
     const observer = new window.ResizeObserver((entries) => {
-      ensureSize(entries[0]?.contentRect);
+      const bounds = entries[0]?.contentRect;
+      if (!canvas.width || !canvas.height) {
+        // Remember the size for the first paint without allocating yet.
+        if (bounds?.width > 0 && bounds?.height > 0) sizeRef.current = { ...sizeRef.current, width: bounds.width, height: bounds.height };
+        return;
+      }
+      ensureSize(bounds);
       if (frameRef.current) paintFrame(frameRef.current, { forceFull: true });
     });
     observer.observe(canvas);
     return () => observer.disconnect();
   }, [ensureSize, paintFrame]);
 
-  return <canvas ref={canvasRef} className="workspace-v2-live-annotation-canvas" aria-hidden="true" />;
+  return <canvas ref={canvasRef} className="workspace-v2-live-annotation-canvas" width={0} height={0} aria-hidden="true" />;
 });

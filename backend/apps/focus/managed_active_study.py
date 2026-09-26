@@ -690,6 +690,31 @@ def retry_final(*, user: User, run_id: UUID) -> ActiveStudyRun:
 
 
 @transaction.atomic
+def discard_open_attempt(*, user: User, run_id: UUID) -> ActiveStudyRun:
+    """Throw away the unsubmitted checkpoint or final attempt of the current stage.
+
+    Only that attempt and its answers go: submitted attempts, completed parts,
+    the run's stage and the Review Bank events already recorded all stay. The
+    next questions request opens a fresh attempt from question 1.
+    """
+
+    run = _locked_run(user=user, run_id=run_id)
+    if run.status != ActiveStudyRun.Status.ACTIVE or run.stage not in {
+        ActiveStudyRun.Stage.CHECKPOINT,
+        ActiveStudyRun.Stage.FINAL,
+    }:
+        raise ManagedActiveStudyRuleError("There is no open question attempt to discard.")
+    kind = (
+        ActiveStudyAttempt.Kind.FINAL
+        if run.stage == ActiveStudyRun.Stage.FINAL
+        else ActiveStudyAttempt.Kind.CHECKPOINT
+    )
+    part = None if kind == ActiveStudyAttempt.Kind.FINAL else run.current_part
+    run.attempts.filter(kind=kind, part_number=part, submitted_at__isnull=True).delete()
+    return run
+
+
+@transaction.atomic
 def abandon(*, user: User, run_id: UUID) -> ActiveStudyRun:
     """Retain a stranded run and all evidence while allowing a clean restart."""
 

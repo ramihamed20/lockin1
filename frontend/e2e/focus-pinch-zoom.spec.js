@@ -647,7 +647,7 @@ test("Pencil supports 100 percent opacity without internal color stacking", asyn
   )))).toBe(true);
 });
 
-test("smart ink gestures erase scribbles, straighten on release, and preserve raw-stroke history", async ({ page }) => {
+test("smart ink gestures erase scribbles, straighten on release, and undo a straightened line in one step", async ({ page }) => {
   test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 834, height: 1194 });
@@ -681,13 +681,19 @@ test("smart ink gestures erase scribbles, straighten on release, and preserve ra
   const adjustedEnd = { x: heldLine.at(-1).x + 25, y: heldLine.at(-1).y + 1 };
   await dispatchPointer(stage, "pointermove", 122, adjustedEnd.x, adjustedEnd.y, "pen", 2);
   await dispatchPointer(stage, "pointerup", 122, adjustedEnd.x, adjustedEnd.y, "pen", 2);
-  const straightLine = page.locator('[data-annotation-type="shape"][data-annotation-shape="line"] line');
-  await expect(straightLine).toHaveCount(1);
-  await page.getByRole("button", { name: /Undo/ }).click();
+  // The line stays pen ink, redrawn straight, and is one history step.
+  const pens = page.locator('[data-annotation-type="pen"]');
+  await expect(pens).toHaveCount(2);
   await expect(page.locator('[data-annotation-type="shape"]')).toHaveCount(0);
-  await expect(page.locator('[data-annotation-type="pen"]')).toHaveCount(2);
+  const straightPath = await pens.nth(1).getAttribute("d");
+  const ys = straightPath.split(/[MLZ]/).map((part) => part.trim().split(/\s+/).map(Number)).filter((pair) => pair.length === 2).map(([, y]) => y);
+  expect(ys.length).toBeGreaterThan(4);
+  expect(Math.max(...ys) - Math.min(...ys)).toBeLessThan(12);
+  await page.getByRole("button", { name: /Undo/ }).click();
+  await expect(pens).toHaveCount(1);
   await page.getByRole("button", { name: /Redo/ }).click();
-  await expect(page.locator('[data-annotation-type="shape"][data-annotation-shape="line"]')).toHaveCount(1);
+  await expect(pens).toHaveCount(2);
+  expect(await pens.nth(1).getAttribute("d")).toBe(straightPath);
 });
 
 test("highlighter makes a vertical line as soon as the stroke is released", async ({ page }) => {
@@ -702,11 +708,19 @@ test("highlighter makes a vertical line as soon as the stroke is released", asyn
   await dispatchPointer(stage, "pointermove", 123, end.x, end.y, "pen", 2);
   await dispatchPointer(stage, "pointermove", 123, end.x + 1, end.y + 20, "pen", 2);
   await dispatchPointer(stage, "pointerup", 123, end.x + 1, end.y + 20, "pen", 2);
-  const line = page.locator('[data-annotation-type="shape"][data-annotation-shape="line"] line');
+  // It stays a highlighter (same blend and opacity), redrawn as a straight line.
+  const line = page.locator('.workspace-v2-highlighter-group [data-annotation-type="highlighter"]');
   await expect(line).toHaveCount(1);
-  const lineStart = await line.evaluate((node) => [Number(node.getAttribute("x1")), Number(node.getAttribute("y1"))]);
-  const lineEnd = await line.evaluate((node) => [Number(node.getAttribute("x2")), Number(node.getAttribute("y2"))]);
-  expect(lineEnd[1] - lineStart[1]).toBeGreaterThan(50);
+  await expect(page.locator('[data-annotation-type="shape"]')).toHaveCount(0);
+  const numbers = (await line.getAttribute("d")).match(/-?\d+(?:\.\d+)?/g).map(Number);
+  const points = Array.from({ length: numbers.length / 2 }, (_, index) => ({ x: numbers[index * 2], y: numbers[index * 2 + 1] }));
+  const [first, last] = [points[0], points.at(-1)];
+  expect(last.y - first.y).toBeGreaterThan(50);
+  // Every sample and curve control point sits on the one straight segment.
+  for (const point of points) {
+    const offLine = Math.abs((last.x - first.x) * (point.y - first.y) - (last.y - first.y) * (point.x - first.x)) / Math.hypot(last.x - first.x, last.y - first.y);
+    expect(offLine).toBeLessThan(.1);
+  }
 });
 
 test("circle erase removes enclosed ink once and remains undoable", async ({ page }) => {

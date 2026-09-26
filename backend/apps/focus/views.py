@@ -62,6 +62,9 @@ from .managed_active_study import (
     continue_anyway as continue_managed_active_study,
 )
 from .managed_active_study import (
+    discard_open_attempt as discard_managed_active_study_attempt,
+)
+from .managed_active_study import (
     questions as managed_active_study_questions,
 )
 from .managed_active_study import (
@@ -289,6 +292,9 @@ class ManagedActiveStudyRunView(APIView):
                 return Response({"run": managed_active_study_run_payload(run)})
             if action == "restart":
                 run = restart_managed_active_study(user=user, run_id=run_id)
+                return Response({"run": managed_active_study_run_payload(run)})
+            if action == "discard-attempt":
+                run = discard_managed_active_study_attempt(user=user, run_id=run_id)
                 return Response({"run": managed_active_study_run_payload(run)})
         except ManagedActiveStudyRuleError as error:
             raise FocusRejected(str(error)) from error

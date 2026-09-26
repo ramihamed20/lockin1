@@ -6,6 +6,7 @@ import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/ind
 import { Icon } from "../lib/icons.jsx";
 import { formatRelativeTime } from "../lib/i18n.js";
 import { useI18n } from "../components/I18nProvider.jsx";
+import { QuestionExplanation } from "../components/shared/QuestionExplanation.jsx";
 
 function relativeTime(value, t) {
   const timestamp = Date.parse(value || "");
@@ -139,7 +140,7 @@ function ReviewQuestionCard({ item, selectedIds = [], onSelect, outcome, busy, e
         })}
       </fieldset>
       {!outcome && <button className="btn btn-primary review-submit-answer" type="button" disabled={!selectedIds.length || busy} onClick={onSubmit}>{t(busy ? "review.checking" : "review.checkAnswer")}</button>}
-      {outcome && <section className={`review-answer-outcome ${outcome.was_correct ? "is-correct" : "is-incorrect"}`} role="status" aria-live="polite"><Icon name={outcome.was_correct ? "check" : "alert-triangle"} size={20} /><div><strong>{t(outcome.was_correct ? "review.correctMoved" : "review.notYet")}</strong><p>{t(outcome.was_correct ? "review.correctBody" : "review.incorrectBody")}</p>{outcome.review_item?.explanation && <details><summary>{t("review.readExplanation")}</summary><p dir="auto">{outcome.review_item.explanation}</p></details>}</div></section>}
+      {outcome && <section className={`review-answer-outcome ${outcome.was_correct ? "is-correct" : "is-incorrect"}`} role="status" aria-live="polite"><Icon name={outcome.was_correct ? "check" : "alert-triangle"} size={20} /><div><strong>{t(outcome.was_correct ? "review.correctMoved" : "review.notYet")}</strong><p>{t(outcome.was_correct ? "review.correctBody" : "review.incorrectBody")}</p><QuestionExplanation explanation={outcome.review_item?.explanation} /></div></section>}
       {error && <p className="inline-error" role="alert" dir="auto">{error}</p>}
     </article>
   );

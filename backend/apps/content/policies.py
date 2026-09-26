@@ -59,6 +59,14 @@ def can_edit_learning_object(*, user: User, learning_object: LearningObject) -> 
 def can_access_managed_file(*, user: User, managed_file: ManagedFile, download: bool) -> bool:
     if managed_file.kind == ManagedFile.Kind.AVATAR:
         return user.is_authenticated and not download
+    if managed_file.kind == ManagedFile.Kind.WORKSPACE_MEDIA:
+        # Only the media currently shown in every Paper Workspace is public to
+        # students; administrators may also preview any upload of this kind.
+        from apps.focus.paper_workspace import is_published_media
+
+        if download or not user.is_authenticated:
+            return False
+        return is_content_administrator(user) or is_published_media(managed_file.id)
     if is_content_administrator(user) or managed_file.owner_id == user.id:
         return True
     assets = LearningObjectAsset.objects.filter(

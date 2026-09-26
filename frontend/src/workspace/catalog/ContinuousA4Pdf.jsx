@@ -4,7 +4,7 @@ import { boundedOutputScale, pdfPageAspectRatio } from "../document/coordinateTr
 import { WORKSPACE_RENDER } from "../config.js";
 import { PdfRenderQueue, pdfRenderGenerationIsCurrent } from "./pdfRenderQueue.js";
 import { loadPdfLibrary } from "./pdfJsAdapter.js";
-import { catalogCanvasPixelBudget } from "./renderBudget.js";
+import { catalogCanvasPixelBudget, deferDuringScroll } from "./renderBudget.js";
 import { visiblePdfPages } from "./visiblePdfPages.js";
 import { composeWorkspacePages } from "./virtualPages.js";
 
@@ -40,6 +40,7 @@ export function a4RenderQualityScale(renderZoom, devicePixelRatio = 1, pageAspec
 
 const GEOMETRY_MEASURE_CONCURRENCY = 8;
 
+
 /**
  * Reads every page box before the reader lays out.
  *
@@ -74,7 +75,7 @@ async function measureEveryPage(documentProxy, isCancelled) {
 }
 
 const A4PdfCanvas = memo(
-/** @param {{ documentProxy: any, pageNumber: number, pageAspectRatio: number, renderZoom: number, shouldRender: boolean, evictionDelayMs?: number, renderRevision: number, renderController: { suspended: boolean, generation: number, scrolling: boolean }, priority: number, renderQueue: PdfRenderQueue, onPageGeometry?: (pageNumber: number, width: number, height: number) => void, onPageRendered?: (duration: number) => void, onPageOutcome?: (pageNumber: number, failed: boolean) => void }} props */
+/** @param {{ documentProxy: any, pageNumber: number, pageAspectRatio: number, renderZoom: number, shouldRender: boolean, evictionDelayMs?: number, renderRevision: number, renderController: { suspended: boolean, generation: number, scrolling: boolean, deferred: Set<() => void> }, priority: number, renderQueue: PdfRenderQueue, onPageGeometry?: (pageNumber: number, width: number, height: number) => void, onPageRendered?: (duration: number) => void, onPageOutcome?: (pageNumber: number, failed: boolean) => void }} props */
 function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, shouldRender, evictionDelayMs = CANVAS_EVICTION_MS, renderRevision, renderController, priority, renderQueue, onPageGeometry, onPageRendered, onPageOutcome }) {
   const canvasRefs = useRef([null, null]);
   const visibleCanvasRef = useRef(0);
@@ -159,11 +160,18 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
               }
               continueRendering();
             };
-            if (renderController.scrolling) {
-              // PDF.js rendering is useful during a long scroll, but it must
+            if (renderController.scrolling && deferDuringScroll(priority, canvasRefs.current[visibleCanvasRef.current])) {
+              // pdf.js paints on the main thread. Off-screen pages, and pages
+              // that already show a bitmap, wait until the scroll settles, so
+              // the finger's pointer events are never queued behind page
+              // rasterization. This mattered most around 100% zoom, where the
+              // pages are large and three are kept ready on each side.
+              renderController.deferred.add(resume);
+              cancelScheduledContinuation = () => renderController.deferred.delete(resume);
+            } else if (renderController.scrolling) {
+              // The page being read still renders while scrolling, but it must
               // not compete with the next compositor frame. A short timer
-              // lets native/custom scrolling paint first without cancelling
-              // the active page or exposing an empty canvas.
+              // lets scrolling paint first without exposing an empty canvas.
               const timeoutId = window.setTimeout(resume, 32);
               cancelScheduledContinuation = () => window.clearTimeout(timeoutId);
             } else {
@@ -259,7 +267,7 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
  *   onPageCount: (count: number) => void,
  *   onDocumentReady?: () => void,
  *   onCurrentPageChange: (pageNumber: number, virtualPageId: number | null) => void,
- *   renderPageOverlay: (pageNumber: number) => import("react").ReactNode,
+ *   renderPageOverlay: (pageNumber: number, pageAspectRatio: number) => import("react").ReactNode,
  *   onPdfPageRendered?: (duration: number) => void
  * }} props
  */
@@ -311,7 +319,7 @@ export function ContinuousA4Pdf({
   const scrollTimerRef = useRef(null);
   const scrollingRef = useRef(false);
   const suspensionRef = useRef({ activity: false, pinch: false, scroll: false, zoom: false });
-  const renderControllerRef = useRef({ suspended: false, generation: 0, scrolling: false });
+  const renderControllerRef = useRef({ suspended: false, generation: 0, scrolling: false, deferred: new Set() });
   const renderQueueRef = useRef(null);
   if (!renderQueueRef.current) renderQueueRef.current = new PdfRenderQueue({ concurrency: 1 });
 
@@ -505,12 +513,18 @@ export function ContinuousA4Pdf({
     if (!stage || !documentRoot) return undefined;
     const renderController = renderControllerRef.current;
     let activityActive = false;
+    const resumeDeferredRenders = () => {
+      const deferred = [...renderController.deferred];
+      renderController.deferred.clear();
+      deferred.forEach((resume) => resume());
+    };
     const scheduleScrollSettle = () => {
       if (scrollTimerRef.current) window.clearTimeout(scrollTimerRef.current);
       scrollTimerRef.current = window.setTimeout(() => {
         scrollingRef.current = false;
         renderController.scrolling = false;
         scrollTimerRef.current = null;
+        resumeDeferredRenders();
       }, SCROLL_SETTLE_MS);
     };
     const handleScroll = () => {
@@ -542,6 +556,7 @@ export function ContinuousA4Pdf({
       scrollTimerRef.current = null;
       scrollingRef.current = false;
       renderController.scrolling = false;
+      resumeDeferredRenders();
     };
   }, [documentRootRef, stageRef]);
 
@@ -759,7 +774,7 @@ export function ContinuousA4Pdf({
               onPageRendered={onPdfPageRendered}
               onPageOutcome={notePageOutcome}
             />}
-            {(entry.kind === "virtual" || pagesToRender.has(entry.pdfPage)) && renderPageOverlay(entry.key)}
+            {(entry.kind === "virtual" || pagesToRender.has(entry.pdfPage)) && renderPageOverlay(entry.key, entry.kind === "virtual" ? A4_PAGE_RATIO : pageAspectRatios.get(entry.pdfPage) || defaultPageAspectRatio)}
             {entry.kind === "pdf" && documentProxy && failedPages.has(entry.pdfPage) && <div className="workspace-v2-a4-status" role="alert">
               <p>Page {entry.pdfPage} could not be drawn.</p>
               <button type="button" onClick={() => retryPage(entry.pdfPage)}>Retry page {entry.pdfPage}</button>

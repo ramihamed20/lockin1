@@ -208,20 +208,27 @@ test("pen and highlighter lines straighten immediately on release", async ({ pag
   const bounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
   const x = bounds.x + bounds.width * .2;
   const y = bounds.y + bounds.height * .4;
-  for (const [index, tool, pointerId, offset] of [[0, "pen", 21, 0], [1, "highlighter", 22, 130]]) {
+  for (const [tool, pointerId, offset] of [["pen", 21, 0], ["highlighter", 22, 130]]) {
     if (tool === "highlighter") await page.getByRole("button", { name: "Highlight", exact: true }).click();
     await dispatchPointer(stage, "pointerdown", pointerId, x, y + offset);
     for (let step = 1; step <= 5; step += 1) await dispatchPointer(stage, "pointermove", pointerId, x + step * 15, y + offset + step * 10);
     await dispatchPointer(stage, "pointermove", pointerId, x + 125, y + offset + 85);
     await dispatchPointer(stage, "pointerup", pointerId, x + 125, y + offset + 85);
-    const lines = page.locator('.workspace-v2-annotation-layer [data-annotation-type="shape"][data-annotation-shape="line"] line');
-    await expect(lines).toHaveCount(index + 1);
-    await expect.poll(async () => Number(await lines.nth(index).getAttribute("y2"))).toBeGreaterThan(Number(await lines.nth(index).getAttribute("y1")) + 20);
-    await expect.poll(async () => page.evaluate(() => {
+    // A recognized line stays ink of the same tool, redrawn straight.
+    const saved = () => page.evaluate(() => {
       const key = Object.keys(localStorage).find((entry) => entry.startsWith("lock-in.catalog-workspace.v1.user_controls-student."));
       const snapshot = key ? JSON.parse(localStorage.getItem(key)) : null;
-      return snapshot?.annotations?.filter((item) => item.type === "shape" && item.shape === "line").length ?? 0;
-    })).toBe(index + 1);
+      return snapshot?.annotations ?? [];
+    });
+    await expect.poll(async () => (await saved()).filter((item) => item.type === tool).length).toBe(1);
+    const [line] = (await saved()).filter((item) => item.type === tool);
+    const first = line.points[0];
+    const last = line.points.at(-1);
+    expect(last.y).toBeGreaterThan(first.y + 20);
+    for (const point of line.points) {
+      expect(Math.abs((last.x - first.x) * (point.y - first.y) - (last.y - first.y) * (point.x - first.x)) / Math.hypot(last.x - first.x, last.y - first.y)).toBeLessThan(.05);
+    }
+    expect((await saved()).filter((item) => item.type === "shape")).toHaveLength(0);
   }
 });
 
@@ -523,6 +530,10 @@ test("the live ink layer paints while the stroke is still down and carries its o
   const stage = page.locator(".workspace-v2-document-stage");
   const pageBounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
   const inkPixels = () => page.locator(".workspace-v2-live-annotation-canvas").evaluate((canvas) => {
+    // The backing store is allocated on the first paint, one frame after the
+    // pointer event, so until then nothing has been painted (and reading a
+    // 0 x 0 canvas would throw instead of saying so).
+    if (!canvas.width || !canvas.height) return { painted: 0, opacity: canvas.style.opacity, blend: canvas.style.mixBlendMode };
     const context = canvas.getContext("2d");
     const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
     let painted = 0;

@@ -547,3 +547,95 @@ test("a published catalogue sheet renders its PDF and zooms with the wheel", asy
   await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-published-sheet-1280x800.png`, fullPage: false });
   expect(pageErrors).toEqual([]);
 });
+
+test("an Active Study checkpoint asks before closing, saves or discards only the attempt, restarts, and explains misses", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  const questions = [
+    { question: "Which vitamin is fat-soluble?", options: { A: "Vitamin C", B: "Vitamin K", C: "Vitamin B1", D: "Vitamin B12" }, correct: "B", explanation: "Vitamins A, D, E and K are fat-soluble." },
+    { question: "Scurvy is caused by a lack of…", options: { A: "Vitamin C", B: "Vitamin D", C: "Vitamin A", D: "Iron" }, correct: "A", explanation: "Vitamin C is needed for collagen synthesis." }
+  ];
+  const run = { id: "checkpoint-run", difficulty: "medium", status: "active", stage: "checkpoint", current_part: 2, number_of_parts: 4, completed_parts: [1], current_page_range: { start_page: 11, end_page: 20 } };
+  let attempt = 1;
+  let serverAnswers = {};
+  const calls = [];
+  await page.route("**/api/v1/focus/managed-active-study/**", async (route) => {
+    const { pathname } = new URL(route.request().url());
+    const json = (body) => route.fulfill({ contentType: "application/json", body: JSON.stringify(body) });
+    if (pathname === "/api/v1/focus/managed-active-study/start") return json({ resumed: true, run });
+    if (!pathname.includes("/checkpoint-run/")) return route.fallback();
+    calls.push(pathname.split("/").pop());
+    if (pathname.endsWith("/questions")) {
+      return json({ run, attempt_id: `attempt-${attempt}`, kind: "checkpoint", questions: questions.map((item, index) => ({ position: index + 1, question: item.question, options: item.options, answered: serverAnswers[index + 1] || null })) });
+    }
+    if (pathname.endsWith("/discard-attempt")) {
+      serverAnswers = {};
+      attempt += 1;
+      return json({ run });
+    }
+    if (pathname.endsWith("/answer")) {
+      const body = route.request().postDataJSON();
+      serverAnswers[body.position] = body.selected_answer;
+      const item = questions[body.position - 1];
+      return json({ correct: body.selected_answer === item.correct, correct_answer: item.correct, explanation: item.explanation, answered_count: Object.keys(serverAnswers).length, total: questions.length });
+    }
+    if (pathname.endsWith("/submit")) {
+      return json({ run: { ...run, stage: "checkpoint_result" }, result: { score: 1, total: 2, passed: false, xp_awarded: 0 } });
+    }
+    return json({ run });
+  });
+  await page.goto(SHARED_TEST_SHEET_ROUTE);
+  await page.getByRole("dialog", { name: "Choose study mode" }).getByRole("button", { name: /Start Active Study/ }).click();
+  const openCheckpoint = () => page.getByRole("button", { name: "Open checkpoint" }).click();
+  const quiz = page.getByRole("dialog", { name: /Which vitamin|Scurvy/ });
+  const exit = page.getByRole("alertdialog", { name: "Leave this checkpoint?" });
+
+  // Answer question 1, move on, then try to close: the student is asked first.
+  await openCheckpoint();
+  await quiz.getByRole("radio", { name: /Vitamin C/ }).click();
+  await quiz.getByRole("button", { name: /Next/ }).click();
+  await expect(quiz.getByText("Question 2 of 2")).toBeVisible();
+  await quiz.getByRole("button", { name: "Close test" }).click();
+  await expect(exit.getByRole("button")).toHaveText(["Cancel", "Exit Without Saving", "Exit & Save"]);
+  await exit.getByRole("button", { name: "Cancel" }).click();
+  await expect(quiz.getByText("Question 2 of 2")).toBeVisible();
+
+  // Exit & Save: reopening resumes on question 2 with question 1 still chosen.
+  await page.keyboard.press("Escape");
+  await exit.getByRole("button", { name: "Exit & Save" }).click();
+  await expect(quiz).toHaveCount(0);
+  await openCheckpoint();
+  await expect(quiz.getByText("Question 2 of 2")).toBeVisible();
+  await expect(quiz.getByText("1 of 2 answered")).toBeVisible();
+  expect(calls).not.toContain("discard-attempt");
+
+  // Restart asks, then clears the attempt and starts at question 1.
+  await quiz.getByRole("button", { name: "Restart" }).click();
+  await page.getByRole("alertdialog", { name: "Restart this checkpoint?" }).getByRole("button", { name: "Restart" }).click();
+  await expect(quiz.getByText("Question 1 of 2")).toBeVisible();
+  await expect(quiz.getByText("0 of 2 answered")).toBeVisible();
+  expect(calls.filter((call) => call === "discard-attempt")).toHaveLength(1);
+
+  // Back is caught; Exit Without Saving throws away this attempt only.
+  await quiz.getByRole("radio", { name: /Vitamin K/ }).click();
+  await page.goBack();
+  await expect(exit).toBeVisible();
+  await exit.getByRole("button", { name: "Exit Without Saving" }).click();
+  await expect(quiz).toHaveCount(0);
+  expect(calls.filter((call) => call === "discard-attempt")).toHaveLength(2);
+  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
+  await openCheckpoint();
+  await expect(quiz.getByText("0 of 2 answered")).toBeVisible();
+
+  // Submit with one miss: the result offers that question's explanation.
+  await quiz.getByRole("radio", { name: /Vitamin C/ }).click();
+  await quiz.getByRole("button", { name: /Next/ }).click();
+  await quiz.getByRole("radio", { name: /Vitamin C/ }).click();
+  await quiz.getByRole("button", { name: "Submit test" }).click();
+  const result = page.getByRole("dialog", { name: "1 / 2" });
+  const missed = result.getByRole("list", { name: "Missed questions" });
+  await expect(missed.getByText(questions[0].question)).toBeVisible();
+  await expect(missed.getByText(questions[1].question)).toHaveCount(0);
+  await expect(missed.getByText(questions[0].explanation)).toHaveCount(0);
+  await missed.getByRole("button", { name: "Explanation" }).click();
+  await expect(missed.getByText(questions[0].explanation)).toBeVisible();
+});
