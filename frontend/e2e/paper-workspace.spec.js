@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import { fulfillAccessContract, studentSession } from "./fixtures/productionApi.js";
 import { withoutServiceWorker } from "./helpers/serviceWorker.js";
@@ -112,7 +113,7 @@ function youTubeSearch(respond = () => ({ body: { results: YOUTUBE_RESULTS } }))
   return handler;
 }
 
-async function mockStudent(page, server, session = {}, media = null, youtube = youTubeSearch()) {
+async function mockStudent(page, server, session = {}, scenes = [], youtube = youTubeSearch()) {
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
@@ -121,7 +122,7 @@ async function mockStudent(page, server, session = {}, media = null, youtube = y
     if (pathname === "/api/v1/auth/csrf") return json({ csrf_token: "e2e-csrf-token" });
     if (await fulfillAccessContract(route, pathname)) return undefined;
     if (pathname === "/api/v1/catalog/materials") return json(MATERIALS);
-    if (pathname === "/api/v1/focus/paper-workspace/media") return json({ media });
+    if (pathname === "/api/v1/focus/paper-workspace/scenes") return json({ scenes: scenes || [] });
     if (pathname === "/api/v1/focus/paper-workspace/youtube-search") {
       const query = new URL(request.url()).searchParams.get("q") || "";
       youtube.queries.push(query);
@@ -253,11 +254,11 @@ test("the workspace reads right to left and stacks on a phone", async ({ page },
   await page.screenshot({ path: testInfo.outputPath("paper-phone-rtl.png"), fullPage: true });
 });
 
-test("an administrator's media replaces the lofi scene and crops around its focal point", async ({ page }, testInfo) => {
-  const media = { id: "media-1", url: "/e2e-media/lofi.svg", content_type: "image/svg+xml", media_type: "image", original_name: "lofi.svg", size_bytes: 1, focal_x: 30, focal_y: 70, revision: 2 };
+test("an administrator's scene replaces the lofi scene and crops around its focal point", async ({ page }, testInfo) => {
+  const scene = { id: "scene-1", title: "Lock-in lofi", url: "/e2e-media/lofi.svg", content_type: "image/svg+xml", media_type: "image", duration_ms: null, cover_url: null, focal_x: 30, focal_y: 70, revision: 2 };
   // Re-navigates with a mocked media file, which a controlling worker would answer itself.
   await withoutServiceWorker(page);
-  await mockStudent(page, createServer(), {}, media);
+  await mockStudent(page, createServer(), {}, [scene]);
   await page.route("**/e2e-media/lofi.svg", (route) => route.fulfill({
     status: 200,
     contentType: "image/svg+xml",
@@ -616,4 +617,125 @@ test("search results fit iPad and an Arabic phone without horizontal scrolling",
     await results.first().click();
     await expect(page.locator("iframe.paper-player-frame")).toHaveAttribute("src", /embed\/lockin000yt\?/);
   }
+});
+
+/* ------------------------------------------------------------ Lo-Fi scenes */
+
+const LOOP_CLIP = readFileSync(new URL("./fixtures/lofi-loop.webm", import.meta.url));
+const COVER_SVG = "<svg xmlns='http://www.w3.org/2000/svg' width='320' height='180'><rect width='320' height='180' fill='#2a2250'/></svg>";
+const LOFI_SCENES = [
+  { id: "scene-rain", title: "Rainy night", url: "/api/v1/files/clip-rain/view", content_type: "video/webm", media_type: "video", duration_ms: 2000, cover_url: "/api/v1/files/cover-rain/view", focal_x: 50, focal_y: 50, revision: 1 },
+  { id: "scene-library", title: "Library", url: "/api/v1/files/clip-library/view", content_type: "video/webm", media_type: "video", duration_ms: 2000, cover_url: null, focal_x: 50, focal_y: 50, revision: 1 }
+];
+
+/** Serves the scene clips and cover, counting every request for each file. */
+async function serveSceneFiles(page) {
+  const requests = /** @type {Record<string, number>} */ ({});
+  await page.route("**/api/v1/files/**", async (route) => {
+    const { pathname } = new URL(route.request().url());
+    requests[pathname] = (requests[pathname] || 0) + 1;
+    if (pathname.includes("cover-")) return route.fulfill({ status: 200, contentType: "image/svg+xml", body: COVER_SVG });
+    return route.fulfill({ status: 200, contentType: "video/webm", body: LOOP_CLIP, headers: { "Accept-Ranges": "bytes", "Cache-Control": "private, max-age=31536000, immutable" } });
+  });
+  return requests;
+}
+
+test("a short Lo-Fi clip loops seamlessly in one element, from one download", async ({ page }, testInfo) => {
+  await withoutServiceWorker(page);
+  await mockStudent(page, createServer(), {}, LOFI_SCENES);
+  const requests = await serveSceneFiles(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await startSession(page);
+
+  const video = page.locator(".paper-player video.paper-media");
+  await expect(video).toHaveAttribute("src", "/api/v1/files/clip-rain/view");
+  await expect(video).toHaveAttribute("poster", "/api/v1/files/cover-rain/view");
+  expect(await video.evaluate((node) => [node.loop, node.controls, node.preload])).toEqual([true, false, "auto"]);
+
+  // Watch the element itself: it must never reload, end, or be replaced.
+  await video.evaluate((node) => {
+    node.muted = true; // headless autoplay; the loop is what is under test
+    const log = { wraps: 0, loadstart: 0, emptied: 0, ended: 0, last: 0 };
+    node.dataset.watched = "1";
+    for (const name of ["loadstart", "emptied", "ended"]) node.addEventListener(name, () => { log[name] += 1; });
+    node.addEventListener("timeupdate", () => { if (node.currentTime + 0.25 < log.last) log.wraps += 1; log.last = node.currentTime; });
+    window.__loop = log;
+    return node.play();
+  });
+  // A 2 s clip, three times round.
+  await expect.poll(() => page.evaluate(() => window.__loop.wraps), { timeout: 15000 }).toBeGreaterThanOrEqual(3);
+  const log = await page.evaluate(() => window.__loop);
+  expect([log.loadstart, log.emptied, log.ended]).toEqual([0, 0, 0]);
+  await expect(page.locator(".paper-player video.paper-media[data-watched='1']")).toHaveCount(1);
+  // Looping never asks the server for the clip again.
+  expect(requests["/api/v1/files/clip-rain/view"]).toBeLessThanOrEqual(2);
+  await page.screenshot({ path: testInfo.outputPath("lofi-scene-playing.png") });
+});
+
+test("students change, close and reopen Lo-Fi, and their scene is remembered", async ({ page }, testInfo) => {
+  await withoutServiceWorker(page);
+  await mockStudent(page, createServer(), {}, LOFI_SCENES);
+  await serveSceneFiles(page);
+  await page.setViewportSize({ width: 1180, height: 820 });
+  await startSession(page);
+  const player = page.locator(".paper-player");
+  const video = player.locator("video.paper-media");
+  await expect(video).toHaveAttribute("src", /clip-rain/);
+
+  await player.hover();
+  await page.getByRole("button", { name: "Change Lo-Fi" }).click();
+  const menu = page.getByRole("menu", { name: "Lo-Fi scenes" });
+  await expect(menu.getByRole("menuitemradio")).toHaveText(["Lock-in lofi", "Rainy night", "Library"]);
+  await expect(menu.getByRole("menuitemradio", { name: "Rainy night" })).toHaveAttribute("aria-checked", "true");
+  await page.screenshot({ path: testInfo.outputPath("lofi-scene-picker.png") });
+  await menu.getByRole("menuitemradio", { name: "Library" }).click();
+  await expect(menu).toHaveCount(0);
+  await expect(video).toHaveAttribute("src", /clip-library/);
+
+  // The built-in scene is always one of the choices.
+  await player.hover();
+  await page.getByRole("button", { name: "Change Lo-Fi" }).click();
+  await page.getByRole("menuitemradio", { name: "Lock-in lofi" }).click();
+  await expect(page.getByRole("img", { name: /cat asleep/ })).toBeVisible();
+  await expect(player.locator("video")).toHaveCount(0);
+  await player.hover();
+  await page.getByRole("button", { name: "Change Lo-Fi" }).click();
+  await page.getByRole("menuitemradio", { name: "Library" }).click();
+
+  // Close stops Lo-Fi entirely; Open brings the same scene back.
+  await player.hover();
+  await page.getByRole("button", { name: "Close Lo-Fi" }).click();
+  await expect(player.locator("video")).toHaveCount(0);
+  await expect(player.getByText("Lo-Fi is off")).toBeVisible();
+  await page.getByRole("button", { name: "Open Lo-Fi" }).click();
+  await expect(video).toHaveAttribute("src", /clip-library/);
+
+  // Remembered on this device for the next session.
+  await page.reload();
+  await page.getByRole("button", { name: /Start Session/ }).click();
+  await expect(page.locator(".paper-player video.paper-media")).toHaveAttribute("src", /clip-library/);
+});
+
+test("the study timer, not the clip, decides when Lo-Fi stops", async ({ page }) => {
+  await withoutServiceWorker(page);
+  await page.clock.install();
+  await mockStudent(page, createServer(), {}, LOFI_SCENES);
+  await serveSceneFiles(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript(() => window.localStorage.setItem("lock-in.paper-workspace.setup", JSON.stringify({ subjectSlug: "paper-e2e-oral-histology", sheetId: "5b0e2f7a-9d4c-4a51-8f11-2a7c0e3b9a10", difficulty: "medium" })));
+  await page.goto("/#/paper-workspace");
+  await page.getByRole("radio", { name: "25 min" }).click();
+  await page.getByRole("button", { name: /Start Session/ }).click();
+  await expect(page.getByRole("timer")).toHaveText("25:00");
+
+  const video = page.locator(".paper-player video.paper-media");
+  await video.evaluate((node) => { node.muted = true; return node.play(); });
+  // 24 minutes on, a 2 s clip has looped hundreds of times and is still going.
+  await page.clock.runFor(24 * 60 * 1000);
+  await expect(page.getByRole("timer")).toHaveText(/^0?1:00$/);
+  expect(await video.evaluate((node) => node.paused)).toBe(false);
+  // At 00:00 the session is over and so is the loop.
+  await page.clock.runFor(61 * 1000);
+  await expect(page.getByRole("timer")).toHaveText("00:00");
+  await expect.poll(() => video.evaluate((node) => node.paused)).toBe(true);
 });

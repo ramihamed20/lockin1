@@ -77,18 +77,32 @@ export const adminControlApi = {
   },
   // Every edition-aware call takes the same optional edition; omitting it
   // addresses the University Sheet, which is what these endpoints always meant.
-  /** The Paper Workspace player's background media (one global setting). */
-  paperWorkspaceMedia() {
-    return request("/operations/admin/paper-workspace/media");
+  /** Lo-Fi scenes for the Paper Workspace player: short clips looped on the client. */
+  lofiScenes() {
+    return request("/operations/admin/lofi-scenes");
   },
-  savePaperWorkspaceMedia({ expectedRevision, fileId = null, enabled, focalX, focalY }) {
-    return request("/operations/admin/paper-workspace/media", {
-      method: "PUT",
-      body: { expected_revision: Number(expectedRevision), ...(fileId ? { file_id: id(fileId, "file identifier") } : {}), enabled: Boolean(enabled), focal_x: Math.round(focalX), focal_y: Math.round(focalY) }
+  createLofiScene({ title, mediaFileId, coverFileId = null, enabled = true, focalX = 50, focalY = 50 }) {
+    return request("/operations/admin/lofi-scenes", {
+      method: "POST",
+      body: { title: String(title), media_file_id: id(mediaFileId, "file identifier"), cover_file_id: coverFileId ? id(coverFileId, "file identifier") : null, enabled: Boolean(enabled), focal_x: Math.round(focalX), focal_y: Math.round(focalY) }
     });
   },
-  removePaperWorkspaceMedia(expectedRevision) {
-    return request("/operations/admin/paper-workspace/media", { method: "DELETE", body: { expected_revision: Number(expectedRevision) } });
+  /** Sends only the fields given; `coverFileId: null` removes the cover. */
+  updateLofiScene(sceneId, expectedRevision, changes) {
+    const body = { expected_revision: Number(expectedRevision) };
+    if ("title" in changes) body.title = String(changes.title);
+    if (changes.mediaFileId) body.media_file_id = id(changes.mediaFileId, "file identifier");
+    if ("coverFileId" in changes) body.cover_file_id = changes.coverFileId ? id(changes.coverFileId, "file identifier") : null;
+    if ("enabled" in changes) body.enabled = Boolean(changes.enabled);
+    if ("focalX" in changes) body.focal_x = Math.round(changes.focalX);
+    if ("focalY" in changes) body.focal_y = Math.round(changes.focalY);
+    return request(`/operations/admin/lofi-scenes/${id(sceneId, "scene identifier")}`, { method: "PATCH", body });
+  },
+  deleteLofiScene(sceneId, expectedRevision) {
+    return request(`/operations/admin/lofi-scenes/${id(sceneId, "scene identifier")}`, { method: "DELETE", body: { expected_revision: Number(expectedRevision) } });
+  },
+  reorderLofiScenes(sceneIds) {
+    return request("/operations/admin/lofi-scenes/order", { method: "PUT", body: { scene_ids: sceneIds.map((sceneId) => id(sceneId, "scene identifier")) } });
   },
   activeStudySettings(sheetId, edition = "") {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study` + buildQueryString({ edition }));

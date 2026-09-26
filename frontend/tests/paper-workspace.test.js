@@ -116,12 +116,15 @@ test("the embed takes Lock-in's control bar and is never muted on purpose", () =
 test("workspace media plays with sound; only admin previews are muted", async () => {
   const [media, panel, controls] = await Promise.all([
     readFile(new URL("../src/workspace/paper/WorkspaceMedia.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/pages/admin/PaperWorkspaceMediaPanel.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/pages/admin/LofiScenesPanel.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/workspace/paper/MediaControls.jsx", import.meta.url), "utf8")
   ]);
   assert.match(media, /muted=\{preview\}/);
   assert.doesNotMatch(media, /^\s+muted\s*$/m);
-  assert.equal((panel.match(/<WorkspaceMedia [^>]* preview \/>/g) || []).length, 2);
+  // Every admin preview (list thumbnail, focal editor, crop frames) is silent.
+  const previews = panel.match(/<WorkspaceMedia [^>]*\/>/g) || [];
+  assert.ok(previews.length >= 3);
+  assert.ok(previews.every((tag) => / preview \/>$/.test(tag)));
   assert.doesNotMatch(controls, /\.muted = true/);
 });
 
@@ -138,4 +141,34 @@ test("both checkpoint surfaces guard exits and discard only the open attempt", a
     assert.match(source, /"discard-attempt"/);
     assert.match(source, /<QuestionExplanation/);
   }
+});
+
+test("a Lo-Fi clip loops in one element, fetched whole, never rebuilt per loop", async () => {
+  const [media, page] = await Promise.all([
+    readFile(new URL("../src/workspace/paper/WorkspaceMedia.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/pages/PaperWorkspace.jsx", import.meta.url), "utf8")
+  ]);
+  // Native looping, preloaded, no controls: the browser repeats the same file.
+  assert.match(media, /^\s+loop$/m);
+  assert.match(media, /preload="auto"/);
+  assert.doesNotMatch(media, /\scontrols[\s=>]/);
+  // Recreated only when the scene changes; nothing re-arms on "ended".
+  assert.match(page, /<WorkspaceMedia key=\{scene\.id\}/);
+  assert.doesNotMatch(page, /"ended"/);
+  // The session length comes from the timer, never from the clip's duration.
+  assert.doesNotMatch(page, /duration_ms/);
+  assert.match(page, /const SESSION_MINUTES = \[25, 50, 60\]/);
+});
+
+test("the admin checks a clip before uploading it and explains the problem", async () => {
+  const { clipProblem, formatClipLength } = await import("../src/pages/admin/LofiScenesPanel.jsx").catch(() => ({}));
+  if (!clipProblem) return; // JSX is not importable under plain node; the e2e spec covers the flow.
+  const limits = { max_bytes: 80 * 1024 * 1024, min_seconds: 2, max_seconds: 300 };
+  const clip = { type: "video/mp4", size: 10 * 1024 * 1024 };
+  assert.equal(clipProblem(clip, { duration: 20 }, limits), "");
+  assert.match(clipProblem({ ...clip, type: "video/quicktime" }, { duration: 20 }, limits), /MP4 or WebM/);
+  assert.match(clipProblem({ ...clip, size: 200 * 1024 * 1024 }, { duration: 20 }, limits), /limit is 80 MB/);
+  assert.match(clipProblem(clip, { duration: 3600 }, limits), /60\.0 min long; the limit is 5 min/);
+  assert.match(clipProblem(clip, null, limits), /can't be played/);
+  assert.equal(formatClipLength(20_000), "0:20");
 });

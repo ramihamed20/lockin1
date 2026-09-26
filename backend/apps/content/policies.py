@@ -60,9 +60,9 @@ def can_access_managed_file(*, user: User, managed_file: ManagedFile, download: 
     if managed_file.kind == ManagedFile.Kind.AVATAR:
         return user.is_authenticated and not download
     if managed_file.kind == ManagedFile.Kind.WORKSPACE_MEDIA:
-        # Only the media currently shown in every Paper Workspace is public to
+        # Only the clips and covers of enabled Lo-Fi scenes are visible to
         # students; administrators may also preview any upload of this kind.
-        from apps.focus.paper_workspace import is_published_media
+        from apps.focus.lofi_scenes import is_published_media
 
         if download or not user.is_authenticated:
             return False
