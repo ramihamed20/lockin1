@@ -1,4 +1,5 @@
 from typing import Any
+from uuid import UUID
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
@@ -14,13 +15,16 @@ from apps.administration.permissions import HasOperationalCapability
 from apps.entitlements.services import require_entitlement
 from platform_core.api.serializers import StrictSerializer
 
-from .paper_workspace import (
-    PaperWorkspaceMediaConflict,
-    PaperWorkspaceMediaError,
+from .lofi_scenes import (
+    LofiSceneConflict,
+    LofiSceneError,
+    LofiSceneNotFound,
     admin_payload,
-    remove_media,
-    save_media,
+    create_scene,
+    delete_scene,
+    reorder_scenes,
     student_payload,
+    update_scene,
 )
 from .youtube_search import (
     MAX_QUERY_LENGTH,
@@ -33,14 +37,19 @@ from .youtube_search import (
 )
 
 
-class PaperWorkspaceMediaRejected(APIException):
+class LofiSceneRejected(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
-    default_code = "paper_workspace_media_rejected"
+    default_code = "lofi_scene_rejected"
 
 
-class PaperWorkspaceMediaStale(APIException):
+class LofiSceneStale(APIException):
     status_code = status.HTTP_409_CONFLICT
-    default_code = "paper_workspace_media_conflict"
+    default_code = "lofi_scene_conflict"
+
+
+class LofiSceneMissing(APIException):
+    status_code = status.HTTP_404_NOT_FOUND
+    default_code = "lofi_scene_not_found"
 
 
 class YouTubeSearchNotConfigured(APIException):
@@ -78,34 +87,51 @@ def _actor(request: Request) -> User:
     return user
 
 
-def _translate(error: PaperWorkspaceMediaError) -> APIException:
-    if isinstance(error, PaperWorkspaceMediaConflict):
-        return PaperWorkspaceMediaStale(str(error))
-    return PaperWorkspaceMediaRejected(str(error))
+def _translate(error: LofiSceneError) -> APIException:
+    if isinstance(error, LofiSceneNotFound):
+        return LofiSceneMissing(str(error))
+    if isinstance(error, LofiSceneConflict):
+        return LofiSceneStale(str(error))
+    return LofiSceneRejected(str(error))
 
 
-class PaperWorkspaceMediaSaveSerializer(StrictSerializer):
+class LofiSceneCreateSerializer(StrictSerializer):
+    title = serializers.CharField(max_length=200, allow_blank=True)
+    media_file_id = serializers.UUIDField()
+    cover_file_id = serializers.UUIDField(required=False, allow_null=True)
+    enabled = serializers.BooleanField(default=True)
+    focal_x = serializers.IntegerField(min_value=0, max_value=100, default=50)
+    focal_y = serializers.IntegerField(min_value=0, max_value=100, default=50)
+
+
+class LofiSceneUpdateSerializer(StrictSerializer):
     expected_revision = serializers.IntegerField(min_value=0)
-    file_id = serializers.UUIDField(required=False, allow_null=True)
-    enabled = serializers.BooleanField()
-    focal_x = serializers.IntegerField(min_value=0, max_value=100)
-    focal_y = serializers.IntegerField(min_value=0, max_value=100)
+    title = serializers.CharField(max_length=200, allow_blank=True, required=False)
+    media_file_id = serializers.UUIDField(required=False)
+    cover_file_id = serializers.UUIDField(required=False, allow_null=True)
+    enabled = serializers.BooleanField(required=False)
+    focal_x = serializers.IntegerField(min_value=0, max_value=100, required=False)
+    focal_y = serializers.IntegerField(min_value=0, max_value=100, required=False)
 
 
-class PaperWorkspaceMediaRemoveSerializer(StrictSerializer):
+class LofiSceneDeleteSerializer(StrictSerializer):
     expected_revision = serializers.IntegerField(min_value=0)
 
 
-class PaperWorkspaceMediaView(APIView):
-    """The media a student's Paper Workspace player shows (``null`` = lofi scene)."""
+class LofiSceneOrderSerializer(StrictSerializer):
+    scene_ids = serializers.ListField(child=serializers.UUIDField(), max_length=100)
 
-    @extend_schema(operation_id="paper_workspace_media", responses={200: OpenApiTypes.OBJECT})
+
+class LofiScenesView(APIView):
+    """The Lo-Fi scenes a student can pick in Paper Workspace (empty = built-in scene)."""
+
+    @extend_schema(operation_id="lofi_scenes", responses={200: OpenApiTypes.OBJECT})
     def get(self, request: Request) -> Response:
         require_entitlement(user=_actor(request), entitlement_code="focus.workspace")
         return Response(student_payload())
 
 
-class PaperWorkspaceMediaAdminView(APIView):
+class _LofiAdminView(APIView):
     permission_classes = [HasOperationalCapability]
     required_capability = Capability.CONTENT_VIEW
 
@@ -117,49 +143,95 @@ class PaperWorkspaceMediaAdminView(APIView):
         )
         return super().get_permissions()
 
-    @extend_schema(operation_id="paper_workspace_media_admin", responses={200: OpenApiTypes.OBJECT})
+
+class LofiScenesAdminView(_LofiAdminView):
+    @extend_schema(operation_id="lofi_scenes_admin", responses={200: OpenApiTypes.OBJECT})
     def get(self, request: Request) -> Response:
         return Response(admin_payload())
 
     @extend_schema(
-        operation_id="paper_workspace_media_admin_save",
-        request=PaperWorkspaceMediaSaveSerializer,
-        responses={200: OpenApiTypes.OBJECT},
+        operation_id="lofi_scenes_admin_create",
+        request=LofiSceneCreateSerializer,
+        responses={201: OpenApiTypes.OBJECT},
     )
-    def put(self, request: Request) -> Response:
-        serializer = PaperWorkspaceMediaSaveSerializer(data=request.data)
+    def post(self, request: Request) -> Response:
+        serializer = LofiSceneCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data: dict[str, Any] = serializer.validated_data
         try:
+            payload = create_scene(
+                actor=_actor(request),
+                title=str(data["title"]),
+                media_file_id=data["media_file_id"],
+                cover_file_id=data.get("cover_file_id"),
+                enabled=bool(data["enabled"]),
+                focal_x=int(data["focal_x"]),
+                focal_y=int(data["focal_y"]),
+            )
+        except LofiSceneError as error:
+            raise _translate(error) from error
+        return Response(payload, status=status.HTTP_201_CREATED)
+
+
+class LofiSceneAdminView(_LofiAdminView):
+    @extend_schema(
+        operation_id="lofi_scene_admin_update",
+        request=LofiSceneUpdateSerializer,
+        responses={200: OpenApiTypes.OBJECT},
+    )
+    def patch(self, request: Request, scene_id: UUID) -> Response:
+        serializer = LofiSceneUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data: dict[str, Any] = dict(serializer.validated_data)
+        expected = int(data.pop("expected_revision"))
+        try:
             return Response(
-                save_media(
+                update_scene(
                     actor=_actor(request),
-                    expected_revision=int(data["expected_revision"]),
-                    file_id=data.get("file_id"),
-                    enabled=bool(data["enabled"]),
-                    focal_x=int(data["focal_x"]),
-                    focal_y=int(data["focal_y"]),
+                    scene_id=scene_id,
+                    expected_revision=expected,
+                    changes=data,
                 )
             )
-        except PaperWorkspaceMediaError as error:
+        except LofiSceneError as error:
             raise _translate(error) from error
 
     @extend_schema(
-        operation_id="paper_workspace_media_admin_remove",
-        request=PaperWorkspaceMediaRemoveSerializer,
+        operation_id="lofi_scene_admin_delete",
+        request=LofiSceneDeleteSerializer,
         responses={200: OpenApiTypes.OBJECT},
     )
-    def delete(self, request: Request) -> Response:
-        serializer = PaperWorkspaceMediaRemoveSerializer(data=request.data)
+    def delete(self, request: Request, scene_id: UUID) -> Response:
+        serializer = LofiSceneDeleteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
             return Response(
-                remove_media(
+                delete_scene(
                     actor=_actor(request),
+                    scene_id=scene_id,
                     expected_revision=int(serializer.validated_data["expected_revision"]),
                 )
             )
-        except PaperWorkspaceMediaError as error:
+        except LofiSceneError as error:
+            raise _translate(error) from error
+
+
+class LofiSceneOrderAdminView(_LofiAdminView):
+    @extend_schema(
+        operation_id="lofi_scenes_admin_reorder",
+        request=LofiSceneOrderSerializer,
+        responses={200: OpenApiTypes.OBJECT},
+    )
+    def put(self, request: Request) -> Response:
+        serializer = LofiSceneOrderSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            return Response(
+                reorder_scenes(
+                    actor=_actor(request), scene_ids=list(serializer.validated_data["scene_ids"])
+                )
+            )
+        except LofiSceneError as error:
             raise _translate(error) from error
 
 
@@ -178,7 +250,7 @@ class PaperWorkspaceYouTubeSearchView(APIView):
         serializer.is_valid(raise_exception=True)
         query = normalize_query(serializer.validated_data["q"])
         if not query:
-            raise PaperWorkspaceMediaRejected("Type something to search for.")
+            raise LofiSceneRejected("Type something to search for.")
         try:
             results = search_videos(query=query, user_id=actor.pk)
         except YouTubeSearchUnavailable as error:

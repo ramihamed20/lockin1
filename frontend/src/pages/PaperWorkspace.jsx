@@ -27,8 +27,13 @@ import "./paper-workspace.css";
  */
 
 const DIFFICULTIES = ["easy", "medium", "hard"];
-const FOCUS_SECONDS = 50 * 60;
+// Study session lengths. The Lo-Fi loop never decides how long a session is:
+// it repeats until the timer ends, whatever the clip's own length.
+const SESSION_MINUTES = [25, 50, 60];
+const DEFAULT_MINUTES = 50;
 const SETUP_KEY = "lock-in.paper-workspace.setup";
+const SCENE_KEY = "lock-in.paper-workspace.scene";
+const BUILT_IN_SCENE = "built-in";
 const NOTES_KEY_PREFIX = "lock-in.paper-workspace.notes.";
 
 function readStorage(key) {
@@ -90,6 +95,7 @@ function PaperSetup({ groups, onStart }) {
     return sheets.length === 1 ? sheets[0].learningObjectId : "";
   });
   const [difficulty, setDifficulty] = useState(DIFFICULTIES.includes(saved.difficulty) ? saved.difficulty : "medium");
+  const [minutes, setMinutes] = useState(SESSION_MINUTES.includes(saved.minutes) ? saved.minutes : DEFAULT_MINUTES);
   // "loading" | "failed" | the server's availability payload. Start waits for
   // the server to confirm the chosen difficulty: a sheet the catalog lists can
   // still be unknown to Active Study (a stale or fixture entry).
@@ -134,8 +140,8 @@ function PaperSetup({ groups, onStart }) {
     try {
       const edition = editionFor(sheet);
       const payload = await focusApi.startManagedActiveStudy({ sheetId: sheet.learningObjectId, difficulty, edition });
-      writeStorage(SETUP_KEY, JSON.stringify({ subjectSlug: subject.slug, sheetId: sheet.learningObjectId, difficulty }));
-      onStart({ sheet, material: subject, edition, difficulty, run: payload.run });
+      writeStorage(SETUP_KEY, JSON.stringify({ subjectSlug: subject.slug, sheetId: sheet.learningObjectId, difficulty, minutes }));
+      onStart({ sheet, material: subject, edition, difficulty, focusMinutes: minutes, run: payload.run });
     } catch (requestError) {
       setStartError(requestError?.message || t("paper.startFailed"));
       setBusy(false);
@@ -215,6 +221,18 @@ function PaperSetup({ groups, onStart }) {
             </div>
           </section>
 
+          <section className="paper-panel paper-step-in" aria-labelledby="paper-length-label">
+            <h3 className="paper-label" id="paper-length-label">{t("paper.sessionLength")}</h3>
+            <div className="paper-segmented" role="radiogroup" aria-labelledby="paper-length-label" style={cssVars({ "--paper-segment": SESSION_MINUTES.indexOf(minutes) })}>
+              <span className="paper-segmented-thumb" aria-hidden="true" />
+              {SESSION_MINUTES.map((value) => (
+                <button key={value} type="button" role="radio" aria-checked={minutes === value} onClick={() => setMinutes(value)}>
+                  {t("paper.minutes", { minutes: value })}
+                </button>
+              ))}
+            </div>
+          </section>
+
           {unavailable && <p className="paper-error" role="alert" dir="auto">{t("paper.sheetUnavailable")}</p>}
           {startError && <p className="paper-error" role="alert" dir="auto">{startError}</p>}
           <button type="button" className="paper-primary" onClick={start} disabled={busy || !isReady(difficulty)}>
@@ -235,9 +253,9 @@ function formatClock(seconds) {
   return `${String(Math.floor(safe / 60)).padStart(2, "0")}:${String(safe % 60).padStart(2, "0")}`;
 }
 
-function useFocusTimer(onFinish) {
+function useFocusTimer(totalSeconds, onFinish) {
   // Wall-clock based, so a throttled background tab still shows the right time.
-  const [state, setState] = useState(() => ({ running: true, endsAt: Date.now() + FOCUS_SECONDS * 1000, left: FOCUS_SECONDS, focused: 0, since: Date.now() }));
+  const [state, setState] = useState(() => ({ running: true, endsAt: Date.now() + totalSeconds * 1000, left: totalSeconds, focused: 0, since: Date.now() }));
   const [, force] = useState(0);
   const finishRef = useRef(onFinish);
   finishRef.current = onFinish;
@@ -269,8 +287,8 @@ function useFocusTimer(onFinish) {
       : current)),
     reset: () => setState((current) => ({
       ...current,
-      left: FOCUS_SECONDS,
-      endsAt: Date.now() + FOCUS_SECONDS * 1000,
+      left: totalSeconds,
+      endsAt: Date.now() + totalSeconds * 1000,
       since: Date.now(),
       focused: current.focused + (current.running ? (Date.now() - current.since) / 1000 : 0)
     }))
@@ -280,7 +298,8 @@ function useFocusTimer(onFinish) {
 function PaperSession({ session, onSessionChange, onEnd }) {
   const { t } = useI18n();
   const [notice, setNotice] = useState("");
-  const timer = useFocusTimer(() => setNotice(t("paper.focusDone")));
+  const totalSeconds = (SESSION_MINUTES.includes(session.focusMinutes) ? session.focusMinutes : DEFAULT_MINUTES) * 60;
+  const timer = useFocusTimer(totalSeconds, () => setNotice(t("paper.focusDone")));
   const [endOpen, setEndOpen] = useState(false);
   const [studyOpen, setStudyOpen] = useState(false);
   const run = session.run;
@@ -292,7 +311,7 @@ function PaperSession({ session, onSessionChange, onEnd }) {
     return () => window.clearTimeout(id);
   }, [notice]);
 
-  const progress = 1 - timer.left / FOCUS_SECONDS;
+  const progress = 1 - timer.left / totalSeconds;
 
   return (
     // Grid areas: timer + search beside a compact Notes, then the player and
@@ -311,7 +330,7 @@ function PaperSession({ session, onSessionChange, onEnd }) {
           </div>
         </div>
 
-        <PaperPlayer />
+        <PaperPlayer sessionOver={!timer.running && timer.left <= 0} />
         <PaperNotes sheetId={session.sheet.learningObjectId} />
         <PaperStatus session={session} focusedMinutes={timer.focusedMinutes} onCheckpoint={() => setStudyOpen(true)} onChangeSheet={onEnd} />
 
@@ -349,7 +368,18 @@ function searchErrorKey(error) {
   }
 }
 
-function PaperPlayer() {
+function readScene() {
+  return readStorage(SCENE_KEY) || "";
+}
+
+/**
+ * The Paper Workspace player. Lo-Fi is either the built-in scene or one of the
+ * administrator's scenes: a short clip in a single <video loop> element that
+ * the browser repeats in place for the whole session. The element is created
+ * once per chosen scene and never per loop, and the clip is fetched once (the
+ * server lets the browser keep it), so an hour of study costs one small file.
+ */
+function PaperPlayer({ sessionOver = false }) {
   const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -359,16 +389,24 @@ function PaperPlayer() {
   const searchSeq = useRef(0);
   const [videoId, setVideoId] = useState("");
   const [lofiPlaying, setLofiPlaying] = useState(true);
-  // The administrator's media when one is published; the built-in scene
-  // otherwise, and whenever the media cannot be loaded.
-  const [media, setMedia] = useState(null);
+  // The administrator's scenes, in their order. The student's pick is a
+  // per-device convenience; without one (or when it is gone) the first scene
+  // plays, and the built-in scene when there are none or a clip fails.
+  const [scenes, setScenes] = useState(/** @type {any[]} */ ([]));
+  const [failed, setFailed] = useState(/** @type {string[]} */ ([]));
+  const [sceneId, setSceneId] = useState(readScene);
+  const [lofiOpen, setLofiOpen] = useState(true);
+  const [pickerOpen, setPickerOpen] = useState(false);
   useEffect(() => {
     let cancelled = false;
-    focusApi.getPaperWorkspaceMedia()
-      .then((payload) => { if (!cancelled) setMedia(/** @type {any} */ (payload).media || null); })
+    focusApi.getLofiScenes()
+      .then((list) => { if (!cancelled) setScenes(list); })
       .catch(() => { /* keep the built-in scene */ });
     return () => { cancelled = true; };
   }, []);
+  const playable = scenes.filter((item) => !failed.includes(item.id));
+  const scene = sceneId === BUILT_IN_SCENE ? null : playable.find((item) => item.id === sceneId) || playable[0] || null;
+  const media = scene ? { url: scene.url, media_type: scene.media_type, focal_x: scene.focal_x, focal_y: scene.focal_y } : null;
   const [fullscreen, setFullscreen] = useState(false);
   const searchRef = useRef(null);
   const resultsRef = useRef(null);
@@ -378,14 +416,32 @@ function PaperPlayer() {
   const tapWakesRef = useRef(false);
   const linkId = parseYouTubeVideoId(query);
   const trimmed = query.trim();
-  const adminVideo = !videoId && media?.media_type === "video";
+  const showLofi = !videoId && lofiOpen;
+  const adminVideo = showLofi && media?.media_type === "video";
   const videoMedia = useVideoMedia(videoRef, { enabled: adminVideo, src: media?.url || "" });
   const youTubeMedia = useYouTubeMedia(frameRef, videoId);
   // The default lofi (the built-in scene or an admin image) has its own
   // soundtrack, silenced whenever a YouTube video or an admin video plays.
-  const lofiMedia = useLofiMedia({ enabled: !videoId && !adminVideo, playing: lofiPlaying, setPlaying: setLofiPlaying });
+  const lofiMedia = useLofiMedia({ enabled: showLofi && !adminVideo, playing: lofiPlaying, setPlaying: setLofiPlaying });
   const source = videoId ? youTubeMedia : adminVideo ? videoMedia : lofiMedia;
   const controls = useIdleControls();
+
+  // The study timer decides when Lo-Fi stops, never the clip: at 00:00 the
+  // loop pauses, whatever point of the clip it has reached.
+  useEffect(() => {
+    if (!sessionOver) return;
+    videoRef.current?.pause();
+    setLofiPlaying(false);
+  }, [sessionOver]);
+
+  function chooseScene(id) {
+    setSceneId(id);
+    writeStorage(SCENE_KEY, id);
+    setLofiOpen(true);
+    setLofiPlaying(true);
+    setPickerOpen(false);
+    controls.hold(false);
+  }
 
   useEffect(() => {
     const onFullscreen = () => setFullscreen(document.fullscreenElement === playerRef.current);
@@ -535,9 +591,17 @@ function PaperPlayer() {
       >
         {videoId
           ? <iframe ref={frameRef} className="paper-player-frame" src={youTubeEmbedUrl(videoId, window.location.origin)} title={t("paper.youtubeVideo")} allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
-          : media
-            ? <WorkspaceMedia media={media} videoRef={videoRef} label={t("paper.lofi")} onError={() => setMedia(null)} />
-            : <LofiScene playing={lofiPlaying} label={t("paper.lofiLabel")} />}
+          : !lofiOpen
+            ? (
+              <div className="paper-lofi-off">
+                <Icon name="headphones" size={22} />
+                <p>{t("paper.lofiOff")}</p>
+              </div>
+            )
+            : scene
+              // Keyed by scene: a new element only when the scene changes, never per loop.
+              ? <WorkspaceMedia key={scene.id} media={media} poster={scene.cover_url || undefined} videoRef={videoRef} label={scene.title} onError={() => setFailed((current) => [...current, scene.id])} />
+              : <LofiScene playing={lofiPlaying} label={t("paper.lofiLabel")} />}
         {/* The embed swallows pointer events, so this layer is what notices
             the reader over a YouTube video. A tap on faded controls only
             brings them back; a tap on visible ones plays or pauses. Until a
@@ -550,14 +614,68 @@ function PaperPlayer() {
           onPointerDown={() => { tapWakesRef.current = controls.idle; }}
           onClick={() => { if (!tapWakesRef.current && source.canPlay) source.toggle(); }}
         />
-        {videoId && (
+        {videoId ? (
           <div className="paper-player-top">
-            <button type="button" className="paper-glass-button" onClick={() => setVideoId("")}><Icon name="headphones" size={15} />{t("paper.backToLofi")}</button>
+            <button type="button" className="paper-glass-button" onClick={() => { setVideoId(""); setLofiOpen(true); }}><Icon name="headphones" size={15} />{t("paper.backToLofi")}</button>
+          </div>
+        ) : (
+          <div className="paper-player-top">
+            {lofiOpen ? (
+              <>
+                {playable.length > 0 && (
+                  <button type="button" className="paper-glass-button" aria-haspopup="menu" aria-expanded={pickerOpen} onClick={() => { setPickerOpen(!pickerOpen); controls.hold(!pickerOpen); }}>
+                    <Icon name="layers" size={15} />{t("paper.changeLofi")}
+                  </button>
+                )}
+                <span className="paper-player-top-spacer" />
+                <button type="button" className="paper-glass-button is-round" onClick={() => { setLofiOpen(false); setPickerOpen(false); controls.hold(false); }} aria-label={t("paper.closeLofi")} title={t("paper.closeLofi")}>
+                  <Icon name="x" size={16} />
+                </button>
+              </>
+            ) : (
+              <button type="button" className="paper-glass-button" onClick={() => { setLofiOpen(true); setLofiPlaying(true); }}><Icon name="headphones" size={15} />{t("paper.openLofi")}</button>
+            )}
+            {pickerOpen && (
+              <ScenePicker
+                scenes={playable}
+                current={scene ? scene.id : BUILT_IN_SCENE}
+                onChoose={chooseScene}
+                onClose={() => { setPickerOpen(false); controls.hold(false); }}
+              />
+            )}
           </div>
         )}
         <MediaControlBar media={source} fullscreen={fullscreen} onToggleFullscreen={toggleFullscreen} onHold={controls.hold} />
       </div>
     </>
+  );
+}
+
+/** The Lo-Fi scene menu: the built-in scene first, then the administrator's. */
+function ScenePicker({ scenes, current, onChoose, onClose }) {
+  const { t } = useI18n();
+  const menuRef = useRef(null);
+  useEffect(() => {
+    menuRef.current?.querySelector("[aria-checked='true']")?.focus();
+    const onKey = (event) => { if (event.key === "Escape") onClose(); };
+    const onPointer = (event) => { if (!menuRef.current?.contains(event.target) && !event.target.closest?.("[aria-haspopup='menu']")) onClose(); };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onPointer);
+    return () => { document.removeEventListener("keydown", onKey); document.removeEventListener("pointerdown", onPointer); };
+  }, [onClose]);
+  const items = [{ id: BUILT_IN_SCENE, title: t("paper.lofi"), cover_url: "" }, ...scenes];
+  return (
+    <div className="paper-scene-picker" role="menu" aria-label={t("paper.lofiScenes")} ref={menuRef}>
+      {items.map((item) => (
+        <button key={item.id} type="button" role="menuitemradio" aria-checked={item.id === current} className="paper-scene-option" onClick={() => onChoose(item.id)}>
+          <span className="paper-scene-thumb" aria-hidden="true">
+            {item.cover_url ? <img src={item.cover_url} alt="" loading="lazy" /> : <Icon name={item.id === BUILT_IN_SCENE ? "moon" : "image"} size={16} />}
+          </span>
+          <span className="paper-scene-title" dir="auto">{item.title}</span>
+          {item.id === current && <Icon name="check" size={16} />}
+        </button>
+      ))}
+    </div>
   );
 }
 

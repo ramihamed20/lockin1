@@ -9,16 +9,23 @@
  * normally, and a browser that refuses autoplay with sound waits for Play.
  * `preview` (the admin cropping frames) plays silently on its own instead.
  *
+ * A Lo-Fi scene is a short clip repeated by the browser itself (`loop`): the
+ * same element and the same downloaded file play again from the start with no
+ * reload, no new request and no black frame. `preload="auto"` fetches the
+ * whole clip up front so the first repeat is as seamless as the rest, and the
+ * optional `poster` (the scene's cover) shows until the first frame is ready.
+ *
  * @param {{
  *   media: { url: string, media_type: "video" | "image", focal_x: number, focal_y: number },
  *   label: string,
  *   className?: string,
  *   videoRef?: import("react").Ref<HTMLVideoElement>,
  *   preview?: boolean,
+ *   poster?: string,
  *   onError?: () => void
  * }} props
  */
-export function WorkspaceMedia({ media, label, className = "", videoRef = undefined, preview = false, onError }) {
+export function WorkspaceMedia({ media, label, className = "", videoRef = undefined, preview = false, poster = undefined, onError }) {
   const style = { objectPosition: `${clamp(media.focal_x)}% ${clamp(media.focal_y)}%` };
   const classes = `paper-media ${className}`.trim();
   if (media.media_type === "video") {
@@ -30,6 +37,7 @@ export function WorkspaceMedia({ media, label, className = "", videoRef = undefi
         ref={videoRef}
         className={classes}
         src={media.url}
+        poster={poster}
         style={style}
         aria-label={label}
         loop

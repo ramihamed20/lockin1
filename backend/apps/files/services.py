@@ -20,6 +20,7 @@ from platform_core.storage import (
     open_managed_object,
 )
 
+from .media_probe import MediaProbeError, probe_video
 from .models import ManagedFile
 
 
@@ -94,6 +95,7 @@ class ValidatedUpload:
     size_bytes: int
     checksum_sha256: str
     pdf_page_count: int | None
+    duration_ms: int | None = None
 
 
 PDF_SIGNATURE = b"%PDF-"
@@ -185,6 +187,7 @@ def validate_upload(*, upload: UploadedFile, kind: str) -> ValidatedUpload:
     upload.seek(0)
     head = upload.read(32)
     upload.seek(0)
+    duration_ms: int | None = None
 
     if kind == ManagedFile.Kind.PDF:
         max_bytes = int(settings.CONTENT_MAX_PDF_BYTES)
@@ -217,6 +220,13 @@ def validate_upload(*, upload: UploadedFile, kind: str) -> ValidatedUpload:
         ):
             raise FileValidationError("Choose an MP4 or WebM video, or a JPEG, PNG, WebP or GIF.")
         canonical_type = supplied_type
+        if upload.size > max_bytes:
+            raise FileValidationError(
+                f"The file is {upload.size // (1024 * 1024)} MB; the limit is "
+                f"{max_bytes // (1024 * 1024)} MB. Upload a short clip: the player loops it."
+            )
+        if supplied_type in WORKSPACE_VIDEO_TYPES:
+            duration_ms = _workspace_video_duration(upload, supplied_type)
     else:
         raise FileValidationError("This file type is not supported.")
     if upload.size > max_bytes:
@@ -227,7 +237,30 @@ def validate_upload(*, upload: UploadedFile, kind: str) -> ValidatedUpload:
         size_bytes=upload.size,
         checksum_sha256=_checksum(upload),
         pdf_page_count=_pdf_page_count(upload) if kind == ManagedFile.Kind.PDF else None,
+        duration_ms=duration_ms,
     )
+
+
+def _workspace_video_duration(upload: UploadedFile, content_type: str) -> int:
+    """The clip's length, refusing broken files and anything outside the loop range."""
+
+    try:
+        duration_ms = probe_video(upload, content_type).duration_ms
+    except MediaProbeError as error:
+        raise FileValidationError(str(error)) from error
+    minimum = int(settings.LOFI_VIDEO_MIN_SECONDS)
+    maximum = int(settings.LOFI_VIDEO_MAX_SECONDS)
+    seconds = duration_ms / 1000
+    if seconds < minimum:
+        raise FileValidationError(
+            f"The video is {seconds:.1f} s long; a loop must be at least {minimum} s."
+        )
+    if seconds > maximum:
+        raise FileValidationError(
+            f"The video is {seconds / 60:.1f} min long; the limit is {maximum // 60} min. "
+            "Upload a short clip: the player repeats it for the whole session."
+        )
+    return duration_ms
 
 
 @transaction.atomic
@@ -244,6 +277,7 @@ def create_managed_file(*, owner: User, upload: UploadedFile, kind: str) -> Mana
         size_bytes=validated.size_bytes,
         checksum_sha256=validated.checksum_sha256,
         pdf_page_count=validated.pdf_page_count,
+        duration_ms=validated.duration_ms,
         validation_status=ManagedFile.ValidationStatus.READY,
         scan_status=(
             ManagedFile.ScanStatus.PENDING

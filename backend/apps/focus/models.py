@@ -604,28 +604,43 @@ class FocusSyncReceipt(models.Model):
         return f"{self.collection_id}:{self.idempotency_key}"
 
 
-class PaperWorkspaceMedia(models.Model):
-    """The single, administrator-managed background of the Paper Workspace player.
+class LofiScene(models.Model):
+    """One administrator-managed Lo-Fi scene for the Paper Workspace player.
 
-    One row (``id=1``). With no file, or while disabled, the workspace shows its
-    built-in lofi scene. The focal point keeps the important part of the media in
-    frame when the player crops it to a different shape (``object-fit: cover``).
+    A scene stores one short clip, exactly as uploaded; the player loops it on
+    the client for as long as a study session runs, so nothing longer is ever
+    rendered or stored. Students see enabled scenes in ``position`` order and
+    may pick any of them; with none enabled the player keeps its built-in lofi
+    scene. The focal point keeps the important part of the frame in view when
+    the player crops it to a different shape (``object-fit: cover``).
     """
 
-    SINGLETON_ID = 1
-
-    id = models.PositiveSmallIntegerField(primary_key=True, default=SINGLETON_ID, editable=False)
-    managed_file = models.ForeignKey(
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=80)
+    media_file = models.ForeignKey(
+        "files.ManagedFile",
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    cover_file = models.ForeignKey(
         "files.ManagedFile",
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="+",
     )
-    enabled = models.BooleanField(default=False)
+    enabled = models.BooleanField(default=True)
+    position = models.PositiveIntegerField(default=0)
     focal_x = models.PositiveSmallIntegerField(default=50)
     focal_y = models.PositiveSmallIntegerField(default=50)
-    revision = models.PositiveIntegerField(default=0)
+    revision = models.PositiveIntegerField(default=1)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -633,16 +648,17 @@ class PaperWorkspaceMedia(models.Model):
         blank=True,
         related_name="+",
     )
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        ordering = ("position", "created_at")
         constraints = [
-            models.CheckConstraint(condition=Q(id=1), name="focus_paper_media_singleton"),
             models.CheckConstraint(
                 condition=Q(focal_x__lte=100) & Q(focal_y__lte=100),
-                name="focus_paper_media_focal_range",
+                name="focus_lofi_scene_focal_range",
             ),
         ]
 
     def __str__(self) -> str:
-        return "Paper Workspace media"
+        return self.title

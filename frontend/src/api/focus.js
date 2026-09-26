@@ -36,9 +36,10 @@ function scopeQuery(scope) {
 
 /** Server-authoritative Focus document, session, workspace, and annotation contracts. */
 export const focusApi = {
-  /** The admin-chosen player media, or `{ media: null }` for the built-in lofi scene. */
-  async getPaperWorkspaceMedia() {
-    return objectPayload(await request("/focus/paper-workspace/media"), "The workspace media could not be loaded.");
+  /** Admin Lo-Fi scenes, in order; an empty list means the built-in lofi scene. */
+  async getLofiScenes() {
+    const payload = objectPayload(await request("/focus/paper-workspace/scenes"), "The Lo-Fi scenes could not be loaded.");
+    return Array.isArray(payload.scenes) ? /** @type {any[]} */ (payload.scenes).filter((scene) => scene && typeof scene.id === "string" && typeof scene.url === "string") : [];
   },
 
   /**

@@ -88,6 +88,7 @@ class ManagedFileScanDecisionView(APIView):
 
 RANGE_PATTERN = re.compile(r"bytes=(\d*)-(\d*)$")
 STREAM_CHUNK_SIZE = 64 * 1024
+WORKSPACE_MEDIA_CACHE_CONTROL = "private, max-age=31536000, immutable"
 
 
 def _byte_range(value: str, size: int) -> tuple[int, int] | None:
@@ -145,6 +146,17 @@ class ManagedFileDeliveryView(APIView):
             and managed_file.scan_status != ManagedFile.ScanStatus.CLEAN
         ):
             raise NotFound("File not found.")
+        # Lo-Fi clips loop for a whole study session. A file's bytes never change
+        # under its id, so the browser may keep it: one download, then every
+        # loop and every later visit is served locally. ``private`` keeps
+        # Cloudflare and any other shared cache from storing it.
+        cacheable = managed_file.kind == ManagedFile.Kind.WORKSPACE_MEDIA
+        etag = f'"{managed_file.id}"'
+        if cacheable and etag in request.headers.get("If-None-Match", ""):
+            not_modified = HttpResponse(status=status.HTTP_304_NOT_MODIFIED)
+            not_modified["ETag"] = etag
+            not_modified["Cache-Control"] = WORKSPACE_MEDIA_CACHE_CONTROL
+            return not_modified
         try:
             stored_object = open_managed_object(managed_file.blob)
         except ManagedObjectUnavailable as error:
@@ -193,7 +205,11 @@ class ManagedFileDeliveryView(APIView):
             response["Content-Length"] = str(size)
         response["Accept-Ranges"] = "bytes"
         response["X-Content-Type-Options"] = "nosniff"
-        response["Cache-Control"] = "private, no-store"
+        if cacheable:
+            response["Cache-Control"] = WORKSPACE_MEDIA_CACHE_CONTROL
+            response["ETag"] = etag
+        else:
+            response["Cache-Control"] = "private, no-store"
         content_disposition = content_disposition_header(
             as_attachment=is_download,
             filename=managed_file.original_name,

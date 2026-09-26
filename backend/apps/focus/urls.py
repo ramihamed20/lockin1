@@ -1,8 +1,10 @@
 from django.urls import path
 
 from .paper_workspace_views import (
-    PaperWorkspaceMediaAdminView,
-    PaperWorkspaceMediaView,
+    LofiSceneAdminView,
+    LofiSceneOrderAdminView,
+    LofiScenesAdminView,
+    LofiScenesView,
     PaperWorkspaceYouTubeSearchView,
 )
 from .views import (
@@ -42,20 +44,26 @@ urlpatterns = [
         ManagedActiveStudyAvailabilityView.as_view(),
     ),
     path("focus/managed-active-study/start", ManagedActiveStudyStartView.as_view()),
-    path(
-        "focus/paper-workspace/media",
-        PaperWorkspaceMediaView.as_view(),
-        name="paper-workspace-media",
-    ),
+    path("focus/paper-workspace/scenes", LofiScenesView.as_view(), name="lofi-scenes"),
     path(
         "focus/paper-workspace/youtube-search",
         PaperWorkspaceYouTubeSearchView.as_view(),
         name="paper-workspace-youtube-search",
     ),
     path(
-        "operations/admin/paper-workspace/media",
-        PaperWorkspaceMediaAdminView.as_view(),
-        name="paper-workspace-media-admin",
+        "operations/admin/lofi-scenes",
+        LofiScenesAdminView.as_view(),
+        name="lofi-scenes-admin",
+    ),
+    path(
+        "operations/admin/lofi-scenes/order",
+        LofiSceneOrderAdminView.as_view(),
+        name="lofi-scenes-admin-order",
+    ),
+    path(
+        "operations/admin/lofi-scenes/<uuid:scene_id>",
+        LofiSceneAdminView.as_view(),
+        name="lofi-scene-admin",
     ),
     path(
         "focus/managed-active-study/<uuid:run_id>/questions",

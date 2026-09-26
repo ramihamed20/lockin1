@@ -42,6 +42,8 @@ class ManagedFile(models.Model):
     size_bytes = models.PositiveBigIntegerField()
     checksum_sha256 = models.CharField(max_length=64, db_index=True)
     pdf_page_count = models.PositiveIntegerField(null=True, blank=True)
+    # Read from the container at upload, for workspace videos only.
+    duration_ms = models.PositiveIntegerField(null=True, blank=True)
     validation_status = models.CharField(
         max_length=16,
         choices=ValidationStatus.choices,
