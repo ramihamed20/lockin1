@@ -8,8 +8,10 @@ import {
   clockLabel,
   draftFromPreferences,
   practicalChoices,
+  sessionsByDay,
   slotLabel,
   timetableGrid,
+  timetableRows,
   withPracticalChoice
 } from "../src/lib/myGroup.js";
 
@@ -70,4 +72,66 @@ test("a subject override applies alone and choosing the default removes it", () 
 test("the My Group card sits directly below the Review queue on the Dashboard", async () => {
   const source = await readFile(new URL("../src/pages/Dashboard.jsx", import.meta.url), "utf8");
   assert.match(source, /<ReviewQueue items=\{reviewItems\} \/>\s*<MyGroupCard \/>/);
+});
+
+const SLOTS = [["08:00", "10:00"], ["10:00", "12:00"], ["12:00", "14:00"], ["14:00", "16:00"]].map(([start_time, end_time]) => ({ start_time, end_time }));
+
+test("a lecture across two slots spans them and keeps its own time", () => {
+  // Year 1, Theory A + Practical C, Tuesday: 09:00–12:00 anatomy, then two practicals.
+  const timetable = {
+    days: ["tuesday"],
+    slots: SLOTS,
+    sessions: [
+      { kind: "practical", subject: "dental_materials", day: "tuesday", start_time: "12:00", end_time: "14:00" },
+      { kind: "theory", subject: "general_anatomy", day: "tuesday", start_time: "09:00", end_time: "12:00" },
+      { kind: "practical", subject: "physiology", day: "tuesday", start_time: "14:00", end_time: "16:00" }
+    ]
+  };
+  const [{ cells }] = timetableRows(timetable);
+  assert.deepEqual(cells.map((cell) => [cell.slotIndex, cell.span, cell.sessions.map((s) => s.subject)]), [
+    [0, 2, ["general_anatomy"]],
+    [2, 1, ["dental_materials"]],
+    [3, 1, ["physiology"]]
+  ]);
+  assert.equal(cells[0].sessions[0].offSlot, true);
+  assert.equal(cells[1].sessions[0].offSlot, false);
+  assert.equal(slotLabel(en, cells[0].sessions[0]), "9:00 AM – 12:00 PM");
+});
+
+test("regular two-hour sessions keep one cell per slot and empty slots stay empty", () => {
+  const [{ cells }] = timetableRows({
+    days: ["sunday"],
+    slots: SLOTS,
+    sessions: [{ kind: "theory", subject: "histology", day: "sunday", start_time: "10:00", end_time: "12:00" }]
+  });
+  assert.deepEqual(cells.map((cell) => [cell.span, cell.sessions.length]), [[1, 0], [1, 1], [1, 0], [1, 0]]);
+});
+
+test("the day list is chronological with theory first in a shared slot", () => {
+  const [monday] = sessionsByDay({
+    days: ["monday"],
+    slots: SLOTS,
+    sessions: [
+      { kind: "theory", subject: "dental_materials", day: "monday", start_time: "14:00", end_time: "16:00" },
+      { kind: "practical", subject: "general_anatomy", day: "monday", start_time: "12:00", end_time: "14:00" },
+      { kind: "practical", subject: "x", day: "monday", start_time: "08:00", end_time: "10:00" },
+      { kind: "theory", subject: "dental_anatomy", day: "monday", start_time: "08:00", end_time: "10:00" }
+    ]
+  });
+  assert.deepEqual(monday.sessions.map((s) => `${s.start_time} ${s.kind}`), ["08:00 theory", "08:00 practical", "12:00 practical", "14:00 theory"]);
+});
+
+test("Year 1 subjects have their official names in both languages", () => {
+  const names = {
+    general_anatomy: ["General Anatomy", "التشريح العام"],
+    histology: ["Histology", "علم الأنسجة"],
+    physiology: ["Physiology", "علم وظائف الأعضاء"],
+    biochemistry: ["Biochemistry", "الكيمياء الحيوية"],
+    dental_materials: ["Dental Materials", "خواص مواد الأسنان"],
+    dental_anatomy: ["Dental Anatomy", "التشريح الوصفي للأسنان"]
+  };
+  for (const [subject, [english, arabic]] of Object.entries(names)) {
+    assert.equal(en(`myGroup.subject.${subject}`), english);
+    assert.equal(ar(`myGroup.subject.${subject}`), arabic);
+  }
 });

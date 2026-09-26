@@ -73,3 +73,53 @@ export function withPracticalChoice(draft, subject, choice) {
   }
   return { ...draft, practicalOverrides: overrides };
 }
+
+function minutes(time) {
+  const [hour, minute = "0"] = String(time).split(":");
+  return Number(hour) * 60 + Number(minute);
+}
+
+const overlaps = (session, slot) => minutes(session.start_time) < minutes(slot.end_time) && minutes(slot.start_time) < minutes(session.end_time);
+
+/**
+ * One row per day for the week grid: cells left to right, each covering one or
+ * more slots. A lecture that runs across slots (Year 1's 09:00–12:00 anatomy)
+ * spans them when nothing else shares those slots, and `offSlot` says its own
+ * times differ from the columns it sits under.
+ */
+export function timetableRows(timetable) {
+  const slots = timetable?.slots || [];
+  return (timetable?.days || []).map((day) => {
+    const sessions = (timetable?.sessions || []).filter((session) => session.day === day);
+    const firstSlot = (session) => slots.findIndex((slot) => overlaps(session, slot));
+    const cells = [];
+    for (let index = 0; index < slots.length;) {
+      const starting = sessions.filter((session) => firstSlot(session) === index);
+      let span = 1;
+      if (starting.length === 1) {
+        const [session] = starting;
+        let last = index;
+        while (last + 1 < slots.length && overlaps(session, slots[last + 1]) && sessions.every((other) => other === session || !overlaps(other, slots[last + 1]))) last += 1;
+        span = last - index + 1;
+      }
+      const covered = { start_time: slots[index].start_time, end_time: slots[index + span - 1].end_time };
+      cells.push({
+        slotIndex: index,
+        span,
+        sessions: starting.map((session) => ({ ...session, offSlot: session.start_time !== covered.start_time || session.end_time !== covered.end_time }))
+      });
+      index += span;
+    }
+    return { day, cells };
+  });
+}
+
+/** Each day's sessions in time order, theory first when two start together. */
+export function sessionsByDay(timetable) {
+  return (timetable?.days || []).map((day) => ({
+    day,
+    sessions: (timetable?.sessions || [])
+      .filter((session) => session.day === day)
+      .sort((a, b) => minutes(a.start_time) - minutes(b.start_time) || (a.kind === "theory" ? -1 : 1) - (b.kind === "theory" ? -1 : 1))
+  }));
+}

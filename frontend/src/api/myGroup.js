@@ -4,7 +4,8 @@ function myGroupPayload(payload) {
   if (!payload || typeof payload !== "object" || typeof payload.configured !== "boolean" || !Array.isArray(payload.timetable?.sessions)) {
     throw new ApiError(500, payload, "The My Group response was incomplete.", "invalid_response");
   }
-  return payload;
+  // `available` is false when the student's cohort has no My Group timetable.
+  return { ...payload, available: payload.available !== false };
 }
 
 export const myGroupApi = {

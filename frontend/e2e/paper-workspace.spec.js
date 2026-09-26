@@ -98,7 +98,21 @@ function createServer() {
   };
 }
 
-async function mockStudent(page, server, session = {}, media = null) {
+/** Six embeddable videos, shaped like the server's YouTube search payload. */
+const YOUTUBE_RESULTS = Array.from({ length: 6 }, (_, index) => ({
+  video_id: `lockin${String(index).padStart(3, "0")}yt`,
+  title: index === 0 ? "Oral Histology: Epithelium – full lecture" : `Epithelium lecture ${index + 1}`,
+  channel_title: "Dental Lectures",
+  thumbnail: `https://i.ytimg.com/vi/lockin${String(index).padStart(3, "0")}yt/mqdefault.jpg`
+}));
+
+/** Answers the in-app YouTube search; `youtube.queries` records what was asked. */
+function youTubeSearch(respond = () => ({ body: { results: YOUTUBE_RESULTS } })) {
+  const handler = { queries: /** @type {string[]} */ ([]), respond };
+  return handler;
+}
+
+async function mockStudent(page, server, session = {}, media = null, youtube = youTubeSearch()) {
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
@@ -108,12 +122,22 @@ async function mockStudent(page, server, session = {}, media = null) {
     if (await fulfillAccessContract(route, pathname)) return undefined;
     if (pathname === "/api/v1/catalog/materials") return json(MATERIALS);
     if (pathname === "/api/v1/focus/paper-workspace/media") return json({ media });
+    if (pathname === "/api/v1/focus/paper-workspace/youtube-search") {
+      const query = new URL(request.url()).searchParams.get("q") || "";
+      youtube.queries.push(query);
+      const { status = 200, body, delay = 0 } = youtube.respond(query);
+      if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+      return json({ query, ...body }, status);
+    }
     if (await server.handle(route, pathname, request.method())) return undefined;
     if (request.method() === "GET") return json({ count: 0, results: [] });
     return json({ error: { code: "not_found", message: "Unused" } }, 404);
   });
-  // The YouTube embed is never fetched in tests.
+  // The YouTube embed and thumbnails are never fetched in tests.
   await page.route("https://www.youtube-nocookie.com/**", (route) => route.fulfill({ status: 200, contentType: "text/html", body: "<html><body style='background:#111'></body></html>" }));
+  await page.route("https://i.ytimg.com/**", (route) => route.fulfill({ status: 200, contentType: "image/svg+xml", body: "<svg xmlns='http://www.w3.org/2000/svg' width='320' height='180'><rect width='320' height='180' fill='#3a2f5c'/></svg>" }));
+  // youtube.com itself must never be reached from the workspace.
+  await page.route(/^https:\/\/(www\.)?youtube\.com\//, (route) => route.abort());
 }
 
 test("a student sets up a paper session, plays a video and passes a checkpoint", async ({ page }, testInfo) => {
@@ -166,8 +190,11 @@ test("a student sets up a paper session, plays a video and passes a checkpoint",
   await search.fill("https://youtu.be/dQw4w9WgXcQ");
   await page.getByRole("button", { name: "Play this video" }).click();
   await expect(page.locator("iframe.paper-player-frame")).toHaveAttribute("src", /^https:\/\/www\.youtube-nocookie\.com\/embed\/dQw4w9WgXcQ\?/);
+  // A text search lists results in place; nothing links out to youtube.com.
   await search.fill("oral histology epithelium");
-  await expect(page.getByRole("link", { name: /Search YouTube for “oral histology epithelium”/ })).toHaveAttribute("href", /youtube\.com\/results\?search_query=oral\+histology\+epithelium/);
+  await search.press("Enter");
+  await expect(page.locator(".paper-results").getByRole("button", { name: /Oral Histology: Epithelium/ })).toBeVisible();
+  await expect(page.locator(".paper-results a")).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath("paper-search.png") });
   await page.keyboard.press("Escape");
   await page.locator(".paper-player").hover();
@@ -415,4 +442,178 @@ test("a checkpoint cannot be closed by accident: Exit & Save resumes, Exit Witho
   await page.getByRole("button", { name: /Checkpoint/ }).click();
   await expect(dialog.locator(".paper-quiz-count")).toHaveText(/1 of 2$/);
   await expect(dialog.getByRole("button", { name: /Gap junction/ })).toBeEnabled();
+});
+
+test("YouTube search lists results under the search bar and plays the chosen video inside Lock-in", async ({ page }, testInfo) => {
+  const youtube = youTubeSearch(() => ({ body: { results: YOUTUBE_RESULTS }, delay: 500 }));
+  await mockStudent(page, createServer(), {}, null, youtube);
+  const popups = [];
+  page.context().on("page", (opened) => popups.push(opened.url()));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await startSession(page);
+
+  const search = page.getByRole("searchbox", { name: "Search YouTube" });
+  await search.fill("oral histology");
+  // Typing alone costs no quota: the search runs on Enter.
+  await expect(page.getByRole("button", { name: /Search YouTube for “oral histology”/ })).toBeVisible();
+  expect(youtube.queries).toEqual([]);
+  await search.press("Enter");
+  await expect(page.locator(".paper-results").getByRole("status")).toHaveText(/Searching YouTube/);
+  const results = page.getByRole("list", { name: "YouTube results" }).getByRole("button");
+  await expect(results).toHaveCount(6);
+  expect(youtube.queries).toEqual(["oral histology"]);
+  await expect(results.first()).toContainText("Dental Lectures");
+  await expect(results.first().locator("img")).toHaveAttribute("src", "https://i.ytimg.com/vi/lockin000yt/mqdefault.jpg");
+
+  // Directly below the search bar, at its width.
+  const [box, panel] = await Promise.all([page.locator(".paper-search-box").boundingBox(), page.locator(".paper-results").boundingBox()]);
+  expect(panel.y).toBeGreaterThanOrEqual(box.y + box.height);
+  expect(panel.y - (box.y + box.height)).toBeLessThanOrEqual(12);
+  expect(Math.abs(panel.x - box.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(panel.width - box.width)).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: testInfo.outputPath("paper-search-results.png") });
+
+  // The keyboard reaches the results from the box.
+  await search.press("ArrowDown");
+  await expect(results.first()).toBeFocused();
+
+  // Choosing one closes the results and plays it in the existing player.
+  await results.nth(1).click();
+  await expect(page.locator(".paper-results")).toHaveCount(0);
+  await expect(search).toHaveValue("");
+  const frame = page.locator("iframe.paper-player-frame");
+  await expect(frame).toHaveAttribute("src", /^https:\/\/www\.youtube-nocookie\.com\/embed\/lockin001yt\?/);
+  await expect(page.getByRole("img", { name: /cat asleep/ })).toHaveCount(0);
+  expect(popups).toEqual([]);
+  expect(page.url()).toContain("#/paper-workspace");
+  await page.screenshot({ path: testInfo.outputPath("paper-search-playing.png") });
+
+  // One tap back to the default lofi.
+  await page.locator(".paper-player").hover();
+  await page.getByRole("button", { name: "Back to lofi" }).click();
+  await expect(frame).toHaveCount(0);
+  await expect(page.getByRole("img", { name: /cat asleep/ })).toBeVisible();
+});
+
+test("an empty or refused YouTube search says so and suggests a link", async ({ page }) => {
+  const youtube = youTubeSearch((query) => {
+    if (query === "busy") return { status: 503, body: { error: { code: "youtube_quota_exceeded", message: "busy" } } };
+    if (query === "down") return { status: 503, body: { error: { code: "youtube_search_unavailable", message: "off" } } };
+    return { body: { results: [] } };
+  });
+  await mockStudent(page, createServer(), {}, null, youtube);
+  await page.setViewportSize({ width: 1180, height: 820 });
+  await startSession(page);
+  const search = page.getByRole("searchbox", { name: "Search YouTube" });
+  await search.fill("zzzz nothing");
+  await search.press("Enter");
+  await expect(page.locator(".paper-results")).toContainText("No videos found");
+  await search.fill("busy");
+  await search.press("Enter");
+  await expect(page.locator(".paper-results").getByRole("alert")).toHaveText(/busy right now.*paste a video link/i);
+  await search.fill("down");
+  await search.press("Enter");
+  await expect(page.locator(".paper-results").getByRole("alert")).toHaveText(/isn’t available right now\. Paste a video link/);
+  // A pasted link still plays with no search at all.
+  await search.fill("https://youtu.be/dQw4w9WgXcQ");
+  await page.getByRole("button", { name: "Play this video" }).click();
+  await expect(page.locator("iframe.paper-player-frame")).toHaveAttribute("src", /embed\/dQw4w9WgXcQ\?/);
+  expect(youtube.queries).toEqual(["zzzz nothing", "busy", "down"]);
+});
+
+test("the default lofi plays its own soundtrack, with volume and mute, and yields to a video", async ({ page }) => {
+  // Records the real-time contexts and the looping soundtrack they play.
+  await page.addInitScript(() => {
+    const contexts = [];
+    const loops = [];
+    window.__lofi = { contexts, loops };
+    const Native = window.AudioContext;
+    window.AudioContext = class extends Native {
+      constructor(...args) { super(...args); contexts.push(this); }
+    };
+    const start = AudioBufferSourceNode.prototype.start;
+    AudioBufferSourceNode.prototype.start = function (...args) {
+      if (this.context instanceof Native && this.buffer) {
+        let peak = 0;
+        const data = this.buffer.getChannelData(0);
+        for (let index = 0; index < data.length; index += 7) peak = Math.max(peak, Math.abs(data[index]));
+        loops.push({ duration: this.buffer.duration, loop: this.loop, peak });
+      }
+      return start.apply(this, args);
+    };
+  });
+  await mockStudent(page, createServer());
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await startSession(page);
+
+  const bar = page.getByRole("group", { name: "Video controls" });
+  // The bar fades after a few quiet seconds by design; a pointer move brings it back.
+  let nudge = 0;
+  const wake = async () => {
+    const box = await page.locator(".paper-player").boundingBox();
+    nudge = (nudge + 1) % 5;
+    await page.mouse.move(box.x + box.width / 2 + nudge * 8, box.y + box.height / 3);
+  };
+  await wake();
+  await expect(bar.getByRole("button", { name: "Mute" })).toBeVisible();
+  await expect(bar.getByRole("slider", { name: "Volume" })).toBeVisible();
+  // A real, audible, seamless loop is playing.
+  await expect.poll(() => page.evaluate(() => window.__lofi.loops.length)).toBe(1);
+  const loop = await page.evaluate(() => window.__lofi.loops[0]);
+  expect(loop.loop).toBe(true);
+  expect(loop.duration).toBeGreaterThan(20);
+  expect(loop.peak).toBeGreaterThan(0.05);
+  expect(loop.peak).toBeLessThan(1);
+  await expect.poll(() => page.evaluate(() => window.__lofi.contexts[0]?.state)).toBe("running");
+
+  await wake();
+  await bar.getByRole("button", { name: "Mute" }).click();
+  await expect(bar.getByRole("button", { name: "Unmute" })).toBeVisible();
+  await wake();
+  await bar.getByRole("button", { name: "Unmute" }).click();
+
+  // Pausing the scene pauses its sound.
+  await wake();
+  await bar.getByRole("button", { name: "Pause" }).click();
+  await expect.poll(() => page.evaluate(() => window.__lofi.contexts[0].state)).toBe("suspended");
+  await wake();
+  await bar.getByRole("button", { name: "Play" }).click();
+  await expect.poll(() => page.evaluate(() => window.__lofi.contexts[0].state)).toBe("running");
+
+  // A YouTube video silences the lofi; returning brings it back.
+  await page.getByRole("searchbox", { name: "Search YouTube" }).fill("https://youtu.be/dQw4w9WgXcQ");
+  await page.getByRole("button", { name: "Play this video" }).click();
+  await expect.poll(() => page.evaluate(() => window.__lofi.contexts[0].state)).toBe("suspended");
+  await page.locator(".paper-player").hover();
+  await page.getByRole("button", { name: "Back to lofi" }).click();
+  await expect.poll(() => page.evaluate(() => window.__lofi.contexts[0].state)).toBe("running");
+  expect(await page.evaluate(() => window.__lofi.contexts.length)).toBe(1);
+});
+
+test("search results fit iPad and an Arabic phone without horizontal scrolling", async ({ page }, testInfo) => {
+  await mockStudent(page, createServer(), { preferred_language: "ar" });
+  await page.addInitScript(() => window.localStorage.setItem("lock-in.locale", "ar"));
+  await page.addInitScript(() => window.localStorage.setItem("lock-in.paper-workspace.setup", JSON.stringify({ subjectSlug: "paper-e2e-oral-histology", sheetId: "5b0e2f7a-9d4c-4a51-8f11-2a7c0e3b9a10", difficulty: "medium" })));
+  for (const [width, height, name] of [[820, 1180, "ipad-portrait"], [390, 844, "phone"]]) {
+    await page.setViewportSize({ width, height });
+    await page.goto("about:blank");
+    await page.goto("/#/paper-workspace");
+    await page.getByRole("button", { name: /ابدأ الجلسة/ }).click();
+    const search = page.getByRole("searchbox", { name: "ابحث في يوتيوب" });
+    await search.fill("أنسجة الفم");
+    await search.press("Enter");
+    const results = page.getByRole("list", { name: "نتائج يوتيوب" }).getByRole("button");
+    await expect(results).toHaveCount(6);
+    // Thumbnails sit on the reading side in Arabic.
+    const [row, thumb] = await Promise.all([results.first().boundingBox(), results.first().locator(".paper-result-video-thumb").boundingBox()]);
+    expect(thumb.x + thumb.width).toBeGreaterThan(row.x + row.width - 20);
+    const panel = await page.locator(".paper-results").boundingBox();
+    expect(panel.x).toBeGreaterThanOrEqual(0);
+    expect(panel.x + panel.width).toBeLessThanOrEqual(width);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+    await page.screenshot({ path: testInfo.outputPath(`paper-search-${name}-rtl.png`) });
+    await results.first().click();
+    await expect(page.locator("iframe.paper-player-frame")).toHaveAttribute("src", /embed\/lockin000yt\?/);
+  }
 });

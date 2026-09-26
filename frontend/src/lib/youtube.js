@@ -53,13 +53,3 @@ export function youTubeEmbedUrl(videoId, origin = "") {
   if (origin) params.set("origin", origin);
   return `${YOUTUBE_EMBED_ORIGIN}/embed/${videoId}?${params}`;
 }
-
-/**
- * youtube.com's own results page for a free-text query. Searching inside the
- * app needs a server-side YouTube Data API integration that does not exist yet,
- * so text searches are handed to YouTube in a new tab.
- * @param {string} query
- */
-export function youTubeSearchUrl(query) {
-  return `https://www.youtube.com/results?${new URLSearchParams({ search_query: String(query || "").trim() })}`;
-}

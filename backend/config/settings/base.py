@@ -281,6 +281,10 @@ TELEGRAM_HTTP_TIMEOUT_SECONDS = env_int("TELEGRAM_HTTP_TIMEOUT_SECONDS", 5)
 # guessable public endpoint, so an unset value disables callback handling
 # entirely rather than accepting unauthenticated updates.
 TELEGRAM_WEBHOOK_SECRET_TOKEN = secret_env("TELEGRAM_WEBHOOK_SECRET_TOKEN")
+# YouTube Data API key for Paper Workspace search. Server-side only: it is
+# never serialized to a client. Empty disables in-app search (links still play).
+YOUTUBE_API_KEY = secret_env("YOUTUBE_API_KEY")
+YOUTUBE_HTTP_TIMEOUT_SECONDS = env_int("YOUTUBE_HTTP_TIMEOUT_SECONDS", 5)
 SUBSCRIPTION_SCHEDULER_INTERVAL_SECONDS = env_int("SUBSCRIPTION_SCHEDULER_INTERVAL_SECONDS", 900)
 OBSERVABILITY_SLOW_REQUEST_MS = env_int("OBSERVABILITY_SLOW_REQUEST_MS", 1000)
 
