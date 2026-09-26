@@ -38,6 +38,8 @@ const CatalogMaterialSheets = lazyWithRecovery(() => loadMaterialsPage().then((m
 const CatalogSheetStudy = lazyWithRecovery(() => loadMaterialsPage().then((m) => ({ default: m.CatalogSheetStudy })));
 const CatalogFocusWorkspace = lazyWithRecovery(() => import("./pages/CatalogFocusWorkspace.jsx"));
 const LockInMode = lazyWithRecovery(() => import("./pages/LockInMode.jsx"));
+const PaperWorkspace = lazyWithRecovery(() => import("./pages/PaperWorkspace.jsx"));
+const MyGroup = lazyWithRecovery(() => import("./pages/MyGroup.jsx"));
 const Search = lazyWithRecovery(() => import("./pages/Search.jsx"));
 const Questions = lazyWithRecovery(() => import("./pages/Questions.jsx"));
 const QuestionCategory = lazyWithRecovery(() => import("./pages/Questions.jsx").then((module) => ({ default: module.QuestionCategory })));
@@ -562,6 +564,7 @@ function App() {
               <Route element={<ProtectedRoute user={user} operationsSession={operationsSession} operationsSessionPending={operationsSessionPending} />}>
                 <Route path="/" element={<Dashboard themeSettings={themeSettings} activeTheme={activeTheme} />} />
                 <Route path="/dashboard" element={<Dashboard themeSettings={themeSettings} activeTheme={activeTheme} />} />
+                <Route path="/my-group" element={<MyGroup />} />
                 <Route path="/study-plan/*" element={<FeatureComingSoon featureId="study-plan" />} />
                 <Route path="/materials" element={<Materials user={user} />} />
                 <Route path="/materials/catalog" element={<NotFoundPage variant="material-catalog" />} />
@@ -569,6 +572,7 @@ function App() {
                 <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug" element={<CatalogSheetStudy user={user} />} />
                 <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug/summary" element={<CatalogFocusWorkspace user={user} variant="summary" />} />
                 <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug/workspace" element={<CatalogFocusWorkspace user={user} />} />
+                <Route path="/paper-workspace" element={<PaperWorkspace user={user} />} />
                 <Route path="/lock-in" element={<LockInMode user={user} />} />
                 <Route path="/lock-in/:sessionId" element={<LockInMode user={user} />} />
                 <Route path="/search" element={<Search />} />

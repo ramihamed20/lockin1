@@ -135,6 +135,8 @@ export async function renderWorkspacePage({ pdf, pageNumber, background = "blank
   if (!includeAnnotations) return canvas;
   context.save();
   context.scale(canvas.width / 1000, canvas.height / 1000);
+  // Erasure radii are measured along the page's longer side (see paintInkErasures).
+  const pageAspect = canvas.height / Math.max(1, canvas.width);
   const ordered = [...annotations].sort((a, b) => (a.zOrder || 0) - (b.zOrder || 0));
   const highlightGroups = new Map();
   for (const item of ordered) if (item.type === "highlighter") {
@@ -165,7 +167,7 @@ export async function renderWorkspacePage({ pdf, pageNumber, background = "blank
         strokeContext.beginPath(); strokeContext.arc(geometry.x, geometry.y, geometry.radius, 0, Math.PI * 2); strokeContext.fill();
       } else if (geometry.kind === "centerline") strokeContext.stroke(new window.Path2D(geometry.path));
       else if (geometry.kind === "outline") strokeContext.fill(new window.Path2D(geometry.path));
-      paintInkErasures(strokeContext, item.erasures);
+      paintInkErasures(strokeContext, item.erasures, pageAspect);
       layerContext.drawImage(strokeCanvas, 0, 0);
     }
     context.save();
@@ -197,7 +199,7 @@ export async function renderWorkspacePage({ pdf, pageNumber, background = "blank
         inkContext.stroke(new window.Path2D(geometry.path));
       } else if (geometry.kind === "outline") inkContext.fill(new window.Path2D(geometry.path));
       if (masked) {
-        paintInkErasures(inkContext, item.erasures);
+        paintInkErasures(inkContext, item.erasures, pageAspect);
         context.drawImage(inkCanvas, 0, 0, 1000, 1000);
       }
     } else if (item.type === "shape") drawShape(context, item);

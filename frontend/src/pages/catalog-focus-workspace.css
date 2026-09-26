@@ -243,6 +243,9 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2-live-annotation-canvas { position: absolute; z-index: 4; inset: 0; display: block; width: 100%; height: 100%; pointer-events: none; }
 .workspace-v2-stylus-hover { position: fixed; z-index: 5; top: 0; left: 0; border: 1px solid rgba(20, 28, 48, .72); border-radius: 50%; background: rgba(255, 255, 255, .34); box-shadow: 0 0 0 1px rgba(255, 255, 255, .7); opacity: 0; pointer-events: none; will-change: transform, width, height; }
 .workspace-v2-stylus-hover[data-tool="eraser"] { border-color: rgba(118, 80, 237, .82); background: rgba(118, 80, 237, .12); }
+/* The eraser outline is the exact erase disc: border-box keeps the ring inside
+   the diameter, and a faint light halo keeps it legible over dark ink. */
+.workspace-v2-eraser-hitbox { position: fixed; z-index: 5; top: 0; left: 0; box-sizing: border-box; border: 1.25px solid rgba(12, 14, 22, .92); border-radius: 50%; background: transparent; box-shadow: 0 0 0 .75px rgba(255, 255, 255, .6); opacity: 0; pointer-events: none; will-change: transform; }
 .workspace-v2-annotation-layer.is-interactive { pointer-events: auto; touch-action: pan-y; cursor: crosshair; }
 .workspace-v2-annotation-layer.is-touch-drawing { touch-action: none; }
 .workspace-v2-annotation-layer [data-annotation-id] { pointer-events: visiblePainted; }
@@ -307,6 +310,11 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2-note-list, .workspace-v2-highlight-list { display: grid; gap: 7px; }
 .workspace-v2-note-card, .workspace-v2-highlight-card { width: 100%; padding: 10px; border: 1px solid rgba(130,151,205,.09); border-radius: 9px; color: inherit; background: #101831; cursor: pointer; text-align: start; }
 .workspace-v2-note-card:hover, .workspace-v2-highlight-card:hover { border-color: rgba(142,97,255,.36); background: #141d38; }
+.workspace-v2-note-item { position: relative; }
+.workspace-v2-note-item .workspace-v2-note-card { padding-inline-end: 48px; }
+.workspace-v2-note-delete { position: absolute; inset-block-start: 6px; inset-inline-end: 6px; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid rgba(255,176,182,.28); border-radius: 8px; color: #ffb0b6; background: transparent; cursor: pointer; }
+.workspace-v2-note-delete:hover { background: rgba(255,176,182,.1); }
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2-note-delete { color: var(--danger); border-color: var(--workspace-border); }
 .workspace-v2-card-meta { display: flex; justify-content: space-between; gap: 8px; }
 .workspace-v2-card-meta > span, .workspace-v2-card-tags > span { color: #8d98b5; font-size: .66rem; }
 .workspace-v2-card-copy { display: -webkit-box; overflow: hidden; margin-block: 6px; color: #d8deee; -webkit-box-orient: vertical; -webkit-line-clamp: 3; font-size: .76rem; line-height: 1.45; white-space: pre-wrap; }
@@ -368,6 +376,14 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 .workspace-v2-quiz-dialog > header span { color: var(--workspace-violet-bright); font-size: .68rem; font-weight: 800; text-transform: uppercase; }
 .workspace-v2-quiz-dialog > header strong { color: var(--workspace-chrome-secondary); font-size: .68rem; }
 .workspace-v2-quiz-dialog > header button { display: grid; width: 38px; height: 38px; place-items: center; border: 0; border-radius: 9px; color: var(--workspace-chrome-secondary); background: var(--workspace-control-bg); cursor: pointer; }
+/* Restart sits quietly beside Close; it asks before clearing the attempt. */
+.workspace-v2-quiz-dialog > header .workspace-v2-quiz-restart { display: inline-flex; width: auto; gap: 6px; align-items: center; margin-inline: auto 8px; padding: 0 12px; font: inherit; font-size: .72rem; font-weight: 750; }
+.workspace-v2-quiz-dialog > header .workspace-v2-quiz-restart:disabled { opacity: .5; cursor: default; }
+/* Missed questions with their explanations, as in the normal results. */
+.workspace-v2-result-review { width: 100%; max-height: min(40vh, 320px); overflow: auto; display: grid; gap: 10px; margin: 18px 0 0; padding: 0; list-style: none; text-align: start; }
+.workspace-v2-result-review li { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--workspace-control-border); border-radius: 12px; background: var(--workspace-control-bg); }
+.workspace-v2-result-review-prompt { color: var(--workspace-chrome-text); font-size: .8rem; font-weight: 700; line-height: 1.4; }
+.workspace-v2-result-review .question-explanation-text { color: var(--workspace-chrome-secondary); }
 .workspace-v2-quiz-progress { height: 5px; background: var(--workspace-track); }
 .workspace-v2-quiz-progress span { display: block; height: 100%; background: var(--workspace-gold); transition: width 180ms cubic-bezier(.2, 0, 0, 1); }
 .workspace-v2-quiz-dialog > main { margin: 0 20px 20px; padding: clamp(22px, 4vw, 34px); border: 1px solid var(--workspace-control-border); border-radius: 12px; background: var(--workspace-panel-2); }
@@ -626,7 +642,7 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   background: var(--workspace-panel);
 }
 
-:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2-selection-menu button.is-danger {
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.workspace-v2-selection-menu button.is-danger, .workspace-v6-card-delete) {
   color: var(--danger);
 }
 
@@ -1399,6 +1415,7 @@ html.ix-hover .workspace-v2-action-popover .workspace-v3-menu-grid > button:not(
 .workspace-v6-card-kinds button { min-width: 0; padding-inline: 3px; }
 .workspace-v6-card-kinds button.is-active { border-color: #42b9ff; color: #9cdcff; background: rgba(66,185,255,.15); }
 .workspace-v6-card-editor textarea { width: 100%; min-height: 108px; padding: 9px; border: 1px solid var(--workspace-control-border); border-radius: 9px; color: var(--workspace-chrome-text); background: var(--workspace-control-bg); resize: vertical; }
+.workspace-v6-card-delete { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; margin: -4px 10px 10px; padding: 0 14px; border: 1px solid var(--workspace-control-border); border-radius: 9px; color: #ffb0b6; background: transparent; cursor: pointer; font-size: .72rem; font-weight: 800; }
 .workspace-v6-export-range { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 9px; border-block: 1px solid var(--workspace-border); }
 .workspace-v6-export-range label { display: grid; gap: 4px; color: var(--workspace-chrome-secondary); font-size: .65rem; }
 .workspace-v6-export-range input { width: 100%; min-height: 38px; padding: 5px 8px; border: 1px solid var(--workspace-control-border); border-radius: 8px; color: var(--workspace-chrome-text); background: var(--workspace-control-bg); }

@@ -10,6 +10,7 @@ import { ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
 import { StatsGrid } from "../components/shared/StatsGrid.jsx";
 import { ResponsiveThemePreview } from "../components/shared/ResponsiveThemePreview.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
+import { MyGroupCard } from "../components/myGroup/MyGroupCard.jsx";
 
 // Each card keeps a stable id so its destination and styling never depend on
 // the label, which changes with the interface language.
@@ -96,6 +97,7 @@ export default function Dashboard({ themeSettings, activeTheme }) {
           </div>}
         </section>
         <ReviewQueue items={reviewItems} />
+        <MyGroupCard />
         {(accountError || learningError || reviewError || bankError) && <p className="save-hint">{t("dashboard.partialData")}</p>}
       </div>
     </Page>

@@ -7,6 +7,7 @@ import { Icon } from "../lib/icons.jsx";
 import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
 import { CatalogTile } from "../components/learning/CatalogTile.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
+import { QuestionExplanation } from "../components/shared/QuestionExplanation.jsx";
 
 /**
  * Exam and AI sheet questions share the player, but use separate published banks.
@@ -374,7 +375,7 @@ function PracticeItem({ sheetId, question, answer, onAnswered }) {
             <strong>{answer.is_correct ? t("questions.answerCorrect") : t("questions.answerIncorrect")}</strong>
             {answer.xp_awarded > 0 && <span className="question-xp-chip">{t("questions.xpEarned", { count: answer.xp_awarded })}</span>}
           </div>
-          {answer.explanation && <p dir="auto">{answer.explanation}</p>}
+          <QuestionExplanation explanation={answer.explanation} />
         </div>
       )}
     </article>

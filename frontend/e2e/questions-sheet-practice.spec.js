@@ -170,6 +170,9 @@ test("a published sheet is reachable from Questions and its questions can be ans
   await card.getByRole("button", { name: /Spinous/ }).click();
 
   await expect(card.getByText("Not quite")).toBeVisible();
+  // As on every question surface, the explanation sits behind its control.
+  await expect(card.getByText("Melanocytes reside in the basal layer.")).toHaveCount(0);
+  await card.getByRole("button", { name: "Explanation" }).click();
   await expect(card.getByText("Melanocytes reside in the basal layer.")).toBeVisible();
   // A wrong answer earns nothing, so no reward is shown.
   await expect(card.getByText(/\+\d+ XP/)).toHaveCount(0);

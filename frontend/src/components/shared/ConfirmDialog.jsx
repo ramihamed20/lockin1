@@ -7,7 +7,11 @@ import { acquireBodyScrollLock } from "../../lib/bodyScrollLock.js";
 // the action is in flight, and the dialog then refuses every way out of itself
 // -- both buttons, Escape and the backdrop -- so the action cannot be started
 // twice or abandoned half-way. Callers that omit it are unaffected.
-export function ConfirmDialog({ open, title, message, confirmLabel = "", onConfirm, onCancel, busy = false }) {
+//
+// `secondaryLabel` + `onSecondary` add a third choice between Cancel and the
+// confirm action (for example "Exit Without Saving" beside "Exit & Save"), and
+// `confirmVariant="primary"` styles the confirm action as the safe default.
+export function ConfirmDialog({ open, title, message, confirmLabel = "", onConfirm, onCancel, cancelLabel = "", secondaryLabel = "", onSecondary = null, confirmVariant = "danger", busy = false }) {
   const { t } = useI18n();
   const ref = useRef(null);
   const triggerRef = useRef(null);
@@ -60,8 +64,9 @@ export function ConfirmDialog({ open, title, message, confirmLabel = "", onConfi
         <h3 id="confirm-title" dir="auto">{title || t("confirm.title")}</h3>
         <p id="confirm-desc" dir="auto">{message || t("confirm.message")}</p>
         <div className="confirm-actions">
-          <button className="btn btn-soft" type="button" disabled={busy} onClick={onCancel}>{t("common.cancel")}</button>
-          <button className="btn btn-danger" type="button" disabled={busy} onClick={onConfirm}>{confirmLabel || t("common.delete")}</button>
+          <button className="btn btn-soft" type="button" disabled={busy} onClick={onCancel}>{cancelLabel || t("common.cancel")}</button>
+          {secondaryLabel && onSecondary && <button className="btn btn-danger" type="button" disabled={busy} onClick={onSecondary}>{secondaryLabel}</button>}
+          <button className={`btn ${confirmVariant === "primary" ? "btn-primary" : "btn-danger"}`} type="button" disabled={busy} onClick={onConfirm}>{confirmLabel || t("common.delete")}</button>
         </div>
       </div>
     </div>

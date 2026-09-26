@@ -1,5 +1,6 @@
 from django.urls import path
 
+from .paper_workspace_views import PaperWorkspaceMediaAdminView, PaperWorkspaceMediaView
 from .views import (
     ActiveStudyContinueView,
     ActiveStudyQuizView,
@@ -37,6 +38,16 @@ urlpatterns = [
         ManagedActiveStudyAvailabilityView.as_view(),
     ),
     path("focus/managed-active-study/start", ManagedActiveStudyStartView.as_view()),
+    path(
+        "focus/paper-workspace/media",
+        PaperWorkspaceMediaView.as_view(),
+        name="paper-workspace-media",
+    ),
+    path(
+        "operations/admin/paper-workspace/media",
+        PaperWorkspaceMediaAdminView.as_view(),
+        name="paper-workspace-media-admin",
+    ),
     path(
         "focus/managed-active-study/<uuid:run_id>/questions",
         ManagedActiveStudyQuestionsView.as_view(),

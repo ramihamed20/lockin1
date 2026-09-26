@@ -91,6 +91,46 @@ export function pageRadiusForScreenRadius(screenRadius, renderedPageWidth, pageC
   return Math.max(0, finite(screenRadius)) * (Math.max(1, finite(pageCoordinateWidth, 1000)) / Math.max(1, finite(renderedPageWidth, 1)));
 }
 
+/** @typedef {{ x: number, y: number }} EraserScale */
+/** @type {EraserScale} */
+const IDENTITY_SCALE = Object.freeze({ x: 1, y: 1 });
+
+/**
+ * Page coordinates span 1000 units on both axes of a page that is not square,
+ * so a circle in page units is an ellipse on screen. Erasing happens in a
+ * space where one unit is the same length on both axes: 1/1000 of the page's
+ * longer side. `pageAspect` is the rendered page height divided by its width.
+ */
+export function eraserSpaceScale(pageAspect = 1) {
+  const aspect = finite(pageAspect, 1);
+  if (!(aspect > 0) || Math.abs(aspect - 1) < 1e-6) return IDENTITY_SCALE;
+  return aspect > 1 ? { x: 1 / aspect, y: 1 } : { x: 1, y: aspect };
+}
+
+function isIdentityScale(scale) {
+  return !scale || (Math.abs(finite(scale.x, 1) - 1) < 1e-9 && Math.abs(finite(scale.y, 1) - 1) < 1e-9);
+}
+
+function scalePoint(point, scale) {
+  return { ...point, x: point.x * scale.x, y: point.y * scale.y };
+}
+
+function unscalePoint(point, scale) {
+  return { ...point, x: point.x / scale.x, y: point.y / scale.y };
+}
+
+const scaledStrokeCache = new WeakMap();
+
+/** The stroke's samples in eraser space; the width stays the unscaled (widest) value. */
+function strokeInEraserSpace(annotation, scale) {
+  if (isIdentityScale(scale) || !annotation) return annotation;
+  const cached = scaledStrokeCache.get(annotation);
+  if (cached && cached.x === scale.x && cached.y === scale.y) return cached.stroke;
+  const stroke = { ...annotation, points: (annotation.points || []).map((point) => scalePoint(point, scale)) };
+  scaledStrokeCache.set(annotation, { x: scale.x, y: scale.y, stroke });
+  return stroke;
+}
+
 function interpolatePoint(first, second, ratio) {
   const t = clamp(ratio, 0, 1);
   const numericKeys = ["p", "t", "tiltX", "tiltY", "altitudeAngle", "azimuthAngle", "twist", "tangentialPressure", "contactWidth", "contactHeight"];
@@ -424,7 +464,10 @@ export function distanceBetweenSegments(firstStart, firstEnd, secondStart, secon
   );
 }
 
-export function strokeIntersectsEraserPath(annotation, eraserStart, eraserEnd, radius, includeStrokeWidth = true) {
+export function strokeIntersectsEraserPath(annotation, eraserStart, eraserEnd, radius, includeStrokeWidth = true, scale = IDENTITY_SCALE) {
+  if (!isIdentityScale(scale)) {
+    return strokeIntersectsEraserPath(strokeInEraserSpace(annotation, scale), scalePoint(eraserStart, scale), scalePoint(eraserEnd, scale), radius, includeStrokeWidth);
+  }
   const points = annotation?.points || [];
   if (!points.length) return false;
   if (points.length === 1) return distancePointToSegment(points[0], eraserStart, eraserEnd) <= radius + (includeStrokeWidth ? strokeWidthAtPoint(annotation, points[0]) / 2 : 0);
@@ -648,12 +691,17 @@ export function eraseStrokeWithPath(annotation, eraserStart, eraserEnd, radius, 
  * the immutable source prevents fragment point counts from growing on every
  * pointer sample and keeps precision, segment, and stroke modes deterministic.
  */
-export function eraseStrokeWithPolyline(annotation, eraserPoints, radius, mode = String(ERASER_MODE.PRECISION), idFactory = () => `${annotation.id}-split`) {
+export function eraseStrokeWithPolyline(annotation, eraserPoints, radius, mode = String(ERASER_MODE.PRECISION), idFactory = () => `${annotation.id}-split`, scale = IDENTITY_SCALE) {
   if (!annotation || !["pen", "pencil", "highlighter"].includes(annotation.type)) return { changed: false, fragments: [annotation] };
-  const path = Array.isArray(eraserPoints) ? eraserPoints.filter((point) => Number.isFinite(point?.x) && Number.isFinite(point?.y)) : [];
-  if (!path.length) return { changed: false, fragments: [annotation] };
+  const pagePath = Array.isArray(eraserPoints) ? eraserPoints.filter((point) => Number.isFinite(point?.x) && Number.isFinite(point?.y)) : [];
+  if (!pagePath.length) return { changed: false, fragments: [annotation] };
+  // Hit-testing and clipping run in eraser space, where the tip is a circle.
+  // Stored masks and fragments stay in page units.
+  const identity = isIdentityScale(scale);
+  const path = identity ? pagePath : pagePath.map((point) => scalePoint(point, scale));
+  const stroke = identity ? annotation : strokeInEraserSpace(annotation, scale);
   const eraserIndex = createEraserPathIndex(path, radius);
-  if (!strokeIntersectsEraserIndex(annotation, eraserIndex, radius)) return { changed: false, fragments: [annotation] };
+  if (!strokeIntersectsEraserIndex(stroke, eraserIndex, radius)) return { changed: false, fragments: [annotation] };
   if (mode === ERASER_MODE.STROKE) return { changed: true, fragments: [] };
   if (mode === ERASER_MODE.PRECISION && (annotation.erasures?.length || 0) < 32) {
     // A centerline cut removes the whole width of a stroke when the tip touches
@@ -661,13 +709,14 @@ export function eraseStrokeWithPolyline(annotation, eraserPoints, radius, mode =
     const simplified = simplifyStrokePoints(path, Math.max(.75, radius * .2));
     const stride = Math.max(1, Math.ceil(simplified.length / 96));
     const samples = simplified.filter((_, index) => index % stride === 0 || index === simplified.length - 1)
-      .map((point) => ({ x: point.x, y: point.y }));
+      .map((point) => (identity ? { x: point.x, y: point.y } : { x: point.x / scale.x, y: point.y / scale.y }));
     const erasures = [...(annotation.erasures || []), { radius, points: samples }];
     return { changed: true, fragments: [{ ...annotation, erasures }] };
   }
-  const pointFragments = mode === ERASER_MODE.SEGMENT
-    ? fragmentsOutsideTouchedSegments(annotation, eraserIndex, radius)
-    : fragmentsOutsidePrecisionPath(annotation, eraserIndex, radius);
+  const scaledFragments = mode === ERASER_MODE.SEGMENT
+    ? fragmentsOutsideTouchedSegments(stroke, eraserIndex, radius)
+    : fragmentsOutsidePrecisionPath(stroke, eraserIndex, radius);
+  const pointFragments = identity ? scaledFragments : scaledFragments.map((points) => points.map((point) => unscalePoint(point, scale)));
   const minimumFragmentLength = Math.max(1.5, radius * .35);
   const retainedFragments = pointFragments.filter((points) => {
     let length = 0;

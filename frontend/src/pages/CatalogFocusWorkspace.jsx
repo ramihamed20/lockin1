@@ -121,6 +121,7 @@ import {
 import {
   ERASER_MODE,
   PEN_PROFILE,
+  eraserSpaceScale,
   pageRadiusForScreenRadius,
   samplesFromPointerEvent,
   strokeEraseCoverage,
@@ -134,7 +135,8 @@ import {
   gestureBounds,
   recognizeHeldStroke,
   recognizedShapeAnnotation,
-  rectangleLassoPolygon
+  rectangleLassoPolygon,
+  straightenedInkStroke
 } from "../workspace/ink/inkGestureRecognition.js";
 import {
   annotationBounds,
@@ -148,7 +150,8 @@ import {
   rotateAnnotation,
   selectionBounds,
   serializeCatalogWorkspace,
-  translateAnnotation
+  translateAnnotation,
+  withCommandPositions
 } from "../workspace/catalog/catalogWorkspaceState.js";
 import { A4_PAGE_WIDTH, ContinuousA4Pdf } from "../workspace/catalog/ContinuousA4Pdf.jsx";
 import { WORKSPACE_PAGE_BACKGROUNDS, composeWorkspacePages, createVirtualPageId, insertVirtualPage, isVirtualPageKey, removeVirtualPage, sanitizeVirtualPages } from "../workspace/catalog/virtualPages.js";
@@ -173,6 +176,9 @@ import {
 } from "../workspace/storage/workspaceSnapshot.js";
 import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
+import { CheckpointExitDialog, CheckpointRestartDialog } from "../components/shared/CheckpointExitDialog.jsx";
+import { QuestionExplanation } from "../components/shared/QuestionExplanation.jsx";
+import { useExitGuard } from "../hooks/useExitGuard.js";
 import "./catalog-focus-workspace.css";
 
 const PAGE_COUNT = 342;
@@ -335,8 +341,8 @@ function SettingsToggle({ icon: ToggleIcon, label, description, checked, onChang
 }
 
 const WorkspaceAnnotation = memo(
-/** @param {{ annotation: any, draft?: boolean, interactionOnly?: boolean, groupedHighlighter?: boolean }} props */
-function WorkspaceAnnotation({ annotation, draft = false, interactionOnly = false, groupedHighlighter = false }) {
+/** @param {{ annotation: any, draft?: boolean, interactionOnly?: boolean, groupedHighlighter?: boolean, pageAspect?: number }} props */
+function WorkspaceAnnotation({ annotation, draft = false, interactionOnly = false, groupedHighlighter = false, pageAspect = 1 }) {
   const common = { "data-annotation-id": annotation.id, "data-annotation-type": annotation.type };
   if (["pen", "pencil", "highlighter"].includes(annotation.type)) {
     const geometry = strokeRenderGeometry(annotation);
@@ -351,11 +357,16 @@ function WorkspaceAnnotation({ annotation, draft = false, interactionOnly = fals
     if (geometry.kind === "outline") mark = <path {...common} d={geometry.path} fill={annotation.color} opacity={opacity} />;
     if (!annotation.erasures?.length) return mark;
     const maskId = `workspace-erase-${String(annotation.id).replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+    // Erasure radii are in eraser space (1/1000 of the page's longer side), so
+    // the swept area is drawn as a true circle on this non-square page.
+    const scale = eraserSpaceScale(pageAspect);
     return <g><defs><mask id={maskId} x="0" y="0" width="1000" height="1000" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse">
       <rect x="0" y="0" width="1000" height="1000" fill="white" />
-      {annotation.erasures.map((erasure, index) => erasure.points.length === 1
-        ? <circle key={index} cx={erasure.points[0].x} cy={erasure.points[0].y} r={erasure.radius} fill="black" />
-        : <path key={index} d={erasure.points.map((point, pointIndex) => `${pointIndex ? "L" : "M"}${point.x} ${point.y}`).join(" ")} fill="none" stroke="black" strokeWidth={erasure.radius * 2} strokeLinecap="round" strokeLinejoin="round" />)}
+      <g transform={`scale(${1 / scale.x} ${1 / scale.y})`}>
+        {annotation.erasures.map((erasure, index) => erasure.points.length === 1
+          ? <circle key={index} cx={erasure.points[0].x * scale.x} cy={erasure.points[0].y * scale.y} r={erasure.radius} fill="black" />
+          : <path key={index} d={erasure.points.map((point, pointIndex) => `${pointIndex ? "L" : "M"}${point.x * scale.x} ${point.y * scale.y}`).join(" ")} fill="none" stroke="black" strokeWidth={erasure.radius * 2} strokeLinecap="round" strokeLinejoin="round" />)}
+      </g>
     </mask></defs><g mask={`url(#${maskId})`}>{mark}</g></g>;
   }
   const commonWithOpacity = { ...common, "data-annotation-shape": annotation.type === "shape" ? annotation.shape : undefined, opacity: draft ? 0.68 : annotation.opacity ?? 1 };
@@ -416,8 +427,8 @@ function WorkspaceAnnotation({ annotation, draft = false, interactionOnly = fals
 });
 
 const AnnotationVisuals = memo(
-/** @param {{ annotations: any[], hiddenIds?: Set<string>, prefix?: string, includeHitTargets?: boolean }} props */
-function AnnotationVisuals({ annotations, hiddenIds = new Set(), prefix = "annotation", includeHitTargets = false }) {
+/** @param {{ annotations: any[], hiddenIds?: Set<string>, prefix?: string, includeHitTargets?: boolean, pageAspect?: number }} props */
+function AnnotationVisuals({ annotations, hiddenIds = new Set(), prefix = "annotation", includeHitTargets = false, pageAspect = 1 }) {
   const visible = (annotations || []).filter((annotation) => !hiddenIds.has(annotation.id)).sort((a, b) => (a.zOrder || 0) - (b.zOrder || 0));
   const highlightGroups = new Map();
   for (const annotation of visible) if (annotation.type === "highlighter") {
@@ -427,9 +438,9 @@ function AnnotationVisuals({ annotations, hiddenIds = new Set(), prefix = "annot
   }
   return <>
     {[...highlightGroups].map(([key, items]) => <g key={`${prefix}-highlight-${key}`} className="workspace-v2-highlighter-group" opacity={items[0].opacity ?? .34} style={{ mixBlendMode: "multiply" }}>
-      {items.map((annotation) => <WorkspaceAnnotation key={`${prefix}-${annotation.id}`} annotation={annotation} groupedHighlighter />)}
+      {items.map((annotation) => <WorkspaceAnnotation key={`${prefix}-${annotation.id}`} annotation={annotation} groupedHighlighter pageAspect={pageAspect} />)}
     </g>)}
-    {visible.filter((annotation) => annotation.type !== "highlighter").map((annotation) => <WorkspaceAnnotation key={`${prefix}-${annotation.id}`} annotation={annotation} />)}
+    {visible.filter((annotation) => annotation.type !== "highlighter").map((annotation) => <WorkspaceAnnotation key={`${prefix}-${annotation.id}`} annotation={annotation} pageAspect={pageAspect} />)}
     {includeHitTargets && (annotations || []).filter((annotation) => annotation.type === "pen").map((annotation) => <WorkspaceAnnotation key={`${prefix}-hit-${annotation.id}`} annotation={annotation} interactionOnly />)}
   </>;
 });
@@ -531,6 +542,10 @@ function useDialogFocus(onEscape = null) {
     const handleKeyDown = (event) => {
       if (event.key === "Escape" && escapeRef.current) {
         event.preventDefault();
+        // The dialog answers this Escape. Letting it bubble on would hand the
+        // same keypress to a confirmation this handler has just opened, whose
+        // listener is already on the document by then, and it would close again.
+        event.stopPropagation();
         escapeRef.current();
         return;
       }
@@ -610,22 +625,74 @@ function StudyModeDialog({ difficulty, setDifficulty, activeAvailable, restartPr
   );
 }
 
-function ActiveStudyQuiz({ quiz, answers, setAnswers, result, busy, onSubmit, onDismiss, onRetake, onContinue }) {
-  const [index, setIndex] = useState(0);
+/*
+ * Focus Active Study keeps the chosen answers on this device until the test is
+ * submitted. "Exit & Save" leaves them here as a draft, scoped to the one
+ * server attempt, so reopening the checkpoint resumes the same question.
+ */
+const ACTIVE_DRAFT_PREFIX = "lock-in.active-study.draft.";
+
+function readActiveStudyDraft(attemptId) {
+  if (!attemptId) return null;
+  try {
+    const draft = JSON.parse(window.localStorage.getItem(ACTIVE_DRAFT_PREFIX + attemptId) || "null");
+    return draft && typeof draft === "object" && draft.answers && typeof draft.answers === "object" ? draft : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeActiveStudyDraft(attemptId, draft) {
+  try { window.localStorage.setItem(ACTIVE_DRAFT_PREFIX + attemptId, JSON.stringify(draft)); } catch { /* storage unavailable */ }
+}
+
+function clearActiveStudyDraft(attemptId) {
+  try { window.localStorage.removeItem(ACTIVE_DRAFT_PREFIX + attemptId); } catch { /* storage unavailable */ }
+}
+
+function ActiveStudyQuiz({ quiz, answers, setAnswers, result, busy, onSubmit, onDismiss, onRetake, onContinue, onDiscard, onRestart }) {
+  const { t } = useI18n();
+  const [index, setIndex] = useState(() => {
+    const saved = Number(readActiveStudyDraft(quiz.attempt_id)?.index);
+    return Number.isInteger(saved) && saved >= 0 && saved < quiz.questions.length ? saved : 0;
+  });
   const [questionDirection, setQuestionDirection] = useState("next");
-  const dialogRef = useDialogFocus(onDismiss);
+  const [confirming, setConfirming] = useState(/** @type {"" | "exit" | "restart"} */ (""));
+  const inQuiz = !result;
+  // An unfinished test is never closed by accident: the close button, Escape
+  // and the browser's Back all ask first.
+  const requestExit = () => { if (inQuiz) setConfirming("exit"); else onDismiss(); };
+  const dialogRef = useDialogFocus(requestExit);
+  // Held for the dialog's whole life: Back asks during questions and simply
+  // closes a result.
+  useExitGuard({ active: true, onRequestExit: requestExit });
   const question = quiz.questions[index];
   const answered = Object.keys(answers).length;
   const isFinal = quiz.kind === "final";
+
+  function exitAndSave() {
+    writeActiveStudyDraft(quiz.attempt_id, { answers, index });
+    setConfirming("");
+    onDismiss();
+  }
+
   if (result) {
     const passed = result.outcome === "passed";
     const advisory = result.outcome === "advisory";
+    // As in the normal question results: explanations for the misses.
+    const missed = (result.review || []).filter((item) => !item.correct && item.explanation);
     return <div className="workspace-v2-quiz-backdrop"><section ref={dialogRef} className={`workspace-v2-quiz-result is-${result.outcome}`} role="dialog" aria-modal="true" aria-labelledby="active-result-title" tabIndex={-1}>
       <span className="workspace-v2-result-icon">{passed ? <Trophy size={30} /> : advisory ? <Sparkles size={30} /> : <RotateCcw size={30} />}</span>
       <p>{isFinal ? "Final assessment" : "Checkpoint result"}</p>
       <h2 id="active-result-title">{result.score} / {result.total}</h2>
       <strong>{passed ? (isFinal ? "Sheet completed" : "Next pages unlocked") : advisory ? "You can continue, but a retake is recommended" : "Review these pages before trying again"}</strong>
       {result.xp_awarded > 0 && <span className="workspace-v2-xp-award">+{result.xp_awarded} XP</span>}
+      {missed.length > 0 && <ol className="workspace-v2-result-review" aria-label={t("question.reviewMissed")}>
+        {missed.map((item) => <li key={item.position}>
+          <span className="workspace-v2-result-review-prompt" dir="auto">{item.prompt}</span>
+          <QuestionExplanation explanation={item.explanation} />
+        </li>)}
+      </ol>}
       <div className="workspace-v2-result-actions">
         {passed && <button type="button" className="is-primary" onClick={onDismiss}>{isFinal ? "Finish" : "Continue studying"}</button>}
         {advisory && <button type="button" className="is-primary" onClick={onContinue} disabled={busy}>Continue anyway</button>}
@@ -637,7 +704,7 @@ function ActiveStudyQuiz({ quiz, answers, setAnswers, result, busy, onSubmit, on
   return (
     <div className="workspace-v2-quiz-backdrop">
       <section ref={dialogRef} className="workspace-v2-quiz-dialog" role="dialog" aria-modal="true" aria-labelledby="active-question-title" tabIndex={-1}>
-        <header><div><span>{isFinal ? "Final assessment" : `Pages ${quiz.run.current_page_range.start_page}–${quiz.run.current_page_range.end_page}`}</span><strong>{answered} of {quiz.questions.length} answered</strong></div><button type="button" onClick={onDismiss} aria-label="Close test"><X size={19} /></button></header>
+        <header><div><span>{isFinal ? "Final assessment" : `Pages ${quiz.run.current_page_range.start_page}–${quiz.run.current_page_range.end_page}`}</span><strong>{answered} of {quiz.questions.length} answered</strong></div><button type="button" className="workspace-v2-quiz-restart" onClick={() => setConfirming("restart")} disabled={busy}><RotateCcw size={15} />{t("checkpoint.restart")}</button><button type="button" onClick={requestExit} aria-label="Close test"><X size={19} /></button></header>
         <div className="workspace-v2-quiz-progress"><span style={{ width: `${((index + 1) / quiz.questions.length) * 100}%` }} /></div>
         <main key={index} data-question-direction={questionDirection}>
           <span className="workspace-v2-question-number">Question {index + 1} of {quiz.questions.length}</span>
@@ -651,6 +718,8 @@ function ActiveStudyQuiz({ quiz, answers, setAnswers, result, busy, onSubmit, on
           {index < quiz.questions.length - 1 ? <button type="button" className="is-primary" onClick={() => { setQuestionDirection("next"); setIndex((value) => value + 1); }} disabled={!answers[question.id]}>Next<ChevronRight size={17} /></button> : <button type="button" className="is-primary" onClick={onSubmit} disabled={busy || answered !== quiz.questions.length}>{busy ? "Checking…" : "Submit test"}</button>}
         </footer>
       </section>
+      <CheckpointExitDialog open={confirming === "exit"} busy={busy} onSave={exitAndSave} onDiscard={() => onDiscard(() => setConfirming(""))} onCancel={() => setConfirming("")} />
+      <CheckpointRestartDialog open={confirming === "restart"} busy={busy} onConfirm={() => onRestart(() => setConfirming(""))} onCancel={() => setConfirming("")} />
     </div>
   );
 }
@@ -770,6 +839,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const inkInputControllerRef = useRef(null);
   const eraserSessionRef = useRef(null);
   const stylusHoverRef = useRef(null);
+  const eraserHitboxRef = useRef(null);
   const selectionClipboardRef = useRef([]);
   const toolMemoryRef = useRef(loadToolMemory());
   const activeToolRef = useRef("hand");
@@ -1039,6 +1109,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const [activeAnswers, setActiveAnswers] = useState({});
   const [activeResult, setActiveResult] = useState(null);
   const viewPositionRef = useRef({ left: 0, top: 0, pageOffset: 0 });
+  const measureViewPositionRef = useRef(null);
+  const pageOffsetStaleRef = useRef(false);
 
   const [topicTitle, topicSummary] = SUBJECT_COPY[materialSlug] || [material?.title || "Study material", sheet?.summary || "Focused study workspace."];
   const sheetRoute = `/materials/catalog/${materialSlug}/sheets/${sheetSlug}`;
@@ -1327,7 +1399,20 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   }, []);
   useEffect(() => { annotationSpatialIndexRef.current = annotationSpatialIndex; }, [annotationSpatialIndex]);
   useEffect(() => { notesRef.current = notes; }, [notes]);
-  useEffect(() => { activeToolRef.current = activeTool; }, [activeTool]);
+  useEffect(() => {
+    // The outline follows the pointer only while the eraser is the tool.
+    if (activeTool === "eraser" && !annotationsHidden) return;
+    if (eraserHitboxRef.current) eraserHitboxRef.current.style.opacity = "0";
+  }, [activeTool, annotationsHidden]);
+  // Pointer handlers read the tool from this snapshot, never from the render
+  // closure: a stroke that starts before the (large) workspace has re-rendered
+  // after a tool tap must still use the tool that was tapped. `selectTool`
+  // writes it synchronously; the layout effect keeps it equal to committed state.
+  const toolStateRef = useRef(null);
+  useLayoutEffect(() => {
+    activeToolRef.current = activeTool;
+    toolStateRef.current = { activeTool, penProfile, activeColor, brushSize, brushOpacity, highlighterOpacity, pencilOpacity, pressureSensitivity, strokeSmoothing, shapeStyle };
+  }, [activeColor, activeTool, brushOpacity, brushSize, highlighterOpacity, penProfile, pencilOpacity, pressureSensitivity, shapeStyle, strokeSmoothing]);
   useEffect(() => { rememberLastPositionRef.current = rememberLastPosition; }, [rememberLastPosition]);
   useEffect(() => { rememberZoomLevelRef.current = rememberZoomLevel; }, [rememberZoomLevel]);
   useEffect(() => { zoomRef.current = zoom; }, [zoom]);
@@ -1693,8 +1778,13 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   }, [materialSlug, sheetSlug]);
 
   const handleCurrentWorkspacePage = useCallback((pdfPage, virtualPageId) => {
-    setPage(pdfPage);
-    setActiveVirtualPageId(virtualPageId);
+    // The current page changes many times during one scroll. Re-rendering the
+    // whole workspace for it is urgent for nothing on screen, so it must not
+    // compete with the scroll frames.
+    startTransition(() => {
+      setPage(pdfPage);
+      setActiveVirtualPageId(virtualPageId);
+    });
   }, []);
 
   const syncPdfPageCount = useCallback((count) => {
@@ -1716,8 +1806,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   }, []);
 
   const runCommand = useCallback((command) => {
-    updateAnnotations((current) => applyAnnotationCommand(current, command, "redo"));
-    recordCommand(command);
+    // Remember where removed items sat so undo restores their stacking order.
+    const positioned = withCommandPositions(command, annotationsRef.current);
+    updateAnnotations((current) => applyAnnotationCommand(current, positioned, "redo"));
+    recordCommand(positioned);
   }, [recordCommand, updateAnnotations]);
 
   const applyWorkspacePageCommand = useCallback((command, direction) => {
@@ -1794,6 +1886,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const persistWorkspace = useCallback(async (target = null) => {
     if (!hydratedRef.current) return;
     const document = target || { owner: ownerKey, materialSlug, sheetSlug: storageSlug };
+    measureViewPositionRef.current?.();
     const view = {
       page: pageRef.current,
       zoom: zoomRef.current,
@@ -2054,19 +2147,32 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) return undefined;
-    const rememberView = () => {
+    const measurePageOffset = () => {
       const stageBounds = stage.getBoundingClientRect();
       const currentPage = stage.querySelector(`[data-workspace-page="${activePageKey}"]`);
       const pageBounds = currentPage?.getBoundingClientRect();
-      const pageOffset = pageBounds?.height
+      return pageBounds?.height
         ? Math.min(1, Math.max(0, (stageBounds.top - pageBounds.top) / pageBounds.height))
         : 0;
-      viewPositionRef.current = { left: stage.scrollLeft, top: stage.scrollTop, pageOffset };
+    };
+    // Scroll offsets are free to read; the page offset needs two layout reads,
+    // so it is measured once the scroll pauses rather than on every scroll event.
+    // The stale flag outlives this effect: the current page can change after
+    // the last scroll event, and the offset must be taken against the new one.
+    measureViewPositionRef.current = () => {
+      if (!pageOffsetStaleRef.current) return;
+      pageOffsetStaleRef.current = false;
+      viewPositionRef.current = { left: stage.scrollLeft, top: stage.scrollTop, pageOffset: measurePageOffset() };
+    };
+    const rememberView = () => {
+      viewPositionRef.current = { ...viewPositionRef.current, left: stage.scrollLeft, top: stage.scrollTop };
+      pageOffsetStaleRef.current = true;
       if (viewSaveTimerRef.current) window.clearTimeout(viewSaveTimerRef.current);
       viewSaveTimerRef.current = window.setTimeout(() => { persistWorkspace(); }, 500);
     };
     stage.addEventListener("scroll", rememberView, { passive: true });
     return () => {
+      measureViewPositionRef.current = null;
       stage.removeEventListener("scroll", rememberView);
       if (viewSaveTimerRef.current) window.clearTimeout(viewSaveTimerRef.current);
       viewSaveTimerRef.current = null;
@@ -2377,9 +2483,50 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     preview.style.opacity = "1";
   }
 
+  function hideEraserHitbox() {
+    const gesture = gestureRef.current;
+    if (gesture.eraserHitboxRafId != null) cancelAnimationFrame(gesture.eraserHitboxRafId);
+    gesture.eraserHitboxRafId = null;
+    gesture.eraserHitboxPoint = null;
+    if (eraserHitboxRef.current) eraserHitboxRef.current.style.opacity = "0";
+  }
+
+  /**
+   * Draws the eraser's real reach under the pointer. Erasing measures a circle
+   * of `eraserSize` CSS pixels on the rendered page at every zoom (see
+   * `eraserScaleForPage`), so the outline is exactly that size on screen.
+   * Mouse and stylus show it while hovering and erasing; a finger only while
+   * it is actually erasing.
+   */
+  function updateEraserHitbox(event) {
+    const hitbox = eraserHitboxRef.current;
+    const gesture = gestureRef.current;
+    const erasing = gesture.mode === INTERACTION_STATE.ERASING && gesture.drawingPointerId === event.pointerId;
+    const hovering = (event.pointerType === "pen" || event.pointerType === "mouse") && gesture.drawingPointerId === null
+      && !gesture.pan && gesture.mode !== INTERACTION_STATE.PINCHING;
+    if (!hitbox || activeToolRef.current !== "eraser" || annotationsHidden || (!erasing && !hovering)) {
+      hideEraserHitbox();
+      return;
+    }
+    gesture.eraserHitboxPoint = { x: event.clientX, y: event.clientY };
+    if (gesture.eraserHitboxRafId != null) return;
+    gesture.eraserHitboxRafId = requestAnimationFrame(() => {
+      const current = gestureRef.current;
+      current.eraserHitboxRafId = null;
+      const point = current.eraserHitboxPoint;
+      const element = eraserHitboxRef.current;
+      if (!point || !element) return;
+      element.style.width = `${eraserSize}px`;
+      element.style.height = `${eraserSize}px`;
+      element.style.transform = `translate3d(${point.x - eraserSize / 2}px, ${point.y - eraserSize / 2}px, 0)`;
+      element.style.opacity = "1";
+    });
+  }
+
   function updateStylusHover(event) {
     const preview = stylusHoverRef.current;
-    if (!preview || event.pointerType !== "pen" || event.buttons || Number(event.pressure) > 0 || !DRAWING_TOOLS.has(activeToolRef.current)) {
+    // The eraser has its own outline that matches its real reach.
+    if (!preview || event.pointerType !== "pen" || event.buttons || Number(event.pressure) > 0 || !DRAWING_TOOLS.has(activeToolRef.current) || activeToolRef.current === "eraser") {
       hideStylusHover();
       return;
     }
@@ -2548,6 +2695,16 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     });
   }
 
+  /**
+   * Maps page units into eraser space, where the tip is a true circle on the
+   * rendered page. The document view without a PDF keeps plain page units.
+   */
+  function eraserScaleForPage(annotationPage) {
+    if (!sheet?.pdfUrl) return eraserSpaceScale(1);
+    const bounds = pageBoundsFor(annotationPage);
+    return eraserSpaceScale(bounds?.width ? bounds.height / bounds.width : 1);
+  }
+
   function eraserRadiusForPage(annotationPage) {
     const bounds = pageBoundsFor(annotationPage);
     // Page coordinates use 1000 units on both axes even though a PDF is taller
@@ -2571,15 +2728,18 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
 
   function eraseAtPoint(point, annotationPage = page) {
     const radius = eraserRadiusForPage(annotationPage);
+    const scale = eraserScaleForPage(annotationPage);
     const previous = eraserSessionRef.current.getLastPoint() || point;
-    const padding = radius + 2;
+    // The radius is in eraser space; in page units the tip reaches further
+    // along the shorter page axis.
+    const padding = radius / Math.min(scale.x, scale.y) + 2;
     const candidates = queryAnnotationSpatialIndexBounds(annotationSpatialIndexRef.current, annotationPage, {
       x: Math.min(previous.x, point.x) - padding,
       y: Math.min(previous.y, point.y) - padding,
       width: Math.abs(point.x - previous.x) + padding * 2,
       height: Math.abs(point.y - previous.y) + padding * 2
     });
-    const result = eraserSessionRef.current.append(point, { annotationPage, candidates, radius, mode: ERASER_MODE.PRECISION });
+    const result = eraserSessionRef.current.append(point, { annotationPage, candidates, radius, mode: ERASER_MODE.PRECISION, scale });
     for (const annotationId of result.newlyChangedIds) setAnnotationPreviewVisibility(annotationId, false);
     performanceMonitorRef.current.recordValue?.("eraserCandidates", candidates.length);
     if (result.changed) scheduleEraserPreview();
@@ -2602,8 +2762,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       return;
     }
     for (const annotationId of hiddenIds) setAnnotationPreviewVisibility(annotationId, true);
-    const { command, replacements } = eraserSessionRef.current.finish();
-    if (!command) return;
+    const { command: erasure, replacements } = eraserSessionRef.current.finish();
+    if (!erasure) return;
+    // One eraser drag is one history step, however many marks it touched.
+    const command = withCommandPositions(erasure, annotationsRef.current);
     updateAnnotations((current) => applyAnnotationCommand(current, command, "redo"));
     recordCommand(command);
     setSelectedIds((current) => current.flatMap((id) => replacements.has(id) ? replacements.get(id).map((fragment) => fragment.id) : [id]));
@@ -2675,6 +2837,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   }
 
   function beginAnnotation(event) {
+    const { activeTool, penProfile, activeColor, brushSize, brushOpacity, highlighterOpacity, pencilOpacity, pressureSensitivity, strokeSmoothing, shapeStyle } = toolStateRef.current;
     const gesture = gestureRef.current;
     const point = documentPoint(event.clientX, event.clientY);
     const annotationPage = point.page;
@@ -3406,6 +3569,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   }
 
   function beginWorkspacePointer(event) {
+    // The tapped tool, even if React has not re-rendered since the tap.
+    const activeTool = activeToolRef.current;
     if (isTypingTarget(event.target) || isStageControl(event.target) || event.button > 0) return;
     const gesture = gestureRef.current;
     stopSpringBack({ discard: true });
@@ -3456,7 +3621,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       }
       if (activeTool !== "hand" && beginDirectObjectMove(event)) return;
       const canTouchDraw = pointerCanDraw(event.pointerType, drawingInput);
-      if (activeTool === "hand" || !canTouchDraw) {
+      if (activeTool === "hand" || !canTouchDraw || startsOutsidePages(event)) {
         // One-finger navigation and two-finger pinch share the same pointer
         // stream, so the second contact upgrades one continuous session instead
         // of forcing the browser to cancel native scrolling and start again.
@@ -3475,12 +3640,30 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     }
     if (activeTool !== "hand" && event.pointerType !== "touch" && beginDirectObjectMove(event)) return;
     const canDraw = pointerCanDraw(event.pointerType, drawingInput);
-    if (activeTool === "hand" || !canDraw) beginPan(event, GESTURE_DIRECTION.PENDING);
+    // A stylus or mouse that lands beside the pages (the gutter, the gap
+    // between pages, the space above the first one) has nothing to draw on:
+    // treat that drag as navigation, exactly like the Pan tool.
+    if (activeTool === "hand" || !canDraw || startsOutsidePages(event)) beginPan(event, GESTURE_DIRECTION.PENDING);
     else if (DRAWING_TOOLS.has(activeTool)) beginAnnotation(event);
     let captured = false;
     try { event.currentTarget.setPointerCapture(event.pointerId); captured = true; } catch { /* Pointer capture is progressive enhancement. */ }
     if (gesture.drawingPointerId === event.pointerId) inkInputControllerRef.current.setCapture(captured);
+    updateEraserHitbox(event);
     event.preventDefault();
+  }
+
+  /**
+   * Whether the contact landed off every page. Only the PDF reader has page
+   * boxes; the document view draws anywhere. The point is hit-tested rather
+   * than trusting the event target, which is the stage itself once a pointer
+   * is captured, and the whole stack is checked so a transient overlay (a
+   * closing dialog, a toast) cannot hide the page underneath.
+   */
+  function startsOutsidePages(event) {
+    if (!sheet?.pdfUrl) return false;
+    const stack = document.elementsFromPoint?.(event.clientX, event.clientY) || [];
+    if (!stack.length) return false;
+    return !stack.some((element) => element.closest?.("[data-workspace-page]"));
   }
 
   function beginDirectObjectMove(event) {
@@ -3506,6 +3689,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   function moveWorkspacePointer(event) {
     const gesture = gestureRef.current;
     if (event.pointerType === "pen") updateStylusHover(event);
+    updateEraserHitbox(event);
     if (gesture.drawingPointerId === event.pointerId) {
       event.preventDefault();
       restoreLockedStagePosition();
@@ -3657,6 +3841,17 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     if (event.pointerType === "pen") {
       gesture.penPointers.delete(event.pointerId);
       gesture.lastPenAt = Date.now();
+      // A stylus navigating with the Pan tool gets the same double-tap zoom
+      // as a finger.
+      if (gesture.pan?.pointerId === event.pointerId && activeToolRef.current === "hand") {
+        const isTap = Math.hypot(event.clientX - gesture.pan.x, event.clientY - gesture.pan.y) < 14;
+        const previousTap = gesture.lastTap;
+        if (isTap && previousTap && event.timeStamp - previousTap.time < WORKSPACE_GESTURE.doubleTapDelayMs && Math.hypot(event.clientX - previousTap.x, event.clientY - previousTap.y) < WORKSPACE_GESTURE.doubleTapDistance) {
+          gesture.lastTap = null;
+          suppressMomentum = true;
+          smartZoom({ clientX: event.clientX, clientY: event.clientY });
+        } else if (isTap) gesture.lastTap = { x: event.clientX, y: event.clientY, time: event.timeStamp };
+      }
     }
     if (event.pointerType === "mouse" && gesture.pan?.pointerId === event.pointerId && activeToolRef.current === "hand") {
       const isClick = Math.hypot(event.clientX - gesture.pan.x, event.clientY - gesture.pan.y) < 8;
@@ -3686,10 +3881,12 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       else {
         documentRef.current?.classList.remove("is-live-panning");
         if (documentRef.current) documentRef.current.style.transform = "";
-        const momentumStarted = event.pointerType === "touch" && !suppressMomentum && startScrollMomentum(releaseVelocity);
+        // A flick glides on whether it came from a finger or a stylus; a mouse
+        // drag stops where it is released, as on a desktop.
+        const momentumStarted = (event.pointerType === "touch" || event.pointerType === "pen") && !suppressMomentum && startScrollMomentum(releaseVelocity);
         if (!momentumStarted) endScrollActivity();
       }
-      if (event.pointerType === "touch") event.preventDefault();
+      if (event.pointerType !== "mouse") event.preventDefault();
     }
     if (gesture.drawingPointerId !== event.pointerId) return;
     if (gesture.holdTimerId !== null && gesture.holdStartedAt !== null && window.performance.now() - gesture.holdStartedAt >= HOLD_RECOGNITION_MS) {
@@ -3741,17 +3938,21 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         let recognizedShape = null;
         if (!scribbled.length && isLiveStroke(committed) && drawAndHold && !gesture.holdRecognition && committed.points.length >= 2) {
           const unitsPerCssPixel = pageUnitsPerCssPixel(committed.page);
-          const recognition = recognizeHeldStroke(committed.points, { unitsPerCssPixel });
-          const start = committed.points[0];
-          const end = committed.points.at(-1);
-          const lengthOnScreen = Math.hypot(end.x - start.x, end.y - start.y) / unitsPerCssPixel;
-          const minimumConfidence = recognition?.kind === "line" ? .9 : .78;
-          if (recognition && recognition.confidence >= minimumConfidence && (recognition.kind !== "line" || lengthOnScreen >= 45) && (committed.type !== "highlighter" || recognition.kind === "line")) {
+          const bounds = pageBoundsFor(committed.page);
+          const aspect = bounds?.width ? bounds.height / bounds.width : 1;
+          const recognition = recognizeHeldStroke(committed.points, { unitsPerCssPixel, aspect });
+          if (recognition?.kind === "line") {
+            // A line stays ink of the same tool: color, width, opacity, pen
+            // style and highlighter blending are unchanged, only straightened.
+            recognizedShape = straightenedInkStroke(committed, recognition);
+          } else if (recognition && recognition.confidence >= .78 && committed.type !== "highlighter") {
             recognizedShape = recognizedShapeAnnotation(committed, recognition);
           }
         }
         if (recognizedShape) {
-          runCommand({ type: "replace", before: [committed], after: [recognizedShape] });
+          // The raw stroke was never committed, so the cleaned mark is the
+          // whole gesture: one add, and one undo removes it.
+          runCommand({ type: "add", items: [recognizedShape] });
         } else if (gesture.holdRecognition && gesture.holdRawStroke && draft.type === "shape") {
           runCommand({ type: "replace", before: [gesture.holdRawStroke], after: [committed] });
         } else if (scribbled.length) {
@@ -3774,6 +3975,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     gesture.drawingPointerId = null;
     gesture.drawingPointerType = null;
     gesture.mode = INTERACTION_STATE.IDLE;
+    if (event.pointerType === "mouse") updateEraserHitbox(event);
+    else hideEraserHitbox();
     if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   }
 
@@ -3814,6 +4017,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       updateAnnotations((items) => items.map((item) => replacements.get(item.id) || item));
     }
     clearEraserPreview();
+    hideEraserHitbox();
     commitInterruptedLiveStroke(event);
     clearDraft();
     gesture.holdRawStroke = null;
@@ -4046,15 +4250,29 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       imageInputRef.current?.click();
       return;
     }
-    if (nextTool === activeTool) {
+    if (nextTool === activeToolRef.current) {
       if (CONFIGURABLE_TOOLS.has(nextTool)) {
         setOpenSurface((current) => current === `tool:${nextTool}` ? null : `tool:${nextTool}`);
         setCustomColorEditorOpen(false);
       }
       return;
     }
-    const rememberedProfile = nextTool === "pen" ? String(toolMemoryRef.current.lastPenProfile || PEN_PROFILE.BALL) : penProfile;
+    const rememberedProfile = nextTool === "pen" ? String(toolMemoryRef.current.lastPenProfile || PEN_PROFILE.BALL) : toolStateRef.current.penProfile;
     const remembered = toolMemoryRef.current[nextTool === "pen" ? `pen:${rememberedProfile}` : nextTool];
+    const next = { ...toolStateRef.current, activeTool: nextTool, penProfile: rememberedProfile };
+    if (remembered) {
+      next.activeColor = remembered.color || COLORS[0];
+      next.brushSize = Number(remembered.size) || 4;
+      next.pressureSensitivity = Number.isFinite(Number(remembered.pressureSensitivity)) ? Number(remembered.pressureSensitivity) : .55;
+      next.strokeSmoothing = Number.isFinite(Number(remembered.smoothing)) ? Number(remembered.smoothing) : .5;
+      if (nextTool === "highlighter") next.highlighterOpacity = Number(remembered.opacity) || .34;
+      else if (nextTool === "pencil") next.pencilOpacity = Number(remembered.opacity) || .78;
+      else next.brushOpacity = Number(remembered.opacity) || 1;
+      if (nextTool === "shapes" && remembered.shapeStyle) next.shapeStyle = remembered.shapeStyle;
+    }
+    // Takes effect for the very next pointerdown, before React re-renders.
+    activeToolRef.current = nextTool;
+    toolStateRef.current = next;
     if (nextTool === "pen") setPenProfile(rememberedProfile);
     if (remembered) {
       setActiveColor(remembered.color || COLORS[0]);
@@ -4132,6 +4350,27 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     setEditingCardId(null);
     setOpenSurface(null);
     setFocusMessage(existing ? "Card updated. Tap it to move it." : "Study card added. Tap and drag it to move it.");
+  }
+
+  /** Removes the selection as one undoable step; undo puts it back in place. */
+  function deleteSelection() {
+    const items = selectedAnnotations.filter((item) => !item.locked);
+    if (!items.length) return;
+    runCommand({ type: "remove", items });
+    setSelectedIds([]);
+    setSelectionActionsOpen(false);
+    setFocusMessage(items.length === 1 && items[0].type === "card" ? "Note deleted. Undo restores it." : `${items.length} item${items.length === 1 ? "" : "s"} deleted.`);
+  }
+
+  function deleteEditingCard() {
+    const card = annotationsRef.current.find((item) => item.id === editingCardId && item.type === "card");
+    setEditingCardId(null);
+    setCardDraft("");
+    setOpenSurface(null);
+    if (!card || card.locked) return;
+    runCommand({ type: "remove", items: [card] });
+    setSelectedIds([]);
+    setFocusMessage("Note deleted. Undo restores it.");
   }
 
   function editSelectedCard() {
@@ -4376,9 +4615,13 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         options: Object.entries(question.options).map(([id, text]) => ({ id, text }))
       };
     });
+    // Answers the server already holds win over a local draft.
+    const draft = readActiveStudyDraft(payload.attempt_id)?.answers || {};
+    const positions = new Set(questions.map((question) => question.id));
+    const draftAnswers = Object.fromEntries(Object.entries(draft).filter(([id, value]) => positions.has(id) && typeof value === "string"));
     setActiveStudy(payload.run || run);
     setActiveQuiz({ ...payload, run: payload.run || run, questions });
-    setActiveAnswers(existingAnswers);
+    setActiveAnswers({ ...draftAnswers, ...existingAnswers });
     setActiveResult(null);
   }
 
@@ -4402,17 +4645,20 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     if (!activeStudy || !activeQuiz || activeStudyBusy) return;
     setActiveStudyBusy(true);
     try {
+      const review = [];
       for (const question of activeQuiz.questions) {
-        await focusApi.answerManagedActiveStudyQuestion(activeStudy.id, {
+        const checked = /** @type {any} */ (await focusApi.answerManagedActiveStudyQuestion(activeStudy.id, {
           attemptId: activeQuiz.attempt_id,
           position: question.position,
           selectedAnswer: activeAnswers[question.id]
-        });
+        }));
+        review.push({ position: question.position, prompt: question.prompt, correct: Boolean(checked?.correct), explanation: typeof checked?.explanation === "string" ? checked.explanation : "" });
       }
       const payload = await focusApi.submitManagedActiveStudy(activeStudy.id, activeQuiz.attempt_id);
       const result = /** @type {any} */ (payload.result);
+      clearActiveStudyDraft(activeQuiz.attempt_id);
       setActiveStudy(payload.run);
-      setActiveResult({ ...result, outcome: result.passed ? "passed" : (activeQuiz.kind === "final" ? "failed" : "advisory") });
+      setActiveResult({ ...result, review, outcome: result.passed ? "passed" : (activeQuiz.kind === "final" ? "failed" : "advisory") });
     } catch (error) {
       setFocusMessage(error.message || "The Active Study test could not be submitted.");
     } finally {
@@ -4467,6 +4713,33 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     }
   }
 
+  /**
+   * Clears only the unsubmitted attempt (its draft and its server answers);
+   * completed parts and the run's position stay as they are. Restart then
+   * opens a fresh attempt at question 1.
+   */
+  async function discardActiveAttempt({ restart }, done) {
+    if (!activeStudy || !activeQuiz || activeStudyBusy) return;
+    setActiveStudyBusy(true);
+    try {
+      clearActiveStudyDraft(activeQuiz.attempt_id);
+      const payload = await focusApi.managedActiveStudyAction(activeStudy.id, "discard-attempt");
+      const run = /** @type {any} */ (payload.run);
+      done();
+      if (restart) await loadManagedQuestions(run);
+      else {
+        setActiveStudy(run);
+        setActiveQuiz(null);
+        setActiveResult(null);
+        setActiveAnswers({});
+      }
+    } catch (error) {
+      setFocusMessage(error.message || t("checkpoint.resetFailed"));
+    } finally {
+      setActiveStudyBusy(false);
+    }
+  }
+
   async function dismissActiveQuiz() {
     const run = activeStudy;
     setActiveQuiz(null);
@@ -4478,6 +4751,21 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       setPageJumpDraft("1");
       resetReaderToPageOne();
     }
+  }
+
+  /**
+   * Removes one page note as a single history step. The workspace-page command
+   * already restores and removes notes, so undo and redo reuse it with the
+   * page list unchanged.
+   */
+  function deleteNote(note) {
+    const target = notesRef.current.find((item) => item.id === note.id);
+    if (!target) return;
+    const pages = virtualPagesRef.current;
+    const command = { type: "workspace-page", beforePages: pages, afterPages: pages, beforeItems: [], afterItems: [], beforeNotes: [target], afterNotes: [] };
+    applyWorkspacePageCommand(command, "redo");
+    recordCommand(command);
+    setFocusMessage("Note deleted. Undo restores it.");
   }
 
   async function saveNote() {
@@ -4800,6 +5088,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       <button type="button" onPointerDown={stopPointer} onClick={pasteSelection} disabled={!selectionClipboardRef.current.length}><ClipboardPaste size={15} />Paste</button>
       <button type="button" onPointerDown={stopPointer} onClick={duplicateSelection}><Copy size={15} />Duplicate</button>
       {selectedAnnotations.some((item) => item.type === "card") && <button type="button" onPointerDown={stopPointer} onClick={editSelectedCard}><FileText size={15} />Edit card</button>}
+      {selectedAnnotations.some((item) => item.type === "card") && <button type="button" className="is-danger" onPointerDown={stopPointer} disabled={selectedAnnotations.some((item) => item.locked)} onClick={deleteSelection} aria-label={selectedAnnotations.length === 1 ? "Delete note" : "Delete selection"}><Trash2 size={15} />Delete</button>}
       {selectedAnnotations.some((item) => item.type === "text") && <button type="button" onPointerDown={stopPointer} onClick={editSelectedText} disabled={selectedAnnotations.some((item) => item.locked)}><Type size={15} />Edit text</button>}
       <button type="button" onPointerDown={stopPointer} onClick={toggleSelectionLock}>{selectedAnnotations.every((item) => item.locked) ? <Unlock size={15} /> : <Lock size={15} />}{selectedAnnotations.every((item) => item.locked) ? "Unlock" : "Lock"}</button>
       <button type="button" onPointerDown={stopPointer} onClick={() => setSelectionActionsOpen((open) => !open)} aria-expanded={selectionActionsOpen}><MoreHorizontal size={15} />Actions</button>
@@ -4810,25 +5099,30 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         <button type="button" onPointerDown={stopPointer} onClick={() => layerSelection("forward")} disabled={selectedAnnotations.some((item) => item.locked)}><Layers3 size={15} />Forward</button>
         <button type="button" onPointerDown={stopPointer} onClick={() => layerSelection("backward")} disabled={selectedAnnotations.some((item) => item.locked)}><Layers3 size={15} />Backward</button>
         <button type="button" onPointerDown={stopPointer} onClick={rotateSelection} disabled={selectedAnnotations.some((item) => item.locked)}><RotateCw size={15} />Rotate</button>
-        <button type="button" className="is-danger" onPointerDown={stopPointer} disabled={selectedAnnotations.some((item) => item.locked)} onClick={() => { runCommand({ type: "remove", items: selectedAnnotations }); setSelectedIds([]); }}><Eraser size={15} />Delete</button>
+        {!selectedAnnotations.some((item) => item.type === "card") && <button type="button" className="is-danger" onPointerDown={stopPointer} disabled={selectedAnnotations.some((item) => item.locked)} onClick={deleteSelection}><Eraser size={15} />Delete</button>}
       </>}
     </div>;
   }
 
-  function renderPdfPageOverlay(pageNumber) {
+  function renderPdfPageOverlay(pageNumber, pageAspect = 1) {
     const annotationsOnPage = annotationsByPage.get(pageNumber) || NO_ANNOTATIONS;
     const pageIsCurrent = pageNumber === activePageKey;
-    const handleRadius = 11 * pageUnitsPerCssPixel(pageNumber);
+    // Every page overlay sits above a composited PDF canvas, so even an empty
+    // one costs the compositor a page-sized layer while scrolling. Only pages
+    // with marks, and the page being written on, need one.
+    if (!pageIsCurrent && !annotationsOnPage.length) return null;
+    // Measuring the page forces layout; only the selection handles need it.
+    const handleRadius = pageIsCurrent && selectedBounds ? 11 * pageUnitsPerCssPixel(pageNumber) : 0;
     return <>
       <svg className={annotationLayerClass} viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-label={isVirtualPageKey(pageNumber) ? "Annotations for blank workspace page" : `Annotations for PDF page ${pageNumber}`}>
-        <AnnotationVisuals annotations={annotationsHidden ? NO_ANNOTATIONS : annotationsOnPage} prefix={`page-${pageNumber}`} includeHitTargets={activeTool === "select" && !annotationsHidden} />
-        {pageIsCurrent && draftAnnotation && draftAnnotation.type !== "lasso" && <WorkspaceAnnotation annotation={draftAnnotation} draft />}
+        <AnnotationVisuals annotations={annotationsHidden ? NO_ANNOTATIONS : annotationsOnPage} prefix={`page-${pageNumber}`} includeHitTargets={activeTool === "select" && !annotationsHidden} pageAspect={pageAspect} />
+        {pageIsCurrent && draftAnnotation && draftAnnotation.type !== "lasso" && <WorkspaceAnnotation annotation={draftAnnotation} draft pageAspect={pageAspect} />}
         {pageIsCurrent && selectedBounds && <g className="workspace-v2-selection-box">
           <rect x={selectedBounds.x} y={selectedBounds.y} width={selectedBounds.width} height={selectedBounds.height} />
           {[["top-left", selectedBounds.x, selectedBounds.y], ["top-right", selectedBounds.x + selectedBounds.width, selectedBounds.y], ["bottom-left", selectedBounds.x, selectedBounds.y + selectedBounds.height], ["bottom-right", selectedBounds.x + selectedBounds.width, selectedBounds.y + selectedBounds.height]].map(([handle, x, y]) => <circle key={handle} data-resize-handle={handle} cx={x} cy={y} r={handleRadius} />)}
         </g>}
       </svg>
-      {pageIsCurrent && <LiveAnnotationCanvas ref={liveStrokeCanvasRef} pageNumber={pageNumber} />}
+      {pageIsCurrent && <LiveAnnotationCanvas ref={liveStrokeCanvasRef} pageNumber={pageNumber} pageAspect={pageAspect} />}
       {pageIsCurrent && renderSelectionMenu()}
     </>;
   }
@@ -4911,6 +5205,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
             </div>
             <label className="workspace-v3-text-entry"><span>Card text</span><textarea value={cardDraft} maxLength={1200} rows={5} onChange={(event) => setCardDraft(event.target.value)} /></label>
             <button type="button" className="workspace-v3-menu-primary" onClick={saveCard} disabled={!cardDraft.trim()}>{editingCardId ? "Save card" : "Add card"}</button>
+            {editingCardId && <button type="button" className="workspace-v6-card-delete" onClick={deleteEditingCard}><Trash2 size={16} />Delete card</button>}
           </section>}
 
           {openSurface === "text" && <section className="workspace-v2-action-popover is-text" role="dialog" aria-label={editingTextId ? "Edit text annotation" : "Add text annotation"} onPointerDown={(event) => event.stopPropagation()}>
@@ -4978,7 +5273,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
               <button type="button" onClick={copySelection}><Copy size={16} />Copy</button>
               <button type="button" onClick={cutSelection} disabled={selectedAnnotations.some((item) => item.locked)}><Scissors size={16} />Cut</button>
               <button type="button" onClick={duplicateSelection}><Copy size={16} />Duplicate</button>
-              <button type="button" onClick={() => { runCommand({ type: "remove", items: selectedAnnotations }); setSelectedIds([]); }} disabled={selectedAnnotations.some((item) => item.locked)}><Trash2 size={16} />Delete</button>
+              <button type="button" onClick={deleteSelection} disabled={selectedAnnotations.some((item) => item.locked)}><Trash2 size={16} />Delete</button>
             </div></section>}
             {activeTool === "shapes" && <section className="workspace-v5-inspector-section"><h3>Shape</h3><IconChoiceGroup label="Shape type" value={shapeStyle} options={SHAPE_OPTIONS} onChange={setShapeStyle} /></section>}
             {activeTool === "shapes" && <section className="workspace-v5-inspector-section"><h3>Shape style and precision</h3><div className="workspace-v6-shape-settings">
@@ -5072,7 +5367,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
             onPointerUp={finishWorkspacePointer}
             onPointerCancel={cancelWorkspacePointer}
             onLostPointerCapture={lostWorkspacePointer}
-            onPointerLeave={hideStylusHover}
+            onPointerLeave={() => { hideStylusHover(); hideEraserHitbox(); }}
           >
             {sheet.pdfUrl ? <ContinuousA4Pdf pdfUrl={sheet.pdfUrl} pageCount={pageCount} visiblePageStart={accessiblePageStart} visiblePageCount={accessiblePageCount} zoom={zoom} stageRef={stageRef} documentRootRef={documentRef} onPageCount={syncPdfPageCount} onDocumentReady={markPdfDocumentReady} onCurrentPageChange={handleCurrentWorkspacePage} virtualPages={virtualPages} renderPageOverlay={renderPdfPageOverlay} onPdfPageRendered={recordPdfPageRender} /> : <article ref={documentRef} className="workspace-v2-document" onDoubleClick={smartZoom} style={cssVars({ "--workspace-document-width": `${PAGE_WIDTH * zoom}px`, "--workspace-document-min-height": `${760 * zoom}px`, "--workspace-document-max-width": "none" })}>
               <svg className={annotationLayerClass} viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-label="Document annotations">
@@ -5099,6 +5394,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
               <aside className="workspace-v2-clinical-note"><span><Zap size={23} /></span><div><strong>Clinical Note</strong><p>Use the selected tools to highlight, annotate, and connect this concept to the current study session.</p></div></aside>
             </article>}
             <span ref={stylusHoverRef} className="workspace-v2-stylus-hover" aria-hidden="true" />
+            <span ref={eraserHitboxRef} className="workspace-v2-eraser-hitbox" aria-hidden="true" />
           </div>
           {showPageNumber && <div className={`workspace-v2-page-dock${pageNavigatorOpen ? " is-open" : ""}`}>
             {pageNavigatorOpen && <div id="workspace-page-navigator" className="workspace-v2-page-navigator" role="group" aria-label="Page and zoom" onPointerDown={(event) => event.stopPropagation()}>
@@ -5159,11 +5455,14 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
           </div>
           <div className="workspace-v2-side-content">
             {sideTab === "notes" && <section id="workspace-notes-tabpanel" role="tabpanel" aria-labelledby="workspace-notes-tab" tabIndex={0} className="workspace-v2-note-list">
-              {sortedNotes.map((note) => <button key={note.id} type="button" className="workspace-v2-note-card" onClick={() => openNote(note)} aria-label={`Open note from page ${note.page}`}>
-                <span className="workspace-v2-card-meta"><strong>Page {note.page}</strong><span>{new Date(note.createdAt).toLocaleDateString()}</span></span>
-                <span className="workspace-v2-card-copy">{note.body}</span>
-                <span className="workspace-v2-card-tags"><span>{material.title}</span><span>Page note</span></span>
-              </button>)}
+              {sortedNotes.map((note) => <div key={note.id} className="workspace-v2-note-item">
+                <button type="button" className="workspace-v2-note-card" onClick={() => openNote(note)} aria-label={`Open note from page ${note.page}`}>
+                  <span className="workspace-v2-card-meta"><strong>Page {note.page}</strong><span>{new Date(note.createdAt).toLocaleDateString()}</span></span>
+                  <span className="workspace-v2-card-copy">{note.body}</span>
+                  <span className="workspace-v2-card-tags"><span>{material.title}</span><span>Page note</span></span>
+                </button>
+                <button type="button" className="workspace-v2-note-delete" onClick={() => deleteNote(note)} aria-label={`Delete note from page ${note.page}`} title="Delete note"><Trash2 size={15} aria-hidden="true" /></button>
+              </div>)}
               {!sortedNotes.length && <p className="workspace-v2-empty-panel">Notes saved on any page will appear here in page order.</p>}
               <label className="workspace-v2-note-editor"><span>Note for page {page}</span><textarea ref={noteRef} value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} maxLength={10000} placeholder={`Write a note for page ${page}…`} /><button type="button" onClick={saveNote} disabled={noteBusy || !noteDraft.trim()}>{noteBusy ? "Saving…" : `Save to page ${page}`}</button></label>
             </section>}
@@ -5177,7 +5476,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         <button type="button" className={`workspace-v2-checkpoint-button${activeStudyButtonReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeStudyButtonReady} aria-label={activeStudyButtonReady ? (activeStudy.stage === "final" ? "Open final exam" : "Open checkpoint") : `Reach page ${accessiblePageCount} to unlock the checkpoint`}>{activeStudyButtonReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{activeStudy.stage === "final" ? "Final Exam" : "Checkpoint"}</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">Reach page {accessiblePageCount}</span></>}</button>
       </div>}
       {modeDialogOpen && <StudyModeDialog difficulty={activeDifficulty} setDifficulty={setActiveDifficulty} activeAvailable={activeStudyReady} restartProgress={selectedActiveStudyAvailability?.progress} busy={activeStudyBusy || activeStudyAvailabilityLoading} error={activeStudyError} onNormal={chooseNormalStudy} onActive={chooseActiveStudy} onRestart={restartActiveStudy} activeOnly={entryModePreference === "active"} />}
-      {activeQuiz && activeStudy && <ActiveStudyQuiz quiz={activeQuiz} answers={activeAnswers} setAnswers={setActiveAnswers} result={activeResult} busy={activeStudyBusy} onSubmit={submitActiveQuiz} onDismiss={dismissActiveQuiz} onRetake={retakeActiveQuiz} onContinue={continueActiveStudyAnyway} />}
+      {activeQuiz && activeStudy && <ActiveStudyQuiz key={activeQuiz.attempt_id} quiz={activeQuiz} answers={activeAnswers} setAnswers={setActiveAnswers} result={activeResult} busy={activeStudyBusy} onSubmit={submitActiveQuiz} onDismiss={dismissActiveQuiz} onRetake={retakeActiveQuiz} onContinue={continueActiveStudyAnyway} onDiscard={(done) => discardActiveAttempt({ restart: false }, done)} onRestart={(done) => discardActiveAttempt({ restart: true }, done)} />}
     </main>
   );
 }

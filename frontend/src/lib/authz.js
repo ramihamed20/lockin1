@@ -3,8 +3,10 @@ import { PRODUCT_ROLES } from "../api/contracts.js";
 const CURRENT_AUTHENTICATED_ROUTES = new Set([
   "/",
   "/dashboard",
+  "/my-group",
   "/study-plan",
   "/materials",
+  "/paper-workspace",
   "/search",
   "/questions",
   "/review",

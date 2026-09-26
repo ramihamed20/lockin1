@@ -1,10 +1,12 @@
 const routeDefinitions = [
   { match: (path) => path === "/" || path === "/dashboard", key: "route.dashboard" },
+  { match: (path) => path === "/my-group", key: "route.myGroup" },
   { match: (path) => path === "/study-plan", key: "route.studyPlan" },
   { match: (path) => path === "/materials", key: "route.materials" },
   { match: (path) => path === "/materials/catalog", key: "route.notFound" },
   { match: (path) => path.startsWith("/materials/catalog/") && path.endsWith("/workspace"), key: "route.focus" },
   { match: (path) => path.startsWith("/materials/catalog/"), key: "route.material" },
+  { match: (path) => path === "/paper-workspace", key: "route.paperWorkspace" },
   { match: (path) => path === "/lock-in" || path.startsWith("/lock-in/"), key: "route.lockIn" },
   { match: (path) => path.startsWith("/search"), key: "route.search" },
   { match: (path) => path.startsWith("/questions/results"), key: "route.assessmentResult" },

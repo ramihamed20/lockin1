@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "apps.progress.apps.ProgressConfig",
     "apps.review.apps.ReviewConfig",
     "apps.study_plans.apps.StudyPlansConfig",
+    "apps.class_schedule.apps.ClassScheduleConfig",
     "apps.community.apps.CommunityConfig",
     "apps.moderation.apps.ModerationConfig",
     "apps.xp.apps.XpConfig",
@@ -236,6 +237,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CONTENT_MAX_PDF_BYTES = env_int("CONTENT_MAX_PDF_BYTES", 50 * 1024 * 1024)
 CONTENT_MAX_AUDIO_BYTES = env_int("CONTENT_MAX_AUDIO_BYTES", 100 * 1024 * 1024)
+PAPER_WORKSPACE_MEDIA_MAX_BYTES = env_int("PAPER_WORKSPACE_MEDIA_MAX_BYTES", 150 * 1024 * 1024)
 CONTENT_REQUIRE_CLEAN_SCAN = env_bool("CONTENT_REQUIRE_CLEAN_SCAN", False)
 FILE_SCAN_HOST = env("FILE_SCAN_HOST", "127.0.0.1")
 FILE_SCAN_PORT = env_int("FILE_SCAN_PORT", 3310)

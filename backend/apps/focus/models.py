@@ -602,3 +602,47 @@ class FocusSyncReceipt(models.Model):
 
     def __str__(self) -> str:
         return f"{self.collection_id}:{self.idempotency_key}"
+
+
+class PaperWorkspaceMedia(models.Model):
+    """The single, administrator-managed background of the Paper Workspace player.
+
+    One row (``id=1``). With no file, or while disabled, the workspace shows its
+    built-in lofi scene. The focal point keeps the important part of the media in
+    frame when the player crops it to a different shape (``object-fit: cover``).
+    """
+
+    SINGLETON_ID = 1
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=SINGLETON_ID, editable=False)
+    managed_file = models.ForeignKey(
+        "files.ManagedFile",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    enabled = models.BooleanField(default=False)
+    focal_x = models.PositiveSmallIntegerField(default=50)
+    focal_y = models.PositiveSmallIntegerField(default=50)
+    revision = models.PositiveIntegerField(default=0)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=Q(id=1), name="focus_paper_media_singleton"),
+            models.CheckConstraint(
+                condition=Q(focal_x__lte=100) & Q(focal_y__lte=100),
+                name="focus_paper_media_focal_range",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return "Paper Workspace media"

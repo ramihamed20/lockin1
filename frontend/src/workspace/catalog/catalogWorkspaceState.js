@@ -177,6 +177,42 @@ function ids(items) {
   return new Set((items || []).map((item) => item.id));
 }
 
+/**
+ * Puts `items` back where they sat when `positions` (id → index) was recorded.
+ * Inserting in ascending index order rebuilds the original order exactly when
+ * the surrounding list is unchanged, and degrades to the nearest slot when it
+ * is not. Items without a recorded position are appended.
+ */
+function reinsertAtRecordedPositions(list, items, positions) {
+  const next = [...list];
+  const placed = [];
+  const appended = [];
+  for (const item of items) {
+    const index = positions?.[item.id];
+    if (Number.isSafeInteger(index) && index >= 0) placed.push([index, item]);
+    else appended.push(item);
+  }
+  placed.sort((first, second) => first[0] - second[0]);
+  for (const [index, item] of placed) next.splice(Math.min(index, next.length), 0, item);
+  return [...next, ...appended];
+}
+
+/**
+ * Records where the items a command takes away currently sit, so undo can
+ * restore them exactly. Without this a deleted note or an erased stroke came
+ * back on top of everything drawn after it.
+ */
+export function withCommandPositions(command, annotations) {
+  if (!command || !Array.isArray(annotations)) return command;
+  const indexById = new Map(annotations.map((item, index) => [item.id, index]));
+  const positionsFor = (items) => Object.fromEntries((items || [])
+    .filter((item) => indexById.has(item.id))
+    .map((item) => [item.id, indexById.get(item.id)]));
+  if (command.type === "remove" && !command.positions) return { ...command, positions: positionsFor(command.items) };
+  if (command.type === "replace" && !command.beforePositions) return { ...command, beforePositions: positionsFor(command.before) };
+  return command;
+}
+
 export function applyAnnotationCommand(annotations, command, direction = "redo") {
   const current = Array.isArray(annotations) ? annotations : [];
   if (!command || !["redo", "undo"].includes(direction)) return current;
@@ -191,7 +227,7 @@ export function applyAnnotationCommand(annotations, command, direction = "redo")
   if (command.type === "remove") {
     if (direction === "undo") {
       const existing = ids(current);
-      return [...current, ...(command.items || []).filter((item) => !existing.has(item.id))];
+      return reinsertAtRecordedPositions(current, (command.items || []).filter((item) => !existing.has(item.id)), command.positions);
     }
     const removed = ids(command.items);
     return current.filter((item) => !removed.has(item.id));
@@ -199,6 +235,12 @@ export function applyAnnotationCommand(annotations, command, direction = "redo")
   if (command.type === "update") {
     const replacements = new Map((direction === "undo" ? command.before : command.after).map((item) => [item.id, item]));
     return current.map((item) => replacements.get(item.id) || item);
+  }
+  if (command.type === "replace" && direction === "undo" && command.beforePositions) {
+    const removedIds = ids(command.after);
+    const retained = current.filter((item) => !removedIds.has(item.id));
+    const existing = ids(retained);
+    return reinsertAtRecordedPositions(retained, (command.before || []).filter((item) => !existing.has(item.id)), command.beforePositions);
   }
   if (command.type === "replace") {
     const removedItems = direction === "undo" ? command.after : command.before;
@@ -260,7 +302,12 @@ export function createAnnotationSpatialIndex(annotations, cellSize = 140) {
   for (const annotation of annotations || []) {
     const bounds = annotationBounds(annotation);
     if (!bounds) continue;
-    const padding = ["pen", "pencil", "highlighter"].includes(annotation.type) ? Math.max(.5, finite(annotation.width, 1) / 2) : 0;
+    // Pressure can widen ink to 2.25x its nominal width, and a shape's outline
+    // is painted half its stroke width outside its geometry. Both must stay
+    // findable wherever they are visible.
+    const padding = ["pen", "pencil", "highlighter"].includes(annotation.type)
+      ? Math.max(.5, finite(annotation.width, 1) * 1.15)
+      : annotation.type === "shape" ? Math.max(.5, finite(annotation.width, 1) / 2) : 0;
     const page = Number(annotation.page) || 1;
     const buckets = pages.get(page) || new Map();
     pages.set(page, buckets);

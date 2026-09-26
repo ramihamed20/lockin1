@@ -34,6 +34,8 @@ import {
   Pencil,
   Plus,
   RotateCcw,
+  RotateCw,
+  Minimize2,
   Save,
   Search,
   ShieldAlert,
@@ -81,7 +83,11 @@ import {
   Volume2,
   WandSparkles,
   PackageOpen,
-  CircleDollarSign
+  CircleDollarSign,
+  Flag,
+  Pause,
+  Play,
+  VolumeX
 } from "lucide-react";
 
 const icons = {
@@ -166,7 +172,14 @@ const icons = {
   volume: Volume2,
   wand: WandSparkles,
   package: PackageOpen,
-  coins: CircleDollarSign
+  coins: CircleDollarSign,
+  flag: Flag,
+  pause: Pause,
+  play: Play,
+  "volume-off": VolumeX,
+  "rotate-back": RotateCcw,
+  "rotate-forward": RotateCw,
+  minimize: Minimize2
 };
 
 /** @typedef {import("lucide-react").LucideProps & {name: string}} IconProps */

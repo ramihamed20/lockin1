@@ -36,6 +36,11 @@ function scopeQuery(scope) {
 
 /** Server-authoritative Focus document, session, workspace, and annotation contracts. */
 export const focusApi = {
+  /** The admin-chosen player media, or `{ media: null }` for the built-in lofi scene. */
+  async getPaperWorkspaceMedia() {
+    return objectPayload(await request("/focus/paper-workspace/media"), "The workspace media could not be loaded.");
+  },
+
   async getManagedActiveStudyAvailability(sheetId, edition = "") {
     return objectPayload(await request(`/focus/managed-active-study/sheets/${sheetId}` + (edition ? `?edition=${encodeURIComponent(edition)}` : "")), "Active Study availability could not be loaded.");
   },

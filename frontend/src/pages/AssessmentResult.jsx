@@ -4,6 +4,7 @@ import { assessmentsApi } from "../api/assessments.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { ErrorPanel, LoadingPanel, Page, SessionConfetti } from "../components/ui/index.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
+import { QuestionExplanation } from "../components/shared/QuestionExplanation.jsx";
 
 const REPORT_CATEGORY_KEYS = [
   ["answer_key", "assessment.reportAnswerKey"], ["ambiguous", "assessment.reportAmbiguous"], ["outdated", "assessment.reportOutdated"], ["typo", "assessment.reportTypo"], ["explanation", "assessment.reportExplanation"], ["other", "assessment.reportOther"]
@@ -67,7 +68,6 @@ function ResultQuestion({ resultId, question }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [sent, setSent] = useState(false);
-  const [explanationOpen, setExplanationOpen] = useState(false);
   const selected = Array.isArray(question.selected_option_ids) && question.selected_option_ids.length > 0;
   // The status drives a class name and two comparisons as well as the label, so
   // the identifier stays in English and only the label is translated.
@@ -96,7 +96,7 @@ function ResultQuestion({ resultId, question }) {
       <div className="result-question-detail">
         <p>{t("assessment.yourAnswerIs")} <strong dir="auto">{optionText(question, question.selected_option_ids, t)}</strong></p>
         <p>{t("assessment.correctAnswerIs")} <strong dir="auto">{optionText(question, question.correct_option_ids, t)}</strong></p>
-        {status === "incorrect" && (explanation ? <div className="result-explanation"><button className="btn btn-soft compact" type="button" onClick={() => setExplanationOpen((value) => !value)}>{t(explanationOpen ? "assessment.hideExplanation" : "assessment.explainQuestion")}</button>{explanationOpen && <p dir="auto">{explanation}</p>}</div> : <p className="save-hint">{t("assessment.noExplanation")}</p>)}
+        {status === "incorrect" && (explanation ? <QuestionExplanation className="result-explanation" explanation={explanation} labelKey="assessment.explainQuestion" hideLabelKey="assessment.hideExplanation" /> : <p className="save-hint">{t("assessment.noExplanation")}</p>)}
         {status === "correct" && explanation && <p className="save-hint">{t("assessment.explanationIncorrectOnly")}</p>}
         {sent ? <p className="save-hint" role="status">{t("assessment.reportSent")}</p> : <button className="btn btn-soft compact" type="button" onClick={() => setOpen((value) => !value)}>{t(open ? "assessment.closeReport" : "assessment.reportIssue")}</button>}
         {open && <form className="password-form" onSubmit={submitReport}><label className="field"><span>{t("assessment.category")}</span><select value={category} onChange={(event) => setCategory(event.target.value)}>{REPORT_CATEGORY_KEYS.map(([value, labelKey]) => <option key={value} value={value}>{t(labelKey)}</option>)}</select></label><label className="field"><span>{t("assessment.details")}</span><textarea value={details} onChange={(event) => setDetails(event.target.value)} maxLength={4000} required /></label>{error && <p className="inline-error" role="alert" dir="auto">{errorText(error, t)}</p>}<button className="btn btn-primary" type="submit" disabled={saving}>{t(saving ? "assessment.sending" : "assessment.sendReport")}</button></form>}

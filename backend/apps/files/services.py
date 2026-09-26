@@ -101,6 +101,12 @@ IMAGE_TYPES = {
     "image/png": {".png"},
     "image/webp": {".webp"},
 }
+# The Paper Workspace background: a looping video, or a still / animated image.
+WORKSPACE_VIDEO_TYPES = {
+    "video/mp4": {".mp4", ".m4v"},
+    "video/webm": {".webm"},
+}
+WORKSPACE_IMAGE_TYPES = {**IMAGE_TYPES, "image/gif": {".gif"}}
 
 
 def _audio_signature_matches(content_type: str, head: bytes) -> bool:
@@ -125,6 +131,16 @@ def _image_signature_matches(content_type: str, head: bytes) -> bool:
     if content_type == "image/webp":
         return len(head) >= 12 and head.startswith(b"RIFF") and head[8:12] == b"WEBP"
     return False
+
+
+def _workspace_media_signature_matches(content_type: str, head: bytes) -> bool:
+    if content_type == "video/mp4":
+        return len(head) >= 12 and head[4:8] == b"ftyp"
+    if content_type == "video/webm":
+        return head.startswith(bytes.fromhex("1a45dfa3"))
+    if content_type == "image/gif":
+        return head.startswith((b"GIF87a", b"GIF89a"))
+    return _image_signature_matches(content_type, head)
 
 
 def _checksum(upload: UploadedFile) -> str:
@@ -184,6 +200,14 @@ def validate_upload(*, upload: UploadedFile, kind: str) -> ValidatedUpload:
             supplied_type, head
         ):
             raise FileValidationError("Choose a valid JPEG, PNG, or WebP image.")
+        canonical_type = supplied_type
+    elif kind == ManagedFile.Kind.WORKSPACE_MEDIA:
+        max_bytes = int(settings.PAPER_WORKSPACE_MEDIA_MAX_BYTES)
+        allowed = {**WORKSPACE_VIDEO_TYPES, **WORKSPACE_IMAGE_TYPES}
+        if suffix not in allowed.get(supplied_type, set()) or not (
+            _workspace_media_signature_matches(supplied_type, head)
+        ):
+            raise FileValidationError("Choose an MP4 or WebM video, or a JPEG, PNG, WebP or GIF.")
         canonical_type = supplied_type
     else:
         raise FileValidationError("This file type is not supported.")

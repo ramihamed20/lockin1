@@ -1,4 +1,5 @@
 import { eraseStrokeWithPolyline, strokeIntersectsEraserPath } from "./strokeModel.js";
+import { shapeIntersectsEraserPath } from "./shapeHitTesting.js";
 import { annotationBounds } from "../catalog/catalogWorkspaceState.js";
 
 /**
@@ -8,11 +9,14 @@ import { annotationBounds } from "../catalog/catalogWorkspaceState.js";
  * @property {any[]} after
  */
 
+/** A deep copy with exactly the original's keys, so undo restores an identical mark. */
 function cloneAnnotation(annotation) {
   return {
     ...annotation,
-    points: Array.isArray(annotation?.points) ? annotation.points.map((point) => ({ ...point })) : annotation?.points,
-    erasures: Array.isArray(annotation?.erasures) ? annotation.erasures.map((erasure) => ({ radius: erasure.radius, points: erasure.points.map((point) => ({ ...point })) })) : undefined
+    ...(Array.isArray(annotation?.points) ? { points: annotation.points.map((point) => ({ ...point })) } : {}),
+    ...(annotation?.start ? { start: { ...annotation.start } } : {}),
+    ...(annotation?.end ? { end: { ...annotation.end } } : {}),
+    ...(Array.isArray(annotation?.erasures) ? { erasures: annotation.erasures.map((erasure) => ({ radius: erasure.radius, points: erasure.points.map((point) => ({ ...point })) })) } : {})
   };
 }
 
@@ -28,6 +32,7 @@ export function createEraserSession({ idFactory = () => String(globalThis.crypto
   let path = [];
   let eraserRadius = 0;
   let eraserMode;
+  let eraserScale = { x: 1, y: 1 };
   let revision = 0;
   let materializedRevision = -1;
   let candidateCount = 0;
@@ -41,6 +46,7 @@ export function createEraserSession({ idFactory = () => String(globalThis.crypto
     path = [];
     eraserRadius = 0;
     eraserMode = undefined;
+    eraserScale = { x: 1, y: 1 };
     revision = 0;
     materializedRevision = -1;
     candidateCount = 0;
@@ -60,7 +66,10 @@ export function createEraserSession({ idFactory = () => String(globalThis.crypto
     if (materializedRevision === revision) return;
     working.clear();
     for (const original of before.values()) {
-      const result = eraserMode === "object" ? { fragments: [] } : eraseStrokeWithPolyline(original, path, eraserRadius, eraserMode, idFactory);
+      // Vector shapes have no partial form, so a touched shape is removed whole.
+      const result = eraserMode === "object" || original.type === "shape"
+        ? { fragments: [] }
+        : eraseStrokeWithPolyline(original, path, eraserRadius, eraserMode, idFactory, eraserScale);
       working.set(original.id, result.fragments);
     }
     materializedRevision = revision;
@@ -68,20 +77,27 @@ export function createEraserSession({ idFactory = () => String(globalThis.crypto
 
   return {
     begin,
-    append(point, { annotationPage = page, candidates = [], radius: nextRadius = 0, mode: nextMode = undefined } = {}) {
+    append(point, { annotationPage = page, candidates = [], radius: nextRadius = 0, mode: nextMode = undefined, scale: nextScale = undefined } = {}) {
       if (!active || annotationPage !== page) begin(point, annotationPage);
       const previous = lastPoint || point;
       const newlyChangedIds = [];
       eraserRadius = Math.max(0, Number(nextRadius) || 0);
       eraserMode = nextMode;
+      if (nextScale && Number(nextScale.x) > 0 && Number(nextScale.y) > 0) eraserScale = { x: Number(nextScale.x), y: Number(nextScale.y) };
       candidateCount += candidates.length;
       for (const original of candidates) {
         if (original?.locked) continue;
+        if (before.has(original.id)) continue;
         const ink = ["pen", "pencil", "highlighter"].includes(original?.type);
-        if (!ink && eraserMode !== "object") continue;
+        const shape = original?.type === "shape";
+        if (!ink && !shape && eraserMode !== "object") continue;
         const bounds = annotationBounds(original);
         const hitsObject = eraserMode === "object" && bounds && [previous, point].some((sample) => sample.x >= bounds.x - eraserRadius && sample.x <= bounds.x + bounds.width + eraserRadius && sample.y >= bounds.y - eraserRadius && sample.y <= bounds.y + bounds.height + eraserRadius);
-        if (!before.has(original.id) && (hitsObject || (ink && strokeIntersectsEraserPath(original, previous, point, eraserRadius, eraserMode !== "precision")))) {
+        // Every mode measures against the painted ink, including its width: a
+        // tip that visibly covers the edge of a thick highlighter touches it.
+        const hitsInk = ink && strokeIntersectsEraserPath(original, previous, point, eraserRadius, true, eraserScale);
+        const hitsShape = shape && shapeIntersectsEraserPath(original, previous, point, eraserRadius, eraserScale);
+        if (hitsObject || hitsInk || hitsShape) {
           before.set(original.id, cloneAnnotation(original));
           newlyChangedIds.push(original.id);
         }
