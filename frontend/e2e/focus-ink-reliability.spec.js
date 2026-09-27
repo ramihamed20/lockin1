@@ -194,6 +194,37 @@ test("the eraser shows its real reach at every zoom and one drag is one undo", a
   await expect.poll(async () => hitbox.evaluate((node) => getComputedStyle(node).opacity)).toBe("0");
 });
 
+test("the stroke eraser removes each touched stroke whole and one drag is one undo", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  await openWorkspace(page, { width: 1280, height: 900 });
+  const stage = page.locator(".workspace-v2-document-stage");
+  const bounds = await firstPageBox(page);
+  const x = bounds.x + bounds.width * .25;
+  const y = bounds.y + bounds.height * .25;
+  await drawStroke(stage, 61, Array.from({ length: 12 }, (_, index) => ({ x: x + index * 3 + Math.sin(index) * 12, y: y + index * 14 })));
+  await drawStroke(stage, 62, Array.from({ length: 12 }, (_, index) => ({ x: x + 160 + Math.sin(index) * 12, y: y + index * 14 })));
+  await expect.poll(async () => (await savedAnnotations(page)).length).toBe(2);
+
+  const eraser = page.getByRole("button", { name: "Eraser", exact: true });
+  await eraser.click();
+  const options = page.getByRole("dialog", { name: "Eraser options" });
+  if (!(await options.isVisible())) await eraser.click();
+  await options.getByRole("button", { name: "Stroke Eraser" }).click();
+  await expect(options.getByRole("button", { name: "Stroke Eraser" })).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Escape");
+  await expect(options).toHaveCount(0);
+
+  // A short drag across the first stroke only: it goes whole, with no mask.
+  await page.mouse.move(x - 30, y + 80);
+  await page.mouse.down();
+  for (let step = 1; step <= 6; step += 1) await page.mouse.move(x - 30 + step * 12, y + 80);
+  await page.mouse.up();
+  await expect.poll(async () => (await savedAnnotations(page)).length).toBe(1);
+  await expect(page.locator('.workspace-v2-annotation-layer mask[id^="workspace-erase-"]')).toHaveCount(0);
+  await page.getByRole("button", { name: "Undo (Ctrl+Z)" }).click();
+  await expect.poll(async () => (await savedAnnotations(page)).length).toBe(2);
+});
+
 test("a stylus flick with the Pan tool scrolls and keeps gliding after release", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page);

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { visiblePdfPages } from "../src/workspace/catalog/visiblePdfPages.js";
+import { activeStudyResumePage, visiblePdfPages } from "../src/workspace/catalog/visiblePdfPages.js";
 
 const [workspace, workspaceStyles, continuousPdf, api, study, profile] = await Promise.all([
   readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8"),
@@ -21,6 +21,23 @@ test("Active Study keeps previously unlocked pages in the primary PDF reader", (
   assert.match(workspace, /visiblePageCount=\{accessiblePageCount\}/);
   assert.match(workspace, /Math\.max\(accessiblePageStart, Number\(nextPage\)/);
   assert.match(continuousPdf, /visiblePdfPages\(pageCount, visiblePageStart, visiblePageCount\)/);
+});
+
+test("unlocking a part keeps the reader in place and resume lands on the latest part", () => {
+  const part2 = { part: 2, start_page: 7, end_page: 12 };
+  assert.equal(activeStudyResumePage(part2), 7);
+  assert.equal(activeStudyResumePage(part2, { savedPage: 9 }), 9);
+  assert.equal(activeStudyResumePage(part2, { savedPage: 3 }), 7);
+  assert.equal(activeStudyResumePage(part2, { savedPage: 13 }), 7);
+  assert.equal(activeStudyResumePage(part2, { stage: "checkpoint" }), 12);
+  assert.equal(activeStudyResumePage(null), 1);
+  // Opening a test remembers the reading position; closing it or unlocking
+  // the next part returns there instead of resetting to page one.
+  assert.match(workspace, /quizReaderAnchorRef\.current = captureReaderAnchor\(\)/);
+  assert.match(workspace, /if \(run\?\.stage === "reading" \|\| run\?\.stage === "final"\) returnReaderFromQuiz\(\)/);
+  const continueAnyway = workspace.slice(workspace.indexOf("async function continueActiveStudyAnyway"), workspace.indexOf("async function retakeActiveQuiz"));
+  assert.match(continueAnyway, /returnReaderFromQuiz\(\)/);
+  assert.doesNotMatch(continueAnyway, /resetReaderToPageOne/);
 });
 
 test("managed Active Study is unified with the old one-question quiz experience", () => {
@@ -48,6 +65,8 @@ test("Active Study starts the selected difficulty in reading, then opens its che
   assert.match(workspace, /selectedActiveStudyAvailability\?\.status === "ready"/);
   assert.doesNotMatch(workspace, /inProgress\?\.difficulty \|\| activeDifficulty/);
   assert.match(workspace, /setPage\(1\);[\s\S]*resetReaderToPageOne\(\)/);
+  // A resumed run returns to its latest unlocked part rather than page one.
+  assert.match(workspace, /placeReaderAt\(payload\.resumed\s*\? activeStudyResumePage\(run\.current_page_range/);
   assert.doesNotMatch(workspace, /if \(run\.stage === "checkpoint" \|\| run\.stage === "final"\) await loadManagedQuestions\(run\)/);
   assert.match(workspace, /const activeStudyButtonReady = studyMode === "active"/);
   assert.match(workspace, /\["reading", "checkpoint", "final"\]\.includes\(activeStudy\.stage\)/);
