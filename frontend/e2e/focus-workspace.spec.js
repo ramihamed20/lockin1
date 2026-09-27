@@ -639,3 +639,59 @@ test("an Active Study checkpoint asks before closing, saves or discards only the
   await missed.getByRole("button", { name: "Explanation" }).click();
   await expect(missed.getByText(questions[0].explanation)).toBeVisible();
 });
+
+test("passing a checkpoint unlocks the next part below the reader instead of returning to page one", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  const part1 = { id: "unlock-run", difficulty: "medium", status: "active", stage: "reading", current_part: 1, number_of_parts: 4, completed_parts: [], current_page_range: { part: 1, start_page: 1, end_page: 10 } };
+  const part2 = { ...part1, current_part: 2, completed_parts: [1], current_page_range: { part: 2, start_page: 11, end_page: 20 } };
+  await page.route("**/api/v1/focus/managed-active-study/**", async (route) => {
+    const { pathname } = new URL(route.request().url());
+    const json = (body) => route.fulfill({ contentType: "application/json", body: JSON.stringify(body) });
+    if (pathname === "/api/v1/focus/managed-active-study/start") return json({ resumed: false, run: part1 });
+    if (!pathname.includes("/unlock-run/")) return route.fallback();
+    if (pathname.endsWith("/complete-reading")) return json({ run: { ...part1, stage: "checkpoint" } });
+    if (pathname.endsWith("/questions")) {
+      return json({ run: { ...part1, stage: "checkpoint" }, attempt_id: "unlock-attempt", kind: "checkpoint", questions: [{ position: 1, question: "Which vitamin is fat-soluble?", options: { A: "Vitamin C", B: "Vitamin K" }, answered: null }] });
+    }
+    if (pathname.endsWith("/answer")) return json({ correct: true, correct_answer: "B", explanation: "", answered_count: 1, total: 1 });
+    if (pathname.endsWith("/submit")) return json({ run: part2, result: { score: 1, total: 1, passed: true, xp_awarded: 0 } });
+    return json({ run: part1 });
+  });
+  await page.goto(SHARED_TEST_SHEET_ROUTE);
+  await page.getByRole("dialog", { name: "Choose study mode" }).getByRole("button", { name: /Start Active Study/ }).click();
+  const indicator = page.locator(".workspace-v2-page-number");
+  await expect(indicator).toHaveAttribute("aria-label", "PDF page 1 of 10");
+  await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]")).toHaveCount(10);
+
+  // Read to the end of Part 1.
+  await indicator.click();
+  const navigator = page.locator(".workspace-v2-page-navigator");
+  await navigator.locator("input[type='number']").fill("10");
+  await navigator.locator("input[type='number']").press("Enter");
+  await expect(indicator).toHaveAttribute("aria-label", "PDF page 10 of 10");
+  const stage = page.locator(".workspace-v2-document-stage");
+  await expect.poll(async () => stage.evaluate((node) => node.scrollTop)).toBeGreaterThan(1000);
+  // Measured once the smooth jump has come to rest.
+  let readingTop = -1;
+  await expect.poll(async () => {
+    const top = await stage.evaluate((node) => node.scrollTop);
+    const settled = top === readingTop;
+    readingTop = top;
+    return settled;
+  }).toBe(true);
+
+  await page.getByRole("button", { name: "Open checkpoint" }).click();
+  const quiz = page.getByRole("dialog", { name: /Which vitamin/ });
+  await quiz.getByRole("radio", { name: /Vitamin K/ }).click();
+  await quiz.getByRole("button", { name: "Submit test" }).click();
+  await page.getByRole("dialog", { name: "1 / 1" }).getByRole("button", { name: "Continue studying" }).click();
+
+  // Part 2 is appended; Part 1 stays mounted and the reader has not moved.
+  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
+  await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]")).toHaveCount(20);
+  await expect(page.locator('.workspace-v2-a4-page[data-pdf-page="1"]')).toHaveCount(1);
+  await expect(page.locator('.workspace-v2-a4-page[data-pdf-page="21"]')).toHaveCount(0);
+  await expect(indicator).toHaveAttribute("aria-label", "PDF page 10 of 20");
+  await expect.poll(async () => Math.abs(await stage.evaluate((node) => node.scrollTop) - readingTop)).toBeLessThan(4);
+  await expect(page.getByRole("button", { name: "Reach page 20 to unlock the checkpoint" })).toBeVisible();
+});
