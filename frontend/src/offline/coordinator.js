@@ -10,7 +10,7 @@ import { refreshReviewSnapshot } from "./review.js";
 export const DEFAULT_OFFLINE_PREFERENCES = Object.freeze({
   automatic: false,
   network: "wifi",
-  types: { sheet: true, summary: true, active_study: true, questions: false }
+  types: { sheet: true, summary: true, active_study: true, questions: true }
 });
 
 export async function readOfflinePreferences(userId) {
@@ -89,10 +89,21 @@ export async function synchronizeOffline(userId, onState = () => {}, { force = t
       if (error?.status === 0 || error?.status === 401) throw error;
       leaseError = error;
     }
-    if ((await pendingOfflineOperations(userId)).length) publish("syncing");
+    const hadPendingWork = (await pendingOfflineOperations(userId)).length > 0;
+    if (hadPendingWork) publish("syncing");
     const flushed = await flushPendingOperations(userId, { force });
     await reconcileAfterFlush(userId, flushed.acknowledged);
-    if (leaseError) throw leaseError;
+    if (leaseError) {
+      // Access may have ended after work was recorded. The previous signed
+      // lease still proves that work for the sync grace window. A successful
+      // upload must be shown as such even though no new content can be issued.
+      if (!hadPendingWork) throw leaseError;
+      const now = new Date().toISOString();
+      await offlineDatabase.put(userId, "lastSync", now);
+      await offlineDatabase.put(userId, "syncCursor", { at: now, pending: flushed.remaining.length, failedDownloads: 0 });
+      publish(flushed.remaining.length ? "partial" : "synced", { xpTotal: flushed.xpTotal });
+      return null;
+    }
     const remaining = flushed.remaining;
     // Directories keep the reader's normal route model offline, so offline
     // navigation never needs a second Materials implementation.

@@ -405,6 +405,13 @@ function App() {
     setBootError(null);
 
     (async () => {
+      // A cold PWA launch with no network uses the signed, locally verified
+      // lease immediately. Session and entitlement APIs are rechecked when the
+      // connection returns; they are not required to open downloaded work.
+      if (navigator.onLine === false) {
+        if (window.localStorage.getItem(OFFLINE_PENDING_LOGOUT_KEY)) return { user: null, offline: true };
+        return { user: await restoreOfflineUser(), offline: true };
+      }
       if (window.localStorage.getItem(OFFLINE_PENDING_LOGOUT_KEY)) {
         try {
           await authApi.logout();
@@ -417,11 +424,16 @@ function App() {
           }
         }
       }
-      return authApi.me();
+      return { user: await authApi.me(), offline: false };
     })()
-      .then(async (nextUser) => {
+      .then(async ({ user: nextUser, offline }) => {
         if (!active) return;
         bootRetryAttemptsRef.current = 0;
+        if (offline) {
+          setOperationsSessionPending(false);
+          setUser(nextUser);
+          return;
+        }
         if (oauthSessionBootRef.current) clearSubscriptionSnapshots();
         setUser(nextUser);
         setThemeSettings((current) => mergeRemoteThemeSettings(nextUser.themeSettings, current));

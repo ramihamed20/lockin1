@@ -109,8 +109,9 @@ export function buildAllQuestionsPrompt(context, sheetQuestionCount) {
     ...ordered(context).map((row) => `${label(row)}: exactly ${row.number_of_parts} Parts numbered 1 to ${row.number_of_parts}, each with exactly ${row.questions_per_checkpoint} questions, and its own Final Exam with exactly ${row.final_exam_questions} questions.`),
     `sheet_questions.questions has exactly ${normal} questions.`,
     "Every Part keeps the \"pages\" value shown in the structure below.",
-    "Every question has non-empty question text and exactly the options A, B, C and D, none empty and no two the same.",
-    "correct_answer is exactly \"A\", \"B\", \"C\" or \"D\".",
+    "Every question has non-empty question text and type mcq or true_false; legacy MCQ may omit type.",
+    "MCQ has distinct, non-empty A, B, C, D options and a correct_answer letter.",
+    "True/False has no options and a boolean correct_answer.",
     "Every question has a non-empty explanation.",
     "No question is repeated anywhere in the document.",
     "The JSON is valid: no comments, no trailing commas, no extra fields."
@@ -146,9 +147,9 @@ CONTENT RULES
 
 QUESTION RULES
 
-- Every question must contain exactly four options: A, B, C, D.
-- Exactly one option must be correct.
-- correct_answer must be exactly "A", "B", "C" or "D".
+- Use any sensible mixture of MCQ and True/False for each configured total; no ratio is required.
+- MCQ has exactly four distinct options A, B, C, D and one correct letter.
+- True/False has no options and a boolean correct_answer.
 - Include a concise explanation for every question.
 - Do not add id, difficulty, part, pages, source_page, tags or any other field inside a question.
 
@@ -171,6 +172,7 @@ ${normal > 0 ? `Generate ${normal} useful general questions covering the whole e
 QUESTION FORMAT
 
 {
+  "type": "mcq",
   "question": "Question text",
   "options": {
     "A": "Option A",
@@ -181,6 +183,17 @@ QUESTION FORMAT
   "correct_answer": "B",
   "explanation": "Why B is correct."
 }
+
+For True/False, use:
+
+{
+  "type": "true_false",
+  "question": "Statement to judge",
+  "correct_answer": true,
+  "explanation": "Why the statement is true."
+}
+
+Older MCQ questions without type remain valid.
 
 JSON STRUCTURE
 

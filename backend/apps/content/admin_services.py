@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import partial
 from typing import Any, cast
 from uuid import UUID
@@ -939,6 +939,8 @@ def active_study_payload(*, sheet: LearningObject, edition: str = UNIVERSITY) ->
         # Sheet, so it reports the enabled state students actually get.
         "enabled": readiness["enabled"],
         "revision": settings.revision if settings is not None else 0,
+        "questions_per_checkpoint": difficulties[0]["questions_per_checkpoint"],
+        "final_exam_questions": difficulties[0]["final_exam_questions"],
         "excluded_start_pages": readiness["excluded_start_pages"],
         "excluded_end_pages": readiness["excluded_end_pages"],
         "existing_question_content": has_existing_questions,
@@ -966,6 +968,39 @@ def _difficulty_for_key(key: str) -> ActiveStudyDifficulty:
         return difficulty_for_key(key)
     except ActiveStudyPlanError as error:
         raise ContentRuleError(str(error)) from error
+
+
+def _question_counts(
+    *,
+    sheet: LearningObject,
+    edition: str,
+    questions_per_checkpoint: int | None = None,
+    final_exam_questions: int | None = None,
+) -> dict[str, int]:
+    current = settings_for(sheet=sheet, edition=UNIVERSITY)
+    if normalize_edition(edition) == LOCKIN and (
+        questions_per_checkpoint is not None or final_exam_questions is not None
+    ):
+        raise ContentFieldError(
+            "Question counts are shared with the University Sheet.",
+            field="questions_per_checkpoint",
+        )
+    return {
+        "questions_per_checkpoint": (
+            questions_per_checkpoint
+            if questions_per_checkpoint is not None
+            else current.questions_per_checkpoint
+            if current
+            else 15
+        ),
+        "final_exam_questions": (
+            final_exam_questions
+            if final_exam_questions is not None
+            else current.final_exam_questions
+            if current
+            else 50
+        ),
+    }
 
 
 def _pinned_to_university(*, sheet: LearningObject, edition: str) -> dict[str, Any]:
@@ -1081,6 +1116,8 @@ def active_study_plan_preview(
     total_pdf_pages: int | None = None,
     excluded_start_pages: int | None = None,
     excluded_end_pages: int | None = None,
+    questions_per_checkpoint: int | None = None,
+    final_exam_questions: int | None = None,
     edition: str = UNIVERSITY,
 ) -> dict[str, object]:
     """Plan the supplied boundaries without persisting anything.
@@ -1104,12 +1141,19 @@ def active_study_plan_preview(
             field="total_pdf_pages",
         )
     pinned = _pinned_to_university(sheet=sheet, edition=edition)
+    counts = _question_counts(
+        sheet=sheet,
+        edition=edition,
+        questions_per_checkpoint=questions_per_checkpoint,
+        final_exam_questions=final_exam_questions,
+    )
     try:
         plan = plan_payload(
             total_pdf_pages=resolved.total_pdf_pages,
             excluded_start_pages=resolved.excluded_start_pages,
             excluded_end_pages=resolved.excluded_end_pages,
             **pinned,
+            **counts,
         )
     except ActiveStudyPlanError as error:
         raise ContentFieldError(str(error), field=error.field) from error
@@ -1133,6 +1177,7 @@ def active_study_plan_preview(
                     resolved.settings.excluded_end_pages if resolved.settings is not None else 0
                 ),
                 **_pinned_to_university(sheet=sheet, edition=edition),
+                **_question_counts(sheet=sheet, edition=edition),
             )
         except ActiveStudyPlanError:
             saved_plan = None
@@ -1191,7 +1236,11 @@ def _difficulty_plan_for_sheet(
         for item in cast(list[dict[str, object]], plan["difficulties"])
         if item["difficulty"] == difficulty.key
     )
-    return difficulty, difficulty_plan
+    return replace(
+        difficulty,
+        questions_per_checkpoint=cast(int, difficulty_plan["questions_per_checkpoint"]),
+        final_exam_questions=cast(int, difficulty_plan["final_exam_questions"]),
+    ), difficulty_plan
 
 
 def validate_active_study_question_content(
@@ -1379,6 +1428,8 @@ def update_active_study_settings(
     excluded_end_pages: int | None,
     confirm_boundary_change: bool,
     edition: str = UNIVERSITY,
+    questions_per_checkpoint: int | None = None,
+    final_exam_questions: int | None = None,
 ) -> LearningObject:
     edition = normalize_edition(edition)
     sheet = LearningObject.objects.select_for_update().get(id=sheet_id)
@@ -1396,6 +1447,13 @@ def update_active_study_settings(
         raise ContentConflictError("These Active Study settings changed. Reload and try again.")
     if created:
         settings.revision = 0
+    counts = _question_counts(
+        sheet=sheet,
+        edition=edition,
+        questions_per_checkpoint=questions_per_checkpoint,
+        final_exam_questions=final_exam_questions,
+    )
+    saved_counts = _question_counts(sheet=sheet, edition=edition)
     resolved = resolve_active_study_input(
         sheet=sheet,
         total_pdf_pages=total_pdf_pages,
@@ -1442,6 +1500,7 @@ def update_active_study_settings(
                 excluded_start_pages=resolved_start,
                 excluded_end_pages=resolved_end,
                 **_pinned_to_university(sheet=sheet, edition=edition),
+                **counts,
             )
         except ActiveStudyPlanError as error:
             raise ContentFieldError(str(error), field=error.field) from error
@@ -1456,6 +1515,7 @@ def update_active_study_settings(
             excluded_start_pages=resolved_start,
             excluded_end_pages=resolved_end,
             **_pinned_to_university(sheet=sheet, edition=edition),
+            **counts,
         )
     proposed_signatures = {
         str(item["difficulty"]): _plan_signature(item)
@@ -1474,6 +1534,7 @@ def update_active_study_settings(
                 excluded_start_pages=settings.excluded_start_pages,
                 excluded_end_pages=settings.excluded_end_pages,
                 **_pinned_to_university(sheet=sheet, edition=edition),
+                **saved_counts,
             )
         except ActiveStudyPlanError:
             current_plan = None
@@ -1506,6 +1567,8 @@ def update_active_study_settings(
     )
     settings.excluded_start_pages = resolved_start
     settings.excluded_end_pages = resolved_end
+    settings.questions_per_checkpoint = counts["questions_per_checkpoint"]
+    settings.final_exam_questions = counts["final_exam_questions"]
     settings.revision += 1
     settings.save(
         update_fields=(
@@ -1515,6 +1578,8 @@ def update_active_study_settings(
             "page_count_verified_at",
             "excluded_start_pages",
             "excluded_end_pages",
+            "questions_per_checkpoint",
+            "final_exam_questions",
             "revision",
             "updated_at",
         )

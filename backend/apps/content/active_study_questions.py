@@ -1,4 +1,4 @@
-"""Validation contract for administrator-authored Active Study MCQ JSON.
+"""Validation contract for administrator-authored Active Study question JSON.
 
 The difficulty is selected by the administrator from the surrounding Active
 Study panel.  It is deliberately not inferred from individual questions.
@@ -48,10 +48,16 @@ def _question(value: Any, *, errors: list[dict[str, str]], path: str) -> dict[st
     if not isinstance(value, dict):
         _error(errors, path, "Each question must be a JSON object.")
         return {}
-    allowed = {"question", "options", "correct_answer", "explanation"}
+    question_type = value.get("type", "mcq")
+    if question_type not in {"mcq", "true_false"}:
+        _error(errors, f"{path}.type", "type must be mcq or true_false.")
+        question_type = "mcq"
+    allowed = {"type", "question", "correct_answer", "explanation"}
+    if question_type == "mcq":
+        allowed.add("options")
     for key in sorted(set(value) - allowed):
         _error(errors, f"{path}.{key}", "Unsupported question field.")
-    for key in sorted(allowed - set(value)):
+    for key in sorted({"question", "correct_answer", "explanation"} - set(value)):
         _error(errors, f"{path}.{key}", "This field is required.")
 
     question = _text(
@@ -66,6 +72,19 @@ def _question(value: Any, *, errors: list[dict[str, str]], path: str) -> dict[st
         path=f"{path}.explanation",
         label="Explanation",
     )
+    if question_type == "true_false":
+        answer = value.get("correct_answer")
+        if not isinstance(answer, bool):
+            _error(errors, f"{path}.correct_answer", "True/false correct_answer must be a boolean.")
+        return {
+            "type": "true_false",
+            "question": question,
+            "correct_answer": answer,
+            "explanation": explanation,
+        }
+
+    if "options" not in value:
+        _error(errors, f"{path}.options", "This field is required.")
     raw_options = value.get("options")
     options: dict[str, str] = {}
     if not isinstance(raw_options, dict):
@@ -92,6 +111,7 @@ def _question(value: Any, *, errors: list[dict[str, str]], path: str) -> dict[st
         _error(errors, f"{path}.correct_answer", "correct_answer must be A, B, C, or D.")
         answer = ""
     return {
+        **({"type": "mcq"} if "type" in value else {}),
         "question": question,
         "options": {key: options.get(key, "") for key in ("A", "B", "C", "D")},
         "correct_answer": answer,
@@ -102,7 +122,7 @@ def _question(value: Any, *, errors: list[dict[str, str]], path: str) -> dict[st
 def validate_question_object(
     value: Any, *, errors: list[dict[str, str]], path: str
 ) -> dict[str, object]:
-    """Validate one A-D question with the Active Study rules.
+    """Validate one typed question with the Active Study rules.
 
     Public so a caller importing several banks at once -- All Questions -- holds
     every question to this one contract instead of a copy of it.

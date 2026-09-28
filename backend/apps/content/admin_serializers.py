@@ -73,6 +73,8 @@ class AdminActiveStudySettingsSerializer(StrictSerializer):
     excluded_end_pages = serializers.IntegerField(
         min_value=0, max_value=9_999, allow_null=True, required=False
     )
+    questions_per_checkpoint = serializers.IntegerField(min_value=1, max_value=200, required=False)
+    final_exam_questions = serializers.IntegerField(min_value=1, max_value=200, required=False)
     confirm_boundary_change = serializers.BooleanField(required=False, default=False)
 
 
@@ -94,6 +96,8 @@ class AdminActiveStudyPlanPreviewSerializer(StrictSerializer):
     excluded_end_pages = serializers.IntegerField(
         min_value=0, max_value=9_999, allow_null=True, required=False
     )
+    questions_per_checkpoint = serializers.IntegerField(min_value=1, max_value=200, required=False)
+    final_exam_questions = serializers.IntegerField(min_value=1, max_value=200, required=False)
 
 
 class AdminActiveStudyQuestionValidateSerializer(StrictSerializer):

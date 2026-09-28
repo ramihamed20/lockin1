@@ -84,8 +84,8 @@ test("one prompt lists every part, each difficulty's own Final Exam and the Norm
   for (const rule of [
     "Use only information contained in the supplied sheet.",
     "Do not invent facts that are not present in the sheet.",
-    "Every question must contain exactly four options: A, B, C, D.",
-    "Exactly one option must be correct.",
+    "Use any sensible mixture of MCQ and True/False",
+    "True/False has no options and a boolean correct_answer.",
     "Include a concise explanation for every question.",
     "Avoid duplicate questions and avoid repeated wording.",
     "Return valid JSON only. Do not return Markdown.",

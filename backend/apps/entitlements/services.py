@@ -257,8 +257,10 @@ def entitlement_decision(
     code = validate_entitlement_code(entitlement_code)
     if not user.is_active or user.status != User.Status.ACTIVE:
         return EntitlementDecision(code=code, allowed=False, reason="account_inactive")
-    if user.email_verified_at is None:
-        return EntitlementDecision(code=code, allowed=False, reason="verification_required")
+    # Account verification controls trial creation, not an explicit live grant.
+    # A grant can be issued while verification is pending (for example by an
+    # administrator); the effective-grant selector still enforces its source
+    # lifecycle, validity window and revocation status.
     if is_subscription_exempt(user):
         return EntitlementDecision(code=code, allowed=True, reason="founder_access")
     current = at or timezone.now()

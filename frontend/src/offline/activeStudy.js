@@ -21,6 +21,14 @@ import { isNetworkFailure, offlineUnavailableError } from "./resolver.js";
 const RUN_PREFIX = "as-run:";
 const RUN_ID_PREFIX = "as-runid:";
 
+function displayOptions(question) {
+  return question.type === "true_false" ? { T: "True", F: "False" } : question.options;
+}
+
+function correctAnswer(question) {
+  return question.type === "true_false" ? (question.correct_answer ? "T" : "F") : question.correct_answer;
+}
+
 export const runKey = (sheetId, edition, difficulty) => `${sheetId}:${edition || "university"}:${difficulty}`;
 export const orderingKey = (key) => `active_study:${key}`;
 
@@ -140,7 +148,8 @@ async function requireRun(userId, runId) {
   const run = key ? await readRun(userId, key) : null;
   if (!run || (run.id !== runId && run.server_id !== runId)) throw new ActiveStudyRuleError("Active Study session not found.");
   const bundle = await requireBundle(userId, run.sheet_id, run.edition, run.difficulty);
-  return { run, content: bundle.difficulties[run.difficulty], rules: bundle.rules };
+  const content = bundle.difficulties[run.difficulty];
+  return { run, content, rules: content.rules || bundle.rules };
 }
 
 function questionsFor(content, kind, part) {
@@ -260,7 +269,8 @@ const local = {
       questions: source.map((item, index) => ({
         position: index + 1,
         question: item.question,
-        options: item.options,
+        question_type: item.type || "mcq",
+        options: displayOptions(item),
         answered: attempt.answers[String(index + 1)] ?? null
       })),
       offline: true
@@ -269,7 +279,6 @@ const local = {
 
   async answer(userId, runId, { attemptId, position, selectedAnswer }) {
     const { run, content } = await requireRun(userId, runId);
-    if (!["A", "B", "C", "D"].includes(selectedAnswer)) throw new ActiveStudyRuleError("Choose A, B, C, or D.");
     const attempt = run.open_attempt;
     if (!attempt || attempt.id !== attemptId) throw new ActiveStudyRuleError("This question attempt is no longer active.");
     const kind = run.stage === "final" ? "final" : "checkpoint";
@@ -279,13 +288,14 @@ const local = {
     const source = questionsFor(content, kind, attempt.part);
     if (!Number.isInteger(position) || position < 1 || position > source.length) throw new ActiveStudyRuleError("Question position is invalid.");
     const question = source[position - 1];
+    if (!Object.hasOwn(displayOptions(question), selectedAnswer)) throw new ActiveStudyRuleError("Choose an answer for this question.");
     const existing = attempt.answers[String(position)];
     if (existing && existing !== selectedAnswer) throw new ActiveStudyRuleError("This answer was already submitted.");
     const answers = { ...attempt.answers, [String(position)]: selectedAnswer };
     await saveRun(userId, { ...run, open_attempt: { ...attempt, answers } });
     return {
-      correct: selectedAnswer === question.correct_answer,
-      correct_answer: question.correct_answer,
+      correct: selectedAnswer === correctAnswer(question),
+      correct_answer: correctAnswer(question),
       explanation: question.explanation,
       answered_count: Object.keys(answers).length,
       total: source.length
@@ -302,7 +312,7 @@ const local = {
     }
     const source = questionsFor(content, attempt.kind, attempt.part);
     if (Object.keys(attempt.answers).length !== source.length) throw new ActiveStudyRuleError("Answer every question before submitting.");
-    const score = source.filter((question, index) => attempt.answers[String(index + 1)] === question.correct_answer).length;
+    const score = source.filter((question, index) => attempt.answers[String(index + 1)] === correctAnswer(question)).length;
     const passed = score >= (attempt.kind === "final" ? rules.final_pass : rules.checkpoint_pass);
     let next = { ...run, open_attempt: null, last_score: score, last_outcome: passed ? "passed" : "failed", dirty: true };
     if (attempt.kind === "checkpoint") {

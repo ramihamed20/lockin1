@@ -57,11 +57,11 @@ def issue_offline_lease(*, user: User, now: datetime | None = None) -> dict[str,
     verified_at = now or timezone.now()
     decision = subscription_access_decision(user=user, entitlement_code="content.premium")
     if not decision.allowed:
-        raise PermissionDenied("An active Lock-in subscription is required for offline access.")
+        raise PermissionDenied("Current Lock-in study access is required for offline access.")
     # An unbounded manual grant or Founder exemption still gets only 24 hours.
     entitlement_end = decision.expires_at
     if entitlement_end is not None and entitlement_end <= verified_at:
-        raise PermissionDenied("The subscription has expired.")
+        raise PermissionDenied("Lock-in study access has expired.")
     offline_until = min(
         verified_at + timedelta(seconds=LEASE_SECONDS),
         entitlement_end or verified_at + timedelta(seconds=LEASE_SECONDS),

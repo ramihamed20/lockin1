@@ -131,6 +131,81 @@ def test_ready_availability_uses_the_existing_content_status_and_resumes() -> No
     assert run.current_page_range if False else run.current_part == 1
 
 
+def test_true_false_question_uses_the_managed_answer_and_review_flow() -> None:
+    user, sheet, _ = _setup()
+    content = ActiveStudyQuestionContent.objects.get(sheet=sheet, difficulty="medium")
+    content.payload["parts"][0]["questions"][0] = {
+        "type": "true_false",
+        "question": "Enamel is mineralized.",
+        "correct_answer": True,
+        "explanation": "Enamel has a mineralized matrix.",
+    }
+    content.save(update_fields=("payload", "updated_at"))
+    run, payload = _open_checkpoint(user, sheet)
+    assert payload["questions"][0]["question_type"] == "true_false"
+    assert payload["questions"][0]["options"] == {"T": "True", "F": "False"}
+    first = answer(
+        user=user,
+        run_id=run.id,
+        attempt_id=payload["attempt_id"],
+        position=1,
+        selected_answer="F",
+    )
+    assert first["correct"] is False
+    assert first["correct_answer"] == "T"
+    assert first["explanation"] == "Enamel has a mineralized matrix."
+    assert (
+        answer(
+            user=user,
+            run_id=run.id,
+            attempt_id=payload["attempt_id"],
+            position=1,
+            selected_answer="F",
+        )["correct"]
+        is False
+    )
+    with pytest.raises(ManagedActiveStudyRuleError):
+        answer(
+            user=user,
+            run_id=run.id,
+            attempt_id=payload["attempt_id"],
+            position=2,
+            selected_answer="T",
+        )
+    assert ActiveStudyAnswer.objects.filter(attempt_id=payload["attempt_id"]).count() == 1
+    assert ReviewItem.objects.filter(user=user).exists()
+
+
+def test_configured_short_checkpoint_uses_the_same_pass_fraction() -> None:
+    user, sheet, settings = _setup()
+    settings.questions_per_checkpoint = 3
+    settings.final_exam_questions = 2
+    settings.save(update_fields=("questions_per_checkpoint", "final_exam_questions"))
+    content = ActiveStudyQuestionContent.objects.get(sheet=sheet, difficulty="medium")
+    for part in content.payload["parts"]:
+        part["questions"] = part["questions"][:3]
+    content.payload["final_exam"]["questions"] = content.payload["final_exam"]["questions"][:2]
+    content.checkpoint_question_count = 12
+    content.final_exam_question_count = 2
+    content.save(
+        update_fields=("payload", "checkpoint_question_count", "final_exam_question_count")
+    )
+    run, quiz = _open_checkpoint(user, sheet)
+    assert len(quiz["questions"]) == 3
+    for position, selected in ((1, "B"), (2, "B"), (3, "A")):
+        answer(
+            user=user,
+            run_id=run.id,
+            attempt_id=quiz["attempt_id"],
+            position=position,
+            selected_answer=selected,
+        )
+    advanced, result = submit(user=user, run_id=run.id, attempt_id=quiz["attempt_id"])
+    assert result["score"] == 2
+    assert result["passed"] is True
+    assert advanced.current_part == 2
+
+
 def test_resuming_an_existing_run_refreshes_ranges_without_resetting_progress() -> None:
     user, sheet, settings = _setup()
     run, _ = start(user=user, sheet_id=sheet.id, difficulty="medium")

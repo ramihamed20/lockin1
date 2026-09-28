@@ -11,7 +11,7 @@ from rest_framework.test import APIClient
 from apps.audit.models import AuditRecord
 from apps.education.tests.helpers import create_admin, published_path
 from apps.files.services import create_managed_file
-from apps.questions.models import Question, QuestionImportBatch
+from apps.questions.models import Question, QuestionImportBatch, QuestionVersion
 from apps.questions.services import (
     QuestionInput,
     QuestionOptionInput,
@@ -186,6 +186,67 @@ def test_valid_combined_document_is_saved_into_every_existing_bank() -> None:
     for row in client.get(f"{base}/active-study").json()["difficulties"]:
         assert row["readiness"]["ready"] is True, row["readiness"]
     assert AuditRecord.objects.filter(action="content.all_questions_saved").exists()
+
+
+def test_mixed_active_and_normal_questions_share_the_existing_banks() -> None:
+    _, sheet, client, base = _world()
+    context = _context(client, base)
+    document = _document(context, normal=3)
+    medium_questions = document["active_study"]["medium"]["parts"][0]["questions"]
+    for index in (13, 14):
+        medium_questions[index] = {
+            "type": "true_false",
+            "question": f"Medium statement {index}.",
+            "correct_answer": index == 13,
+            "explanation": "The sheet explains this statement.",
+        }
+    document["sheet_questions"]["questions"][1] = {
+        "type": "true_false",
+        "question": "Normal statement.",
+        "correct_answer": False,
+        "explanation": "The sheet contradicts this statement.",
+    }
+    assert _validate(client, base, document, normal=3).status_code == 200
+    saved = _save(client, base, document, context, normal=3)
+    assert saved.status_code == 200, saved.json()
+    content = ActiveStudyQuestionContent.objects.get(sheet=sheet, difficulty="medium")
+    assert [
+        question.get("type", "mcq") for question in content.payload["parts"][0]["questions"]
+    ].count("true_false") == 2
+    normal = Question.objects.get(current_version__prompt="Normal statement.")
+    assert normal.current_version.question_type == QuestionVersion.QuestionType.TRUE_FALSE
+    assert normal.current_version.explanation == "The sheet contradicts this statement."
+
+
+def test_admin_configured_question_totals_drive_prompt_validation_and_save() -> None:
+    _, sheet, client, base = _world()
+    before = _context(client, base)
+    changed = client.patch(
+        f"{base}/active-study",
+        {
+            "expected_revision": before["settings_revision"],
+            "enabled": True,
+            "questions_per_checkpoint": 3,
+            "final_exam_questions": 2,
+        },
+        format="json",
+    )
+    assert changed.status_code == 200, changed.json()
+    context = _context(client, base)
+    assert all(row["questions_per_checkpoint"] == 3 for row in context["difficulties"])
+    assert all(row["final_exam_questions"] == 2 for row in context["difficulties"])
+    document = _document(context, normal=1)
+    assert _validate(client, base, document, normal=1).status_code == 200
+    saved = _save(client, base, document, context, normal=1)
+    assert saved.status_code == 200, saved.json()
+    assert (
+        ActiveStudyQuestionContent.objects.filter(sheet=sheet, final_exam_question_count=2).count()
+        == 3
+    )
+    assert all(
+        row["readiness"]["ready"] is True
+        for row in client.get(f"{base}/active-study").json()["difficulties"]
+    )
 
 
 def test_part_and_final_exam_counts_are_reported_with_their_location() -> None:
