@@ -7,6 +7,7 @@ from .storage import storage_backend_name, storages_setting
 BASE_DIR = Path(__file__).resolve().parents[2]
 
 SECRET_KEY = env("DJANGO_SECRET_KEY", "unsafe-local-only-key")
+OFFLINE_LEASE_ED25519_PRIVATE_KEY = secret_env("OFFLINE_LEASE_ED25519_PRIVATE_KEY", "")
 DEBUG = False
 ALLOWED_HOSTS: list[str] = []
 ENVIRONMENT = "base"
@@ -44,6 +45,7 @@ INSTALLED_APPS = [
     "apps.product_catalog.apps.ProductCatalogConfig",
     "apps.subscriptions.apps.SubscriptionsConfig",
     "apps.entitlements.apps.EntitlementsConfig",
+    "apps.offline.apps.OfflineConfig",
     "apps.payments.apps.PaymentsConfig",
     "apps.invoices.apps.InvoicesConfig",
     "apps.refunds.apps.RefundsConfig",

@@ -58,8 +58,10 @@ export function ListRow({ title, meta, icon, action }) {
  * The icon is decorative here -- the heading and the body text carry the
  * meaning, so it stays out of the accessibility tree.
  */
-export function EmptyState({ title, text, icon = "" }) {
-  return <article className="empty-state">{icon ? <LockinIcon name={icon} size={30} /> : <Icon name="sparkles" />}<h2 dir="auto">{title}</h2><p dir="auto">{text}</p></article>;
+export function EmptyState({ title, text, icon = "", action = null }) {
+  // `action` ({ label, to }) turns an ending into a next step: an empty list
+  // offers the one place that would fill it.
+  return <article className="empty-state">{icon ? <LockinIcon name={icon} size={30} /> : <Icon name="sparkles" />}<h2 dir="auto">{title}</h2><p dir="auto">{text}</p>{action && <Link className="btn btn-soft compact empty-state-action" to={action.to}>{action.label}</Link>}</article>;
 }
 
 export function Skeleton({ className = "", style = undefined }) {

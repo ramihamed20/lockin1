@@ -1,5 +1,6 @@
 import { catalogWorkspaceApi } from "../api/catalogWorkspace.js";
 import { useAsyncData } from "./useAsyncData.js";
+import { resolveSheet, resolveSummary } from "../offline/resolver.js";
 
 const documentCache = new Map();
 
@@ -10,7 +11,12 @@ function documentKey(materialSlug, sheetSlug, view = "", ownerKey = "") {
 function loadCatalogDocument(materialSlug, sheetSlug, view = "", ownerKey = "") {
   const key = documentKey(materialSlug, sheetSlug, view, ownerKey);
   if (documentCache.has(key)) return documentCache.get(key);
-  const promise = catalogWorkspaceApi.resolve(materialSlug, sheetSlug, { view })
+  // An authoritative 401/403/404 never falls back to a downloaded PDF; only a
+  // network failure under a valid lease does.
+  const online = () => catalogWorkspaceApi.resolve(materialSlug, sheetSlug, { view });
+  const promise = (view === "summary"
+    ? resolveSummary(ownerKey, materialSlug, sheetSlug, online)
+    : resolveSheet(ownerKey, materialSlug, sheetSlug, online))
     .catch((error) => {
       documentCache.delete(key);
       throw error;
@@ -38,7 +44,7 @@ export function parseCatalogDocument(payload) {
     !document
     || !UUID_PATTERN.test(String(document.id))
     || !UUID_PATTERN.test(String(document.document_version_id))
-    || !VIEW_URL_PATTERN.test(String(document.view_url))
+    || !(VIEW_URL_PATTERN.test(String(document.view_url)) || (document.offline === true && String(document.view_url).startsWith("blob:")))
   ) {
     return null;
   }

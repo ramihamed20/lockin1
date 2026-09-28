@@ -15,6 +15,8 @@ RUN pnpm --version && pnpm install --frozen-lockfile --reporter=append-only
 COPY frontend ./
 ARG VITE_API_BASE_URL=/api/v1
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ARG VITE_OFFLINE_LEASE_PUBLIC_KEY
+ENV VITE_OFFLINE_LEASE_PUBLIC_KEY=$VITE_OFFLINE_LEASE_PUBLIC_KEY
 RUN pnpm build
 
 FROM python:3.13.14-slim

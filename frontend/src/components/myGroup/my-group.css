@@ -6,7 +6,7 @@
  * blocks with a thin kind-coloured edge, and the kind written out in words so
  * colour is never the only cue. Theory takes the accent, practical the info
  * colour, in every theme. */
-.mg-title { margin: 0; color: var(--text); font-size: var(--text-lg); font-weight: 750; letter-spacing: -0.015em; }
+.mg-title { margin: 0; color: var(--text); font-size: var(--text-lg); font-weight: 650; letter-spacing: -0.015em; }
 .mg-muted { margin: 0; color: var(--muted); font-size: var(--text-sm); line-height: 1.45; }
 .mg-error { margin: 0; margin-inline-end: auto; color: var(--danger); font-size: var(--text-sm); }
 
@@ -40,7 +40,7 @@
 .mg-badges { min-width: 0; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .mg-card-main .mg-badges { margin-inline-start: auto; }
 .mg-badge { display: inline-flex; align-items: baseline; gap: 6px; padding: 5px 11px; border: 1px solid var(--border-subtle, var(--border)); border-radius: var(--radius-full); color: var(--muted); background: var(--surface-2); font-size: var(--text-xs); font-weight: 600; white-space: nowrap; }
-.mg-badge strong { color: var(--text); font-size: var(--text-sm); font-weight: 750; }
+.mg-badge strong { color: var(--text); font-size: var(--text-sm); font-weight: 650; }
 
 /* Dashboard invitation for a student with no group yet */
 .mg-card--invite .mg-card-text { flex: 1 1 auto; }
@@ -61,7 +61,7 @@
 .mg-review-card > div { display: grid; gap: 4px; padding: 16px 18px; }
 .mg-review-card > div + div { border-inline-start: 1px solid var(--border-subtle, var(--border)); }
 .mg-review-card dt { color: var(--muted); font-size: var(--text-xs); font-weight: 600; }
-.mg-review-card dd { margin: 0; color: var(--text); font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+.mg-review-card dd { margin: 0; color: var(--text); font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
 .mg-flow-actions { padding-block-start: var(--space-2); }
 .mg-link-button { margin-inline-end: auto; padding: 8px 4px; border: 0; color: var(--muted); background: none; font: inherit; font-size: var(--text-sm); font-weight: 600; cursor: pointer; }
 .mg-link-button:hover:where(html.ix-hover *) { color: var(--text); }
@@ -69,7 +69,7 @@
 .mg-change-panel .mg-review-card { background: var(--surface); }
 /* First-time onboarding: the flow as one calm card in the welcome canvas. */
 .welcome-onboarding .welcome-group-step { width: min(100%, 560px); justify-self: center; padding: clamp(20px, 4vw, 32px); border: 1px solid var(--border-subtle, var(--border)); border-radius: 24px; background: var(--surface); box-shadow: var(--shadow-md, none); }
-.welcome-group-step .mg-flow-head .mg-title { font-size: clamp(1.35rem, 3vw, 1.7rem); font-weight: 800; letter-spacing: -0.02em; }
+.welcome-group-step .mg-flow-head .mg-title { font-size: clamp(1.35rem, 3vw, 1.7rem); font-weight: 700; letter-spacing: -0.02em; }
 .welcome-group-step .mg-chip { min-width: 60px; min-height: 48px; font-size: var(--text-md); }
 
 /* Choice chips (native radios) */
@@ -94,7 +94,7 @@
 .mg-page-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-4); }
 .mg-page-title { min-width: 0; display: grid; gap: 4px; }
 .mg-page-title .eyebrow { margin: 0; }
-.mg-page-title h1 { margin: 0; color: var(--text); font-size: clamp(1.35rem, 2.6vw, 1.75rem); font-weight: 800; letter-spacing: -0.025em; line-height: 1.15; }
+.mg-page-title h1 { margin: 0; color: var(--text); font-size: clamp(1.35rem, 2.6vw, 1.75rem); font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; }
 .mg-page-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 
 .mg-grid-scroll { min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; border: 1px solid var(--border-subtle, var(--border)); border-radius: var(--radius-xl, 18px); background: var(--surface); box-shadow: var(--shadow-sm, none); }

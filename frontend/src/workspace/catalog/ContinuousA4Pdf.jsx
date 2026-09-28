@@ -572,7 +572,7 @@ export function ContinuousA4Pdf({
         setDefaultPageAspectRatio(A4_PAGE_RATIO);
         setPageAspectRatios(new Map());
         const pdfjs = await loadPdfLibrary();
-        loadingTask = pdfjs.getDocument({ url: assetPath(pdfUrl) });
+        loadingTask = pdfjs.getDocument({ url: pdfUrl.startsWith("blob:") ? pdfUrl : assetPath(pdfUrl) });
         const nextDocument = await loadingTask.promise;
         if (cancelled) return;
         const geometry = await measureEveryPage(nextDocument, () => cancelled);

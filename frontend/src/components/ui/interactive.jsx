@@ -22,6 +22,7 @@
  */
 import { createContext, forwardRef, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useGlide } from "../../lib/motion.js";
 
 /** @param {(string | false | null | undefined)[]} parts */
 function classNames(...parts) {
@@ -136,6 +137,9 @@ const TabsContext = createContext(/** @type {any} */ (null));
 export function TabList({ value, onChange, label, children, variant = "thumb", orientation = "horizontal", className = "" }) {
   const baseId = useId().replace(/:/g, "");
   const nodes = useRef(/** @type {{ value: string, node: HTMLButtonElement }[]} */ ([]));
+  const listRef = useRef(null);
+  // The selected surface slides from the old tab to the new one.
+  useGlide(listRef, "[aria-selected='true']", value);
 
   const register = useCallback((tabValue, node) => {
     nodes.current = nodes.current.filter((entry) => entry.value !== tabValue);
@@ -160,7 +164,7 @@ export function TabList({ value, onChange, label, children, variant = "thumb", o
 
   return (
     <TabsContext.Provider value={context}>
-      <div className={classNames("ix-tablist", className)} role="tablist" aria-label={label} aria-orientation={orientation}>
+      <div ref={listRef} className={classNames("ix-tablist", className)} role="tablist" aria-label={label} aria-orientation={orientation}>
         {children}
       </div>
     </TabsContext.Provider>

@@ -29,6 +29,9 @@ import { PublicInfoPage } from "./components/PublicInfoPage.jsx";
 import { SubscriptionSessionProvider } from "./lib/SubscriptionSessionContext.jsx";
 import { clearSubscriptionSnapshots } from "./lib/subscriptionSession.js";
 import { FeatureComingSoon } from "./components/FeatureComingSoon.jsx";
+import { synchronizeOffline } from "./offline/coordinator.js";
+import { forgetOfflineUser, rememberOfflineUser, restoreOfflineUser } from "./offline/profile.js";
+import OfflineIndicator from "./offline/OfflineIndicator.jsx";
 
 // --- Lazy-loaded pages ---
 const Dashboard = lazyWithRecovery(() => import("./pages/Dashboard.jsx"));
@@ -72,6 +75,7 @@ const Subscription = lazyWithRecovery(() => import("./pages/Subscription.jsx"));
 const WelcomeOnboarding = lazyWithRecovery(() => import("./pages/WelcomeOnboarding.jsx"));
 const Moderation = lazyWithRecovery(() => import("./pages/Moderation.jsx"));
 const SESSION_USER_SNAPSHOT_KEY = "lock-in.session-user";
+const OFFLINE_PENDING_LOGOUT_KEY = "lock-in.offline-pending-logout";
 
 function readSessionUserSnapshot() {
   try {
@@ -188,6 +192,39 @@ function App() {
 
   useEffect(() => {
     writeSessionUserSnapshot(user);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user?.id || user.onboardingRequired || user.welcomeRequired) return undefined;
+    if (navigator.onLine) void rememberOfflineUser(user).catch(() => undefined);
+    // App open, resume and focus are throttled inside the coordinator; a
+    // regained connection or newly queued work always syncs.
+    const sync = (force) => {
+      if (navigator.onLine && document.visibilityState !== "hidden") {
+        void synchronizeOffline(user.id, undefined, { force }).catch(() => undefined);
+      }
+    };
+    const resume = () => sync(false);
+    const reconnect = () => sync(true);
+    let queuedTimer = 0;
+    const queued = () => {
+      window.clearTimeout(queuedTimer);
+      queuedTimer = window.setTimeout(() => sync(true), 2_000);
+    };
+    sync(true);
+    window.addEventListener("online", reconnect);
+    window.addEventListener("focus", resume);
+    window.addEventListener("pageshow", resume);
+    document.addEventListener("visibilitychange", resume);
+    window.addEventListener("lock-in:offline-queued", queued);
+    return () => {
+      window.clearTimeout(queuedTimer);
+      window.removeEventListener("online", reconnect);
+      window.removeEventListener("focus", resume);
+      window.removeEventListener("pageshow", resume);
+      document.removeEventListener("visibilitychange", resume);
+      window.removeEventListener("lock-in:offline-queued", queued);
+    };
   }, [user]);
 
   useEffect(() => {
@@ -350,7 +387,7 @@ function App() {
   useEffect(() => {
     const goOnline = () => {
       setOnline(true);
-      if (bootErrorRef.current && !bootingRef.current) retryBootstrap();
+      if ((bootErrorRef.current || window.localStorage.getItem(OFFLINE_PENDING_LOGOUT_KEY)) && !bootingRef.current) retryBootstrap();
     };
     const goOffline = () => setOnline(false);
     window.addEventListener("online", goOnline);
@@ -367,8 +404,21 @@ function App() {
     if (!silentlyRevalidateRestoredApp) setBooting(true);
     setBootError(null);
 
-    authApi
-      .me()
+    (async () => {
+      if (window.localStorage.getItem(OFFLINE_PENDING_LOGOUT_KEY)) {
+        try {
+          await authApi.logout();
+          window.localStorage.removeItem(OFFLINE_PENDING_LOGOUT_KEY);
+        } catch (error) {
+          if (isApiError(error) && (error.status === 401 || (error.status === 403 && error.code === "not_authenticated"))) {
+            window.localStorage.removeItem(OFFLINE_PENDING_LOGOUT_KEY);
+          } else {
+            throw error;
+          }
+        }
+      }
+      return authApi.me();
+    })()
       .then(async (nextUser) => {
         if (!active) return;
         bootRetryAttemptsRef.current = 0;
@@ -377,7 +427,7 @@ function App() {
         setThemeSettings((current) => mergeRemoteThemeSettings(nextUser.themeSettings, current));
         await loadOperationsSession();
       })
-      .catch((error) => {
+      .catch(async (error) => {
         if (!active) return;
         // Capabilities are only requested after a confirmed user, so a failed
         // bootstrap settles them as absent rather than leaving them pending.
@@ -389,6 +439,10 @@ function App() {
           setUser(null);
           return;
         }
+        // A radio can appear online while the server is unreachable. The
+        // signed lease, not navigator.onLine, decides whether local study opens.
+        const restored = await restoreOfflineUser().catch(() => null);
+        if (restored && active) { setUser(restored); return; }
         // A transient error while restoring a just-backgrounded tab must not
         // replace its visible route with the startup screen. The reader can
         // continue and the next request will revalidate normally.
@@ -406,6 +460,7 @@ function App() {
   function applyAuthedUser(nextUser, { newSession = false } = {}) {
     setSessionNotice("");
     if (newSession) clearSubscriptionSnapshots();
+    if (user?.id && user.id !== nextUser?.id) void forgetOfflineUser(user.id).catch(() => undefined);
     setUser(nextUser);
     setThemeSettings((current) => mergeRemoteThemeSettings(nextUser.themeSettings, current));
     clearOperationsSession();
@@ -423,24 +478,35 @@ function App() {
 
   const handleLogout = useCallback(async () => {
     setSessionNotice("");
-    try {
-      await authApi.logout();
+    const finishLocalLogout = async () => {
+      if (user?.id) await forgetOfflineUser(user.id).catch(() => undefined);
       clearAuthenticatedUi();
       return true;
+    };
+    if (!navigator.onLine) {
+      window.localStorage.setItem(OFFLINE_PENDING_LOGOUT_KEY, "1");
+      return finishLocalLogout();
+    }
+    try {
+      await authApi.logout();
+      return finishLocalLogout();
     } catch (error) {
+      if (isApiError(error) && error.status === 0) {
+        window.localStorage.setItem(OFFLINE_PENDING_LOGOUT_KEY, "1");
+        return finishLocalLogout();
+      }
       // Django returns 403/not_authenticated for an already-expired session.
       // Treat only that precise anonymous response as a completed local
       // logout; permission and CSRF failures must keep the current UI state.
       if (isApiError(error) && (error.status === 401 || (error.status === 403 && error.code === "not_authenticated"))) {
-        clearAuthenticatedUi();
-        return true;
+        return finishLocalLogout();
       }
       setSessionNotice(error.message || "We could not sign you out. Your current session is unchanged.");
     }
     // The session outlived the attempt, so the caller must leave the reader
     // exactly where they were.
     return false;
-  }, [clearAuthenticatedUi]);
+  }, [clearAuthenticatedUi, user?.id]);
 
   // Signing out ends work in progress, so it is confirmed before it runs. Every
   // entry point (the drawer, the account menu, the onboarding screen) asks the
@@ -555,6 +621,7 @@ function App() {
   return (
     <SubscriptionSessionProvider key={user.id} user={user}>
       <>
+      <OfflineIndicator userId={user.id} />
       <Shell user={user} operationsSession={operationsSession} theme={activeTheme} onThemeChange={setManualTheme} onLogout={requestLogout} notificationVersion={notificationVersion} onNotificationsChanged={() => setNotificationVersion((version) => version + 1)} storeCartCount={storeCartCount} lockBalance={lockBalance} storeCommerceEnabled={false}>
         <ErrorBoundary resetKey={location.pathname}>
         {/* Returning from background must keep the shell stable. Route chunks
@@ -583,10 +650,10 @@ function App() {
                 <Route path="/questions/quizzes/:quizId" element={<QuizDetail />} />
                 <Route path="/questions/attempts/:attemptId" element={<Attempt />} />
                 <Route path="/questions/results/:resultId" element={<AssessmentResult />} />
-                <Route path="/review" element={<Review />} />
-                <Route path="/review/bank" element={<ReviewBank />} />
-                <Route path="/review/bank/:subjectKey" element={<SubjectReviewSession />} />
-                <Route path="/review/weekly" element={<WeeklyRecall />} />
+                <Route path="/review" element={<Review user={user} />} />
+                <Route path="/review/bank" element={<ReviewBank user={user} />} />
+                <Route path="/review/bank/:subjectKey" element={<SubjectReviewSession user={user} />} />
+                <Route path="/review/weekly" element={<WeeklyRecall user={user} />} />
                 <Route path="/community/*" element={<FeatureComingSoon featureId="community" />} />
                 <Route path="/ranked/*" element={<FeatureComingSoon featureId="rank" />} />
                 <Route path="/bookmarks" element={<Bookmarks />} />

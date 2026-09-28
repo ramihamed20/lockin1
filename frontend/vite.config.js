@@ -133,13 +133,17 @@ export default defineConfig(async ({ mode }) => {
       },
       injectManifest: {
         injectionPoint: "self.__WB_MANIFEST",
-        // Keep installation lightweight: only the application entry shell is
-        // precached. Lazy routes and visual media are cached after first use.
+        // Offline navigation needs lazy route chunks before the reader opens
+        // them. Every file is build-hashed, so Workbox safely drops stale app
+        // code on upgrade. Large media and authenticated API data stay outside
+        // the precache and are explicit user downloads only.
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         globPatterns: [
           "index.html",
           "manifest.webmanifest",
-          "assets/index-*.js",
-          "assets/index-*.css"
+          "assets/*.js",
+          "assets/*.mjs",
+          "assets/*.css"
         ]
       }
     })

@@ -69,7 +69,7 @@
   background: var(--surface-2);
   font: inherit;
   font-size: 0.8rem;
-  font-weight: 750;
+  font-weight: 650;
 }
 
 .profile-picture-editor-modes button.is-active {
@@ -133,7 +133,7 @@
 .profile-avatar-file span {
   overflow: hidden;
   font-size: 0.82rem;
-  font-weight: 750;
+  font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

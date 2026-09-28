@@ -3,13 +3,14 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { activeStudyResumePage, visiblePdfPages } from "../src/workspace/catalog/visiblePdfPages.js";
 
-const [workspace, workspaceStyles, continuousPdf, api, study, profile] = await Promise.all([
+const [workspace, workspaceStyles, continuousPdf, api, study, profile, catalogue] = await Promise.all([
   readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8"),
   readFile(new URL("../src/pages/catalog-focus-workspace.css", import.meta.url), "utf8"),
   readFile(new URL("../src/workspace/catalog/ContinuousA4Pdf.jsx", import.meta.url), "utf8"),
   readFile(new URL("../src/api/focus.js", import.meta.url), "utf8"),
   readFile(new URL("../src/pages/LearningObjectStudy.jsx", import.meta.url), "utf8"),
-  readFile(new URL("../src/pages/Profile.jsx", import.meta.url), "utf8")
+  readFile(new URL("../src/pages/Profile.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../src/lib/i18n.js", import.meta.url), "utf8")
 ]);
 
 test("Active Study keeps previously unlocked pages in the primary PDF reader", () => {
@@ -48,9 +49,14 @@ test("managed Active Study is unified with the old one-question quiz experience"
     "submitManagedActiveStudy"
   ]) assert.match(workspace, new RegExp(`focusApi\\.${name}`));
   assert.match(workspace, /function ActiveStudyQuiz/);
-  assert.match(workspace, /Question \{index \+ 1\} of \{quiz\.questions\.length\}/);
-  assert.match(workspace, />Previous</);
-  assert.match(workspace, />Next/);
+  // The checkpoint reads in the interface language; the English copy is
+  // unchanged, so it is asserted in the catalogue rather than the source.
+  assert.match(workspace, /t\("activeStudy\.questionOf", \{ index: index \+ 1, total: quiz\.questions\.length \}\)/);
+  assert.match(workspace, /t\("activeStudy\.previous"\)/);
+  assert.match(workspace, /t\("activeStudy\.next"\)/);
+  assert.match(catalogue, /"activeStudy\.questionOf": "Question \{index\} of \{total\}"/);
+  assert.match(catalogue, /"activeStudy\.previous": "Previous"/);
+  assert.match(catalogue, /"activeStudy\.next": "Next"/);
   assert.match(workspace, /workspace-v2-quiz-progress/);
   assert.match(workspace, /managedActiveStudyAction\(activeStudy\.id, "complete-reading"\)/);
   assert.match(workspace, /activeStudy\.stage === "checkpoint" \|\| activeStudy\.stage === "final"/);
@@ -72,7 +78,9 @@ test("Active Study starts the selected difficulty in reading, then opens its che
   assert.match(workspace, /\["reading", "checkpoint", "final"\]\.includes\(activeStudy\.stage\)/);
   assert.match(workspace, /disabled=\{activeStudyBusy \|\| !activeStudyButtonReady\}/);
   assert.match(workspace, /managedActiveStudyAction\(activeStudy\.id, "complete-reading"\)/);
-  assert.match(workspace, /activeStudy\.stage === "final" \? "Final Exam" : "Checkpoint"/);
+  assert.match(workspace, /t\(activeStudy\.stage === "final" \? "activeStudy\.finalExam" : "activeStudy\.checkpoint"\)/);
+  assert.match(catalogue, /"activeStudy\.finalExam": "Final Exam"/);
+  assert.match(catalogue, /"activeStudy\.checkpoint": "Checkpoint"/);
   assert.match(workspace, /const \[page, setPage\] = useState\(1\)/);
   assert.doesNotMatch(workspace, /setPage\(Math\.max\(1, view\.page\)\)/);
   assert.match(workspaceStyles, /\.workspace-v2-checkpoint-dock \{[^}]+right: 0;[^}]+left: auto;/);

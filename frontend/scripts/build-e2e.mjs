@@ -18,6 +18,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { E2E_OFFLINE_LEASE_PUBLIC_KEY } from "../e2e/fixtures/offlineLease.js";
 
 const frontendRoot = resolve(fileURLToPath(new URL("../", import.meta.url)));
 const fixtures = resolve(frontendRoot, "e2e/fixtures/pdf");
@@ -31,7 +32,8 @@ const result = spawnSync("npx", ["vite", "build"], {
   cwd: frontendRoot,
   stdio: "inherit",
   shell: process.platform === "win32",
-  env: { ...process.env, LOCKIN_E2E_CATALOG: "1" }
+  // The offline specs sign leases with the test key in e2e/fixtures/offlineLease.js.
+  env: { ...process.env, LOCKIN_E2E_CATALOG: "1", VITE_OFFLINE_LEASE_PUBLIC_KEY: E2E_OFFLINE_LEASE_PUBLIC_KEY }
 });
 
 if (result.status !== 0) process.exit(result.status ?? 1);

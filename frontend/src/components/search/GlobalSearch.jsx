@@ -2,7 +2,8 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import { discoveryApi } from "../../api/learning.js";
-import { COMPACT_SHELL_QUERY } from "../../lib/constants.js";
+import { COMPACT_SHELL_QUERY, navItems } from "../../lib/constants.js";
+import { getFeatureForNavigationPath, isFeatureComingSoon } from "../../lib/featureAvailability.js";
 import { mergeSearchResults, normalizeSearchText, searchActions } from "../../lib/globalSearch.js";
 import { Icon } from "../../lib/icons.jsx";
 import { hasOperationalCapability } from "../../lib/authz.js";
@@ -20,8 +21,19 @@ const TYPE_PRESENTATION = {
   studio: { icon: "settings", label: "search.typeStudio" },
   "studio-subject": { icon: "book-open", label: "search.typeStudioSubject" },
   "studio-student": { icon: "user", label: "search.typeStudent" },
-  action: { icon: "user", label: "search.typeAction" }
+  action: { icon: "user", label: "search.typeAction" },
+  page: { icon: "arrow-up-right", label: "search.typePage" }
 };
+
+/** Every destination the palette can jump to. Upcoming features are left out:
+ * a palette should only offer places that open. */
+const PAGE_DESTINATIONS = [
+  ...navItems,
+  { path: "/notifications", label: "Notifications", labelKey: "nav.notifications", icon: "bell" },
+  { path: "/achievements", label: "Achievements", labelKey: "nav.achievements", icon: "award" },
+  { path: "/profile", label: "Profile", labelKey: "common.profile", icon: "user" },
+  { path: "/settings", label: "Settings", labelKey: "nav.settings", icon: "settings" }
+].filter((item) => !isFeatureComingSoon(getFeatureForNavigationPath(item.path)));
 
 function HighlightMatch({ value, query }) {
   const text = String(value || "");
@@ -88,11 +100,20 @@ export function GlobalSearch({ onOpenChange, operationsSession = null }) {
       keywords: ["password", "change password", "reset password", "كلمة المرور", "تغيير كلمة المرور", "إعادة تعيين كلمة المرور"]
     }
   ]);
+  const normalizedQuery = normalizeSearchText(query);
+  // The palette half: with nothing typed it suggests where to go; typing a
+  // page's name (in either language) jumps straight to it.
+  const pageResults = useMemo(() => {
+    if (inStudio) return [];
+    const pages = PAGE_DESTINATIONS
+      .filter((item) => item.path !== location.pathname)
+      .map((item) => ({ type: "page", title: t(item.labelKey || item.label), subtitle: "", destination: item.path, icon: item.icon, keywords: [item.label] }));
+    return normalizedQuery ? searchActions(query, pages).slice(0, 4) : pages.map(({ keywords: _keywords, ...page }) => page);
+  }, [inStudio, location.pathname, normalizedQuery, query, t]);
   const results = useMemo(() => {
     const studio = inStudio ? studioSearchResults(query, operationsSession, studioSubjects) : [];
-    return [...studio, ...mergeSearchResults(query, [...actionResults, ...serverResults])].slice(0, 16);
-  }, [actionResults, inStudio, operationsSession, query, serverResults, studioSubjects]);
-  const normalizedQuery = normalizeSearchText(query);
+    return [...studio, ...pageResults, ...mergeSearchResults(query, [...actionResults, ...serverResults])].slice(0, 16);
+  }, [actionResults, inStudio, operationsSession, pageResults, query, serverResults, studioSubjects]);
 
   const close = useCallback(({ restoreFocus = false } = {}) => {
     requestAbortRef.current?.abort();
@@ -273,7 +294,7 @@ export function GlobalSearch({ onOpenChange, operationsSession = null }) {
   };
 
   const status = !normalizedQuery
-    ? <p className="global-search-hint">{t("search.typeToSearch")}</p>
+    ? results.length ? <p className="global-search-group" aria-hidden="true">{t("search.jumpTo")}</p> : <p className="global-search-hint">{t("search.typeToSearch")}</p>
     : loading && !results.length
       ? <p className="global-search-hint" role="status">{t("search.searching")}</p>
       : error && !results.length
@@ -298,10 +319,10 @@ export function GlobalSearch({ onOpenChange, operationsSession = null }) {
             onFocus={() => setActiveIndex(index)}
             onClick={() => chooseResult(result)}
           >
-            <span className="global-search-result-icon"><Icon name={presentation.icon} size={18} /></span>
+            <span className="global-search-result-icon"><Icon name={result.icon || presentation.icon} size={18} /></span>
             <span className="global-search-result-copy" dir="auto">
               <strong><HighlightMatch value={result.title} query={query} /></strong>
-              <small>{[result.subtitle, t(presentation.label)].filter(Boolean).join(" · ")}</small>
+              {result.type !== "page" && <small>{[result.subtitle, t(presentation.label)].filter(Boolean).join(" · ")}</small>}
             </span>
             {result.metadata?.bookmarked && <span className="global-search-bookmark" aria-label={t("search.bookmarked")}><Icon name="bookmark" size={15} /></span>}
           </button>
@@ -320,6 +341,11 @@ export function GlobalSearch({ onOpenChange, operationsSession = null }) {
     >
       {status}
       {resultsList}
+      {results.length > 0 && <footer className="global-search-footer" aria-hidden="true">
+        <span><kbd>↑</kbd><kbd>↓</kbd>{t("search.keyMove")}</span>
+        <span><kbd>↵</kbd>{t("search.keyOpen")}</span>
+        <span><kbd>esc</kbd>{t("search.keyClose")}</span>
+      </footer>}
     </section>
   ) : null;
 

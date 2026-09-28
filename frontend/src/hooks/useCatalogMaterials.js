@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { catalogWorkspaceApi } from "../api/catalogWorkspace.js";
 import { normalizeUserError } from "../lib/errors.js";
 import { withE2eFixtureSheets } from "../lib/materialCatalog.js";
+import { offlineDatabase } from "../offline/database.js";
+import { offlineAccessStatus } from "../offline/lease.js";
 
 /* global __E2E_CATALOG_MATERIALS__ */
 // The E2E bundle is deliberately a separate, non-deployable artifact. Its
@@ -44,7 +46,7 @@ function normalize(payload) {
   return withE2eFixtureSheets(Array.isArray(payload?.results) ? payload.results : []);
 }
 
-function load(key) {
+function load(key, userId) {
   const cached = cache.get(key);
   if (cached) return cached;
   const entry = { promise: null, data: null, error: "" };
@@ -53,7 +55,14 @@ function load(key) {
       entry.data = normalize(payload);
       return entry.data;
     })
-    .catch((error) => {
+    .catch(async (error) => {
+      if (error?.status === 0 && userId && (await offlineAccessStatus(userId).catch(() => ({ available: false }))).available) {
+        const stored = await offlineDatabase.get(userId, "materials").catch(() => null);
+        if (Array.isArray(stored?.results)) {
+          entry.data = normalize(stored);
+          return entry.data;
+        }
+      }
       // A failed list is not cached as a result: the next screen, or a retry,
       // must be free to ask again rather than inherit the failure.
       cache.delete(key);
@@ -71,7 +80,7 @@ export function clearCatalogMaterialsCache() {
 
 /** Warm the shared directory before the student opens Materials. */
 export function preloadCatalogMaterials(user) {
-  return load(cacheKey(user)).promise.catch(() => undefined);
+  return load(cacheKey(user), user?.id).promise.catch(() => undefined);
 }
 
 export function useCatalogMaterials(user) {
@@ -88,7 +97,7 @@ export function useCatalogMaterials(user) {
 
   const run = useCallback((requestedKey) => {
     activeKey.current = requestedKey;
-    const entry = load(requestedKey);
+    const entry = load(requestedKey, user?.id);
     if (entry.data) {
       setState({ loading: false, error: "", materials: entry.data });
       return;
@@ -109,7 +118,7 @@ export function useCatalogMaterials(user) {
           materials: E2E_FIXTURE_BUILD ? withE2eFixtureSheets([]) : []
         });
       });
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     run(key);

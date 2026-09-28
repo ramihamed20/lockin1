@@ -18,13 +18,15 @@ from rest_framework.views import APIView
 
 from apps.accounts.models import User
 from apps.administration.catalog import Capability
-from apps.administration.permissions import HasOperationalCapability
+from apps.administration.permissions import HasOperationalCapability, has_operational_capability
 from apps.audit.models import AuditRecord
 from apps.education.models import EducationNode
 from apps.files.models import ManagedFile
 from apps.files.services import managed_file_delivery_size
 from apps.progress.models import Bookmark, LearningProgress
+from apps.questions.importing import QuestionImportValidationError
 from apps.questions.models import Question, QuestionImportBatch
+from apps.questions.services import QuestionConflictError, QuestionRuleError
 
 from .active_study_questions import ActiveStudyQuestionValidationError
 from .admin_serializers import (
@@ -33,6 +35,8 @@ from .admin_serializers import (
     AdminActiveStudyQuestionSaveSerializer,
     AdminActiveStudyQuestionValidateSerializer,
     AdminActiveStudySettingsSerializer,
+    AdminAllQuestionsSaveSerializer,
+    AdminAllQuestionsValidateSerializer,
     AdminSheetActionSerializer,
     AdminSheetCreateSerializer,
     AdminSheetDeletePdfSerializer,
@@ -64,6 +68,12 @@ from .admin_services import (
     update_active_study_settings,
     update_sheet,
     validate_active_study_question_content,
+)
+from .all_questions import (
+    AllQuestionsValidationError,
+    all_questions_context,
+    save_all_questions,
+    validate_all_questions,
 )
 from .catalog_subjects import study_paths_for
 from .editions import UnknownEditionError, normalize_edition
@@ -813,3 +823,113 @@ class AdminSheetActiveStudyQuestionsView(_ContentPermissionView):
         except (LearningObject.DoesNotExist, ContentRuleError) as error:
             _raise_rule(error)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+def _optional_page_param(request: Request, name: str) -> int | None:
+    """An excluded-page count from the query string; absent keeps the saved one."""
+
+    raw = request.query_params.get(name)
+    if raw is None or raw == "":
+        return None
+    try:
+        value = int(raw)
+    except ValueError as error:
+        raise ValidationError({name: ["Enter a whole number of pages."]}) from error
+    if not 0 <= value <= 9_999:
+        raise ValidationError({name: ["Enter between 0 and 9999 pages."]})
+    return value
+
+
+def _pdf_sheet(sheet_id: UUID) -> LearningObject:
+    return get_object_or_404(
+        LearningObject.objects.prefetch_related("active_study_settings_set"),
+        id=sheet_id,
+        current_version__content_type=LearningObjectVersion.ContentType.PDF,
+    )
+
+
+class AdminSheetAllQuestionsView(_ContentPermissionView):
+    """One prompt and one JSON document for every question bank of a sheet.
+
+    Orchestration over the existing Active Study and Question import endpoints:
+    the same planner, validators and save paths, in one transaction.
+    """
+
+    def get(self, request: Request, sheet_id: UUID) -> Response:
+        try:
+            return Response(
+                all_questions_context(
+                    sheet=_pdf_sheet(sheet_id),
+                    edition=_edition(request),
+                    excluded_start_pages=_optional_page_param(request, "excluded_start_pages"),
+                    excluded_end_pages=_optional_page_param(request, "excluded_end_pages"),
+                )
+            )
+        except ContentRuleError as error:
+            _raise_rule(error)
+        raise AssertionError("Content rejection must raise an API exception.")
+
+    def put(self, request: Request, sheet_id: UUID) -> Response:
+        serializer = AdminAllQuestionsSaveSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        user = _user(request)
+        # Normal Questions are written by the Question import, which has its own
+        # permission; Active Study content is covered by this view's.
+        if data["sheet_question_count"] and not has_operational_capability(
+            user, Capability.ASSESSMENTS_MANAGE
+        ):
+            raise PermissionDenied(
+                "Importing Normal Questions requires the Manage assessments permission."
+            )
+        _pdf_sheet(sheet_id)
+        try:
+            result = save_all_questions(
+                actor=user,
+                sheet_id=sheet_id,
+                payload=data["payload"],
+                edition=_edition(request),
+                sheet_question_count=int(data["sheet_question_count"]),
+                excluded_start_pages=data.get("excluded_start_pages"),
+                excluded_end_pages=data.get("excluded_end_pages"),
+                settings_revision=int(data["settings_revision"]),
+                expected_revisions={
+                    key: int(value) for key, value in data["expected_revisions"].items()
+                },
+                publish_sheet_questions=bool(data["publish_sheet_questions"]),
+            )
+        except AllQuestionsValidationError as error:
+            return Response(error.as_dict(), status=status.HTTP_400_BAD_REQUEST)
+        except (ActiveStudyQuestionValidationError, QuestionImportValidationError) as error:
+            # Only reachable if a bank changed shape between validation and save.
+            return Response(
+                {"valid": False, "errors": error.errors}, status=status.HTTP_400_BAD_REQUEST
+            )
+        except QuestionConflictError as error:
+            raise AdminContentConflict(str(error)) from error
+        except QuestionRuleError as error:
+            raise AdminContentRejected(str(error)) from error
+        except (LearningObject.DoesNotExist, ContentRuleError) as error:
+            _raise_rule(error)
+        return Response(result)
+
+
+class AdminSheetAllQuestionsValidateView(_ContentPermissionView):
+    def post(self, request: Request, sheet_id: UUID) -> Response:
+        serializer = AdminAllQuestionsValidateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            validation = validate_all_questions(
+                sheet=_pdf_sheet(sheet_id),
+                payload=data["payload"],
+                edition=_edition(request),
+                sheet_question_count=int(data["sheet_question_count"]),
+                excluded_start_pages=data.get("excluded_start_pages"),
+                excluded_end_pages=data.get("excluded_end_pages"),
+            )
+        except AllQuestionsValidationError as error:
+            return Response(error.as_dict(), status=status.HTTP_400_BAD_REQUEST)
+        except ContentRuleError as error:
+            _raise_rule(error)
+        return Response(validation.as_dict())

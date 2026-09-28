@@ -268,6 +268,13 @@
     background-color: color-mix(in srgb, var(--color-danger) 12%, var(--surface-2));
   }
 
+  /* A busy control is unavailable because it is working, not because it is
+     off: it stays readable so its spinner and label can be seen. */
+  :where(button, a, [role="button"], [data-ix])[aria-busy="true"]:is(:disabled, [aria-disabled="true"]) {
+    cursor: progress;
+    opacity: 0.8;
+  }
+
   :where(button, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [data-ix]):disabled:hover,
   :where(button, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [data-ix])[aria-disabled="true"]:hover {
     background-color: inherit;

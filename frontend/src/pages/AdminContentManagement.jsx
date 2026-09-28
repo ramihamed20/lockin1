@@ -11,6 +11,8 @@ import { copyTextToClipboard } from "../lib/clipboard.js";
 import { Icon } from "../lib/icons.jsx";
 import { formatDateTime, formatNumber } from "../lib/i18n.js";
 import { readinessSummary, sheetReadiness } from "../lib/sheetReadiness.js";
+import { AllQuestionsPanel } from "./admin/AllQuestionsPanel.jsx";
+import { ExclusionField } from "./admin/ExclusionField.jsx";
 import "./admin-active-study.css";
 
 const EDITIONS = [
@@ -144,7 +146,7 @@ export default function AdminContentManagement({ operationsSession, initialArea 
       {/* The Studio top bar already names this area and owns the page h1. */}
       <TabList label="Content management areas" variant="tint" value={active} onChange={setArea}>{visible.map(([key, label, , icon]) => <Tab key={key} value={key}><Icon name={icon} size={17} />{label}</Tab>)}</TabList>
     </header>
-    {active === "sheets" && <SheetsArea canManage={hasOperationalCapability(operationsSession, "content.manage")} />}
+    {active === "sheets" && <SheetsArea canManage={hasOperationalCapability(operationsSession, "content.manage")} canManageQuestions={hasOperationalCapability(operationsSession, "assessments.manage")} />}
     {active === "questions" && <QuestionsArea canManage={hasOperationalCapability(operationsSession, "assessments.manage")} />}
     {active === "imports" && <ImportHistory canManage={hasOperationalCapability(operationsSession, "assessments.manage")} />}
   </section>;
@@ -180,14 +182,14 @@ function SubjectBrowser({ onSelect, purpose = "sheets" }) {
   </section>;
 }
 
-function SheetsArea({ canManage }) {
+function SheetsArea({ canManage, canManageQuestions = false }) {
   const { params, open, back } = useContentLocation();
   const subjectId = params.get("subject");
   if (!subjectId) return <SubjectBrowser onSelect={(subject) => open("subject", subject.id)} />;
-  return <SheetList subject={{ id: subjectId }} canManage={canManage} onBack={() => back("subject")} />;
+  return <SheetList subject={{ id: subjectId }} canManage={canManage} canManageQuestions={canManageQuestions} onBack={() => back("subject")} />;
 }
 
-function SheetList({ subject, canManage, onBack, selectMode = false, onSelectSheet = null }) {
+function SheetList({ subject, canManage, canManageQuestions = false, onBack, selectMode = false, onSelectSheet = null }) {
   const [status, setStatus] = useState(""); const [query, setQuery] = useState(""); const [createOpen, setCreateOpen] = useState(false); const [message, setMessage] = useState(""); const [attentionOnly, setAttentionOnly] = useState(false);
   const searchQuery = useDebouncedValue(query.trim());
   const catalog = useAsyncData(() => adminControlApi.contentSubjects({}), []);
@@ -200,7 +202,7 @@ function SheetList({ subject, canManage, onBack, selectMode = false, onSelectShe
     {createOpen && <AddSheetForm subject={{ ...subject, title: data.data?.subject?.title || subject.title || "this subject" }} onCreated={() => { setCreateOpen(false); setMessage("Sheet saved successfully."); data.reload(); }} />}
     <div className="admin-content-filters"><label className="field"><span>Search sheets</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} aria-busy={data.refreshing || undefined} /></label><label className="field"><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">All</option>{["draft", "in_review", "published", "rejected", "archived"].map((value) => <option key={value} value={value}>{humanize(value)}</option>)}</select></label></div>
     {data.data && !selectMode && <ReadinessBar sheets={data.data.results} attentionOnly={attentionOnly} onToggle={() => setAttentionOnly((value) => !value)} />}
-    {data.loading ? <LoadingPanel variant="list" /> : data.error ? <ErrorPanel message={data.error} onRetry={data.reload} /> : <div className={`admin-sheet-list${data.refreshing ? " is-refreshing" : ""}`}>{visibleSheets(data.data.results, attentionOnly && !selectMode).length ? visibleSheets(data.data.results, attentionOnly && !selectMode).map((sheet) => selectMode ? <button className="admin-sheet-select" type="button" key={sheet.id} onClick={() => onSelectSheet?.(sheet)}><span><strong>{sheet.title}</strong><small>{sheet.question_count} questions · {sheet.published_question_count ?? 0} live to students · {humanize(sheet.workflow_status)}</small></span><Icon name="chevron-right" size={18} /></button> : <SheetRow key={sheet.id} sheet={sheet} sheets={data.data.results} index={data.data.results.indexOf(sheet)} subject={subjectInfo} canManage={canManage} onChanged={data.reload} />) : attentionOnly ? <EmptyState title="Nothing needs attention" text="Every sheet in this view is ready or a draft by choice." /> : <EmptyState title="No sheets in this view" text="Change the filters or add the first PDF sheet." />}</div>}
+    {data.loading ? <LoadingPanel variant="list" /> : data.error ? <ErrorPanel message={data.error} onRetry={data.reload} /> : <div className={`admin-sheet-list${data.refreshing ? " is-refreshing" : ""}`}>{visibleSheets(data.data.results, attentionOnly && !selectMode).length ? visibleSheets(data.data.results, attentionOnly && !selectMode).map((sheet) => selectMode ? <button className="admin-sheet-select" type="button" key={sheet.id} onClick={() => onSelectSheet?.(sheet)}><span><strong>{sheet.title}</strong><small>{sheet.question_count} questions · {sheet.published_question_count ?? 0} live to students · {humanize(sheet.workflow_status)}</small></span><Icon name="chevron-right" size={18} /></button> : <SheetRow key={sheet.id} sheet={sheet} sheets={data.data.results} index={data.data.results.indexOf(sheet)} subject={subjectInfo} canManage={canManage} canManageQuestions={canManageQuestions} onChanged={data.reload} />) : attentionOnly ? <EmptyState title="Nothing needs attention" text="Every sheet in this view is ready or a draft by choice." /> : <EmptyState title="No sheets in this view" text="Change the filters or add the first PDF sheet." />}</div>}
   </section>;
 }
 
@@ -320,7 +322,7 @@ function EditionTabs({ sheet, edition, onChange }) {
   })}</div>;
 }
 
-function SheetRow({ sheet, sheets, index, subject, canManage, onChanged }) {
+function SheetRow({ sheet, sheets, index, subject, canManage, canManageQuestions = false, onChanged }) {
   const navigate = useNavigate();
   const [pending, setPending] = useState(""); const [error, setError] = useState(null); const [confirm, setConfirm] = useState(null); const [replacement, setReplacement] = useState(null); const [summaryReplacement, setSummaryReplacement] = useState(null); const [position, setPosition] = useState(sheet.position); const [title, setTitle] = useState(sheet.title); const [manageTab, setManageTab] = useState("overview"); const [edition, setEdition] = useState("university");
   // Rows stay mounted while the list refreshes, so the editable copy follows the
@@ -348,7 +350,7 @@ function SheetRow({ sheet, sheets, index, subject, canManage, onChanged }) {
           <summary>Open control center <Icon name="chevron-right" size={17} /></summary>
           <HierarchyBreadcrumb subject={subject} sheetTitle={sheet.title} />
           <TabList className="admin-sheet-control-tabs" label="Sheet control center" variant="tint" value={manageTab} onChange={setManageTab}>
-            {[['overview', 'Overview'], ['files', 'Files'], ['questions', 'Questions'], ['active-study', 'Active Study'], ['publication', 'Publication'], ['danger', 'Danger Zone']].map(([key, label]) => <Tab key={key} value={key}>{label}</Tab>)}
+            {[['overview', 'Overview'], ['files', 'Files'], ['questions', 'Questions'], ['active-study', 'Active Study'], ['all-questions', 'All Questions'], ['publication', 'Publication'], ['danger', 'Danger Zone']].map(([key, label]) => <Tab key={key} value={key}>{label}</Tab>)}
           </TabList>
           <div className="admin-sheet-control">
             {manageTab === "overview" && <section className="admin-control-section" aria-labelledby={`sheet-overview-${sheet.id}`}>
@@ -395,6 +397,10 @@ function SheetRow({ sheet, sheets, index, subject, canManage, onChanged }) {
               {edition === "lockin" && !editionRow.available ? <p className="form-alert">Add the Lock-in Edition PDF in Files before configuring Active Study for it.</p> : <ActiveStudySettings key={edition} sheet={sheet} edition={edition} onSaved={onChanged} />}
             </section>}
 
+            {manageTab === "all-questions" && <section className="admin-control-section" aria-label="All Questions">
+              <AllQuestionsPanel sheet={sheet} canManageQuestions={canManageQuestions} onSaved={onChanged} />
+            </section>}
+
             {manageTab === "publication" && <section className="admin-control-section" aria-label="Publication status">
               <div className="admin-visibility-state"><span className={`stat-icon ${sheet.workflow_status === "published" ? "is-ready" : ""}`}><Icon name={sheet.workflow_status === "published" ? "eye" : "eye-off"} /></span><div><strong>{studentVisibility}</strong><small>{readiness.issues.length ? `${readiness.issues.length} issue${readiness.issues.length === 1 ? "" : "s"} to resolve` : "No known publication blockers"}</small></div></div>
               {readiness.issues.length > 0 && <ul className="admin-blocking-list">{readiness.issues.map((issue) => <li key={issue.code}><strong>{issue.label}</strong><span>{issue.detail}</span></li>)}</ul>}
@@ -417,20 +423,6 @@ function SheetRow({ sheet, sheets, index, subject, canManage, onChanged }) {
       <ConfirmDialog open={Boolean(confirm)} title={confirm === "delete" ? `Delete “${sheet.title}”?` : confirm === "remove-pdf" ? `Remove the PDF from “${sheet.title}”?` : confirm === "remove-lockin" ? `Remove the Lockin Sheet from “${sheet.title}”?` : confirm === "remove-summary" ? `Remove the Summary PDF from “${sheet.title}”?` : `${humanize(confirm)} “${sheet.title}”?`} message={confirm === "delete" ? "The server verified that this unpublished sheet has no progress, bookmarks, questions, imports, or publication history. This removes its remaining file." : confirm === "remove-pdf" ? "Students will immediately lose access to the published PDF. Historical file data is retained safely, and the sheet becomes a draft." : confirm === "remove-summary" ? "Sheet Summary will become unavailable immediately. The main sheet PDF and Active Study settings are unchanged." : confirm === "archive" ? "The sheet disappears from student discovery while historical progress remains intact." : "The sheet remains stored and can be published again later."} confirmLabel={pending ? "Working…" : humanize(confirm)} onCancel={() => setConfirm(null)} onConfirm={() => run(confirm)} />
     </article>
   );
-}
-
-function ExclusionField({ label, value, onChange, error = "" }) {
-  // "Custom" is a mode the admin chose, not something re-derived from the value on
-  // every render: deriving it meant clearing the box (or typing a value a preset
-  // covers) unmounted the input mid-keystroke and snapped the select back.
-  const numeric = Number(value || 0);
-  const [custom, setCustom] = useState(() => !(value !== "" && [0, 1, 2, 3].includes(numeric)));
-  const preset = custom ? "custom" : String([0, 1, 2, 3].includes(numeric) ? numeric : 0);
-  function choosePreset(next) {
-    if (next === "custom") { setCustom(true); return; }
-    setCustom(false); onChange(Number(next));
-  }
-  return <label className="field"><span>{label}</span><select value={preset} onChange={(event) => choosePreset(event.target.value)}><option value="0">None</option><option value="1">1 page</option><option value="2">2 pages</option><option value="3">3 pages</option><option value="custom">Custom</option></select>{custom && <input type="number" inputMode="numeric" min="0" max="9999" step="1" value={value} required aria-label={`${label}, custom page count`} onChange={(event) => onChange(event.target.value)} placeholder="Pages" />}{error && <small className="form-alert error" role="alert">{error}</small>}</label>;
 }
 
 /** Reads the API envelope's field map so each input can show its own error. */

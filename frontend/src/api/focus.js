@@ -1,6 +1,7 @@
 import { ApiError, request } from "./client.js";
 import { normalizePaginatedResponse } from "./contracts.js";
 import { buildQueryString } from "./pagination.js";
+import { activeStudyClient } from "../offline/activeStudy.js";
 
 function objectPayload(payload, message) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
@@ -57,30 +58,45 @@ export const focusApi = {
     return /** @type {any[]} */ (payload.results).filter((item) => item && typeof item.video_id === "string");
   },
 
+  // Managed Active Study. Each method reaches Django first; when the network
+  // is gone and the sheet was downloaded, the offline client answers with the
+  // same response shape from this device and queues the result for sync.
   async getManagedActiveStudyAvailability(sheetId, edition = "") {
-    return objectPayload(await request(`/focus/managed-active-study/sheets/${sheetId}` + (edition ? `?edition=${encodeURIComponent(edition)}` : "")), "Active Study availability could not be loaded.");
+    return objectPayload(await activeStudyClient.availability({ sheetId, edition },
+      () => request(`/focus/managed-active-study/sheets/${sheetId}` + (edition ? `?edition=${encodeURIComponent(edition)}` : ""))
+    ), "Active Study availability could not be loaded.");
   },
 
   async startManagedActiveStudy({ sheetId, difficulty, edition = "" }) {
     // An omitted edition means the University Sheet, which is what this
     // endpoint always meant.
-    return objectPayload(await request("/focus/managed-active-study/start", { method: "POST", body: { sheet_id: sheetId, difficulty, ...(edition ? { edition } : {}) } }), "Active Study could not be started.");
+    return objectPayload(await activeStudyClient.start({ sheetId, difficulty, edition },
+      () => request("/focus/managed-active-study/start", { method: "POST", body: { sheet_id: sheetId, difficulty, ...(edition ? { edition } : {}) } })
+    ), "Active Study could not be started.");
   },
 
   async managedActiveStudyAction(runId, action) {
-    return objectPayload(await request(`/focus/managed-active-study/${runId}/${action}`, { method: "POST", body: {} }), "Active Study could not be updated.");
+    return objectPayload(await activeStudyClient.action(runId, action,
+      (serverRunId) => request(`/focus/managed-active-study/${serverRunId}/${action}`, { method: "POST", body: {} })
+    ), "Active Study could not be updated.");
   },
 
   async getManagedActiveStudyQuestions(runId) {
-    return objectPayload(await request(`/focus/managed-active-study/${runId}/questions`), "Active Study questions could not be loaded.");
+    return objectPayload(await activeStudyClient.questions(runId,
+      (serverRunId) => request(`/focus/managed-active-study/${serverRunId}/questions`)
+    ), "Active Study questions could not be loaded.");
   },
 
   async answerManagedActiveStudyQuestion(runId, { attemptId, position, selectedAnswer }) {
-    return objectPayload(await request(`/focus/managed-active-study/${runId}/answer`, { method: "POST", body: { attempt_id: attemptId, position, selected_answer: selectedAnswer } }), "The answer could not be saved.");
+    return objectPayload(await activeStudyClient.answer(runId, { attemptId, position, selectedAnswer },
+      (serverRunId) => request(`/focus/managed-active-study/${serverRunId}/answer`, { method: "POST", body: { attempt_id: attemptId, position, selected_answer: selectedAnswer } })
+    ), "The answer could not be saved.");
   },
 
   async submitManagedActiveStudy(runId, attemptId) {
-    return objectPayload(await request(`/focus/managed-active-study/${runId}/submit`, { method: "POST", body: { attempt_id: attemptId } }), "The Active Study result could not be saved.");
+    return objectPayload(await activeStudyClient.submit(runId, attemptId,
+      (serverRunId) => request(`/focus/managed-active-study/${serverRunId}/submit`, { method: "POST", body: { attempt_id: attemptId } })
+    ), "The Active Study result could not be saved.");
   },
 
   async getDocument(documentVersionId) {
@@ -133,7 +149,7 @@ export const focusApi = {
     );
   },
 
-  async startLockIn({ documentVersionId = null, clientInstanceId, sessionType, plannedDurationSeconds = null, breakDurationSeconds = null, teamId = null, teamName = "", goal = "", topic = "", note = "", tasks = [] }) {
+  async startLockIn({ documentVersionId = null, clientInstanceId, sessionType, plannedDurationSeconds = null, breakDurationSeconds = null, teamId = null, teamName = "", anonymous = false, goal = "", topic = "", note = "", tasks = [] }) {
     if (typeof clientInstanceId !== "string" || !clientInstanceId || typeof sessionType !== "string") {
       throw new ApiError(0, null, "A stable session ID and session type are required.", "invalid_request");
     }
@@ -147,6 +163,7 @@ export const focusApi = {
     };
     if (teamId) body.team_id = teamId;
     if (teamName) body.team_name = teamName;
+    if (anonymous) body.anonymous = true;
     if (documentVersionId) body.document_version_id = documentVersionId;
     if (plannedDurationSeconds != null) body.planned_duration_seconds = plannedDurationSeconds;
     if (breakDurationSeconds != null) body.break_duration_seconds = breakDurationSeconds;
@@ -172,15 +189,40 @@ export const focusApi = {
 
   async createLockInTeam(name) {
     return objectPayload(
-      await request("/focus/lock-in/teams", { method: "POST", body: { name } }),
+      await request("/focus/lock-in/teams", { method: "POST", body: typeof name === "string" ? { name } : name }),
       "The study team could not be created."
     );
   },
 
-  async joinLockInTeam(inviteCode) {
+  async joinLockInTeam(inviteCode, anonymous = false) {
     return objectPayload(
-      await request("/focus/lock-in/teams/join", { method: "POST", body: { invite_code: inviteCode } }),
+      await request("/focus/lock-in/teams/join", { method: "POST", body: { invite_code: inviteCode, ...(anonymous ? { anonymous: true } : {}) } }),
       "The study team could not be joined."
+    );
+  },
+
+  async getLockInLeaderboard(period = "weekly") {
+    if (!["weekly", "all_time"].includes(period)) throw new ApiError(0, null, "Unsupported period.", "invalid_request");
+    return objectPayload(await request(`/focus/lock-in/leaderboard?period=${period}`), "Leaderboard could not be loaded.");
+  },
+
+  async getLockInTeam(teamId) {
+    return objectPayload(await request(`/focus/lock-in/teams/${teamId}`), "Team could not be loaded.");
+  },
+
+  async updateLockInTeam(teamId, changes) {
+    return objectPayload(await request(`/focus/lock-in/teams/${teamId}`, { method: "PATCH", body: changes }), "Team could not be updated.");
+  },
+
+  async lockInTeamAction(teamId, action, body = {}) {
+    if (!["kick", "transfer-host", "leave", "end", "regenerate-code"].includes(action)) throw new ApiError(0, null, "Unsupported team action.", "invalid_request");
+    return objectPayload(await request(`/focus/lock-in/teams/${teamId}/${action}`, { method: "POST", body }), "Team could not be updated.");
+  },
+
+  async joinLockInTeamSession(teamId) {
+    return objectPayload(
+      await request(`/focus/lock-in/teams/${teamId}/join-session`, { method: "POST", body: {} }),
+      "The team Lockin could not be joined."
     );
   },
 
@@ -205,6 +247,21 @@ export const focusApi = {
     return objectPayload(
       await request(`/focus/lock-in/${sessionId}/${action}`, { method: "POST", body: {} }),
       "The Lock In session could not be updated."
+    );
+  },
+
+  async setLockInPresence(sessionId, presence) {
+    if (!["focused", "break", "away"].includes(presence)) throw new ApiError(0, null, "Unsupported presence.", "invalid_request");
+    return objectPayload(
+      await request(`/focus/lock-in/${sessionId}/presence`, { method: "POST", body: { presence } }),
+      "Presence could not be updated."
+    );
+  },
+
+  async leaveLockInSession(sessionId) {
+    return objectPayload(
+      await request(`/focus/lock-in/${sessionId}/leave-session`, { method: "POST", body: {} }),
+      "The team Lockin could not be left."
     );
   },
 

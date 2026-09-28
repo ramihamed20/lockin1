@@ -742,3 +742,266 @@ def restart(*, user: User, run_id: UUID) -> ActiveStudyRun:
     if not created:
         raise ManagedActiveStudyRuleError("Active Study could not be restarted. Try again.")
     return fresh
+
+
+# --- Offline Active Study -------------------------------------------------
+#
+# A device that downloaded a sheet runs this state machine locally and later
+# replays what the student did. The replay never trusts a client score, stage
+# or reward: it drives the functions above, so grading, unlocking, Review Bank
+# events and the once-only XP award stay exactly as they are online.
+
+OFFLINE_APPLIED = "applied"
+OFFLINE_DUPLICATE = "duplicate"
+OFFLINE_SUPERSEDED = "superseded"
+
+
+class OfflineReplayOutOfOrder(ManagedActiveStudyRuleError):
+    """The server run is not at the stage this offline event was recorded at."""
+
+
+def _offline_question(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "question": item["question"],
+        "options": item["options"],
+        "correct_answer": item["correct_answer"],
+        "explanation": item["explanation"],
+    }
+
+
+def offline_bundle(*, user: User, sheet_id: UUID, edition: str = UNIVERSITY) -> dict[str, Any]:
+    """Everything one edition's Active Study needs to run on the device.
+
+    It carries the answer keys, so it is served only to a reader who can open
+    the sheet now; the caller also requires a premium subscription. Only
+    difficulties the online runtime would start are included.
+    """
+
+    edition = normalize_edition(edition)
+    sheet = _sheet_for_user(user=user, sheet_id=sheet_id)
+    summary = availability(user=user, sheet_id=sheet_id, edition=edition)
+    total_pages, _ = resolve_total_pdf_pages(
+        settings=settings_for(sheet=sheet, edition=edition),
+        source_version=source_version_for(sheet),
+        edition=edition,
+    )
+    difficulties: dict[str, Any] = {}
+    for row in cast(list[dict[str, Any]], summary["difficulties"]):
+        if row["status"] != "ready":
+            continue
+        try:
+            content, plan = _content(sheet=sheet, difficulty=row["difficulty"], edition=edition)
+        except ManagedActiveStudyRuleError:
+            continue
+        payload = cast(dict[str, Any], content.payload)
+        difficulties[row["difficulty"]] = {
+            "number_of_parts": plan["number_of_parts"],
+            "page_ranges": plan["page_ranges"],
+            "parts": [
+                {
+                    "part": part["part"],
+                    "questions": [_offline_question(item) for item in part["questions"]],
+                }
+                for part in cast(list[dict[str, Any]], payload["parts"])
+            ],
+            "final_exam": {
+                "questions": [
+                    _offline_question(item)
+                    for item in cast(list[dict[str, Any]], payload["final_exam"]["questions"])
+                ]
+            },
+        }
+    return {
+        "sheet_id": str(sheet.id),
+        "edition": edition,
+        "total_pdf_pages": total_pages,
+        "rules": {"checkpoint_pass": CHECKPOINT_PASS, "final_pass": FINAL_EXAM_PASS},
+        "availability": summary,
+        "difficulties": difficulties,
+    }
+
+
+def _attempt_result(attempt: ActiveStudyAttempt) -> dict[str, Any]:
+    run = attempt.run
+    return {
+        "score": attempt.score,
+        "total": attempt.total,
+        "passed": attempt.passed,
+        "completed": run.status == ActiveStudyRun.Status.COMPLETED,
+        "xp_awarded": run.xp_awarded,
+    }
+
+
+def _offline_outcome(status: str, run: ActiveStudyRun | None, **extra: Any) -> dict[str, Any]:
+    return {"status": status, "run": run_payload(run), **extra}
+
+
+def _completed_run_exists(
+    *, user: User, sheet: LearningObject, difficulty: str, edition: str
+) -> bool:
+    return ActiveStudyRun.objects.filter(
+        user=user,
+        sheet=sheet,
+        difficulty=difficulty,
+        edition=edition,
+        status=ActiveStudyRun.Status.COMPLETED,
+    ).exists()
+
+
+def _validated_answers(raw: object, *, total: int) -> list[tuple[int, str]]:
+    if not isinstance(raw, list) or len(raw) != total:
+        raise ManagedActiveStudyRuleError("Answer every question before submitting.")
+    answers: dict[int, str] = {}
+    for item in raw:
+        if not isinstance(item, dict):
+            raise ManagedActiveStudyRuleError("Question position is invalid.")
+        position, selected = item.get("position"), item.get("selected_answer")
+        if (
+            not isinstance(position, int)
+            or isinstance(position, bool)
+            or position < 1
+            or position > total
+            or position in answers
+        ):
+            raise ManagedActiveStudyRuleError("Question position is invalid.")
+        if selected not in {"A", "B", "C", "D"}:
+            raise ManagedActiveStudyRuleError("Choose A, B, C, or D.")
+        answers[position] = cast(str, selected)
+    return sorted(answers.items())
+
+
+@transaction.atomic
+def replay_offline_attempt(
+    *,
+    user: User,
+    sheet_id: UUID,
+    edition: str,
+    difficulty: str,
+    kind: str,
+    part: int | None,
+    attempt_id: UUID,
+    answers: object,
+) -> dict[str, Any]:
+    """Replay one checkpoint or final exam the device completed offline.
+
+    The attempt ID is the device's and becomes the server attempt's primary
+    key, so a retried upload finds the attempt it already created and returns
+    that result instead of grading, unlocking or awarding a second time.
+    """
+
+    edition = normalize_edition(edition)
+    _difficulty(difficulty)
+    if kind not in {ActiveStudyAttempt.Kind.CHECKPOINT, ActiveStudyAttempt.Kind.FINAL}:
+        raise ManagedActiveStudyRuleError("Unsupported Active Study attempt.")
+    if kind == ActiveStudyAttempt.Kind.FINAL:
+        part = None
+    elif not isinstance(part, int) or isinstance(part, bool) or part < 1:
+        raise ManagedActiveStudyRuleError("Part is invalid.")
+    sheet = _sheet_for_user(user=user, sheet_id=sheet_id)
+
+    existing = (
+        ActiveStudyAttempt.objects.select_for_update(of=("self",))
+        .select_related("run")
+        .filter(id=attempt_id)
+        .first()
+    )
+    if existing is not None:
+        if (
+            existing.run.user_id != user.id
+            or existing.run.sheet_id != sheet.id
+            or existing.run.difficulty != difficulty
+            or existing.run.edition != edition
+            or existing.kind != kind
+            or existing.part_number != part
+        ):
+            raise ManagedActiveStudyRuleError("This attempt belongs to a different session.")
+        if existing.submitted_at is not None:
+            return _offline_outcome(
+                OFFLINE_DUPLICATE, existing.run, result=_attempt_result(existing)
+            )
+
+    active = _active_run(user=user, sheet=sheet, difficulty=difficulty, edition=edition)
+    if active is None:
+        if kind == ActiveStudyAttempt.Kind.FINAL or part != 1:
+            if _completed_run_exists(
+                user=user, sheet=sheet, difficulty=difficulty, edition=edition
+            ):
+                return _offline_outcome(OFFLINE_SUPERSEDED, None)
+            raise OfflineReplayOutOfOrder("This Active Study session is no longer active.")
+        active, _ = start(user=user, sheet_id=sheet.id, difficulty=difficulty, edition=edition)
+    run = _locked_run(user=user, run_id=active.id)
+
+    if kind == ActiveStudyAttempt.Kind.CHECKPOINT:
+        if part in cast(list[int], run.completed_parts) or cast(int, part) < run.current_part:
+            return _offline_outcome(OFFLINE_SUPERSEDED, run)
+        if cast(int, part) > run.current_part:
+            raise OfflineReplayOutOfOrder("An earlier part has not been completed yet.")
+        if run.stage == ActiveStudyRun.Stage.CHECKPOINT_RESULT:
+            study_again(user=user, run_id=run.id)
+        if _locked_run(user=user, run_id=run.id).stage == ActiveStudyRun.Stage.READING:
+            complete_part_reading(user=user, run_id=run.id)
+    elif run.stage == ActiveStudyRun.Stage.FINAL_RESULT:
+        retry_final(user=user, run_id=run.id)
+    elif run.stage != ActiveStudyRun.Stage.FINAL:
+        raise OfflineReplayOutOfOrder("The final exam is not unlocked yet.")
+    run = _locked_run(user=user, run_id=run.id)
+
+    source = _questions_for(run, kind=kind, part=part)
+    validated = _validated_answers(answers, total=len(source))
+    if existing is not None and existing.run_id != run.id:
+        raise ManagedActiveStudyRuleError("This attempt belongs to a different session.")
+    if existing is None:
+        # The device's attempt is the one the student finished; an attempt
+        # opened online and never submitted is replaced, as Restart does.
+        run.attempts.filter(kind=kind, part_number=part, submitted_at__isnull=True).delete()
+        number = run.attempts.filter(kind=kind, part_number=part).count() + 1
+        ActiveStudyAttempt.objects.create(
+            id=attempt_id, run=run, kind=kind, part_number=part, number=number, total=len(source)
+        )
+    for position, selected in validated:
+        answer(
+            user=user,
+            run_id=run.id,
+            attempt_id=attempt_id,
+            position=position,
+            selected_answer=selected,
+        )
+    run, result = submit(user=user, run_id=run.id, attempt_id=attempt_id)
+    return _offline_outcome(OFFLINE_APPLIED, run, result=result)
+
+
+@transaction.atomic
+def replay_offline_continue(
+    *, user: User, sheet_id: UUID, edition: str, difficulty: str, part: int
+) -> dict[str, Any]:
+    """Replay "continue anyway" after a checkpoint failed offline."""
+
+    edition = normalize_edition(edition)
+    _difficulty(difficulty)
+    sheet = _sheet_for_user(user=user, sheet_id=sheet_id)
+    active = _active_run(user=user, sheet=sheet, difficulty=difficulty, edition=edition)
+    if active is None:
+        if _completed_run_exists(user=user, sheet=sheet, difficulty=difficulty, edition=edition):
+            return _offline_outcome(OFFLINE_SUPERSEDED, None)
+        raise OfflineReplayOutOfOrder("This Active Study session is no longer active.")
+    if part in cast(list[int], active.completed_parts) or part < active.current_part:
+        return _offline_outcome(OFFLINE_SUPERSEDED, active)
+    if part > active.current_part or active.stage != ActiveStudyRun.Stage.CHECKPOINT_RESULT:
+        raise OfflineReplayOutOfOrder("This checkpoint has no result to continue from.")
+    return _offline_outcome(OFFLINE_APPLIED, continue_anyway(user=user, run_id=active.id))
+
+
+@transaction.atomic
+def replay_offline_restart(
+    *, user: User, sheet_id: UUID, edition: str, difficulty: str
+) -> dict[str, Any]:
+    """Replay Restart: abandon the active run, if any, and begin again at Part 1."""
+
+    edition = normalize_edition(edition)
+    _difficulty(difficulty)
+    sheet = _sheet_for_user(user=user, sheet_id=sheet_id)
+    active = _active_run(user=user, sheet=sheet, difficulty=difficulty, edition=edition)
+    if active is not None:
+        return _offline_outcome(OFFLINE_APPLIED, restart(user=user, run_id=active.id))
+    run, _ = start(user=user, sheet_id=sheet.id, difficulty=difficulty, edition=edition)
+    return _offline_outcome(OFFLINE_APPLIED, run)

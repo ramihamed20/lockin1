@@ -302,6 +302,8 @@ PRODUCTION_ENVIRONMENT = {
     "EMAIL_HOST_USER": "lockin",
     "EMAIL_HOST_PASSWORD": "smtp-password",
     "PAYMENT_CODE_ENCRYPTION_KEY": "c" * 40,
+    # Base64 of a 32 byte Ed25519 seed; production refuses to boot without one.
+    "OFFLINE_LEASE_ED25519_PRIVATE_KEY": "ZWQyNTUxOS1wb3J0YWJpbGl0eS10ZXN0LXNlZWQtMzI=",
     "OBSERVABILITY_STATSD_HOST": "metrics.example.ly",
     "OBSERVABILITY_ERROR_WEBHOOK_URL": "https://monitoring.example.ly/v1/errors",
     "OBSERVABILITY_ERROR_WEBHOOK_TOKEN": "d" * 32,

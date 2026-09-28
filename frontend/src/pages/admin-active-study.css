@@ -305,3 +305,31 @@
   .admin-sheet-control-tabs { margin-inline: calc(var(--space-3) * -1); border-inline: 0; border-radius: 0; padding-inline: var(--space-3); }
   .admin-question-readiness { grid-template-columns: repeat(3, minmax(72px, 1fr)); }
 }
+
+/* All Questions: one prompt and one JSON for every question bank of a sheet. */
+.admin-all-questions { display: grid; gap: var(--space-3); margin: 12px 0 4px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: color-mix(in srgb, var(--surface) 88%, var(--primary) 12%); min-width: 0; }
+.admin-all-questions .admin-active-study-summary { margin: 0; }
+.admin-all-questions-heading { margin: 4px 0 0; font-size: var(--text-sm); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.admin-all-questions-plan { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-2, 8px); margin: 0; padding: 0; list-style: none; }
+.admin-all-questions-plan li { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); font-size: var(--text-sm); }
+.admin-all-questions-plan span { color: var(--muted); }
+.admin-all-questions-total { margin: 0; font-variant-numeric: tabular-nums; }
+.admin-all-questions-paste { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border); }
+.admin-all-questions-paste textarea { min-height: 320px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.45; }
+.admin-all-questions-result { display: grid; gap: var(--space-3); min-width: 0; }
+.admin-all-questions-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-3); }
+.admin-all-questions-summary > div { min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.admin-all-questions-summary > div.is-error { border-color: color-mix(in srgb, var(--warning) 55%, var(--border)); }
+.admin-all-questions-summary h5 { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-size: var(--text-base); }
+.admin-all-questions-summary ul { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.admin-all-questions-summary li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.admin-all-questions-summary li small { color: var(--muted); font-size: var(--text-xs); }
+.admin-all-questions-summary p { margin: 6px 0 0; color: var(--muted); font-size: var(--text-xs); }
+.admin-all-questions-summary svg { flex: none; }
+.admin-all-questions-summary .is-ok svg { color: var(--success); }
+.admin-all-questions-summary .is-error svg { color: var(--warning); }
+.admin-all-questions-errors { display: grid; gap: 6px; max-height: 360px; overflow: auto; margin: 0; padding-inline-start: 22px; font-size: var(--text-sm); }
+.admin-all-questions-errors li > * { display: block; overflow-wrap: anywhere; }
+.admin-all-questions-errors code { color: var(--muted); font-size: var(--text-xs); }
+.admin-all-questions-more { margin: 0; color: var(--muted); font-size: var(--text-sm); }
+.admin-all-questions .form-alert ul { margin: 6px 0; padding-inline-start: 20px; }

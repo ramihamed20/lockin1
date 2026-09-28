@@ -1,0 +1,1025 @@
+/* ==========================================================================
+   Study flow — the screens students spend their attention inside.
+
+   The question session is deliberately calmer than the Dashboard: one reading
+   column, the prompt as the strongest type on screen, answers as quiet rows,
+   progress as a single rail, and the next action always in the same place.
+   Colour is reserved for the verdict and used at low strength; the icon and
+   the words carry the meaning as well.
+
+   Two layers: `system` for layout and resting appearance, and `interaction`
+   for the graded answer states, which the interaction layer otherwise owns.
+   ========================================================================== */
+
+@layer system {
+
+/* --- Session frame -------------------------------------------------------- */
+
+.question-session-shell {
+  width: min(100%, 720px);
+  margin-inline: auto;
+  gap: 18px;
+}
+
+/* Inside a session the back link already says where you came from. */
+.question-session-shell .question-breadcrumb { display: none; }
+
+.question-session-shell .catalog-directory-header { gap: 6px; }
+
+.question-session-shell .catalog-directory-title h1 {
+  font-size: var(--text-xl);
+  letter-spacing: -0.015em;
+}
+
+.question-session-shell .catalog-directory-title p {
+  margin-top: 2px;
+  color: var(--soft);
+  font-size: var(--text-sm);
+}
+
+/* --- Progress rail -------------------------------------------------------- */
+
+.question-player { display: grid; gap: 16px; }
+
+.question-progress { display: grid; gap: 10px; }
+
+.question-progress-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.question-progress-meta strong {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.question-progress-meta .muted {
+  color: var(--soft);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.question-progress-track:has(.question-rail) {
+  height: auto;
+  overflow: visible;
+  background: transparent;
+}
+
+.question-progress-track:has(.question-rail) > span:first-child { display: none; }
+
+/* One mark per question: open, answered right, answered wrong, and the one
+   you are on. Marks share the width, so twelve questions read as twelve and
+   sixty still fit; beyond sixty the continuous bar takes over. */
+.question-rail {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  width: 100%;
+  height: 12px;
+  /* The historical `.question-progress-track span` fill rule reaches this span
+     too; the rail draws only its marks. */
+  border-radius: 0;
+  background: transparent;
+  transform: none;
+  transition: none;
+}
+
+.question-rail i {
+  flex: 1 1 0;
+  min-width: 2px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  transition:
+    height var(--motion-control-duration) var(--ease-spring, ease),
+    background-color var(--motion-control-duration) var(--motion-enter-ease);
+}
+
+.question-rail:has(> i:nth-child(25)) { gap: 2px; }
+
+.question-rail i[data-state="correct"] { background: color-mix(in srgb, var(--success) 70%, var(--surface-3)); }
+.question-rail i[data-state="wrong"] { background: color-mix(in srgb, var(--danger) 72%, var(--surface-3)); }
+
+.question-rail i[data-current] {
+  height: 10px;
+  background: var(--accent);
+}
+
+.question-rail i[data-current][data-state="correct"] { background: var(--success); }
+.question-rail i[data-current][data-state="wrong"] { background: var(--danger); }
+
+/* --- Question card -------------------------------------------------------- */
+
+.question-player-card {
+  display: grid;
+  gap: 16px;
+  padding: clamp(18px, 3vw, 28px);
+  border: 1px solid var(--polish-line);
+  border-radius: var(--radius-xl);
+  background: var(--polish-raised);
+  box-shadow: var(--polish-shadow);
+}
+
+.question-player-card .question-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 20px;
+  color: var(--soft);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+/* Difficulty as a word with a small mark, not a coloured badge. */
+.question-player-card .question-difficulty {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  color: var(--muted);
+  background: transparent;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.02em;
+}
+
+.question-player-card .question-difficulty::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  content: "";
+}
+
+.question-player-card .question-difficulty.is-medium::before { background: var(--warning); }
+.question-player-card .question-difficulty.is-hard::before { background: var(--danger); }
+
+.question-player-card > h2 {
+  max-width: 62ch;
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(1.0625rem, 1rem + 0.4vw, 1.3125rem);
+  font-weight: var(--weight-semibold);
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+  text-wrap: pretty;
+}
+
+.question-player-card .choices {
+  display: grid;
+  gap: 8px;
+}
+
+.question-player-card .choices button {
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--polish-line);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  background: var(--surface-2);
+  font: inherit;
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  line-height: 1.4;
+  text-align: start;
+  box-shadow: none;
+}
+
+.question-player-card .choices button > span[dir] { overflow-wrap: anywhere; }
+
+.question-player-card .choice-prefix {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--muted);
+  background: var(--surface-3);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  transition: background-color var(--motion-micro-duration), color var(--motion-micro-duration);
+}
+
+.question-player-card .choices button > svg { justify-self: end; }
+
+html.ix-hover .question-player-card .choices button:not(:disabled):hover {
+  border-color: var(--border-strong);
+  background: var(--surface-3);
+}
+
+.question-player-card .choices button.selected .choice-prefix {
+  color: var(--on-accent);
+  background: var(--accent);
+}
+
+/* The tap is acknowledged at once, before the server's verdict returns. */
+.question-player-card .choices button.is-pending .choice-prefix {
+  animation: study-pending 900ms ease-in-out infinite;
+}
+
+@keyframes study-pending {
+  50% { opacity: 0.45; }
+}
+
+.question-player-card .save-hint { margin: -6px 0 0; }
+
+/* --- Verdict, integrated into the card ------------------------------------ *
+ * No second box: a hairline, the verdict in one line, and the explanation
+ * disclosed in place beneath it. */
+.question-player-card .answer-note {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 14px 0 0;
+  border: 0;
+  border-top: 1px solid var(--polish-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  animation: study-reveal var(--motion-panel-duration) var(--motion-enter-ease) both;
+  /* Brought into view above the pinned action bar, not underneath it. */
+  scroll-margin-bottom: calc(var(--mobile-bottom-nav-height, 0px) + 84px);
+}
+
+.question-player-card .question-answer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.question-player-card .question-answer-head strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+}
+
+.question-player-card .question-answer-head strong::before {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  content: "";
+}
+
+.question-player-card .answer-note.correct .question-answer-head strong { color: var(--success); }
+.question-player-card .answer-note.correct .question-answer-head strong::before { background: var(--success); }
+.question-player-card .answer-note.wrong .question-answer-head strong { color: var(--danger); }
+.question-player-card .answer-note.wrong .question-answer-head strong::before { background: var(--danger); }
+
+.question-player-card .question-xp-chip {
+  padding: 3px 9px;
+  border-radius: 999px;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+:is(.question-player-card, .review-answer-outcome) .question-explanation-toggle {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  color: var(--accent-text);
+  background: transparent;
+  margin-inline-start: -10px;
+}
+
+html.ix-hover :is(.question-player-card, .review-answer-outcome) .question-explanation-toggle:hover {
+  background: var(--accent-soft);
+}
+
+:is(.question-player-card, .review-answer-outcome) .question-explanation-text {
+  max-width: 62ch;
+  color: var(--text);
+  font-size: var(--text-md);
+  line-height: 1.65;
+  opacity: 0.88;
+}
+
+@keyframes study-reveal {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* --- Moving between questions --------------------------------------------- */
+
+@keyframes study-in-forward {
+  from { opacity: 0; transform: translateX(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes study-in-back {
+  from { opacity: 0; transform: translateX(-14px); }
+  to { opacity: 1; transform: none; }
+}
+
+.question-player[data-travel="forward"] .question-player-card {
+  animation: study-in-forward 260ms var(--motion-enter-ease) both;
+}
+
+.question-player[data-travel="back"] .question-player-card {
+  animation: study-in-back 260ms var(--motion-enter-ease) both;
+}
+
+:root[dir="rtl"] .question-player[data-travel="forward"] .question-player-card { animation-name: study-in-back; }
+:root[dir="rtl"] .question-player[data-travel="back"] .question-player-card { animation-name: study-in-forward; }
+
+/* --- Navigation ----------------------------------------------------------- */
+
+.question-player > .question-player-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.question-player > .question-player-actions .btn { min-width: 132px; }
+.question-player > .question-player-actions .btn-soft:first-child {
+  min-width: 0;
+  border-color: transparent;
+  background: transparent;
+}
+
+html.ix-hover .question-player > .question-player-actions .btn-soft:first-child:not(:disabled):hover {
+  background: var(--surface-3);
+}
+
+/* On the first question there is nowhere to go back to: the control keeps its
+   place (so Next never shifts) but is not drawn. */
+.question-player > .question-player-actions .btn-soft:first-child:disabled { visibility: hidden; }
+
+/* Short landscape: the phone's pinned action bar, compacted, so answering and
+   moving on never needs a scroll on a 390px-tall screen. */
+@media (max-height: 559px) and (orientation: landscape) {
+  .question-player > .question-player-actions {
+    position: sticky;
+    z-index: 4;
+    bottom: calc(var(--mobile-bottom-nav-height, 0px) + 6px);
+    padding: 6px 8px;
+    border: 1px solid var(--polish-line);
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    -webkit-backdrop-filter: saturate(1.4) blur(12px);
+    backdrop-filter: saturate(1.4) blur(12px);
+  }
+
+  .question-player > .question-player-actions .btn { min-height: 44px; }
+  .app-shell.keyboard-open .question-player > .question-player-actions { position: static; }
+  .question-player-card { gap: 12px; padding: 16px 18px; }
+}
+
+/* Keyboard shortcuts: present for those who look, silent for everyone else. */
+.question-keys {
+  display: none;
+  justify-content: center;
+  gap: 16px;
+  margin: 0;
+  color: var(--soft);
+  font-size: var(--text-xs);
+}
+
+.question-keys span { display: inline-flex; align-items: center; gap: 5px; }
+
+.question-keys kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border: 1px solid var(--polish-line);
+  border-radius: 6px;
+  color: var(--muted);
+  background: var(--surface-2);
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+}
+
+@media (hover: hover) and (pointer: fine) and (min-width: 900px) {
+  .question-keys { display: flex; }
+}
+
+/* --- Start and finish ----------------------------------------------------- */
+
+.question-session-intro {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px 16px;
+  padding: 20px;
+  border: 1px solid var(--polish-line);
+  border-radius: var(--radius-xl);
+  background: var(--polish-raised);
+  box-shadow: var(--polish-shadow);
+}
+
+.question-session-intro-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+.question-session-intro h2 { margin: 0; font-size: var(--text-lg); }
+.question-session-intro p { margin: 2px 0 0; color: var(--muted); font-size: var(--text-sm); }
+.question-session-intro > .question-rail { grid-column: 1 / -1; grid-row: 2; }
+.question-session-intro > .btn { grid-column: 3; grid-row: 1; }
+
+@media (max-width: 560px) {
+  .question-session-intro { grid-template-columns: 44px minmax(0, 1fr); }
+  .question-session-intro > .btn { grid-column: 1 / -1; grid-row: auto; width: 100%; }
+}
+
+.question-player-summary {
+  justify-items: center;
+  gap: 10px;
+  padding: clamp(24px, 4vw, 40px) clamp(18px, 3vw, 32px);
+  border: 1px solid var(--polish-line);
+  border-radius: var(--radius-xl);
+  background: var(--polish-raised);
+  text-align: center;
+}
+
+.question-player-summary h2 { margin: 6px 0 0; font-size: var(--text-xl); }
+.question-player-summary > .muted { margin: 0; font-variant-numeric: tabular-nums; }
+.question-player-summary > .question-rail { width: min(100%, 420px); margin-block: 8px 4px; }
+/* The summary ends with its actions in place; it is not the pinned bar the
+   phone gives to the answering screen. */
+.question-player-summary > .question-player-actions {
+  position: static;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin: 6px 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.question-player-summary > .question-player-actions .btn { white-space: nowrap; }
+
+/* Short landscape keeps height for the question: the sheet title steps back
+   to the back link and the progress line. */
+@media (max-height: 559px) and (orientation: landscape) {
+  /* Visually only: it is the page's one <h1>, so it stays in the tree. */
+  .question-session-shell .catalog-directory-title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .question-session-shell { gap: 10px; }
+}
+
+/* The score, drawn once as a ring that fills to the result. */
+.question-score {
+  --score: 0;
+  position: relative;
+  width: 96px;
+  height: 96px;
+  display: grid;
+  place-items: center;
+}
+
+/* The ring is its own layer, so the mask that hollows it out never reaches
+   the number in the middle. */
+.question-score::before {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) calc(var(--score) * 1%), var(--surface-3) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+  content: "";
+}
+
+.question-session-shell .catalog-directory-title p { display: none; }
+
+.question-score strong {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.question-score strong small { color: var(--soft); font-size: var(--text-md); font-weight: var(--weight-medium); }
+
+/* ==========================================================================
+   Sheet entry — the step before studying
+   ========================================================================== */
+
+/* One way back is enough: the back link names the subject, so the breadcrumb
+   trail and the subject subtitle repeated it. */
+.catalog-sheet-entry .catalog-sheet-breadcrumb,
+.catalog-sheet-entry .catalog-directory-title p { display: none; }
+
+.catalog-sheet-entry {
+  width: min(100%, 640px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+}
+
+.catalog-sheet-entry > * { grid-column: 1 / -1; }
+
+.catalog-sheet-entry .catalog-directory-title h1 {
+  font-size: var(--text-2xl);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.catalog-edition-chooser { padding: 0; }
+
+.catalog-edition-options {
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.catalog-edition-offline-row { width: 100%; }
+
+.catalog-edition-offline-row {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--polish-line);
+  border-radius: var(--radius-lg);
+  background: var(--polish-raised);
+  box-shadow: var(--polish-shadow);
+}
+
+/* A version is a destination: the whole row opens it, and the row says so
+   with a solid "Open" rather than a tinted tag. */
+.catalog-edition-offline-row > .catalog-edition-option {
+  min-height: 76px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 0;
+  color: var(--text);
+  background: transparent;
+  box-shadow: none;
+}
+
+.catalog-edition-offline-row > .catalog-edition-option > svg {
+  width: 44px;
+  height: 44px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+.catalog-edition-offline-row > .catalog-edition-option strong { font-size: var(--text-base); font-weight: var(--weight-semibold); }
+.catalog-edition-offline-row > .catalog-edition-option small { color: var(--muted); font-size: var(--text-sm); opacity: 1; }
+
+.catalog-edition-offline-row .catalog-edition-open {
+  min-height: 38px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius-full);
+  color: var(--on-accent);
+  background: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+html.ix-hover .catalog-edition-offline-row > .catalog-edition-option:hover { background: color-mix(in srgb, var(--text) 3%, transparent); }
+html.ix-hover .catalog-edition-offline-row > .catalog-edition-option:hover .catalog-edition-open { background: var(--accent-hover); }
+
+/* Offline is a property of the version, so it sits inside the same card as a
+   quiet footer instead of a stray button underneath it. */
+.catalog-edition-offline-row > .offline-sheet-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--polish-line);
+}
+
+.catalog-edition-offline-row > .offline-sheet-action .btn {
+  min-height: 34px;
+  border-color: transparent;
+  color: var(--muted);
+  background: transparent;
+  font-weight: var(--weight-medium);
+}
+
+html.ix-hover .catalog-edition-offline-row > .offline-sheet-action .btn:not(:disabled):hover { color: var(--text); background: var(--surface-3); }
+
+@media (max-width: 480px) {
+  .catalog-edition-offline-row > .catalog-edition-option { grid-template-columns: 40px minmax(0, 1fr); }
+  .catalog-edition-offline-row .catalog-edition-open { grid-column: 1 / -1; width: 100%; min-height: 44px; }
+}
+
+/* ==========================================================================
+   Review — a recovery workflow
+   ========================================================================== */
+
+/* Hub: one focal block that says how much is waiting and starts on it. */
+.review-bank-entry.has-work {
+  border-color: var(--accent-border);
+  background: color-mix(in srgb, var(--accent) 4%, var(--polish-raised));
+}
+
+.review-bank-entry .review-bank-summary dd {
+  font-size: var(--text-2xl);
+  letter-spacing: -0.02em;
+}
+
+.review-bank-entry .review-bank-summary div:first-child dd { color: var(--accent-text); }
+
+.review-bank-entry-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.review-bank-entry-buttons .btn-primary { flex: 1 1 auto; }
+.review-bank-entry-buttons .btn-soft { border-color: transparent; background: transparent; }
+html.ix-hover .review-bank-entry-buttons .btn-soft:hover { background: var(--surface-3); }
+
+/* One focal block per screen: Weekly Recall is offered, not highlighted. */
+.weekly-recall-entry.is-available {
+  border-color: var(--polish-line);
+  background: var(--polish-raised);
+}
+
+/* Subject rows stay one line at every width: name on one side, count and
+   chevron on the other. */
+.review-subject-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: start;
+}
+
+.review-subject-row > span:first-child { min-width: 0; flex: 1 1 auto; }
+
+/* Session header: count, bar and the way out on one row at every width. */
+.review-session-header,
+.review-session-header > div {
+  text-align: start;
+}
+
+/* The app layer stacks these on phones; this layer keeps them in one row. */
+.review-session-header,
+.review-session-controls {
+  flex-direction: row;
+  align-items: center;
+}
+
+.review-session-header > div {
+  min-width: 0;
+  width: auto;
+}
+
+.review-session-controls .btn { width: auto; }
+
+.review-bank-entry.is-clear .review-feature-icon {
+  color: var(--success);
+  background: var(--success-soft);
+}
+
+/* Subjects: the same grouped list as the catalogue. */
+.review-subject-list,
+.review-bank-subjects {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--polish-line);
+  border-radius: var(--radius-md);
+  background: var(--refine-well, var(--surface-2));
+}
+
+.review-subject-list > .review-subject-row,
+.review-bank-subjects > .review-subject-row {
+  min-height: 58px;
+  margin: 0;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.review-subject-list > .review-subject-row + .review-subject-row,
+.review-bank-subjects > .review-subject-row + .review-subject-row {
+  border-block-start: 1px solid var(--polish-line);
+}
+
+html.ix-hover :is(.review-subject-list, .review-bank-subjects) > .review-subject-row:hover {
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+.review-subject-count { color: var(--muted); font-size: var(--text-sm); font-weight: var(--weight-medium); }
+.review-subject-count svg { color: var(--soft); }
+
+/* Recent mistakes: one scannable row each. */
+.recent-mistake {
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 14px 0;
+}
+
+.recent-mistake-marker {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+
+.recent-mistake-copy { gap: 6px; }
+
+.recent-mistake h3 {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.recent-mistake-answers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
+}
+
+.recent-mistake-answers div {
+  min-width: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.recent-mistake-answers .is-wrong,
+.recent-mistake-answers .is-correct { background: transparent; }
+
+/* The labels stay for assistive technology only. */
+.recent-mistake-answers dt {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.recent-mistake-answers dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.recent-mistake-answers .is-wrong dd {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--danger) 70%, transparent);
+}
+
+.recent-mistake-answers .is-correct dd { color: var(--success); font-weight: var(--weight-semibold); }
+.recent-mistake-arrow { flex: 0 0 auto; color: var(--soft); }
+
+.recent-mistake-source {
+  color: var(--soft);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.recent-mistake-source time { color: inherit; font-size: inherit; font-weight: inherit; }
+
+html.ix-hover a.recent-mistake:hover h3 { color: var(--accent-text); }
+
+/* Session: the question player's language. */
+.review-session-shell {
+  width: min(100%, 720px);
+  max-width: none;
+  display: grid;
+  gap: 16px;
+}
+
+.review-session-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0;
+}
+
+.review-session-header > div {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.review-session-header p { margin: 0; color: var(--muted); font-size: var(--text-sm); }
+
+.review-session-progress { height: 4px; margin: 0; }
+.review-session-progress span { background: var(--accent); }
+
+/* Leaving is available, not advertised. */
+.review-session-header > .btn {
+  flex: 0 0 auto;
+  width: auto;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+html.ix-hover .review-session-header > .btn:hover { color: var(--text); background: var(--surface-3); }
+
+.review-session-question {
+  display: grid;
+  gap: 16px;
+  margin-inline: 0;
+  padding: clamp(18px, 3vw, 28px);
+  border: 1px solid var(--polish-line);
+  border-radius: var(--radius-xl);
+  background: var(--polish-raised);
+  box-shadow: var(--polish-shadow);
+}
+
+.review-question-source {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--soft);
+  font-size: var(--text-xs);
+}
+
+.review-question-source span { font-weight: var(--weight-medium); }
+.review-question-source span::after { content: " · "; }
+.review-question-source strong { color: var(--muted); font-size: var(--text-xs); font-weight: var(--weight-semibold); }
+
+.review-session-question > h2 {
+  margin: 0;
+  font-size: clamp(1.0625rem, 1rem + 0.4vw, 1.3125rem);
+  font-weight: var(--weight-semibold);
+  line-height: 1.45;
+}
+
+.review-choice-list { gap: 8px; margin: 0; }
+
+.review-choice {
+  min-height: 54px;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 12px;
+  border-color: var(--polish-line);
+  background: var(--surface-2);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+}
+
+.review-choice-letter {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  color: var(--muted);
+  background: var(--surface-3);
+  font-size: var(--text-sm);
+}
+
+html.ix-hover .review-choice:not(.is-correct):not(.is-wrong):hover { border-color: var(--border-strong); background: var(--surface-3); }
+
+.review-choice.is-selected { border-color: var(--accent-border); background: var(--accent-soft); }
+.review-choice.is-selected .review-choice-letter { color: var(--on-accent); background: var(--accent); }
+
+.review-choice.is-correct { border-color: color-mix(in srgb, var(--success) 55%, transparent); background: color-mix(in srgb, var(--success) 8%, var(--surface-2)); }
+.review-choice.is-wrong { border-color: color-mix(in srgb, var(--danger) 55%, transparent); background: color-mix(in srgb, var(--danger) 7%, var(--surface-2)); }
+.review-choice.is-correct .review-choice-letter { color: #fff; background: var(--success); }
+.review-choice.is-wrong .review-choice-letter { color: #fff; background: var(--danger); }
+
+/* The verdict word sits at the row's end, small, beside its icon. */
+.review-choice-state { font-size: var(--text-xs); font-weight: var(--weight-semibold); }
+
+.review-choice-list:disabled .review-choice:not(.is-correct):not(.is-wrong) { opacity: 0.5; }
+
+.review-submit-answer { margin: 0; justify-self: stretch; }
+
+.review-answer-outcome,
+.review-answer-outcome.is-correct,
+.review-answer-outcome.is-incorrect {
+  margin: 0;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--polish-line);
+  border-radius: 0;
+  background: transparent;
+  animation: study-reveal var(--motion-panel-duration) var(--motion-enter-ease) both;
+}
+
+.review-answer-outcome > svg { flex: 0 0 auto; margin-top: 2px; }
+.review-answer-outcome strong { font-size: var(--text-base); font-weight: var(--weight-semibold); }
+.review-answer-outcome p { color: var(--muted); }
+
+.review-session-controls { padding: 0; }
+.review-session-controls p { margin: 0 auto 0 0; }
+:root[dir="rtl"] .review-session-controls p { margin: 0 0 0 auto; }
+
+.review-session-complete > span {
+  border-radius: 50%;
+}
+
+.weekly-recall-entry > .pill { align-self: flex-start; width: auto; }
+
+@media (max-width: 720px) {
+  /* The verdict above already says it; the pinned bar keeps its button. */
+  .review-session-controls p {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .review-session-controls .btn { flex: 1 1 auto; }
+
+  .review-session-controls {
+    position: sticky;
+    z-index: 4;
+    bottom: calc(var(--mobile-bottom-nav-height, 0px) + 6px);
+    padding: 8px 8px 8px 14px;
+    border: 1px solid var(--polish-line);
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    -webkit-backdrop-filter: saturate(1.4) blur(12px);
+    backdrop-filter: saturate(1.4) blur(12px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .review-answer-outcome { animation: none; }
+  .question-player-card,
+  .question-player-card .answer-note,
+  .question-player-card .choices button.is-pending .choice-prefix { animation: none; }
+  .question-rail i { transition: none; }
+}
+
+}
+
+@layer interaction {
+  /* Graded: the verdict tints only the rows that carry it, and gently. The
+     correct answer and a wrong pick each get a low-strength fill, a coloured
+     edge and an icon; untouched options step back. */
+  .question-player .question-player-card .choices button.correct:disabled {
+    opacity: 1;
+    color: var(--text);
+    border-color: color-mix(in srgb, var(--success) 55%, transparent);
+    background-color: color-mix(in srgb, var(--success) 8%, var(--surface-2));
+  }
+
+  .question-player .question-player-card .choices button.wrong:disabled {
+    opacity: 1;
+    color: var(--text);
+    border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+    background-color: color-mix(in srgb, var(--danger) 7%, var(--surface-2));
+  }
+
+  .question-player .question-player-card .choices button.correct .choice-prefix { color: #fff; background: var(--success); }
+  .question-player .question-player-card .choices button.wrong .choice-prefix { color: #fff; background: var(--danger); }
+  .question-player .question-player-card .choices button.correct > svg { color: var(--success); }
+  .question-player .question-player-card .choices button.wrong > svg { color: var(--danger); }
+
+  .question-player .question-player-card .choices button:disabled:not(.correct):not(.wrong):not(.selected) {
+    opacity: 0.5;
+  }
+
+  /* While the verdict is in flight the chosen row stays at full strength. */
+  .question-player .question-player-card .choices button.selected:disabled {
+    opacity: 1;
+    border-color: var(--accent-border);
+    background-color: var(--accent-soft);
+  }
+}

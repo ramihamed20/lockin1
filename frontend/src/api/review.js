@@ -1,4 +1,19 @@
 import { ApiError, request } from "./client.js";
+import { resolveReviewData, resolveContent } from "../offline/resolver.js";
+
+function reviewRead(path, userId, key) {
+  return resolveReviewData(userId, key, () => request(path));
+}
+
+/**
+ * Answers try the server first; a lost connection queues them on the device
+ * under the same idempotency key, so an answer the server did receive is
+ * never counted twice.
+ */
+async function reviewWrite(userId, online, offline) {
+  const { currentOfflineUserId } = await import("../offline/profile.js");
+  return resolveContent(userId || currentOfflineUserId(), online, offline);
+}
 
 function objectPayload(payload, message) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
@@ -7,11 +22,16 @@ function objectPayload(payload, message) {
   return /** @type {Record<string, any>} */ (payload);
 }
 
+async function offlineReview(userId) {
+  const [review, { currentOfflineUserId }] = await Promise.all([import("../offline/review.js"), import("../offline/profile.js")]);
+  return { ...review, currentOwner: userId || currentOfflineUserId() };
+}
+
 /** Central Review Bank, mistake events, and Weekly Recall API. */
 export const reviewApi = {
-  async getQueue() {
+  async getQueue(userId = "") {
     const payload = objectPayload(
-      await request("/review-queue"),
+      await reviewRead("/review-queue", userId, "queue"),
       "The recent-mistakes response was incomplete."
     );
     if (!Array.isArray(payload.results) || typeof payload.count !== "number") {
@@ -20,9 +40,9 @@ export const reviewApi = {
     return payload;
   },
 
-  async getBank() {
+  async getBank(userId = "") {
     const payload = objectPayload(
-      await request("/review-bank"),
+      await reviewRead("/review-bank", userId, "bank"),
       "The Review Bank response was incomplete."
     );
     if (!Array.isArray(payload.subjects) || typeof payload.active_count !== "number") {
@@ -31,9 +51,9 @@ export const reviewApi = {
     return payload;
   },
 
-  async getSubject(subjectKey) {
+  async getSubject(subjectKey, userId = "") {
     const payload = objectPayload(
-      await request(`/review-bank/subjects/${encodeURIComponent(subjectKey)}`),
+      await reviewRead(`/review-bank/subjects/${encodeURIComponent(subjectKey)}`, userId, `subject:${subjectKey}`),
       "The subject review response was incomplete."
     );
     if (!Array.isArray(payload.results) || typeof payload.count !== "number") {
@@ -42,14 +62,17 @@ export const reviewApi = {
     return payload;
   },
 
-  async answerItem(itemId, { selectedOptionIds, idempotencyKey }) {
+  async answerItem(itemId, { selectedOptionIds, idempotencyKey, userId = "" }) {
     return objectPayload(
-      await request(`/review-bank/items/${itemId}/answer`, {
+      await reviewWrite(userId, () => request(`/review-bank/items/${itemId}/answer`, {
         method: "POST",
         body: {
           selected_option_ids: selectedOptionIds,
           idempotency_key: idempotencyKey
         }
+      }), async () => {
+        const { answerReviewItemOffline, currentOwner } = await offlineReview(userId);
+        return answerReviewItemOffline(currentOwner, itemId, { selectedOptionIds, idempotencyKey });
       }),
       "The review answer response was incomplete."
     );
@@ -79,9 +102,9 @@ export const reviewApi = {
     );
   },
 
-  async getWeeklyRecall() {
+  async getWeeklyRecall(userId = "") {
     return objectPayload(
-      await request("/weekly-recall"),
+      await reviewRead("/weekly-recall", userId, "weekly"),
       "The Weekly Recall response was incomplete."
     );
   },
@@ -93,14 +116,17 @@ export const reviewApi = {
     );
   },
 
-  async answerWeeklyRecall(sessionId, questionId, { selectedOptionIds, idempotencyKey }) {
+  async answerWeeklyRecall(sessionId, questionId, { selectedOptionIds, idempotencyKey, userId = "" }) {
     return objectPayload(
-      await request(`/weekly-recall/${sessionId}/questions/${questionId}/answer`, {
+      await reviewWrite(userId, () => request(`/weekly-recall/${sessionId}/questions/${questionId}/answer`, {
         method: "POST",
         body: {
           selected_option_ids: selectedOptionIds,
           idempotency_key: idempotencyKey
         }
+      }), async () => {
+        const { answerWeeklyRecallOffline, currentOwner } = await offlineReview(userId);
+        return answerWeeklyRecallOffline(currentOwner, sessionId, questionId, { selectedOptionIds, idempotencyKey });
       }),
       "The Weekly Recall answer response was incomplete."
     );

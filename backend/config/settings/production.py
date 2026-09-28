@@ -15,6 +15,7 @@ from .env import env, env_bool, env_int, env_list, require_env, require_secret_e
 DEBUG = False
 ENVIRONMENT = "production"
 SECRET_KEY = require_secret_env("DJANGO_SECRET_KEY")
+OFFLINE_LEASE_ED25519_PRIVATE_KEY = require_secret_env("OFFLINE_LEASE_ED25519_PRIVATE_KEY")
 if len(SECRET_KEY) < 50 or SECRET_KEY.startswith(("unsafe-", "replace-", "test-")):
     raise ImproperlyConfigured("DJANGO_SECRET_KEY must be a strong production-only secret.")
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS")

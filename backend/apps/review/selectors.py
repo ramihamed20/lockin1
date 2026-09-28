@@ -39,6 +39,22 @@ def active_review_items(*, user: User, subject_key: str) -> QuerySet[ReviewItem]
     )
 
 
+def all_active_review_items(*, user: User) -> QuerySet[ReviewItem]:
+    """Every active item, in the order each subject's review session uses."""
+
+    return (
+        ReviewItem.objects.filter(user=user, state=ReviewItem.State.ACTIVE)
+        .select_related("subject")
+        .order_by(
+            "subject_key",
+            "-mistake_count",
+            "-review_incorrect_count",
+            "last_mistake_at",
+            "canonical_key",
+        )
+    )
+
+
 def review_bank_overview(*, user: User, now: datetime | None = None) -> dict[str, object]:
     checked_at = now or timezone.now()
     active = ReviewItem.objects.filter(user=user, state=ReviewItem.State.ACTIVE)

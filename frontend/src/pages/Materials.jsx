@@ -8,6 +8,7 @@ import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/ind
 import { CatalogSheetCard } from "../components/learning/CatalogSheetCard.jsx";
 import { CatalogTile } from "../components/learning/CatalogTile.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
+import OfflineSheetAction from "../offline/OfflineSheetAction.jsx";
 
 export default function Materials({ user = null }) {
   const { t } = useI18n();
@@ -117,7 +118,7 @@ export function CatalogSheetStudy({ user = null }) {
           backLabel={material.title}
           breadcrumb={<nav className="catalog-sheet-breadcrumb" aria-label={t("materials.breadcrumbs")}><Link to="/materials">{t("route.materials")}</Link><Icon name="chevron-right" size={14} aria-hidden="true" /><Link to={`/materials/catalog/${material.slug}`} dir="auto">{material.title}</Link><Icon name="chevron-right" size={14} aria-hidden="true" /><span dir="auto" aria-current="page">{sheet.title}</span></nav>}
         />
-        <SheetEditionChooser material={material} editions={editions} navigationState={navigationState} />
+        <SheetEditionChooser material={material} editions={editions} navigationState={navigationState} userId={user?.id || ""} />
         {edition.summaryPdf?.viewUrl && <section className="catalog-sheet-section" aria-labelledby="catalog-resources-heading">
           <div className="catalog-sheet-section-heading"><h2 id="catalog-resources-heading">{t("materials.resourcesSection")}</h2></div>
           <div className="catalog-action-list"><Link className="catalog-action-row" to={`/materials/catalog/${material.slug}/sheets/${edition.slug}/summary`}><span className="catalog-action-icon"><Icon name="file" size={20} /></span><span><strong>{t("materials.sheetSummary")}</strong><small>{t("materials.summaryDescription")}</small></span><Icon name="chevron-right" size={18} aria-hidden="true" /></Link></div>
@@ -128,17 +129,18 @@ export function CatalogSheetStudy({ user = null }) {
 }
 
 /** Each available edition opens its Focus Workspace directly. */
-function SheetEditionChooser({ material, editions, navigationState }) {
+function SheetEditionChooser({ material, editions, navigationState, userId }) {
   const { t } = useI18n();
   if (!editions.length) return null;
   return (
-    <section className="catalog-edition-chooser" aria-label={t("materials.editionLabel")}>
-      <div className="catalog-sheet-section-heading"><h2>{t("materials.editionLabel")}</h2></div>
+    <section className={`catalog-edition-chooser ${editions.length > 1 ? "has-choice" : "is-single"}`} aria-label={t("materials.editionLabel")}>
+      {/* "Choose" is only printed when there is a choice to make. */}
+      {editions.length > 1 && <div className="catalog-sheet-section-heading"><h2>{t("materials.editionLabel")}</h2></div>}
       <div className="catalog-edition-options" role="group">
         {editions.map((item) => {
           return (
+            <div key={item.edition} className="catalog-edition-offline-row">
             <Link
-              key={item.edition}
               className="catalog-edition-option"
               to={`/materials/catalog/${material.slug}/sheets/${item.slug}/workspace`}
               state={{ ...navigationState, studyMode: "normal" }}
@@ -150,6 +152,8 @@ function SheetEditionChooser({ material, editions, navigationState }) {
               </span>
               <span className="catalog-edition-open">{t("common.open")}</span>
             </Link>
+            <OfflineSheetAction userId={userId} materialSlug={material.slug} sheetSlug={item.slug} edition={item.edition} />
+            </div>
           );
         })}
       </div>

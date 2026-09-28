@@ -1639,3 +1639,66 @@ html.ix-hover .workspace-v2-action-popover .workspace-v3-menu-grid > button:not(
   .workspace-v2-quiz-dialog > main { animation: none !important; }
   .workspace-v2-quiz-progress span { transition: none; }
 }
+
+/* Study mode chooser — presentation only (2026-09-28 interaction pass).
+   One accent per decision: the Start button carries it, so the Active Study
+   card drops its gold frame, and difficulty reads as a segmented control with
+   a raised thumb instead of three separately boxed buttons. Behaviour, labels
+   and the radiogroup semantics are unchanged. */
+.workspace-v2-mode-card.is-active-study { border-color: var(--workspace-control-border); }
+.workspace-v2-difficulty {
+  gap: 2px;
+  padding: 3px;
+  border-radius: 11px;
+  background: var(--workspace-control-bg);
+  box-shadow: inset 0 0 0 1px var(--workspace-control-border);
+}
+.workspace-v2-difficulty button {
+  min-height: 38px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-size: .75rem;
+  font-weight: 650;
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.workspace-v2-difficulty button:hover:not(.is-selected) { color: var(--workspace-chrome-text); }
+.workspace-v2-difficulty button.is-selected {
+  color: var(--workspace-chrome-text);
+  border: 0;
+  background: var(--workspace-panel-2);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.28), inset 0 0 0 1px var(--accent-border);
+}
+@media (pointer: coarse) {
+  .workspace-v2-difficulty button { min-height: 44px; }
+}
+
+/* Checkpoint and final exam — presentation only (2026-09-28 interaction pass).
+   The question no longer sits in a framed card inside the framed dialog: the
+   dialog is the surface, the prompt leads, and answers read at body size in
+   the same row language as the sheet question player. Order, gating, drafts,
+   exit confirmation and submission are untouched. */
+.workspace-v2-quiz-dialog > main {
+  margin: 0;
+  padding: clamp(18px, 3.5vw, 30px) clamp(18px, 3.5vw, 32px) clamp(20px, 3vw, 28px);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.workspace-v2-quiz-dialog h2 { margin: 8px 0 20px; font-size: clamp(1.125rem, 2.4vw, 1.4rem); font-weight: 650; line-height: 1.42; }
+.workspace-v2-answer-list button {
+  min-height: 54px;
+  gap: 12px;
+  padding: 10px 14px;
+  font-size: .9375rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.workspace-v2-answer-list button > span { width: 30px; height: 30px; border-radius: 9px; font-size: .75rem; }
+.workspace-v2-answer-list button.is-selected { border-color: color-mix(in srgb, var(--workspace-gold) 70%, transparent); background: color-mix(in srgb, var(--workspace-gold) 10%, var(--workspace-control-bg)); }
+.workspace-v2-quiz-dialog > header span { color: var(--workspace-chrome-secondary); letter-spacing: .06em; }
+.workspace-v2-quiz-dialog > header strong { color: var(--workspace-chrome-text); font-size: .8rem; font-weight: 600; }
+@media (max-width: 640px) {
+  .workspace-v2-quiz-dialog > main { margin: 0; padding: 18px 16px 20px; }
+  .workspace-v2-answer-list button { min-height: 56px; }
+}

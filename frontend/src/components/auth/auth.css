@@ -241,7 +241,7 @@
 .auth-v2 input[aria-invalid="true"]:not([type="checkbox"]):focus,
 .auth-v2 select[aria-invalid="true"]:focus { border-color: #ff9c94; box-shadow: 0 0 0 3px rgba(224, 106, 99, .22); }
 .auth-v2 input[type="checkbox"][aria-invalid="true"] { outline: 2px solid #e06a63; outline-offset: 3px; }
-.auth-v2 .form-hint.danger::before { content: "!"; display: inline-grid; place-items: center; width: 14px; height: 14px; margin-inline-end: 6px; border-radius: 50%; color: #2b1820; background: #ff9c94; font-size: 10px; font-weight: 800; vertical-align: -2px; }
+.auth-v2 .form-hint.danger::before { content: "!"; display: inline-grid; place-items: center; width: 14px; height: 14px; margin-inline-end: 6px; border-radius: 50%; color: #2b1820; background: #ff9c94; font-size: 10px; font-weight: 700; vertical-align: -2px; }
 
 .auth-v2-inline-hint { margin: -4px 0 0; color: var(--auth-muted); font-size: 12px; line-height: 1.5; }
 .auth-v2-inline-hint button { min-height: 32px; padding: 0 2px; border: 0; color: var(--auth-gold); background: transparent; font: 650 12px/1.4 inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }

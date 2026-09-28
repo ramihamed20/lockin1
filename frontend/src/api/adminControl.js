@@ -122,6 +122,17 @@ export const adminControlApi = {
   saveActiveStudyQuestions(sheetId, difficulty, body, edition = "") {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study/questions/${difficulty}` + buildQueryString({ edition }), { method: "PUT", body });
   },
+  // All Questions: one prompt and one JSON for every question bank of a sheet.
+  // Large documents take longer than the default ceiling to validate and save.
+  allQuestionsContext(sheetId, edition = "", exclusions = {}) {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/all-questions` + buildQueryString({ edition, excluded_start_pages: exclusions.excluded_start_pages, excluded_end_pages: exclusions.excluded_end_pages }));
+  },
+  validateAllQuestions(sheetId, body, edition = "") {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/all-questions/validate` + buildQueryString({ edition }), { method: "POST", body, timeoutMs: 120_000 });
+  },
+  saveAllQuestions(sheetId, body, edition = "") {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/all-questions` + buildQueryString({ edition }), { method: "PUT", body, timeoutMs: 180_000 });
+  },
   deleteActiveStudyQuestions(sheetId, difficulty, expectedRevision, edition = "") {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study/questions/${difficulty}` + buildQueryString({ edition }), { method: "DELETE", body: { expected_revision: Number(expectedRevision) } });
   },

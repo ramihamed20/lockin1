@@ -25,6 +25,7 @@ import { GlobalSearch } from "../search/GlobalSearch.jsx";
 import { LockinIcon } from "../../lib/lockinIcons.jsx";
 import { getFeatureForNavigationPath, isFeatureComingSoon } from "../../lib/featureAvailability.js";
 import { acquireBodyScrollLock } from "../../lib/bodyScrollLock.js";
+import { useGlide, usePresence } from "../../lib/motion.js";
 import { STUDIO_AREAS, STUDIO_GROUPS, STUDIO_PRIMARY_AREAS, isStudioRoute, studioAreaFromPath } from "../../lib/studioAreas.js";
 
 // --- Brand ---
@@ -71,6 +72,7 @@ export function NavList({ tabIndex = undefined, onNavigate = undefined, user, op
   const location = useLocation();
   const { t } = useI18n();
   const scrollRef = useScrollOverflow();
+  useGlide(scrollRef, "[aria-current='page']", location.pathname);
   const visibleItems = [...navItems, ...roleNavigationItems(user, operationsSession)];
   let currentGroup = "";
   return (
@@ -316,6 +318,8 @@ export function Sidebar({ user, operationsSession, studio = false, inert = false
 export function BottomNav({ onMore, menuOpen, inert = false, studio = false, operationsSession = null }) {
   const location = useLocation();
   const { t } = useI18n();
+  const navRef = useRef(null);
+  useGlide(navRef, "[aria-current='page']", location.pathname);
   const studioItems = studio
     ? STUDIO_PRIMARY_AREAS
       .map((key) => studioAreasFor(operationsSession).find(([areaKey]) => areaKey === key))
@@ -324,7 +328,7 @@ export function BottomNav({ onMore, menuOpen, inert = false, studio = false, ope
     : null;
   const items = studioItems || navItems.filter((item) => ["/", "/materials", "/questions", "/review"].includes(item.path));
   return (
-    <nav className="bottom-nav" aria-label={t("shell.mobileNavigation")} inert={inert ? "" : undefined} aria-hidden={inert || undefined}>
+    <nav className="bottom-nav" ref={navRef} aria-label={t("shell.mobileNavigation")} inert={inert ? "" : undefined} aria-hidden={inert || undefined}>
       {items.map((item) => {
         const active = isNavigationItemActive(location.pathname, item.path);
         return (
@@ -344,6 +348,66 @@ export function BottomNav({ onMore, menuOpen, inert = false, studio = false, ope
 
 // --- Topbar ---
 
+/**
+ * The large-title pattern. A page that shows its own visible <h1> owns its
+ * title while that heading is on screen; the bar's small title fades in only
+ * once the heading has scrolled up under the bar, so the name is never printed
+ * twice. The bar's hairline likewise appears only once content scrolls beneath
+ * it. Both are published as attributes on the bar and drawn by CSS.
+ */
+function useLargeTitle(topbarRef, pathname) {
+  useEffect(() => {
+    const bar = topbarRef.current;
+    const main = document.getElementById("main-content");
+    if (!bar || !main) return undefined;
+    let intersection = null;
+    let observed = null;
+    let frame = 0;
+
+    const publishScroll = () => {
+      frame = 0;
+      const scrolled = main.scrollTop > 2 || window.scrollY > 2;
+      bar.toggleAttribute("data-scrolled", scrolled);
+    };
+    const onScroll = () => {
+      if (!frame) frame = window.requestAnimationFrame(publishScroll);
+    };
+
+    const watchHeading = () => {
+      const heading = [...main.querySelectorAll("h1")].find((node) => !node.classList.contains("visually-hidden") && node.getClientRects().length > 0);
+      if (heading === observed) return;
+      intersection?.disconnect();
+      observed = heading || null;
+      if (!heading || !window.IntersectionObserver) {
+        bar.removeAttribute("data-large-title");
+        return;
+      }
+      const inset = Math.round(bar.getBoundingClientRect().bottom);
+      intersection = new window.IntersectionObserver(([entry]) => {
+        bar.setAttribute("data-large-title", entry.isIntersecting ? "visible" : "scrolled");
+      }, { rootMargin: `-${inset}px 0px 0px 0px` });
+      intersection.observe(heading);
+    };
+
+    // Pages render their heading after their data arrives.
+    const mutations = new window.MutationObserver(watchHeading);
+    mutations.observe(main, { childList: true, subtree: true });
+    watchHeading();
+    publishScroll();
+    main.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      mutations.disconnect();
+      intersection?.disconnect();
+      window.cancelAnimationFrame(frame);
+      main.removeEventListener("scroll", onScroll);
+      window.removeEventListener("scroll", onScroll);
+      bar.removeAttribute("data-large-title");
+      bar.removeAttribute("data-scrolled");
+    };
+  }, [pathname, topbarRef]);
+}
+
 export function Topbar({ user, operationsSession = null, theme, onThemeChange, onLogout, onMenu, menuOpen, menuButtonRef, onDropdownOpenChange, notificationVersion, onNotificationsChanged, storeCartCount = 0, lockBalance = 0, storeCommerceEnabled = false }) {
   const { t, locale } = useI18n();
   const [profileMenuState, setProfileMenuState] = useState("closed");
@@ -356,6 +420,8 @@ export function Topbar({ user, operationsSession = null, theme, onThemeChange, o
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationError, setNotificationError] = useState("");
   const [notificationBusy, setNotificationBusy] = useState("");
+  // The panel plays its exit before unmounting, the way it arrived.
+  const notificationsPresence = usePresence(notificationsOpen, 150);
   const topbarRef = useRef(null);
   const profileMenuRef = useRef(null);
   const profileButtonRef = useRef(null);
@@ -458,6 +524,8 @@ export function Topbar({ user, operationsSession = null, theme, onThemeChange, o
       window.removeEventListener("orientationchange", publish);
     };
   }, []);
+
+  useLargeTitle(topbarRef, location.pathname);
 
   useEffect(() => {
     if (!profileMenuOpen) return undefined;
@@ -830,8 +898,8 @@ export function Topbar({ user, operationsSession = null, theme, onThemeChange, o
           <Icon name="bell" />
           {unreadCount > 0 && <span className="dot" />}
         </button>
-        {notificationsOpen && (
-          <section className="notifications-dropdown" id="notifications-menu" aria-label={t("common.notifications")}>
+        {notificationsPresence.mounted && (
+          <section className={`notifications-dropdown ${notificationsPresence.closing ? "is-closing" : ""}`.trim()} id="notifications-menu" aria-label={t("common.notifications")} inert={notificationsPresence.closing ? "" : undefined}>
             <div className="notifications-header">
               <div><p>{t("common.inbox")}</p><h3>{t("common.notifications")}</h3></div>
               {unreadCount > 0 && <button className="text-link" type="button" onClick={() => { void handleMarkAllRead(); }} disabled={notificationBusy === "all"}>{notificationBusy === "all" ? t("common.opening") : t("common.markAllRead")}</button>}

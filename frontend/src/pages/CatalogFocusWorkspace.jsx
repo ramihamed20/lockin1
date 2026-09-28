@@ -187,6 +187,8 @@ import { useI18n } from "../components/I18nProvider.jsx";
 import { CheckpointExitDialog, CheckpointRestartDialog } from "../components/shared/CheckpointExitDialog.jsx";
 import { QuestionExplanation } from "../components/shared/QuestionExplanation.jsx";
 import { useExitGuard } from "../hooks/useExitGuard.js";
+import { acknowledgeFocusDocument, markFocusDocumentDirty, registerOpenFocusDocument } from "../offline/focusSync.js";
+import { readActiveStudyRun } from "../offline/activeStudy.js";
 import "./catalog-focus-workspace.css";
 import "./focus-workspace-glass.css";
 
@@ -705,9 +707,9 @@ function ActiveStudyQuiz({ quiz, answers, setAnswers, result, busy, onSubmit, on
     const missed = (result.review || []).filter((item) => !item.correct && item.explanation);
     return <div className="workspace-v2-quiz-backdrop"><section ref={dialogRef} className={`workspace-v2-quiz-result is-${result.outcome}`} role="dialog" aria-modal="true" aria-labelledby="active-result-title" tabIndex={-1}>
       <span className="workspace-v2-result-icon">{passed ? <Trophy size={30} /> : advisory ? <Sparkles size={30} /> : <RotateCcw size={30} />}</span>
-      <p>{isFinal ? "Final assessment" : "Checkpoint result"}</p>
+      <p>{t(isFinal ? "activeStudy.finalAssessment" : "activeStudy.checkpointResult")}</p>
       <h2 id="active-result-title">{result.score} / {result.total}</h2>
-      <strong>{passed ? (isFinal ? "Sheet completed" : "Next pages unlocked") : advisory ? "You can continue, but a retake is recommended" : "Review these pages before trying again"}</strong>
+      <strong>{t(passed ? (isFinal ? "activeStudy.sheetCompleted" : "activeStudy.nextUnlocked") : advisory ? "activeStudy.advisory" : "activeStudy.reviewPages")}</strong>
       {result.xp_awarded > 0 && <span className="workspace-v2-xp-award">+{result.xp_awarded} XP</span>}
       {missed.length > 0 && <ol className="workspace-v2-result-review" aria-label={t("question.reviewMissed")}>
         {missed.map((item) => <li key={item.position}>
@@ -716,28 +718,28 @@ function ActiveStudyQuiz({ quiz, answers, setAnswers, result, busy, onSubmit, on
         </li>)}
       </ol>}
       <div className="workspace-v2-result-actions">
-        {passed && <button type="button" className="is-primary" onClick={onDismiss}>{isFinal ? "Finish" : "Continue studying"}</button>}
-        {advisory && <button type="button" className="is-primary" onClick={onContinue} disabled={busy}>Continue anyway</button>}
-        {!passed && <button type="button" onClick={onRetake} disabled={busy}><RotateCcw size={16} />{isFinal ? "Retry final exam" : "Study this part again"}</button>}
-        {!passed && <button type="button" onClick={onDismiss}>Return to pages</button>}
+        {passed && <button type="button" className="is-primary" onClick={onDismiss}>{t(isFinal ? "activeStudy.finish" : "activeStudy.continueStudying")}</button>}
+        {advisory && <button type="button" className="is-primary" onClick={onContinue} disabled={busy}>{t("activeStudy.continueAnyway")}</button>}
+        {!passed && <button type="button" onClick={onRetake} disabled={busy}><RotateCcw size={16} />{t(isFinal ? "activeStudy.retryFinal" : "activeStudy.studyPartAgain")}</button>}
+        {!passed && <button type="button" onClick={onDismiss}>{t("activeStudy.returnToPages")}</button>}
       </div>
     </section></div>;
   }
   return (
     <div className="workspace-v2-quiz-backdrop">
       <section ref={dialogRef} className="workspace-v2-quiz-dialog" role="dialog" aria-modal="true" aria-labelledby="active-question-title" tabIndex={-1}>
-        <header><div><span>{isFinal ? "Final assessment" : `Pages ${quiz.run.current_page_range.start_page}–${quiz.run.current_page_range.end_page}`}</span><strong>{answered} of {quiz.questions.length} answered</strong></div><button type="button" className="workspace-v2-quiz-restart" onClick={() => setConfirming("restart")} disabled={busy}><RotateCcw size={15} />{t("checkpoint.restart")}</button><button type="button" onClick={requestExit} aria-label="Close test"><X size={19} /></button></header>
+        <header><div><span>{isFinal ? t("activeStudy.finalAssessment") : t("activeStudy.pageRange", { start: quiz.run.current_page_range.start_page, end: quiz.run.current_page_range.end_page })}</span><strong>{t("activeStudy.answeredOf", { answered, total: quiz.questions.length })}</strong></div><button type="button" className="workspace-v2-quiz-restart" onClick={() => setConfirming("restart")} disabled={busy}><RotateCcw size={15} />{t("checkpoint.restart")}</button><button type="button" onClick={requestExit} aria-label={t("activeStudy.closeTest")}><X size={19} /></button></header>
         <div className="workspace-v2-quiz-progress"><span style={{ width: `${((index + 1) / quiz.questions.length) * 100}%` }} /></div>
         <main key={index} data-question-direction={questionDirection}>
-          <span className="workspace-v2-question-number">Question {index + 1} of {quiz.questions.length}</span>
+          <span className="workspace-v2-question-number">{t("activeStudy.questionOf", { index: index + 1, total: quiz.questions.length })}</span>
           <h2 id="active-question-title">{question.prompt}</h2>
-          <div className="workspace-v2-answer-list" role="radiogroup" aria-label={`Answers for question ${index + 1}`}>
+          <div className="workspace-v2-answer-list" role="radiogroup" aria-label={t("activeStudy.answersFor", { index: index + 1 })}>
             {question.options.map((option, optionIndex) => <button key={option.id} type="button" role="radio" aria-checked={answers[question.id] === option.id} className={answers[question.id] === option.id ? "is-selected" : ""} onClick={() => setAnswers((current) => ({ ...current, [question.id]: option.id }))}><span>{String.fromCharCode(65 + optionIndex)}</span>{option.text}{answers[question.id] === option.id && <CheckCircle2 size={18} />}</button>)}
           </div>
         </main>
         <footer>
-          <button type="button" onClick={() => { setQuestionDirection("previous"); setIndex((value) => Math.max(0, value - 1)); }} disabled={index === 0}><ChevronLeft size={17} />Previous</button>
-          {index < quiz.questions.length - 1 ? <button type="button" className="is-primary" onClick={() => { setQuestionDirection("next"); setIndex((value) => value + 1); }} disabled={!answers[question.id]}>Next<ChevronRight size={17} /></button> : <button type="button" className="is-primary" onClick={onSubmit} disabled={busy || answered !== quiz.questions.length}>{busy ? "Checking…" : "Submit test"}</button>}
+          <button type="button" onClick={() => { setQuestionDirection("previous"); setIndex((value) => Math.max(0, value - 1)); }} disabled={index === 0}><ChevronLeft size={17} />{t("activeStudy.previous")}</button>
+          {index < quiz.questions.length - 1 ? <button type="button" className="is-primary" onClick={() => { setQuestionDirection("next"); setIndex((value) => value + 1); }} disabled={!answers[question.id]}>{t("activeStudy.next")}<ChevronRight size={17} /></button> : <button type="button" className="is-primary" onClick={onSubmit} disabled={busy || answered !== quiz.questions.length}>{t(busy ? "activeStudy.checking" : "activeStudy.submitTest")}</button>}
         </footer>
       </section>
       <CheckpointExitDialog open={confirming === "exit"} busy={busy} onSave={exitAndSave} onDiscard={() => onDiscard(() => setConfirming(""))} onCancel={() => setConfirming("")} />
@@ -903,6 +905,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   // Server mirror of the local store (see catalogServerSync.js).
   const serverSyncRef = useRef(null);
   const serverSyncTimerRef = useRef(null);
+  // What the shared offline queue needs to sync this document without the reader.
+  const focusDescriptorRef = useRef(null);
+  const pageCountRef = useRef(0);
   const serverLoadStartedRef = useRef(null);
   const backupInputRef = useRef(null);
   if (annotationStoreRef.current === null) annotationStoreRef.current = createAnnotationStore();
@@ -1176,6 +1181,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const [activeQuiz, setActiveQuiz] = useState(null);
   const [activeAnswers, setActiveAnswers] = useState({});
   const [activeResult, setActiveResult] = useState(null);
+  const activeStudyRef = useRef(null);
+  const activeQuizOpenRef = useRef(false);
   const viewPositionRef = useRef({ left: 0, top: 0, pageOffset: 0 });
   const measureViewPositionRef = useRef(null);
   const pageOffsetStaleRef = useRef(false);
@@ -1195,6 +1202,27 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   // live readiness request is in flight. Starting itself remains server-owned.
   const activeStudyReady = selectedActiveStudyAvailability?.status === "ready"
     || (activeStudyAvailability === null && Boolean(sheet?.hasActiveStudy));
+
+  useEffect(() => {
+    if (!user?.id) return undefined;
+    const refresh = (event) => {
+      if (event.detail?.userId !== String(user.id) || event.detail.state !== "synced") return;
+      const current = activeStudyRef.current;
+      if (!current?.id || activeQuizOpenRef.current) return;
+      void readActiveStudyRun(String(user.id), current.id).then((run) => {
+        if (!run || activeStudyRef.current?.id !== current.id || activeQuizOpenRef.current) return;
+        // Same part and stage keep the reader exactly where it is; only the
+        // authoritative fields (XP, attempts, completion) are refreshed.
+        setActiveStudy((previous) => previous?.id === current.id ? { ...run, id: previous.id } : previous);
+      }).catch(() => undefined);
+    };
+    window.addEventListener("lock-in:offline-sync", refresh);
+    return () => window.removeEventListener("lock-in:offline-sync", refresh);
+  }, [user?.id]);
+  useEffect(() => {
+    activeStudyRef.current = activeStudy;
+    activeQuizOpenRef.current = Boolean(activeQuiz);
+  }, [activeStudy, activeQuiz]);
 
   useEffect(() => {
     if (summaryMode || !modeDialogOpen || !sheet?.learningObjectId) return undefined;
@@ -1985,14 +2013,28 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       serverSyncTimerRef.current = null;
       const sync = serverSyncRef.current;
       if (!sync?.isLoaded()) return;
+      const savedAt = new Date().toISOString();
+      const descriptor = focusDescriptorRef.current;
       void sync.push({
-        savedAt: new Date().toISOString(),
+        savedAt,
         view: { page: pageRef.current, zoom: zoomRef.current },
         notes: notesRef.current,
         annotations: annotationsRef.current,
         virtualPages: virtualPagesRef.current
+      }).then((result) => {
+        // The shared offline queue forgets this document only once the
+        // server holds everything saved before this push.
+        if (result?.status === "synced" && descriptor) void acknowledgeFocusDocument(descriptor.userId, descriptor, savedAt).catch(() => undefined);
       });
     }, delay);
+  }, []);
+
+  /** Records in the shared offline queue that this document has unsynced changes. */
+  const markDocumentDirty = useCallback((target = null) => {
+    const descriptor = focusDescriptorRef.current;
+    if (!descriptor?.userId) return;
+    if (target && (target.owner !== descriptor.owner || target.materialSlug !== descriptor.materialSlug || target.sheetSlug !== descriptor.sheetSlug)) return;
+    void markFocusDocumentDirty(descriptor.userId, descriptor).catch(() => undefined);
   }, []);
 
   /**
@@ -2024,6 +2066,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         savedPageSignaturesRef.current = signatures;
         setSaveState("saved");
         setSaveErrorReason("");
+        markDocumentDirty(target);
         if (!target) scheduleServerSync();
       } catch {
         setSaveState("error");
@@ -2047,6 +2090,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       savedPageSignaturesRef.current = signatures;
       setSaveState("saved");
       setSaveErrorReason("");
+      markDocumentDirty(target);
       // A save made for the sheet being left belongs to that sheet, not this sync.
       if (!target) scheduleServerSync();
     } catch (error) {
@@ -2055,7 +2099,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       setSaveState("error");
       setSaveErrorReason(error?.message || "Marks could not be saved on this device.");
     }
-  }, [materialSlug, minimumPdfZoom, ownerKey, scheduleServerSync, storageSlug]);
+  }, [markDocumentDirty, materialSlug, minimumPdfZoom, ownerKey, scheduleServerSync, storageSlug]);
 
   persistWorkspaceRef.current = persistWorkspace;
 
@@ -2157,12 +2201,33 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       : null;
     serverSyncRef.current = sync;
     serverLoadStartedRef.current = null;
+    const descriptor = sync && user?.id ? {
+      userId: String(user.id),
+      documentId: catalogDocumentId,
+      documentVersionId: catalogDocumentVersionId,
+      scope: { edition: scopeEdition, view: scopeView },
+      workspaceDocumentId: scopeView === "summary" ? null : catalogDocumentId,
+      owner: ownerKey,
+      materialSlug,
+      sheetSlug: storageSlug,
+      pageCount: pageCountRef.current
+    } : null;
+    focusDescriptorRef.current = descriptor;
+    const unregister = descriptor ? registerOpenFocusDocument(descriptor) : null;
     return () => {
       if (serverSyncTimerRef.current) window.clearTimeout(serverSyncTimerRef.current);
       serverSyncTimerRef.current = null;
       if (serverSyncRef.current === sync) serverSyncRef.current = null;
+      unregister?.();
     };
+  // The descriptor is rebuilt only when the synced document changes; the
+  // slugs and account are part of that identity already.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catalogDocumentId, catalogDocumentVersionId, ownerKey, scopeEdition, scopeView]);
+  useEffect(() => {
+    pageCountRef.current = pageCount;
+    if (focusDescriptorRef.current) focusDescriptorRef.current = { ...focusDescriptorRef.current, pageCount };
+  }, [pageCount]);
 
   // The server's copy is read once the local one is restored and the PDF has
   // reported its page count, then merged into what this device holds.
@@ -4821,6 +4886,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       clearActiveStudyDraft(activeQuiz.attempt_id);
       setActiveStudy(payload.run);
       setActiveResult({ ...result, review, outcome: result.passed ? "passed" : (activeQuiz.kind === "final" ? "failed" : "advisory") });
+      // Graded on this device while offline; the server confirms it and awards XP on reconnect.
+      if (result.pending_sync) setFocusMessage(t("offline.savedForSync"));
     } catch (error) {
       setFocusMessage(error.message || "The Active Study test could not be submitted.");
     } finally {
@@ -5664,7 +5731,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       </div>
       <span className="workspace-v2-visually-hidden" role="status" aria-live="polite">{saveLabel}{focusMessage ? ` · ${focusMessage}` : ""}</span>
       {studyMode === "active" && activeStudy?.status === "active" && ["reading", "checkpoint", "final"].includes(activeStudy.stage) && <div className="workspace-v2-checkpoint-dock" role="status" aria-live="polite">
-        <button type="button" className={`workspace-v2-checkpoint-button${activeStudyButtonReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeStudyButtonReady} aria-label={activeStudyButtonReady ? (activeStudy.stage === "final" ? "Open final exam" : "Open checkpoint") : `Reach page ${accessiblePageCount} to unlock the checkpoint`}>{activeStudyButtonReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{activeStudy.stage === "final" ? "Final Exam" : "Checkpoint"}</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">Reach page {accessiblePageCount}</span></>}</button>
+        <button type="button" className={`workspace-v2-checkpoint-button${activeStudyButtonReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeStudyButtonReady} aria-label={activeStudyButtonReady ? t(activeStudy.stage === "final" ? "activeStudy.openFinal" : "activeStudy.openCheckpoint") : t("activeStudy.reachToUnlock", { page: accessiblePageCount })}>{activeStudyButtonReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t(activeStudy.stage === "final" ? "activeStudy.finalExam" : "activeStudy.checkpoint")}</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t("activeStudy.reachPage", { page: accessiblePageCount })}</span></>}</button>
       </div>}
       {modeDialogOpen && <StudyModeDialog difficulty={activeDifficulty} setDifficulty={setActiveDifficulty} activeAvailable={activeStudyReady} restartProgress={selectedActiveStudyAvailability?.progress} busy={activeStudyBusy || activeStudyAvailabilityLoading} error={activeStudyError} onNormal={chooseNormalStudy} onActive={chooseActiveStudy} onRestart={restartActiveStudy} activeOnly={entryModePreference === "active"} />}
       {activeQuiz && activeStudy && <ActiveStudyQuiz key={activeQuiz.attempt_id} quiz={activeQuiz} answers={activeAnswers} setAnswers={setActiveAnswers} result={activeResult} busy={activeStudyBusy} onSubmit={submitActiveQuiz} onDismiss={dismissActiveQuiz} onRetake={retakeActiveQuiz} onContinue={continueActiveStudyAnyway} onDiscard={(done) => discardActiveAttempt({ restart: false }, done)} onRestart={(done) => discardActiveAttempt({ restart: true }, done)} />}
