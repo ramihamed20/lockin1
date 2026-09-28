@@ -9,7 +9,7 @@
 .study-plan-grid { min-width: 0; display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: var(--space-5); align-items: start; }
 .study-plan-composer { position: sticky; top: 90px; }
 .study-plan-composer form { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-top: var(--space-5); }
-.study-plan-field { min-width: 0; display: grid; gap: 7px; color: var(--text); font-size: var(--text-sm); font-weight: 750; }
+.study-plan-field { min-width: 0; display: grid; gap: 7px; color: var(--text); font-size: var(--text-sm); font-weight: 650; }
 .study-plan-field--wide, .study-plan-submit, .study-plan-form-error { grid-column: 1 / -1; }
 .study-plan-field > span { color: var(--muted); font-weight: 500; }
 .study-plan-field input { width: 100%; min-height: 46px; border: 1px solid var(--border); border-radius: var(--radius-md); outline: none; padding: 0 12px; color: var(--text); background: var(--surface-2); font: inherit; }
@@ -24,7 +24,7 @@
 .study-plan-week-actions { display: flex; align-items: center; gap: 6px; }
 .study-plan-week-actions button { min-width: 40px; min-height: 40px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 12px; color: var(--text); background: var(--surface); }
 .study-plan-week-actions button:hover:where(html.ix-hover *), .study-plan-week-actions button:focus-visible { border-color: color-mix(in srgb, var(--color-primary) 40%, var(--border)); background: var(--surface-2); }
-.study-plan-week-actions .study-plan-today { padding: 0 12px; font-weight: 750; }
+.study-plan-week-actions .study-plan-today { padding: 0 12px; font-weight: 650; }
 
 /* A 40px stepper is comfortable under a cursor and short of the platform
  * minimum under a finger. */
@@ -38,7 +38,7 @@
 .study-plan-day > header div { display: grid; gap: 3px; }
 .study-plan-day > header strong { color: var(--text); }
 .study-plan-day > header span { color: var(--muted); font-size: var(--text-sm); }
-.study-plan-day > header em { padding: 3px 7px; border-radius: 999px; color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 12%, transparent); font-size: .7rem; font-style: normal; font-weight: 800; }
+.study-plan-day > header em { padding: 3px 7px; border-radius: 999px; color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 12%, transparent); font-size: .7rem; font-style: normal; font-weight: 700; }
 .study-plan-task-list { min-width: 0; display: grid; gap: 7px; }
 .study-plan-task { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 9px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); background: color-mix(in srgb, var(--surface-2) 72%, transparent); }
 .study-plan-task.is-complete { opacity: .68; }

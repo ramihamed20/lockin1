@@ -9,7 +9,8 @@
   /* Shell and navigation */
   .sidebar {
     border-inline-end-color: var(--polish-line);
-    background: linear-gradient(160deg, var(--surface-2), var(--surface) 38%);
+    /* One flat surface: the rail is structure, not decoration. */
+    background: var(--surface);
   }
 
   .sidebar .brand { margin-block-end: 6px; }
@@ -31,8 +32,8 @@
   .sidebar .streak-card {
     border-color: color-mix(in srgb, var(--streak-tier-color, var(--accent)) 22%, var(--border));
     border-radius: var(--radius-lg);
-    background: linear-gradient(155deg, color-mix(in srgb, var(--streak-tier-color, var(--accent)) 7%, var(--surface-2)), var(--surface));
-    box-shadow: 0 5px 18px rgb(0 0 0 / 0.1);
+    background: color-mix(in srgb, var(--streak-tier-color, var(--accent)) 5%, var(--surface-2));
+    box-shadow: none;
   }
   .streak-freeze { border-radius: var(--radius-md); }
 
@@ -194,13 +195,13 @@
   .dashboard-stats-grid .stat-card {
     border: 1px solid var(--polish-line);
     border-radius: var(--radius-lg);
-    background: linear-gradient(145deg, var(--surface-2), var(--surface));
+    background: var(--polish-raised);
     box-shadow: var(--polish-shadow);
   }
   .dashboard-stats-grid .stat-card:hover:where(html.ix-hover *) {
-    transform: translateY(-2px);
-    border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
-    box-shadow: 0 14px 26px rgb(0 0 0 / 0.16);
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
+    box-shadow: 0 10px 24px rgb(0 0 0 / 0.14);
   }
   .dashboard-stats-grid .stat-icon { border-radius: var(--radius-md); }
   .dashboard-stats-grid .stat-card-value { font-weight: var(--weight-bold); }

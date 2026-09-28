@@ -116,7 +116,8 @@ function ContinueCard({ sheetEntry }) {
         <div className="progress-meta"><span>{t("dashboard.lastOpenedSheet")}</span><strong dir="auto">{material.title}</strong></div>
         <Link className="btn btn-primary" to={sheetEntry.path}>{t("dashboard.continue")}</Link>
       </> : <>
-        <p>{t("dashboard.openSheetHint")}</p>
+        {/* The title already says nothing is open, and Recent Sheets beside it
+            explains where sheets will appear; the button is the whole answer. */}
         <Link className="btn btn-primary" to="/materials">{t("dashboard.browseMaterials")}</Link>
       </>}
     </article>

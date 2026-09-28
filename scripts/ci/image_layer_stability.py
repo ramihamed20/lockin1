@@ -41,6 +41,7 @@ EDGE_BUILD_ARGS = [
     "--build-arg", "VITE_LEGAL_ADDRESS=CI test address",
     "--build-arg", "VITE_LEGAL_JURISDICTION=CI test jurisdiction",
     "--build-arg", "VITE_POLICY_VERSION=ci-policy-v1",
+    "--build-arg", "VITE_OFFLINE_LEASE_PUBLIC_KEY=O2onvM62pC1io6jQKm8Nc2UyFXcd4kOmOsBIoYtZ2ik=",
 ]
 # Steps that identify the layers under test. Each must match exactly one row.
 BACKEND_DEPENDENCY_INSTALL = "--requirement /tmp/requirements.txt"

@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from apps.questions.importing import MAX_IMPORT_QUESTIONS
 from platform_core.api.serializers import StrictSerializer
 
 
@@ -105,3 +106,31 @@ class AdminActiveStudyQuestionSaveSerializer(AdminActiveStudyQuestionValidateSer
 
 class AdminActiveStudyQuestionDeleteSerializer(StrictSerializer):
     expected_revision = serializers.IntegerField(min_value=1)
+
+
+class AdminAllQuestionsValidateSerializer(StrictSerializer):
+    """One All Questions document plus the choices the prompt was built from."""
+
+    payload = serializers.JSONField()
+    sheet_question_count = serializers.IntegerField(min_value=0, max_value=MAX_IMPORT_QUESTIONS)
+    # Omitted keeps the edition's saved exclusions, as the Active Study preview does.
+    excluded_start_pages = serializers.IntegerField(
+        min_value=0, max_value=9_999, allow_null=True, required=False
+    )
+    excluded_end_pages = serializers.IntegerField(
+        min_value=0, max_value=9_999, allow_null=True, required=False
+    )
+
+
+class AdminAllQuestionsSaveSerializer(AdminAllQuestionsValidateSerializer):
+    settings_revision = serializers.IntegerField(min_value=0)
+    expected_revisions = serializers.DictField(
+        child=serializers.IntegerField(min_value=0), allow_empty=True
+    )
+    publish_sheet_questions = serializers.BooleanField(default=True)
+
+    def validate_expected_revisions(self, value):  # type: ignore[no-untyped-def]
+        unknown = sorted(set(value) - {"easy", "medium", "hard"})
+        if unknown:
+            raise serializers.ValidationError(f"Unknown difficulty: {', '.join(unknown)}.")
+        return value

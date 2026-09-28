@@ -178,10 +178,25 @@ body::after {
     min-width: 0;
   }
 
+  /* At sidebar width the words "Coming soon" cut the destination's own name
+     short ("Study Pl…"). The upcoming icon and a quieter label carry the
+     state; the words stay in the tree for assistive tech and the tooltip. */
   .sidebar .nav-coming-soon-label {
-    margin-inline-start: auto;
-    flex: 0 0 auto;
-    font-size: 0.625rem;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .sidebar .nav-btn--coming-soon:not(.active):not([aria-current="page"]) {
+    color: var(--soft);
+  }
+
+  .sidebar .nav-btn--coming-soon:not(.active):not([aria-current="page"]) svg {
+    opacity: 0.7;
   }
 
   .sidebar .brand {
@@ -650,6 +665,82 @@ body::after {
   .btn,
   .btn.compact {
     min-height: 44px;
+  }
+}
+
+/* Loading: a button whose action is in flight carries aria-busy="true" and
+   shows a small spinner before its label, so the wait is visible where the
+   user pressed instead of only in a status line elsewhere. */
+.btn[aria-busy="true"] {
+  cursor: progress;
+}
+
+.btn[aria-busy="true"]::before {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  content: "";
+  animation: ui-spin 0.7s linear infinite;
+}
+
+@keyframes ui-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn[aria-busy="true"]::before {
+    animation-duration: 1.6s;
+  }
+}
+
+/* --- Dialogs ------------------------------------------------------------- */
+
+/* A calm scale-and-fade instead of the old overshooting bounce. */
+.confirm-backdrop {
+  background: var(--overlay);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  animation: ui-fade-in var(--motion-popover-duration) var(--motion-enter-ease) both;
+}
+
+.confirm-dialog {
+  animation: ui-dialog-in var(--motion-popover-duration) var(--motion-enter-ease) both;
+}
+
+.confirm-dialog h3 {
+  margin-top: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.015em;
+}
+
+.confirm-dialog p {
+  line-height: 1.5;
+}
+
+@media (max-width: 560px) {
+  .confirm-dialog {
+    text-align: start;
+  }
+}
+
+@keyframes ui-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ui-dialog-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confirm-backdrop,
+  .confirm-dialog {
+    animation: none;
   }
 }
 

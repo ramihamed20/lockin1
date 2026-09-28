@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { catalogWorkspaceApi } from "../api/catalogWorkspace.js";
 import { getCohortQuestionCategories } from "../lib/materialCatalog.js";
@@ -8,6 +8,7 @@ import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/ind
 import { CatalogTile } from "../components/learning/CatalogTile.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
 import { QuestionExplanation } from "../components/shared/QuestionExplanation.jsx";
+import { prefersReducedMotion } from "../lib/motion.js";
 
 /**
  * Exam and AI sheet questions share the player, but use separate published banks.
@@ -43,7 +44,7 @@ function sourceForCategory(categoryId) { return categoryId === "years" ? "exam" 
 
 function useQuestionMaterials(user, categoryId) {
   const key = [user?.id || "", user?.cohort?.id || "", categoryId].join("|");
-  const data = useAsyncData(() => catalogWorkspaceApi.questionMaterials(sourceForCategory(categoryId)), [key]);
+  const data = useAsyncData(() => catalogWorkspaceApi.questionMaterials(sourceForCategory(categoryId), user?.id), [key]);
   const materials = useMemo(() => (Array.isArray(data.data?.results) ? data.data.results : []), [data.data]);
   return { ...data, materials };
 }
@@ -170,7 +171,7 @@ export function QuestionSheetQuestions({ user = null }) {
   const { categoryId, subjectId, sheetId } = useParams();
   const { t } = useI18n();
   const category = cohortCategories(user).find((item) => item.id === categoryId);
-  const data = useAsyncData((signal) => catalogWorkspaceApi.sheetQuestions(sheetId, { signal, source: sourceForCategory(categoryId) }), [sheetId, categoryId]);
+  const data = useAsyncData((signal) => catalogWorkspaceApi.sheetQuestions(sheetId, { signal, source: sourceForCategory(categoryId), userId: user?.id }), [sheetId, categoryId, user?.id]);
   const questions = useMemo(() => (Array.isArray(data.data?.results) ? data.data.results : []), [data.data]);
   const sheetTitle = data.data?.sheet?.title || t("questions.aiSheet");
 
@@ -188,6 +189,8 @@ export function QuestionSheetQuestions({ user = null }) {
         <QuestionPlayer
           key={`${categoryId}:${sheetId}`}
           sheetId={sheetId}
+          userId={user?.id}
+          source={sourceForCategory(categoryId)}
           questions={questions}
           backTo={backTo}
         />
@@ -200,26 +203,69 @@ function initialAnswers(questions) {
   return Object.fromEntries(questions.filter((question) => question.answer).map((question) => [question.id, question.answer]));
 }
 
-function QuestionPlayer({ sheetId, questions, backTo }) {
-  const { t } = useI18n();
+function QuestionPlayer({ sheetId, userId, source, questions, backTo }) {
+  const { t, direction: textDirection } = useI18n();
   const [answers, setAnswers] = useState(() => initialAnswers(questions));
   const [started, setStarted] = useState(false);
   // A reopened sheet resumes at the first question still to answer.
   const [index, setIndex] = useState(() => Math.max(questions.findIndex((question) => !question.answer), 0));
   const [finished, setFinished] = useState(false);
+  // Which way the last move went, so the next card arrives from that side.
+  const [travel, setTravel] = useState("forward");
+  const playerRef = useRef(null);
   const total = questions.length;
   const question = questions[index];
   const position = index + 1;
+  const answeredCount = Object.keys(answers).length;
+  const answered = Boolean(question && answers[question.id]);
 
   function record(questionId, answer) {
     setAnswers((current) => (current[questionId] ? current : { ...current, [questionId]: answer }));
   }
 
+  function go(next) {
+    if (next < 0 || next >= total || next === index) return;
+    setTravel(next > index ? "forward" : "back");
+    setIndex(next);
+  }
+
+  // Keyboard: letters or digits pick a choice, the arrows move (mirrored in
+  // Arabic), and Enter advances once the current question is answered.
+  useEffect(() => {
+    if (!started || finished) return undefined;
+    const onKey = (event) => {
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target;
+      if (target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
+      // Only an open modal or the search panel owns the keyboard; the closed
+      // phone drawer keeps its dialog role in the tree and must not count.
+      if (document.querySelector("[aria-modal='true'], .global-search-panel")) return;
+      const forwardKey = textDirection === "rtl" ? "ArrowLeft" : "ArrowRight";
+      const backKey = textDirection === "rtl" ? "ArrowRight" : "ArrowLeft";
+      if (event.key === forwardKey && index < total - 1) { event.preventDefault(); go(index + 1); return; }
+      if (event.key === backKey && index > 0) { event.preventDefault(); go(index - 1); return; }
+      if (event.key === "Enter" && answered && !(target instanceof window.HTMLButtonElement)) {
+        event.preventDefault();
+        if (index < total - 1) go(index + 1); else setFinished(true);
+        return;
+      }
+      const letter = /^[a-z]$/i.test(event.key) ? event.key.toLowerCase().charCodeAt(0) - 97 : /^[1-9]$/.test(event.key) ? Number(event.key) - 1 : -1;
+      if (letter < 0) return;
+      const choice = playerRef.current?.querySelectorAll(".question-player-card .choices button")[letter];
+      if (choice instanceof window.HTMLButtonElement && !choice.disabled) { event.preventDefault(); choice.click(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   if (!started) {
+    const resuming = answeredCount > 0 && answeredCount < total;
+    const reviewing = answeredCount >= total;
     return <section className="question-session-intro" aria-labelledby="question-session-intro-title">
       <span className="question-session-intro-icon"><Icon name="file-question" size={22} /></span>
-      <div><h2 id="question-session-intro-title">{t("questions.readyTitle")}</h2><p>{t("questions.sessionIntro", { count: total })}</p></div>
-      <button className="btn btn-primary" type="button" onClick={() => setStarted(true)}>{t("questions.startQuestions")}</button>
+      <div><h2 id="question-session-intro-title">{t("questions.readyTitle")}</h2><p>{answeredCount ? t("questions.answeredOf", { answered: answeredCount, total }) : t("questions.sessionIntro", { count: total })}</p></div>
+      {answeredCount > 0 && <QuestionRail questions={questions} answers={answers} current={-1} />}
+      <button className="btn btn-primary" type="button" onClick={() => setStarted(true)}>{reviewing ? t("questions.reviewAnswers") : resuming ? t("questions.resumeAt", { index: position }) : t("questions.startQuestions")}</button>
     </section>;
   }
 
@@ -227,14 +273,21 @@ function QuestionPlayer({ sheetId, questions, backTo }) {
     const results = Object.values(answers);
     const correct = results.filter((answer) => answer.is_correct).length;
     const xp = results.reduce((sum, answer) => sum + (answer.xp_awarded || 0), 0);
+    const firstMistake = questions.findIndex((item) => answers[item.id] && !answers[item.id].is_correct);
+    const score = total ? Math.round((correct / total) * 100) : 0;
     return (
       <section className="question-player question-player-summary" aria-live="polite">
-        <span className="stat-icon"><Icon name="check" /></span>
-        <h2>{t("questions.sheetComplete")}</h2>
+        <div className="question-score" style={/** @type {import("react").CSSProperties} */ ({ "--score": score })} aria-hidden="true">
+          <strong>{score}<small>%</small></strong>
+        </div>
+        <h2>{correct === total ? t("questions.allCorrect") : t("questions.sheetComplete")}</h2>
         <p className="muted">{t("questions.sheetScore", { correct, total })}</p>
         {xp > 0 && <span className="question-xp-chip">{t("questions.xpEarned", { count: xp })}</span>}
+        <QuestionRail questions={questions} answers={answers} current={-1} />
         <div className="question-player-actions">
-          <button className="btn btn-soft" type="button" onClick={() => { setFinished(false); setIndex(0); }}>{t("questions.reviewAnswers")}</button>
+          {firstMistake >= 0
+            ? <button className="btn btn-soft" type="button" onClick={() => { setFinished(false); setTravel("back"); setIndex(firstMistake); }}>{t("questions.reviewMistakes")}</button>
+            : <button className="btn btn-soft" type="button" onClick={() => { setFinished(false); setTravel("back"); setIndex(0); }}>{t("questions.reviewAnswers")}</button>}
           <Link className="btn btn-primary" to={backTo}>{t("questions.backToSheets")}</Link>
         </div>
       </section>
@@ -242,7 +295,7 @@ function QuestionPlayer({ sheetId, questions, backTo }) {
   }
 
   return (
-    <section className="question-player" aria-label={t("questions.sheetQuestionsLabel")}>
+    <section className="question-player" ref={playerRef} data-travel={travel} aria-label={t("questions.sheetQuestionsLabel")}>
       <header className="question-progress">
         <div className="question-progress-meta">
           <strong aria-live="polite">{t("questions.progress", { index: position, total })}</strong>
@@ -257,21 +310,24 @@ function QuestionPlayer({ sheetId, questions, backTo }) {
           aria-valuenow={position}
         >
           <span style={{ transform: `scaleX(${position / total})` }} />
+          <QuestionRail questions={questions} answers={answers} current={index} />
         </div>
       </header>
       <PracticeItem
         key={question.id}
         sheetId={sheetId}
+        userId={userId}
+        source={source}
         question={question}
         answer={answers[question.id] || null}
         onAnswered={record}
       />
       <nav className="question-player-actions" aria-label={t("questions.navigationLabel")}>
-        <button className="btn btn-soft" type="button" disabled={index === 0} onClick={() => setIndex(index - 1)}>
+        <button className="btn btn-soft" type="button" disabled={index === 0} onClick={() => go(index - 1)}>
           <Icon name="chevron-left" size={17} /> {t("questions.previousQuestion")}
         </button>
         {position < total ? (
-          <button className={`btn ${answers[question.id] ? "btn-primary" : "btn-soft"}`} type="button" onClick={() => setIndex(index + 1)}>
+          <button className={`btn ${answers[question.id] ? "btn-primary" : "btn-soft"}`} type="button" onClick={() => go(index + 1)}>
             {t("questions.nextQuestion")} <Icon name="chevron-right" size={17} />
           </button>
         ) : (
@@ -280,8 +336,28 @@ function QuestionPlayer({ sheetId, questions, backTo }) {
           </button>
         )}
       </nav>
+      <p className="question-keys" aria-hidden="true">
+        <span><kbd>A</kbd><kbd>D</kbd>{t("questions.keyAnswer")}</span>
+        <span><kbd>←</kbd><kbd>→</kbd>{t("questions.keyMove")}</span>
+        <span><kbd>↵</kbd>{t("questions.keyNext")}</span>
+      </p>
     </section>
   );
+}
+
+/**
+ * One mark per question: where you are, what you have answered, and which
+ * answers were right. Decorative -- the text beside it and the progressbar
+ * carry the same facts for assistive technology. Long sheets fall back to the
+ * continuous bar, where individual marks would be too thin to read.
+ */
+function QuestionRail({ questions, answers, current }) {
+  if (questions.length > 60) return null;
+  return <span className="question-rail" aria-hidden="true">{questions.map((item, itemIndex) => {
+    const answer = answers[item.id];
+    const state = answer ? (answer.is_correct ? "correct" : "wrong") : "open";
+    return <i key={item.id} data-state={state} data-current={itemIndex === current ? "" : undefined} />;
+  })}</span>;
 }
 
 /**
@@ -290,12 +366,29 @@ function QuestionPlayer({ sheetId, questions, backTo }) {
  * complete, so only that type keeps a check button. The card locks while the
  * request is in flight and for good once the server has graded it.
  */
-function PracticeItem({ sheetId, question, answer, onAnswered }) {
+function PracticeItem({ sheetId, userId, source, question, answer, onAnswered }) {
   const { t } = useI18n();
   const [selected, setSelected] = useState([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const inFlight = useRef(false);
+  const noteRef = useRef(null);
+  const answeredHere = useRef(false);
+
+  // The verdict appears where the student is looking. On a short screen it can
+  // land below the fold or under the pinned action bar, so a verdict that the
+  // student just earned is brought into view -- gently, and only if hidden.
+  // A question reopened already answered is left where it is.
+  useEffect(() => {
+    if (!answer || !answeredHere.current) return;
+    const note = noteRef.current;
+    if (!note) return;
+    const box = note.getBoundingClientRect();
+    const bar = document.querySelector(".question-player > .question-player-actions")?.getBoundingClientRect();
+    const limit = bar && window.getComputedStyle(document.querySelector(".question-player > .question-player-actions")).position === "sticky" ? bar.top : window.innerHeight;
+    if (box.bottom <= limit - 8) return;
+    note.scrollIntoView({ block: "nearest", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+  }, [answer]);
   const multiple = question.question_type === "multiple_select";
   const choices = Array.isArray(question.choices) ? question.choices : [];
   const locked = Boolean(answer) || pending;
@@ -308,8 +401,11 @@ function PracticeItem({ sheetId, question, answer, onAnswered }) {
     setPending(true);
     setError("");
     try {
-      const response = await catalogWorkspaceApi.answerQuestion(sheetId, question.id, choiceIds);
-      if (response?.answer) onAnswered(question.id, response.answer);
+      const response = await catalogWorkspaceApi.answerQuestion(sheetId, question.id, choiceIds, { userId, source });
+      if (response?.answer) {
+        answeredHere.current = true;
+        onAnswered(question.id, response.answer);
+      }
     } catch (reason) {
       setSelected([]);
       setError(reason?.message || t("questions.answerFailed"));
@@ -350,7 +446,7 @@ function PracticeItem({ sheetId, question, answer, onAnswered }) {
               key={choice.id}
               type="button"
               // Once graded, the pick is shown as right or wrong, not as a selection.
-              className={answer ? state.trim() : isSelected ? "selected" : ""}
+              className={answer ? state.trim() : isSelected ? `selected${pending ? " is-pending" : ""}` : ""}
               aria-pressed={isSelected}
               disabled={locked}
               onClick={() => choose(choice.id)}
@@ -358,6 +454,7 @@ function PracticeItem({ sheetId, question, answer, onAnswered }) {
               <span className="choice-prefix">{String.fromCharCode(65 + choiceIndex)}</span>
               <span dir="auto">{choice.text}</span>
               {answer && isCorrect && <Icon name="check" size={18} aria-hidden="true" />}
+              {answer && isSelected && !isCorrect && <Icon name="x" size={18} aria-hidden="true" />}
             </button>
           );
         })}
@@ -370,7 +467,7 @@ function PracticeItem({ sheetId, question, answer, onAnswered }) {
       {pending && <p className="muted question-pending" role="status">{t("questions.submitting")}</p>}
       {error && <p className="question-error" role="alert">{error}</p>}
       {answer && (
-        <div className={`answer-note ${answer.is_correct ? "correct" : "wrong"}`} role="status">
+        <div ref={noteRef} className={`answer-note ${answer.is_correct ? "correct" : "wrong"}`} role="status">
           <div className="question-answer-head">
             <strong>{answer.is_correct ? t("questions.answerCorrect") : t("questions.answerIncorrect")}</strong>
             {answer.xp_awarded > 0 && <span className="question-xp-chip">{t("questions.xpEarned", { count: answer.xp_awarded })}</span>}

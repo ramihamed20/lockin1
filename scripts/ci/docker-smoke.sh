@@ -136,6 +136,7 @@ docker run --detach --name "$app_container" --network "$network" \
     --publish "127.0.0.1:$published_port:10000" \
     --env DJANGO_SETTINGS_MODULE=config.settings.production \
     --env "DJANGO_SECRET_KEY=$(head -c 48 /dev/urandom | od -An -tx1 | tr -d ' \n')" \
+    --env "OFFLINE_LEASE_ED25519_PRIVATE_KEY=$(head -c 32 /dev/urandom | base64 | tr -d '\n')" \
     --env "DJANGO_ALLOWED_HOSTS=$public_host" \
     --env "PUBLIC_APP_URL=https://$public_host" \
     --env "DJANGO_CSRF_TRUSTED_ORIGINS=https://$public_host" \

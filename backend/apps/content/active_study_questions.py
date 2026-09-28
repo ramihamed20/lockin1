@@ -99,6 +99,18 @@ def _question(value: Any, *, errors: list[dict[str, str]], path: str) -> dict[st
     }
 
 
+def validate_question_object(
+    value: Any, *, errors: list[dict[str, str]], path: str
+) -> dict[str, object]:
+    """Validate one A-D question with the Active Study rules.
+
+    Public so a caller importing several banks at once -- All Questions -- holds
+    every question to this one contract instead of a copy of it.
+    """
+
+    return _question(value, errors=errors, path=path)
+
+
 def validate_active_study_questions(
     payload: Any,
     *,

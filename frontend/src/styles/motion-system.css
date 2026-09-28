@@ -1,0 +1,172 @@
+/* ==========================================================================
+   Motion system — shared movement for selection, presence and feedback.
+
+   Lives in the `interaction` layer beside the state definitions it animates,
+   so the glide can briefly take over the selected surface without any
+   specificity contest with the historical stylesheets.
+
+   Curves
+     --ease-spring     a short spring with a ~3% settle: selection, sheets
+     --ease-out-soft   a decelerating curve for things that appear
+     --ease-in-soft    an accelerating curve for things that leave
+   ========================================================================== */
+
+@layer interaction {
+  :root {
+    --ease-spring: cubic-bezier(0.32, 1.16, 0.52, 1);
+    --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-in-soft: cubic-bezier(0.4, 0, 1, 1);
+    --glide-duration: 360ms;
+  }
+
+  /* --- Glide: the selected surface travels between items ----------------- */
+
+  /* Containers that host a glide become the glider's positioning box and its
+     own stacking context, so the glider sits under the items' labels. */
+  :where(.nav-list, .ix-tablist, .settings-local-nav)[data-gliding] {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .bottom-nav[data-gliding] {
+    isolation: isolate;
+  }
+
+  .ix-glider {
+    position: absolute;
+    /* Physical top/left on purpose, in both directions: the glider is placed
+       with a translate measured from the container's physical left edge. An
+       inline-start inset would anchor it to the right in Arabic. */
+    top: 0;
+    left: 0;
+    z-index: -1;
+    pointer-events: none;
+    will-change: transform, width, height;
+  }
+
+  .ix-glider.is-moving {
+    transition:
+      transform var(--glide-duration) var(--ease-spring),
+      width var(--glide-duration) var(--ease-spring),
+      height var(--glide-duration) var(--ease-spring);
+  }
+
+  /* While the glider travels it *is* the selection: the destination item
+     stays clear so there is never a second highlight, and hands back the
+     moment the glider is removed. */
+  [data-gliding] :is([aria-current="page"], [aria-current="location"], [aria-selected="true"]) {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Labels change colour with the move rather than snapping. */
+  :where(.nav-list, .bottom-nav, .ix-tablist, .settings-local-nav) :is(a, button) {
+    transition-property: background-color, border-color, color, box-shadow, transform, filter, opacity;
+  }
+
+  /* --- Programmatic focus targets ------------------------------------------ *
+   * After every route change the shell moves focus to <main> so assistive
+   * technology starts at the new content. It is a landing point, not a
+   * control: the browser drew the keyboard ring around the entire content
+   * area, which showed as a stray full-width line under short pages. */
+  #main-content:focus-visible,
+  :is(main, section, article, h1, h2)[tabindex="-1"]:focus-visible {
+    outline: none;
+  }
+
+  /* --- Search capsule focus ------------------------------------------------ *
+   * The capsule is the field: it carries the one focus ring, so the bare input
+   * inside it does not draw a second rectangle within the pill. */
+  .search-box input:is(:focus, :focus-visible) {
+    outline: none;
+    box-shadow: none;
+  }
+
+  .search-box:focus-within {
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+
+  /* --- Presence: surfaces leave the way they arrived ---------------------- */
+
+  @keyframes motion-pop-out {
+    to { opacity: 0; transform: translateY(-4px) scale(0.97); }
+  }
+
+  @keyframes motion-fade-out {
+    to { opacity: 0; }
+  }
+
+  .notifications-dropdown.is-closing {
+    pointer-events: none;
+    animation: motion-pop-out 150ms var(--ease-in-soft) both;
+  }
+
+  .confirm-backdrop.is-closing {
+    pointer-events: none;
+    animation: motion-fade-out 180ms var(--ease-in-soft) both;
+  }
+
+  .confirm-backdrop.is-closing .confirm-dialog {
+    animation: motion-pop-out 180ms var(--ease-in-soft) both;
+  }
+
+  /* --- Phone: confirmation is a sheet, not a floating box ----------------- *
+   * The decision sits where the thumb already is, rises from the bottom edge
+   * with a short spring, and keeps its buttons stacked full width. */
+  @keyframes motion-sheet-in {
+    from { transform: translateY(100%); }
+    to { transform: none; }
+  }
+
+  @keyframes motion-sheet-out {
+    to { transform: translateY(100%); }
+  }
+
+  @media (max-width: 560px) {
+    .confirm-backdrop {
+      align-items: flex-end;
+      padding: max(16px, var(--safe-top)) 0 var(--keyboard-inset, 0px);
+    }
+
+    .confirm-dialog {
+      position: relative;
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      padding: 28px 20px calc(20px + var(--safe-bottom, 0px));
+      border-width: 1px 0 0;
+      border-radius: 22px 22px 0 0;
+      animation: motion-sheet-in 420ms var(--ease-spring) both;
+    }
+
+    /* The grabber reads as "this came up from below and goes back down". */
+    .confirm-dialog::before {
+      position: absolute;
+      inset-block-start: 8px;
+      inset-inline: 0;
+      width: 36px;
+      height: 5px;
+      margin-inline: auto;
+      border-radius: 999px;
+      background: var(--border-strong);
+      content: "";
+    }
+
+    .confirm-backdrop.is-closing .confirm-dialog {
+      animation: motion-sheet-out 200ms var(--ease-in-soft) both;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ix-glider { display: none; }
+
+    .notifications-dropdown.is-closing,
+    .confirm-backdrop.is-closing,
+    .confirm-backdrop.is-closing .confirm-dialog,
+    .confirm-dialog {
+      animation: none;
+    }
+  }
+}

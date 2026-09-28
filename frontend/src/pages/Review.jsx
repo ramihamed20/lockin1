@@ -27,30 +27,33 @@ function sourceDescription(item, t) {
   return parts.filter(Boolean).join(" · ") || t("review.sourceUnavailable");
 }
 
-async function loadReviewCenter() {
+async function loadReviewCenter(userId) {
   const [bank, queue, weekly] = await Promise.all([
-    reviewApi.getBank(),
-    reviewApi.getQueue(),
-    reviewApi.getWeeklyRecall()
+    reviewApi.getBank(userId),
+    reviewApi.getQueue(userId),
+    reviewApi.getWeeklyRecall(userId)
   ]);
   return { bank, queue, weekly };
 }
 
-export default function ReviewCenter() {
+export default function ReviewCenter({ user = null }) {
   const { t } = useI18n();
-  const review = useAsyncData(loadReviewCenter, []);
+  const review = useAsyncData(() => loadReviewCenter(user?.id || ""), [user?.id]);
   if (review.loading) return <ReviewCenterSkeleton />;
   if (review.error) return <Page title={t("review.center")}><ErrorPanel message={review.error} onRetry={review.reload} /></Page>;
 
   const { bank, queue, weekly } = review.data;
   const weeklyStatus = weekly.session?.status;
   const weeklyCount = weekly.session?.total_questions || weekly.eligible_count || 0;
+  // Recovery starts where most is waiting: the first subject in the bank's own
+  // order, so the primary action is one tap into answering, not into a list.
+  const firstSubject = bank.active_count ? bank.subjects[0] : null;
   return (
     <Page title={t("review.center")} subtitle={t("review.centerSubtitle")}>
       <div className="review-center-layout">
-        <section className="review-bank-entry" aria-labelledby="review-bank-title">
+        <section className={`review-bank-entry ${bank.active_count ? "has-work" : "is-clear"}`} aria-labelledby="review-bank-title">
           <div className="review-bank-entry-copy">
-            <span className="review-feature-icon"><Icon name="target" size={22} /></span>
+            <span className="review-feature-icon"><Icon name={bank.active_count ? "target" : "check"} size={22} /></span>
             <div>
               <h2 id="review-bank-title">{t("review.bank")}</h2>
               {!bank.active_count && <p dir="auto">{t("review.allCaughtUp")}</p>}
@@ -61,7 +64,12 @@ export default function ReviewCenter() {
               <div><dt>{t("review.toReview")}</dt><dd>{bank.active_count}</dd></div>
               <div><dt>{t("review.masteredThisWeek")}</dt><dd>{bank.mastered_this_week}</dd></div>
             </dl>
-            <Link className="btn btn-primary" to="/review/bank">{t("review.openBank")} <Icon name="arrow-up-right" size={16} /></Link>
+            {firstSubject
+              ? <div className="review-bank-entry-buttons">
+                <Link className="btn btn-primary" to={`/review/bank/${encodeURIComponent(firstSubject.subject_key)}`}>{t("review.startReview")}</Link>
+                <Link className="btn btn-soft" to="/review/bank">{t("review.openBank")}</Link>
+              </div>
+              : <Link className="btn btn-soft" to="/review/bank">{t("review.openBank")}</Link>}
           </div>
         </section>
 
@@ -73,15 +81,17 @@ export default function ReviewCenter() {
           {weekly.available ? <Link className="btn btn-soft" to="/review/weekly">{weeklyStatus === "completed" ? t("review.viewResults") : weekly.session ? t("review.resumeWeekly") : t("review.startWeekly")}</Link> : <span className="pill">{t("review.notReady")}</span>}
         </section>
 
-        <section className="review-center-section" aria-labelledby="subjects-title">
+        {/* Caught up is said once, by the bank above. Empty sections are not
+            printed a second and third time underneath it. */}
+        {bank.subjects.length > 0 && <section className="review-center-section" aria-labelledby="subjects-title">
           <header className="review-section-heading"><h2 id="subjects-title">{t("review.subjectsTitle")}</h2><Link to="/review/bank">{t("review.viewAll")}</Link></header>
-          {bank.subjects.length ? <div className="review-subject-list">{bank.subjects.slice(0, 4).map((subject) => <SubjectRow key={subject.subject_key} subject={subject} />)}</div> : <EmptyState title={t("review.caughtUpTitle")} text={t("review.caughtUpText")} />}
-        </section>
+          <div className="review-subject-list">{bank.subjects.slice(0, 4).map((subject) => <SubjectRow key={subject.subject_key} subject={subject} />)}</div>
+        </section>}
 
-        <section className="review-center-section" aria-labelledby="recent-mistakes-title">
+        {queue.results.length > 0 && <section className="review-center-section" aria-labelledby="recent-mistakes-title">
           <header className="review-section-heading"><h2 id="recent-mistakes-title">{t("review.recentMistakes")}</h2><span>{queue.count}</span></header>
-          {queue.results.length ? <div className="recent-mistake-list">{queue.results.map((item) => <RecentMistake key={item.id} item={item} />)}</div> : <EmptyState title={t("review.noMistakesTitle")} text={t("review.noMistakesText")} />}
-        </section>
+          <div className="recent-mistake-list">{queue.results.map((item) => <RecentMistake key={item.id} item={item} />)}</div>
+        </section>}
       </div>
     </Page>
   );
@@ -101,13 +111,16 @@ function RecentMistake({ item }) {
   const { t } = useI18n();
   const selected = Array.isArray(item.selected_answers) ? item.selected_answers.join(", ") : t("review.noAnswer");
   const correct = Array.isArray(item.correct_answers) ? item.correct_answers.join(", ") : t("review.answerUnavailable");
-  const content = <><div className="recent-mistake-marker" aria-hidden="true"><Icon name="x" size={16} /></div><div className="recent-mistake-copy"><div className="recent-mistake-topline"><span className="pill" dir="auto">{item.source_type?.replaceAll("_", " ") || t("review.question")}</span><time dateTime={item.answered_at} dir="auto">{relativeTime(item.answered_at, t)}</time></div><h3 dir="auto">{item.prompt}</h3><dl className="recent-mistake-answers"><div className="is-wrong"><dt>{t("review.yourAnswer")}</dt><dd dir="auto">{selected}</dd></div><div className="is-correct"><dt>{t("review.correctAnswer")}</dt><dd dir="auto">{correct}</dd></div></dl><p className="recent-mistake-source" dir="auto">{item.subject_label || t("review.otherSubject")} · {item.source_label || item.original_source?.label || t("review.sourceUnavailable")}{item.source_question_index ? ` · ${t("review.questionIndex", { index: item.source_question_index })}` : ""}</p></div>{item.subject_key && <Icon className="recent-mistake-chevron" name="chevron-right" size={17} aria-hidden="true" />}</>;
+  // One row per mistake: the question, what you chose struck through beside
+  // what was right, and where it came from. The answer labels stay for
+  // assistive technology; sighted readers get the strike and the check.
+  const content = <><div className="recent-mistake-marker" aria-hidden="true"><Icon name="x" size={16} /></div><div className="recent-mistake-copy"><h3 dir="auto">{item.prompt}</h3><dl className="recent-mistake-answers"><div className="is-wrong"><dt>{t("review.yourAnswer")}</dt><dd dir="auto">{selected}</dd></div><Icon className="recent-mistake-arrow" name="chevron-right" size={14} aria-hidden="true" /><div className="is-correct"><dt>{t("review.correctAnswer")}</dt><dd dir="auto">{correct}</dd></div></dl><p className="recent-mistake-source" dir="auto">{item.subject_label || t("review.otherSubject")} · {item.source_label || item.original_source?.label || t("review.sourceUnavailable")}{item.source_question_index ? ` · ${t("review.questionIndex", { index: item.source_question_index })}` : ""} · <time dateTime={item.answered_at}>{relativeTime(item.answered_at, t)}</time></p></div>{item.subject_key && <Icon className="recent-mistake-chevron" name="chevron-right" size={17} aria-hidden="true" />}</>;
   return item.subject_key ? <Link className="recent-mistake" to={`/review/bank/${encodeURIComponent(item.subject_key)}`}>{content}</Link> : <article className="recent-mistake">{content}</article>;
 }
 
-export function ReviewBank() {
+export function ReviewBank({ user = null }) {
   const { t } = useI18n();
-  const bank = useAsyncData(() => reviewApi.getBank(), []);
+  const bank = useAsyncData(() => reviewApi.getBank(user?.id || ""), [user?.id]);
   if (bank.loading) return <LoadingPanel variant="list" />;
   if (bank.error) return <Page title={t("review.bank")}><ErrorPanel message={bank.error} onRetry={bank.reload} /></Page>;
   return (
@@ -146,10 +159,10 @@ function ReviewQuestionCard({ item, selectedIds = [], onSelect, outcome, busy, e
   );
 }
 
-export function SubjectReviewSession() {
+export function SubjectReviewSession({ user = null }) {
   const { t } = useI18n();
   const { subjectKey = "" } = useParams();
-  const detail = useAsyncData(() => reviewApi.getSubject(subjectKey), [subjectKey]);
+  const detail = useAsyncData(() => reviewApi.getSubject(subjectKey, user?.id || ""), [subjectKey, user?.id]);
   const [items, setItems] = useState([]);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState({});
@@ -216,9 +229,9 @@ export function SubjectReviewSession() {
   );
 }
 
-export function WeeklyRecall() {
+export function WeeklyRecall({ user = null }) {
   const { t } = useI18n();
-  const detail = useAsyncData(() => reviewApi.getWeeklyRecall(), []);
+  const detail = useAsyncData(() => reviewApi.getWeeklyRecall(user?.id || ""), [user?.id]);
   const [weekly, setWeekly] = useState(null);
   const [selected, setSelected] = useState({});
   const [busy, setBusy] = useState(false);

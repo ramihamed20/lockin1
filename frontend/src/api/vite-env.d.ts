@@ -15,6 +15,7 @@ declare global {
     readonly VITE_LEGAL_JURISDICTION?: string;
     readonly VITE_SUPPORT_EMAIL?: string;
     readonly VITE_POLICY_VERSION?: string;
+    readonly VITE_OFFLINE_LEASE_PUBLIC_KEY?: string;
   }
 
   interface ImportMeta {

@@ -15,6 +15,7 @@ ARG VITE_LEGAL_ENTITY
 ARG VITE_LEGAL_ADDRESS
 ARG VITE_LEGAL_JURISDICTION
 ARG VITE_POLICY_VERSION
+ARG VITE_OFFLINE_LEASE_PUBLIC_KEY
 
 # Legal identity and a support destination are launch requirements. They are
 # intentionally public build values, never secrets.
@@ -31,6 +32,7 @@ RUN test -n "$VITE_SUPPORT_EMAIL" \
     && test -n "$VITE_LEGAL_ENTITY" \
     && test -n "$VITE_LEGAL_JURISDICTION" \
     && test -n "$VITE_POLICY_VERSION" \
+    && test -n "$VITE_OFFLINE_LEASE_PUBLIC_KEY" \
     && case "$VITE_SUPPORT_EMAIL" in *@*.*) ;; *) echo "VITE_SUPPORT_EMAIL must be a valid public contact" >&2; exit 1;; esac \
     && case "$VITE_APP_VERSION" in local|replace-*) echo "VITE_APP_VERSION must be an immutable release identifier" >&2; exit 1;; *) ;; esac \
     && for value in "$VITE_LEGAL_ENTITY" "$VITE_LEGAL_ADDRESS" "$VITE_LEGAL_JURISDICTION" "$VITE_POLICY_VERSION"; do \
@@ -43,7 +45,8 @@ ENV VITE_API_BASE_URL=$VITE_API_BASE_URL \
     VITE_LEGAL_ENTITY=$VITE_LEGAL_ENTITY \
     VITE_LEGAL_ADDRESS=$VITE_LEGAL_ADDRESS \
     VITE_LEGAL_JURISDICTION=$VITE_LEGAL_JURISDICTION \
-    VITE_POLICY_VERSION=$VITE_POLICY_VERSION
+    VITE_POLICY_VERSION=$VITE_POLICY_VERSION \
+    VITE_OFFLINE_LEASE_PUBLIC_KEY=$VITE_OFFLINE_LEASE_PUBLIC_KEY
 
 # Vite copies public/ into dist/ verbatim. Those files -- about 18 MB of theme
 # art, icons and video -- rarely change, while the built bundle changes every

@@ -1,0 +1,775 @@
+/* ==========================================================================
+   Page unification — one surface language for every student destination.
+
+   Earlier passes gave each page its own palette: Progress mixed green, gold,
+   purple and blue with radial glows; Review and Settings each drew their own
+   hero cards. This file re-points those pages at the shared system so they
+   read as one product:
+
+     surface      var(--surface) with a 1px var(--polish-line) border
+     emphasis     the accent, used once per view for the thing that matters
+     labels       quiet secondary text, not gold uppercase on every card
+     data colour  only where colour *is* the data (calendar, verdicts)
+
+   Same `system` layer as polish.css and imported after it, so it refines the
+   historical `app` rules without raising specificity. Markup is unchanged.
+   ========================================================================== */
+
+@layer system {
+
+/* --- Shared page rhythm --------------------------------------------------- */
+
+:root {
+  --refine-card-pad: clamp(16px, 2vw, 22px);
+  --refine-eyebrow: var(--soft);
+  /* A grouped list's well: one step off the section it sits in. */
+  --refine-well: color-mix(in srgb, var(--surface-3) 55%, var(--surface-2));
+}
+
+/* --- Catalogue lists ------------------------------------------------------ */
+
+/* Subjects, question modes and sheet lists were a column of separately framed
+   cards, each with its own border, fill and shadow. They are one list: a
+   single rounded block, rows divided by hairlines inset past the icon, and a
+   row that answers the pointer with a quiet fill. */
+:is(.catalog-material-grid, .questions-category-grid) {
+  width: min(100%, 760px);
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--polish-line);
+  border-radius: var(--radius-lg);
+  background: var(--polish-raised);
+  box-shadow: var(--polish-shadow);
+}
+
+:is(.catalog-material-grid, .questions-category-grid) > .catalog-tile {
+  position: relative;
+  min-height: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:is(.catalog-material-grid, .questions-category-grid) > .catalog-tile + .catalog-tile::before {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 70px 0;
+  height: 1px;
+  background: var(--polish-line);
+  content: "";
+  pointer-events: none;
+}
+
+:is(.catalog-material-grid, .questions-category-grid) > .catalog-tile .catalog-tile__surface {
+  min-height: 64px;
+  padding-block: 10px;
+  border-radius: 0;
+  background: transparent;
+}
+
+html.ix-hover :is(.catalog-material-grid, .questions-category-grid) > .catalog-tile.is-actionable:hover {
+  border: 0;
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+/* The sheets inside a subject join the same list, so the path from Materials
+   to a subject to a sheet reads as one continuous pattern. */
+.catalog-sheet-grid {
+  width: min(100%, 760px);
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--polish-line);
+  border-radius: var(--radius-lg);
+  background: var(--polish-raised);
+  box-shadow: var(--polish-shadow);
+}
+
+.catalog-sheet-grid > .catalog-sheet-card {
+  position: relative;
+  min-height: 64px;
+  align-items: center;
+  padding-block: 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.catalog-sheet-grid > .catalog-sheet-card > :is(.catalog-sheet-icon, .catalog-sheet-end) { margin-block-start: 0; }
+
+.catalog-sheet-grid > .catalog-sheet-card + .catalog-sheet-card::before {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 70px 0;
+  height: 1px;
+  background: var(--polish-line);
+  content: "";
+  pointer-events: none;
+}
+
+html.ix-hover .catalog-sheet-grid > .catalog-sheet-card:not(.is-unavailable):hover {
+  border: 0;
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+.catalog-sheet-grid .catalog-sheet-icon {
+  width: 36px;
+  height: 36px;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+:is(.catalog-material-grid, .questions-category-grid) .catalog-tile__icon {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+:is(.catalog-material-grid, .questions-category-grid) .catalog-tile__end:not(.is-status) {
+  color: var(--soft);
+  background: transparent;
+}
+
+/* --- Top bar: large title and scroll edge -------------------------------- */
+
+/* At rest the bar is part of the page: no rule under it. The hairline arrives
+   only when content actually scrolls beneath the bar. */
+.topbar {
+  border-bottom-color: transparent;
+  transition:
+    border-color var(--motion-control-duration) var(--motion-enter-ease),
+    background-color var(--motion-control-duration) var(--motion-enter-ease);
+}
+
+.topbar[data-scrolled] {
+  border-bottom-color: var(--polish-line);
+}
+
+/* A page that prints its own large title owns its name while that title is
+   on screen; the bar's small title waits until the large one scrolls under
+   the bar, then rises into place. */
+.topbar .page-title {
+  transition:
+    opacity var(--motion-control-duration) var(--motion-enter-ease),
+    transform var(--motion-control-duration) var(--motion-enter-ease);
+}
+
+.topbar[data-large-title="visible"] .page-title {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar,
+  .topbar .page-title { transition: none; }
+  .topbar[data-large-title="visible"] .page-title { transform: none; }
+}
+
+/* --- Command palette ------------------------------------------------------ */
+
+.global-search-group {
+  margin: 0;
+  padding: 8px 10px 4px;
+  color: var(--soft);
+  font-size: 0.6875rem;
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.global-search-result {
+  min-height: 42px;
+}
+
+.global-search-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 6px;
+  padding: 8px 10px 4px;
+  border-top: 1px solid var(--polish-line);
+  color: var(--soft);
+  font-size: var(--text-xs);
+}
+
+.global-search-footer span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.global-search-footer kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border: 1px solid var(--polish-line);
+  border-radius: 6px;
+  color: var(--muted);
+  background: var(--surface-2);
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  line-height: 1;
+}
+
+/* --- Navigation ----------------------------------------------------------- */
+
+/* The phone drawer marks upcoming destinations the way the sidebar does: a
+   quieter row, with the "Coming soon" word as a small trailing tag. */
+.mobile-drawer .nav-btn--coming-soon:not(.active):not([aria-current="page"]) {
+  color: var(--soft);
+}
+
+.mobile-drawer .nav-btn--coming-soon:not(.active):not([aria-current="page"]) svg {
+  opacity: 0.7;
+}
+
+.mobile-drawer .nav-coming-soon-label {
+  margin-inline-start: auto;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  /* --muted, not --soft: small text on the tag's fill needs the contrast. */
+  color: var(--muted);
+  background: var(--surface-3);
+  font-size: 0.6875rem;
+  font-weight: var(--weight-medium);
+}
+
+/* --- Dashboard ------------------------------------------------------------ */
+
+/* Metrics strip. Five separately framed cards become one instrument: a single
+   surface divided by hairlines, numbers first. The row keeps its grid and its
+   horizontal scroll on narrow screens; only the chrome between cells goes. */
+.dashboard-stats-grid {
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--polish-line);
+  border-radius: var(--radius-lg);
+  background: var(--polish-raised);
+  box-shadow: var(--polish-shadow);
+}
+
+.dashboard-stats-grid .stat-card {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.dashboard-stats-grid .stat-card + .stat-card {
+  border-inline-start: 1px solid var(--polish-line);
+}
+
+.dashboard-stats-grid .stat-card:hover:where(html.ix-hover *) {
+  transform: none;
+  border-color: var(--polish-line);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  box-shadow: none;
+}
+
+.dashboard-stats-grid .stat-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.dashboard-stats-grid .stat-card-value {
+  font-size: var(--text-xl);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Horizontal scroll on narrow screens still needs the row itself to scroll. */
+@media (max-width: 1199px) {
+  .dashboard-stats-grid { overflow-x: auto; overflow-y: hidden; }
+}
+
+.dashboard-left .continue-card h2 + .btn { margin-block-start: 14px; }
+
+/* A corner glyph on "Recent sheets" was decoration beside a plain heading. */
+.dashboard-recent-sheets .panel-title > span { display: none; }
+
+/* The review queue's icon was alarm-red even when the queue was empty. Red
+   now appears only when there are mistakes to review. */
+.review-queue-title > span {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+.review-queue-header:has(.review-queue-count.has-items) .review-queue-title > span {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+/* --- Review --------------------------------------------------------------- */
+
+/* Three sections, three shapes (a gold hero, a band ruled top and bottom, a
+   filled well) become one card language; the Review Bank stays first and
+   keeps the page's only primary button. */
+.review-bank-entry,
+.weekly-recall-entry,
+.review-center-section {
+  border: 1px solid var(--polish-line);
+  border-radius: var(--radius-lg);
+  background: var(--polish-raised);
+  box-shadow: var(--polish-shadow);
+}
+
+.review-bank-entry { padding: clamp(18px, 2.4vw, 26px); }
+.weekly-recall-entry { padding: var(--refine-card-pad); }
+.weekly-recall-entry.is-available { border-color: var(--accent-border); background: color-mix(in srgb, var(--accent) 4%, var(--polish-raised)); }
+.review-center-section { padding: var(--refine-card-pad); }
+
+.review-bank-entry h2 { font-size: var(--text-xl); letter-spacing: -0.02em; }
+
+.weekly-recall-entry h2,
+.review-section-heading h2,
+.review-bank-overview h2,
+.review-session-complete h2,
+.weekly-recall-start h2 { font-size: var(--text-lg); letter-spacing: -0.015em; }
+
+.review-feature-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+.review-section-heading > a { color: var(--accent-text); font-weight: var(--weight-semibold); }
+.review-bank-summary dt { font-weight: var(--weight-medium); }
+
+/* --- Settings ------------------------------------------------------------- */
+
+/* Consecutive settings rows are one grouped list (the iOS Settings pattern):
+   a single rounded well divided by hairlines, instead of a stack of separate
+   framed boxes inside an already framed section. */
+:is(.theme-section, .settings-panel) > .settings-row {
+  min-height: 50px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 0;
+  background: var(--refine-well);
+  box-shadow: none;
+}
+
+/* Rows in a run touch: the section's own grid gap is cancelled between them
+   so the hairline, not a strip of section background, separates them. */
+:is(.theme-section, .settings-panel) > .settings-row + .settings-row {
+  margin-block-start: calc(-1 * var(--refine-row-gap, 12px));
+  border-block-start: 1px solid var(--polish-line);
+}
+
+:is(.theme-section, .settings-panel) > .settings-row:not(.settings-row + .settings-row) {
+  border-start-start-radius: var(--radius-md);
+  border-start-end-radius: var(--radius-md);
+}
+
+:is(.theme-section, .settings-panel) > .settings-row:not(:has(+ .settings-row)) {
+  border-end-start-radius: var(--radius-md);
+  border-end-end-radius: var(--radius-md);
+}
+
+:is(.theme-section, .settings-panel) > .settings-row > span:last-child:not(.pill) {
+  color: var(--muted);
+  text-align: end;
+}
+
+:is(.theme-section, .settings-panel) > .settings-row > strong {
+  font-variant-numeric: tabular-nums;
+}
+
+html.ix-hover :is(.theme-section, .settings-panel) > .settings-row:hover {
+  border-color: var(--polish-line);
+  background: var(--refine-well);
+}
+
+/* Read-only facts keep label and value on one line on phones too (the phone
+   rule stacks every settings row), so the list stays scannable. */
+@media (max-width: 760px) {
+  :is(.theme-section, .settings-panel) > .settings-row:has(> span + span:last-child, > span + strong:last-child) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+}
+
+/* Tablet portrait fell into the one-column rule meant for narrow widths, so
+   each mascot and theme preview filled the whole row. */
+@media (min-width: 640px) and (max-width: 900px) {
+  .character-grid,
+  .theme-grid {
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  }
+}
+
+/* One section at a time, at every width. Phones and tablets already switched
+   sections with the strip; the desktop printed all six in one long scroll.
+   The Offline section was also missing from the switch, so on a phone it
+   appeared under every tab. Sections keep their grid display when shown. */
+.themes-page[data-active-section] > :is(#settings-character, #settings-app-icon, #settings-themes, .auto-theme-card, #settings-reminder, #settings-offline, #settings-account) {
+  display: none;
+}
+
+.themes-page[data-active-section="character"] > #settings-character,
+.themes-page[data-active-section="app-icon"] > #settings-app-icon,
+.themes-page[data-active-section="themes"] > :is(#settings-themes, .auto-theme-card),
+.themes-page[data-active-section="reminder"] > #settings-reminder,
+.themes-page[data-active-section="offline"] > #settings-offline,
+.themes-page[data-active-section="account"] > #settings-account {
+  display: grid;
+  animation: refine-section-in var(--motion-panel-duration) var(--motion-enter-ease) both;
+}
+
+@keyframes refine-section-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Desktop: the macOS Settings arrangement — a quiet list of sections beside
+   the one being edited, instead of a strip above a very long page. */
+@media (min-width: 1200px) {
+  .themes-page[data-active-section] {
+    grid-template-columns: minmax(176px, 216px) minmax(0, 1fr);
+    grid-auto-flow: row dense;
+    align-items: start;
+    column-gap: clamp(24px, 3vw, 44px);
+  }
+
+  .themes-page[data-active-section] > * {
+    grid-column: 2;
+  }
+
+  .themes-page[data-active-section] > .settings-local-nav {
+    position: sticky;
+    top: 4px;
+    z-index: 1;
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .themes-page[data-active-section] > .settings-local-nav button {
+    flex: 0 0 auto;
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 12px;
+    border: 0;
+    border-radius: var(--radius-md);
+    color: var(--muted);
+    background: transparent;
+    font: inherit;
+    font-size: var(--text-md);
+    font-weight: var(--weight-medium);
+    text-align: start;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  html.ix-hover .themes-page[data-active-section] > .settings-local-nav button:not([aria-current="location"]):hover {
+    color: var(--text);
+    background: var(--surface-3);
+  }
+
+  .themes-page[data-active-section] > .settings-local-nav button[aria-current="location"] {
+    color: var(--text);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .themes-page[data-active-section] > * { animation: none; }
+}
+
+/* Sections in Settings share the page's card language and heading scale. */
+.theme-section-head h2 {
+  font-size: var(--text-lg);
+  letter-spacing: -0.015em;
+}
+
+.theme-section-head p {
+  color: var(--muted);
+}
+
+/* --- Progress ------------------------------------------------------------- */
+
+.progress-level-hero {
+  border-color: var(--polish-line);
+  background: var(--polish-raised);
+  box-shadow: var(--polish-shadow);
+}
+
+.progress-level-hero::after { display: none; }
+
+.progress-level-orb {
+  width: 136px;
+  border-color: var(--polish-line);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.progress-level-orb strong { font-size: 2.75rem; letter-spacing: -0.03em; }
+
+/* Eyebrow labels were gold on every card; one accent per view is enough. */
+.progress-level-orb small,
+.progress-xp-arc > small,
+.progress-stat-card > div > small,
+.progress-ledger-panel header p,
+.progress-calendar-panel header p {
+  color: var(--refine-eyebrow);
+  font-size: 0.6875rem;
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.06em;
+}
+
+.progress-level-copy h2 { font-size: var(--text-xl); letter-spacing: -0.02em; }
+
+.progress-level-bar {
+  height: 8px;
+  background: var(--surface-3);
+}
+
+.progress-level-bar i,
+.progress-xp-arc-value {
+  box-shadow: none;
+  filter: none;
+}
+
+.progress-level-bar i { background: var(--accent); }
+.progress-xp-arc-value { stroke: var(--accent); }
+.progress-xp-arc-track { stroke: var(--surface-3); }
+.progress-xp-arc strong { font-size: 1.75rem; letter-spacing: -0.02em; }
+
+/* The bar beside it fills from the inline start; the arc follows in Arabic. */
+:root[dir="rtl"] .progress-xp-arc svg { transform: scaleX(-1); }
+
+.progress-stat-card,
+.progress-stat-card--streak,
+.progress-stat-card--policy,
+.progress-ledger-panel,
+.progress-calendar-panel,
+.progress-study-cta {
+  border-color: var(--polish-line);
+  background: var(--polish-raised);
+}
+
+.progress-stat-card {
+  min-height: 112px;
+  padding: var(--refine-card-pad);
+  border-radius: var(--radius-lg);
+}
+
+.progress-stat-icon,
+.progress-stat-card--streak .progress-stat-icon,
+.progress-stat-card--policy .progress-stat-icon {
+  width: 44px;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+.progress-stat-icon svg { width: 21px; height: 21px; }
+
+/* The trailing glyphs (a chart, a pulse, a "?") were decoration that read as
+   buttons. The card's icon already names it. */
+.progress-stat-card > svg { display: none; }
+
+.progress-stat-card { grid-template-columns: auto minmax(0, 1fr); }
+
+.progress-stat-card strong { font-size: var(--text-2xl); font-weight: var(--weight-bold); }
+/* The policy card names a rule rather than a number. */
+.progress-stat-card--policy strong { font-size: var(--text-base); font-weight: var(--weight-semibold); letter-spacing: 0; }
+
+.progress-ledger-panel,
+.progress-calendar-panel { border-radius: var(--radius-lg); }
+
+.progress-ledger-panel > header > svg {
+  color: var(--muted);
+  background: var(--surface-3);
+}
+
+.progress-ledger-panel header h2,
+.progress-calendar-panel header h2 {
+  font-size: var(--text-lg);
+  letter-spacing: -0.015em;
+}
+
+.progress-ledger-row {
+  border: 0;
+  background: var(--surface-2);
+}
+
+.progress-ledger-icon {
+  color: var(--muted);
+  background: var(--surface-3);
+}
+
+.progress-ledger-row b { color: var(--text); font-variant-numeric: tabular-nums; }
+
+.progress-empty-ledger {
+  color: var(--muted);
+  background: var(--surface-2);
+  font-weight: var(--weight-medium);
+}
+
+/* Metric numbers in one colour; the labels say which is which. */
+.progress-calendar-metrics strong,
+.progress-calendar-metrics > div:nth-child(2) strong,
+.progress-calendar-metrics > div:nth-child(3) strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-calendar-metrics > div { background: var(--surface-2); }
+
+.progress-study-cta {
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+}
+
+.progress-study-cta > svg { color: var(--accent-text); }
+.progress-study-cta p { font-size: var(--text-base); font-weight: var(--weight-semibold); }
+
+.progress-study-cta a {
+  /* `margin-left: auto` pushed the link to the wrong edge in Arabic. */
+  margin-left: 0;
+  margin-inline-start: auto;
+  border-color: transparent;
+  color: var(--on-accent);
+  background: var(--accent);
+  font-weight: var(--weight-semibold);
+}
+
+.progress-study-cta a:hover:where(html.ix-hover *) {
+  border-color: transparent;
+  background: var(--accent-hover);
+  transform: none;
+}
+
+.progress-range-control {
+  border-color: var(--polish-line);
+  background: var(--surface-2);
+}
+
+@media (max-width: 640px) {
+  .progress-level-orb { width: 112px; }
+  .progress-level-orb strong { font-size: 2.25rem; }
+  /* On a phone the arc repeats the bar directly above it at twice the height. */
+  .progress-xp-arc { display: none; }
+  .progress-study-cta a { margin-inline-start: 0; }
+}
+
+/* --- Empty and loading states --------------------------------------------- */
+
+.empty-state-action { margin-block-start: 10px; }
+
+/* Perceived speed: a skeleton that flashes for 80ms reads as flicker, not as
+   loading. Placeholders wait a beat before fading in, so fast answers go
+   straight from nothing to content and slow ones still show their shape. */
+.loading-panel {
+  animation: refine-skeleton-in 240ms var(--motion-enter-ease) 140ms both;
+}
+
+@keyframes refine-skeleton-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-panel { animation: none; }
+}
+
+/* --- Motion and feedback -------------------------------------------------- */
+
+/* Popovers open *from* their trigger: a short fade with a 3% scale anchored at
+   the top edge. The notifications panel used the toast keyframe and rose up
+   from below, the opposite of where its bell is. */
+@keyframes refine-popover-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+.notifications-dropdown,
+.global-search-panel--desktop {
+  transform-origin: top right;
+  animation: refine-popover-in var(--motion-popover-duration) var(--motion-enter-ease) both;
+}
+
+:root[dir="rtl"] .notifications-dropdown {
+  transform-origin: top left;
+}
+
+/* The search panel hangs under a field, so it grows from that field's top. */
+.global-search-panel--desktop,
+:root[dir="rtl"] .global-search-panel--desktop {
+  transform-origin: top center;
+}
+
+/* Toasts settle instead of overshooting. */
+.reminder-toast,
+.level-up-toast,
+.unlock-toast {
+  animation: toast-rise 320ms var(--motion-enter-ease) both;
+}
+
+/* Outcomes (saved, failed, invalid) arrive with a small settle so the eye
+   catches the change without the layout jumping. */
+@keyframes refine-feedback-in {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: none; }
+}
+
+.form-alert,
+.inline-error,
+.form-error,
+.error-panel {
+  animation: refine-feedback-in var(--motion-control-duration) var(--motion-enter-ease) both;
+}
+
+/* `.form-error` carried error text with no styling at all. */
+.form-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
+}
+
+/* Cards that navigate answer the pointer with a border tint, never a jump. */
+:is(.catalog-tile.is-actionable, .catalog-sheet-card, .review-subject-row, .recent-mistake, .dashboard-recent-material) {
+  transition:
+    border-color var(--motion-micro-duration) var(--motion-enter-ease),
+    background-color var(--motion-micro-duration) var(--motion-enter-ease),
+    transform var(--motion-micro-duration) var(--motion-enter-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notifications-dropdown,
+  .global-search-panel--desktop,
+  .reminder-toast,
+  .level-up-toast,
+  .unlock-toast,
+  .form-alert,
+  .inline-error,
+  .form-error,
+  .error-panel {
+    animation: none;
+  }
+}
+
+}

@@ -65,7 +65,7 @@
   color: var(--text);
   font-family: var(--font-heading);
   font-size: var(--text-xl);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.02em;
 }
 
@@ -78,7 +78,7 @@
   color: var(--text);
   font-family: var(--font-heading);
   font-size: var(--text-3xl);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.1;
   text-wrap: balance;
@@ -168,7 +168,7 @@
 
 .pwa-launch-steps li::marker {
   color: var(--color-primary);
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .pwa-launch-actions {

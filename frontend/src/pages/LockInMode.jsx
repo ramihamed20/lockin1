@@ -1,19 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ArrowUpRight, Bookmark, ChevronLeft, ChevronRight, Eraser, FileText, Hand, Highlighter, Image as ImageIcon, LockKeyhole, Maximize2, Medal, MessageSquare, Minimize2, Minus, MoreHorizontal, MousePointer2, PanelRightOpen, Pause, PenLine, Play, Plus, Redo2, Search, Send, Shapes, ShieldCheck, Trophy, Type, Undo2, UserPlus, Users, X, Zap } from "lucide-react";
+import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, Eraser, FileText, Hand, Highlighter, Image as ImageIcon, LockKeyhole, Maximize2, MessageSquare, Minimize2, Minus, MoreHorizontal, MousePointer2, PanelRightOpen, Pause, PenLine, Play, Plus, Redo2, Search, Send, Shapes, Type, Undo2, Users, X } from "lucide-react";
 import { focusApi } from "../api/focus.js";
 import { cssVars, formatDuration } from "../lib/utils.js";
 import { formatTime } from "../lib/i18n.js";
 import { Icon } from "../lib/icons.jsx";
 import { notifyProgressionUpdated } from "../lib/progressionEvents.js";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
-import { ErrorPanel, LoadingPanel, RadioGroup, RadioOption } from "../components/ui/index.jsx";
+import { ErrorPanel, LoadingPanel } from "../components/ui/index.jsx";
 import { ReferenceAvatar, ReferenceProgress } from "../components/lock-in/ReferenceUi.jsx";
+import LockInLobby, { LockInSetup } from "./LockInLobby.jsx";
+import LockInLive from "./LockInLive.jsx";
 import { useVisibleNow } from "../hooks/useVisibleNow.js";
 import "./catalog-focus-workspace.css";
 import "./lock-in-reference.css";
 
-const DURATIONS = [15, 25, 45, 60];
 const WORKSPACE_COLORS = ["#8b5cf6", "#f7ce49", "#45d3a2", "#f27ca8", "#58b9ec"];
 /** @type {Array<[string, string, import("lucide-react").LucideIcon]>} */
 const LOCK_IN_VIEWER_TOOLS = [
@@ -545,6 +546,9 @@ function LiveTeamPanel({ team, currentUserId, onClose }) {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [chatState, setChatState] = useState("");
+  const [accessLost, setAccessLost] = useState(false);
+
+  useEffect(() => { setAccessLost(false); }, [team?.id]);
 
   const loadMessages = useCallback(async () => {
     if (!team?.id) return;
@@ -552,13 +556,16 @@ function LiveTeamPanel({ team, currentUserId, onClose }) {
       const payload = await focusApi.getLockInTeamMessages(team.id);
       setMessages(Array.isArray(payload.messages) ? payload.messages : []);
       setChatState("");
-    } catch (error) { setChatState(error.message || "Chat could not be loaded."); }
+    } catch (error) {
+      if (error.status === 400 || error.status === 403) setAccessLost(true);
+      else setChatState(error.message || "Chat could not be loaded.");
+    }
   }, [team?.id]);
 
   useEffect(() => {
     if (!team?.id) return undefined;
     void loadMessages();
-    const timer = window.setInterval(() => { void loadMessages(); }, 15000);
+    const timer = window.setInterval(() => { void loadMessages(); }, 10000);
     return () => window.clearInterval(timer);
   }, [loadMessages, team?.id]);
 
@@ -575,7 +582,7 @@ function LiveTeamPanel({ team, currentUserId, onClose }) {
     } catch (error) { setChatState(error.message || "Message could not be sent."); }
   }
 
-  if (!team) return <aside className="lockin-reference-side lockin-reference-personal" aria-label="Personal session">{onClose && <button className="lockin-reference-side-close" type="button" onClick={onClose} aria-label="Close Lock In sidebar"><X size={18} /></button>}<h2 className="lockin-reference-side-title">Personal focus</h2><p>This is a private session. Create a team to study and chat with others.</p></aside>;
+  if (!team || accessLost) return <aside className="lockin-reference-side lockin-reference-personal" aria-label="Personal session">{onClose && <button className="lockin-reference-side-close" type="button" onClick={onClose} aria-label="Close Lock In sidebar"><X size={18} /></button>}<h2 className="lockin-reference-side-title">Personal focus</h2></aside>;
 
   return <aside className="lockin-reference-side" aria-label="Study team and chat">{onClose && <button className="lockin-reference-side-close" type="button" onClick={onClose} aria-label="Close Lock In sidebar"><X size={18} /></button>}<h2 className="lockin-reference-side-title">{team.name} <span><Users size={15} /> {team.member_count}</span></h2><p className="lockin-reference-invite">Invite code: <strong>{team.invite_code}</strong></p><div className="lockin-reference-team-list">{(team.members || []).map((member) => <article className="lockin-reference-member" key={member.user_id} style={cssVars({ "--member-color": member.status === "active" ? "var(--lockin-member-active, #50d9be)" : "var(--lockin-member-idle, #9ca9be)" })}><ReferenceAvatar initials={initials(member.name)} avatar={member.avatar} userId={member.user_id} tone={member.status === "active" ? "teal" : "slate"} /><div className="lockin-reference-member-copy"><strong>{member.name}</strong><div className="lockin-reference-member-status"><i />{teamMemberStatus(member.status)}</div>{member.progress != null && <ReferenceProgress value={member.progress} indicatorClassName="" />}</div><div className="lockin-reference-member-percent">{member.progress != null ? `${member.progress}%` : ""}</div></article>)}</div><section className="lockin-reference-chat" aria-labelledby="team-chat-title"><h3 id="team-chat-title" className="lockin-reference-chat-heading">Team Chat</h3><div className="lockin-reference-messages" aria-live="polite">{messages.length ? messages.map((item) => <div key={item.id} className={`lockin-reference-message${item.author_id === currentUserId ? " lockin-reference-message--mine" : ""}`}>{item.author_id !== currentUserId && <ReferenceAvatar initials={initials(item.author_name)} avatar={item.author_avatar} userId={item.author_id} tone="slate" className="li-h-11 li-w-11" />}<div><div className="lockin-reference-message-meta"><strong>{item.author_id === currentUserId ? "You" : item.author_name}</strong><span>{formatTime(item.created_at)}</span></div><div className="lockin-reference-bubble">{item.body}</div></div></div>) : <p className="lockin-reference-chat-empty">No messages yet. Say hello to your team.</p>}</div><form className="lockin-reference-chat-form" onSubmit={sendMessage}><input value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} placeholder="Type a message..." aria-label="Team chat message" /><button className="lockin-reference-send" type="submit" disabled={!message.trim() || chatState === "sending"} aria-label="Send message"><Send size={20} /></button></form>{chatState && chatState !== "sending" && <p className="lockin-reference-chat-error" role="alert">{chatState}</p>}</section></aside>;
 }
@@ -663,60 +670,6 @@ function ExitDialog({ open, busy, onStay, onPauseExit, onComplete, onAbandon }) 
   );
 }
 
-function LiveTeamHub({ bootstrap, onPrepare, onResume, onExit, onRefresh }) {
-  const teams = Array.isArray(bootstrap?.teams) ? bootstrap.teams : [];
-  const rankings = Array.isArray(bootstrap?.team_rankings) ? bootstrap.team_rankings : [];
-  const activeSession = bootstrap?.active_session;
-  const currentTeam = activeSession?.team || teams[0] || null;
-  const [inviteCode, setInviteCode] = useState("");
-  const [joining, setJoining] = useState(false);
-  const [joinError, setJoinError] = useState("");
-  const rank = currentTeam ? rankings.findIndex((team) => team.id === currentTeam.id) + 1 : 0;
-
-  async function joinTeam(event) {
-    event.preventDefault();
-    if (!inviteCode.trim() || joining) return;
-    setJoining(true);
-    setJoinError("");
-    try {
-      await focusApi.joinLockInTeam(inviteCode.trim());
-      setInviteCode("");
-      await onRefresh();
-    } catch (error) { setJoinError(error.message || "Team could not be joined."); }
-    finally { setJoining(false); }
-  }
-
-  return <main className="lock-in-screen lockin-team-hub" aria-labelledby="lock-in-team-title"><div className="lockin-team-hub-inner"><header className="lockin-team-topbar"><button className="lockin-team-back" type="button" onClick={onExit} aria-label="Leave Lock In"><ArrowLeft size={25} /></button><section className="lockin-team-identity"><div className="lockin-team-mark"><ShieldCheck size={28} /></div><div><h1 id="lock-in-team-title">{currentTeam?.name || "Study together"}</h1><div className="lockin-team-members">{currentTeam ? <><span className="lockin-team-avatar-stack">{currentTeam.members.slice(0, 4).map((member) => <ReferenceAvatar key={member.user_id} initials={initials(member.name)} avatar={member.avatar} userId={member.user_id} tone={member.status === "active" ? "teal" : "slate"} />)}</span><span>{currentTeam.member_count} member{currentTeam.member_count === 1 ? "" : "s"}</span></> : <span>Create or join a real study team</span>}</div></div></section><section className="lockin-team-metric"><span>Weekly focus</span><strong>{formatDuration(currentTeam?.weekly_active_seconds || 0)}</strong><p>{currentTeam?.weekly_completed_sessions || 0} completed sessions</p></section><section className="lockin-team-metric"><span>Active members</span><strong>{currentTeam?.members.filter((member) => member.status === "active").length || 0}</strong><p>Currently focused</p></section><section className="lockin-team-metric lockin-team-rank"><span><Trophy size={16} fill="currentColor" /> Team rank</span><strong>{rank ? `#${rank}` : "—"}</strong><p>{rank ? "Based on weekly focus" : "Create a team to rank"}</p></section><button className="lockin-team-cta" type="button" onClick={() => onPrepare("personal")}><Zap size={28} fill="currentColor" /><span><strong>Lock In Together</strong><small>Start a focused session</small></span></button></header><section className="lockin-team-dashboard"><article className="lockin-team-panel lockin-team-rankings"><h2>Team Rankings</h2>{rankings.length ? <ol>{rankings.map((team, index) => <li key={team.id} className={team.id === currentTeam?.id ? "is-current" : ""}><strong className="lockin-team-place">{index + 1}</strong><span className="lockin-team-rank-icon"><Medal size={24} fill="currentColor" /></span><span>{team.name}</span><small>{formatDuration(team.weekly_active_seconds)}</small></li>)}</ol> : <p className="lockin-team-empty">No completed team sessions yet.</p>}</article><article className="lockin-team-panel lockin-team-activity"><header><h2>Team activity</h2>{currentTeam && <span>{currentTeam.member_count} members</span>}</header>{currentTeam ? <div>{currentTeam.members.map((member) => <div className="lockin-team-activity-row" key={member.user_id}><ReferenceAvatar initials={initials(member.name)} avatar={member.avatar} userId={member.user_id} tone={member.status === "active" ? "teal" : "slate"} /><p><strong>{member.name}</strong>{teamMemberStatus(member.status)}<small>{member.active_seconds ? formatDuration(member.active_seconds) : "No active session"}</small></p><em>{member.progress != null ? `${member.progress}%` : ""}</em></div>)}</div> : <p className="lockin-team-empty">Create a team and share its invite code to see live members here.</p>}</article><aside className="lockin-team-aside"><article className="lockin-team-panel lockin-my-teams"><h2>My Teams <span><Users size={16} /> {teams.length}</span></h2>{teams.length ? teams.map((team) => <div className="lockin-my-team-current" key={team.id}><div className="lockin-team-mark"><ShieldCheck size={24} /></div><div><strong>{team.name}</strong><p>{team.member_count} members · {formatDuration(team.weekly_active_seconds)} this week</p><ReferenceProgress value={team.members.some((member) => member.status === "active") ? 100 : 0} indicatorClassName="lockin-reference-progress-team" label={`${team.name} live focus activity`} /></div></div>) : <p className="lockin-team-empty">You have not created or joined a team yet.</p>}{activeSession && <button className="lockin-team-resume" type="button" onClick={onResume}>Resume active session <ArrowUpRight size={17} /></button>}<button className="lockin-team-create" type="button" onClick={() => onPrepare("team")}><UserPlus size={19} /> Create Team</button><button className="lockin-team-secondary-action" type="button" onClick={() => onPrepare("personal")}><Users size={18} /> Lock In Together</button></article><article className="lockin-team-panel lockin-team-join"><h2>Join with Code</h2><form onSubmit={joinTeam}><input value={inviteCode} onChange={(event) => setInviteCode(event.target.value.toUpperCase())} maxLength={12} placeholder="TEAM CODE" aria-label="Team invite code" /><button type="submit" disabled={!inviteCode.trim() || joining}>{joining ? "Joining..." : "Join team"}</button></form>{joinError && <p role="alert">{joinError}</p>}</article></aside></section></div></main>;
-}
-
-function ReferenceSetup({ bootstrap, mode, preselectedDocumentVersionId, onStart, onBack, starting, error }) {
-  const materials = Array.isArray(bootstrap?.materials) ? bootstrap.materials : [];
-  const selectedFromRoute = materials.some((item) => item.document_version_id === preselectedDocumentVersionId) ? preselectedDocumentVersionId : "";
-  const [materialId, setMaterialId] = useState(selectedFromRoute);
-  const [duration, setDuration] = useState("25");
-  const [teamName, setTeamName] = useState("");
-  const isTeam = mode === "team";
-  const canStart = !starting && (!isTeam || Boolean(teamName.trim()));
-
-  function submit(event) {
-    event.preventDefault();
-    if (!canStart) return;
-    onStart({ documentVersionId: materialId || null, sessionType: materialId ? "material" : "timed", plannedDurationSeconds: Number(duration) * 60, breakDurationSeconds: null, teamName: isTeam ? teamName.trim() : "", goal: "", topic: "", note: "", tasks: [] });
-  }
-
-  return (
-    <main className="lock-in-screen lockin-setup-reference" aria-labelledby="lock-in-setup-title">
-      <section className="lockin-setup-shell"><header><button className="lockin-setup-back" type="button" onClick={onBack} aria-label="Back to Lock In"><ArrowLeft size={22} /></button><div><span>Prepare your session</span><h1 id="lock-in-setup-title">{isTeam ? "Create your study team" : "Lock In Together"}</h1></div></header>{bootstrap?.active_session && <ResumeCard payload={bootstrap.active_session} />}<form className="lock-in-form" onSubmit={submit}><p className="lockin-setup-intro">{isTeam ? "Name the team, choose the material, then enter the focused workspace together." : "Choose a material and duration. Your session will be saved securely."}</p>{isTeam && <label className="field lockin-setup-team-field"><span>Team name</span><input value={teamName} maxLength={80} onChange={(event) => setTeamName(event.target.value)} placeholder="e.g. Oral Anatomy Squad" required /></label>}<label className="field"><span>Study material</span><select value={materialId} onChange={(event) => setMaterialId(event.target.value)}><option value="">Independent study</option>{materials.map((item) => <option key={item.document_version_id} value={item.document_version_id}>{item.title}</option>)}</select>{!materials.length && <small>No accessible PDF materials are available yet.</small>}</label><fieldset className="lockin-duration-picker"><legend>Session duration</legend><RadioGroup label="Session duration" value={duration} onChange={setDuration}>{DURATIONS.map((value) => <RadioOption className={duration === String(value) ? "active" : ""} key={value} value={String(value)}>{value}<small>min</small></RadioOption>)}</RadioGroup></fieldset>{error && <p className="inline-error" role="alert">{error}</p>}<button className="lockin-setup-start" type="submit" disabled={!canStart}>{starting ? "Preparing…" : "Start Lock In Mode"}<ArrowUpRight size={19} /></button></form></section>
-    </main>
-  );
-}
-
-function ResumeCard({ payload }) {
-  const navigate = useNavigate();
-  const session = payload.session;
-  return <aside className="lock-in-resume-card"><div><strong>Unfinished session found</strong><p>{payload.material?.title || session.goal || "Your server-saved Focus session"} · {session.status.replace("_", " ")}</p></div><button className="btn btn-soft" type="button" onClick={() => navigate(`/lock-in/${session.id}`, { replace: true })}>Resume session</button></aside>;
-}
-
 function Summary({ payload, onReturn }) {
   const { session, material, note, tasks, timing, daily_summary: daily } = payload;
   const completeTasks = (tasks || []).filter((task) => task.completed_at).length;
@@ -738,12 +691,13 @@ export default function LockInMode({ user }) {
   const [workspaceSync, setWorkspaceSync] = useState("Saved");
   const [taskDraft, setTaskDraft] = useState("");
   const [setupMode, setSetupMode] = useState(() => location.state?.preselectedDocumentVersionId ? "personal" : "");
+  const [setupTeamId, setSetupTeamId] = useState(null);
   const returnStateRef = useRef(readReturnState(user, { route: location.state?.returnTo || "/dashboard", scrollY: location.state?.scrollY || 0 }));
   const leaveRef = useRef(false);
   const workspaceSaveTimerRef = useRef(null);
 
   const replacePayload = useCallback((payload, { syncNote = true } = {}) => {
-    setState((current) => ({ ...current, payload, error: "", loading: false }));
+    setState((current) => ({ ...current, payload: { ...payload, received_at_ms: Date.now() }, error: "", loading: false }));
     if (syncNote && typeof payload?.note?.body === "string") setNoteBody(payload.note.body);
   }, []);
 
@@ -763,9 +717,14 @@ export default function LockInMode({ user }) {
 
   useEffect(() => { void load(); }, [load]);
 
+  const refreshBootstrap = useCallback(async () => {
+    const bootstrap = await focusApi.getLockIn();
+    setState((current) => ({ ...current, bootstrap }));
+  }, []);
+
   useEffect(() => {
     const session = state.payload?.session;
-    if (!session || !isUnfinished(state.payload)) return undefined;
+    if (!session || session.lock_in_live || !isUnfinished(state.payload)) return undefined;
     const handleBeforeUnload = (event) => { event.preventDefault(); event.returnValue = ""; };
     const handleVisibility = () => {
       if (!document.hidden) {
@@ -846,13 +805,7 @@ export default function LockInMode({ user }) {
     setStarting(true);
     writeReturnState(user, returnStateRef.current);
     try {
-      let request = input;
-      if (input.teamName) {
-        const created = await focusApi.createLockInTeam(input.teamName);
-        const createdTeam = created.team && typeof created.team === "object" ? /** @type {any} */ (created.team) : null;
-        request = { ...input, teamId: createdTeam?.id || null, teamName: "" };
-      }
-      const payload = await focusApi.startLockIn({ ...request, clientInstanceId: uuid() });
+      const payload = await focusApi.startLockIn({ ...input, clientInstanceId: uuid() });
       replacePayload(payload);
       navigate(`/lock-in/${payloadSessionId(payload)}`, { replace: true });
     } catch (error) {
@@ -871,6 +824,50 @@ export default function LockInMode({ user }) {
       if (exitAfter) returnToSource();
     } catch (error) { setState((current) => ({ ...current, error: error.message || "The session could not be updated." })); }
     finally { setBusy(""); setExitOpen(false); setAbandonOpen(false); }
+  }
+
+  const liveSessionId = state.payload?.session?.id;
+  // A heartbeat or refresh still in flight when the student leaves must not put
+  // the session back on screen, so live responses only land while the route
+  // still points at their session.
+  const routeSessionRef = useRef(sessionId);
+  useEffect(() => { routeSessionRef.current = sessionId; }, [sessionId]);
+  const refreshLive = useCallback(async () => {
+    if (!liveSessionId) return;
+    try {
+      const payload = await focusApi.getLockInSession(liveSessionId);
+      if (routeSessionRef.current === liveSessionId) replacePayload(payload, { syncNote: false });
+    } catch (error) {
+      if (routeSessionRef.current !== liveSessionId) return;
+      if ([400, 403, 404].includes(error.status)) navigate("/lock-in", { replace: true });
+      else setState((current) => ({ ...current, error: error.message || "Reconnecting…" }));
+    }
+  }, [liveSessionId, navigate, replacePayload]);
+
+  const livePresence = useCallback(async (presence) => {
+    if (!liveSessionId) return;
+    const payload = await focusApi.setLockInPresence(liveSessionId, presence);
+    if (routeSessionRef.current === liveSessionId) replacePayload(payload, { syncNote: false });
+  }, [liveSessionId, replacePayload]);
+
+  async function liveLeave() {
+    if (!liveSessionId) return;
+    setBusy("leave");
+    try { await focusApi.leaveLockInSession(liveSessionId); navigate("/lock-in", { replace: true }); }
+    catch (error) { setState((current) => ({ ...current, error: error.message || "Could not leave." })); }
+    finally { setBusy(""); }
+  }
+
+  async function liveTeamAction(name, body) {
+    const teamId = state.payload?.session?.team_id;
+    if (!teamId) return;
+    setBusy(name);
+    try {
+      if (name === "update") await focusApi.updateLockInTeam(teamId, body);
+      else await focusApi.lockInTeamAction(teamId, name, body);
+      await refreshLive();
+    } catch (error) { setState((current) => ({ ...current, error: error.message || "Could not update team." })); }
+    finally { setBusy(""); }
   }
 
   async function addTask(event) {
@@ -894,8 +891,9 @@ export default function LockInMode({ user }) {
 
   if (state.loading) return <main className="lock-in-screen"><LoadingPanel /></main>;
   if (state.error && !state.bootstrap && !state.payload) return <main className="lock-in-screen"><ErrorPanel message={state.error} onRetry={load} /></main>;
-  if (!state.payload && !setupMode) return <><h1 className="visually-hidden">Lock In study workspace</h1><LiveTeamHub bootstrap={state.bootstrap} onPrepare={setSetupMode} onResume={() => navigate(`/lock-in/${payloadSessionId(state.bootstrap?.active_session)}`, { replace: true })} onExit={returnToSource} onRefresh={load} /></>;
-  if (!state.payload) return <ReferenceSetup bootstrap={state.bootstrap} mode={setupMode} preselectedDocumentVersionId={location.state?.preselectedDocumentVersionId} onStart={startSession} onBack={() => setSetupMode("")} starting={starting} error={state.error} />;
+  if (!state.payload && !setupMode) return <LockInLobby bootstrap={state.bootstrap} onSolo={() => { setSetupTeamId(null); setSetupMode("solo"); }} onTeamStart={(id) => { setSetupTeamId(id); setSetupMode("team-session"); }} onResume={() => navigate(`/lock-in/${payloadSessionId(state.bootstrap?.active_session)}`, { replace: true })} onResumeSession={(id) => navigate(`/lock-in/${id}`)} onExit={returnToSource} onRefresh={refreshBootstrap} />;
+  if (!state.payload) return <LockInSetup bootstrap={state.bootstrap} teamId={setupTeamId} preselectedDocumentVersionId={location.state?.preselectedDocumentVersionId} onStart={startSession} onBack={() => setSetupMode("")} onResume={() => navigate(`/lock-in/${payloadSessionId(state.bootstrap?.active_session)}`, { replace: true })} busy={starting} error={state.error} />;
+  if (state.payload.session?.lock_in_live) return <LockInLive payload={state.payload} busy={busy} error={state.error} onAction={action} onHome={() => navigate("/lock-in")} onPresence={livePresence} onLeave={liveLeave} onTeamAction={liveTeamAction} onRefresh={refreshLive} />;
   if (!isUnfinished(state.payload)) return <Summary payload={state.payload} onReturn={returnToSource} />;
 
   const { session } = state.payload;

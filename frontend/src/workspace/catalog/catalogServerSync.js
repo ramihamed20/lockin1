@@ -346,7 +346,7 @@ export function createCatalogServerSync({
   /**
    * Mirrors a local snapshot. Calls made while a sync runs are coalesced into
    * one follow-up push of the newest snapshot.
-   * @param {{ savedAt: string, view: any, notes: any[], annotations: any[] }} snapshot
+   * @param {{ savedAt: string, view: any, notes: any[], annotations: any[], virtualPages?: any[] }} snapshot
    */
   function push(snapshot) {
     if (disabled || workspaceRevision === null) return Promise.resolve({ status: "unavailable" });

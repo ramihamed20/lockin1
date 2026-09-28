@@ -1,5 +1,7 @@
 import { request } from "./client.js";
 import { generateIdempotencyKey } from "./pagination.js";
+import { resolveContent, resolveQuestions, resolveStored } from "../offline/resolver.js";
+import { answerQuestionOffline } from "../offline/queue.js";
 
 export const catalogWorkspaceApi = {
   materials() {
@@ -9,16 +11,16 @@ export const catalogWorkspaceApi = {
    * The Questions directory. Same subjects and same sheet names as
    * `materials()`, narrowed to the sheets that carry published questions.
    */
-  questionMaterials(source = "") {
-    return request("/catalog/questions" + (source ? `?source=${encodeURIComponent(source)}` : ""));
+  questionMaterials(source = "", userId = "") {
+    return resolveStored(userId, `question-directory:${source}`, () => request("/catalog/questions" + (source ? `?source=${encodeURIComponent(source)}` : "")));
   },
   /**
    * One Material sheet's published questions.
    * @param {string} sheetId
-   * @param {{ signal?: AbortSignal, source?: string }} [options]
+   * @param {{ signal?: AbortSignal, source?: string, userId?: string }} [options]
    */
-  sheetQuestions(sheetId, { signal, source = "" } = {}) {
-    return request(`/catalog/sheets/${encodeURIComponent(sheetId)}/questions` + (source ? `?source=${encodeURIComponent(source)}` : ""), { signal });
+  sheetQuestions(sheetId, { signal, source = "", userId = "" } = {}) {
+    return resolveQuestions(userId, sheetId, source, () => request(`/catalog/sheets/${encodeURIComponent(sheetId)}/questions` + (source ? `?source=${encodeURIComponent(source)}` : ""), { signal }));
   },
   /**
    * Submit one answer. The server grades it and awards its XP exactly once, so
@@ -27,10 +29,10 @@ export const catalogWorkspaceApi = {
    * @param {string} questionId
    * @param {string[]} choiceIds
    */
-  answerQuestion(sheetId, questionId, choiceIds) {
-    return request(`/catalog/sheets/${encodeURIComponent(sheetId)}/questions/${encodeURIComponent(questionId)}/answer`, {
+  answerQuestion(sheetId, questionId, choiceIds, { userId = "", source = "" } = {}) {
+    return resolveContent(userId, () => request(`/catalog/sheets/${encodeURIComponent(sheetId)}/questions/${encodeURIComponent(questionId)}/answer`, {
       method: "POST", retryable: true, body: { choice_ids: choiceIds }
-    });
+    }), () => answerQuestionOffline(userId, sheetId, source, questionId, choiceIds));
   },
   /**
    * @param {string} materialSlug

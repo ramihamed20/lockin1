@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { accountsApi } from "../api/accounts.js";
 import { motivationApi } from "../api/motivation.js";
@@ -15,6 +15,8 @@ import { SessionList } from "../components/account/SessionList.jsx";
 import { SubscriptionStatus } from "../components/subscription/SubscriptionStatus.jsx";
 import { Page, ErrorPanel, RadioGroup, RadioOption, ToggleButton } from "../components/ui/index.jsx";
 import { ResponsiveThemePreview } from "../components/shared/ResponsiveThemePreview.jsx";
+import OfflineSettings from "../offline/OfflineSettings.jsx";
+import { useGlide } from "../lib/motion.js";
 
 export default function Settings({ user, onUserUpdate, settings, activeTheme, reminderSettings, onReminderSettingsChange, onSettingsChange, onSignedOut }) {
   const { t } = useI18n();
@@ -28,6 +30,8 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
   const requestedSection = searchParameters.get("section") || "";
   const deletionToken = searchParameters.get("token") || "";
   const activeSection = requestedSection || (deletionToken ? "account" : "character");
+  const sectionNavRef = useRef(null);
+  useGlide(sectionNavRef, "[aria-current='location']", activeSection);
   const handleDeletionConfirmation = useCallback(() => {
     const search = new URLSearchParams(location.search);
     search.delete("token");
@@ -126,8 +130,8 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
     <Page title={t("settings.pageTitle")} subtitle={t("settings.pageSubtitle")}>
       <section className="themes-page" data-active-section={activeSection}>
         {(error || reminderError) && <ErrorPanel message={error || reminderError} />}
-        <nav className="settings-local-nav" aria-label={t("settings.sectionsLabel")}>
-          {[["character", "settings.character"], ["app-icon", "settings.appIcon"], ["themes", "settings.themes"], ["reminder", "settings.reminder"], ["account", "common.account"]].map(([section, labelKey]) => <button type="button" key={section} onClick={() => openSection(section)} aria-controls={`settings-${section}`} aria-current={activeSection === section ? "location" : undefined}>{t(labelKey)}</button>)}
+        <nav className="settings-local-nav" ref={sectionNavRef} aria-label={t("settings.sectionsLabel")}>
+          {[["character", "settings.character"], ["app-icon", "settings.appIcon"], ["themes", "settings.themes"], ["reminder", "settings.reminder"], ["offline", "offline.title"], ["account", "common.account"]].map(([section, labelKey]) => <button type="button" key={section} onClick={() => openSection(section)} aria-controls={`settings-${section}`} aria-current={activeSection === section ? "location" : undefined}>{t(labelKey)}</button>)}
         </nav>
         <article className="theme-section" id="settings-character" aria-labelledby="settings-character-heading">
           <div className="theme-section-head">
@@ -251,6 +255,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
           <p className="save-hint">{t("settings.reminderHint")}</p>
         </article>
 
+        {user?.id && <OfflineSettings userId={user.id} />}
         <section className="settings-account-management" id="settings-account" aria-labelledby="settings-account-heading">
           <div className="settings-account-heading">
             <div>

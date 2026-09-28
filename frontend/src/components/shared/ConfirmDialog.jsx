@@ -1,7 +1,8 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Icon } from "../../lib/icons.jsx";
 import { useI18n } from "../I18nProvider.jsx";
 import { acquireBodyScrollLock } from "../../lib/bodyScrollLock.js";
+import { usePresence } from "../../lib/motion.js";
 
 // `busy` is opt-in: a caller that runs an asynchronous action passes it while
 // the action is in flight, and the dialog then refuses every way out of itself
@@ -19,6 +20,11 @@ export function ConfirmDialog({ open, title, message, confirmLabel = "", onConfi
   // re-registering the listener (and re-running the focus setup) on each change.
   const busyRef = useRef(busy);
   busyRef.current = busy;
+  // Which of the two actions started the work, so its button -- and only its
+  // button -- shows the in-flight spinner while `busy` is true.
+  const [lastAction, setLastAction] = useState("confirm");
+  // Stays mounted for its exit, so it leaves the way it arrived.
+  const presence = usePresence(open, 180);
 
   useEffect(() => {
     if (!open) return;
@@ -52,10 +58,10 @@ export function ConfirmDialog({ open, title, message, confirmLabel = "", onConfi
     };
   }, [open, onCancel]);
 
-  if (!open) return null;
+  if (!presence.mounted) return null;
 
   return (
-    <div className="confirm-backdrop">
+    <div className={`confirm-backdrop ${presence.closing ? "is-closing" : ""}`.trim()} inert={presence.closing ? "" : undefined}>
       <button className="confirm-backdrop-dismiss" type="button" tabIndex={-1} aria-label={t("confirm.close")} disabled={busy} onClick={onCancel} />
       <div className="confirm-dialog" role="alertdialog" aria-modal="true" aria-busy={busy} aria-labelledby="confirm-title" aria-describedby="confirm-desc" ref={ref} tabIndex={-1}>
         <div className="confirm-icon">
@@ -65,8 +71,8 @@ export function ConfirmDialog({ open, title, message, confirmLabel = "", onConfi
         <p id="confirm-desc" dir="auto">{message || t("confirm.message")}</p>
         <div className="confirm-actions">
           <button className="btn btn-soft" type="button" disabled={busy} onClick={onCancel}>{cancelLabel || t("common.cancel")}</button>
-          {secondaryLabel && onSecondary && <button className="btn btn-danger" type="button" disabled={busy} onClick={onSecondary}>{secondaryLabel}</button>}
-          <button className={`btn ${confirmVariant === "primary" ? "btn-primary" : "btn-danger"}`} type="button" disabled={busy} onClick={onConfirm}>{confirmLabel || t("common.delete")}</button>
+          {secondaryLabel && onSecondary && <button className="btn btn-danger" type="button" disabled={busy} aria-busy={(busy && lastAction === "secondary") || undefined} onClick={() => { setLastAction("secondary"); onSecondary(); }}>{secondaryLabel}</button>}
+          <button className={`btn ${confirmVariant === "primary" ? "btn-primary" : "btn-danger"}`} type="button" disabled={busy} aria-busy={(busy && lastAction === "confirm") || undefined} onClick={() => { setLastAction("confirm"); onConfirm(); }}>{confirmLabel || t("common.delete")}</button>
         </div>
       </div>
     </div>

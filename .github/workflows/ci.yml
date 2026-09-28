@@ -71,6 +71,7 @@ jobs:
         env:
           DJANGO_SETTINGS_MODULE: config.settings.production
           DJANGO_SECRET_KEY: ci-only-production-secret-key-with-more-than-fifty-characters-0001
+          OFFLINE_LEASE_ED25519_PRIVATE_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
           DJANGO_ALLOWED_HOSTS: lockin.example.test
           DJANGO_CSRF_TRUSTED_ORIGINS: https://lockin.example.test
           DJANGO_TRUST_PROXY_SSL_HEADER: "true"
@@ -116,6 +117,7 @@ jobs:
         env:
           DJANGO_SETTINGS_MODULE: config.settings.production
           DJANGO_SECRET_KEY: ci-only-production-secret-key-with-more-than-fifty-characters-0001
+          OFFLINE_LEASE_ED25519_PRIVATE_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
           DJANGO_ALLOWED_HOSTS: lockin.example.test
           DJANGO_CSRF_TRUSTED_ORIGINS: https://lockin.example.test
           DJANGO_TRUST_PROXY_SSL_HEADER: "true"
@@ -253,6 +255,7 @@ jobs:
             --build-arg VITE_LEGAL_ADDRESS="CI test address" \
             --build-arg VITE_LEGAL_JURISDICTION="CI test jurisdiction" \
             --build-arg VITE_POLICY_VERSION=ci-policy-v1 \
+            --build-arg VITE_OFFLINE_LEASE_PUBLIC_KEY=O2onvM62pC1io6jQKm8Nc2UyFXcd4kOmOsBIoYtZ2ik= \
             --tag lockin-edge:ci frontend
           docker build --tag lockin-clamav:ci deploy/clamav
       - name: Validate Nginx production configuration
@@ -285,6 +288,8 @@ jobs:
           EMAIL_HOST: smtp.example.test
           EMAIL_HOST_USER: lockin-ci
           DJANGO_SECRET_KEY_FILE: /tmp/lockin-django-secret
+          OFFLINE_LEASE_ED25519_PRIVATE_KEY_FILE: /tmp/lockin-offline-lease-secret
+          LOCKIN_OFFLINE_LEASE_PUBLIC_KEY: O2onvM62pC1io6jQKm8Nc2UyFXcd4kOmOsBIoYtZ2ik=
           EMAIL_HOST_PASSWORD_FILE: /tmp/lockin-email-secret
           PAYMENT_CODE_ENCRYPTION_KEY_FILE: /tmp/lockin-payment-secret
           OBSERVABILITY_STATSD_HOST: metrics.example.test
@@ -317,7 +322,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build the production image
-        run: docker build --tag lockin-app:ci .
+        run: docker build --build-arg VITE_OFFLINE_LEASE_PUBLIC_KEY=O2onvM62pC1io6jQKm8Nc2UyFXcd4kOmOsBIoYtZ2ik= --tag lockin-app:ci .
       - name: Start the image and assert the production start-up contract
         run: scripts/ci/docker-smoke.sh lockin-app:ci
 
@@ -340,6 +345,7 @@ jobs:
             --build-arg VITE_LEGAL_ADDRESS="CI test address" \
             --build-arg VITE_LEGAL_JURISDICTION="CI test jurisdiction" \
             --build-arg VITE_POLICY_VERSION=ci-policy-v1 \
+            --build-arg VITE_OFFLINE_LEASE_PUBLIC_KEY=O2onvM62pC1io6jQKm8Nc2UyFXcd4kOmOsBIoYtZ2ik= \
             --tag lockin-edge:ci frontend
       - name: Start the edge under the production security settings
         run: scripts/ci/edge-smoke.sh lockin-edge:ci
@@ -454,6 +460,7 @@ jobs:
             VITE_LEGAL_ADDRESS=${{ vars.LOCKIN_LEGAL_ADDRESS }}
             VITE_LEGAL_JURISDICTION=${{ vars.LOCKIN_LEGAL_JURISDICTION }}
             VITE_POLICY_VERSION=${{ vars.ACCOUNT_POLICY_VERSION }}
+            VITE_OFFLINE_LEASE_PUBLIC_KEY=${{ vars.LOCKIN_OFFLINE_LEASE_PUBLIC_KEY }}
           cache-from: type=registry,ref=${{ env.REPOSITORY }}-edge:buildcache
           cache-to: type=registry,ref=${{ env.REPOSITORY }}-edge:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
       # The scanner image is published with every release so that enabling the

@@ -20,7 +20,7 @@ test("Questions offers cohort question sources and lists subjects under AI Sheet
   // client: a sheet reaches Questions because the reader's cohort owns the
   // subject it already sits under, so a published question is reachable.
   assert.doesNotMatch(questions, /getCohortMaterials/);
-  assert.match(questions, /catalogWorkspaceApi\.questionMaterials\(sourceForCategory\(categoryId\)\)/);
+  assert.match(questions, /catalogWorkspaceApi\.questionMaterials\(sourceForCategory\(categoryId\), user\?\.id\)/);
   assert.match(questions, /catalogWorkspaceApi\.sheetQuestions\(sheetId/);
   assert.match(questions, /getCohortQuestionCategories\(user\)/);
   assert.match(questions, /t\("questions\.noQuestionsTitle"\)/);
@@ -58,15 +58,16 @@ test("quiz launch bypasses attempt details and the player keeps grading server-a
   assert.match(result, /question\.correct/);
 });
 
-test("sheet questions are answered one tap at a time and graded by the server", async () => {
+test("sheet questions submit one tap at a time and queue offline evidence for server grading", async () => {
   const [questions, api, catalogue] = await Promise.all([
     readFile(new URL("../src/pages/Questions.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/api/catalogWorkspace.js", import.meta.url), "utf8"),
     readFile(new URL("../src/lib/i18n.js", import.meta.url), "utf8")
   ]);
-  // The server decides correctness and XP; the client never reads either
-  // from the question it was sent.
-  assert.match(api, /answerQuestion\(sheetId, questionId, choiceIds\)/);
+  // The server still decides XP. An offline bundle can show provisional local
+  // correctness, while the queued choices are graded by Django on reconnect.
+  assert.match(api, /answerQuestion\(sheetId, questionId, choiceIds, \{ userId/);
+  assert.match(api, /answerQuestionOffline\(userId, sheetId, source, questionId, choiceIds\)/);
   assert.match(api, /\/answer`, \{\s*method: "POST"/);
   assert.doesNotMatch(questions, /choice\.is_correct|question\.explanation/);
   assert.match(questions, /answer\.correct_choice_ids|answer\?\.correct_choice_ids/);

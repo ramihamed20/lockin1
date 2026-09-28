@@ -8,6 +8,7 @@ const operations = await readFile(new URL("../src/pages/OperationsAdmin.jsx", im
 const attempt = await readFile(new URL("../src/pages/Attempt.jsx", import.meta.url), "utf8");
 const review = await readFile(new URL("../src/pages/Review.jsx", import.meta.url), "utf8");
 const styles = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+const exclusionField = await readFile(new URL("../src/pages/admin/ExclusionField.jsx", import.meta.url), "utf8");
 const studioAreas = await readFile(new URL("../src/lib/studioAreas.js", import.meta.url), "utf8");
 
 test("operations admin exposes capability-gated content management", () => {
@@ -90,15 +91,17 @@ test("content management has tablet, phone, and reduced-motion styling", () => {
 });
 
 test("sheet page-count fields stay editable while typing", () => {
-  const activeStudy = page.slice(page.indexOf("function ExclusionField"));
+  const activeStudy = page.slice(page.indexOf("function activeStudyBoundaryBody"));
   // The total page count must never be readOnly/disabled: admins type and clear it.
   assert.doesNotMatch(activeStudy, /readOnly=\{Boolean\(sheet\.pdf\?\.page_count\)\}/);
   assert.match(activeStudy, /<span>Total PDF pages<\/span><input type="number" inputMode="numeric"/);
   assert.match(activeStudy, /value=\{form\.total_pdf_pages\} onChange=\{\(event\) => change\("total_pdf_pages", event\.target\.value\)\}/);
   // Custom exclusion mode is held in state, so clearing the box cannot unmount it.
-  assert.match(activeStudy, /const \[custom, setCustom\] = useState/);
-  assert.match(activeStudy, /\{custom && <input type="number" inputMode="numeric"/);
-  assert.doesNotMatch(activeStudy, /preset === "custom" &&/);
+  // The field is shared with All Questions, so it lives in its own module.
+  assert.match(page, /import \{ ExclusionField \} from "\.\/admin\/ExclusionField\.jsx"/);
+  assert.match(exclusionField, /const \[custom, setCustom\] = useState/);
+  assert.match(exclusionField, /\{custom && <input type="number" inputMode="numeric"/);
+  assert.doesNotMatch(exclusionField, /preset === "custom" &&/);
 });
 
 test("Active Study previews through the backend planner and blames the exact invalid field", () => {

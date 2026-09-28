@@ -71,8 +71,19 @@ def _publish_current(*, actor: User, question: Question) -> Question:
 
 @transaction.atomic
 def import_questions(
-    *, actor: User, sheet: LearningObject, payload: object, publish: bool
+    *,
+    actor: User,
+    sheet: LearningObject,
+    payload: object,
+    publish: bool,
+    metadata: dict[str, object] | None = None,
 ) -> tuple[QuestionImportBatch, ImportValidationResult]:
+    """Import one validated batch.
+
+    ``metadata`` is stored on every imported question's version. The Question
+    import itself never passes it; All Questions uses it to mark the batches it
+    owns so a later run can replace exactly those and nothing else.
+    """
     validation = validate_question_import(payload)
     node = _sheet_node(sheet)
     batch = QuestionImportBatch.objects.create(
@@ -94,6 +105,7 @@ def import_questions(
                 academic_node=node,
                 source_learning_object=sheet,
                 import_batch=batch,
+                metadata=dict(metadata or {}),
                 question_type=imported.question_type,
                 prompt=imported.prompt,
                 explanation=imported.explanation,

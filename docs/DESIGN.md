@@ -1,11 +1,11 @@
 # Lock-in Design System
 
-Last updated: 2026-07-19
-Status: Design-system implementation recorded through Phase 10; production validation through Phase 11
+Last updated: 2026-09-28
+Status: Design-system implementation recorded through Phase 10; production validation through Phase 11;
+UI/UX refinement pass approved and recorded (see the final section)
 
 Phase 11 adds no visual redesign. The complete production-bundle Playwright suite revalidated
 desktop/mobile responsiveness, Arabic RTL, Axe accessibility, Focus, assessment, and operations.
-Final UI/UX Polish remains blocked pending explicit approval.
 
 ## Product scene
 
@@ -289,3 +289,73 @@ runtime-cached. Final measured bundle, Axe, RTL, and overflow evidence is record
 Production-preview visual QA covered Desktop Chrome and Pixel 7. It corrected CSS-generated glyphs
 that polluted accessible names, added keyboard focus to the scrollable PDF region, and applied
 automatic direction to document/note content so English remains readable inside Arabic chrome.
+
+## UI/UX refinement pass (2026-09-28)
+
+Approved by the owner as the final polish pass. It unifies what earlier passes left page-specific;
+it adds no dependency, changes no route, API or business rule, and leaves Focus/PDF and Active Study
+untouched.
+
+| Change | Reason |
+|---|---|
+| Heading weights 750–900 collapse to 700 (titles) and 650 (semibold) | Six competing heavy weights read as noise; two steps give a clear, calmer hierarchy |
+| Sidebar, streak card and stat cards lose decorative gradients | Flat surfaces are the stated visual language; gradients competed with content |
+| `styles/refine.css` (system layer, after `polish.css`) owns page unification | One reviewable place for Progress, Review, Settings, navigation and motion refinements |
+| Progress uses one accent; colour remains only where it is data (calendar) | Green/gold/purple/blue plus glows made the page the loudest in the product |
+| Review sections share one card shape | A gold hero, a ruled band and a filled well looked like three products |
+| Consecutive settings rows form one grouped list with hairlines | Boxes inside a framed section read as clutter; the grouped list is the familiar settings idiom |
+| Upcoming destinations are dimmed rows; the "Coming soon" words stay for assistive tech | The words truncated the destination names at sidebar width |
+| `.btn[aria-busy="true"]` draws an inline spinner; busy controls stay readable | Loading is shown where the user pressed, not only in a distant status line |
+| Popovers scale from their trigger; dialogs and toasts settle without overshoot | Motion explains origin and stays quiet over long study sessions |
+| Offline status is a transient pill above the bottom bar | It previously covered the top-bar controls and never dismissed after a failed sync |
+| Phone gutters 16px; short-landscape bottom bar lays icon beside label | Content alignment with the top bar; returns a row of height in landscape |
+| Single-column Dashboard places the mascot after the study actions | The square scene pushed the review queue a full screen down on phones and iPad portrait |
+
+All motion additions honour `prefers-reduced-motion`. Direction-sensitive details (the XP arc, the
+Progress call to action, dialog alignment) use logical properties or explicit RTL rules.
+
+## Interaction evolution (2026-09-28)
+
+A structural pass after the refinement: new interaction models, not new colours. Routes, APIs and
+business rules are unchanged; Focus/PDF and Active Study are untouched.
+
+| Change | Why it is better |
+|---|---|
+| `src/lib/motion.js`: `useGlide` and `usePresence` | One shared motion vocabulary instead of per-page keyframes |
+| Selection glides between items (sidebar, bottom bar, every `TabList`, Settings sections) | The eye follows where the selection went; the glider exists only during the move, so the resting DOM keeps exactly one indicator |
+| Menus, the notifications panel and dialogs play an exit, not only an entrance | Surfaces leave the way they arrived instead of vanishing |
+| Large-title top bar: the bar's title fades in only after the page's own `<h1>` scrolls under it; the bar's hairline appears only on scroll | The page name is never printed twice, and the chrome is quiet at rest |
+| Search is a command palette: empty, it lists where to go; typing a page name (either language) jumps there; keyboard hints in the footer | Faster for returning users and discoverable for new ones, without changing server search |
+| Phone confirmations are bottom sheets with a grabber and a spring | Decisions sit where the thumb is |
+| Settings shows one section at a time at every width; desktop uses a section list beside the content | Replaces one very long scroll; also fixes Offline Mode appearing under every phone tab |
+| Materials, Questions and a subject's sheets are one grouped list with inset hairlines | Removes a column of separately framed cards |
+| Dashboard metrics are one strip; the empty Continue card drops its duplicate hint | Fewer frames, less repeated copy |
+| `EmptyState` accepts an `action`; skeletons wait 140ms before fading in | Empty pages offer a next step; fast loads no longer flash a placeholder |
+
+Motion uses `--ease-spring`, `--ease-out-soft` and `--ease-in-soft` (`styles/motion-system.css`, interaction layer)
+and every movement is disabled under `prefers-reduced-motion`.
+
+## Study flows (2026-09-28)
+
+The screens students spend their attention inside were rebuilt on `styles/study-flow.css` (system
+layer, plus one interaction-layer block for graded answers). Grading, XP, Active Study rules, page
+unlocking and every API are unchanged.
+
+| Flow | Change | Why it is better |
+|---|---|---|
+| Sheet questions | One reading column; the back link replaces breadcrumbs and repeated subject | The prompt, the answers and the next action dominate |
+| Sheet questions | A progress rail with one mark per question (current, right, wrong, open); continuous bar above 60 | Position and record at a glance, still readable for long sets |
+| Sheet questions | Verdict is a hairline row inside the card; low-strength tint only on the rows that carry it; icons for right and wrong | Immediate, restrained feedback that does not rely on colour alone |
+| Sheet questions | Keyboard: A–D / 1–9 answer, arrows move (mirrored in Arabic), Enter continues; a quiet hint on desktop | Fast for returning students without adding controls |
+| Sheet questions | Cards slide in from the direction of travel; a hidden verdict scrolls into view above the pinned bar | Motion explains navigation; nothing is answered off-screen |
+| Sheet questions | Start panel resumes ("Continue at question n"); summary is a score ring, the rail and "Review mistakes" | Resume and recovery are one tap |
+| Review | "Start review" opens the subject with mistakes waiting; subjects are a grouped list; empty sections are not printed | The hub answers "what now" and says caught up once |
+| Recent mistakes | One row each: your answer struck through, the right one beside it | Scannable recovery, answer labels kept for assistive technology |
+| Review session | Same row language as the player; the way out is a quiet link | One question-answering design across the product |
+| Sheet entry | One version card with a solid Open and offline as its footer; "Choose" appears only when there is a choice | The step before studying has one obvious action |
+| Active Study | Difficulty as a segmented control; the checkpoint question is no longer a card inside a card | Calmer decision and test surfaces |
+| Active Study | Checkpoint, final exam and dock copy localised (English unchanged) | Arabic students no longer meet English at their most important moment |
+
+Also fixed: a keyboard focus ring drawn around the whole content area after navigation (it showed as
+a full-width line under short pages), and offline dates formatted in the browser locale.
+

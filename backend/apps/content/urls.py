@@ -5,6 +5,8 @@ from .admin_views import (
     AdminSheetActiveStudyPreviewView,
     AdminSheetActiveStudyQuestionsView,
     AdminSheetActiveStudyView,
+    AdminSheetAllQuestionsValidateView,
+    AdminSheetAllQuestionsView,
     AdminSheetDetailView,
     AdminSheetLockinPdfView,
     AdminSheetPdfView,
@@ -112,6 +114,16 @@ urlpatterns = [
         "operations/admin/content/sheets/<uuid:sheet_id>/active-study/questions/<str:difficulty>",
         AdminSheetActiveStudyQuestionsView.as_view(),
         name="admin-sheet-active-study-questions",
+    ),
+    path(
+        "operations/admin/content/sheets/<uuid:sheet_id>/all-questions",
+        AdminSheetAllQuestionsView.as_view(),
+        name="admin-sheet-all-questions",
+    ),
+    path(
+        "operations/admin/content/sheets/<uuid:sheet_id>/all-questions/validate",
+        AdminSheetAllQuestionsValidateView.as_view(),
+        name="admin-sheet-all-questions-validate",
     ),
     path("learning-objects", PublicLearningObjectListView.as_view(), name="public-list"),
     path(
