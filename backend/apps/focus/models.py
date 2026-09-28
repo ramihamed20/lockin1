@@ -1,3 +1,4 @@
+import secrets
 import uuid
 from decimal import Decimal
 
@@ -9,8 +10,8 @@ from django.utils import timezone
 
 
 def focus_team_invite_code() -> str:
-    """A short shareable code; uniqueness is also enforced by the database."""
-    return uuid.uuid4().hex[:8].upper()
+    """Six digits; the database uniqueness constraint resolves collisions."""
+    return f"{secrets.randbelow(900_000) + 100_000:06d}"
 
 
 class FocusTeam(models.Model):
@@ -22,6 +23,9 @@ class FocusTeam(models.Model):
     invite_code = models.CharField(
         max_length=12, unique=True, db_index=True, default=focus_team_invite_code
     )
+    max_members = models.PositiveSmallIntegerField(default=8)
+    joining_locked = models.BooleanField(default=False)
+    closed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -49,6 +53,8 @@ class FocusTeamMembership(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="focus_team_memberships"
     )
     role = models.CharField(max_length=12, choices=Role.choices, default=Role.MEMBER)
+    anonymous = models.BooleanField(default=False)
+    anonymous_alias = models.CharField(max_length=32, blank=True)
     joined_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -68,6 +74,8 @@ class FocusTeamMessage(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="focus_team_messages"
     )
     body = models.CharField(max_length=1000)
+    author_alias = models.CharField(max_length=32, blank=True)
+    author_membership_id = models.UUIDField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
@@ -122,6 +130,8 @@ class FocusSession(models.Model):
         max_length=16, choices=SessionType.choices, default=SessionType.TIMED
     )
     team_name = models.CharField(max_length=80, blank=True)
+    anonymous = models.BooleanField(default=False)
+    lock_in_live = models.BooleanField(default=False)
     team = models.ForeignKey(
         FocusTeam,
         on_delete=models.SET_NULL,
@@ -182,6 +192,36 @@ class FocusSession(models.Model):
             raise ValidationError({"context_id": "Independent sessions cannot have context_id."})
         if self.context_type != self.ContextType.INDEPENDENT and self.context_id is None:
             raise ValidationError({"context_id": "Study and quiz sessions require context_id."})
+
+
+class FocusSessionParticipant(models.Model):
+    class Presence(models.TextChoices):
+        FOCUSED = "focused", "Focused"
+        BREAK = "break", "Break"
+        AWAY = "away", "Away"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    session = models.ForeignKey(FocusSession, on_delete=models.CASCADE, related_name="participants")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="lock_in_participations"
+    )
+    presence = models.CharField(max_length=8, choices=Presence.choices, default=Presence.AWAY)
+    joined_at = models.DateTimeField(default=timezone.now)
+    left_at = models.DateTimeField(null=True, blank=True)
+    last_seen_at = models.DateTimeField(default=timezone.now)
+    break_started_at = models.DateTimeField(null=True, blank=True)
+    break_seconds = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("session", "user"), name="focus_session_participant_unique"
+            )
+        ]
+        indexes = [models.Index(fields=("user", "left_at"), name="focus_participant_user_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.session_id}:{self.user_id}:{self.presence}"
 
 
 class FocusSessionActivity(models.Model):

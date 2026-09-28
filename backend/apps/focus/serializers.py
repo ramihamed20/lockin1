@@ -9,8 +9,10 @@ from platform_core.api.serializers import StrictSerializer
 from .models import (
     FocusSession,
     FocusSessionNote,
+    FocusSessionParticipant,
     FocusSessionTask,
     FocusTeam,
+    FocusTeamMembership,
     FocusTeamMessage,
     FocusWorkspaceSnapshot,
 )
@@ -59,6 +61,8 @@ class FocusSessionSerializer(serializers.ModelSerializer[FocusSession]):
             "session_type",
             "team_id",
             "team_name",
+            "anonymous",
+            "lock_in_live",
             "goal",
             "topic",
             "active_duration_seconds",
@@ -127,6 +131,7 @@ class LockInStartSerializer(StrictSerializer):
     )
     team_id = serializers.UUIDField(required=False, allow_null=True, default=None)
     team_name = serializers.CharField(max_length=80, required=False, allow_blank=True, default="")
+    anonymous = serializers.BooleanField(required=False, default=False)
     goal = serializers.CharField(max_length=280, required=False, allow_blank=True, default="")
     topic = serializers.CharField(max_length=280, required=False, allow_blank=True, default="")
     note = serializers.CharField(max_length=10_000, required=False, allow_blank=True, default="")
@@ -179,6 +184,8 @@ class LockInTaskCreateSerializer(StrictSerializer):
 
 class LockInTeamCreateSerializer(StrictSerializer):
     name = serializers.CharField(max_length=80, trim_whitespace=True)
+    max_members = serializers.IntegerField(min_value=2, max_value=20, required=False, default=8)
+    anonymous = serializers.BooleanField(required=False, default=False)
 
     def validate_name(self, value: str) -> str:
         if not value.strip():
@@ -187,12 +194,27 @@ class LockInTeamCreateSerializer(StrictSerializer):
 
 
 class LockInTeamJoinSerializer(StrictSerializer):
-    invite_code = serializers.CharField(max_length=12, trim_whitespace=True)
+    invite_code = serializers.RegexField(r"^[0-9]{6}$")
+    anonymous = serializers.BooleanField(required=False, default=False)
 
     def validate_invite_code(self, value: str) -> str:
         if not value.strip():
             raise serializers.ValidationError("An invite code is required.")
-        return value.upper()
+        return value
+
+
+class LockInTeamUpdateSerializer(StrictSerializer):
+    name = serializers.CharField(max_length=80, trim_whitespace=True, required=False)
+    max_members = serializers.IntegerField(min_value=2, max_value=20, required=False)
+    joining_locked = serializers.BooleanField(required=False)
+
+
+class LockInTeamMemberActionSerializer(StrictSerializer):
+    member_id = serializers.UUIDField()
+
+
+class LockInPresenceSerializer(StrictSerializer):
+    presence = serializers.ChoiceField(choices=FocusSessionParticipant.Presence.choices)
 
 
 class LockInTeamMessageCreateSerializer(StrictSerializer):
@@ -236,8 +258,8 @@ class ManagedActiveStudySubmitSerializer(StrictSerializer):
 
 
 class LockInTeamMessageSerializer(serializers.ModelSerializer[FocusTeamMessage]):
-    author_id = serializers.UUIDField(read_only=True)
-    author_name = serializers.CharField(source="author.full_name", read_only=True)
+    author_id = serializers.SerializerMethodField()
+    author_name = serializers.SerializerMethodField()
     author_avatar = serializers.SerializerMethodField()
 
     class Meta:
@@ -245,14 +267,39 @@ class LockInTeamMessageSerializer(serializers.ModelSerializer[FocusTeamMessage])
         fields = ("id", "author_id", "author_name", "author_avatar", "body", "created_at")
         read_only_fields = fields
 
+    def _membership(self, message: FocusTeamMessage) -> FocusTeamMembership | None:
+        by_user = self.context.get("memberships_by_user")
+        if isinstance(by_user, dict):
+            return by_user.get(message.author_id)
+        return FocusTeamMembership.objects.filter(team=message.team, user=message.author).first()
+
     def get_author_avatar(self, message: FocusTeamMessage) -> AvatarPayload:
+        membership = self._membership(message)
+        if message.author_alias or (membership and membership.anonymous):
+            return {"source": "default", "default_id": "", "url": None}
         return avatar_payload(message.author)
+
+    def get_author_name(self, message: FocusTeamMessage) -> str:
+        membership = self._membership(message)
+        if message.author_alias:
+            return message.author_alias
+        if membership and membership.anonymous:
+            return membership.anonymous_alias
+        return message.author.full_name
+
+    def get_author_id(self, message: FocusTeamMessage) -> str:
+        membership = self._membership(message)
+        if message.author_alias:
+            return str(message.author_membership_id or message.id)
+        return str(membership.id) if membership and membership.anonymous else str(message.author_id)
 
 
 class LockInTeamSerializer(serializers.ModelSerializer[FocusTeam]):
     class Meta:
         model = FocusTeam
-        fields = ("id", "name", "invite_code", "created_at")
+        fields = (
+            "id", "name", "invite_code", "max_members", "joining_locked", "closed_at", "created_at"
+        )
         read_only_fields = fields
 
 
