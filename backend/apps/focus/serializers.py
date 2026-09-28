@@ -298,7 +298,13 @@ class LockInTeamSerializer(serializers.ModelSerializer[FocusTeam]):
     class Meta:
         model = FocusTeam
         fields = (
-            "id", "name", "invite_code", "max_members", "joining_locked", "closed_at", "created_at"
+            "id",
+            "name",
+            "invite_code",
+            "max_members",
+            "joining_locked",
+            "closed_at",
+            "created_at",
         )
         read_only_fields = fields
 

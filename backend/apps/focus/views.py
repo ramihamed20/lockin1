@@ -494,11 +494,13 @@ def _team_payload(*, user: User, team: FocusTeam) -> dict[str, object]:
                 "user_id": None if membership.anonymous else str(membership.user_id),
                 "name": (
                     membership.anonymous_alias
-                    if membership.anonymous else membership.user.full_name
+                    if membership.anonymous
+                    else membership.user.full_name
                 ),
                 "avatar": (
                     {"source": "default", "default_id": "", "url": None}
-                    if membership.anonymous else avatar_payload(membership.user)
+                    if membership.anonymous
+                    else avatar_payload(membership.user)
                 ),
                 "anonymous": membership.anonymous,
                 "role": membership.role,
@@ -522,7 +524,8 @@ def _team_payload(*, user: User, team: FocusTeam) -> dict[str, object]:
         {
             "active_session_id": str(live.id) if live else None,
             "can_resume_session": bool(
-                live and FocusSessionParticipant.objects.filter(
+                live
+                and FocusSessionParticipant.objects.filter(
                     session=live, user=user, left_at__isnull=True
                 ).exists()
             ),
@@ -552,10 +555,12 @@ def _live_lock_in_payload(*, user: User, session: FocusSession) -> dict[str, obj
             raise FocusRejected("This Lockin is not available.")
         members = list(
             FocusTeamMembership.objects.filter(team_id=session.team_id)
-            .select_related("user").order_by("joined_at", "id")
+            .select_related("user")
+            .order_by("joined_at", "id")
         )
         participants = {
-            item.user_id: item for item in FocusSessionParticipant.objects.filter(
+            item.user_id: item
+            for item in FocusSessionParticipant.objects.filter(
                 session=session, left_at__isnull=True
             )
         }
@@ -571,12 +576,14 @@ def _live_lock_in_payload(*, user: User, session: FocusSession) -> dict[str, obj
                     else participants[member.user_id].presence
                 ),
             }
-            for member in members if member.user_id in participants
+            for member in members
+            if member.user_id in participants
         ]
         team = _team_payload(user=user, team=cast(FocusTeam, session.team))
         own_break = participant.break_seconds + (
             max(0, int((now - participant.break_started_at).total_seconds()))
-            if participant.break_started_at else 0
+            if participant.break_started_at
+            else 0
         )
         self_presence: str | None = participant.presence
         is_host = membership.role == FocusTeamMembership.Role.OWNER
@@ -593,22 +600,30 @@ def _live_lock_in_payload(*, user: User, session: FocusSession) -> dict[str, obj
     active_seconds, solo_break_seconds = focus_session_durations(session=session, until=now)
     return {
         "session": {
-            "id": str(session.id), "status": session.status,
-            "started_at": session.started_at, "ended_at": session.ended_at,
+            "id": str(session.id),
+            "status": session.status,
+            "started_at": session.started_at,
+            "ended_at": session.ended_at,
             "planned_duration_seconds": session.planned_duration_seconds,
             "team_id": str(session.team_id) if session.team_id else None,
-            "team_name": session.team_name, "lock_in_live": True,
+            "team_name": session.team_name,
+            "lock_in_live": True,
         },
         "timing": {
-            "server_now": now, "active_elapsed_seconds": active_seconds,
+            "server_now": now,
+            "active_elapsed_seconds": active_seconds,
             "break_elapsed_seconds": own_break if team else solo_break_seconds,
             "remaining_seconds": (
                 max(0, session.planned_duration_seconds - active_seconds)
-                if session.planned_duration_seconds is not None else None
+                if session.planned_duration_seconds is not None
+                else None
             ),
         },
-        "team": team, "participants": presence, "member_count": member_count,
-        "self_presence": self_presence, "is_host": is_host,
+        "team": team,
+        "participants": presence,
+        "member_count": member_count,
+        "self_presence": self_presence,
+        "is_host": is_host,
     }
 
 
@@ -662,14 +677,16 @@ def _solo_rankings_payload(period: str = "weekly") -> list[dict[str, object]]:
         .order_by("-active_seconds", "user_id")[:10]
     )
     anonymous_ids = set(
-        anonymous.filter(user_id__in=[row["user_id"] for row in rows])
-        .values_list("user_id", flat=True)
+        anonymous.filter(user_id__in=[row["user_id"] for row in rows]).values_list(
+            "user_id", flat=True
+        )
     )
     return [
         {
             "name": (
                 f"Anonymous {hashlib.sha256(str(row['user_id']).encode()).hexdigest()[:4].upper()}"
-                if row["user_id"] in anonymous_ids else row["user__full_name"]
+                if row["user_id"] in anonymous_ids
+                else row["user__full_name"]
             ),
             "active_seconds": row["active_seconds"],
         }
@@ -709,9 +726,8 @@ def _lock_in_payload(*, user: User, session: FocusSession) -> dict[str, object]:
         "tasks": FocusSessionTaskSerializer(session.tasks.all(), many=True).data,
         "team": (
             _team_payload(user=user, team=cast(FocusTeam, session.team))
-            if session.team_id and FocusTeamMembership.objects.filter(
-                team_id=session.team_id, user=user
-            ).exists()
+            if session.team_id
+            and FocusTeamMembership.objects.filter(team_id=session.team_id, user=user).exists()
             else None
         ),
         "timing": {
@@ -733,8 +749,11 @@ def _lock_in_payload(*, user: User, session: FocusSession) -> dict[str, object]:
 
 def _lock_in_session(*, user: User, session_id: UUID) -> FocusSession:
     try:
-        session = (FocusSession.objects.select_related("team")
-                   .prefetch_related("timeline").get(id=session_id))
+        session = (
+            FocusSession.objects.select_related("team")
+            .prefetch_related("timeline")
+            .get(id=session_id)
+        )
     except FocusSession.DoesNotExist as error:
         raise FocusRejected("Focus session was not found.") from error
     if session.team_id and session.lock_in_live:
@@ -933,7 +952,6 @@ class LockInTeamsView(APIView):
         ]
         return Response({"teams": teams, "team_rankings": _team_rankings_payload()})
 
-
     @extend_schema(
         operation_id="lock_in_team_create",
         request=LockInTeamCreateSerializer,
@@ -945,7 +963,8 @@ class LockInTeamsView(APIView):
         serializer.is_valid(raise_exception=True)
         try:
             team = create_focus_team(
-                user=user, name=str(serializer.validated_data["name"]),
+                user=user,
+                name=str(serializer.validated_data["name"]),
                 max_members=int(serializer.validated_data["max_members"]),
                 anonymous=bool(serializer.validated_data["anonymous"]),
             )
@@ -963,10 +982,12 @@ class LockInLeaderboardView(APIView):
         period = request.query_params.get("period", "weekly")
         if period not in {"weekly", "all_time"}:
             raise ValidationError({"period": "Choose weekly or all time."})
-        return Response({
-            "solo": _solo_rankings_payload(period),
-            "teams": _team_rankings_payload(period),
-        })
+        return Response(
+            {
+                "solo": _solo_rankings_payload(period),
+                "teams": _team_rankings_payload(period),
+            }
+        )
 
 
 class LockInTeamJoinView(APIView):
@@ -981,7 +1002,8 @@ class LockInTeamJoinView(APIView):
         serializer.is_valid(raise_exception=True)
         try:
             team, _ = join_focus_team(
-                user=user, invite_code=str(serializer.validated_data["invite_code"]),
+                user=user,
+                invite_code=str(serializer.validated_data["invite_code"]),
                 anonymous=bool(serializer.validated_data["anonymous"]),
             )
         except FocusSessionStateError as error:
@@ -1055,8 +1077,7 @@ class LockInTeamMessagesView(APIView):
         )
         messages.reverse()
         memberships_by_user = {
-            member.user_id: member
-            for member in FocusTeamMembership.objects.filter(team=team)
+            member.user_id: member for member in FocusTeamMembership.objects.filter(team=team)
         }
         return Response(
             {
@@ -1115,7 +1136,8 @@ class LockInActionView(APIView):
                     presence = LockInPresenceSerializer(data=request.data)
                     presence.is_valid(raise_exception=True)
                     set_live_team_presence(
-                        user=user, session_id=session_id,
+                        user=user,
+                        session_id=session_id,
                         presence=str(presence.validated_data["presence"]),
                     )
                 else:
@@ -1123,13 +1145,15 @@ class LockInActionView(APIView):
                     return Response({"left": True, "team_id": str(session.team_id)})
             except FocusSessionStateError as error:
                 raise _rule_error(error) from error
-            return Response(_session_payload(user=user, session=_lock_in_session(
-                user=user, session_id=session_id
-            )))
+            return Response(
+                _session_payload(
+                    user=user, session=_lock_in_session(user=user, session_id=session_id)
+                )
+            )
         if session.lock_in_live and session.team_id and action not in {"complete"}:
-            raise _rule_error(FocusSessionStateError(
-                "This action is not available in Team Lockin."
-            ))
+            raise _rule_error(
+                FocusSessionStateError("This action is not available in Team Lockin.")
+            )
         serializer = FocusSessionActionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         actions = {
@@ -1137,7 +1161,8 @@ class LockInActionView(APIView):
             "resume": resume_focus_session,
             "complete": (
                 complete_live_lock_in_session
-                if session.lock_in_live else complete_owned_focus_session
+                if session.lock_in_live
+                else complete_owned_focus_session
             ),
             "abandon": abandon_focus_session,
             "start-break": start_focus_break,

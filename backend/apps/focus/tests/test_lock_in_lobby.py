@@ -158,9 +158,12 @@ def test_anonymous_solo_session_hides_name_on_lockin_leaderboard() -> None:
     student.save(update_fields=("full_name",))
     client = _client(student)
     prior = _start(client, version_id)
-    assert client.post(
-        f"/api/v1/focus/lock-in/{prior.json()['session']['id']}/complete", {}, format="json"
-    ).status_code == 200
+    assert (
+        client.post(
+            f"/api/v1/focus/lock-in/{prior.json()['session']['id']}/complete", {}, format="json"
+        ).status_code
+        == 200
+    )
     started = _start(client, version_id, anonymous=True)
     assert started.status_code == 201
     assert started.json()["session"]["anonymous"] is True

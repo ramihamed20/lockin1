@@ -43,9 +43,9 @@ UNFINISHED_STATUSES = (
 
 
 def active_lock_in_session_for_user(*, user: User) -> FocusSession | None:
-    owned = FocusSession.objects.filter(
-        user=user, status__in=UNFINISHED_STATUSES
-    ).filter(Q(team__isnull=True) | Q(lock_in_live=False))
+    owned = FocusSession.objects.filter(user=user, status__in=UNFINISHED_STATUSES).filter(
+        Q(team__isnull=True) | Q(lock_in_live=False)
+    )
     shared = FocusSession.objects.filter(
         participants__user=user,
         participants__left_at__isnull=True,
@@ -55,9 +55,11 @@ def active_lock_in_session_for_user(*, user: User) -> FocusSession | None:
 
 
 def active_team_lock_in_session(*, team: FocusTeam) -> FocusSession | None:
-    return FocusSession.objects.filter(
-        team=team, lock_in_live=True, status__in=UNFINISHED_STATUSES
-    ).order_by("-started_at").first()
+    return (
+        FocusSession.objects.filter(team=team, lock_in_live=True, status__in=UNFINISHED_STATUSES)
+        .order_by("-started_at")
+        .first()
+    )
 
 
 def _finish_participant_break(participant: FocusSessionParticipant, now: datetime) -> None:
@@ -86,14 +88,19 @@ def create_focus_team(
         try:
             with transaction.atomic():
                 team = FocusTeam(
-                    owner=user, name=name.strip(), max_members=max_members,
+                    owner=user,
+                    name=name.strip(),
+                    max_members=max_members,
                     invite_code=_fresh_team_code(),
                 )
                 team.full_clean()
                 team.save()
                 FocusTeamMembership.objects.create(
-                    team=team, user=user, role=FocusTeamMembership.Role.OWNER,
-                    anonymous=anonymous, anonymous_alias="Anonymous 01" if anonymous else "",
+                    team=team,
+                    user=user,
+                    role=FocusTeamMembership.Role.OWNER,
+                    anonymous=anonymous,
+                    anonymous_alias="Anonymous 01" if anonymous else "",
                 )
                 return team
         except IntegrityError:
@@ -147,16 +154,20 @@ def manage_focus_team(
     if action == "leave":
         now = timezone.now()
         for participant in FocusSessionParticipant.objects.select_for_update().filter(
-            session__team=team, session__status__in=UNFINISHED_STATUSES,
-            user=user, left_at__isnull=True,
+            session__team=team,
+            session__status__in=UNFINISHED_STATUSES,
+            user=user,
+            left_at__isnull=True,
         ):
             _finish_participant_break(participant, now)
             participant.left_at = now
             participant.save(update_fields=("left_at", "break_seconds", "break_started_at"))
         if team.owner_id == user.id:
             successor = (
-                FocusTeamMembership.objects.filter(team=team).exclude(user=user)
-                .order_by("joined_at", "id").first()
+                FocusTeamMembership.objects.filter(team=team)
+                .exclude(user=user)
+                .order_by("joined_at", "id")
+                .first()
             )
             if successor:
                 team.owner = successor.user
@@ -204,8 +215,10 @@ def manage_focus_team(
         if action == "kick":
             now = timezone.now()
             for participant in FocusSessionParticipant.objects.select_for_update().filter(
-                session__team=team, session__status__in=UNFINISHED_STATUSES,
-                user=target.user, left_at__isnull=True,
+                session__team=team,
+                session__status__in=UNFINISHED_STATUSES,
+                user=target.user,
+                left_at__isnull=True,
             ):
                 _finish_participant_break(participant, now)
                 participant.left_at = now
@@ -243,7 +256,9 @@ def add_focus_team_message(*, user: User, team_id: UUID, body: str) -> FocusTeam
         raise FocusSessionStateError("This team has ended.")
     membership = FocusTeamMembership.objects.get(team=team, user=user)
     message = FocusTeamMessage(
-        team=team, author=user, body=body.strip(),
+        team=team,
+        author=user,
+        body=body.strip(),
         author_alias=membership.anonymous_alias if membership.anonymous else "",
         author_membership_id=membership.id,
     )
@@ -437,9 +452,12 @@ def start_lock_in_session(
         if live_session is not None:
             return live_session, False
         members = list(FocusTeamMembership.objects.filter(team=team).order_by("joined_at", "id"))
-        list(User.objects.select_for_update().filter(
-            id__in=[member.user_id for member in members]
-        ).order_by("id").values_list("id", flat=True))
+        list(
+            User.objects.select_for_update()
+            .filter(id__in=[member.user_id for member in members])
+            .order_by("id")
+            .values_list("id", flat=True)
+        )
         if any(active_lock_in_session_for_user(user=member.user) is not None for member in members):
             raise FocusSessionStateError("A member already has an active Lockin.")
     else:
@@ -506,13 +524,20 @@ def start_lock_in_session(
         )
     )
     if team is not None and session.lock_in_live:
-        FocusSessionParticipant.objects.bulk_create([
-            FocusSessionParticipant(
-                session=session, user=member.user,
-                presence=(FocusSessionParticipant.Presence.FOCUSED
-                          if member.user_id == user.id else FocusSessionParticipant.Presence.AWAY),
-            ) for member in members
-        ])
+        FocusSessionParticipant.objects.bulk_create(
+            [
+                FocusSessionParticipant(
+                    session=session,
+                    user=member.user,
+                    presence=(
+                        FocusSessionParticipant.Presence.FOCUSED
+                        if member.user_id == user.id
+                        else FocusSessionParticipant.Presence.AWAY
+                    ),
+                )
+                for member in members
+            ]
+        )
         team.updated_at = timezone.now()
         team.save(update_fields=("updated_at",))
     if document is not None:
@@ -745,7 +770,8 @@ def join_live_team_session(*, user: User, team_id: UUID) -> FocusSession:
         raise FocusSessionStateError("Resume your active Lockin first.")
     now = timezone.now()
     participant, _ = FocusSessionParticipant.objects.select_for_update().get_or_create(
-        session=session, user=user,
+        session=session,
+        user=user,
         defaults={"presence": FocusSessionParticipant.Presence.FOCUSED},
     )
     if participant.left_at is not None:
@@ -781,9 +807,9 @@ def set_live_team_presence(*, user: User, session_id: UUID, presence: str) -> Fo
         participant.break_started_at = now
     participant.presence = presence
     participant.last_seen_at = now
-    participant.save(update_fields=(
-        "presence", "last_seen_at", "break_started_at", "break_seconds"
-    ))
+    participant.save(
+        update_fields=("presence", "last_seen_at", "break_started_at", "break_seconds")
+    )
     return session
 
 
@@ -814,9 +840,10 @@ def complete_live_lock_in_session(*, user: User, session_id: UUID) -> FocusSessi
     if session.team_id is None:
         return complete_owned_focus_session(user=user, session_id=session_id)
     team = FocusTeam.objects.select_for_update().get(id=session.team_id)
-    if team.owner_id != user.id or not FocusTeamMembership.objects.filter(
-        team=team, user=user
-    ).exists():
+    if (
+        team.owner_id != user.id
+        or not FocusTeamMembership.objects.filter(team=team, user=user).exists()
+    ):
         raise FocusSessionStateError("Only the host can end this Lockin.")
     session = FocusSession.objects.select_for_update().get(id=session_id, team=team)
     if session.status == FocusSession.Status.COMPLETED:
