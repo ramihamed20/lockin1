@@ -785,7 +785,13 @@ def join_live_team_session(*, user: User, team_id: UUID) -> FocusSession:
 
 @transaction.atomic
 def set_live_team_presence(*, user: User, session_id: UUID, presence: str) -> FocusSession:
-    session = FocusSession.objects.select_for_update().select_related("team").get(id=session_id)
+    # `team` is nullable, so the join is an outer one: lock only the session row
+    # (PostgreSQL refuses FOR UPDATE on the nullable side of an outer join).
+    session = (
+        FocusSession.objects.select_for_update(of=("self",))
+        .select_related("team")
+        .get(id=session_id)
+    )
     if (
         not session.lock_in_live
         or session.team_id is None
