@@ -194,6 +194,22 @@ export function zoomScrollForAnchor({
   };
 }
 
+/**
+ * The horizontal scroll that centres a page in the reader, clamped to the
+ * range the stage can scroll. A page narrower than the stage is centred by
+ * the layout (the result is then 0); a zoomed page wider than it is centred
+ * by the scroll, so its overflow is shared by both edges. Aligning the page's
+ * left edge instead parked a zoomed reader against the left, and every later
+ * Zoom In/Out, which keeps the stage centre fixed, kept it there.
+ */
+export function centeredScrollLeft({ scrollLeft, pageLeft, viewportLeft, viewportWidth, pageWidth, scrollWidth }) {
+  const current = Number(scrollLeft) || 0;
+  const viewport = Math.max(0, Number(viewportWidth) || 0);
+  const desired = current + (Number(pageLeft) || 0) - (Number(viewportLeft) || 0) - (viewport - (Number(pageWidth) || 0)) / 2;
+  const maximum = Math.max(0, (Number(scrollWidth) || 0) - viewport);
+  return Math.min(maximum, Math.max(0, desired));
+}
+
 export function fitWidthZoom(containerWidth, pageWidth, horizontalPadding = 32) {
   return clampWorkspaceZoom((Math.max(1, containerWidth - horizontalPadding)) / Math.max(1, pageWidth));
 }
