@@ -176,6 +176,64 @@ def test_true_false_question_uses_the_managed_answer_and_review_flow() -> None:
     assert ReviewItem.objects.filter(user=user).exists()
 
 
+def test_true_false_checkpoint_submits_through_the_student_api() -> None:
+    # The service accepted T/F while the answer endpoint's serializer still
+    # allowed only A-D, so a checkpoint with a true/false question answered
+    # 400 on its first answer and could never be submitted.
+    user, sheet, _ = _setup()
+    _grant_focus(user)
+    content = ActiveStudyQuestionContent.objects.get(sheet=sheet, difficulty="medium")
+    for index, correct in ((0, True), (1, False)):
+        content.payload["parts"][0]["questions"][index] = {
+            "type": "true_false",
+            "question": f"Statement {index}?",
+            "correct_answer": correct,
+            "explanation": "Because.",
+        }
+    content.save(update_fields=("payload", "updated_at"))
+    client = _client(user)
+    run = client.post(
+        "/api/v1/focus/managed-active-study/start",
+        {"sheet_id": str(sheet.id), "difficulty": "medium"},
+        format="json",
+    ).json()["run"]
+    client.post(
+        f"/api/v1/focus/managed-active-study/{run['id']}/complete-reading", {}, format="json"
+    )
+    quiz = client.get(f"/api/v1/focus/managed-active-study/{run['id']}/questions").json()
+    selected = {1: "T", 2: "F"}
+    for question in quiz["questions"]:
+        response = client.post(
+            f"/api/v1/focus/managed-active-study/{run['id']}/answer",
+            {
+                "attempt_id": quiz["attempt_id"],
+                "position": question["position"],
+                "selected_answer": selected.get(question["position"], "B"),
+            },
+            format="json",
+        )
+        assert response.status_code == 200, response.json()
+    # A key the question does not offer is still refused, by the question's own rule.
+    wrong_key = client.post(
+        f"/api/v1/focus/managed-active-study/{run['id']}/answer",
+        {"attempt_id": quiz["attempt_id"], "position": 3, "selected_answer": "T"},
+        format="json",
+    )
+    assert wrong_key.status_code == 400
+    assert wrong_key.json()["error"]["code"] == "focus_rule_rejected"
+
+    submitted = client.post(
+        f"/api/v1/focus/managed-active-study/{run['id']}/submit",
+        {"attempt_id": quiz["attempt_id"]},
+        format="json",
+    )
+    assert submitted.status_code == 200, submitted.json()
+    assert submitted.json()["result"]["passed"] is True
+    assert submitted.json()["result"]["score"] == 15
+    assert submitted.json()["run"]["current_part"] == 2
+    assert submitted.json()["run"]["stage"] == "reading"
+
+
 def test_configured_short_checkpoint_uses_the_same_pass_fraction() -> None:
     user, sheet, settings = _setup()
     settings.questions_per_checkpoint = 3

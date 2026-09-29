@@ -455,6 +455,11 @@ def questions(*, user: User, run_id: UUID) -> dict[str, Any]:
     }
 
 
+# Every answer key a question can offer: A-D for multiple choice, T/F for
+# true/false. Each question still accepts only its own keys.
+ANSWER_KEYS = ("A", "B", "C", "D", "T", "F")
+
+
 def _display_options(question: dict[str, Any]) -> dict[str, str]:
     if question.get("type") == "true_false":
         return {"T": "True", "F": "False"}
@@ -891,7 +896,7 @@ def _validated_answers(raw: object, *, total: int) -> list[tuple[int, str]]:
             or position in answers
         ):
             raise ManagedActiveStudyRuleError("Question position is invalid.")
-        if selected not in {"A", "B", "C", "D", "T", "F"}:
+        if selected not in ANSWER_KEYS:
             raise ManagedActiveStudyRuleError("Choose an answer for this question.")
         answers[position] = cast(str, selected)
     return sorted(answers.items())
