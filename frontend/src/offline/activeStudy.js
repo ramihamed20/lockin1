@@ -19,6 +19,11 @@ import { isNetworkFailure, offlineUnavailableError } from "./resolver.js";
  */
 
 const RUN_PREFIX = "as-run:";
+// How long an Active Study request waits for a server that does not answer
+// before a downloaded run continues on the device. A request that hangs (a
+// radio with no internet behind it) otherwise held opening a checkpoint for
+// the 30 s write budget plus a read.
+export const OFFLINE_FALLBACK_TIMEOUT_MS = 8_000;
 const RUN_ID_PREFIX = "as-runid:";
 
 function displayOptions(question) {
@@ -379,20 +384,23 @@ async function localRunFor(userId, runId) {
  * device until the queue delivers it, so events are never applied out of order.
  */
 async function route(userId, key, online, offline) {
+  let downloaded = false;
   if (userId && key) {
     const run = await readRun(userId, key);
     const [sheetId, edition] = key.split(":");
+    downloaded = await hasBundle(userId, sheetId, edition);
     const unsynced = await hasPendingFor(userId, orderingKey(key)) || Boolean(run && run.origin === "local" && !run.server_id);
     // Without the bundle (download removed) the device cannot continue the
     // run; the server starts or resumes it and queued work still syncs.
-    if (unsynced && await hasBundle(userId, sheetId, edition)) return offline();
+    if (unsynced && downloaded) return offline();
   }
   try {
-    return await online();
+    // With the bundle stored, a server that does not answer is no reason to
+    // keep the student waiting the full write budget: the device carries on
+    // and the queue replays the work idempotently.
+    return await online(downloaded ? { timeoutMs: OFFLINE_FALLBACK_TIMEOUT_MS } : {});
   } catch (error) {
-    if (!userId || !key || !isNetworkFailure(error)) throw error;
-    const [sheetId, edition] = key.split(":");
-    if (!(await hasBundle(userId, sheetId, edition))) throw error;
+    if (!userId || !key || !isNetworkFailure(error) || !downloaded) throw error;
     return offline();
   }
 }
@@ -428,8 +436,8 @@ export const activeStudyClient = {
   async start({ sheetId, difficulty, edition }, online) {
     const userId = currentOfflineUserId();
     const key = runKey(sheetId, edition || "university", difficulty);
-    return route(userId, key, async () => {
-      const payload = await online();
+    return route(userId, key, async (requestOptions) => {
+      const payload = await online(requestOptions);
       if (userId && await hasBundle(userId, sheetId, edition)) await mirrorRun(userId, key, payload.run).catch(() => undefined);
       else if (userId && payload?.run?.id) await offlineDatabase.put(userId, `${RUN_ID_PREFIX}${payload.run.id}`, key).catch(() => undefined);
       return payload;
@@ -439,8 +447,8 @@ export const activeStudyClient = {
   async action(runId, action, online) {
     const userId = currentOfflineUserId();
     const { key, run } = userId ? await localRunFor(userId, runId) : { key: null, run: null };
-    return route(userId, key, async () => {
-      const payload = await online(run?.server_id || runId);
+    return route(userId, key, async (requestOptions) => {
+      const payload = await online(run?.server_id || runId, requestOptions);
       if (key && payload?.run) {
         if (action === "restart") await offlineDatabase.put(userId, `${RUN_ID_PREFIX}${payload.run.id}`, key).catch(() => undefined);
         await mirrorRun(userId, key, payload.run, ["complete-reading", "discard-attempt", "retry-final", "restart"].includes(action) ? { openAttempt: null } : {}).catch(() => undefined);
@@ -452,8 +460,8 @@ export const activeStudyClient = {
   async questions(runId, online) {
     const userId = currentOfflineUserId();
     const { key, run } = userId ? await localRunFor(userId, runId) : { key: null, run: null };
-    return route(userId, key, async () => {
-      const payload = await online(run?.server_id || runId);
+    return route(userId, key, async (requestOptions) => {
+      const payload = await online(run?.server_id || runId, requestOptions);
       if (key && payload?.run) {
         const answers = {};
         for (const question of payload.questions || []) if (question.answered) answers[String(question.position)] = question.answered;
@@ -469,8 +477,8 @@ export const activeStudyClient = {
   async answer(runId, body, online) {
     const userId = currentOfflineUserId();
     const { key, run } = userId ? await localRunFor(userId, runId) : { key: null, run: null };
-    return route(userId, key, async () => {
-      const payload = await online(run?.server_id || runId);
+    return route(userId, key, async (requestOptions) => {
+      const payload = await online(run?.server_id || runId, requestOptions);
       // The server holds this answer now; so does the device's open attempt,
       // in case the rest of the attempt finishes offline.
       if (key && run?.open_attempt?.id === body.attemptId) {
@@ -484,8 +492,8 @@ export const activeStudyClient = {
   async submit(runId, attemptId, online) {
     const userId = currentOfflineUserId();
     const { key, run } = userId ? await localRunFor(userId, runId) : { key: null, run: null };
-    return route(userId, key, async () => {
-      const payload = await online(run?.server_id || runId);
+    return route(userId, key, async (requestOptions) => {
+      const payload = await online(run?.server_id || runId, requestOptions);
       if (key && payload?.run) await mirrorRun(userId, key, payload.run, { openAttempt: null }).catch(() => undefined);
       return payload;
     }, () => local.submit(userId, run?.id || runId, attemptId));

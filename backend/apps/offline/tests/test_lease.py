@@ -1,3 +1,4 @@
+import base64
 from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -5,6 +6,8 @@ from uuid import uuid4
 
 import jwt
 import pytest
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from django.test import override_settings
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
@@ -12,7 +15,11 @@ from rest_framework.test import APIClient
 
 from apps.accounts.tests.helpers import create_user
 from apps.entitlements.models import EntitlementDefinition, EntitlementGrant
-from apps.entitlements.offline_lease import issue_offline_lease, verify_offline_lease
+from apps.entitlements.offline_lease import (
+    issue_offline_lease,
+    public_key_base64,
+    verify_offline_lease,
+)
 from apps.entitlements.services import EntitlementDecision
 
 pytestmark = pytest.mark.django_db
@@ -112,3 +119,83 @@ def test_verified_trial_receives_a_lease_capped_by_its_trial_end() -> None:
     assert claims["exp"] <= int(
         user.subscription_accounts.get().subscriptions.get().trial_ends_at.timestamp()
     )
+
+
+# A seed whose Base64 uses the characters the two alphabets disagree on
+# (standard "+/", URL-safe "-_"), so each format is exercised for real.
+SEED = bytes([0xFB, 0xFF, 0xBF]) * 10 + b"\x01\x02"
+STANDARD_PADDED = base64.b64encode(SEED).decode()
+URL_SAFE_UNPADDED = base64.urlsafe_b64encode(SEED).decode().rstrip("=")
+
+
+def _public_key(encoded: str) -> str:
+    with override_settings(OFFLINE_LEASE_ED25519_PRIVATE_KEY=encoded):
+        return public_key_base64()
+
+
+def test_seed_formats_both_decode_to_the_same_key() -> None:
+    assert "+" in STANDARD_PADDED and "/" in STANDARD_PADDED and STANDARD_PADDED.endswith("=")
+    assert "-" in URL_SAFE_UNPADDED and "_" in URL_SAFE_UNPADDED and len(URL_SAFE_UNPADDED) == 43
+    expected = base64.b64encode(
+        Ed25519PrivateKey.from_private_bytes(SEED)
+        .public_key()
+        .public_bytes(encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw)
+    ).decode()
+    assert _public_key(STANDARD_PADDED) == expected
+    assert _public_key(URL_SAFE_UNPADDED) == expected
+    # Secrets read from files and environments often carry a trailing newline.
+    assert _public_key(f"  {URL_SAFE_UNPADDED}\n") == expected
+    # URL-safe with its padding, and standard without it, are the same seed.
+    assert _public_key(base64.urlsafe_b64encode(SEED).decode()) == expected
+    assert _public_key(STANDARD_PADDED.rstrip("=")) == expected
+
+
+def test_url_safe_unpadded_seed_issues_leases_through_the_endpoint() -> None:
+    user = create_user(email="urlsafe-lease@example.com", with_trial=True)
+    with override_settings(OFFLINE_LEASE_ED25519_PRIVATE_KEY=URL_SAFE_UNPADDED):
+        lease = issue_offline_lease(user=user)
+        assert verify_offline_lease(lease["token"], user=user)["sub"] == str(user.pk)
+        client = APIClient()
+        client.force_authenticate(user)
+        response = client.get("/api/v1/offline/lease/")
+        assert response.status_code == 200, response.json()
+        body = response.json()["lease"]
+        assert verify_offline_lease(body["token"], user=user)["sub"] == str(user.pk)
+        assert body["public_key"] == _public_key(STANDARD_PADDED)
+
+
+@pytest.mark.parametrize(
+    ("encoded", "reason"),
+    [
+        ("not base64!", "not Base64 text"),
+        (STANDARD_PADDED[:10] + "-" + STANDARD_PADDED[11:], "mixes"),
+        (STANDARD_PADDED + "=", "padding"),
+        (URL_SAFE_UNPADDED[:20] + "=" + URL_SAFE_UNPADDED[21:], "not Base64 text"),
+        (URL_SAFE_UNPADDED[:-2], "not valid Base64"),
+    ],
+)
+def test_malformed_seed_fails_closed_without_revealing_it(encoded: str, reason: str) -> None:
+    user = create_user(email=f"bad-seed-{uuid4().hex[:8]}@example.com", with_trial=True)
+    with (
+        override_settings(OFFLINE_LEASE_ED25519_PRIVATE_KEY=encoded),
+        pytest.raises(RuntimeError) as raised,
+    ):
+        issue_offline_lease(user=user)
+    message = str(raised.value)
+    assert reason in message
+    assert encoded not in message
+    assert raised.value.__cause__ is None and raised.value.__suppress_context__
+
+
+@pytest.mark.parametrize("length", [16, 31, 33, 64])
+def test_seed_of_the_wrong_length_is_refused(length: int) -> None:
+    for encoded in (
+        base64.b64encode(bytes(range(length))).decode(),
+        base64.urlsafe_b64encode(bytes(range(length))).decode().rstrip("="),
+    ):
+        with (
+            override_settings(OFFLINE_LEASE_ED25519_PRIVATE_KEY=encoded),
+            pytest.raises(RuntimeError, match=f"32 bytes, not {length}") as raised,
+        ):
+            public_key_base64()
+        assert encoded not in str(raised.value)

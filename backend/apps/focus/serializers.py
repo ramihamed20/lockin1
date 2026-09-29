@@ -6,6 +6,7 @@ from rest_framework import serializers
 from apps.accounts.avatars import AvatarPayload, avatar_payload
 from platform_core.api.serializers import StrictSerializer
 
+from .managed_active_study import ANSWER_KEYS
 from .models import (
     FocusSession,
     FocusSessionNote,
@@ -250,7 +251,7 @@ class ManagedActiveStudyStartSerializer(StrictSerializer):
 class ManagedActiveStudyAnswerSerializer(StrictSerializer):
     attempt_id = serializers.UUIDField()
     position = serializers.IntegerField(min_value=1, max_value=100)
-    selected_answer = serializers.ChoiceField(choices=("A", "B", "C", "D"))
+    selected_answer = serializers.ChoiceField(choices=ANSWER_KEYS)
 
 
 class ManagedActiveStudySubmitSerializer(StrictSerializer):

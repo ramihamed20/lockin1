@@ -1,5 +1,6 @@
 import { catalogWorkspaceApi } from "../api/catalogWorkspace.js";
 import { useAsyncData } from "./useAsyncData.js";
+import { isOfflinePdfUrl } from "../offline/pdfUrl.js";
 import { resolveSheet, resolveSummary } from "../offline/resolver.js";
 
 const documentCache = new Map();
@@ -44,7 +45,7 @@ export function parseCatalogDocument(payload) {
     !document
     || !UUID_PATTERN.test(String(document.id))
     || !UUID_PATTERN.test(String(document.document_version_id))
-    || !(VIEW_URL_PATTERN.test(String(document.view_url)) || (document.offline === true && String(document.view_url).startsWith("blob:")))
+    || !(VIEW_URL_PATTERN.test(String(document.view_url)) || (document.offline === true && isOfflinePdfUrl(document.view_url)))
   ) {
     return null;
   }

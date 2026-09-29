@@ -238,13 +238,41 @@ export async function downloadOfflineItem(userId, item, onProgress = () => {}, {
   return metadata;
 }
 
-export async function getOfflineBlob(userId, itemId) {
+const PDF_SIGNATURE = [0x25, 0x50, 0x44, 0x46, 0x2d]; // "%PDF-"
+
+/**
+ * The stored bytes of a downloaded PDF, read afresh for every open.
+ *
+ * The reader is given the bytes, never an object URL: PDF.js fetches a URL
+ * itself, and the edge's `connect-src 'self'` blocks a `blob:` fetch, which
+ * PDF.js reports as "Unexpected server response (0)". Bytes need no URL,
+ * outlive no page, and are checked against what the download stored.
+ * @returns {Promise<Uint8Array<ArrayBuffer> | null>}
+ */
+export async function readOfflinePdfBytes(userId, itemId) {
   if (!(await offlineAccessStatus(userId)).available) return null;
   const current = (await readOfflineManifest(userId))?.items?.find((item) => item.id === itemId && item.available);
   const stored = await readDownloadMetadata(userId, itemId);
-  if (!current || !stored || current.type !== stored.type) return null;
-  const cache = await caches.open(cacheName(userId));
-  return (await cachedFile(cache, userId, stored))?.blob() || null;
+  if (!current || !stored || current.type !== stored.type || JSON_TYPES.has(stored.type)) return null;
+  const response = await cachedFile(await caches.open(cacheName(userId)), userId, stored);
+  if (!response) return null;
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  if (!bytes.length || (stored.storedSize && bytes.length !== stored.storedSize) || PDF_SIGNATURE.some((value, index) => bytes[index] !== value)) {
+    throw new Error("The downloaded copy of this PDF is damaged. Download it again.");
+  }
+  return bytes;
+}
+
+/** Whether a version of this downloaded file (current or older) is stored. */
+export async function hasStoredOfflineFile(userId, itemId) {
+  const stored = await readDownloadMetadata(userId, itemId);
+  return Boolean(stored && !JSON_TYPES.has(stored.type) && await cachedFile(await caches.open(cacheName(userId)), userId, stored));
+}
+
+/** The downloaded item behind an online file view URL, when one is stored. */
+export async function findDownloadedPdfItem(userId, viewUrl) {
+  const item = (await readOfflineManifest(userId))?.items?.find((entry) => entry.available && entry.download_url === viewUrl && !JSON_TYPES.has(entry.type));
+  return item && await readDownloadMetadata(userId, item.id) ? item : null;
 }
 
 /** Removes downloaded content only. Progress and unsynced work stay on the device. */
