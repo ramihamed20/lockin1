@@ -166,6 +166,17 @@ test("study cards move directly and settings fill the workspace in each theme", 
   await page.getByRole("button", { name: "Add card" }).click();
   const card = page.locator('.workspace-v2-annotation-layer [data-annotation-type="card"]').first();
   await expect(card).toBeVisible();
+  // Adding a card closes the editor with an exit animation and scrolls the new
+  // card into view. Grab it only once both have finished, or the press lands
+  // where the card was a moment ago.
+  await expect(page.getByRole("dialog", { name: "Add study card" })).toHaveCount(0);
+  let settled = null;
+  await expect.poll(async () => {
+    const box = await card.boundingBox();
+    const same = settled && box && Math.abs(box.x - settled.x) < 0.5 && Math.abs(box.y - settled.y) < 0.5;
+    settled = box;
+    return Boolean(same);
+  }, { intervals: [150] }).toBe(true);
   const beforeX = Number(await card.locator("rect").getAttribute("x"));
   const bounds = await card.boundingBox();
   await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + 20);
