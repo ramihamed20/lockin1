@@ -314,6 +314,8 @@ class ActiveStudySettings(models.Model):
     page_count_verified_at = models.DateTimeField(null=True, blank=True)
     excluded_start_pages = models.PositiveIntegerField(default=0)
     excluded_end_pages = models.PositiveIntegerField(default=0)
+    questions_per_checkpoint = models.PositiveIntegerField(default=15)
+    final_exam_questions = models.PositiveIntegerField(default=50)
     revision = models.PositiveBigIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

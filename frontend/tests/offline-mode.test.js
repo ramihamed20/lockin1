@@ -144,6 +144,18 @@ test("an Active Study bundle is offline ready only when its PDF and every checkp
   assert.deepEqual(keys, [`content:${updated.id}:as-v2`], "the superseded bundle version is removed");
 });
 
+test("a removed manifest item cannot be reopened from an older local download", async () => {
+  const userId = await freshUser();
+  const item = await downloadActiveStudy(userId);
+  const manifest = await downloads.readOfflineManifest(userId);
+  await offlineDatabase.put(userId, "manifest", {
+    ...manifest,
+    items: manifest.items.filter((entry) => entry.id !== item.id)
+  });
+  offline();
+  assert.equal(await downloads.getOfflineActiveStudy(userId, SHEET, "university"), null);
+});
+
 // --- Active Study offline --------------------------------------------------
 
 test("Active Study runs offline through the unchanged focusApi and survives an app restart", async () => {
@@ -206,6 +218,34 @@ test("Active Study runs offline through the unchanged focusApi and survives an a
   assert.equal(pending[0].sync_status, "pending");
   assert.equal(pending[0].schema_version, 1);
   assert.equal(pending[0].payload.attempt_id, quiz.attempt_id);
+});
+
+test("a downloaded mixed checkpoint grades True/False offline and queues its typed answer", async () => {
+  const userId = await freshUser();
+  const mixed = bundle();
+  mixed.difficulties.medium.parts[0].questions[0] = {
+    type: "true_false", question: "Enamel is mineralized.", correct_answer: true,
+    explanation: "Enamel has a mineralized matrix."
+  };
+  serveContent({ bundleBody: mixed });
+  const current = await downloads.fetchOfflineManifest(userId);
+  await downloads.downloadOfflineItem(userId, current.items.find((item) => item.type === "active_study"), () => {}, { manifest: current });
+  offline();
+  const started = await focusApi.startManagedActiveStudy({ sheetId: SHEET, difficulty: "medium", edition: "university" });
+  await focusApi.managedActiveStudyAction(started.run.id, "complete-reading");
+  const quiz = await focusApi.getManagedActiveStudyQuestions(started.run.id);
+  assert.equal(quiz.questions[0].question_type, "true_false");
+  assert.deepEqual(quiz.questions[0].options, { T: "True", F: "False" });
+  const answer = await focusApi.answerManagedActiveStudyQuestion(started.run.id, { attemptId: quiz.attempt_id, position: 1, selectedAnswer: "T" });
+  assert.equal(answer.correct, true);
+  assert.equal(answer.explanation, "Enamel has a mineralized matrix.");
+  await assert.rejects(focusApi.answerManagedActiveStudyQuestion(started.run.id, { attemptId: quiz.attempt_id, position: 2, selectedAnswer: "T" }), /Choose an answer/);
+  for (let position = 2; position <= quiz.questions.length; position += 1) {
+    await focusApi.answerManagedActiveStudyQuestion(started.run.id, { attemptId: quiz.attempt_id, position, selectedAnswer: "B" });
+  }
+  await focusApi.submitManagedActiveStudy(started.run.id, quiz.attempt_id);
+  const pending = await queue.pendingOfflineOperations(userId);
+  assert.equal(pending[0].payload.answers[0].selected_answer, "T");
 });
 
 test("a failed checkpoint offers retake or continue, and the Final Exam completes offline", async () => {
@@ -383,7 +423,9 @@ test("an expired subscription keeps pending work and still uploads it with the l
     uploaded.push(...body.operations);
     return { accepted: body.operations.map((operation) => ({ operation_id: operation.operation_id, result: { question_id: "q1", is_correct: true, xp_awarded: 5, selected_choice_ids: ["c1"] } })), rejected: [] };
   });
-  await assert.rejects(synchronizeOffline(userId, () => {}, { force: true }), /expired/);
+  const states = [];
+  assert.equal(await synchronizeOffline(userId, (state) => states.push(state), { force: true }), null);
+  assert.equal(states.at(-1), "synced");
   assert.equal(uploaded.length, 1);
   assert.deepEqual(await queue.pendingOfflineOperations(userId), []);
   assert.ok(!env.calls.includes("GET /offline/manifest/"), "no protected content is renewed");

@@ -1,6 +1,7 @@
 from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
+from uuid import uuid4
 
 import jwt
 import pytest
@@ -10,6 +11,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.test import APIClient
 
 from apps.accounts.tests.helpers import create_user
+from apps.entitlements.models import EntitlementDefinition, EntitlementGrant
 from apps.entitlements.offline_lease import issue_offline_lease, verify_offline_lease
 from apps.entitlements.services import EntitlementDecision
 
@@ -73,3 +75,40 @@ def test_lease_endpoint_requires_active_subscription() -> None:
     client = APIClient()
     client.force_authenticate(user)
     assert client.get("/api/v1/offline/lease/").status_code == 403
+
+
+def test_unverified_account_with_a_live_grant_can_use_a_bounded_lease() -> None:
+    user = create_user(email="pending-verification-with-access@example.com", verified=False)
+    end = timezone.now() + timedelta(hours=2)
+    grant = EntitlementGrant.objects.create(
+        user=user,
+        entitlement=EntitlementDefinition.objects.get(code="content.premium"),
+        source_type=EntitlementGrant.SourceType.MANUAL,
+        source_id=uuid4(),
+        starts_at=timezone.now() - timedelta(minutes=1),
+        ends_at=end,
+    )
+    client = APIClient()
+    client.force_authenticate(user)
+    response = client.get("/api/v1/offline/lease/")
+    assert response.status_code == 200, response.json()
+    claims = verify_offline_lease(response.json()["lease"]["token"], user=user)
+    assert claims["exp"] <= int(end.timestamp())
+    grant.status = EntitlementGrant.Status.REVOKED
+    grant.save(update_fields=("status",))
+    assert client.get("/api/v1/offline/lease/").status_code == 403
+    # An already-issued offline lease remains usable only until its signed
+    # expiry; revocation cannot be known to a disconnected device earlier.
+    assert claims["exp"] - claims["iat"] <= 86_400
+
+
+def test_verified_trial_receives_a_lease_capped_by_its_trial_end() -> None:
+    user = create_user(email="trial-offline@example.com", with_trial=True)
+    client = APIClient()
+    client.force_authenticate(user)
+    response = client.get("/api/v1/offline/lease/")
+    assert response.status_code == 200, response.json()
+    claims = verify_offline_lease(response.json()["lease"]["token"], user=user)
+    assert claims["exp"] <= int(
+        user.subscription_accounts.get().subscriptions.get().trial_ends_at.timestamp()
+    )

@@ -9,7 +9,7 @@ always the part count that gets stored.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 # Prompt templates are authored per part count.  A plan above this many parts
 # has no matching template yet; a plan that could not be built at all says so
@@ -248,6 +248,8 @@ def plan_payload(
     excluded_end_pages: int,
     parts_by_difficulty: dict[str, int] | None = None,
     sizes_by_difficulty: dict[str, tuple[int, ...]] | None = None,
+    questions_per_checkpoint: int = 15,
+    final_exam_questions: int = 50,
 ) -> dict[str, object]:
     """Plan every difficulty for one edition.
 
@@ -256,6 +258,18 @@ def plan_payload(
     therefore its question bank.
     """
 
+    if not 1 <= questions_per_checkpoint <= 200 or not 1 <= final_exam_questions <= 200:
+        raise ActiveStudyPlanError(
+            "Question counts must be between 1 and 200.", field="questions_per_checkpoint"
+        )
+    difficulties = tuple(
+        replace(
+            difficulty,
+            questions_per_checkpoint=questions_per_checkpoint,
+            final_exam_questions=final_exam_questions,
+        )
+        for difficulty in DIFFICULTIES
+    )
     if total_pdf_pages is None:
         reason = "PDF page count is missing."
         return {
@@ -264,7 +278,7 @@ def plan_payload(
             "plan_error": reason,
             "difficulties": [
                 unplanned_difficulty(difficulty=difficulty, reason=reason)
-                for difficulty in DIFFICULTIES
+                for difficulty in difficulties
             ],
         }
     eligible = eligible_study_pages(
@@ -285,6 +299,6 @@ def plan_payload(
                 number_of_parts=(parts_by_difficulty or {}).get(difficulty.key),
                 mirrored_sizes=(sizes_by_difficulty or {}).get(difficulty.key),
             )
-            for difficulty in DIFFICULTIES
+            for difficulty in difficulties
         ],
     }

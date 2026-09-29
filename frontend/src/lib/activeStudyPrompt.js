@@ -48,16 +48,18 @@ ${ranges}
 QUESTION REQUIREMENTS
 
 For every Part:
-- Create exactly ${questionsPerPart} MCQ questions related to that Part's assigned pages.
-- Each question must have exactly four options: A, B, C, D.
-- Exactly one option must be correct, and every question needs a concise explanation.
+- Create exactly ${questionsPerPart} questions related to that Part's assigned pages.
+- Use any sensible mixture of MCQ and True/False; no ratio is required.
+- MCQ questions have exactly four options: A, B, C, D, with one correct letter.
+- True/False questions have a boolean correct_answer and no options field.
+- Every question needs a concise explanation.
 - Do not add difficulty, part, source_pages, xp, id, tags, score, or other metadata inside individual questions.
 - Do not duplicate identical questions.
 
 For the Final Exam:
-- Create exactly ${finalExamQuestions} MCQ questions at ${difficulty} difficulty.
+- Create exactly ${finalExamQuestions} questions at ${difficulty} difficulty, with any sensible MCQ/True-False mixture.
 - Cover the complete eligible content of the sheet.
-- Each question must have A, B, C, D, one correct answer, and an explanation.
+- Each question must follow its type's answer format and have an explanation.
 
 CONTENT RULES
 
@@ -67,6 +69,7 @@ Use only the material I provide. If I provide a question and correct answer, pre
 QUESTION JSON FORMAT
 
 {
+  "type": "mcq",
   "question": "Question text",
   "options": {
     "A": "Option A",
@@ -77,6 +80,17 @@ QUESTION JSON FORMAT
   "correct_answer": "B",
   "explanation": "Explanation of why B is correct."
 }
+
+Or for True/False:
+
+{
+  "type": "true_false",
+  "question": "Statement to judge",
+  "correct_answer": true,
+  "explanation": "Why the statement is true."
+}
+
+Older MCQ questions without type remain valid.
 
 FINAL JSON STRUCTURE
 
@@ -95,9 +109,9 @@ Before returning the final JSON verify:
 1. There are exactly ${numberOfParts} Parts numbered sequentially from 1 to ${numberOfParts}.
 2. Every Part contains exactly ${questionsPerPart} questions.
 3. Final Exam contains exactly ${finalExamQuestions} questions.
-4. Every question is non-empty and has exactly A, B, C, and D options.
-5. No option is empty or duplicates another option in the same question.
-6. correct_answer is exactly A, B, C, or D.
+4. Every question is non-empty and has type mcq or true_false (legacy MCQ may omit type).
+5. MCQs have non-empty, distinct A, B, C, D options and a correct_answer letter.
+6. True/False questions have no options and a boolean correct_answer.
 7. Every question has a non-empty explanation and there are no duplicate questions.
 8. JSON syntax is valid, has no comments or trailing commas, and contains no extra fields.
 

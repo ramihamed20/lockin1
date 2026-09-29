@@ -3,7 +3,15 @@ import { offlineDatabase } from "./database.js";
 import { offlineAccessStatus } from "./lease.js";
 
 const cacheName = (userId) => `lock-in-private-offline-v1-${userId}`;
-const cacheKey = (userId, itemId) => new URL(`/__lockin_offline__/${encodeURIComponent(userId)}/${encodeURIComponent(itemId)}`, globalThis.location.origin).href;
+const cacheKey = (userId, itemId, checksum = "") => new URL(`/__lockin_offline__/${encodeURIComponent(userId)}/${encodeURIComponent(itemId)}${checksum ? `/${encodeURIComponent(checksum)}` : ""}`, globalThis.location.origin).href;
+async function cachedFile(cache, userId, item) {
+  return await cache.match(cacheKey(userId, item.id, item.checksum)) || await cache.match(cacheKey(userId, item.id));
+}
+function belongsToItem(url, userId, itemId) {
+  const base = cacheKey(userId, itemId);
+  return url === base || url.startsWith(`${base}/`);
+}
+function cacheRequestUrl(request) { return typeof request === "string" ? request : request.url; }
 // Content kept in IndexedDB rather than Cache Storage: small JSON bundles that
 // include answer keys, which must never sit in a cache a URL could address.
 const JSON_TYPES = new Set(["questions", "active_study"]);
@@ -55,7 +63,7 @@ async function isOwnContentStored(userId, item) {
   const metadata = await readDownloadMetadata(userId, item.id);
   if (metadata?.checksum !== item.checksum || metadata?.version !== item.version) return false;
   if (JSON_TYPES.has(item.type)) return Boolean(await offlineDatabase.get(userId, `content:${item.id}:${item.checksum}`));
-  return Boolean(await (await caches.open(cacheName(userId))).match(cacheKey(userId, item.id)));
+  return Boolean(await cachedFile(await caches.open(cacheName(userId)), userId, item));
 }
 
 /**
@@ -116,8 +124,13 @@ export function validActiveStudyBundle(bundle, item) {
   if (!Number.isInteger(bundle.rules?.checkpoint_pass) || !Number.isInteger(bundle.rules?.final_pass)) return false;
   const difficulties = Object.values(bundle.difficulties || {});
   if (!difficulties.length || !Array.isArray(bundle.availability?.difficulties)) return false;
-  const complete = (question) => question && typeof question.question === "string" && question.options
-    && typeof question.correct_answer === "string" && question.correct_answer in question.options;
+  const complete = (question) => {
+    if (!question || typeof question.question !== "string" || !question.question.trim() ||
+        typeof question.explanation !== "string" || !question.explanation.trim()) return false;
+    if (question.type === "true_false") return typeof question.correct_answer === "boolean" && question.options === undefined;
+    return (!question.type || question.type === "mcq") && question.options &&
+      typeof question.correct_answer === "string" && question.correct_answer in question.options;
+  };
   return difficulties.every((difficulty) => Array.isArray(difficulty.page_ranges)
     && Array.isArray(difficulty.parts)
     && difficulty.parts.length === difficulty.number_of_parts
@@ -173,7 +186,7 @@ async function downloadFile(userId, item, onProgress) {
     throw new Error("Download integrity check failed.");
   }
   const cache = await caches.open(cacheName(userId));
-  const key = cacheKey(userId, item.id);
+  const key = cacheKey(userId, item.id, item.checksum);
   await cache.put(key, new Response(blob, { headers: { "Content-Type": blob.type, "Content-Length": String(received) } }));
   const metadata = { ...item, downloadedAt: new Date().toISOString(), storedSize: received };
   try {
@@ -181,6 +194,12 @@ async function downloadFile(userId, item, onProgress) {
   } catch (error) {
     await cache.delete(key);
     throw error;
+  }
+  // The new version is committed before removing the old one. A failed
+  // download or metadata write leaves the previous PDF usable offline.
+  for (const request of await cache.keys()) {
+    const url = cacheRequestUrl(request);
+    if (belongsToItem(url, userId, item.id) && url !== key) await cache.delete(request);
   }
   return metadata;
 }
@@ -222,15 +241,18 @@ export async function downloadOfflineItem(userId, item, onProgress = () => {}, {
 export async function getOfflineBlob(userId, itemId) {
   if (!(await offlineAccessStatus(userId)).available) return null;
   const current = (await readOfflineManifest(userId))?.items?.find((item) => item.id === itemId && item.available);
-  if (!current || !(await isOwnContentStored(userId, current))) return null;
+  const stored = await readDownloadMetadata(userId, itemId);
+  if (!current || !stored || current.type !== stored.type) return null;
   const cache = await caches.open(cacheName(userId));
-  return (await cache.match(cacheKey(userId, itemId)))?.blob() || null;
+  return (await cachedFile(cache, userId, stored))?.blob() || null;
 }
 
 /** Removes downloaded content only. Progress and unsynced work stay on the device. */
 export async function removeOfflineItem(userId, itemId) {
   const cache = await caches.open(cacheName(userId));
-  await cache.delete(cacheKey(userId, itemId));
+  for (const request of await cache.keys()) {
+    if (belongsToItem(cacheRequestUrl(request), userId, itemId)) await cache.delete(request);
+  }
   await offlineDatabase.delete(userId, `download:${itemId}`);
   for (const key of await offlineDatabase.keys(userId)) {
     if (String(key).startsWith(`content:${itemId}:`)) await offlineDatabase.delete(userId, key);
@@ -251,7 +273,7 @@ export async function offlineDownloadStats(userId) {
   const items = (await Promise.all(records.map(async (item) => {
     const present = JSON_TYPES.has(item.type)
       ? Boolean(await offlineDatabase.get(userId, `content:${item.id}:${item.checksum}`))
-      : Boolean(await cache.match(cacheKey(userId, item.id)));
+      : Boolean(await cachedFile(cache, userId, item));
     return present ? item : null;
   }))).filter(Boolean);
   return { items, count: items.length, bytes: items.reduce((sum, item) => sum + (item.storedSize || 0), 0) };
@@ -270,7 +292,8 @@ async function storedBundle(userId, id) {
   if (!(await offlineAccessStatus(userId)).available) return null;
   const manifest = await readOfflineManifest(userId);
   const current = manifest?.items?.find((item) => item.id === id && item.available);
-  if (current && await isOfflineItemStored(userId, current, manifest)) {
+  if (!current) return null;
+  if (await isOfflineItemStored(userId, current, manifest)) {
     return offlineDatabase.get(userId, `content:${id}:${current.checksum}`);
   }
   // A newer manifest can list a version not downloaded yet. The stored

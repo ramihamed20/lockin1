@@ -10,7 +10,7 @@ effective study range matters.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import cast
 from uuid import UUID
 
@@ -212,6 +212,7 @@ def edition_plan(
     if source_version is None:
         source_version = source_version_for(sheet)
     effective = effective_settings(sheet=sheet, edition=edition)
+    question_settings = settings_for(sheet=sheet, edition=UNIVERSITY)
     total_pages, _ = resolve_total_pdf_pages(
         settings=effective.own, source_version=source_version, edition=edition
     )
@@ -225,6 +226,12 @@ def edition_plan(
                 excluded_end_pages=effective.excluded_end_pages,
                 parts_by_difficulty=parts_by_difficulty,
                 sizes_by_difficulty=sizes_by_difficulty,
+                questions_per_checkpoint=(
+                    question_settings.questions_per_checkpoint if question_settings else 15
+                ),
+                final_exam_questions=(
+                    question_settings.final_exam_questions if question_settings else 50
+                ),
             ),
             None,
         )
@@ -430,7 +437,11 @@ def readiness_payload(*, sheet: LearningObject, edition: str = UNIVERSITY) -> di
             try:
                 validate_active_study_questions(
                     content.payload,
-                    difficulty=rule,
+                    difficulty=replace(
+                        rule,
+                        questions_per_checkpoint=cast(int, row["questions_per_checkpoint"]),
+                        final_exam_questions=cast(int, row["final_exam_questions"]),
+                    ),
                     number_of_parts=cast(int, plan_item["number_of_parts"]),
                 )
                 status, reason = "ready", "Ready."

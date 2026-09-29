@@ -405,6 +405,17 @@ function App() {
     setBootError(null);
 
     (async () => {
+      // A cold PWA launch with no network uses the signed, locally verified
+      // lease immediately. Session and entitlement APIs are rechecked when the
+      // connection returns; they are not required to open downloaded work.
+      // Without a usable lease there is nothing to open, so the normal start
+      // runs and explains that the device is offline rather than showing a
+      // sign-in form that cannot work without a connection.
+      if (navigator.onLine === false) {
+        if (window.localStorage.getItem(OFFLINE_PENDING_LOGOUT_KEY)) return { user: null, offline: true };
+        const offlineUser = await restoreOfflineUser().catch(() => null);
+        if (offlineUser) return { user: offlineUser, offline: true };
+      }
       if (window.localStorage.getItem(OFFLINE_PENDING_LOGOUT_KEY)) {
         try {
           await authApi.logout();
@@ -417,11 +428,16 @@ function App() {
           }
         }
       }
-      return authApi.me();
+      return { user: await authApi.me(), offline: false };
     })()
-      .then(async (nextUser) => {
+      .then(async ({ user: nextUser, offline }) => {
         if (!active) return;
         bootRetryAttemptsRef.current = 0;
+        if (offline) {
+          setOperationsSessionPending(false);
+          setUser(nextUser);
+          return;
+        }
         if (oauthSessionBootRef.current) clearSubscriptionSnapshots();
         setUser(nextUser);
         setThemeSettings((current) => mergeRemoteThemeSettings(nextUser.themeSettings, current));

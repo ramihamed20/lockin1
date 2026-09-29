@@ -17,6 +17,7 @@ const USER_ID = "offline-e2e-student";
 const SHEET_ID = "e2e-vitamin-1";
 const WORKSPACE_ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 const PDF_ITEM = "doc-offline-e2e:sheet";
+const QUESTION_ITEM = `questions:${SHEET_ID}:ai-sheet`;
 const FILE_ID = "5b1f8a1e-4c2d-4e6f-8a9b-0c1d2e3f4a5b";
 const RANGES = [
   { part: 1, start_page: 1, end_page: 10 },
@@ -25,8 +26,16 @@ const RANGES = [
   { part: 4, start_page: 31, end_page: 41 }
 ];
 
-function bundle() {
-  const question = (label) => ({ question: `Which vitamin is fat-soluble (${label})?`, options: { A: "Vitamin C", B: "Vitamin K" }, correct_answer: "B", explanation: "Vitamin K is fat-soluble." });
+const normalQuestion = {
+  id: "normal-true-false-1", question_type: "true_false", prompt: "Vitamin K is fat-soluble.",
+  topic: "Vitamins", difficulty: "easy", xp_value: 5, source_page: null, answer: null,
+  choices: [{ id: "normal-true", text: "True", position: 0 }, { id: "normal-false", text: "False", position: 1 }]
+};
+
+function bundle(questionType = "mcq") {
+  const question = (label) => questionType === "true_false"
+    ? { type: "true_false", question: `Vitamin K is fat-soluble (${label}).`, correct_answer: true, explanation: "Vitamin K is fat-soluble." }
+    : { question: `Which vitamin is fat-soluble (${label})?`, options: { A: "Vitamin C", B: "Vitamin K" }, correct_answer: "B", explanation: "Vitamin K is fat-soluble." };
   return {
     sheet_id: SHEET_ID,
     edition: "university",
@@ -63,7 +72,10 @@ async function mockServer(page, state) {
     const url = new URL(request.url());
     const { pathname } = url;
     const method = request.method();
-    if (state.serverDown) return route.abort("internetdisconnected");
+    if (state.serverDown) {
+      (state.offlineRequests ||= []).push(pathname);
+      return route.abort("internetdisconnected");
+    }
     const json = (body, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
     if (pathname === "/api/v1/auth/session") {
       return json({ user: { id: USER_ID, email: "offline@example.test", full_name: "Offline Student", preferred_language: "en", status: "active", is_email_verified: true, roles: ["student"], date_joined: "2026-01-01T00:00:00Z" } });
@@ -79,20 +91,32 @@ async function mockServer(page, state) {
         subjects: [{ id: "subject-biochemistry", title: "Biochemistry 1", material_slug: "biochemistry-1", cohort: "y1", program: "dds" }],
         items: [
           { id: PDF_ITEM, type: "sheet", document_id: "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", document_version_id: "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d", material_slug: "biochemistry-1", sheet_slug: "vitamin-1", subject_id: "subject-biochemistry", sheet_id: SHEET_ID, edition: "university", title: "Vitamin -1", version: 1, updated_at: null, size: pdf.length, checksum, download_url: `/api/v1/files/${FILE_ID}/view`, dependencies: [], available: true },
-          { id: `active_study:${SHEET_ID}:university`, type: "active_study", subject_id: "subject-biochemistry", sheet_id: SHEET_ID, material_slug: "biochemistry-1", sheet_slug: "vitamin-1", edition: "university", title: "Vitamin -1", version: "e2e-as-1", updated_at: null, size: null, checksum: "e2e-as-1", download_url: `/api/v1/offline/active-study/${SHEET_ID}/?edition=university`, dependencies: [PDF_ITEM], available: true }
+          { id: `active_study:${SHEET_ID}:university`, type: "active_study", subject_id: "subject-biochemistry", sheet_id: SHEET_ID, material_slug: "biochemistry-1", sheet_slug: "vitamin-1", edition: "university", title: "Vitamin -1", version: "e2e-as-1", updated_at: null, size: null, checksum: "e2e-as-1", download_url: `/api/v1/offline/active-study/${SHEET_ID}/?edition=university`, dependencies: [PDF_ITEM], available: true },
+          { id: QUESTION_ITEM, type: "questions", subject_id: "subject-biochemistry", sheet_id: SHEET_ID, source: "ai-sheet", title: "AI Sheet", version: "e2e-questions-1", updated_at: null, size: null, checksum: "e2e-questions-1", download_url: `/api/v1/offline/questions/${SHEET_ID}/?source=ai-sheet`, dependencies: [], available: true }
         ]
       });
     }
     if (pathname === `/api/v1/files/${FILE_ID}/view`) return route.fulfill({ status: 200, contentType: "application/pdf", body: pdf });
-    if (pathname === `/api/v1/offline/active-study/${SHEET_ID}/`) return json(bundle());
+    if (pathname === `/api/v1/offline/active-study/${SHEET_ID}/`) return json(bundle(state.questionType));
+    if (pathname === `/api/v1/offline/questions/${SHEET_ID}/`) return json({
+      sheet: { id: SHEET_ID, title: "Vitamin -1", material_slug: "biochemistry-1", subject_title: "Biochemistry 1" },
+      source: "ai-sheet", count: 1, content_version: "e2e-questions-1", results: [normalQuestion],
+      answer_keys: { [normalQuestion.id]: { correct_choice_ids: ["normal-true"], explanation: "It is one of the fat-soluble vitamins." } }
+    });
     if (pathname === "/api/v1/offline/review/") return json({ bank: { active_count: 0, mastered_this_week: 0, subjects: [] }, queue: { count: 0, results: [] }, subjects: {}, weekly: { available: false, session: null }, answer_keys: {}, version: "e2e" });
-    if (pathname === "/api/v1/catalog/materials" || pathname === "/api/v1/catalog/questions") return json({ count: 0, results: [] });
-    if (pathname.startsWith("/api/v1/focus/managed-active-study/sheets/")) return json(bundle().availability);
+    if (pathname === "/api/v1/catalog/materials") return json({ count: 0, results: [] });
+    if (pathname === "/api/v1/catalog/questions") return json(url.searchParams.get("source") === "ai-sheet" ? {
+      count: 1,
+      results: [{ slug: "biochemistry-1", title: "Biochemistry 1", questionCount: 1, sheets: [{ id: SHEET_ID, slug: SHEET_ID, number: 1, title: "Vitamin -1", questionCount: 1 }] }]
+    } : { count: 0, results: [] });
+    if (pathname.startsWith("/api/v1/focus/managed-active-study/sheets/")) return json(bundle(state.questionType).availability);
     if (pathname === "/api/v1/offline/sync/" && method === "POST") {
       const body = request.postDataJSON();
       state.synced.push(...body.operations);
       const run = { id: "server-run-1", sheet_id: SHEET_ID, difficulty: "medium", status: "active", stage: "reading", current_part: 2, number_of_parts: 4, current_page_range: RANGES[1], completed_parts: [1], checkpoint_attempts: 1, final_attempts: 0, last_score: 1, last_outcome: "passed", xp_awarded: 0 };
-      return json({ accepted: body.operations.map((operation) => ({ operation_id: operation.operation_id, result: { status: "applied", run, result: { score: 1, total: 1, passed: true, completed: false, xp_awarded: 0 } } })), rejected: [], xp_total: 10 });
+      return json({ accepted: body.operations.map((operation) => ({ operation_id: operation.operation_id, result: operation.operation_type === "question_answer"
+        ? { question_id: operation.payload.question_id, answer: { selected_choice_ids: operation.payload.choice_ids, correct_choice_ids: ["normal-true"], is_correct: true, explanation: "It is one of the fat-soluble vitamins.", xp_awarded: 5 } }
+        : { status: "applied", run, result: { score: 1, total: 1, passed: true, completed: false, xp_awarded: 0 } } })), rejected: [], xp_total: 10 });
     }
     return json({ error: { code: "not_found", message: "Not used by the offline test" } }, 404);
   });
@@ -172,4 +196,88 @@ test("Active Study downloads, runs a checkpoint with the server unreachable and 
   expect(state.synced).toHaveLength(1);
   // The reader is still on Part 2 after the authoritative run is adopted.
   await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
+});
+
+test("a subject download survives a cold offline PWA reload", async ({ page }) => {
+  test.setTimeout(120_000);
+  const state = { serverDown: false, synced: [] };
+  await mockServer(page, state);
+  await page.goto("/#/settings?section=offline");
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker?.controller), null, { timeout: 15_000 });
+  const offlineSection = page.locator("#settings-offline");
+  await expect(offlineSection.getByText("Offline access available")).toBeVisible({ timeout: 20_000 });
+  await offlineSection.getByRole("button", { name: "Download subject" }).click();
+  await expect(offlineSection.getByText("Downloaded", { exact: true })).toBeVisible({ timeout: 30_000 });
+  state.serverDown = true;
+  await page.context().setOffline(true);
+  await page.reload();
+  await expect(page.locator("#settings-offline")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("Offline access available")).toBeVisible();
+  expect(state.offlineRequests || []).not.toContain("/api/v1/auth/session");
+  await page.goto(WORKSPACE_ROUTE);
+  const dialog = page.getByRole("dialog", { name: "Choose study mode" });
+  await expect(dialog).toBeVisible({ timeout: 20_000 });
+  await dialog.getByRole("button", { name: /Start Active Study/ }).click();
+  await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", "PDF page 1 of 10", { timeout: 20_000 });
+  await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]")).toHaveCount(10);
+  await page.goto("/#/questions");
+  await page.getByRole("link", { name: /AI Sheet/ }).click();
+  await page.getByRole("link", { name: /Biochemistry 1/ }).click();
+  await page.getByRole("link", { name: /Vitamin -1/ }).click();
+  await page.getByRole("button", { name: "Start Questions" }).click();
+  await expect(page.getByRole("heading", { name: "Vitamin K is fat-soluble." })).toBeVisible();
+  await page.locator(".question-card").getByRole("button", { name: /True/ }).click();
+  await page.getByRole("button", { name: "Explanation" }).click();
+  await expect(page.getByText("It is one of the fat-soluble vitamins.")).toBeVisible();
+  expect(state.synced).toHaveLength(0);
+  await page.context().setOffline(false);
+  state.serverDown = false;
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect.poll(() => state.synced.length, { timeout: 20_000 }).toBe(1);
+  expect(state.synced[0].operation_type).toBe("question_answer");
+});
+
+test("a downloaded True/False checkpoint answers offline and syncs its typed answer", async ({ page }) => {
+  test.setTimeout(120_000);
+  const state = { serverDown: false, synced: [], questionType: "true_false" };
+  await mockServer(page, state);
+  await page.goto("/#/settings?section=offline");
+  const offlineSection = page.locator("#settings-offline");
+  await expect(offlineSection.getByText("Offline access available")).toBeVisible({ timeout: 20_000 });
+  await offlineSection.getByRole("button", { name: "Download subject" }).click();
+  await expect(offlineSection.getByText("Downloaded", { exact: true })).toBeVisible({ timeout: 30_000 });
+  await page.goto(WORKSPACE_ROUTE);
+  state.serverDown = true;
+  await page.getByRole("dialog", { name: "Choose study mode" }).getByRole("button", { name: /Start Active Study/ }).click();
+  const indicator = page.locator(".workspace-v2-page-number");
+  await expect(indicator).toHaveAttribute("aria-label", "PDF page 1 of 10", { timeout: 20_000 });
+  await indicator.click();
+  const pageInput = page.locator(".workspace-v2-page-navigator input[type='number']");
+  await pageInput.fill("10");
+  await pageInput.press("Enter");
+  await expect(indicator).toHaveAttribute("aria-label", "PDF page 10 of 10");
+  await page.getByRole("button", { name: "Open checkpoint" }).click();
+  const quiz = page.getByRole("dialog", { name: /Vitamin K is fat-soluble/ });
+  await quiz.getByRole("radio", { name: "True" }).click();
+  await quiz.getByRole("button", { name: "Submit test" }).click();
+  await expect(page.getByRole("dialog", { name: "1 / 1" })).toBeVisible();
+  state.serverDown = false;
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect.poll(() => state.synced.length, { timeout: 20_000 }).toBe(1);
+  expect(state.synced[0].payload.answers).toEqual([{ position: 1, selected_answer: "T" }]);
+});
+
+test("the subject download action is usable on phone, tablet, and desktop", async ({ page }) => {
+  const state = { serverDown: false, synced: [] };
+  await mockServer(page, state);
+  await page.goto("/#/settings?section=offline");
+  const action = page.locator("#settings-offline").getByRole("button", { name: "Download subject" });
+  for (const width of [390, 820, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(action).toBeVisible();
+    const box = await action.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(width);
+  }
 });

@@ -43,3 +43,13 @@ test("prompt generator rejects an incomplete plan and preserves the importer que
   assert.match(prompt, /"correct_answer": "B"/);
   assert.match(prompt, /"explanation": "Explanation of why B is correct\."/);
 });
+
+test("prompt follows configured totals and allows any MCQ/True-False mixture", () => {
+  const prompt = buildActiveStudyJsonPrompt({ ...plan("medium", 2), questionsPerPart: 3, finalExamQuestions: 2 });
+  assert.match(prompt, /Create exactly 3 questions/);
+  assert.match(prompt, /Create exactly 2 questions/);
+  assert.match(prompt, /no ratio is required/);
+  assert.match(prompt, /"type": "true_false"/);
+  assert.match(prompt, /"correct_answer": true/);
+  assert.doesNotMatch(prompt, /Create exactly 15/);
+});

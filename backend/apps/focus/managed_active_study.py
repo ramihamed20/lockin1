@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+from math import ceil
 from typing import Any, cast
 from uuid import UUID
 
@@ -174,6 +176,11 @@ def _content(
     edition = normalize_edition(edition)
     difficulty_rule = _difficulty(difficulty)
     plan = _difficulty_plan(sheet=sheet, difficulty=difficulty, edition=edition)
+    difficulty_rule = replace(
+        difficulty_rule,
+        questions_per_checkpoint=cast(int, plan["questions_per_checkpoint"]),
+        final_exam_questions=cast(int, plan["final_exam_questions"]),
+    )
     try:
         content = ActiveStudyQuestionContent.objects.get(sheet=sheet, difficulty=difficulty)
     except ActiveStudyQuestionContent.DoesNotExist as error:
@@ -439,12 +446,25 @@ def questions(*, user: User, run_id: UUID) -> dict[str, Any]:
             {
                 "position": index,
                 "question": item["question"],
-                "options": item["options"],
+                "question_type": item.get("type", "mcq"),
+                "options": _display_options(item),
                 "answered": answered.get(index),
             }
             for index, item in enumerate(source, start=1)
         ],
     }
+
+
+def _display_options(question: dict[str, Any]) -> dict[str, str]:
+    if question.get("type") == "true_false":
+        return {"T": "True", "F": "False"}
+    return cast(dict[str, str], question["options"])
+
+
+def _correct_answer(question: dict[str, Any]) -> str:
+    if question.get("type") == "true_false":
+        return "T" if question["correct_answer"] is True else "F"
+    return cast(str, question["correct_answer"])
 
 
 def _question_event(
@@ -459,7 +479,7 @@ def _question_event(
     if run.sheet is None or run.sheet.published_version is None:
         raise ManagedActiveStudyRuleError("The sheet is no longer available.")
     node = run.sheet.published_version.academic_node
-    options = cast(dict[str, str], question["options"])
+    options = _display_options(question)
     return QuestionAttemptEvent(
         user=run.user,
         event_key=f"active-study:{attempt.id}:question:{position}",
@@ -474,7 +494,7 @@ def _question_event(
         explanation=cast(str, question["explanation"]),
         options=tuple({"id": key, "text": value} for key, value in options.items()),
         selected_option_ids=(selected,),
-        correct_option_ids=(cast(str, question["correct_answer"]),),
+        correct_option_ids=(_correct_answer(question),),
         is_correct=correct,
         answered_at=timezone.now(),
         subject=node,
@@ -486,8 +506,6 @@ def answer(
     *, user: User, run_id: UUID, attempt_id: UUID, position: int, selected_answer: str
 ) -> dict[str, Any]:
     run = _locked_run(user=user, run_id=run_id)
-    if selected_answer not in {"A", "B", "C", "D"}:
-        raise ManagedActiveStudyRuleError("Choose A, B, C, or D.")
     try:
         attempt = ActiveStudyAttempt.objects.select_for_update().get(
             id=attempt_id, run=run, submitted_at__isnull=True
@@ -508,7 +526,9 @@ def answer(
     if position < 1 or position > len(source):
         raise ManagedActiveStudyRuleError("Question position is invalid.")
     question = source[position - 1]
-    correct = selected_answer == question["correct_answer"]
+    if selected_answer not in _display_options(question):
+        raise ManagedActiveStudyRuleError("Choose an answer for this question.")
+    correct = selected_answer == _correct_answer(question)
     existing = ActiveStudyAnswer.objects.filter(attempt=attempt, question_position=position).first()
     if existing is not None:
         if existing.selected_answer != selected_answer:
@@ -533,7 +553,7 @@ def answer(
         )
     return {
         "correct": correct,
-        "correct_answer": question["correct_answer"],
+        "correct_answer": _correct_answer(question),
         "explanation": question["explanation"],
         "answered_count": attempt.answers.count(),
         "total": len(source),
@@ -568,7 +588,9 @@ def submit(*, user: User, run_id: UUID, attempt_id: UUID) -> tuple[ActiveStudyRu
         raise ManagedActiveStudyRuleError("Answer every question before submitting.")
     score = attempt.answers.filter(was_correct=True).count()
     passed = score >= (
-        FINAL_EXAM_PASS if attempt.kind == ActiveStudyAttempt.Kind.FINAL else CHECKPOINT_PASS
+        ceil(attempt.total * 7 / 10)
+        if attempt.kind == ActiveStudyAttempt.Kind.FINAL
+        else ceil(attempt.total * 2 / 3)
     )
     attempt.score, attempt.passed, attempt.submitted_at = score, passed, timezone.now()
     attempt.save(update_fields=("score", "passed", "submitted_at"))
@@ -762,8 +784,9 @@ class OfflineReplayOutOfOrder(ManagedActiveStudyRuleError):
 
 def _offline_question(item: dict[str, Any]) -> dict[str, Any]:
     return {
+        **({"type": item["type"]} if "type" in item else {}),
         "question": item["question"],
-        "options": item["options"],
+        **({"options": item["options"]} if item.get("type", "mcq") == "mcq" else {}),
         "correct_answer": item["correct_answer"],
         "explanation": item["explanation"],
     }
@@ -797,6 +820,10 @@ def offline_bundle(*, user: User, sheet_id: UUID, edition: str = UNIVERSITY) -> 
         difficulties[row["difficulty"]] = {
             "number_of_parts": plan["number_of_parts"],
             "page_ranges": plan["page_ranges"],
+            "rules": {
+                "checkpoint_pass": ceil(cast(int, plan["questions_per_checkpoint"]) * 2 / 3),
+                "final_pass": ceil(cast(int, plan["final_exam_questions"]) * 7 / 10),
+            },
             "parts": [
                 {
                     "part": part["part"],
@@ -864,8 +891,8 @@ def _validated_answers(raw: object, *, total: int) -> list[tuple[int, str]]:
             or position in answers
         ):
             raise ManagedActiveStudyRuleError("Question position is invalid.")
-        if selected not in {"A", "B", "C", "D"}:
-            raise ManagedActiveStudyRuleError("Choose A, B, C, or D.")
+        if selected not in {"A", "B", "C", "D", "T", "F"}:
+            raise ManagedActiveStudyRuleError("Choose an answer for this question.")
         answers[position] = cast(str, selected)
     return sorted(answers.items())
 

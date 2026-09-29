@@ -145,9 +145,14 @@ def test_bundle_requires_subscription_access_and_a_ready_sheet() -> None:
     # after a lapse; this read endpoint must therefore gate itself.
     user, sheet, settings = _setup()
     unentitled = create_user(email="offline-unentitled@example.com", verified=False)
-    _grant(unentitled, "content.premium")
-    _grant(unentitled, "focus.workspace")
     assert _client(unentitled).get(f"/api/v1/offline/active-study/{sheet.id}/").status_code == 403
+    pending_verification = create_user(email="offline-pending@example.com", verified=False)
+    _grant(pending_verification, "content.premium")
+    _grant(pending_verification, "focus.workspace")
+    assert (
+        _client(pending_verification).get(f"/api/v1/offline/active-study/{sheet.id}/").status_code
+        == 200
+    )
     assert _client(user).get(f"/api/v1/offline/active-study/{sheet.id}/").status_code == 200
     settings.enabled = False
     settings.save(update_fields=["enabled", "updated_at"])

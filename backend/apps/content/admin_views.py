@@ -711,6 +711,8 @@ class AdminSheetActiveStudyView(_ContentPermissionView):
                 total_pdf_pages=data.get("total_pdf_pages"),
                 excluded_start_pages=data.get("excluded_start_pages"),
                 excluded_end_pages=data.get("excluded_end_pages"),
+                questions_per_checkpoint=data.get("questions_per_checkpoint"),
+                final_exam_questions=data.get("final_exam_questions"),
                 confirm_boundary_change=bool(data["confirm_boundary_change"]),
                 edition=_edition(request),
             )
@@ -738,6 +740,8 @@ class AdminSheetActiveStudyPreviewView(_ContentPermissionView):
                 total_pdf_pages=data.get("total_pdf_pages"),
                 excluded_start_pages=data.get("excluded_start_pages"),
                 excluded_end_pages=data.get("excluded_end_pages"),
+                questions_per_checkpoint=data.get("questions_per_checkpoint"),
+                final_exam_questions=data.get("final_exam_questions"),
                 edition=_edition(request),
             )
         except (LearningObject.DoesNotExist, ContentRuleError) as error:

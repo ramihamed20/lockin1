@@ -20,7 +20,7 @@ transaction, so a bad Hard Final Exam never leaves Easy and Medium half saved.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, cast
 from uuid import UUID
 
@@ -361,7 +361,11 @@ def _validate_difficulty(
     try:
         result = validate_active_study_questions(
             stripped,
-            difficulty=difficulty_for_key(key),
+            difficulty=replace(
+                difficulty_for_key(key),
+                questions_per_checkpoint=cast(int, row["questions_per_checkpoint"]),
+                final_exam_questions=cast(int, row["final_exam_questions"]),
+            ),
             number_of_parts=cast(int, row["number_of_parts"]),
         )
     except ActiveStudyQuestionValidationError as error:
@@ -434,17 +438,27 @@ def _validate_sheet_questions(
     import_payload: dict[str, object] = {
         "version": SCHEMA_VERSION,
         "questions": [
-            {
-                "type": "mcq",
-                "question": question["question"],
-                "choices": [
-                    cast(dict[str, str], question["options"])[key] for key in ("A", "B", "C", "D")
-                ],
-                "correct_answer": cast(dict[str, str], question["options"])[
-                    cast(str, question["correct_answer"])
-                ],
-                "explanation": question["explanation"],
-            }
+            (
+                {
+                    "type": "true_false",
+                    "question": question["question"],
+                    "correct_answer": question["correct_answer"],
+                    "explanation": question["explanation"],
+                }
+                if question.get("type") == "true_false"
+                else {
+                    "type": "mcq",
+                    "question": question["question"],
+                    "choices": [
+                        cast(dict[str, str], question["options"])[key]
+                        for key in ("A", "B", "C", "D")
+                    ],
+                    "correct_answer": cast(dict[str, str], question["options"])[
+                        cast(str, question["correct_answer"])
+                    ],
+                    "explanation": question["explanation"],
+                }
+            )
             for question in questions
         ],
     }

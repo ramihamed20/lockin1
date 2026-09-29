@@ -54,6 +54,7 @@ export default function OfflineSettings({ userId }) {
   const [busyId, setBusyId] = useState("");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
+  const [failedId, setFailedId] = useState("");
   const [manage, setManage] = useState(false);
   const [online, setOnline] = useState(() => navigator.onLine && getConnectionSnapshot().status === "connected");
 
@@ -112,14 +113,25 @@ export default function OfflineSettings({ userId }) {
   async function downloadAll(busyKey, items) {
     setBusyId(busyKey);
     setError("");
+    setFailedId("");
     setProgress(0);
     let failure = null;
+    if (!(await offlineAccessStatus(userId)).available) {
+      try { await synchronizeOffline(userId, setSyncState, { force: true }); }
+      catch (cause) { failure = cause; }
+    }
+    if (!(await offlineAccessStatus(userId)).available) {
+      setError(failure?.message || t("offline.verificationRequired"));
+      setFailedId(busyKey);
+      setBusyId("");
+      return;
+    }
     for (const [index, item] of items.entries()) {
       try {
         await downloadOfflineItem(userId, item, (value) => setProgress((index + value) / items.length), { manual: true, manifest });
       } catch (cause) { failure ||= cause; }
     }
-    if (failure) setError(failure.message);
+    if (failure) { setError(failure.message); setFailedId(busyKey); }
     await refresh().catch(() => undefined);
     setBusyId("");
     setProgress(0);
@@ -157,6 +169,15 @@ export default function OfflineSettings({ userId }) {
   const dateLabel = (value) => value ? formatDateTime(value, {}, locale) : t("offline.never");
   const busy = Boolean(busyId);
   const itemLabel = (item) => busyId === item.id ? `${t("offline.downloading")} ${Math.round(progress * 100)}%` : t(STATE_LABELS[itemStates.get(item.id) || "download"]);
+  const subjectItems = (subject) => (manifest?.items || []).filter((item) => item.subject_id === subject.id && item.available);
+  const subjectState = (subject) => {
+    const items = subjectItems(subject);
+    if (!items.length) return "download";
+    const states = items.map((item) => itemStates.get(item.id) || "download");
+    if (states.every((state) => state === "downloaded")) return "downloaded";
+    if (states.some((state) => state === "update")) return "update";
+    return states.some((state) => state === "downloaded" || state === "incomplete") ? "incomplete" : "download";
+  };
   const groupedSubjects = [];
   for (const subject of manifest?.subjects || []) {
     const key = `${subject.program}:${subject.cohort}`;
@@ -182,7 +203,7 @@ export default function OfflineSettings({ userId }) {
     <div className="settings-row"><span>{t("offline.downloadedItems")}</span><strong>{downloads.count}</strong></div>
     {syncState && <p className="save-hint" role="status">{t(`offline.sync.${syncState}`)}</p>}
     {error && <p className="form-error" role="alert">{error}</p>}
-    <button type="button" className="btn btn-soft compact" onClick={checkConnection} disabled={syncState === "verifying" || syncState === "syncing"}>{pendingCount ? t("offline.syncNow") : t("offline.checkConnection")}</button>
+    <button type="button" className="btn btn-soft compact" onClick={checkConnection} disabled={syncState === "verifying" || syncState === "syncing"}>{t("offline.syncNow")}</button>
     {conflicts.length > 0 && <section className="offline-conflicts" aria-label={t("offline.failedChanges")}>
       <p className="form-error" role="status">{t("offline.conflicts", { count: conflicts.length })}</p>
       <ul>{conflicts.slice(0, 5).map((operation) => <li key={operation.operation_id}><span dir="auto">{operation.reason || operation.operation_type}</span> <button type="button" className="btn btn-soft compact" onClick={() => dismiss(operation.operation_id)}>{t("offline.dismiss")}</button></li>)}</ul>
@@ -195,6 +216,22 @@ export default function OfflineSettings({ userId }) {
     <fieldset className="offline-options"><legend>{t("offline.contentTypes")}</legend>
       {CONTENT_TYPES.map(([type, label]) => <label key={type}><input type="checkbox" checked={Boolean(preferences.types[type])} onChange={(event) => updatePreferences({ ...preferences, types: { ...preferences.types, [type]: event.target.checked } })} /> {t(label)}</label>)}
     </fieldset>
+    {groupedSubjects.map((group) => <section key={group.key} className="offline-subject-group" aria-label={group.label}>
+      <h3>{group.label}</h3>
+      {group.subjects.map((subject) => {
+        const items = subjectItems(subject);
+        const state = subjectState(subject);
+        return <div key={subject.id} className="settings-row">
+          <strong dir="auto">{subject.title}</strong>
+          <div>
+            <span role="status">{t(STATE_LABELS[state])}</span>{" "}
+            <button type="button" className="btn btn-soft compact" disabled={busy || !online || !items.length || state === "downloaded"} onClick={() => downloadAll(subject.id, items)}>
+              {busyId === subject.id ? `${t("offline.downloading")} ${Math.round(progress * 100)}%` : failedId === subject.id ? t("offline.incomplete") : state === "update" ? t("offline.updateAvailable") : t("offline.downloadSubject")}
+            </button>
+          </div>
+        </div>;
+      })}
+    </section>)}
     <button type="button" className="btn btn-soft compact" onClick={() => setManage(!manage)} aria-expanded={manage}>{t("offline.manage")}</button>
     {manage && <div className="offline-manage">
       {groupedSubjects.map((group) => <section key={group.key} className="offline-subject-group" aria-label={group.label}><h3>{group.label}</h3>{group.subjects.map((subject) => {
@@ -202,7 +239,6 @@ export default function OfflineSettings({ userId }) {
         const size = items.reduce((sum, item) => sum + (stored.get(item.id)?.storedSize || 0), 0);
         return <section key={subject.id} className="settings-panel compact">
           <div className="settings-row"><div><strong>{subject.title}</strong><small> · {subject.program} · {subject.cohort} · {bytesLabel(size)}</small></div><div>
-            <button type="button" className="btn btn-soft compact" disabled={busy || !online} onClick={() => downloadAll(subject.id, items)}>{busyId === subject.id ? `${t("offline.downloading")} ${Math.round(progress * 100)}%` : t("offline.downloadSubject")}</button>
             {size > 0 && <button type="button" className="btn btn-soft compact" disabled={busy} onClick={() => removeAll(subject.id, items.filter((item) => stored.has(item.id)), t("offline.confirmRemoveSubject", { subject: subject.title }))}>{t("offline.removeSubject")}</button>}
           </div></div>
           {sheetsFor(manifest, subject.id).map((sheet) => {
