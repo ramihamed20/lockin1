@@ -5201,13 +5201,19 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     try {
       let blob;
       let extension = "pdf";
+      const { pdfDocumentSource } = await import("../offline/pdfSource.js");
+      const source = await pdfDocumentSource(sheet.pdfUrl);
       if (kind === "original") {
-        const response = await fetch(sheet.pdfUrl, { credentials: "include" });
-        if (!response.ok) throw new Error("The original PDF could not be downloaded.");
-        blob = await response.blob();
+        if ("data" in source) {
+          blob = new Blob([source.data], { type: "application/pdf" });
+        } else {
+          const response = await fetch(source.url, { credentials: "include" });
+          if (!response.ok) throw new Error("The original PDF could not be downloaded.");
+          blob = await response.blob();
+        }
       } else {
         const pdfjs = await loadPdfLibrary();
-        const loadingTask = pdfjs.getDocument({ url: sheet.pdfUrl });
+        const loadingTask = pdfjs.getDocument(source);
         const pdf = await loadingTask.promise;
         try {
           const lastAllowed = Math.min(pdf.numPages, accessiblePageCount);

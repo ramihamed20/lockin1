@@ -71,31 +71,31 @@ export const focusApi = {
     // An omitted edition means the University Sheet, which is what this
     // endpoint always meant.
     return objectPayload(await activeStudyClient.start({ sheetId, difficulty, edition },
-      () => request("/focus/managed-active-study/start", { method: "POST", body: { sheet_id: sheetId, difficulty, ...(edition ? { edition } : {}) } })
+      (options = {}) => request("/focus/managed-active-study/start", { ...options, method: "POST", body: { sheet_id: sheetId, difficulty, ...(edition ? { edition } : {}) } })
     ), "Active Study could not be started.");
   },
 
   async managedActiveStudyAction(runId, action) {
     return objectPayload(await activeStudyClient.action(runId, action,
-      (serverRunId) => request(`/focus/managed-active-study/${serverRunId}/${action}`, { method: "POST", body: {} })
+      (serverRunId, options = {}) => request(`/focus/managed-active-study/${serverRunId}/${action}`, { ...options, method: "POST", body: {} })
     ), "Active Study could not be updated.");
   },
 
   async getManagedActiveStudyQuestions(runId) {
     return objectPayload(await activeStudyClient.questions(runId,
-      (serverRunId) => request(`/focus/managed-active-study/${serverRunId}/questions`)
+      (serverRunId, options = {}) => request(`/focus/managed-active-study/${serverRunId}/questions`, options)
     ), "Active Study questions could not be loaded.");
   },
 
   async answerManagedActiveStudyQuestion(runId, { attemptId, position, selectedAnswer }) {
     return objectPayload(await activeStudyClient.answer(runId, { attemptId, position, selectedAnswer },
-      (serverRunId) => request(`/focus/managed-active-study/${serverRunId}/answer`, { method: "POST", body: { attempt_id: attemptId, position, selected_answer: selectedAnswer } })
+      (serverRunId, options = {}) => request(`/focus/managed-active-study/${serverRunId}/answer`, { ...options, method: "POST", body: { attempt_id: attemptId, position, selected_answer: selectedAnswer } })
     ), "The answer could not be saved.");
   },
 
   async submitManagedActiveStudy(runId, attemptId) {
     return objectPayload(await activeStudyClient.submit(runId, attemptId,
-      (serverRunId) => request(`/focus/managed-active-study/${serverRunId}/submit`, { method: "POST", body: { attempt_id: attemptId } })
+      (serverRunId, options = {}) => request(`/focus/managed-active-study/${serverRunId}/submit`, { ...options, method: "POST", body: { attempt_id: attemptId } })
     ), "The Active Study result could not be saved.");
   },
 
