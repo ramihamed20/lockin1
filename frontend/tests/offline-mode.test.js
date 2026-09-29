@@ -17,7 +17,7 @@ const downloads = await import("../src/offline/downloads.js");
 const queue = await import("../src/offline/queue.js");
 const { forgetOfflineUser } = await import("../src/offline/profile.js");
 const focusSync = await import("../src/offline/focusSync.js");
-const { synchronizeOffline } = await import("../src/offline/coordinator.js");
+const { synchronizeOffline, syncFailureState, __testing: coordinatorTesting } = await import("../src/offline/coordinator.js");
 const { reportConnectionSuccess, __testing: connectionTesting } = await import("../src/lib/connectionState.js");
 
 after(() => connectionTesting.reset());
@@ -628,6 +628,82 @@ test("Automatic Downloads fetch opted-in content once and then only what changed
   env.calls.length = 0;
   assert.equal(await synchronizeOffline(userId, () => {}, { force: false }), null);
   assert.deepEqual(env.calls, []);
+});
+
+function serveSyncDirectories() {
+  env.route("GET /catalog/materials", () => ({ results: [] }));
+  env.route("GET /catalog/questions?source=exam", () => ({ results: [] }));
+  env.route("GET /catalog/questions?source=ai-sheet", () => ({ results: [] }));
+  env.route("GET /offline/review/", () => ({ bank: { active_count: 0, subjects: [] }, queue: { count: 0, results: [] }, subjects: {}, weekly: { available: false, session: null }, answer_keys: {}, version: "r1" }));
+  serveContent();
+}
+
+function syncStates(userId) {
+  const states = [];
+  window.addEventListener("lock-in:offline-sync", (event) => { if (event.detail.userId === userId) states.push(event.detail.state); });
+  return states;
+}
+
+test("a reconnect that reaches the server late still syncs, without a focus or online event", async () => {
+  const userId = await freshUser();
+  await queue.enqueueOperation(userId, { type: "question_answer", entityType: "question", entityId: "q-late", payload: { sheet_id: SHEET, question_id: "q-late", choice_ids: ["c1"] } });
+  const states = syncStates(userId);
+  // The radio reports a connection, but the server cannot be reached yet.
+  env.route("GET /offline/lease/", () => { throw new TypeError("Failed to fetch"); });
+  await assert.rejects(synchronizeOffline(userId, () => {}, { force: true }));
+  assert.equal(states.at(-1), "connection");
+  assert.equal((await queue.pendingOfflineOperations(userId)).length, 1, "the work is kept");
+  const retry = coordinatorTesting.scheduledRetry(userId);
+  assert.ok(retry, "the failed run schedules the next attempt itself");
+  assert.equal(retry.delay, 15_000);
+
+  // The server answers now; the scheduled retry uploads the work.
+  const uploaded = [];
+  env.route("GET /offline/lease/", () => ({ lease: signedLease({ userId }) }));
+  env.route("POST /offline/sync/", ({ body }) => {
+    uploaded.push(...body.operations);
+    return { accepted: body.operations.map((operation) => ({ operation_id: operation.operation_id, result: { question_id: "q-late", is_correct: true, xp_awarded: 5, selected_choice_ids: ["c1"] } })), rejected: [], xp_total: 5 };
+  });
+  serveSyncDirectories();
+  await retry.run();
+  assert.equal(uploaded.length, 1);
+  assert.deepEqual(await queue.pendingOfflineOperations(userId), []);
+  assert.equal(states.at(-1), "synced");
+  assert.equal(coordinatorTesting.scheduledRetry(userId), null, "nothing left to retry");
+});
+
+test("uploaded work is not reported as a failed sync when a later refresh fails", async () => {
+  const userId = await freshUser();
+  await queue.enqueueOperation(userId, { type: "question_answer", entityType: "question", entityId: "q-refresh", payload: { sheet_id: SHEET, question_id: "q-refresh", choice_ids: ["c1"] } });
+  const states = syncStates(userId);
+  env.route("GET /offline/lease/", () => ({ lease: signedLease({ userId }) }));
+  env.route("POST /offline/sync/", ({ body }) => ({ accepted: body.operations.map((operation) => ({ operation_id: operation.operation_id, result: { question_id: "q-refresh", is_correct: true, xp_awarded: 5, selected_choice_ids: ["c1"] } })), rejected: [] }));
+  serveSyncDirectories();
+  env.route("GET /catalog/materials", () => new Response("unavailable", { status: 503 }));
+  await assert.rejects(synchronizeOffline(userId, () => {}, { force: true }));
+  assert.deepEqual(await queue.pendingOfflineOperations(userId), [], "the student's work reached the server");
+  assert.equal(states.at(-1), "partial");
+  assert.ok(!states.includes("connection"));
+});
+
+test("a refused batch keeps its work with the reason and does not hold back Focus documents", async () => {
+  const userId = await freshUser();
+  await queue.enqueueOperation(userId, { type: "question_answer", entityType: "question", entityId: "q-old", payload: { sheet_id: SHEET, question_id: "q-old", choice_ids: ["c1"] } });
+  let executed = 0;
+  queue.registerOperationHandler("test_local_document", { async execute() { executed += 1; return "done"; } });
+  await queue.enqueueOperation(userId, { type: "test_local_document", entityType: "focus_document", entityId: "doc-x", payload: {}, local: true });
+  env.route("POST /offline/sync/", () => new Response(JSON.stringify({ error: { message: "This offline access lease is too old to sync saved work." } }), { status: 403, headers: { "Content-Type": "application/json" } }));
+  const error = await queue.flushPendingOperations(userId, { force: true }).then(() => null, (reason) => reason);
+  assert.ok(error);
+  assert.equal(syncFailureState(error), "access");
+  assert.equal(executed, 1, "the Focus document synced through its own endpoint");
+  const [kept] = await queue.pendingOfflineOperations(userId);
+  assert.equal(kept.operation_type, "question_answer");
+  assert.equal(kept.sync_status, "retry", "kept to upload once access is renewed, never dropped");
+  assert.equal(kept.code, "access");
+  assert.match(kept.reason, /too old/);
+  assert.equal(syncFailureState({ status: 401 }), "signin");
+  assert.equal(syncFailureState({ status: 0 }), "connection");
 });
 
 // --- Contracts that must not regress ---------------------------------------

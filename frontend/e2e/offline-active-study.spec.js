@@ -72,6 +72,7 @@ async function mockServer(page, state) {
     const url = new URL(request.url());
     const { pathname } = url;
     const method = request.method();
+    if (state.serverHangs) return undefined; // The request never answers, as on a weak signal.
     if (state.serverDown) {
       (state.offlineRequests ||= []).push(pathname);
       return route.abort("internetdisconnected");
@@ -196,6 +197,91 @@ test("Active Study downloads, runs a checkpoint with the server unreachable and 
   expect(state.synced).toHaveLength(1);
   // The reader is still on Part 2 after the authoritative run is adopted.
   await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
+});
+
+/** Online: verify access and download the University Sheet with its Active Study bundle. */
+async function downloadUniversitySheet(page) {
+  await page.goto("/#/settings?section=offline");
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker?.controller), null, { timeout: 15_000 });
+  const offlineSection = page.locator("#settings-offline");
+  await expect(offlineSection.getByText("Offline access available")).toBeVisible({ timeout: 20_000 });
+  await offlineSection.getByRole("button", { name: "Manage Downloads" }).click();
+  await offlineSection.getByRole("button", { name: "Download University Sheet" }).click();
+  await expect(offlineSection.getByRole("button", { name: /University Sheet · ✓ Available Offline/ })).toBeVisible({ timeout: 20_000 });
+}
+
+test("a passed checkpoint keeps the next part through a reload and syncs by itself when the server answers late", async ({ page }) => {
+  test.setTimeout(150_000);
+  const state = { serverDown: false, synced: [] };
+  await mockServer(page, state);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await downloadUniversitySheet(page);
+
+  await page.goto(WORKSPACE_ROUTE);
+  const dialog = page.getByRole("dialog", { name: "Choose study mode" });
+  await expect(dialog).toBeVisible({ timeout: 20_000 });
+  state.serverDown = true;
+  await dialog.getByRole("button", { name: /Start Active Study/ }).click();
+  const indicator = page.locator(".workspace-v2-page-number");
+  await expect(indicator).toHaveAttribute("aria-label", "PDF page 1 of 10", { timeout: 20_000 });
+  await indicator.click();
+  const pageInput = page.locator(".workspace-v2-page-navigator input[type='number']");
+  await pageInput.fill("10");
+  await pageInput.press("Enter");
+  await expect(indicator).toHaveAttribute("aria-label", "PDF page 10 of 10");
+  await page.getByRole("button", { name: "Open checkpoint" }).click();
+  const quiz = page.getByRole("dialog", { name: /Which vitamin/ });
+  await quiz.getByRole("radio", { name: /Vitamin K/ }).click();
+  await quiz.getByRole("button", { name: "Submit test" }).click();
+  const result = page.getByRole("dialog", { name: "1 / 1" });
+  // A passed student is offered only to continue: never "Study this part again".
+  await expect(result.getByRole("button", { name: "Study this part again" })).toHaveCount(0);
+  await result.getByRole("button", { name: "Continue studying" }).click();
+  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
+  await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]")).toHaveCount(20);
+
+  // Closing and reopening the sheet keeps Part 2 unlocked, with Part 1 still
+  // readable, and does not reopen the Part 1 checkpoint.
+  await page.reload();
+  const reopened = page.getByRole("dialog", { name: "Choose study mode" });
+  await expect(reopened).toBeVisible({ timeout: 20_000 });
+  await reopened.getByRole("button", { name: /Active Study/ }).first().click();
+  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]")).toHaveCount(20);
+  await expect(page.locator('.workspace-v2-a4-page[data-pdf-page="1"]')).toHaveCount(1);
+  await expect(page.getByRole("dialog", { name: /Which vitamin/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Open checkpoint" })).toHaveCount(0);
+
+  // The radio comes back before the server does: the first sync fails.
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await page.waitForTimeout(1_500);
+  expect(state.synced).toHaveLength(0);
+  // The server answers again. No online, focus or visibility event follows,
+  // yet the saved attempt uploads by itself, exactly once.
+  state.serverDown = false;
+  await expect.poll(() => state.synced.length, { timeout: 30_000 }).toBe(1);
+  expect(state.synced[0]).toMatchObject({ operation_type: "active_study_attempt", payload: { kind: "checkpoint", part: 1 } });
+  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
+});
+
+test("a cold start whose requests hang opens downloaded work instead of waiting for the server", async ({ page }) => {
+  test.setTimeout(120_000);
+  const state = { serverDown: false, synced: [] };
+  await mockServer(page, state);
+  await downloadUniversitySheet(page);
+  // The device reports a connection, but nothing comes back from the server.
+  state.serverHangs = true;
+  const started = Date.now();
+  await page.reload();
+  await expect(page.locator(".app-shell")).toBeVisible({ timeout: 12_000 });
+  expect(Date.now() - started).toBeLessThan(15_000);
+  // Reads that hang are cut short once the server is known to be unreachable,
+  // so the downloaded sheet opens well before the 30 second request timeout.
+  const opening = Date.now();
+  await page.goto(WORKSPACE_ROUTE);
+  const dialog = page.getByRole("dialog", { name: "Choose study mode" });
+  await expect(dialog).toBeVisible({ timeout: 25_000 });
+  expect(Date.now() - opening).toBeLessThan(20_000);
 });
 
 test("a subject download survives a cold offline PWA reload", async ({ page }) => {

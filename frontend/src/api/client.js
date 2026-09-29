@@ -1,7 +1,9 @@
 import { isHtmlErrorMessage, normalizeUserError } from "../lib/errors.js";
 import {
   configureConnectionProbe,
+  getConnectionSnapshot,
   isOffline,
+  subscribeConnection,
   reportConnectionFailure,
   reportConnectionSuccess
 } from "../lib/connectionState.js";
@@ -164,11 +166,21 @@ function detailMessage(payload) {
  */
 export const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 export const FILE_REQUEST_TIMEOUT_MS = 300_000;
+// While the server is already known to be unreachable, a read that hangs on a
+// weak signal gives up sooner, so pages fall back to downloaded content in
+// seconds rather than half a minute. Writes keep the full budget.
+export const UNREACHABLE_READ_TIMEOUT_MS = 8_000;
+// Once the connection probe has confirmed the server is unreachable, a read
+// that would only hang again gives up faster still.
+export const OFFLINE_READ_TIMEOUT_MS = 3_000;
 
-function requestTimeoutMs(options) {
+function requestTimeoutMs(options, method = "GET") {
   const configured = options.timeoutMs;
   if (configured === 0) return 0;
-  return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_REQUEST_TIMEOUT_MS;
+  if (Number.isFinite(configured) && configured > 0) return configured;
+  const connection = getConnectionSnapshot().status;
+  if (["GET", "HEAD"].includes(method) && connection !== "connected") return connection === "offline" ? OFFLINE_READ_TIMEOUT_MS : UNREACHABLE_READ_TIMEOUT_MS;
+  return DEFAULT_REQUEST_TIMEOUT_MS;
 }
 
 function isAbortError(error) {
@@ -183,11 +195,26 @@ function isAbortError(error) {
 function timeoutSignal(timeoutMs) {
   if (!timeoutMs || typeof AbortController === "undefined") return null;
   const controller = new AbortController();
-  const state = { signal: controller.signal, expired: false, clear: () => clearTimeout(timer) };
-  const timer = setTimeout(() => {
+  const startedAt = Date.now();
+  let dueAt = startedAt + timeoutMs;
+  const fire = () => {
     state.expired = true;
     controller.abort();
-  }, timeoutMs);
+  };
+  let timer = setTimeout(fire, timeoutMs);
+  const state = {
+    signal: controller.signal,
+    expired: false,
+    clear: () => clearTimeout(timer),
+    /** Brings the deadline forward to `limitMs` after the start, never later. */
+    shorten(limitMs) {
+      const next = startedAt + limitMs;
+      if (next >= dueAt || state.expired) return;
+      dueAt = next;
+      clearTimeout(timer);
+      timer = setTimeout(fire, Math.max(0, next - Date.now()));
+    }
+  };
   return state;
 }
 
@@ -405,9 +432,16 @@ export async function request(path, options = {}) {
     headers.set("X-CSRFToken", await ensureCsrfToken());
   }
 
-  const timeout = requestTimeoutMs(options);
+  const timeout = requestTimeoutMs(options, method);
   const deadline = timeoutSignal(timeout);
   const signal = combineSignals(options.signal, deadline?.signal);
+  // A read that began while the server still looked reachable is held to the
+  // shorter budget as soon as the connection is found to be failing, so a page
+  // waiting on it can fall back to downloaded content.
+  const defaultRead = deadline && ["GET", "HEAD"].includes(method) && !(Number(options.timeoutMs) > 0);
+  const stopWatching = defaultRead ? subscribeConnection(({ status }) => {
+    if (status !== "connected") deadline.shorten(status === "offline" ? OFFLINE_READ_TIMEOUT_MS : UNREACHABLE_READ_TIMEOUT_MS);
+  }) : () => {};
 
   let response;
   const retryable = options.retryable === true || ["GET", "HEAD", "OPTIONS"].includes(method);
@@ -449,14 +483,22 @@ export async function request(path, options = {}) {
     }
   } finally {
     deadline?.clear();
+    stopWatching();
   }
 
   return parseResponse(response, options.responseType || "json");
 }
 
 configureConnectionProbe(async () => {
-  const response = await fetch(apiPath("/auth/csrf"), { credentials: "include", headers: { Accept: "application/json" } });
-  if (!response) throw new Error("No response");
+  // A probe that can hang would leave the state "reconnecting" forever on a
+  // radio that reports a connection but carries nothing.
+  const deadline = timeoutSignal(UNREACHABLE_READ_TIMEOUT_MS);
+  try {
+    const response = await fetch(apiPath("/auth/csrf"), { credentials: "include", headers: { Accept: "application/json" }, signal: deadline?.signal });
+    if (!response) throw new Error("No response");
+  } finally {
+    deadline?.clear();
+  }
 });
 
 export const apiClient = {

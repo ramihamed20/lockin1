@@ -78,7 +78,14 @@ test("Active Study starts the selected difficulty in reading, then opens its che
   assert.match(workspace, /\["reading", "checkpoint", "final"\]\.includes\(activeStudy\.stage\)/);
   assert.match(workspace, /disabled=\{activeStudyBusy \|\| !activeStudyButtonReady\}/);
   assert.match(workspace, /managedActiveStudyAction\(activeStudy\.id, "complete-reading"\)/);
-  assert.match(workspace, /t\(activeStudy\.stage === "final" \? "activeStudy\.finalExam" : "activeStudy\.checkpoint"\)/);
+  // The final exam and a final result left open both read "Final Exam".
+  assert.match(workspace, /t\(activeStudy\.stage\.startsWith\("final"\) \? "activeStudy\.finalExam" : "activeStudy\.checkpoint"\)/);
+  // A result the student left without choosing keeps the dock and reopens that result.
+  assert.match(workspace, /const ACTIVE_RESULT_STAGES = new Set\(\["checkpoint_result", "final_result"\]\)/);
+  assert.match(workspace, /if \(ACTIVE_RESULT_STAGES\.has\(activeStudy\.stage\)\) \{[\s\S]*?setActiveResult\(/);
+  // Answers the server holds stay fixed, and a failed submit resyncs from the server.
+  assert.match(workspace, /if \(!locked\[question\.id\]\) setAnswers/);
+  assert.match(workspace, /getManagedActiveStudyQuestions\(activeStudy\.id\)\.catch\(\(\) => null\)/);
   assert.match(catalogue, /"activeStudy\.finalExam": "Final Exam"/);
   assert.match(catalogue, /"activeStudy\.checkpoint": "Checkpoint"/);
   assert.match(workspace, /const \[page, setPage\] = useState\(1\)/);

@@ -656,6 +656,10 @@ function StudyModeDialog({ difficulty, setDifficulty, activeAvailable, restartPr
  */
 const ACTIVE_DRAFT_PREFIX = "lock-in.active-study.draft.";
 
+// A result the student left without choosing (Return to pages, a reload) keeps
+// the run in one of these stages until they continue or study the part again.
+const ACTIVE_RESULT_STAGES = new Set(["checkpoint_result", "final_result"]);
+
 function readActiveStudyDraft(attemptId) {
   if (!attemptId) return null;
   try {
@@ -674,7 +678,7 @@ function clearActiveStudyDraft(attemptId) {
   try { window.localStorage.removeItem(ACTIVE_DRAFT_PREFIX + attemptId); } catch { /* storage unavailable */ }
 }
 
-function ActiveStudyQuiz({ quiz, answers, setAnswers, result, busy, onSubmit, onDismiss, onRetake, onContinue, onDiscard, onRestart }) {
+function ActiveStudyQuiz({ quiz, answers, setAnswers, locked = {}, result, busy, onSubmit, onDismiss, onRetake, onContinue, onDiscard, onRestart }) {
   const { t } = useI18n();
   const [index, setIndex] = useState(() => {
     const saved = Number(readActiveStudyDraft(quiz.attempt_id)?.index);
@@ -708,7 +712,7 @@ function ActiveStudyQuiz({ quiz, answers, setAnswers, result, busy, onSubmit, on
     return <div className="workspace-v2-quiz-backdrop"><section ref={dialogRef} className={`workspace-v2-quiz-result is-${result.outcome}`} role="dialog" aria-modal="true" aria-labelledby="active-result-title" tabIndex={-1}>
       <span className="workspace-v2-result-icon">{passed ? <Trophy size={30} /> : advisory ? <Sparkles size={30} /> : <RotateCcw size={30} />}</span>
       <p>{t(isFinal ? "activeStudy.finalAssessment" : "activeStudy.checkpointResult")}</p>
-      <h2 id="active-result-title">{result.score} / {result.total}</h2>
+      <h2 id="active-result-title">{result.total ? `${result.score} / ${result.total}` : result.score}</h2>
       <strong>{t(passed ? (isFinal ? "activeStudy.sheetCompleted" : "activeStudy.nextUnlocked") : advisory ? "activeStudy.advisory" : "activeStudy.reviewPages")}</strong>
       {result.xp_awarded > 0 && <span className="workspace-v2-xp-award">+{result.xp_awarded} XP</span>}
       {missed.length > 0 && <ol className="workspace-v2-result-review" aria-label={t("question.reviewMissed")}>
@@ -734,7 +738,7 @@ function ActiveStudyQuiz({ quiz, answers, setAnswers, result, busy, onSubmit, on
           <span className="workspace-v2-question-number">{t("activeStudy.questionOf", { index: index + 1, total: quiz.questions.length })}</span>
           <h2 id="active-question-title">{question.prompt}</h2>
           <div className="workspace-v2-answer-list" role="radiogroup" aria-label={t("activeStudy.answersFor", { index: index + 1 })}>
-            {question.options.map((option, optionIndex) => <button key={option.id} type="button" role="radio" aria-checked={answers[question.id] === option.id} className={answers[question.id] === option.id ? "is-selected" : ""} onClick={() => setAnswers((current) => ({ ...current, [question.id]: option.id }))}><span>{String.fromCharCode(65 + optionIndex)}</span>{option.text}{answers[question.id] === option.id && <CheckCircle2 size={18} />}</button>)}
+            {question.options.map((option, optionIndex) => <button key={option.id} type="button" role="radio" aria-checked={answers[question.id] === option.id} className={answers[question.id] === option.id ? "is-selected" : ""} aria-disabled={Boolean(locked[question.id]) && locked[question.id] !== option.id} onClick={() => { if (!locked[question.id]) setAnswers((current) => ({ ...current, [question.id]: option.id })); }}><span>{String.fromCharCode(65 + optionIndex)}</span>{option.text}{answers[question.id] === option.id && <CheckCircle2 size={18} />}</button>)}
           </div>
         </main>
         <footer>
@@ -1180,6 +1184,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const [activeStudyAvailabilityLoading, setActiveStudyAvailabilityLoading] = useState(false);
   const [activeQuiz, setActiveQuiz] = useState(null);
   const [activeAnswers, setActiveAnswers] = useState({});
+  // Answers the server already holds for the open attempt. It records each one
+  // once and refuses a different choice later, so the quiz keeps them fixed.
+  const [activeLocked, setActiveLocked] = useState({});
   const [activeResult, setActiveResult] = useState(null);
   const activeStudyRef = useRef(null);
   const activeQuizOpenRef = useRef(false);
@@ -1196,7 +1203,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const accessiblePageCount = activePageRange?.end_page || pageCount;
   const activeStudyButtonReady = studyMode === "active"
     && activeStudy?.status === "active"
-    && (activeStudy.stage === "checkpoint" || activeStudy.stage === "final" || (activeStudy.stage === "reading" && page >= accessiblePageCount));
+    && (activeStudy.stage === "checkpoint" || activeStudy.stage === "final" || ACTIVE_RESULT_STAGES.has(activeStudy.stage) || (activeStudy.stage === "reading" && page >= accessiblePageCount));
   const selectedActiveStudyAvailability = activeStudyAvailability?.difficulties?.find((item) => item.difficulty === activeDifficulty);
   // The catalog flag is only an optimistic fallback while the mode dialog's
   // live readiness request is in flight. Starting itself remains server-owned.
@@ -4848,12 +4855,22 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     setActiveStudy(payload.run || run);
     setActiveQuiz({ ...payload, run: payload.run || run, questions });
     setActiveAnswers({ ...draftAnswers, ...existingAnswers });
+    setActiveLocked(existingAnswers);
     setActiveResult(null);
   }
 
   async function openActiveQuiz() {
     if (!activeStudy || activeStudyBusy || !activeStudyButtonReady) return;
     quizReaderAnchorRef.current = captureReaderAnchor();
+    if (ACTIVE_RESULT_STAGES.has(activeStudy.stage)) {
+      const kind = activeStudy.stage === "final_result" ? "final" : "checkpoint";
+      const passed = activeStudy.last_outcome === "passed";
+      setActiveQuiz({ attempt_id: `result:${activeStudy.id}`, kind, run: activeStudy, questions: [] });
+      setActiveAnswers({});
+      setActiveLocked({});
+      setActiveResult({ score: activeStudy.last_score ?? 0, total: null, review: [], outcome: passed ? "passed" : kind === "final" ? "failed" : "advisory" });
+      return;
+    }
     setActiveStudyBusy(true);
     setActiveStudyError("");
     try {
@@ -4879,6 +4896,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
           position: question.position,
           selectedAnswer: activeAnswers[question.id]
         }));
+        const held = activeAnswers[question.id];
+        setActiveLocked((current) => ({ ...current, [question.id]: held }));
         review.push({ position: question.position, prompt: question.prompt, correct: Boolean(checked?.correct), explanation: typeof checked?.explanation === "string" ? checked.explanation : "" });
       }
       const payload = await focusApi.submitManagedActiveStudy(activeStudy.id, activeQuiz.attempt_id);
@@ -4890,6 +4909,17 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       if (result.pending_sync) setFocusMessage(t("offline.savedForSync"));
     } catch (error) {
       setFocusMessage(error.message || "The Active Study test could not be submitted.");
+      // A submit that stopped part-way (a dropped connection, an answer the
+      // server already holds) is resumed from the server's copy, so pressing
+      // Submit again finishes the same attempt instead of being refused.
+      const attemptId = activeQuiz.attempt_id;
+      const payload = /** @type {any} */ (await focusApi.getManagedActiveStudyQuestions(activeStudy.id).catch(() => null));
+      if (payload?.attempt_id === attemptId) {
+        const held = {};
+        for (const question of payload.questions || []) if (question.answered) held[String(question.position)] = question.answered;
+        setActiveLocked(held);
+        setActiveAnswers((current) => ({ ...current, ...held }));
+      }
     } finally {
       setActiveStudyBusy(false);
     }
@@ -4905,6 +4935,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       setActiveQuiz(null);
       setActiveResult(null);
       setActiveAnswers({});
+      setActiveLocked({});
       // The next part is appended below; the reader stays where it was.
       returnReaderFromQuiz();
       setFocusMessage(`Part ${run.current_part} is now available. A retake is still recommended.`);
@@ -4926,6 +4957,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       setActiveQuiz(null);
       setActiveResult(null);
       setActiveAnswers({});
+      setActiveLocked({});
       if (action === "retry-final") await loadManagedQuestions(run);
       else {
         // Studying the part again starts at that part, not at page one.
@@ -4958,6 +4990,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         setActiveQuiz(null);
         setActiveResult(null);
         setActiveAnswers({});
+        setActiveLocked({});
       }
     } catch (error) {
       setFocusMessage(error.message || t("checkpoint.resetFailed"));
@@ -4971,6 +5004,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     setActiveQuiz(null);
     setActiveResult(null);
     setActiveAnswers({});
+    setActiveLocked({});
     if (run?.stage === "reading" || run?.stage === "final") returnReaderFromQuiz();
   }
 
@@ -5131,6 +5165,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       setActiveQuiz(null);
       setActiveResult(null);
       setActiveAnswers({});
+      setActiveLocked({});
       setStudyMode("active");
       setModeDialogOpen(false);
       setEntryModePreference("");
@@ -5730,11 +5765,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         </aside>
       </div>
       <span className="workspace-v2-visually-hidden" role="status" aria-live="polite">{saveLabel}{focusMessage ? ` · ${focusMessage}` : ""}</span>
-      {studyMode === "active" && activeStudy?.status === "active" && ["reading", "checkpoint", "final"].includes(activeStudy.stage) && <div className="workspace-v2-checkpoint-dock" role="status" aria-live="polite">
-        <button type="button" className={`workspace-v2-checkpoint-button${activeStudyButtonReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeStudyButtonReady} aria-label={activeStudyButtonReady ? t(activeStudy.stage === "final" ? "activeStudy.openFinal" : "activeStudy.openCheckpoint") : t("activeStudy.reachToUnlock", { page: accessiblePageCount })}>{activeStudyButtonReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t(activeStudy.stage === "final" ? "activeStudy.finalExam" : "activeStudy.checkpoint")}</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t("activeStudy.reachPage", { page: accessiblePageCount })}</span></>}</button>
+      {studyMode === "active" && activeStudy?.status === "active" && (["reading", "checkpoint", "final"].includes(activeStudy.stage) || ACTIVE_RESULT_STAGES.has(activeStudy.stage)) && <div className="workspace-v2-checkpoint-dock" role="status" aria-live="polite">
+        <button type="button" className={`workspace-v2-checkpoint-button${activeStudyButtonReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeStudyButtonReady} aria-label={activeStudyButtonReady ? t(activeStudy.stage.startsWith("final") ? "activeStudy.openFinal" : "activeStudy.openCheckpoint") : t("activeStudy.reachToUnlock", { page: accessiblePageCount })}>{activeStudyButtonReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t(activeStudy.stage.startsWith("final") ? "activeStudy.finalExam" : "activeStudy.checkpoint")}</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t("activeStudy.reachPage", { page: accessiblePageCount })}</span></>}</button>
       </div>}
       {modeDialogOpen && <StudyModeDialog difficulty={activeDifficulty} setDifficulty={setActiveDifficulty} activeAvailable={activeStudyReady} restartProgress={selectedActiveStudyAvailability?.progress} busy={activeStudyBusy || activeStudyAvailabilityLoading} error={activeStudyError} onNormal={chooseNormalStudy} onActive={chooseActiveStudy} onRestart={restartActiveStudy} activeOnly={entryModePreference === "active"} />}
-      {activeQuiz && activeStudy && <ActiveStudyQuiz key={activeQuiz.attempt_id} quiz={activeQuiz} answers={activeAnswers} setAnswers={setActiveAnswers} result={activeResult} busy={activeStudyBusy} onSubmit={submitActiveQuiz} onDismiss={dismissActiveQuiz} onRetake={retakeActiveQuiz} onContinue={continueActiveStudyAnyway} onDiscard={(done) => discardActiveAttempt({ restart: false }, done)} onRestart={(done) => discardActiveAttempt({ restart: true }, done)} />}
+      {activeQuiz && activeStudy && <ActiveStudyQuiz key={activeQuiz.attempt_id} quiz={activeQuiz} answers={activeAnswers} setAnswers={setActiveAnswers} locked={activeLocked} result={activeResult} busy={activeStudyBusy} onSubmit={submitActiveQuiz} onDismiss={dismissActiveQuiz} onRetake={retakeActiveQuiz} onContinue={continueActiveStudyAnyway} onDiscard={(done) => discardActiveAttempt({ restart: false }, done)} onRestart={(done) => discardActiveAttempt({ restart: true }, done)} />}
     </main>
   );
 }
