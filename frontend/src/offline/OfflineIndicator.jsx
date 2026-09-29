@@ -33,6 +33,7 @@ export default function OfflineIndicator({ userId }) {
   // ("connection") retries on its own, so it fades too instead of sitting on
   // screen for the rest of the session; being genuinely offline stays visible.
   useEffect(() => {
+    // "signin" and "access" need the student, so they stay until the next run.
     if (!online || !["synced", "partial", "connection"].includes(state)) return undefined;
     const timer = window.setTimeout(() => setState(""), state === "connection" ? 6000 : 3000);
     return () => window.clearTimeout(timer);
@@ -42,7 +43,7 @@ export default function OfflineIndicator({ userId }) {
     ? remaining > 0 ? `${t("offline.offline")} · ${Math.floor(remaining / 3_600_000)}h` : t("offline.offline")
     : state === "verifying" || state === "downloading" ? t("offline.sync.downloading")
       : state === "synced" ? t("offline.sync.synced")
-        : state === "connection" ? t("offline.sync.connection") : "";
-  const tone = !online ? "offline" : state === "synced" ? "success" : state === "connection" ? "warning" : "progress";
+        : ["connection", "signin", "access"].includes(state) ? t(`offline.sync.${state}`) : "";
+  const tone = !online ? "offline" : state === "synced" ? "success" : ["connection", "signin", "access"].includes(state) ? "warning" : "progress";
   return label ? <span className="offline-indicator" data-tone={tone} role="status">{label}</span> : null;
 }

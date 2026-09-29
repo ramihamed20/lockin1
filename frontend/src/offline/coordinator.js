@@ -24,6 +24,7 @@ export async function saveOfflinePreferences(userId, preferences) {
 
 const activeRuns = new Map();
 const lastRuns = new Map();
+const retryTimers = new Map();
 // Foreground triggers (focus, resume, visibility) can fire in bursts. A quiet
 // period between automatic runs keeps them from turning into a request loop;
 // a regained connection, new offline work or a manual check always runs.
@@ -44,6 +45,55 @@ function throttled(userId, force) {
   const wait = last.failures ? FAILURE_BACKOFF_MS[Math.min(last.failures, FAILURE_BACKOFF_MS.length) - 1] : AUTOMATIC_SYNC_INTERVAL_MS;
   return Date.now() - last.at < wait;
 }
+
+/**
+ * Why a run could not finish, as a state the indicator and Settings can name.
+ * Only a lost connection or an unavailable server is "connection"; an ended
+ * session or access that no longer proves the saved work is not something a
+ * retry alone can fix, so it is said plainly instead of "Sync failed".
+ */
+export function syncFailureState(error) {
+  const status = Number(error?.status);
+  if (status === 401 || (status === 403 && error?.code === "not_authenticated")) return "signin";
+  if (status === 403) return "access";
+  return "connection";
+}
+
+/**
+ * Queued work must not wait for the student to switch tabs. After a failed or
+ * partial run the next attempt is scheduled here: the failure backoff after a
+ * failure, and no earlier than the automatic interval (or the queue's own
+ * per-operation backoff) after a partial one. Offline or in the background it
+ * waits for the connection and visibility events the shell already listens to.
+ */
+async function scheduleAutomaticRetry(userId, { failed }) {
+  globalThis.clearTimeout(retryTimers.get(userId)?.timer);
+  retryTimers.delete(userId);
+  const pending = await pendingOfflineOperations(userId).catch(() => []);
+  if (!pending.length) return;
+  const failures = lastRuns.get(userId)?.failures || 0;
+  const now = Date.now();
+  const earliestDue = Math.min(...pending.map((operation) => operation.next_attempt_at ? Date.parse(operation.next_attempt_at) : now));
+  const delay = failed
+    ? FAILURE_BACKOFF_MS[Math.min(failures, FAILURE_BACKOFF_MS.length) - 1]
+    : Math.max(AUTOMATIC_SYNC_INTERVAL_MS, earliestDue - now);
+  const run = () => {
+    retryTimers.delete(userId);
+    if (navigator.onLine === false || document.visibilityState === "hidden") return Promise.resolve(null);
+    // The timer already waited out the backoff, so the run is not throttled
+    // again; each operation's own backoff still applies inside the queue.
+    return synchronizeOffline(userId, () => {}, { force: false, scheduled: true }).catch(() => null);
+  };
+  const timer = globalThis.setTimeout(run, delay + 250);
+  // A Node test process must not stay alive for a retry nobody awaits.
+  /** @type {any} */ (timer)?.unref?.();
+  retryTimers.set(userId, { timer, delay, run });
+}
+
+export const __testing = Object.freeze({
+  /** The automatic retry scheduled for this account, if any. */
+  scheduledRetry: (userId) => retryTimers.get(userId) || null
+});
 
 async function reconcileAfterFlush(userId, acknowledged) {
   const keys = new Set(acknowledged
@@ -70,11 +120,11 @@ async function reconcileAfterFlush(userId, acknowledged) {
  * Only the foreground page runs this; iOS does not run closed-app jobs.
  * @param {string} userId
  * @param {(state: string) => void} [onState]
- * @param {{ force?: boolean }} [options]
+ * @param {{ force?: boolean, scheduled?: boolean }} [options]
  */
-export async function synchronizeOffline(userId, onState = () => {}, { force = true } = {}) {
+export async function synchronizeOffline(userId, onState = () => {}, { force = true, scheduled = false } = {}) {
   if (activeRuns.has(userId)) return activeRuns.get(userId);
-  if (throttled(userId, force)) return null;
+  if (throttled(userId, force || scheduled)) return null;
   const publish = publisher(userId, onState);
   const run = (async () => {
     publish("verifying");
@@ -105,57 +155,68 @@ export async function synchronizeOffline(userId, onState = () => {}, { force = t
       return null;
     }
     const remaining = flushed.remaining;
-    // Directories keep the reader's normal route model offline, so offline
-    // navigation never needs a second Materials implementation.
-    const [materials, ...directories] = await Promise.all([
-      request("/catalog/materials"),
-      request("/catalog/questions?source=exam"),
-      request("/catalog/questions?source=ai-sheet")
-    ]);
-    if (Array.isArray(materials?.results)) await offlineDatabase.put(userId, "materials", materials);
-    for (const [index, source] of ["exam", "ai-sheet"].entries()) {
-      if (Array.isArray(directories[index]?.results)) await offlineDatabase.put(userId, `question-directory:${source}`, directories[index]);
-    }
-    // Local Review answers are reflected in the stored snapshot; replacing it
-    // before they are acknowledged would briefly undo them on screen.
-    if (!remaining.some((operation) => operation.operation_type === "review_answer")) {
-      await refreshReviewSnapshot(userId).catch(() => undefined);
-    }
-    const manifest = await fetchOfflineManifest(userId);
-    const preferences = await readOfflinePreferences(userId);
-    let failedDownloads = 0;
-    // Without Automatic Downloads nothing is fetched here: a changed item keeps
-    // its stored version usable and Settings offers "Update available".
-    if (preferences.automatic && mayAutoDownload(preferences.network)) {
-      for (const item of manifest.items) {
-        if (!preferences.types[item.type]) continue;
-        // Unchanged content is skipped by version and checksum; for a changed
-        // bundle only the parts whose versions moved are fetched again.
-        if (await isOfflineItemStored(userId, item, manifest)) continue;
-        publish("downloading");
-        try {
-          await downloadOfflineItem(userId, item, () => {}, { manifest });
-        } catch {
-          // A failed download stays retryable; independent items continue.
-          failedDownloads += 1;
+    try {
+      // Directories keep the reader's normal route model offline, so offline
+      // navigation never needs a second Materials implementation.
+      const [materials, ...directories] = await Promise.all([
+        request("/catalog/materials"),
+        request("/catalog/questions?source=exam"),
+        request("/catalog/questions?source=ai-sheet")
+      ]);
+      if (Array.isArray(materials?.results)) await offlineDatabase.put(userId, "materials", materials);
+      for (const [index, source] of ["exam", "ai-sheet"].entries()) {
+        if (Array.isArray(directories[index]?.results)) await offlineDatabase.put(userId, `question-directory:${source}`, directories[index]);
+      }
+      // Local Review answers are reflected in the stored snapshot; replacing it
+      // before they are acknowledged would briefly undo them on screen.
+      if (!remaining.some((operation) => operation.operation_type === "review_answer")) {
+        await refreshReviewSnapshot(userId).catch(() => undefined);
+      }
+      const manifest = await fetchOfflineManifest(userId);
+      const preferences = await readOfflinePreferences(userId);
+      let failedDownloads = 0;
+      // Without Automatic Downloads nothing is fetched here: a changed item keeps
+      // its stored version usable and Settings offers "Update available".
+      if (preferences.automatic && mayAutoDownload(preferences.network)) {
+        for (const item of manifest.items) {
+          if (!preferences.types[item.type]) continue;
+          // Unchanged content is skipped by version and checksum; for a changed
+          // bundle only the parts whose versions moved are fetched again.
+          if (await isOfflineItemStored(userId, item, manifest)) continue;
+          publish("downloading");
+          try {
+            await downloadOfflineItem(userId, item, () => {}, { manifest });
+          } catch {
+            // A failed download stays retryable; independent items continue.
+            failedDownloads += 1;
+          }
         }
       }
+      const now = new Date().toISOString();
+      await offlineDatabase.put(userId, "lastSync", now);
+      await offlineDatabase.put(userId, "syncCursor", { at: now, pending: remaining.length, failedDownloads });
+      publish(failedDownloads || remaining.length ? "partial" : "synced", { xpTotal: flushed.xpTotal });
+      return manifest;
+    } catch (error) {
+      // The queued work above is already on the server. A directory or
+      // manifest refresh that fails afterwards is retried, not reported as a
+      // failed sync of the student's work.
+      throw Object.assign(error instanceof Error ? error : new Error(String(error)), { afterFlush: true });
     }
-    const now = new Date().toISOString();
-    await offlineDatabase.put(userId, "lastSync", now);
-    await offlineDatabase.put(userId, "syncCursor", { at: now, pending: remaining.length, failedDownloads });
-    publish(failedDownloads || remaining.length ? "partial" : "synced", { xpTotal: flushed.xpTotal });
-    return manifest;
   })();
   activeRuns.set(userId, run);
+  globalThis.clearTimeout(retryTimers.get(userId)?.timer);
+  retryTimers.delete(userId);
   try {
     const manifest = await run;
     lastRuns.set(userId, { at: Date.now(), failures: 0 });
+    void scheduleAutomaticRetry(userId, { failed: false });
     return manifest;
   } catch (error) {
     const failures = (lastRuns.get(userId)?.failures || 0) + 1;
     lastRuns.set(userId, { at: Date.now(), failures });
-    publish("connection");
+    publish(error?.afterFlush ? "partial" : syncFailureState(error));
+    void scheduleAutomaticRetry(userId, { failed: true });
     throw error;
   } finally {
     activeRuns.delete(userId);

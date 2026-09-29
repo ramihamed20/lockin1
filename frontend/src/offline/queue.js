@@ -162,8 +162,12 @@ async function flushServerBatch(userId, batch, leaseToken) {
     });
   } catch (error) {
     // Nothing was acknowledged. Keep every operation; a lost connection or an
-    // unavailable server is never a reason to give up on saved work.
-    await offlineDatabase.putMany(userId, batch.map((operation) => [`${OPERATION_PREFIX}${operation.operation_id}`, scheduleRetry(operation, { code: "connection" })]));
+    // unavailable server is never a reason to give up on saved work. A refusal
+    // of the whole batch (an ended session, a lease too old to prove the work)
+    // keeps it too, with the server's reason instead of "connection", so it can
+    // upload once the student signs in or renews access.
+    const reason = isConnectivityError(error) ? {} : { reason: error?.message || "", code: Number(error?.status) === 401 ? "signin" : "access" };
+    await offlineDatabase.putMany(userId, batch.map((operation) => [`${OPERATION_PREFIX}${operation.operation_id}`, scheduleRetry(operation, { code: "connection", ...reason })]));
     throw error;
   }
   const byId = new Map(batch.map((operation) => [operation.operation_id, operation]));
@@ -232,18 +236,29 @@ export async function flushPendingOperations(userId, { force = false } = {}) {
   const acknowledged = [];
   let xpTotal;
   const serverOperations = pending.filter((operation) => !operation.local);
-  if (serverOperations.length) {
-    const lease = await offlineDatabase.get(userId, "lease");
-    if (!lease?.token) throw new Error("An offline access lease is required to sync saved work.");
-    for (let start = 0; start < serverOperations.length; start += BATCH_SIZE) {
-      const result = await flushServerBatch(userId, serverOperations.slice(start, start + BATCH_SIZE), lease.token);
-      acknowledged.push(...result.acknowledged);
-      if (typeof result.xpTotal === "number") xpTotal = result.xpTotal;
+  let serverError = null;
+  try {
+    if (serverOperations.length) {
+      const lease = await offlineDatabase.get(userId, "lease");
+      if (!lease?.token) throw new Error("An offline access lease is required to sync saved work.");
+      for (let start = 0; start < serverOperations.length; start += BATCH_SIZE) {
+        const result = await flushServerBatch(userId, serverOperations.slice(start, start + BATCH_SIZE), lease.token);
+        acknowledged.push(...result.acknowledged);
+        if (typeof result.xpTotal === "number") xpTotal = result.xpTotal;
+      }
+    }
+  } catch (error) {
+    serverError = error;
+  }
+  // Focus documents sync through their own endpoints. A refused or failed
+  // batch above is no reason to hold them back, unless the connection itself
+  // is gone, in which case they would only fail the same way.
+  if (!serverError || !isConnectivityError(serverError)) {
+    for (const operation of pending.filter((item) => item.local)) {
+      if (await flushLocalOperation(userId, operation)) acknowledged.push({ operation, result: null });
     }
   }
-  for (const operation of pending.filter((item) => item.local)) {
-    if (await flushLocalOperation(userId, operation)) acknowledged.push({ operation, result: null });
-  }
+  if (serverError) throw Object.assign(serverError, { acknowledged });
   return { acknowledged, remaining: await pendingOfflineOperations(userId), xpTotal };
 }
 
