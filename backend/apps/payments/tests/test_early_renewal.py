@@ -11,7 +11,7 @@ from apps.payments.models import ManualRechargeSubmission, Payment
 from apps.payments.telegram import ManualPaymentTelegramMessage
 from apps.product_catalog.models import Plan
 from apps.subscriptions.models import Subscription
-from apps.subscriptions.services import create_trial_for_user
+from apps.subscriptions.services import advance_billing_period, create_trial_for_user
 
 pytestmark = pytest.mark.django_db
 
@@ -95,8 +95,15 @@ def test_early_renewal_keeps_original_days_and_appends_full_server_duration(
     assert submission.previous_subscription_end_at == original_end
     assert submission.extension_started_at == original_end
     assert subscription.current_period_ends_at == submission.extension_ends_at
-    expected_month = ((original_end.month - 1 + expected_months) % 12) + 1
-    assert subscription.current_period_ends_at.month == expected_month
+    # The full paid duration is appended to the original end, in the price's own
+    # interval: the monthly plan is 30 days, so a calendar-month guess fails
+    # whenever the original end falls on the first of a month.
+    price = Payment.objects.select_related("price").get(id=submission.payment_id).price
+    assert price.plan_version.plan.code == plan_code
+    assert subscription.current_period_ends_at == advance_billing_period(
+        original_end, interval=price.interval, count=price.interval_count
+    )
+    assert (subscription.current_period_ends_at - original_end).days >= 28 * expected_months
     assert subscription.payment_verification == Subscription.PaymentVerification.PROVISIONAL
 
 
