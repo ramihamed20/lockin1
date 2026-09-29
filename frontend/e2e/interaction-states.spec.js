@@ -70,8 +70,12 @@ test.describe("desktop pointer", () => {
     await page.goto("/#/");
     await page.locator(".sidebar .nav-btn", { hasText: "Questions" }).waitFor();
     await page.locator(".sidebar .nav-btn", { hasText: "Questions" }).click();
-    // The clicked link keeps DOM focus, which is correct; what it must not
-    // keep is a visible ring.
+    // Navigation hands focus to the main region once the route changes. Wait
+    // for that hand-off, or a Tab pressed before it lands is undone by it and
+    // the check reads the main region's deliberately ringless focus.
+    await expect(page).toHaveURL(/#\/questions/);
+    await expect.poll(() => page.evaluate(() => document.activeElement?.id)).toBe("main-content");
+    // What was clicked must not keep a visible ring.
     const outlineAfterClick = await page.evaluate(() => getComputedStyle(document.activeElement).outlineStyle);
     expect(outlineAfterClick).toBe("none");
 
