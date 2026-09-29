@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, replace
 from functools import partial
-from typing import Any, cast
+from typing import Any, TypedDict, cast
 from uuid import UUID
 
 from django.db import transaction
@@ -970,13 +970,18 @@ def _difficulty_for_key(key: str) -> ActiveStudyDifficulty:
         raise ContentRuleError(str(error)) from error
 
 
+class QuestionCounts(TypedDict):
+    questions_per_checkpoint: int
+    final_exam_questions: int
+
+
 def _question_counts(
     *,
     sheet: LearningObject,
     edition: str,
     questions_per_checkpoint: int | None = None,
     final_exam_questions: int | None = None,
-) -> dict[str, int]:
+) -> QuestionCounts:
     current = settings_for(sheet=sheet, edition=UNIVERSITY)
     if normalize_edition(edition) == LOCKIN and (
         questions_per_checkpoint is not None or final_exam_questions is not None
