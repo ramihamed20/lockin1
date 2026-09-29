@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useId, useState } from "react";
 import { Icon } from "../../lib/icons.jsx";
 import { useI18n } from "../I18nProvider.jsx";
 import { acquireBodyScrollLock } from "../../lib/bodyScrollLock.js";
@@ -25,6 +25,10 @@ export function ConfirmDialog({ open, title, message, confirmLabel = "", onConfi
   const [lastAction, setLastAction] = useState("confirm");
   // Stays mounted for its exit, so it leaves the way it arrived.
   const presence = usePresence(open, 180);
+  // Own ids per instance: a dialog that is still leaving can overlap the next
+  // one, and a shared id would name both of them after the first title.
+  const titleId = `confirm-title-${useId()}`;
+  const descId = `confirm-desc-${useId()}`;
 
   useEffect(() => {
     if (!open) return;
@@ -61,14 +65,14 @@ export function ConfirmDialog({ open, title, message, confirmLabel = "", onConfi
   if (!presence.mounted) return null;
 
   return (
-    <div className={`confirm-backdrop ${presence.closing ? "is-closing" : ""}`.trim()} inert={presence.closing ? "" : undefined}>
+    <div className={`confirm-backdrop ${presence.closing ? "is-closing" : ""}`.trim()} inert={presence.closing ? "" : undefined} aria-hidden={presence.closing || undefined}>
       <button className="confirm-backdrop-dismiss" type="button" tabIndex={-1} aria-label={t("confirm.close")} disabled={busy} onClick={onCancel} />
-      <div className="confirm-dialog" role="alertdialog" aria-modal="true" aria-busy={busy} aria-labelledby="confirm-title" aria-describedby="confirm-desc" ref={ref} tabIndex={-1}>
+      <div className="confirm-dialog" role="alertdialog" aria-modal="true" aria-busy={busy} aria-labelledby={titleId} aria-describedby={descId} ref={ref} tabIndex={-1}>
         <div className="confirm-icon">
           <Icon name="help" size={24} />
         </div>
-        <h3 id="confirm-title" dir="auto">{title || t("confirm.title")}</h3>
-        <p id="confirm-desc" dir="auto">{message || t("confirm.message")}</p>
+        <h3 id={titleId} dir="auto">{title || t("confirm.title")}</h3>
+        <p id={descId} dir="auto">{message || t("confirm.message")}</p>
         <div className="confirm-actions">
           <button className="btn btn-soft" type="button" disabled={busy} onClick={onCancel}>{cancelLabel || t("common.cancel")}</button>
           {secondaryLabel && onSecondary && <button className="btn btn-danger" type="button" disabled={busy} aria-busy={(busy && lastAction === "secondary") || undefined} onClick={() => { setLastAction("secondary"); onSecondary(); }}>{secondaryLabel}</button>}
