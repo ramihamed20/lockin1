@@ -475,8 +475,13 @@ html.ix-hover :is(.theme-section, .settings-panel) > .settings-row:hover {
 
 /* --- Progress ------------------------------------------------------------- */
 
+/* V2: the ring and the bar are the level; the arc gauge that repeated them
+   as a percentage is gone, so the hero is two columns. */
 .progress-level-hero {
+  grid-template-columns: auto minmax(0, 1fr);
+  min-height: 0;
   border-color: var(--polish-line);
+  border-radius: var(--radius-card);
   background: var(--polish-raised);
   box-shadow: var(--polish-shadow);
 }
@@ -484,13 +489,13 @@ html.ix-hover :is(.theme-section, .settings-panel) > .settings-row:hover {
 .progress-level-hero::after { display: none; }
 
 .progress-level-orb {
-  width: 136px;
+  width: 104px;
   border-color: var(--polish-line);
   background: var(--surface-2);
   box-shadow: inset 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
-.progress-level-orb strong { font-size: 2.75rem; letter-spacing: -0.03em; }
+.progress-level-orb strong { font-size: 2.5rem; letter-spacing: -0.03em; }
 
 /* Eyebrow labels were gold on every card; one accent per view is enough. */
 .progress-level-orb small,
@@ -498,10 +503,11 @@ html.ix-hover :is(.theme-section, .settings-panel) > .settings-row:hover {
 .progress-stat-card > div > small,
 .progress-ledger-panel header p,
 .progress-calendar-panel header p {
-  color: var(--refine-eyebrow);
-  font-size: 0.6875rem;
-  font-weight: var(--weight-semibold);
-  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .progress-level-copy h2 { font-size: var(--text-xl); letter-spacing: -0.02em; }

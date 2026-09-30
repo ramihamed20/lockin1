@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { motivationApi } from "../api/motivation.js";
 import { Icon } from "../lib/icons.jsx";
 import { useAsyncData } from "../hooks/useAsyncData.js";
@@ -179,9 +178,8 @@ export default function Progress() {
       </TabList>
 
       <section className={`progress-level-hero progress-mobile-section ${progressSection === "summary" ? "is-active" : ""}`}>
-        <div className="progress-level-orb" aria-label={t("progress.levelLabel", { level: xp.level ?? 1 })}><small>{t("progress.yourLevel")}</small><strong>{xp.level ?? 1}</strong></div>
+        <div className="progress-level-orb" aria-label={t("progress.levelLabel", { level: xp.level ?? 1 })}><strong>{xp.level ?? 1}</strong></div>
         <div className="progress-level-copy"><h2 dir="auto">{t("progress.levelTitle", { level: xp.level ?? 1 })}</h2><div className="progress-level-bar" role="progressbar" aria-label={t("progress.xpProgress")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={levelProgress}><i style={{ width: String(levelProgress) + "%" }} /></div><small dir="auto">{t("progress.xpToNext", { current: formatNumber(xp.level_progress || 0), target: formatNumber(xp.level_target || 0), next: Number(xp.level ?? 1) + 1 })}</small></div>
-        <div className="progress-xp-arc"><small>{t("progress.xpProgress")}</small><svg viewBox="0 0 120 72" aria-hidden="true"><path className="progress-xp-arc-track" pathLength="100" d="M 12 60 A 48 48 0 0 1 108 60" /><path className="progress-xp-arc-value" pathLength="100" strokeDasharray={String(levelProgress) + " 100"} d="M 12 60 A 48 48 0 0 1 108 60" /></svg><strong>{levelProgress}%</strong><span dir="auto">{t("progress.xpInLevel", { current: formatNumber(xp.level_progress || 0), target: formatNumber(xp.level_target || 0) })}<br />{t("progress.inThisLevel")}</span></div>
       </section>
 
       <section className={`progress-stat-grid progress-mobile-section ${progressSection === "summary" ? "is-active" : ""}`}>
@@ -192,7 +190,7 @@ export default function Progress() {
 
       <section className="progress-detail-grid">
         <article className={`progress-ledger-panel progress-mobile-section ${progressSection === "history" ? "is-active" : ""}`}>
-          <header><h2>{t("progress.awardHistory")}</h2><Icon name="activity" size={18} /></header>
+          <header><h2>{t("progress.awardHistory")}</h2></header>
           <div className="progress-ledger-list">
             {ledgerPreview.length ? ledgerPreview.map((entry) => <article className="progress-ledger-row" key={entry.id}><span className={"progress-ledger-icon progress-ledger-icon--" + (entry.category || "default")}><Icon name={ledgerIcon(entry.category)} size={17} /></span><div><strong dir="auto">{entry.reason || t("progress.xpAward")}</strong><small dir="auto">{dateLabel(entry.occurred_at, t)}</small></div><b dir="auto">{Number(entry.points || 0) >= 0 ? "+" : ""}{entry.points ?? 0} {t("progress.xp")}</b></article>) : <p className="progress-empty-ledger">{t("progress.noAwards")}</p>}
           </div>
@@ -208,7 +206,6 @@ export default function Progress() {
         </article>
       </section>
 
-      <aside className={`progress-study-cta progress-mobile-section ${progressSection === "summary" ? "is-active" : ""}`}><Icon name="sparkles" size={28} /><p>{t("progress.ctaCopy")}</p><Link to="/lock-in">{t("progress.keepStudying")} <Icon name="chevron-right" size={17} /></Link></aside>
     </Page>
   );
 }

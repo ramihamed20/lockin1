@@ -766,6 +766,39 @@ html.ix-hover .settings-v2-back:hover {
   background: var(--surface-2);
 }
 
+/* --- Progress -------------------------------------------------------------- */
+
+@media (max-width: 639px) {
+  /* Two numbers side by side read faster than three full-width blocks. */
+  .progress-stat-grid.is-active {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .progress-stat-grid .progress-stat-card {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 14px;
+  }
+
+  .progress-stat-grid .progress-stat-card--policy {
+    grid-column: 1 / -1;
+  }
+
+  .progress-stat-grid .progress-stat-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .progress-level-orb {
+    width: 84px;
+  }
+
+  .progress-level-orb strong {
+    font-size: 2rem;
+  }
+}
+
 /* --- Review hub ------------------------------------------------------------ */
 
 /* Icon beside its title at every width (the historical phone rule stacked
