@@ -476,8 +476,23 @@ in student screens; the rendered-style audit in this pass found none left.
   lock, group, rotate and smooth sit under More.
 - Bottom row: page count at the start corner, zoom (mouse readers only) at the end corner, the
   Active Study step centred (at the end on phones) and never overlapping either.
-- The document stage is always LTR: PDF.js draws through a canvas whose direction is inherited.
+- The document stage scrolls LTR and its page canvases are always LTR: PDF.js draws through a
+  canvas whose direction is inherited. The stage's other children may return to RTL, the canvases
+  may not (`.workspace-v2-document-stage canvas { direction: ltr; }`, guarded by a unit test).
+- Marks placed from the Add menu fade in. Do not animate SVG marks with `transform-box: fill-box`
+  or `scale`: inside the non-uniformly scaled annotation layer under the CSS zoom, WebKit draws
+  them tens of pixels off their place until the animation ends.
 - Focus strings live in `lib/i18n.js` under `focus.*`.
+
+### Lock-in Mode
+
+- Lock-in Mode hides the app chrome, so it has its own bar (`LockInBar`: the way out, the section
+  switch, one control). Everything under it is shared V2: grouped rows, capsule buttons, `Switch`,
+  the segmented `TabList`, `RadioGroup` for the duration, `ConfirmDialog` with a real message.
+- It follows every theme through the tokens. Strings live under `lockIn.*`; server aliases
+  ("Anonymous 01") are shown in the reader's language.
+- The document-based session (`ReferenceActiveSession`, `lock-in-reference.css`) is legacy: no
+  screen starts one any more. Do not extend it; remove it or rebuild it on V2 before reuse.
 
 ### Responsive rules and iPad
 
