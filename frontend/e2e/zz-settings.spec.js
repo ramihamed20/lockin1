@@ -22,8 +22,9 @@ for (const [name, vp, lang] of [["desk", { width: 1440, height: 900 }, "en"], ["
     await page.goto(ROUTE);
     await page.getByRole("button", { name: /Normal Study|الدراسة العادية/ }).first().click();
     await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
-    await page.getByRole("button", { name: "More workspace actions" }).click();
-    await page.getByRole("button", { name: "Workspace settings" }).click();
+    // Focus is translated, so the Arabic run uses the Arabic control names.
+    await page.getByRole("button", { name: lang === "ar" ? "مزيد من إجراءات مساحة العمل" : "More workspace actions" }).click();
+    await page.getByRole("button", { name: lang === "ar" ? "إعدادات مساحة العمل" : "Workspace settings" }).click();
     await page.waitForTimeout(700);
     await page.screenshot({ path: `${OUT}/${tag}-${name}.png` });
     const r = await page.evaluate(() => [...document.querySelectorAll(".workspace-v2-switch-track")].filter((t) => t.getClientRects().length).map((t) => { const a = t.getBoundingClientRect(); const b = t.firstElementChild.getBoundingClientRect(); return [Math.round(b.left - a.left), Math.round(a.right - b.right)]; }));
