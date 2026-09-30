@@ -256,6 +256,10 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
    direction. */
 .workspace-v2-document-stage { direction: ltr; }
 [dir="rtl"] .workspace-v2-document-stage > * { direction: rtl; }
+/* ...except the page canvases. PDF.js draws glyphs through a 2D context whose
+   direction is "inherit", so an RTL canvas lays out an English PDF's Latin runs
+   right-to-left ("Ep ithe lia l T issue"). The document itself is always LTR. */
+.workspace-v2-document-stage canvas { direction: ltr; }
 .workspace-v2-document-stage::-webkit-scrollbar { display: none; }
 .workspace-v2-document-stage.is-tool-hand { cursor: grab; touch-action: none; }
 .workspace-v2-document-stage.is-tool-hand:active { cursor: grabbing; user-select: none; }
