@@ -7,7 +7,7 @@ import { Icon } from "../lib/icons.jsx";
 import { formatRelativeTime } from "../lib/i18n.js";
 import { useI18n } from "../components/I18nProvider.jsx";
 import { QuestionExplanation } from "../components/shared/QuestionExplanation.jsx";
-import { BiweeklyArchive } from "../components/biweekly/BiweeklyArchive.jsx";
+import { BiweeklyCurrent, BiweeklyHistory, useBiweekly } from "../components/biweekly/BiweeklyArchive.jsx";
 
 function relativeTime(value, t) {
   const timestamp = Date.parse(value || "");
@@ -40,6 +40,7 @@ async function loadReviewCenter(userId) {
 export default function ReviewCenter({ user = null }) {
   const { t } = useI18n();
   const review = useAsyncData(() => loadReviewCenter(user?.id || ""), [user?.id]);
+  const biweekly = useBiweekly("review");
   if (review.loading) return <ReviewCenterSkeleton />;
   if (review.error) return <Page title={t("review.center")}><ErrorPanel message={review.error} onRetry={review.reload} /></Page>;
 
@@ -50,9 +51,11 @@ export default function ReviewCenter({ user = null }) {
   // order, so the primary action is one tap into answering, not into a list.
   const firstSubject = bank.active_count ? bank.subjects[0] : null;
   return (
-    <Page title={t("review.center")} subtitle={t("review.centerSubtitle")}>
-      <div className="review-center-layout">
-        <BiweeklyArchive type="review" />
+    <Page title={t("review.center")} showHeading>
+      {/* One focal block (what is waiting and the way into it), then the
+          scheduled reviews as quieter peers, then the material itself, and
+          the archive last. */}
+      <div className="review-center-layout review-v2">
         <section className={`review-bank-entry ${bank.active_count ? "has-work" : "is-clear"}`} aria-labelledby="review-bank-title">
           <div className="review-bank-entry-copy">
             <span className="review-feature-icon"><Icon name={bank.active_count ? "target" : "check"} size={22} /></span>
@@ -62,10 +65,11 @@ export default function ReviewCenter({ user = null }) {
             </div>
           </div>
           <div className="review-bank-entry-actions">
-            <dl className="review-bank-summary">
+            {/* Two zeros say nothing a caught-up heading has not already said. */}
+            {(bank.active_count > 0 || bank.mastered_this_week > 0) && <dl className="review-bank-summary">
               <div><dt>{t("review.toReview")}</dt><dd>{bank.active_count}</dd></div>
               <div><dt>{t("review.masteredThisWeek")}</dt><dd>{bank.mastered_this_week}</dd></div>
-            </dl>
+            </dl>}
             {firstSubject
               ? <div className="review-bank-entry-buttons">
                 <Link className="btn btn-primary" to={`/review/bank/${encodeURIComponent(firstSubject.subject_key)}`}>{t("review.startReview")}</Link>
@@ -80,8 +84,10 @@ export default function ReviewCenter({ user = null }) {
             <span className="review-feature-icon"><Icon name="calendar" size={20} /></span>
             <div><h2 id="weekly-recall-title">{t("review.weekly")}</h2><p dir="auto">{weeklyStatus === "completed" ? t("review.weeklyDone") : weekly.session ? t("review.weeklySessionCopy", { count: weeklyCount }) : weekly.available ? t("review.weeklyReady", { count: weeklyCount }) : t("review.weeklyPrepare")}</p></div>
           </div>
-          {weekly.available ? <Link className="btn btn-soft" to="/review/weekly">{weeklyStatus === "completed" ? t("review.viewResults") : weekly.session ? t("review.resumeWeekly") : t("review.startWeekly")}</Link> : <span className="pill">{t("review.notReady")}</span>}
+          {weekly.available ? <Link className="btn btn-soft compact" to="/review/weekly">{weeklyStatus === "completed" ? t("review.viewResults") : weekly.session ? t("review.resumeWeekly") : t("review.startWeekly")}</Link> : <span className="pill">{t("review.notReady")}</span>}
         </section>
+
+        <BiweeklyCurrent type="review" biweekly={biweekly} />
 
         {/* Caught up is said once, by the bank above. Empty sections are not
             printed a second and third time underneath it. */}
@@ -94,6 +100,8 @@ export default function ReviewCenter({ user = null }) {
           <header className="review-section-heading"><h2 id="recent-mistakes-title">{t("review.recentMistakes")}</h2><span>{queue.count}</span></header>
           <div className="recent-mistake-list">{queue.results.map((item) => <RecentMistake key={item.id} item={item} />)}</div>
         </section>}
+
+        <BiweeklyHistory type="review" biweekly={biweekly} />
       </div>
     </Page>
   );

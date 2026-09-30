@@ -703,6 +703,38 @@ html.ix-hover .settings-v2-back:hover {
   border-block-start: 1px solid var(--separator);
 }
 
+/* --- Review hub ------------------------------------------------------------ */
+
+/* Icon beside its title at every width (the historical phone rule stacked
+   them, leaving a lone icon on its own line above each card). */
+.review-v2 .review-bank-entry-copy,
+.review-v2 .weekly-recall-entry > div:first-child {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  text-align: start;
+}
+
+.review-v2 .review-bank-entry-copy .review-feature-icon,
+.review-v2 .weekly-recall-entry .review-feature-icon {
+  flex: 0 0 44px;
+}
+
+.review-v2 .review-bank-entry-copy p,
+.review-v2 .weekly-recall-entry p {
+  margin: 2px 0 0;
+  color: var(--muted);
+}
+
+.review-v2 {
+  gap: 16px;
+}
+
+.review-v2 > .biweekly-history {
+  margin-block-start: 12px;
+}
+
 .skeleton-profile-v2 {
   display: grid;
   gap: 24px;

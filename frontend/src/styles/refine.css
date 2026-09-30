@@ -282,7 +282,7 @@ html.ix-hover .catalog-sheet-grid > .catalog-sheet-card:not(.is-unavailable):hov
 .weekly-recall-entry,
 .review-center-section {
   border: 1px solid var(--polish-line);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   background: var(--polish-raised);
   box-shadow: var(--polish-shadow);
 }
