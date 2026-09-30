@@ -42,8 +42,11 @@ test("the profile editor presents both default-avatar selection and validated cu
   assert.match(editor, /accountsApi\.updateProfile\(\{ avatarDefault/);
 });
 
-test("the profile card keeps its existing frame while using an inset avatar image", () => {
-  assert.match(profile, /className="profile-avatar-image"/);
+test("the profile card keeps its ID-card frame while using an inset avatar image", () => {
+  // The academy ID card was brought back after V2 briefly replaced it with a
+  // plain account header.
+  assert.match(profile, /student-id-card profile-academy-id/);
+  assert.match(profile, /<UserAvatar user=\{account\} className="profile-avatar-image"/);
   assert.match(editorStyles, /\.profile-academy-id \.profile-avatar-wrap \.profile-avatar-image/);
   assert.match(editorStyles, /inline-size: 70px/);
   assert.match(editorStyles, /block-size: 70px/);

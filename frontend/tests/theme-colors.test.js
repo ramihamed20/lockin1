@@ -60,9 +60,9 @@ function contrast(a, b) {
 
 test("design tokens are the single source for the Night palette", () => {
   const root = tokenMap(selectorBlock(tokenStyles, ":root"));
-  assert.equal(root["--bg"], "#090c14");
-  assert.equal(root["--surface"], "#0f131c");
-  assert.equal(root["--text"], "#edf0f6");
+  assert.equal(root["--bg"], "#080a10");
+  assert.equal(root["--surface"], "#10141c");
+  assert.equal(root["--text"], "#eef1f7");
   assert.equal(root["--accent"], "#f1c04f");
   assert.equal(root["--danger"], "#f27272");
   assert.doesNotMatch(styles, /\s--(?:bg|surface|text|accent|gold|primary):/);

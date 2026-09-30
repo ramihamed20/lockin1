@@ -30,6 +30,7 @@ import { PublicInfoPage } from "./components/PublicInfoPage.jsx";
 import { SubscriptionSessionProvider } from "./lib/SubscriptionSessionContext.jsx";
 import { clearSubscriptionSnapshots } from "./lib/subscriptionSession.js";
 import { FeatureComingSoon } from "./components/FeatureComingSoon.jsx";
+import { isFeatureComingSoon } from "./lib/featureAvailability.js";
 import { synchronizeOffline } from "./offline/coordinator.js";
 import { forgetOfflineUser, rememberOfflineUser, restoreOfflineUser } from "./offline/profile.js";
 import OfflineIndicator from "./offline/OfflineIndicator.jsx";
@@ -58,6 +59,9 @@ const SubjectReviewSession = lazyWithRecovery(() => import("./pages/Review.jsx")
 const WeeklyRecall = lazyWithRecovery(() => import("./pages/Review.jsx").then((module) => ({ default: module.WeeklyRecall })));
 const Bookmarks = lazyWithRecovery(() => import("./pages/Bookmarks.jsx"));
 const Progress = lazyWithRecovery(() => import("./pages/Progress.jsx"));
+const AnalysisPage = lazyWithRecovery(() => import("./pages/Biweekly.jsx").then((module) => ({ default: module.AnalysisPage })));
+const BiweeklyDetail = lazyWithRecovery(() => import("./pages/Biweekly.jsx").then((module) => ({ default: module.BiweeklyDetail })));
+const BiweeklyTest = lazyWithRecovery(() => import("./pages/Biweekly.jsx").then((module) => ({ default: module.BiweeklyTest })));
 const Achievements = lazyWithRecovery(() => import("./pages/Achievements.jsx"));
 const Notifications = lazyWithRecovery(() => import("./pages/Notifications.jsx"));
 const Store = lazyWithRecovery(() => import("./pages/Store.jsx"));
@@ -151,7 +155,7 @@ function App() {
   const activeTheme = themeSettings.autoTheme
     ? autoThemeForDate(new Date(clockTick))
     : themeSettings.theme;
-  const inLockInMode = location.pathname === "/lock-in" || location.pathname.startsWith("/lock-in/");
+  const inLockInMode = !isFeatureComingSoon("lock-in") && (location.pathname === "/lock-in" || location.pathname.startsWith("/lock-in/"));
   const inFocusWorkspace = location.pathname.endsWith("/workspace");
 
   const clearOperationsSession = useCallback(() => {
@@ -695,8 +699,12 @@ function App() {
                 <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug/summary" element={<CatalogFocusWorkspace user={user} variant="summary" />} />
                 <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug/workspace" element={<CatalogFocusWorkspace user={user} />} />
                 <Route path="/paper-workspace" element={<PaperWorkspace user={user} />} />
-                <Route path="/lock-in" element={<LockInMode user={user} />} />
-                <Route path="/lock-in/:sessionId" element={<LockInMode user={user} />} />
+                {isFeatureComingSoon("lock-in")
+                  ? <Route path="/lock-in/*" element={<FeatureComingSoon featureId="lock-in" />} />
+                  : <>
+                    <Route path="/lock-in" element={<LockInMode user={user} />} />
+                    <Route path="/lock-in/:sessionId" element={<LockInMode user={user} />} />
+                  </>}
                 <Route path="/search" element={<Search />} />
                 <Route path="/questions" element={<Questions user={user} />} />
                 <Route path="/questions/categories/:categoryId" element={<QuestionCategory user={user} />} />
@@ -709,10 +717,14 @@ function App() {
                 <Route path="/review/bank" element={<ReviewBank user={user} />} />
                 <Route path="/review/bank/:subjectKey" element={<SubjectReviewSession user={user} />} />
                 <Route path="/review/weekly" element={<WeeklyRecall user={user} />} />
+                <Route path="/review/biweekly/:id" element={<BiweeklyDetail type="review" />} />
+                <Route path="/review/biweekly/:id/test" element={<BiweeklyTest />} />
                 <Route path="/community/*" element={<FeatureComingSoon featureId="community" />} />
                 <Route path="/ranked/*" element={<FeatureComingSoon featureId="rank" />} />
                 <Route path="/bookmarks" element={<Bookmarks />} />
                 <Route path="/progress" element={<Progress />} />
+                <Route path="/analysis" element={<AnalysisPage />} />
+                <Route path="/analysis/:id" element={<BiweeklyDetail type="analysis" />} />
                 <Route path="/progression" element={<Progress />} />
                 <Route path="/achievements" element={<Achievements />} />
                 <Route path="/notifications" element={<Notifications onNotificationsChanged={() => setNotificationVersion((version) => version + 1)} />} />

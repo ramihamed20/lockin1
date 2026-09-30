@@ -88,6 +88,41 @@ def answer_question(
                 answered_at=now,
             )
             if not is_correct:
+                from apps.review.contracts import QuestionAttemptEvent
+                from apps.review.models import ReviewItem
+                from apps.review.services import record_question_attempt, subject_for_node
+
+                subject = subject_for_node(version.academic_node)
+                sheet = version.source_learning_object
+                options = tuple(
+                    {"id": str(option.id), "text": option.text} for option in version.options.all()
+                )
+                record_question_attempt(
+                    event=QuestionAttemptEvent(
+                        user=user,
+                        event_key=f"normal-question:{answer.id}",
+                        canonical_key=f"question:{question.id}",
+                        subject_key=f"node:{subject.id}",
+                        subject_label=subject.title,
+                        source_type=ReviewItem.SourceType.SHEET,
+                        source_id=str(sheet.id) if sheet else "",
+                        source_label=(
+                            sheet.published_version.title
+                            if sheet and sheet.published_version
+                            else subject.title
+                        ),
+                        source_question_index=None,
+                        prompt=version.prompt,
+                        explanation=version.explanation,
+                        options=options,
+                        selected_option_ids=tuple(str(value) for value in selected),
+                        correct_option_ids=tuple(str(value) for value in correct),
+                        is_correct=False,
+                        answered_at=now,
+                        question_version=version,
+                        subject=subject,
+                    )
+                )
                 return answer, True
             award, created = award_xp(
                 user_id=user.id,

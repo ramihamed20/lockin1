@@ -39,11 +39,13 @@ export default function OfflineIndicator({ userId }) {
     return () => window.clearTimeout(timer);
   }, [online, state]);
 
+  // Background work is silent: checking access, downloading and a successful
+  // sync happen on every launch and are shown where they are managed
+  // (Settings > Offline Mode). The pill speaks only when the student is offline
+  // or something needs them.
   const label = !online
-    ? remaining > 0 ? `${t("offline.offline")} · ${Math.floor(remaining / 3_600_000)}h` : t("offline.offline")
-    : state === "verifying" || state === "downloading" ? t("offline.sync.downloading")
-      : state === "synced" ? t("offline.sync.synced")
-        : ["connection", "signin", "access"].includes(state) ? t(`offline.sync.${state}`) : "";
-  const tone = !online ? "offline" : state === "synced" ? "success" : ["connection", "signin", "access"].includes(state) ? "warning" : "progress";
+    ? remaining > 0 ? `${t("offline.offline")} · ${t("offline.hoursLeft", { count: Math.floor(remaining / 3_600_000) })}` : t("offline.offline")
+    : ["connection", "signin", "access"].includes(state) ? t(`offline.sync.${state}`) : "";
+  const tone = !online ? "offline" : "warning";
   return label ? <span className="offline-indicator" data-tone={tone} role="status">{label}</span> : null;
 }

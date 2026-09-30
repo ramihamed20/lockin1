@@ -1,4 +1,4 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Icon } from "../../lib/icons.jsx";
 import { LockinIcon } from "../../lib/lockinIcons.jsx";
@@ -12,7 +12,12 @@ import { cssVars } from "../../lib/utils.js";
 /** @type {import("react").Context<boolean>} */
 const PageIdentityContext = createContext(false);
 
-export function Page({ title, subtitle = "", children, showHeading = false, headingHandled = false }) {
+/**
+ * `width="reading"` sets the page in the one reading column list and detail
+ * screens share (catalogue, questions, review, inbox, account). Pages that lay
+ * content side by side (dashboard, progress, settings, workspaces) leave it off.
+ */
+export function Page({ title, subtitle = "", children, showHeading = false, headingHandled = false, width = "" }) {
   usePageTitle(title);
   const location = useLocation();
   const { t } = useI18n();
@@ -21,7 +26,7 @@ export function Page({ title, subtitle = "", children, showHeading = false, head
   const resolvedTitle = !title || title === englishMetadata.h1 ? metadata.h1 : title;
   return (
     <PageIdentityContext.Provider value={true}>
-      <div className="page">
+      <div className={width ? `page page--${width}` : "page"}>
         {showHeading && <header className="section-heading"><h1 dir="auto">{resolvedTitle}</h1>{subtitle && <p dir="auto">{subtitle}</p>}</header>}
         {!showHeading && !headingHandled && <h1 className="visually-hidden" dir="auto">{resolvedTitle}</h1>}
         {children}
@@ -111,7 +116,7 @@ function SheetSkeleton() {
 }
 
 function ProfileSkeleton() {
-  return <div className="skeleton-page skeleton-page--profile"><section className="skeleton-profile-hero"><SkeletonCard className="skeleton-id-card"><div className="skeleton-id-top"><Skeleton className="skeleton-logo" /><Skeleton className="skeleton-chip" /></div><div className="skeleton-id-body"><SkeletonAvatar className="skeleton-avatar--profile" /><SkeletonText lines={4} /></div><Skeleton className="skeleton-barcode" /></SkeletonCard><SkeletonCard className="skeleton-chart-card"><SkeletonText lines={2} /><Skeleton className="skeleton-chart" /><SkeletonText lines={3} /></SkeletonCard></section><CardGridSkeleton count={4} card="stat" /><section className="skeleton-two-column"><SkeletonCard><SkeletonText lines={2} /><Skeleton className="skeleton-heatmap" /></SkeletonCard><SkeletonCard><SkeletonText lines={4} /></SkeletonCard></section></div>;
+  return <div className="skeleton-page skeleton-page--profile skeleton-profile-v2"><SkeletonCard className="skeleton-profile-v2-card"><SkeletonAvatar className="skeleton-avatar--profile" /><SkeletonText lines={4} /></SkeletonCard><SkeletonCard className="skeleton-profile-v2-activity"><Skeleton className="skeleton-heatmap" /></SkeletonCard></div>;
 }
 
 function ProgressSkeleton() {
@@ -189,12 +194,23 @@ export function ErrorPanel({ message, onRetry = null }) {
   const location = useLocation();
   const { t } = useI18n();
   const metadata = routeMetadata(location.pathname, t);
-  const safeMessage = normalizeUserError(message, t("error.default"));
+  const [offline, setOffline] = useState(() => typeof navigator !== "undefined" && navigator.onLine === false);
+  useEffect(() => {
+    const update = () => setOffline(navigator.onLine === false);
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); };
+  }, []);
+  // Offline, "Network error" is true but useless: say what still works.
+  const safeMessage = offline ? t("offline.pageNeedsConnection") : normalizeUserError(message, t("error.default"));
+  const materialsHere = location.pathname === "/materials" || location.pathname.startsWith("/materials/");
   return (
     <section className="panel error-panel" role="alert">
       {!hasPageIdentity && <h1 className="visually-hidden">{metadata.h1}</h1>}
-      <p>{safeMessage}</p>
-      {onRetry && <button className="btn btn-soft" type="button" onClick={onRetry}>{t("common.tryAgain")}</button>}
+      <span className="error-panel-icon" aria-hidden="true"><Icon name="alert-triangle" size={20} /></span>
+      <p dir="auto">{safeMessage}</p>
+      {offline && !materialsHere && <Link className="btn btn-soft" to="/materials">{t("nav.materials")}</Link>}
+      {onRetry && !offline && <button className="btn btn-soft" type="button" onClick={onRetry}>{t("common.tryAgain")}</button>}
     </section>
   );
 }
@@ -241,6 +257,7 @@ export {
   RadioOption,
   SegmentedControl,
   SelectableRow,
+  Switch,
   Tab,
   TabList,
   ToggleButton,

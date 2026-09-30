@@ -51,6 +51,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PATH=/home/lockin/.local/bin:$PATH
 
+# WeasyPrint renders the private HTML/CSS study reports through Pango.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-noto-core \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN addgroup --system --gid 10001 lockin \
     && adduser --system --uid 10001 --ingroup lockin --home /home/lockin lockin
 

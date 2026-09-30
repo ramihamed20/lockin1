@@ -341,7 +341,7 @@ test("a cohort without a timetable sees no My Group card and a calm message", as
   await connect(page, createAccount({ available: false }));
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/#/dashboard");
-  await expect(page.locator(".dashboard-stats-grid").first()).toBeVisible();
+  await expect(page.locator(".dash-states").first()).toBeVisible();
   await page.waitForLoadState("networkidle");
   await expect(page.locator(".mg-card")).toHaveCount(0);
   await page.goto("/#/my-group");

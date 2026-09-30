@@ -1,0 +1,27 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><style>{% include "biweekly/shared.css" %}
+@page { @top-right { content: "2-WEEK REVIEW"; color: #71808C; font: bold 7pt Arial, sans-serif; } }
+.question-page { break-after: page; }
+.question-page:last-child { break-after: auto; }
+.question-card { background: white; border: 1px solid #DEE7E8; border-radius: 3mm; padding: 3mm 4mm; margin: 0 0 4mm; font-size: 8pt; line-height: 1.25; break-inside: avoid; }
+.question-card.long { break-inside: auto; }
+.question-card h3 { font-size: 9.5pt; line-height: 1.25; margin: 1.5mm 0; }
+.question-card .identity { display: flex; justify-content: space-between; gap: 3mm; color: #71808C; font-size: 7pt; }
+.options { margin: 1mm 0 2mm; padding-left: 4mm; }
+.options li { padding: 0; overflow-wrap: anywhere; }
+.answer-row { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; margin: 1.5mm 0; }
+.answer-box { background: #E8F6F6; border-radius: 2mm; padding: 2mm; overflow-wrap: anywhere; }
+.answer-box small, .why small { display: block; color: #71808C; font-size: 7pt; font-weight: bold; letter-spacing: .4pt; }
+.why { background: #F5F7F5; border-left: 2mm solid #19A9B5; padding: 2mm 2.5mm; margin-top: 1.5mm; overflow-wrap: anywhere; }
+.source { color: #71808C; font-size: 7pt; margin-top: 1.5mm; }
+</style></head><body>
+<div class="cover">{% if logo_data %}<img class="logo" src="{{ logo_data }}" alt="Lock-in">{% endif %}<div class="brand">LOCK-IN</div><p class="eyebrow">2-Week Review</p><h1>Learn from every question.</h1><p class="period">{{ period_label }}</p><div class="cover-rule"></div><p class="cover-note">{{ mistake_count }} distinct mistake{{ mistake_count|pluralize }} from this exact period. Questions are grouped by subject and sheet, with repeated mistakes prioritized within each sheet.</p></div>
+{% if pages %}{% for page in pages %}<section class="question-page"><p class="eyebrow">Review questions</p><h2>Subject → Sheet → Questions</h2>
+{% for question in page.questions %}<article class="question-card{% if question.long %} long{% endif %}">
+  <div class="identity"><span><b>Q{{ question.number }}</b> · {{ question.subject }} / {{ question.sheet }}</span><span class="badge">{{ question.question_type_label }}</span></div>
+  <h3>{{ question.prompt }}</h3>
+  <ol class="options" type="A">{% for option in question.options %}<li>{{ option.text }}</li>{% endfor %}</ol>
+  <div class="answer-row"><div class="answer-box"><small>STUDENT ANSWER</small>{{ question.student_answers|join:", " }}</div><div class="answer-box"><small>CORRECT ANSWER</small>{{ question.correct_answers|join:", " }}</div></div>
+  <div class="why"><small>WHY</small>{% if question.explanation %}{{ question.explanation|linebreaksbr }}{% else %}No explanation was supplied with this question.{% endif %}</div>
+  <p class="source">Source: {{ question.source_label|default:question.source_type }}{% if question.question_number %} · Question {{ question.question_number }}{% endif %}{% if question.source_page %} · Page {{ question.source_page }}{% endif %}{% if question.edition %} · {{ question.edition }}{% endif %}{% if question.repetitions > 1 %} · Repeated {{ question.repetitions }} times{% endif %}</p>
+</article>{% endfor %}</section>{% endfor %}{% else %}<section class="section"><h2>No mistakes this period</h2><div class="empty">No questions need a 2-Week Review for this period. Keep studying and return to Review whenever you need practice.</div></section>{% endif %}
+</body></html>

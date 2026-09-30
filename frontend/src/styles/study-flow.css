@@ -709,16 +709,16 @@ html.ix-hover .review-bank-entry-buttons .btn-soft:hover { background: var(--sur
   background: var(--success-soft);
 }
 
-/* Subjects: the same grouped list as the catalogue. */
+/* Subjects: separate cards, the same rhythm as the catalogue. */
 .review-subject-list,
 .review-bank-subjects {
   display: grid;
-  gap: 0;
-  overflow: hidden;
+  gap: var(--catalog-item-gap, 8px);
+  overflow: visible;
   padding: 0;
-  border: 1px solid var(--polish-line);
-  border-radius: var(--radius-md);
-  background: var(--refine-well, var(--surface-2));
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .review-subject-list > .review-subject-row,
@@ -726,18 +726,30 @@ html.ix-hover .review-bank-entry-buttons .btn-soft:hover { background: var(--sur
   min-height: 58px;
   margin: 0;
   padding: 10px 14px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-.review-subject-list > .review-subject-row + .review-subject-row,
-.review-bank-subjects > .review-subject-row + .review-subject-row {
-  border-block-start: 1px solid var(--polish-line);
+  border: 1px solid var(--polish-line);
+  border-radius: var(--catalog-item-radius, var(--radius-lg));
+  background: var(--catalog-item-surface, var(--surface-2));
+  box-shadow: var(--catalog-item-shadow, none);
 }
 
 html.ix-hover :is(.review-subject-list, .review-bank-subjects) > .review-subject-row:hover {
-  background: color-mix(in srgb, var(--text) 4%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--polish-line));
+  background: color-mix(in srgb, var(--text) 3%, var(--catalog-item-surface, var(--surface-2)));
+}
+
+/* Recent mistakes are a question list: one card per question. */
+.recent-mistake-list { gap: var(--catalog-item-gap, 8px); }
+
+.recent-mistake-list > .recent-mistake {
+  padding: 14px;
+  border: 1px solid var(--polish-line);
+  border-radius: var(--catalog-item-radius, var(--radius-lg));
+  background: var(--catalog-item-surface, var(--surface-2));
+  box-shadow: var(--catalog-item-shadow, none);
+}
+
+html.ix-hover .recent-mistake-list > a.recent-mistake:hover {
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--polish-line));
 }
 
 .review-subject-count { color: var(--muted); font-size: var(--text-sm); font-weight: var(--weight-medium); }
@@ -896,24 +908,26 @@ html.ix-hover .review-session-header > .btn:hover { color: var(--text); backgrou
   min-height: 54px;
   grid-template-columns: 30px minmax(0, 1fr) auto;
   gap: 12px;
-  border-color: var(--polish-line);
+  /* V2: the same unframed row as every other answer; colour only for state. */
+  border-color: transparent;
+  border-radius: 14px;
   background: var(--surface-2);
   font-size: var(--text-base);
   font-weight: var(--weight-medium);
 }
 
 .review-choice-letter {
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
   color: var(--muted);
   background: var(--surface-3);
   font-size: var(--text-sm);
 }
 
-html.ix-hover .review-choice:not(.is-correct):not(.is-wrong):hover { border-color: var(--border-strong); background: var(--surface-3); }
+html.ix-hover .review-choice:not(.is-correct):not(.is-wrong):not(.is-selected):hover { border-color: transparent; background: var(--surface-3); }
 
-.review-choice.is-selected { border-color: var(--accent-border); background: var(--accent-soft); }
+.review-choice.is-selected { border-color: var(--accent); background: var(--accent-soft); }
 .review-choice.is-selected .review-choice-letter { color: var(--on-accent); background: var(--accent); }
 
 .review-choice.is-correct { border-color: color-mix(in srgb, var(--success) 55%, transparent); background: color-mix(in srgb, var(--success) 8%, var(--surface-2)); }

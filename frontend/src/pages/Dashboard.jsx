@@ -7,21 +7,10 @@ import { Icon } from "../lib/icons.jsx";
 import { getRecentOpenedCatalogSheets } from "../lib/materialCatalog.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
-import { StatsGrid } from "../components/shared/StatsGrid.jsx";
 import { ResponsiveThemePreview } from "../components/shared/ResponsiveThemePreview.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
+import { formatNumber } from "../lib/i18n.js";
 import { MyGroupCard } from "../components/myGroup/MyGroupCard.jsx";
-
-// Each card keeps a stable id so its destination and styling never depend on
-// the label, which changes with the interface language.
-const STAT_CARDS = [
-  { id: "completed", labelKey: "dashboard.completed", subKey: "dashboard.completedSub", icon: "check", to: "/materials", actionKey: "dashboard.openCompleted", variant: "emerald", badgeKey: "dashboard.badgeDone", pulse: false },
-  // Progress, not account security: active sessions are managed in Settings.
-  { id: "level", labelKey: "dashboard.level", subKey: "dashboard.levelSub", icon: "sparkles", to: "/progress", variant: "amber", badgeKey: "dashboard.badgeXp", pulse: false },
-  { id: "streak", labelKey: "dashboard.streak", subKey: "dashboard.streakSub", icon: "flame", to: "/progress", variant: "amber", badgeKey: "dashboard.badgeActive", pulse: false },
-  { id: "reviewBank", labelKey: "dashboard.reviewBank", subKey: "dashboard.reviewBankSub", icon: "target", to: "/review", actionKey: "dashboard.openReviewCenter", variant: "rose" },
-  { id: "saved", labelKey: "dashboard.saved", subKey: "dashboard.savedSub", icon: "bookmark", to: "/bookmarks", actionKey: "dashboard.openSaved", variant: "indigo", badgeKey: "dashboard.badgeSaved", pulse: false }
-];
 
 async function loadDashboard() {
   const [accountResult, learningResult, reviewResult, bankResult, xpResult, streakResult] = await Promise.allSettled([
@@ -60,33 +49,10 @@ export default function Dashboard({ themeSettings, activeTheme }) {
   const hasMascot = themeSettings.character !== "none";
   const recentOpenedSheets = getRecentOpenedCatalogSheets();
   const reviewItems = review?.results || [];
-  const activeReviewCount = bank?.active_count;
-  const values = {
-    completed: learning?.completed_count ?? "—",
-    saved: learning?.bookmark_count ?? "—",
-    reviewBank: Number.isInteger(activeReviewCount) ? activeReviewCount : "—",
-    level: Number.isInteger(xp?.level) ? t("dashboard.levelValue", { level: xp.level }) : "—",
-    streak: Number.isInteger(streak?.current_days) ? t("dashboard.dayValue", { count: streak.current_days }) : "—"
-  };
-  const dashboardCards = STAT_CARDS.map((card) => ({
-    label: t(card.labelKey),
-    value: values[card.id],
-    icon: card.icon,
-    sub: card.id === "level" && xp
-      ? t("dashboard.levelProgress", { progress: xp.level_progress ?? 0, target: xp.level_target ?? 0 })
-      : card.id === "streak" && streak
-        ? t("dashboard.streakBest", { count: streak.longest_days ?? 0 })
-        : t(card.subKey),
-    to: card.to,
-    actionLabel: card.actionKey ? t(card.actionKey) : undefined,
-    variant: card.variant,
-    badge: card.id === "reviewBank" ? t(activeReviewCount > 0 ? "dashboard.badgeDue" : "dashboard.badgeClear") : t(card.badgeKey),
-    pulse: card.id === "reviewBank" ? activeReviewCount > 0 : card.pulse
-  }));
   return (
     <Page title="Dashboard" showHeading={false}>
       <div className="dashboard-layout">
-        <StatsGrid cards={dashboardCards} className="dashboard-stats-grid" />
+        <StudyStates learning={learning} bank={bank} xp={xp} streak={streak} />
         <section className={`dashboard-main${hasMascot ? "" : " dashboard-main--no-mascot"}`}>
           <div className="dashboard-left">
             <ContinueCard sheetEntry={recentOpenedSheets[0] || null} />
@@ -101,6 +67,70 @@ export default function Dashboard({ themeSettings, activeTheme }) {
         {(accountError || learningError || reviewError || bankError) && <p className="save-hint">{t("dashboard.partialData")}</p>}
       </div>
     </Page>
+  );
+}
+
+/**
+ * The five numbers a student checks on arrival, each a card that opens the
+ * page holding the detail. A card carries one value, one label and at most
+ * one short note; colour appears only where it means something (a review
+ * queue that has work in it, the level's progress). The values are the same
+ * fields the dashboard always read; nothing here recalculates them.
+ */
+function StudyStates({ learning, bank, xp, streak }) {
+  const { t } = useI18n();
+  const whole = (value) => (Number.isInteger(value) ? value : null);
+  const shown = (value) => (value === null ? "—" : formatNumber(value));
+  const level = whole(xp?.level);
+  const levelProgress = Number(xp?.level_progress) || 0;
+  const levelTarget = Number(xp?.level_target) || 0;
+  const levelPercent = levelTarget ? Math.min(100, Math.round((levelProgress / levelTarget) * 100)) : 0;
+  const streakDays = whole(streak?.current_days);
+  const bestDays = whole(streak?.longest_days);
+  const reviewCount = whole(bank?.active_count);
+  const completed = whole(learning?.completed_count);
+  const saved = whole(learning?.bookmark_count);
+
+  return (
+    <section className="dash-states" aria-label={t("stats.summary")}>
+      <ul className="dash-states-grid">
+        <li className="dash-states-item dash-states-item--wide">
+          <Link className="dash-state" to="/progress">
+            <strong className="dash-state-value">{shown(level)}</strong>
+            <span className="dash-state-label">{t("dashboard.level")}</span>
+            {xp && <span className="dash-state-foot">
+              <small className="dash-state-note" dir="auto">{t("dashboard.levelProgress", { progress: formatNumber(levelProgress), target: formatNumber(levelTarget) })}</small>
+              <span className="progress-line dash-state-meter" aria-hidden="true"><span style={{ width: `${levelPercent}%` }} /></span>
+            </span>}
+          </Link>
+        </li>
+        <li className="dash-states-item">
+          <Link className="dash-state" to="/progress">
+            <strong className="dash-state-value">{shown(streakDays)}{streakDays !== null && <small>{t("progress.dayCount", { count: streakDays })}</small>}</strong>
+            <span className="dash-state-label">{t("dashboard.streak")}</span>
+            {bestDays !== null && streakDays !== null && bestDays > streakDays && <small className="dash-state-note" dir="auto">{t("dashboard.streakBest", { count: bestDays })}</small>}
+          </Link>
+        </li>
+        <li className="dash-states-item">
+          <Link className={`dash-state${reviewCount > 0 ? " dash-state--due" : ""}`} to="/review">
+            <strong className="dash-state-value">{shown(reviewCount)}</strong>
+            <span className="dash-state-label">{t("dashboard.stateReview")}</span>
+          </Link>
+        </li>
+        <li className="dash-states-item">
+          <Link className="dash-state" to="/materials">
+            <strong className="dash-state-value">{shown(completed)}</strong>
+            <span className="dash-state-label">{t("dashboard.stateCompleted")}</span>
+          </Link>
+        </li>
+        <li className="dash-states-item">
+          <Link className="dash-state" to="/bookmarks">
+            <strong className="dash-state-value">{shown(saved)}</strong>
+            <span className="dash-state-label">{t("dashboard.stateSaved")}</span>
+          </Link>
+        </li>
+      </ul>
+    </section>
   );
 }
 

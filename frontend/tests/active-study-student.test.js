@@ -121,7 +121,12 @@ test("Profile hides future customization, companion, and wallet surfaces without
     assert.doesNotMatch(profile, new RegExp(hiddenKey.replace(".", "\\.")));
   }
   assert.match(profile, /ProfilePictureEditor/);
-  assert.match(profile, /College, specialty and year/);
-  assert.match(profile, /Change specialty \/ study path/);
+  // The study path controls are localised: the words live in the catalogue in
+  // both languages, and the page reads them through t().
+  assert.match(profile, /t\("profile\.studyPathTitle"\)/);
+  assert.match(profile, /t\("profile\.changeStudyPath"\)/);
+  assert.match(catalogue, /"profile\.studyPathTitle": "College, specialty and year"/);
+  assert.match(catalogue, /"profile\.changeStudyPath": "Change specialty \/ study path"/);
+  assert.equal(catalogue.split('"profile.changePathMessage":').length - 1, 2, "the progress-reset warning exists in English and Arabic");
   assert.match(profile, /AccountFieldErrors/);
 });

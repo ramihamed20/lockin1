@@ -134,6 +134,16 @@ def _record_mistake_locked(*, event: QuestionAttemptEvent) -> tuple[ReviewItem, 
         source_label_snapshot=event.source_label,
         source_question_index=event.source_question_index,
         prompt_snapshot=event.prompt.strip(),
+        explanation_snapshot=event.explanation.strip(),
+        question_type_snapshot=(
+            event.question_version.question_type if event.question_version else event.question_type
+        ),
+        options_snapshot=list(event.options),
+        selected_option_ids_snapshot=list(event.selected_option_ids),
+        correct_option_ids_snapshot=list(event.correct_option_ids),
+        subject_label_snapshot=event.subject_label,
+        question_version_id_snapshot=event.question_version.id if event.question_version else None,
+        source_page_snapshot=event.question_version.source_page if event.question_version else None,
         selected_answer_snapshot=_answer_texts(event.options, event.selected_option_ids),
         correct_answer_snapshot=_answer_texts(event.options, event.correct_option_ids),
         answered_at=event.answered_at,
@@ -301,6 +311,22 @@ def answer_review_item(
             source_label_snapshot=event.source_label,
             source_question_index=event.source_question_index,
             prompt_snapshot=event.prompt,
+            explanation_snapshot=event.explanation,
+            question_type_snapshot=(
+                event.question_version.question_type
+                if event.question_version
+                else event.question_type
+            ),
+            options_snapshot=list(event.options),
+            selected_option_ids_snapshot=list(event.selected_option_ids),
+            correct_option_ids_snapshot=list(event.correct_option_ids),
+            subject_label_snapshot=event.subject_label,
+            question_version_id_snapshot=event.question_version.id
+            if event.question_version
+            else None,
+            source_page_snapshot=event.question_version.source_page
+            if event.question_version
+            else None,
             selected_answer_snapshot=_answer_texts(event.options, event.selected_option_ids),
             correct_answer_snapshot=_answer_texts(event.options, event.correct_option_ids),
             answered_at=answered_at,

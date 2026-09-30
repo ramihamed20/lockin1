@@ -37,16 +37,28 @@
     color-scheme: dark;
 
     /* Neutrals — dark */
-    --bg: #090c14;
-    --surface: #0f131c;
-    --surface-2: #151a25;
-    --surface-3: #1c2230;
-    --border: #222938;
-    --border-strong: #2f3748;
-    --text: #edf0f6;
-    --muted: #a2abbc;
-    --soft: #7f889a;
-    --overlay: rgb(3 5 10 / 0.62);
+    /* V2: four fill steps carry depth, so most surfaces need no outline.
+       The navy tint is Lock-in's own; the steps are spaced like a native
+       grouped interface (page, grouped surface, raised, pressed). */
+    --bg: #080a10;
+    --surface: #10141c;
+    --surface-2: #171b26;
+    --surface-3: #1f2431;
+    --border: #1f2431;
+    --border-strong: #2d3446;
+    --separator: rgb(255 255 255 / 0.075);
+    --card-edge: rgb(255 255 255 / 0.05);
+    /* Dark cards separate by fill alone; light ones need a whisper of lift. */
+    --card-shadow: none;
+    --text: #eef1f7;
+    --muted: #a8b0c0;
+    --soft: #858ea0;
+    --overlay: rgb(3 5 10 / 0.58);
+    /* Floating chrome (bars, sheets, menus): a translucent material, not glass
+       as decoration. Only surfaces that sit over moving content use it. */
+    --material: rgb(20 24 34 / 0.78);
+    --material-thick: rgb(23 27 38 / 0.92);
+    --material-filter: saturate(1.6) blur(22px);
 
     /* Accent — Lock-in gold */
     --accent: #f1c04f;
@@ -69,8 +81,11 @@
 
     /* Depth: borders carry structure; shadows are for things that float. */
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.28);
-    --shadow-md: 0 6px 20px rgb(0 0 0 / 0.32);
-    --shadow-lg: 0 18px 48px rgb(0 0 0 / 0.45);
+    --shadow-md: 0 8px 24px rgb(0 0 0 / 0.34);
+    --shadow-lg: 0 24px 56px rgb(0 0 0 / 0.5);
+    /* A floating surface: a hairline to separate it from what it covers, then
+       a soft ambient and a tighter contact shadow. */
+    --shadow-float: 0 0 0 1px rgb(255 255 255 / 0.06), 0 2px 6px rgb(0 0 0 / 0.24), 0 18px 44px rgb(0 0 0 / 0.46);
 
     /* Shape */
     --radius-xs: 6px;
@@ -78,6 +93,8 @@
     --radius-md: 12px;
     --radius-lg: 16px;
     --radius-xl: 20px;
+    /* Cards and grouped lists. Controls stay on the smaller radii or capsules. */
+    --radius-card: 20px;
     --radius-2xl: 24px;
     --radius-full: 999px;
 
@@ -105,13 +122,17 @@
     --text-3xl: 1.875rem;
     --text-4xl: 2.25rem;
     --text-5xl: 2.75rem;
-    --weight-regular: 450;
-    --weight-medium: 560;
-    --weight-semibold: 640;
-    --weight-bold: 720;
+    --weight-regular: 400;
+    --weight-medium: 510;
+    --weight-semibold: 600;
+    --weight-bold: 700;
+    /* Titles: one large page title, then section titles. */
+    --title-large: 1.875rem;
+    --title-large-phone: 1.625rem;
+    --tracking-title: -0.024em;
 
     /* Controls */
-    --control-h: 38px;
+    --control-h: 40px;
     --control-h-sm: 32px;
     --control-h-lg: 44px;
     --touch-target: 44px;
@@ -182,8 +203,14 @@
     --info-soft: #e8effb;
 
     --shadow-sm: 0 1px 2px rgb(20 24 33 / 0.06);
-    --shadow-md: 0 6px 20px rgb(20 24 33 / 0.08);
-    --shadow-lg: 0 18px 48px rgb(20 24 33 / 0.16);
+    --shadow-md: 0 8px 24px rgb(20 24 33 / 0.08);
+    --shadow-lg: 0 24px 56px rgb(20 24 33 / 0.16);
+    --shadow-float: 0 0 0 1px rgb(20 24 33 / 0.06), 0 2px 6px rgb(20 24 33 / 0.06), 0 18px 44px rgb(20 24 33 / 0.14);
+    --separator: rgb(20 24 33 / 0.09);
+    --card-edge: rgb(20 24 33 / 0.06);
+    --card-shadow: 0 1px 2px rgb(20 24 33 / 0.04), 0 1px 1px rgb(20 24 33 / 0.02);
+    --material: rgb(255 255 255 / 0.78);
+    --material-thick: rgb(255 255 255 / 0.92);
 
     --skeleton-base: #eceef2;
     --skeleton-highlight: #f7f8fa;

@@ -17,8 +17,9 @@ dependencies = [
   "django-storages[s3]==1.14.6",
   "gunicorn==26.0.0; platform_system != 'Windows'",
   "psycopg[binary]==3.3.4",
-  "PyJWT[crypto]==2.14.0",
+  "PyJWT[crypto]==2.15.1",
   "pypdf==6.18.1",
+  "weasyprint==70.0",
   "sqlparse==0.6.0",
 ]
 
@@ -78,7 +79,7 @@ module = ["config.settings.*"]
 disable_error_code = ["name-defined", "misc"]
 
 [[tool.mypy.overrides]]
-module = ["botocore.*", "boto3.*", "storages.*"]
+module = ["botocore.*", "boto3.*", "storages.*", "weasyprint.*"]
 ignore_missing_imports = true
 
 [tool.django-stubs]

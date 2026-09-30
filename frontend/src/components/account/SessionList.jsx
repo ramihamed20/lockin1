@@ -4,14 +4,10 @@ import { Icon } from "../../lib/icons.jsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { formatDateTime } from "../../lib/i18n.js";
 import { useMediaQuery } from "../../hooks/useMediaQuery.js";
-
-function formatSessionDate(value) {
-  if (!value) return "Unknown activity";
-  const formatted = formatDateTime(value);
-  return formatted === "—" ? "Unknown activity" : formatted;
-}
+import { useI18n } from "../I18nProvider.jsx";
 
 export function SessionList({ onCurrentSessionRevoked, refreshKey = 0 }) {
+  const { t, locale } = useI18n();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -20,6 +16,11 @@ export function SessionList({ onCurrentSessionRevoked, refreshKey = 0 }) {
   const [expanded, setExpanded] = useState(false);
   const compactSessions = useMediaQuery("(max-width: 1199px)");
   const phoneSessions = useMediaQuery("(max-width: 639px)");
+
+  function lastActive(value) {
+    const formatted = value ? formatDateTime(value, {}, locale) : "—";
+    return formatted === "—" ? t("settings.sessionUnknownActivity") : t("settings.sessionLastActive", { date: formatted });
+  }
 
   async function load() {
     setLoading(true);
@@ -59,26 +60,38 @@ export function SessionList({ onCurrentSessionRevoked, refreshKey = 0 }) {
   const visibleSessions = compactSessions && !expanded ? sessions.slice(0, phoneSessions ? 3 : 4) : sessions;
 
   return (
-    <article className="panel account-security-panel">
-      <div className="panel-title"><div><p className="eyebrow">Account security</p><h2>Active sessions</h2></div><button className="icon-btn" type="button" onClick={() => void load()} disabled={loading} aria-label="Refresh active sessions"><Icon name="reset" size={17} /></button></div>
-      {loading && <p className="muted">Loading active sessions…</p>}
+    <div className="ui-group-block settings-v2-block account-security-panel">
+      <div className="settings-v2-group-head">
+        <h3 className="ui-group-title">{t("settings.sessions")}</h3>
+        <button className="icon-btn" type="button" onClick={() => void load()} disabled={loading} aria-label={t("settings.sessionsRefresh")}><Icon name="reset" size={16} /></button>
+      </div>
       {error && <p className="form-alert error" role="alert">{error.message}</p>}
-      {!loading && !error && !sessions.length && <p className="muted">No active sessions were returned by the server.</p>}
-      {!loading && sessions.length > 0 && <div className="settings-panel compact">
-        {visibleSessions.map((session) => <div className="settings-row" key={session.id}>
-          <div><h2>{session.device_label}</h2><p>Last active {formatSessionDate(session.last_seen_at)}</p></div>
-          <div className="badge-row"><span className={session.is_current ? "pill success" : "pill"}>{session.is_current ? "This device" : "Active"}</span><button className="btn btn-soft" type="button" disabled={pending === session.id} onClick={() => setConfirming(session)}>{pending === session.id ? "Revoking…" : "Revoke"}</button></div>
-        </div>)}
-        {visibleSessions.length < sessions.length && <button className="btn btn-soft" type="button" onClick={() => setExpanded(true)}>Show all {sessions.length} sessions</button>}
-      </div>}
+      <ul className="ui-group" aria-busy={loading || undefined}>
+        {loading && !sessions.length && <li className="ui-row"><span className="ui-row-body"><small>{t("settings.sessionsLoading")}</small></span></li>}
+        {!loading && !error && !sessions.length && <li className="ui-row"><span className="ui-row-body"><small>{t("settings.sessionsEmpty")}</small></span></li>}
+        {visibleSessions.map((session) => <li className="ui-row" key={session.id}>
+          <span className="ui-row-body">
+            <strong dir="auto">{session.device_label}</strong>
+            <small>{session.is_current ? t("settings.sessionThisDevice") : lastActive(session.last_seen_at)}</small>
+          </span>
+          <button className="btn btn-soft compact" type="button" aria-busy={pending === session.id || undefined} disabled={pending === session.id} onClick={() => setConfirming(session)}>
+            {pending === session.id ? t("settings.sessionRevoking") : session.is_current ? t("settings.sessionSignOut") : t("settings.sessionRevoke")}
+          </button>
+        </li>)}
+        {visibleSessions.length < sessions.length && <li>
+          <button className="ui-row settings-v2-action" type="button" onClick={() => setExpanded(true)}>
+            <span className="ui-row-body"><span>{t("settings.sessionShowAll", { count: sessions.length })}</span></span>
+          </button>
+        </li>}
+      </ul>
       <ConfirmDialog
         open={Boolean(confirming)}
-        title={confirming?.is_current ? "Sign out this device?" : "Revoke this session?"}
-        message={confirming?.is_current ? "This will sign this browser out of your account." : "This device will need to sign in again."}
-        confirmLabel={confirming?.is_current ? "Sign out" : "Revoke"}
+        title={confirming?.is_current ? t("settings.sessionSignOutTitle") : t("settings.sessionRevokeTitle")}
+        message={confirming?.is_current ? t("settings.sessionSignOutMessage") : t("settings.sessionRevokeMessage")}
+        confirmLabel={confirming?.is_current ? t("settings.sessionSignOut") : t("settings.sessionRevoke")}
         onCancel={() => setConfirming(null)}
         onConfirm={() => confirming && void revoke(confirming)}
       />
-    </article>
+    </div>
   );
 }

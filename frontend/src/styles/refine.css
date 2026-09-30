@@ -28,24 +28,21 @@
 
 /* --- Catalogue lists ------------------------------------------------------ */
 
-/* Subjects, question modes and sheet lists were a column of separately framed
-   cards, each with its own border, fill and shadow. They are one list: a
-   single rounded block, rows divided by hairlines inset past the icon, and a
-   row that answers the pointer with a quiet fill. */
-:is(.catalog-material-grid, .questions-category-grid) {
-  width: min(100%, 760px);
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0;
-  overflow: hidden;
-  border: 1px solid var(--polish-line);
-  border-radius: var(--radius-lg);
-  background: var(--polish-raised);
-  box-shadow: var(--polish-shadow);
+/* Subjects, question modes and sheets are separate items, not rows inside one
+   framed block: each is its own light card with a hairline border and a
+   whisper of shadow, stacked with a small, even gap. Materials, a subject's
+   sheets and the Questions directory all share this rhythm. */
+:root {
+  --catalog-item-gap: 8px;
+  --catalog-item-radius: var(--radius-lg);
+  --catalog-item-surface: var(--polish-raised);
+  --catalog-item-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
 }
 
-:is(.catalog-material-grid, .questions-category-grid) > .catalog-tile {
-  position: relative;
-  min-height: 0;
+:is(.catalog-material-grid, .questions-category-grid, .catalog-sheet-grid) {
+  width: min(100%, 760px);
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--catalog-item-gap);
   overflow: visible;
   border: 0;
   border-radius: 0;
@@ -53,67 +50,38 @@
   box-shadow: none;
 }
 
-:is(.catalog-material-grid, .questions-category-grid) > .catalog-tile + .catalog-tile::before {
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline: 70px 0;
-  height: 1px;
-  background: var(--polish-line);
-  content: "";
-  pointer-events: none;
+:is(.catalog-material-grid, .questions-category-grid) > .catalog-tile,
+.catalog-sheet-grid > .catalog-sheet-card {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--polish-line);
+  border-radius: var(--catalog-item-radius);
+  background: var(--catalog-item-surface);
+  box-shadow: var(--catalog-item-shadow);
 }
 
 :is(.catalog-material-grid, .questions-category-grid) > .catalog-tile .catalog-tile__surface {
+  /* One icon column for every row, available or "Soon", so titles line up. */
+  grid-template-columns: 40px minmax(0, 1fr) auto;
   min-height: 64px;
   padding-block: 10px;
-  border-radius: 0;
+  border-radius: inherit;
   background: transparent;
-}
-
-html.ix-hover :is(.catalog-material-grid, .questions-category-grid) > .catalog-tile.is-actionable:hover {
-  border: 0;
-  background: color-mix(in srgb, var(--text) 4%, transparent);
-}
-
-/* The sheets inside a subject join the same list, so the path from Materials
-   to a subject to a sheet reads as one continuous pattern. */
-.catalog-sheet-grid {
-  width: min(100%, 760px);
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0;
-  overflow: hidden;
-  border: 1px solid var(--polish-line);
-  border-radius: var(--radius-lg);
-  background: var(--polish-raised);
-  box-shadow: var(--polish-shadow);
 }
 
 .catalog-sheet-grid > .catalog-sheet-card {
-  position: relative;
   min-height: 64px;
   align-items: center;
   padding-block: 10px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
 }
 
 .catalog-sheet-grid > .catalog-sheet-card > :is(.catalog-sheet-icon, .catalog-sheet-end) { margin-block-start: 0; }
 
-.catalog-sheet-grid > .catalog-sheet-card + .catalog-sheet-card::before {
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline: 70px 0;
-  height: 1px;
-  background: var(--polish-line);
-  content: "";
-  pointer-events: none;
-}
-
+html.ix-hover :is(.catalog-material-grid, .questions-category-grid) > .catalog-tile.is-actionable:hover,
 html.ix-hover .catalog-sheet-grid > .catalog-sheet-card:not(.is-unavailable):hover {
-  border: 0;
-  background: color-mix(in srgb, var(--text) 4%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--polish-line));
+  background: color-mix(in srgb, var(--text) 3%, var(--catalog-item-surface));
 }
 
 .catalog-sheet-grid .catalog-sheet-icon {
@@ -148,7 +116,7 @@ html.ix-hover .catalog-sheet-grid > .catalog-sheet-card:not(.is-unavailable):hov
 }
 
 .topbar[data-scrolled] {
-  border-bottom-color: var(--polish-line);
+  border-bottom-color: var(--separator);
 }
 
 /* A page that prints its own large title owns its name while that title is
@@ -316,7 +284,7 @@ html.ix-hover .catalog-sheet-grid > .catalog-sheet-card:not(.is-unavailable):hov
 .weekly-recall-entry,
 .review-center-section {
   border: 1px solid var(--polish-line);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   background: var(--polish-raised);
   box-shadow: var(--polish-shadow);
 }
@@ -509,8 +477,13 @@ html.ix-hover :is(.theme-section, .settings-panel) > .settings-row:hover {
 
 /* --- Progress ------------------------------------------------------------- */
 
+/* V2: the ring and the bar are the level; the arc gauge that repeated them
+   as a percentage is gone, so the hero is two columns. */
 .progress-level-hero {
+  grid-template-columns: auto minmax(0, 1fr);
+  min-height: 0;
   border-color: var(--polish-line);
+  border-radius: var(--radius-card);
   background: var(--polish-raised);
   box-shadow: var(--polish-shadow);
 }
@@ -518,13 +491,13 @@ html.ix-hover :is(.theme-section, .settings-panel) > .settings-row:hover {
 .progress-level-hero::after { display: none; }
 
 .progress-level-orb {
-  width: 136px;
+  width: 104px;
   border-color: var(--polish-line);
   background: var(--surface-2);
   box-shadow: inset 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
-.progress-level-orb strong { font-size: 2.75rem; letter-spacing: -0.03em; }
+.progress-level-orb strong { font-size: 2.5rem; letter-spacing: -0.03em; }
 
 /* Eyebrow labels were gold on every card; one accent per view is enough. */
 .progress-level-orb small,
@@ -532,10 +505,11 @@ html.ix-hover :is(.theme-section, .settings-panel) > .settings-row:hover {
 .progress-stat-card > div > small,
 .progress-ledger-panel header p,
 .progress-calendar-panel header p {
-  color: var(--refine-eyebrow);
-  font-size: 0.6875rem;
-  font-weight: var(--weight-semibold);
-  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .progress-level-copy h2 { font-size: var(--text-xl); letter-spacing: -0.02em; }

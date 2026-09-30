@@ -147,7 +147,7 @@ export default function WelcomeOnboarding({ user, onUserUpdate, onThemeSettingsC
                     <span className="welcome-theme-sample" aria-hidden="true"><span /></span>
                     <span className="welcome-theme-label">
                       <strong>{t(`welcome.theme.${option.id}`)}</strong>
-                      <small>{option.time}</small>
+                      <small><span dir="ltr">{option.time}</span></small>
                     </span>
                     <span className="welcome-selection-mark" aria-hidden="true">✓</span>
                   </button>

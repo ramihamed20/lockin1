@@ -46,3 +46,16 @@ test("none mascot preview does not request an imaginary mascot asset", async () 
   assert.match(preview, /theme-preview-empty/);
   assert.doesNotMatch(preview, /none-\$\{theme\}/);
 });
+
+test("appearance choices size their column from the tile, not from what they hold", async () => {
+  // Every button carries the interaction primitive's justify-content: center.
+  // A choice tile that switched to a grid without its own column was only as
+  // wide as its content: "No mascot" drew at half size, and a picture could set
+  // the column from its 640px intrinsic width and spill over its neighbours.
+  const styles = await readFile(projectFile("src/styles/v2.css"), "utf8");
+  for (const selector of [".settings-v2-choice", ".settings-v2-icon-option"]) {
+    const block = styles.match(new RegExp(`\n${selector.replace(".", "\.")} \{([^}]*)\}`))?.[1] || "";
+    assert.match(block, /grid-template-columns: minmax\(0, 1fr\);/, `${selector} needs an explicit column`);
+    assert.match(block, /justify-content: stretch;/, `${selector} must not inherit centred content`);
+  }
+});

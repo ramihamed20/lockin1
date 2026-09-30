@@ -85,6 +85,7 @@ export const reviewApi = {
         body: {
           idempotency_key: attempt.idempotencyKey,
           question_key: attempt.questionKey,
+          question_type: attempt.questionType || "single_choice",
           subject_key: attempt.subjectKey,
           subject_label: attempt.subjectLabel,
           source_type: attempt.sourceType,

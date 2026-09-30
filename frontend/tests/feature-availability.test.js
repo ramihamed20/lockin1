@@ -9,10 +9,12 @@ import {
 } from "../src/lib/featureAvailability.js";
 
 test("the feature registry is the authoritative source for every scheduled feature", () => {
-  assert.deepEqual(comingSoonFeatures().map((feature) => feature.id), ["study-plan", "rank", "community"]);
+  assert.deepEqual(comingSoonFeatures().map((feature) => feature.id), ["lock-in", "study-plan", "rank", "community"]);
   assert.equal(isFeatureComingSoon(getFeatureForPath("/study-plan")), true);
   assert.equal(isFeatureComingSoon(getFeatureForPath("/ranked")), true);
   assert.equal(isFeatureComingSoon(getFeatureForPath("/community/discussions/thread-1")), true);
+  assert.equal(isFeatureComingSoon(getFeatureForPath("/lock-in")), true);
+  assert.equal(isFeatureComingSoon(getFeatureForPath("/lock-in/session-1")), true);
   assert.equal(getFeatureForPath("/materials"), null);
   assert.equal(FEATURE_AVAILABILITY.COMING_SOON, "coming-soon");
 });
@@ -24,6 +26,7 @@ test("all scheduled routes terminate at the shared coming-soon surface", async (
   assert.match(app, /path="\/study-plan\/\*" element=\{<FeatureComingSoon featureId="study-plan" \/>\}/);
   assert.match(app, /path="\/ranked\/\*" element=\{<FeatureComingSoon featureId="rank" \/>\}/);
   assert.match(app, /path="\/community\/\*" element=\{<FeatureComingSoon featureId="community" \/>\}/);
+  assert.match(app, /path="\/lock-in\/\*" element=\{<FeatureComingSoon featureId="lock-in" \/>\}/);
   assert.match(layout, /getFeatureForNavigationPath/);
   assert.match(layout, /<LockinIcon name="coming-soon" size=\{19\} \/>/);
 });

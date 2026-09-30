@@ -1138,7 +1138,10 @@ export function Shell({ children, user, operationsSession, theme, onThemeChange,
   // Lock In Mode is a real immersive route, not an overlay. Keep the shared
   // shell mounted so authentication and route state remain intact, but do not
   // render any normal product navigation around the session.
-  if (location.pathname === "/lock-in" || location.pathname.startsWith("/lock-in/") || location.pathname.endsWith("/workspace")) {
+  // While Lockin Mode is scheduled, its path shows the shared coming-soon page
+  // inside the normal shell instead.
+  const inLockInSession = !isFeatureComingSoon("lock-in") && (location.pathname === "/lock-in" || location.pathname.startsWith("/lock-in/"));
+  if (inLockInSession || location.pathname.endsWith("/workspace")) {
     return children;
   }
   const studio = isStudioRoute(location.pathname);

@@ -266,6 +266,7 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
  *   documentRootRef: import("react").RefObject<HTMLDivElement>,
  *   onPageCount: (count: number) => void,
  *   onDocumentReady?: () => void,
+ *   onDocumentLoaded?: (documentProxy: any) => void,
  *   onCurrentPageChange: (pageNumber: number, virtualPageId: number | null) => void,
  *   renderPageOverlay: (pageNumber: number, pageAspectRatio: number) => import("react").ReactNode,
  *   onPdfPageRendered?: (duration: number) => void
@@ -282,6 +283,7 @@ export function ContinuousA4Pdf({
   documentRootRef,
   onPageCount,
   onDocumentReady,
+  onDocumentLoaded,
   onCurrentPageChange,
   renderPageOverlay,
   onPdfPageRendered
@@ -323,9 +325,21 @@ export function ContinuousA4Pdf({
   const renderQueueRef = useRef(null);
   if (!renderQueueRef.current) renderQueueRef.current = new PdfRenderQueue({ concurrency: 1 });
 
-  useLayoutEffect(() => {
+  // The stage is this component's parent, and React attaches a parent's ref
+  // only after its children's layout effects have run. Subscribing once on
+  // mount therefore found no stage, and the reader kept the window size it
+  // opened with for its whole life: after an iPad rotation the page was
+  // centred, padded and scrolled for the old orientation. Re-check after every
+  // commit and follow whichever element the stage currently is.
+  const observedStageRef = useRef(/** @type {HTMLElement | null} */ (null));
+  const stageObserverRef = useRef(/** @type {ResizeObserver | null} */ (null));
+  const syncStageObserver = useCallback(() => {
     const stage = stageRef.current;
-    if (!stage) return undefined;
+    if (stage === observedStageRef.current) return;
+    stageObserverRef.current?.disconnect();
+    stageObserverRef.current = null;
+    observedStageRef.current = stage;
+    if (!stage) return;
     const publishSize = () => {
       const width = Math.max(1, stage.clientWidth);
       const height = Math.max(1, stage.clientHeight);
@@ -334,8 +348,15 @@ export function ContinuousA4Pdf({
     publishSize();
     const observer = new window.ResizeObserver(publishSize);
     observer.observe(stage);
-    return () => observer.disconnect();
+    stageObserverRef.current = observer;
   }, [stageRef]);
+  useLayoutEffect(syncStageObserver);
+  useEffect(syncStageObserver);
+  useEffect(() => () => {
+    stageObserverRef.current?.disconnect();
+    stageObserverRef.current = null;
+    observedStageRef.current = null;
+  }, []);
 
   const notePageOutcome = useCallback((pageNumber, failed) => {
     setFailedPages((current) => {
@@ -622,6 +643,15 @@ export function ContinuousA4Pdf({
     return () => window.clearTimeout(timer);
   }, [documentProxy, loadRevision, pdfError]);
 
+  // The workspace exports from this same document rather than downloading
+  // and parsing the file a second time, which also covers offline sheets whose
+  // blob: URL the production policy will not let it fetch.
+  useEffect(() => {
+    if (!onDocumentLoaded) return undefined;
+    onDocumentLoaded(documentProxy);
+    return () => onDocumentLoaded(null);
+  }, [documentProxy, onDocumentLoaded]);
+
   useEffect(() => {
     if (!documentProxy || !onDocumentReady) return undefined;
     const frame = window.requestAnimationFrame(onDocumentReady);
@@ -754,6 +784,37 @@ export function ContinuousA4Pdf({
     "--workspace-a4-page-gap": `${A4_PAGE_GAP}px`,
     transform: `scale(${zoom})`
   });
+
+  // The document is inset by half the stage height and centred in the stage
+  // width, so a rotation or a docked panel moves it under a scroll position
+  // that stays put. Keep the same point of the page under the stage: the top
+  // edge vertically, the centre horizontally. A zoom change in the same commit
+  // is anchored by the workspace instead, which owns zoom.
+  const previousLayoutRef = useRef({ viewport: stageViewport, zoom });
+  useLayoutEffect(() => {
+    const previous = previousLayoutRef.current;
+    previousLayoutRef.current = { viewport: stageViewport, zoom };
+    const stage = stageRef.current;
+    // Before the pages are laid out there is no reading position to keep.
+    if (!stage || !pageGeometryReady || previous.viewport === stageViewport || Math.abs(previous.zoom - zoom) > .0001) return;
+    const documentWidth = A4_PAGE_WIDTH * zoom;
+    const rightToLeft = window.getComputedStyle(stage).direction === "rtl";
+    const layout = (viewport) => ({
+      width: viewport.width,
+      centreLine: viewport.width / 2,
+      surfaceWidth: Math.max(documentWidth, viewport.width),
+      documentLeft: Math.max(0, (viewport.width - documentWidth) / 2)
+    });
+    const before = layout(previous.viewport);
+    const after = layout(stageViewport);
+    // Right-to-left scrollers count from the right edge, towards negative.
+    const visibleLeft = rightToLeft ? before.surfaceWidth - before.width + stage.scrollLeft : stage.scrollLeft;
+    const documentCentre = visibleLeft + before.centreLine - before.documentLeft;
+    const overflow = Math.max(0, after.surfaceWidth - after.width);
+    const nextLeft = Math.min(overflow, Math.max(0, documentCentre + after.documentLeft - after.centreLine));
+    stage.scrollLeft = rightToLeft ? nextLeft - overflow : nextLeft;
+    stage.scrollTop = Math.max(0, stage.scrollTop + (stageViewport.height - previous.viewport.height) / 2);
+  }, [pageGeometryReady, stageRef, stageViewport, zoom]);
 
   return (
     <div className="workspace-v2-a4-zoom-surface" style={surfaceStyle}>

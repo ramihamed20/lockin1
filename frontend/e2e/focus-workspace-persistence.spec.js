@@ -112,8 +112,9 @@ test("blank workspace pages hold ink and text across reload without entering PDF
   await page.getByRole("button", { name: /^Blank workspace page after PDF page 1; PDF has/ }).click();
   await page.getByRole("group", { name: "Zoom" }).getByRole("button", { name: "Zoom in" }).click();
   await expect(page.locator(`[data-workspace-page="${blankId}"]`)).toBeAttached();
-  page.once("dialog", (dialog) => dialog.accept());
+  // A page with marks asks first, in the app's own dialog (V2 never uses window.confirm).
   await page.getByRole("group", { name: "Workspace pages" }).getByRole("button", { name: "Delete blank page" }).click();
+  await page.getByRole("alertdialog", { name: "Delete this blank page and all of its marks and notes?" }).getByRole("button", { name: "Delete" }).click();
   await expect(page.locator(`[data-workspace-page="${blankId}"]`)).toHaveCount(0);
   await expect.poll(async () => (await readWorkspaceDatabase(page)).documents[0]?.virtualPages?.length).toBe(0);
   await page.getByRole("button", { name: "Undo (Ctrl+Z)" }).click();
@@ -276,7 +277,7 @@ test("a backup exports, restores, and refuses to cross into another sheet unaske
 
   await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings" }).click();
-  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("button", { name: /Export Save and share/ }).click();
+  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("tab", { name: "Other" }).click();
   const [download] = await Promise.all([
     page.waitForEvent("download"),
     page.getByRole("button", { name: /Export workspace backup/ }).click()
@@ -288,12 +289,12 @@ test("a backup exports, restores, and refuses to cross into another sheet unaske
   expect(download.suggestedFilename()).toMatch(/^lock-in-biochemistry-1-vitamin-1-\d{4}-\d{2}-\d{2}\.json$/);
 
   // Clear the sheet, then restore it from the file.
-  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("button", { name: /Writing Pens and handwriting/ }).click();
+  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("tab", { name: "Canvas" }).click();
   await page.getByRole("button", { name: /Clear ink on PDF page/ }).click();
   await expect(visibleInk(page)).toHaveCount(0);
   await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings" }).click();
-  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("button", { name: /Export Save and share/ }).click();
+  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("tab", { name: "Other" }).click();
   await page.locator('input[accept="application/json,.json"]').setInputFiles(backupPath);
   await expect(visibleInk(page)).toHaveCount(1);
   // Restoring is an ordinary edit, so it can be undone.
@@ -306,7 +307,7 @@ test("a backup exports, restores, and refuses to cross into another sheet unaske
   // Restoring the same file again adds nothing, because the ids already exist.
   await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings" }).click();
-  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("button", { name: /Export Save and share/ }).click();
+  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("tab", { name: "Other" }).click();
   await page.locator('input[accept="application/json,.json"]').setInputFiles(backupPath);
   await expect(page.locator(".workspace-v2-toast")).toContainText(/already on this sheet/i);
   await expect(visibleInk(page)).toHaveCount(1);
@@ -335,7 +336,7 @@ test("a malformed backup is refused without disturbing the sheet", async ({ page
   await expect(visibleInk(page)).toHaveCount(1);
   await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings" }).click();
-  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("button", { name: /Export Save and share/ }).click();
+  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("tab", { name: "Other" }).click();
   const input = page.locator('input[accept="application/json,.json"]');
 
   for (const [name, body] of [

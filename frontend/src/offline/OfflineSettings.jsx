@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "../components/I18nProvider.jsx";
+import { Switch } from "../components/ui/index.jsx";
+import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
+import { Icon } from "../lib/icons.jsx";
 import { formatDateTime } from "../lib/i18n.js";
 import { offlineDatabase } from "./database.js";
 import { clearOfflineDownloads, downloadOfflineItem, fetchOfflineManifest, offlineDownloadStats, offlineItemState, readOfflineManifest, removeOfflineItem } from "./downloads.js";
@@ -56,6 +59,9 @@ export default function OfflineSettings({ userId }) {
   const [error, setError] = useState("");
   const [failedId, setFailedId] = useState("");
   const [manage, setManage] = useState(false);
+  // One confirmation at a time, in the app's own dialog rather than the
+  // browser's: { message, run }.
+  const [confirming, setConfirming] = useState(/** @type {{ message: string, run: () => Promise<void> } | null} */ (null));
   const [online, setOnline] = useState(() => navigator.onLine && getConnectionSnapshot().status === "connected");
 
   const refresh = useCallback(async () => {
@@ -142,8 +148,7 @@ export default function OfflineSettings({ userId }) {
     setProgress(0);
   }
 
-  async function removeAll(busyKey, items, confirmMessage = "") {
-    if (confirmMessage && !window.confirm(confirmMessage)) return;
+  async function removeNow(busyKey, items) {
     setBusyId(busyKey);
     try {
       for (const item of items) await removeOfflineItem(userId, item.id);
@@ -152,12 +157,20 @@ export default function OfflineSettings({ userId }) {
     finally { setBusyId(""); }
   }
 
-  async function clearAll() {
-    if (!window.confirm(t("offline.confirmClear"))) return;
+  function removeAll(busyKey, items, confirmMessage = "") {
+    if (!confirmMessage) { void removeNow(busyKey, items); return; }
+    setConfirming({ message: confirmMessage, run: () => removeNow(busyKey, items) });
+  }
+
+  async function clearNow() {
     setBusyId("all");
     try { await clearOfflineDownloads(userId); await refresh(); }
     catch (cause) { setError(cause.message); }
     finally { setBusyId(""); }
+  }
+
+  function clearAll() {
+    setConfirming({ message: t("offline.confirmClear"), run: clearNow });
   }
 
   async function dismiss(operationId) {
@@ -168,7 +181,7 @@ export default function OfflineSettings({ userId }) {
   const stored = new Map(downloads.items.map((item) => [item.id, item]));
   const until = lease.claims?.exp ? lease.claims.exp * 1000 : 0;
   const remaining = Math.max(0, until - Date.now());
-  const duration = `${Math.floor(remaining / 3_600_000)}h ${Math.floor((remaining % 3_600_000) / 60_000)}m`;
+  const duration = t("offline.durationHM", { hours: Math.floor(remaining / 3_600_000), minutes: Math.floor((remaining % 3_600_000) / 60_000) });
   // In the interface language, not the browser's: an English screen showed an
   // Arabic-formatted date on an Arabic-locale device.
   const dateLabel = (value) => value ? formatDateTime(value, {}, locale) : t("offline.never");
@@ -198,76 +211,161 @@ export default function OfflineSettings({ userId }) {
     {stored.has(item.id) && <button type="button" className="btn btn-soft compact" disabled={busy} onClick={() => removeAll(item.id, [item])}>{t("offline.remove")}</button>}
   </span>;
 
-  return <article className="theme-section" id="settings-offline" aria-labelledby="settings-offline-heading">
-    <div className="theme-section-head"><div><h2 id="settings-offline-heading" tabIndex={-1}>{t("offline.title")}</h2><p>{t("offline.description")}</p></div><span className={`pill ${lease.available ? "success" : ""}`}>{lease.available ? t("offline.available") : t("offline.verificationRequired")}</span></div>
-    <div className="settings-row"><span>{online ? t("offline.online") : t("offline.offline")}</span><span>{lease.available ? t("offline.remaining", { duration }) : t(lease.reason === "clock_rollback" ? "offline.clockRollback" : "offline.expired")}</span></div>
-    <div className="settings-row"><span>{t("offline.lastVerified")}</span><span>{lease.claims ? dateLabel(lease.claims.iat * 1000) : t("offline.never")}</span></div>
-    <div className="settings-row"><span>{t("offline.lastSync")}</span><span>{dateLabel(lastSync)}</span></div>
-    <div className="settings-row"><span>{t("offline.pendingChanges")}</span><strong>{pendingCount}</strong></div>
-    <div className="settings-row"><span>{t("offline.storageUsed")}</span><strong>{bytesLabel(downloads.bytes)}</strong></div>
-    <div className="settings-row"><span>{t("offline.downloadedItems")}</span><strong>{downloads.count}</strong></div>
-    {syncState && <p className="save-hint" role="status">{t(`offline.sync.${syncState}`)}</p>}
-    {error && <p className="form-error" role="alert">{error}</p>}
-    <button type="button" className="btn btn-soft compact" onClick={checkConnection} disabled={syncState === "verifying" || syncState === "syncing"}>{t("offline.syncNow")}</button>
-    {conflicts.length > 0 && <section className="offline-conflicts" aria-label={t("offline.failedChanges")}>
-      <p className="form-error" role="status">{t("offline.conflicts", { count: conflicts.length })}</p>
-      <ul>{conflicts.slice(0, 5).map((operation) => <li key={operation.operation_id}><span dir="auto">{operation.reason || operation.operation_type}</span> <button type="button" className="btn btn-soft compact" onClick={() => dismiss(operation.operation_id)}>{t("offline.dismiss")}</button></li>)}</ul>
-    </section>}
-    <div className="settings-row"><label htmlFor="offline-auto">{t("offline.automatic")}</label><input id="offline-auto" type="checkbox" checked={preferences.automatic} onChange={(event) => updatePreferences({ ...preferences, automatic: event.target.checked })} /></div>
-    <fieldset className="offline-options"><legend>{t("offline.downloadOver")}</legend>
-      <label><input type="radio" name="offline-network" checked={preferences.network === "wifi"} onChange={() => updatePreferences({ ...preferences, network: "wifi" })} /> {t("offline.wifi")}</label>
-      <label><input type="radio" name="offline-network" checked={preferences.network === "any"} onChange={() => updatePreferences({ ...preferences, network: "any" })} /> {t("offline.anyNetwork")}</label>
-    </fieldset>
-    <fieldset className="offline-options"><legend>{t("offline.contentTypes")}</legend>
-      {CONTENT_TYPES.map(([type, label]) => <label key={type}><input type="checkbox" checked={Boolean(preferences.types[type])} onChange={(event) => updatePreferences({ ...preferences, types: { ...preferences.types, [type]: event.target.checked } })} /> {t(label)}</label>)}
-    </fieldset>
-    {groupedSubjects.map((group) => <section key={group.key} className="offline-subject-group" aria-label={group.label}>
-      <h3>{group.label}</h3>
-      {group.subjects.map((subject) => {
-        const items = subjectItems(subject);
-        const state = subjectState(subject);
-        return <div key={subject.id} className="settings-row">
-          <strong dir="auto">{subject.title}</strong>
-          <div>
-            <span role="status">{t(STATE_LABELS[state])}</span>{" "}
-            <button type="button" className="btn btn-soft compact" disabled={busy || !online || !items.length || state === "downloaded"} onClick={() => downloadAll(subject.id, items)}>
-              {busyId === subject.id ? `${t("offline.downloading")} ${Math.round(progress * 100)}%` : failedId === subject.id ? t("offline.incomplete") : state === "update" ? t("offline.updateAvailable") : t("offline.downloadSubject")}
-            </button>
-          </div>
-        </div>;
-      })}
-    </section>)}
-    <button type="button" className="btn btn-soft compact" onClick={() => setManage(!manage)} aria-expanded={manage}>{t("offline.manage")}</button>
-    {manage && <div className="offline-manage">
-      {groupedSubjects.map((group) => <section key={group.key} className="offline-subject-group" aria-label={group.label}><h3>{group.label}</h3>{group.subjects.map((subject) => {
-        const items = manifest.items.filter((item) => item.subject_id === subject.id && item.available);
-        const size = items.reduce((sum, item) => sum + (stored.get(item.id)?.storedSize || 0), 0);
-        return <section key={subject.id} className="settings-panel compact">
-          <div className="settings-row"><div><strong>{subject.title}</strong><small> · {subject.program} · {subject.cohort} · {bytesLabel(size)}</small></div><div>
-            {size > 0 && <button type="button" className="btn btn-soft compact" disabled={busy} onClick={() => removeAll(subject.id, items.filter((item) => stored.has(item.id)), t("offline.confirmRemoveSubject", { subject: subject.title }))}>{t("offline.removeSubject")}</button>}
-          </div></div>
-          {sheetsFor(manifest, subject.id).map((sheet) => {
-            const sheetItems = [...[...sheet.editions.values()].flatMap((edition) => Object.values(edition)), ...sheet.questions];
-            return <div key={sheet.id} className="offline-sheet" role="group" aria-label={sheet.title}>
-              <div className="settings-row"><strong dir="auto">{sheet.title}</strong>{sheetItems.some((item) => stored.has(item.id)) && <button type="button" className="btn btn-soft compact" disabled={busy} onClick={() => removeAll(sheet.id, sheetItems.filter((item) => stored.has(item.id)))}>{t("offline.removeSheet")}</button>}</div>
-              {EDITIONS.filter(([edition]) => sheet.editions.has(edition)).map(([edition, editionLabel]) => {
-                const parts = sheet.editions.get(edition);
-                const bundle = editionItems(sheet, edition);
-                const ready = bundle.every((item) => itemStates.get(item.id) === "downloaded");
-                const key = `${sheet.id}:${edition}`;
-                return <div key={edition} className="settings-row offline-edition">
-                  <button type="button" className="btn btn-soft compact" disabled={busy || !online || ready} onClick={() => downloadAll(key, bundle)}>{busyId === key ? `${t("offline.downloading")} ${Math.round(progress * 100)}%` : ready ? `${t(editionLabel)} · ${t("offline.availableOffline")}` : t("offline.downloadEdition", { edition: t(editionLabel) })}</button>
-                  {parts.sheet && itemButton(parts.sheet, t("offline.sheet"))}
-                  {parts.summary && itemButton(parts.summary, t("offline.summary"))}
-                  {parts.active_study && itemButton(parts.active_study, t("offline.activeStudy"))}
-                </div>;
-              })}
-              {sheet.questions.length > 0 && <div className="settings-row">{sheet.questions.map((item) => itemButton(item, t("offline.questions")))}</div>}
-            </div>;
-          })}
-        </section>;
-      })}</section>)}
-      <button type="button" className="btn btn-soft compact" disabled={!downloads.count || busy} onClick={clearAll}>{t("offline.clearAll")}</button>
+  // What the student needs to know, in their words: can I study offline, for
+  // how long, and is anything waiting. The signed lease, the queue and the
+  // manifest stay underneath; these rows only report them.
+  const status = lease.available ? "ready" : lease.reason === "clock_rollback" ? "rollback" : lease.claims ? "expired" : "verify";
+  const statusTitle = status === "ready" ? t("offline.available") : status === "verify" ? t("offline.verificationRequired") : t("offline.expired");
+  const statusDetail = status === "ready"
+    ? t("offline.statusReady", { duration })
+    : status === "rollback" ? t("offline.clockRollback") : status === "expired" ? t("offline.expiredMessage") : t("offline.statusVerify");
+  const syncing = syncState === "verifying" || syncState === "syncing" || syncState === "downloading";
+  const syncLabel = syncState ? t(`offline.sync.${syncState}`) : lease.claims ? t("offline.checkedAt", { time: dateLabel(lease.claims.iat * 1000) }) : "";
+
+  return <section className="settings-v2-section offline-v2" id="settings-offline" aria-labelledby="settings-offline-heading">
+    <div className="ui-group-block settings-v2-block">
+      <div className={`ui-group offline-v2-status is-${status}`}>
+        <div className="ui-row offline-v2-status-row">
+          <span className={`ui-row-icon offline-v2-status-icon is-${status}`} aria-hidden="true"><Icon name={status === "ready" ? "check" : "alert-triangle"} size={17} /></span>
+          <span className="ui-row-body"><strong>{statusTitle}</strong><small>{statusDetail}</small></span>
+          <span className={`offline-v2-connection${online ? " is-online" : ""}`}>{online ? t("offline.online") : t("offline.offline")}</span>
+        </div>
+        {pendingCount > 0 && <div className="ui-row"><span className="ui-row-body"><span>{t("offline.pendingChanges")}</span></span><span className="ui-row-value">{pendingCount}</span></div>}
+        <button type="button" className="ui-row offline-v2-sync" onClick={checkConnection} disabled={syncing || !online}>
+          <span className="ui-row-body"><span>{t("offline.syncNow")}</span>{syncLabel && <small role="status">{syncLabel}</small>}</span>
+          {syncing && <span className="offline-v2-spinner" aria-hidden="true" />}
+        </button>
+      </div>
+      {error && <p className="ui-group-footer form-error" role="alert">{error}</p>}
+    </div>
+
+    {conflicts.length > 0 && <div className="ui-group-block settings-v2-block offline-conflicts" role="group" aria-label={t("offline.failedChanges")}>
+      <h3 className="ui-group-title">{t("offline.failedChanges")}</h3>
+      <div className="ui-group">
+        {conflicts.slice(0, 5).map((operation) => <div key={operation.operation_id} className="ui-row">
+          <span className="ui-row-body"><span dir="auto">{operation.reason || operation.operation_type}</span></span>
+          <button type="button" className="btn btn-soft compact" onClick={() => dismiss(operation.operation_id)}>{t("offline.dismiss")}</button>
+        </div>)}
+      </div>
+      <p className="ui-group-footer" role="status">{t("offline.conflicts", { count: conflicts.length })}</p>
     </div>}
-  </article>;
+
+    <div className="ui-group-block settings-v2-block">
+      <h3 className="ui-group-title">{t("offline.downloadsTitle")}</h3>
+      <div className="ui-group">
+        <div className="ui-row">
+          <span className="ui-row-body"><label htmlFor="offline-auto">{t("offline.automatic")}</label><small>{t("offline.automaticHint")}</small></span>
+          <Switch id="offline-auto" checked={Boolean(preferences.automatic)} onCheckedChange={(next) => updatePreferences({ ...preferences, automatic: next })} />
+        </div>
+      </div>
+      {preferences.automatic && <>
+        <h4 className="ui-group-title offline-v2-subtitle" id="offline-network-title">{t("offline.downloadOver")}</h4>
+        <div className="ui-group offline-v2-choices" role="radiogroup" aria-labelledby="offline-network-title">
+          {[["wifi", "offline.wifi"], ["any", "offline.anyNetwork"]].map(([value, label]) => <label key={value} className="ui-row offline-v2-choice">
+            <input className="visually-hidden" type="radio" name="offline-network" checked={preferences.network === value} onChange={() => updatePreferences({ ...preferences, network: value })} />
+            <span className="ui-row-body"><span>{t(label)}</span></span>
+            <Icon className="offline-v2-check" name="check" size={17} aria-hidden="true" />
+          </label>)}
+        </div>
+        <h4 className="ui-group-title offline-v2-subtitle" id="offline-types-title">{t("offline.contentTypes")}</h4>
+        <div className="ui-group offline-v2-choices" role="group" aria-labelledby="offline-types-title">
+          {CONTENT_TYPES.map(([type, label]) => <label key={type} className="ui-row offline-v2-choice">
+            <input className="visually-hidden" type="checkbox" checked={Boolean(preferences.types[type])} onChange={(event) => updatePreferences({ ...preferences, types: { ...preferences.types, [type]: event.target.checked } })} />
+            <span className="ui-row-body"><span>{t(label)}</span></span>
+            <Icon className="offline-v2-check" name="check" size={17} aria-hidden="true" />
+          </label>)}
+        </div>
+      </>}
+    </div>
+
+    {groupedSubjects.map((group) => <div key={group.key} className="ui-group-block settings-v2-block offline-subject-group" role="group" aria-label={group.label}>
+      {/* One program is the usual case, and its internal codes mean nothing
+          to a student; several are told apart by their labels. */}
+      <h3 className="ui-group-title" dir="auto">{groupedSubjects.length > 1 ? group.label : t("offline.subjectsTitle")}</h3>
+      <div className="ui-group">
+        {group.subjects.map((subject) => {
+          const items = subjectItems(subject);
+          const state = subjectState(subject);
+          const working = busyId === subject.id;
+          const stateText = !items.length ? t("offline.nothingToDownload") : state === "download" ? t("offline.notDownloaded") : t(STATE_LABELS[state]);
+          return <div key={subject.id} className="ui-row offline-v2-subject">
+            <span className="ui-row-body"><strong dir="auto">{subject.title}</strong><small role="status">{working ? `${t("offline.downloading")} ${Math.round(progress * 100)}%` : stateText}</small>
+              {working && <span className="offline-v2-progress" aria-hidden="true"><span style={{ transform: `scaleX(${progress})` }} /></span>}
+            </span>
+            {!items.length ? null : state === "downloaded" && !working
+              ? <Icon className="offline-v2-done" name="check" size={18} aria-hidden="true" />
+              : <button type="button" className="btn btn-soft compact" disabled={busy || !online || !items.length || state === "downloaded"} onClick={() => downloadAll(subject.id, items)}>
+                {working ? `${Math.round(progress * 100)}%` : failedId === subject.id ? t("offline.incomplete") : state === "update" ? t("offline.updateAvailable") : t("offline.downloadSubject")}
+              </button>}
+          </div>;
+        })}
+      </div>
+    </div>)}
+
+    <div className="ui-group-block settings-v2-block">
+      <h3 className="ui-group-title">{t("offline.storageTitle")}</h3>
+      <div className="ui-group">
+        <div className="ui-row">
+          <span className="ui-row-body"><span>{t("offline.storageUsed")}</span></span>
+          <span className="ui-row-value">{t("offline.storageSummary", { size: bytesLabel(downloads.bytes), count: downloads.count })}</span>
+        </div>
+        <div className="ui-row">
+          <span className="ui-row-body"><span>{t("offline.lastSync")}</span></span>
+          <span className="ui-row-value">{dateLabel(lastSync)}</span>
+        </div>
+        <button type="button" className="ui-row offline-v2-disclosure" onClick={() => setManage(!manage)} aria-expanded={manage}>
+          <span className="ui-row-body"><span>{t("offline.manage")}</span></span>
+          <Icon className="ui-row-chevron" name="chevron-right" size={17} />
+        </button>
+      </div>
+      {manage && <div className="offline-manage">
+        {groupedSubjects.map((group) => <section key={group.key} className="offline-subject-group" aria-label={group.label}>{group.subjects.map((subject) => {
+          const items = manifest.items.filter((item) => item.subject_id === subject.id && item.available);
+          const size = items.reduce((sum, item) => sum + (stored.get(item.id)?.storedSize || 0), 0);
+          if (!items.length) return null;
+          return <section key={subject.id} className="ui-group offline-v2-manage-subject">
+            <div className="ui-row">
+              <span className="ui-row-body"><strong dir="auto">{subject.title}</strong><small>{bytesLabel(size)}</small></span>
+              {size > 0 && <button type="button" className="btn btn-soft compact" disabled={busy} onClick={() => removeAll(subject.id, items.filter((item) => stored.has(item.id)), t("offline.confirmRemoveSubject", { subject: subject.title }))}>{t("offline.removeSubject")}</button>}
+            </div>
+            {sheetsFor(manifest, subject.id).map((sheet) => {
+              const sheetItems = [...[...sheet.editions.values()].flatMap((edition) => Object.values(edition)), ...sheet.questions];
+              return <div key={sheet.id} className="offline-sheet" role="group" aria-label={sheet.title}>
+                <div className="ui-row offline-v2-sheet-head"><span className="ui-row-body"><span dir="auto">{sheet.title}</span></span>{sheetItems.some((item) => stored.has(item.id)) && <button type="button" className="btn btn-soft compact" disabled={busy} onClick={() => removeAll(sheet.id, sheetItems.filter((item) => stored.has(item.id)))}>{t("offline.removeSheet")}</button>}</div>
+                {EDITIONS.filter(([edition]) => sheet.editions.has(edition)).map(([edition, editionLabel]) => {
+                  const parts = sheet.editions.get(edition);
+                  const bundle = editionItems(sheet, edition);
+                  const ready = bundle.every((item) => itemStates.get(item.id) === "downloaded");
+                  const key = `${sheet.id}:${edition}`;
+                  return <div key={edition} className="offline-edition">
+                    <button type="button" className={`btn btn-soft compact${ready ? " is-ready" : ""}`} disabled={busy || !online || ready} onClick={() => downloadAll(key, bundle)}>{busyId === key ? `${t("offline.downloading")} ${Math.round(progress * 100)}%` : ready ? `${t(editionLabel)} · ${t("offline.availableOffline")}` : t("offline.downloadEdition", { edition: t(editionLabel) })}</button>
+                    {parts.sheet && itemButton(parts.sheet, t("offline.sheet"))}
+                    {parts.summary && itemButton(parts.summary, t("offline.summary"))}
+                    {parts.active_study && itemButton(parts.active_study, t("offline.activeStudy"))}
+                  </div>;
+                })}
+                {sheet.questions.length > 0 && <div className="offline-edition">{sheet.questions.map((item) => itemButton(item, t("offline.questions")))}</div>}
+              </div>;
+            })}
+          </section>;
+        })}</section>)}
+      </div>}
+      <div className="ui-group">
+        <button type="button" className="ui-row is-danger" disabled={!downloads.count || busy} onClick={clearAll}>
+          <span className="ui-row-body"><span>{t("offline.clearAll")}</span></span>
+        </button>
+      </div>
+      <p className="ui-group-footer">{t("offline.description")}</p>
+    </div>
+
+    <ConfirmDialog
+      open={Boolean(confirming)}
+      title={t("offline.removeTitle")}
+      message={confirming?.message || ""}
+      confirmLabel={t("offline.removeConfirm")}
+      busy={busyId === "all"}
+      onCancel={() => setConfirming(null)}
+      onConfirm={async () => { const next = confirming; setConfirming(null); await next?.run(); }}
+    />
+  </section>;
 }

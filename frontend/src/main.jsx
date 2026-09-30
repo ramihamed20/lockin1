@@ -11,6 +11,7 @@ import "./styles/system.css";
 import "./styles/polish.css";
 import "./styles/refine.css";
 import "./styles/study-flow.css";
+import "./styles/v2.css";
 import "./styles/motion.css";
 // Declared last: the interaction layer owns hover, press, focus and selection
 // for the whole application, and layers — not import order — decide the winner

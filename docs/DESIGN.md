@@ -1,8 +1,9 @@
 # Lock-in Design System
 
-Last updated: 2026-09-28
+Last updated: 2026-09-30
 Status: Design-system implementation recorded through Phase 10; production validation through Phase 11;
-UI/UX refinement pass approved and recorded (see the final section)
+UI/UX refinement pass recorded; **Lock-in V2** is the current visual system (see "Lock-in V2", the
+final section, which takes precedence over earlier sections where they disagree)
 
 Phase 11 adds no visual redesign. The complete production-bundle Playwright suite revalidated
 desktop/mobile responsiveness, Arabic RTL, Axe accessibility, Focus, assessment, and operations.
@@ -359,3 +360,170 @@ unlocking and every API are unchanged.
 Also fixed: a keyboard focus ring drawn around the whole content area after navigation (it showed as
 a full-width line under short pages), and offline dates formatted in the browser locale.
 
+
+## Lock-in V2 (2026-09-30)
+
+V2 is the same product with the same identity (dark navy, gold, the mascot, the Dashboard layout),
+rebuilt with native-app discipline. It governs every new screen. Where an earlier section says
+otherwise (purple structure cues, 8–16 px radii, numbered sections), this section wins.
+
+### Principles
+
+1. **One focal action per screen.** The accent (gold on Night) marks the single thing the screen
+   is for and what is switched on. Everything else is quiet.
+2. **Fill, not frames.** Surfaces are told apart by fill and a faint edge, not borders. No card
+   sits inside another card.
+3. **Say it once, in the student's words.** No subtitles restating the title, no internal terms
+   (lease, manifest, queue) in the interface.
+4. **The document dominates.** Reader and Focus chrome floats over the page and only shows what
+   the moment needs.
+5. **States are designed.** Loading, empty and failed screens keep the page title and the way back.
+
+### Where things live
+
+| File (layer) | Owns |
+|---|---|
+| `styles/tokens.css` | Values: colors per theme, radii, type scale, motion |
+| `styles/system.css` (system) | Shared components: buttons, fields, panels, `.ui-group`/`.ui-row`, `.ui-switch`, progress, states |
+| `styles/polish.css`, `refine.css`, `study-flow.css` (system) | Earlier passes, reworked in place for V2 |
+| `styles/v2.css` (system + one interaction block) | V2 screen compositions: Settings, Profile, Review, Subscription, Offline, Paper, Notifications, Achievements, answer rows, `.ui-segmented`, states |
+| `styles/interaction.css` (interaction) | Hover, press, focus-visible, selected, disabled; beats system |
+| `pages/focus-workspace-glass.css` (unlayered, Focus only) | Focus and reader chrome |
+| `styles.css` (app) | Legacy; do not add to it |
+
+Add V2 rules to `v2.css` or `system.css`. Never fix a V2 screen by editing legacy `styles.css`.
+
+### Tokens
+
+- **Night surfaces:** `--bg #080a10` → `--surface #10141c` → `--surface-2 #171b26` → `--surface-3 #1f2431`.
+  Panels step up one level; a control inside a panel steps up again.
+- **Lines:** `--separator` (hairline between rows), `--card-edge` (the faint outline of a surface).
+  Use `--border-strong` only for inputs that need an edge to be found.
+- **Accent:** `--accent`, `--accent-soft` (tinted fill), `--accent-text` (accent on dark),
+  `--on-accent` (text on an accent fill). Light themes re-point these; never hard-code gold.
+- **Status:** `--success`/`--success-soft`, `--danger`/`--danger-soft`, `--warning`.
+- **Radii:** `--radius-card` 20 px for surfaces, `--radius-lg` 16 px for grouped lists,
+  `--radius-md` 12 px for fields and rows, `--radius-full` for every button and pill.
+- **Type:** weights 400/510/600/700; `--title-large` 1.875 rem (1.625 rem on phones) with
+  `--tracking-title`; body `--text-base` 15 px; secondary `--text-sm` 13 px. Text inputs are 16 px so
+  iOS never zooms.
+- **Material:** `--material` / `--material-filter` for floating chrome (top bar, bottom nav,
+  popovers). Glass is for things that float over content, never for cards.
+
+### Surfaces and cards
+
+- A **card** (`--surface`, `--card-edge`, `--radius-card`) is for one self-contained object: the
+  Continue card, a plan, a result. Lists are not cards.
+- A **grouped list** (`.ui-group-block` → `.ui-group-title` → `.ui-group` of `.ui-row` →
+  `.ui-group-footer`) is the default for settings, subjects, sessions, notifications, achievements
+  and any list of like things. Rows are 50 px (44 px minimum touch), separated by an inset hairline.
+- An **empty state** is not a card: `EmptyState` sits on the page. `ErrorPanel` is the same shape
+  (glyph, one sentence, Try again).
+
+### Buttons
+
+| Kind | Class | Use |
+|---|---|---|
+| Primary | `.btn.btn-primary` (capsule, accent fill) | The one forward action on a screen or sheet |
+| Secondary | `.btn.btn-soft` (capsule, `--surface-3`) | Other actions |
+| Text | a plain `button` in `--accent-text` | Row actions ("Mark all read", "Sync now", "Manage") |
+| Destructive | `.ui-row.is-danger` or a confirm dialog's danger button | Never a red button repeated on every row |
+
+Buttons answer hover with colour only: no `translateY`, no glow shadows. The interaction layer's
+press scale is the only movement.
+
+### Content widths
+
+- `Page width="reading"` gives a 760 px column for lists and detail pages (Materials, Questions,
+  Review, Notifications, Bookmarks, Analysis, Achievements, Paper setup).
+- Settings: a 248 px sticky section list beside the detail pane from 1100 px; a list → detail push
+  below it.
+- The Dashboard keeps its own grid.
+- Profile opens with the academy ID card (restored after V2 briefly replaced it with a plain
+  header); its styles are the historical ones, with the details following the reading direction.
+
+### Settings grouped rows and Switch
+
+- Sections use grouped rows; a row's label is a `<label htmlFor>` pointing at its control, so the
+  whole row is the target.
+- `Switch` (`components/ui/interactive.jsx`) is `role="switch"` with `aria-checked`; 51×31 track,
+  44 px tall on touch; the thumb stays inside the track, mirrors in RTL and stretches while pressed.
+  Use it for on/off settings only. Choices use checkmark rows (`.offline-v2-choice`) or a
+  `.ui-segmented` TabList (`variant="thumb"`), never native checkboxes in a settings list.
+
+### Typography hierarchy
+
+Large title (page `h1`, `showHeading` or the directory header) → group title (13 px, muted, sentence
+case) → row label (15 px, 510) → secondary line (13 px, muted). **No uppercase or tracked labels**
+in student screens; the rendered-style audit in this pass found none left.
+
+### Motion
+
+- Enter with `--motion-enter-ease` (ease-out), exit faster with `--motion-exit-ease`. Micro
+  150 ms, controls 190 ms, popovers 230 ms, panels and sheets 320 ms, pages 380 ms.
+- Motion shows cause: a menu grows from its trigger, the edit menu from the selection, the segmented
+  thumb glides, the Active Study step springs once when it unlocks. Nothing loops except progress.
+- Route entry fills **backwards only**. A `both` fill leaves an identity transform on the page,
+  which makes it the containing block for `position: fixed` and pins every dialog to the scrolled
+  page.
+- Every animation has a `prefers-reduced-motion` alternative (instant or a fade).
+
+### Focus and reader chrome
+
+- One dark glass material in every theme (toolbar, menus, panels, page count, zoom bar, edit menu,
+  export sheet). Tools keep their own tint; "on" and the primary action use the app accent.
+- Menus (Add, More, Export) are single-line rows grouped by hairlines, with a chevron only on rows
+  that open another menu.
+- The selection edit menu names its actions (Cut, Copy, Paste, Duplicate, Delete); layer order,
+  lock, group, rotate and smooth sit under More.
+- Bottom row: page count at the start corner, zoom (mouse readers only) at the end corner, the
+  Active Study step centred (at the end on phones) and never overlapping either.
+- The document stage scrolls LTR and its page canvases are always LTR: PDF.js draws through a
+  canvas whose direction is inherited. The stage's other children may return to RTL, the canvases
+  may not (`.workspace-v2-document-stage canvas { direction: ltr; }`, guarded by a unit test).
+- Marks placed from the Add menu fade in. Do not animate SVG marks with `transform-box: fill-box`
+  or `scale`: inside the non-uniformly scaled annotation layer under the CSS zoom, WebKit draws
+  them tens of pixels off their place until the animation ends.
+- Focus strings live in `lib/i18n.js` under `focus.*`.
+
+### Lock-in Mode
+
+- Lock-in Mode hides the app chrome, so it has its own bar (`LockInBar`: the way out, the section
+  switch, one control). Everything under it is shared V2: grouped rows, capsule buttons, `Switch`,
+  the segmented `TabList`, `RadioGroup` for the duration, `ConfirmDialog` with a real message.
+- It follows every theme through the tokens. Strings live under `lockIn.*`; server aliases
+  ("Anonymous 01") are shown in the reader's language.
+- The document-based session (`ReferenceActiveSession`, `lock-in-reference.css`) is legacy: no
+  screen starts one any more. Do not extend it; remove it or rebuild it on V2 before reuse.
+
+### Responsive rules and iPad
+
+- Verify at 320, 390, 430, phone landscape (≤ 500 px tall), iPad portrait (768–834), iPad landscape
+  (1024–1194), 1280 and wide desktop. Breakpoints follow content pressure, not device names.
+- iPad is a first-class target: coarse pointer means 44 px targets, pinch zoom instead of a zoom
+  bar, and Apple Pencil-only drawing as a Focus setting.
+- Short landscape keeps chrome to one compact row.
+- Dashboard state cards carry one value, one label and at most one short note (no icons, badges or
+  chevrons). Their grid follows the width the cards get (a container query), not the window: 2
+  columns, 3, or one row of 6 with Level twice as wide, so every row is full and nothing scrolls
+  sideways.
+
+### RTL
+
+- Logical properties for placement; chevrons that mean "forward" mirror (`scaleX(-1)` in RTL).
+- User data uses `dir="auto"`, and `:where([dir="auto"])` aligns with its parent
+  (`text-align: -webkit-match-parent`), so an English subject in an Arabic row still starts at the
+  right edge.
+- Numbers about a document or a measurement read LTR ("1 / 12", "6 – 12", "2×", "4 pt"). If such an
+  element is positioned with logical insets, pin its position physically in RTL, because its own
+  direction resolves those insets.
+- Every string comes from `lib/i18n.js` in both languages; counted phrases carry the six Arabic
+  plural forms.
+
+### Do not
+
+- Add borders where fill can separate; nest cards; add a subtitle that repeats the title.
+- Use uppercase or letter-spaced labels, gradient or glow buttons, or `translateY` hovers.
+- Hard-code colours outside `tokens.css` (Focus glass values are the one scoped exception).
+- Show internal terms (lease, manifest, sync queue) or raw codes (program slugs) to students.
+- Use `window.confirm`; use `ConfirmDialog`.

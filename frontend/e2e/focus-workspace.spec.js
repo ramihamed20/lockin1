@@ -203,11 +203,10 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   const settings = page.getByRole("dialog", { name: "Workspace settings" });
   await expect(settings).toBeVisible();
   await expect(settings.getByRole("switch", { name: /Scribble to erase/ })).toBeVisible();
-  await expect(settings.getByRole("switch", { name: /Perfect shapes on release/ })).toBeVisible();
-  await settings.getByRole("button", { name: /Gestures Touch and shortcuts/ }).click();
+  await expect(settings.getByRole("switch", { name: /Straight lines & shapes/ })).toBeVisible();
   await expect(settings.getByRole("switch", { name: /Circle to erase/ })).toBeVisible();
-  await settings.getByRole("button", { name: /Workspace Pages and study tools/ }).click();
-  await expect(settings.getByRole("switch", { name: /Remember last position/ })).toHaveAttribute("aria-checked", "true");
+  await settings.getByRole("tab", { name: "View" }).click();
+  await expect(settings.getByRole("switch", { name: /Resume Active Study where I left off/ })).toHaveAttribute("aria-checked", "true");
   await expect(settings.getByRole("switch", { name: /Remember zoom level/ })).toHaveAttribute("aria-checked", "true");
   const pageNumberToggle = settings.getByRole("switch", { name: /Show page number/ });
   await expect(page.locator(".workspace-v2-page-number")).toBeVisible();
@@ -485,8 +484,11 @@ test("PDF sheets open at page one and restore zoom only while enabled @chromium-
   await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings", exact: true }).click();
   const settings = page.getByRole("dialog", { name: "Workspace settings" });
-  await settings.getByRole("button", { name: /Workspace Pages and study tools/ }).click();
-  await settings.getByRole("switch", { name: /Remember last position/ }).click();
+  // Settings became tabs in the pre-V2 Focus rework (fb24160); the reading
+  // switches live under View.
+  await settings.getByRole("tab", { name: "View" }).click();
+  // The same rememberLastPosition setting, renamed in fb24160.
+  await settings.getByRole("switch", { name: /Resume Active Study where I left off/ }).click();
   await settings.getByRole("switch", { name: /Remember zoom level/ }).click();
   await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem("lock-in.catalog-workspace.settings.v1")))).toMatchObject({ rememberLastPosition: false, rememberZoomLevel: false });
   await page.reload();

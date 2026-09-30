@@ -149,15 +149,20 @@ test("iPad downloads leave the workspace mounted for original PDF and page snaps
   const originalUrl = page.url();
   for (const action of ["Download original", "Page snapshot"]) {
     await page.getByRole("button", { name: "More workspace actions" }).click();
-    const downloadPromise = page.waitForEvent("download");
     await page.getByRole("dialog", { name: "More workspace actions" }).getByRole("button", { name: new RegExp(action, "i") }).click();
+    // iPadOS waits for the student's own tap to deliver the finished file.
+    const sheet = page.locator(".workspace-v8-export-sheet");
+    await expect(sheet).toHaveAttribute("data-export-status", "ready", { timeout: 30_000 });
+    const downloadPromise = page.waitForEvent("download");
+    await sheet.getByRole("link", { name: "Download" }).click();
     await downloadPromise;
+    await sheet.getByRole("button", { name: "Close export" }).click();
     await expect(page.locator(".workspace-v2-document-stage")).toBeVisible();
     expect(page.url()).toBe(originalUrl);
   }
 });
 
-test("study cards move directly and settings fill the workspace in each theme", async ({ page }) => {
+test("study cards move directly and settings open as a compact panel in each theme", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page);
   await page.getByRole("button", { name: "Add", exact: true }).click();
@@ -197,9 +202,10 @@ test("study cards move directly and settings fill the workspace in each theme", 
   await page.getByRole("button", { name: "Workspace settings" }).click();
   const settings = page.locator(".workspace-v2-settings-popover");
   await expect(settings).toBeVisible();
+  // A panel beside the page, not a screen over it.
   const workspace = await page.locator(".workspace-v2").boundingBox();
-  await expect.poll(async () => (await settings.boundingBox()).width).toBeGreaterThanOrEqual(workspace.width - 2);
-  await expect.poll(async () => (await settings.boundingBox()).height).toBeGreaterThanOrEqual(workspace.height - 2);
+  await expect.poll(async () => (await settings.boundingBox()).width).toBeLessThanOrEqual(400);
+  await expect.poll(async () => (await settings.boundingBox()).height).toBeLessThan(workspace.height - 40);
   const colors = await page.evaluate(() => {
     const panelNode = document.querySelector(".workspace-v2-settings-popover");
     document.documentElement.dataset.theme = "day";
@@ -431,7 +437,7 @@ test("controls drawn over the document keep their touch activation", async ({ pa
     { x: pageBounds.x + pageBounds.width * .22, y: pageBounds.y + pageBounds.height * .4 },
     { x: pageBounds.x + pageBounds.width * .22, y: pageBounds.y + pageBounds.height * .25 }
   ]);
-  const menu = page.locator(".workspace-v2-selection-menu");
+  const menu = page.locator("[data-selection-toolbar]");
   await expect(menu).toBeVisible();
 
   // A tap on the document itself must still be swallowed by the custom gesture
@@ -444,7 +450,7 @@ test("controls drawn over the document keep their touch activation", async ({ pa
     };
     return {
       onDocument: dispatch(document.querySelector(".workspace-v2-a4-page")),
-      onControl: dispatch(document.querySelector(".workspace-v2-selection-menu button"))
+      onControl: dispatch(document.querySelector("[data-selection-toolbar] button"))
     };
   });
   expect(prevention).toEqual({ onDocument: true, onControl: false });
@@ -477,7 +483,7 @@ test("the lasso recolours a selection and the settings panel clears one page", a
     { x: pageBounds.x + pageBounds.width * .22, y: pageBounds.y + pageBounds.height * .4 },
     { x: pageBounds.x + pageBounds.width * .22, y: pageBounds.y + pageBounds.height * .25 }
   ]);
-  await expect(page.locator(".workspace-v2-selection-menu")).toBeVisible();
+  await expect(page.locator("[data-selection-toolbar]")).toBeVisible();
 
   await page.locator('[data-workspace-tool="select"]').click();
   await page.getByRole("dialog", { name: "Lasso options" }).getByRole("button", { name: "Use #20b982" }).click();
@@ -488,6 +494,7 @@ test("the lasso recolours a selection and the settings panel clears one page", a
 
   await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings" }).click();
+  await page.getByRole("tab", { name: "Canvas" }).click();
   await page.getByRole("button", { name: /Clear ink on PDF page/ }).click();
   await expect(marks).toHaveCount(0);
   await page.getByRole("button", { name: "Undo (Ctrl+Z)" }).click();
@@ -556,7 +563,7 @@ test("the live ink layer paints while the stroke is still down and carries its o
   // the live layer, which is a different feature from the one under test.
   await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings" }).click();
-  await page.getByRole("switch", { name: /Perfect shapes on release/ }).click();
+  await page.getByRole("switch", { name: /Straight lines & shapes/ }).click();
   await page.getByRole("button", { name: "Close workspace settings" }).click();
 
   await page.getByRole("button", { name: "Pen", exact: true }).click();

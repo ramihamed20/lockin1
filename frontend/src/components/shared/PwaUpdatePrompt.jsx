@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { Icon } from "../../lib/icons.jsx";
 import { useI18n } from "../I18nProvider.jsx";
 import { usePwaLifecycle } from "../../pwa/PwaLifecycleProvider.jsx";
+import { isFeatureComingSoon } from "../../lib/featureAvailability.js";
 
 export function PwaUpdatePrompt({ deferred = false }) {
   const location = useLocation();
@@ -13,8 +14,8 @@ export function PwaUpdatePrompt({ deferred = false }) {
     setNeedRefresh,
     updateServiceWorker
   } = usePwaLifecycle();
-  const inImmersiveWorkspace = location.pathname === "/lock-in"
-    || location.pathname.startsWith("/lock-in/")
+  const inImmersiveWorkspace = (!isFeatureComingSoon("lock-in") && (location.pathname === "/lock-in"
+    || location.pathname.startsWith("/lock-in/")))
     || location.pathname.endsWith("/workspace");
 
   if (deferred || inImmersiveWorkspace || (!needRefresh && !updateError)) return null;

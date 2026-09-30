@@ -1086,3 +1086,26 @@ test("lasso selection transforms preserve annotation coordinate space", () => {
   assert.deepEqual(resized.points.map(({ x, y }) => ({ x, y })), [{ x: 10, y: 20 }, { x: 50, y: 60 }]);
   assert.equal(resized.width, 8);
 });
+
+test("an Arabic interface never draws the PDF right-to-left", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const css = await readFile(new URL("../src/pages/catalog-focus-workspace.css", import.meta.url), "utf8");
+  // The stage's children return to the reading direction, but PDF.js lays out
+  // Latin glyphs by the canvas's inherited direction: the canvases stay LTR.
+  assert.match(css, /\.workspace-v2-document-stage canvas \{ direction: ltr; \}/);
+  const rtlChildren = css.indexOf('[dir="rtl"] .workspace-v2-document-stage > * { direction: rtl; }');
+  const ltrCanvas = css.indexOf(".workspace-v2-document-stage canvas { direction: ltr; }");
+  assert.ok(rtlChildren === -1 || ltrCanvas > rtlChildren, "the canvas rule must follow the RTL children rule");
+});
+
+test("the reader's Settings panel stays one column at every width", async () => {
+  // The older full-screen sheet split .workspace-v2-settings-content into two
+  // columns from 1000px, and the compact panel carries that class too: on iPad
+  // landscape its labels wrapped word by word in two ~175px columns.
+  const { readFile } = await import("node:fs/promises");
+  const css = await readFile(new URL("../src/pages/focus-workspace-glass.css", import.meta.url), "utf8");
+  const panel = css.match(/\n\.workspace-v2 \.workspace-v8-settings \.workspace-v8-settings-panel \{([^}]*)\}/)?.[1] || "";
+  assert.match(panel, /grid-template-columns: minmax\(0, 1fr\);/);
+  assert.ok(css.indexOf(".workspace-v2 .workspace-v8-settings .workspace-v8-settings-panel {") > css.indexOf("grid-template-columns: repeat(2, minmax(0, 1fr));"), "the one-column rule must follow the sheet's two-column rule");
+  assert.match(css, /\.workspace-v2 \.workspace-v8-settings \{[^}]*width: min\(392px, calc\(100% - 24px\)\);/);
+});

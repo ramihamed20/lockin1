@@ -76,7 +76,29 @@ function drawShape(context, item) {
   context.setLineDash([]);
 }
 
+/**
+ * Decodes a stored image without loading it as a URL. Images are kept as
+ * data: URLs, and the production policy (img-src 'self' blob:, connect-src
+ * 'self') refuses to load or fetch those, so the bytes are decoded here and
+ * handed to createImageBitmap, which no content policy governs.
+ */
+export function dataUrlToBlob(src) {
+  const match = /^data:([^;,]+)(;base64)?,(.*)$/s.exec(String(src || ""));
+  if (!match) return null;
+  const [, type, base64, payload] = match;
+  const binary = base64 ? window.atob(payload) : decodeURIComponent(payload);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return new Blob([bytes], { type });
+}
+
 async function drawImage(context, item) {
+  const blob = dataUrlToBlob(item.src);
+  if (blob && typeof window.createImageBitmap === "function") {
+    const bitmap = await window.createImageBitmap(blob);
+    try { context.drawImage(bitmap, item.x, item.y, item.width, item.height); } finally { bitmap.close?.(); }
+    return;
+  }
   const image = new window.Image();
   image.src = item.src;
   await image.decode();
@@ -121,12 +143,17 @@ function drawCard(context, item) {
   if (line && y <= item.y + item.height - 12) context.fillText(line, item.x + 18, y);
 }
 
-export async function renderWorkspacePage({ pdf, pageNumber, background = "blank", annotations = [], includeAnnotations = true, scale = 1.6 }) {
+/** Export resolution: twice PDF points, independent of the reader's zoom and the screen's pixel ratio. */
+export const EXPORT_SCALE = 2;
+
+export async function renderWorkspacePage({ pdf, pageNumber, background = "blank", annotations = [], includeAnnotations = true, scale = EXPORT_SCALE }) {
   const page = pdf ? await pdf.getPage(pageNumber) : null;
-  const viewport = page?.getViewport({ scale });
+  // Every page is rendered at the same width whatever its size in points, so
+  // annotation strokes, which are in page units, keep one visual weight.
+  const viewport = page ? page.getViewport({ scale: (595 * scale) / page.getViewport({ scale: 1 }).width }) : null;
   const canvas = document.createElement("canvas");
-  canvas.width = Math.round(viewport?.width || 1190);
-  canvas.height = Math.round(viewport?.height || 1684);
+  canvas.width = Math.round(viewport?.width || 595 * scale);
+  canvas.height = Math.round(viewport?.height || 842 * scale);
   const context = canvas.getContext("2d", { alpha: false });
   context.fillStyle = "#ffffff";
   context.fillRect(0, 0, canvas.width, canvas.height);
@@ -226,7 +253,22 @@ export function exportPageDimensions(canvas) {
   return { width, height };
 }
 
-export async function canvasesToPdf(canvases) {
+/**
+ * JPEG bytes of a canvas, read straight from the canvas's own Blob. The
+ * encoder used to turn the canvas into a data: URL and then request that URL
+ * back, and production's connect-src 'self' refuses such a request, so every
+ * annotated export failed live while passing locally, where no policy is sent.
+ */
+export function canvasJpegBytes(canvas, quality = .88) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(async (blob) => {
+      if (!blob) { reject(new Error("A page could not be encoded.")); return; }
+      try { resolve(new Uint8Array(await blob.arrayBuffer())); } catch (error) { reject(error); }
+    }, "image/jpeg", quality);
+  });
+}
+
+export async function canvasesToPdf(canvases, { onPage = null } = {}) {
   const chunks = [];
   const offsets = [0];
   let size = 0;
@@ -236,7 +278,7 @@ export async function canvasesToPdf(canvases) {
   let objectId = 3;
   for await (const canvas of canvases) {
     const pageSize = exportPageDimensions(canvas);
-    const jpeg = new Uint8Array(await (await fetch(canvas.toDataURL("image/jpeg", .85))).arrayBuffer());
+    const jpeg = await canvasJpegBytes(canvas);
     const imageId = objectId++;
     const contentId = objectId++;
     const pageId = objectId++;
@@ -252,7 +294,12 @@ export async function canvasesToPdf(canvases) {
     append(bytes("endstream\nendobj\n"));
     offsets[pageId] = size;
     append(bytes(`${pageId} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageSize.width} ${pageSize.height}] /Resources << /XObject << /Im0 ${imageId} 0 R >> >> /Contents ${contentId} 0 R >>\nendobj\n`));
+    onPage?.(pageRefs.length);
+    // Release the page bitmap now; iOS caps the canvas memory a tab may hold.
+    canvas.width = 0;
+    canvas.height = 0;
   }
+  if (!pageRefs.length) throw new Error("There were no pages to export.");
   offsets[1] = size;
   append(bytes("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"));
   offsets[2] = size;
@@ -262,21 +309,4 @@ export async function canvasesToPdf(canvases) {
   for (let id = 1; id < objectId; id += 1) append(bytes(`${String(offsets[id]).padStart(10, "0")} 00000 n \n`));
   append(bytes(`trailer\n<< /Size ${objectId} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`));
   return new Blob(chunks, { type: "application/pdf" });
-}
-
-export function downloadWorkspaceBlob(blob, name) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = name;
-  // iPadOS Safari may display a blob in the current tab despite download.
-  // Keeping that fallback in a separate tab preserves the live workspace.
-  if (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) {
-    link.target = "_blank";
-    link.rel = "noopener";
-  }
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }

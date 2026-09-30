@@ -20,6 +20,19 @@
   object-fit: cover;
 }
 
+/* On a phone the edit form shared a row with the photo frame, leaving the
+   name field and the avatar grid a narrow column. While editing, the form
+   takes the card's full width; the editor shows its own preview. */
+@media (max-width: 639px) {
+  .profile-academy-id.is-editing .id-card-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .profile-academy-id.is-editing .profile-avatar-wrap {
+    display: none;
+  }
+}
+
 .profile-picture-editor-heading {
   display: flex;
   align-items: center;

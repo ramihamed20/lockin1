@@ -1,0 +1,41 @@
+@page {
+  size: A4;
+  margin: 22mm 18mm 19mm;
+  background: #F5F7F5;
+  @top-left { content: "LOCK-IN"; color: #0B1527; font: bold 9pt Arial, sans-serif; }
+  @top-right { content: "TWO-WEEK REPORT"; color: #71808C; font: bold 7pt Arial, sans-serif; }
+  @bottom-left { content: "LOCK-IN  ·  YOUR STUDY, MADE VISIBLE"; color: #71808C; font: 7pt Arial, sans-serif; }
+  @bottom-right { content: counter(page, decimal-leading-zero); color: #71808C; font: 7pt Arial, sans-serif; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; color: #0B1527; background: #F5F7F5; font-family: Arial, "Noto Sans", sans-serif; font-size: 10pt; line-height: 1.45; }
+h1, h2, h3, p { margin: 0; }
+h1 { font-size: 36pt; line-height: 1.07; letter-spacing: -1.2pt; }
+h2 { font-size: 19pt; line-height: 1.17; margin-bottom: 7mm; }
+h3 { font-size: 11pt; }
+.eyebrow { color: #19A9B5; font-size: 8pt; font-weight: bold; letter-spacing: 1.6pt; text-transform: uppercase; }
+.muted { color: #71808C; }
+.cover { break-after: page; padding-top: 27mm; }
+.logo { width: 35mm; height: 35mm; object-fit: contain; margin-bottom: 22mm; }
+.brand { color: #19A9B5; font-size: 9pt; font-weight: bold; letter-spacing: 2pt; margin-bottom: 14mm; }
+.cover h1 { max-width: 150mm; margin-bottom: 9mm; }
+.period { color: #152B43; font-size: 14pt; }
+.cover-rule { width: 32mm; height: 2mm; background: #19A9B5; margin: 17mm 0 9mm; }
+.cover-note { max-width: 115mm; color: #71808C; }
+.section { break-after: page; }
+.section:last-child { break-after: auto; }
+.section-intro { color: #71808C; margin: -3mm 0 8mm; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+.card { background: white; border-radius: 4mm; padding: 6mm; break-inside: avoid; }
+.card.pale { background: #E8F6F6; }
+.card small { display: block; color: #71808C; font-size: 8pt; font-weight: bold; text-transform: uppercase; margin-bottom: 2mm; }
+.card strong { display: block; color: #0B1527; font-size: 23pt; line-height: 1.08; }
+.bar { height: 3mm; border-radius: 3mm; background: #DEE7E8; margin-top: 2mm; }
+.bar span { display: block; height: 100%; border-radius: 3mm; background: #19A9B5; }
+.row { border-top: 1px solid #DEE7E8; padding: 4mm 0; display: flex; justify-content: space-between; gap: 5mm; }
+.row span { color: #71808C; }
+.navy-panel { color: white; background: #0B1527; border-radius: 5mm; padding: 9mm; margin-top: 8mm; }
+.navy-panel .eyebrow { color: #8BD9DC; margin-bottom: 4mm; }
+.navy-panel p { color: #DCE7ED; }
+.empty { background: #E8F6F6; border-radius: 4mm; padding: 8mm; color: #152B43; }
+.badge { display: inline-block; background: #E8F6F6; color: #087781; padding: 1.2mm 3mm; border-radius: 2mm; font-size: 7pt; font-weight: bold; text-transform: uppercase; }

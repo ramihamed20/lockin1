@@ -204,29 +204,27 @@ test("the production Focus workspace is server-backed and keeps its responsive s
   assert.match(focusStyles, /safe-area-inset-bottom/);
 });
 
-test("dashboard summary cards are full-card keyboard links to their real destinations", async () => {
-  const [dashboard, statsGrid, styles, translations] = await Promise.all([
+test("dashboard state cards are full-card links to their real destinations", async () => {
+  const [dashboard, styles, translations] = await Promise.all([
     source("../src/pages/Dashboard.jsx"),
-    source("../src/components/shared/StatsGrid.jsx"),
-    source("../src/styles.css"),
+    source("../src/styles/v2.css"),
     source("../src/lib/i18n.js")
   ]);
 
-  assert.match(dashboard, /className="dashboard-stats-grid"/);
-  assert.match(dashboard, /id: "completed",[^\n]*to: "\/materials"/);
-  assert.match(dashboard, /id: "saved",[^\n]*to: "\/bookmarks"/);
-  assert.match(dashboard, /id: "reviewBank",[^\n]*to: "\/review"/);
-  assert.match(dashboard, /id: "level",[^\n]*to: "\/progress"/);
-  assert.ok(dashboard.indexOf('className="dashboard-stats-grid"') < dashboard.indexOf('className={`dashboard-main'), "compact summaries should precede the study composition");
+  assert.match(dashboard, /<StudyStates learning=\{learning\} bank=\{bank\} xp=\{xp\} streak=\{streak\} \/>/);
+  for (const destination of ["/progress", "/review", "/materials", "/bookmarks"]) {
+    assert.match(dashboard, new RegExp(String.raw`<Link className=[\s\S]{0,90}?dash-state[\s\S]{0,90}? to="${destination}">`));
+  }
+  assert.ok(dashboard.indexOf("<StudyStates") < dashboard.indexOf('className={`dashboard-main'), "compact summaries should precede the study composition");
   assert.doesNotMatch(dashboard, /dashboard-progress-section|dashboard\.yourProgress|dashboard\.progressOverview|dashboard\.openProgress/);
   assert.doesNotMatch(translations, /"dashboard\.(?:yourProgress|progressOverview|openProgress)"/);
-  assert.match(statsGrid, /<Link\s+className="stat-card-action"/);
-  assert.match(statsGrid, /aria-label=/);
-  assert.match(styles, /\.dashboard-stats-grid \.stat-card-action[\s\S]*min-height: 92px/);
-  assert.match(styles, /@media \(hover: hover\) and \(pointer: fine\)/);
+  // One value, one label, at most one note: no badges, icons or chevrons.
+  assert.doesNotMatch(dashboard, /stat-card-badge|stat-card-chevron|stat-icon/);
+  // The grid follows the width the cards get, and never scrolls sideways.
+  assert.match(styles, /container: dash-states \/ inline-size/);
+  assert.match(styles, /@container dash-states \(min-width: 860px\)[\s\S]*repeat\(6, minmax\(0, 1fr\)\)/);
   // The keyboard focus ring is centralised in styles/interaction.css.
-  // Per-component rings are what produced stacked focus indicators.
-  assert.doesNotMatch(styles, /\.dashboard-stats-grid \.stat-card-action:focus-visible/);
+  assert.doesNotMatch(styles, /\.dash-state:focus-visible/);
 });
 
 test("student Materials and Questions use one stacked library navigation language", async () => {
@@ -311,18 +309,15 @@ test("the dashboard uses compact responsive cards and a contained cat illustrati
 });
 
 test("coarse-pointer scrolling avoids live glass sampling and paint-bound pulse effects", async () => {
-  const [responsive, styles, statsGrid, layout] = await Promise.all([
+  const [responsive, styles, layout] = await Promise.all([
     source("../src/responsive.css"),
     source("../src/styles.css"),
-    source("../src/components/shared/StatsGrid.jsx"),
     source("../src/components/layout/index.jsx")
   ]);
 
   assert.match(responsive, /@media \(hover: none\) and \(pointer: coarse\)[\s\S]*\.topbar[\s\S]*\.bottom-nav[\s\S]*backdrop-filter: none !important/);
-  assert.match(responsive, /\.stat-card-spotlight\s*\{\s*display: none/);
   assert.match(styles, /@keyframes pulse-dot-halo[\s\S]*transform:[\s\S]*opacity:/);
   assert.doesNotMatch(styles, /@keyframes pulse-dot-glow/);
-  assert.match(statsGrid, /matchMedia\("\(hover: hover\) and \(pointer: fine\)"\)/);
   assert.match(layout, /profilePositionFrameRef[\s\S]*requestAnimationFrame/);
   assert.match(layout, /addEventListener\("scroll", scheduleReposition, \{ capture: true, passive: true \}\)/);
   assert.match(styles, /\.topbar \.profile-menu-wrap\s*\{\s*inline-size: 44px[\s\S]*flex: 0 0 44px/);

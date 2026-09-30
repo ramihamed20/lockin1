@@ -18,6 +18,16 @@
 
 /* --- Base ---------------------------------------------------------------- */
 
+/* dir="auto" is how user data (a subject named in English on an Arabic
+   screen, an Arabic title on an English one) gets the right reading order. It
+   must not also move the text to the other edge: aligned against the parent's
+   direction, an English title in an Arabic row still starts at the right. */
+:where([dir="auto"]) {
+  text-align: match-parent;
+  /* Chromium and WebKit only read the prefixed keyword. */
+  text-align: -webkit-match-parent;
+}
+
 html {
   background: var(--bg);
 }
@@ -69,7 +79,7 @@ body::after {
 
 .sidebar {
   border: 0;
-  border-inline-end: 1px solid var(--border);
+  border-inline-end: 1px solid var(--separator);
   border-radius: 0;
   background: var(--surface);
   box-shadow: none;
@@ -99,12 +109,14 @@ body::after {
   letter-spacing: -0.01em;
 }
 
+/* Section names in sentence case, the way native sidebars label groups: an
+   all-caps tracked label on every group read as shouting in a quiet rail. */
 .nav-section-label {
   color: var(--soft);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: var(--weight-semibold);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .nav-btn {
@@ -333,7 +345,7 @@ body::after {
 
 /* Streak: a quiet reading at the foot of the sidebar, not a second card. */
 .streak-card {
-  border: 1px solid var(--border);
+  border: 1px solid var(--card-edge);
   border-radius: var(--radius-lg);
   background: var(--surface-2);
   box-shadow: none;
@@ -343,12 +355,12 @@ body::after {
 .topbar {
   gap: 10px;
   border: 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--separator);
   border-radius: 0;
-  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
   box-shadow: none;
-  -webkit-backdrop-filter: saturate(1.4) blur(10px);
-  backdrop-filter: saturate(1.4) blur(10px);
+  -webkit-backdrop-filter: var(--material-filter);
+  backdrop-filter: var(--material-filter);
 }
 
 @media (min-width: 640px) and (min-height: 560px) {
@@ -425,7 +437,8 @@ body::after {
 
 .search-box,
 .global-search-trigger {
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
   background: var(--surface-2);
   box-shadow: none;
 }
@@ -433,12 +446,12 @@ body::after {
 /* Phone chrome: a flush bar, not a floating pill. */
 .bottom-nav {
   border: 0;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--separator);
   border-radius: 0;
-  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  background: var(--material);
   box-shadow: none;
-  -webkit-backdrop-filter: saturate(1.4) blur(12px);
-  backdrop-filter: saturate(1.4) blur(12px);
+  -webkit-backdrop-filter: var(--material-filter);
+  backdrop-filter: var(--material-filter);
 }
 
 .bottom-nav a,
@@ -490,6 +503,14 @@ body::after {
   gap: 20px;
 }
 
+/* The reading column: list and detail screens share one width and one axis,
+   so moving between them never shifts the content sideways. */
+.page--reading {
+  width: 100%;
+  max-width: 760px;
+  margin-inline: auto;
+}
+
 .section-heading {
   padding: 0;
 }
@@ -497,10 +518,11 @@ body::after {
 .section-heading h1,
 .section-heading h2 {
   margin: 0;
-  font-size: var(--text-2xl);
+  font-size: var(--title-large);
   font-weight: var(--weight-bold);
-  line-height: 1.2;
-  letter-spacing: -0.02em;
+  line-height: 1.15;
+  letter-spacing: var(--tracking-title);
+  text-wrap: balance;
 }
 
 .section-heading p {
@@ -509,19 +531,21 @@ body::after {
   font-size: var(--text-base);
 }
 
+/* A small label above a title. Sentence case and untracked: V2 does not put
+   an all-caps kicker over every card. */
 .eyebrow {
   margin: 0;
-  color: var(--soft);
-  font-size: 0.6875rem;
-  font-weight: var(--weight-semibold);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 @media (max-width: 639px) {
   .section-heading h1,
   .section-heading h2 {
-    font-size: var(--text-xl);
+    font-size: var(--title-large-phone);
   }
 
   .page {
@@ -537,8 +561,8 @@ body::after {
 .list-panel,
 .settings-panel,
 .error-panel {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-card);
   background: var(--surface);
   box-shadow: none;
   background-image: none;
@@ -573,9 +597,9 @@ body::after {
 .btn {
   min-height: var(--control-h);
   gap: 7px;
-  padding: 0 14px;
+  padding: 0 18px;
   border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-full);
   font-size: var(--text-md);
   font-weight: var(--weight-semibold);
   letter-spacing: 0;
@@ -602,8 +626,8 @@ body::after {
 
 .btn.compact {
   min-height: var(--control-h-sm);
-  padding: 0 11px;
-  border-radius: var(--radius-md);
+  padding: 0 14px;
+  border-radius: var(--radius-full);
   font-size: var(--text-sm);
 }
 
@@ -625,9 +649,9 @@ body::after {
 
 .btn-soft,
 .btn-ghost {
-  border-color: var(--border);
+  border-color: transparent;
   color: var(--text);
-  background: var(--surface-2);
+  background: var(--surface-3);
 }
 
 .btn-ghost {
@@ -649,7 +673,7 @@ body::after {
 }
 
 .btn-danger {
-  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+  border-color: transparent;
   color: var(--danger);
   background: var(--danger-soft);
   box-shadow: none;
@@ -899,7 +923,7 @@ textarea:focus {
 .pill {
   display: inline-flex;
   align-items: center;
-  min-height: 22px;
+  min-height: 24px;
   padding: 0 8px;
   border: 0;
   border-radius: var(--radius-full);
@@ -935,7 +959,7 @@ textarea:focus {
   gap: 12px;
   padding: 12px 0;
   border: 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--separator);
   border-radius: 0;
   background: transparent;
   box-shadow: none;
@@ -961,7 +985,9 @@ textarea:focus {
 .empty-state {
   display: grid;
   justify-items: center;
+  align-content: center;
   gap: 6px;
+  min-height: 0;
   padding: 32px 16px;
   border: 0;
   border-radius: var(--radius-lg);
@@ -990,17 +1016,69 @@ textarea:focus {
   font-size: var(--text-md);
 }
 
+/* A failed load reads like an empty one: centred, one glyph, one sentence,
+   one way forward. No tinted card, and no fixed height that leaves a short
+   message floating in an empty box. */
 .error-panel {
   display: grid;
-  justify-items: start;
+  justify-items: center;
+  align-content: center;
   gap: 10px;
-  padding: 16px;
-  border-color: color-mix(in srgb, var(--danger) 30%, var(--border));
+  min-height: 0;
+  padding: 36px 16px;
+  border: 0;
+  background: transparent;
+  text-align: center;
+}
+
+.error-panel-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  margin-bottom: 2px;
+  border-radius: 50%;
+  color: var(--muted);
+  background: var(--surface-2);
 }
 
 .error-panel p {
+  max-width: 44ch;
   margin: 0;
   color: var(--text);
+  font-size: var(--text-md);
+}
+
+.error-panel .btn { margin-top: 4px; }
+
+/* --- Progress bar (V2) ---------------------------------------------------- */
+
+/* A thin track with a solid fill: the amount is the message, so there is no
+   glow, gradient or looping shimmer competing with it. The percentage is
+   announced by the progressbar's own aria values. */
+.progress-line {
+  height: 8px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--surface-3);
+}
+
+.progress-line span {
+  padding: 0;
+  border-radius: inherit;
+  color: transparent;
+  background: var(--accent);
+  box-shadow: none;
+  font-size: 0;
+  transition: width 420ms var(--motion-enter-ease);
+}
+
+.progress-line span::after {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-line span { transition: none; }
 }
 
 /* --- Skeletons ----------------------------------------------------------- */
@@ -1015,8 +1093,8 @@ textarea:focus {
 
 .skeleton-card,
 .loading-panel .skeleton-card {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-card);
   background: var(--surface);
   box-shadow: none;
 }
@@ -1146,9 +1224,9 @@ textarea:focus {
    hairlines rather than wrapped in more cards. */
 .ui-section {
   min-width: 0;
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  padding: 18px;
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-card);
   background: var(--surface);
 }
 
@@ -1218,9 +1296,9 @@ textarea:focus {
   grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
   gap: 1px;
   overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--border);
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-lg);
+  background: var(--separator);
 }
 
 .ui-stat {
@@ -1263,7 +1341,7 @@ textarea:focus {
 }
 
 .ui-list > li + li {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--separator);
 }
 
 .ui-list-row {
@@ -1369,6 +1447,304 @@ textarea:focus {
   .skeleton-admin-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .skeleton-admin-health .skeleton-admin-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .skeleton-admin-chart { height: 150px; }
+}
+
+
+/* --- Switch (V2) ----------------------------------------------------------- */
+
+/* A setting's on/off state. The button is the hit area (44px tall on touch
+   screens); the track inside it is what is drawn, and the track clips the
+   thumb, so no width, font size or zoom can push the thumb outside. The thumb
+   stretches while held, then settles, the way a native switch answers a
+   finger. Colour is never the only signal: the thumb's side carries it too. */
+.ui-switch {
+  --switch-w: 51px;
+  --switch-h: 31px;
+  --switch-pad: 2px;
+  --switch-thumb: calc(var(--switch-h) - (2 * var(--switch-pad)));
+  --switch-stretch: 0px;
+  --switch-travel: calc(var(--switch-w) - var(--switch-thumb) - var(--switch-stretch) - (2 * var(--switch-pad)));
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: var(--switch-w);
+  min-width: var(--switch-w);
+  max-width: var(--switch-w);
+  height: var(--switch-h);
+  min-height: var(--switch-h);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .ui-switch {
+    height: 44px;
+    min-height: 44px;
+  }
+}
+
+.ui-switch-track {
+  position: relative;
+  display: block;
+  width: var(--switch-w);
+  height: var(--switch-h);
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--switch-off, rgb(120 128 150 / 0.34));
+  transition: background-color 220ms var(--motion-enter-ease);
+}
+
+:root:is([data-theme="day"], [data-theme="light"], [data-theme="dawn"], [data-theme="sunset"]) .ui-switch {
+  --switch-off: rgb(120 120 132 / 0.2);
+}
+
+.ui-switch-thumb {
+  position: absolute;
+  inset-block-start: var(--switch-pad);
+  inset-inline-start: var(--switch-pad);
+  width: calc(var(--switch-thumb) + var(--switch-stretch));
+  height: var(--switch-thumb);
+  border-radius: var(--radius-full);
+  background: #fff;
+  box-shadow: 0 2px 5px rgb(0 0 0 / 0.22), 0 0 0 0.5px rgb(0 0 0 / 0.05);
+  transition: transform 260ms var(--motion-enter-ease), width 160ms var(--motion-enter-ease);
+}
+
+.ui-switch[aria-checked="true"] .ui-switch-track {
+  background: var(--accent);
+}
+
+.ui-switch[aria-checked="true"] .ui-switch-thumb {
+  transform: translateX(var(--switch-travel));
+}
+
+[dir="rtl"] .ui-switch[aria-checked="true"] .ui-switch-thumb {
+  transform: translateX(calc(-1 * var(--switch-travel)));
+}
+
+.ui-switch:active:not(:disabled) {
+  --switch-stretch: 6px;
+}
+
+.ui-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.ui-switch[aria-busy="true"] {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.ui-switch:focus-visible {
+  outline: none;
+}
+
+.ui-switch:focus-visible .ui-switch-track {
+  outline: var(--ix-ring-width, 2px) solid var(--ix-ring-color, var(--text));
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-switch-track,
+  .ui-switch-thumb {
+    transition: none;
+  }
+}
+
+/* --- Grouped list (V2) --------------------------------------------------- */
+
+/* Rows that belong together share one rounded surface and are separated by a
+   hairline that starts where the text starts (the native grouped-list idiom).
+   Used for settings, catalogue lists and any run of related destinations. */
+.ui-group-block {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ui-group-title {
+  margin: 0;
+  padding-inline: 16px;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.ui-group-footer {
+  margin: 0;
+  padding-inline: 16px;
+  color: var(--soft);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.ui-group {
+  display: grid;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  list-style: none;
+}
+
+.ui-group > li {
+  min-width: 0;
+}
+
+.ui-row {
+  --row-inset: 16px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 50px;
+  margin: 0;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 0;
+  color: var(--text);
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-base);
+  text-align: start;
+  text-decoration: none;
+}
+
+.ui-row:has(> .ui-row-icon) {
+  --row-inset: 58px;
+}
+
+.ui-group > * + *::before,
+.ui-group > li + li > .ui-row::before {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: var(--row-inset, 16px) 0;
+  height: 1px;
+  background: var(--separator);
+  content: "";
+  pointer-events: none;
+}
+
+.ui-group > li + li {
+  position: relative;
+}
+
+.ui-group > li + li::before {
+  display: none;
+}
+
+.ui-row-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+.ui-row-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.ui-row-body {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 1px;
+  min-width: 0;
+}
+
+.ui-row-body > strong,
+.ui-row-body > span:first-child {
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-row-body > small {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.ui-row-value {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--text-md);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-row-chevron {
+  flex: 0 0 auto;
+  color: var(--soft);
+}
+
+[dir="rtl"] .ui-row-chevron {
+  transform: scaleX(-1);
+}
+
+:is(a, button).ui-row {
+  cursor: pointer;
+}
+
+html.ix-hover :is(a, button).ui-row:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+:is(a, button).ui-row:active:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  transition-duration: 60ms;
+}
+
+:is(a, button).ui-row:focus-visible {
+  outline-offset: -2px;
+}
+
+.ui-row.is-danger,
+.ui-row.is-danger .ui-row-body > strong {
+  color: var(--danger);
+}
+
+@media (pointer: coarse) {
+  .ui-row {
+    min-height: 52px;
+  }
+}
+
+/* A field that lives inside a grouped row: no box of its own. 16px, because
+   mobile Safari magnifies the page when a smaller field takes focus. */
+.ui-row .ui-row-input {
+  flex: 0 1 auto;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  background: var(--surface-3);
+  font: inherit;
+  font-size: 16px;
 }
 
 }

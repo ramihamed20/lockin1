@@ -185,7 +185,7 @@ test("status, save failures, and popovers are announced and reachable", async ({
   // Backup controls are ordinary named buttons, not icon-only affordances.
   const settings = page.getByRole("dialog", { name: "Workspace settings" });
   await expect(settings.getByRole("switch", { name: /Scribble to erase/ })).toHaveAttribute("aria-checked", /true|false/);
-  await settings.getByRole("button", { name: /Export Save and share/ }).click();
+  await settings.getByRole("tab", { name: "Other" }).click();
   await expect(settings.getByRole("button", { name: /Export workspace backup/ })).toBeVisible();
   await expect(settings.getByRole("button", { name: /Restore a backup/ })).toBeVisible();
 

@@ -5,8 +5,13 @@
   to { opacity: 1; transform: none; }
 }
 
+/* Fill backwards, never forwards: a finished `both` fill keeps the end frame
+   as an identity transform, and any transform makes the page the containing
+   block for position:fixed. Every sheet, scrim and dialog rendered inside a
+   page was then fixed to the scrolled page instead of the screen (the Paper
+   checkpoint slid under the top bar). */
 @media (prefers-reduced-motion: no-preference) {
   .page-shell > :not(.workspace-v2) {
-    animation: lockin-page-enter var(--motion-page-duration) var(--motion-enter-ease) both;
+    animation: lockin-page-enter var(--motion-page-duration) var(--motion-enter-ease) backwards;
   }
 }

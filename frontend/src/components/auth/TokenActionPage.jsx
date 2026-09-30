@@ -114,24 +114,30 @@ export function TokenActionPage({ type, onAccountChanged }) {
   const action = isReset ? t("token.resetAction") : t(flow.actionKey);
 
   return (
-    <main className="auth-page auth-forgot" dir={direction}>
-      <div className="auth-bg-orbs" aria-hidden="true"><span className="auth-orb auth-orb-1" /><span className="auth-orb auth-orb-2" /><span className="auth-orb auth-orb-3" /></div>
-      <section className="auth-card" aria-label={t("token.accountConfirmation")}>
-        <div className="auth-panel"><div className="auth-panel-inner">
-          <div className="auth-brand"><div className="auth-brand-logo"><span className="auth-brand-mark"><img src={assetPath("/icons/lockin-light-192-v2.png")} alt={t("token.logoAlt")} className="brand-logo-img" /></span></div><span className="auth-brand-badge">{t("token.accountSecurity")}</span></div>
-          <div className="auth-header"><h1 className="auth-title">{title}</h1><p className="auth-subtitle">{subtitle}</p></div>
-          <form className="auth-form" onSubmit={submit}>
-            {isReset && <>
-              <label className="auth-field-group" htmlFor="reset-password"><span className="auth-field-label">{t("token.newPassword")}</span><div className="auth-input-wrap"><span className="auth-input-icon" aria-hidden="true"><Icon name="lock" size={18} /></span><input id="reset-password" type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} required {...fieldErrorAttributes(error, "new_password", "reset-password-error")} /></div><AccountFieldErrors error={error} field="new_password" id="reset-password-error" /></label>
-              <label className="auth-field-group" htmlFor="reset-password-confirm"><span className="auth-field-label">{t("token.confirmNewPassword")}</span><div className="auth-input-wrap"><span className="auth-input-icon" aria-hidden="true"><Icon name="lock" size={18} /></span><input id="reset-password-confirm" type="password" autoComplete="new-password" value={passwordConfirm} onChange={(event) => setPasswordConfirm(event.target.value)} required {...fieldErrorAttributes(error, "new_password_confirm", "reset-password-confirm-error")} /></div><AccountFieldErrors error={error} field="new_password_confirm" id="reset-password-confirm-error" /></label>
-            </>}
-            <AccountFormAlert error={error} message={message} />
-            {!message && <button className="auth-submit-btn" type="submit" disabled={loading}>{loading ? t("auth.working") : action}<Icon name="chevron-right" size={18} /></button>}
-            {message && <button className="auth-submit-btn" type="button" onClick={() => navigate("/")}>{t("token.continueSignIn")}<Icon name="chevron-right" size={18} /></button>}
-          </form>
-          <div className="auth-switch"><p><Link className="auth-switch-link" to="/"><Icon name="chevron-left" size={16} /> {t("token.backSignIn")}</Link></p></div>
-        </div></div>
-      </section>
+    <main className="auth-v2 auth-v2-token" dir={direction}>
+      <header className="auth-v2-topbar">
+        <div className="auth-v2-brand" aria-label="Lock-in">
+          <img src={assetPath("/icons/lockin-light-192-v2.png")} alt={t("token.logoAlt")} width="38" height="38" />
+          <div><strong>Lock-in</strong><span>{t("token.accountSecurity")}</span></div>
+        </div>
+      </header>
+      <div className="auth-v2-stage">
+        <section className="auth-v2-card" aria-label={t("token.accountConfirmation")}>
+          <div className="auth-v2-card-inner">
+            <div className="auth-v2-heading"><h1>{title}</h1><p>{subtitle}</p></div>
+            <form className="auth-v2-form" onSubmit={submit} noValidate>
+              {isReset && !message && <>
+                <div className="auth-v2-field"><label htmlFor="reset-password">{t("token.newPassword")}</label><input id="reset-password" type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} required {...fieldErrorAttributes(error, "new_password", "reset-password-error")} /><AccountFieldErrors error={error} field="new_password" id="reset-password-error" /></div>
+                <div className="auth-v2-field"><label htmlFor="reset-password-confirm">{t("token.confirmNewPassword")}</label><input id="reset-password-confirm" type="password" autoComplete="new-password" value={passwordConfirm} onChange={(event) => setPasswordConfirm(event.target.value)} required {...fieldErrorAttributes(error, "new_password_confirm", "reset-password-confirm-error")} /><AccountFieldErrors error={error} field="new_password_confirm" id="reset-password-confirm-error" /></div>
+              </>}
+              <AccountFormAlert error={error} message={message} />
+              {!message && <button className="auth-v2-primary" type="submit" disabled={loading}>{loading && <span className="auth-v2-spinner auth-v2-spinner-light" aria-hidden="true" />}<span>{loading ? t("auth.working") : action}</span></button>}
+              {message && <button className="auth-v2-primary" type="button" onClick={() => navigate("/")}><span>{t("token.continueSignIn")}</span></button>}
+            </form>
+            {!message && <div className="auth-v2-switch"><Link to="/"><Icon name={direction === "rtl" ? "chevron-right" : "chevron-left"} size={17} />{t("token.backSignIn")}</Link></div>}
+          </div>
+        </section>
+      </div>
     </main>
   );
 }

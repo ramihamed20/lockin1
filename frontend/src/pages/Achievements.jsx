@@ -18,36 +18,33 @@ export default function Achievements() {
   if (achievements.error) return <ErrorPanel message={achievements.error} onRetry={achievements.reload} />;
 
   const unlocked = achievements.data.filter((achievement) => Boolean(achievement.earned_at));
-  const completion = achievements.data.length ? Math.round((unlocked.length / achievements.data.length) * 100) : 0;
 
+  // The count is the headline's subtitle, not a second hero: the list is the
+  // page, one row per achievement with its own progress.
   return (
-    <Page title="Achievements" subtitle={t("achievements.subtitle")}>
-      <section className="achievement-hero">
-        <div>
-          <h2 dir="auto">{t("achievements.unlockedOf", { unlocked: unlocked.length, total: achievements.data.length })}</h2>
-        </div>
-        <div className="achievement-ring">{completion}%</div>
-      </section>
+    <Page width="reading" title="Achievements" subtitle={achievements.data.length ? t("achievements.unlockedOf", { unlocked: unlocked.length, total: achievements.data.length }) : ""} showHeading>
       {!achievements.data.length ? <EmptyState icon="achievement" title={t("achievements.emptyTitle")} text={t("achievements.emptyText")} /> : (
-        <section className="achievement-grid">
+        <ul className="ui-group achievements-v2">
           {achievements.data.map((achievement) => {
             const current = Number(achievement.current_value) || 0;
             const target = Number(achievement.target_value) || 0;
             const isUnlocked = Boolean(achievement.earned_at);
             const progress = target > 0 ? Math.round((current / target) * 100) : 0;
             return (
-              <article className={`achievement-card ${isUnlocked ? "unlocked" : "locked"}`} key={achievement.code}>
-                <div className="achievement-card-head">
-                  <span className="stat-icon"><Icon name={achievement.icon_key || "award"} /></span>
-                  {!isUnlocked && <span className="lock-pill"><Icon name="lock" size={14} /> {t("achievements.locked")}</span>}
-                </div>
-                <div><h2 dir="auto">{achievement.title}</h2><p dir="auto">{achievement.description}</p></div>
-                <ProgressLine value={progress} />
-                <small dir="auto">{earnedLabel(achievement.earned_at, t)} · {current}/{target}</small>
-              </article>
+              <li key={achievement.code}>
+                <article className={`ui-row achievements-v2-row ${isUnlocked ? "is-unlocked" : "is-locked"}`}>
+                  <span className="ui-row-icon"><Icon name={isUnlocked ? (achievement.icon_key || "award") : "lock"} size={17} /></span>
+                  <span className="ui-row-body">
+                    <strong dir="auto">{achievement.title}</strong>
+                    <small dir="auto">{achievement.description}</small>
+                    {!isUnlocked && <ProgressLine value={progress} />}
+                  </span>
+                  <span className="ui-row-value" dir="auto">{isUnlocked ? earnedLabel(achievement.earned_at, t) : `${current}/${target}`}</span>
+                </article>
+              </li>
             );
           })}
-        </section>
+        </ul>
       )}
     </Page>
   );

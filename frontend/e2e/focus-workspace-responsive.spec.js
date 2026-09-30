@@ -55,7 +55,7 @@ async function auditViewport(page, viewport) {
       if (bounds.width === 0 || bounds.height === 0) continue;
       // Closed drawers park their controls off-screen and mark them inert.
       if (control.closest("[inert], [aria-hidden='true']")) continue;
-      const scroller = control.closest(".workspace-v2-toolbar-scroll, .workspace-v2-tool-options, .workspace-v2-settings-content, .workspace-v2-side-content");
+      const scroller = control.closest(".workspace-v2-toolbar-scroll, .workspace-v3-primary, .workspace-v2-tool-options, .workspace-v2-settings-content, .workspace-v2-side-content");
       if (!scroller && (bounds.right > size.width + 1 || bounds.left < -1 || bounds.bottom > size.height + 1 || bounds.top < -1)) {
         overflowing.push(`${control.className || control.tagName}@${Math.round(bounds.left)},${Math.round(bounds.top)} ${Math.round(bounds.width)}x${Math.round(bounds.height)}`);
       }
@@ -93,7 +93,16 @@ for (const orientation of ["portrait", "landscape"]) {
       await page.goto(ROUTE);
       await page.getByRole("button", { name: /Normal Study/ }).click();
       await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
-      if (viewport.width < 1200) expect((await page.locator(".workspace-v2-toolbar").boundingBox()).y).toBeGreaterThanOrEqual(34);
+      // Phones use a compact toolbar that follows the real safe area; tablets
+      // keep their toolbar clear of the status-bar band.
+      const compactPhone = viewport.width <= 560 || (viewport.height <= 500 && viewport.width <= 900);
+      const toolbarBox = await page.locator(".workspace-v2-toolbar").boundingBox();
+      if (compactPhone) {
+        expect(toolbarBox.y).toBeLessThanOrEqual(12);
+        expect(toolbarBox.height, `the ${viewport.name} toolbar is taller than the compact bar`).toBeLessThanOrEqual(54);
+      } else if (viewport.width < 1200) {
+        expect(toolbarBox.y).toBeGreaterThanOrEqual(34);
+      }
 
       // The reader always fills the viewport, and the page dock is reachable.
       await auditViewport(page, viewport);
@@ -136,6 +145,14 @@ for (const orientation of ["portrait", "landscape"]) {
         };
       });
       expect(rail.tools).toBe(7);
+      if (compactPhone) {
+        // A phone carries the iPad tool set in its scrolling rail.
+        const railTools = await page.locator(".workspace-v3-primary").evaluate((scroller) => [...scroller.querySelectorAll("button")]
+          .filter((button) => button.getBoundingClientRect().width > 0)
+          .map((button) => button.getAttribute("aria-label")));
+        for (const label of ["Pen", "Hand", "Highlight", "Eraser", "Lasso", "Shapes", "Add", "Undo (Ctrl+Z)", "Redo (Ctrl+Shift+Z)"]) expect(railTools, `${label} is missing on ${viewport.name}`).toContain(label);
+        expect(railTools.filter((label) => label?.startsWith("Use #"))).toHaveLength(3);
+      }
       expect(rail.rowSpread, `the tool rail wrapped on ${viewport.name}`).toBeLessThan(2);
       expect(rail.scrollsHorizontally, `the primary toolbar cannot scroll on ${viewport.name}`).toBe(true);
     });
@@ -179,8 +196,16 @@ test("writing controls open immediately and preserve tool state while every seco
   await page.getByRole("button", { name: "Close text editor" }).click();
 
   await page.getByRole("button", { name: "More workspace actions" }).click();
-  for (const label of ["Pencil", "Shapes"]) await expect(page.getByRole("dialog", { name: "More workspace actions" }).getByRole("button", { name: new RegExp(`^${label} `) })).toBeVisible();
-  for (const label of ["Highlight", "Eraser", "Lasso", "Bookmarks", "Full.screen", "settings"]) await expect(page.getByRole("button", { name: new RegExp(label, "i") })).toBeVisible();
+  const moreMenu = page.getByRole("dialog", { name: "More workspace actions" });
+  // V2 menu rows are single lines, so the name is the label alone.
+  await expect(moreMenu.getByRole("button", { name: "Pencil", exact: true })).toBeVisible();
+  for (const label of ["Bookmarks", "Full.screen", "settings"]) await expect(moreMenu.getByRole("button", { name: new RegExp(label, "i") })).toBeVisible();
+  // The phone rail carries these tools itself, so the menu does not repeat them.
+  const rail = page.locator(".workspace-v3-primary");
+  for (const label of ["Highlight", "Eraser", "Lasso", "Shapes"]) {
+    await expect(rail.getByRole("button", { name: label, exact: true })).toBeVisible();
+    await expect(moreMenu.getByRole("button", { name: new RegExp(`^${label} `) })).toBeHidden();
+  }
   const toolbar = page.locator(".workspace-v2-toolbar");
   await expect.poll(async () => toolbar.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
 });

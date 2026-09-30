@@ -1,0 +1,58 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><style>{% include "biweekly/shared.css" %}
+@page:first { margin: 0; background: #0B1527; @top-left { content: none; } @top-right { content: none; } @bottom-left { content: none; } @bottom-right { content: none; } }
+.analysis-cover { height: 297mm; padding: 28mm 18mm; background: #0B1527; color: white; position: relative; overflow: hidden; break-after: page; }
+.analysis-cover:before { content: ""; position: absolute; width: 110mm; height: 110mm; right: -22mm; top: -22mm; background: #152B43; border-radius: 50%; }
+.analysis-cover:after { content: ""; position: absolute; width: 55mm; height: 55mm; right: 16mm; top: 20mm; background: #19A9B5; border-radius: 50%; }
+.cover-brand { display: flex; align-items: center; gap: 4mm; position: relative; z-index: 2; }
+.cover-brand img { width: 17mm; height: 17mm; object-fit: contain; border-radius: 4mm; background: white; padding: 2mm; }
+.cover-brand strong { display: block; font-size: 13pt; letter-spacing: 1pt; }
+.cover-brand small { color: #8BD9DC; font-size: 7pt; letter-spacing: 1pt; }
+.analysis-cover h1 { position: relative; z-index: 2; margin-top: 31mm; font-size: 35pt; color: white; }
+.analysis-cover .cover-period { position: relative; z-index: 2; color: #8BD9DC; font-size: 11pt; margin-top: 7mm; }
+.cover-summary { position: absolute; left: 18mm; right: 18mm; bottom: 72mm; background: white; border-radius: 6mm; padding: 9mm; color: #0B1527; }
+.cover-summary small { color: #71808C; font-size: 7pt; font-weight: bold; letter-spacing: 1pt; }
+.cover-summary strong { display: block; font-size: 32pt; margin: 4mm 0 2mm; }
+.cover-summary p { color: #71808C; }
+.report-page { break-after: page; }
+.report-page:last-child { break-after: auto; }
+.report-page .eyebrow { margin-bottom: 4mm; }
+.report-page h2 { margin-bottom: 2mm; }
+.report-page .section-intro { margin: 0 0 10mm; }
+.nine-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+.nine-metrics .card { min-height: 29mm; }
+.nine-metrics .card strong { font-size: 17pt; }
+.bests { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+.bests .card { min-height: 36mm; }
+.time-row { padding: 4mm 0; }
+.time-row header { display: flex; justify-content: space-between; gap: 4mm; }
+.time-row small { color: #71808C; }
+.compact-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+.compact-metrics .card strong { font-size: 18pt; }
+.mini-section { margin-top: 9mm; }
+.mini-section h3 { margin-bottom: 3mm; }
+.two-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; margin-top: 11mm; }
+.two-panels .card { min-height: 45mm; }
+.comparison-head, .comparison-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1.4fr; gap: 3mm; align-items: center; }
+.comparison-head { color: #71808C; font-size: 7pt; font-weight: bold; padding: 2mm 3mm; }
+.comparison-row { background: white; border-radius: 2mm; padding: 3mm; margin-bottom: 3mm; font-size: 8pt; }
+.next-step { background: white; border-radius: 4mm; padding: 6mm; margin-bottom: 4mm; display: flex; gap: 5mm; align-items: center; break-inside: avoid; }
+.next-step b { color: #19A9B5; background: #E8F6F6; border-radius: 50%; min-width: 10mm; height: 10mm; text-align: center; line-height: 10mm; }
+</style></head><body>
+<div class="analysis-cover"><div class="cover-brand">{% if logo_data %}<img src="{{ logo_data }}" alt="Lock-in">{% endif %}<span><strong>LOCK-IN</strong><small>PERSONAL STUDY REPORT</small></span></div><h1>Your 2-Week<br>Study Story</h1><p class="cover-period">{{ period_label }}</p><div class="cover-summary"><small>YOUR PERIOD IN ONE LINE</small><strong>{{ study_time }}</strong><p>focused study across {{ metrics.active_days }} active days</p></div></div>
+
+<section class="report-page"><p class="eyebrow">01 / Snapshot</p><h2>Two weeks in numbers</h2><p class="section-intro">Your most important study signals from the last 14 days.</p><div class="nine-metrics">{% for label, value in snapshot_metrics %}<div class="card"><small>{{ label }}</small><strong>{{ value }}</strong></div>{% endfor %}</div>{% if insights %}<div class="navy-panel"><p class="eyebrow">Your win</p><p>{{ insights.0 }}</p></div>{% endif %}</section>
+
+<section class="report-page"><p class="eyebrow">02 / Personal bests</p><h2>Your best moments</h2><p class="section-intro">Small records worth noticing in this period.</p><div class="bests">{% for best in personal_bests %}<div class="card"><small>{{ best.label }}</small><strong>{{ best.value }}</strong></div>{% endfor %}</div><div class="card pale" style="margin-top:10mm"><small>THIS PERIOD</small><strong>{{ metrics.active_days }} active days</strong></div></section>
+
+<section class="report-page"><p class="eyebrow">03 / Time</p><h2>Where your attention went</h2><p class="section-intro">Measured Focus time by subject where a document can be identified.</p>{% for subject in subject_study_time %}<div class="time-row"><header><b>{{ subject.subject }}</b><small>{{ subject.duration }} · {{ subject.percentage }}%</small></header><div class="bar"><span style="width:{{ subject.percentage }}%"></span></div></div>{% empty %}<div class="empty">No completed Focus sessions were recorded in this period.</div>{% endfor %}<div class="two-panels"><div class="card"><small>LONGEST SESSION</small><strong>{{ longest_session }}</strong></div>{% if most_studied_sheet %}<div class="card"><small>MOST STUDIED SHEET</small><strong style="font-size:14pt">{{ most_studied_sheet }}</strong></div>{% endif %}</div></section>
+
+<section class="report-page"><p class="eyebrow">04 / Questions</p><h2>How you performed</h2><p class="section-intro">Accuracy, difficulty and subject-level performance.</p><div class="compact-metrics"><div class="card"><small>CORRECT</small><strong>{{ metrics.correct_answers }}</strong></div><div class="card"><small>INCORRECT</small><strong>{{ metrics.incorrect_answers }}</strong></div><div class="card"><small>ACCURACY</small><strong>{% if metrics.accuracy is not None %}{{ metrics.accuracy }}%{% else %}—{% endif %}</strong></div></div><div class="mini-section"><h3>By difficulty</h3>{% for difficulty in difficulty_performance %}{% if difficulty.answered %}<div class="time-row"><header><b>{{ difficulty.label }}</b><small>{{ difficulty.accuracy }}% · {{ difficulty.answered }} questions</small></header><div class="bar"><span style="width:{{ difficulty.accuracy }}%"></span></div></div>{% endif %}{% endfor %}</div><div class="mini-section"><h3>By subject</h3>{% for subject in subjects|slice:":5" %}<div class="row"><b>{{ subject.subject }}</b><span>{{ subject.answered }} answered · {% if subject.reliable %}{{ subject.accuracy }}%{% else %}small sample{% endif %}</span></div>{% empty %}<div class="empty">No question activity was recorded.</div>{% endfor %}</div></section>
+
+<section class="report-page"><p class="eyebrow">05 / Mistake intelligence</p><h2>What needs attention</h2><p class="section-intro">Patterns based on your actual question history.</p><div class="compact-metrics"><div class="card"><small>UNRESOLVED</small><strong>{{ metrics.mistakes_unresolved }}</strong></div><div class="card"><small>REPEATED</small><strong>{{ metrics.mistakes_repeated }}</strong></div><div class="card"><small>MASTERED</small><strong>{{ metrics.mistakes_mastered }}</strong></div></div><div class="two-panels"><div class="card"><small>NEEDS YOUR ATTENTION</small><p>{% if metrics.mistakes_unresolved %}{{ metrics.mistakes_unresolved }} mistaken questions were still active in Review when this period closed.{% else %}No mistaken questions from this period remained active at close.{% endif %}</p></div><div class="card"><small>YOU'RE DOING WELL</small><p>{% if metrics.mistakes_mastered %}{{ metrics.mistakes_mastered }} mistaken questions from this period were mastered by close.{% else %}Keep revisiting explanations to build mastery.{% endif %}</p></div></div>{% if insights %}<div class="navy-panel"><p class="eyebrow">Lock-in insight</p><p>{{ insights.0 }}</p></div>{% endif %}</section>
+
+<section class="report-page"><p class="eyebrow">06 / Consistency</p><h2>How consistently you showed up</h2><p class="section-intro">{{ metrics.active_days }} active days across this 14-day period.</p><div class="grid"><div class="card"><small>SHEETS COMPLETED</small><strong>{{ metrics.sheets_completed }}</strong></div><div class="card"><small>ACTIVE STUDY CHECKPOINTS</small><strong>{{ metrics.active_study_checkpoints }}</strong></div><div class="card"><small>FINAL EXAMS</small><strong>{{ metrics.final_exams_completed }}</strong></div><div class="card"><small>AVG SESSION</small><strong>{{ average_session }}</strong></div></div><div class="navy-panel"><p class="eyebrow">Consistency insight</p><p>{% if metrics.active_days > 1 %}You studied on {{ metrics.active_days }} separate days. Keep returning regularly.{% elif metrics.active_days == 1 %}One active day is a start. Another short session can help build a rhythm.{% else %}No qualifying study activity was recorded yet. Your next period is a fresh start.{% endif %}</p></div></section>
+
+<section class="report-page"><p class="eyebrow">07 / Progress</p><h2>You vs. you</h2><p class="section-intro">Compared with your immediately previous 14-day period.</p>{% if comparisons %}<div class="comparison-head"><span>METRIC</span><span>PREVIOUS</span><span>CURRENT</span><span>CHANGE</span></div>{% for row in comparisons %}<div class="comparison-row"><b>{{ row.label }}</b><span>{{ row.previous }}</span><span>{{ row.current }}</span><b>{{ row.change }}</b></div>{% endfor %}{% else %}<div class="empty"><b>Your first biweekly report</b><p>Your next closed period will unlock a like-for-like comparison.</p></div>{% endif %}</section>
+
+<section class="report-page"><p class="eyebrow">08 / Next</p><h2>Your next 2 weeks</h2><p class="section-intro">Priorities generated from this period's activity.</p>{% for step in next_steps %}<div class="next-step"><b>0{{ forloop.counter }}</b><p>{{ step }}</p></div>{% endfor %}<div class="navy-panel"><p class="eyebrow">Next milestone</p><p>Build on this period and return for your next closed 14-day report. This report stays in Report History.</p></div></section>
+</body></html>

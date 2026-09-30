@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { accountsApi } from "../api/accounts.js";
 import { motivationApi } from "../api/motivation.js";
 import { PRODUCT_ROLES } from "../api/contracts.js";
@@ -13,10 +13,42 @@ import { AccountFieldErrors, fieldErrorAttributes } from "../components/account/
 import { useI18n } from "../components/I18nProvider.jsx";
 import { SessionList } from "../components/account/SessionList.jsx";
 import { SubscriptionStatus } from "../components/subscription/SubscriptionStatus.jsx";
-import { Page, ErrorPanel, RadioGroup, RadioOption, ToggleButton } from "../components/ui/index.jsx";
+import { UserAvatar } from "../components/shared/UserAvatar.jsx";
+import { Page, ErrorPanel, RadioGroup, RadioOption, Switch } from "../components/ui/index.jsx";
 import { ResponsiveThemePreview } from "../components/shared/ResponsiveThemePreview.jsx";
 import OfflineSettings from "../offline/OfflineSettings.jsx";
-import { useGlide } from "../lib/motion.js";
+
+/**
+ * Settings is organised the way a native settings app is: a short list of
+ * sections, each a page of grouped rows. On phones and tablets the list is its
+ * own screen and a section opens over it with a way back; on wide screens the
+ * list stays beside the open section.
+ *
+ * Earlier links name the six sections the page used to have. They still work:
+ * each one opens the section that now holds it and scrolls to its group.
+ */
+const SECTIONS = [
+  { id: "account", labelKey: "common.account", icon: "user" },
+  { id: "appearance", labelKey: "common.appearance", icon: "palette" },
+  { id: "notifications", labelKey: "settings.notifications", icon: "bell" },
+  { id: "offline", labelKey: "offline.title", icon: "package" }
+];
+
+const LEGACY_SECTIONS = {
+  character: ["appearance", "settings-character"],
+  "app-icon": ["appearance", "settings-app-icon"],
+  themes: ["appearance", "settings-themes"],
+  reminder: ["notifications", "settings-reminder"]
+};
+
+const DEFAULT_WIDE_SECTION = "appearance";
+
+function resolveSection(requested, deletionToken) {
+  if (LEGACY_SECTIONS[requested]) return { section: LEGACY_SECTIONS[requested][0], anchor: LEGACY_SECTIONS[requested][1] };
+  if (SECTIONS.some((entry) => entry.id === requested)) return { section: requested, anchor: "" };
+  if (deletionToken) return { section: "account", anchor: "" };
+  return { section: "", anchor: "" };
+}
 
 export default function Settings({ user, onUserUpdate, settings, activeTheme, reminderSettings, onReminderSettingsChange, onSettingsChange, onSignedOut }) {
   const { t } = useI18n();
@@ -29,9 +61,12 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
   const searchParameters = new URLSearchParams(location.search);
   const requestedSection = searchParameters.get("section") || "";
   const deletionToken = searchParameters.get("token") || "";
-  const activeSection = requestedSection || (deletionToken ? "account" : "character");
-  const sectionNavRef = useRef(null);
-  useGlide(sectionNavRef, "[aria-current='location']", activeSection);
+  const resolved = resolveSection(requestedSection, deletionToken);
+  // With no section named, a phone shows the list; a wide screen shows the
+  // list beside the default section. CSS decides which of the two is visible.
+  const activeSection = resolved.section || DEFAULT_WIDE_SECTION;
+  const view = resolved.section ? "detail" : "root";
+
   const handleDeletionConfirmation = useCallback(() => {
     const search = new URLSearchParams(location.search);
     search.delete("token");
@@ -42,28 +77,36 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
     );
   }, [location.search, navigate]);
 
+  // Opening a section (from the list or a deep link) moves focus to its title,
+  // or to the group a deep link names, so the change is announced.
   useEffect(() => {
-    if (!requestedSection) return undefined;
+    if (!resolved.section) return undefined;
     const focus = new URLSearchParams(location.search).get("focus");
-    const focusTarget = focus === "username" || focus === "password" ? focus : "";
-    const section = document.getElementById(`settings-${focusTarget || activeSection}`);
-    const heading = document.getElementById(`settings-${focusTarget || activeSection}-heading`);
-    if (!section || !heading) return undefined;
+    const focusTarget = focus === "username" || focus === "password" ? `settings-${focus}` : resolved.anchor;
+    const target = focusTarget ? document.getElementById(focusTarget) : null;
+    const heading = document.getElementById(`${focusTarget || `settings-${resolved.section}`}-heading`);
     const frame = window.requestAnimationFrame(() => {
-      section.scrollIntoView({
-        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-        block: "start"
-      });
-      heading.focus({ preventScroll: true });
+      if (target) {
+        target.scrollIntoView({
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+          block: "start"
+        });
+      }
+      heading?.focus({ preventScroll: Boolean(target) });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [activeSection, location.search, requestedSection]);
+  }, [location.search, resolved.anchor, resolved.section]);
 
   function openSection(section) {
     const search = new URLSearchParams(location.search);
     search.set("section", section);
     search.delete("focus");
-    navigate({ pathname: "/settings", search: `?${search.toString()}` });
+    navigate({ pathname: "/settings", search: `?${search.toString()}` }, { state: { fromSettingsList: true } });
+  }
+
+  function backToList() {
+    if (location.state?.fromSettingsList) navigate(-1);
+    else navigate({ pathname: "/settings" }, { replace: true });
   }
 
   async function saveSettings(nextSettings, source) {
@@ -126,146 +169,62 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
     });
   }
 
+  const themeValue = settings.autoTheme
+    ? t("settings.autoThemeValue", { name: t(`settings.theme.${activeTheme}`) })
+    : t(`settings.theme.${settings.theme}`);
+  const sectionValues = {
+    account: user?.username || "",
+    appearance: themeValue,
+    notifications: reminderSettings.enabled ? reminderSettings.time : t("settings.valueOff"),
+    offline: ""
+  };
+  const sectionTitle = t(SECTIONS.find((entry) => entry.id === activeSection)?.labelKey || "settings.pageTitle");
+
   return (
-    <Page title={t("settings.pageTitle")} subtitle={t("settings.pageSubtitle")}>
-      <section className="themes-page" data-active-section={activeSection}>
-        {(error || reminderError) && <ErrorPanel message={error || reminderError} />}
-        <nav className="settings-local-nav" ref={sectionNavRef} aria-label={t("settings.sectionsLabel")}>
-          {[["character", "settings.character"], ["app-icon", "settings.appIcon"], ["themes", "settings.themes"], ["reminder", "settings.reminder"], ["offline", "offline.title"], ["account", "common.account"]].map(([section, labelKey]) => <button type="button" key={section} onClick={() => openSection(section)} aria-controls={`settings-${section}`} aria-current={activeSection === section ? "location" : undefined}>{t(labelKey)}</button>)}
+    <Page title={t("settings.pageTitle")} headingHandled>
+      <section className="settings-v2" data-view={view} data-active-section={activeSection}>
+        <header className="settings-v2-head">
+          <h1 dir="auto">{t("settings.pageTitle")}</h1>
+        </header>
+
+        <nav className="settings-v2-nav" aria-label={t("settings.sectionsLabel")}>
+          <ul className="ui-group">
+            {SECTIONS.map((section) => {
+              const current = activeSection === section.id;
+              return <li key={section.id}>
+                <button
+                  type="button"
+                  className="ui-row"
+                  aria-label={t(section.labelKey)}
+                  aria-controls="settings-v2-detail"
+                  aria-current={current ? "location" : undefined}
+                  data-current={current ? "" : undefined}
+                  onClick={() => openSection(section.id)}
+                >
+                  <span className={`ui-row-icon settings-v2-icon settings-v2-icon--${section.id}`}><Icon name={section.icon} size={17} /></span>
+                  <span className="ui-row-body"><span>{t(section.labelKey)}</span></span>
+                  {sectionValues[section.id] && <span className="ui-row-value" aria-hidden="true" dir="auto">{sectionValues[section.id]}</span>}
+                  <Icon className="ui-row-chevron" name="chevron-right" size={17} />
+                </button>
+              </li>;
+            })}
+          </ul>
         </nav>
-        <article className="theme-section" id="settings-character" aria-labelledby="settings-character-heading">
-          <div className="theme-section-head">
-            <div><h2 id="settings-character-heading" tabIndex={-1}>{t("settings.character")}</h2></div>
-            <span className="pill">{t(`settings.character.${settings.character}`)}</span>
-          </div>
-          {/* One character is in use, so this is a single choice. The options
-              used to be independent toggles reporting aria-pressed. */}
-          <RadioGroup className="character-grid" label={t("settings.studyCharacter")} value={settings.character} onChange={(next) => saveSettings({ ...settings, character: next }, `character-${next}`)}>
-            {characterOptions.map((option) => {
-              const selected = settings.character === option.id;
-              return (
-                <RadioOption
-                  className={`theme-card character-card ${selected ? "selected" : ""}`}
-                  key={option.id}
-                  value={option.id}
-                >
-                  <ResponsiveThemePreview character={option.id} theme={activeTheme} alt={t("settings.previewNamed", { name: t(`settings.character.${option.id}`) })} sizes="(max-width: 639px) 42vw, 210px" />
-                  <span>{t(`settings.character.${option.id}`)}</span>
-                  {selected && <i><Icon name="check" size={18} /></i>}
-                </RadioOption>
-              );
-            })}
-          </RadioGroup>
-        </article>
 
-        <article className="theme-section app-icon-section" id="settings-app-icon" aria-labelledby="settings-app-icon-heading">
-          <div className="theme-section-head">
-            <div>
-              <h2 id="settings-app-icon-heading" tabIndex={-1}>{t("settings.appIcon")}</h2>
-              <p className="app-icon-description">{t("settings.appIconDescription")}</p>
-            </div>
-            <span className="pill">{t(`settings.appIcon.${settings.appIcon}`)}</span>
-          </div>
-          <RadioGroup className="app-icon-grid" label={t("settings.appIconChoices")} value={settings.appIcon} onChange={(next) => saveSettings({ ...settings, appIcon: next }, `app-icon-${next}`)}>
-            {appIconOptions.map((option) => {
-              const selected = settings.appIcon === option.id;
-              return (
-                <RadioOption
-                  className={`app-icon-option ${selected ? "selected" : ""}`}
-                  key={option.id}
-                  value={option.id}
-                >
-                  <img src={assetPath(option.preview)} alt="" />
-                  <span>{t(`settings.appIcon.${option.id}`)}</span>
-                  {selected && <i aria-hidden="true"><Icon name="check" size={15} /></i>}
-                </RadioOption>
-              );
-            })}
-          </RadioGroup>
-          <p className="app-icon-platform-note">{t("settings.appIconPlatformNote")}</p>
-        </article>
+        <div className="settings-v2-detail" id="settings-v2-detail">
+          <header className="settings-v2-detail-head">
+            <button type="button" className="settings-v2-back" onClick={backToList}>
+              <Icon name="chevron-left" size={20} />
+              <span>{t("settings.pageTitle")}</span>
+            </button>
+            <h2 id={`settings-${activeSection}-heading`} tabIndex={-1} dir="auto">{sectionTitle}</h2>
+          </header>
 
-        <article className="theme-section" id="settings-themes" aria-labelledby="settings-themes-heading">
-          <div className="theme-section-head">
-            <div><h2 id="settings-themes-heading" tabIndex={-1}>{t("settings.chooseTheme")}</h2></div>
-            <span className="pill">{settings.autoTheme ? t("settings.autoThemeValue", { name: t(`settings.theme.${activeTheme}`) }) : t(`settings.theme.${settings.theme}`)}</span>
-          </div>
-          <RadioGroup className={`theme-grid ${settings.autoTheme ? "manual-disabled" : ""}`} label={t("settings.themeLabel")} value={settings.autoTheme ? "" : settings.theme} onChange={(next) => saveSettings({ ...settings, theme: next, autoTheme: false }, `theme-${next}`)}>
-            {themeOptions.map((option) => {
-              const selected = settings.theme === option.id && !settings.autoTheme;
-              return (
-                <RadioOption
-                  className={`theme-card ${option.id} ${selected ? "selected" : ""}`}
-                  key={option.id}
-                  value={option.id}
-                  disabled={settings.autoTheme}
-                >
-                  <ResponsiveThemePreview character={settings.character} theme={option.id} alt={t("settings.themePreviewNamed", { name: t(`settings.theme.${option.id}`) })} sizes="(max-width: 639px) 42vw, 210px" />
-                  <span>{t(`settings.theme.${option.id}`)}</span>
-                  <small>{option.time}</small>
-                  {selected && <i><Icon name="check" size={18} /></i>}
-                </RadioOption>
-              );
-            })}
-          </RadioGroup>
-        </article>
+          {(error || reminderError) && <ErrorPanel message={error || reminderError} />}
 
-        <article className="auto-theme-card">
-          <div>
-            <h2>{t("settings.autoTheme")}</h2>
-            <p>{t("settings.autoThemeDescription")}</p>
-          </div>
-          <ToggleButton
-            className={`auto-toggle ${settings.autoTheme ? "on" : ""}`}
-            label={t("settings.automaticTheme")}
-            pressed={settings.autoTheme}
-            onClick={() => saveSettings({ ...settings, autoTheme: !settings.autoTheme }, "auto")}
-          >
-            <span>{t(settings.autoTheme ? "settings.on" : "settings.off")}</span>
-            <i />
-          </ToggleButton>
-          <div className="theme-schedule">
-            {themeOptions.map((option) => <span key={option.id}><strong>{t(`settings.theme.${option.id}`)}</strong>{option.time}</span>)}
-          </div>
-        </article>
-
-        <article className="theme-section reminder-section" id="settings-reminder" aria-labelledby="settings-reminder-heading">
-          <div className="theme-section-head">
-            <div>
-              <h2 id="settings-reminder-heading" tabIndex={-1}>{t("settings.studyReminder")}</h2>
-            </div>
-            <span className={`pill ${reminderSettings.enabled ? "success" : ""}`}>{t(reminderSettings.enabled ? "settings.enabled" : "settings.off")}</span>
-          </div>
-          <div className="reminder-grid">
-            <label className="field">
-              <span>{t("settings.reminderTime")}</span>
-              <input type="time" value={reminderSettings.time} onChange={(event) => saveReminder({ ...reminderSettings, time: event.target.value }, "reminder-time")} />
-            </label>
-            <ToggleButton
-              className={`auto-toggle ${reminderSettings.enabled ? "on" : ""}`}
-              label={t("settings.dailyStudyReminder")}
-              pressed={reminderSettings.enabled}
-              onClick={() => saveReminder({ ...reminderSettings, enabled: !reminderSettings.enabled }, "reminder-toggle")}
-            >
-              <span>{t(reminderSettings.enabled ? "settings.on" : "settings.off")}</span>
-              <i />
-            </ToggleButton>
-            <button className="btn btn-soft" type="button" onClick={testReminder}>{t("settings.testReminder")}</button>
-          </div>
-          <p className="save-hint">{t("settings.reminderHint")}</p>
-        </article>
-
-        {user?.id && <OfflineSettings userId={user.id} />}
-        <section className="settings-account-management" id="settings-account" aria-labelledby="settings-account-heading">
-          <div className="settings-account-heading">
-            <div>
-              <h2 id="settings-account-heading" tabIndex={-1}>{t("settings.accountSecurity")}</h2>
-            </div>
-            <span className="pill success">{t("settings.protected")}</span>
-          </div>
-          <div className="account-management-grid">
-            <AccountSubscriptionCard onOpen={() => navigate("/subscription")} />
-            <LanguageCard onUserUpdate={onUserUpdate} />
+          {activeSection === "account" && <section className="settings-v2-section" id="settings-account" aria-labelledby="settings-account-heading">
+            <AccountSummary user={user} />
+            <AccountSubscriptionGroup />
             <UsernameCard user={user} onUserUpdate={onUserUpdate} />
             <PasswordCard id="settings-password" headingId="settings-password-heading" />
             <ConnectedAccountsCard email={user?.email} />
@@ -274,23 +233,144 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
               confirmationToken={deletionToken}
               onConfirmationHandled={handleDeletionConfirmation}
             />
-          </div>
-        </section>
+          </section>}
 
-        {isAdministrator && <NotificationPreferences />}
-        {isAdministrator && <section className="settings-panel compact">
-          <div className="settings-row"><div><h2>{t("settings.apiMode")}</h2><p>{t("settings.liveService")}</p></div><span className="pill success">{t("settings.live")}</span></div>
-        </section>}
-        {saving && <p className="save-hint">{t("settings.saving")}</p>}
+          {activeSection === "appearance" && <section className="settings-v2-section" id="settings-appearance" aria-labelledby="settings-appearance-heading">
+            <div className="ui-group-block settings-v2-block" id="settings-themes">
+              <h3 className="ui-group-title" id="settings-themes-heading" tabIndex={-1}>{t("settings.themeLabel")}</h3>
+              <div className="ui-group settings-v2-pad">
+                <RadioGroup className={`settings-v2-choices settings-v2-choices--themes ${settings.autoTheme ? "manual-disabled" : ""}`} label={t("settings.themeLabel")} value={settings.autoTheme ? "" : settings.theme} onChange={(next) => saveSettings({ ...settings, theme: next, autoTheme: false }, `theme-${next}`)}>
+                  {themeOptions.map((option) => {
+                    return (
+                      <RadioOption
+                        className={`settings-v2-choice settings-v2-choice--${option.id}`}
+                        key={option.id}
+                        value={option.id}
+                        disabled={settings.autoTheme}
+                      >
+                        <span className="settings-v2-choice-art"><ResponsiveThemePreview character={settings.character} theme={option.id} alt={t("settings.themePreviewNamed", { name: t(`settings.theme.${option.id}`) })} sizes="(max-width: 639px) 42vw, 180px" /></span>
+                        <span className="settings-v2-choice-label">{t(`settings.theme.${option.id}`)}</span>
+                        <small><span dir="ltr">{option.time}</span></small>
+                      </RadioOption>
+                    );
+                  })}
+                </RadioGroup>
+              </div>
+              <div className="ui-group">
+                <div className="ui-row">
+                  <span className="ui-row-body"><label htmlFor="settings-auto-theme">{t("settings.autoTheme")}</label><small>{t("settings.autoThemeDescription")}</small></span>
+                  <Switch id="settings-auto-theme" checked={settings.autoTheme} busy={saving === "auto"} onCheckedChange={(next) => saveSettings({ ...settings, autoTheme: next }, "auto")} />
+                </div>
+              </div>
+            </div>
+
+            <LanguageCard onUserUpdate={onUserUpdate} />
+
+            <div className="ui-group-block settings-v2-block" id="settings-character">
+              <h3 className="ui-group-title" id="settings-character-heading" tabIndex={-1}>{t("settings.studyCharacter")}</h3>
+              <div className="ui-group settings-v2-pad">
+                {/* One character is in use, so this is a single choice. */}
+                <RadioGroup className="settings-v2-choices settings-v2-choices--characters" label={t("settings.studyCharacter")} value={settings.character} onChange={(next) => saveSettings({ ...settings, character: next }, `character-${next}`)}>
+                  {characterOptions.map((option) => {
+                    return (
+                      <RadioOption
+                        className="settings-v2-choice"
+                        key={option.id}
+                        value={option.id}
+                      >
+                        <span className="settings-v2-choice-art"><ResponsiveThemePreview character={option.id} theme={activeTheme} alt={t("settings.previewNamed", { name: t(`settings.character.${option.id}`) })} sizes="(max-width: 639px) 42vw, 180px" /></span>
+                        <span className="settings-v2-choice-label">{t(`settings.character.${option.id}`)}</span>
+                      </RadioOption>
+                    );
+                  })}
+                </RadioGroup>
+              </div>
+            </div>
+
+            <div className="ui-group-block settings-v2-block" id="settings-app-icon">
+              <h3 className="ui-group-title" id="settings-app-icon-heading" tabIndex={-1}>{t("settings.appIcon")}</h3>
+              <div className="ui-group settings-v2-pad">
+                <RadioGroup className="app-icon-grid settings-v2-icons" label={t("settings.appIconChoices")} value={settings.appIcon} onChange={(next) => saveSettings({ ...settings, appIcon: next }, `app-icon-${next}`)}>
+                  {appIconOptions.map((option) => {
+                    return (
+                      <RadioOption
+                        className="settings-v2-icon-option"
+                        key={option.id}
+                        value={option.id}
+                      >
+                        <img src={assetPath(option.preview)} alt="" />
+                        <span>{t(`settings.appIcon.${option.id}`)}</span>
+                      </RadioOption>
+                    );
+                  })}
+                </RadioGroup>
+              </div>
+              <p className="ui-group-footer">{t("settings.appIconPlatformNote")}</p>
+            </div>
+          </section>}
+
+          {activeSection === "notifications" && <section className="settings-v2-section" id="settings-notifications" aria-labelledby="settings-notifications-heading">
+            <div className="ui-group-block settings-v2-block" id="settings-reminder">
+              <h3 className="ui-group-title" id="settings-reminder-heading" tabIndex={-1}>{t("settings.studyReminder")}</h3>
+              <div className="ui-group">
+                <div className="ui-row">
+                  <span className="ui-row-body"><label htmlFor="settings-reminder-toggle">{t("settings.dailyStudyReminder")}</label></span>
+                  <Switch id="settings-reminder-toggle" checked={reminderSettings.enabled} busy={saving === "reminder-toggle"} onCheckedChange={(next) => saveReminder({ ...reminderSettings, enabled: next }, "reminder-toggle")} />
+                </div>
+                <div className="ui-row">
+                  <span className="ui-row-body"><label htmlFor="settings-reminder-time">{t("settings.reminderTime")}</label></span>
+                  <input id="settings-reminder-time" className="ui-row-input" type="time" value={reminderSettings.time} onChange={(event) => saveReminder({ ...reminderSettings, time: event.target.value }, "reminder-time")} />
+                </div>
+                <button type="button" className="ui-row settings-v2-action" onClick={testReminder}>
+                  <span className="ui-row-body"><span>{t("settings.testReminder")}</span></span>
+                </button>
+              </div>
+              <p className="ui-group-footer">{t("settings.reminderHint")}</p>
+            </div>
+            {isAdministrator && <NotificationPreferences />}
+          </section>}
+
+          {activeSection === "offline" && user?.id && <OfflineSettings userId={user.id} />}
+
+          {saving && <p className="save-hint settings-v2-saving" role="status">{t("settings.saving")}</p>}
+        </div>
       </section>
     </Page>
   );
 }
 
-function AccountSubscriptionCard({ onOpen }) {
+/** The account's own row at the top, the way a settings app opens on "you". */
+function AccountSummary({ user }) {
+  const { t } = useI18n();
+  return <div className="ui-group settings-v2-profile">
+    <Link className="ui-row" to="/profile">
+      <UserAvatar user={user} className="settings-v2-avatar" loading="eager" />
+      <span className="ui-row-body">
+        <strong dir="auto">{user?.full_name || user?.username || t("common.account")}</strong>
+        <small dir="auto">{user?.email}</small>
+      </span>
+      <span className="ui-row-value">{t("settings.viewProfile")}</span>
+      <Icon className="ui-row-chevron" name="chevron-right" size={17} />
+    </Link>
+  </div>;
+}
+
+function AccountSubscriptionGroup() {
   const { t } = useI18n();
   const { subscription } = useSubscriptionSession();
-  return <article className="panel account-management-card"><div className="panel-title"><div><p className="eyebrow">{t("subscription.title")}</p><h2>{subscription?.plan_title || t("subscription.noPlan")}</h2></div><Icon name="coins" size={18} /></div><SubscriptionStatus subscription={subscription} /><button className="btn btn-outline compact" type="button" onClick={onOpen}>{t("subscription.view")}</button></article>;
+  return <div className="ui-group-block settings-v2-block">
+    <h3 className="ui-group-title">{t("subscription.title")}</h3>
+    <div className="ui-group">
+      <Link className="ui-row" to="/subscription">
+        <span className="ui-row-icon"><Icon name="coins" size={17} /></span>
+        <span className="ui-row-body">
+          <strong dir="auto">{subscription?.plan_title || t("subscription.noPlan")}</strong>
+          <SubscriptionStatus subscription={subscription} compact />
+        </span>
+        <Icon className="ui-row-chevron" name="chevron-right" size={17} />
+      </Link>
+    </div>
+  </div>;
 }
 
 function UsernameCard({ user, onUserUpdate }) {
@@ -319,13 +399,12 @@ function UsernameCard({ user, onUserUpdate }) {
     }
   }
 
+  const unchanged = username.trim() === (user?.username || "");
+
   return (
-    <article className="panel account-management-card" id="settings-username">
-      <div className="panel-title">
-        <div><h2 id="settings-username-heading" tabIndex={-1}>{t("settings.changeUsername")}</h2></div>
-        <Icon name="user" size={18} />
-      </div>
-      <form className="account-password-form" onSubmit={submit}>
+    <div className="ui-group-block settings-v2-block" id="settings-username">
+      <h3 className="ui-group-title" id="settings-username-heading" tabIndex={-1}>{t("settings.changeUsername")}</h3>
+      <form className="ui-group settings-v2-form" onSubmit={submit}>
         <label className="field">
           <span>{t("auth.username")}</span>
           <input
@@ -343,14 +422,14 @@ function UsernameCard({ user, onUserUpdate }) {
           <AccountFieldErrors error={error} field="username" id="settings-username-error" />
         </label>
         <AccountFieldErrors error={error} />
-        <div className="account-password-actions">
+        <div className="settings-v2-form-actions">
           <span role="status">{message}</span>
-          <button className="btn btn-primary compact" type="submit" disabled={saving || !username.trim()}>
+          <button className="btn btn-primary compact" type="submit" aria-busy={saving || undefined} disabled={saving || !username.trim() || unchanged}>
             {saving ? t("settings.saving") : t("settings.saveUsername")}
           </button>
         </div>
       </form>
-    </article>
+    </div>
   );
 }
 
@@ -381,7 +460,19 @@ function PasswordCard({ id, headingId }) {
     }
   }
 
-  return <article className="panel account-management-card" id={id}><div className="panel-title"><div><h2 id={headingId} tabIndex={-1}>{t("settings.changePassword")}</h2></div><Icon name="lock" size={18} /></div><form className="account-password-form" onSubmit={submit}><label className="field"><span>{t("settings.currentPassword")}</span><input type="password" autoComplete="current-password" value={form.currentPassword} onChange={(event) => setForm({ ...form, currentPassword: event.target.value })} required {...fieldErrorAttributes(error, "current_password", "settings-current-password-error")} /><AccountFieldErrors error={error} field="current_password" id="settings-current-password-error" /></label><label className="field"><span>{t("settings.newPassword")}</span><input type="password" autoComplete="new-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required {...fieldErrorAttributes(error, "new_password", "settings-new-password-error")} /><AccountFieldErrors error={error} field="new_password" id="settings-new-password-error" /></label><label className="field"><span>{t("settings.confirmNewPassword")}</span><input type="password" autoComplete="new-password" value={form.passwordConfirm} onChange={(event) => setForm({ ...form, passwordConfirm: event.target.value })} required {...fieldErrorAttributes(error, "new_password_confirm", "settings-confirm-password-error")} /><AccountFieldErrors error={error} field="new_password_confirm" id="settings-confirm-password-error" /></label><AccountFieldErrors error={error} /><div className="account-password-actions"><span role="status">{message}</span><button className="btn btn-primary compact" type="submit" disabled={saving}>{saving ? t("settings.updatingPassword") : t("settings.updatePassword")}</button></div></form></article>;
+  return <div className="ui-group-block settings-v2-block" id={id}>
+    <h3 className="ui-group-title" id={headingId} tabIndex={-1}>{t("settings.changePassword")}</h3>
+    <form className="ui-group settings-v2-form" onSubmit={submit}>
+      <label className="field"><span>{t("settings.currentPassword")}</span><input type="password" autoComplete="current-password" value={form.currentPassword} onChange={(event) => setForm({ ...form, currentPassword: event.target.value })} required {...fieldErrorAttributes(error, "current_password", "settings-current-password-error")} /><AccountFieldErrors error={error} field="current_password" id="settings-current-password-error" /></label>
+      <label className="field"><span>{t("settings.newPassword")}</span><input type="password" autoComplete="new-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required {...fieldErrorAttributes(error, "new_password", "settings-new-password-error")} /><AccountFieldErrors error={error} field="new_password" id="settings-new-password-error" /></label>
+      <label className="field"><span>{t("settings.confirmNewPassword")}</span><input type="password" autoComplete="new-password" value={form.passwordConfirm} onChange={(event) => setForm({ ...form, passwordConfirm: event.target.value })} required {...fieldErrorAttributes(error, "new_password_confirm", "settings-confirm-password-error")} /><AccountFieldErrors error={error} field="new_password_confirm" id="settings-confirm-password-error" /></label>
+      <AccountFieldErrors error={error} />
+      <div className="settings-v2-form-actions">
+        <span role="status">{message}</span>
+        <button className="btn btn-primary compact" type="submit" aria-busy={saving || undefined} disabled={saving}>{saving ? t("settings.updatingPassword") : t("settings.updatePassword")}</button>
+      </div>
+    </form>
+  </div>;
 }
 
 function AccountDeletionCard({ confirmationToken, onConfirmationHandled }) {
@@ -391,6 +482,7 @@ function AccountDeletionCard({ confirmationToken, onConfirmationHandled }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [message, setMessage] = useState("");
+  const [open, setOpen] = useState(Boolean(confirmationToken));
 
   useEffect(() => {
     let active = true;
@@ -448,25 +540,37 @@ function AccountDeletionCard({ confirmationToken, onConfirmationHandled }) {
         : state.status === "completed"
           ? t("settings.deletionCompleted")
           : t("settings.deletionNone");
+  // A request in progress is always shown; otherwise the destructive form
+  // waits behind one deliberate tap instead of sitting open on the page.
+  const expanded = open || isOpen || Boolean(error);
 
-  return <article className="panel account-management-card account-deletion-card">
-    <div className="panel-title"><div><p className="eyebrow">{t("settings.dataRights")}</p><h2>{t("settings.deleteAccount")}</h2></div><Icon name="trash" size={18} /></div>
-    <p>{t("settings.deletionDescription")}</p>
-    <p className="save-hint" role="status">{state.loading ? t("settings.deletionChecking") : statusLabel}</p>
-    {state.status === "confirmed" && !state.request?.policy_version && <p className="form-notice" role="alert">{t("settings.deletionPolicyPending")}</p>}
-    <label className="field"><span>{t("settings.currentPassword")}</span><input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy || state.loading || state.status === "processing" || state.status === "completed"} /></label>
-    <AccountFieldErrors error={error} />
-    {message && <p className="save-hint" role="status">{message}</p>}
-    <div className="account-password-actions">
-      {isOpen ? <button className="btn btn-outline compact" type="button" onClick={() => void submit("cancel")} disabled={!password || busy}>{t("settings.cancelDeletion")}</button> : <button className="btn btn-danger compact" type="button" onClick={() => void submit("request")} disabled={!password || busy || state.loading || state.status === "completed"}>{busy ? t("settings.submittingDeletion") : t("settings.requestDeletion")}</button>}
+  return <div className="ui-group-block settings-v2-block account-deletion-card">
+    <h3 className="ui-group-title">{t("settings.dataRights")}</h3>
+    <div className="ui-group">
+      <button type="button" className="ui-row is-danger" aria-expanded={expanded} aria-controls="settings-deletion-form" onClick={() => setOpen((value) => !value)}>
+        <span className="ui-row-body"><strong>{t("settings.deleteAccount")}</strong></span>
+        <span className="ui-row-value" role="status">{state.loading ? t("settings.deletionChecking") : statusLabel}</span>
+        <Icon className="ui-row-chevron settings-v2-disclosure" name="chevron-down" size={17} />
+      </button>
+      {expanded && <div className="settings-v2-form settings-v2-form--inset" id="settings-deletion-form">
+        <p className="settings-v2-note">{t("settings.deletionDescription")}</p>
+        {state.status === "confirmed" && !state.request?.policy_version && <p className="form-notice" role="alert">{t("settings.deletionPolicyPending")}</p>}
+        <label className="field"><span>{t("settings.currentPassword")}</span><input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy || state.loading || state.status === "processing" || state.status === "completed"} /></label>
+        <AccountFieldErrors error={error} />
+        {message && <p className="save-hint" role="status">{message}</p>}
+        <div className="settings-v2-form-actions">
+          <span />
+          {isOpen ? <button className="btn btn-outline compact" type="button" onClick={() => void submit("cancel")} disabled={!password || busy}>{t("settings.cancelDeletion")}</button> : <button className="btn btn-danger compact" type="button" aria-busy={busy || undefined} onClick={() => void submit("request")} disabled={!password || busy || state.loading || state.status === "completed"}>{busy ? t("settings.submittingDeletion") : t("settings.requestDeletion")}</button>}
+        </div>
+      </div>}
     </div>
-  </article>;
+  </div>;
 }
 
 /**
  * The interface language lived only on the sign-in screen and inside a tab on
  * the profile, so a reader who had already signed in had nowhere obvious to
- * change it. It belongs beside the other account settings.
+ * change it. It belongs beside the other appearance settings.
  */
 function LanguageCard({ onUserUpdate }) {
   const { t, locale } = useI18n();
@@ -490,27 +594,41 @@ function LanguageCard({ onUserUpdate }) {
     }
   }
 
-  return <article className="panel account-management-card">
-    <div className="panel-title">
-      <div><p className="eyebrow">{t("common.appearance")}</p><h2>{t("settings.language")}</h2></div>
-      <Icon name="globe" size={18} />
+  return <div className="ui-group-block settings-v2-block" id="settings-language">
+    <h3 className="ui-group-title">{t("settings.language")}</h3>
+    <div className="ui-group">
+      <div className="ui-row">
+        <span className="ui-row-icon"><Icon name="globe" size={17} /></span>
+        <span className="ui-row-body"><label htmlFor="settings-language-select">{t("settings.interfaceLanguage")}</label></span>
+        <select id="settings-language-select" className="ui-row-input settings-v2-select" value={locale} disabled={saving} onChange={(event) => { void change(event.target.value); }} {...fieldErrorAttributes(error, "preferred_language", "settings-language-error")}>
+          <option value="en">English</option>
+          <option value="ar">العربية</option>
+        </select>
+      </div>
     </div>
-    <label className="field">
-      <span>{t("settings.interfaceLanguage")}</span>
-      <select value={locale} disabled={saving} onChange={(event) => { void change(event.target.value); }} {...fieldErrorAttributes(error, "preferred_language", "settings-language-error")}>
-        <option value="en">English</option>
-        <option value="ar">العربية</option>
-      </select>
-    </label>
     <AccountFieldErrors error={error} field="preferred_language" id="settings-language-error" />
     <AccountFieldErrors error={error} />
-    {message && <p className="save-hint" role="status">{message}</p>}
-  </article>;
+    {message && <p className="ui-group-footer" role="status">{message}</p>}
+  </div>;
 }
 
 function ConnectedAccountsCard({ email }) {
   const { t } = useI18n();
-  return <article className="panel account-management-card"><div className="panel-title"><div><p className="eyebrow">{t("settings.signInMethods")}</p><h2>{t("settings.connectedAccounts")}</h2></div><Icon name="user" size={18} /></div><div className="account-auth-methods"><div className="account-auth-method primary"><span><Icon name="lock" size={16} /></span><div><strong>{t("settings.emailPassword")}</strong><small>{email || t("settings.primarySignIn")}</small></div><b>{t("settings.primary")}</b></div><div className="account-auth-method"><span><Icon name="globe" size={16} /></span><div><strong>Google</strong><small>{t("settings.providerLinkingDisabled")}</small></div><b>{t("settings.notConnected")}</b></div><div className="account-auth-method"><span><Icon name="user" size={16} /></span><div><strong>Apple</strong><small>{t("settings.providerLinkingDisabled")}</small></div><b>{t("settings.notConnected")}</b></div></div></article>;
+  const providers = [
+    { id: "email", icon: "lock", title: t("settings.emailPassword"), detail: email || t("settings.primarySignIn"), value: t("settings.primary") },
+    { id: "google", icon: "globe", title: "Google", detail: t("settings.providerLinkingDisabled"), value: t("settings.notConnected") },
+    { id: "apple", icon: "user", title: "Apple", detail: t("settings.providerLinkingDisabled"), value: t("settings.notConnected") }
+  ];
+  return <div className="ui-group-block settings-v2-block">
+    <h3 className="ui-group-title">{t("settings.connectedAccounts")}</h3>
+    <ul className="ui-group">
+      {providers.map((provider) => <li key={provider.id} className="ui-row">
+        <span className="ui-row-icon"><Icon name={provider.icon} size={17} /></span>
+        <span className="ui-row-body"><strong>{provider.title}</strong><small dir="auto">{provider.detail}</small></span>
+        <span className="ui-row-value">{provider.value}</span>
+      </li>)}
+    </ul>
+  </div>;
 }
 
 function NotificationPreferences() {
@@ -541,29 +659,27 @@ function NotificationPreferences() {
   }
 
   return (
-    <article className="theme-section">
-      <div className="theme-section-head">
-        <div><p className="eyebrow">{t("settings.notifications")}</p><h2>{t("settings.serverNotifications")}</h2></div>
-        <span className="pill">{t("settings.preferences")}</span>
-      </div>
-      <p className="save-hint">{t("settings.serverNotificationsHint")}</p>
-      {preferenceData.loading && <p className="save-hint">{t("settings.loadingNotifications")}</p>}
+    <div className="ui-group-block settings-v2-block">
+      <h3 className="ui-group-title">{t("settings.serverNotifications")}</h3>
+      {preferenceData.loading && <p className="ui-group-footer">{t("settings.loadingNotifications")}</p>}
       {preferenceData.error && <ErrorPanel message={preferenceData.error} onRetry={preferenceData.reload} />}
       {error && <ErrorPanel message={error} onRetry={preferenceData.reload} />}
-      {!preferenceData.loading && !preferenceData.error && <section className="settings-panel compact">
-        {!preferences.length && <p className="save-hint">{t("settings.noNotificationCategories")}</p>}
+      {!preferenceData.loading && !preferenceData.error && <div className="ui-group">
+        {!preferences.length && <p className="ui-row">{t("settings.noNotificationCategories")}</p>}
         {preferences.map((preference, index) => {
           const unavailable = !preference.available;
           const locked = preference.required;
-          const isSaving = saving === `${preference.category}-${preference.channel}`;
+          const key = `${preference.category}-${preference.channel}`;
+          const label = t("settings.notificationToggleLabel", { category: preference.category, channel: preference.channel.replace("_", " ") });
           return (
-            <div className="settings-row" key={`${preference.category}-${preference.channel}`}>
-              <div><h2 dir="auto">{preference.category} · {preference.channel.replace("_", " ")}</h2><p>{t(locked ? "settings.alwaysOn" : unavailable ? "settings.channelUnavailable" : preference.enabled ? "settings.enabled" : "settings.disabled")}</p></div>
-              <ToggleButton className={`auto-toggle ${preference.enabled ? "on" : ""}`} label={t("settings.notificationToggleLabel", { category: preference.category, channel: preference.channel.replace("_", " ") })} pressed={preference.enabled} onClick={() => { void togglePreference(index); }} disabled={locked || unavailable || Boolean(saving)}><span>{isSaving ? "…" : t(preference.enabled ? "settings.on" : "settings.off")}</span><i /></ToggleButton>
+            <div className="ui-row" key={key}>
+              <span className="ui-row-body"><strong dir="auto">{preference.category} · {preference.channel.replace("_", " ")}</strong><small>{t(locked ? "settings.alwaysOn" : unavailable ? "settings.channelUnavailable" : preference.enabled ? "settings.enabled" : "settings.disabled")}</small></span>
+              <Switch label={label} checked={preference.enabled} busy={saving === key} onCheckedChange={() => { void togglePreference(index); }} disabled={locked || unavailable || Boolean(saving)} />
             </div>
           );
         })}
-      </section>}
-    </article>
+      </div>}
+      <p className="ui-group-footer">{t("settings.serverNotificationsHint")}</p>
+    </div>
   );
 }

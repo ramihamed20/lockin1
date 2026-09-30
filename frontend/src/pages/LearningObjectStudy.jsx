@@ -7,6 +7,7 @@ import { BookmarkButton } from "../components/learning/BookmarkButton.jsx";
 import { ErrorPanel, LoadingPanel, Page, ProgressLine } from "../components/ui/index.jsx";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { Icon } from "../lib/icons.jsx";
+import { isFeatureComingSoon } from "../lib/featureAvailability.js";
 
 function safeFilePath(value, disposition) {
   if (typeof value !== "string") return null;
@@ -80,7 +81,7 @@ function NonFocusStudyEntry({ learningObject, version, progress, progressError, 
                 specific version. The version travels in router state, and Lock
                 In falls back to that empty selection if it is not one of the
                 materials the session offers. */}
-            <Link className="btn btn-soft" to="/lock-in" state={{ preselectedDocumentVersionId: version.id }}><Icon name="target" size={16} /> Study in Lock In</Link>
+            {!isFeatureComingSoon("lock-in") && <Link className="btn btn-soft" to="/lock-in" state={{ preselectedDocumentVersionId: version.id }}><Icon name="target" size={16} /> Study in Lock In</Link>}
             <BookmarkButton learningObjectId={learningObject.id} isBookmarked={isBookmarked} onChanged={setIsBookmarked} />
             <Link className="btn btn-soft" to={`/community/context/learning_object/${learningObject.id}`}><Icon name="messages" size={16} /> Discuss</Link>
           </div>

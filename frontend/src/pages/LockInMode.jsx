@@ -12,6 +12,7 @@ import { ReferenceAvatar, ReferenceProgress } from "../components/lock-in/Refere
 import LockInLobby, { LockInSetup } from "./LockInLobby.jsx";
 import LockInLive from "./LockInLive.jsx";
 import { useVisibleNow } from "../hooks/useVisibleNow.js";
+import { useI18n } from "../components/I18nProvider.jsx";
 import "./catalog-focus-workspace.css";
 import "./lock-in-reference.css";
 
@@ -677,6 +678,7 @@ function Summary({ payload, onReturn }) {
 }
 
 export default function LockInMode({ user }) {
+  const { t } = useI18n();
   const { sessionId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -711,9 +713,9 @@ export default function LockInMode({ user }) {
         setState({ loading: false, error: "", bootstrap, payload: null });
       }
     } catch (error) {
-      setState((current) => ({ ...current, loading: false, error: error.message || "Lock In Mode could not be opened." }));
+      setState((current) => ({ ...current, loading: false, error: error.message || t("lockIn.openFailed") }));
     }
-  }, [replacePayload, sessionId]);
+  }, [replacePayload, sessionId, t]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -809,7 +811,7 @@ export default function LockInMode({ user }) {
       replacePayload(payload);
       navigate(`/lock-in/${payloadSessionId(payload)}`, { replace: true });
     } catch (error) {
-      setState((current) => ({ ...current, error: error.message || "The session could not start." }));
+      setState((current) => ({ ...current, error: error.message || t("lockIn.startFailed") }));
     } finally { setStarting(false); }
   }
 
@@ -822,7 +824,7 @@ export default function LockInMode({ user }) {
       replacePayload(payload);
       if (name === "complete") notifyProgressionUpdated();
       if (exitAfter) returnToSource();
-    } catch (error) { setState((current) => ({ ...current, error: error.message || "The session could not be updated." })); }
+    } catch (error) { setState((current) => ({ ...current, error: error.message || t("lockIn.updateFailed") })); }
     finally { setBusy(""); setExitOpen(false); setAbandonOpen(false); }
   }
 
@@ -840,9 +842,9 @@ export default function LockInMode({ user }) {
     } catch (error) {
       if (routeSessionRef.current !== liveSessionId) return;
       if ([400, 403, 404].includes(error.status)) navigate("/lock-in", { replace: true });
-      else setState((current) => ({ ...current, error: error.message || "Reconnecting…" }));
+      else setState((current) => ({ ...current, error: error.message || t("lockIn.reconnecting") }));
     }
-  }, [liveSessionId, navigate, replacePayload]);
+  }, [liveSessionId, navigate, replacePayload, t]);
 
   const livePresence = useCallback(async (presence) => {
     if (!liveSessionId) return;
@@ -854,7 +856,7 @@ export default function LockInMode({ user }) {
     if (!liveSessionId) return;
     setBusy("leave");
     try { await focusApi.leaveLockInSession(liveSessionId); navigate("/lock-in", { replace: true }); }
-    catch (error) { setState((current) => ({ ...current, error: error.message || "Could not leave." })); }
+    catch (error) { setState((current) => ({ ...current, error: error.message || t("lockIn.leaveFailed") })); }
     finally { setBusy(""); }
   }
 
@@ -866,7 +868,7 @@ export default function LockInMode({ user }) {
       if (name === "update") await focusApi.updateLockInTeam(teamId, body);
       else await focusApi.lockInTeamAction(teamId, name, body);
       await refreshLive();
-    } catch (error) { setState((current) => ({ ...current, error: error.message || "Could not update team." })); }
+    } catch (error) { setState((current) => ({ ...current, error: error.message || t("lockIn.error") })); }
     finally { setBusy(""); }
   }
 

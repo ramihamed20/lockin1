@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "apps.review.apps.ReviewConfig",
     "apps.study_plans.apps.StudyPlansConfig",
     "apps.class_schedule.apps.ClassScheduleConfig",
+    "apps.biweekly.apps.BiweeklyConfig",
     "apps.community.apps.CommunityConfig",
     "apps.moderation.apps.ModerationConfig",
     "apps.xp.apps.XpConfig",
@@ -269,6 +270,11 @@ COMMUNITY_EDIT_RATE_WINDOW_SECONDS = env_int("COMMUNITY_EDIT_RATE_WINDOW_SECONDS
 COMMUNITY_EDIT_RATE_LIMIT = env_int("COMMUNITY_EDIT_RATE_LIMIT", 30)
 MODERATION_REPORT_RATE_WINDOW_SECONDS = env_int("MODERATION_REPORT_RATE_WINDOW_SECONDS", 600)
 MODERATION_REPORT_RATE_LIMIT = env_int("MODERATION_REPORT_RATE_LIMIT", 10)
+
+# Every account's 14-day report cycle starts on the later of this instant and its
+# sign-up day, so the first Biweekly PDF always arrives two weeks after either.
+# Moving it after reports exist shifts the cycle of every account that began here.
+BIWEEKLY_LAUNCH_AT = env("BIWEEKLY_LAUNCH_AT", "2026-10-01T00:00:00+00:00")
 
 DEFAULT_TRIAL_PLAN_CODE = env("DEFAULT_TRIAL_PLAN_CODE", "lockin_trial")
 PAYMENT_PROVIDER = env("PAYMENT_PROVIDER", "none")
