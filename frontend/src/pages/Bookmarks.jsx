@@ -39,7 +39,7 @@ export default function Bookmarks() {
   if (bookmarks.error) return <ErrorPanel message={bookmarks.error} onRetry={bookmarks.reload} />;
 
   return (
-    <Page title="Bookmarks" subtitle={t("bookmarks.subtitle")}>
+    <Page width="reading" title="Bookmarks" subtitle={t("bookmarks.subtitle")}>
       {mutationError && <ErrorPanel message={mutationError.message} onRetry={() => confirmItem && void removeBookmark(confirmItem)} />}
       <section className="list-panel">
         {bookmarks.data.results.length ? bookmarks.data.results.map((item) => {

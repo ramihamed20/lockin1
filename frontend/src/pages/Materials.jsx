@@ -17,11 +17,11 @@ export default function Materials({ user = null }) {
   // A directory that has not arrived is not a directory that is empty. Telling a
   // student "you have no subjects" while the request is still in flight -- or
   // because it failed -- is how a transient error reads as lost content.
-  if (loading) return <Page title="Materials"><LoadingPanel variant="material-list" /></Page>;
-  if (error) return <Page title="Materials"><ErrorPanel message={error} onRetry={reload} /></Page>;
+  if (loading) return <Page width="reading" title="Materials"><LoadingPanel variant="material-list" /></Page>;
+  if (error) return <Page width="reading" title="Materials"><ErrorPanel message={error} onRetry={reload} /></Page>;
 
   return (
-    <Page title="Materials" headingHandled>
+    <Page width="reading" title="Materials" headingHandled>
       <section className="catalog-directory" aria-labelledby="cohort-materials-heading">
         <CatalogDirectoryHeader id="cohort-materials-heading" title={t("route.materials")} />
         {materials.length === 0
@@ -57,16 +57,16 @@ export function CatalogMaterialSheets({ user = null }) {
   const { materials, loading, error, reload } = useCatalogMaterials(user);
   const material = materials.find((item) => item.slug === materialSlug) || null;
 
-  if (loading) return <Page title={t("materials.coreCatalogTitle")}><LoadingPanel variant="card-list" /></Page>;
-  if (error) return <Page title={t("materials.notFoundTitle")}><ErrorPanel message={error} onRetry={reload} /></Page>;
-  if (!material) return <Page title={t("materials.notFoundTitle")}><ErrorPanel message={t("materials.notFoundText")} /></Page>;
+  if (loading) return <Page width="reading" title={t("materials.coreCatalogTitle")}><LoadingPanel variant="card-list" /></Page>;
+  if (error) return <Page width="reading" title={t("materials.notFoundTitle")}><ErrorPanel message={error} onRetry={reload} /></Page>;
+  if (!material) return <Page width="reading" title={t("materials.notFoundTitle")}><ErrorPanel message={t("materials.notFoundText")} /></Page>;
 
   if (!material.sheets.length) {
-    return <Page title={material.title}><EmptyState icon="study" title={t("materials.noSheetsTitle")} text={t("materials.noSheetsText")} /></Page>;
+    return <Page width="reading" title={material.title}><EmptyState icon="study" title={t("materials.noSheetsTitle")} text={t("materials.noSheetsText")} /></Page>;
   }
 
   return (
-    <Page title={material.title} headingHandled>
+    <Page width="reading" title={material.title} headingHandled>
       <section className="catalog-directory" aria-labelledby="catalog-subject-heading">
         <CatalogDirectoryHeader id="catalog-subject-heading" title={material.title} backTo="/materials" backLabel={t("route.materials")} />
         <section className="sheet-grid catalog-sheet-grid" aria-label={t("materials.sheetsOf", { name: material.title })}>
@@ -100,15 +100,15 @@ export function CatalogSheetStudy({ user = null }) {
     editions.forEach((item) => { void preloadCatalogDocument(material.slug, item.slug, "", user?.id || ""); });
   }, [editions, material, user?.id]);
 
-  if (loading) return <Page title={t("materials.coreCatalogTitle")}><LoadingPanel variant="sheet" /></Page>;
-  if (error) return <Page title={t("materials.sheetNotFoundTitle")}><ErrorPanel message={error} onRetry={reload} /></Page>;
-  if (!material || !sheet || !edition) return <Page title={t("materials.sheetNotFoundTitle")}><ErrorPanel message={t("materials.sheetNotFoundText")} /></Page>;
-  if (edition.deliverable === false) return <Page title={sheet.title}><ErrorPanel message={t("materials.sheetNotFoundText")} /></Page>;
+  if (loading) return <Page width="reading" title={t("materials.coreCatalogTitle")}><LoadingPanel variant="sheet" /></Page>;
+  if (error) return <Page width="reading" title={t("materials.sheetNotFoundTitle")}><ErrorPanel message={error} onRetry={reload} /></Page>;
+  if (!material || !sheet || !edition) return <Page width="reading" title={t("materials.sheetNotFoundTitle")}><ErrorPanel message={t("materials.sheetNotFoundText")} /></Page>;
+  if (edition.deliverable === false) return <Page width="reading" title={sheet.title}><ErrorPanel message={t("materials.sheetNotFoundText")} /></Page>;
 
   const navigationState = { returnTo: location.pathname, scrollY: window.scrollY };
 
   return (
-    <Page title={sheet.title} headingHandled>
+    <Page width="reading" title={sheet.title} headingHandled>
       <section className="catalog-sheet-entry" aria-labelledby="catalog-sheet-heading">
         <CatalogDirectoryHeader
           id="catalog-sheet-heading"

@@ -12,7 +12,12 @@ import { cssVars } from "../../lib/utils.js";
 /** @type {import("react").Context<boolean>} */
 const PageIdentityContext = createContext(false);
 
-export function Page({ title, subtitle = "", children, showHeading = false, headingHandled = false }) {
+/**
+ * `width="reading"` sets the page in the one reading column list and detail
+ * screens share (catalogue, questions, review, inbox, account). Pages that lay
+ * content side by side (dashboard, progress, settings, workspaces) leave it off.
+ */
+export function Page({ title, subtitle = "", children, showHeading = false, headingHandled = false, width = "" }) {
   usePageTitle(title);
   const location = useLocation();
   const { t } = useI18n();
@@ -21,7 +26,7 @@ export function Page({ title, subtitle = "", children, showHeading = false, head
   const resolvedTitle = !title || title === englishMetadata.h1 ? metadata.h1 : title;
   return (
     <PageIdentityContext.Provider value={true}>
-      <div className="page">
+      <div className={width ? `page page--${width}` : "page"}>
         {showHeading && <header className="section-heading"><h1 dir="auto">{resolvedTitle}</h1>{subtitle && <p dir="auto">{subtitle}</p>}</header>}
         {!showHeading && !headingHandled && <h1 className="visually-hidden" dir="auto">{resolvedTitle}</h1>}
         {children}

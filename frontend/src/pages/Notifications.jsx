@@ -115,7 +115,7 @@ export default function Notifications({ onNotificationsChanged }) {
   }
 
   return (
-    <Page title="Notifications" subtitle={t("notifications.subtitle")}>
+    <Page width="reading" title="Notifications" subtitle={t("notifications.subtitle")}>
       <section className="panel notifications-inbox-card">
         <header className="notifications-inbox-header">
           <div className="notifications-inbox-title">

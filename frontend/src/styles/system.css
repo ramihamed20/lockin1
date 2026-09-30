@@ -493,6 +493,14 @@ body::after {
   gap: 20px;
 }
 
+/* The reading column: list and detail screens share one width and one axis,
+   so moving between them never shifts the content sideways. */
+.page--reading {
+  width: 100%;
+  max-width: 760px;
+  margin-inline: auto;
+}
+
 .section-heading {
   padding: 0;
 }

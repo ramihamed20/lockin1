@@ -42,7 +42,7 @@ export default function ReviewCenter({ user = null }) {
   const review = useAsyncData(() => loadReviewCenter(user?.id || ""), [user?.id]);
   const biweekly = useBiweekly("review");
   if (review.loading) return <ReviewCenterSkeleton />;
-  if (review.error) return <Page title={t("review.center")}><ErrorPanel message={review.error} onRetry={review.reload} /></Page>;
+  if (review.error) return <Page width="reading" title={t("review.center")}><ErrorPanel message={review.error} onRetry={review.reload} /></Page>;
 
   const { bank, queue, weekly } = review.data;
   const weeklyStatus = weekly.session?.status;
@@ -51,7 +51,7 @@ export default function ReviewCenter({ user = null }) {
   // order, so the primary action is one tap into answering, not into a list.
   const firstSubject = bank.active_count ? bank.subjects[0] : null;
   return (
-    <Page title={t("review.center")} showHeading>
+    <Page width="reading" title={t("review.center")} showHeading>
       {/* One focal block (what is waiting and the way into it), then the
           scheduled reviews as quieter peers, then the material itself, and
           the archive last. */}
@@ -109,7 +109,7 @@ export default function ReviewCenter({ user = null }) {
 
 function ReviewCenterSkeleton() {
   const { t } = useI18n();
-  return <Page title={t("review.center")}><div className="review-center-skeleton" aria-label={t("review.loadingCenter")} aria-busy="true"><span /><span /><span /></div></Page>;
+  return <Page width="reading" title={t("review.center")}><div className="review-center-skeleton" aria-label={t("review.loadingCenter")} aria-busy="true"><span /><span /><span /></div></Page>;
 }
 
 function SubjectRow({ subject }) {
@@ -132,9 +132,9 @@ export function ReviewBank({ user = null }) {
   const { t } = useI18n();
   const bank = useAsyncData(() => reviewApi.getBank(user?.id || ""), [user?.id]);
   if (bank.loading) return <LoadingPanel variant="list" />;
-  if (bank.error) return <Page title={t("review.bank")}><ErrorPanel message={bank.error} onRetry={bank.reload} /></Page>;
+  if (bank.error) return <Page width="reading" title={t("review.bank")}><ErrorPanel message={bank.error} onRetry={bank.reload} /></Page>;
   return (
-    <Page title={t("review.bank")} subtitle={t("review.bankSubtitle")}>
+    <Page width="reading" title={t("review.bank")} subtitle={t("review.bankSubtitle")}>
       <section className="review-bank-overview" aria-labelledby="review-bank-overview-title">
         <div><p className="eyebrow">{t("review.activeReview")}</p><h2 id="review-bank-overview-title" dir="auto">{bank.data.active_count ? t("review.questionsToReview", { count: bank.data.active_count }) : t("review.caughtUpTitle")}</h2><p dir="auto">{bank.data.active_count ? t("review.masteredCopy", { count: bank.data.mastered_this_week }) : t("review.caughtUpBankText")}</p></div>
         <Link className="btn btn-soft" to="/review">{t("review.backToCenter")}</Link>
@@ -224,12 +224,12 @@ export function SubjectReviewSession({ user = null }) {
   }
 
   if (detail.loading) return <LoadingPanel variant="quiz" />;
-  if (detail.error) return <Page title={t("review.sessionTitle")}><ErrorPanel message={detail.error} onRetry={detail.reload} /></Page>;
-  if (!items.length) return <Page title={detail.data?.subject_label || t("review.subjectReview")}><EmptyState title={t("review.subjectCleared")} text={t("review.subjectClearedText")} /><div className="result-actions"><Link className="btn btn-primary" to="/review/bank">{t("review.backToBank")}</Link></div></Page>;
-  if (complete) return <Page title={detail.data?.subject_label || t("review.subjectReview")}><section className="review-session-complete"><span><Icon name={cleared ? "check" : "target"} size={28} /></span><h2>{t(cleared ? "review.subjectCleared" : "review.passComplete")}</h2><p dir="auto">{cleared ? t("review.clearedIn", { name: detail.data.subject_label }) : t("review.someRemain")}</p><div className="result-actions"><button className="btn btn-primary" type="button" onClick={detail.reload}>{t("review.reviewAgain")}</button><Link className="btn btn-soft" to="/review/bank">{t("review.backToBank")}</Link></div></section></Page>;
+  if (detail.error) return <Page width="reading" title={t("review.sessionTitle")}><ErrorPanel message={detail.error} onRetry={detail.reload} /></Page>;
+  if (!items.length) return <Page width="reading" title={detail.data?.subject_label || t("review.subjectReview")}><EmptyState title={t("review.subjectCleared")} text={t("review.subjectClearedText")} /><div className="result-actions"><Link className="btn btn-primary" to="/review/bank">{t("review.backToBank")}</Link></div></Page>;
+  if (complete) return <Page width="reading" title={detail.data?.subject_label || t("review.subjectReview")}><section className="review-session-complete"><span><Icon name={cleared ? "check" : "target"} size={28} /></span><h2>{t(cleared ? "review.subjectCleared" : "review.passComplete")}</h2><p dir="auto">{cleared ? t("review.clearedIn", { name: detail.data.subject_label }) : t("review.someRemain")}</p><div className="result-actions"><button className="btn btn-primary" type="button" onClick={detail.reload}>{t("review.reviewAgain")}</button><Link className="btn btn-soft" to="/review/bank">{t("review.backToBank")}</Link></div></section></Page>;
 
   return (
-    <Page title={detail.data.subject_label || t("review.subjectReview")} subtitle={t("review.activeFromBank", { count: items.length })}>
+    <Page width="reading" title={detail.data.subject_label || t("review.subjectReview")} subtitle={t("review.activeFromBank", { count: items.length })}>
       <section className="review-session-shell">
         <header className="review-session-header"><div><p dir="auto">{index + 1} / {items.length}</p><div className="review-session-progress" role="progressbar" aria-label={t("review.progress")} aria-valuemin={0} aria-valuemax={items.length} aria-valuenow={index + 1}><span style={{ width: `${((index + 1) / items.length) * 100}%` }} /></div></div><Link className="btn btn-soft compact" to="/review/bank">{t("review.leaveSafely")}</Link></header>
         <ReviewQuestionCard item={item} selectedIds={selected[item.id] || []} onSelect={(optionId, multiple) => setSelected((current) => { const previous = current[item.id] || []; const next = multiple ? previous.includes(optionId) ? previous.filter((id) => id !== optionId) : [...previous, optionId] : [optionId]; return { ...current, [item.id]: next }; })} outcome={outcome} busy={busy} error={error} onSubmit={() => void answer()} />
@@ -309,14 +309,14 @@ export function WeeklyRecall({ user = null }) {
     setError("");
   }
 
-  if (detail.error) return <Page title={t("review.weekly")}><ErrorPanel message={detail.error} onRetry={detail.reload} /></Page>;
+  if (detail.error) return <Page width="reading" title={t("review.weekly")}><ErrorPanel message={detail.error} onRetry={detail.reload} /></Page>;
   if (detail.loading || weekly === null) return <LoadingPanel variant="quiz" />;
-  if (!session) return <Page title={t("review.weekly")} subtitle={t("review.weeklySubtitle")}><section className="weekly-recall-start"><span><Icon name="calendar" size={28} /></span><h2 dir="auto">{weekly.available ? t("review.weeklyEligible", { count: weekly.eligible_count }) : t("review.weeklyNotReady")}</h2><p>{t(weekly.available ? "review.weeklyStableCopy" : "review.weeklyPrepareCopy")}</p>{weekly.available && <button className="btn btn-primary" type="button" disabled={busy} onClick={() => void start()}>{t(busy ? "review.preparingSet" : "review.startWeekly")}</button>}{error && <p className="inline-error" role="alert" dir="auto">{error}</p>}<Link className="btn btn-soft" to="/review">{t("review.backToCenter")}</Link></section></Page>;
-  if (session.status === "completed" && showCompleted) return <Page title={t("review.weekly")}><section className="review-session-complete"><span><Icon name="check" size={28} /></span><h2>{t("review.weeklyDone")}</h2><p dir="auto">{t("review.weeklyScore", { correct: session.correct_answers, total: session.total_questions })}</p><div className="result-actions"><Link className="btn btn-primary" to="/review/bank">{t("review.openBank")}</Link><Link className="btn btn-soft" to="/review">{t("review.backToCenter")}</Link></div></section></Page>;
-  if (!question || !item) return <Page title={t("review.weekly")}><ErrorPanel message={t("review.weeklyNoQuestions")} onRetry={detail.reload} /></Page>;
+  if (!session) return <Page width="reading" title={t("review.weekly")} subtitle={t("review.weeklySubtitle")}><section className="weekly-recall-start"><span><Icon name="calendar" size={28} /></span><h2 dir="auto">{weekly.available ? t("review.weeklyEligible", { count: weekly.eligible_count }) : t("review.weeklyNotReady")}</h2><p>{t(weekly.available ? "review.weeklyStableCopy" : "review.weeklyPrepareCopy")}</p>{weekly.available && <button className="btn btn-primary" type="button" disabled={busy} onClick={() => void start()}>{t(busy ? "review.preparingSet" : "review.startWeekly")}</button>}{error && <p className="inline-error" role="alert" dir="auto">{error}</p>}<Link className="btn btn-soft" to="/review">{t("review.backToCenter")}</Link></section></Page>;
+  if (session.status === "completed" && showCompleted) return <Page width="reading" title={t("review.weekly")}><section className="review-session-complete"><span><Icon name="check" size={28} /></span><h2>{t("review.weeklyDone")}</h2><p dir="auto">{t("review.weeklyScore", { correct: session.correct_answers, total: session.total_questions })}</p><div className="result-actions"><Link className="btn btn-primary" to="/review/bank">{t("review.openBank")}</Link><Link className="btn btn-soft" to="/review">{t("review.backToCenter")}</Link></div></section></Page>;
+  if (!question || !item) return <Page width="reading" title={t("review.weekly")}><ErrorPanel message={t("review.weeklyNoQuestions")} onRetry={detail.reload} /></Page>;
 
   return (
-    <Page title={t("review.weekly")} subtitle={t("review.weeklySessionSubtitle")}>
+    <Page width="reading" title={t("review.weekly")} subtitle={t("review.weeklySessionSubtitle")}>
       <section className="review-session-shell weekly-recall-session">
         <header className="review-session-header"><div><p dir="auto">{index + 1} / {session.total_questions}</p><div className="review-session-progress" role="progressbar" aria-label={t("review.weeklyProgress")} aria-valuemin={0} aria-valuemax={session.total_questions} aria-valuenow={session.answered_count}><span style={{ width: `${(session.answered_count / session.total_questions) * 100}%` }} /></div></div><Link className="btn btn-soft compact" to="/review">{t("review.leaveSafely")}</Link></header>
         <ReviewQuestionCard item={item} selectedIds={selected[question.id] || question.selected_option_ids || []} onSelect={(optionId, multiple) => setSelected((current) => { const previous = current[question.id] || question.selected_option_ids || []; const next = multiple ? previous.includes(optionId) ? previous.filter((id) => id !== optionId) : [...previous, optionId] : [optionId]; return { ...current, [question.id]: next }; })} outcome={outcome} busy={busy} error={error} onSubmit={() => void answer()} />

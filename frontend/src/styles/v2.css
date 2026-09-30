@@ -703,6 +703,29 @@ html.ix-hover .settings-v2-back:hover {
   border-block-start: 1px solid var(--separator);
 }
 
+/* --- Catalogue ------------------------------------------------------------- */
+
+/* Materials, a subject's sheets and a sheet are one path, so they share the
+   reading column and the same large title; only the question player (which
+   is a session, not a place) keeps its smaller heading. */
+.page--reading > :is(.catalog-directory, .catalog-sheet-entry, .question-directory) {
+  width: 100%;
+  max-width: none;
+}
+
+.page--reading :is(.catalog-directory, .catalog-sheet-entry, .question-directory) > .catalog-directory-header .catalog-directory-title h1 {
+  font-size: var(--title-large);
+  font-weight: var(--weight-bold);
+  line-height: 1.15;
+  letter-spacing: var(--tracking-title);
+}
+
+@media (max-width: 639px) {
+  .page--reading :is(.catalog-directory, .catalog-sheet-entry, .question-directory) > .catalog-directory-header .catalog-directory-title h1 {
+    font-size: var(--title-large-phone);
+  }
+}
+
 /* --- Dashboard ------------------------------------------------------------- */
 
 /* The layout is the product's own and stays. V2 only makes it legible: the
