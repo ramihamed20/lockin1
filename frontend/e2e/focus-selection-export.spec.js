@@ -585,18 +585,26 @@ test.describe("settings", () => {
     expect(bounds.width * bounds.height).toBeLessThan(workspace.width * workspace.height * .4);
   });
 
+  // Focus is translated (focus.* keys), so an Arabic workspace names its
+  // controls in Arabic.
+  const FOCUS_NAMES = {
+    en: { more: "More workspace actions", settings: "Workspace settings", sections: ["Drawing", "Canvas", "View", "Other"] },
+    ar: { more: "مزيد من إجراءات مساحة العمل", settings: "إعدادات مساحة العمل", sections: ["الرسم", "اللوحة", "العرض", "أخرى"] }
+  };
+
   for (const [language, viewports] of [["en", [{ width: 320, height: 640 }, { width: 390, height: 844 }, { width: 820, height: 1180 }, { width: 1440, height: 900 }]], ["ar", [{ width: 390, height: 844 }, { width: 1180, height: 820 }]]]) {
     test(`switch thumbs stay inside their tracks (${language})`, async ({ page }) => {
       test.setTimeout(90_000);
+      const names = FOCUS_NAMES[language];
       await mockWorkspace(page, { language });
       await openWorkspace(page, viewports[0]);
-      await page.getByRole("button", { name: "More workspace actions" }).click();
-      await page.getByRole("button", { name: "Workspace settings" }).click();
-      const panel = page.getByRole("dialog", { name: "Workspace settings" });
+      await page.getByRole("button", { name: names.more }).click();
+      await page.getByRole("button", { name: names.settings }).click();
+      const panel = page.getByRole("dialog", { name: names.settings });
       if (language === "ar") await expect(panel).toHaveCSS("direction", "rtl");
       for (const viewport of viewports) {
         await page.setViewportSize(viewport);
-        for (const section of ["Drawing", "Canvas", "View", "Other"]) {
+        for (const section of names.sections) {
           await panel.getByRole("tab", { name: section }).click();
           await page.waitForTimeout(350);
           const insets = await panel.locator(".workspace-v2-switch-track").evaluateAll((tracks) => tracks.map((track) => {
@@ -619,9 +627,9 @@ test.describe("settings", () => {
   test("RTL settings mirror the tabs and keep every row inside the panel", async ({ page }) => {
     await mockWorkspace(page, { language: "ar" });
     await openWorkspace(page, { width: 390, height: 844 });
-    await page.getByRole("button", { name: "More workspace actions" }).click();
-    await page.getByRole("button", { name: "Workspace settings" }).click();
-    const panel = page.getByRole("dialog", { name: "Workspace settings" });
+    await page.getByRole("button", { name: FOCUS_NAMES.ar.more }).click();
+    await page.getByRole("button", { name: FOCUS_NAMES.ar.settings }).click();
+    const panel = page.getByRole("dialog", { name: FOCUS_NAMES.ar.settings });
     const tabs = await panel.getByRole("tab").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().left));
     // Drawing, the first section, sits on the right in Arabic.
     expect(tabs[0]).toBeGreaterThan(tabs[3]);
