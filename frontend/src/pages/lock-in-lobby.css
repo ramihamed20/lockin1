@@ -32,7 +32,7 @@
 .lm-header > .lm-exit { margin-inline-start: auto; }
 .lm-exit:hover { color: var(--lm-text); }
 .lm-home { width: min(100%, 740px); margin: clamp(70px, 18vh, 180px) auto auto; padding-block: 35px 100px; }
-.lm-overline, .lm-kicker { color: var(--lm-accent); font-size: 11px; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; }
+.lm-overline, .lm-kicker { color: var(--lm-accent); font-size: 13px; font-weight: 600; }
 .lm-home h1 { margin: 18px 0 38px; font-size: clamp(48px, 8vw, 92px); letter-spacing: -.075em; line-height: 1; font-weight: 650; }
 .lm-slash { color: #666b76; font-weight: 300; }
 .lm-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -43,7 +43,7 @@
 .lm-choices svg { align-self: flex-end; color: var(--lm-accent); }
 .lm-resume, .lm-team-shortcuts button { width: 100%; display: flex; align-items: center; gap: 16px; text-align: start; border: 0; border-bottom: 1px solid var(--lm-separator); background: none; color: var(--lm-text); padding: 20px 2px; }
 .lm-resume { margin-top: 30px; }
-.lm-resume span { color: var(--lm-accent); min-width: 64px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+.lm-resume span { color: var(--lm-accent); min-width: 64px; font-size: 13px; font-weight: 600; }
 .lm-resume strong, .lm-team-shortcuts span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lm-team-shortcuts { margin-top: 12px; }
 .lm-team-shortcuts button { padding-block: 14px; }

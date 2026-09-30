@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
-const OUT = process.env.SHOTS_DIR;
+// Screenshots land in test-results unless a folder is given, so an unset
+// variable no longer creates a directory literally named "undefined".
+const OUT = process.env.SHOTS_DIR || "test-results/settings-shots";
 const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 async function mock(page, lang) {
   await page.route("**/api/v1/**", async (route) => {
