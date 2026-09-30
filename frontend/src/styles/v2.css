@@ -703,6 +703,32 @@ html.ix-hover .settings-v2-back:hover {
   border-block-start: 1px solid var(--separator);
 }
 
+/* --- Sign-in and registration --------------------------------------------- */
+
+/* The shared select rule (system layer) outranked the sign-in stylesheet
+   (app layer), so the college / specialty / year selects came out shorter
+   and on a different fill than the text fields beside them. */
+.auth-v2 select:not(.auth-v2-language select) {
+  min-height: 49px;
+  padding: 0 14px;
+  border: 1px solid var(--auth-border);
+  border-radius: 12px;
+  color: var(--auth-ink);
+  background-color: var(--auth-control);
+  font-size: 16px;
+}
+
+.auth-v2 select:not(.auth-v2-language select):disabled {
+  color: var(--auth-quiet);
+  background-color: var(--auth-surface);
+}
+
+@media (max-width: 639px) {
+  .auth-v2 select:not(.auth-v2-language select) {
+    min-height: 52px;
+  }
+}
+
 /* --- Catalogue ------------------------------------------------------------- */
 
 /* Materials, a subject's sheets and a sheet are one path, so they share the
