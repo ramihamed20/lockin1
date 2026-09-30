@@ -99,12 +99,14 @@ body::after {
   letter-spacing: -0.01em;
 }
 
+/* Section names in sentence case, the way native sidebars label groups: an
+   all-caps tracked label on every group read as shouting in a quiet rail. */
 .nav-section-label {
   color: var(--soft);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: var(--weight-semibold);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .nav-btn {
@@ -511,13 +513,15 @@ body::after {
   font-size: var(--text-base);
 }
 
+/* A small label above a title. Sentence case and untracked: V2 does not put
+   an all-caps kicker over every card. */
 .eyebrow {
   margin: 0;
-  color: var(--soft);
-  font-size: 0.6875rem;
-  font-weight: var(--weight-semibold);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 @media (max-width: 639px) {

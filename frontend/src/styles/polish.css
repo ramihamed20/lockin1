@@ -21,7 +21,7 @@
 
   .sidebar .brand { margin-block-end: 6px; }
   .brand-mark { border-radius: var(--radius-md); }
-  .nav-section-label { letter-spacing: 0.085em; }
+  .nav-section-label { letter-spacing: 0; }
   .sidebar .nav-btn,
   .drawer-navigation .nav-btn {
     border-radius: var(--radius-md);
