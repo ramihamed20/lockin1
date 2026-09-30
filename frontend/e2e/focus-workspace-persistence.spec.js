@@ -112,8 +112,9 @@ test("blank workspace pages hold ink and text across reload without entering PDF
   await page.getByRole("button", { name: /^Blank workspace page after PDF page 1; PDF has/ }).click();
   await page.getByRole("group", { name: "Zoom" }).getByRole("button", { name: "Zoom in" }).click();
   await expect(page.locator(`[data-workspace-page="${blankId}"]`)).toBeAttached();
-  page.once("dialog", (dialog) => dialog.accept());
+  // A page with marks asks first, in the app's own dialog (V2 never uses window.confirm).
   await page.getByRole("group", { name: "Workspace pages" }).getByRole("button", { name: "Delete blank page" }).click();
+  await page.getByRole("alertdialog", { name: "Delete this blank page and all of its marks and notes?" }).getByRole("button", { name: "Delete" }).click();
   await expect(page.locator(`[data-workspace-page="${blankId}"]`)).toHaveCount(0);
   await expect.poll(async () => (await readWorkspaceDatabase(page)).documents[0]?.virtualPages?.length).toBe(0);
   await page.getByRole("button", { name: "Undo (Ctrl+Z)" }).click();

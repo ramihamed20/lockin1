@@ -194,6 +194,7 @@ import { QuestionExplanation } from "../components/shared/QuestionExplanation.js
 import { useExitGuard } from "../hooks/useExitGuard.js";
 import { acknowledgeFocusDocument, markFocusDocumentDirty, registerOpenFocusDocument } from "../offline/focusSync.js";
 import { readActiveStudyRun } from "../offline/activeStudy.js";
+import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
 import "./catalog-focus-workspace.css";
 import "./focus-workspace-glass.css";
 
@@ -1204,6 +1205,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const [modeDialogOpen, setModeDialogOpen] = useState(!summaryMode && preferredMode !== "normal");
   const [entryModePreference, setEntryModePreference] = useState(preferredMode);
   const [activeDifficulty, setActiveDifficulty] = useState("medium");
+  const [deletePageConfirmOpen, setDeletePageConfirmOpen] = useState(false);
   const [activeStudy, setActiveStudy] = useState(null);
   const [activeStudyBusy, setActiveStudyBusy] = useState(false);
   const [activeStudyError, setActiveStudyError] = useState("");
@@ -4576,14 +4578,15 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     recordCommand(command);
   }
 
-  function deleteBlankPage() {
+  function deleteBlankPage({ confirmed = false } = {}) {
     const id = activeVirtualPageId;
     if (!isVirtualPageKey(id)) return;
     const anchor = virtualPagesRef.current.find((item) => item.id === id)?.afterPage;
     if (!anchor) return;
     const marks = annotationsRef.current.filter((item) => item.page === id);
     const pageNotes = notesRef.current.filter((item) => item.page === id);
-    if ((marks.length || pageNotes.length) && !window.confirm(t("focus.deleteBlankPageConfirm"))) return;
+    if ((marks.length || pageNotes.length) && !confirmed) { setDeletePageConfirmOpen(true); return; }
+    setDeletePageConfirmOpen(false);
     const before = virtualPagesRef.current;
     const next = removeVirtualPage(before, id);
     const command = { type: "workspace-page", beforePages: before, afterPages: next, beforeItems: marks, afterItems: [], beforeNotes: pageNotes, afterNotes: [] };
@@ -5852,7 +5855,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
               <button type="button" onClick={toggleDocumentFullscreen}>{isDocumentFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}<span><strong>{isDocumentFullscreen ? t("focus.exitFullScreen") : t("focus.fullScreenMode")}</strong></span></button>
               <hr className="workspace-v9-menu-separator" />
               <button type="button" data-drill="" onClick={() => setOpenSurface("history")}><List size={18} /><span><strong>{t("focus.versionHistory")}</strong></span></button>
-              {activeVirtualPageId !== null && <button type="button" onClick={deleteBlankPage}><Trash2 size={18} /><span><strong>{t("focus.deleteBlankPage")}</strong></span></button>}
+              {activeVirtualPageId !== null && <button type="button" onClick={() => deleteBlankPage()}><Trash2 size={18} /><span><strong>{t("focus.deleteBlankPage")}</strong></span></button>}
               <button type="button" data-drill="" aria-label={t("focus.workspaceSettings")} aria-controls="workspace-settings-popover" onClick={() => setOpenSurface("settings")}><Settings size={18} /><span><strong>{t("focus.settings")}</strong></span></button>
             </div>
           </section>}
@@ -5988,7 +5991,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
                 </div>
                 <div className="workspace-v8-settings-group">
                   <button type="button" className="workspace-v2-settings-action is-danger" onClick={clearPageAnnotations} disabled={!pageAnnotations.some((item) => !item.locked)}><Trash2 size={18} /><span><strong>{activeVirtualPageId === null ? t("focus.clearInkOnPdfPage", { page }) : t("focus.clearInkThisPage")}</strong><small>{t("focus.removesUnlockedMarksUndoRestores")}</small></span></button>
-                  {activeVirtualPageId !== null && <button type="button" className="workspace-v2-settings-action is-danger" onClick={deleteBlankPage}><Trash2 size={18} /><span><strong>{t("focus.deleteThisAddedPage")}</strong><small>{t("focus.removesThePageAndIts")}</small></span></button>}
+                  {activeVirtualPageId !== null && <button type="button" className="workspace-v2-settings-action is-danger" onClick={() => deleteBlankPage()}><Trash2 size={18} /><span><strong>{t("focus.deleteThisAddedPage")}</strong><small>{t("focus.removesThePageAndIts")}</small></span></button>}
                 </div>
               </>}
               {settingsTab === "view" && <>
@@ -6060,7 +6063,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
               </div>
               <div className="workspace-v2-page-jump" role="group" aria-label={t("focus.workspacePages")}>
                 <button type="button" onClick={() => addBlankPage()}><Plus size={16} />{t("focus.addPage")}</button>
-                {activeVirtualPageId !== null && <button type="button" onClick={deleteBlankPage}><Trash2 size={16} />{t("focus.deleteBlankPage")}</button>}
+                {activeVirtualPageId !== null && <button type="button" onClick={() => deleteBlankPage()}><Trash2 size={16} />{t("focus.deleteBlankPage")}</button>}
               </div>
               <div className="workspace-v2-zoom-control" role="group" aria-label={t("focus.zoom")}>
                 <button type="button" aria-label={t("focus.zoomOut")} title={t("focus.zoomOut")} disabled={zoom <= minimumAllowedZoom() + .001} onClick={() => zoomByStep(1 / 1.25)}><Minus size={16} /></button>
@@ -6132,6 +6135,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         <button type="button" className={`workspace-v2-checkpoint-button${activeStudyButtonReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeStudyButtonReady} aria-label={activeStudyButtonReady ? t(activeStudy.stage.startsWith("final") ? "activeStudy.openFinal" : "activeStudy.openCheckpoint") : t("activeStudy.reachToUnlock", { page: accessiblePageCount })}>{!activeStudy.stage.startsWith("final") && activeStudy.number_of_parts > 1 && <span className="workspace-v9-step-part" aria-hidden="true">{t("activeStudy.partOf", { part: activeStudy.current_part, total: activeStudy.number_of_parts })}</span>}{activeStudyButtonReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t(activeStudy.stage.startsWith("final") ? "activeStudy.finalExam" : "activeStudy.checkpoint")}</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t("activeStudy.reachPage", { page: accessiblePageCount })}</span></>}</button>
       </div>}
       {modeDialogOpen && <StudyModeDialog difficulty={activeDifficulty} setDifficulty={setActiveDifficulty} activeAvailable={activeStudyReady} restartProgress={selectedActiveStudyAvailability?.progress} completed={(activeStudyAvailability?.difficulties || []).filter((item) => item.completed).map((item) => item.difficulty)} busy={activeStudyBusy || activeStudyAvailabilityLoading} error={activeStudyError} onNormal={chooseNormalStudy} onActive={chooseActiveStudy} onRestart={restartActiveStudy} activeOnly={entryModePreference === "active"} />}
+      <ConfirmDialog open={deletePageConfirmOpen} title={t("focus.deleteBlankPageConfirm")} message={t("focus.deleteBlankPageUndo")} confirmLabel={t("common.delete")} onCancel={() => setDeletePageConfirmOpen(false)} onConfirm={() => deleteBlankPage({ confirmed: true })} />
       {activeQuiz && activeStudy && <ActiveStudyQuiz key={activeQuiz.attempt_id} quiz={activeQuiz} answers={activeAnswers} setAnswers={setActiveAnswers} locked={activeLocked} result={activeResult} busy={activeStudyBusy} onSubmit={submitActiveQuiz} onDismiss={dismissActiveQuiz} onRetake={retakeActiveQuiz} onContinue={continueActiveStudyAnyway} onDiscard={(done) => discardActiveAttempt({ restart: false }, done)} onRestart={(done) => discardActiveAttempt({ restart: true }, done)} />}
     </main>
   );
