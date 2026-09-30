@@ -729,6 +729,7 @@ function ActiveStudyQuiz({ quiz, answers, setAnswers, locked = {}, result, busy,
       <h2 id="active-result-title">{result.total ? `${result.score} / ${result.total}` : result.score}</h2>
       <strong>{t(passed ? (isFinal ? "activeStudy.sheetCompleted" : "activeStudy.nextUnlocked") : advisory ? "activeStudy.advisory" : "activeStudy.reviewPages")}</strong>
       {result.xp_awarded > 0 && <span className="workspace-v2-xp-award">+{result.xp_awarded} XP</span>}
+      {missed.length > 0 && <h3 className="workspace-v9-review-heading">{t("question.reviewMissed")}</h3>}
       {missed.length > 0 && <ol className="workspace-v2-result-review" aria-label={t("question.reviewMissed")}>
         {missed.map((item) => <li key={item.position}>
           <span className="workspace-v2-result-review-prompt" dir="auto">{item.prompt}</span>
@@ -1276,7 +1277,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     return chosen.size ? annotations.filter((item) => chosen.has(item.id)) : NO_ANNOTATIONS;
   }, [annotations, selectedIds]);
   const selectionPage = selectedAnnotations[0]?.page ?? null;
-  const selectionLocked = selectedAnnotations.length > 0 && selectedAnnotations.every((item) => item.locked);
   const selectedBounds = useMemo(() => selectionBounds(selectedAnnotations), [selectedAnnotations]);
   const highlights = useMemo(() => annotations
     .filter((item) => item.type === "highlighter")
@@ -5688,16 +5688,16 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     >
       <div className="workspace-v8-selection-row">
         {editable && action(editable.type === "card" ? "Edit card" : "Edit text", editable.type === "card" ? FileText : Type, () => editAnnotation(editable), { text: "Edit" })}
-        {action("Cut", Scissors, cutSelection, { disabled: locked })}
-        {action("Copy", Copy, copySelection)}
-        {clipboardSize > 0 && action("Paste", ClipboardPaste, pasteSelection)}
-        {action("Duplicate", CopyPlus, duplicateSelection, { disabled: locked })}
-        {action("Bring forward", BringToFront, () => layerSelection("forward"), { disabled: locked })}
-        {action("Send backward", SendToBack, () => layerSelection("backward"), { disabled: locked })}
-        {action("Delete", Trash2, deleteSelection, { disabled: locked, danger: true })}
+        {action("Cut", Scissors, cutSelection, { disabled: locked, text: "Cut" })}
+        {action("Copy", Copy, copySelection, { text: "Copy" })}
+        {clipboardSize > 0 && action("Paste", ClipboardPaste, pasteSelection, { text: "Paste" })}
+        {action("Duplicate", CopyPlus, duplicateSelection, { disabled: locked, text: "Duplicate" })}
+        {action("Delete", Trash2, deleteSelection, { disabled: locked, danger: true, text: "Delete" })}
         <button type="button" aria-label="More selection actions" title="More" aria-expanded={selectionActionsOpen} className={selectionActionsOpen ? "is-open" : undefined} onClick={() => setSelectionActionsOpen((open) => !open)}><MoreHorizontal size={17} aria-hidden="true" /></button>
       </div>
       {selectionActionsOpen && <div className="workspace-v8-selection-more" role="group" aria-label="More selection actions">
+        {action("Bring forward", BringToFront, () => layerSelection("forward"), { disabled: locked, text: "Forward" })}
+        {action("Send backward", SendToBack, () => layerSelection("backward"), { disabled: locked, text: "Backward" })}
         {action(allLocked ? "Unlock" : "Lock", allLocked ? Unlock : Lock, toggleSelectionLock, { text: allLocked ? "Unlock" : "Lock" })}
         {selectedAnnotations.length > 1 && action("Group", Group, groupSelection, { text: "Group" })}
         {selectedAnnotations.some((item) => item.groupId) && action("Ungroup", Ungroup, ungroupSelection, { text: "Ungroup" })}
@@ -5777,14 +5777,16 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
           {popover("add").shown && <section {...popover("add").props} id="workspace-add-popover" className="workspace-v2-action-popover is-add" role="dialog" aria-label="Add to page" onPointerDown={(event) => event.stopPropagation()}>
             <header><strong>Add to page {page}</strong><button type="button" aria-label="Close Add menu" onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="add"]')}><X size={17} /></button></header>
             <div className="workspace-v3-menu-list workspace-v5-add-list">
-              <button type="button" aria-label="Text" onClick={() => { setEditingTextId(null); setTextDraft(""); setOpenSurface("text"); }} data-workspace-tool="text"><Type size={18} /><span><strong>Add text</strong><small>Place editable text on this page</small></span></button>
-              <button type="button" aria-label="Image" data-workspace-tool="image" onClick={() => selectTool("image")}><ImageIcon size={18} /><span><strong>Add image</strong><small>Insert a photo or image file</small></span></button>
-              <button type="button" onClick={() => selectTool("note")}><MessageSquare size={18} /><span><strong>Open notes</strong><small>Write a note alongside this sheet</small></span></button>
-              <button type="button" onClick={() => { setCardKind("sticky"); setCardDraft(""); setEditingCardId(null); setOpenSurface("card"); }}><StickyNote size={18} /><span><strong>Add sticky note</strong><small>Place a movable note on this page</small></span></button>
-              <button type="button" onClick={() => { setCardKind("note"); setCardDraft(""); setEditingCardId(null); setOpenSurface("card"); }}><FileText size={18} /><span><strong>Add note card</strong><small>Choose a study card style</small></span></button>
-              <button type="button" onClick={toggleBookmark} disabled={bookmarkBusy} aria-pressed={bookmarked}><Bookmark size={18} /><span><strong>{bookmarked ? "Remove bookmark" : "Bookmark page"}</strong><small>Keep PDF page {page} easy to return to</small></span></button>
-              {sheet.pdfUrl && <button type="button" aria-label="Add Page" onClick={() => setOpenSurface("page-background")}><Plus size={18} /><span><strong>Add page</strong><small>Blank, ruled, grid, or dotted after PDF page {page}</small></span></button>}
-              {sheet.pdfUrl && <button type="button" onClick={() => { setClipSelecting(true); setLassoMode("rectangle"); setActiveTool("select"); setSelectedIds([]); setOpenSurface(null); setFocusMessage("Drag a rectangle over the PDF to capture a study clip."); }}><Camera size={18} /><span><strong>Add study clip</strong><small>Select an area of the PDF to reuse</small></span></button>}
+              <button type="button" aria-label="Text" onClick={() => { setEditingTextId(null); setTextDraft(""); setOpenSurface("text"); }} data-workspace-tool="text"><Type size={18} /><span><strong>Add text</strong></span></button>
+              <button type="button" aria-label="Image" data-workspace-tool="image" onClick={() => selectTool("image")}><ImageIcon size={18} /><span><strong>Add image</strong></span></button>
+              <button type="button" onClick={() => { setCardKind("sticky"); setCardDraft(""); setEditingCardId(null); setOpenSurface("card"); }}><StickyNote size={18} /><span><strong>Add sticky note</strong></span></button>
+              <button type="button" onClick={() => { setCardKind("note"); setCardDraft(""); setEditingCardId(null); setOpenSurface("card"); }}><FileText size={18} /><span><strong>Add note card</strong></span></button>
+              {sheet.pdfUrl && <button type="button" onClick={() => { setClipSelecting(true); setLassoMode("rectangle"); setActiveTool("select"); setSelectedIds([]); setOpenSurface(null); setFocusMessage("Drag a rectangle over the PDF to capture a study clip."); }}><Camera size={18} /><span><strong>Add study clip</strong></span></button>}
+              {sheet.pdfUrl && <hr className="workspace-v9-menu-separator" />}
+              {sheet.pdfUrl && <button type="button" data-drill="" aria-label="Add Page" onClick={() => setOpenSurface("page-background")}><Plus size={18} /><span><strong>Add page</strong></span></button>}
+              <hr className="workspace-v9-menu-separator" />
+              <button type="button" onClick={() => selectTool("note")}><MessageSquare size={18} /><span><strong>Open notes</strong></span></button>
+              <button type="button" onClick={toggleBookmark} disabled={bookmarkBusy} aria-pressed={bookmarked}><Bookmark size={18} /><span><strong>{bookmarked ? "Remove bookmark" : "Bookmark page"}</strong></span></button>
             </div>
             {studyMode === "active" && <p className="workspace-v7-menu-note"><Info size={15} aria-hidden="true" />Pages you add belong to your workspace and do not count as Active Study sheet pages.</p>}
           </section>}
@@ -5792,7 +5794,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
           {popover("page-background").shown && <section {...popover("page-background").props} className="workspace-v2-action-popover is-add" role="dialog" aria-label="Choose workspace page background" onPointerDown={(event) => event.stopPropagation()}>
             <header><strong>Add page after PDF page {page}</strong><button type="button" aria-label="Close page backgrounds" onClick={() => setOpenSurface("add")}><X size={17} /></button></header>
             <div className="workspace-v3-menu-list">
-              {[["blank", "Blank", "Plain writing page"], ["lined", "Ruled", "Lines for handwriting"], ["grid", "Grid", "Graph and diagrams"], ["dot", "Dotted", "Light dot guide"]].map(([background, label, description]) => <button key={background} type="button" onClick={() => addBlankPage(background)}><span className={`workspace-v6-page-pattern is-${background}`} aria-hidden="true" /><span><strong>{label}</strong><small>{description}</small></span></button>)}
+              {[["blank", "Blank"], ["lined", "Ruled"], ["grid", "Grid"], ["dot", "Dotted"]].map(([background, label]) => <button key={background} type="button" onClick={() => addBlankPage(background)}><span className={`workspace-v6-page-pattern is-${background}`} aria-hidden="true" /><span><strong>{label}</strong></span></button>)}
             </div>
           </section>}
 
@@ -5821,32 +5823,35 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
           {popover("more").shown && <section {...popover("more").props} id="workspace-more-popover" className="workspace-v2-action-popover is-more" role="dialog" aria-label="More workspace actions" onPointerDown={(event) => event.stopPropagation()}>
             <header><strong>Workspace</strong><button type="button" aria-label="Close workspace actions" onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="more"]')}><X size={17} /></button></header>
             <div className="workspace-v3-menu-list">
-              <button type="button" onClick={() => chooseWritingTool("pencil")}><Pencil size={18} /><span><strong>Pencil</strong><small>Sketch with a textured stroke</small></span></button>
-              <button type="button" className="workspace-v3-compact-only" onClick={() => chooseWritingTool("shapes")}><Shapes size={18} /><span><strong>Shapes</strong><small>Draw lines and diagrams</small></span></button>
-              <button type="button" className="workspace-v3-phone-only" onClick={() => chooseWritingTool("highlighter")}><Highlighter size={18} /><span><strong>Highlight</strong><small>Mark important passages</small></span></button>
-              <button type="button" className="workspace-v3-phone-only" onClick={() => chooseWritingTool("eraser")}><Eraser size={18} /><span><strong>Eraser</strong><small>Remove ink precisely</small></span></button>
-              <button type="button" className="workspace-v3-phone-only" onClick={() => chooseWritingTool("select")}><MousePointer2 size={18} /><span><strong>Lasso</strong><small>Select and transform marks</small></span></button>
-              <button type="button" onClick={() => exportStudyDocument("original")} disabled={exportBusy || studyMode === "active"}><Download size={18} /><span><strong>Download original</strong><small>Save the source PDF</small></span></button>
-              <button type="button" onClick={() => exportStudyDocument("annotated", { share: true })} disabled={exportBusy}><Share2 size={18} /><span><strong>Share</strong><small>Share or save your annotated work</small></span></button>
-              <button type="button" aria-label={bookmarked ? "Remove from Bookmarks" : "Save to Bookmarks"} aria-pressed={bookmarked} onClick={toggleBookmark} disabled={bookmarkBusy}><Bookmark size={18} fill={bookmarked ? "currentColor" : "none"} /><span><strong>{bookmarked ? "Remove bookmark" : "Bookmark page"}</strong><small>Keep page {page} easy to return to</small></span></button>
-              <button type="button" onClick={() => { setAnnotationsHidden((value) => !value); setSelectedIds([]); setActiveTool("hand"); }} aria-pressed={annotationsHidden}>{annotationsHidden ? <Eye size={18} /> : <EyeOff size={18} />}<span><strong>{annotationsHidden ? "Show annotations" : "Hide annotations"}</strong><small>Temporarily clear the reading view</small></span></button>
-              <button type="button" onClick={() => { setExportRangeStart(page); setExportRangeEnd(page); setOpenSurface("export"); }}><FileText size={18} /><span><strong>Export</strong><small>PDF, page range, or PNG image</small></span></button>
-              <button type="button" onClick={toggleDocumentFullscreen}>{isDocumentFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}<span><strong>{isDocumentFullscreen ? "Exit full-screen writing" : "Full-screen writing mode"}</strong><small>Use the full display for the PDF</small></span></button>
-              <button type="button" onClick={() => exportStudyDocument("png")} disabled={exportBusy}><Camera size={18} /><span><strong>Page snapshot</strong><small>Save this page as a PNG image</small></span></button>
-              <button type="button" onClick={() => setOpenSurface("history")}><List size={18} /><span><strong>Version history</strong><small>Review recent edits in this session</small></span></button>
-              {activeVirtualPageId !== null && <button type="button" onClick={deleteBlankPage}><Trash2 size={18} /><span><strong>Delete blank page</strong><small>Remove this workspace page and its marks</small></span></button>}
-              <button type="button" aria-label="Workspace settings" aria-controls="workspace-settings-popover" onClick={() => setOpenSurface("settings")}><Settings size={18} /><span><strong>Settings</strong><small>Drawing, PDF, and backup preferences</small></span></button>
+              <button type="button" onClick={() => chooseWritingTool("pencil")}><Pencil size={18} /><span><strong>Pencil</strong></span></button>
+              <button type="button" className="workspace-v3-compact-only" onClick={() => chooseWritingTool("shapes")}><Shapes size={18} /><span><strong>Shapes</strong></span></button>
+              <button type="button" className="workspace-v3-phone-only" onClick={() => chooseWritingTool("highlighter")}><Highlighter size={18} /><span><strong>Highlight</strong></span></button>
+              <button type="button" className="workspace-v3-phone-only" onClick={() => chooseWritingTool("eraser")}><Eraser size={18} /><span><strong>Eraser</strong></span></button>
+              <button type="button" className="workspace-v3-phone-only" onClick={() => chooseWritingTool("select")}><MousePointer2 size={18} /><span><strong>Lasso</strong></span></button>
+              <hr className="workspace-v9-menu-separator" />
+              <button type="button" onClick={() => exportStudyDocument("annotated", { share: true })} disabled={exportBusy}><Share2 size={18} /><span><strong>Share</strong></span></button>
+              <button type="button" data-drill="" onClick={() => { setExportRangeStart(page); setExportRangeEnd(page); setOpenSurface("export"); }}><FileText size={18} /><span><strong>Export</strong></span></button>
+              <button type="button" onClick={() => exportStudyDocument("original")} disabled={exportBusy || studyMode === "active"}><Download size={18} /><span><strong>Download original</strong></span></button>
+              <button type="button" onClick={() => exportStudyDocument("png")} disabled={exportBusy}><Camera size={18} /><span><strong>Page snapshot</strong></span></button>
+              <hr className="workspace-v9-menu-separator" />
+              <button type="button" aria-label={bookmarked ? "Remove from Bookmarks" : "Save to Bookmarks"} aria-pressed={bookmarked} onClick={toggleBookmark} disabled={bookmarkBusy}><Bookmark size={18} fill={bookmarked ? "currentColor" : "none"} /><span><strong>{bookmarked ? "Remove bookmark" : "Bookmark page"}</strong></span></button>
+              <button type="button" onClick={() => { setAnnotationsHidden((value) => !value); setSelectedIds([]); setActiveTool("hand"); }} aria-pressed={annotationsHidden}>{annotationsHidden ? <Eye size={18} /> : <EyeOff size={18} />}<span><strong>{annotationsHidden ? "Show annotations" : "Hide annotations"}</strong></span></button>
+              <button type="button" onClick={toggleDocumentFullscreen}>{isDocumentFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}<span><strong>{isDocumentFullscreen ? "Exit full-screen writing" : "Full-screen writing mode"}</strong></span></button>
+              <hr className="workspace-v9-menu-separator" />
+              <button type="button" data-drill="" onClick={() => setOpenSurface("history")}><List size={18} /><span><strong>Version history</strong></span></button>
+              {activeVirtualPageId !== null && <button type="button" onClick={deleteBlankPage}><Trash2 size={18} /><span><strong>Delete blank page</strong></span></button>}
+              <button type="button" data-drill="" aria-label="Workspace settings" aria-controls="workspace-settings-popover" onClick={() => setOpenSurface("settings")}><Settings size={18} /><span><strong>Settings</strong></span></button>
             </div>
           </section>}
 
           {popover("export").shown && <section {...popover("export").props} className="workspace-v2-action-popover is-more" role="dialog" aria-label="Export workspace" onPointerDown={(event) => event.stopPropagation()}>
             <header><strong>Export</strong><button type="button" aria-label="Close export menu" onClick={() => setOpenSurface("more")}><X size={17} /></button></header>
             <div className="workspace-v3-menu-list">
-              <button type="button" onClick={() => exportStudyDocument("original")} disabled={exportBusy || studyMode === "active"}><Download size={18} /><span><strong>Original PDF</strong><small>Unmodified document</small></span></button>
-              <button type="button" onClick={() => exportStudyDocument("annotated")} disabled={exportBusy}><FileText size={18} /><span><strong>PDF with annotations</strong><small>Include your marks and study objects</small></span></button>
-              <button type="button" onClick={() => exportStudyDocument("current")} disabled={exportBusy}><FileText size={18} /><span><strong>Current page</strong><small>Save the page you are reading</small></span></button>
+              <button type="button" onClick={() => exportStudyDocument("original")} disabled={exportBusy || studyMode === "active"}><Download size={18} /><span><strong>Original PDF</strong></span></button>
+              <button type="button" onClick={() => exportStudyDocument("annotated")} disabled={exportBusy}><FileText size={18} /><span><strong>PDF with annotations</strong></span></button>
+              <button type="button" onClick={() => exportStudyDocument("current")} disabled={exportBusy}><FileText size={18} /><span><strong>Current page</strong></span></button>
               <div className="workspace-v6-export-range"><label>From <input type="number" min="1" max={accessiblePageCount} value={exportRangeStart} onChange={(event) => setExportRangeStart(Number(event.target.value) || 1)} /></label><label>To <input type="number" min="1" max={accessiblePageCount} value={exportRangeEnd} onChange={(event) => setExportRangeEnd(Number(event.target.value) || 1)} /></label><button type="button" onClick={() => exportStudyDocument("range")} disabled={exportBusy}>Export page range</button></div>
-              <button type="button" onClick={() => exportStudyDocument("png")} disabled={exportBusy}><ImageIcon size={18} /><span><strong>Image (PNG)</strong><small>Current page as an image</small></span></button>
+              <button type="button" onClick={() => exportStudyDocument("png")} disabled={exportBusy}><ImageIcon size={18} /><span><strong>Image (PNG)</strong></span></button>
             </div>
           </section>}
 
@@ -5869,19 +5874,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
               {activeTool === "eraser" && <section className="workspace-v5-inspector-section workspace-v7-rows"><button type="button" className="workspace-v2-settings-action is-danger" onClick={clearPageAnnotations} disabled={!pageAnnotations.some((item) => !item.locked)}><Trash2 size={18} /><span><strong>Clear page handwriting</strong><small>Remove unlocked marks on this page; Undo restores them</small></span></button></section>}
 
               {activeTool === "select" && <section className="workspace-v5-inspector-section"><IconChoiceGroup label="Lasso mode" value={lassoMode} options={LASSO_MODE_OPTIONS} onChange={setLassoMode} /></section>}
-              {activeTool === "select" && <section className="workspace-v5-inspector-section"><fieldset className="workspace-v6-inspector-actions" disabled={!selectedAnnotations.length} aria-describedby={selectedAnnotations.length ? undefined : "workspace-lasso-empty"}>
-                <button type="button" onClick={copySelection}><Copy size={18} />Copy</button>
-                <button type="button" onClick={cutSelection} disabled={selectedAnnotations.some((item) => item.locked)}><Scissors size={18} />Cut</button>
-                <button type="button" onClick={duplicateSelection}><CopyPlus size={18} />Duplicate</button>
-                <button type="button" className="is-danger" onClick={deleteSelection} disabled={selectedAnnotations.some((item) => item.locked)}><Trash2 size={18} />Delete</button>
-                <button type="button" onClick={() => layerSelection("forward")} disabled={selectedAnnotations.some((item) => item.locked)}><BringToFront size={18} />Bring forward</button>
-                <button type="button" onClick={() => layerSelection("backward")} disabled={selectedAnnotations.some((item) => item.locked)}><SendToBack size={18} />Send backward</button>
-                <button type="button" onClick={groupSelection} disabled={selectedAnnotations.length < 2}><Group size={18} />Group</button>
-                <button type="button" onClick={ungroupSelection} disabled={!selectedAnnotations.some((item) => item.groupId)}><Ungroup size={18} />Ungroup</button>
-                <button type="button" onClick={improveSelectedHandwriting} disabled={!selectedAnnotations.some((item) => ["pen", "pencil"].includes(item.type))}><Sparkles size={18} />Improve</button>
-              </fieldset>{!selectedAnnotations.length && <p id="workspace-lasso-empty">Draw around marks to select them.</p>}</section>}
-              {activeTool === "select" && <section className="workspace-v5-inspector-section workspace-v7-rows"><button type="button" className="workspace-v2-settings-action" onClick={toggleSelectionLock} disabled={!selectedAnnotations.length}>{selectionLocked ? <Unlock size={18} /> : <Lock size={18} />}<span><strong>{selectionLocked ? "Unlock selection" : "Lock selection"}</strong><small>Locked marks cannot be moved, erased, or recoloured</small></span></button></section>}
-
+              {activeTool === "select" && !selectedAnnotations.length && <p className="workspace-v9-panel-hint">Draw around marks to select them. Their actions appear beside the selection.</p>}
               {inkToolActive && <section className="workspace-v5-inspector-section"><h3>{activeTool === "shapes" ? "Stroke width" : "Thickness"}</h3>
                 <QuickSizes values={QUICK_THICKNESSES} value={brushSize} onChange={setBrushSize} label={activeTool === "shapes" ? "Border width" : "Thickness"} />
                 <ToolRange label={activeTool === "shapes" ? "Border width" : "Thickness"} value={brushSize} displayValue={`${brushSize} pt`} min={1} max={12} step={1} onChange={setBrushSize} color={activeColor} />
@@ -6123,7 +6116,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       </div>
       <span className="workspace-v2-visually-hidden" role="status" aria-live="polite">{saveLabel}{focusMessage ? ` · ${focusMessage}` : ""}</span>
       {studyMode === "active" && activeStudy?.status === "active" && (["reading", "checkpoint", "final"].includes(activeStudy.stage) || ACTIVE_RESULT_STAGES.has(activeStudy.stage)) && <div className="workspace-v2-checkpoint-dock" role="status" aria-live="polite">
-        <button type="button" className={`workspace-v2-checkpoint-button${activeStudyButtonReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeStudyButtonReady} aria-label={activeStudyButtonReady ? t(activeStudy.stage.startsWith("final") ? "activeStudy.openFinal" : "activeStudy.openCheckpoint") : t("activeStudy.reachToUnlock", { page: accessiblePageCount })}>{activeStudyButtonReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t(activeStudy.stage.startsWith("final") ? "activeStudy.finalExam" : "activeStudy.checkpoint")}</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t("activeStudy.reachPage", { page: accessiblePageCount })}</span></>}</button>
+        <button type="button" className={`workspace-v2-checkpoint-button${activeStudyButtonReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeStudyButtonReady} aria-label={activeStudyButtonReady ? t(activeStudy.stage.startsWith("final") ? "activeStudy.openFinal" : "activeStudy.openCheckpoint") : t("activeStudy.reachToUnlock", { page: accessiblePageCount })}>{!activeStudy.stage.startsWith("final") && activeStudy.number_of_parts > 1 && <span className="workspace-v9-step-part" aria-hidden="true">{t("activeStudy.partOf", { part: activeStudy.current_part, total: activeStudy.number_of_parts })}</span>}{activeStudyButtonReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t(activeStudy.stage.startsWith("final") ? "activeStudy.finalExam" : "activeStudy.checkpoint")}</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t("activeStudy.reachPage", { page: accessiblePageCount })}</span></>}</button>
       </div>}
       {modeDialogOpen && <StudyModeDialog difficulty={activeDifficulty} setDifficulty={setActiveDifficulty} activeAvailable={activeStudyReady} restartProgress={selectedActiveStudyAvailability?.progress} busy={activeStudyBusy || activeStudyAvailabilityLoading} error={activeStudyError} onNormal={chooseNormalStudy} onActive={chooseActiveStudy} onRestart={restartActiveStudy} activeOnly={entryModePreference === "active"} />}
       {activeQuiz && activeStudy && <ActiveStudyQuiz key={activeQuiz.attempt_id} quiz={activeQuiz} answers={activeAnswers} setAnswers={setActiveAnswers} locked={activeLocked} result={activeResult} busy={activeStudyBusy} onSubmit={submitActiveQuiz} onDismiss={dismissActiveQuiz} onRetake={retakeActiveQuiz} onContinue={continueActiveStudyAnyway} onDiscard={(done) => discardActiveAttempt({ restart: false }, done)} onRestart={(done) => discardActiveAttempt({ restart: true }, done)} />}

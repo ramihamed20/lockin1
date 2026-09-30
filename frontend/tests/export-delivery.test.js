@@ -19,6 +19,8 @@ test("export files are named after the sheet", () => {
   assert.equal(exportBaseName('A/B: "C"?*'), "ab-c");
   assert.equal(exportBaseName("الفيتامينات  ١"), "الفيتامينات-١");
   assert.equal(exportBaseName("   "), "sheet");
+  // Sheet titles join their parts with a middle dot; it is a separator, not a letter.
+  assert.equal(exportBaseName("Paper Demo · Epithelial Tissue"), "paper-demo-epithelial-tissue");
 });
 
 test("iPhone and iPad, including iPadOS posing as a Mac, take the share-sheet path", () => {

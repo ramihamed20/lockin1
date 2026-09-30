@@ -26,7 +26,7 @@ export function exportBaseName(title, fallback = "sheet") {
     .toLowerCase()
     .replace(/\p{Cc}/gu, "")
     .replace(/[\\/:*?"<>|#%&{}$!'`@+=^~[\]]+/g, "")
-    .replace(/[\s._-]+/g, "-")
+    .replace(/[\s._·•–—-]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 80);
   return slug || fallback;
