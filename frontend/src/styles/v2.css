@@ -239,8 +239,17 @@ html.ix-hover .settings-v2-back:hover {
   grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
 }
 
+/* A choice is a button, and every button carries the interaction primitive
+   (`[data-ix]`: inline-flex, content centred). Switched to a grid, it kept
+   justify-content: center with an implicit column sized by its content, so a
+   tile was only as wide as whatever it held: "No mascot" drew at half size,
+   and a picture could set the column from its 640px intrinsic width and
+   spill over its neighbours and their labels while it loaded. The column is
+   the tile's own width, whatever is inside it. */
 .settings-v2-choice {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: stretch;
   justify-items: stretch;
   align-content: start;
   gap: 6px;
@@ -306,6 +315,8 @@ html.ix-hover .settings-v2-back:hover {
 
 .settings-v2-icon-option {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: stretch;
   justify-items: center;
   gap: 6px;
   min-width: 72px;
