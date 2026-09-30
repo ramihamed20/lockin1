@@ -1556,3 +1556,15 @@ html.ix-hover .workspace-v2-answer-list button:hover:not(.is-selected):not([aria
 .workspace-v9-review-heading + .workspace-v2-result-review { margin-top: 8px; }
 /* Locked is said by the muted words, not by fading the capsule into the page. */
 .workspace-v2 .workspace-v2-checkpoint-button:disabled { opacity: 1; color: var(--fx-text-3); }
+
+/* ------------------------------------------------ The document is physical */
+
+/* The chrome follows the interface language; the pages do not. A PDF page is
+   a physical sheet, and under an Arabic interface the stage inherited rtl:
+   PDF.js draws glyphs through a canvas whose direction is "inherit", so Latin
+   text rendered letter-spaced and mis-ordered, and the scroll origin flipped
+   under the pan and zoom maths, which measure from the left. */
+.workspace-v2 .workspace-v2-document-stage { direction: ltr; }
+/* Numbers about the document read left to right in every language: "1 / 12"
+   had become "12 / 1", and "2×" had become "×2", under an Arabic interface. */
+.workspace-v2 :is(.workspace-v2-page-number, .workspace-v2-zoom-bar, .workspace-v2-page-jump, .workspace-v2-zoom-control, .workspace-v4-zoom-presets, .workspace-v4-zoom-hud) { direction: ltr; }

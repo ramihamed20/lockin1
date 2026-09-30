@@ -1117,6 +1117,145 @@ html.ix-hover .settings-v2-back:hover {
 }
 
 
+/* --- Offline Mode ------------------------------------------------------------ */
+
+/* Settings → Offline speaks in outcomes: one status row (can I study offline,
+   for how long), then the choices, then each subject with its one action.
+   Per-file management is behind "Manage Downloads". */
+.offline-v2-status-row { min-height: 64px; }
+
+.offline-v2-status-row .ui-row-body > strong { white-space: normal; }
+
+.offline-v2-status-icon {
+  border-radius: 50%;
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+}
+
+.offline-v2-status-icon.is-ready {
+  color: var(--success);
+  background: var(--success-soft);
+}
+
+.offline-v2-connection {
+  flex: 0 0 auto;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  color: var(--muted);
+  background: var(--surface-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.offline-v2-connection.is-online { color: var(--success); background: var(--success-soft); }
+
+:is(.offline-v2-sync, .offline-v2-disclosure) .ui-row-body > span:first-child { color: var(--accent-text); }
+
+:is(.offline-v2-sync, .offline-v2-disclosure):disabled { cursor: default; opacity: 0.55; }
+
+.offline-v2-spinner {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--surface-3);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: offline-v2-spin 0.8s linear infinite;
+}
+
+@keyframes offline-v2-spin { to { transform: rotate(360deg); } }
+
+.offline-v2-disclosure .ui-row-chevron { transition: transform var(--motion-control-duration) var(--motion-enter-ease); }
+
+.offline-v2-disclosure[aria-expanded="true"] .ui-row-chevron { transform: rotate(90deg); }
+
+[dir="rtl"] .offline-v2-disclosure[aria-expanded="true"] .ui-row-chevron { transform: scaleX(-1) rotate(90deg); }
+
+.offline-v2-subtitle { margin-block-start: 10px; }
+
+label.ui-row.offline-v2-choice { cursor: pointer; }
+
+.offline-v2-choice:has(input:focus-visible) {
+  outline: 2px solid var(--focus-ring, var(--accent));
+  outline-offset: -2px;
+}
+
+.offline-v2-check {
+  flex: 0 0 auto;
+  color: var(--accent-text);
+  visibility: hidden;
+}
+
+.offline-v2-choice:has(input:checked) .offline-v2-check { visibility: visible; }
+
+.offline-v2-subject .ui-row-body > strong { white-space: normal; }
+
+.offline-v2-subject .btn { flex: 0 0 auto; }
+
+.offline-v2-done { flex: 0 0 auto; color: var(--success); }
+
+.offline-v2-progress {
+  display: block;
+  height: 3px;
+  margin-block-start: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--surface-3);
+}
+
+.offline-v2-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transform-origin: left center;
+  transition: transform 200ms var(--motion-enter-ease);
+}
+
+[dir="rtl"] .offline-v2-progress > span { transform-origin: right center; }
+
+.offline-v2 .offline-manage { display: grid; gap: 12px; margin: 4px 0 0; }
+
+.offline-v2 .offline-manage > .offline-subject-group { display: grid; gap: 12px; }
+
+.offline-v2 .offline-sheet { position: relative; }
+
+.offline-v2 .offline-sheet::before {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 16px 0;
+  height: 1px;
+  background: var(--separator);
+  content: "";
+}
+
+.offline-v2-sheet-head .ui-row-body > span:first-child { color: var(--muted); font-size: var(--text-sm); }
+
+.offline-v2 .offline-edition {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 16px 12px;
+}
+
+.offline-v2 .offline-item { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+
+.offline-v2 .offline-edition .btn.is-ready:disabled {
+  opacity: 1;
+  color: var(--success);
+  background: var(--success-soft);
+}
+
+.ui-row.is-danger .ui-row-body > span:first-child { color: var(--danger); }
+
+.ui-row.is-danger:disabled { cursor: default; opacity: 0.45; }
+
+@media (prefers-reduced-motion: reduce) {
+  .offline-v2-spinner { animation-duration: 2.4s; }
+  .offline-v2-progress > span,
+  .offline-v2-disclosure .ui-row-chevron { transition: none; }
+}
+
 /* --- Answer rows ------------------------------------------------------------ */
 
 /* Sheet questions and the Focus checkpoint answer in the same row: a filled

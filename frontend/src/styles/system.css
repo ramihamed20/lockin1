@@ -18,6 +18,16 @@
 
 /* --- Base ---------------------------------------------------------------- */
 
+/* dir="auto" is how user data (a subject named in English on an Arabic
+   screen, an Arabic title on an English one) gets the right reading order. It
+   must not also move the text to the other edge: aligned against the parent's
+   direction, an English title in an Arabic row still starts at the right. */
+:where([dir="auto"]) {
+  text-align: match-parent;
+  /* Chromium and WebKit only read the prefixed keyword. */
+  text-align: -webkit-match-parent;
+}
+
 html {
   background: var(--bg);
 }

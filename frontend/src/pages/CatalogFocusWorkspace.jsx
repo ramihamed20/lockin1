@@ -1067,7 +1067,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const [backupBusy, setBackupBusy] = useState(false);
   // idle | preparing | ready | failed. The finished file lives in
   // exportHandleRef so its object URL can be revoked when the sheet closes.
-  const [exportState, setExportState] = useState({ status: "idle" });
+  const [exportState, setExportState] = useState(/** @type {{ status: string, kind?: string, share?: boolean, url?: string, name?: string, size?: number, apple?: boolean, shareable?: boolean, delivered?: boolean, shared?: boolean, shareError?: string, message?: string, done?: number, total?: number, progress?: number, note?: string }} */ ({ status: "idle" }));
   const exportBusy = exportState.status === "preparing";
   const exportHandleRef = useRef(null);
   const exportRunRef = useRef(0);
@@ -1173,7 +1173,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const [clipboardSize, setClipboardSize] = useState(0);
   const selectionTapRef = useRef(null);
   const selectionToolbarRef = useRef(null);
-  const selectionCommandsRef = useRef({});
+  const selectionCommandsRef = useRef(/** @type {Record<string, (() => void) | undefined>} */ ({}));
   const [selectionActionsOpen, setSelectionActionsOpen] = useState(false);
   const [isDocumentFullscreen, setIsDocumentFullscreen] = useState(false);
   const [saveState, setSaveState] = useState("idle");
