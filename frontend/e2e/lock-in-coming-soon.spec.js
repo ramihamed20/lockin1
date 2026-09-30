@@ -33,7 +33,7 @@ for (const path of ["/lock-in", "/lock-in/10000000-0000-4000-8000-000000000001"]
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`/#${path}`);
     await expect(page.locator('.feature-coming-soon[data-feature-id="lock-in"]')).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Solo / Team" })).toHaveCount(0);
+    await expect(page.locator(".lm-shell")).toHaveCount(0);
     expect(lockInRequests()).toBe(0);
   });
 }

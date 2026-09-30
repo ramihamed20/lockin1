@@ -17,7 +17,7 @@ export const navItems = [
   { path: "/study-plan", label: "Study Plan", labelKey: "nav.studyPlan", icon: "calendar", group: "Study", groupKey: "group.study" },
   { path: "/materials", label: "Materials", labelKey: "nav.materials", icon: "book-open", group: "Study", groupKey: "group.study" },
   { path: "/paper-workspace", label: "Paper Workspace", labelKey: "nav.paperWorkspace", icon: "file", group: "Study", groupKey: "group.study" },
-  { path: "/lock-in", label: "Lockin Mode", labelKey: "nav.lockInMode", icon: "clock", group: "Study", groupKey: "group.study" },
+  { path: "/lock-in", label: "Lock-in Mode", labelKey: "nav.lockInMode", icon: "clock", group: "Study", groupKey: "group.study" },
   { path: "/questions", label: "Questions", labelKey: "nav.questions", icon: "help", group: "Study", groupKey: "group.study" },
   { path: "/review", label: "Review", labelKey: "nav.review", icon: "target", group: "Review", groupKey: "group.review" },
   { path: "/bookmarks", label: "Bookmarks", labelKey: "nav.bookmarks", icon: "bookmark", group: "Review", groupKey: "group.review" },

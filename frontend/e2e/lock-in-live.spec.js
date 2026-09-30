@@ -99,20 +99,20 @@ async function screenshot(page, name) {
 test("Solo starts, pauses, takes a break, resumes and ends", async ({ page }) => {
   await connect(page);
   await page.goto("/#/lock-in");
-  await page.getByRole("button", { name: /01 Solo/ }).click();
-  await page.getByRole("button", { name: "Start Lockin" }).click();
-  await expect(page.getByRole("main", { name: "Lockin Session" })).toBeVisible();
+  await page.getByRole("button", { name: /^Solo/ }).click();
+  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await expect(page.getByRole("main", { name: "Lock-in session" })).toBeVisible();
   await expect(page.getByRole("heading", { name: /21:/ })).toBeVisible();
   await page.getByRole("button", { name: "Pause" }).click();
   await expect(page.getByText("Paused", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Resume" }).click();
   await page.getByRole("button", { name: "Break" }).click();
-  await expect(page.getByText("Break", { exact: true }).first()).toBeVisible();
-  await page.getByRole("button", { name: "Resume" }).click();
-  await page.getByRole("button", { name: "End Lockin" }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "End Lockin" }).click();
-  await expect(page.locator(".lm-live-summary h1")).toContainText(/^\d+:\d{2}$/);
-  await expect(page.getByText("LOCKED IN")).toBeVisible();
+  await expect(page.getByText("On break", { exact: true }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Back to focus" }).click();
+  await page.getByRole("button", { name: "End session" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "End session" }).click();
+  await expect(page.locator(".lm-summary-total strong")).toContainText(/^\d+:\d{2}$/);
+  await expect(page.getByRole("heading", { name: "Session complete" })).toBeVisible();
   await screenshot(page, "lockin-live-summary.png");
 });
 
@@ -121,8 +121,8 @@ test("Team member waits while host has the Start action", async ({ page }) => {
   await connect(page, { team });
   await page.goto("/#/lock-in");
   await page.getByRole("button", { name: /Anatomy focus/ }).click();
-  await expect(page.getByText("Waiting", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Start Lockin" })).toHaveCount(0);
+  await expect(page.getByText("Waiting for the host to start", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start session" })).toHaveCount(0);
 });
 
 test("Team host starts one shared session with anonymous presence", async ({ page }) => {
@@ -130,41 +130,41 @@ test("Team host starts one shared session with anonymous presence", async ({ pag
   await connect(page, { team });
   await page.goto("/#/lock-in");
   await page.getByRole("button", { name: /Anatomy focus/ }).click();
-  await page.getByRole("button", { name: "Start Lockin" }).click();
-  await page.getByRole("button", { name: "Start Lockin" }).click();
-  await expect(page.getByRole("main", { name: "Lockin Session" })).toBeVisible();
+  await page.getByRole("button", { name: "Start session" }).click();
+  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await expect(page.getByRole("main", { name: "Lock-in session" })).toBeVisible();
   await expect(page.getByText("Anonymous 01")).toBeVisible();
   await screenshot(page, "lockin-live-member-break.png");
-  await expect(page.getByLabel("Members").getByText("Break", { exact: true })).toBeVisible();
-  await page.locator(".lm-live-more summary").click();
-  await expect(page.getByRole("button", { name: "Lock joining" })).toBeVisible();
+  await expect(page.locator(".lm-live-presence").getByText("On break", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Session controls" }).click();
+  await expect(page.getByRole("menuitem", { name: "Lock joining" })).toBeVisible();
   await screenshot(page, "lockin-live-team-host.png");
 });
 
 test("Team member resumes from Break, has no host controls, and can leave", async ({ page }) => {
   await connect(page, { team: makeTeam("member"), active: true });
   await page.goto(`/#/lock-in/${ID}`);
-  await expect(page.locator(".lm-live-more summary")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Session controls" })).toHaveCount(0);
   await expect(page.getByText("Anonymous 01")).toBeVisible();
-  await page.getByRole("button", { name: "Resume" }).click();
+  await page.getByRole("button", { name: "Back to focus" }).click();
   await expect(page.getByRole("button", { name: "Break" })).toBeVisible();
-  await page.getByRole("button", { name: "Leave Session" }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Leave Session" }).click();
-  await expect(page.getByRole("heading", { name: "Solo / Team" })).toBeVisible();
+  await page.getByRole("button", { name: "Leave session" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Leave session" }).click();
+  await expect(page.getByRole("heading", { name: "Lock-in Mode" })).toBeVisible();
 });
 
 test("Active session is offered as Resume on Lockin home", async ({ page }) => {
   await connect(page, { active: true });
   await page.goto("/#/lock-in");
-  await page.getByRole("button", { name: /Resume.*Solo/ }).click();
-  await expect(page.getByRole("main", { name: "Lockin Session" })).toBeVisible();
+  await page.getByRole("region", { name: "Session in progress" }).getByRole("button", { name: "Resume" }).click();
+  await expect(page.getByRole("main", { name: "Lock-in session" })).toBeVisible();
 });
 
 test("Away presence remains distinct from Break", async ({ page }) => {
   await connect(page, { team: makeTeam(), active: true, otherPresence: "away" });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/#/lock-in/${ID}`);
-  await expect(page.getByLabel("Members").getByText("Away")).toBeVisible();
+  await expect(page.locator(".lm-live-presence").getByText("Away")).toBeVisible();
   await screenshot(page, "lockin-live-away.png");
 });
 
@@ -176,7 +176,7 @@ for (const [name, viewport] of Object.entries({
     await connect(page, { team: makeTeam(), active: true });
     await page.setViewportSize(viewport);
     await page.goto(`/#/lock-in/${ID}`);
-    await expect(page.getByRole("main", { name: "Lockin Session" })).toBeVisible();
+    await expect(page.getByRole("main", { name: "Lock-in session" })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
     await screenshot(page, `lockin-live-${name}.png`);
   });
@@ -189,6 +189,6 @@ test("Arabic live timer stays left to right and resumes after refresh", async ({
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(page.locator(".lm-live-clock h1")).toHaveAttribute("dir", "ltr");
   await page.reload();
-  await expect(page.getByRole("main", { name: "Lockin Session" })).toBeVisible();
+  await expect(page.getByRole("main", { name: "جلسة التركيز" })).toBeVisible();
   await screenshot(page, "lockin-live-rtl.png");
 });

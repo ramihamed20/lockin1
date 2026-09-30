@@ -56,7 +56,7 @@ for (const [name, viewport] of Object.entries({
     await connect(page);
     await page.setViewportSize(viewport);
     await page.goto("/#/lock-in");
-    await expect(page.getByRole("heading", { name: "Solo / Team" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Lock-in Mode" })).toBeVisible();
     await expect(page.locator(".sidebar")).toHaveCount(0);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     await screenshot(page, `lockin-${name}.png`);
@@ -68,42 +68,42 @@ test("sidebar enters the dedicated Lockin surface", async ({ page }) => {
   await connect(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/#/dashboard");
-  await page.locator(".sidebar").getByRole("link", { name: "Lockin Mode" }).click();
-  await expect(page.getByRole("heading", { name: "Solo / Team" })).toBeVisible();
+  await page.locator(".sidebar").getByRole("link", { name: "Lock-in Mode" }).click();
+  await expect(page.getByRole("heading", { name: "Lock-in Mode" })).toBeVisible();
   await expect(page.locator(".sidebar")).toHaveCount(0);
 });
 
 test("create anonymous team and show host controls", async ({ page }) => {
   await connect(page);
   await page.goto("/#/lock-in");
-  await page.getByRole("button", { name: /02 Team/ }).click();
-  await page.getByRole("button", { name: /Create Team/ }).click();
+  await page.getByRole("button", { name: /^Team/ }).click();
+  await page.getByRole("button", { name: /Create team/ }).click();
   await page.getByRole("textbox", { name: "Team name" }).fill("Evening study");
-  await page.getByRole("checkbox", { name: "Stay Anonymous" }).check();
+  await page.getByRole("switch", { name: "Stay anonymous" }).click();
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Evening study" })).toBeVisible();
   await expect(page.getByText("Anonymous 01")).toBeVisible();
   await expect(page.getByText("E2E Student")).toHaveCount(0);
   await expect(page.getByText("482731")).toBeVisible();
-  await expect(page.getByText("Host controls")).toBeVisible();
+  await expect(page.getByText("Team settings")).toBeVisible();
   await screenshot(page, "lockin-team-lobby.png");
 });
 
 test("Solo setup keeps anonymous choice", async ({ page }) => {
   await connect(page);
   await page.goto("/#/lock-in");
-  await page.getByRole("button", { name: /01 Solo/ }).click();
-  await expect(page.getByRole("heading", { name: "Solo", exact: true })).toBeVisible();
-  await expect(page.getByRole("checkbox", { name: "Stay Anonymous" })).toBeVisible();
-  await expect(page.getByRole("group", { name: "Duration" })).toBeVisible();
+  await page.getByRole("button", { name: /^Solo/ }).click();
+  await expect(page.getByRole("heading", { name: "Solo session", exact: true })).toBeVisible();
+  await expect(page.getByRole("switch", { name: "Stay anonymous" })).toBeVisible();
+  await expect(page.getByRole("radiogroup", { name: "Duration" })).toBeVisible();
   await screenshot(page, "lockin-solo-setup.png");
 });
 
 test("Join Team accepts digits and shows an inline error", async ({ page }) => {
   await connect(page);
   await page.goto("/#/lock-in");
-  await page.getByRole("button", { name: /02 Team/ }).click();
-  await page.getByRole("button", { name: /Join Team/ }).click();
+  await page.getByRole("button", { name: /^Team/ }).click();
+  await page.getByRole("button", { name: /Join team/ }).click();
   const code = page.getByRole("textbox", { name: "Team code" });
   await code.fill("12ab34");
   await expect(code).toHaveValue("1234");
@@ -126,8 +126,8 @@ test("team members do not see host controls", async ({ page }) => {
   await page.goto("/#/lock-in");
   await page.getByRole("button", { name: /Study circle/ }).click();
   await expect(page.getByRole("heading", { name: "Study circle" })).toBeVisible();
-  await expect(page.getByText("Host controls")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Leave Team" })).toBeVisible();
+  await expect(page.getByText("Team settings")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Leave team" })).toBeVisible();
 });
 
 test("full team and long name remain usable on a narrow phone", async ({ page }) => {
@@ -147,10 +147,10 @@ test("full team and long name remain usable on a narrow phone", async ({ page })
   await page.setViewportSize({ width: 320, height: 720 });
   await page.goto("/#/lock-in");
   await page.getByRole("button", { name: /A long evening study team/ }).click();
-  await page.locator(".lm-member-menu summary").first().click();
-  await expect(page.getByRole("button", { name: "Transfer Host" })).toBeVisible();
-  await page.locator(".lm-member-menu summary").first().click();
-  await page.locator(".lm-settings summary").click();
+  await page.getByRole("button", { name: "Options for Anonymous 02" }).click();
+  await expect(page.getByRole("menuitem", { name: "Make host" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.getByRole("textbox", { name: "Team name" }).fill("Renamed team");
   await expect(page.getByRole("button", { name: "Save" })).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
@@ -162,8 +162,8 @@ test("Arabic lobby keeps codes legible", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/#/lock-in");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-  await expect(page.getByRole("heading", { name: "فردي / فريق" })).toBeVisible();
-  await page.getByRole("button", { name: /02 فريق/ }).click();
+  await expect(page.getByRole("heading", { name: "وضع التركيز" })).toBeVisible();
+  await page.getByRole("button", { name: /^فريق/ }).click();
   await page.getByRole("button", { name: /الانضمام لفريق/ }).click();
   const code = page.getByRole("textbox", { name: "رمز الفريق" });
   await code.fill("482731");

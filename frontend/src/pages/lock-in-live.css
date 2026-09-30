@@ -1,52 +1,133 @@
-.lm-live { overflow: auto; }
-.lm-live-frame { width: min(100% - 64px, 1180px); min-height: 100dvh; margin-inline: auto; display: flex; flex-direction: column; }
-.lm-live-top { min-height: 84px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.lm-live-top > button, .lm-live-more summary { min-width: 44px; min-height: 44px; border: 0; border-radius: 12px; background: transparent; color: var(--lm-muted); display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 0 12px; font-size: 13px; cursor: pointer; }
-.lm-live-top > button:hover, .lm-live-more summary:hover { background: var(--lm-elevated); color: var(--lm-text); }
-.lm-live-brand { font-size: 16px; font-weight: 800; letter-spacing: -.08em; }
-.lm-live-brand span { color: var(--lm-accent); }
-.lm-live-top-spacer { width: 44px; }
-.lm-live-more { position: relative; }
-.lm-live-more summary { list-style: none; }
-.lm-live-more summary::-webkit-details-marker { display: none; }
-.lm-live-more > div { position: absolute; z-index: 4; inset-inline-end: 0; top: 48px; width: 190px; padding: 6px; border: 1px solid var(--lm-separator); border-radius: 12px; background: var(--lm-elevated); box-shadow: 0 18px 35px #0007; }
-.lm-live-more button { display: block; width: 100%; min-height: 44px; padding: 0 12px; text-align: start; color: var(--lm-text); background: none; border: 0; border-radius: 8px; font-size: 13px; }
-.lm-live-more button:hover { background: #ffffff12; }
-.lm-live-more button.danger { color: var(--lm-danger); }
-.lm-live-main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 215px; align-items: center; gap: clamp(30px, 6vw, 90px); padding-block: 35px; }
-.lm-live-clock { justify-self: center; width: min(100%, 620px); text-align: center; }
-.lm-live-kicker { margin: 0; color: var(--lm-muted); font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
-.lm-live-clock h1, .lm-live-summary h1 { margin: 16px 0 10px; color: var(--lm-text); font-size: clamp(96px, 15vw, 210px); line-height: 1; font-weight: 430; letter-spacing: -.075em; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.lm-live-status { display: inline-flex; align-items: center; gap: 10px; color: var(--lm-accent); font-size: 14px; font-weight: 600; }
-.lm-live-status span { width: 7px; height: 7px; border-radius: 50%; background: var(--lm-accent); }
-.lm-live-status span.break { background: #aeb8ca; }
-.lm-live-meta { display: flex; justify-content: center; gap: 14px; margin-top: 28px; color: var(--lm-muted); font-size: 13px; }
-.lm-live-presence { align-self: center; border-inline-start: 1px solid var(--lm-separator); padding-inline-start: 25px; }
-.lm-live-presence h2 { display: flex; justify-content: space-between; margin: 0 0 14px; color: var(--lm-muted); font-size: 12px; font-weight: 650; }
-.lm-live-presence h2 span { font-variant-numeric: tabular-nums; }
-.lm-live-presence ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-.lm-live-presence li { min-height: 48px; display: grid; grid-template-columns: 8px minmax(0, 1fr) auto auto; align-items: center; gap: 9px; }
-.lm-live-presence li strong { min-width: 0; color: var(--lm-text); font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lm-live-presence li small { color: var(--lm-muted); font-size: 10px; }
-.lm-live-presence li button { min-width: 32px; min-height: 32px; display: grid; place-items: center; border: 0; border-radius: 8px; background: none; color: var(--lm-muted); }
-.lm-live-presence li button:hover { background: #ffffff12; color: var(--lm-danger); }
-.lm-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #677084; }
-.lm-live-dot.focused { background: var(--lm-accent); }
-.lm-live-dot.break { background: #aeb8ca; }
-.lm-live-controls { display: flex; align-items: center; justify-content: center; gap: 9px; padding: 16px 0 max(34px, env(safe-area-inset-bottom)); }
-.lm-live-controls button, .lm-live-primary { min-width: 112px; min-height: 52px; padding: 0 20px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; border: 1px solid var(--lm-separator); border-radius: 12px; background: var(--lm-elevated); color: var(--lm-text); font-size: 13px; font-weight: 650; }
-.lm-live-controls button:hover { border-color: #ffffff55; }
-.lm-live-controls .lm-live-secondary { border-color: transparent; background: transparent; color: var(--lm-muted); }
-.lm-live-controls .lm-live-secondary:hover { color: var(--lm-danger); }
-.lm-live-error { margin: 0 0 16px; text-align: center; color: var(--lm-danger); font-size: 12px; }
-.lm-live-summary { width: min(100%, 540px); margin: auto; padding: 60px 0 110px; text-align: center; }
-.lm-live-summary h1 { font-size: clamp(80px, 13vw, 160px); }
-.lm-live-summary > p:not(.lm-live-kicker) { color: var(--lm-muted); font-size: 13px; }
-.lm-live-summary-facts { margin: 48px 0; border-top: 1px solid var(--lm-separator); }
-.lm-live-summary-facts > div { min-height: 62px; border-bottom: 1px solid var(--lm-separator); display: flex; justify-content: space-between; align-items: center; color: var(--lm-muted); font-size: 13px; }
-.lm-live-summary-facts strong { color: var(--lm-text); font-size: 19px; font-weight: 580; font-variant-numeric: tabular-nums; }
-.lm-live-primary { background: var(--lm-accent); border: 0; color: #171711; min-width: 150px; }
-@media (max-width: 800px) { .lm-live-main { grid-template-columns: minmax(0, 1fr); align-content: center; gap: 38px; } .lm-live-presence { width: min(100%, 500px); justify-self: center; border-inline-start: 0; border-top: 1px solid var(--lm-separator); padding: 20px 0 0; } .lm-live-presence ul { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 20px; } .lm-live-clock h1 { font-size: clamp(84px, 17vw, 170px); } }
-@media (max-width: 520px) { .lm-live-frame { width: min(100% - 32px, 460px); } .lm-live-top { min-height: 68px; } .lm-live-top > button span { display: none; } .lm-live-main { padding-block: 28px; gap: 28px; } .lm-live-clock h1 { font-size: clamp(76px, 23vw, 130px); } .lm-live-presence ul { grid-template-columns: minmax(0, 1fr); } .lm-live-presence li { min-height: 42px; } .lm-live-controls { flex-wrap: wrap; } .lm-live-controls button { min-width: 0; flex: 1; padding-inline: 12px; } .lm-live-controls .lm-live-secondary { flex-basis: 100%; } }
-@media (max-height: 500px) and (orientation: landscape) { .lm-live-top { min-height: 52px; } .lm-live-main { grid-template-columns: minmax(0, 1fr) minmax(140px, 220px); padding-block: 5px; gap: 16px; } .lm-live-clock h1 { font-size: clamp(64px, 13vh, 108px); margin: 7px 0; } .lm-live-meta { margin-top: 10px; } .lm-live-presence { max-height: 190px; overflow: auto; border-top: 0; border-inline-start: 1px solid var(--lm-separator); padding-block: 0; padding-inline-start: 14px; } .lm-live-presence ul { grid-template-columns: 1fr; } .lm-live-controls { padding-block: 5px max(8px, env(safe-area-inset-bottom)); } .lm-live-controls button { min-height: 42px; } }
-@media (prefers-reduced-motion: reduce) { .lm-live { animation: none; } }
+/* The running Lock-in session and its summary. Shares the bar, dots and menu
+   from lock-in-lobby.css; this file only lays out the clock, the member list
+   and the controls. */
+
+.lm-live {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.lm-live-main {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 32px;
+  width: min(100% - 32px, 1080px);
+  margin-inline: auto;
+  padding-block: 32px;
+}
+
+.lm-live.is-team .lm-live-main {
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  align-items: center;
+}
+
+.lm-live-clock {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  min-width: 0;
+  text-align: center;
+}
+
+.lm-live-clock h1 {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(5.5rem, 15vw, 11.5rem);
+  font-weight: var(--weight-regular);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.lm-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  color: var(--text);
+  background: var(--surface-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.lm-live-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.lm-live-presence {
+  justify-self: stretch;
+  min-width: 0;
+}
+
+.lm-live-presence .ui-row { --row-inset: 36px; gap: 10px; }
+.lm-live-presence .ui-row-value { font-size: var(--text-sm); }
+.lm-live-presence .lm-icon-button { width: 32px; height: 32px; }
+
+.lm-live-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 16px max(28px, calc(env(safe-area-inset-bottom) + 12px));
+}
+
+.lm-live-controls .btn { min-width: 132px; }
+.lm-live-end { color: var(--danger); }
+
+.lm-live-error { text-align: center; padding-bottom: 16px; }
+
+/* Summary */
+.lm-live-summary { align-content: start; }
+
+.lm-summary-total {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 12px 0 4px;
+}
+
+.lm-summary-total strong {
+  font-size: clamp(4rem, 14vw, 6.5rem);
+  font-weight: var(--weight-regular);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.lm-summary-total span { color: var(--muted); font-size: var(--text-sm); }
+
+.lm-summary-facts { margin: 0; }
+.lm-summary-facts dt, .lm-summary-facts dd { margin: 0; }
+.lm-summary-facts dd { color: var(--text); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 800px) {
+  .lm-live.is-team .lm-live-main { grid-template-columns: minmax(0, 1fr); }
+  .lm-live-presence { width: min(100%, 520px); justify-self: center; }
+}
+
+@media (max-width: 520px) {
+  .lm-live-main { padding-block: 24px; gap: 24px; }
+  .lm-live-clock h1 { font-size: clamp(4.5rem, 24vw, 7.5rem); }
+  .lm-live-controls .btn { flex: 1 1 calc(50% - 5px); min-width: 0; }
+  .lm-live-controls .lm-live-end { flex-basis: 100%; }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .lm-live-main { padding-block: 8px; gap: 16px; }
+  .lm-live.is-team .lm-live-main { grid-template-columns: minmax(0, 1fr) minmax(200px, 260px); }
+  .lm-live-clock { gap: 8px; }
+  .lm-live-clock h1 { font-size: clamp(3.75rem, 20vh, 6.5rem); }
+  .lm-live-presence { max-height: 52vh; overflow: auto; }
+  .lm-live-controls { padding-block: 6px max(8px, env(safe-area-inset-bottom)); }
+  .lm-live-controls .btn { flex: 0 1 auto; min-width: 112px; }
+}

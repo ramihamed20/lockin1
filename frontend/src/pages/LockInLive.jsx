@@ -1,29 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, MoreHorizontal, Pause, Play, X } from "lucide-react";
+import { Coffee, Pause, Play, X } from "lucide-react";
+import { useI18n } from "../components/I18nProvider.jsx";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
 import { useVisibleNow } from "../hooks/useVisibleNow.js";
+import { LockInBar, LockInMenu, lockInMemberName } from "./LockInLobby.jsx";
+import "./lock-in-lobby.css";
 import "./lock-in-live.css";
-
-const copy = {
-  en: {
-    home: "Home", solo: "Solo", team: "Team", focused: "Focused", break: "Break",
-    away: "Away", paused: "Paused", pause: "Pause", resume: "Resume", end: "End Lockin",
-    leave: "Leave Session", members: "Members", controls: "Session controls",
-    lock: "Lock joining", unlock: "Unlock joining", remove: "Remove", cancel: "Cancel",
-    endConfirm: "End Lockin?", leaveConfirm: "Leave Session?", removeConfirm: "Remove member?",
-    complete: "LOCKED IN", done: "Done", duration: "Duration", focusTime: "Focused",
-    breakTime: "Break", remaining: "Remaining", elapsed: "Elapsed", reconnecting: "Reconnecting…"
-  },
-  ar: {
-    home: "الرئيسية", solo: "فردي", team: "فريق", focused: "تركيز", break: "استراحة",
-    away: "بعيد", paused: "متوقف", pause: "إيقاف مؤقت", resume: "استئناف", end: "إنهاء التركيز",
-    leave: "مغادرة الجلسة", members: "الأعضاء", controls: "إدارة الجلسة",
-    lock: "إغلاق الانضمام", unlock: "فتح الانضمام", remove: "إزالة", cancel: "إلغاء",
-    endConfirm: "إنهاء التركيز؟", leaveConfirm: "مغادرة الجلسة؟", removeConfirm: "إزالة العضو؟",
-    complete: "اكتمل التركيز", done: "تم", duration: "المدة", focusTime: "تركيز",
-    breakTime: "استراحة", remaining: "المتبقي", elapsed: "المنقضي", reconnecting: "جارٍ إعادة الاتصال…"
-  }
-};
 
 function clock(seconds) {
   const safe = Math.max(0, Math.floor(Number(seconds) || 0));
@@ -33,17 +15,32 @@ function clock(seconds) {
   ).join(":");
 }
 
-function LiveSummary({ payload, labels, onHome }) {
+const PRESENCE_LABEL = { focused: "lockIn.focused", break: "lockIn.onBreak", away: "lockIn.away" };
+
+function LiveSummary({ payload, onHome }) {
+  const { t } = useI18n();
   const { session, timing, member_count: memberCount } = payload;
   const duration = Math.max(0, Math.floor((new Date(session.ended_at).getTime() - new Date(session.started_at).getTime()) / 1000));
-  return <main className="lm-shell lm-live" aria-label="Lockin Mode"><div className="lm-live-frame">
-    <header className="lm-live-top"><span className="lm-live-brand">LOCKIN<span>.</span></span><button type="button" onClick={onHome}><ArrowLeft size={18} />{labels.home}</button></header>
-    <section className="lm-live-summary" aria-labelledby="lm-live-summary-title"><p className="lm-live-kicker">{labels.complete}</p><h1 id="lm-live-summary-title" dir="ltr">{clock(duration)}</h1><p>{labels.duration}</p><div className="lm-live-summary-facts"><div><span>{labels.focusTime}</span><strong dir="ltr">{clock(timing.active_elapsed_seconds)}</strong></div><div><span>{labels.breakTime}</span><strong dir="ltr">{clock(timing.break_elapsed_seconds)}</strong></div>{session.team_id && <div><span>{labels.members}</span><strong>{memberCount}</strong></div>}</div><button className="lm-live-primary" type="button" onClick={onHome}>{labels.done}</button></section>
-  </div></main>;
+  return <main className="lm-shell lm-live" aria-label={t("lockIn.sessionLabel")}>
+    <LockInBar onBack={onHome} backLabel={t("lockIn.home")} />
+    <section className="lm-page lm-live-summary" aria-labelledby="lm-live-summary-title">
+      <header className="lm-heading">
+        <h1 id="lm-live-summary-title">{t("lockIn.complete")}</h1>
+        <p dir="auto">{payload.team?.name || session.team_name || t("lockIn.solo")}</p>
+      </header>
+      <div className="lm-summary-total" aria-label={`${t("lockIn.totalTime")} ${clock(duration)}`}><strong dir="ltr">{clock(duration)}</strong><span>{t("lockIn.totalTime")}</span></div>
+      <dl className="ui-group lm-summary-facts">
+        <div className="ui-row"><dt className="ui-row-body"><span>{t("lockIn.focusTime")}</span></dt><dd className="ui-row-value" dir="ltr">{clock(timing.active_elapsed_seconds)}</dd></div>
+        <div className="ui-row"><dt className="ui-row-body"><span>{t("lockIn.breakTime")}</span></dt><dd className="ui-row-value" dir="ltr">{clock(timing.break_elapsed_seconds)}</dd></div>
+        {session.team_id && <div className="ui-row"><dt className="ui-row-body"><span>{t("lockIn.members")}</span></dt><dd className="ui-row-value">{memberCount}</dd></div>}
+      </dl>
+      <button className="btn btn-primary lm-submit" type="button" onClick={onHome}>{t("lockIn.done")}</button>
+    </section>
+  </main>;
 }
 
 export default function LockInLive({ payload, busy, error, onAction, onHome, onPresence, onLeave, onTeamAction, onRefresh }) {
-  const labels = copy[document.documentElement.lang?.startsWith("ar") ? "ar" : "en"];
+  const { t } = useI18n();
   const { session, timing, participants = [], team } = payload;
   const teamMode = Boolean(session.team_id);
   const [confirm, setConfirm] = useState(null);
@@ -59,7 +56,9 @@ export default function LockInLive({ payload, busy, error, onAction, onHome, onP
     0, Number(session.planned_duration_seconds) - activeSeconds
   );
   const onBreak = teamMode ? payload.self_presence === "break" : session.status === "on_break";
-  const statusLabel = session.status === "paused" ? labels.paused : onBreak ? labels.break : labels.focused;
+  const paused = session.status === "paused";
+  const statusKey = paused ? "lockIn.paused" : onBreak ? "lockIn.onBreak" : "lockIn.focused";
+  const statusTone = paused ? "is-paused" : onBreak ? "is-break" : "is-focused";
 
   useEffect(() => { presenceRef.current = payload.self_presence; }, [payload.self_presence]);
   useEffect(() => {
@@ -107,16 +106,52 @@ export default function LockInLive({ payload, busy, error, onAction, onHome, onP
   }, [onPresence, onRefresh, session.status, teamMode]);
 
   if (["completed", "abandoned"].includes(session.status)) {
-    return <LiveSummary payload={payload} labels={labels} onHome={onHome} />;
+    return <LiveSummary payload={payload} onHome={onHome} />;
   }
 
-  return <main className="lm-shell lm-live" aria-label="Lockin Session"><div className="lm-live-frame">
-    <header className="lm-live-top"><button type="button" onClick={onHome} aria-label={labels.home}><ArrowLeft size={18} /><span>{labels.home}</span></button><span className="lm-live-brand">LOCKIN<span>.</span></span>{teamMode && payload.is_host ? <details className="lm-live-more"><summary aria-label={labels.controls}><MoreHorizontal size={21} /></summary><div><button type="button" onClick={() => void onTeamAction("update", { joining_locked: !team.joining_locked })}>{team.joining_locked ? labels.unlock : labels.lock}</button><button type="button" className="danger" onClick={() => setConfirm({ type: "end" })}>{labels.end}</button></div></details> : <span className="lm-live-top-spacer" />}</header>
-    <div className="lm-live-main"><section className="lm-live-clock" aria-label={remaining == null ? labels.elapsed : labels.remaining}><p className="lm-live-kicker" dir="auto">{team?.name || labels.solo}</p><h1 dir="ltr">{clock(remaining ?? activeSeconds)}</h1><p className="lm-live-status"><span className={onBreak ? "break" : ""} />{statusLabel}</p><div className="lm-live-meta"><span>{remaining == null ? labels.elapsed : labels.remaining}</span><span dir="ltr">{clock(activeSeconds)} {labels.elapsed}</span></div></section>
-      {teamMode && <aside className="lm-live-presence" aria-label={labels.members}><h2>{labels.members}<span>{participants.length}</span></h2><ul>{participants.map((member) => <li key={member.member_id}><span className={`lm-live-dot ${member.presence}`} aria-hidden="true" /><strong dir="auto">{member.name}</strong><small>{labels[member.presence] || labels.away}</small>{payload.is_host && member.member_id !== team.self_member_id && <button type="button" aria-label={`${labels.remove}: ${member.name}`} onClick={() => setConfirm({ type: "kick", member })}><X size={16} /></button>}</li>)}</ul></aside>}
+  const leaving = teamMode && !payload.is_host;
+  const confirmCopy = confirm?.type === "kick"
+    ? { title: t("lockIn.removeConfirm", { name: confirm.name }), message: t("lockIn.removeMessage"), label: t("lockIn.remove") }
+    : confirm?.type === "leave"
+      ? { title: t("lockIn.leaveSessionConfirm"), message: t("lockIn.leaveSessionMessage"), label: t("lockIn.leaveSession") }
+      : { title: t("lockIn.endConfirm"), message: teamMode ? t("lockIn.endTeamSessionMessage") : t("lockIn.endSoloMessage"), label: t("lockIn.endSession") };
+
+  return <main className={`lm-shell lm-live${teamMode ? " is-team" : ""}`} aria-label={t("lockIn.sessionLabel")}>
+    <LockInBar
+      onBack={onHome}
+      backLabel={t("lockIn.home")}
+      end={teamMode && payload.is_host ? <LockInMenu label={t("lockIn.sessionControls")} items={[
+        { label: team.joining_locked ? t("lockIn.unlockJoining") : t("lockIn.lockJoining"), onSelect: () => void onTeamAction("update", { joining_locked: !team.joining_locked }) },
+        { label: t("lockIn.endSession"), danger: true, onSelect: () => setConfirm({ type: "end" }) }
+      ]} /> : null}
+    >
+      <span className="lm-bar-title" dir="auto">{team?.name || t("lockIn.solo")}</span>
+    </LockInBar>
+    <div className="lm-live-main">
+      <section className="lm-live-clock" aria-label={remaining == null ? t("lockIn.timeFocused") : t("lockIn.timeRemaining")}>
+        <h1 dir="ltr">{clock(remaining ?? activeSeconds)}</h1>
+        <p className={`lm-status ${statusTone}`}><span className="lm-live-dot" aria-hidden="true" />{t(statusKey)}</p>
+        {remaining != null && <p className="lm-live-meta">{t("lockIn.focusedSoFar", { time: clock(activeSeconds) })}</p>}
+      </section>
+      {teamMode && <section className="ui-group-block lm-live-presence" aria-labelledby="lm-live-members">
+        <h2 className="ui-group-title" id="lm-live-members">{t("lockIn.members")} · {participants.length}</h2>
+        <ul className="ui-group" aria-labelledby="lm-live-members">{participants.map((member) => {
+          const name = lockInMemberName(member, t);
+          return <li key={member.member_id}><div className="ui-row">
+            <span className={`lm-live-dot is-${member.presence || "away"}`} aria-hidden="true" />
+            <span className="ui-row-body"><strong dir="auto">{name}</strong></span>
+            <span className="ui-row-value">{t(PRESENCE_LABEL[member.presence] || "lockIn.away")}</span>
+            {payload.is_host && member.member_id !== team.self_member_id && <button className="lm-icon-button" type="button" aria-label={`${t("lockIn.remove")}: ${name}`} onClick={() => setConfirm({ type: "kick", member, name })}><X size={16} aria-hidden="true" /></button>}
+          </div></li>;
+        })}</ul>
+      </section>}
     </div>
-    <footer className="lm-live-controls">{!teamMode && <button type="button" disabled={Boolean(busy)} onClick={() => void onAction(session.status === "paused" ? "resume" : "pause")}>{session.status === "paused" ? <Play size={18} /> : <Pause size={18} />}{session.status === "paused" ? labels.resume : labels.pause}</button>}{session.status !== "paused" && <button type="button" disabled={Boolean(busy)} onClick={() => { if (teamMode) void onPresence(onBreak ? "focused" : "break").catch(() => {}); else void onAction(onBreak ? "end-break" : "start-break"); }}>{onBreak ? labels.resume : labels.break}</button>}<button className="lm-live-secondary" type="button" onClick={() => setConfirm({ type: teamMode && !payload.is_host ? "leave" : "end" })}>{teamMode && !payload.is_host ? labels.leave : labels.end}</button></footer>
-    {error && <p className="lm-live-error" role="alert">{error}</p>}
-    <ConfirmDialog open={Boolean(confirm)} title={confirm?.type === "kick" ? labels.removeConfirm : confirm?.type === "leave" ? labels.leaveConfirm : labels.endConfirm} message="\u00a0" confirmLabel={confirm?.type === "kick" ? labels.remove : confirm?.type === "leave" ? labels.leave : labels.end} cancelLabel={labels.cancel} busy={Boolean(busy)} onCancel={() => setConfirm(null)} onConfirm={() => { const choice = confirm; setConfirm(null); if (choice?.type === "kick") void onTeamAction("kick", { member_id: choice.member.member_id }); else if (choice?.type === "leave") void onLeave(); else void onAction("complete"); }} />
-  </div></main>;
+    <footer className="lm-live-controls">
+      {!teamMode && <button className="btn btn-soft" type="button" disabled={Boolean(busy)} onClick={() => void onAction(paused ? "resume" : "pause")}>{paused ? <Play size={17} aria-hidden="true" /> : <Pause size={17} aria-hidden="true" />}{paused ? t("lockIn.resume") : t("lockIn.pause")}</button>}
+      {!paused && <button className="btn btn-soft" type="button" disabled={Boolean(busy)} onClick={() => { if (teamMode) void onPresence(onBreak ? "focused" : "break").catch(() => {}); else void onAction(onBreak ? "end-break" : "start-break"); }}>{onBreak ? <Play size={17} aria-hidden="true" /> : <Coffee size={17} aria-hidden="true" />}{onBreak ? t("lockIn.backToFocus") : t("lockIn.takeBreak")}</button>}
+      <button className="btn btn-soft lm-live-end" type="button" onClick={() => setConfirm({ type: leaving ? "leave" : "end" })}>{leaving ? t("lockIn.leaveSession") : t("lockIn.endSession")}</button>
+    </footer>
+    {error && <p className="lm-error lm-live-error" role="alert">{error}</p>}
+    <ConfirmDialog open={Boolean(confirm)} title={confirmCopy.title} message={confirmCopy.message} confirmLabel={confirmCopy.label} cancelLabel={t("common.cancel")} busy={Boolean(busy)} onCancel={() => setConfirm(null)} onConfirm={() => { const choice = confirm; setConfirm(null); if (choice?.type === "kick") void onTeamAction("kick", { member_id: choice.member.member_id }); else if (choice?.type === "leave") void onLeave(); else void onAction("complete"); }} />
+  </main>;
 }
