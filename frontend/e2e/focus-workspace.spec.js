@@ -487,7 +487,8 @@ test("PDF sheets open at page one and restore zoom only while enabled @chromium-
   // Settings became tabs in the pre-V2 Focus rework (fb24160); the reading
   // switches live under View.
   await settings.getByRole("tab", { name: "View" }).click();
-  await settings.getByRole("switch", { name: /Remember last position/ }).click();
+  // The same rememberLastPosition setting, renamed in fb24160.
+  await settings.getByRole("switch", { name: /Resume Active Study where I left off/ }).click();
   await settings.getByRole("switch", { name: /Remember zoom level/ }).click();
   await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem("lock-in.catalog-workspace.settings.v1")))).toMatchObject({ rememberLastPosition: false, rememberZoomLevel: false });
   await page.reload();
