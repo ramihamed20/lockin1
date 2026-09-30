@@ -262,7 +262,7 @@ export default function Subscription() {
 
   return (
     <Page title={t("subscription.title")} headingHandled>
-      <div className="subscription-premium">
+      <div className="subscription-premium subscription-v2">
         <ReviewBanner review={review} t={t} onRetry={() => setStep("plan")} />
 
         {!subscription?.access_allowed && !pendingManualReview && (
@@ -279,14 +279,23 @@ export default function Subscription() {
           </section>
         )}
 
+        {/* What you have comes first; what you could buy follows it. The
+            facts that used to sit in a collapsed "Current access" block are
+            the card itself now. */}
         <header className="subscription-premium-header">
           <div>
-            <h1>{t("subscription.choosePlan")}</h1>
+            <h1>{t("subscription.title")}</h1>
           </div>
           <div className="subscription-current-summary">
-            <span>{t("subscription.currentAccess")}</span>
+            <span>{t("subscription.currentPlan")}</span>
             <strong>{subscription?.plan_title || t("subscription.noPlan")}</strong>
             <SubscriptionStatus subscription={subscription} compact />
+            {subscription && <dl className="subscription-v2-facts">
+              <div><dt>{subscription.status === "trialing" ? t("subscription.trialExpiration") : t("subscription.subscriptionExpiration")}</dt><dd>{periodEnd ? formatDate(periodEnd, { dateStyle: "medium" }) : "—"}</dd></div>
+              <div><dt>{t("subscription.remaining")}</dt><dd>{t("subscription.daysRemaining", { count: subscription.remaining_days || 0 })}</dd></div>
+              <div><dt>{t("subscription.paymentVerification")}</dt><dd>{paymentLabel}</dd></div>
+            </dl>}
+            {subscription?.status === "grace" && <p className="subscription-grace-note">{t("subscription.graceMessage", { count: subscription.remaining_days })}</p>}
           </div>
         </header>
 
@@ -300,6 +309,7 @@ export default function Subscription() {
             </div>
           ) : (
             <form className="subscription-checkout" onSubmit={submitPayment}>
+              <h2 className="subscription-v2-heading">{t("subscription.choosePlan")}</h2>
               <CheckoutStepper step={step} onStep={goToStep} t={t} />
 
               {step === "plan" && <fieldset className="subscription-plan-options">
@@ -393,17 +403,6 @@ export default function Subscription() {
         <ComingSoonPlans offers={comingSoon} t={t} />
 
         <div className="subscription-secondary-sections">
-          <details className="subscription-secondary">
-            <summary><span>{t("subscription.currentAccess")}</span><strong>{subscription?.plan_title || t("subscription.noPlan")}</strong></summary>
-            {subscription?.status === "grace" && <p className="subscription-grace-note">{t("subscription.graceMessage", { count: subscription.remaining_days })}</p>}
-            <dl className="subscription-facts">
-              <div><dt>{t("subscription.currentPlan")}</dt><dd>{subscription?.plan_title || "—"}</dd></div>
-              <div><dt>{subscription?.status === "trialing" ? t("subscription.trialExpiration") : t("subscription.subscriptionExpiration")}</dt><dd>{periodEnd ? formatDate(periodEnd, { dateStyle: "medium" }) : "—"}</dd></div>
-              <div><dt>{t("subscription.remaining")}</dt><dd>{t("subscription.daysRemaining", { count: subscription?.remaining_days || 0 })}</dd></div>
-              <div><dt>{t("subscription.paymentVerification")}</dt><dd>{paymentLabel}</dd></div>
-            </dl>
-          </details>
-
           <details className="subscription-secondary">
             <summary><span>{t("subscription.recentPayments")}</span><strong>{recentPayments.length}</strong></summary>
             {recentPayments.length ? (

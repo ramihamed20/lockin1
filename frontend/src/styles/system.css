@@ -1686,7 +1686,8 @@ html.ix-hover :is(a, button).ui-row:hover:not(:disabled) {
   }
 }
 
-/* A field that lives inside a grouped row: no box of its own. */
+/* A field that lives inside a grouped row: no box of its own. 16px, because
+   mobile Safari magnifies the page when a smaller field takes focus. */
 .ui-row .ui-row-input {
   flex: 0 1 auto;
   min-width: 0;
@@ -1697,7 +1698,7 @@ html.ix-hover :is(a, button).ui-row:hover:not(:disabled) {
   color: var(--text);
   background: var(--surface-3);
   font: inherit;
-  font-size: var(--text-md);
+  font-size: 16px;
 }
 
 }
