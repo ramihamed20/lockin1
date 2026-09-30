@@ -290,42 +290,38 @@ test("the sidebar scrolls to its last entry in portrait, streak card and all", a
   expect(measured).toEqual({ scrolls: true, scrolled: true, lastEntryInside: true, streakInside: true });
 });
 
-for (const ipad of IPADS.filter((device) => device.height > device.width)) {
-  test(`dashboard cards stay on one scrollable row on ${ipad.name}`, async ({ page }) => {
+// The state cards take a grid that fills every row (2, 3 or 6 columns,
+// chosen by the width they get), so on no iPad is a card squeezed, left alone
+// on a row, or pushed into a sideways scroll.
+for (const ipad of IPADS) {
+  test(`dashboard state cards fill whole rows without scrolling sideways on ${ipad.name}`, async ({ page }) => {
     await mockDashboard(page);
     await page.setViewportSize({ width: ipad.width, height: ipad.height });
     await page.goto("/#/");
-    const row = page.locator(".dashboard-stats-grid");
-    await expect(row).toBeVisible();
+    const grid = page.locator(".dash-states-grid");
+    await expect(grid).toBeVisible();
 
-    const measured = await row.evaluate((element) => {
+    const measured = await grid.evaluate((element) => {
+      const box = element.getBoundingClientRect();
       const cards = [...element.children].map((card) => card.getBoundingClientRect());
-      const gap = Number.parseFloat(getComputedStyle(element).columnGap) || 0;
+      const rows = new Map();
+      for (const card of cards) {
+        const key = Math.round(card.top);
+        rows.set(key, [...(rows.get(key) || []), card]);
+      }
       return {
         count: cards.length,
-        rows: new Set(cards.map((card) => Math.round(card.top))).size,
+        rowsFilled: [...rows.values()].every((row) => Math.min(...row.map((card) => card.left)) <= box.left + 1 && Math.max(...row.map((card) => card.right)) >= box.right - 1),
+        narrowest: Math.round(Math.min(...cards.map((card) => card.width))),
         scrolls: element.scrollWidth > element.clientWidth + 1,
-        // The card keeps exactly the width the two-column grid gave it.
-        widthMatchesGrid: cards.every((card) => Math.abs(card.width - (element.clientWidth - gap) / 2) <= 1),
         pageScrollsSideways: document.documentElement.scrollWidth > window.innerWidth + 1
       };
     });
 
-    expect(measured.count).toBeGreaterThan(2);
-    expect(measured.rows).toBe(1);
-    expect(measured.scrolls).toBe(true);
-    expect(measured.widthMatchesGrid).toBe(true);
+    expect(measured.count).toBe(5);
+    expect(measured.rowsFilled).toBe(true);
+    expect(measured.narrowest).toBeGreaterThanOrEqual(128);
+    expect(measured.scrolls).toBe(false);
     expect(measured.pageScrollsSideways).toBe(false);
   });
 }
-
-// Landscape has the width for the whole row, so it keeps the grid it had.
-test("landscape keeps the dashboard cards in their grid", async ({ page }) => {
-  await mockDashboard(page);
-  await page.setViewportSize({ width: 1112, height: 834 });
-  await page.goto("/#/");
-  const row = page.locator(".dashboard-stats-grid");
-  await expect(row).toBeVisible();
-
-  expect(await row.evaluate((element) => getComputedStyle(element).display)).toBe("grid");
-});

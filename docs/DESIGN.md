@@ -503,7 +503,10 @@ in student screens; the rendered-style audit in this pass found none left.
 - iPad is a first-class target: coarse pointer means 44 px targets, pinch zoom instead of a zoom
   bar, and Apple Pencil-only drawing as a Focus setting.
 - Short landscape keeps chrome to one compact row.
-- Dashboard metrics stack icon-over-number between 700 and 1279 px, where five cells are narrow.
+- Dashboard state cards carry one value, one label and at most one short note (no icons, badges or
+  chevrons). Their grid follows the width the cards get (a container query), not the window: 2
+  columns, 3, or one row of 6 with Level twice as wide, so every row is full and nothing scrolls
+  sideways.
 
 ### RTL
 
