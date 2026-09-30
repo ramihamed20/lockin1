@@ -111,7 +111,7 @@ function SheetSkeleton() {
 }
 
 function ProfileSkeleton() {
-  return <div className="skeleton-page skeleton-page--profile"><section className="skeleton-profile-hero"><SkeletonCard className="skeleton-id-card"><div className="skeleton-id-top"><Skeleton className="skeleton-logo" /><Skeleton className="skeleton-chip" /></div><div className="skeleton-id-body"><SkeletonAvatar className="skeleton-avatar--profile" /><SkeletonText lines={4} /></div><Skeleton className="skeleton-barcode" /></SkeletonCard><SkeletonCard className="skeleton-chart-card"><SkeletonText lines={2} /><Skeleton className="skeleton-chart" /><SkeletonText lines={3} /></SkeletonCard></section><CardGridSkeleton count={4} card="stat" /><section className="skeleton-two-column"><SkeletonCard><SkeletonText lines={2} /><Skeleton className="skeleton-heatmap" /></SkeletonCard><SkeletonCard><SkeletonText lines={4} /></SkeletonCard></section></div>;
+  return <div className="skeleton-page skeleton-page--profile skeleton-profile-v2"><header className="skeleton-profile-v2-hero"><SkeletonAvatar className="skeleton-avatar--profile" /><SkeletonText lines={2} /></header><SkeletonCard className="skeleton-profile-v2-level"><SkeletonText lines={1} /><Skeleton className="skeleton-progress" /></SkeletonCard><SkeletonCard className="skeleton-profile-v2-activity"><Skeleton className="skeleton-heatmap" /></SkeletonCard></div>;
 }
 
 function ProgressSkeleton() {

@@ -475,6 +475,313 @@ html.ix-hover .settings-v2-back:hover {
   }
 }
 
+/* --- Profile --------------------------------------------------------------- */
+
+/* An account page, not a trading card: who you are, one progress strip, one
+   activity map, and the study path that decides what you see. */
+.profile-v2 {
+  display: grid;
+  gap: 28px;
+  width: 100%;
+  max-width: 760px;
+  min-width: 0;
+  margin-inline: auto;
+}
+
+.profile-v2-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.profile-v2-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding-block: 8px 4px;
+}
+
+.profile-v2-avatar {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 0 1px var(--separator);
+}
+
+.profile-v2-identity {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.profile-v2-identity h1 {
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--title-large);
+  font-weight: var(--weight-bold);
+  line-height: 1.15;
+  letter-spacing: var(--tracking-title);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-v2-identity p {
+  margin: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--text-md);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-v2-edit {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  animation: v2-reveal var(--motion-panel-duration) var(--motion-enter-ease) both;
+}
+
+.profile-v2-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.profile-v2-section {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.profile-v2-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-inline: 4px;
+}
+
+.profile-v2-section-head h2 {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.018em;
+}
+
+.profile-v2-section-meta {
+  color: var(--soft);
+  font-size: var(--text-sm);
+}
+
+.profile-v2-level {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+
+.profile-v2-level-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.profile-v2-level-top strong {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.profile-v2-level-top span {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.profile-v2-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.profile-v2-stats .ui-stat {
+  padding: 14px 16px;
+}
+
+.profile-v2-activity {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+/* One column per week, one row per weekday, the calendar way; the keyboard
+   follows the same geometry. */
+.profile-v2 .profile-heatmap {
+  width: 100%;
+  max-width: 440px;
+  grid-template-columns: none;
+  grid-template-rows: repeat(7, minmax(0, 1fr));
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 4px;
+  padding: 0;
+  background: transparent;
+  cursor: default;
+}
+
+.profile-v2 .profile-heat-cell {
+  min-height: 0;
+  aspect-ratio: 1;
+  border-radius: 4px;
+}
+
+/* The active day is marked only while the map has keyboard focus, which is
+   the only time it means something. */
+.profile-v2 .profile-heat-cell[aria-selected="true"] {
+  outline: 0;
+}
+
+.profile-v2 .profile-heatmap:focus-visible {
+  outline-offset: 4px;
+}
+
+.profile-v2 .profile-heatmap:focus-visible .profile-heat-cell[aria-selected="true"] {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--text);
+}
+
+.profile-v2-activity-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.profile-v2-activity-foot p {
+  flex: 1 1 260px;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.profile-v2-activity-foot strong {
+  color: var(--text);
+  font-weight: var(--weight-semibold);
+}
+
+.profile-v2-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.profile-v2-legend small {
+  color: var(--soft);
+  font-size: var(--text-xs);
+}
+
+.profile-v2-legend .profile-heat-cell {
+  width: 11px;
+  height: 11px;
+  aspect-ratio: auto;
+  border-radius: 3px;
+}
+
+.profile-v2-path-action .ui-row-body > span {
+  color: var(--accent-text);
+}
+
+.profile-v2-path-form {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-block-start: 1px solid var(--separator);
+}
+
+.skeleton-profile-v2 {
+  display: grid;
+  gap: 24px;
+  max-width: 760px;
+  margin-inline: auto;
+}
+
+.skeleton-profile-v2-hero {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 320px);
+  align-items: center;
+  gap: 18px;
+}
+
+.skeleton-profile-v2 .skeleton-avatar--profile {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+}
+
+.skeleton-profile-v2 .skeleton-card {
+  min-height: 0;
+  padding: 16px;
+}
+
+.skeleton-profile-v2 .skeleton-progress {
+  height: 8px;
+  border-radius: var(--radius-full);
+}
+
+.skeleton-profile-v2 .skeleton-heatmap {
+  width: min(440px, 100%);
+  height: 190px;
+}
+
+@keyframes v2-reveal {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 639px) {
+  .profile-v2 {
+    gap: 24px;
+  }
+
+  .profile-v2-hero {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .profile-v2-avatar {
+    width: 64px;
+    height: 64px;
+  }
+
+  .profile-v2-identity h1 {
+    font-size: var(--text-2xl);
+  }
+
+  .profile-v2-identity p {
+    white-space: normal;
+  }
+
+  .profile-v2-edit-toggle {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .profile-v2-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-v2-edit {
+    animation: none;
+  }
+}
+
 }
 
 /* A screen that draws its own selection (a ring, a bold label) must not also

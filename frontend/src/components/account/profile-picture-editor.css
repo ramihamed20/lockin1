@@ -7,19 +7,6 @@
   border-block-start: 1px solid var(--border-subtle, var(--border));
 }
 
-/* Keep the established ID-card frame, with the avatar intentionally inset. */
-.profile-academy-id .profile-avatar-wrap {
-  display: grid;
-  place-items: center;
-}
-
-.profile-academy-id .profile-avatar-wrap .profile-avatar-image {
-  inline-size: 70px;
-  block-size: 70px;
-  border-radius: 9px;
-  object-fit: cover;
-}
-
 .profile-picture-editor-heading {
   display: flex;
   align-items: center;

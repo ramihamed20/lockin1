@@ -1005,6 +1005,36 @@ textarea:focus {
   color: var(--text);
 }
 
+/* --- Progress bar (V2) ---------------------------------------------------- */
+
+/* A thin track with a solid fill: the amount is the message, so there is no
+   glow, gradient or looping shimmer competing with it. The percentage is
+   announced by the progressbar's own aria values. */
+.progress-line {
+  height: 8px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--surface-3);
+}
+
+.progress-line span {
+  padding: 0;
+  border-radius: inherit;
+  color: transparent;
+  background: var(--accent);
+  box-shadow: none;
+  font-size: 0;
+  transition: width 420ms var(--motion-enter-ease);
+}
+
+.progress-line span::after {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-line span { transition: none; }
+}
+
 /* --- Skeletons ----------------------------------------------------------- */
 
 .skeleton {
