@@ -276,7 +276,7 @@ test("a backup exports, restores, and refuses to cross into another sheet unaske
 
   await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings" }).click();
-  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("button", { name: /Export Save and share/ }).click();
+  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("tab", { name: "Other" }).click();
   const [download] = await Promise.all([
     page.waitForEvent("download"),
     page.getByRole("button", { name: /Export workspace backup/ }).click()
@@ -288,12 +288,12 @@ test("a backup exports, restores, and refuses to cross into another sheet unaske
   expect(download.suggestedFilename()).toMatch(/^lock-in-biochemistry-1-vitamin-1-\d{4}-\d{2}-\d{2}\.json$/);
 
   // Clear the sheet, then restore it from the file.
-  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("button", { name: /Writing Pens and handwriting/ }).click();
+  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("tab", { name: "Canvas" }).click();
   await page.getByRole("button", { name: /Clear ink on PDF page/ }).click();
   await expect(visibleInk(page)).toHaveCount(0);
   await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings" }).click();
-  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("button", { name: /Export Save and share/ }).click();
+  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("tab", { name: "Other" }).click();
   await page.locator('input[accept="application/json,.json"]').setInputFiles(backupPath);
   await expect(visibleInk(page)).toHaveCount(1);
   // Restoring is an ordinary edit, so it can be undone.
@@ -306,7 +306,7 @@ test("a backup exports, restores, and refuses to cross into another sheet unaske
   // Restoring the same file again adds nothing, because the ids already exist.
   await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings" }).click();
-  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("button", { name: /Export Save and share/ }).click();
+  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("tab", { name: "Other" }).click();
   await page.locator('input[accept="application/json,.json"]').setInputFiles(backupPath);
   await expect(page.locator(".workspace-v2-toast")).toContainText(/already on this sheet/i);
   await expect(visibleInk(page)).toHaveCount(1);
@@ -335,7 +335,7 @@ test("a malformed backup is refused without disturbing the sheet", async ({ page
   await expect(visibleInk(page)).toHaveCount(1);
   await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings" }).click();
-  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("button", { name: /Export Save and share/ }).click();
+  await page.getByRole("dialog", { name: "Workspace settings" }).getByRole("tab", { name: "Other" }).click();
   const input = page.locator('input[accept="application/json,.json"]');
 
   for (const [name, body] of [

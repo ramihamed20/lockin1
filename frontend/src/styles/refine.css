@@ -28,24 +28,21 @@
 
 /* --- Catalogue lists ------------------------------------------------------ */
 
-/* Subjects, question modes and sheet lists were a column of separately framed
-   cards, each with its own border, fill and shadow. They are one list: a
-   single rounded block, rows divided by hairlines inset past the icon, and a
-   row that answers the pointer with a quiet fill. */
-:is(.catalog-material-grid, .questions-category-grid) {
-  width: min(100%, 760px);
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0;
-  overflow: hidden;
-  border: 1px solid var(--polish-line);
-  border-radius: var(--radius-lg);
-  background: var(--polish-raised);
-  box-shadow: var(--polish-shadow);
+/* Subjects, question modes and sheets are separate items, not rows inside one
+   framed block: each is its own light card with a hairline border and a
+   whisper of shadow, stacked with a small, even gap. Materials, a subject's
+   sheets and the Questions directory all share this rhythm. */
+:root {
+  --catalog-item-gap: 8px;
+  --catalog-item-radius: var(--radius-lg);
+  --catalog-item-surface: var(--polish-raised);
+  --catalog-item-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
 }
 
-:is(.catalog-material-grid, .questions-category-grid) > .catalog-tile {
-  position: relative;
-  min-height: 0;
+:is(.catalog-material-grid, .questions-category-grid, .catalog-sheet-grid) {
+  width: min(100%, 760px);
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--catalog-item-gap);
   overflow: visible;
   border: 0;
   border-radius: 0;
@@ -53,67 +50,36 @@
   box-shadow: none;
 }
 
-:is(.catalog-material-grid, .questions-category-grid) > .catalog-tile + .catalog-tile::before {
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline: 70px 0;
-  height: 1px;
-  background: var(--polish-line);
-  content: "";
-  pointer-events: none;
+:is(.catalog-material-grid, .questions-category-grid) > .catalog-tile,
+.catalog-sheet-grid > .catalog-sheet-card {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--polish-line);
+  border-radius: var(--catalog-item-radius);
+  background: var(--catalog-item-surface);
+  box-shadow: var(--catalog-item-shadow);
 }
 
 :is(.catalog-material-grid, .questions-category-grid) > .catalog-tile .catalog-tile__surface {
   min-height: 64px;
   padding-block: 10px;
-  border-radius: 0;
+  border-radius: inherit;
   background: transparent;
-}
-
-html.ix-hover :is(.catalog-material-grid, .questions-category-grid) > .catalog-tile.is-actionable:hover {
-  border: 0;
-  background: color-mix(in srgb, var(--text) 4%, transparent);
-}
-
-/* The sheets inside a subject join the same list, so the path from Materials
-   to a subject to a sheet reads as one continuous pattern. */
-.catalog-sheet-grid {
-  width: min(100%, 760px);
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0;
-  overflow: hidden;
-  border: 1px solid var(--polish-line);
-  border-radius: var(--radius-lg);
-  background: var(--polish-raised);
-  box-shadow: var(--polish-shadow);
 }
 
 .catalog-sheet-grid > .catalog-sheet-card {
-  position: relative;
   min-height: 64px;
   align-items: center;
   padding-block: 10px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
 }
 
 .catalog-sheet-grid > .catalog-sheet-card > :is(.catalog-sheet-icon, .catalog-sheet-end) { margin-block-start: 0; }
 
-.catalog-sheet-grid > .catalog-sheet-card + .catalog-sheet-card::before {
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline: 70px 0;
-  height: 1px;
-  background: var(--polish-line);
-  content: "";
-  pointer-events: none;
-}
-
+html.ix-hover :is(.catalog-material-grid, .questions-category-grid) > .catalog-tile.is-actionable:hover,
 html.ix-hover .catalog-sheet-grid > .catalog-sheet-card:not(.is-unavailable):hover {
-  border: 0;
-  background: color-mix(in srgb, var(--text) 4%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--polish-line));
+  background: color-mix(in srgb, var(--text) 3%, var(--catalog-item-surface));
 }
 
 .catalog-sheet-grid .catalog-sheet-icon {

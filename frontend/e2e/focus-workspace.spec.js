@@ -203,11 +203,10 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   const settings = page.getByRole("dialog", { name: "Workspace settings" });
   await expect(settings).toBeVisible();
   await expect(settings.getByRole("switch", { name: /Scribble to erase/ })).toBeVisible();
-  await expect(settings.getByRole("switch", { name: /Perfect shapes on release/ })).toBeVisible();
-  await settings.getByRole("button", { name: /Gestures Touch and shortcuts/ }).click();
+  await expect(settings.getByRole("switch", { name: /Straight lines & shapes/ })).toBeVisible();
   await expect(settings.getByRole("switch", { name: /Circle to erase/ })).toBeVisible();
-  await settings.getByRole("button", { name: /Workspace Pages and study tools/ }).click();
-  await expect(settings.getByRole("switch", { name: /Remember last position/ })).toHaveAttribute("aria-checked", "true");
+  await settings.getByRole("tab", { name: "View" }).click();
+  await expect(settings.getByRole("switch", { name: /Resume Active Study where I left off/ })).toHaveAttribute("aria-checked", "true");
   await expect(settings.getByRole("switch", { name: /Remember zoom level/ })).toHaveAttribute("aria-checked", "true");
   const pageNumberToggle = settings.getByRole("switch", { name: /Show page number/ });
   await expect(page.locator(".workspace-v2-page-number")).toBeVisible();

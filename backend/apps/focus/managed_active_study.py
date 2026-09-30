@@ -486,7 +486,7 @@ def _question_event(
         canonical_key=f"active-study:{run.sheet_id}:{run.difficulty}:{attempt.kind}:{attempt.part_number}:{position}",
         subject_key=f"content:{node.id}",
         subject_label=node.title,
-        source_type=ReviewItem.SourceType.SHEET,
+        source_type=ReviewItem.SourceType.ACTIVE_STUDY,
         source_id=str(run.sheet_id),
         source_label=run.sheet.published_version.title,
         source_question_index=position,

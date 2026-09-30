@@ -1,0 +1,32 @@
+.biweekly-archive { display: grid; gap: 1.5rem; min-width: 0; }
+.biweekly-current, .biweekly-history { border: 1px solid var(--border-default, #384457); border-radius: 1rem; padding: clamp(1rem, 3vw, 1.6rem); min-width: 0; }
+.biweekly-current { background: linear-gradient(135deg, rgba(25,169,181,.14), transparent 70%); }
+.biweekly-eyebrow { color: #6ccfd3; font-size: .8rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.biweekly-current h2 { margin: .45rem 0; font-size: clamp(1.25rem, 3vw, 1.7rem); }
+.biweekly-current p:not(.biweekly-eyebrow) { opacity: .8; }
+.biweekly-actions, .biweekly-row-actions { display: flex; flex-wrap: wrap; gap: .65rem; align-items: center; }
+.biweekly-actions { margin-top: 1.2rem; }
+.biweekly-latest { margin-top: 1.2rem; padding-top: 1rem; border-top: 1px solid var(--border-default, #384457); }
+.biweekly-latest .biweekly-actions { margin-top: .7rem; }
+.biweekly-history > h2 { margin: 0 0 1rem; }
+.biweekly-month { margin-top: 1.35rem; }
+.biweekly-month h3 { margin: 0 0 .45rem; font-size: 1rem; }
+.biweekly-list { border-top: 1px solid var(--border-default, #384457); }
+.biweekly-history-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .9rem 0; border-bottom: 1px solid var(--border-default, #384457); }
+.biweekly-history-row strong, .biweekly-history-row small { display: block; }
+.biweekly-history-row small { margin-top: .25rem; opacity: .72; }
+.biweekly-row-actions a { white-space: nowrap; }
+.biweekly-empty { opacity: .7; }
+@media (max-width: 48rem) { .biweekly-history-row { align-items: flex-start; flex-direction: column; } .biweekly-row-actions { width: 100%; } }
+.biweekly-detail { display: grid; gap: 1.25rem; margin-top: 1.3rem; }
+.biweekly-detail-actions { display: flex; flex-wrap: wrap; gap: .65rem; margin-bottom: 1rem; }
+.biweekly-metric-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 1rem; }
+.biweekly-metric-list div { border-top: 1px solid var(--border-default, #384457); padding-top: .65rem; }
+.biweekly-metric-list dt { opacity: .72; }
+.biweekly-metric-list dd { margin: .25rem 0 0; font-size: 1.35rem; font-weight: 700; }
+.biweekly-detail .biweekly-history p { margin: .5rem 0; overflow-wrap: anywhere; }
+.biweekly-test { display: grid; gap: 1rem; }
+.biweekly-test fieldset { margin: 0; min-width: 0; }
+.biweekly-test legend { font-weight: 700; padding: 0 .25rem; }
+.biweekly-option { display: flex; align-items: flex-start; gap: .6rem; padding: .4rem 0; cursor: pointer; }
+.biweekly-option input { flex: none; margin-top: .3rem; }

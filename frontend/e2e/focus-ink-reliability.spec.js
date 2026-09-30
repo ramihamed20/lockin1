@@ -128,7 +128,7 @@ test("a sticky note has a clear Delete, and undo and redo restore and remove it 
   const position = { x: await rect.getAttribute("x"), y: await rect.getAttribute("y") };
   const box = await card.boundingBox();
   await page.mouse.click(box.x + box.width / 2, box.y + 30);
-  const remove = page.locator(".workspace-v2-selection-menu").getByRole("button", { name: "Delete note" });
+  const remove = page.locator("[data-selection-toolbar]").getByRole("button", { name: "Delete" });
   await expect(remove).toBeVisible();
   await remove.click();
   await expect(card).toHaveCount(0);
@@ -143,7 +143,7 @@ test("a sticky note has a clear Delete, and undo and redo restore and remove it 
   // The card editor offers the same delete.
   const again = await card.boundingBox();
   await page.mouse.click(again.x + again.width / 2, again.y + 30);
-  await page.locator(".workspace-v2-selection-menu").getByRole("button", { name: "Edit card" }).click();
+  await page.locator("[data-selection-toolbar]").getByRole("button", { name: "Edit card" }).click();
   await page.getByRole("dialog", { name: "Edit study card" }).getByRole("button", { name: "Delete card" }).click();
   await expect(card).toHaveCount(0);
   await page.getByRole("button", { name: "Undo (Ctrl+Z)" }).click();

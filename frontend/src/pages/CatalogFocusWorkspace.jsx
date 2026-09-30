@@ -55,7 +55,6 @@ import {
   Upload,
   Lock,
   Unlock,
-  Layers3,
   FileText,
   StickyNote,
   Share2,
@@ -69,7 +68,10 @@ import {
   SendToBack,
   PaintBucket,
   Ruler,
-  Info
+  Info,
+  ExternalLink,
+  Loader2,
+  AlertTriangle
 } from "lucide-react";
 import { focusApi } from "../api/focus.js";
 import { progressApi } from "../api/progress.js";
@@ -80,7 +82,7 @@ import { useCatalogDocument } from "../hooks/useCatalogDocument.js";
 import { useReadingSession } from "../hooks/useReadingSession.js";
 import { subscribeConnection } from "../lib/connectionState.js";
 import { createCatalogServerSync } from "../workspace/catalog/catalogServerSync.js";
-import { cssVars } from "../lib/utils.js";
+import { assetPath, cssVars } from "../lib/utils.js";
 import { subscribeViewport } from "../lib/viewport.js";
 import { usePageTitle } from "../hooks/usePageTitle.js";
 import {
@@ -159,9 +161,11 @@ import {
   translateAnnotation,
   withCommandPositions
 } from "../workspace/catalog/catalogWorkspaceState.js";
+import { COPY_OFFSET, MOVE_THRESHOLD_PX, clampSelectionDelta, contextToolbarPosition, editableTarget, expandSelectionGroups, hitTestAnnotations, isDoubleTap, reorderSelection } from "../workspace/selection/selectionController.js";
 import { A4_PAGE_WIDTH, ContinuousA4Pdf } from "../workspace/catalog/ContinuousA4Pdf.jsx";
 import { WORKSPACE_PAGE_BACKGROUNDS, composeWorkspacePages, createVirtualPageId, insertVirtualPage, isVirtualPageKey, removeVirtualPage, sanitizeVirtualPages } from "../workspace/catalog/virtualPages.js";
-import { canvasesToPdf, downloadWorkspaceBlob, renderWorkspacePage } from "../workspace/catalog/workspaceExport.js";
+import { canvasesToPdf, renderWorkspacePage } from "../workspace/catalog/workspaceExport.js";
+import { canShareFile, createExportHandle, exportFileNameFor, formatFileSize, isAppleTouchDevice, shareExportFile, triggerDownload } from "../workspace/catalog/exportDelivery.js";
 import { loadPdfLibrary } from "../workspace/catalog/pdfJsAdapter.js";
 import { activeStudyResumePage } from "../workspace/catalog/visiblePdfPages.js";
 import { ToolPreview } from "../workspace/catalog/ToolPreview.jsx";
@@ -240,6 +244,13 @@ const PRIMARY_WRITE_TOOLS = [
   ["shapes", "Shapes", Shapes, "is-tablet-secondary"]
 ];
 
+const SETTINGS_SECTIONS = Object.freeze([
+  { id: "drawing", label: "Drawing" },
+  { id: "canvas", label: "Canvas" },
+  { id: "view", label: "View" },
+  { id: "other", label: "Other" }
+]);
+const PAGE_BACKGROUND_CHOICES = Object.freeze([["blank", "Blank"], ["lined", "Ruled"], ["grid", "Grid"], ["dot", "Dotted"]]);
 const DRAWING_TOOLS = new Set(["pen", "pencil", "highlighter", "eraser", "shapes", "select"]);
 const POPOVER_SURFACES = new Set(["add", "page-background", "card", "text", "more", "export", "history", "settings"]);
 const CONFIGURABLE_TOOLS = new Set(["pen", "pencil", "highlighter", "eraser", "select", "shapes"]);
@@ -518,23 +529,26 @@ function loadWorkspaceSettings() {
   }
 }
 
-function selectionContains(point, bounds) {
-  return Boolean(bounds && point.x >= bounds.x && point.x <= bounds.x + bounds.width && point.y >= bounds.y && point.y <= bounds.y + bounds.height);
-}
-
 function cloneAnnotation(annotation) {
   return JSON.parse(JSON.stringify(annotation));
 }
 
 function copiedAnnotations(items, page, offset) {
   const groups = new Map();
+  // The copy moves as one block and steps the other way at the page edge, so
+  // it is never squashed against the edge or stacked exactly on its source.
+  const bounds = selectionBounds(items);
+  const forward = clampSelectionDelta(bounds, offset, offset);
+  const backward = clampSelectionDelta(bounds, -offset, -offset);
+  const dx = forward.dx || backward.dx;
+  const dy = forward.dy || backward.dy;
   return items.map((item) => {
     const copy = cloneAnnotation(item);
     if (copy.groupId) {
       if (!groups.has(copy.groupId)) groups.set(copy.groupId, generateIdempotencyKey());
       copy.groupId = groups.get(copy.groupId);
     }
-    return translateAnnotation({ ...copy, id: generateIdempotencyKey(), page, locked: false }, offset, offset);
+    return translateAnnotation({ ...copy, id: generateIdempotencyKey(), page, locked: false }, dx, dy);
   });
 }
 
@@ -656,6 +670,10 @@ function StudyModeDialog({ difficulty, setDifficulty, activeAvailable, restartPr
  */
 const ACTIVE_DRAFT_PREFIX = "lock-in.active-study.draft.";
 
+// A result the student left without choosing (Return to pages, a reload) keeps
+// the run in one of these stages until they continue or study the part again.
+const ACTIVE_RESULT_STAGES = new Set(["checkpoint_result", "final_result"]);
+
 function readActiveStudyDraft(attemptId) {
   if (!attemptId) return null;
   try {
@@ -674,7 +692,7 @@ function clearActiveStudyDraft(attemptId) {
   try { window.localStorage.removeItem(ACTIVE_DRAFT_PREFIX + attemptId); } catch { /* storage unavailable */ }
 }
 
-function ActiveStudyQuiz({ quiz, answers, setAnswers, result, busy, onSubmit, onDismiss, onRetake, onContinue, onDiscard, onRestart }) {
+function ActiveStudyQuiz({ quiz, answers, setAnswers, locked = {}, result, busy, onSubmit, onDismiss, onRetake, onContinue, onDiscard, onRestart }) {
   const { t } = useI18n();
   const [index, setIndex] = useState(() => {
     const saved = Number(readActiveStudyDraft(quiz.attempt_id)?.index);
@@ -708,7 +726,7 @@ function ActiveStudyQuiz({ quiz, answers, setAnswers, result, busy, onSubmit, on
     return <div className="workspace-v2-quiz-backdrop"><section ref={dialogRef} className={`workspace-v2-quiz-result is-${result.outcome}`} role="dialog" aria-modal="true" aria-labelledby="active-result-title" tabIndex={-1}>
       <span className="workspace-v2-result-icon">{passed ? <Trophy size={30} /> : advisory ? <Sparkles size={30} /> : <RotateCcw size={30} />}</span>
       <p>{t(isFinal ? "activeStudy.finalAssessment" : "activeStudy.checkpointResult")}</p>
-      <h2 id="active-result-title">{result.score} / {result.total}</h2>
+      <h2 id="active-result-title">{result.total ? `${result.score} / ${result.total}` : result.score}</h2>
       <strong>{t(passed ? (isFinal ? "activeStudy.sheetCompleted" : "activeStudy.nextUnlocked") : advisory ? "activeStudy.advisory" : "activeStudy.reviewPages")}</strong>
       {result.xp_awarded > 0 && <span className="workspace-v2-xp-award">+{result.xp_awarded} XP</span>}
       {missed.length > 0 && <ol className="workspace-v2-result-review" aria-label={t("question.reviewMissed")}>
@@ -734,7 +752,7 @@ function ActiveStudyQuiz({ quiz, answers, setAnswers, result, busy, onSubmit, on
           <span className="workspace-v2-question-number">{t("activeStudy.questionOf", { index: index + 1, total: quiz.questions.length })}</span>
           <h2 id="active-question-title">{question.prompt}</h2>
           <div className="workspace-v2-answer-list" role="radiogroup" aria-label={t("activeStudy.answersFor", { index: index + 1 })}>
-            {question.options.map((option, optionIndex) => <button key={option.id} type="button" role="radio" aria-checked={answers[question.id] === option.id} className={answers[question.id] === option.id ? "is-selected" : ""} onClick={() => setAnswers((current) => ({ ...current, [question.id]: option.id }))}><span>{String.fromCharCode(65 + optionIndex)}</span>{option.text}{answers[question.id] === option.id && <CheckCircle2 size={18} />}</button>)}
+            {question.options.map((option, optionIndex) => <button key={option.id} type="button" role="radio" aria-checked={answers[question.id] === option.id} className={answers[question.id] === option.id ? "is-selected" : ""} aria-disabled={Boolean(locked[question.id]) && locked[question.id] !== option.id} onClick={() => { if (!locked[question.id]) setAnswers((current) => ({ ...current, [question.id]: option.id })); }}><span>{String.fromCharCode(65 + optionIndex)}</span>{option.text}{answers[question.id] === option.id && <CheckCircle2 size={18} />}</button>)}
           </div>
         </main>
         <footer>
@@ -894,7 +912,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   // Where the reader was when an Active Study test opened; closing the test,
   // or unlocking the next part from it, returns the reader to exactly here.
   const quizReaderAnchorRef = useRef(null);
-  const settingsNavLockRef = useRef(0);
   const rememberZoomLevelRef = useRef(true);
   const persistWorkspaceRef = useRef(null);
   const openDocumentRef = useRef(null);
@@ -1045,9 +1062,22 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const [cardDraft, setCardDraft] = useState("");
   const [editingCardId, setEditingCardId] = useState(null);
   const [clipSelecting, setClipSelecting] = useState(false);
-  const [settingsTab, setSettingsTab] = useState("writing");
+  const [settingsTab, setSettingsTab] = useState("drawing");
   const [backupBusy, setBackupBusy] = useState(false);
-  const [exportBusy, setExportBusy] = useState(false);
+  // idle | preparing | ready | failed. The finished file lives in
+  // exportHandleRef so its object URL can be revoked when the sheet closes.
+  const [exportState, setExportState] = useState({ status: "idle" });
+  const exportBusy = exportState.status === "preparing";
+  const exportHandleRef = useRef(null);
+  const exportRunRef = useRef(0);
+  const pdfDocumentProxyRef = useRef(null);
+  const handlePdfDocumentLoaded = useCallback((documentProxy) => { pdfDocumentProxyRef.current = documentProxy; }, []);
+  // Leaving the workspace abandons a running export and frees a finished one.
+  useEffect(() => () => {
+    exportRunRef.current += 1;
+    exportHandleRef.current?.revoke();
+    exportHandleRef.current = null;
+  }, []);
   const [exportRangeStart, setExportRangeStart] = useState(1);
   const [exportRangeEnd, setExportRangeEnd] = useState(1);
   const [includeWorkspacePages, setIncludeWorkspacePages] = useState(storedWorkspaceSettings.includeWorkspacePages !== false);
@@ -1095,22 +1125,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   };
   const sideOpen = openSurface === "notes";
   const settingsOpen = openSurface === "settings";
-  // With every settings card on one scrolling list, the nav follows the card
-  // the reader is looking at: the first one that is mostly on screen.
-  useEffect(() => {
-    if (!settingsOpen) return undefined;
-    const list = rootRef.current?.querySelector("#workspace-settings-popover .workspace-v2-settings-content");
-    if (!list || typeof window.IntersectionObserver === "undefined") return undefined;
-    const ratios = new Map();
-    const observer = new window.IntersectionObserver((entries) => {
-      for (const entry of entries) ratios.set(entry.target.id, entry.intersectionRatio);
-      if (Date.now() < settingsNavLockRef.current) return;
-      const visible = [...list.querySelectorAll(".workspace-v7-settings-card")].find((card) => (ratios.get(card.id) || 0) >= .6);
-      if (visible) setSettingsTab(visible.id.replace("workspace-settings-", ""));
-    }, { root: list, threshold: [0, .6, 1] });
-    list.querySelectorAll(".workspace-v7-settings-card").forEach((card) => observer.observe(card));
-    return () => observer.disconnect();
-  }, [settingsOpen]);
   const wakeLockSupported = typeof navigator !== "undefined" && "wakeLock" in navigator;
 
   const minimumPdfZoom = useCallback(() => {
@@ -1152,6 +1166,13 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const undoHistoryRef = useRef([]);
   const redoHistoryRef = useRef([]);
   const [selectedIds, setSelectedIds] = useState([]);
+  // True while a selection is being dragged or resized; the context toolbar
+  // steps aside so it neither lags behind the object nor covers it.
+  const [selectionDragging, setSelectionDragging] = useState(false);
+  const [clipboardSize, setClipboardSize] = useState(0);
+  const selectionTapRef = useRef(null);
+  const selectionToolbarRef = useRef(null);
+  const selectionCommandsRef = useRef({});
   const [selectionActionsOpen, setSelectionActionsOpen] = useState(false);
   const [isDocumentFullscreen, setIsDocumentFullscreen] = useState(false);
   const [saveState, setSaveState] = useState("idle");
@@ -1180,6 +1201,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const [activeStudyAvailabilityLoading, setActiveStudyAvailabilityLoading] = useState(false);
   const [activeQuiz, setActiveQuiz] = useState(null);
   const [activeAnswers, setActiveAnswers] = useState({});
+  // Answers the server already holds for the open attempt. It records each one
+  // once and refuses a different choice later, so the quiz keeps them fixed.
+  const [activeLocked, setActiveLocked] = useState({});
   const [activeResult, setActiveResult] = useState(null);
   const activeStudyRef = useRef(null);
   const activeQuizOpenRef = useRef(false);
@@ -1196,7 +1220,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const accessiblePageCount = activePageRange?.end_page || pageCount;
   const activeStudyButtonReady = studyMode === "active"
     && activeStudy?.status === "active"
-    && (activeStudy.stage === "checkpoint" || activeStudy.stage === "final" || (activeStudy.stage === "reading" && page >= accessiblePageCount));
+    && (activeStudy.stage === "checkpoint" || activeStudy.stage === "final" || ACTIVE_RESULT_STAGES.has(activeStudy.stage) || (activeStudy.stage === "reading" && page >= accessiblePageCount));
   const selectedActiveStudyAvailability = activeStudyAvailability?.difficulties?.find((item) => item.difficulty === activeDifficulty);
   // The catalog flag is only an optimistic fallback while the mode dialog's
   // live readiness request is in flight. Starting itself remains server-owned.
@@ -1245,7 +1269,13 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     return groups;
   }, [annotations]);
   const annotationSpatialIndex = useMemo(() => createAnnotationSpatialIndex(annotations), [annotations]);
-  const selectedAnnotations = useMemo(() => pageAnnotations.filter((item) => selectedIds.includes(item.id)), [pageAnnotations, selectedIds]);
+  // A selection belongs to the page its items are on, not to whichever page
+  // the reader currently counts as current while scrolling.
+  const selectedAnnotations = useMemo(() => {
+    const chosen = new Set(selectedIds);
+    return chosen.size ? annotations.filter((item) => chosen.has(item.id)) : NO_ANNOTATIONS;
+  }, [annotations, selectedIds]);
+  const selectionPage = selectedAnnotations[0]?.page ?? null;
   const selectionLocked = selectedAnnotations.length > 0 && selectedAnnotations.every((item) => item.locked);
   const selectedBounds = useMemo(() => selectionBounds(selectedAnnotations), [selectedAnnotations]);
   const highlights = useMemo(() => annotations
@@ -2486,24 +2516,14 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         if (event.shiftKey) redoTool(); else undoTool();
         return;
       }
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c" && selectedAnnotations.length) {
+      const selectionCommand = commandKey ? { c: "copy", x: "cut", v: "paste", d: "duplicate" }[event.key.toLowerCase()] : null;
+      if (selectionCommand && (selectionCommand === "paste" ? selectionClipboardRef.current.length : selectedAnnotations.length)) {
         event.preventDefault();
-        selectionClipboardRef.current = selectedAnnotations.map(cloneAnnotation);
-        setFocusMessage(`${selectedAnnotations.length} annotation${selectedAnnotations.length === 1 ? "" : "s"} copied.`);
+        selectionCommandsRef.current[selectionCommand]?.();
         return;
       }
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "x" && selectedAnnotations.length && !selectedAnnotations.some((item) => item.locked)) {
-        event.preventDefault();
-        selectionClipboardRef.current = selectedAnnotations.map(cloneAnnotation);
-        runCommand({ type: "remove", items: selectedAnnotations });
+      if (event.key === "Escape" && selectedAnnotations.length && !event.defaultPrevented) {
         setSelectedIds([]);
-        return;
-      }
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v" && selectionClipboardRef.current.length) {
-        event.preventDefault();
-        const copies = copiedAnnotations(selectionClipboardRef.current, activePageKey, 24);
-        runCommand({ type: "add", items: copies });
-        setSelectedIds(copies.map((item) => item.id));
         return;
       }
       // Space is the hold-to-pan modifier, but it is also how a keyboard user
@@ -2551,8 +2571,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         }
       }
       if ((event.key === "Delete" || event.key === "Backspace") && selectedAnnotations.length && !selectedAnnotations.some((item) => item.locked)) {
-        runCommand({ type: "remove", items: selectedAnnotations });
-        setSelectedIds([]);
+        event.preventDefault();
+        selectionCommandsRef.current.delete?.();
       }
     };
     const handleKeyUp = (event) => {
@@ -2566,9 +2586,74 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     return () => { window.removeEventListener("keydown", handleKeyDown); window.removeEventListener("keyup", handleKeyUp); };
   }, [accessiblePageCount, activePageKey, page, redoTool, runCommand, selectedAnnotations, undoTool]);
 
+  // Ids that no longer exist (undone, deleted, restored over) fall out of the
+  // selection; nothing else ends it behind the student's back.
   useEffect(() => {
-    setSelectedIds([]);
-  }, [activePageKey]);
+    setSelectedIds((current) => {
+      if (!current.length) return current;
+      const existing = new Set(annotations.map((item) => item.id));
+      return current.every((id) => existing.has(id)) ? current : current.filter((id) => existing.has(id));
+    });
+  }, [annotations]);
+
+  useEffect(() => {
+    if (!selectedIds.length) setSelectionActionsOpen(false);
+  }, [selectedIds]);
+
+  // The context toolbar lives in the reader, outside the zoomed document, so
+  // it keeps one size at every zoom. It follows the selection's box on screen
+  // through scrolling, zooming, docking panels and rotation, and prefers the
+  // space above the selection.
+  useLayoutEffect(() => {
+    const toolbar = selectionToolbarRef.current;
+    const reader = readerRef.current;
+    const stage = stageRef.current;
+    // While dragging, the toolbar is hidden and measuring every frame would
+    // only force layout in the middle of the move.
+    if (!toolbar || !reader || !selectedBounds || selectionPage === null || selectionDragging) return undefined;
+    let frame = 0;
+    const place = () => {
+      frame = 0;
+      const pageElement = stage?.querySelector(`[data-workspace-page="${selectionPage}"]`) || documentRef.current;
+      if (!pageElement) return;
+      const pageRect = pageElement.getBoundingClientRect();
+      const readerRect = reader.getBoundingClientRect();
+      const selection = {
+        left: pageRect.left - readerRect.left + (selectedBounds.x / PAGE_SPACE) * pageRect.width,
+        top: pageRect.top - readerRect.top + (selectedBounds.y / PAGE_SPACE) * pageRect.height,
+        width: (selectedBounds.width / PAGE_SPACE) * pageRect.width,
+        height: (selectedBounds.height / PAGE_SPACE) * pageRect.height
+      };
+      const topInset = Number.parseFloat(window.getComputedStyle(rootRef.current || reader).getPropertyValue("--workspace-toolbar-height")) || 0;
+      const onScreen = selection.top + selection.height > topInset
+        && selection.top < readerRect.height
+        && selection.left + selection.width > 0
+        && selection.left < readerRect.width;
+      const position = contextToolbarPosition({
+        selection,
+        toolbar: { width: toolbar.offsetWidth, height: toolbar.offsetHeight },
+        reader: { width: readerRect.width, height: readerRect.height },
+        topInset
+      });
+      toolbar.style.transform = `translate3d(${position.left}px, ${position.top}px, 0)`;
+      toolbar.dataset.placement = position.placement;
+      toolbar.dataset.offscreen = onScreen ? "false" : "true";
+      toolbar.dataset.ready = "true";
+    };
+    const schedule = () => { if (!frame) frame = window.requestAnimationFrame(place); };
+    place();
+    stage?.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule, { passive: true });
+    const observer = typeof window.ResizeObserver === "function" ? new window.ResizeObserver(schedule) : null;
+    observer?.observe(reader);
+    observer?.observe(toolbar);
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      stage?.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      observer?.disconnect();
+    };
+  }, [selectedBounds, selectionPage, zoom, selectionDragging, selectionActionsOpen]);
 
   // The live canvas keeps the finished stroke until React has painted the same
   // stroke as SVG, so a heavy page hands over without a visible gap.
@@ -3048,27 +3133,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     gesture.holdAnchorPoint = null;
     gesture.smartSelectionActivated = false;
     lockStageForDrawing(event.pointerId);
-    if (isVirtualPageKey(annotationPage)) {
-      setActiveVirtualPageId(annotationPage);
-      const anchor = virtualPagesRef.current.find((item) => item.id === annotationPage)?.afterPage;
-      if (anchor) setPage(anchor);
-    } else {
-      setActiveVirtualPageId(null);
-      if (annotationPage !== page) setPage(annotationPage);
-    }
-    if (activeTool === "select") {
-      const resizeHandle = event.target?.dataset?.resizeHandle;
-      if (selectedBounds && (resizeHandle || selectionContains(point, selectedBounds)) && !selectedAnnotations.some((item) => item.locked)) {
-        const before = selectedAnnotations.map(cloneAnnotation);
-        transformRef.current = { kind: resizeHandle ? "resize" : "move", handle: resizeHandle, start: point, before, bounds: { ...selectedBounds } };
-        gesture.mode = INTERACTION_STATE.OBJECT_TRANSFORMING;
-      } else {
-        setSelectedIds([]);
-        setDraft({ id: generateIdempotencyKey(), page: annotationPage, type: "lasso", mode: lassoMode, start: point, end: point, points: [point] });
-        gesture.mode = INTERACTION_STATE.SELECTING;
-      }
-      return;
-    }
+    activateAnnotationPage(annotationPage);
     if (activeTool === "eraser") {
       gesture.mode = INTERACTION_STATE.ERASING;
       clearEraserPreview();
@@ -3817,6 +3882,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         event.preventDefault();
         return;
       }
+      if (activeTool === "select" && beginSelectionPointer(event)) return;
       if (activeTool !== "hand" && beginDirectObjectMove(event)) return;
       const canTouchDraw = pointerCanDraw(event.pointerType, drawingInput);
       if (activeTool === "hand" || !canTouchDraw || startsOutsidePages(event)) {
@@ -3836,13 +3902,14 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       event.preventDefault();
       return;
     }
+    if (activeTool === "select" && event.pointerType !== "touch" && beginSelectionPointer(event)) return;
     if (activeTool !== "hand" && event.pointerType !== "touch" && beginDirectObjectMove(event)) return;
     const canDraw = pointerCanDraw(event.pointerType, drawingInput);
     // A stylus or mouse that lands beside the pages (the gutter, the gap
     // between pages, the space above the first one) has nothing to draw on:
     // treat that drag as navigation, exactly like the Pan tool.
     if (activeTool === "hand" || !canDraw || startsOutsidePages(event)) beginPan(event, GESTURE_DIRECTION.PENDING);
-    else if (DRAWING_TOOLS.has(activeTool)) beginAnnotation(event);
+    else if (DRAWING_TOOLS.has(activeTool) && activeTool !== "select") beginAnnotation(event);
     let captured = false;
     try { event.currentTarget.setPointerCapture(event.pointerId); captured = true; } catch { /* Pointer capture is progressive enhancement. */ }
     if (gesture.drawingPointerId === event.pointerId) inkInputControllerRef.current.setCapture(captured);
@@ -3862,6 +3929,116 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     const stack = document.elementsFromPoint?.(event.clientX, event.clientY) || [];
     if (!stack.length) return false;
     return !stack.some((element) => element.closest?.("[data-workspace-page]"));
+  }
+
+  /** Makes a page the one being worked on, as a stroke or a selection starting there does. */
+  function activateAnnotationPage(annotationPage) {
+    if (isVirtualPageKey(annotationPage)) {
+      setActiveVirtualPageId(annotationPage);
+      const anchor = virtualPagesRef.current.find((item) => item.id === annotationPage)?.afterPage;
+      if (anchor) setPage(anchor);
+    } else {
+      setActiveVirtualPageId(null);
+      if (annotationPage !== page) setPage(annotationPage);
+    }
+  }
+
+  function pageAspectFor(annotationPage) {
+    const bounds = pageBoundsFor(annotationPage);
+    return bounds?.width ? bounds.height / bounds.width : 1;
+  }
+
+  /**
+   * The Select tool's press, for mouse, finger and stylus alike.
+   *
+   * - on the corner handle: resize the selection;
+   * - on an item: select it (and its group) - it may become a drag that moves it;
+   * - inside the current selection: the drag moves all of it;
+   * - on empty page: a lasso; except a finger that navigates in Pencil mode,
+   *   which pans and only clears the selection if it was a tap.
+   *
+   * A press becomes a move only after it travels MOVE_THRESHOLD_PX, so a tap
+   * never nudges an item, and only the Select tool reaches here, so moving an
+   * item can never leave ink behind. Returns false when the press is not the
+   * Select tool's to handle (the gutter beside the pages, hidden annotations).
+   */
+  function beginSelectionPointer(event) {
+    if (annotationsHidden || startsOutsidePages(event)) return false;
+    const gesture = gestureRef.current;
+    const point = documentPoint(event.clientX, event.clientY);
+    const annotationPage = point.page;
+    const onPage = annotationsRef.current.filter((item) => item.page === annotationPage);
+    const tolerance = (event.pointerType === "touch" ? 14 : event.pointerType === "pen" ? 8 : 5) * pageUnitsPerCssPixel(annotationPage);
+    const aspect = pageAspectFor(annotationPage);
+    const selected = new Set(selectedIds);
+    const current = onPage.filter((item) => selected.has(item.id));
+    const currentBounds = selectionBounds(current);
+    const handle = current.length ? event.target?.closest?.("[data-resize-handle]")?.getAttribute("data-resize-handle") : null;
+    let ids = null;
+    let tapId = null;
+    if (handle) ids = current.map((item) => item.id);
+    else {
+      const hit = hitTestAnnotations(onPage, point, { tolerance, aspect });
+      const toleranceY = tolerance / Math.max(.01, aspect);
+      const insideSelection = Boolean(currentBounds
+        && point.x >= currentBounds.x - tolerance && point.x <= currentBounds.x + currentBounds.width + tolerance
+        && point.y >= currentBounds.y - toleranceY && point.y <= currentBounds.y + currentBounds.height + toleranceY);
+      if (hit && (event.shiftKey || event.metaKey) && current.length) {
+        ids = [...new Set([...current.map((item) => item.id), ...expandSelectionGroups([hit.id], onPage)])];
+      } else if (insideSelection && (!hit || selected.has(hit.id))) {
+        ids = current.map((item) => item.id);
+        tapId = hit?.id ?? (current.length === 1 ? current[0].id : null);
+      } else if (hit) {
+        ids = expandSelectionGroups([hit.id], onPage);
+        tapId = hit.id;
+      }
+    }
+    if (!ids) {
+      if (event.pointerType === "touch" && !pointerCanDraw("touch", drawingInput)) {
+        gesture.selectionTapClear = true;
+        return false;
+      }
+      activateAnnotationPage(annotationPage);
+      setSelectedIds([]);
+      setDraft({ id: generateIdempotencyKey(), page: annotationPage, type: "lasso", mode: lassoMode, start: point, end: point, points: [point] });
+      gesture.mode = INTERACTION_STATE.SELECTING;
+    } else {
+      activateAnnotationPage(annotationPage);
+      setSelectedIds(ids);
+      const chosen = new Set(ids);
+      const items = onPage.filter((item) => chosen.has(item.id));
+      transformRef.current = {
+        kind: handle ? "resize" : "move",
+        handle,
+        start: point,
+        before: items.filter((item) => !item.locked).map(cloneAnnotation),
+        bounds: { ...(selectionBounds(items) || { x: point.x, y: point.y, width: 1, height: 1 }) },
+        pending: true,
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+        tapId
+      };
+      gesture.mode = INTERACTION_STATE.OBJECT_TRANSFORMING;
+    }
+    gesture.drawingPointerId = event.pointerId;
+    gesture.drawingPointerType = event.pointerType;
+    gesture.annotationPage = annotationPage;
+    lockStageForDrawing(event.pointerId);
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Selection still works without capture. */ }
+    event.preventDefault();
+    return true;
+  }
+
+  /** A press that never moved: remember it, and a second tap on the same text or card edits it. */
+  function finishSelectionTap(event, transform) {
+    const tap = { id: transform.tapId, time: event.timeStamp, x: event.clientX, y: event.clientY };
+    if (tap.id && isDoubleTap(selectionTapRef.current, tap)) {
+      selectionTapRef.current = null;
+      const item = editableTarget(annotationsRef.current.filter((annotation) => annotation.id === tap.id));
+      if (item) editAnnotation(item);
+      return;
+    }
+    selectionTapRef.current = tap.id ? tap : null;
   }
 
   function beginDirectObjectMove(event) {
@@ -3961,9 +4138,22 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     const point = documentPoint(event.clientX, event.clientY, gesture.annotationPage);
     if (gesture.mode === INTERACTION_STATE.OBJECT_TRANSFORMING && transformRef.current) {
       const transform = transformRef.current;
+      if (transform.pending) {
+        // Until the contact travels, a press on a selection is still a tap.
+        const threshold = MOVE_THRESHOLD_PX[event.pointerType] ?? 4;
+        if (Math.hypot(event.clientX - transform.startClientX, event.clientY - transform.startClientY) < threshold) return;
+        transform.pending = false;
+      }
+      if (!transform.before.length) return;
+      if (!transform.dragging) {
+        transform.dragging = true;
+        setSelectionDragging(true);
+      }
       let after;
       if (transform.kind === "move") {
-        after = transform.before.map((item) => translateAnnotation(item, point.x - transform.start.x, point.y - transform.start.y));
+        transform.moveBounds ??= selectionBounds(transform.before);
+        const delta = clampSelectionDelta(transform.moveBounds, point.x - transform.start.x, point.y - transform.start.y);
+        after = transform.before.map((item) => translateAnnotation(item, delta.dx, delta.dy));
       } else {
         const nextBounds = { ...transform.bounds };
         if (transform.handle.includes("left")) { nextBounds.x = Math.min(point.x, transform.bounds.x + transform.bounds.width - 12); nextBounds.width = transform.bounds.x + transform.bounds.width - nextBounds.x; }
@@ -4060,6 +4250,12 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       } else if (isClick) gesture.lastTap = { x: event.clientX, y: event.clientY, time: event.timeStamp };
     }
     if (gesture.pan?.pointerId === event.pointerId) {
+      // A finger that only tapped empty page with the Select tool clears the
+      // selection; one that scrolled keeps it.
+      if (gesture.selectionTapClear) {
+        gesture.selectionTapClear = false;
+        if (Math.hypot(event.clientX - gesture.pan.x, event.clientY - gesture.pan.y) < 10) setSelectedIds([]);
+      }
       const completedPan = gesture.pan;
       const pendingDirection = completedPan.direction === GESTURE_DIRECTION.PENDING;
       const lastSample = completedPan.samples[completedPan.samples.length - 1];
@@ -4107,12 +4303,14 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     gesture.holdTimerId = null;
     const draft = draftRef.current;
     if (gesture.mode === INTERACTION_STATE.ERASING) commitEraserGesture();
+    if (gesture.mode === INTERACTION_STATE.OBJECT_TRANSFORMING && transformRef.current?.pending) finishSelectionTap(event, transformRef.current);
     if (gesture.mode === INTERACTION_STATE.OBJECT_TRANSFORMING && transformRef.current?.after) {
       if (gesture.transformRafId !== null) cancelAnimationFrame(gesture.transformRafId);
       gesture.transformRafId = null;
       applyObjectTransformPreview(transformRef.current.after);
       recordCommand({ type: "update", before: transformRef.current.before, after: transformRef.current.after });
     }
+    if (gesture.mode === INTERACTION_STATE.OBJECT_TRANSFORMING) setSelectionDragging(false);
     let handedOffInk = null;
     if (draft?.type === "lasso") {
       const polygon = draft.points;
@@ -4214,6 +4412,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       const replacements = new Map(transformRef.current.before.map((item) => [item.id, item]));
       updateAnnotations((items) => items.map((item) => replacements.get(item.id) || item));
     }
+    setSelectionDragging(false);
+    gesture.selectionTapClear = false;
     clearEraserPreview();
     hideEraserHitbox();
     commitInterruptedLiveStroke(event);
@@ -4353,6 +4553,18 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     setOpenSurface(null);
     requestAnimationFrame(() => requestAnimationFrame(() => jumpToPagePosition(id)));
     setFocusMessage(`${selectedBackground[0].toUpperCase() + selectedBackground.slice(1)} page added after PDF page ${page}.`);
+  }
+
+  /** Changes the background of the added page being read; Undo restores it. */
+  function changeVirtualPageBackground(background) {
+    const id = activeVirtualPageId;
+    const before = virtualPagesRef.current;
+    const current = before.find((item) => item.id === id);
+    if (!current || !WORKSPACE_PAGE_BACKGROUNDS.includes(background) || current.background === background) return;
+    const next = before.map((item) => item.id === id ? { ...item, background } : item);
+    const command = { type: "workspace-page", beforePages: before, afterPages: next, beforeItems: [], afterItems: [], beforeNotes: [], afterNotes: [] };
+    applyWorkspacePageCommand(command, "redo");
+    recordCommand(command);
   }
 
   function deleteBlankPage() {
@@ -4505,6 +4717,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       const id = generateIdempotencyKey();
       runCommand({ type: "add", items: [{ id, page: activePageKey, type: "text", x: textAlign === "left" ? 100 : textAlign === "right" ? 900 : 500, y: 360, opacity: 1, ...formatting }] });
       revealInsertedAnnotation(id);
+      // New text is an object to place: it arrives selected under the Select
+      // tool, ready to drag, and a double tap edits it.
+      selectTool("select");
+      setSelectedIds([id]);
     }
     setTextDraft("");
     setEditingTextId(null);
@@ -4512,9 +4728,17 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     setFocusMessage(existing ? "Text updated." : `Text added to page ${page}.`);
   }
 
-  function editSelectedText() {
-    const item = selectedAnnotations.find((annotation) => annotation.type === "text");
+  /** Opens the editor for a text or card; the one path taps and buttons share. */
+  function editAnnotation(item) {
     if (!item || item.locked) return;
+    if (item.type === "card") {
+      setEditingCardId(item.id);
+      setCardKind(item.cardKind);
+      setCardDraft(item.text);
+      setOpenSurface("card");
+      return;
+    }
+    if (item.type !== "text") return;
     setEditingTextId(item.id);
     setTextDraft(item.text);
     setTextFontSize(Math.round(Math.max(18, item.width * 5)));
@@ -4582,15 +4806,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     setFocusMessage("Note deleted. Undo restores it.");
   }
 
-  function editSelectedCard() {
-    const card = selectedAnnotations.find((item) => item.type === "card");
-    if (!card) return;
-    setEditingCardId(card.id);
-    setCardKind(card.cardKind);
-    setCardDraft(card.text);
-    setOpenSurface("card");
-  }
-
   function captureStudyClip(bounds, pageKey) {
     if (isVirtualPageKey(pageKey)) { setFocusMessage("Choose an area on an original PDF page."); return; }
     const pageElement = stageRef.current?.querySelector(`[data-workspace-page="${pageKey}"]`);
@@ -4636,11 +4851,12 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     setFocusMessage(locked ? "Selection locked." : "Selection unlocked.");
   }
 
+  /** One step up or down the page's painting order, as a single undoable update. */
   function layerSelection(direction) {
-    if (!selectedAnnotations.length) return;
-    const layers = annotationsRef.current.filter((item) => item.page === activePageKey).map((item) => item.zOrder || 0);
-    const order = direction === "forward" ? Math.max(0, ...layers) + 1 : Math.min(0, ...layers) - 1;
-    runCommand({ type: "update", before: selectedAnnotations, after: selectedAnnotations.map((item) => ({ ...item, zOrder: order })) });
+    if (!selectedAnnotations.length || selectionPage === null || selectedAnnotations.some((item) => item.locked)) return;
+    const { before, after } = reorderSelection(annotationsRef.current.filter((item) => item.page === selectionPage), selectedIds, direction);
+    if (!after.length) return;
+    runCommand({ type: "update", before, after });
   }
 
   function improveSelectedHandwriting() {
@@ -4658,14 +4874,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
    * scrolling list on narrower ones. The nav marks the section and brings its
    * card into view.
    */
-  function openSettingsSection(id) {
-    // Let the jump finish before scrolling takes the highlight back.
-    settingsNavLockRef.current = Date.now() + 700;
-    setSettingsTab(id);
-    const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    requestAnimationFrame(() => document.getElementById(`workspace-settings-${id}`)?.scrollIntoView({ block: "nearest", behavior: still ? "auto" : "smooth" }));
-  }
-
   function closeSurfaceAndRestoreFocus(selector) {
     setOpenSurface(null);
     window.setTimeout(() => rootRef.current?.querySelector(selector)?.focus(), 0);
@@ -4753,32 +4961,55 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   }
 
   function duplicateSelection() {
-    if (!selectedAnnotations.length) return;
-    const copies = copiedAnnotations(selectedAnnotations, activePageKey, 20);
+    const items = selectedAnnotations;
+    if (!items.length) return;
+    const copies = copiedAnnotations(items, selectionPage ?? activePageKey, COPY_OFFSET);
     runCommand({ type: "add", items: copies });
     setSelectedIds(copies.map((item) => item.id));
+    setFocusMessage(`${copies.length === 1 ? "Item" : `${copies.length} items`} duplicated.`);
   }
 
   function copySelection() {
     if (!selectedAnnotations.length) return;
     selectionClipboardRef.current = selectedAnnotations.map(cloneAnnotation);
-    setFocusMessage(`${selectedAnnotations.length} annotation${selectedAnnotations.length === 1 ? "" : "s"} copied.`);
+    setClipboardSize(selectionClipboardRef.current.length);
+    setFocusMessage(`${selectedAnnotations.length} item${selectedAnnotations.length === 1 ? "" : "s"} copied.`);
   }
 
+  /** Copy, then delete as one undoable step; Undo brings the items back where they were. */
   function cutSelection() {
     if (!selectedAnnotations.length || selectedAnnotations.some((item) => item.locked)) return;
-    selectionClipboardRef.current = selectedAnnotations.map(cloneAnnotation);
-    runCommand({ type: "remove", items: selectedAnnotations });
+    const items = selectedAnnotations;
+    selectionClipboardRef.current = items.map(cloneAnnotation);
+    setClipboardSize(items.length);
+    runCommand({ type: "remove", items });
     setSelectedIds([]);
-    setFocusMessage(`${selectedAnnotations.length} annotation${selectedAnnotations.length === 1 ? "" : "s"} cut.`);
+    setFocusMessage(`${items.length} item${items.length === 1 ? "" : "s"} cut.`);
   }
 
+  /**
+   * Pastes onto the page being read, a little offset from where the items were
+   * copied. The clipboard then holds the pasted copies, so pasting again steps
+   * further instead of stacking copies on one spot.
+   */
   function pasteSelection() {
     if (!selectionClipboardRef.current.length) return;
-    const copies = copiedAnnotations(selectionClipboardRef.current, activePageKey, 24);
+    const copies = copiedAnnotations(selectionClipboardRef.current, activePageKey, COPY_OFFSET);
     runCommand({ type: "add", items: copies });
+    selectionClipboardRef.current = copies.map(cloneAnnotation);
+    if (activeToolRef.current !== "select") selectTool("select");
     setSelectedIds(copies.map((item) => item.id));
+    setFocusMessage(`${copies.length} item${copies.length === 1 ? "" : "s"} pasted.`);
   }
+
+  selectionCommandsRef.current = {
+    copy: copySelection,
+    cut: cutSelection,
+    paste: pasteSelection,
+    duplicate: duplicateSelection,
+    delete: deleteSelection
+  };
+
 
   function rotateSelection() {
     if (!selectedAnnotations.length || !selectedBounds || selectedAnnotations.some((item) => item.locked)) return;
@@ -4848,12 +5079,22 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     setActiveStudy(payload.run || run);
     setActiveQuiz({ ...payload, run: payload.run || run, questions });
     setActiveAnswers({ ...draftAnswers, ...existingAnswers });
+    setActiveLocked(existingAnswers);
     setActiveResult(null);
   }
 
   async function openActiveQuiz() {
     if (!activeStudy || activeStudyBusy || !activeStudyButtonReady) return;
     quizReaderAnchorRef.current = captureReaderAnchor();
+    if (ACTIVE_RESULT_STAGES.has(activeStudy.stage)) {
+      const kind = activeStudy.stage === "final_result" ? "final" : "checkpoint";
+      const passed = activeStudy.last_outcome === "passed";
+      setActiveQuiz({ attempt_id: `result:${activeStudy.id}`, kind, run: activeStudy, questions: [] });
+      setActiveAnswers({});
+      setActiveLocked({});
+      setActiveResult({ score: activeStudy.last_score ?? 0, total: null, review: [], outcome: passed ? "passed" : kind === "final" ? "failed" : "advisory" });
+      return;
+    }
     setActiveStudyBusy(true);
     setActiveStudyError("");
     try {
@@ -4879,6 +5120,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
           position: question.position,
           selectedAnswer: activeAnswers[question.id]
         }));
+        const held = activeAnswers[question.id];
+        setActiveLocked((current) => ({ ...current, [question.id]: held }));
         review.push({ position: question.position, prompt: question.prompt, correct: Boolean(checked?.correct), explanation: typeof checked?.explanation === "string" ? checked.explanation : "" });
       }
       const payload = await focusApi.submitManagedActiveStudy(activeStudy.id, activeQuiz.attempt_id);
@@ -4890,6 +5133,17 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       if (result.pending_sync) setFocusMessage(t("offline.savedForSync"));
     } catch (error) {
       setFocusMessage(error.message || "The Active Study test could not be submitted.");
+      // A submit that stopped part-way (a dropped connection, an answer the
+      // server already holds) is resumed from the server's copy, so pressing
+      // Submit again finishes the same attempt instead of being refused.
+      const attemptId = activeQuiz.attempt_id;
+      const payload = /** @type {any} */ (await focusApi.getManagedActiveStudyQuestions(activeStudy.id).catch(() => null));
+      if (payload?.attempt_id === attemptId) {
+        const held = {};
+        for (const question of payload.questions || []) if (question.answered) held[String(question.position)] = question.answered;
+        setActiveLocked(held);
+        setActiveAnswers((current) => ({ ...current, ...held }));
+      }
     } finally {
       setActiveStudyBusy(false);
     }
@@ -4905,6 +5159,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       setActiveQuiz(null);
       setActiveResult(null);
       setActiveAnswers({});
+      setActiveLocked({});
       // The next part is appended below; the reader stays where it was.
       returnReaderFromQuiz();
       setFocusMessage(`Part ${run.current_part} is now available. A retake is still recommended.`);
@@ -4926,6 +5181,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       setActiveQuiz(null);
       setActiveResult(null);
       setActiveAnswers({});
+      setActiveLocked({});
       if (action === "retry-final") await loadManagedQuestions(run);
       else {
         // Studying the part again starts at that part, not at page one.
@@ -4958,6 +5214,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         setActiveQuiz(null);
         setActiveResult(null);
         setActiveAnswers({});
+        setActiveLocked({});
       }
     } catch (error) {
       setFocusMessage(error.message || t("checkpoint.resetFailed"));
@@ -4971,6 +5228,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     setActiveQuiz(null);
     setActiveResult(null);
     setActiveAnswers({});
+    setActiveLocked({});
     if (run?.stage === "reading" || run?.stage === "final") returnReaderFromQuiz();
   }
 
@@ -5131,6 +5389,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       setActiveQuiz(null);
       setActiveResult(null);
       setActiveAnswers({});
+      setActiveLocked({});
       setStudyMode("active");
       setModeDialogOpen(false);
       setEntryModePreference("");
@@ -5155,69 +5414,142 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     setFocusMessage(`${kind[0].toUpperCase() + kind.slice(1)} pen preset selected.`);
   }
 
+  function releaseExportFile() {
+    exportHandleRef.current?.revoke();
+    exportHandleRef.current = null;
+  }
+
+  function closeExportSheet() {
+    exportRunRef.current += 1;
+    releaseExportFile();
+    setExportState({ status: "idle" });
+  }
+
+  /**
+   * Generates an export and hands it to the device. Generation and delivery
+   * are separate on purpose; see exportDelivery.js for why a share sheet
+   * cannot be opened at the end of a multi-second render.
+   */
   async function exportStudyDocument(kind, { share = false } = {}) {
     if (exportBusy || !sheet?.pdfUrl) return;
     if (kind === "original" && studyMode === "active") {
       setFocusMessage("The original PDF is available for download in Normal Study.");
       return;
     }
-    setExportBusy(true);
-    setFocusMessage("Preparing your export…");
+    releaseExportFile();
+    const run = exportRunRef.current + 1;
+    exportRunRef.current = run;
+    const extension = kind === "png" ? "png" : "pdf";
+    setOpenSurface(null);
+    setExportState({ status: "preparing", kind, share, done: 0, total: 0 });
+    let ownLoadingTask = null;
+    let from = page;
+    let to = page;
     try {
-      let blob;
-      let extension = "pdf";
-      if (kind === "original") {
-        const response = await fetch(sheet.pdfUrl, { credentials: "include" });
-        if (!response.ok) throw new Error("The original PDF could not be downloaded.");
-        blob = await response.blob();
-      } else {
+      let pdf = pdfDocumentProxyRef.current;
+      if (!pdf) {
         const pdfjs = await loadPdfLibrary();
-        const loadingTask = pdfjs.getDocument({ url: sheet.pdfUrl });
-        const pdf = await loadingTask.promise;
-        try {
-          const lastAllowed = Math.min(pdf.numPages, accessiblePageCount);
-          const from = kind === "range" ? Math.min(lastAllowed, Math.max(1, Number(exportRangeStart) || 1)) : kind === "current" || kind === "png" ? page : 1;
-          const to = kind === "range" ? Math.min(lastAllowed, Math.max(from, Number(exportRangeEnd) || from)) : kind === "current" || kind === "png" ? page : lastAllowed;
-          const pages = kind === "current" || kind === "png"
-            ? [{ kind: activeVirtualPageId === null ? "pdf" : "virtual", key: activeVirtualPageId ?? page, pdfPage: page }]
-            : includeWorkspacePages
-              ? composeWorkspacePages(Array.from({ length: to - from + 1 }, (_, index) => from + index), virtualPagesRef.current)
-              : Array.from({ length: to - from + 1 }, (_, index) => ({ kind: "pdf", key: from + index, pdfPage: from + index }));
-          async function* pageCanvases() {
-            for (const item of pages) {
-              yield await renderWorkspacePage({
-                pdf: item.kind === "pdf" ? pdf : null,
-                pageNumber: item.pdfPage,
-                background: item.background,
-                annotations: annotationsRef.current.filter((annotation) => annotation.page === item.key)
-              });
-            }
-          }
-          if (kind === "png") {
-            const canvas = await pageCanvases().next();
-            const currentCanvas = canvas.value;
-            if (!currentCanvas) throw new Error("Image export failed.");
-            blob = await new Promise((resolve, reject) => currentCanvas.toBlob((value) => value ? resolve(value) : reject(new Error("Image export failed.")), "image/png"));
-            extension = "png";
-          } else blob = await canvasesToPdf(pageCanvases());
-        } finally {
-          await loadingTask.destroy();
-        }
+        ownLoadingTask = pdfjs.getDocument({ url: sheet.pdfUrl.startsWith("blob:") ? sheet.pdfUrl : assetPath(sheet.pdfUrl) });
+        pdf = await ownLoadingTask.promise;
       }
-      const name = `${sheetSlug}-${kind === "original" ? "original" : kind === "png" ? `page-${page}` : kind === "current" ? `page-${page}` : kind === "range" ? `pages-${exportRangeStart}-${exportRangeEnd}` : "annotated"}.${extension}`;
-      if (share && navigator.share && navigator.canShare?.({ files: [new File([blob], name, { type: blob.type })] })) {
-        await navigator.share({ files: [new File([blob], name, { type: blob.type })], title: sheet.title });
-        setFocusMessage("Document shared.");
+      let blob;
+      if (kind === "original") {
+        blob = new Blob([await pdf.getData()], { type: "application/pdf" });
       } else {
-        downloadWorkspaceBlob(blob, name);
-        setFocusMessage(share ? "Sharing is unavailable here, so the file was downloaded." : "Export downloaded.");
+        const lastAllowed = Math.min(pdf.numPages, accessiblePageCount);
+        from = kind === "range" ? Math.min(lastAllowed, Math.max(1, Number(exportRangeStart) || 1)) : kind === "current" || kind === "png" ? page : 1;
+        to = kind === "range" ? Math.min(lastAllowed, Math.max(from, Number(exportRangeEnd) || from)) : kind === "current" || kind === "png" ? page : lastAllowed;
+        const pages = kind === "current" || kind === "png"
+          ? [{ kind: activeVirtualPageId === null ? "pdf" : "virtual", key: activeVirtualPageId ?? page, pdfPage: page, background: virtualPagesRef.current.find((item) => item.id === activeVirtualPageId)?.background }]
+          : includeWorkspacePages
+            ? composeWorkspacePages(Array.from({ length: to - from + 1 }, (_, index) => from + index), virtualPagesRef.current)
+            : Array.from({ length: to - from + 1 }, (_, index) => ({ kind: "pdf", key: from + index, pdfPage: from + index }));
+        const annotationsNow = annotationsRef.current;
+        const total = pages.length;
+        setExportState((current) => current.status === "preparing" ? { ...current, total } : current);
+        const pageCanvases = async function* () {
+          for (const item of pages) {
+            if (run !== exportRunRef.current) throw Object.assign(new Error("Export cancelled."), { name: "AbortError" });
+            yield await renderWorkspacePage({
+              pdf: item.kind === "pdf" ? pdf : null,
+              pageNumber: item.pdfPage,
+              background: item.background,
+              annotations: annotationsNow.filter((annotation) => annotation.page === item.key)
+            });
+          }
+        };
+        const reportPage = (done) => setExportState((current) => current.status === "preparing" && run === exportRunRef.current ? { ...current, done } : current);
+        if (kind === "png") {
+          const canvas = (await pageCanvases().next()).value;
+          if (!canvas) throw new Error("Image export failed.");
+          blob = await new Promise((resolve, reject) => canvas.toBlob((value) => value ? resolve(value) : reject(new Error("Image export failed.")), "image/png"));
+          reportPage(1);
+        } else blob = await canvasesToPdf(pageCanvases(), { onPage: reportPage });
       }
-      setOpenSurface(null);
+      if (run !== exportRunRef.current) return;
+      if (!blob?.size) throw new Error("The export came out empty.");
+      const name = exportFileNameFor({ title: sheet.title, kind, page, from, to, extension });
+      const handle = createExportHandle(blob, name);
+      exportHandleRef.current = handle;
+      const apple = isAppleTouchDevice();
+      const shareable = canShareFile(handle.file);
+      // A download needs no tap of its own, so everywhere except iOS the file
+      // is saved straight away. iOS waits for the student to choose.
+      const delivered = !apple && !(share && shareable);
+      if (delivered) triggerDownload(handle.url, name);
+      setExportState({ status: "ready", kind, name, url: handle.url, size: handle.size, apple, shareable, delivered, shared: false, shareError: "" });
     } catch (error) {
-      if (error?.name !== "AbortError") setFocusMessage(error?.message || "Export could not be completed.");
+      if (run !== exportRunRef.current || error?.name === "AbortError") return;
+      setExportState({ status: "failed", kind, share, message: error?.message || "Export could not be completed." });
     } finally {
-      setExportBusy(false);
+      if (ownLoadingTask) await ownLoadingTask.destroy().catch(() => {});
     }
+  }
+
+  async function shareReadyExport() {
+    const handle = exportHandleRef.current;
+    if (!handle) return;
+    try {
+      const outcome = await shareExportFile(handle.file, { title: sheet.title });
+      setExportState((current) => current.status === "ready" ? { ...current, shared: outcome === "shared", shareError: "" } : current);
+    } catch {
+      setExportState((current) => current.status === "ready" ? { ...current, shareError: "Sharing is not available here. Use Open or Download instead." } : current);
+    }
+  }
+
+  function renderExportSheet() {
+    const state = exportState;
+    if (state.status === "idle") return null;
+    const label = state.kind === "png" ? "image" : "PDF";
+    return <section className={`workspace-v8-export-sheet is-${state.status}`} role={state.status === "failed" ? "alert" : "status"} aria-live="polite" aria-label="Export" data-export-status={state.status} onPointerDown={(event) => event.stopPropagation()}>
+      <span className="workspace-v8-export-icon" aria-hidden="true">
+        {state.status === "preparing" ? <Loader2 size={18} /> : state.status === "ready" ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
+      </span>
+      <div className="workspace-v8-export-copy">
+        {state.status === "preparing" && <>
+          <strong>Preparing {label}…</strong>
+          <small>{state.total > 1 ? `Page ${Math.min(state.total, state.done + 1)} of ${state.total}` : "Rendering your pages and marks"}</small>
+          <span className="workspace-v8-export-progress" aria-hidden="true"><span style={cssVars({ "--export-progress": state.total ? `${Math.round((state.done / state.total) * 100)}%` : "8%" })} /></span>
+        </>}
+        {state.status === "ready" && <>
+          <strong>Export complete</strong>
+          <small dir="auto">{state.name}{state.size ? ` · ${formatFileSize(state.size)}` : ""}{state.delivered ? " · Downloaded" : state.shared ? " · Shared" : ""}</small>
+          {state.shareError && <small className="workspace-v8-export-note" role="alert">{state.shareError}</small>}
+        </>}
+        {state.status === "failed" && <>
+          <strong>Export failed</strong>
+          <small>{state.message}</small>
+        </>}
+      </div>
+      <div className="workspace-v8-export-actions">
+        {state.status === "preparing" && <button type="button" onClick={closeExportSheet}>Cancel</button>}
+        {state.status === "ready" && state.shareable && <button type="button" className={state.apple ? "is-primary" : ""} onClick={shareReadyExport}><Share2 size={16} />{state.apple ? "Share / Save" : "Share"}</button>}
+        {state.status === "ready" && state.apple && <a href={state.url} target="_blank" rel="noreferrer"><ExternalLink size={16} />Open</a>}
+        {state.status === "ready" && <a href={state.url} download={state.name} className={!state.apple && !state.shareable ? "is-primary" : ""}><Download size={16} />{state.delivered ? "Download again" : "Download"}</a>}
+        {state.status === "failed" && <button type="button" className="is-primary" onClick={() => exportStudyDocument(state.kind, { share: state.share })}><RotateCcw size={16} />Try again</button>}
+        {state.status !== "preparing" && <button type="button" className="workspace-v8-export-close" aria-label="Close export" onClick={closeExportSheet}><X size={16} /></button>}
+      </div>
+    </section>;
   }
 
   /** Restore only ever adds. Existing ids are left exactly as they are. */
@@ -5292,6 +5624,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
 
   if (!material || !sheet) return <main className="workspace-v2 workspace-v2-missing"><h1>Workspace unavailable</h1><button type="button" onClick={() => navigate("/materials")}>Back to materials</button></main>;
 
+  const activeVirtualPage = activeVirtualPageId === null ? null : virtualPages.find((item) => item.id === activeVirtualPageId) || null;
   const saveLabel = saveState === "saving" ? "Saving…" : saveState === "error" ? "Local save unavailable" : "Saved on this device";
   const activeToolLabel = TOOL_ITEMS.find(([id]) => id === activeTool)?.[1] || "Tool";
   const customColors = addSavedColor(recentColors, null, MAX_PALETTE_COLORS, COLORS);
@@ -5311,28 +5644,66 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     else setBrushOpacity(rounded);
   }
 
-  function renderSelectionMenu() {
+  /**
+   * The selection's outline: a quiet box a few pixels clear of the items and a
+   * single corner handle for resizing. Sizes are in screen pixels converted to
+   * page units, and y is corrected for the page's aspect, so the box and handle
+   * look the same at every zoom and on every page shape.
+   */
+  function renderSelectionBox(pageKey) {
     if (!selectedBounds) return null;
-    const stopPointer = (event) => event.stopPropagation();
-    return <div className="workspace-v2-selection-menu" style={{ left: `${(selectedBounds.x + selectedBounds.width / 2) / 10}%`, top: `${Math.max(1, selectedBounds.y / 10)}%` }}>
-      <button type="button" onPointerDown={stopPointer} onClick={copySelection}><Copy size={15} />Copy</button>
-      <button type="button" onPointerDown={stopPointer} onClick={cutSelection} disabled={selectedAnnotations.some((item) => item.locked)}><Scissors size={15} />Cut</button>
-      <button type="button" onPointerDown={stopPointer} onClick={pasteSelection} disabled={!selectionClipboardRef.current.length}><ClipboardPaste size={15} />Paste</button>
-      <button type="button" onPointerDown={stopPointer} onClick={duplicateSelection}><Copy size={15} />Duplicate</button>
-      {selectedAnnotations.some((item) => item.type === "card") && <button type="button" onPointerDown={stopPointer} onClick={editSelectedCard}><FileText size={15} />Edit card</button>}
-      {selectedAnnotations.some((item) => item.type === "card") && <button type="button" className="is-danger" onPointerDown={stopPointer} disabled={selectedAnnotations.some((item) => item.locked)} onClick={deleteSelection} aria-label={selectedAnnotations.length === 1 ? "Delete note" : "Delete selection"}><Trash2 size={15} />Delete</button>}
-      {selectedAnnotations.some((item) => item.type === "text") && <button type="button" onPointerDown={stopPointer} onClick={editSelectedText} disabled={selectedAnnotations.some((item) => item.locked)}><Type size={15} />Edit text</button>}
-      <button type="button" onPointerDown={stopPointer} onClick={toggleSelectionLock}>{selectedAnnotations.every((item) => item.locked) ? <Unlock size={15} /> : <Lock size={15} />}{selectedAnnotations.every((item) => item.locked) ? "Unlock" : "Lock"}</button>
-      <button type="button" onPointerDown={stopPointer} onClick={() => setSelectionActionsOpen((open) => !open)} aria-expanded={selectionActionsOpen}><MoreHorizontal size={15} />Actions</button>
-      {selectionActionsOpen && <>
-        <button type="button" onPointerDown={stopPointer} onClick={improveSelectedHandwriting} disabled={!selectedAnnotations.some((item) => ["pen", "pencil"].includes(item.type))}><Sparkles size={15} />Improve</button>
-        <button type="button" onPointerDown={stopPointer} onClick={groupSelection} disabled={selectedAnnotations.length < 2}><Group size={15} />Group</button>
-        <button type="button" onPointerDown={stopPointer} onClick={ungroupSelection} disabled={!selectedAnnotations.some((item) => item.groupId)}><Ungroup size={15} />Ungroup</button>
-        <button type="button" onPointerDown={stopPointer} onClick={() => layerSelection("forward")} disabled={selectedAnnotations.some((item) => item.locked)}><Layers3 size={15} />Forward</button>
-        <button type="button" onPointerDown={stopPointer} onClick={() => layerSelection("backward")} disabled={selectedAnnotations.some((item) => item.locked)}><Layers3 size={15} />Backward</button>
-        <button type="button" onPointerDown={stopPointer} onClick={rotateSelection} disabled={selectedAnnotations.some((item) => item.locked)}><RotateCw size={15} />Rotate</button>
-        {!selectedAnnotations.some((item) => item.type === "card") && <button type="button" className="is-danger" onPointerDown={stopPointer} disabled={selectedAnnotations.some((item) => item.locked)} onClick={deleteSelection}><Eraser size={15} />Delete</button>}
-      </>}
+    const unitsX = pageUnitsPerCssPixel(pageKey);
+    const unitsY = unitsX / Math.max(.01, pageAspectFor(pageKey));
+    const padX = 6 * unitsX;
+    const padY = 6 * unitsY;
+    const x = selectedBounds.x - padX;
+    const y = selectedBounds.y - padY;
+    const width = selectedBounds.width + padX * 2;
+    const height = selectedBounds.height + padY * 2;
+    const resizable = !selectedAnnotations.some((item) => item.locked);
+    return <g className={`workspace-v2-selection-box${selectionDragging ? " is-dragging" : ""}`} data-selection-count={selectedAnnotations.length}>
+      <rect x={x} y={y} width={width} height={height} />
+      {resizable && !selectionDragging && <g className="workspace-v2-selection-handle">
+        <ellipse className="is-hit" data-resize-handle="bottom-right" cx={x + width} cy={y + height} rx={22 * unitsX} ry={22 * unitsY} />
+        <ellipse data-resize-handle="bottom-right" cx={x + width} cy={y + height} rx={7 * unitsX} ry={7 * unitsY} />
+      </g>}
+    </g>;
+  }
+
+  function renderSelectionToolbar() {
+    if (!selectedAnnotations.length || selectionPage === null || annotationsHidden) return null;
+    const locked = selectedAnnotations.some((item) => item.locked);
+    const allLocked = selectedAnnotations.every((item) => item.locked);
+    const editable = editableTarget(selectedAnnotations);
+    const hasHandwriting = selectedAnnotations.some((item) => ["pen", "pencil"].includes(item.type));
+    const keep = (event) => event.stopPropagation();
+    const action = (label, Icon, onClick, { disabled = false, danger = false, text = "" } = {}) => <button type="button" className={`${danger ? "is-danger" : ""}${text ? " has-label" : ""}`.trim() || undefined} aria-label={label} title={label} disabled={disabled} onClick={onClick}><Icon size={17} aria-hidden="true" />{text && <span>{text}</span>}</button>;
+    return <div
+      ref={selectionToolbarRef}
+      className={`workspace-v8-selection-toolbar${selectionDragging ? " is-dragging" : ""}`}
+      role="toolbar"
+      aria-label={`${selectedAnnotations.length} selected`}
+      data-selection-toolbar=""
+      onPointerDown={keep}
+    >
+      <div className="workspace-v8-selection-row">
+        {editable && action(editable.type === "card" ? "Edit card" : "Edit text", editable.type === "card" ? FileText : Type, () => editAnnotation(editable), { text: "Edit" })}
+        {action("Cut", Scissors, cutSelection, { disabled: locked })}
+        {action("Copy", Copy, copySelection)}
+        {clipboardSize > 0 && action("Paste", ClipboardPaste, pasteSelection)}
+        {action("Duplicate", CopyPlus, duplicateSelection, { disabled: locked })}
+        {action("Bring forward", BringToFront, () => layerSelection("forward"), { disabled: locked })}
+        {action("Send backward", SendToBack, () => layerSelection("backward"), { disabled: locked })}
+        {action("Delete", Trash2, deleteSelection, { disabled: locked, danger: true })}
+        <button type="button" aria-label="More selection actions" title="More" aria-expanded={selectionActionsOpen} className={selectionActionsOpen ? "is-open" : undefined} onClick={() => setSelectionActionsOpen((open) => !open)}><MoreHorizontal size={17} aria-hidden="true" /></button>
+      </div>
+      {selectionActionsOpen && <div className="workspace-v8-selection-more" role="group" aria-label="More selection actions">
+        {action(allLocked ? "Unlock" : "Lock", allLocked ? Unlock : Lock, toggleSelectionLock, { text: allLocked ? "Unlock" : "Lock" })}
+        {selectedAnnotations.length > 1 && action("Group", Group, groupSelection, { text: "Group" })}
+        {selectedAnnotations.some((item) => item.groupId) && action("Ungroup", Ungroup, ungroupSelection, { text: "Ungroup" })}
+        {action("Rotate", RotateCw, rotateSelection, { disabled: locked, text: "Rotate" })}
+        {hasHandwriting && action("Improve handwriting", Sparkles, improveSelectedHandwriting, { text: "Smooth" })}
+      </div>}
     </div>;
   }
 
@@ -5343,19 +5714,13 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     // one costs the compositor a page-sized layer while scrolling. Only pages
     // with marks, and the page being written on, need one.
     if (!pageIsCurrent && !annotationsOnPage.length) return null;
-    // Measuring the page forces layout; only the selection handles need it.
-    const handleRadius = pageIsCurrent && selectedBounds ? 11 * pageUnitsPerCssPixel(pageNumber) : 0;
     return <>
       <svg className={annotationLayerClass} viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-label={isVirtualPageKey(pageNumber) ? "Annotations for blank workspace page" : `Annotations for PDF page ${pageNumber}`}>
         <AnnotationVisuals annotations={annotationsHidden ? NO_ANNOTATIONS : annotationsOnPage} prefix={`page-${pageNumber}`} includeHitTargets={activeTool === "select" && !annotationsHidden} pageAspect={pageAspect} />
         {pageIsCurrent && draftAnnotation && draftAnnotation.type !== "lasso" && <WorkspaceAnnotation annotation={draftAnnotation} draft pageAspect={pageAspect} />}
-        {pageIsCurrent && selectedBounds && <g className="workspace-v2-selection-box">
-          <rect x={selectedBounds.x} y={selectedBounds.y} width={selectedBounds.width} height={selectedBounds.height} />
-          {[["top-left", selectedBounds.x, selectedBounds.y], ["top-right", selectedBounds.x + selectedBounds.width, selectedBounds.y], ["bottom-left", selectedBounds.x, selectedBounds.y + selectedBounds.height], ["bottom-right", selectedBounds.x + selectedBounds.width, selectedBounds.y + selectedBounds.height]].map(([handle, x, y]) => <circle key={handle} data-resize-handle={handle} cx={x} cy={y} r={handleRadius} />)}
-        </g>}
+        {selectionPage === pageNumber && renderSelectionBox(pageNumber)}
       </svg>
       {pageIsCurrent && <LiveAnnotationCanvas ref={liveStrokeCanvasRef} pageNumber={pageNumber} pageAspect={pageAspect} />}
-      {pageIsCurrent && renderSelectionMenu()}
     </>;
   }
 
@@ -5570,50 +5935,79 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
             </div>
           </div>}
 
-          {popover("settings").shown && <section {...popover("settings").props} id="workspace-settings-popover" className="workspace-v2-settings-popover" role="dialog" aria-label="Workspace settings" onPointerDown={(event) => event.stopPropagation()}>
-            <header><span><small>Focus Workspace</small><strong>Settings</strong></span><button type="button" aria-label="Close workspace settings" onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="more"]')}><X size={19} /></button></header>
-            <div className="workspace-v6-settings-layout">
-              <nav className="workspace-v6-settings-nav" aria-label="Settings sections">
-                {[{ id: "writing", Icon: PenLine, label: "Writing", detail: "Pens and handwriting" }, { id: "gestures", Icon: Hand, label: "Gestures", detail: "Touch and shortcuts" }, { id: "workspace", Icon: BookOpen, label: "Workspace", detail: "Pages and study tools" }, { id: "export", Icon: Share2, label: "Export", detail: "Save and share" }].map(({ id, Icon, label, detail }) => <button key={id} type="button" className={settingsTab === id ? "is-active" : ""} aria-current={settingsTab === id ? "page" : undefined} onClick={() => openSettingsSection(id)}><Icon size={19} /><span><strong>{label}</strong><small>{detail}</small></span></button>)}
-                <p className="workspace-v7-settings-hint"><Sparkles size={16} aria-hidden="true" />Advanced options live here, so the toolbar stays clean.</p>
-              </nav>
-              <div className="workspace-v2-settings-content">
-                <section id="workspace-settings-writing" className={`workspace-v7-settings-card${settingsTab === "writing" ? " is-current" : ""}`} aria-labelledby="workspace-writing-settings"><header className="workspace-v7-card-head"><PenLine size={22} aria-hidden="true" /><span><h2 id="workspace-writing-settings">Writing</h2><p>Fine-tune how your writing feels.</p></span></header>
-                  <button type="button" className="workspace-v2-settings-action" onClick={() => { setOpenSurface("tool:pen"); setActiveTool("pen"); }}><PenLine size={18} /><span><strong>Pen presets</strong><small>Open your saved and quick pen styles</small></span></button>
+          {popover("settings").shown && <section {...popover("settings").props} id="workspace-settings-popover" className="workspace-v2-settings-popover workspace-v8-settings" role="dialog" aria-label="Workspace settings" onPointerDown={(event) => event.stopPropagation()}>
+            <header className="workspace-v8-settings-head"><strong>Settings</strong><button type="button" aria-label="Close workspace settings" onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="more"]')}><X size={17} /></button></header>
+            <div className="workspace-v8-settings-tabs" role="tablist" aria-label="Settings sections">
+              {SETTINGS_SECTIONS.map(({ id, label }) => <button key={id} id={`workspace-settings-tab-${id}`} type="button" role="tab" aria-selected={settingsTab === id} aria-controls="workspace-settings-panel" tabIndex={settingsTab === id ? 0 : -1} onClick={() => setSettingsTab(id)} onKeyDown={(event) => {
+                const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+                if (!step) return;
+                event.preventDefault();
+                const direction = window.getComputedStyle(event.currentTarget).direction === "rtl" ? -step : step;
+                const index = SETTINGS_SECTIONS.findIndex((section) => section.id === settingsTab);
+                const next = SETTINGS_SECTIONS[(index + direction + SETTINGS_SECTIONS.length) % SETTINGS_SECTIONS.length];
+                setSettingsTab(next.id);
+                window.requestAnimationFrame(() => document.getElementById(`workspace-settings-tab-${next.id}`)?.focus());
+              }}>{label}</button>)}
+            </div>
+            <div id="workspace-settings-panel" className="workspace-v2-settings-content workspace-v8-settings-panel" role="tabpanel" aria-labelledby={`workspace-settings-tab-${settingsTab}`}>
+              {settingsTab === "drawing" && <>
+                <div className="workspace-v8-settings-group">
+                  <SettingsToggle icon={PenLine} label="Apple Pencil mode" description="Only the Pencil draws; fingers scroll and zoom" checked={drawingInput === DRAWING_INPUT.STYLUS_ONLY} onChange={(enabled) => changeDrawingInput(enabled ? DRAWING_INPUT.STYLUS_ONLY : DRAWING_INPUT.STYLUS_AND_FINGER)} />
                   <ToolRange label="Pressure sensitivity" value={pressureSensitivity} displayValue={`${Math.round(pressureSensitivity * 100)}%`} min={0} max={1} step={.05} onChange={setPressureSensitivity} color={activeColor} />
                   <ToolRange label="Stroke smoothing" value={strokeSmoothing} displayValue={`${Math.round(strokeSmoothing * 100)}%`} min={0} max={1} step={.05} onChange={setStrokeSmoothing} color={activeColor} />
-                  <SettingsToggle icon={Sparkles} label="Improve new handwriting" description="Smooth pen and pencil strokes while keeping their original points" checked={autoImproveHandwriting} onChange={setAutoImproveHandwriting} />
+                </div>
+                <div className="workspace-v8-settings-group">
+                  <SettingsToggle icon={Sparkles} label="Improve new handwriting" description="Smooth new pen and pencil strokes; the original points are kept" checked={autoImproveHandwriting} onChange={setAutoImproveHandwriting} />
+                  <SettingsToggle icon={Ruler} label="Straight lines & shapes" description="Snap near-straight lines and rough shapes when you lift" checked={drawAndHold} onChange={setDrawAndHold} />
                   <SettingsToggle icon={Eraser} label="Scribble to erase" description="Scratch across your own ink to remove it" checked={scribbleToErase} onChange={setScribbleToErase} />
-                  <SettingsToggle icon={Shapes} label="Perfect shapes on release" description="Refine lines and shapes when you lift" checked={drawAndHold} onChange={setDrawAndHold} />
-                  <button type="button" className="workspace-v2-settings-action" onClick={() => { setOpenSurface("tool:select"); setActiveTool("select"); }}><Sparkles size={18} /><span><strong>Improve handwriting</strong><small>Select pen strokes, then smooth them from Lasso</small></span></button>
-                  <button type="button" className="workspace-v2-settings-action is-danger" onClick={clearPageAnnotations} disabled={!pageAnnotations.some((item) => !item.locked)}><Trash2 size={18} /><span><strong>{activeVirtualPageId === null ? `Clear ink on PDF page ${page}` : "Clear ink on workspace page"}</strong><small>Remove unlocked marks on this page; Undo restores them</small></span></button>
-                </section>
-                <section id="workspace-settings-gestures" className={`workspace-v7-settings-card${settingsTab === "gestures" ? " is-current" : ""}`} aria-labelledby="workspace-gesture-settings"><header className="workspace-v7-card-head"><Hand size={22} aria-hidden="true" /><span><h2 id="workspace-gesture-settings">Gestures</h2><p>Make common actions feel natural.</p></span></header>
-                  <SettingsToggle icon={PenLine} label="Apple Pencil mode" description="Pencil draws while fingers navigate" checked={drawingInput === DRAWING_INPUT.STYLUS_ONLY} onChange={(enabled) => changeDrawingInput(enabled ? DRAWING_INPUT.STYLUS_ONLY : DRAWING_INPUT.STYLUS_AND_FINGER)} />
                   <SettingsToggle icon={Circle} label="Circle to erase" description="Circle handwriting and hold to remove it" checked={circleToErase} onChange={setCircleToErase} />
-                </section>
-                <section id="workspace-settings-workspace" className={`workspace-v7-settings-card${settingsTab === "workspace" ? " is-current" : ""}`} aria-labelledby="workspace-page-settings"><header className="workspace-v7-card-head"><BookOpen size={22} aria-hidden="true" /><span><h2 id="workspace-page-settings">Workspace</h2><p>Set up your study space.</p></span></header>
-                  <button type="button" className="workspace-v2-settings-action" onClick={() => setOpenSurface("page-background")} disabled={!sheet.pdfUrl}><Plus size={18} /><span><strong>Add page</strong><small>Choose a background after this PDF page</small></span></button>
-                  <button type="button" className="workspace-v2-settings-action" onClick={() => { setCardKind("note"); setOpenSurface("card"); }}><StickyNote size={18} /><span><strong>Add note card</strong><small>Create an editable study card</small></span></button>
-                  <SettingsToggle icon={EyeOff} label="Hide annotations" description="Temporarily show only the source document" checked={annotationsHidden} onChange={(hidden) => { setAnnotationsHidden(hidden); setSelectedIds([]); if (hidden) setActiveTool("hand"); }} />
-                  <button type="button" className="workspace-v2-settings-action" onClick={() => { setClipSelecting(true); setLassoMode("rectangle"); setActiveTool("select"); setOpenSurface(null); }}><Camera size={18} /><span><strong>Study clip behavior</strong><small>Drag a rectangle to save a reusable PDF area</small></span></button>
-                  <SettingsToggle icon={Bookmark} label="Remember last position" description="Keep the last position in your backup" checked={rememberLastPosition} onChange={setRememberLastPosition} />
-                  <SettingsToggle icon={ZoomIn} label="Remember zoom level" description="Restore this sheet at the same zoom" checked={rememberZoomLevel} onChange={setRememberZoomLevel} />
-                  <SettingsToggle icon={Eye} label="Show page number" description="Display the current PDF page" checked={showPageNumber} onChange={setShowPageNumber} />
-                  {wakeLockSupported && <SettingsToggle icon={Power} label="Keep screen awake" description="Prevent sleep during study" checked={keepScreenAwake} onChange={setKeepScreenAwake} />}
-                </section>
-                <section id="workspace-settings-export" className={`workspace-v7-settings-card${settingsTab === "export" ? " is-current" : ""}`} aria-labelledby="workspace-export-settings"><header className="workspace-v7-card-head"><Share2 size={22} aria-hidden="true" /><span><h2 id="workspace-export-settings">Export</h2><p>Save and share your work.</p></span></header>
-                  <button type="button" className="workspace-v2-settings-action" onClick={() => exportStudyDocument("annotated")} disabled={exportBusy}><FileText size={18} /><span><strong>Export as PDF</strong><small>Include annotations on accessible pages</small></span></button>
-                  <button type="button" className="workspace-v2-settings-action" onClick={() => exportStudyDocument("png")} disabled={exportBusy}><ImageIcon size={18} /><span><strong>Export as image</strong><small>Save the current page as PNG</small></span></button>
-                  <button type="button" className="workspace-v2-settings-action" onClick={() => exportStudyDocument("annotated", { share: true })} disabled={exportBusy}><Share2 size={18} /><span><strong>Share destination</strong><small>Use the device share sheet when available</small></span></button>
-                  <SettingsToggle icon={BookOpen} label="Include workspace pages" description="Add your inserted pages to PDF exports" checked={includeWorkspacePages} onChange={setIncludeWorkspacePages} />
+                </div>
+              </>}
+              {settingsTab === "canvas" && <>
+                {activeVirtualPageId !== null
+                  ? <div className="workspace-v8-settings-group">
+                    <p className="workspace-v8-settings-label">This page's background</p>
+                    <div className="workspace-v8-segmented" role="radiogroup" aria-label="Page background">
+                      {PAGE_BACKGROUND_CHOICES.map(([background, label]) => <button key={background} type="button" role="radio" aria-checked={activeVirtualPage?.background === background} onClick={() => changeVirtualPageBackground(background)}><span className={`workspace-v6-page-pattern is-${background}`} aria-hidden="true" />{label}</button>)}
+                    </div>
+                  </div>
+                  : <div className="workspace-v8-settings-group">
+                    <p className="workspace-v8-settings-label">Add a page after page {page}</p>
+                    <div className="workspace-v8-segmented" role="group" aria-label="Add a page">
+                      {PAGE_BACKGROUND_CHOICES.map(([background, label]) => <button key={background} type="button" aria-label={`Add ${label.toLowerCase()} page`} disabled={!sheet.pdfUrl || !pdfDocumentReady} onClick={() => addBlankPage(background)}><span className={`workspace-v6-page-pattern is-${background}`} aria-hidden="true" />{label}</button>)}
+                    </div>
+                  </div>}
+                <div className="workspace-v8-settings-group">
+                  <SettingsToggle icon={Eye} label="Show annotations" description="Turn off to see only the source document" checked={!annotationsHidden} onChange={(shown) => { setAnnotationsHidden(!shown); setSelectedIds([]); if (!shown) setActiveTool("hand"); }} />
+                </div>
+                <div className="workspace-v8-settings-group">
+                  <button type="button" className="workspace-v2-settings-action is-danger" onClick={clearPageAnnotations} disabled={!pageAnnotations.some((item) => !item.locked)}><Trash2 size={18} /><span><strong>{activeVirtualPageId === null ? `Clear ink on PDF page ${page}` : "Clear ink on this page"}</strong><small>Removes unlocked marks; Undo restores them</small></span></button>
+                  {activeVirtualPageId !== null && <button type="button" className="workspace-v2-settings-action is-danger" onClick={deleteBlankPage}><Trash2 size={18} /><span><strong>Delete this added page</strong><small>Removes the page and its marks; Undo restores them</small></span></button>}
+                </div>
+              </>}
+              {settingsTab === "view" && <>
+                <div className="workspace-v8-settings-group">
+                  {sheet.pdfUrl && <button type="button" className="workspace-v2-settings-action" onClick={fitPdfWidth}><MoveHorizontal size={18} /><span><strong>Fit page width</strong><small>Reset the zoom so the page fills the width</small></span></button>}
+                  <SettingsToggle icon={ZoomIn} label="Remember zoom level" description="Reopen this sheet at your last magnification" checked={rememberZoomLevel} onChange={setRememberZoomLevel} />
+                  <SettingsToggle icon={Hash} label="Show page number" description="Keep the page counter in the corner" checked={showPageNumber} onChange={setShowPageNumber} />
+                  <SettingsToggle icon={Bookmark} label="Resume Active Study where I left off" description="Reopen an Active Study part at the page you last read" checked={rememberLastPosition} onChange={setRememberLastPosition} />
+                  {wakeLockSupported && <SettingsToggle icon={Power} label="Keep screen awake" description="Stop the screen from sleeping while you study" checked={keepScreenAwake} onChange={setKeepScreenAwake} />}
+                </div>
+              </>}
+              {settingsTab === "other" && <>
+                <div className="workspace-v8-settings-group">
+                  <button type="button" className="workspace-v2-settings-action" onClick={() => exportStudyDocument("annotated")} disabled={exportBusy}><FileText size={18} /><span><strong>Export as PDF</strong><small>Your pages with every mark and note</small></span></button>
+                  <button type="button" className="workspace-v2-settings-action" onClick={() => exportStudyDocument("png")} disabled={exportBusy}><ImageIcon size={18} /><span><strong>Export this page as an image</strong><small>PNG of the page you are reading</small></span></button>
+                  <SettingsToggle icon={BookOpen} label="Include added pages" description="Put pages you added into PDF exports" checked={includeWorkspacePages} onChange={setIncludeWorkspacePages} />
+                </div>
+                <div className="workspace-v8-settings-group">
                   {saveState === "error" && <p className="workspace-v2-settings-note" role="alert">{saveErrorReason || "Marks could not be saved on this device."}</p>}
                   <button type="button" className="workspace-v2-settings-action" onClick={exportWorkspaceBackup} disabled={backupBusy}><Download size={18} /><span><strong>Export workspace backup</strong><small>Save editable marks and notes as JSON</small></span></button>
                   <button type="button" className="workspace-v2-settings-action" onClick={() => backupInputRef.current?.click()} disabled={backupBusy}><Upload size={18} /><span><strong>Restore a backup</strong><small>Add anything missing without replacing current work</small></span></button>
                   {pendingImport && <div className="workspace-v2-settings-confirm" role="group" aria-label="Confirm restore from another sheet"><p>Restore {pendingImport.annotations.length} marks from {pendingImport.sheetTitle || pendingImport.sheetSlug}?</p><div><button type="button" onClick={() => applyRestoredBackup(pendingImport)}>Restore anyway</button><button type="button" onClick={() => setPendingImport(null)}>Cancel</button></div></div>}
-                  <input ref={backupInputRef} className="workspace-v2-file-input" type="file" accept="application/json,.json" onChange={readWorkspaceBackup} tabIndex={-1} aria-hidden="true" />
-                </section>
-              </div>
+                </div>
+              </>}
+              <input ref={backupInputRef} className="workspace-v2-file-input" type="file" accept="application/json,.json" onChange={readWorkspaceBackup} tabIndex={-1} aria-hidden="true" />
             </div>
           </section>}
 
@@ -5627,17 +6021,13 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
             onLostPointerCapture={lostWorkspacePointer}
             onPointerLeave={() => { hideStylusHover(); hideEraserHitbox(); }}
           >
-            {sheet.pdfUrl ? <ContinuousA4Pdf pdfUrl={sheet.pdfUrl} pageCount={pageCount} visiblePageStart={accessiblePageStart} visiblePageCount={accessiblePageCount} zoom={zoom} stageRef={stageRef} documentRootRef={documentRef} onPageCount={syncPdfPageCount} onDocumentReady={markPdfDocumentReady} onCurrentPageChange={handleCurrentWorkspacePage} virtualPages={virtualPages} renderPageOverlay={renderPdfPageOverlay} onPdfPageRendered={recordPdfPageRender} /> : <article ref={documentRef} className="workspace-v2-document" onDoubleClick={smartZoom} style={cssVars({ "--workspace-document-width": `${PAGE_WIDTH * zoom}px`, "--workspace-document-min-height": `${760 * zoom}px`, "--workspace-document-max-width": "none" })}>
+            {sheet.pdfUrl ? <ContinuousA4Pdf pdfUrl={sheet.pdfUrl} pageCount={pageCount} visiblePageStart={accessiblePageStart} visiblePageCount={accessiblePageCount} zoom={zoom} stageRef={stageRef} documentRootRef={documentRef} onPageCount={syncPdfPageCount} onDocumentReady={markPdfDocumentReady} onDocumentLoaded={handlePdfDocumentLoaded} onCurrentPageChange={handleCurrentWorkspacePage} virtualPages={virtualPages} renderPageOverlay={renderPdfPageOverlay} onPdfPageRendered={recordPdfPageRender} /> : <article ref={documentRef} className="workspace-v2-document" onDoubleClick={smartZoom} style={cssVars({ "--workspace-document-width": `${PAGE_WIDTH * zoom}px`, "--workspace-document-min-height": `${760 * zoom}px`, "--workspace-document-max-width": "none" })}>
               <svg className={annotationLayerClass} viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-label="Document annotations">
                 <AnnotationVisuals annotations={annotationsHidden ? [] : pageAnnotations} prefix={`document-${page}`} includeHitTargets={activeTool === "select" && !annotationsHidden} />
                 {draftAnnotation && draftAnnotation.type !== "lasso" && <WorkspaceAnnotation annotation={draftAnnotation} draft />}
-                {selectedBounds && <g className="workspace-v2-selection-box">
-                  <rect x={selectedBounds.x} y={selectedBounds.y} width={selectedBounds.width} height={selectedBounds.height} />
-                  {[["top-left", selectedBounds.x, selectedBounds.y], ["top-right", selectedBounds.x + selectedBounds.width, selectedBounds.y], ["bottom-left", selectedBounds.x, selectedBounds.y + selectedBounds.height], ["bottom-right", selectedBounds.x + selectedBounds.width, selectedBounds.y + selectedBounds.height]].map(([handle, x, y]) => <circle key={handle} data-resize-handle={handle} cx={x} cy={y} r={11 * pageUnitsPerCssPixel(page)} />)}
-                </g>}
+                {selectionPage !== null && renderSelectionBox(page)}
               </svg>
               <LiveAnnotationCanvas ref={liveStrokeCanvasRef} pageNumber={page} />
-              {renderSelectionMenu()}
               <h1>{topicTitle}</h1>
               <p className="workspace-v2-lead">{topicSummary} It helps connect foundational knowledge with confident clinical decisions.</p>
               <div className="workspace-v2-selection-actions" aria-label="Selected text actions">
@@ -5702,6 +6092,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
           {sheet.pdfUrl && <output className={`workspace-v4-zoom-hud${zoomHud.visible ? " is-visible" : ""}`} aria-live="polite" aria-label={`Zoom ${Math.round(zoom * 100)} percent`}><strong>{Math.round(zoom * 100)}%</strong><span>{zoomHud.label && !zoomHud.label.endsWith("%") ? zoomHud.label : pdfZoomModeRef.current === "fit" ? "Fit width" : "Zoom"}</span></output>}
           {saveState === "error" && <p className="workspace-v2-save-warning" role="alert"><Zap size={14} aria-hidden="true" />This device cannot store more workspace data. Recent marks may be lost when you leave.</p>}
           {focusMessage && !sideOpen && <p className="workspace-v2-toast" aria-hidden="true">{focusMessage}</p>}
+          {renderSelectionToolbar()}
+          {renderExportSheet()}
         </section>
 
         {sideOpen && <button className="workspace-v2-side-backdrop" type="button" onClick={() => setOpenSurface(null)} aria-label="Close workspace panel" />}
@@ -5730,11 +6122,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         </aside>
       </div>
       <span className="workspace-v2-visually-hidden" role="status" aria-live="polite">{saveLabel}{focusMessage ? ` · ${focusMessage}` : ""}</span>
-      {studyMode === "active" && activeStudy?.status === "active" && ["reading", "checkpoint", "final"].includes(activeStudy.stage) && <div className="workspace-v2-checkpoint-dock" role="status" aria-live="polite">
-        <button type="button" className={`workspace-v2-checkpoint-button${activeStudyButtonReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeStudyButtonReady} aria-label={activeStudyButtonReady ? t(activeStudy.stage === "final" ? "activeStudy.openFinal" : "activeStudy.openCheckpoint") : t("activeStudy.reachToUnlock", { page: accessiblePageCount })}>{activeStudyButtonReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t(activeStudy.stage === "final" ? "activeStudy.finalExam" : "activeStudy.checkpoint")}</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t("activeStudy.reachPage", { page: accessiblePageCount })}</span></>}</button>
+      {studyMode === "active" && activeStudy?.status === "active" && (["reading", "checkpoint", "final"].includes(activeStudy.stage) || ACTIVE_RESULT_STAGES.has(activeStudy.stage)) && <div className="workspace-v2-checkpoint-dock" role="status" aria-live="polite">
+        <button type="button" className={`workspace-v2-checkpoint-button${activeStudyButtonReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeStudyButtonReady} aria-label={activeStudyButtonReady ? t(activeStudy.stage.startsWith("final") ? "activeStudy.openFinal" : "activeStudy.openCheckpoint") : t("activeStudy.reachToUnlock", { page: accessiblePageCount })}>{activeStudyButtonReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t(activeStudy.stage.startsWith("final") ? "activeStudy.finalExam" : "activeStudy.checkpoint")}</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t("activeStudy.reachPage", { page: accessiblePageCount })}</span></>}</button>
       </div>}
       {modeDialogOpen && <StudyModeDialog difficulty={activeDifficulty} setDifficulty={setActiveDifficulty} activeAvailable={activeStudyReady} restartProgress={selectedActiveStudyAvailability?.progress} busy={activeStudyBusy || activeStudyAvailabilityLoading} error={activeStudyError} onNormal={chooseNormalStudy} onActive={chooseActiveStudy} onRestart={restartActiveStudy} activeOnly={entryModePreference === "active"} />}
-      {activeQuiz && activeStudy && <ActiveStudyQuiz key={activeQuiz.attempt_id} quiz={activeQuiz} answers={activeAnswers} setAnswers={setActiveAnswers} result={activeResult} busy={activeStudyBusy} onSubmit={submitActiveQuiz} onDismiss={dismissActiveQuiz} onRetake={retakeActiveQuiz} onContinue={continueActiveStudyAnyway} onDiscard={(done) => discardActiveAttempt({ restart: false }, done)} onRestart={(done) => discardActiveAttempt({ restart: true }, done)} />}
+      {activeQuiz && activeStudy && <ActiveStudyQuiz key={activeQuiz.attempt_id} quiz={activeQuiz} answers={activeAnswers} setAnswers={setActiveAnswers} locked={activeLocked} result={activeResult} busy={activeStudyBusy} onSubmit={submitActiveQuiz} onDismiss={dismissActiveQuiz} onRetake={retakeActiveQuiz} onContinue={continueActiveStudyAnyway} onDiscard={(done) => discardActiveAttempt({ restart: false }, done)} onRestart={(done) => discardActiveAttempt({ restart: true }, done)} />}
     </main>
   );
 }

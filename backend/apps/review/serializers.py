@@ -2,6 +2,7 @@ from typing import Any
 
 from rest_framework import serializers
 
+from apps.questions.models import QuestionVersion
 from platform_core.api.serializers import StrictSerializer
 
 from .models import ReviewItem
@@ -15,6 +16,11 @@ class OptionSnapshotSerializer(StrictSerializer):
 class QuestionAttemptWriteSerializer(StrictSerializer):
     idempotency_key = serializers.UUIDField()
     question_key = serializers.CharField(max_length=220, trim_whitespace=True)
+    question_type = serializers.ChoiceField(
+        choices=QuestionVersion.QuestionType.choices,
+        required=False,
+        default=QuestionVersion.QuestionType.SINGLE_CHOICE,
+    )
     subject_key = serializers.CharField(max_length=220, trim_whitespace=True)
     subject_label = serializers.CharField(max_length=220, trim_whitespace=True)
     source_type = serializers.ChoiceField(choices=ReviewItem.SourceType.choices)

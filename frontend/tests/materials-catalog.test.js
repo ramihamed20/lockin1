@@ -243,7 +243,7 @@ test("Catalog Focus Workspace uses a compact contextual toolbar and persistent c
   assert.match(workspace, /addSavedColor\(items, normalized, MAX_PALETTE_COLORS, COLORS\)/);
   assert.match(workspace, /removeSavedColor\(recentColors, normalized, MAX_PALETTE_COLORS, COLORS\)/);
   assert.match(workspace, /paletteColors\.length < MAX_PALETTE_COLORS/);
-  assert.match(workspace, /label="Remember last position"/);
+  assert.match(workspace, /label="Resume Active Study where I left off"/);
   assert.match(workspace, /label="Remember zoom level"/);
   assert.match(workspace, /aria-label="Fit width"/);
   assert.match(workspace, /label="Show page number"/);

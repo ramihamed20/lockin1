@@ -36,6 +36,7 @@ urlpatterns = [
     path("", include("apps.provider_integrations.urls")),
     path("", include("apps.administration.urls")),
     path("", include("apps.analytics.urls")),
+    path("", include("apps.biweekly.urls")),
     path("", include("apps.audit.urls")),
     path("", include("apps.reporting.urls")),
     path("", include("apps.operational_actions.urls")),

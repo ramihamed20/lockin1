@@ -191,8 +191,10 @@ for (const viewport of LANDSCAPE_TABLETS) {
   });
 }
 
-// P0: the phone toolbar stays one fixed row. Secondary creation and utility
-// actions live in Add and More rather than behind horizontal discovery.
+// P0: the phone toolbar stays one fixed row. It carries the iPad tool set:
+// the tool rail between Exit and the workspace actions scrolls sideways, so a
+// tool parked past its edge is reachable by scrolling the rail rather than
+// hidden or dropped. Everything outside the rail stays on screen.
 for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 430, height: 932 }]) {
   test(`every workspace control is reachable at ${viewport.width}x${viewport.height}`, async ({ page }) => {
     test.setTimeout(60_000);
@@ -209,13 +211,23 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
         return bounds.width > 0 && bounds.height > 0;
       });
       const escaped = (bounds) => bounds.bottom > size.height + 1 || bounds.top < -1;
+      const rail = nav.querySelector(".workspace-v3-primary");
+      const railBounds = rail.getBoundingClientRect();
+      // A rail tool is reachable when it lies inside the rail's scroll range.
+      const reachableInRail = (control) => {
+        if (!rail.contains(control)) return false;
+        const bounds = control.getBoundingClientRect();
+        const start = bounds.left - railBounds.left + rail.scrollLeft;
+        return start >= -rail.scrollWidth - 1 && start + bounds.width <= rail.scrollWidth + 1;
+      };
       return {
         total: controls.length,
         rows: new Set(controls.map((control) => Math.round(control.getBoundingClientRect().top))).size,
         offScreen: controls
           .filter((control) => {
             const bounds = control.getBoundingClientRect();
-            return escaped(bounds) || bounds.right > size.width + 1 || bounds.left < -1;
+            if (escaped(bounds)) return true;
+            return !reachableInRail(control) && (bounds.right > size.width + 1 || bounds.left < -1);
           })
           .map((control) => control.getAttribute("aria-label")),
         underTouchSize: controls
@@ -235,7 +247,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     expect(toolbar.underTouchSize, "workspace controls are under the touch minimum").toEqual([]);
     expect(toolbar.total).toBeGreaterThanOrEqual(6);
     expect(toolbar.rows, "the toolbar wrapped to a second row").toBe(1);
-    expect(toolbar.horizontalOverflow, "the primary toolbar requires horizontal discovery").toBeLessThanOrEqual(1);
+    expect(toolbar.horizontalOverflow, "the toolbar itself scrolls sideways instead of its tool rail").toBeLessThanOrEqual(1);
     expect(toolbar.publishedHeight).toBe(toolbar.actualHeight);
 
     await page.getByRole("button", { name: "Add", exact: true }).click();

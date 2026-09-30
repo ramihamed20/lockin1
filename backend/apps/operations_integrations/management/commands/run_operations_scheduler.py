@@ -42,6 +42,13 @@ def _yesterday_options() -> dict[str, str]:
 
 JOBS = (
     JobSpec(
+        "biweekly_reports",
+        "close_biweekly_reports",
+        "BIWEEKLY_REPORT_INTERVAL_SECONDS",
+        3600,
+        _no_options,
+    ),
+    JobSpec(
         "account_email_delivery",
         "dispatch_account_emails",
         "ACCOUNT_EMAIL_DELIVERY_INTERVAL_SECONDS",

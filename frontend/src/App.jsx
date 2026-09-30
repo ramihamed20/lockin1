@@ -22,6 +22,7 @@ import { ProtectedRoute } from "./components/auth/ProtectedRoute.jsx";
 import { TokenActionPage } from "./components/auth/TokenActionPage.jsx";
 import { setSessionMarker } from "./api/client.js";
 import { lazyWithRecovery } from "./lib/lazyWithRecovery.js";
+import { reportConnectionFailure } from "./lib/connectionState.js";
 import { useVisibleNow } from "./hooks/useVisibleNow.js";
 import { useI18n } from "./components/I18nProvider.jsx";
 import { NotFoundPage } from "./components/ui/index.jsx";
@@ -29,6 +30,7 @@ import { PublicInfoPage } from "./components/PublicInfoPage.jsx";
 import { SubscriptionSessionProvider } from "./lib/SubscriptionSessionContext.jsx";
 import { clearSubscriptionSnapshots } from "./lib/subscriptionSession.js";
 import { FeatureComingSoon } from "./components/FeatureComingSoon.jsx";
+import { isFeatureComingSoon } from "./lib/featureAvailability.js";
 import { synchronizeOffline } from "./offline/coordinator.js";
 import { forgetOfflineUser, rememberOfflineUser, restoreOfflineUser } from "./offline/profile.js";
 import OfflineIndicator from "./offline/OfflineIndicator.jsx";
@@ -57,6 +59,9 @@ const SubjectReviewSession = lazyWithRecovery(() => import("./pages/Review.jsx")
 const WeeklyRecall = lazyWithRecovery(() => import("./pages/Review.jsx").then((module) => ({ default: module.WeeklyRecall })));
 const Bookmarks = lazyWithRecovery(() => import("./pages/Bookmarks.jsx"));
 const Progress = lazyWithRecovery(() => import("./pages/Progress.jsx"));
+const AnalysisPage = lazyWithRecovery(() => import("./pages/Biweekly.jsx").then((module) => ({ default: module.AnalysisPage })));
+const BiweeklyDetail = lazyWithRecovery(() => import("./pages/Biweekly.jsx").then((module) => ({ default: module.BiweeklyDetail })));
+const BiweeklyTest = lazyWithRecovery(() => import("./pages/Biweekly.jsx").then((module) => ({ default: module.BiweeklyTest })));
 const Achievements = lazyWithRecovery(() => import("./pages/Achievements.jsx"));
 const Notifications = lazyWithRecovery(() => import("./pages/Notifications.jsx"));
 const Store = lazyWithRecovery(() => import("./pages/Store.jsx"));
@@ -76,6 +81,10 @@ const WelcomeOnboarding = lazyWithRecovery(() => import("./pages/WelcomeOnboardi
 const Moderation = lazyWithRecovery(() => import("./pages/Moderation.jsx"));
 const SESSION_USER_SNAPSHOT_KEY = "lock-in.session-user";
 const OFFLINE_PENDING_LOGOUT_KEY = "lock-in.offline-pending-logout";
+// How long a cold start waits for the session check before a device with a
+// valid signed offline lease opens its downloaded work instead. A radio can
+// report a connection while requests hang until their 30 second timeout.
+const OFFLINE_BOOT_GRACE_MS = 4_000;
 
 function readSessionUserSnapshot() {
   try {
@@ -146,7 +155,7 @@ function App() {
   const activeTheme = themeSettings.autoTheme
     ? autoThemeForDate(new Date(clockTick))
     : themeSettings.theme;
-  const inLockInMode = location.pathname === "/lock-in" || location.pathname.startsWith("/lock-in/");
+  const inLockInMode = !isFeatureComingSoon("lock-in") && (location.pathname === "/lock-in" || location.pathname.startsWith("/lock-in/"));
   const inFocusWorkspace = location.pathname.endsWith("/workspace");
 
   const clearOperationsSession = useCallback(() => {
@@ -416,19 +425,53 @@ function App() {
         const offlineUser = await restoreOfflineUser().catch(() => null);
         if (offlineUser) return { user: offlineUser, offline: true };
       }
-      if (window.localStorage.getItem(OFFLINE_PENDING_LOGOUT_KEY)) {
-        try {
-          await authApi.logout();
-          window.localStorage.removeItem(OFFLINE_PENDING_LOGOUT_KEY);
-        } catch (error) {
-          if (isApiError(error) && (error.status === 401 || (error.status === 403 && error.code === "not_authenticated"))) {
+      const pendingLogout = window.localStorage.getItem(OFFLINE_PENDING_LOGOUT_KEY);
+      const onlineStart = (async () => {
+        if (pendingLogout) {
+          try {
+            await authApi.logout();
             window.localStorage.removeItem(OFFLINE_PENDING_LOGOUT_KEY);
-          } else {
-            throw error;
+          } catch (error) {
+            if (isApiError(error) && (error.status === 401 || (error.status === 403 && error.code === "not_authenticated"))) {
+              window.localStorage.removeItem(OFFLINE_PENDING_LOGOUT_KEY);
+            } else {
+              throw error;
+            }
           }
         }
+        return { user: await authApi.me(), offline: false };
+      })();
+      if (pendingLogout) return onlineStart;
+      // Online first, but not at the cost of a device that cannot reach the
+      // server: past the grace period a valid lease opens downloaded work, and
+      // the session check still finishes in the background. Its answer is
+      // applied when it comes -- the live account, or signing out if the
+      // server says the session has ended.
+      let settled = false;
+      /** @type {Promise<{ value?: Awaited<typeof onlineStart>, error?: any }>} */
+      const outcome = onlineStart.then((value) => ({ value }), (error) => ({ error }));
+      void outcome.then(() => { settled = true; });
+      const early = await Promise.race([outcome, new Promise((resolve) => { window.setTimeout(() => resolve(null), OFFLINE_BOOT_GRACE_MS); })]);
+      if (early) {
+        if ("error" in early) throw early.error;
+        return early.value;
       }
-      return { user: await authApi.me(), offline: false };
+      const offlineUser = settled ? null : await restoreOfflineUser().catch(() => null);
+      if (!offlineUser) return onlineStart;
+      // The server has not answered in time: say so, so reads fall back to
+      // downloaded content quickly and the connection probe reports its return.
+      reportConnectionFailure();
+      void outcome.then(({ value, error }) => {
+        if (!active) return;
+        if (value) {
+          setUser(value.user);
+          setThemeSettings((current) => mergeRemoteThemeSettings(value.user.themeSettings, current));
+          void loadOperationsSession();
+        } else if (isApiError(error) && (error.status === 401 || error.status === 403)) {
+          setUser(null);
+        }
+      });
+      return { user: offlineUser, offline: true };
     })()
       .then(async ({ user: nextUser, offline }) => {
         if (!active) return;
@@ -656,8 +699,12 @@ function App() {
                 <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug/summary" element={<CatalogFocusWorkspace user={user} variant="summary" />} />
                 <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug/workspace" element={<CatalogFocusWorkspace user={user} />} />
                 <Route path="/paper-workspace" element={<PaperWorkspace user={user} />} />
-                <Route path="/lock-in" element={<LockInMode user={user} />} />
-                <Route path="/lock-in/:sessionId" element={<LockInMode user={user} />} />
+                {isFeatureComingSoon("lock-in")
+                  ? <Route path="/lock-in/*" element={<FeatureComingSoon featureId="lock-in" />} />
+                  : <>
+                    <Route path="/lock-in" element={<LockInMode user={user} />} />
+                    <Route path="/lock-in/:sessionId" element={<LockInMode user={user} />} />
+                  </>}
                 <Route path="/search" element={<Search />} />
                 <Route path="/questions" element={<Questions user={user} />} />
                 <Route path="/questions/categories/:categoryId" element={<QuestionCategory user={user} />} />
@@ -670,10 +717,14 @@ function App() {
                 <Route path="/review/bank" element={<ReviewBank user={user} />} />
                 <Route path="/review/bank/:subjectKey" element={<SubjectReviewSession user={user} />} />
                 <Route path="/review/weekly" element={<WeeklyRecall user={user} />} />
+                <Route path="/review/biweekly/:id" element={<BiweeklyDetail type="review" />} />
+                <Route path="/review/biweekly/:id/test" element={<BiweeklyTest />} />
                 <Route path="/community/*" element={<FeatureComingSoon featureId="community" />} />
                 <Route path="/ranked/*" element={<FeatureComingSoon featureId="rank" />} />
                 <Route path="/bookmarks" element={<Bookmarks />} />
                 <Route path="/progress" element={<Progress />} />
+                <Route path="/analysis" element={<AnalysisPage />} />
+                <Route path="/analysis/:id" element={<BiweeklyDetail type="analysis" />} />
                 <Route path="/progression" element={<Progress />} />
                 <Route path="/achievements" element={<Achievements />} />
                 <Route path="/notifications" element={<Notifications onNotificationsChanged={() => setNotificationVersion((version) => version + 1)} />} />

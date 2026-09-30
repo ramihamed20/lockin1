@@ -69,6 +69,7 @@ class QuestionAttemptView(APIView):
                     user=_user(request),
                     event_key=f"client:{data['idempotency_key']}",
                     canonical_key=str(data["question_key"]),
+                    question_type=str(data["question_type"]),
                     subject_key=str(data["subject_key"]),
                     subject_label=str(data["subject_label"]),
                     source_type=str(data["source_type"]),

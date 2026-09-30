@@ -26,3 +26,4 @@ class QuestionAttemptEvent:
     answered_at: datetime
     question_version: QuestionVersion | None = None
     subject: EducationNode | None = None
+    question_type: str = "single_choice"

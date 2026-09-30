@@ -26,6 +26,7 @@ export const navItems = [
   // them, because the page was only reachable from the account menu and banners.
   { path: "/subscription", label: "Plans", labelKey: "nav.subscription", icon: "sparkles", group: "Personal", groupKey: "group.personal" },
   { path: "/progress", label: "Progress", labelKey: "nav.progress", icon: "activity", group: "Personal", groupKey: "group.personal" },
+  { path: "/analysis", label: "Analysis", labelKey: "nav.analysis", icon: "analytics", group: "Personal", groupKey: "group.personal" },
   { path: "/community", label: "Community", labelKey: "nav.community", icon: "messages", group: "Social", groupKey: "group.social" },
   { path: "/ranked", label: "Ranked", labelKey: "nav.ranked", icon: "trophy", group: "Social", groupKey: "group.social" }
 ];

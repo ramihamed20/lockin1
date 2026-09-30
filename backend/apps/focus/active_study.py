@@ -511,7 +511,7 @@ def submit_active_quiz(
                 ),
                 subject_key=f"catalog:{run.material_slug}",
                 subject_label=subject_label,
-                source_type=ReviewItem.SourceType.SHEET,
+                source_type=ReviewItem.SourceType.ACTIVE_STUDY,
                 source_id=f"{run.material_slug}:{run.sheet_slug}",
                 source_label=source_label,
                 source_question_index=position,

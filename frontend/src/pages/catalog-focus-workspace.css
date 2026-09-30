@@ -181,11 +181,48 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2-settings-toggle > span:nth-child(2), .workspace-v2-settings-action > span { display: grid; gap: 1px; }
 .workspace-v2-settings-toggle strong, .workspace-v2-settings-action strong { font-size: .72rem; }
 .workspace-v2-settings-toggle small, .workspace-v2-settings-action small { color: var(--workspace-chrome-muted); font-size: .62rem; line-height: 1.35; }
-.workspace-v2-switch-track { position: relative; width: 34px; height: 20px; border-radius: 99px; background: var(--workspace-track); transition: background-color 160ms var(--workspace-ease); }
-.workspace-v2-switch-track span { position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #eef1fb; transition: transform 160ms cubic-bezier(.16,1,.3,1); }
+/* Switch. The thumb is placed with a logical inset, so On is the far end in
+   both directions, and its travel is derived from the track, thumb and inset
+   sizes: it cannot leave the track at any size, in LTR or RTL. Contexts that
+   want another size change only the three custom properties. */
+.workspace-v2-switch-track {
+  --switch-width: 34px;
+  --switch-height: 20px;
+  --switch-inset: 3px;
+  --switch-thumb: calc(var(--switch-height) - var(--switch-inset) * 2);
+  --switch-thumb-width: var(--switch-thumb);
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  width: var(--switch-width);
+  min-width: var(--switch-width);
+  height: var(--switch-height);
+  flex: 0 0 var(--switch-width);
+  border-radius: 999px;
+  background: var(--workspace-track);
+  transition: background-color 180ms var(--workspace-ease);
+}
+.workspace-v2-switch-track > span {
+  position: absolute;
+  top: var(--switch-inset);
+  inset-inline-start: var(--switch-inset);
+  width: var(--switch-thumb-width);
+  height: var(--switch-thumb);
+  border-radius: 999px;
+  background: #eef1fb;
+  transform: none;
+  transition: inset-inline-start 220ms cubic-bezier(.2, .8, .2, 1), width 160ms cubic-bezier(.2, .8, .2, 1), background-color 180ms ease;
+}
 .workspace-v2-settings-toggle[aria-checked="true"] .workspace-v2-switch-track { background: var(--workspace-gold); }
-.workspace-v2-settings-toggle[aria-checked="true"] .workspace-v2-switch-track span { background: var(--workspace-on-accent); }
-.workspace-v2-settings-toggle[aria-checked="true"] .workspace-v2-switch-track span { transform: translateX(14px); }
+.workspace-v2-settings-toggle[aria-checked="true"] .workspace-v2-switch-track > span {
+  inset-inline-start: calc(var(--switch-width) - var(--switch-thumb-width) - var(--switch-inset));
+  background: var(--workspace-on-accent);
+}
+/* A press stretches the thumb towards the side it will move to. */
+.workspace-v2-settings-toggle:active .workspace-v2-switch-track { --switch-thumb-width: calc(var(--switch-thumb) + var(--switch-inset) * 2); }
+@media (prefers-reduced-motion: reduce) {
+  .workspace-v2-switch-track > span { transition: none; }
+}
 .workspace-v2-settings-content .workspace-v2-tool-range { width: 100%; margin-top: 4px; }
 /* Bottom-start keeps the reader dock clear of the Active Study checkpoint,
    which docks bottom-centre on desktop and bottom-end on small screens. */
@@ -1483,7 +1520,7 @@ html.ix-hover .workspace-v2-action-popover .workspace-v3-menu-grid > button:not(
 .workspace-v2-settings-popover .workspace-v2-tool-range output { color: var(--settings-text); }
 .workspace-v2-settings-popover .workspace-v2-switch-track { background: var(--settings-border); }
 .workspace-v2-settings-popover .workspace-v2-settings-toggle[aria-checked="true"] .workspace-v2-switch-track { background: #1989ed; }
-.workspace-v2-settings-popover .workspace-v2-settings-toggle[aria-checked="true"] .workspace-v2-switch-track span { background: #fff; }
+.workspace-v2-settings-popover .workspace-v2-settings-toggle[aria-checked="true"] .workspace-v2-switch-track > span { background: #fff; }
 .workspace-v2-annotation-layer [data-annotation-type="card"],
 .workspace-v2-annotation-layer [data-annotation-type="image"] { pointer-events: visiblePainted; cursor: grab; }
 .workspace-v2-document-stage:active .workspace-v2-annotation-layer [data-annotation-type="card"],

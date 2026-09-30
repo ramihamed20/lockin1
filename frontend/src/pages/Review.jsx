@@ -7,6 +7,7 @@ import { Icon } from "../lib/icons.jsx";
 import { formatRelativeTime } from "../lib/i18n.js";
 import { useI18n } from "../components/I18nProvider.jsx";
 import { QuestionExplanation } from "../components/shared/QuestionExplanation.jsx";
+import { BiweeklyArchive } from "../components/biweekly/BiweeklyArchive.jsx";
 
 function relativeTime(value, t) {
   const timestamp = Date.parse(value || "");
@@ -51,6 +52,7 @@ export default function ReviewCenter({ user = null }) {
   return (
     <Page title={t("review.center")} subtitle={t("review.centerSubtitle")}>
       <div className="review-center-layout">
+        <BiweeklyArchive type="review" />
         <section className={`review-bank-entry ${bank.active_count ? "has-work" : "is-clear"}`} aria-labelledby="review-bank-title">
           <div className="review-bank-entry-copy">
             <span className="review-feature-icon"><Icon name={bank.active_count ? "target" : "check"} size={22} /></span>

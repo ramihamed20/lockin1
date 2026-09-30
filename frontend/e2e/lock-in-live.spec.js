@@ -2,6 +2,10 @@ import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import { fulfillAccessContract, studentSession } from "./fixtures/productionApi.js";
+import { isFeatureComingSoon } from "../src/lib/featureAvailability.js";
+
+// Lockin Mode is scheduled; lock-in-coming-soon.spec.js covers the gated route.
+test.skip(isFeatureComingSoon("lock-in"), "Lockin Mode is coming soon");
 
 const OUTPUT = new URL("../output/playwright/", import.meta.url);
 const ID = "10000000-0000-4000-8000-000000000001";

@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "apps.review.apps.ReviewConfig",
     "apps.study_plans.apps.StudyPlansConfig",
     "apps.class_schedule.apps.ClassScheduleConfig",
+    "apps.biweekly.apps.BiweeklyConfig",
     "apps.community.apps.CommunityConfig",
     "apps.moderation.apps.ModerationConfig",
     "apps.xp.apps.XpConfig",
