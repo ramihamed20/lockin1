@@ -3,6 +3,7 @@
 import base64
 from datetime import timedelta
 from pathlib import Path
+from typing import Any
 
 from django.conf import settings
 from django.core.files.base import ContentFile
@@ -27,7 +28,7 @@ def _duration(seconds: int | None) -> str:
     return f"{hours}h {minutes:02d}m" if hours else f"{minutes}m"
 
 
-def _analysis_context(report: BiweeklySnapshot) -> dict:
+def _analysis_context(report: BiweeklySnapshot) -> dict[str, Any]:
     data = report.data
     metrics = data["metrics"]
     previous = data.get("previous_period_metrics")
@@ -116,7 +117,7 @@ def _analysis_context(report: BiweeklySnapshot) -> dict:
     }
 
 
-def _review_context(report: BiweeklySnapshot) -> dict:
+def _review_context(report: BiweeklySnapshot) -> dict[str, Any]:
     questions = report.data.get("questions", [])
     pages = []
     for index in range(0, len(questions), 3):
@@ -152,9 +153,10 @@ def _review_context(report: BiweeklySnapshot) -> dict:
 def render_pdf(report: BiweeklySnapshot) -> bytes:
     from weasyprint import HTML, default_url_fetcher
 
-    def safe_fetch(url: str) -> dict:
+    def safe_fetch(url: str) -> dict[str, Any]:
         if url.startswith("data:image/png;base64,"):
-            return default_url_fetcher(url)
+            fetched: dict[str, Any] = default_url_fetcher(url)
+            return fetched
         raise ValueError("External resources are not permitted in a study report.")
 
     context = {
@@ -171,7 +173,9 @@ def render_pdf(report: BiweeklySnapshot) -> bytes:
         context.update(_review_context(report))
         template = "biweekly/review.html"
     html = render_to_string(template, context)
-    return HTML(string=html, base_url=str(settings.BASE_DIR), url_fetcher=safe_fetch).write_pdf()
+    document = HTML(string=html, base_url=str(settings.BASE_DIR), url_fetcher=safe_fetch)
+    rendered: bytes = document.write_pdf()
+    return rendered
 
 
 @transaction.atomic

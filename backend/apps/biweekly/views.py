@@ -1,5 +1,6 @@
 from contextlib import suppress
 from datetime import UTC, timedelta
+from typing import Any
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from django.db import transaction
@@ -38,7 +39,7 @@ def _report(user: User, report_type: str, snapshot_id: UUID) -> BiweeklySnapshot
     return report
 
 
-def _payload(report: BiweeklySnapshot) -> dict:
+def _payload(report: BiweeklySnapshot) -> dict[str, Any]:
     return {
         "id": str(report.id),
         "report_type": report.report_type,
@@ -60,7 +61,7 @@ class BiweeklyHistoryView(APIView):
             raise NotFound()
         user = _user(request)
         ensure_latest_closed(user)
-        start, end = period_at(timezone.now())
+        start, end = period_at(user, timezone.now())
         history = BiweeklySnapshot.objects.filter(
             user=user, report_type=report_type
         ).select_related("test")

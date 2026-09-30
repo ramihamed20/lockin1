@@ -2,7 +2,9 @@
 
 from collections import Counter, defaultdict
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
@@ -18,20 +20,37 @@ from apps.xp.models import XpTransaction
 
 from .models import BiweeklySnapshot
 
-ANCHOR = datetime(2026, 9, 15, tzinfo=UTC)
 PERIOD = timedelta(days=14)
 
 
-def period_at(instant: datetime) -> tuple[datetime, datetime]:
-    """Return immutable half-open UTC boundaries for the period containing instant."""
-    index = (instant.astimezone(UTC) - ANCHOR) // PERIOD
-    start = ANCHOR + index * PERIOD
+def launch_at() -> datetime:
+    launch = datetime.fromisoformat(settings.BIWEEKLY_LAUNCH_AT)
+    if launch.tzinfo is None:
+        raise ValueError("BIWEEKLY_LAUNCH_AT must include a timezone offset.")
+    return launch.astimezone(UTC)
+
+
+def anchor_for(user: User) -> datetime:
+    """Start of the account's first period: its UTC sign-up day, never before launch."""
+    joined = user.date_joined.astimezone(UTC)
+    return max(launch_at(), datetime(joined.year, joined.month, joined.day, tzinfo=UTC))
+
+
+def period_at(user: User, instant: datetime) -> tuple[datetime, datetime]:
+    """Return immutable half-open UTC boundaries of the account's period containing instant.
+
+    Before the first period starts, the first period is the current one, so the
+    countdown already points at the first report.
+    """
+    anchor = anchor_for(user)
+    index = max(0, (instant.astimezone(UTC) - anchor) // PERIOD)
+    start = anchor + index * PERIOD
     return start, start + PERIOD
 
 
-def most_recent_closed(now: datetime | None = None) -> tuple[datetime, datetime] | None:
-    current_start, _ = period_at(now or timezone.now())
-    if current_start <= ANCHOR:
+def most_recent_closed(user: User, now: datetime | None = None) -> tuple[datetime, datetime] | None:
+    current_start, _ = period_at(user, now or timezone.now())
+    if current_start <= anchor_for(user):
         return None
     return current_start - PERIOD, current_start
 
@@ -42,14 +61,14 @@ def _subject_label(version: QuestionVersion | None) -> str:
     return _subject_label_for_node(version.academic_node)
 
 
-def _subject_label_for_node(node) -> str:
+def _subject_label_for_node(node: Any) -> str:
     while node.parent_id and node.kind != node.Kind.SUBJECT:
         node = node.parent
-    return node.title
+    return str(node.title)
 
 
-def _question_rows(user: User, start: datetime, end: datetime) -> list[dict]:
-    rows = []
+def _question_rows(user: User, start: datetime, end: datetime) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
     normal = QuestionAnswer.objects.filter(
         user=user, answered_at__gte=start, answered_at__lt=end
     ).select_related("version__academic_node__parent__parent")
@@ -83,19 +102,21 @@ def _question_rows(user: User, start: datetime, end: datetime) -> list[dict]:
         answered_at__gte=start,
         answered_at__lt=end,
     ).select_related("attempt__run")
-    for answer in active:
+    for active_answer in active:
         rows.append(
             {
-                "correct": answer.was_correct,
-                "difficulty": answer.attempt.run.difficulty,
-                "subject": answer.attempt.run.material_slug or "Active Study",
-                "at": answer.answered_at,
+                "correct": active_answer.was_correct,
+                "difficulty": active_answer.attempt.run.difficulty,
+                "subject": active_answer.attempt.run.material_slug or "Active Study",
+                "at": active_answer.answered_at,
             }
         )
     return rows
 
 
-def analysis_data(user: User, start: datetime, end: datetime, previous: dict | None) -> dict:
+def analysis_data(
+    user: User, start: datetime, end: datetime, previous: dict[str, Any] | None
+) -> dict[str, Any]:
     sessions = list(
         FocusSession.objects.filter(
             user=user,
@@ -122,8 +143,8 @@ def analysis_data(user: User, start: datetime, end: datetime, previous: dict | N
         streak_days | {s.started_at.date() for s in sessions} | {r["at"].date() for r in questions}
     )
     correct = sum(bool(row["correct"]) for row in questions)
-    subject_counts = defaultdict(lambda: [0, 0])
-    difficulty_counts = defaultdict(lambda: [0, 0])
+    subject_counts: defaultdict[str, list[int]] = defaultdict(lambda: [0, 0])
+    difficulty_counts: defaultdict[str, list[int]] = defaultdict(lambda: [0, 0])
     for row in questions:
         subject_counts[row["subject"]][0] += 1
         subject_counts[row["subject"]][1] += bool(row["correct"])
@@ -168,8 +189,8 @@ def analysis_data(user: User, start: datetime, end: datetime, previous: dict | N
             "academic_node", "academic_node__parent", "academic_node__parent__parent"
         )
     }
-    subject_time = Counter()
-    sheet_time = Counter()
+    subject_time: Counter[str] = Counter()
+    sheet_time: Counter[str] = Counter()
     for session in sessions:
         document = documents.get(str(session.context_id))
         if document:
@@ -185,7 +206,7 @@ def analysis_data(user: User, start: datetime, end: datetime, previous: dict | N
         completed_at__lt=end,
         version__content_type=LearningObjectVersion.ContentType.PDF,
     ).count()
-    metrics = {
+    metrics: dict[str, Any] = {
         "study_time_seconds": focus_seconds,
         "focus_time_seconds": focus_seconds,
         "questions_answered": len(questions),
@@ -216,7 +237,7 @@ def analysis_data(user: User, start: datetime, end: datetime, previous: dict | N
         }
         for difficulty in ("easy", "medium", "hard")
     ]
-    subjects = [
+    subjects: list[dict[str, Any]] = [
         {
             "subject": subject,
             "answered": total,
@@ -267,7 +288,7 @@ def analysis_data(user: User, start: datetime, end: datetime, previous: dict | N
     }
 
 
-def review_data(user: User, start: datetime, end: datetime) -> dict:
+def review_data(user: User, start: datetime, end: datetime) -> dict[str, Any]:
     events = (
         MistakeEvent.objects.filter(user=user, answered_at__gte=start, answered_at__lt=end)
         .select_related(
@@ -351,7 +372,13 @@ def review_data(user: User, start: datetime, end: datetime) -> dict:
 def create_snapshot(
     *, user: User, report_type: str, start: datetime, end: datetime
 ) -> BiweeklySnapshot:
-    if report_type not in BiweeklySnapshot.Type.values or end != start + PERIOD or start < ANCHOR:
+    anchor = anchor_for(user)
+    if (
+        report_type not in BiweeklySnapshot.Type.values
+        or end != start + PERIOD
+        or start < anchor
+        or (start - anchor) % PERIOD
+    ):
         raise ValueError("Invalid biweekly report period.")
     if timezone.now() < end:
         raise ValueError("An active period cannot be frozen.")
@@ -380,7 +407,7 @@ def create_snapshot(
 
 
 def ensure_latest_closed(user: User, now: datetime | None = None) -> None:
-    period = most_recent_closed(now)
+    period = most_recent_closed(user, now)
     if period:
         for report_type in BiweeklySnapshot.Type.values:
             create_snapshot(user=user, report_type=report_type, start=period[0], end=period[1])

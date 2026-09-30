@@ -11,7 +11,8 @@ from ...services import create_snapshot, most_recent_closed
 
 class Command(BaseCommand):
     help = (
-        "Freeze the latest closed 14-day reports. --as-of permits an explicit historical backfill."
+        "Freeze each account's latest closed 14-day reports. "
+        "--as-of permits an explicit historical backfill."
     )
 
     def add_arguments(self, parser: CommandParser) -> None:
@@ -30,17 +31,17 @@ class Command(BaseCommand):
             raise ValueError("--as-of must include a timezone offset.")
         if now > timezone.now():
             raise ValueError("--as-of cannot be in the future.")
-        period = most_recent_closed(now)
-        if period is None:
-            self.stdout.write("No closed biweekly period yet.")
-            return
-        start, end = period
         users = User.objects.order_by("id")
         if options.get("user_id"):
-            users = users.filter(id=options["user_id"])
+            users = users.filter(id=str(options["user_id"]))
         created = 0
         existing = 0
         for user in users.iterator(chunk_size=250):
+            # Each account runs its own cycle; one still in its first period has nothing to close.
+            period = most_recent_closed(user, now)
+            if period is None:
+                continue
+            start, end = period
             for report_type in BiweeklySnapshot.Type.values:
                 if BiweeklySnapshot.objects.filter(
                     user=user,
@@ -53,5 +54,6 @@ class Command(BaseCommand):
                     create_snapshot(user=user, report_type=report_type, start=start, end=end)
                 created += 1
         mode = "would create" if options["dry_run"] else "created"
-        label = f"{start.astimezone(UTC).isoformat()}–{end.astimezone(UTC).isoformat()}"
-        self.stdout.write(f"{label}: {mode} {created}, existing {existing}.")
+        self.stdout.write(
+            f"As of {now.astimezone(UTC).isoformat()}: {mode} {created}, existing {existing}."
+        )

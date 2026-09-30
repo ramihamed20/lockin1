@@ -1,13 +1,16 @@
 from datetime import UTC, datetime, timedelta
+from io import StringIO
 from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
 from django.core.files.base import ContentFile
+from django.core.management import call_command
 from django.template.loader import render_to_string
 from rest_framework.test import APIClient
 
-from apps.accounts.tests.helpers import create_user
+from apps.accounts.models import User
+from apps.accounts.tests import helpers
 from apps.education.tests.helpers import create_admin, published_path
 from apps.focus.models import FocusSession
 from apps.questions.answering import answer_question
@@ -16,13 +19,28 @@ from apps.review.models import MistakeEvent, ReviewItem
 
 from ..models import BiweeklySnapshot
 from ..pdf import _review_context
-from ..services import ANCHOR, PERIOD, create_snapshot, most_recent_closed, period_at
+from ..services import PERIOD, anchor_for, create_snapshot, most_recent_closed, period_at
 
 pytestmark = pytest.mark.django_db
 
+LAUNCH = datetime(2026, 1, 5, tzinfo=UTC)
 
-def closed_period():
-    period = most_recent_closed()
+
+@pytest.fixture(autouse=True)
+def launched(settings):
+    settings.BIWEEKLY_LAUNCH_AT = LAUNCH.isoformat()
+
+
+def create_user(*, joined=LAUNCH - timedelta(days=30), **kwargs):
+    """An account old enough that its cycle starts at launch, so closed periods exist."""
+    user = helpers.create_user(**kwargs)
+    User.objects.filter(pk=user.pk).update(date_joined=joined)
+    user.refresh_from_db()
+    return user
+
+
+def closed_period(user):
+    period = most_recent_closed(user)
     assert period is not None
     return period
 
@@ -55,18 +73,71 @@ def question(index, *, kind="single_choice", long=False):
 
 
 def test_fixed_half_open_boundaries_and_no_active_period_snapshot():
-    assert period_at(ANCHOR) == (ANCHOR, ANCHOR + PERIOD)
-    assert period_at(ANCHOR + PERIOD - timedelta(microseconds=1))[0] == ANCHOR
-    assert period_at(ANCHOR + PERIOD)[0] == ANCHOR + PERIOD
     user = create_user(with_trial=True)
-    active_start, active_end = period_at(datetime.now(UTC))
+    assert anchor_for(user) == LAUNCH
+    assert period_at(user, LAUNCH) == (LAUNCH, LAUNCH + PERIOD)
+    assert period_at(user, LAUNCH + PERIOD - timedelta(microseconds=1))[0] == LAUNCH
+    assert period_at(user, LAUNCH + PERIOD)[0] == LAUNCH + PERIOD
+    active_start, active_end = period_at(user, datetime.now(UTC))
     with pytest.raises(ValueError, match="active period"):
         create_snapshot(user=user, report_type="analysis", start=active_start, end=active_end)
+    with pytest.raises(ValueError, match="Invalid"):
+        create_snapshot(
+            user=user,
+            report_type="analysis",
+            start=LAUNCH + timedelta(days=1),
+            end=LAUNCH + timedelta(days=1) + PERIOD,
+        )
+
+
+def test_first_report_arrives_two_weeks_after_launch(settings):
+    launch = datetime.now(UTC).replace(microsecond=0) + timedelta(hours=1)
+    settings.BIWEEKLY_LAUNCH_AT = launch.isoformat()
+    user = create_user(with_trial=True)
+    assert most_recent_closed(user) is None
+    assert most_recent_closed(user, launch + PERIOD - timedelta(seconds=1)) is None
+    assert most_recent_closed(user, launch + PERIOD) == (launch, launch + PERIOD)
+    client = APIClient()
+    client.force_authenticate(user)
+    body = client.get("/api/v1/biweekly/analysis").json()
+    assert body["history"] == []
+    assert body["current_period"]["next_report_at"] == (launch + PERIOD).isoformat().replace(
+        "+00:00", "Z"
+    )
+    assert not BiweeklySnapshot.objects.filter(user=user).exists()
+
+
+def test_new_account_waits_two_weeks_from_its_own_sign_up_day():
+    joined = datetime.now(UTC) - timedelta(days=3)
+    user = create_user(joined=joined, with_trial=True)
+    first_day = datetime(joined.year, joined.month, joined.day, tzinfo=UTC)
+    assert anchor_for(user) == first_day
+    assert period_at(user, datetime.now(UTC)) == (first_day, first_day + PERIOD)
+    assert most_recent_closed(user) is None
+    assert most_recent_closed(user, first_day + PERIOD) == (first_day, first_day + PERIOD)
+    with pytest.raises(ValueError, match="Invalid"):
+        create_snapshot(user=user, report_type="review", start=first_day - PERIOD, end=first_day)
+
+
+def test_close_command_freezes_only_accounts_whose_first_period_closed():
+    veteran = create_user(email="biweekly-veteran@example.com", with_trial=True)
+    newcomer = create_user(
+        email="biweekly-newcomer@example.com",
+        joined=datetime.now(UTC) - timedelta(days=2),
+        with_trial=True,
+    )
+    output = StringIO()
+    call_command("close_biweekly_reports", stdout=output)
+    assert BiweeklySnapshot.objects.filter(user=veteran).count() == 2
+    assert not BiweeklySnapshot.objects.filter(user=newcomer).exists()
+    assert "created 2, existing 0" in output.getvalue()
+    call_command("close_biweekly_reports", stdout=output)
+    assert "created 0, existing 2" in output.getvalue()
 
 
 def test_idempotent_frozen_analysis_and_first_period_comparison():
     user = create_user(with_trial=True)
-    start, end = closed_period()
+    start, end = closed_period(user)
     session = FocusSession.objects.create(
         user=user,
         status=FocusSession.Status.COMPLETED,
@@ -91,8 +162,8 @@ def test_idempotent_frozen_analysis_and_first_period_comparison():
 
 def test_immediately_previous_period_only_and_history_ordering():
     user = create_user(with_trial=True)
-    older_start = ANCHOR
-    newest_start = ANCHOR + PERIOD
+    older_start = LAUNCH
+    newest_start = LAUNCH + PERIOD
     newest_end = newest_start + PERIOD
     with patch("apps.biweekly.services.timezone.now", return_value=newest_end):
         previous = create_snapshot(
@@ -111,7 +182,7 @@ def test_immediately_previous_period_only_and_history_ordering():
 
 def test_review_freezes_existing_mistake_without_copying_question_bank():
     user = create_user(with_trial=True)
-    start, end = closed_period()
+    start, end = closed_period(user)
     client = APIClient()
     client.force_authenticate(user)
     response = client.post(
@@ -164,7 +235,7 @@ def test_wrong_normal_question_enters_existing_review_with_versioned_content():
 def test_owner_only_history_and_old_report_stays_available_after_new_period():
     owner = create_user(email="biweekly-owner@example.com", with_trial=True)
     stranger = create_user(email="biweekly-stranger@example.com", with_trial=True)
-    start, end = closed_period()
+    start, end = closed_period(owner)
     report = create_snapshot(user=owner, report_type="review", start=start, end=end)
     owner_client, stranger_client = APIClient(), APIClient()
     owner_client.force_authenticate(owner)
@@ -182,7 +253,7 @@ def test_owner_only_history_and_old_report_stays_available_after_new_period():
 def test_private_old_pdf_download_remains_repeatable_after_new_report(tmp_path, settings):
     settings.MEDIA_ROOT = tmp_path
     user = create_user(with_trial=True)
-    start, end = closed_period()
+    start, end = closed_period(user)
     old = BiweeklySnapshot.objects.create(
         user=user,
         report_type="analysis",
@@ -214,7 +285,7 @@ def test_private_old_pdf_download_remains_repeatable_after_new_report(tmp_path, 
 @pytest.mark.parametrize("count", [0, 1, 3, 4, 32, 100])
 def test_review_template_groups_three_normal_cards_without_fixed_limit(count):
     user = create_user(with_trial=True)
-    start, end = closed_period()
+    start, end = closed_period(user)
     report = BiweeklySnapshot.objects.create(
         user=user,
         report_type="review",
@@ -240,7 +311,7 @@ def test_review_template_groups_three_normal_cards_without_fixed_limit(count):
 
 def test_long_explanation_is_not_truncated_in_review_template():
     user = create_user(with_trial=True)
-    start, end = closed_period()
+    start, end = closed_period(user)
     row = question(1, long=True)
     report = BiweeklySnapshot.objects.create(
         user=user,
@@ -269,7 +340,7 @@ def test_long_explanation_is_not_truncated_in_review_template():
 )
 def test_frozen_review_test_preserves_exact_set_grading(kind, selected, correct):
     user = create_user(with_trial=True)
-    start, end = closed_period()
+    start, end = closed_period(user)
     row = question(1, kind=kind)
     report = BiweeklySnapshot.objects.create(
         user=user,

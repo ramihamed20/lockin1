@@ -79,7 +79,7 @@ module = ["config.settings.*"]
 disable_error_code = ["name-defined", "misc"]
 
 [[tool.mypy.overrides]]
-module = ["botocore.*", "boto3.*", "storages.*"]
+module = ["botocore.*", "boto3.*", "storages.*", "weasyprint.*"]
 ignore_missing_imports = true
 
 [tool.django-stubs]

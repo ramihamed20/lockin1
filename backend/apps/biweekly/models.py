@@ -5,7 +5,7 @@ from django.db import models
 from django.db.models import F, Q
 
 
-def report_upload_path(instance, filename):
+def report_upload_path(instance: "BiweeklySnapshot", filename: str) -> str:
     return (
         f"biweekly/{instance.user_id}/{instance.report_type}/"
         f"{instance.period_start:%Y-%m-%d}/{filename}"
