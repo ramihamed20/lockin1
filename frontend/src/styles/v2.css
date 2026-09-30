@@ -781,6 +781,24 @@ html.ix-hover .settings-v2-back:hover {
   border-radius: 10px;
 }
 
+/* Beside the sidebar at laptop and tablet widths each of the five cells is
+   ~140px: icon, number and chevron left the label a sliver ("Best: 0 days"
+   broke over four lines). Stack the cell instead; the whole cell is the link,
+   so the chevron can go. */
+@media (min-width: 700px) and (max-width: 1279px) {
+  .dashboard-stats-grid :is(.stat-card-action, .stat-card-static) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .dashboard-stats-grid .stat-card-chevron { display: none; }
+
+  .dashboard-stats-grid .stat-card-meta { flex-direction: column; align-items: flex-start; gap: 0; }
+
+  .dashboard-stats-grid .stat-card-sub { white-space: nowrap; }
+}
+
 .dashboard-left .continue-card h2 {
   font-weight: var(--weight-bold);
   letter-spacing: -0.02em;

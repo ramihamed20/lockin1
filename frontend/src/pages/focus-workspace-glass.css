@@ -1568,3 +1568,30 @@ html.ix-hover .workspace-v2-answer-list button:hover:not(.is-selected):not([aria
 /* Numbers about the document read left to right in every language: "1 / 12"
    had become "12 / 1", and "2×" had become "×2", under an Arabic interface. */
 .workspace-v2 :is(.workspace-v2-page-number, .workspace-v2-zoom-bar, .workspace-v2-page-jump, .workspace-v2-zoom-control, .workspace-v4-zoom-presets, .workspace-v4-zoom-hud) { direction: ltr; }
+
+/* ------------------------------- One chrome material in every theme (V2) */
+
+/* The toolbar, menus and panels are one dark glass in every theme, as the head
+   of this file says. A few floating pieces had light-theme overrides and went
+   white under Day, Dawn and Sunset while the rest stayed dark, and the page
+   count's "/ 12" became white on white. They follow the chrome again. */
+:root:is([data-theme]) .workspace-v2 :is(.workspace-v2-page-number, .workspace-v2-toast, .workspace-v2-page-navigator, .workspace-v2-zoom-bar) {
+  border-color: var(--fx-edge);
+  color: var(--fx-text);
+  background: var(--fx-glass);
+}
+:root:is([data-theme]) .workspace-v2 :is(.workspace-v2-page-navigator button, .workspace-v2-zoom-bar button) { color: var(--fx-text); }
+:root:is([data-theme]) .workspace-v2 .workspace-v2-page-navigator button { background: var(--fx-fill); }
+:root:is([data-theme]) .workspace-v2 :is(.workspace-v2-zoom-bar output, .workspace-v2-page-number strong) { color: var(--fx-text); }
+:root:is([data-theme]) .workspace-v2 .workspace-v2-page-input input { color: var(--fx-text); background: var(--fx-fill-strong); }
+:root:is([data-theme]) .workspace-v8-selection-toolbar,
+:root:is([data-theme]) .workspace-v8-export-sheet {
+  --fx-text: #f5f6f8;
+  --fx-text-2: rgb(235 238 245 / .74);
+  --fx-edge: rgb(255 255 255 / .1);
+  --fx-hair: rgb(255 255 255 / .08);
+  background: rgb(28 31 38 / .96);
+  box-shadow: 0 16px 40px -14px rgb(0 0 0 / .55), 0 1px 3px rgb(0 0 0 / .25);
+}
+:root:is([data-theme]) .workspace-v8-selection-toolbar button.is-danger { color: #ff8a93; }
+:root:is([data-theme]) .workspace-v8-export-actions :is(button, a):not(.is-primary) { background: rgb(255 255 255 / .1); }
