@@ -241,6 +241,7 @@ export {
   RadioOption,
   SegmentedControl,
   SelectableRow,
+  Switch,
   Tab,
   TabList,
   ToggleButton,

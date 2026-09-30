@@ -114,7 +114,7 @@ html.ix-hover .catalog-sheet-grid > .catalog-sheet-card:not(.is-unavailable):hov
 }
 
 .topbar[data-scrolled] {
-  border-bottom-color: var(--polish-line);
+  border-bottom-color: var(--separator);
 }
 
 /* A page that prints its own large title owns its name while that title is

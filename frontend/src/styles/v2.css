@@ -1,0 +1,504 @@
+/* ==========================================================================
+   Lock-in V2 — screen compositions.
+
+   Tokens (tokens.css) and the shared components (system.css: capsule buttons,
+   fill-based cards, the grouped list `.ui-group` / `.ui-row`, the `.ui-switch`)
+   carry the V2 language everywhere. This file only composes screens that were
+   rebuilt around those parts, so each block names one screen and nothing here
+   restyles a shared component.
+
+   Sits in the system layer after the earlier passes (polish, refine,
+   study-flow); the one interaction-layer block at the end neutralises the
+   generic selected tint where a screen draws its own selection.
+   ========================================================================== */
+
+@layer system {
+
+/* --- Settings -------------------------------------------------------------- */
+
+/* One column on phones and tablets: the section list is a screen of its own
+   and a section opens in its place (with a way back). From 1100px the list
+   stays beside the open section, the way desktop settings apps work. */
+.settings-v2 {
+  display: grid;
+  gap: 18px;
+  width: 100%;
+  max-width: 680px;
+  min-width: 0;
+  margin-inline: auto;
+}
+
+.settings-v2-head h1 {
+  margin: 0;
+  font-size: var(--title-large);
+  font-weight: var(--weight-bold);
+  line-height: 1.15;
+  letter-spacing: var(--tracking-title);
+}
+
+.settings-v2-nav .ui-row {
+  min-height: 52px;
+}
+
+.settings-v2-icon {
+  color: #fff;
+}
+
+.settings-v2-icon--account { background: #5b6bdc; }
+.settings-v2-icon--appearance { background: #c7892a; }
+.settings-v2-icon--notifications { background: #d6524f; }
+.settings-v2-icon--offline { background: #2f9a6c; }
+
+.settings-v2-detail {
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+}
+
+.settings-v2-detail-head {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+}
+
+.settings-v2-detail-head h2 {
+  margin: 0;
+  font-size: var(--title-large);
+  font-weight: var(--weight-bold);
+  line-height: 1.15;
+  letter-spacing: var(--tracking-title);
+}
+
+.settings-v2-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  margin-inline-start: -8px;
+  padding: 0 10px 0 4px;
+  border: 0;
+  border-radius: var(--radius-full);
+  color: var(--accent-text);
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+[dir="rtl"] .settings-v2-back svg {
+  transform: scaleX(-1);
+}
+
+html.ix-hover .settings-v2-back:hover {
+  background: var(--accent-soft);
+}
+
+.settings-v2-section {
+  display: grid;
+  gap: 26px;
+  min-width: 0;
+}
+
+.settings-v2-block {
+  gap: 8px;
+}
+
+.settings-v2-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.settings-v2-group-head .icon-btn {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+}
+
+@media (pointer: coarse) {
+  .settings-v2-group-head .icon-btn {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+}
+
+.settings-v2-pad {
+  padding: 14px;
+}
+
+.settings-v2-action .ui-row-body > span {
+  color: var(--accent-text);
+}
+
+.settings-v2-profile .ui-row {
+  gap: 14px;
+  min-height: 76px;
+  padding-block: 12px;
+}
+
+.settings-v2-avatar {
+  flex: 0 0 52px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.settings-v2-profile .ui-row-body > strong {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.settings-v2-profile .ui-row-value {
+  font-size: var(--text-sm);
+}
+
+.settings-v2-select {
+  min-width: 128px;
+  max-width: 50%;
+  height: 34px;
+  min-height: 34px;
+  padding-inline: 10px 28px;
+  cursor: pointer;
+}
+
+.settings-v2-disclosure {
+  transition: transform var(--motion-control-duration) var(--motion-enter-ease);
+}
+
+[aria-expanded="true"] > .settings-v2-disclosure {
+  transform: rotate(180deg);
+}
+
+/* Forms inside a group: fields stacked in the group's own padding, with the
+   action at the end of the last line. */
+.settings-v2-form {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.settings-v2-form--inset {
+  border-block-start: 1px solid var(--separator);
+}
+
+.settings-v2-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.settings-v2-form-actions > [role="status"] {
+  color: var(--success);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.settings-v2-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-md);
+  line-height: 1.5;
+}
+
+.settings-v2 .subscription-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.settings-v2 .subscription-state > span:last-child {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0 6px;
+}
+
+.settings-v2 .subscription-state strong {
+  font-weight: var(--weight-medium);
+}
+
+/* Visual choices (theme, character, app icon): a picture with its name under
+   it, selected by a ring around the picture rather than a filled card. */
+.settings-v2-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 14px 12px;
+}
+
+.settings-v2-choices--characters {
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+}
+
+.settings-v2-choice {
+  display: grid;
+  justify-items: stretch;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  color: var(--text);
+  background: transparent;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+.settings-v2-choice-art {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--surface-3);
+  box-shadow: 0 0 0 1px var(--separator);
+  transition: box-shadow var(--motion-control-duration) var(--motion-enter-ease);
+}
+
+.settings-v2-choice-art :is(img, picture, .theme-preview-empty) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.settings-v2-choice[aria-checked="true"] .settings-v2-choice-art {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+}
+
+.settings-v2-choice-label {
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+}
+
+.settings-v2-choice[aria-checked="true"] .settings-v2-choice-label {
+  color: var(--accent-text);
+  font-weight: var(--weight-semibold);
+}
+
+.settings-v2-choice small {
+  margin-block-start: -4px;
+  color: var(--soft);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-v2-choices.manual-disabled .settings-v2-choice {
+  opacity: 0.5;
+}
+
+.settings-v2-icons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.settings-v2-icon-option {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  min-width: 72px;
+  padding: 0;
+  border: 0;
+  color: var(--text);
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.settings-v2-icon-option img {
+  width: 60px;
+  height: 60px;
+  border-radius: 14px;
+  box-shadow: 0 0 0 1px var(--separator);
+  transition: box-shadow var(--motion-control-duration) var(--motion-enter-ease);
+}
+
+.settings-v2-icon-option[aria-checked="true"] img {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+}
+
+.settings-v2-icon-option[aria-checked="true"] span {
+  color: var(--accent-text);
+}
+
+.settings-v2-saving {
+  position: fixed;
+  inset-block-end: calc(var(--safe-bottom, 0px) + 84px);
+  inset-inline-start: 50%;
+  z-index: var(--z-toast);
+  margin: 0;
+  padding: 7px 14px;
+  border-radius: var(--radius-full);
+  color: var(--text);
+  background: var(--material-thick);
+  box-shadow: var(--shadow-float);
+  -webkit-backdrop-filter: var(--material-filter);
+  backdrop-filter: var(--material-filter);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+[dir="rtl"] .settings-v2-saving {
+  transform: translateX(50%);
+}
+
+/* The page's own title is only printed on the list; an open section is
+   titled by its own name with the way back above it. */
+@media (max-width: 1099px) {
+  .settings-v2[data-view="root"] > .settings-v2-detail,
+  .settings-v2[data-view="detail"] > .settings-v2-nav {
+    display: none;
+  }
+
+  .settings-v2[data-view="detail"] > .settings-v2-head {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .settings-v2[data-view="detail"] > .settings-v2-detail {
+    animation: settings-v2-push var(--motion-panel-duration) var(--motion-enter-ease) both;
+  }
+
+  .settings-v2-nav .ui-row[data-current] {
+    background: transparent;
+  }
+}
+
+@keyframes settings-v2-push {
+  from { opacity: 0; transform: translateX(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes settings-v2-push-rtl {
+  from { opacity: 0; transform: translateX(-18px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 1099px) {
+  [dir="rtl"] .settings-v2[data-view="detail"] > .settings-v2-detail {
+    animation-name: settings-v2-push-rtl;
+  }
+}
+
+@media (min-width: 1100px) {
+  .settings-v2 {
+    grid-template-columns: 248px minmax(0, 1fr);
+    align-items: start;
+    column-gap: 36px;
+    max-width: 1040px;
+  }
+
+  .settings-v2-head {
+    grid-column: 1 / -1;
+  }
+
+  /* Clears the sticky top bar (56px plus the safe area) with a small gap. */
+  .settings-v2-nav {
+    position: sticky;
+    top: calc(72px + var(--safe-top, 0px));
+  }
+
+  .settings-v2-nav .ui-row {
+    min-height: 46px;
+  }
+
+  .settings-v2-nav .ui-row-value {
+    display: none;
+  }
+
+  .settings-v2-nav .ui-row[data-current] {
+    background: color-mix(in srgb, var(--accent) 13%, transparent);
+  }
+
+  .settings-v2-nav .ui-row[data-current] .ui-row-body > span {
+    font-weight: var(--weight-semibold);
+  }
+
+  .settings-v2-back {
+    display: none;
+  }
+
+  .settings-v2-detail-head h2 {
+    font-size: var(--text-2xl);
+  }
+
+  .settings-v2-detail {
+    max-width: 680px;
+  }
+}
+
+@media (max-width: 639px) {
+  .settings-v2-head h1,
+  .settings-v2-detail-head h2 {
+    font-size: var(--title-large-phone);
+  }
+
+  .settings-v2-choices {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-v2-choices--characters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .settings-v2-profile .ui-row-value {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-v2[data-view="detail"] > .settings-v2-detail {
+    animation: none;
+  }
+
+  .settings-v2-disclosure {
+    transition: none;
+  }
+}
+
+}
+
+/* A screen that draws its own selection (a ring, a bold label) must not also
+   receive the generic selected tint: one indicator per state. */
+@layer interaction {
+  :is(.settings-v2-choice, .settings-v2-icon-option)[data-ix-selected] {
+    color: var(--text);
+    background: transparent;
+  }
+
+  html.ix-hover :is(.settings-v2-choice, .settings-v2-icon-option):hover {
+    background: transparent;
+  }
+
+  html.ix-hover .settings-v2-choice:hover .settings-v2-choice-art {
+    box-shadow: 0 0 0 1px var(--border-strong);
+  }
+
+  html.ix-hover .settings-v2-choice[aria-checked="true"]:hover .settings-v2-choice-art {
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+  }
+
+  :is(.settings-v2-choice, .settings-v2-icon-option)[data-ix-pressed] {
+    --ix-press-scale: 0.97;
+    filter: none;
+  }
+}

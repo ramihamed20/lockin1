@@ -125,6 +125,43 @@ export const ToggleButton = forwardRef(
 );
 
 /* ------------------------------------------------------------------ *
+ * Switch — a setting that is on or off
+ *
+ * A ToggleButton is a pressed/unpressed tool; a Switch is a setting, so it is
+ * announced as role="switch" with aria-checked, and draws a track and thumb
+ * instead of a word. Pair it with a <label htmlFor> so the whole row is the
+ * target: a button is a labelable element, so clicking the label flips it.
+ * ------------------------------------------------------------------ */
+
+export const Switch = forwardRef(
+  /**
+   * @param {{ checked: boolean, onCheckedChange?: (next: boolean) => void, label?: string, busy?: boolean, className?: string } & Record<string, any>} props
+   * @param {import("react").Ref<HTMLButtonElement>} ref
+   */
+  function Switch({ checked, onCheckedChange, label = "", busy = false, className = "", onClick, ...rest }, ref) {
+    return (
+      <button
+        ref={ref}
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label || undefined}
+        aria-busy={busy || undefined}
+        data-ix-press="none"
+        className={classNames("ui-switch", className)}
+        onClick={(event) => {
+          onClick?.(event);
+          onCheckedChange?.(!checked);
+        }}
+        {...rest}
+      >
+        <span className="ui-switch-track" aria-hidden="true"><span className="ui-switch-thumb" /></span>
+      </button>
+    );
+  }
+);
+
+/* ------------------------------------------------------------------ *
  * Tabs — one-of-N with roving focus
  * ------------------------------------------------------------------ */
 
