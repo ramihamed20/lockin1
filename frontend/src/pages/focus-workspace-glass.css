@@ -910,7 +910,7 @@ html.ix-hover .workspace-v2 .workspace-v2-settings-popover > header button:hover
   top: calc(var(--workspace-toolbar-height, 84px) + 8px);
   inset-inline-end: max(12px, env(safe-area-inset-right));
   display: flex;
-  width: min(380px, calc(100% - 24px));
+  width: min(392px, calc(100% - 24px));
   height: auto;
   max-height: calc(100% - var(--workspace-toolbar-height, 84px) - 20px - env(safe-area-inset-bottom));
   flex-direction: column;
@@ -957,8 +957,13 @@ html.ix-hover .workspace-v2 .workspace-v2-settings-popover > header button:hover
   transition: background-color 200ms var(--fx-spring), color 200ms var(--fx-spring), box-shadow 200ms var(--fx-spring);
 }
 .workspace-v2 .workspace-v8-settings-tabs button[aria-selected="true"] { color: var(--fx-text); background: rgb(255 255 255 / .16); box-shadow: 0 1px 3px rgb(0 0 0 / .28); }
+/* One column at every width. The older full-screen sheet's two-column rule
+   (min-width: 1000px) also matched this panel, splitting it into two ~175px
+   columns on iPad landscape so every label and description wrapped word by
+   word over the next line. */
 .workspace-v2 .workspace-v8-settings .workspace-v8-settings-panel {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   min-height: 0;
   max-height: none;
   height: auto;
