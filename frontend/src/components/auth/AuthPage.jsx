@@ -253,7 +253,7 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, no
   })[mode], [mode, requiresUsername, t]);
 
   const selectableCohorts = useMemo(() => cohorts.filter(isSelectableStudyPath), [cohorts]);
-  const colleges = useMemo(() => uniqueEducationOptions(selectableCohorts, "college"), [selectableCohorts]);
+  const colleges = useMemo(() => uniqueEducationOptions(selectableCohorts, "college", locale), [selectableCohorts, locale]);
   const specialties = useMemo(() => {
     const values = new Map();
     selectableCohorts.filter((cohort) => educationPathFor(cohort).collegeId === form.collegeId).forEach((cohort) => {

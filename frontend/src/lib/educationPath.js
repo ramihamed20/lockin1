@@ -14,26 +14,30 @@ export function educationPathFor(cohort, locale = "en") {
   const programName = locale === "ar" ? program.name_ar : program.name_en;
   const collegeMatch = code.match(/(?:^|-)\b(tripoli|benghazi|zawiya)$/);
   const collegeId = code === "human-medicine" ? "tripoli" : collegeMatch?.[1] || code || "other";
-  const collegeLabels = { tripoli: "Tripoli", benghazi: "Benghazi", zawiya: "Zawiya" };
+  const arabic = locale === "ar";
+  const collegeLabels = arabic
+    ? { tripoli: "طرابلس", benghazi: "بنغازي", zawiya: "الزاوية" }
+    : { tripoli: "Tripoli", benghazi: "Benghazi", zawiya: "Zawiya" };
+  const other = arabic ? "أخرى" : "Other";
   const specialtyId = code.startsWith("dentistry-") ? "dentistry" : code || "other";
   const specialtyLabel = code.startsWith("dentistry-")
-    ? "Dentistry"
+    ? arabic ? "طب الأسنان" : "Dentistry"
     : code === "human-medicine"
-      ? "Human Medicine"
-      : programName || "Other";
+      ? arabic ? "الطب البشري" : "Human Medicine"
+      : programName || other;
   return {
     collegeId,
-    collegeLabel: collegeLabels[collegeId] || programName || "Other",
+    collegeLabel: collegeLabels[collegeId] || programName || other,
     specialtyId,
     specialtyLabel,
     yearLabel: (locale === "ar" ? cohort?.name_ar : cohort?.name_en) || cohort?.code || ""
   };
 }
 
-export function uniqueEducationOptions(cohorts, property) {
+export function uniqueEducationOptions(cohorts, property, locale = "en") {
   const options = new Map();
   cohorts.filter(isSelectableStudyPath).forEach((cohort) => {
-    const path = educationPathFor(cohort);
+    const path = educationPathFor(cohort, locale);
     const id = path[`${property}Id`];
     if (id && !options.has(id)) options.set(id, { id, label: path[`${property}Label`] });
   });

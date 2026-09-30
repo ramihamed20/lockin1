@@ -24,6 +24,9 @@ export function AccountFieldErrors({ error, field = "", id = undefined }) {
 
 export function AccountFormAlert({ error = null, message = "" }) {
   if (error) {
+    // Fixing every field clears the field messages but can keep the error's
+    // code, which left an empty red box above the submit button.
+    if (!error.message) return null;
     const fieldValues = Object.values(error.fields || {}).flat().filter((value) => typeof value === "string");
     if (!fieldValues.includes(error.message)) return <p className="form-alert error" role="alert">{error.message}</p>;
     return null;

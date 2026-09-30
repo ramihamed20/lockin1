@@ -250,7 +250,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
                       >
                         <span className="settings-v2-choice-art"><ResponsiveThemePreview character={settings.character} theme={option.id} alt={t("settings.themePreviewNamed", { name: t(`settings.theme.${option.id}`) })} sizes="(max-width: 639px) 42vw, 180px" /></span>
                         <span className="settings-v2-choice-label">{t(`settings.theme.${option.id}`)}</span>
-                        <small>{option.time}</small>
+                        <small><span dir="ltr">{option.time}</span></small>
                       </RadioOption>
                     );
                   })}

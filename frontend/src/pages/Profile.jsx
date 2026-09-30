@@ -150,7 +150,7 @@ function ActivityHeatmap({ cells, onSelect, compact = false }) {
 }
 
 export default function Profile({ user, onUserUpdate }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const profile = useAsyncData(loadProfileWorkspace, [user?.id]);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ name: user?.name || "", preferredLanguage: user?.preferredLanguage || "en" });
@@ -177,11 +177,11 @@ export default function Profile({ user, onUserUpdate }) {
   const activeCohortId = founderContextId || account?.cohort?.id || "";
   const activeCohort = cohorts.find((cohort) => cohort.id === activeCohortId) || account?.cohort || null;
   const selectableCohorts = cohorts.filter(isSelectableStudyPath);
-  const studyPathColleges = uniqueEducationOptions(selectableCohorts, "college");
+  const studyPathColleges = uniqueEducationOptions(selectableCohorts, "college", locale);
   const studyPathSpecialties = (() => {
     const options = new Map();
     selectableCohorts.filter((cohort) => educationPathFor(cohort).collegeId === selectedCollegeId).forEach((cohort) => {
-      const path = educationPathFor(cohort);
+      const path = educationPathFor(cohort, locale);
       if (!options.has(path.specialtyId)) options.set(path.specialtyId, { id: path.specialtyId, label: path.specialtyLabel });
     });
     return [...options.values()];
@@ -372,7 +372,7 @@ export default function Profile({ user, onUserUpdate }) {
             {studyPathOpen && <div className="profile-v2-path-form">
               <label className="field"><span>{t("profile.college")}</span><select value={selectedCollegeId} onChange={(event) => { setSelectedCollegeId(event.target.value); setSelectedSpecialtyId(""); setSelectedCohortId(""); }}><option value="">{t("profile.chooseCollege")}</option>{studyPathColleges.map((college) => <option key={college.id} value={college.id}>{college.label}</option>)}</select></label>
               <label className="field"><span>{t("profile.specialty")}</span><select value={selectedSpecialtyId} disabled={!selectedCollegeId} onChange={(event) => { setSelectedSpecialtyId(event.target.value); setSelectedCohortId(""); }}><option value="">{t("profile.chooseSpecialty")}</option>{studyPathSpecialties.map((specialty) => <option key={specialty.id} value={specialty.id}>{specialty.label}</option>)}</select></label>
-              <label className="field"><span>{t("profile.yearBatch")}</span><select value={selectedCohortId} disabled={!selectedSpecialtyId} onChange={(event) => setSelectedCohortId(event.target.value)}><option value="">{t("profile.chooseYear")}</option>{studyPathYears.map((cohort) => <option key={cohort.id} value={cohort.id}>{educationPathFor(cohort).yearLabel}</option>)}</select></label>
+              <label className="field"><span>{t("profile.yearBatch")}</span><select value={selectedCohortId} disabled={!selectedSpecialtyId} onChange={(event) => setSelectedCohortId(event.target.value)}><option value="">{t("profile.chooseYear")}</option>{studyPathYears.map((cohort) => <option key={cohort.id} value={cohort.id}>{educationPathFor(cohort, locale).yearLabel}</option>)}</select></label>
               <div className="profile-v2-edit-actions"><button className="btn btn-soft compact" type="button" onClick={() => setStudyPathOpen(false)}>{t("common.cancel")}</button><button className="btn btn-primary compact" type="button" disabled={!selectedCohortId || selectedCohortId === activeCohortId} onClick={reviewStudyPathChange}>{t("profile.reviewChange")}</button></div>
             </div>}
           </div>
