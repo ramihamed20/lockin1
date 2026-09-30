@@ -629,7 +629,7 @@ const ACTIVE_DIFFICULTIES = [
   ["hard", "questions.difficulty.hard", "materials.activeDifficulty.hard"]
 ];
 
-function StudyModeDialog({ difficulty, setDifficulty, activeAvailable, restartProgress, busy, error, onNormal, onActive, onRestart, activeOnly = false }) {
+function StudyModeDialog({ difficulty, setDifficulty, activeAvailable, restartProgress, completed = [], busy, error, onNormal, onActive, onRestart, activeOnly = false }) {
   const { t } = useI18n();
   const dialogRef = useDialogFocus();
   const [confirmRestart, setConfirmRestart] = useState(false);
@@ -649,8 +649,8 @@ function StudyModeDialog({ difficulty, setDifficulty, activeAvailable, restartPr
               <span className="workspace-v2-mode-icon"><Brain size={20} /></span>
               <span className="workspace-v2-mode-copy"><strong>{t("materials.activeStudy")}</strong><small>{t("materials.activeStudyDescription")}</small></span>
             </div>
-            <div className="workspace-v2-difficulty" role="radiogroup" aria-label="Active Study difficulty">
-              {ACTIVE_DIFFICULTIES.map(([id, labelKey, detailKey]) => <button key={id} type="button" role="radio" aria-label={`${t(labelKey)}: ${t(detailKey)}`} title={t(detailKey)} aria-checked={difficulty === id} className={difficulty === id ? "is-selected" : ""} onClick={() => { setDifficulty(id); setConfirmRestart(false); }}>{t(labelKey)}</button>)}
+            <div className="workspace-v2-difficulty" role="radiogroup" aria-label={t("materials.activeDifficultyGroup")}>
+              {ACTIVE_DIFFICULTIES.map(([id, labelKey, detailKey]) => { const done = completed.includes(id); return <button key={id} type="button" role="radio" aria-label={`${t(labelKey)}: ${t(detailKey)}${done ? ` · ${t("materials.activeDifficultyDone")}` : ""}`} title={t(detailKey)} aria-checked={difficulty === id} className={difficulty === id ? "is-selected" : ""} onClick={() => { setDifficulty(id); setConfirmRestart(false); }}>{t(labelKey)}{done && <Check className="workspace-v2-difficulty-done" size={13} strokeWidth={2.6} aria-hidden="true" />}</button>; })}
             </div>
             <button type="button" className="workspace-v2-active-start" onClick={onActive} disabled={busy || !activeAvailable}>{t(busy ? "materials.activeStudyStarting" : activeAvailable ? "materials.startActiveStudy" : "materials.activeStudyUnavailable")}<ChevronRight size={16} /></button>
             {restartProgress && <div className="workspace-v2-study-restart">
@@ -1262,7 +1262,17 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     let cancelled = false;
     setActiveStudyAvailabilityLoading(true);
     focusApi.getManagedActiveStudyAvailability(sheet.learningObjectId, sheetEdition?.edition)
-      .then((payload) => { if (!cancelled) setActiveStudyAvailability(payload); })
+      .then((payload) => {
+        if (cancelled) return;
+        setActiveStudyAvailability(payload);
+        // A student coming back to a sheet should find the run they left
+        // selected, not Medium with "Restart Medium" beneath it. With runs in
+        // more than one difficulty the choice stays theirs.
+        const inProgress = (payload?.difficulties || []).filter((item) => item.progress?.status === "active");
+        if (inProgress.length === 1) {
+          setActiveDifficulty((current) => inProgress.some((item) => item.difficulty === current) ? current : inProgress[0].difficulty);
+        }
+      })
       .catch(() => { if (!cancelled) setActiveStudyAvailability(null); })
       .finally(() => { if (!cancelled) setActiveStudyAvailabilityLoading(false); });
     return () => { cancelled = true; };
@@ -6127,7 +6137,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       {studyMode === "active" && activeStudy?.status === "active" && (["reading", "checkpoint", "final"].includes(activeStudy.stage) || ACTIVE_RESULT_STAGES.has(activeStudy.stage)) && <div className="workspace-v2-checkpoint-dock" role="status" aria-live="polite">
         <button type="button" className={`workspace-v2-checkpoint-button${activeStudyButtonReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeStudyButtonReady} aria-label={activeStudyButtonReady ? t(activeStudy.stage.startsWith("final") ? "activeStudy.openFinal" : "activeStudy.openCheckpoint") : t("activeStudy.reachToUnlock", { page: accessiblePageCount })}>{!activeStudy.stage.startsWith("final") && activeStudy.number_of_parts > 1 && <span className="workspace-v9-step-part" aria-hidden="true">{t("activeStudy.partOf", { part: activeStudy.current_part, total: activeStudy.number_of_parts })}</span>}{activeStudyButtonReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t(activeStudy.stage.startsWith("final") ? "activeStudy.finalExam" : "activeStudy.checkpoint")}</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t("activeStudy.reachPage", { page: accessiblePageCount })}</span></>}</button>
       </div>}
-      {modeDialogOpen && <StudyModeDialog difficulty={activeDifficulty} setDifficulty={setActiveDifficulty} activeAvailable={activeStudyReady} restartProgress={selectedActiveStudyAvailability?.progress} busy={activeStudyBusy || activeStudyAvailabilityLoading} error={activeStudyError} onNormal={chooseNormalStudy} onActive={chooseActiveStudy} onRestart={restartActiveStudy} activeOnly={entryModePreference === "active"} />}
+      {modeDialogOpen && <StudyModeDialog difficulty={activeDifficulty} setDifficulty={setActiveDifficulty} activeAvailable={activeStudyReady} restartProgress={selectedActiveStudyAvailability?.progress} completed={(activeStudyAvailability?.difficulties || []).filter((item) => item.completed).map((item) => item.difficulty)} busy={activeStudyBusy || activeStudyAvailabilityLoading} error={activeStudyError} onNormal={chooseNormalStudy} onActive={chooseActiveStudy} onRestart={restartActiveStudy} activeOnly={entryModePreference === "active"} />}
       {activeQuiz && activeStudy && <ActiveStudyQuiz key={activeQuiz.attempt_id} quiz={activeQuiz} answers={activeAnswers} setAnswers={setActiveAnswers} locked={activeLocked} result={activeResult} busy={activeStudyBusy} onSubmit={submitActiveQuiz} onDismiss={dismissActiveQuiz} onRetake={retakeActiveQuiz} onContinue={continueActiveStudyAnyway} onDiscard={(done) => discardActiveAttempt({ restart: false }, done)} onRestart={(done) => discardActiveAttempt({ restart: true }, done)} />}
     </main>
   );

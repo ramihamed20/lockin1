@@ -1710,6 +1710,10 @@ html.ix-hover .workspace-v2-action-popover .workspace-v3-menu-grid > button:not(
   .workspace-v2-difficulty button { min-height: 44px; }
 }
 
+/* A difficulty the student has already finished carries a check after its name. */
+.workspace-v2-difficulty button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+.workspace-v2-difficulty-done { flex: none; color: var(--success); }
+
 /* Checkpoint and final exam — presentation only (2026-09-28 interaction pass).
    The question no longer sits in a framed card inside the framed dialog: the
    dialog is the surface, the prompt leads, and answers read at body size in
