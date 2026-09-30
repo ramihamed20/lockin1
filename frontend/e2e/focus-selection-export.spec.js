@@ -126,8 +126,23 @@ function ink(page) {
   return layer(page).locator("[data-annotation-type='pen']:not(.workspace-v2-annotation-hit)");
 }
 
+/**
+ * The element's box as the page's own layout reports it. Playwright's
+ * locator.boundingBox() on WebKit mis-projects an SVG <text> whose ancestor
+ * has a CSS transform (the reader's zoom): measured 2026-09-30 it reported
+ * (0, 102) for text that getBoundingClientRect, hit-testing and the painted
+ * pixels all put at (128, 708). Paths are unaffected. Measuring through the
+ * DOM keeps these specs about the workspace rather than about that quirk.
+ */
+async function domBox(locator) {
+  return locator.evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    return rect.width || rect.height ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null;
+  }).catch(() => null);
+}
+
 async function centre(locator) {
-  const box = await locator.boundingBox();
+  const box = await domBox(locator);
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
@@ -358,8 +373,8 @@ test.describe("selection", () => {
 
 async function expectToolbarBesideSelection(page, item) {
   await expect.poll(async () => {
-    const target = await item.boundingBox();
-    const bar = await toolbar(page).boundingBox();
+    const target = await domBox(item);
+    const bar = await domBox(toolbar(page));
     if (!target || !bar) return "missing";
     const aboveGap = target.y - (bar.y + bar.height);
     const belowGap = bar.y - (target.y + target.height);

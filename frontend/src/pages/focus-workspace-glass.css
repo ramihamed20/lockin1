@@ -769,7 +769,7 @@ html.ix-hover .workspace-v2 .workspace-v2-settings-popover > header button:hover
 @keyframes workspace-glass-sheet { from { opacity: 0; scale: 1.015; } to { opacity: 1; scale: 1; } }
 @keyframes workspace-v7-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 @keyframes workspace-v7-ants { to { stroke-dashoffset: -22; } }
-@keyframes workspace-v7-insert { from { opacity: 0; scale: .9; } 60% { opacity: 1; } to { opacity: 1; scale: 1; } }
+@keyframes workspace-v7-insert { from { opacity: 0; } to { opacity: 1; } }
 
 @media (prefers-reduced-motion: no-preference) {
   .workspace-v2 .workspace-v2-tool-options,
@@ -783,8 +783,11 @@ html.ix-hover .workspace-v2 .workspace-v2-settings-popover > header button:hover
   }
   .workspace-v7-preview-draw { animation: workspace-v7-draw 760ms var(--fx-spring) 60ms both; }
   .workspace-v7-preview-ants { animation: workspace-v7-ants 1.1s linear infinite; }
-  /* Text, images and cards placed from a menu grow into place once. */
-  .workspace-v2-annotation-layer .is-inserted { transform-box: fill-box; transform-origin: center; animation: workspace-v7-insert 460ms var(--fx-bounce) both; }
+  /* Text, images and cards placed from a menu fade in once. A fade only: WebKit
+     resolves `transform-box: fill-box` wrongly inside this non-uniformly scaled
+     layer under the zoomed page, so a scale-in drew new text about 57 px off
+     its place (under the selection toolbar) and snapped it back at the end. */
+  .workspace-v2-annotation-layer .is-inserted { animation: workspace-v7-insert 240ms var(--motion-enter-ease, ease-out) both; }
   /* Switching tools swaps the panel's contents; they settle in order. */
   .workspace-v7-panel-body > * { animation: workspace-glass-content 320ms var(--fx-spring) both; }
   .workspace-v7-panel-body > :nth-child(2) { animation-delay: 30ms; }
