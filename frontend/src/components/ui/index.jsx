@@ -116,7 +116,7 @@ function SheetSkeleton() {
 }
 
 function ProfileSkeleton() {
-  return <div className="skeleton-page skeleton-page--profile skeleton-profile-v2"><header className="skeleton-profile-v2-hero"><SkeletonAvatar className="skeleton-avatar--profile" /><SkeletonText lines={2} /></header><SkeletonCard className="skeleton-profile-v2-level"><SkeletonText lines={1} /><Skeleton className="skeleton-progress" /></SkeletonCard><SkeletonCard className="skeleton-profile-v2-activity"><Skeleton className="skeleton-heatmap" /></SkeletonCard></div>;
+  return <div className="skeleton-page skeleton-page--profile skeleton-profile-v2"><SkeletonCard className="skeleton-profile-v2-card"><SkeletonAvatar className="skeleton-avatar--profile" /><SkeletonText lines={4} /></SkeletonCard><SkeletonCard className="skeleton-profile-v2-activity"><Skeleton className="skeleton-heatmap" /></SkeletonCard></div>;
 }
 
 function ProgressSkeleton() {

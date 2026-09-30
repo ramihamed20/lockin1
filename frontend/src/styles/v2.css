@@ -477,7 +477,8 @@ html.ix-hover .settings-v2-back:hover {
 
 /* --- Profile --------------------------------------------------------------- */
 
-/* An account page, not a trading card: who you are, one progress strip, one
+/* The academy ID card opens the page (its own styles are the historical
+   ones in styles.css and responsive.css), then one row of numbers, one
    activity map, and the study path that decides what you see. */
 .profile-v2 {
   display: grid;
@@ -497,53 +498,18 @@ html.ix-hover .settings-v2-back:hover {
   font-size: var(--text-sm);
 }
 
-.profile-v2-hero {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 18px;
-  padding-block: 8px 4px;
+/* The card pins its text to the left, which put an Arabic name and ID on the
+   far side from the avatar and the rows beside them. The details follow the
+   reading direction instead (the phone layout still centres them). */
+.profile-v2 .profile-academy-id .id-card-body {
+  text-align: start;
 }
 
-.profile-v2-avatar {
-  width: 84px;
-  height: 84px;
-  border-radius: 50%;
-  object-fit: cover;
-  box-shadow: 0 0 0 1px var(--separator);
-}
-
-.profile-v2-identity {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.profile-v2-identity h1 {
-  margin: 0;
-  overflow: hidden;
-  font-size: var(--title-large);
-  font-weight: var(--weight-bold);
-  line-height: 1.15;
-  letter-spacing: var(--tracking-title);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.profile-v2-identity p {
-  margin: 0;
-  overflow: hidden;
-  color: var(--muted);
-  font-size: var(--text-md);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.profile-v2-edit {
-  display: grid;
-  gap: 16px;
-  padding: 18px;
-  animation: v2-reveal var(--motion-panel-duration) var(--motion-enter-ease) both;
+/* The card's compact edit button was 34px tall; a finger needs 44. */
+@media (pointer: coarse) {
+  .profile-v2 .profile-academy-id .edit-id-btn {
+    min-height: 44px;
+  }
 }
 
 .profile-v2-edit-actions {
@@ -577,31 +543,6 @@ html.ix-hover .settings-v2-back:hover {
 .profile-v2-section-meta {
   color: var(--soft);
   font-size: var(--text-sm);
-}
-
-.profile-v2-level {
-  display: grid;
-  gap: 10px;
-  padding: 16px;
-}
-
-.profile-v2-level-top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 4px 12px;
-}
-
-.profile-v2-level-top strong {
-  font-size: var(--text-lg);
-  font-weight: var(--weight-semibold);
-}
-
-.profile-v2-level-top span {
-  color: var(--muted);
-  font-size: var(--text-sm);
-  font-variant-numeric: tabular-nums;
 }
 
 .profile-v2-stats {
@@ -1062,27 +1003,26 @@ html.ix-hover .settings-v2-back:hover {
   margin-inline: auto;
 }
 
-.skeleton-profile-v2-hero {
+/* The ID card's footprint: photo frame beside the details. */
+.skeleton-profile-v2 .skeleton-card.skeleton-profile-v2-card {
   display: grid;
-  grid-template-columns: 84px minmax(0, 320px);
-  align-items: center;
-  gap: 18px;
+  grid-template-columns: 94px minmax(0, 320px);
+  align-items: start;
+  gap: 16px;
+  min-height: 300px;
+  padding: 72px 20px 20px;
+  border-radius: 24px;
 }
 
 .skeleton-profile-v2 .skeleton-avatar--profile {
-  width: 84px;
-  height: 84px;
-  border-radius: 50%;
+  width: 94px;
+  height: 108px;
+  border-radius: 13px;
 }
 
 .skeleton-profile-v2 .skeleton-card {
   min-height: 0;
   padding: 16px;
-}
-
-.skeleton-profile-v2 .skeleton-progress {
-  height: 8px;
-  border-radius: var(--radius-full);
 }
 
 .skeleton-profile-v2 .skeleton-heatmap {
@@ -1100,37 +1040,8 @@ html.ix-hover .settings-v2-back:hover {
     gap: 24px;
   }
 
-  .profile-v2-hero {
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: 14px;
-  }
-
-  .profile-v2-avatar {
-    width: 64px;
-    height: 64px;
-  }
-
-  .profile-v2-identity h1 {
-    font-size: var(--text-2xl);
-  }
-
-  .profile-v2-identity p {
-    white-space: normal;
-  }
-
-  .profile-v2-edit-toggle {
-    grid-column: 1 / -1;
-    justify-self: start;
-  }
-
   .profile-v2-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .profile-v2-edit {
-    animation: none;
   }
 }
 

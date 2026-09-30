@@ -439,6 +439,8 @@ press scale is the only movement.
 - Settings: a 248 px sticky section list beside the detail pane from 1100 px; a list → detail push
   below it.
 - The Dashboard keeps its own grid.
+- Profile opens with the academy ID card (restored after V2 briefly replaced it with a plain
+  header); its styles are the historical ones, with the details following the reading direction.
 
 ### Settings grouped rows and Switch
 

@@ -5,6 +5,7 @@ import test from "node:test";
 
 const avatarComponent = readFileSync(fileURLToPath(new URL("../src/components/shared/UserAvatar.jsx", import.meta.url)), "utf8");
 const editor = readFileSync(fileURLToPath(new URL("../src/components/account/ProfilePictureEditor.jsx", import.meta.url)), "utf8");
+const editorStyles = readFileSync(fileURLToPath(new URL("../src/components/account/profile-picture-editor.css", import.meta.url)), "utf8");
 const profile = readFileSync(fileURLToPath(new URL("../src/pages/Profile.jsx", import.meta.url)), "utf8");
 const layout = readFileSync(fileURLToPath(new URL("../src/components/layout/index.jsx", import.meta.url)), "utf8");
 const responsive = readFileSync(fileURLToPath(new URL("../src/responsive.css", import.meta.url)), "utf8");
@@ -41,11 +42,14 @@ test("the profile editor presents both default-avatar selection and validated cu
   assert.match(editor, /accountsApi\.updateProfile\(\{ avatarDefault/);
 });
 
-test("the profile header shows the resolved avatar as a round image", () => {
-  // V2 replaced the ID-card frame with an account header; the avatar keeps its
-  // shared class and the resolved user.
-  assert.match(profile, /<UserAvatar user=\{account\} className="profile-avatar-image profile-v2-avatar"/);
-  assert.doesNotMatch(profile, /student-id-card|id-card-barcode/);
+test("the profile card keeps its ID-card frame while using an inset avatar image", () => {
+  // The academy ID card was brought back after V2 briefly replaced it with a
+  // plain account header.
+  assert.match(profile, /student-id-card profile-academy-id/);
+  assert.match(profile, /<UserAvatar user=\{account\} className="profile-avatar-image"/);
+  assert.match(editorStyles, /\.profile-academy-id \.profile-avatar-wrap \.profile-avatar-image/);
+  assert.match(editorStyles, /inline-size: 70px/);
+  assert.match(editorStyles, /block-size: 70px/);
 });
 
 test("the account menu uses the same resolved profile avatar as the header and profile page", () => {

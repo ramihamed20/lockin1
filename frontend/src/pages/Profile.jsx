@@ -293,37 +293,34 @@ export default function Profile({ user, onUserUpdate }) {
       <div className="profile-v2">
         {workspace.unavailableCount > 0 && <p className="profile-v2-note" role="status"><Icon name="activity" size={15} />{t("profile.syncNote")}</p>}
 
-        {/* Identity first, the way an account page opens: who you are, then
-            what you are working through. */}
-        <header className="profile-v2-hero">
-          <UserAvatar user={account} className="profile-avatar-image profile-v2-avatar" alt={t("profile.avatarPreviewAlt")} loading="eager" />
-          <div className="profile-v2-identity">
-            <h1 dir="auto">{displayName}</h1>
-            <p dir="auto">{[account?.email, t("profile.memberSinceValue", { date: dateLabel(account?.dateJoined, t) })].filter(Boolean).join(" · ")}</p>
+        {/* The academy ID card: who you are, your level and XP, and the one
+            edit action. Editing happens inside the card, in place of the
+            details. The name is the page's heading. */}
+        <article className={`panel student-id-card profile-academy-id${editing ? " is-editing" : ""}`}>
+          <div className="id-card-header"><div className="id-card-logo"><Icon name="award" size={18} /><span>{t("profile.academy")}</span></div><span className="id-card-chip" /></div>
+          <div className="id-card-body">
+            <div className="profile-avatar-wrap"><UserAvatar user={account} className="profile-avatar-image" alt={t("profile.avatarPreviewAlt")} loading="eager" /><div className="profile-level-badge"><span>{t("profile.lvl")}</span><strong>{level}</strong></div></div>
+            {editing ? <form id="profile-id-edit" onSubmit={saveProfile} className="profile-edit-form profile-id-edit-form">
+              <h1 className="visually-hidden" dir="auto">{displayName}</h1>
+              <label className="field"><span>{t("profile.displayName")}</span><input type="text" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required {...fieldErrorAttributes(profileError, "full_name", "profile-name-error")} /><AccountFieldErrors error={profileError} field="full_name" id="profile-name-error" /></label>
+              <ProfilePictureEditor user={account} onSaved={handleAvatarSaved} />
+              <AccountFormAlert error={profileError} />
+              <div className="profile-edit-actions"><button className="btn btn-primary compact" type="submit" aria-busy={saving || undefined} disabled={saving}>{t(saving ? "profile.saving" : "profile.saveChanges")}</button><button className="btn btn-soft compact" type="button" onClick={() => setEditing(false)}>{t("common.cancel")}</button></div>
+            </form> : <div className="id-card-info">
+              <div className="id-card-field"><span className="id-card-label">{t("profile.academyMember")}</span><h1 className="id-card-value" dir="auto">{displayName}</h1><p className="id-card-value email" dir="auto">{t("profile.studentId", { id: (account?.id || "—").slice(0, 8) })}</p></div>
+              <div className="profile-id-tags"><span className="id-card-value-pill"><Icon name="award" size={13} /> {t("profile.scholar")}</span><span className={`id-card-value-pill ${account?.status === "active" ? "active" : ""}`} dir="auto">{account?.status || t("profile.unknown")}</span></div>
+              <div className="id-card-row"><div className="id-card-field"><span className="id-card-label">{t("profile.memberSince")}</span><span className="profile-id-data" dir="auto">{dateLabel(account?.dateJoined, t)}</span></div><div className="id-card-field"><span className="id-card-label">{t("profile.language")}</span><span className="profile-id-data">{t(account?.preferredLanguage === "ar" ? "profile.arabic" : "profile.english")}</span></div></div>
+              <div className="profile-id-progress"><div><span>{t("profile.xpProgressLabel")}</span><strong dir="auto">{t("profile.xpOf", { current: formatNumber(xp.level_progress), target: formatNumber(xp.level_target) })}</strong></div><ProgressLine value={levelProgress} /></div>
+              <button className="btn btn-soft compact edit-id-btn" type="button" onClick={() => setEditing(true)}><Icon name="settings" size={14} /> {t("profile.editProfile")}</button>
+            </div>}
           </div>
-          <button className="btn btn-soft compact profile-v2-edit-toggle" type="button" aria-expanded={editing} aria-controls="profile-v2-edit" onClick={() => setEditing((value) => !value)}>
-            <Icon name="pencil" size={14} /> {t("profile.editProfile")}
-          </button>
-        </header>
-
-        {editing && <form id="profile-v2-edit" onSubmit={saveProfile} className="ui-group profile-v2-edit">
-          <label className="field"><span>{t("profile.displayName")}</span><input type="text" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required {...fieldErrorAttributes(profileError, "full_name", "profile-name-error")} /><AccountFieldErrors error={profileError} field="full_name" id="profile-name-error" /></label>
-          <ProfilePictureEditor user={account} onSaved={handleAvatarSaved} />
-          <AccountFormAlert error={profileError} />
-          <div className="profile-v2-edit-actions"><button className="btn btn-soft compact" type="button" onClick={() => setEditing(false)}>{t("common.cancel")}</button><button className="btn btn-primary compact" type="submit" aria-busy={saving || undefined} disabled={saving}>{t(saving ? "profile.saving" : "profile.saveChanges")}</button></div>
-        </form>}
+          <div className="id-card-footer" aria-hidden="true"><div className="id-card-barcode">{["thin", "thick", "medium", "thin", "thick", "thin", "medium", "thin", "thick", "medium"].map((kind, index) => <span className={`barcode-line ${kind}`} key={index} />)}</div><span className="id-card-serial">LOCK-IN · {(account?.id || "ACCOUNT").slice(0, 8)}</span></div>
+        </article>
 
         <section className="profile-v2-section" aria-labelledby="profile-v2-progress-heading">
           <div className="profile-v2-section-head">
             <h2 id="profile-v2-progress-heading">{t("profile.progressHeading")}</h2>
             <Link className="ui-section-link" to="/progress">{t("profile.seeProgress")}</Link>
-          </div>
-          <div className="ui-group profile-v2-level">
-            <div className="profile-v2-level-top">
-              <strong>{t("profile.levelValue", { level })}</strong>
-              <span dir="auto">{t("profile.levelProgress", { current: formatNumber(xp.level_progress), target: formatNumber(xp.level_target) })}</span>
-            </div>
-            <ProgressLine value={levelProgress} />
           </div>
           <div className="ui-stat-row profile-v2-stats">
             <div className="ui-stat"><span>{t("profile.totalXp")}</span><strong dir="auto">{formatOptionalNumber(xp.total_points, "—")}</strong></div>
