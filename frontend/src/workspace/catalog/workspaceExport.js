@@ -254,10 +254,10 @@ export function exportPageDimensions(canvas) {
 }
 
 /**
- * JPEG bytes of a canvas. The encoder used to round-trip through
- * canvas.toDataURL() and fetch(), and production's connect-src 'self' blocks
- * fetching a data: URL, so every annotated export failed live while passing
- * locally, where no policy is sent.
+ * JPEG bytes of a canvas, read straight from the canvas's own Blob. The
+ * encoder used to turn the canvas into a data: URL and then request that URL
+ * back, and production's connect-src 'self' refuses such a request, so every
+ * annotated export failed live while passing locally, where no policy is sent.
  */
 export function canvasJpegBytes(canvas, quality = .88) {
   return new Promise((resolve, reject) => {
