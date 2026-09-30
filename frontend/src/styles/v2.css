@@ -1549,6 +1549,18 @@ html.ix-hover .notifications-v2 .notification-feed-item:hover { background: colo
 
 .notifications-v2 .notification-load-more { justify-self: center; }
 
+/* --- Achievements ------------------------------------------------------------ */
+
+.achievements-v2-row { align-items: flex-start; padding-block: 14px; }
+
+.achievements-v2-row .ui-row-body > small { white-space: normal; }
+
+.achievements-v2-row .progress-line { margin-block-start: 8px; }
+
+.achievements-v2-row.is-locked .ui-row-icon { color: var(--soft); background: var(--surface-2); }
+
+.achievements-v2-row .ui-row-value { padding-block-start: 2px; font-variant-numeric: tabular-nums; }
+
 /* --- Answer rows ------------------------------------------------------------ */
 
 /* Sheet questions and the Focus checkpoint answer in the same row: a filled

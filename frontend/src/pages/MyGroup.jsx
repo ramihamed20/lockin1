@@ -36,10 +36,8 @@ export default function MyGroup() {
 
   if (!data.available) {
     return (
-      <Page title="My Group" showHeading={false}>
-        <section className="panel mg-page-card mg-card--setup">
-          <EmptyState title={t("myGroup.title")} text={t("myGroup.unavailable")} />
-        </section>
+      <Page width="reading" title="My Group" showHeading>
+        <EmptyState title={t("myGroup.title")} text={t("myGroup.unavailable")} />
       </Page>
     );
   }
