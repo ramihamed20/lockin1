@@ -166,7 +166,8 @@ test("an Arabic reader zooms centred and can still pan across a zoomed page", as
   await page.setViewportSize({ width: 1280, height: 900 });
   await openReader(page);
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-  for (const label of ["Zoom in", "Zoom in", "Zoom out"]) await zoomWithButton(page, label);
+  // V2 translates the Focus controls, so the Arabic reader names them in Arabic.
+  for (const label of ["تكبير", "تكبير", "تصغير"]) await zoomWithButton(page, label);
   // A horizontal pan reaches both edges of the zoomed page.
   const stage = page.locator(".workspace-v2-document-stage");
   const centred = (await pageMargins(page)).scrollLeft;
