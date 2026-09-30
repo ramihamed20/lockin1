@@ -184,7 +184,10 @@ def test_private_old_pdf_download_remains_repeatable_after_new_report(tmp_path, 
     user = create_user(with_trial=True)
     start, end = closed_period()
     old = BiweeklySnapshot.objects.create(
-        user=user, report_type="analysis", period_start=start, period_end=end,
+        user=user,
+        report_type="analysis",
+        period_start=start,
+        period_end=end,
         data={"metrics": {"questions_answered": 7}},
     )
     old.pdf.save("old.pdf", ContentFile(b"%PDF-1.4 old frozen report"))
@@ -195,7 +198,10 @@ def test_private_old_pdf_download_remains_repeatable_after_new_report(tmp_path, 
     assert first.status_code == 200
     assert b"".join(first.streaming_content) == b"%PDF-1.4 old frozen report"
     newer = BiweeklySnapshot.objects.create(
-        user=user, report_type="analysis", period_start=end, period_end=end + PERIOD,
+        user=user,
+        report_type="analysis",
+        period_start=end,
+        period_end=end + PERIOD,
         data={"metrics": {"questions_answered": 99}},
     )
     second = client.get(url)
