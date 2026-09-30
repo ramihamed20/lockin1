@@ -9,7 +9,7 @@ import { periodLabel } from "../lib/biweekly.js";
 
 export function AnalysisPage() {
   const { t } = useI18n();
-  return <Page title={t("biweekly.analysisTitle")}><BiweeklyArchive type="analysis" /></Page>;
+  return <Page width="reading" title={t("nav.analysis")} showHeading><BiweeklyArchive type="analysis" /></Page>;
 }
 
 export function BiweeklyDetail({ type }) {

@@ -115,25 +115,21 @@ export default function Notifications({ onNotificationsChanged }) {
   }
 
   return (
-    <Page width="reading" title="Notifications" subtitle={t("notifications.subtitle")}>
-      <section className="panel notifications-inbox-card">
-        <header className="notifications-inbox-header">
-          <div className="notifications-inbox-title">
-            <span className="notifications-inbox-icon"><Icon name="bell" size={19} /></span>
-            <div><h2>{t("notifications.activityForYou")}</h2></div>
-          </div>
-          <div className="notifications-inbox-actions">
-            <span className={`notifications-unread-summary ${feed.data.summary.unread_count ? "has-unread" : ""}`} dir="auto"><i />{t("notifications.unreadCount", { count: feed.data.summary.unread_count || 0 })}</span>
-            {feed.data.summary.unread_count > 0 && <button className="btn btn-soft compact" type="button" onClick={() => { void markAllRead(); }} disabled={busyId === "all"}>{busyId === "all" ? t("notifications.marking") : t("common.markAllRead")}</button>}
-          </div>
-        </header>
-        {/* A filter is one-of-N, not two independent toggles: `aria-pressed`
-            made both buttons announce as pressed toggles and let both carry a
-            selected look at once. */}
-        <TabList className="notification-filter-actions" label={t("notifications.filterLabel")} variant="tint" value={unreadOnly ? "unread" : "all"} onChange={(next) => setUnreadOnly(next === "unread")}>
-          <Tab className="btn btn-soft" value="all">{t("notifications.all")}</Tab>
-          <Tab className="btn btn-soft" value="unread">{t("notifications.unread")}</Tab>
-        </TabList>
+    <Page width="reading" title="Notifications" showHeading>
+      {/* The page title already says what this is: the list starts with its
+          filter and the one bulk action, then the notifications themselves as
+          one grouped list. */}
+      <section className="notifications-inbox-card notifications-v2">
+        <div className="notifications-v2-bar">
+          {/* A filter is one-of-N, not two independent toggles: `aria-pressed`
+              made both buttons announce as pressed toggles and let both carry a
+              selected look at once. */}
+          <TabList className="notification-filter-actions ui-segmented" label={t("notifications.filterLabel")} variant="thumb" value={unreadOnly ? "unread" : "all"} onChange={(next) => setUnreadOnly(next === "unread")}>
+            <Tab value="all">{t("notifications.all")}</Tab>
+            <Tab value="unread">{feed.data.summary.unread_count ? t("notifications.unreadCount", { count: feed.data.summary.unread_count }) : t("notifications.unread")}</Tab>
+          </TabList>
+          {feed.data.summary.unread_count > 0 && <button className="notifications-v2-mark" type="button" onClick={() => { void markAllRead(); }} disabled={busyId === "all"}>{busyId === "all" ? t("notifications.marking") : t("common.markAllRead")}</button>}
+        </div>
         {actionError && <ErrorPanel message={actionError} onRetry={feed.reload} />}
         {!notifications.length ? <EmptyState title={t(unreadOnly ? "notifications.noUnreadTitle" : "notifications.emptyTitle")} text={t(unreadOnly ? "notifications.noUnreadText" : "notifications.emptyText")} /> : (
           <div className="notification-feed">

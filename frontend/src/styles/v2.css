@@ -1432,6 +1432,123 @@ html.ix-hover .paper-option:hover:not(:disabled) { border: 0; background: var(--
 
 .paper-toast { border-color: var(--card-edge); border-radius: var(--radius-full); }
 
+/* --- Segmented control ------------------------------------------------------ */
+
+/* One-of-N filters (a TabList with variant="thumb" and class ui-segmented):
+   a quiet track and a raised thumb, as on iOS. The interaction layer still
+   paints the selected thumb and glides it between segments. */
+.ix-tablist.ui-segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.ix-tablist.ui-segmented [role="tab"] {
+  min-height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--muted);
+  background: transparent;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.ix-tablist.ui-segmented [role="tab"][aria-selected="true"] {
+  color: var(--text);
+  font-weight: var(--weight-semibold);
+}
+
+@media (pointer: coarse) {
+  .ix-tablist.ui-segmented [role="tab"] { min-height: 44px; }
+}
+
+/* --- Notifications ------------------------------------------------------------ */
+
+.notifications-v2 {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.notifications-v2-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+
+.notifications-v2-mark {
+  min-height: 36px;
+  padding: 0 4px;
+  border: 0;
+  color: var(--accent-text);
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.notifications-v2-mark:disabled { cursor: default; opacity: 0.55; }
+
+@media (pointer: coarse) {
+  .notifications-v2-mark { min-height: 44px; }
+}
+
+/* One grouped list, newest first: rows with hairlines, not a card each. An
+   unread row carries its dot; the row itself stays plain. */
+.notifications-v2 .notification-feed {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.notifications-v2 .notification-feed-item {
+  position: relative;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.notifications-v2 .notification-feed-item.is-unread { border: 0; background: transparent; }
+
+.notifications-v2 .notification-feed-item + .notification-feed-item::before {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 68px 0;
+  height: 1px;
+  background: var(--separator);
+  content: "";
+}
+
+html.ix-hover .notifications-v2 .notification-feed-item:hover { background: color-mix(in srgb, var(--text) 3%, transparent); }
+
+.notifications-v2 .notification-feed-meta b {
+  width: 8px;
+  height: 8px;
+  overflow: hidden;
+  padding: 0;
+  border-radius: 50%;
+  color: transparent;
+  background: var(--accent);
+  font-size: 0;
+}
+
+.notifications-v2 .notification-load-more { justify-self: center; }
+
 /* --- Answer rows ------------------------------------------------------------ */
 
 /* Sheet questions and the Focus checkpoint answer in the same row: a filled

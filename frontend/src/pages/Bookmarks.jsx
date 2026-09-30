@@ -39,10 +39,12 @@ export default function Bookmarks() {
   if (bookmarks.error) return <ErrorPanel message={bookmarks.error} onRetry={bookmarks.reload} />;
 
   return (
-    <Page width="reading" title="Bookmarks" subtitle={t("bookmarks.subtitle")}>
+    <Page width="reading" title="Bookmarks" showHeading>
       {mutationError && <ErrorPanel message={mutationError.message} onRetry={() => confirmItem && void removeBookmark(confirmItem)} />}
-      <section className="list-panel">
-        {bookmarks.data.results.length ? bookmarks.data.results.map((item) => {
+      {/* An empty list is a state, not an empty card. */}
+      {!bookmarks.data.results.length && <EmptyState icon="study" title={t("bookmarks.emptyTitle")} text={t("bookmarks.emptyText")} action={{ label: t("dashboard.browseMaterials"), to: "/materials" }} />}
+      {bookmarks.data.results.length > 0 && <section className="list-panel">
+        {bookmarks.data.results.map((item) => {
           const learningObject = item.learning_object;
           const version = learningObject?.version;
           const catalogBookmark = Boolean(item.catalog_sheet_slug);
@@ -60,11 +62,11 @@ export default function Bookmarks() {
               title={title}
               meta={meta}
               icon="bookmark"
-              action={<div className="focus-timer-actions">{openPath && <Link className="btn btn-soft compact" to={openPath}>{t("common.open")}</Link>}<button className="btn btn-danger compact" type="button" onClick={() => setConfirmItem(item)} aria-label={t("bookmarks.removeNamed", { name: title })}><Icon name="x" size={17} /> {t("common.remove")}</button></div>}
+              action={<div className="focus-timer-actions">{openPath && <Link className="btn btn-soft compact" to={openPath}>{t("common.open")}</Link>}<button className="icon-btn bookmarks-remove" type="button" onClick={() => setConfirmItem(item)} aria-label={t("bookmarks.removeNamed", { name: title })} title={t("common.remove")}><Icon name="x" size={17} /></button></div>}
             />
           );
-        }) : <EmptyState icon="study" title={t("bookmarks.emptyTitle")} text={t("bookmarks.emptyText")} action={{ label: t("dashboard.browseMaterials"), to: "/materials" }} />}
-      </section>
+        })}
+      </section>}
       <PaginationControls page={page} pageData={bookmarks.data} onPageChange={setPage} label={t("bookmarks.pages")} />
       <ConfirmDialog
         open={Boolean(confirmItem)}

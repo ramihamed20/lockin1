@@ -18,6 +18,7 @@ const routeDefinitions = [
   { match: (path) => path.startsWith("/ranked"), key: "route.ranked" },
   { match: (path) => path.startsWith("/bookmarks"), key: "route.bookmarks" },
   { match: (path) => path.startsWith("/progress"), key: "route.progress" },
+  { match: (path) => path.startsWith("/analysis"), key: "route.analysis" },
   { match: (path) => path.startsWith("/achievements"), key: "route.achievements" },
   { match: (path) => path.startsWith("/notifications"), key: "route.notifications" },
   { match: (path) => path.startsWith("/store"), key: "route.store" },
