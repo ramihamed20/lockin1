@@ -132,7 +132,7 @@
   .confirm-dialog { padding: clamp(20px, 3vw, 32px); }
 
   /* Common surfaces and controls */
-  :is(.panel, .list-panel, .settings-panel, .error-panel, .ui-section) {
+  :is(.panel, .list-panel, .settings-panel, .ui-section) {
     border-color: var(--polish-line);
     border-radius: var(--radius-lg);
     background: var(--polish-raised);

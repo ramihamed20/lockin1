@@ -975,7 +975,9 @@ textarea:focus {
 .empty-state {
   display: grid;
   justify-items: center;
+  align-content: center;
   gap: 6px;
+  min-height: 0;
   padding: 32px 16px;
   border: 0;
   border-radius: var(--radius-lg);
@@ -1004,18 +1006,40 @@ textarea:focus {
   font-size: var(--text-md);
 }
 
+/* A failed load reads like an empty one: centred, one glyph, one sentence,
+   one way forward. No tinted card, and no fixed height that leaves a short
+   message floating in an empty box. */
 .error-panel {
   display: grid;
-  justify-items: start;
+  justify-items: center;
+  align-content: center;
   gap: 10px;
-  padding: 16px;
-  border-color: color-mix(in srgb, var(--danger) 30%, var(--border));
+  min-height: 0;
+  padding: 36px 16px;
+  border: 0;
+  background: transparent;
+  text-align: center;
+}
+
+.error-panel-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  margin-bottom: 2px;
+  border-radius: 50%;
+  color: var(--muted);
+  background: var(--surface-2);
 }
 
 .error-panel p {
+  max-width: 44ch;
   margin: 0;
   color: var(--text);
+  font-size: var(--text-md);
 }
+
+.error-panel .btn { margin-top: 4px; }
 
 /* --- Progress bar (V2) ---------------------------------------------------- */
 

@@ -321,6 +321,8 @@ test.describe("selection", () => {
     await addText(page, "Over");
     const order = async () => layer(page).first().locator('[data-annotation-type="text"]').evaluateAll((nodes) => nodes.map((node) => node.textContent));
     expect(await order()).toEqual(["Under", "Over"]);
+    // V2: layer order is secondary, so it sits one tap away under More.
+    await toolbar(page).getByRole("button", { name: "More selection actions" }).click();
     await toolbar(page).getByRole("button", { name: "Send backward" }).click();
     await expect.poll(order).toEqual(["Over", "Under"]);
     await page.getByRole("button", { name: "Undo (Ctrl+Z)" }).click();

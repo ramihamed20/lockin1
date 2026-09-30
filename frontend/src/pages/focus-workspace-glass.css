@@ -1406,15 +1406,18 @@ html.ix-hover .workspace-v2 .workspace-v2-page-navigator button:hover:not(:disab
   .workspace-v2 .workspace-v2-toast { top: calc(var(--workspace-toolbar-height, 56px) + 8px); bottom: auto; inset-inline: auto; left: 50%; max-width: calc(100% - 24px); transform: translateX(-50%); }
 }
 
+/* The dock is exactly as wide as its capsule and centred on the screen, so
+   its box never reaches the page count or zoom at either edge. */
 .workspace-v2-checkpoint-dock,
 .workspace-v2 .workspace-v2-checkpoint-dock {
-  inset-inline: 0;
-  right: 0;
-  left: 0;
-  width: auto;
+  right: auto;
+  left: 50%;
+  width: max-content;
+  max-width: calc(100% - 224px);
   bottom: max(14px, env(safe-area-inset-bottom));
   justify-content: center;
-  padding: 0 16px;
+  padding: 0;
+  transform: translateX(-50%);
 }
 .workspace-v2-checkpoint-button,
 .workspace-v2 .workspace-v2-checkpoint-button {
@@ -1446,8 +1449,9 @@ html.ix-hover .workspace-v2 .workspace-v2-page-navigator button:hover:not(:disab
 @media (max-width: 600px) {
   /* The page count keeps the start corner; the step takes the rest of the row. */
   .workspace-v2-checkpoint-dock,
-  .workspace-v2 .workspace-v2-checkpoint-dock { justify-content: flex-end; padding-inline: 96px max(12px, env(safe-area-inset-right)); }
-  [dir="rtl"] .workspace-v2-checkpoint-dock { padding-inline: 96px max(12px, env(safe-area-inset-left)); }
+  .workspace-v2 .workspace-v2-checkpoint-dock { left: auto; right: max(12px, env(safe-area-inset-right)); max-width: calc(100% - 112px); transform: none; }
+  [dir="rtl"] .workspace-v2-checkpoint-dock,
+  [dir="rtl"] .workspace-v2 .workspace-v2-checkpoint-dock { right: auto; left: max(12px, env(safe-area-inset-left)); }
   .workspace-v2-checkpoint-button,
   .workspace-v2 .workspace-v2-checkpoint-button { min-height: 44px; padding: 0 16px; font-size: .875rem; }
 }

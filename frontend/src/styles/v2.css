@@ -734,12 +734,12 @@ html.ix-hover .settings-v2-back:hover {
 /* Materials, a subject's sheets and a sheet are one path, so they share the
    reading column and the same large title; only the question player (which
    is a session, not a place) keeps its smaller heading. */
-.page--reading > :is(.catalog-directory, .catalog-sheet-entry, .question-directory) {
+.page--reading > :is(.catalog-directory, .catalog-sheet-entry, .question-directory, .question-session-shell) {
   width: 100%;
   max-width: none;
 }
 
-.page--reading :is(.catalog-directory, .catalog-sheet-entry, .question-directory) > .catalog-directory-header .catalog-directory-title h1 {
+.page--reading :is(.catalog-directory, .catalog-sheet-entry, .question-directory, .question-session-shell) > .catalog-directory-header .catalog-directory-title h1 {
   font-size: var(--title-large);
   font-weight: var(--weight-bold);
   line-height: 1.15;
@@ -747,7 +747,7 @@ html.ix-hover .settings-v2-back:hover {
 }
 
 @media (max-width: 639px) {
-  .page--reading :is(.catalog-directory, .catalog-sheet-entry, .question-directory) > .catalog-directory-header .catalog-directory-title h1 {
+  .page--reading :is(.catalog-directory, .catalog-sheet-entry, .question-directory, .question-session-shell) > .catalog-directory-header .catalog-directory-title h1 {
     font-size: var(--title-large-phone);
   }
 }
@@ -1116,6 +1116,38 @@ html.ix-hover .settings-v2-back:hover {
   }
 }
 
+
+/* --- Answer rows ------------------------------------------------------------ */
+
+/* Sheet questions and the Focus checkpoint answer in the same row: a filled
+   row with no frame, a round letter, and colour only for the state it is in.
+   The verdict colours still come from the interaction layer. */
+.question-player-card .choices button {
+  border-color: transparent;
+  border-radius: 14px;
+}
+
+.question-player-card .choice-prefix {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+html.ix-hover .question-player-card .choices button:not(:disabled):hover { border-color: transparent; }
+
+/* Several answers may be right: the letter sits in a rounded square, the
+   shape of a checkbox, so the difference is visible before reading the hint. */
+.question-player-card .choices.is-multiple .choice-prefix { border-radius: 8px; }
+
+/* --- States ---------------------------------------------------------------- */
+
+/* A failed load is a centred state like an empty one, not a card: it sheds the
+   panel surface the shared .panel rule would give it. */
+.panel.error-panel {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
 }
 
 /* A screen that draws its own selection (a ring, a bold label) must not also

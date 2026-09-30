@@ -197,7 +197,8 @@ test("writing controls open immediately and preserve tool state while every seco
 
   await page.getByRole("button", { name: "More workspace actions" }).click();
   const moreMenu = page.getByRole("dialog", { name: "More workspace actions" });
-  await expect(moreMenu.getByRole("button", { name: /^Pencil / })).toBeVisible();
+  // V2 menu rows are single lines, so the name is the label alone.
+  await expect(moreMenu.getByRole("button", { name: "Pencil", exact: true })).toBeVisible();
   for (const label of ["Bookmarks", "Full.screen", "settings"]) await expect(moreMenu.getByRole("button", { name: new RegExp(label, "i") })).toBeVisible();
   // The phone rail carries these tools itself, so the menu does not repeat them.
   const rail = page.locator(".workspace-v3-primary");

@@ -73,6 +73,19 @@ function QuestionDirectoryHeader({ id, title, subtitle = "", backTo = "", backLa
   </header>;
 }
 
+/**
+ * Loading, empty and failed directories keep the heading and the way back the
+ * loaded page has, so a state never leaves the student on a titleless screen.
+ */
+function DirectoryState({ title, backTo = "", backLabel = "", children }) {
+  return <Page width="reading" title={title} headingHandled>
+    <section className="question-directory" aria-labelledby="question-state-heading">
+      <QuestionDirectoryHeader id="question-state-heading" title={title} backTo={backTo} backLabel={backLabel} />
+      {children}
+    </section>
+  </Page>;
+}
+
 function CategoryCard({ category }) {
   const { t } = useI18n();
   return <CatalogTile title={t(category.titleKey)} meta={t(category.metaKey)} icon={category.icon} kind="question" to={category.available ? `/questions/categories/${category.id}` : ""} status={category.available ? "" : t("common.soon")} />;
@@ -95,13 +108,14 @@ export function QuestionCategory({ user = null }) {
   const category = cohortCategories(user).find((item) => item.id === categoryId);
   const { materials, loading, error, reload } = useQuestionMaterials(user, categoryId);
 
-  if (!category) return <Page width="reading" title={t("questions.sourceNotFoundTitle")}><ErrorPanel message={t("questions.sourceNotFoundText")} /></Page>;
-  if (!category.available) return <Page width="reading" title={t(category.titleKey)}>{categoryEmptyState(category, t)}</Page>;
+  const back = { backTo: "/questions", backLabel: t("route.questions") };
+  if (!category) return <DirectoryState title={t("questions.sourceNotFoundTitle")} {...back}><ErrorPanel message={t("questions.sourceNotFoundText")} /></DirectoryState>;
+  if (!category.available) return <DirectoryState title={t(category.titleKey)} {...back}>{categoryEmptyState(category, t)}</DirectoryState>;
   // A directory still in flight is not an empty directory, and a failed one is
   // not a curriculum with nothing in it.
-  if (loading) return <Page width="reading" title={t(category.titleKey)}><LoadingPanel variant="material-list" /></Page>;
-  if (error) return <Page width="reading" title={t(category.titleKey)}><ErrorPanel message={error} onRetry={reload} /></Page>;
-  if (!materials.length) return <Page width="reading" title={t(category.titleKey)}><EmptyState icon="study" title={t("questions.noQuestionsTitle")} text={t("questions.noQuestionsText")} /></Page>;
+  if (loading) return <DirectoryState title={t(category.titleKey)} {...back}><LoadingPanel variant="material-list" /></DirectoryState>;
+  if (error) return <DirectoryState title={t(category.titleKey)} {...back}><ErrorPanel message={error} onRetry={reload} /></DirectoryState>;
+  if (!materials.length) return <DirectoryState title={t(category.titleKey)} {...back}><EmptyState icon="study" title={t("questions.noQuestionsTitle")} text={t("questions.noQuestionsText")} /></DirectoryState>;
 
   return (
     <Page width="reading" title={t(category.titleKey)} headingHandled>
@@ -131,11 +145,12 @@ export function QuestionSubjectSheets({ user = null }) {
   const { materials, loading, error, reload } = useQuestionMaterials(user, categoryId);
   const material = materials.find((item) => item.slug === subjectId) || null;
 
-  if (!category?.available) return <Page width="reading" title={t("materials.notFoundTitle")}><ErrorPanel message={t("questions.subjectUnavailable")} /></Page>;
-  if (loading) return <Page width="reading" title={t(category.titleKey)}><LoadingPanel variant="card-list" /></Page>;
-  if (error) return <Page width="reading" title={t(category.titleKey)}><ErrorPanel message={error} onRetry={reload} /></Page>;
-  if (!material) return <Page width="reading" title={t("materials.notFoundTitle")}><ErrorPanel message={t("questions.subjectUnavailable")} /></Page>;
-  if (!material.sheets.length) return <Page width="reading" title={material.title}><EmptyState icon="study" title={t("questions.noQuestionsTitle")} text={t("questions.noQuestionsText")} /></Page>;
+  const back = category?.available ? { backTo: `/questions/categories/${category.id}`, backLabel: t(category.titleKey) } : { backTo: "/questions", backLabel: t("route.questions") };
+  if (!category?.available) return <DirectoryState title={t("materials.notFoundTitle")} {...back}><ErrorPanel message={t("questions.subjectUnavailable")} /></DirectoryState>;
+  if (loading) return <DirectoryState title={t(category.titleKey)} {...back}><LoadingPanel variant="card-list" /></DirectoryState>;
+  if (error) return <DirectoryState title={t(category.titleKey)} {...back}><ErrorPanel message={error} onRetry={reload} /></DirectoryState>;
+  if (!material) return <DirectoryState title={t("materials.notFoundTitle")} {...back}><ErrorPanel message={t("questions.subjectUnavailable")} /></DirectoryState>;
+  if (!material.sheets.length) return <DirectoryState title={material.title} {...back}><EmptyState icon="study" title={t("questions.noQuestionsTitle")} text={t("questions.noQuestionsText")} /></DirectoryState>;
 
   return (
     <Page width="reading" title={material.title} headingHandled>
@@ -175,10 +190,11 @@ export function QuestionSheetQuestions({ user = null }) {
   const questions = useMemo(() => (Array.isArray(data.data?.results) ? data.data.results : []), [data.data]);
   const sheetTitle = data.data?.sheet?.title || t("questions.aiSheet");
 
-  if (!category?.available) return <Page width="reading" title={t("materials.notFoundTitle")}><ErrorPanel message={t("questions.subjectUnavailable")} /></Page>;
-  if (data.loading) return <Page width="reading" title={t(category.titleKey)}><LoadingPanel variant="quiz" /></Page>;
-  if (data.error) return <Page width="reading" title={t(category.titleKey)}><ErrorPanel message={data.error} onRetry={data.reload} /></Page>;
-  if (!questions.length) return <Page width="reading" title={sheetTitle}><EmptyState icon="study" title={t("questions.noQuestionsTitle")} text={t("questions.noQuestionsText")} /></Page>;
+  const back = category?.available ? { backTo: `/questions/categories/${categoryId}/subjects/${subjectId}`, backLabel: data.data?.sheet?.subject_title || t(category.titleKey) } : { backTo: "/questions", backLabel: t("route.questions") };
+  if (!category?.available) return <DirectoryState title={t("materials.notFoundTitle")} {...back}><ErrorPanel message={t("questions.subjectUnavailable")} /></DirectoryState>;
+  if (data.loading) return <DirectoryState title={t(category.titleKey)} {...back}><LoadingPanel variant="quiz" /></DirectoryState>;
+  if (data.error) return <DirectoryState title={t(category.titleKey)} {...back}><ErrorPanel message={data.error} onRetry={data.reload} /></DirectoryState>;
+  if (!questions.length) return <DirectoryState title={sheetTitle} {...back}><EmptyState icon="study" title={t("questions.noQuestionsTitle")} text={t("questions.noQuestionsText")} /></DirectoryState>;
 
   const subjectTitle = data.data?.sheet?.subject_title || t("questions.aiSheet");
   const backTo = `/questions/categories/${categoryId}/subjects/${subjectId}`;
@@ -331,7 +347,7 @@ function QuestionPlayer({ sheetId, userId, source, questions, backTo }) {
             {t("questions.nextQuestion")} <Icon name="chevron-right" size={17} />
           </button>
         ) : (
-          <button className="btn btn-primary" type="button" disabled={!Object.keys(answers).length} onClick={() => setFinished(true)}>
+          <button className={`btn ${answers[question.id] ? "btn-primary" : "btn-soft"}`} type="button" disabled={!Object.keys(answers).length} onClick={() => setFinished(true)}>
             {t("questions.finishSheet")}
           </button>
         )}
@@ -434,7 +450,7 @@ function PracticeItem({ sheetId, userId, source, question, answer, onAnswered })
       </div>
       <h2 dir="auto">{question.prompt}</h2>
       {multiple && !answer && <p className="save-hint">{t("assessment.selectEvery")}</p>}
-      <div className="choices">
+      <div className={`choices${multiple ? " is-multiple" : ""}`}>
         {choices.map((choice, choiceIndex) => {
           const isSelected = picked.includes(choice.id);
           const isCorrect = correctIds.includes(choice.id);

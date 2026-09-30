@@ -198,7 +198,8 @@ export function ErrorPanel({ message, onRetry = null }) {
   return (
     <section className="panel error-panel" role="alert">
       {!hasPageIdentity && <h1 className="visually-hidden">{metadata.h1}</h1>}
-      <p>{safeMessage}</p>
+      <span className="error-panel-icon" aria-hidden="true"><Icon name="alert-triangle" size={20} /></span>
+      <p dir="auto">{safeMessage}</p>
       {onRetry && <button className="btn btn-soft" type="button" onClick={onRetry}>{t("common.tryAgain")}</button>}
     </section>
   );
