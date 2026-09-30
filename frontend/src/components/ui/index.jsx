@@ -1,4 +1,4 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Icon } from "../../lib/icons.jsx";
 import { LockinIcon } from "../../lib/lockinIcons.jsx";
@@ -194,13 +194,23 @@ export function ErrorPanel({ message, onRetry = null }) {
   const location = useLocation();
   const { t } = useI18n();
   const metadata = routeMetadata(location.pathname, t);
-  const safeMessage = normalizeUserError(message, t("error.default"));
+  const [offline, setOffline] = useState(() => typeof navigator !== "undefined" && navigator.onLine === false);
+  useEffect(() => {
+    const update = () => setOffline(navigator.onLine === false);
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); };
+  }, []);
+  // Offline, "Network error" is true but useless: say what still works.
+  const safeMessage = offline ? t("offline.pageNeedsConnection") : normalizeUserError(message, t("error.default"));
+  const materialsHere = location.pathname === "/materials" || location.pathname.startsWith("/materials/");
   return (
     <section className="panel error-panel" role="alert">
       {!hasPageIdentity && <h1 className="visually-hidden">{metadata.h1}</h1>}
       <span className="error-panel-icon" aria-hidden="true"><Icon name="alert-triangle" size={20} /></span>
       <p dir="auto">{safeMessage}</p>
-      {onRetry && <button className="btn btn-soft" type="button" onClick={onRetry}>{t("common.tryAgain")}</button>}
+      {offline && !materialsHere && <Link className="btn btn-soft" to="/materials">{t("nav.materials")}</Link>}
+      {onRetry && !offline && <button className="btn btn-soft" type="button" onClick={onRetry}>{t("common.tryAgain")}</button>}
     </section>
   );
 }

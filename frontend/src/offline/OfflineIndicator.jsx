@@ -44,7 +44,7 @@ export default function OfflineIndicator({ userId }) {
   // (Settings > Offline Mode). The pill speaks only when the student is offline
   // or something needs them.
   const label = !online
-    ? remaining > 0 ? `${t("offline.offline")} · ${Math.floor(remaining / 3_600_000)}h` : t("offline.offline")
+    ? remaining > 0 ? `${t("offline.offline")} · ${t("offline.hoursLeft", { count: Math.floor(remaining / 3_600_000) })}` : t("offline.offline")
     : ["connection", "signin", "access"].includes(state) ? t(`offline.sync.${state}`) : "";
   const tone = !online ? "offline" : "warning";
   return label ? <span className="offline-indicator" data-tone={tone} role="status">{label}</span> : null;
