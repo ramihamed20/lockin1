@@ -248,6 +248,14 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2-save-warning { position: absolute; z-index: 7; inset-inline: max(10px, env(safe-area-inset-left)) max(10px, env(safe-area-inset-right)); bottom: calc(max(10px, env(safe-area-inset-bottom)) + 40px); display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0; padding: 8px 10px; border-radius: 9px; color: #2a1206; background: #f3ba55; box-shadow: 0 6px 14px rgba(0,0,0,.3); pointer-events: none; font-size: .68rem; font-weight: 700; }
 .workspace-v2-toast { position: absolute; z-index: 6; inset-inline-start: 50%; bottom: max(10px, env(safe-area-inset-bottom)); max-width: min(420px, calc(100% - 130px)); margin: 0; padding: 7px 11px; border-radius: 9px; color: #e9edfb; background: rgba(13,19,39,.94); box-shadow: 0 4px 12px rgba(0,0,0,.34); transform: translateX(-50%); pointer-events: none; font-size: .68rem; text-align: center; animation: workspace-options-in 150ms cubic-bezier(.16,1,.3,1); }
 .workspace-v2-document-stage { min-width: 0; overflow: auto; overflow-anchor: none; overscroll-behavior: contain; scrollbar-width: none; touch-action: none; padding: 10px 0 0; background: #090f1e; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+/* The stage is a physical canvas: its scroll axis runs left-to-right in every
+   reading direction, as the zoom anchor, scroll bounds, pan and momentum all
+   compute it. An inherited RTL axis scrolls 0 down to negative, which those
+   clamp to 0 -- pinning an Arabic reader to the page's right edge on every
+   zoom and blocking horizontal panning. Everything inside keeps the reading
+   direction. */
+.workspace-v2-document-stage { direction: ltr; }
+[dir="rtl"] .workspace-v2-document-stage > * { direction: rtl; }
 .workspace-v2-document-stage::-webkit-scrollbar { display: none; }
 .workspace-v2-document-stage.is-tool-hand { cursor: grab; touch-action: none; }
 .workspace-v2-document-stage.is-tool-hand:active { cursor: grabbing; user-select: none; }

@@ -86,6 +86,7 @@ import { assetPath, cssVars } from "../lib/utils.js";
 import { subscribeViewport } from "../lib/viewport.js";
 import { usePageTitle } from "../hooks/usePageTitle.js";
 import {
+  centeredScrollLeft,
   continuousPinchScale,
   constrainPinchTranslation,
   documentAnchorFromClient,
@@ -1268,7 +1269,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         // A student coming back to a sheet should find the run they left
         // selected, not Medium with "Restart Medium" beneath it. With runs in
         // more than one difficulty the choice stays theirs.
-        const inProgress = (payload?.difficulties || []).filter((item) => item.progress?.status === "active");
+        const inProgress = (/** @type {any[]} */ (payload?.difficulties) || []).filter((item) => item.progress?.status === "active");
         if (inProgress.length === 1) {
           setActiveDifficulty((current) => inProgress.some((item) => item.difficulty === current) ? current : inProgress[0].difficulty);
         }
@@ -1860,13 +1861,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       const pageBounds = initialPage.getBoundingClientRect();
       const paddingTop = Number.parseFloat(window.getComputedStyle(stage).paddingTop) || 0;
       const targetTop = stage.scrollTop + pageBounds.top - stageBounds.top - paddingTop;
-      const desiredLeft = stage.scrollLeft + pageBounds.left - stageBounds.left - Math.max(0, (stage.clientWidth - pageBounds.width) / 2);
-      // A right-to-left reader scrolls from 0 down to negative, so an offset
-      // saved in the other direction is out of range and would park the page
-      // outside the viewport. Clamp to the range this direction actually has.
-      const overflowX = Math.max(0, stage.scrollWidth - stage.clientWidth);
-      const rightToLeft = window.getComputedStyle(stage).direction === "rtl";
-      const left = Math.min(rightToLeft ? 0 : overflowX, Math.max(rightToLeft ? -overflowX : 0, desiredLeft));
+      // The stage scrolls left-to-right in every reading direction (see
+      // .workspace-v2-document-stage), so one clamped range serves Arabic too.
+      const left = centeredScrollLeft({ scrollLeft: stage.scrollLeft, pageLeft: pageBounds.left, viewportLeft: stageBounds.left, viewportWidth: stage.clientWidth, pageWidth: pageBounds.width, scrollWidth: stage.scrollWidth });
       stage.scrollTo({
         left,
         top: Math.max(0, targetTop),
@@ -1902,13 +1899,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     const pageTop = pageBounds.top - stageBounds.top + stage.scrollTop;
     const paddingTop = Number.parseFloat(window.getComputedStyle(stage).paddingTop) || 0;
     const top = anchor.pageOffset === null ? pageTop - paddingTop : pageTop + anchor.pageOffset * pageBounds.height;
-    let left = anchor.left;
-    if (left === null) {
-      const rightToLeft = window.getComputedStyle(stage).direction === "rtl";
-      const desiredLeft = pageBounds.left - stageBounds.left + stage.scrollLeft
-        - Math.max(0, (stage.clientWidth - pageBounds.width) / 2);
-      left = rightToLeft ? 0 : Math.max(0, desiredLeft);
-    }
+    const left = anchor.left ?? centeredScrollLeft({ scrollLeft: stage.scrollLeft, pageLeft: pageBounds.left, viewportLeft: stageBounds.left, viewportWidth: stage.clientWidth, pageWidth: pageBounds.width, scrollWidth: stage.scrollWidth });
     stage.scrollTo({ left, top: Math.max(0, top), behavior: "auto" });
     viewPositionRef.current = { left: stage.scrollLeft, top: stage.scrollTop, pageOffset: Math.max(0, anchor.pageOffset || 0) };
     // The first-open placement may have reset the page since the anchor was set.
@@ -5467,7 +5458,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       let pdf = pdfDocumentProxyRef.current;
       if (!pdf) {
         const pdfjs = await loadPdfLibrary();
-        ownLoadingTask = pdfjs.getDocument({ url: sheet.pdfUrl.startsWith("blob:") ? sheet.pdfUrl : assetPath(sheet.pdfUrl) });
+        // A downloaded sheet is read from its stored bytes: the edge CSP
+        // blocks PDF.js from fetching a blob: URL (see offline/pdfSource.js).
+        const { pdfDocumentSource } = await import("../offline/pdfSource.js");
+        ownLoadingTask = pdfjs.getDocument(await pdfDocumentSource(sheet.pdfUrl, assetPath));
         pdf = await ownLoadingTask.promise;
       }
       let blob;

@@ -5,8 +5,10 @@ derived from the development Django key is allowed only outside production.
 """
 
 import base64
+import binascii
 import hashlib
 import logging
+import re
 import uuid
 from datetime import datetime, timedelta
 
@@ -25,16 +27,47 @@ logger = logging.getLogger("lockin.offline")
 LEASE_SECONDS = 24 * 60 * 60
 
 
+_BASE64_TEXT = re.compile(r"[A-Za-z0-9+/_-]+={0,2}")
+_SEED_BYTES = 32
+
+
+def _decode_seed(encoded: str) -> bytes:
+    """Decode the deployment's Ed25519 seed.
+
+    Accepts the standard padded Base64 an operator gets from `base64`, and the
+    URL-safe unpadded form key generators commonly print (43 characters for
+    32 bytes). Anything else -- mixed alphabets, misplaced or wrong padding,
+    stray characters, a length other than 32 bytes -- is refused. Error
+    messages describe the problem, never the value.
+    """
+
+    text = encoded.strip()
+    if not _BASE64_TEXT.fullmatch(text):
+        raise ValueError("the seed is not Base64 text")
+    url_safe = "-" in text or "_" in text
+    if url_safe and ("+" in text or "/" in text):
+        raise ValueError("the seed mixes the standard and URL-safe Base64 alphabets")
+    body = text.rstrip("=")
+    padding = "=" * (-len(body) % 4)
+    if text != body and text != body + padding:
+        raise ValueError("the seed's Base64 padding is incorrect")
+    try:
+        raw = base64.b64decode(body + padding, altchars=b"-_" if url_safe else None, validate=True)
+    except binascii.Error:
+        raise ValueError("the seed is not valid Base64") from None
+    if len(raw) != _SEED_BYTES:
+        raise ValueError(f"the seed must decode to {_SEED_BYTES} bytes, not {len(raw)}")
+    return raw
+
+
 def _private_key() -> Ed25519PrivateKey:
     encoded = getattr(settings, "OFFLINE_LEASE_ED25519_PRIVATE_KEY", "")
     if encoded:
         try:
-            raw = base64.b64decode(encoded, validate=True)
-            if len(raw) != 32:
-                raise ValueError("Ed25519 seed must be 32 bytes")
-            return Ed25519PrivateKey.from_private_bytes(raw)
+            return Ed25519PrivateKey.from_private_bytes(_decode_seed(encoded))
         except (ValueError, TypeError) as error:
-            raise RuntimeError("Invalid OFFLINE_LEASE_ED25519_PRIVATE_KEY") from error
+            # The reason names the problem only; the key never reaches a log.
+            raise RuntimeError(f"Invalid OFFLINE_LEASE_ED25519_PRIVATE_KEY: {error}") from None
     if getattr(settings, "ENVIRONMENT", "") == "production":
         raise RuntimeError("OFFLINE_LEASE_ED25519_PRIVATE_KEY is required in production")
     seed = hashlib.sha256((settings.SECRET_KEY + ":offline-lease:dev").encode()).digest()

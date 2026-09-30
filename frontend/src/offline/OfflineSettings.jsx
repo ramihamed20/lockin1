@@ -5,7 +5,7 @@ import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
 import { Icon } from "../lib/icons.jsx";
 import { formatDateTime } from "../lib/i18n.js";
 import { offlineDatabase } from "./database.js";
-import { clearOfflineDownloads, downloadOfflineItem, offlineDownloadStats, offlineItemState, readOfflineManifest, removeOfflineItem } from "./downloads.js";
+import { clearOfflineDownloads, downloadOfflineItem, fetchOfflineManifest, offlineDownloadStats, offlineItemState, readOfflineManifest, removeOfflineItem } from "./downloads.js";
 import { DEFAULT_OFFLINE_PREFERENCES, readOfflinePreferences, saveOfflinePreferences, synchronizeOffline } from "./coordinator.js";
 import { offlineAccessStatus } from "./lease.js";
 import { dismissFailedOperation, offlineOperationConflicts, pendingOfflineOperations } from "./queue.js";
@@ -132,9 +132,14 @@ export default function OfflineSettings({ userId }) {
       setBusyId("");
       return;
     }
-    for (const [index, item] of items.entries()) {
+    // The list on screen was read when Settings opened. Content edited since
+    // then is served at a new version, which the stale manifest's checksum
+    // would reject as an incomplete download; ask for the current one first.
+    const current = await fetchOfflineManifest(userId).catch(() => null);
+    const pending = current ? items.map((item) => current.items.find((entry) => entry.id === item.id)).filter(Boolean) : items;
+    for (const [index, item] of pending.entries()) {
       try {
-        await downloadOfflineItem(userId, item, (value) => setProgress((index + value) / items.length), { manual: true, manifest });
+        await downloadOfflineItem(userId, item, (value) => setProgress((index + value) / pending.length), { manual: true, manifest: current || manifest });
       } catch (cause) { failure ||= cause; }
     }
     if (failure) { setError(failure.message); setFailedId(busyKey); }

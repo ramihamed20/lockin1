@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   boundedOutputScale,
+  centeredScrollLeft,
   clampWorkspaceZoom,
   continuousPinchScale,
   constrainPinchTranslation,
@@ -124,6 +125,18 @@ test("page coordinates remain stable when the same PDF page is visually zoomed",
   const atTwoX = pagePointFromClient(662, 842, { left: 50, top: 50, width: 1224, height: 1584 }, logicalSize.width, logicalSize.height);
   assert.deepEqual(atOneX, { x: 306, y: 396 });
   assert.deepEqual(atTwoX, atOneX);
+});
+
+test("placing the reader centres a zoomed page instead of parking it at its left edge", () => {
+  // A 1280px page in a 1024px stage, laid out from x=0: centred means 128px
+  // hidden on each side, not the left edge flush with the stage.
+  assert.equal(centeredScrollLeft({ scrollLeft: 0, pageLeft: 0, viewportLeft: 0, viewportWidth: 1024, pageWidth: 1280, scrollWidth: 1280 }), 128);
+  // Measured mid-scroll, the same page gives the same answer.
+  assert.equal(centeredScrollLeft({ scrollLeft: 200, pageLeft: -200, viewportLeft: 0, viewportWidth: 1024, pageWidth: 1280, scrollWidth: 1280 }), 128);
+  // A page narrower than the stage is centred by the layout: no scroll.
+  assert.equal(centeredScrollLeft({ scrollLeft: 0, pageLeft: 102, viewportLeft: 0, viewportWidth: 1024, pageWidth: 819, scrollWidth: 1024 }), 0);
+  // The result never leaves the range the stage can scroll.
+  assert.equal(centeredScrollLeft({ scrollLeft: 0, pageLeft: 900, viewportLeft: 0, viewportWidth: 1024, pageWidth: 1280, scrollWidth: 1280 }), 256);
 });
 
 test("pinch zoom keeps the document point under the gesture midpoint", () => {

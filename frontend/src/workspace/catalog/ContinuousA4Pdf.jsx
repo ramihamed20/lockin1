@@ -592,9 +592,23 @@ export function ContinuousA4Pdf({
         setFailedPages(new Set());
         setDefaultPageAspectRatio(A4_PAGE_RATIO);
         setPageAspectRatios(new Map());
-        const pdfjs = await loadPdfLibrary();
-        loadingTask = pdfjs.getDocument({ url: pdfUrl.startsWith("blob:") ? pdfUrl : assetPath(pdfUrl) });
-        const nextDocument = await loadingTask.promise;
+        const [pdfjs, { pdfDocumentSource, downloadedPdfSource, isPdfNetworkFailure }] = await Promise.all([loadPdfLibrary(), import("../../offline/pdfSource.js")]);
+        // A downloaded PDF arrives as its stored bytes, read for this open only.
+        const source = await pdfDocumentSource(pdfUrl, assetPath);
+        if (cancelled) return;
+        loadingTask = pdfjs.getDocument(source);
+        let nextDocument;
+        try {
+          nextDocument = await loadingTask.promise;
+        } catch (error) {
+          // A server URL resolved while online stays on this sheet after the
+          // connection goes; an unreachable server then opens the stored copy.
+          const stored = !cancelled && isPdfNetworkFailure(error) ? await downloadedPdfSource(pdfUrl) : null;
+          if (!stored || cancelled) throw error;
+          void loadingTask.destroy();
+          loadingTask = pdfjs.getDocument(stored);
+          nextDocument = await loadingTask.promise;
+        }
         if (cancelled) return;
         const geometry = await measureEveryPage(nextDocument, () => cancelled);
         if (cancelled) return;

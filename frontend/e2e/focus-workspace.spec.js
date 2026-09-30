@@ -697,3 +697,77 @@ test("passing a checkpoint unlocks the next part below the reader instead of ret
   await expect.poll(async () => Math.abs(await stage.evaluate((node) => node.scrollTop) - readingTop)).toBeLessThan(4);
   await expect(page.getByRole("button", { name: "Reach page 20 to unlock the checkpoint" })).toBeVisible();
 });
+
+test("an online True/False checkpoint is answered and submitted through the server", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  const part1 = { id: "typed-run", difficulty: "medium", status: "active", stage: "reading", current_part: 1, number_of_parts: 4, completed_parts: [], current_page_range: { part: 1, start_page: 1, end_page: 10 } };
+  const part2 = { ...part1, current_part: 2, completed_parts: [1], current_page_range: { part: 2, start_page: 11, end_page: 20 } };
+  const questions = [
+    { position: 1, question: "Vitamin K is fat-soluble.", question_type: "true_false", options: { T: "True", F: "False" }, correct: "T" },
+    { position: 2, question: "Vitamin C is fat-soluble.", question_type: "true_false", options: { T: "True", F: "False" }, correct: "F" },
+    { position: 3, question: "Which vitamin is fat-soluble?", question_type: "mcq", options: { A: "Vitamin C", B: "Vitamin K" }, correct: "B" }
+  ];
+  let run = part1;
+  const posted = [];
+  const offlineSyncs = [];
+  page.on("request", (request) => { if (request.url().includes("/api/v1/offline/sync/")) offlineSyncs.push(request.url()); });
+  await page.route("**/api/v1/focus/managed-active-study/**", async (route) => {
+    const request = route.request();
+    const { pathname } = new URL(request.url());
+    const json = (body, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
+    if (pathname === "/api/v1/focus/managed-active-study/start") return json({ resumed: run !== part1, run });
+    if (!pathname.includes("/typed-run/")) return route.fallback();
+    if (pathname.endsWith("/complete-reading")) return json({ run: { ...run, stage: "checkpoint" } });
+    if (pathname.endsWith("/questions")) {
+      return json({ run: { ...run, stage: "checkpoint" }, attempt_id: "typed-attempt", kind: "checkpoint", questions: questions.map(({ correct, ...item }) => ({ ...item, answered: null })) });
+    }
+    if (pathname.endsWith("/answer")) {
+      const body = request.postDataJSON();
+      const item = questions[body.position - 1];
+      // The server's contract: a question accepts only its own keys. Before
+      // the fix the endpoint refused T/F with this envelope, which the reader
+      // showed as "The request could not be completed."
+      if (!item || !Object.hasOwn(item.options, body.selected_answer)) {
+        return json({ error: { code: "invalid", message: "The request could not be completed.", fields: { selected_answer: [`"${body.selected_answer}" is not a valid choice.`] }, request_id: null } }, 400);
+      }
+      posted.push(body.selected_answer);
+      return json({ correct: body.selected_answer === item.correct, correct_answer: item.correct, explanation: "", answered_count: posted.length, total: questions.length });
+    }
+    if (pathname.endsWith("/submit")) {
+      run = part2;
+      return json({ run: part2, result: { score: 3, total: 3, passed: true, completed: false, xp_awarded: 0 } });
+    }
+    return json({ run });
+  });
+  await page.goto(SHARED_TEST_SHEET_ROUTE);
+  await page.getByRole("dialog", { name: "Choose study mode" }).getByRole("button", { name: /Start Active Study/ }).click();
+  const indicator = page.locator(".workspace-v2-page-number");
+  await expect(indicator).toHaveAttribute("aria-label", "PDF page 1 of 10");
+  await indicator.click();
+  const navigator = page.locator(".workspace-v2-page-navigator input[type='number']");
+  await navigator.fill("10");
+  await navigator.press("Enter");
+  await expect(indicator).toHaveAttribute("aria-label", "PDF page 10 of 10");
+
+  await page.getByRole("button", { name: "Open checkpoint" }).click();
+  const first = page.getByRole("dialog", { name: /Vitamin K is fat-soluble/ });
+  await first.getByRole("radio", { name: /True/ }).click();
+  await first.getByRole("button", { name: /^Next/ }).click();
+  const second = page.getByRole("dialog", { name: /Vitamin C is fat-soluble/ });
+  await second.getByRole("radio", { name: /False/ }).click();
+  await second.getByRole("button", { name: /^Next/ }).click();
+  const third = page.getByRole("dialog", { name: /Which vitamin/ });
+  await third.getByRole("radio", { name: /Vitamin K/ }).click();
+  await third.getByRole("button", { name: "Submit test" }).click();
+
+  await page.getByRole("dialog", { name: "3 / 3" }).getByRole("button", { name: "Continue studying" }).click();
+  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
+  expect(posted).toEqual(["T", "F", "B"]);
+  await expect(page.getByText("The request could not be completed.")).toHaveCount(0);
+  expect(offlineSyncs).toEqual([]);
+
+  // The server's run is what a reload restores.
+  await page.reload();
+  await page.getByRole("dialog", { name: "Choose study mode" }).getByRole("button", { name: /Active Study/ }).first().click();
+  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible({ timeout: 20_000 });
+});
