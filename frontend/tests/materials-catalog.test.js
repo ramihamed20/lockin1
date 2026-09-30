@@ -220,13 +220,15 @@ test("Catalog Focus Workspace uses a compact contextual toolbar and persistent c
   assert.match(workspace, /addEventListener\("wheel", handleNativeWheel, \{ passive: false \}\)/);
   assert.doesNotMatch(workspace, /aria-label="Zoom mode"|Distraction-free mode|workspace-v2-focus-exit/);
   assert.match(workspace, /function ToolRange/);
-  assert.match(workspace, /<ToolRange label=\{activeTool === "shapes" \? "Border width" : "Thickness"\}/);
-  assert.match(workspace, /<ToolRange\s+label="Opacity"/);
+  // V2: the labels come from the catalogue so Arabic readers get them too.
+  assert.match(workspace, /<ToolRange label=\{activeTool === "shapes" \? t\("focus\.borderWidth"\) : t\("focus\.thickness"\)\}/);
+  // V2: Focus labels come from the i18n catalogue (focus.*), in English and Arabic.
+  assert.match(workspace, /<ToolRange\s+label=\{t\("focus\.opacity"\)\}/);
   assert.match(workspace, /input type="range"/);
   assert.match(workspace, /function IconChoiceGroup/);
   assert.match(workspace, /PEN_PROFILE_OPTIONS.*PenLine/s);
   assert.match(workspace, /SHAPE_OPTIONS.*Triangle/s);
-  assert.match(workspace, /label="Apple Pencil mode"/);
+  assert.match(workspace, /label=\{t\("focus\.applePencilMode"\)\}/);
   assert.doesNotMatch(workspace, /workspace-v2-pen-toggle|workspace-v2-smart-ink-settings|ToolStepper/);
   assert.match(workspace, /DRAWING_TOOLS\.has\(activeTool\) \? " is-touch-drawing"/);
   assert.match(workspace, /drawingScrollLockRef/);
@@ -236,17 +238,17 @@ test("Catalog Focus Workspace uses a compact contextual toolbar and persistent c
   assert.match(workspace, /function openNote/);
   assert.match(workspace, /function openHighlight/);
   assert.match(workspace, /jumpToPagePosition\(highlight\.page/);
-  assert.match(workspace, /Save to page \$\{page\}/);
+  assert.match(workspace, /t\("focus\.saveToPage", \{ page \}\)/);
   assert.match(workspace, /data-workspace-tool="text"/);
   assert.match(workspace, /type: "text"/);
   assert.match(workspace, /function addTextAnnotation/);
   assert.match(workspace, /addSavedColor\(items, normalized, MAX_PALETTE_COLORS, COLORS\)/);
   assert.match(workspace, /removeSavedColor\(recentColors, normalized, MAX_PALETTE_COLORS, COLORS\)/);
   assert.match(workspace, /paletteColors\.length < MAX_PALETTE_COLORS/);
-  assert.match(workspace, /label="Resume Active Study where I left off"/);
-  assert.match(workspace, /label="Remember zoom level"/);
-  assert.match(workspace, /aria-label="Fit width"/);
-  assert.match(workspace, /label="Show page number"/);
+  assert.match(workspace, /label=\{t\("focus\.resumeActiveStudyWhereI"\)\}/);
+  assert.match(workspace, /label=\{t\("focus\.rememberZoomLevel"\)\}/);
+  assert.match(workspace, /aria-label=\{t\("focus\.fitWidth"\)\}/);
+  assert.match(workspace, /label=\{t\("focus\.showPageNumber"\)\}/);
   assert.match(workspace, /navigator\.wakeLock\.request\("screen"\)/);
   assert.match(workspace, /MoreHorizontal/);
   assert.doesNotMatch(workspace, /workspacePosture|Switch to Read mode/);
