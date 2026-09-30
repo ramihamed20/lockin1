@@ -62,6 +62,8 @@
 }
 
 :is(.catalog-material-grid, .questions-category-grid) > .catalog-tile .catalog-tile__surface {
+  /* One icon column for every row, available or "Soon", so titles line up. */
+  grid-template-columns: 40px minmax(0, 1fr) auto;
   min-height: 64px;
   padding-block: 10px;
   border-radius: inherit;
