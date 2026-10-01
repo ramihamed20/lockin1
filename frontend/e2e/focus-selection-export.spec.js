@@ -41,6 +41,35 @@ async function pageBox(page) {
   return page.locator(".workspace-v2-a4-page").first().boundingBox();
 }
 
+async function tapEmptyVisiblePage(page, pointerId) {
+  await page.evaluate((id) => {
+    const stage = document.querySelector(".workspace-v2-document-stage");
+    const stageBox = stage.getBoundingClientRect();
+    for (const sheetPage of document.querySelectorAll(".workspace-v2-a4-page")) {
+      const box = sheetPage.getBoundingClientRect();
+      const top = Math.max(box.top, stageBox.top);
+      const bottom = Math.min(box.bottom, stageBox.bottom);
+      if (bottom - top < 40) continue;
+      for (const xFraction of [.8, .2]) {
+        for (const yFraction of [.7, .35]) {
+          const x = box.left + box.width * xFraction;
+          const y = top + (bottom - top) * yFraction;
+          const target = document.elementFromPoint(x, y);
+          if (target?.closest(".workspace-v2-a4-page") !== sheetPage
+            || target.closest("[data-annotation-id], [data-selection-toolbar]")) continue;
+          // Keep hit testing and pointer-down in one browser turn: the page
+          // can still be moving from the preceding touch pan.
+          const eventOptions = { pointerId: id, pointerType: "touch", isPrimary: true, clientX: x, clientY: y, button: 0, width: 9, height: 9, bubbles: true, cancelable: true, composed: true };
+          target.dispatchEvent(new PointerEvent("pointerdown", { ...eventOptions, buttons: 1, pressure: .5 }));
+          stage.dispatchEvent(new PointerEvent("pointerup", { ...eventOptions, buttons: 0, pressure: 0 }));
+          return;
+        }
+      }
+    }
+    throw new Error("No empty part of a visible workspace page");
+  }, pointerId);
+}
+
 /** Dispatches a pointer event at the element under the point, as a real contact would hit it. */
 async function pointerAt(page, type, pointerId, x, y, pointerType) {
   await page.evaluate(({ type, pointerId, x, y, pointerType }) => {
@@ -407,7 +436,7 @@ test.describe("touch and stylus", () => {
     await expect.poll(async () => stage.evaluate((node) => node.scrollTop)).toBeGreaterThan(scrollBefore + 50);
     await expect(page.locator(".workspace-v2-selection-box")).toHaveAttribute("data-selection-count", "1");
     // A tap on empty page clears it.
-    await tap(page, 34, { x: box.x + box.width * .5, y: 740 }, "touch");
+    await tapEmptyVisiblePage(page, 34);
     await expect(toolbar(page)).toHaveCount(0);
   });
 
