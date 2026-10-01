@@ -7,8 +7,8 @@ import {
   useState,
   useSyncExternalStore
 } from "react";
-import { useRegisterSW } from "virtual:pwa-register/react";
-import { scheduleUpdateChecks } from "./updateChecks.js";
+import { registerSW } from "virtual:pwa-register";
+import { pwaUpdates } from "./updateManager.js";
 import { Icon } from "../lib/icons.jsx";
 import { assetPath } from "../lib/utils.js";
 import { useI18n } from "../components/I18nProvider.jsx";
@@ -38,15 +38,6 @@ function initialLaunchState(platform, installSnapshot) {
     serviceWorkerStatus: import.meta.env.PROD && "serviceWorker" in navigator ? "checking" : "unsupported",
     documentReady: document.readyState === "complete",
     promptAvailable: Boolean(installSnapshot.prompt)
-  });
-}
-
-function monitorWorkerState(registration) {
-  if (!import.meta.env?.DEV || !registration) return;
-  const workers = [registration.installing, registration.waiting, registration.active].filter(Boolean);
-  workers.forEach((worker) => {
-    pwaDebug("Service worker state", worker.state);
-    worker.addEventListener("statechange", () => pwaDebug("Service worker state", worker.state));
   });
 }
 
@@ -144,55 +135,23 @@ export function PwaLifecycleProvider({ children }) {
   const installSnapshot = useSyncExternalStore(subscribeToInstallEvents, getInstallSnapshot, getInstallSnapshot);
   const platform = useMemo(detectPwaPlatform, []);
   const documentReady = useDocumentReady();
-  const [serviceWorkerStatus, setServiceWorkerStatus] = useState(() => (
-    import.meta.env.PROD && "serviceWorker" in navigator ? "checking" : "unsupported"
-  ));
+  // The one service worker registration. The update manager owns it, its
+  // update checks and its activation; this provider only reads its status.
+  const updates = useSyncExternalStore(pwaUpdates.subscribe, pwaUpdates.getSnapshot, pwaUpdates.getSnapshot);
+  const serviceWorkerStatus = updates.serviceWorker;
+  const offlineReady = updates.offlineReady;
   const [launchStatus, setLaunchStatus] = useState(() => initialLaunchState(platform, installSnapshot));
   const [installBusy, setInstallBusy] = useState(false);
   const [installError, setInstallError] = useState("");
   const appRootRef = useRef(null);
-  const updateChecksRef = useRef(/** @type {null | (() => void)} */ (null));
-  useEffect(() => () => updateChecksRef.current?.(), []);
 
-  const {
-    needRefresh: [needRefresh, setNeedRefresh],
-    offlineReady: [offlineReady],
-    updateServiceWorker
-  } = useRegisterSW({
-    immediate: true,
-    onRegisteredSW(swUrl, registration) {
-      pwaDebug("Service worker registered", {
-        script: swUrl,
-        scope: registration?.scope,
-        controller: navigator.serviceWorker.controller?.state || "not controlling yet"
-      });
-      monitorWorkerState(registration);
-      updateChecksRef.current?.();
-      updateChecksRef.current = scheduleUpdateChecks(registration);
-      navigator.serviceWorker.ready
-        .then((readyRegistration) => {
-          monitorWorkerState(readyRegistration);
-          setServiceWorkerStatus("ready");
-          pwaDebug("Service worker ready", {
-            scope: readyRegistration.scope,
-            state: readyRegistration.active?.state,
-            controlling: Boolean(navigator.serviceWorker.controller)
-          });
-        })
-        .catch((error) => {
-          setServiceWorkerStatus("error");
-          pwaDebug("Service worker readiness failed", error);
-        });
-    },
-    onOfflineReady() {
-      setServiceWorkerStatus("ready");
-      pwaDebug("Offline app shell ready");
-    },
-    onRegisterError(error) {
-      setServiceWorkerStatus("error");
-      pwaDebug("Service worker registration failed", error);
-    }
-  });
+  useEffect(() => {
+    pwaUpdates.start(registerSW);
+  }, []);
+
+  useEffect(() => {
+    pwaDebug("Service worker status", serviceWorkerStatus);
+  }, [serviceWorkerStatus]);
 
   const showLaunchScreen = !FINAL_PWA_LAUNCH_STATES.has(launchStatus);
 
@@ -294,12 +253,9 @@ export function PwaLifecycleProvider({ children }) {
   }
 
   const lifecycleValue = useMemo(() => ({
-    needRefresh,
-    setNeedRefresh,
     offlineReady,
-    serviceWorkerStatus,
-    updateServiceWorker
-  }), [needRefresh, offlineReady, serviceWorkerStatus, setNeedRefresh, updateServiceWorker]);
+    serviceWorkerStatus
+  }), [offlineReady, serviceWorkerStatus]);
 
   return (
     <PwaLifecycleContext.Provider value={lifecycleValue}>

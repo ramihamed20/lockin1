@@ -83,13 +83,14 @@ test("PWA registration and browser-owned installation are centralized at bootstr
 
   assert.doesNotMatch(app, /PwaUpdatePrompt|beforeinstallprompt|deferredPrompt/);
   assert.match(main, /<PwaLifecycleProvider>[\s\S]*<App \/>[\s\S]*<PwaUpdatePrompt \/>/);
-  assert.match(provider, /useRegisterSW/);
+  assert.match(provider, /pwaUpdates\.start\(registerSW\)/);
+  assert.doesNotMatch(provider, /useRegisterSW/);
   assert.match(provider, /checking|installed|installable|ios-instructions|manual-install|dismissed|unsupported|error|ready/);
   assert.doesNotMatch(provider, /setTimeout/);
   assert.match(installEvents, /beforeinstallprompt/);
   assert.match(installEvents, /appinstalled/);
   assert.match(installEvents, /event\.preventDefault\(\)/);
-  assert.match(updatePrompt, /usePwaLifecycle/);
+  assert.match(updatePrompt, /usePwaUpdates/);
   assert.match(updatePrompt, /className="pwa-update-prompt"/);
   assert.match(launchStyles, /\.pwa-launch-screen/);
   assert.match(launchStyles, /env\(safe-area-inset|--safe-top/);

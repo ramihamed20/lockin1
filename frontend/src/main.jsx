@@ -27,6 +27,7 @@ import { I18nProvider } from "./components/I18nProvider.jsx";
 import { RouteMetadataSync } from "./components/RouteMetadataSync.jsx";
 import { PwaUpdatePrompt } from "./components/shared/PwaUpdatePrompt.jsx";
 import { PwaLifecycleProvider } from "./pwa/PwaLifecycleProvider.jsx";
+import { BUILD_INFO } from "./pwa/buildInfo.js";
 import { installInteractionRuntime } from "./lib/interaction.js";
 import { installViewportSync } from "./lib/viewport.js";
 import { installClientErrorReporting } from "./lib/clientErrorReporting.js";
@@ -37,6 +38,9 @@ installInteractionRuntime();
 // layout is never waiting on this.
 installViewportSync();
 installClientErrorReporting();
+// `__LOCKIN_BUILD__` in the console answers "which build is this device on?"
+// when diagnosing a stale deployment. Settings shows the same values.
+window.__LOCKIN_BUILD__ = BUILD_INFO;
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>

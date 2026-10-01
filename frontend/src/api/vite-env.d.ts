@@ -23,11 +23,15 @@ declare global {
   }
 
   const __APP_VERSION__: string;
+  const __APP_SEMVER__: string;
+  const __APP_BUILD_TIME__: string;
   /** Fixture sheets keyed by material slug; null outside `npm run build:e2e`. */
   const __E2E_CATALOG_MATERIALS__: Record<string, import("../lib/materialCatalog.js").CatalogSheet[]> | null;
 
   interface Window {
     pdfjsLib?: any;
+    /** Read-only build identity for console diagnostics of stale deployments. */
+    __LOCKIN_BUILD__?: Readonly<Record<string, string>>;
     __lockInFocusGesture?: Record<string, unknown>;
     __lockInFocusElastic?: Record<string, unknown>;
     __lockInFocusPerformance?: Record<string, unknown>;

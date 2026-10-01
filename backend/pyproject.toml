@@ -18,7 +18,7 @@ dependencies = [
   "gunicorn==26.0.0; platform_system != 'Windows'",
   "psycopg[binary]==3.3.4",
   "PyJWT[crypto]==2.15.1",
-  "pypdf==6.18.1",
+  "pypdf==6.19.0",
   "weasyprint==70.0",
   "sqlparse==0.6.0",
 ]

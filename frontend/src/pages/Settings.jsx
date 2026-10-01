@@ -17,6 +17,10 @@ import { UserAvatar } from "../components/shared/UserAvatar.jsx";
 import { Page, ErrorPanel, RadioGroup, RadioOption, Switch } from "../components/ui/index.jsx";
 import { ResponsiveThemePreview } from "../components/shared/ResponsiveThemePreview.jsx";
 import OfflineSettings from "../offline/OfflineSettings.jsx";
+import AppUpdateSettings from "../pwa/AppUpdateSettings.jsx";
+import { BUILD_INFO } from "../pwa/buildInfo.js";
+import { UPDATE_STATUS } from "../pwa/updateManager.js";
+import { usePwaUpdates } from "../pwa/usePwaUpdates.js";
 
 /**
  * Settings is organised the way a native settings app is: a short list of
@@ -31,7 +35,8 @@ const SECTIONS = [
   { id: "account", labelKey: "common.account", icon: "user" },
   { id: "appearance", labelKey: "common.appearance", icon: "palette" },
   { id: "notifications", labelKey: "settings.notifications", icon: "bell" },
-  { id: "offline", labelKey: "offline.title", icon: "package" }
+  { id: "offline", labelKey: "offline.title", icon: "package" },
+  { id: "updates", labelKey: "settings.updates.section", icon: "sparkles" }
 ];
 
 const LEGACY_SECTIONS = {
@@ -58,6 +63,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
   const [error, setError] = useState("");
   const [reminderError, setReminderError] = useState("");
   const isAdministrator = hasProductRole(user, PRODUCT_ROLES.ADMINISTRATOR);
+  const { status: updateStatus } = usePwaUpdates();
   const searchParameters = new URLSearchParams(location.search);
   const requestedSection = searchParameters.get("section") || "";
   const deletionToken = searchParameters.get("token") || "";
@@ -176,7 +182,10 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
     account: user?.username || "",
     appearance: themeValue,
     notifications: reminderSettings.enabled ? reminderSettings.time : t("settings.valueOff"),
-    offline: ""
+    offline: "",
+    updates: updateStatus === UPDATE_STATUS.AVAILABLE || updateStatus === UPDATE_STATUS.RELOAD_REQUIRED
+      ? t("settings.updates.availableShort")
+      : BUILD_INFO.version
   };
   const sectionTitle = t(SECTIONS.find((entry) => entry.id === activeSection)?.labelKey || "settings.pageTitle");
 
@@ -331,6 +340,8 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
           </section>}
 
           {activeSection === "offline" && user?.id && <OfflineSettings userId={user.id} />}
+
+          {activeSection === "updates" && <AppUpdateSettings />}
 
           {saving && <p className="save-hint settings-v2-saving" role="status">{t("settings.saving")}</p>}
         </div>
