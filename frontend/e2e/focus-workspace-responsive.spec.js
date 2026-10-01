@@ -243,7 +243,8 @@ test("the iPad toolbar keeps direct tools, quick colors, and Active Study usable
   await expect.poll(() => page.locator("#workspace-pen-options").evaluate((node) => node.scrollTop)).toBe(0);
   await expect.poll(() => page.locator("#workspace-pen-options").evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
   await page.screenshot({ path: testInfo.outputPath("ipad-pen-options-night.png") });
-  await expect(page.getByRole("group", { name: "Pen type" }).getByRole("button")).toHaveCount(3);
+  // Ball, Fountain, Brush, and the temporary Pointer and Neon pens.
+  await expect(page.getByRole("group", { name: "Pen type" }).getByRole("button")).toHaveCount(5);
   await page.getByRole("button", { name: "Set thickness to 8" }).click();
   await expect(page.getByRole("slider", { name: "Thickness" })).toHaveValue("8");
   await page.getByText("Presets & pen gestures").click();

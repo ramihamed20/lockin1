@@ -40,3 +40,25 @@ export function CheckpointRestartDialog({ open, busy = false, onConfirm, onCance
     />
   );
 }
+
+/**
+ * Leaving a sheet mid Active Study: save to reopen at this part and page, or
+ * start the sheet's Active Study again from Part 1 next time.
+ */
+export function ActiveStudyExitDialog({ open, busy = false, onSave, onDiscard, onCancel }) {
+  const { t } = useI18n();
+  return (
+    <ConfirmDialog
+      open={open}
+      busy={busy}
+      title={t("activeStudy.exitTitle")}
+      message={t("activeStudy.exitMessage")}
+      confirmLabel={t("activeStudy.exitSave")}
+      confirmVariant="primary"
+      secondaryLabel={t("activeStudy.exitDiscard")}
+      onSecondary={onDiscard}
+      onConfirm={onSave}
+      onCancel={onCancel}
+    />
+  );
+}

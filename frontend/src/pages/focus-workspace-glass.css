@@ -205,6 +205,8 @@ html.ix-hover .workspace-v2-toolbar .workspace-v2-icon-button:hover:not(:disable
   background: transparent;
 }
 .workspace-v2 .workspace-v7-panel-body .workspace-v2-icon-choices[aria-label="Shape type"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+/* Five pen types (three inks, Pointer, Neon) share one row. */
+.workspace-v2 .workspace-v7-panel-body .workspace-v4-pen-profiles { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .workspace-v2 .workspace-v7-panel-body :is(.workspace-v2-icon-choices, .workspace-v4-pen-profiles) button {
   display: grid;
   min-width: 0;

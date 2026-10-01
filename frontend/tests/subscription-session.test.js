@@ -45,16 +45,18 @@ test("an authoritative paid subscription remains fresh locally until expires_at"
 
 test("the session cache is scoped to the authenticated user and survives screen refreshes", () => {
   globalThis.window = { sessionStorage: storage() };
+  const now = Date.now();
+  const expiresAt = new Date(now + 20_000).toISOString();
   const subscription = {
     status: "active",
     access_allowed: true,
-    expires_at: "2026-10-01T00:00:00Z"
+    expires_at: expiresAt
   };
 
   writeSubscriptionSnapshot("user-1", subscription, []);
-  assert.deepEqual(readSubscriptionSnapshot("user-1", Date.now() + 1_000)?.subscription, subscription);
-  assert.equal(readSubscriptionSnapshot("user-2", Date.now() + 1_000), null);
-  assert.equal(readSubscriptionSnapshot("user-1", Date.parse("2026-10-01T00:00:00Z")), null);
+  assert.deepEqual(readSubscriptionSnapshot("user-1", now + 1_000)?.subscription, subscription);
+  assert.equal(readSubscriptionSnapshot("user-2", now + 1_000), null);
+  assert.equal(readSubscriptionSnapshot("user-1", Date.parse(expiresAt)), null);
   delete globalThis.window;
 });
 

@@ -11,13 +11,15 @@ import { studentSession } from "./fixtures/productionApi.js";
  * heading column first and keeps the longest word as the cell's floor.
  */
 
+const trialEndsAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+
 const TRIAL = {
   id: "subscription-trialing",
   status: "trialing",
   access_allowed: true,
   remaining_days: 3,
-  trial_ends_at: "2026-10-01T00:00:00Z",
-  current_period_ends_at: "2026-10-01T00:00:00Z",
+  trial_ends_at: trialEndsAt,
+  current_period_ends_at: trialEndsAt,
   // The seeded trial plan's real title, which is what wrapped.
   plan_title: "Free Trial"
 };

@@ -418,6 +418,95 @@ test("Active Study can restart saved progress from Part 1 without changing the P
   expect(restartRequests).toBe(1);
 });
 
+test("a sheet opens in Normal Study, reopens where Active Study was saved, and Don't Save restarts from Part 1", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  const saved = { id: "exit-saved-run", difficulty: "medium", status: "active", stage: "reading", current_part: 2, number_of_parts: 4, completed_parts: [1], current_page_range: { part: 2, start_page: 11, end_page: 20 } };
+  const fresh = { ...saved, id: "exit-fresh-run", current_part: 1, completed_parts: [], current_page_range: { part: 1, start_page: 1, end_page: 10 } };
+  let run = saved;
+  let restartRequests = 0;
+  const starts = [];
+  await page.route("**/api/v1/focus/managed-active-study/**", async (route) => {
+    const { pathname } = new URL(route.request().url());
+    const json = (body) => route.fulfill({ contentType: "application/json", body: JSON.stringify(body) });
+    if (pathname.includes("/sheets/")) {
+      return json({ difficulties: ["easy", "medium", "hard"].map((difficulty) => ({ difficulty, status: "ready", progress: difficulty === run.difficulty ? run : null })) });
+    }
+    if (pathname === "/api/v1/focus/managed-active-study/start") {
+      starts.push(route.request().postDataJSON().difficulty);
+      return json({ resumed: true, run });
+    }
+    if (pathname.endsWith("/exit-saved-run/restart")) {
+      restartRequests += 1;
+      run = fresh;
+      return json({ run: fresh });
+    }
+    return route.fallback();
+  });
+  // The student's own "Save" outranks a disabled "resume where I left off".
+  await page.addInitScript(() => {
+    if (window.sessionStorage.getItem("exit-test-seeded")) return;
+    window.sessionStorage.setItem("exit-test-seeded", "1");
+    window.localStorage.setItem("lock-in.catalog-workspace.settings.v1", JSON.stringify({ rememberLastPosition: false }));
+    window.localStorage.setItem("lock-in.active-study.resume.exit-saved-run", JSON.stringify({ page: 15 }));
+  });
+  const openFromSheet = async () => {
+    await page.goto("/#/materials/catalog/biochemistry-1/sheets/vitamin-1");
+    await page.locator('a.catalog-edition-option[href$="/sheets/vitamin-1/workspace"]').click();
+    await expect(page.locator(".workspace-v2")).toBeVisible();
+  };
+  const studyButton = page.locator(".workspace-v2-study-mode-button");
+  const modeDialog = page.getByRole("dialog", { name: "Choose study mode" });
+  const exit = page.getByRole("alertdialog", { name: "Save your progress?" });
+  const indicator = page.locator(".workspace-v2-page-number");
+
+  // First visit: Normal Study, no chooser. Active Study is picked from the Study button.
+  await openFromSheet();
+  await expect(modeDialog).toBeHidden();
+  await expect(studyButton).toHaveClass(/is-normal/);
+  await studyButton.click();
+  await modeDialog.getByRole("button", { name: /Start Active Study/ }).click();
+  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
+  await expect(indicator).toHaveAttribute("aria-label", "PDF page 15 of 20");
+
+  // Leaving asks; Cancel stays, Save leaves.
+  await page.getByRole("button", { name: "Exit workspace" }).click();
+  await expect(exit.getByRole("button")).toHaveText(["Cancel", "Don't Save", "Save"]);
+  await exit.getByRole("button", { name: "Cancel" }).click();
+  await expect(exit).toBeHidden();
+  await page.getByRole("button", { name: "Exit workspace" }).click();
+  await exit.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page).toHaveURL(/\/sheets\/vitamin-1$/);
+  expect(restartRequests).toBe(0);
+
+  // Coming back resumes the saved run at its page, without the chooser.
+  await openFromSheet();
+  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
+  await expect(indicator).toHaveAttribute("aria-label", "PDF page 15 of 20");
+  await expect(modeDialog).toBeHidden();
+  expect(starts).toEqual(["medium", "medium"]);
+
+  // Switching to Normal there makes the sheet open in Normal next time.
+  await studyButton.click();
+  await modeDialog.getByRole("button", { name: /Normal Study/ }).click();
+  await expect(studyButton).toHaveClass(/is-normal/);
+  await page.getByRole("button", { name: "Exit workspace" }).click();
+  await expect(page).toHaveURL(/\/sheets\/vitamin-1$/);
+  await openFromSheet();
+  await expect(studyButton).toHaveClass(/is-normal/);
+  expect(starts).toHaveLength(2);
+
+  // Don't Save restarts the run from Part 1 and the sheet opens in Normal again.
+  await studyButton.click();
+  await modeDialog.getByRole("button", { name: /Start Active Study/ }).click();
+  await page.getByRole("button", { name: "Exit workspace" }).click();
+  await exit.getByRole("button", { name: "Don't Save" }).click();
+  await expect(page).toHaveURL(/\/sheets\/vitamin-1$/);
+  expect(restartRequests).toBe(1);
+  await openFromSheet();
+  await expect(studyButton).toHaveClass(/is-normal/);
+  expect(starts).toHaveLength(3);
+});
+
 test("PDF sheets open at page one and restore zoom only while enabled @chromium-only", async ({ page }) => {
   test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
