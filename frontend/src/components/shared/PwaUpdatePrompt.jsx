@@ -1,46 +1,45 @@
-import { useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Icon } from "../../lib/icons.jsx";
 import { useI18n } from "../I18nProvider.jsx";
-import { usePwaLifecycle } from "../../pwa/PwaLifecycleProvider.jsx";
+import { usePwaUpdates } from "../../pwa/usePwaUpdates.js";
+import { UPDATE_STATUS } from "../../pwa/updateManager.js";
 import { isFeatureComingSoon } from "../../lib/featureAvailability.js";
 
+/**
+ * A quiet card, never a modal: finding an update must not interrupt a reader
+ * mid-checkpoint, mid-exam, or mid-stroke. It applies only when they choose.
+ */
 export function PwaUpdatePrompt({ deferred = false }) {
   const location = useLocation();
   const { t } = useI18n();
-  const [updateError, setUpdateError] = useState("");
-  const {
-    needRefresh,
-    setNeedRefresh,
-    updateServiceWorker
-  } = usePwaLifecycle();
+  const { status, dismissed, error, applyUpdate, dismiss } = usePwaUpdates();
   const inImmersiveWorkspace = (!isFeatureComingSoon("lock-in") && (location.pathname === "/lock-in"
     || location.pathname.startsWith("/lock-in/")))
     || location.pathname.endsWith("/workspace");
 
-  if (deferred || inImmersiveWorkspace || (!needRefresh && !updateError)) return null;
+  const updating = status === UPDATE_STATUS.UPDATING;
+  const reloadRequired = status === UPDATE_STATUS.RELOAD_REQUIRED;
+  const activationFailed = status === UPDATE_STATUS.AVAILABLE && error === "activation-failed";
+  const visible = status === UPDATE_STATUS.AVAILABLE || updating || reloadRequired;
+  if (deferred || inImmersiveWorkspace || dismissed || !visible) return null;
 
-  async function applyUpdate() {
-    setUpdateError("");
-    try {
-      await updateServiceWorker(true);
-    } catch {
-      setUpdateError(t("pwa.update.error"));
-    }
-  }
+  const title = reloadRequired ? t("pwa.update.reloadTitle") : activationFailed ? t("pwa.update.paused") : t("pwa.update.title");
+  const body = reloadRequired ? t("pwa.update.reloadBody") : activationFailed ? t("pwa.update.error") : updating ? t("pwa.update.applying") : t("pwa.update.body");
 
   return (
-    <aside className="pwa-update-prompt" role="status" aria-live="polite">
+    <aside className="pwa-update-prompt" role="status" aria-live="polite" data-update-status={status}>
       <div className="pwa-update-prompt__content">
-        <span className="stat-icon pwa-update-prompt__icon"><Icon name={updateError ? "alert-triangle" : "sparkles"} size={20} /></span>
+        <span className="stat-icon pwa-update-prompt__icon"><Icon name={activationFailed ? "alert-triangle" : "sparkles"} size={20} /></span>
         <div>
-          <h2>{updateError ? t("pwa.update.paused") : t("pwa.update.title")}</h2>
-          <p>{updateError || t("pwa.update.body")}</p>
+          <h2>{title}</h2>
+          <p>{body}</p>
         </div>
       </div>
       <div className="pwa-update-prompt__actions">
-        <button className="btn btn-outline compact" type="button" onClick={() => { setNeedRefresh(false); setUpdateError(""); }}>{t("pwa.update.later")}</button>
-        {!updateError && <button className="btn btn-primary compact" type="button" onClick={() => { void applyUpdate(); }}>{t("pwa.update.now")}</button>}
+        <button className="btn btn-outline compact" type="button" onClick={dismiss} disabled={updating}>{t("pwa.update.later")}</button>
+        <button className="btn btn-primary compact" type="button" aria-busy={updating || undefined} disabled={updating} onClick={() => { void applyUpdate(); }}>
+          {updating ? t("pwa.update.updating") : reloadRequired ? t("pwa.update.reload") : t("pwa.update.now")}
+        </button>
       </div>
     </aside>
   );

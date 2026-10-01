@@ -48,6 +48,23 @@
 .settings-v2-icon--appearance { background: #c7892a; }
 .settings-v2-icon--notifications { background: #d6524f; }
 .settings-v2-icon--offline { background: #2f9a6c; }
+.settings-v2-icon--updates { background: #3b82c4; }
+
+/* Settings → Updates. Build identifiers stay left-to-right in Arabic. */
+.app-updates-id { font-variant-numeric: tabular-nums; unicode-bidi: isolate; }
+.app-updates-icon {
+  border-radius: 50%;
+  color: var(--muted);
+  background: var(--surface-3);
+}
+.app-updates-icon.is-ok {
+  color: var(--success);
+  background: var(--success-soft);
+}
+.app-updates-icon.is-ready {
+  color: var(--accent-text);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
 
 .settings-v2-detail {
   display: grid;

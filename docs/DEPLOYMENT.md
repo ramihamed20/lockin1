@@ -726,6 +726,47 @@ sudo ufw enable
 No database, ClamAV, or application port is published. The only ports reachable
 from the internet are 80, 443, and the allowlisted SSH port.
 
+#### Cloudflare caching and app updates
+
+Installed apps find a new release by re-fetching `/service-worker.js` and the
+HTML shell. If Cloudflare serves either from its edge cache, a deployment does
+not reach installed apps until that copy expires. The repository cannot change
+Cloudflare's dashboard, so this is a manual, one-time check.
+
+The origin already sends the right headers (both nginx configurations):
+
+| Path | `Cache-Control` from origin |
+|------|-----------------------------|
+| `/`, `/index.html`, any SPA path | `no-cache` (`expires -1`) |
+| `/service-worker.js` | `no-cache` (`expires epoch`) |
+| `/manifest.webmanifest` | `no-cache` (`expires -1`) |
+| `/assets/*` (content-hashed) | `max-age=315360000` (`expires max`) — immutable by name |
+
+There is no `registerSW.js`; registration is bundled into the hashed main
+script. Cloudflare does not cache a response marked `no-cache`, and does not
+cache HTML by default, so with default settings nothing more is needed. It
+breaks only if a dashboard rule overrides the origin. In **Caching → Cache
+Rules**, confirm no rule applies *Cache Everything*, an *Edge TTL* override, or a
+*Browser TTL* override to these paths. To make this explicit, add one rule
+ordered **first**:
+
+- **When:** URI Path equals `/` **or** `/index.html` **or** `/service-worker.js`
+  **or** `/manifest.webmanifest`
+- **Then:** Cache eligibility **Bypass cache**; Browser TTL **Respect origin**
+
+Leave `/assets/*` cacheable — those names change every release.
+
+Check from outside after a deploy (`cf-cache-status` should be `DYNAMIC` or
+`BYPASS`, never `HIT`):
+
+```bash
+curl -sI https://<public-host>/service-worker.js | grep -iE "cache-control|cf-cache-status"
+```
+
+Settings → Updates shows the running build (`<build date>-<commit>`), so a
+device that has not moved to a release can be identified directly; the same
+values are on `window.__LOCKIN_BUILD__` in the console.
+
 ### 8. Deploy an update
 
 CI builds and pushes an image for every commit on `main` and prints the exact

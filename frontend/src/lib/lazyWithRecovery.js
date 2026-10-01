@@ -1,4 +1,5 @@
 import { lazy } from "react";
+import { UPDATE_STATUS, pwaUpdates } from "../pwa/updateManager.js";
 
 const CHUNK_ERROR_PATTERN = /failed to fetch dynamically imported module|importing a module script failed|error loading dynamically imported module|loading chunk .+ failed|chunkloaderror/i;
 
@@ -25,6 +26,12 @@ export function isStaleClientError(error) {
 
 export async function reloadForUpdate() {
   if (typeof window === "undefined") return;
+  // A downloaded update has to be activated, not just reloaded past: a plain
+  // reload keeps the old worker in control and serves the same stale build.
+  if (pwaUpdates.hasUpdate() || pwaUpdates.getSnapshot().status === UPDATE_STATUS.RELOAD_REQUIRED) {
+    await pwaUpdates.applyUpdate();
+    return;
+  }
   await refreshServiceWorker();
   // This function is called only from an explicit “Update and reload” action.
   // A backgrounded browser can discard a lazy module, but that must never turn

@@ -150,6 +150,7 @@
   /* Lifecycle controls sit in the app layer; retain their larger touch target
      when this later system layer refines the shared button. */
   .pwa-launch-actions .btn { min-height: 48px; }
+  .pwa-update-prompt__actions .btn { min-height: 44px; }
   .btn-primary,
   :root[data-theme] .btn-primary { box-shadow: none; }
   .field input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),

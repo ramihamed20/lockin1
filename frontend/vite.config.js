@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
@@ -53,6 +54,11 @@ export default defineConfig(async ({ mode }) => {
     ? (await import("./e2e/fixtures/catalog.js")).e2eCatalogMaterials()
     : null;
   const appVersion = env.VITE_APP_VERSION || process.env.GITHUB_SHA || "local";
+  // Shown in Settings so a stale deployment can be diagnosed. The package
+  // version is the human release; the build time makes every production build
+  // distinguishable even when a release identifier is rebuilt.
+  const appSemver = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")).version;
+  const buildTime = new Date().toISOString();
   const basePath = normalizeBasePath(env.VITE_BASE_PATH || "/");
   // This value is used only by Vite's development proxy. Browser requests stay
   // same-origin at /api/v1, so session cookies are never sent by the browser to
@@ -64,6 +70,8 @@ export default defineConfig(async ({ mode }) => {
   base: basePath,
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
+    __APP_SEMVER__: JSON.stringify(appSemver),
+    __APP_BUILD_TIME__: JSON.stringify(buildTime),
     __E2E_CATALOG_MATERIALS__: JSON.stringify(e2eCatalogMaterials)
   },
   plugins: [
