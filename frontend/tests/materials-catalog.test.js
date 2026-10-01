@@ -79,7 +79,9 @@ test("Active Study stays closed until a sheet has questions, and Quizzes is not 
   const workspace = await readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8");
   assert.match(workspace, /activeAvailable=\{activeStudyReady\}/);
   assert.match(workspace, /getManagedActiveStudyAvailability\(sheet\.learningObjectId, sheetEdition\?\.edition\)/);
-  assert.match(workspace, /if \(activeStudyBusy \|\| !activeStudyReady\) return;/);
+  // Only resuming a run the availability check found ready skips the gate.
+  assert.match(workspace, /if \(activeStudyBusy \|\| \(!resuming && !activeStudyReady\)\) return;/);
+  assert.match(workspace, /item\?\.status !== "ready" \|\| item\.progress\?\.status !== "active"/);
   assert.match(workspace, /"materials\.activeStudyUnavailable"/);
   assert.doesNotMatch(workspace, /isTestSheet/);
 

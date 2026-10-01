@@ -29,6 +29,7 @@ import {
   MousePointer2,
   Pencil,
   PenLine,
+  Pointer,
   Plus,
   Redo2,
   RotateCcw,
@@ -171,6 +172,8 @@ import { loadPdfLibrary } from "../workspace/catalog/pdfJsAdapter.js";
 import { activeStudyResumePage } from "../workspace/catalog/visiblePdfPages.js";
 import { ToolPreview } from "../workspace/catalog/ToolPreview.jsx";
 import { LiveAnnotationCanvas } from "../workspace/ink/LiveAnnotationCanvas.jsx";
+import { TransientInkCanvas } from "../workspace/ink/TransientInkCanvas.jsx";
+import { TRANSIENT_DEFAULT_COLOR, TRANSIENT_INK_KIND, TRANSIENT_PEN_PROFILES, createTransientInk } from "../workspace/ink/transientInk.js";
 import { createWorkspacePerformanceMonitor } from "../workspace/catalog/workspacePerformance.js";
 import { addSavedColor, normalizeSavedPalette, normalizeToolColor, removeSavedColor } from "../workspace/catalog/toolPalette.js";
 import { WORKSPACE_GESTURE, WORKSPACE_ZOOM } from "../workspace/config.js";
@@ -189,7 +192,7 @@ import {
 } from "../workspace/storage/workspaceSnapshot.js";
 import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
-import { CheckpointExitDialog, CheckpointRestartDialog } from "../components/shared/CheckpointExitDialog.jsx";
+import { ActiveStudyExitDialog, CheckpointExitDialog, CheckpointRestartDialog } from "../components/shared/CheckpointExitDialog.jsx";
 import { QuestionExplanation } from "../components/shared/QuestionExplanation.jsx";
 import { useExitGuard } from "../hooks/useExitGuard.js";
 import { acknowledgeFocusDocument, markFocusDocumentDirty, registerOpenFocusDocument } from "../offline/focusSync.js";
@@ -260,7 +263,10 @@ const CONFIGURABLE_TOOLS = new Set(["pen", "pencil", "highlighter", "eraser", "s
 const PEN_PROFILE_OPTIONS = [
   [PEN_PROFILE.BALL, "focus.pen.ball", PenLine, "focus.pen.ballShort"],
   [PEN_PROFILE.FOUNTAIN, "focus.pen.fountain", Feather, "focus.pen.fountainShort"],
-  [PEN_PROFILE.BRUSH, "focus.pen.brush", Brush, "focus.pen.brushShort"]
+  [PEN_PROFILE.BRUSH, "focus.pen.brush", Brush, "focus.pen.brushShort"],
+  // Temporary ink: drawn on its own canvas, never saved (see transientInk.js).
+  [TRANSIENT_INK_KIND.POINTER, "focus.pen.pointer", Pointer, "focus.pen.pointerShort"],
+  [TRANSIENT_INK_KIND.NEON, "focus.pen.neon", Sparkles, "focus.pen.neonShort"]
 ];
 const SHAPE_OPTIONS = [
   ["line", "focus.shape.line", Minus],
@@ -698,6 +704,55 @@ function clearActiveStudyDraft(attemptId) {
   try { window.localStorage.removeItem(ACTIVE_DRAFT_PREFIX + attemptId); } catch { /* storage unavailable */ }
 }
 
+/*
+ * The answer to "Save your progress?" when leaving a sheet, per run: the page
+ * a saved run reopens at, or null for a fresh run that opens at its first page.
+ * It outranks the "resume where I left off" setting because the student chose.
+ */
+const ACTIVE_RESUME_PREFIX = "lock-in.active-study.resume.";
+
+function readActiveStudyResume(runId) {
+  if (!runId) return undefined;
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(ACTIVE_RESUME_PREFIX + runId) || "null");
+    return saved && typeof saved === "object" && "page" in saved ? saved.page : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeActiveStudyResume(runId, page) {
+  try { window.localStorage.setItem(ACTIVE_RESUME_PREFIX + runId, JSON.stringify({ page })); } catch { /* storage unavailable */ }
+}
+
+function clearActiveStudyResume(runId) {
+  try { window.localStorage.removeItem(ACTIVE_RESUME_PREFIX + runId); } catch { /* storage unavailable */ }
+}
+
+/*
+ * A sheet opens in Normal Study until the student leaves an Active Study run
+ * with "Save": then it reopens straight into that difficulty's run. Choosing
+ * Normal Study or "Don't Save" returns the sheet to opening in Normal Study.
+ */
+const ACTIVE_ENTRY_PREFIX = "lock-in.active-study.entry.";
+
+function readActiveStudyEntry(key) {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(ACTIVE_ENTRY_PREFIX + key) || "null");
+    return saved && typeof saved.difficulty === "string" ? saved.difficulty : "";
+  } catch {
+    return "";
+  }
+}
+
+function writeActiveStudyEntry(key, difficulty) {
+  try { window.localStorage.setItem(ACTIVE_ENTRY_PREFIX + key, JSON.stringify({ difficulty })); } catch { /* storage unavailable */ }
+}
+
+function clearActiveStudyEntry(key) {
+  try { window.localStorage.removeItem(ACTIVE_ENTRY_PREFIX + key); } catch { /* storage unavailable */ }
+}
+
 function ActiveStudyQuiz({ quiz, answers, setAnswers, locked = {}, result, busy, onSubmit, onDismiss, onRetake, onContinue, onDiscard, onRestart }) {
   const { t } = useI18n();
   const [index, setIndex] = useState(() => {
@@ -943,6 +998,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const pageRef = useRef(1);
   const spacePanRef = useRef(false);
   if (inkInputControllerRef.current === null) inkInputControllerRef.current = createInkInputController();
+  const transientInkRef = useRef(/** @type {ReturnType<typeof createTransientInk> | null} */ (null));
+  if (transientInkRef.current === null) transientInkRef.current = createTransientInk();
   if (eraserSessionRef.current === null) eraserSessionRef.current = createEraserSession({ idFactory: generateIdempotencyKey });
   /** @type {import("react").MutableRefObject<any>} */
   const gestureRef = useRef({
@@ -954,6 +1011,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     lastPenPosition: null,
     drawingPointerId: null,
     drawingPointerType: null,
+    // The page a Pointer or Neon stroke is drawing on; it never becomes a draft.
+    transientInkPage: null,
     pan: null,
     momentum: null,
     momentumRafId: null,
@@ -1208,6 +1267,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const [deletePageConfirmOpen, setDeletePageConfirmOpen] = useState(false);
   const [activeStudy, setActiveStudy] = useState(null);
   const [activeStudyBusy, setActiveStudyBusy] = useState(false);
+  const [activeExitOpen, setActiveExitOpen] = useState(false);
   const [activeStudyError, setActiveStudyError] = useState("");
   const [activeStudyAvailability, setActiveStudyAvailability] = useState(null);
   const [activeStudyAvailabilityLoading, setActiveStudyAvailabilityLoading] = useState(false);
@@ -1238,6 +1298,33 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   // live readiness request is in flight. Starting itself remains server-owned.
   const activeStudyReady = selectedActiveStudyAvailability?.status === "ready"
     || (activeStudyAvailability === null && Boolean(sheet?.hasActiveStudy));
+  const activeEntryKey = `${ownerKey}/${materialSlug}/${storageSlug}`;
+  const chooseActiveStudyRef = useRef(/** @type {null | ((difficulty?: string, options?: { resuming?: boolean }) => Promise<void>)} */ (null));
+  const activeEntryCheckedRef = useRef("");
+
+  // A sheet left with "Save" reopens in that run, once the reader has restored
+  // its saved view. A run that has since finished or gone falls back to Normal.
+  useEffect(() => {
+    if (summaryMode || !restored || !sheet?.learningObjectId || activeEntryCheckedRef.current === activeEntryKey) return;
+    const entryKey = activeEntryKey;
+    activeEntryCheckedRef.current = entryKey;
+    const difficulty = readActiveStudyEntry(entryKey);
+    if (!difficulty) return;
+    // Only a move to another sheet abandons the check; a re-render does not.
+    focusApi.getManagedActiveStudyAvailability(sheet.learningObjectId, sheetEdition?.edition)
+      .then((payload) => {
+        if (activeEntryCheckedRef.current !== entryKey) return;
+        setActiveStudyAvailability(payload);
+        const item = (/** @type {any[]} */ (payload?.difficulties) || []).find((entry) => entry.difficulty === difficulty);
+        if (item?.status !== "ready" || item.progress?.status !== "active") {
+          clearActiveStudyEntry(entryKey);
+          return;
+        }
+        setActiveDifficulty(difficulty);
+        void chooseActiveStudyRef.current?.(difficulty, { resuming: true });
+      })
+      .catch(() => undefined);
+  }, [activeEntryKey, restored, sheet?.learningObjectId, sheetEdition?.edition, summaryMode]);
 
   useEffect(() => {
     if (!user?.id) return undefined;
@@ -3152,6 +3239,13 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       eraseAtPoint(point, annotationPage);
       return;
     }
+    if (activeTool === "pen" && TRANSIENT_PEN_PROFILES.has(penProfile)) {
+      // Pointer and Neon ink is shown, then fades; it never becomes a draft.
+      gesture.transientInkPage = annotationPage;
+      transientInkRef.current.begin({ kind: penProfile, page: annotationPage, color: activeColor, width: brushSize * 2, point });
+      gesture.mode = INTERACTION_STATE.DRAWING;
+      return;
+    }
     const id = generateIdempotencyKey();
     if (activeTool === "shapes") {
       setDraft({ id, page: annotationPage, type: "shape", shape: shapeStyle, color: activeColor, width: brushSize * 2, opacity: brushOpacity, start: point, end: point, fill: shapeFill, fillColor: shapeFillColor, dashed: shapeDashed });
@@ -3875,6 +3969,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
           transformRef.current = null;
         }
         clearDraft();
+        if (gesture.transientInkPage != null) transientInkRef.current.end();
+        gesture.transientInkPage = null;
         unlockStageForDrawing(gesture.drawingPointerId);
         gesture.drawingPointerId = null;
         gesture.drawingPointerType = null;
@@ -4177,6 +4273,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       scheduleObjectTransformPreview();
       return;
     }
+    if (gesture.mode === INTERACTION_STATE.DRAWING && gesture.transientInkPage != null) {
+      if (gesture.drawingPointerId === event.pointerId) transientInkRef.current.extend(eventSamples(event, gesture.transientInkPage));
+      return;
+    }
     const draft = draftRef.current;
     if (!draft) return;
     if (draft.type === "shape") {
@@ -4294,6 +4394,16 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       if (event.pointerType !== "mouse") event.preventDefault();
     }
     if (gesture.drawingPointerId !== event.pointerId) return;
+    if (gesture.transientInkPage != null) {
+      transientInkRef.current.end();
+      gesture.transientInkPage = null;
+      unlockStageForDrawing(event.pointerId);
+      gesture.drawingPointerId = null;
+      gesture.drawingPointerType = null;
+      gesture.mode = INTERACTION_STATE.IDLE;
+      if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+      return;
+    }
     if (gesture.holdTimerId !== null && gesture.holdStartedAt !== null && window.performance.now() - gesture.holdStartedAt >= HOLD_RECOGNITION_MS) {
       window.clearTimeout(gesture.holdTimerId);
       gesture.holdTimerId = null;
@@ -4429,6 +4539,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     hideEraserHitbox();
     commitInterruptedLiveStroke(event);
     clearDraft();
+    if (gesture.transientInkPage != null) transientInkRef.current.end();
+    gesture.transientInkPage = null;
     gesture.holdRawStroke = null;
     gesture.holdRecognition = null;
     gesture.holdAnchorPoint = null;
@@ -4895,6 +5007,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     const remembered = toolMemoryRef.current[`pen:${nextProfile}`];
     setPenProfile(nextProfile);
     if (!remembered) {
+      if (TRANSIENT_DEFAULT_COLOR[nextProfile]) setActiveColor(TRANSIENT_DEFAULT_COLOR[nextProfile]);
       setBrushSize(nextProfile === PEN_PROFILE.BRUSH ? 5 : 4);
       setPressureSensitivity(nextProfile === PEN_PROFILE.BALL ? .35 : nextProfile === PEN_PROFILE.FOUNTAIN ? .6 : .82);
       setStrokeSmoothing(nextProfile === PEN_PROFILE.BALL ? .42 : nextProfile === PEN_PROFILE.FOUNTAIN ? .56 : .62);
@@ -5036,22 +5149,25 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     runCommand({ type: "update", before: selectedAnnotations, after });
   }
 
+  chooseActiveStudyRef.current = chooseActiveStudy;
+
   function chooseNormalStudy() {
+    clearActiveStudyEntry(activeEntryKey);
     setStudyMode("normal");
     setModeDialogOpen(false);
     setEntryModePreference("");
     setActiveStudyError("");
   }
 
-  async function chooseActiveStudy() {
-    if (activeStudyBusy || !activeStudyReady) return;
+  async function chooseActiveStudy(difficulty = activeDifficulty, { resuming = false } = {}) {
+    if (activeStudyBusy || (!resuming && !activeStudyReady)) return;
     setActiveStudyBusy(true);
     setActiveStudyError("");
     try {
       // The selected difficulty owns its own run.  Never substitute a different
       // in-progress difficulty here: it can already be at a checkpoint and
       // would make choosing Easy / Medium / Hard appear to open a quiz.
-      const payload = await focusApi.startManagedActiveStudy({ sheetId: sheet.learningObjectId, difficulty: activeDifficulty, edition: sheetEdition?.edition });
+      const payload = await focusApi.startManagedActiveStudy({ sheetId: sheet.learningObjectId, difficulty, edition: sheetEdition?.edition });
       const run = /** @type {any} */ (payload.run);
       setActiveDifficulty(run.difficulty);
       setActiveStudy(run);
@@ -5061,8 +5177,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       // A new run begins at page one. A resumed run returns to its latest
       // unlocked part, with every earlier part still above it in the reader.
       // The run's current part/stage remains server-owned and untouched.
+      const chosenResume = readActiveStudyResume(run.id);
+      const savedPage = chosenResume !== undefined ? chosenResume : rememberLastPosition ? restored?.view?.page : null;
       placeReaderAt(payload.resumed
-        ? activeStudyResumePage(run.current_page_range, { stage: run.stage, savedPage: rememberLastPosition ? restored?.view?.page : null })
+        ? activeStudyResumePage(run.current_page_range, { stage: run.stage, savedPage })
         : 1);
       setFocusMessage(t(payload.resumed ? "focus.partResumed" : "focus.partStarted", { part: run.current_part }));
     } catch (error) {
@@ -5383,6 +5501,51 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     link.remove();
     window.setTimeout(() => window.URL.revokeObjectURL(url), 0);
     setFocusMessage(t("focus.backedUp", { marks: payload.annotations.length, notes: payload.notes.length }));
+  }
+
+  // Leaving mid Active Study asks whether to keep this run's place.
+  function requestWorkspaceExit() {
+    if (studyMode === "active" && activeStudy?.id && activeStudy.status === "active") {
+      setActiveStudyError("");
+      setActiveExitOpen(true);
+      return;
+    }
+    navigate(sheetRoute);
+  }
+
+  async function exitActiveStudyAndSave() {
+    if (activeStudyBusy || !activeStudy?.id) return;
+    setActiveStudyBusy(true);
+    try {
+      writeActiveStudyResume(activeStudy.id, pageRef.current);
+      writeActiveStudyEntry(activeEntryKey, activeStudy.difficulty);
+      await persistWorkspace();
+    } catch {
+      // The run itself is server-owned; the page choice is already stored.
+    } finally {
+      setActiveStudyBusy(false);
+    }
+    setActiveExitOpen(false);
+    navigate(sheetRoute);
+  }
+
+  async function exitActiveStudyWithoutSaving() {
+    if (activeStudyBusy || !activeStudy?.id) return;
+    setActiveStudyBusy(true);
+    try {
+      const payload = await focusApi.managedActiveStudyAction(activeStudy.id, "restart");
+      const fresh = /** @type {any} */ (payload.run);
+      clearActiveStudyResume(activeStudy.id);
+      clearActiveStudyEntry(activeEntryKey);
+      if (fresh?.id) writeActiveStudyResume(fresh.id, null);
+      setActiveStudyBusy(false);
+      setActiveExitOpen(false);
+      navigate(sheetRoute);
+    } catch (error) {
+      setActiveStudyBusy(false);
+      setActiveExitOpen(false);
+      setFocusMessage(error.message || t("activeStudy.exitSaveFailed"));
+    }
   }
 
   async function restartActiveStudy() {
@@ -5736,6 +5899,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         {selectionPage === pageNumber && renderSelectionBox(pageNumber)}
       </svg>
       {pageIsCurrent && <LiveAnnotationCanvas ref={liveStrokeCanvasRef} pageNumber={pageNumber} pageAspect={pageAspect} />}
+      {pageIsCurrent && <TransientInkCanvas store={transientInkRef.current} pageNumber={pageNumber} />}
     </>;
   }
 
@@ -5745,7 +5909,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         <section ref={readerRef} className={`workspace-v2-reader${isDocumentFullscreen ? " is-document-fullscreen" : ""}`} aria-label={t("focus.documentReader")}>
           <nav className="workspace-v2-toolbar" aria-label={t("focus.documentTools")} ref={toolbarRef}>
             <div className="workspace-v2-control-group is-exit">
-              <WorkspaceIconButton label={t("focus.exitWorkspace")} onClick={() => navigate(sheetRoute)}><ArrowLeft size={19} /></WorkspaceIconButton>
+              <WorkspaceIconButton label={t("focus.exitWorkspace")} onClick={requestWorkspaceExit}><ArrowLeft size={19} /></WorkspaceIconButton>
               <div className="workspace-v3-document-context" dir="auto">
                 <strong>{sheet.title}</strong>
                 <span>{summaryMode ? t("materials.sheetSummary") : sheetEdition?.edition === "lockin" ? t("focus.lockinEdition") : t("focus.universityEdition")}</span>
@@ -6037,6 +6201,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
                 {selectionPage !== null && renderSelectionBox(page)}
               </svg>
               <LiveAnnotationCanvas ref={liveStrokeCanvasRef} pageNumber={page} />
+              <TransientInkCanvas store={transientInkRef.current} pageNumber={page} />
               <h1>{topicTitle}</h1>
               <p className="workspace-v2-lead">{topicSummary} It helps connect foundational knowledge with confident clinical decisions.</p>
               <div className="workspace-v2-selection-actions" aria-label={t("focus.selectedTextActions")}>
@@ -6134,8 +6299,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       {studyMode === "active" && activeStudy?.status === "active" && (["reading", "checkpoint", "final"].includes(activeStudy.stage) || ACTIVE_RESULT_STAGES.has(activeStudy.stage)) && <div className="workspace-v2-checkpoint-dock" role="status" aria-live="polite">
         <button type="button" className={`workspace-v2-checkpoint-button${activeStudyButtonReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeStudyButtonReady} aria-label={activeStudyButtonReady ? t(activeStudy.stage.startsWith("final") ? "activeStudy.openFinal" : "activeStudy.openCheckpoint") : t("activeStudy.reachToUnlock", { page: accessiblePageCount })}>{!activeStudy.stage.startsWith("final") && activeStudy.number_of_parts > 1 && <span className="workspace-v9-step-part" aria-hidden="true">{t("activeStudy.partOf", { part: activeStudy.current_part, total: activeStudy.number_of_parts })}</span>}{activeStudyButtonReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t(activeStudy.stage.startsWith("final") ? "activeStudy.finalExam" : "activeStudy.checkpoint")}</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t("activeStudy.reachPage", { page: accessiblePageCount })}</span></>}</button>
       </div>}
-      {modeDialogOpen && <StudyModeDialog difficulty={activeDifficulty} setDifficulty={setActiveDifficulty} activeAvailable={activeStudyReady} restartProgress={selectedActiveStudyAvailability?.progress} completed={(activeStudyAvailability?.difficulties || []).filter((item) => item.completed).map((item) => item.difficulty)} busy={activeStudyBusy || activeStudyAvailabilityLoading} error={activeStudyError} onNormal={chooseNormalStudy} onActive={chooseActiveStudy} onRestart={restartActiveStudy} activeOnly={entryModePreference === "active"} />}
+      {modeDialogOpen && <StudyModeDialog difficulty={activeDifficulty} setDifficulty={setActiveDifficulty} activeAvailable={activeStudyReady} restartProgress={selectedActiveStudyAvailability?.progress} completed={(activeStudyAvailability?.difficulties || []).filter((item) => item.completed).map((item) => item.difficulty)} busy={activeStudyBusy || activeStudyAvailabilityLoading} error={activeStudyError} onNormal={chooseNormalStudy} onActive={() => chooseActiveStudy()} onRestart={restartActiveStudy} activeOnly={entryModePreference === "active"} />}
       <ConfirmDialog open={deletePageConfirmOpen} title={t("focus.deleteBlankPageConfirm")} message={t("focus.deleteBlankPageUndo")} confirmLabel={t("common.delete")} onCancel={() => setDeletePageConfirmOpen(false)} onConfirm={() => deleteBlankPage({ confirmed: true })} />
+      <ActiveStudyExitDialog open={activeExitOpen} busy={activeStudyBusy} onSave={exitActiveStudyAndSave} onDiscard={exitActiveStudyWithoutSaving} onCancel={() => setActiveExitOpen(false)} />
       {activeQuiz && activeStudy && <ActiveStudyQuiz key={activeQuiz.attempt_id} quiz={activeQuiz} answers={activeAnswers} setAnswers={setActiveAnswers} locked={activeLocked} result={activeResult} busy={activeStudyBusy} onSubmit={submitActiveQuiz} onDismiss={dismissActiveQuiz} onRetake={retakeActiveQuiz} onContinue={continueActiveStudyAnyway} onDiscard={(done) => discardActiveAttempt({ restart: false }, done)} onRestart={(done) => discardActiveAttempt({ restart: true }, done)} />}
     </main>
   );
