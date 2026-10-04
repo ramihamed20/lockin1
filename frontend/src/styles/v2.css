@@ -1702,14 +1702,89 @@ html.ix-hover .question-player-card .choices button:not(:disabled):hover { borde
     background: var(--surface-3);
   }
 
-  @media (min-width: 768px) and (max-width: 1199px) and (min-height: 560px) {
-    .sidebar .nav-btn > svg {
+  /* The iPad rail (and any touch screen up to 1439px): every destination sits
+     on a filled tile, one size in both orientations and both densities, and
+     the groups are told apart by space rather than by rules. */
+  @media (min-width: 640px) and (max-width: 1199px) and (min-height: 560px),
+         (pointer: coarse) and (min-width: 1200px) and (max-width: 1439px) and (min-height: 560px) {
+    .sidebar {
+      padding-inline: 12px;
+    }
+
+    .sidebar .brand-mark {
+      width: 36px;
+      height: 36px;
+      border-radius: 11px;
+    }
+
+    .sidebar .nav-list {
+      gap: 2px;
+    }
+
+    .sidebar .nav-btn,
+    .sidebar[data-density="compact"] .nav-btn {
+      min-height: 46px;
+      gap: 12px;
+      padding-inline: 7px 10px;
+      border-radius: 14px;
+      color: var(--text);
+      font-size: var(--text-md);
+      font-weight: var(--weight-medium);
+    }
+
+    .sidebar[data-density="compact"] .nav-btn {
+      min-height: 44px;
+    }
+
+    .sidebar .nav-btn > svg,
+    .sidebar[data-density="compact"] .nav-btn > svg {
       width: 32px;
       height: 32px;
-      flex-basis: 32px;
-      padding: 6px;
+      flex: 0 0 32px;
+      padding: 7px;
       border-radius: 10px;
+      color: var(--muted);
+      background: var(--surface-3);
     }
+
+    html.ix-hover .sidebar .nav-btn:hover > svg {
+      background: color-mix(in srgb, var(--surface-3) 88%, var(--text));
+    }
+
+    .sidebar .nav-btn--coming-soon:not(.active):not([aria-current="page"]) {
+      color: var(--soft);
+    }
+
+    .sidebar .nav-section-label,
+    .sidebar[data-density="compact"] .nav-section-label,
+    .sidebar .nav-entry:not(:first-child) .nav-section-label {
+      margin-block: 18px 6px;
+      margin-inline: 10px;
+      padding: 0;
+      border: 0;
+      color: var(--soft);
+      font-size: 0.75rem;
+      font-weight: var(--weight-semibold);
+    }
+
+    .sidebar[data-density="compact"] .nav-entry:not(:first-child) .nav-section-label {
+      margin-block-start: 12px;
+    }
+
+    .sidebar .nav-entry:first-child .nav-section-label {
+      margin-block-start: 2px;
+    }
+  }
+
+  /* Arriving at a destination: its tile fills and settles once. */
+  .sidebar .nav-btn[aria-current="page"] > svg {
+    animation: nav-current-in 420ms var(--motion-enter-ease);
+  }
+
+  @keyframes nav-current-in {
+    0% { scale: 0.8; }
+    55% { scale: 1.08; }
+    100% { scale: 1; }
   }
 
   @media (max-width: 639px), (max-height: 559px) {
@@ -1973,7 +2048,8 @@ html.ix-hover .question-player-card .choices button:not(:disabled):hover { borde
       transition-delay: 0s;
     }
 
-    .mobile-drawer.open * {
+    .mobile-drawer.open *,
+    .sidebar .nav-btn[aria-current="page"] > svg {
       animation: none;
     }
   }
