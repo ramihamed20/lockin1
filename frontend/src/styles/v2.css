@@ -1667,3 +1667,337 @@ html.ix-hover .question-player-card .choices button:not(:disabled):hover { borde
     filter: none;
   }
 }
+
+/* --- Navigation: phone sheet and sidebar rail ------------------------------ */
+
+/* One navigation language at every width: each destination carries its icon
+   on a small tile, and the current one fills that tile with the accent. On a
+   phone the drawer is a floating sheet: the four primary destinations are
+   tiles, everything else is a grouped list, and the contents settle in a short
+   stagger behind the sheet. The entrance uses keyframes on `translate`, so it
+   never competes with the interaction layer, which owns `transition` and
+   `transform` on every nav item for the press scale. */
+@layer system {
+  .sidebar .nav-btn > svg {
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    padding: 5px;
+    border-radius: 8px;
+    color: var(--muted);
+    background: transparent;
+    transition:
+      background-color var(--motion-control-duration) var(--motion-enter-ease),
+      color var(--motion-control-duration) var(--motion-enter-ease);
+  }
+
+  .sidebar[data-density="compact"] .nav-btn > svg {
+    width: 26px;
+    height: 26px;
+    flex-basis: 26px;
+  }
+
+  html.ix-hover .sidebar .nav-btn:hover > svg {
+    color: var(--text);
+    background: var(--surface-3);
+  }
+
+  @media (min-width: 768px) and (max-width: 1199px) and (min-height: 560px) {
+    .sidebar .nav-btn > svg {
+      width: 32px;
+      height: 32px;
+      flex-basis: 32px;
+      padding: 6px;
+      border-radius: 10px;
+    }
+  }
+
+  @media (max-width: 639px), (max-height: 559px) {
+    .drawer-backdrop {
+      background: rgb(4 6 12 / 0.58);
+      -webkit-backdrop-filter: blur(6px) saturate(1.2);
+      backdrop-filter: blur(6px) saturate(1.2);
+      transition:
+        opacity var(--motion-exit-duration) var(--motion-exit-ease),
+        visibility 0s linear var(--motion-exit-duration);
+    }
+
+    .drawer-backdrop.open {
+      transition: opacity var(--motion-panel-duration) var(--motion-enter-ease), visibility 0s;
+    }
+
+    .mobile-drawer {
+      --drawer-hidden-translate: calc(-100% - 24px);
+      --drawer-item-from: -14px;
+      inset-block: max(8px, var(--safe-top)) max(8px, var(--safe-bottom));
+      inset-inline-start: max(8px, var(--safe-left));
+      width: min(360px, calc(100vw - 24px - var(--safe-left) - var(--safe-right)));
+      border: 1px solid var(--card-edge);
+      border-radius: var(--radius-card);
+      background: var(--surface);
+      box-shadow: var(--shadow-lg);
+      transition:
+        transform 210ms var(--motion-exit-ease),
+        visibility 0s linear 210ms;
+    }
+
+    :root[dir="rtl"] .mobile-drawer {
+      --drawer-hidden-translate: calc(100% + 24px);
+      --drawer-item-from: 14px;
+      inset-inline-start: max(8px, var(--safe-right));
+      box-shadow: var(--shadow-lg);
+    }
+
+    .mobile-drawer.open {
+      transition: transform 420ms var(--motion-enter-ease), visibility 0s;
+    }
+
+    .drawer-head {
+      min-height: 72px;
+      padding-block: 14px 10px;
+      padding-inline: 18px 14px;
+      border: 0;
+      background: transparent;
+    }
+
+    .mobile-drawer .brand-mark {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+    }
+
+    .mobile-drawer .brand strong {
+      font-size: 1.06rem;
+    }
+
+    .drawer-close {
+      width: 40px;
+      height: 40px;
+      min-height: 40px;
+      border: 0;
+      border-radius: var(--radius-full);
+      color: var(--muted);
+      background: var(--surface-2);
+    }
+
+    .drawer-scroll {
+      padding: 6px 12px max(16px, var(--safe-bottom));
+    }
+
+    .drawer-navigation {
+      display: grid;
+      gap: 20px;
+      padding: 0;
+    }
+
+    .drawer-nav-group {
+      display: grid;
+      gap: 8px;
+    }
+
+    .drawer-nav-group .nav-section-label {
+      margin: 0 6px;
+      color: var(--soft);
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    /* Everything after the primary tiles: one filled block per group. */
+    .drawer-navigation .drawer-nav-items {
+      display: grid;
+      gap: 2px;
+      padding: 4px;
+      border-radius: var(--radius-lg);
+      background: var(--surface-2);
+    }
+
+    .drawer-navigation .nav-btn {
+      min-height: 48px;
+      gap: 12px;
+      padding-block: 0;
+      padding-inline: 6px 10px;
+      border-radius: var(--radius-md);
+      color: var(--text);
+      font-size: var(--text-base);
+      font-weight: var(--weight-medium);
+    }
+
+    .drawer-navigation .nav-btn > svg {
+      width: 34px;
+      height: 34px;
+      flex: 0 0 34px;
+      padding: 8px;
+      border-radius: 10px;
+      color: var(--muted);
+      background: var(--surface-3);
+    }
+
+    .drawer-navigation .nav-btn > span {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .drawer-navigation .nav-coming-soon-label {
+      flex: 0 0 auto;
+      padding: 3px 8px;
+      border-radius: var(--radius-full);
+      color: var(--soft);
+      background: var(--surface-3);
+      font-size: 0.6875rem;
+    }
+
+    .drawer-navigation .drawer-logout {
+      color: var(--danger);
+    }
+
+    .drawer-navigation .drawer-logout > svg {
+      color: var(--danger);
+      background: var(--danger-soft);
+    }
+
+    /* The four primary destinations: a 2x2 grid of tiles. */
+    .drawer-navigation > .drawer-nav-group:first-child .drawer-nav-items {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      padding: 0;
+      background: transparent;
+    }
+
+    .drawer-navigation > .drawer-nav-group:first-child .nav-btn {
+      min-height: 92px;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px;
+      border-radius: var(--radius-lg);
+      background: var(--surface-2);
+      font-size: var(--text-md);
+      font-weight: var(--weight-semibold);
+    }
+
+    .drawer-navigation > .drawer-nav-group:first-child .nav-btn > svg {
+      width: 36px;
+      height: 36px;
+      flex-basis: auto;
+      border-radius: 11px;
+    }
+
+    .drawer-navigation > .drawer-nav-group:first-child .nav-btn > span {
+      flex: 0 0 auto;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .drawer-theme-selector {
+      margin: 20px 0 0;
+      padding: 12px;
+      border: 0;
+      border-radius: var(--radius-lg);
+      background: var(--surface-2);
+    }
+
+    .drawer-theme-selector > div:first-child {
+      padding-inline: 2px;
+    }
+
+    .mobile-drawer .streak-card {
+      margin-top: 12px;
+    }
+
+    /* Entrance: the contents follow the sheet in, group by group. */
+    .drawer-navigation > :nth-child(1) { --drawer-group: 0; }
+    .drawer-navigation > :nth-child(2) { --drawer-group: 1; }
+    .drawer-navigation > :nth-child(3) { --drawer-group: 2; }
+    .drawer-nav-items > * { --drawer-step: 8; }
+    .drawer-nav-items > :nth-child(1) { --drawer-step: 1; }
+    .drawer-nav-items > :nth-child(2) { --drawer-step: 2; }
+    .drawer-nav-items > :nth-child(3) { --drawer-step: 3; }
+    .drawer-nav-items > :nth-child(4) { --drawer-step: 4; }
+    .drawer-nav-items > :nth-child(5) { --drawer-step: 5; }
+    .drawer-nav-items > :nth-child(6) { --drawer-step: 6; }
+    .drawer-nav-items > :nth-child(7) { --drawer-step: 7; }
+
+    .mobile-drawer.open .drawer-nav-group .nav-section-label,
+    .mobile-drawer.open .drawer-nav-items > * {
+      animation: drawer-item-in 380ms var(--motion-enter-ease) backwards;
+      animation-delay: calc(70ms + (var(--drawer-group, 0) * 3 + var(--drawer-step, 0)) * 18ms);
+    }
+
+    .mobile-drawer.open .drawer-navigation > .drawer-nav-group:first-child .drawer-nav-items > * {
+      animation-name: drawer-tile-in;
+    }
+
+    .mobile-drawer.open .drawer-nav-items,
+    .mobile-drawer.open :is(.drawer-theme-selector, .streak-card) {
+      animation: drawer-block-in 320ms var(--motion-enter-ease) backwards;
+      animation-delay: calc(50ms + var(--drawer-group, 0) * 54ms);
+    }
+
+    .mobile-drawer.open :is(.drawer-theme-selector, .streak-card) {
+      animation-delay: 240ms;
+    }
+  }
+
+  @keyframes drawer-item-in {
+    from {
+      opacity: 0;
+      translate: var(--drawer-item-from, -14px) 0;
+    }
+  }
+
+  @keyframes drawer-tile-in {
+    from {
+      opacity: 0;
+      translate: 0 10px;
+      scale: 0.94;
+    }
+  }
+
+  @keyframes drawer-block-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mobile-drawer,
+    .mobile-drawer.open,
+    .drawer-backdrop,
+    .drawer-backdrop.open {
+      transition-duration: 0.01ms;
+      transition-delay: 0s;
+    }
+
+    .mobile-drawer.open * {
+      animation: none;
+    }
+  }
+}
+
+/* The current destination keeps the shared selected tint, and its icon tile
+   fills with the accent: the one gold mark in the navigation. */
+@layer interaction {
+  :is(.sidebar, .mobile-drawer) .nav-btn:is(.active, [aria-current="page"]) {
+    color: var(--text);
+    font-weight: var(--weight-semibold);
+  }
+
+  :is(.sidebar, .mobile-drawer) .nav-btn:is(.active, [aria-current="page"]) > svg {
+    color: var(--on-accent);
+    background: var(--accent);
+  }
+
+  .mobile-drawer .drawer-navigation > .drawer-nav-group:first-child .nav-btn:is(.active, [aria-current="page"]) {
+    background: var(--accent-soft);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent);
+  }
+
+  .mobile-drawer .drawer-nav-group:not(:first-child) .nav-btn[data-ix-pressed] {
+    --ix-press-scale: 0.985;
+  }
+}
