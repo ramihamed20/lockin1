@@ -1609,3 +1609,217 @@ html.ix-hover .workspace-v2-answer-list button:hover:not(.is-selected):not([aria
    insets: under Arabic it jumped to the right edge onto the page count. It
    keeps the reading-direction end (the left in Arabic) physically. */
 [dir="rtl"] .workspace-v2 .workspace-v2-zoom-bar { right: auto; left: max(12px, env(safe-area-inset-left)); }
+
+/* ------------------------------------------- Search and hidden answers */
+
+/* Matches are tinted onto the page itself, between the PDF canvas and the
+   annotations, and multiplied so the printed text stays legible through them. */
+.workspace-search-highlights { position: absolute; z-index: 2; inset: 0; pointer-events: none; }
+.workspace-search-highlights > span {
+  position: absolute;
+  border-radius: 3px;
+  background: rgb(255 214 10 / .42);
+  mix-blend-mode: multiply;
+}
+.workspace-search-highlights > span.is-active {
+  background: rgb(255 149 0 / .62);
+  box-shadow: 0 0 0 2px rgb(255 128 0 / .85);
+  animation: workspace-search-found 520ms var(--fx-bounce);
+}
+@keyframes workspace-search-found {
+  0% { scale: 1.6; opacity: 0; }
+  60% { opacity: 1; }
+  100% { scale: 1; }
+}
+
+/* A cover is solid until it is tapped; revealed, it keeps only a dashed
+   outline, so the student sees what was hidden and can hide it again. */
+.workspace-v2-annotation-layer .workspace-cover rect {
+  fill-opacity: 1;
+  stroke-opacity: 1;
+  transition: fill-opacity 240ms var(--fx-spring), stroke-dasharray 240ms var(--fx-spring);
+}
+.workspace-v2-annotation-layer .workspace-cover.is-revealed rect {
+  fill-opacity: .1;
+  stroke-dasharray: 6 5;
+}
+
+.workspace-v2 .workspace-v2-action-popover.is-search {
+  display: flex;
+  width: min(400px, calc(100% - 16px));
+  max-height: min(580px, calc(100% - var(--workspace-toolbar-height, 54px) - 28px));
+  flex-direction: column;
+}
+.workspace-search-field {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 12px 4px;
+  padding-inline: 14px 6px;
+  border-radius: 14px;
+  color: var(--fx-text-3);
+  background: var(--fx-fill-strong);
+  transition: box-shadow 160ms var(--fx-spring);
+}
+.workspace-search-field:focus-within { box-shadow: 0 0 0 2px var(--fx-accent); }
+.workspace-search-field input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 46px;
+  padding: 0;
+  border: 0;
+  color: var(--fx-text);
+  background: transparent;
+  font: inherit;
+  font-size: 16px;
+  outline: none;
+}
+.workspace-search-field input::placeholder { color: var(--fx-text-3); }
+/* The field draws its own ring around the whole capsule. */
+.workspace-search-field input:focus-visible { outline: none; box-shadow: none; }
+.workspace-search-field input::-webkit-search-cancel-button { display: none; }
+.workspace-search-spinner { flex: 0 0 auto; animation: workspace-search-spin 900ms linear infinite; }
+@keyframes workspace-search-spin { to { rotate: 1turn; } }
+.workspace-search-clear,
+.workspace-search-steps button,
+.workspace-search-navigator > button:not(.workspace-search-navigator-query) {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--fx-text-2);
+  background: transparent;
+  cursor: pointer;
+}
+.workspace-search-clear { width: 34px; height: 34px; color: var(--fx-text-3); }
+:is(.workspace-search-clear, .workspace-search-steps button, .workspace-search-navigator > button):disabled { opacity: .35; cursor: default; }
+html.ix-hover :is(.workspace-search-clear, .workspace-search-steps button, .workspace-search-navigator > button):not(:disabled):hover { color: var(--fx-text); background: var(--fx-fill); }
+.workspace-search-status {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-inline: 18px 8px;
+}
+.workspace-search-status p { margin: 0; color: var(--fx-text-3); font-size: .74rem; font-variant-numeric: tabular-nums; }
+.workspace-search-steps { display: flex; gap: 2px; }
+.workspace-search-results {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 6px 8px 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-top: 1px solid var(--fx-hair);
+  list-style: none;
+}
+.workspace-search-results button {
+  display: grid;
+  width: 100%;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  color: var(--fx-text-2);
+  background: transparent;
+  font: inherit;
+  font-size: .8rem;
+  line-height: 1.45;
+  text-align: start;
+  cursor: pointer;
+}
+.workspace-search-results button small { color: var(--fx-text-3); font-size: .68rem; font-weight: 650; }
+.workspace-search-results button[aria-current="true"] { color: var(--fx-text); background: var(--fx-fill-strong); }
+html.ix-hover .workspace-search-results button:hover { color: var(--fx-text); background: var(--fx-fill); }
+.workspace-search-results mark {
+  padding-inline: 1px;
+  border-radius: 3px;
+  color: var(--fx-text);
+  background: rgb(255 214 10 / .3);
+}
+.workspace-search-footer { padding: 8px; border-top: 1px solid var(--fx-hair); }
+.workspace-search-footer button {
+  display: grid;
+  width: 100%;
+  min-height: 56px;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px 8px 8px;
+  border: 0;
+  border-radius: 14px;
+  color: var(--fx-text);
+  background: transparent;
+  text-align: start;
+  cursor: pointer;
+}
+[dir="rtl"] .workspace-search-footer button { padding: 8px 8px 8px 12px; }
+.workspace-search-footer button > svg {
+  box-sizing: content-box;
+  width: 19px;
+  height: 19px;
+  padding: 9.5px;
+  border-radius: 11px;
+  color: #fff;
+  background: #5f6fd8;
+}
+.workspace-search-footer button > span { display: grid; gap: 2px; min-width: 0; }
+.workspace-search-footer button strong { font-size: .8rem; font-weight: 600; }
+.workspace-search-footer button small { color: var(--fx-text-3); font-size: .66rem; line-height: 1.35; }
+html.ix-hover .workspace-search-footer button:hover { background: var(--fx-fill); }
+
+/* With the panel closed the search stays one tap away: the term, where the
+   reader is among the matches, and the arrows. */
+.workspace-search-navigator {
+  position: absolute;
+  z-index: 8;
+  top: calc(var(--workspace-toolbar-height, 54px) + 12px);
+  left: 50%;
+  display: flex;
+  max-width: calc(100% - 24px);
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--fx-edge);
+  border-radius: 999px;
+  color: var(--fx-text);
+  background: var(--fx-glass);
+  box-shadow: var(--fx-shine), var(--fx-depth);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  backdrop-filter: blur(20px) saturate(1.4);
+  translate: -50% 0;
+  animation: workspace-search-navigator-in 320ms var(--fx-spring) backwards;
+}
+.workspace-search-navigator-query {
+  display: flex;
+  min-width: 0;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  padding-inline: 12px;
+  border: 0;
+  border-radius: 999px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.workspace-search-navigator-query > svg { flex: 0 0 auto; color: var(--fx-text-3); }
+.workspace-search-navigator-query span { max-width: 10em; overflow: hidden; font-size: .82rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-search-navigator-query small { flex: 0 0 auto; color: var(--fx-text-3); font-size: .74rem; font-variant-numeric: tabular-nums; }
+@keyframes workspace-search-navigator-in {
+  from { opacity: 0; translate: -50% -8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-search-highlights > span.is-active,
+  .workspace-search-navigator,
+  .workspace-search-spinner { animation: none; }
+  .workspace-v2-annotation-layer .workspace-cover rect { transition: none; }
+}
