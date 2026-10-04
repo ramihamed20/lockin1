@@ -164,6 +164,24 @@ test("the Arabic build declines machine translation and says what language it is
   expect(document_).toEqual({ lang: "ar", dir: "rtl", translate: "no", notranslate: true, brand: "no" });
 });
 
+test("the Arabic phone navigation sheet opens from the right", async ({ page }) => {
+  await signIn(page, "ar");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator(".mobile-menu").click();
+
+  const drawer = page.locator("#mobile-drawer");
+  await expect(drawer).toHaveClass(/open/);
+  await expect.poll(async () => {
+    const bounds = await drawer.boundingBox();
+    return bounds && {
+      inside: bounds.x >= 0 && bounds.x + bounds.width <= 390,
+      onRight: 390 - bounds.x - bounds.width < bounds.x
+    };
+  }).toEqual({ inside: true, onRight: true });
+  await page.keyboard.press("Escape");
+  await expect(drawer).not.toBeVisible();
+});
+
 test("the English build leaves translation available", async ({ page }) => {
   await signIn(page, "en");
   await page.goto("/#/");

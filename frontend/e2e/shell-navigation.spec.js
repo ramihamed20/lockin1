@@ -140,6 +140,32 @@ test("Account is absent from navigation menus while Profile remains available", 
   }
 });
 
+test("the phone navigation sheet fits the screen and keeps its final action reachable", async ({ page }) => {
+  await mockStudent(page);
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto("/#/");
+  await page.getByRole("button", { name: "Open navigation" }).click();
+
+  const drawer = page.getByRole("dialog", { name: "Mobile navigation" });
+  await expect(drawer).toBeVisible();
+  await expect.poll(() => drawer.evaluate((element) => Math.round(element.getBoundingClientRect().left))).toBe(8);
+  const bounds = await drawer.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
+  });
+  expect(bounds.left).toBeGreaterThanOrEqual(0);
+  expect(bounds.right).toBeLessThanOrEqual(320);
+  expect(bounds.top).toBeGreaterThanOrEqual(0);
+  expect(bounds.bottom).toBeLessThanOrEqual(568);
+
+  const logout = drawer.getByRole("button", { name: "Log out" });
+  await logout.scrollIntoViewIfNeeded();
+  await expect(logout).toBeInViewport();
+  await page.keyboard.press("Escape");
+  await expect(drawer).not.toBeVisible();
+  await expect(page.getByRole("button", { name: "Open navigation" })).toBeFocused();
+});
+
 // Opening search from the topbar icon means the intent is to type. The icon is
 // the compact shells route to search - wider viewports carry the field itself.
 test("search from the topbar icon opens its dialog with the field focused", async ({ page }) => {
