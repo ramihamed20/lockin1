@@ -180,7 +180,7 @@ test("a student sets up a paper session and plays a video", async ({ page }) => 
 
   // Workspace: timer, lofi scene, notes and the run's status.
   await expect(page.getByRole("timer")).toHaveText(/^(50:00|49:5\d)$/);
-  await expect(page.getByRole("img", { name: /cat asleep/ })).toBeVisible();
+  await expect(page.locator("iframe.paper-player-frame")).toHaveAttribute("src", /\/embed\/FxAgAyZYXJ8\?/);
   const status = page.locator(".paper-status");
   await expect(status.getByText("Part 1 of 2")).toBeVisible();
   await expect(status.getByText("1 – 5")).toBeVisible();
@@ -189,16 +189,15 @@ test("a student sets up a paper session and plays a video", async ({ page }) => 
   await expect(page.getByText("Paused")).toBeVisible();
   await page.getByRole("button", { name: "Resume" }).click();
 
-  // A pasted link plays in place of the lofi scene, and can be switched back.
+  // A pasted link plays in place of the default nature sounds, and can be switched back.
   const search = page.getByRole("searchbox", { name: "Search YouTube" });
   await search.fill("https://youtu.be/dQw4w9WgXcQ");
   await page.getByRole("button", { name: "Play this video" }).click();
   await expect(page.locator("iframe.paper-player-frame")).toHaveAttribute("src", /^https:\/\/www\.youtube-nocookie\.com\/embed\/dQw4w9WgXcQ\?/);
   // Text search, thumbnails and keyboard dismissal have their own tests.
   await page.locator(".paper-player").hover();
-  await page.getByRole("button", { name: "Back to lofi" }).click();
-  await expect(page.locator("iframe.paper-player-frame")).toHaveCount(0);
-
+  await page.getByRole("button", { name: "Back to nature sounds" }).click();
+  await expect(page.locator("iframe.paper-player-frame")).toHaveAttribute("src", /\/embed\/FxAgAyZYXJ8\?/);
 });
 
 test("a paper checkpoint saves answers and advances the session", async ({ page }) => {
@@ -343,7 +342,7 @@ test("the player has one control bar: ±10 s, a scrubbable timeline, and control
   // No "Lock-in lofi" title and no separate Stop / Fullscreen buttons above the scene.
   await expect(page.locator(".paper-now, .paper-player-controls")).toHaveCount(0);
   await expect(player.getByText("Lock-in lofi")).toHaveCount(0);
-  await expect(bar.getByRole("button", { name: "Pause" })).toBeVisible();
+  await expect(bar.getByRole("button", { name: /^(Play|Pause)$/ })).toBeVisible();
   await expect(bar.getByRole("button", { name: "Fullscreen" })).toBeVisible();
 
   await page.getByRole("searchbox", { name: "Search YouTube" }).fill("https://youtu.be/dQw4w9WgXcQ");
@@ -492,16 +491,15 @@ test("YouTube search lists results under the search bar and plays the chosen vid
   await expect(search).toHaveValue("");
   const frame = page.locator("iframe.paper-player-frame");
   await expect(frame).toHaveAttribute("src", /^https:\/\/www\.youtube-nocookie\.com\/embed\/lockin001yt\?/);
-  await expect(page.getByRole("img", { name: /cat asleep/ })).toHaveCount(0);
+  await expect(frame).not.toHaveAttribute("src", /FxAgAyZYXJ8/);
   expect(popups).toEqual([]);
   expect(page.url()).toContain("#/paper-workspace");
   await page.screenshot({ path: testInfo.outputPath("paper-search-playing.png") });
 
-  // One tap back to the default lofi.
+  // One tap back to the default nature sounds.
   await page.locator(".paper-player").hover();
-  await page.getByRole("button", { name: "Back to lofi" }).click();
-  await expect(frame).toHaveCount(0);
-  await expect(page.getByRole("img", { name: /cat asleep/ })).toBeVisible();
+  await page.getByRole("button", { name: "Back to nature sounds" }).click();
+  await expect(frame).toHaveAttribute("src", /\/embed\/FxAgAyZYXJ8\?/);
 });
 
 test("an empty or refused YouTube search says so and suggests a link", async ({ page }) => {
@@ -530,7 +528,14 @@ test("an empty or refused YouTube search says so and suggests a link", async ({ 
   expect(youtube.queries).toEqual(["zzzz nothing", "busy", "down"]);
 });
 
-test("the default lofi plays nature audio, with volume and mute, and yields to a video", async ({ page }) => {
+test("an uploaded lofi scene plays nature audio, with volume and mute, and yields to a video", async ({ page }) => {
+  const scene = { id: "scene-audio", title: "Quiet desk", url: "/e2e-media/desk.svg", content_type: "image/svg+xml", media_type: "image", duration_ms: null, cover_url: null, focal_x: 50, focal_y: 50, revision: 1 };
+  await withoutServiceWorker(page);
+  await page.route("**/e2e-media/desk.svg", (route) => route.fulfill({
+    status: 200,
+    contentType: "image/svg+xml",
+    body: "<svg xmlns='http://www.w3.org/2000/svg' width='1920' height='1080'><rect width='1920' height='1080' fill='#2a2250'/></svg>"
+  }));
   // Records the real-time contexts and the looping soundtrack they play.
   await page.addInitScript(() => {
     const contexts = [];
@@ -551,7 +556,7 @@ test("the default lofi plays nature audio, with volume and mute, and yields to a
       return start.apply(this, args);
     };
   });
-  await mockStudent(page, createServer());
+  await mockStudent(page, createServer(), {}, [scene]);
   await page.setViewportSize({ width: 1440, height: 900 });
   await startSession(page);
 
@@ -594,7 +599,7 @@ test("the default lofi plays nature audio, with volume and mute, and yields to a
   await page.getByRole("button", { name: "Play this video" }).click();
   await expect.poll(() => page.evaluate(() => window.__lofi.contexts[0].state)).toBe("suspended");
   await page.locator(".paper-player").hover();
-  await page.getByRole("button", { name: "Back to lofi" }).click();
+  await page.getByRole("button", { name: "Back to nature sounds" }).click();
   await expect.poll(() => page.evaluate(() => window.__lofi.contexts[0].state)).toBe("running");
   expect(await page.evaluate(() => window.__lofi.contexts.length)).toBe(1);
 });
@@ -709,7 +714,7 @@ test("students change, close and reopen Lo-Fi, and their scene is remembered", a
   await player.hover();
   await page.getByRole("button", { name: "Change Lo-Fi" }).click();
   await page.getByRole("menuitemradio", { name: "Lock-in lofi" }).click();
-  await expect(page.getByRole("img", { name: /cat asleep/ })).toBeVisible();
+  await expect(page.locator("iframe.paper-player-frame")).toHaveAttribute("src", /\/embed\/FxAgAyZYXJ8\?/);
   await expect(player.locator("video")).toHaveCount(0);
   await player.hover();
   await page.getByRole("button", { name: "Change Lo-Fi" }).click();
@@ -719,8 +724,8 @@ test("students change, close and reopen Lo-Fi, and their scene is remembered", a
   await player.hover();
   await page.getByRole("button", { name: "Close Lo-Fi" }).click();
   await expect(player.locator("video")).toHaveCount(0);
-  await expect(player.getByText("Lo-Fi is off")).toBeVisible();
-  await page.getByRole("button", { name: "Open Lo-Fi" }).click();
+  await expect(player.getByText("Nature sounds are off")).toBeVisible();
+  await page.getByRole("button", { name: "Open nature sounds" }).click();
   await expect(video).toHaveAttribute("src", /clip-library/);
 
   // Remembered on this device for the next session.

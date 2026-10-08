@@ -266,8 +266,9 @@ test("returning to a sheet within the workspace hides its answers again", async 
   await expect.poll(async () => (await storedAnnotationTypes(page)).includes("cover")).toBe(true);
   // Client-side route changes reuse the workspace component.
   await page.evaluate(() => { location.hash = "#/materials/catalog/biochemistry-1/sheets/vitamin-2/workspace"; });
-  await expect(page.locator('[data-annotation-type="cover"]')).toHaveCount(0);
-  await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]")).toHaveCount(17);
+  // The first sheet stays open as a tab behind this one; only the visible reader counts.
+  await expect(page.locator('[data-annotation-type="cover"]').filter({ visible: true })).toHaveCount(0);
+  await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]").filter({ visible: true })).toHaveCount(17);
   await page.evaluate(() => { location.hash = "#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace"; });
   await expect(cover).toHaveCount(1);
   await expect(cover).not.toHaveClass(/is-revealed/);

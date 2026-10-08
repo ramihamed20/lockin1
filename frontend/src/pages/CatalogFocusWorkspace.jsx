@@ -1258,6 +1258,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   // Which covers are lifted. Deliberately not saved: every visit starts with
   // the answers hidden, which is the point of hiding them.
   const [revealedCoverIds, setRevealedCoverIds] = useState(() => new Set());
+  // A tab kept open behind another is left; coming back is a new visit.
+  useEffect(() => {
+    if (!paneActive) setRevealedCoverIds((current) => (current.size ? new Set() : current));
+  }, [paneActive]);
   const [searchDocumentProxy, setSearchDocumentProxy] = useState(null);
   const [settingsTab, setSettingsTab] = useState("drawing");
   const [backupBusy, setBackupBusy] = useState(false);

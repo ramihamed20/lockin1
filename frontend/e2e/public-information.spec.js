@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("public legal and support pages are reachable without an account", async ({ page }) => {
   await page.goto("/#/terms");
-  await expect(page.getByRole("heading", { name: "Terms of Service" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Terms and refund policy" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Privacy" })).toBeVisible();
 
   await page.getByRole("link", { name: "Privacy" }).click();
