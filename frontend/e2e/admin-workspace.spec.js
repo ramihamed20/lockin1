@@ -156,6 +156,7 @@ test("an administrative confirmation cannot send duplicate account actions", asy
   const confirmation = page.getByRole("alertdialog");
   await confirmation.getByRole("button", { name: "Confirm", exact: true }).click();
   await expect(confirmation.getByRole("button", { name: "Working…" })).toBeDisabled();
+  await expect.poll(() => writes.length).toBe(1);
   await page.keyboard.press("Escape");
   await expect(confirmation).toBeVisible();
   expect(writes).toHaveLength(1);
