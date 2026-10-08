@@ -60,6 +60,17 @@ jobs:
           python -m mypy .
           python manage.py makemigrations --check --dry-run
           python manage.py check
+      # This database is thrown away with the runner, so durability buys
+      # nothing; without fsync the 149 migrations each worker replays run far
+      # faster. Production configuration is untouched.
+      - name: Disable durability on the throwaway CI database
+        run: >-
+          docker exec "${{ job.services.postgres.id }}"
+          psql --username lockin_owner --dbname lockin_test --set ON_ERROR_STOP=1
+          --command "ALTER SYSTEM SET fsync = off"
+          --command "ALTER SYSTEM SET synchronous_commit = off"
+          --command "ALTER SYSTEM SET full_page_writes = off"
+          --command "SELECT pg_reload_conf()"
       # One worker per runner core, each with its own test database. The
       # slowest tests are reported so the next bottleneck is visible in the log.
       - name: PostgreSQL test suite
