@@ -14,7 +14,6 @@ from .events import RefundFailed, RefundRequested, RefundSucceeded
 from .models import Refund, RefundTransition
 from .validation import validate_refund_transition
 
-
 # Published refund policy: a subscription is refundable within its first 15
 # days and not after. For a term bought in installments the window runs from
 # the first installment, so a later installment does not reopen it.
