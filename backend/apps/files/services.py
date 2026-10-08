@@ -212,6 +212,13 @@ def validate_upload(*, upload: UploadedFile, kind: str) -> ValidatedUpload:
         ):
             raise FileValidationError("Choose a valid JPEG, PNG, or WebP image.")
         canonical_type = supplied_type
+    elif kind == ManagedFile.Kind.PRACTICE_IMAGE:
+        max_bytes = int(settings.PRACTICE_IMAGE_MAX_BYTES)
+        if suffix not in IMAGE_TYPES.get(supplied_type, set()) or not _image_signature_matches(
+            supplied_type, head
+        ):
+            raise FileValidationError("Choose a valid JPEG, PNG, or WebP image.")
+        canonical_type = supplied_type
     elif kind == ManagedFile.Kind.WORKSPACE_MEDIA:
         max_bytes = int(settings.PAPER_WORKSPACE_MEDIA_MAX_BYTES)
         allowed = {**WORKSPACE_VIDEO_TYPES, **WORKSPACE_IMAGE_TYPES}

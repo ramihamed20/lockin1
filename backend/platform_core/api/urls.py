@@ -42,4 +42,5 @@ urlpatterns = [
     path("", include("apps.operational_actions.urls")),
     path("", include("apps.system_configuration.urls")),
     path("", include("apps.admin_control.urls")),
+    path("", include("apps.feedback.urls")),
 ]

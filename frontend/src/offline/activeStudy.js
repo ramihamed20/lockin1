@@ -1,4 +1,5 @@
 import { offlineDatabase } from "./database.js";
+import { captureOfflineSession } from "./sessionScope.js";
 import { getOfflineActiveStudy, readDownloadMetadata } from "./downloads.js";
 import { offlineAccessStatus } from "./lease.js";
 import { currentOfflineUserId } from "./profile.js";
@@ -58,8 +59,10 @@ function runRecords(run) {
   return records;
 }
 
-async function saveRun(userId, run) {
-  await offlineDatabase.putMany(userId, runRecords({ ...run, updated_at: new Date().toISOString() }));
+async function saveRun(userId, run, assertCurrent = null) {
+  const records = runRecords({ ...run, updated_at: new Date().toISOString() });
+  if (assertCurrent) await offlineDatabase.putManyScoped(userId, records, assertCurrent);
+  else await offlineDatabase.putMany(userId, records);
 }
 
 /** The server's `run_payload` shape, so the workspace cannot tell the difference. */
@@ -489,14 +492,24 @@ export const activeStudyClient = {
     }, () => local.answer(userId, run?.id || runId, body));
   },
 
-  async submit(runId, attemptId, online) {
+  /** `answers` ({ position, selectedAnswer }[]) are saved with the submit, in one request online. */
+  async submit(runId, attemptId, online, answers = []) {
     const userId = currentOfflineUserId();
     const { key, run } = userId ? await localRunFor(userId, runId) : { key: null, run: null };
     return route(userId, key, async (requestOptions) => {
       const payload = await online(run?.server_id || runId, requestOptions);
       if (key && payload?.run) await mirrorRun(userId, key, payload.run, { openAttempt: null }).catch(() => undefined);
       return payload;
-    }, () => local.submit(userId, run?.id || runId, attemptId));
+    }, async () => {
+      const localId = run?.id || runId;
+      const review = [];
+      for (const { position, selectedAnswer } of answers) {
+        const checked = await local.answer(userId, localId, { attemptId, position, selectedAnswer });
+        review.push({ position, correct: checked.correct, correct_answer: checked.correct_answer, explanation: checked.explanation });
+      }
+      const payload = await local.submit(userId, localId, attemptId);
+      return answers.length ? { ...payload, result: { ...payload.result, review } } : payload;
+    });
   }
 };
 
@@ -510,7 +523,7 @@ export async function readActiveStudyRun(userId, runId) {
  * After a sync, adopt the server's run for every key whose offline work is
  * fully acknowledged. `fetchAvailability` reads the online availability.
  */
-export async function reconcileActiveStudyRuns(userId, keys, fetchAvailability) {
+export async function reconcileActiveStudyRuns(userId, keys, fetchAvailability, assertCurrent = captureOfflineSession(userId)) {
   const scopes = new Map();
   for (const key of keys) {
     const [sheetId, edition] = key.split(":");
@@ -518,18 +531,20 @@ export async function reconcileActiveStudyRuns(userId, keys, fetchAvailability) 
   }
   for (const { sheetId, edition } of scopes.values()) {
     if (await hasPendingForScope(userId, sheetId, edition)) continue;
+    assertCurrent();
     const availability = await fetchAvailability(sheetId, edition);
+    assertCurrent();
     for (const row of availability?.difficulties || []) {
       const key = runKey(sheetId, edition, row.difficulty);
       const previous = await readRun(userId, key);
       if (row.progress) {
-        await saveRun(userId, fromServer(row.progress, { key, sheetId, edition, pageRanges: previous?.page_ranges || row.page_ranges, previous }));
+        await saveRun(userId, fromServer(row.progress, { key, sheetId, edition, pageRanges: previous?.page_ranges || row.page_ranges, previous }), assertCurrent);
       } else if (previous) {
         // Completed (or restarted elsewhere). Keep the local ID mapping so an
         // open workspace can still resolve the run it is showing.
-        await saveRun(userId, { ...previous, dirty: false, status: row.completed ? "completed" : previous.status });
+        await saveRun(userId, { ...previous, dirty: false, status: row.completed ? "completed" : previous.status }, assertCurrent);
       }
-      if (row.completed) await offlineDatabase.put(userId, `as-completed:${key}`, true);
+      if (row.completed) await offlineDatabase.putScoped(userId, `as-completed:${key}`, true, assertCurrent);
     }
   }
 }

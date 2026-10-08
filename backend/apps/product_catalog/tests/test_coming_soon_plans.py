@@ -9,34 +9,33 @@ from apps.product_catalog.selectors import active_libyana_price_for_plan, active
 pytestmark = pytest.mark.django_db
 
 
-def test_dentistry_half_year_is_visible_and_scoped_without_a_price() -> None:
+def test_the_half_year_placeholder_gave_way_to_the_term_plans() -> None:
     client = APIClient()
     client.force_authenticate(create_user(email="catalog-coming-soon@example.com"))
     response = client.get("/api/v1/catalog/products")
 
     assert response.status_code == 200
-    plans = [
-        plan
+    plans = {
+        plan["code"]: plan["current_version"]
         for product in response.json()["results"]
         for plan in product["plans"]
-        if plan["code"] == "dentistry_half_year"
-    ]
-    assert len(plans) == 1
-    version = plans[0]["current_version"]
-    assert version["title"] == "نصف السنة - طب الأسنان"
-    assert version["availability"] == "coming_soon"
-    assert version["scope"] == {
-        "program_family": "dentistry",
-        "program_code_prefix": "dentistry-",
-        "all_colleges": True,
-        "all_years": True,
     }
-    assert version["prices"] == []
+    assert "dentistry_half_year" not in plans
+    for code in ("dentistry_pre_midterm", "dentistry_post_midterm", "dentistry_full_year"):
+        assert plans[code]["availability"] == "available"
+        assert plans[code]["scope"] == {
+            "program_family": "dentistry",
+            "program_code_prefix": "dentistry-",
+            "all_colleges": True,
+            "all_years": True,
+        }
 
 
 def test_coming_soon_plan_is_rejected_by_all_purchase_price_selectors() -> None:
     plan = Plan.objects.select_related("current_version").get(code="dentistry_half_year")
     assert plan.current_version is not None
+    # Archived by 0007; reopened here so only "coming soon" stands in the way.
+    Plan.objects.filter(id=plan.id).update(status=Plan.Status.ACTIVE)
     price = Price.objects.create(
         plan_version=plan.current_version,
         code="dentistry_half_year_test_only",

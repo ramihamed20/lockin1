@@ -318,6 +318,9 @@ body,
 }
 
 .public-info-email {
+  display: inline-block;
+  margin-block-start: 8px;
+  margin-inline-end: 16px;
   color: var(--primary);
   font-weight: 700;
   overflow-wrap: anywhere;
@@ -5861,6 +5864,147 @@ a.streak-card:hover:where(html.ix-hover *) {
 .libyana-code-stack {
   display: grid;
   gap: var(--space-3);
+}
+
+.libyana-add-card {
+  justify-self: start;
+}
+
+/* One screen: plan, how to pay, card, pay. */
+.subscription-pay-box {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 34rem;
+  margin-top: var(--space-4);
+}
+
+.subscription-pay-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-1);
+  margin: 0;
+  padding: var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.subscription-pay-toggle label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: calc(var(--radius-md) - 2px);
+  cursor: pointer;
+  text-align: center;
+}
+
+.subscription-pay-toggle label.selected {
+  background: var(--primary);
+  color: var(--color-text-inverse);
+}
+
+.subscription-pay-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.subscription-pay-toggle label:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.subscription-installment-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.subscription-installment-preview li {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-variant-numeric: tabular-nums;
+}
+
+.subscription-installment-preview small,
+.subscription-terms-note {
+  color: var(--muted);
+}
+
+.subscription-terms-note {
+  margin: 0;
+  font-size: var(--text-xs);
+}
+
+.subscription-terms-note a,
+.subscription-terms-footer a {
+  color: var(--primary);
+}
+
+.subscription-terms-footer {
+  margin: var(--space-5) 0 var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.subscription-installment-list {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.public-info-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  padding-inline-start: var(--space-5);
+  line-height: 1.7;
+}
+
+.subscription-installments {
+  align-items: stretch;
+}
+
+.subscription-installments > div {
+  display: grid;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.subscription-installment-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+
+.subscription-installment-list li.is-paid strong {
+  color: var(--green);
+}
+
+.subscription-installment-list li.is-due strong {
+  color: var(--danger);
+}
+
+.subscription-installment-pay {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 32rem;
+}
+
+.subscription-installment-pay h3 {
+  font-size: var(--text-md);
 }
 
 .subscription-payment-unavailable {
@@ -15404,4 +15548,25 @@ html {
 .offline-sheet-action { display: grid; justify-items: start; gap: 4px; padding-inline: 2px; }
 .offline-sheet-action small { color: var(--danger, #a43f3f); font-size: var(--text-xs); }
 
+}
+
+/* Open workspace tabs stay mounted behind the one on screen (WorkspaceKeepAlive).
+   A kept reader stays laid out at full size -- display:none would let it
+   measure a zero viewport -- but paints nothing and takes no input. The
+   descendant rule outranks the page canvases' own visibility:visible. */
+.workspace-pane.is-active {
+  display: contents;
+}
+
+.workspace-pane.is-kept {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.workspace-pane.is-kept * {
+  visibility: hidden !important;
 }

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
-from django.db.models import Avg, Count, Q, QuerySet, Sum
+from django.db.models import Avg, Count, Exists, Min, OuterRef, Q, QuerySet, Sum
 from django.db.models.functions import TruncDate
 
 from apps.accounts.models import AccountSecurityEvent, AccountSession, User
@@ -48,7 +49,7 @@ SUBSCRIPTION_ORDERINGS: dict[str, tuple[str, ...]] = {
 
 
 def admin_purchases(
-    *, query: str = "", status: str = "", sort: str = "newest"
+    *, query: str = "", status: str = "", sort: str = "newest", include_history: bool = True
 ) -> QuerySet[Payment]:
     payments = Payment.objects.select_related(
         "account__primary_user",
@@ -56,13 +57,12 @@ def admin_purchases(
         "subscription__plan_version__plan",
         "price",
         "manual_submission__reviewed_by",
-    ).prefetch_related(
-        "transitions",
-        "refunds__transitions",
-        "invoice__lines",
-        "invoice__transitions",
-        "manual_submission__recharge_codes",
-    )
+        "invoice",
+    ).prefetch_related("manual_submission__recharge_codes")
+    if include_history:
+        payments = payments.prefetch_related(
+            "transitions", "refunds__transitions", "invoice__lines", "invoice__transitions"
+        )
     if status == "pending_review":
         payments = payments.filter(
             manual_submission__status=ManualRechargeSubmission.Status.PENDING
@@ -107,7 +107,11 @@ def _repeat_submission_count(manual: ManualRechargeSubmission) -> int:
 
 
 def serialize_purchase(
-    payment: Payment, *, detailed: bool = False, reveal_recharge_code: bool = False
+    payment: Payment,
+    *,
+    detailed: bool = False,
+    reveal_recharge_code: bool = False,
+    repeat_submission_count: int | None = None,
 ) -> dict[str, Any]:
     user = payment.account.primary_user
     cohort = user.cohort if user else None
@@ -175,7 +179,11 @@ def serialize_purchase(
             # number may legitimately be submitted again -- an earlier attempt
             # may have been rejected in error, or the reader may simply be
             # retrying -- so the count is shown and the decision stays manual.
-            "repeat_submission_count": _repeat_submission_count(manual),
+            "repeat_submission_count": (
+                _repeat_submission_count(manual)
+                if repeat_submission_count is None
+                else repeat_submission_count
+            ),
         }
         if manual
         else None
@@ -262,6 +270,44 @@ def serialize_purchase(
         payload["manual_submission"]["recharge_code"] = recharge_code_for_admin(manual)
         payload["manual_submission"]["recharge_codes"] = recharge_codes_for_admin(manual)
     return payload
+
+
+def serialize_purchase_list(payments: Sequence[Payment]) -> list[dict[str, Any]]:
+    """Resolve shared-card context once for the current bounded page.
+
+    A submission matching two of the target's cards still counts only once.
+    Preserve the detail serializer's legacy fallback and global history scope.
+    """
+    digests_by_payment: dict[Payment, set[str]] = {}
+    for payment in payments:
+        try:
+            manual = payment.manual_submission
+        except ManualRechargeSubmission.DoesNotExist:
+            continue
+        digests_by_payment[payment] = {code.digest for code in manual.recharge_codes.all()} or {
+            manual.recharge_code_digest
+        }
+    digests = set().union(*digests_by_payment.values()) if digests_by_payment else set()
+    matches: dict[str, set[object]] = {}
+    if digests:
+        for digest, submission_id in (
+            ManualRechargeCode.objects.filter(digest__in=digests)
+            .order_by()
+            .values_list("digest", "submission_id")
+            .distinct()
+        ):
+            matches.setdefault(digest, set()).add(submission_id)
+    payloads = []
+    for payment in payments:
+        count = 0
+        if payment in digests_by_payment:
+            seen = set().union(
+                *(matches.get(digest, set()) for digest in digests_by_payment[payment])
+            )
+            seen.discard(payment.manual_submission.id)
+            count = len(seen)
+        payloads.append(serialize_purchase(payment, repeat_submission_count=count))
+    return payloads
 
 
 def admin_subscriptions(
@@ -515,42 +561,63 @@ def operational_analytics(*, start: date, end: date) -> dict[str, Any]:
     )
     refunds = Refund.objects.filter(status=Refund.Status.SUCCEEDED)
     manual_reviews = ManualRechargeSubmission.objects.all()
-    active_subscriptions = subscriptions.filter(
-        status__in=(
-            Subscription.Status.ACTIVE,
-            Subscription.Status.TRIALING,
-            Subscription.Status.GRACE,
-        )
-    )
     previous_start = start_dt - (end_dt - start_dt)
-    current_new = subscriptions.filter(created_at__gte=start_dt, created_at__lt=end_dt)
-    previous_active = subscriptions.filter(
-        created_at__lt=start_dt,
-        status__in=(
-            Subscription.Status.ACTIVE,
-            Subscription.Status.TRIALING,
-            Subscription.Status.GRACE,
-        ),
-    ).count()
-    cancelled = subscriptions.filter(
-        status=Subscription.Status.CANCELLED, cancelled_at__gte=start_dt, cancelled_at__lt=end_dt
-    ).count()
-    gross = (
-        successful.filter(succeeded_at__gte=start_dt, succeeded_at__lt=end_dt).aggregate(
-            value=Sum("amount_minor")
-        )["value"]
-        or 0
+    live_states = (
+        Subscription.Status.ACTIVE,
+        Subscription.Status.TRIALING,
+        Subscription.Status.GRACE,
     )
+    subscription_metrics = subscriptions.aggregate(
+        total=Count("id"),
+        active=Count("id", filter=Q(status__in=live_states)),
+        paid=Count("id", filter=Q(status=Subscription.Status.ACTIVE)),
+        trial=Count("id", filter=Q(status=Subscription.Status.TRIALING)),
+        expired=Count("id", filter=Q(status=Subscription.Status.EXPIRED)),
+        cancelled=Count("id", filter=Q(status=Subscription.Status.CANCELLED)),
+        suspended=Count("id", filter=Q(status=Subscription.Status.SUSPENDED)),
+        new=Count("id", filter=Q(created_at__gte=start_dt, created_at__lt=end_dt)),
+        renewals=Count(
+            "id",
+            filter=Q(current_period_started_at__gte=start_dt, current_period_started_at__lt=end_dt),
+        ),
+        previous_active=Count("id", filter=Q(created_at__lt=start_dt, status__in=live_states)),
+        cancelled_period=Count(
+            "id",
+            filter=Q(
+                status=Subscription.Status.CANCELLED,
+                cancelled_at__gte=start_dt,
+                cancelled_at__lt=end_dt,
+            ),
+        ),
+        upcoming_expirations=Count(
+            "id",
+            filter=Q(
+                current_period_ends_at__gte=end_dt,
+                current_period_ends_at__lt=end_dt + timedelta(days=14),
+                status__in=live_states,
+            ),
+        ),
+    )
+    previous_active = subscription_metrics["previous_active"]
+    cancelled = subscription_metrics["cancelled_period"]
+    revenue_metrics = successful.filter(
+        succeeded_at__gte=start_dt, succeeded_at__lt=end_dt
+    ).aggregate(
+        gross=Sum("amount_minor"),
+        count=Count("id"),
+        paying_users=Count("account__primary_user_id", distinct=True),
+        missing_users=Count("id", filter=Q(account__primary_user_id__isnull=True)),
+    )
+    gross = revenue_metrics["gross"] or 0
     refund_total = (
         refunds.filter(succeeded_at__gte=start_dt, succeeded_at__lt=end_dt).aggregate(
             value=Sum("amount_minor")
         )["value"]
         or 0
     )
-    payment_count = successful.filter(succeeded_at__gte=start_dt, succeeded_at__lt=end_dt).count()
+    payment_count = revenue_metrics["count"]
     focus = FocusSession.objects.filter(started_at__gte=start_dt, started_at__lt=end_dt)
     attempts = Attempt.objects.filter(created_at__gte=start_dt, created_at__lt=end_dt)
-    submitted = attempts.filter(status__in=(Attempt.Status.SUBMITTED, Attempt.Status.EXPIRED))
     results = AttemptResult.objects.filter(created_at__gte=start_dt, created_at__lt=end_dt)
     progress = LearningProgress.objects.filter(updated_at__gte=start_dt, updated_at__lt=end_dt)
     now = datetime.now(UTC)
@@ -560,14 +627,19 @@ def operational_analytics(*, start: date, end: date) -> dict[str, Any]:
         expires_at__gt=now,
     )
     creators = users.filter(groups__name=Role.CREATOR.value).distinct()
-    active_creators = creators.filter(
-        Q(
-            owned_learning_objects__updated_at__gte=start_dt,
-            owned_learning_objects__updated_at__lt=end_dt,
+
+    # Joining all three owned collections multiplies sheets × questions ×
+    # quizzes before DISTINCT. Existence needs only one matching owned row.
+    def recent_owned(model: type[LearningObject] | type[Question] | type[Quiz]) -> QuerySet[Any]:
+        return model.objects.filter(
+            owner_id=OuterRef("pk"), updated_at__gte=start_dt, updated_at__lt=end_dt
         )
-        | Q(owned_questions__updated_at__gte=start_dt, owned_questions__updated_at__lt=end_dt)
-        | Q(owned_quizzes__updated_at__gte=start_dt, owned_quizzes__updated_at__lt=end_dt)
-    ).distinct()
+
+    active_creators = creators.filter(
+        Exists(recent_owned(LearningObject))
+        | Exists(recent_owned(Question))
+        | Exists(recent_owned(Quiz))
+    )
     revenue_points = list(
         successful.filter(succeeded_at__gte=start_dt, succeeded_at__lt=end_dt)
         .annotate(day=TruncDate("succeeded_at"))
@@ -592,12 +664,73 @@ def operational_analytics(*, start: date, end: date) -> dict[str, Any]:
         )
         .order_by("day")
     )
+    # These independent counters share a table and reporting window. Filtered
+    # aggregates retain each metric's scope without a round trip per counter.
+    user_metrics = users.aggregate(
+        total=Count("id"),
+        verified=Count("id", filter=Q(email_verified_at__isnull=False)),
+        active_today=Count("id", filter=Q(last_login__date=end)),
+        active_week=Count("id", filter=Q(last_login__gte=end_dt - timedelta(days=7))),
+        active_month=Count("id", filter=Q(last_login__gte=end_dt - timedelta(days=30))),
+        new_week=Count(
+            "id", filter=Q(date_joined__gte=end_dt - timedelta(days=7), date_joined__lt=end_dt)
+        ),
+        new_registrations=Count("id", filter=Q(date_joined__gte=start_dt, date_joined__lt=end_dt)),
+        suspended=Count("id", filter=Q(status=User.Status.SUSPENDED)),
+        deactivated=Count("id", filter=Q(status=User.Status.DELETED)),
+        returning=Count("id", filter=Q(last_login__gte=start_dt, date_joined__lt=previous_start)),
+    )
+    review_metrics = manual_reviews.aggregate(
+        pending=Count("id", filter=Q(status=ManualRechargeSubmission.Status.PENDING)),
+        approved=Count(
+            "id",
+            filter=Q(
+                status=ManualRechargeSubmission.Status.APPROVED,
+                reviewed_at__gte=start_dt,
+                reviewed_at__lt=end_dt,
+            ),
+        ),
+        rejected=Count(
+            "id",
+            filter=Q(
+                status=ManualRechargeSubmission.Status.REJECTED,
+                reviewed_at__gte=start_dt,
+                reviewed_at__lt=end_dt,
+            ),
+        ),
+        oldest_pending_at=Min(
+            "submitted_at", filter=Q(status=ManualRechargeSubmission.Status.PENDING)
+        ),
+    )
+    focus_metrics = focus.aggregate(
+        active_learners=Count("user_id", distinct=True),
+        focus_sessions=Count("id"),
+        focus_seconds=Sum("active_duration_seconds"),
+        average_focus_seconds=Avg("active_duration_seconds"),
+    )
+    progress_metrics = progress.aggregate(
+        total=Count("id"), completed=Count("id", filter=Q(status=LearningProgress.Status.COMPLETED))
+    )
+    attempt_metrics = attempts.aggregate(
+        total=Count("id"),
+        submitted=Count(
+            "id", filter=Q(status__in=(Attempt.Status.SUBMITTED, Attempt.Status.EXPIRED))
+        ),
+    )
+    result_metrics = results.aggregate(
+        total=Count("id"),
+        passed=Count("id", filter=Q(passed=True)),
+        average_score=Avg("percentage"),
+    )
+    content_metrics = LearningObject.objects.aggregate(
+        published=Count("id", filter=Q(workflow_status=LearningObject.WorkflowStatus.PUBLISHED)),
+        draft=Count("id", filter=Q(workflow_status=LearningObject.WorkflowStatus.DRAFT)),
+        in_review=Count("id", filter=Q(workflow_status=LearningObject.WorkflowStatus.IN_REVIEW)),
+    )
     return {
         "period": {"from": start, "to": end, "timezone": "UTC"},
         "users": {
-            "total": users.count(),
-            "verified": users.filter(email_verified_at__isnull=False).count(),
-            "active_today": users.filter(last_login__date=end).count(),
+            **user_metrics,
             "seen_today": AccountSession.objects.filter(
                 user__status=User.Status.ACTIVE,
                 last_seen_at__gte=datetime.combine(end, datetime.min.time(), tzinfo=UTC),
@@ -607,40 +740,27 @@ def operational_analytics(*, start: date, end: date) -> dict[str, Any]:
             .distinct()
             .count(),
             "online_now": recent_sessions.values("user_id").distinct().count(),
-            "active_week": users.filter(last_login__gte=end_dt - timedelta(days=7)).count(),
-            "active_month": users.filter(last_login__gte=end_dt - timedelta(days=30)).count(),
-            "new_week": users.filter(
-                date_joined__gte=end_dt - timedelta(days=7), date_joined__lt=end_dt
-            ).count(),
-            "new_registrations": users.filter(
-                date_joined__gte=start_dt, date_joined__lt=end_dt
-            ).count(),
-            "suspended": users.filter(status=User.Status.SUSPENDED).count(),
-            "deactivated": users.filter(status=User.Status.DELETED).count(),
-            "returning": users.filter(
-                last_login__gte=start_dt, date_joined__lt=previous_start
-            ).count(),
             "growth": registrations,
         },
         "subscriptions": {
-            "active": active_subscriptions.count(),
-            "trial": subscriptions.filter(status=Subscription.Status.TRIALING).count(),
-            "expired": subscriptions.filter(status=Subscription.Status.EXPIRED).count(),
-            "cancelled": subscriptions.filter(status=Subscription.Status.CANCELLED).count(),
-            "suspended": subscriptions.filter(status=Subscription.Status.SUSPENDED).count(),
-            "new": current_new.count(),
-            "renewals": subscriptions.filter(
-                current_period_started_at__gte=start_dt, current_period_started_at__lt=end_dt
-            ).count(),
+            **{
+                key: subscription_metrics[key]
+                for key in (
+                    "active",
+                    "trial",
+                    "expired",
+                    "cancelled",
+                    "suspended",
+                    "new",
+                    "renewals",
+                    "upcoming_expirations",
+                )
+            },
             "churn_rate": round((cancelled / previous_active) * 100, 2)
             if previous_active
             else None,
             "conversion_rate": round(
-                (
-                    subscriptions.filter(status=Subscription.Status.ACTIVE).count()
-                    / max(1, subscriptions.count())
-                )
-                * 100,
+                (subscription_metrics["paid"] / max(1, subscription_metrics["total"])) * 100,
                 2,
             ),
             "by_plan": list(
@@ -648,42 +768,13 @@ def operational_analytics(*, start: date, end: date) -> dict[str, Any]:
                 .annotate(count=Count("id"))
                 .order_by("plan_version__plan__code", "status")
             ),
-            "upcoming_expirations": subscriptions.filter(
-                current_period_ends_at__gte=end_dt,
-                current_period_ends_at__lt=end_dt + timedelta(days=14),
-                status__in=(
-                    Subscription.Status.ACTIVE,
-                    Subscription.Status.TRIALING,
-                    Subscription.Status.GRACE,
-                ),
-            ).count(),
         },
         # A payments console cannot say "nothing is waiting on me" from revenue
         # totals. ``pending`` is deliberately not scoped to the reporting
         # period: a card submitted before the window still needs a decision
         # today, and a queue that empties itself when the date filter moves is
         # worse than no queue at all.
-        "manual_reviews": {
-            "pending": manual_reviews.filter(
-                status=ManualRechargeSubmission.Status.PENDING
-            ).count(),
-            "approved": manual_reviews.filter(
-                status=ManualRechargeSubmission.Status.APPROVED,
-                reviewed_at__gte=start_dt,
-                reviewed_at__lt=end_dt,
-            ).count(),
-            "rejected": manual_reviews.filter(
-                status=ManualRechargeSubmission.Status.REJECTED,
-                reviewed_at__gte=start_dt,
-                reviewed_at__lt=end_dt,
-            ).count(),
-            "oldest_pending_at": (
-                manual_reviews.filter(status=ManualRechargeSubmission.Status.PENDING)
-                .order_by("submitted_at")
-                .values_list("submitted_at", flat=True)
-                .first()
-            ),
-        },
+        "manual_reviews": review_metrics,
         "revenue": {
             "gross_minor": gross,
             "refund_total_minor": refund_total,
@@ -692,10 +783,9 @@ def operational_analytics(*, start: date, end: date) -> dict[str, Any]:
                 status=Payment.Status.FAILED, created_at__gte=start_dt, created_at__lt=end_dt
             ).count(),
             "average_order_minor": round(gross / payment_count, 2) if payment_count else 0,
-            "paying_users": successful.filter(succeeded_at__gte=start_dt, succeeded_at__lt=end_dt)
-            .values("account__primary_user_id")
-            .distinct()
-            .count(),
+            # The legacy DISTINCT query counts a missing primary user once.
+            "paying_users": revenue_metrics["paying_users"]
+            + int(bool(revenue_metrics["missing_users"])),
             "trend": revenue_points,
             "by_plan": list(
                 successful.filter(succeeded_at__gte=start_dt, succeeded_at__lt=end_dt)
@@ -705,32 +795,25 @@ def operational_analytics(*, start: date, end: date) -> dict[str, Any]:
             ),
         },
         "learning": {
-            "active_learners": focus.values("user_id").distinct().count(),
-            "material_completions": progress.filter(
-                status=LearningProgress.Status.COMPLETED
-            ).count(),
-            "focus_sessions": focus.count(),
-            "focus_seconds": focus.aggregate(value=Sum("active_duration_seconds"))["value"] or 0,
-            "average_focus_seconds": focus.aggregate(value=Avg("active_duration_seconds"))["value"]
-            or 0,
+            "active_learners": focus_metrics["active_learners"],
+            "material_completions": progress_metrics["completed"],
+            "focus_sessions": focus_metrics["focus_sessions"],
+            "focus_seconds": focus_metrics["focus_seconds"] or 0,
+            "average_focus_seconds": focus_metrics["average_focus_seconds"] or 0,
             "focus_sessions_today": FocusSession.objects.filter(
                 started_at__gte=datetime.combine(end, datetime.min.time(), tzinfo=UTC),
                 started_at__lt=end_dt,
             ).count(),
             "focus_activity": focus_activity,
-            "quiz_attempts": attempts.count(),
-            "exam_attempts": submitted.count(),
+            "quiz_attempts": attempt_metrics["total"],
+            "exam_attempts": attempt_metrics["submitted"],
             "completion_rate": round(
-                (
-                    progress.filter(status=LearningProgress.Status.COMPLETED).count()
-                    / max(1, progress.count())
-                )
-                * 100,
+                (progress_metrics["completed"] / max(1, progress_metrics["total"])) * 100,
                 2,
             ),
-            "average_score": results.aggregate(value=Avg("percentage"))["value"],
+            "average_score": result_metrics["average_score"],
             "pass_rate": round(
-                (results.filter(passed=True).count() / max(1, results.count())) * 100, 2
+                (result_metrics["passed"] / max(1, result_metrics["total"])) * 100, 2
             ),
             "most_used_materials": list(
                 progress.values("learning_object_id", "learning_object__published_version__title")
@@ -752,16 +835,10 @@ def operational_analytics(*, start: date, end: date) -> dict[str, Any]:
         "creators": {
             "total": creators.count(),
             "active": active_creators.count(),
-            "published_content": LearningObject.objects.filter(
-                workflow_status=LearningObject.WorkflowStatus.PUBLISHED
-            ).count(),
-            "draft_content": LearningObject.objects.filter(
-                workflow_status=LearningObject.WorkflowStatus.DRAFT
-            ).count(),
+            "published_content": content_metrics["published"],
+            "draft_content": content_metrics["draft"],
             "content_awaiting_review": (
-                LearningObject.objects.filter(
-                    workflow_status=LearningObject.WorkflowStatus.IN_REVIEW
-                ).count()
+                content_metrics["in_review"]
                 + Question.objects.filter(workflow_status=Question.WorkflowStatus.IN_REVIEW).count()
                 + Quiz.objects.filter(workflow_status=Quiz.WorkflowStatus.IN_REVIEW).count()
             ),

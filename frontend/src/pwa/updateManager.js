@@ -118,6 +118,9 @@ export function createUpdateManager(overrides = {}) {
   let triggersInstalled = false;
   /** @type {Promise<void> | null} */
   let inFlight = null;
+  let inFlightManual = false;
+  /** @type {Promise<void> | null} */
+  let queuedManual = null;
   /** @type {Promise<void> | null} */
   let applying = null;
   let reloading = false;
@@ -205,7 +208,16 @@ export function createUpdateManager(overrides = {}) {
    * @returns {Promise<void>}
    */
   function check({ manual = false, force = false } = {}) {
-    if (inFlight) return inFlight;
+    if (inFlight) {
+      if (!manual || inFlightManual) return inFlight;
+      // A deployment may have changed after the automatic request started.
+      // Coalesce manual presses, then check again once that request settles.
+      if (!queuedManual) queuedManual = inFlight.then(() => {
+        queuedManual = null;
+        return check({ manual: true });
+      });
+      return queuedManual;
+    }
     const { status } = snapshot;
     if (status === UPDATE_STATUS.UPDATING || status === UPDATE_STATUS.RELOAD_REQUIRED) return Promise.resolve();
     if (manual) {
@@ -233,6 +245,7 @@ export function createUpdateManager(overrides = {}) {
     const previous = status === UPDATE_STATUS.CHECKING ? UPDATE_STATUS.IDLE : status;
     set({ status: UPDATE_STATUS.CHECKING, error: "" });
     const target = registration;
+    inFlightManual = manual;
     inFlight = (async () => {
       try {
         await withTimeout(target.update(), UPDATE_REQUEST_TIMEOUT_MS);

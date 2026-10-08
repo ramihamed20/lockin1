@@ -1,0 +1,122 @@
+.confirm-dialog.whats-new {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  gap: 16px;
+  width: min(520px, 100%);
+  max-width: none;
+  max-height: min(680px, 100%);
+  text-align: start;
+}
+
+.whats-new__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.whats-new__head > div { flex: 1; min-width: 0; }
+
+.whats-new__head h2 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--text-xl, 1.25rem);
+  font-weight: var(--weight-bold);
+}
+
+.confirm-dialog.whats-new .whats-new__head p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.whats-new__badge,
+.whats-new__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  border-radius: var(--radius-full);
+  color: var(--brand, var(--accent, currentColor));
+  background: color-mix(in srgb, var(--brand, var(--accent, currentColor)) 14%, transparent);
+}
+
+.whats-new__badge { width: 44px; height: 44px; }
+.whats-new__icon { width: 36px; height: 36px; }
+
+.whats-new__close {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: var(--radius-full);
+  color: var(--soft);
+  background: var(--surface-3);
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .whats-new__close { width: 44px; height: 44px; }
+}
+
+.whats-new__list {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.whats-new__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.whats-new__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.whats-new__text strong { font-weight: var(--weight-bold); }
+
+.whats-new__text span {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.whats-new__done {
+  justify-self: stretch;
+  min-height: 44px;
+}
+
+.confirm-dialog.whats-new .whats-new__follow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.whats-new__follow a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--brand, var(--accent, currentColor));
+  font-weight: var(--weight-bold);
+  text-decoration: none;
+}
+
+.whats-new__follow a:hover { text-decoration: underline; }
+
+.whats-new__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}

@@ -3,6 +3,7 @@ from datetime import datetime
 from math import ceil
 
 from django.core.management.base import BaseCommand, CommandError
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.audit.services import record_audit
@@ -27,11 +28,16 @@ class Command(BaseCommand):
             "account__primary_user", "plan_version"
         ).filter(account__primary_user__is_active=True)
         for subscription in queryset.filter(
-            status__in=(
-                Subscription.Status.TRIALING,
-                Subscription.Status.ACTIVE,
-                Subscription.Status.GRACE,
+            Q(
+                status__in=(
+                    Subscription.Status.TRIALING,
+                    Subscription.Status.ACTIVE,
+                    Subscription.Status.GRACE,
+                )
             )
+            # Held back for a missed installment: the scheduler is what turns
+            # the two-day window into a stop and ends the term on time.
+            | Q(status=Subscription.Status.SUSPENDED, status_reason__startswith="installment_")
         ).iterator(chunk_size=500):
             try:
                 advanced, reminded = self._advance(subscription=subscription, now=now)

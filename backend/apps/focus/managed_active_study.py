@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from math import ceil
 from typing import Any, cast
@@ -506,28 +507,16 @@ def _question_event(
     )
 
 
-@transaction.atomic
-def answer(
-    *, user: User, run_id: UUID, attempt_id: UUID, position: int, selected_answer: str
+def _record_answer(
+    *,
+    run: ActiveStudyRun,
+    attempt: ActiveStudyAttempt,
+    source: list[dict[str, Any]],
+    position: int,
+    selected_answer: str,
 ) -> dict[str, Any]:
-    run = _locked_run(user=user, run_id=run_id)
-    try:
-        attempt = ActiveStudyAttempt.objects.select_for_update().get(
-            id=attempt_id, run=run, submitted_at__isnull=True
-        )
-    except ActiveStudyAttempt.DoesNotExist as error:
-        raise ManagedActiveStudyRuleError("This question attempt is no longer active.") from error
-    kind = (
-        ActiveStudyAttempt.Kind.FINAL
-        if run.stage == ActiveStudyRun.Stage.FINAL
-        else ActiveStudyAttempt.Kind.CHECKPOINT
-    )
-    part = None if kind == ActiveStudyAttempt.Kind.FINAL else run.current_part
-    if attempt.kind != kind or attempt.part_number != part:
-        raise ManagedActiveStudyRuleError(
-            "This question does not belong to the current Active Study stage."
-        )
-    source = _questions_for(run, kind=kind, part=part)
+    """Store one answer of an open attempt and put a miss in Review, once."""
+
     if position < 1 or position > len(source):
         raise ManagedActiveStudyRuleError("Question position is invalid.")
     question = source[position - 1]
@@ -557,27 +546,95 @@ def answer(
             )
         )
     return {
+        "position": position,
         "correct": correct,
         "correct_answer": _correct_answer(question),
         "explanation": question["explanation"],
+    }
+
+
+@transaction.atomic
+def answer(
+    *, user: User, run_id: UUID, attempt_id: UUID, position: int, selected_answer: str
+) -> dict[str, Any]:
+    run = _locked_run(user=user, run_id=run_id)
+    try:
+        attempt = ActiveStudyAttempt.objects.select_for_update().get(
+            id=attempt_id, run=run, submitted_at__isnull=True
+        )
+    except ActiveStudyAttempt.DoesNotExist as error:
+        raise ManagedActiveStudyRuleError("This question attempt is no longer active.") from error
+    kind = (
+        ActiveStudyAttempt.Kind.FINAL
+        if run.stage == ActiveStudyRun.Stage.FINAL
+        else ActiveStudyAttempt.Kind.CHECKPOINT
+    )
+    part = None if kind == ActiveStudyAttempt.Kind.FINAL else run.current_part
+    if attempt.kind != kind or attempt.part_number != part:
+        raise ManagedActiveStudyRuleError(
+            "This question does not belong to the current Active Study stage."
+        )
+    source = _questions_for(run, kind=kind, part=part)
+    checked = _record_answer(
+        run=run,
+        attempt=attempt,
+        source=source,
+        position=position,
+        selected_answer=selected_answer,
+    )
+    return {
+        "correct": checked["correct"],
+        "correct_answer": checked["correct_answer"],
+        "explanation": checked["explanation"],
         "answered_count": attempt.answers.count(),
         "total": len(source),
     }
 
 
+def _review_of(attempt: ActiveStudyAttempt, source: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Each question's verdict, from the answers the server holds."""
+
+    held = {item.question_position: item for item in attempt.answers.all()}
+    return [
+        {
+            "position": position,
+            "correct": held[position].was_correct,
+            "correct_answer": _correct_answer(question),
+            "explanation": question["explanation"],
+        }
+        for position, question in enumerate(source, start=1)
+        if position in held
+    ]
+
+
 @transaction.atomic
-def submit(*, user: User, run_id: UUID, attempt_id: UUID) -> tuple[ActiveStudyRun, dict[str, Any]]:
+def submit(
+    *,
+    user: User,
+    run_id: UUID,
+    attempt_id: UUID,
+    answers: Sequence[Mapping[str, Any]] = (),
+) -> tuple[ActiveStudyRun, dict[str, Any]]:
+    """Grade an attempt, optionally recording its answers in the same request.
+
+    ``answers`` is every remaining answer of the open attempt. Taking them here
+    saves a round trip per question: the content is read once, and the grading
+    and the Review entries commit together or not at all.
+    """
+
     run = _locked_run(user=user, run_id=run_id)
     try:
         attempt = ActiveStudyAttempt.objects.select_for_update().get(id=attempt_id, run=run)
     except ActiveStudyAttempt.DoesNotExist as error:
         raise ManagedActiveStudyRuleError("Question attempt not found.") from error
     if attempt.submitted_at is not None:
+        done_source = _questions_for(run, kind=attempt.kind, part=attempt.part_number)
         return run, {
             "score": attempt.score,
             "total": attempt.total,
             "passed": attempt.passed,
             "already_submitted": True,
+            "review": _review_of(attempt, done_source),
         }
     expected_stage = (
         ActiveStudyRun.Stage.FINAL
@@ -589,6 +646,15 @@ def submit(*, user: User, run_id: UUID, attempt_id: UUID) -> tuple[ActiveStudyRu
         and attempt.part_number != run.current_part
     ):
         raise ManagedActiveStudyRuleError("This attempt cannot be submitted now.")
+    source = _questions_for(run, kind=attempt.kind, part=attempt.part_number)
+    for item in answers:
+        _record_answer(
+            run=run,
+            attempt=attempt,
+            source=source,
+            position=int(item["position"]),
+            selected_answer=str(item["selected_answer"]),
+        )
     if attempt.answers.count() != attempt.total:
         raise ManagedActiveStudyRuleError("Answer every question before submitting.")
     score = attempt.answers.filter(was_correct=True).count()
@@ -660,6 +726,7 @@ def submit(*, user: User, run_id: UUID, attempt_id: UUID) -> tuple[ActiveStudyRu
         "passed": passed,
         "completed": run.status == ActiveStudyRun.Status.COMPLETED,
         "xp_awarded": run.xp_awarded,
+        "review": _review_of(attempt, source),
     }
 
 

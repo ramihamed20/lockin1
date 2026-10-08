@@ -43,6 +43,15 @@ class Payment(models.Model):
     initiated_at = models.DateTimeField()
     succeeded_at = models.DateTimeField(null=True, blank=True)
     failed_at = models.DateTimeField(null=True, blank=True)
+    installment_agreement = models.ForeignKey(
+        "InstallmentAgreement",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="payments",
+    )
+    # 1-based position in the agreement's schedule.
+    installment_number = models.PositiveSmallIntegerField(null=True, blank=True)
     revision = models.PositiveBigIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -52,6 +61,18 @@ class Payment(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=("account", "idempotency_key"), name="payment_account_idempotent"
+            ),
+            # One installment can be awaiting review or paid once; a rejected
+            # attempt (failed) leaves room for the next one.
+            models.UniqueConstraint(
+                fields=("installment_agreement", "installment_number"),
+                condition=Q(status__in=("pending", "succeeded")),
+                name="payment_installment_once",
+            ),
+            models.CheckConstraint(
+                condition=Q(installment_agreement__isnull=True, installment_number__isnull=True)
+                | Q(installment_agreement__isnull=False, installment_number__gte=1),
+                name="payment_installment_numbered",
             ),
             models.CheckConstraint(condition=Q(amount_minor__gt=0), name="payment_amount_positive"),
             models.CheckConstraint(
@@ -71,6 +92,11 @@ class Payment(models.Model):
                 name="payment_subscription_state_idx",
             ),
             models.Index(fields=("status", "created_at"), name="payment_state_time_idx"),
+            models.Index(
+                fields=("succeeded_at",),
+                condition=Q(status__in=("succeeded", "partially_refunded", "refunded")),
+                name="payment_revenue_time_idx",
+            ),
         ]
 
     def __str__(self) -> str:
@@ -79,6 +105,62 @@ class Payment(models.Model):
     def save(self, *args: Any, **kwargs: Any) -> None:
         self.currency = self.currency.upper()
         super().save(*args, **kwargs)
+
+
+class InstallmentAgreement(models.Model):
+    """A term plan bought in parts.
+
+    The whole term is granted when the first installment is submitted; each
+    later installment falls due a month after the previous one. What a reader
+    owes and whether access is held back are derived from the schedule and the
+    payments attached here (see ``apps.payments.installments``), never stored
+    twice.
+    """
+
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Active"
+        COMPLETED = "completed", "Paid in full"
+        CANCELLED = "cancelled", "Cancelled"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    account = models.ForeignKey(
+        SubscriptionAccount, on_delete=models.PROTECT, related_name="installment_agreements"
+    )
+    subscription = models.ForeignKey(
+        Subscription, on_delete=models.PROTECT, related_name="installment_agreements"
+    )
+    price = models.ForeignKey(
+        Price, on_delete=models.PROTECT, related_name="installment_agreements"
+    )
+    total_amount_minor = models.PositiveBigIntegerField()
+    currency = models.CharField(max_length=3)
+    currency_exponent = models.PositiveSmallIntegerField(default=3)
+    installment_amounts_minor = models.JSONField()
+    anchor_at = models.DateTimeField()
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.ACTIVE)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at", "-id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("account",),
+                condition=Q(status="active"),
+                name="installment_one_active_per_account",
+            ),
+            models.CheckConstraint(
+                condition=Q(total_amount_minor__gt=0), name="installment_total_positive"
+            ),
+        ]
+        indexes = [
+            models.Index(fields=("subscription", "status"), name="installment_subscription_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.account_id}:{self.status}"
 
 
 class ManualRechargeSubmission(models.Model):

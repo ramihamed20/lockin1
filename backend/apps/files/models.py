@@ -16,6 +16,7 @@ class ManagedFile(models.Model):
         AUDIO = "audio", "Audio"
         AVATAR = "avatar", "Profile avatar"
         WORKSPACE_MEDIA = "workspace_media", "Paper Workspace media"
+        PRACTICE_IMAGE = "practice_image", "Practice slide image"
 
     class ValidationStatus(models.TextChoices):
         READY = "ready", "Validated"

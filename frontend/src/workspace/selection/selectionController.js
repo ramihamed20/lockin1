@@ -1,4 +1,4 @@
-import { annotationBounds, selectionBounds } from "../catalog/catalogWorkspaceState.js";
+import { annotationBounds } from "../catalog/catalogWorkspaceState.js";
 
 /**
  * The Select tool's decisions, kept free of React and the DOM so every rule
@@ -116,11 +116,6 @@ export function clampSelectionDelta(bounds, dx, dy, limit = 1000) {
     dx: Math.min(Math.max(dx, Math.min(0, minDx)), Math.max(0, maxDx)),
     dy: Math.min(Math.max(dy, Math.min(0, minDy)), Math.max(0, maxDy))
   };
-}
-
-/** Bounds of the items that can be moved, used to clamp a drag. */
-export function movableBounds(items) {
-  return selectionBounds((items || []).filter((item) => !item.locked));
 }
 
 /**

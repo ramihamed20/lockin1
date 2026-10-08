@@ -63,7 +63,3 @@ export function isFeatureComingSoon(featureOrId) {
 export function comingSoonFeatures() {
   return FEATURE_REGISTRY.filter(isFeatureComingSoon);
 }
-
-export function featureRegistry() {
-  return [...FEATURE_REGISTRY];
-}

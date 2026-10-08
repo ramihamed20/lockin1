@@ -233,6 +233,9 @@ class AdminQuestionImportView(_AssessmentPermissionView):
                 sheet=sheet,
                 payload=serializer.validated_data["payload"],
                 publish=bool(serializer.validated_data["publish"]),
+                metadata=(
+                    {"source": "exam"} if serializer.validated_data["source"] == "exam" else None
+                ),
             )
         except QuestionImportValidationError as error:
             return Response(

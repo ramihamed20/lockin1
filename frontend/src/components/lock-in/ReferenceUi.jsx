@@ -1,38 +1,9 @@
-import { cva } from "class-variance-authority";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { UserAvatar } from "../shared/UserAvatar.jsx";
 
 export function cn(...inputs) {
   return twMerge(clsx(inputs));
-}
-
-const buttonVariants = cva(
-  "li-inline-flex li-items-center li-justify-center li-gap-2 li-rounded-xl li-border li-border-transparent li-font-lockin li-text-sm li-font-semibold li-transition li-duration-150 focus-visible:li-outline-none focus-visible:li-ring-2 focus-visible:li-ring-[var(--lockin-focus,#a88aff)] focus-visible:li-ring-offset-2 focus-visible:li-ring-offset-[var(--lockin-ring-offset,#0b1325)] disabled:li-pointer-events-none disabled:li-opacity-50",
-  {
-    variants: {
-      variant: {
-        ghost: "li-bg-[var(--lockin-control-bg,#151f34)] li-text-[var(--lockin-control-text,#d8deee)] hover:li-bg-[var(--lockin-control-hover,#202b45)]",
-        quiet: "li-bg-transparent li-text-[var(--lockin-quiet-text,#c8d1e5)] hover:li-bg-[var(--lockin-control-bg,#151f34)]",
-        violet: "li-bg-[var(--lockin-accent,#6449df)] li-text-[var(--lockin-on-accent,#fff)] hover:li-bg-[var(--lockin-accent-hover,#755de8)]",
-        icon: "li-h-10 li-w-10 li-p-0 li-bg-[var(--lockin-control-bg,#151f34)] li-text-[var(--lockin-control-text,#d8deee)] hover:li-bg-[var(--lockin-control-hover,#202b45)]"
-      },
-      size: {
-        default: "li-h-10 li-px-4",
-        compact: "li-h-9 li-px-3",
-        icon: "li-h-10 li-w-10 li-p-0"
-      }
-    },
-    defaultVariants: {
-      variant: "ghost",
-      size: "default"
-    }
-  }
-);
-
-/** @param {import("react").ButtonHTMLAttributes<HTMLButtonElement> & {variant?: "ghost" | "quiet" | "violet" | "icon", size?: "default" | "compact" | "icon"}} props */
-export function ReferenceButton({ className, variant, size, type = "button", ...props }) {
-  return <button type={type} className={cn(buttonVariants({ variant, size }), className)} {...props} />;
 }
 
 export function ReferenceProgress({ value, className = "", indicatorClassName = "", label = "Progress" }) {

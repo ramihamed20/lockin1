@@ -241,9 +241,11 @@ function MobileDrawerNavigation({ user, operationsSession, pathname, tabIndex, o
 
 // --- StreakCard ---
 
-export function StreakCard() {
+export function StreakCard({ user }) {
   const { t } = useI18n();
   const [state, setState] = useState({ loading: true, error: "", data: null });
+  const userRef = useRef(user);
+  userRef.current = user;
 
   useEffect(() => {
     let active = true;
@@ -251,7 +253,7 @@ export function StreakCard() {
     const loadStreak = ({ force = false } = {}) => {
       if (!force && Date.now() - lastLoadedAt < 60_000) return;
       lastLoadedAt = Date.now();
-      motivationApi.streakSummary()
+      motivationApi.streakSummary({ scope: userRef.current, force })
         .then((data) => { if (active) setState({ loading: false, error: "", data }); })
         .catch((error) => { if (active) setState({ loading: false, error: error.message || "Streak unavailable", data: null }); });
     };
@@ -308,7 +310,7 @@ export function Sidebar({ user, operationsSession, studio = false, inert = false
         {studio && <span className="studio-badge">Studio</span>}
       </div>
       {studio ? <StudioNavList operationsSession={operationsSession} /> : <NavList user={user} operationsSession={operationsSession} />}
-      {!studio && <StreakCard />}
+      {!studio && <StreakCard user={user} />}
     </aside>
   );
 }
@@ -1199,7 +1201,7 @@ export function Shell({ children, user, operationsSession, theme, onThemeChange,
             {/* The same streak the sidebar shows, in the place the phone keeps
                 its navigation. It is the identical component, so it reads the
                 same here as it does on a tablet or a laptop. */}
-            {!studio && <StreakCard />}
+            {!studio && <StreakCard user={user} />}
           </div>
         </aside>
       </div>

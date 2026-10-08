@@ -1,0 +1,198 @@
+/* Practice: a slide image and a typed name. Logical properties throughout so
+   the Arabic layout mirrors without a second set of rules. */
+
+/* One framed thing only: the slide. The form around it is flat (no card), so
+   the image is never a box inside a box. */
+.question-player .practice-card {
+  gap: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.practice-slide {
+  margin: 0;
+  display: grid;
+  justify-items: center;
+}
+
+.practice-slide img {
+  display: block;
+  inline-size: auto;
+  max-inline-size: 100%;
+  block-size: auto;
+  max-block-size: min(46vh, 480px);
+  object-fit: contain;
+  border: 1px solid var(--polish-line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.practice-field { display: grid; gap: 8px; }
+.practice-field > span { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--muted); }
+
+.practice-field input {
+  inline-size: 100%;
+  min-block-size: 48px;
+  padding-inline: 14px;
+  /* 16px stops iOS from zooming the page when the field takes focus. */
+  font-size: max(16px, var(--text-md));
+  border: 1.5px solid var(--polish-line);
+  border-radius: var(--radius-md);
+  background: var(--surface-1, var(--polish-raised));
+  color: inherit;
+  transition: border-color 0.16s ease, background-color 0.16s ease;
+}
+
+.practice-field input:focus-visible { outline: 2px solid var(--accent, currentColor); outline-offset: 2px; }
+.practice-field input:disabled { opacity: 1; }
+.practice-field input[data-state="correct"] {
+  border-color: var(--color-success);
+  background-color: color-mix(in srgb, var(--color-success) 10%, var(--surface-2));
+}
+.practice-field input[data-state="wrong"] {
+  border-color: var(--color-danger);
+  background-color: color-mix(in srgb, var(--color-danger) 10%, var(--surface-2));
+}
+
+.practice-feedback { min-block-size: 0; display: grid; gap: 8px; }
+.practice-feedback p { margin: 0; }
+
+.practice-verdict { display: grid; gap: 6px; font-weight: var(--weight-semibold); }
+.practice-verdict p:first-child { display: flex; align-items: center; gap: 8px; }
+.practice-verdict.is-correct { color: var(--color-success); }
+.practice-verdict.is-wrong > p:first-child { color: var(--color-danger); }
+
+.practice-expected {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding-inline-start: 12px;
+  border-inline-start: 3px solid var(--color-danger);
+  font-weight: var(--weight-regular, 400);
+}
+.practice-expected strong { font-size: var(--text-lg); overflow-wrap: anywhere; }
+.practice-rule { font-size: var(--text-sm); font-weight: var(--weight-regular, 400); }
+.practice-error { color: var(--color-danger); font-size: var(--text-sm); }
+
+.practice-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding-block: 4px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.practice-hint-text,
+.practice-xp-gain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: var(--text-sm);
+}
+.practice-hint-text { color: var(--muted); font-weight: var(--weight-semibold); }
+.practice-xp-gain strong { color: var(--accent, currentColor); }
+.practice-verdict[data-near] > p:first-child { color: var(--color-warning, var(--color-danger)); }
+.practice-verdict[data-near] .practice-expected { border-inline-start-color: var(--color-warning, var(--color-danger)); }
+
+.practice-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.practice-actions .practice-hint-button { min-inline-size: 0; }
+
+/* Start screen: flat rows on the page, nothing boxed inside anything else. */
+.practice-start { display: grid; gap: 22px; text-align: start; }
+
+.practice-stats { display: grid; gap: 8px; }
+.practice-stats p { margin: 0; font-size: var(--text-sm); }
+.practice-stats dl { margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.practice-stats dl > div { display: grid; gap: 2px; padding-inline: 14px; border-inline-start: 1px solid var(--polish-line); }
+.practice-stats dl > div:first-child { padding-inline-start: 0; border-inline-start: 0; }
+.practice-stats dt { font-size: var(--text-sm); color: var(--muted); }
+.practice-stats dd { margin: 0; font-size: var(--text-xl, 1.5rem); font-weight: var(--weight-bold, 700); font-variant-numeric: tabular-nums; }
+.practice-stats [data-kind="learned"] dd { color: var(--color-success); }
+.practice-stats [data-kind="missed"] dd { color: var(--color-danger); }
+
+.practice-modes { margin: 0; padding: 0; border: 0; display: grid; gap: 8px; min-inline-size: 0; }
+.practice-modes legend { padding: 0; margin-block-end: 8px; font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--muted); }
+
+.practice-modes label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 12px;
+  min-block-size: 56px;
+  padding-inline: 14px;
+  border: 1.5px solid var(--polish-line);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.practice-modes label:has(input:checked) { border-color: var(--accent, currentColor); }
+.practice-modes label:has(input:focus-visible) { outline: 2px solid var(--accent, currentColor); outline-offset: 2px; }
+.practice-modes label[data-disabled] { opacity: 0.55; cursor: not-allowed; }
+.practice-modes input { grid-row: 1 / span 2; inline-size: 20px; block-size: 20px; accent-color: var(--accent, currentColor); }
+.practice-modes strong { grid-column: 2; align-self: end; }
+.practice-modes small { grid-column: 2; align-self: start; }
+.practice-modes small { color: var(--muted); font-size: var(--text-sm); }
+
+.practice-shuffle { display: flex; align-items: center; gap: 10px; min-block-size: 44px; cursor: pointer; font-weight: var(--weight-semibold); }
+.practice-shuffle input { inline-size: 20px; block-size: 20px; accent-color: var(--accent, currentColor); }
+.practice-xp-note { margin: 0; font-size: var(--text-sm); }
+
+.practice-most-missed { display: grid; gap: 8px; }
+.practice-most-missed h3 { margin: 0; font-size: var(--text-md); }
+.practice-most-missed .practice-missed { margin: 0; inline-size: 100%; }
+
+.practice-earned { display: grid; gap: 4px; margin: 0; justify-items: center; }
+.practice-xp { color: var(--accent, currentColor); font-size: var(--text-lg); }
+.practice-actions .btn { min-block-size: 46px; min-inline-size: 140px; }
+
+.practice-missed {
+  list-style: none;
+  margin: 8px 0 4px;
+  padding: 0;
+  inline-size: min(100%, 520px);
+  display: grid;
+  gap: 8px;
+  text-align: start;
+}
+
+.practice-missed li {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border: 1px solid var(--polish-line);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.practice-missed img {
+  inline-size: 72px;
+  block-size: 56px;
+  object-fit: cover;
+  border-radius: var(--radius-sm, 8px);
+}
+
+.practice-missed-text { display: grid; gap: 2px; min-inline-size: 0; }
+.practice-missed-text > * { overflow-wrap: anywhere; }
+.practice-missed-text .muted { font-size: var(--text-sm); }
+
+@media (max-width: 640px) {
+  .practice-actions { position: sticky; inset-block-end: 0; }
+  .practice-actions .btn { flex: 1 1 140px; }
+  .practice-stats dl > div { padding-inline: 8px; }
+  .practice-slide img { max-block-size: 44vh; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .practice-field input { transition: none; }
+}

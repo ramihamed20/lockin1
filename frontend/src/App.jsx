@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { authApi, isApiError, onUnauthorized } from "./lib/api.js";
 import {
@@ -25,7 +25,7 @@ import { lazyWithRecovery } from "./lib/lazyWithRecovery.js";
 import { reportConnectionFailure } from "./lib/connectionState.js";
 import { useVisibleNow } from "./hooks/useVisibleNow.js";
 import { useI18n } from "./components/I18nProvider.jsx";
-import { NotFoundPage } from "./components/ui/index.jsx";
+import { DeferredLoadingPanel, NotFoundPage } from "./components/ui/index.jsx";
 import { PublicInfoPage } from "./components/PublicInfoPage.jsx";
 import { SubscriptionSessionProvider } from "./lib/SubscriptionSessionContext.jsx";
 import { clearSubscriptionSnapshots } from "./lib/subscriptionSession.js";
@@ -34,6 +34,7 @@ import { isFeatureComingSoon } from "./lib/featureAvailability.js";
 import { synchronizeOffline } from "./offline/coordinator.js";
 import { forgetOfflineUser, rememberOfflineUser, restoreOfflineUser } from "./offline/profile.js";
 import OfflineIndicator from "./offline/OfflineIndicator.jsx";
+import { WhatsNew } from "./components/WhatsNew.jsx";
 
 // --- Lazy-loaded pages ---
 const Dashboard = lazyWithRecovery(() => import("./pages/Dashboard.jsx"));
@@ -41,7 +42,9 @@ const loadMaterialsPage = () => import("./pages/Materials.jsx");
 const Materials = lazyWithRecovery(loadMaterialsPage);
 const CatalogMaterialSheets = lazyWithRecovery(() => loadMaterialsPage().then((m) => ({ default: m.CatalogMaterialSheets })));
 const CatalogSheetStudy = lazyWithRecovery(() => loadMaterialsPage().then((m) => ({ default: m.CatalogSheetStudy })));
+const PersonalSheetsPage = lazyWithRecovery(() => loadMaterialsPage().then((m) => ({ default: m.PersonalSheetsPage })));
 const CatalogFocusWorkspace = lazyWithRecovery(() => import("./pages/CatalogFocusWorkspace.jsx"));
+const WorkspaceKeepAlive = lazyWithRecovery(() => import("./workspace/catalog/WorkspaceKeepAlive.jsx").then((module) => ({ default: module.WorkspaceKeepAlive })));
 const LockInMode = lazyWithRecovery(() => import("./pages/LockInMode.jsx"));
 const PaperWorkspace = lazyWithRecovery(() => import("./pages/PaperWorkspace.jsx"));
 const MyGroup = lazyWithRecovery(() => import("./pages/MyGroup.jsx"));
@@ -340,10 +343,13 @@ function App() {
   useEffect(() => {
     bootErrorRef.current = bootError;
     bootingRef.current = booting;
-    // Read by the pageshow handler, which must not be re-registered on every
-    // change of user.
+  }, [bootError, booting]);
+
+  useLayoutEffect(() => {
+    // A restore can arrive as soon as the authenticated DOM commits, before
+    // passive effects run. Publish the guard before that DOM is observable.
     authenticatedRef.current = Boolean(user);
-  }, [bootError, booting, user]);
+  }, [user]);
 
   const retryBootstrap = useCallback(() => {
     // One bootstrap at a time. A queued retry would race the in-flight request
@@ -681,23 +687,33 @@ function App() {
     <SubscriptionSessionProvider key={user.id} user={user}>
       <>
       <OfflineIndicator userId={user.id} />
+      <WhatsNew user={user} suppressed={inFocusWorkspace} />
       <Shell user={user} operationsSession={operationsSession} theme={activeTheme} onThemeChange={setManualTheme} onLogout={requestLogout} notificationVersion={notificationVersion} onNotificationsChanged={() => setNotificationVersion((version) => version + 1)} storeCartCount={storeCartCount} lockBalance={lockBalance} storeCommerceEnabled={false}>
         <ErrorBoundary resetKey={location.pathname}>
-        {/* Returning from background must keep the shell stable. Route chunks
-            resolve in place instead of replacing the screen with a loader. */}
-        <Suspense fallback={null}>
+        {/* Returning from background must keep the shell stable: navigations
+            are transitions, so a route chunk resolves in place and the screen
+            the reader is on stays up. The fallback is only reached on a cold
+            first render, and waits before showing the route's skeleton. */}
+        <Suspense fallback={<DeferredLoadingPanel />}>
           <Routes>
               <Route element={<ProtectedRoute user={user} operationsSession={operationsSession} operationsSessionPending={operationsSessionPending} />}>
-                <Route path="/" element={<Dashboard themeSettings={themeSettings} activeTheme={activeTheme} />} />
-                <Route path="/dashboard" element={<Dashboard themeSettings={themeSettings} activeTheme={activeTheme} />} />
+                <Route path="/" element={<Dashboard user={user} themeSettings={themeSettings} activeTheme={activeTheme} />} />
+                <Route path="/dashboard" element={<Dashboard user={user} themeSettings={themeSettings} activeTheme={activeTheme} />} />
                 <Route path="/my-group" element={<MyGroup />} />
                 <Route path="/study-plan/*" element={<FeatureComingSoon featureId="study-plan" />} />
                 <Route path="/materials" element={<Materials user={user} />} />
                 <Route path="/materials/catalog" element={<NotFoundPage variant="material-catalog" />} />
                 <Route path="/materials/catalog/:materialSlug" element={<CatalogMaterialSheets user={user} />} />
                 <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug" element={<CatalogSheetStudy user={user} />} />
-                <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug/summary" element={<CatalogFocusWorkspace user={user} variant="summary" />} />
-                <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug/workspace" element={<CatalogFocusWorkspace user={user} />} />
+                <Route path="/materials/catalog/:materialSlug/mine" element={<PersonalSheetsPage user={user} />} />
+                {/* One host for every reader address, so moving between open tabs
+                    keeps each reader mounted instead of reloading it. */}
+                <Route element={<WorkspaceKeepAlive user={user} Workspace={CatalogFocusWorkspace} />}>
+                  <Route path="/materials/catalog/:materialSlug/mine/:sheetId/workspace" element={null} />
+                  <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug/summary" element={null} />
+                  <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug/workspace" element={null} />
+                  <Route path="/whiteboards/:boardId/workspace" element={null} />
+                </Route>
                 <Route path="/paper-workspace" element={<PaperWorkspace user={user} />} />
                 {isFeatureComingSoon("lock-in")
                   ? <Route path="/lock-in/*" element={<FeatureComingSoon featureId="lock-in" />} />

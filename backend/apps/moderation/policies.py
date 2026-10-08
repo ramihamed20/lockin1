@@ -65,7 +65,3 @@ def can_manage_report(*, user: User, report: Report) -> bool:
     if report.private_space_id is None:
         return is_moderator(user)
     return report.private_space_id in moderated_private_space_ids(user=user)
-
-
-def can_view_report(*, user: User, report: Report) -> bool:
-    return report.reporter_id == user.id or can_manage_report(user=user, report=report)

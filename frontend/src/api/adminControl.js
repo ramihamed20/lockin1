@@ -166,8 +166,8 @@ export const adminControlApi = {
   validateQuestionImport(sheetId, payload) {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/questions/validate`, { method: "POST", body: { payload } });
   },
-  importQuestions(sheetId, payload, publish = false) {
-    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/questions/import`, { method: "POST", body: { payload, publish: publish === true } });
+  importQuestions(sheetId, payload, publish = false, source = "ai-sheet") {
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/questions/import`, { method: "POST", body: { payload, publish: publish === true, source: source === "exam" ? "exam" : "ai-sheet" } });
   },
   bulkQuestions(questionIds, action, targetSheetId = null) {
     return request("/operations/admin/content/questions/bulk", { method: "POST", body: { question_ids: questionIds.map((value) => id(value, "question identifier")), action, target_sheet_id: targetSheetId ? id(targetSheetId, "target sheet identifier") : null } });
@@ -178,7 +178,7 @@ export const adminControlApi = {
     return request(`/operations/admin/content/imports/${cleanId}/undo`, { method: "POST", body: { confirmation: `question_import_${cleanId}` } });
   },
 
-  users: (options = {}) => request(pagePath("/operations/users", options)).then((data) => page(data, "The user list response was incomplete.")),
+  users: (options = {}) => request(pagePath("/operations/users", options), { signal: options.signal }).then((data) => page(data, "The user list response was incomplete.")),
   user: (userId) => request(`/operations/admin/users/${id(userId, "user identifier")}`),
   userAction(userId, body) {
     return request(`/operations/admin/users/${id(userId, "user identifier")}/actions`, { method: "POST", body: { ...body, reason: reason(body.reason) } });
@@ -199,7 +199,7 @@ export const adminControlApi = {
     return request(`/operations/users/${id(userId, "user identifier")}/roles`, { method: "PATCH", body: { roles, reason: reason(changeReason) } });
   },
 
-  purchases: (options = {}) => request(pagePath("/operations/admin/purchases", options)).then((data) => page(data, "The purchase list response was incomplete.")),
+  purchases: (options = {}) => request(pagePath("/operations/admin/purchases", options), { signal: options.signal }).then((data) => page(data, "The purchase list response was incomplete.")),
   purchase: (paymentId) => request(`/operations/admin/purchases/${id(paymentId, "purchase identifier")}`),
   reviewManualPayment(paymentId, decision, reviewReason) {
     const cleanReason = typeof reviewReason === "string" ? reviewReason.trim() : "";
@@ -235,7 +235,7 @@ export const adminControlApi = {
     });
   },
 
-  subscriptions: (options = {}) => request(pagePath("/operations/admin/subscriptions", options)).then((data) => page(data, "The subscription list response was incomplete.")),
+  subscriptions: (options = {}) => request(pagePath("/operations/admin/subscriptions", options), { signal: options.signal }).then((data) => page(data, "The subscription list response was incomplete.")),
   subscription: (subscriptionId) => request(`/operations/admin/subscriptions/${id(subscriptionId, "subscription identifier")}`),
   subscriptionAction(subscriptionId, body) {
     return request(`/operations/admin/subscriptions/${id(subscriptionId, "subscription identifier")}/actions`, {

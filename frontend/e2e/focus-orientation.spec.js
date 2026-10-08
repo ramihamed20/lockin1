@@ -34,10 +34,14 @@ async function openWorkspace(page, viewport) {
 
 /** Two frames, then until the stage stops moving. */
 async function settle(page) {
+  // WebKit can return the same intermediate geometry while resize and spring
+  // callbacks are waiting for a frame. Flush frames before testing stability.
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   let previous = "";
   await expect.poll(async () => {
-    const current = JSON.stringify(await geometry(page));
-    const stable = current === previous;
+    const layout = await geometry(page);
+    const current = JSON.stringify(layout);
+    const stable = current === previous && layout.transform === "";
     previous = current;
     return stable;
   }, { intervals: [120, 120, 200, 300] }).toBe(true);

@@ -1,3 +1,4 @@
+import { objectPayload } from "./payloads.js";
 import { ApiError, request } from "./client.js";
 
 /**
@@ -17,13 +18,6 @@ function requireAttemptKey(idempotencyKey) {
     );
   }
   return idempotencyKey;
-}
-
-function objectPayload(payload, message) {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    throw new ApiError(500, payload, message, "invalid_response");
-  }
-  return /** @type {Record<string, unknown>} */ (payload);
 }
 
 function resultsPayload(payload, message) {
@@ -133,31 +127,37 @@ export const billingApi = {
    * @param {string} planId
    * @param {string[]} rechargeCodes
    * @param {string} idempotencyKey
+   * @param {boolean} [payInInstallments]
    */
-  async submitLibyana(planId, rechargeCodes, idempotencyKey) {
-    const source = objectPayload(
-      await request("/payments/manual-libyana", {
-        method: "POST",
-        body: { plan_id: planId, recharge_codes: rechargeCodes },
-        idempotencyKey: requireAttemptKey(idempotencyKey)
-      }),
-      "The Libyana payment response was incomplete."
-    );
-    return {
-      payment: objectPayload(source.payment, "The payment record was incomplete."),
-      submission: objectPayload(source.submission, "The payment submission was incomplete."),
-      subscription: objectPayload(source.subscription, "The subscription response was incomplete.")
-    };
+  async submitLibyana(planId, rechargeCodes, idempotencyKey, payInInstallments = false) {
+    return manualPaymentPayload(await request("/payments/manual-libyana", {
+      method: "POST",
+      body: { plan_id: planId, recharge_codes: rechargeCodes, pay_in_installments: payInInstallments },
+      idempotencyKey: requireAttemptKey(idempotencyKey)
+    }));
+  },
+
+  /**
+   * Pays the next installment of a term bought in parts; the server decides
+   * which one and how much.
+   * @param {string} agreementId
+   * @param {string[]} rechargeCodes
+   * @param {string} idempotencyKey
+   */
+  async payInstallment(agreementId, rechargeCodes, idempotencyKey) {
+    return manualPaymentPayload(await request("/payments/manual-libyana/installment", {
+      method: "POST",
+      body: { agreement_id: agreementId, recharge_codes: rechargeCodes },
+      idempotencyKey: requireAttemptKey(idempotencyKey)
+    }));
   }
 };
 
-export function safeCheckoutUrl(value) {
-  if (typeof value !== "string" || !value) return "";
-  try {
-    const url = new URL(value, window.location.origin);
-    if (url.protocol !== "https:" && url.origin !== window.location.origin) return "";
-    return url.href;
-  } catch {
-    return "";
-  }
+function manualPaymentPayload(payload) {
+  const source = objectPayload(payload, "The Libyana payment response was incomplete.");
+  return {
+    payment: objectPayload(source.payment, "The payment record was incomplete."),
+    submission: objectPayload(source.submission, "The payment submission was incomplete."),
+    subscription: objectPayload(source.subscription, "The subscription response was incomplete.")
+  };
 }

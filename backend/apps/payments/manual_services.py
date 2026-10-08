@@ -8,11 +8,17 @@ from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.audit.services import record_audit
+from apps.entitlements.free_access import free_access_ends_at
 from apps.entitlements.services import sync_subscription_entitlements
 from apps.invoices.services import issue_paid_invoice
 from apps.notifications.models import Notification
 from apps.notifications.services import create_notification
-from apps.product_catalog.models import Price
+from apps.product_catalog.dentistry_terms import (
+    FIRST_MONTH_OFFER_ENDS_AT,
+    FOUR_MONTHS,
+    LEGACY_DURATION_PLANS,
+)
+from apps.product_catalog.models import Price, fixed_period_end
 from apps.subscriptions.models import Subscription, SubscriptionTransition
 from apps.subscriptions.services import (
     lock_individual_account,
@@ -21,7 +27,19 @@ from apps.subscriptions.services import (
     transition_subscription,
 )
 
-from .models import ManualRechargeCode, ManualRechargeSubmission, Payment, PaymentTransition
+from .installments import (
+    active_agreement,
+    installment_snapshot,
+    installments_available,
+    is_installment_suspension,
+)
+from .models import (
+    InstallmentAgreement,
+    ManualRechargeCode,
+    ManualRechargeSubmission,
+    Payment,
+    PaymentTransition,
+)
 from .recharge_codes import (
     decrypt_recharge_code,
     encrypt_recharge_code,
@@ -49,6 +67,7 @@ class ManualPaymentResult:
 
 
 EARLY_RENEWAL_WINDOW = timedelta(days=7)
+MAX_RECHARGE_CODES = 5
 
 
 def _snapshot_subscription(subscription: Subscription) -> dict[str, object]:
@@ -99,6 +118,15 @@ def _amount_label(payment: Payment) -> str:
     return f"{amount:g} {payment.currency}"
 
 
+def _plan_label(payment: Payment) -> str:
+    title = payment.price.plan_version.title
+    agreement = payment.installment_agreement
+    if agreement is None or payment.installment_number is None:
+        return title
+    count = len(agreement.installment_amounts_minor)
+    return f"{title} — قسط {payment.installment_number}/{count}"
+
+
 def _telegram_username(user: User) -> str:
     return user.username or f"user-{user.id}"
 
@@ -116,7 +144,7 @@ def _telegram_message(
         payment_id=str(payment.id),
         user_id=str(submission.user_id),
         username=_telegram_username(submission.user),
-        plan=payment.price.plan_version.title,
+        plan=_plan_label(payment),
         amount=_amount_label(payment),
         payment_method=payment.get_method_display(),
         submitted=(
@@ -170,6 +198,128 @@ def _early_renewal_allowed(*, subscription: Subscription, now: datetime) -> bool
     )
 
 
+def price_eligibilities(*, user: User) -> frozenset[str]:
+    """The restricted prices this reader may buy at.
+
+    Four-month subscribers already hold the pre-midterm term, so they get the
+    full-year upgrade instead of the loyalty price. Everyone else who paid for
+    any duration plan submitted before the first-month offer closed -- approved
+    then or later -- gets the loyalty price. A free trial alone does not count.
+    """
+
+    paid = Payment.objects.filter(account__primary_user=user, status=Payment.Status.SUCCEEDED)
+    if paid.filter(price__plan_version__plan__code=FOUR_MONTHS).exists():
+        return frozenset({Price.Eligibility.FOUR_MONTH_UPGRADE})
+    if paid.filter(
+        created_at__lt=FIRST_MONTH_OFFER_ENDS_AT,
+        price__plan_version__plan__code__in=LEGACY_DURATION_PLANS,
+    ).exists():
+        return frozenset({Price.Eligibility.LOYALTY_2026})
+    return frozenset()
+
+
+def purchase_block_reason(
+    *, subscription: Subscription | None, price: Price, now: datetime
+) -> str | None:
+    """Why this reader cannot buy this price right now, or ``None``.
+
+    Shared by the catalog (to show only what can be bought) and the submission
+    path (which is the authority), so the two cannot disagree.
+    """
+
+    if subscription is None:
+        return None
+    if is_installment_suspension(subscription):
+        return "Pay the installment that is due before buying another plan."
+    if subscription.status == Subscription.Status.SUSPENDED:
+        return "This subscription is suspended. Contact support before paying."
+    fixed_end = fixed_period_end(price.plan_version)
+    live = subscription.status in (Subscription.Status.ACTIVE, Subscription.Status.GRACE)
+    if fixed_end is not None:
+        if fixed_end <= now:
+            return "This term has already ended."
+        if live and active_agreement(subscription=subscription) is not None:
+            return "Finish paying your current installments before changing plan."
+        if (
+            live
+            and subscription.current_period_ends_at
+            and subscription.current_period_ends_at >= fixed_end
+        ):
+            return "Your current subscription already covers this term."
+        return None
+    active_unexpired = bool(
+        subscription.status == Subscription.Status.ACTIVE
+        and subscription.current_period_ends_at
+        and subscription.current_period_ends_at > now
+    )
+    if active_unexpired and not _early_renewal_allowed(subscription=subscription, now=now):
+        return "Early renewal is available during the final seven days only."
+    return None
+
+
+def _validated_codes(recharge_codes: list[str]) -> tuple[list[str], list[str]]:
+    if not 1 <= len(recharge_codes) <= MAX_RECHARGE_CODES:
+        raise ManualPaymentError(f"Submit between one and {MAX_RECHARGE_CODES} recharge cards.")
+    normalized_codes = [normalize_recharge_code(code) for code in recharge_codes]
+    digests = [recharge_code_digest(code) for code in normalized_codes]
+    if len(set(digests)) != len(digests):
+        raise DuplicateRechargeCodeError("The same recharge card cannot be submitted twice.")
+    return normalized_codes, digests
+
+
+def _store_recharge_codes(
+    *,
+    payment: Payment,
+    user: User,
+    normalized_codes: list[str],
+    digests: list[str],
+    period_started_at: datetime,
+    period_ends_at: datetime,
+    previous: dict[str, object],
+    is_early_renewal: bool,
+    previous_subscription_end_at: datetime | None,
+) -> ManualRechargeSubmission:
+    try:
+        with transaction.atomic():
+            submission = ManualRechargeSubmission.objects.create(
+                payment=payment,
+                user=user,
+                # Compatibility mirror for legacy readers; all new use reads
+                # the related recharge code rows below.
+                recharge_code_ciphertext=encrypt_recharge_code(normalized_codes[0]),
+                recharge_code_digest=digests[0],
+                recharge_code_last4=normalized_codes[0][-4:],
+                subscription_period_started_at=period_started_at,
+                subscription_period_ends_at=period_ends_at,
+                previous_subscription_state=previous,
+                is_early_renewal=is_early_renewal,
+                previous_subscription_end_at=(
+                    previous_subscription_end_at if is_early_renewal else None
+                ),
+                extension_started_at=period_started_at if is_early_renewal else None,
+                extension_ends_at=period_ends_at if is_early_renewal else None,
+            )
+            ManualRechargeCode.objects.bulk_create(
+                [
+                    ManualRechargeCode(
+                        submission=submission,
+                        position=position,
+                        ciphertext=encrypt_recharge_code(code),
+                        digest=digest,
+                        last4=code[-4:],
+                    )
+                    for position, (code, digest) in enumerate(
+                        zip(normalized_codes, digests, strict=True), start=1
+                    )
+                ]
+            )
+    except IntegrityError as error:
+        # The only uniqueness left on this path is one pending submission per
+        # user, which a concurrent second request can still lose.
+        raise ManualPaymentError("A recharge card is already awaiting review.") from error
+    return submission
+
+
 @transaction.atomic
 def submit_manual_recharge(
     *,
@@ -177,6 +327,7 @@ def submit_manual_recharge(
     price: Price,
     recharge_codes: list[str],
     idempotency_key: str,
+    pay_in_installments: bool = False,
 ) -> ManualPaymentResult:
     if len(idempotency_key.strip()) < 12:
         raise ManualPaymentError("A stable idempotency key is required.")
@@ -184,14 +335,13 @@ def submit_manual_recharge(
         raise ManualPaymentError("This plan is not available for Libyana payment.")
     if price.first_subscription_only and not _first_subscription_offer_available(user=user):
         raise ManualPaymentError("The first-subscription offer has already been used.")
-    if not 1 <= len(recharge_codes) <= 2:
-        raise ManualPaymentError("Submit one or two recharge card codes.")
+    if price.eligibility and price.eligibility not in price_eligibilities(user=user):
+        raise ManualPaymentError("This price is not available for your account.")
     if price.amount_minor == 5 * (10**price.currency_exponent) and len(recharge_codes) != 1:
         raise ManualPaymentError("The 5 LYD plan accepts exactly one recharge card code.")
-    normalized_codes = [normalize_recharge_code(code) for code in recharge_codes]
-    digests = [recharge_code_digest(code) for code in normalized_codes]
-    if len(set(digests)) != len(digests):
-        raise DuplicateRechargeCodeError("The same recharge card cannot be submitted twice.")
+    if free_access_ends_at(user) is not None:
+        raise ManualPaymentError("Your program is free for now, so no payment is needed.")
+    normalized_codes, digests = _validated_codes(recharge_codes)
     # Locked for the whole submission: the account's single subscription is read,
     # re-anchored and transitioned below, and two submissions racing each other
     # would otherwise both price a period from the same starting point.
@@ -270,16 +420,23 @@ def submit_manual_recharge(
         and now <= subscription.grace_ends_at
     ):
         subscription = refresh_subscription(subscription=subscription, now=now)
-    if subscription.status == Subscription.Status.SUSPENDED:
-        raise ManualPaymentError("This subscription is suspended. Contact support before paying.")
-    active_unexpired = bool(
-        subscription.status == Subscription.Status.ACTIVE
+    blocked = purchase_block_reason(subscription=subscription, price=price, now=now)
+    if blocked:
+        raise ManualPaymentError(blocked)
+    installment_amounts = [int(value) for value in price.installment_amounts_minor or []]
+    if pay_in_installments and not installments_available(price=price, now=now):
+        raise ManualPaymentError("This plan cannot be paid in installments now.")
+    # Buying a later term while one is running extends it, and is rolled back
+    # exactly like an early renewal if the card is rejected.
+    is_early_renewal = _early_renewal_allowed(subscription=subscription, now=now) or bool(
+        fixed_period_end(price.plan_version) is not None
+        and subscription.status in (Subscription.Status.ACTIVE, Subscription.Status.GRACE)
         and subscription.current_period_ends_at
-        and subscription.current_period_ends_at > now
+        and (
+            subscription.current_period_ends_at > now
+            or (subscription.grace_ends_at and now <= subscription.grace_ends_at)
+        )
     )
-    is_early_renewal = _early_renewal_allowed(subscription=subscription, now=now)
-    if active_unexpired and not is_early_renewal:
-        raise ManualPaymentError("Early renewal is available during the final seven days only.")
     previous = _snapshot_subscription(subscription)
     previous_subscription_end_at = subscription.current_period_ends_at
     paid_start, paid_end = paid_period_window(
@@ -293,11 +450,34 @@ def submit_manual_recharge(
         subscription=subscription,
         price=price,
         idempotency_key=idempotency_key,
+        amount_minor=installment_amounts[0] if pay_in_installments else None,
     )
+    if pay_in_installments:
+        agreement = InstallmentAgreement.objects.create(
+            account=account,
+            subscription=subscription,
+            price=price,
+            total_amount_minor=price.amount_minor,
+            currency=price.currency,
+            currency_exponent=price.currency_exponent,
+            installment_amounts_minor=installment_amounts,
+            anchor_at=now,
+        )
+        payment.installment_agreement = agreement
+        payment.installment_number = 1
     payment.method = Payment.Method.LIBYANA
     payment.status = Payment.Status.PENDING
     payment.revision += 1
-    payment.save(update_fields=("method", "status", "revision", "updated_at"))
+    payment.save(
+        update_fields=(
+            "method",
+            "status",
+            "installment_agreement",
+            "installment_number",
+            "revision",
+            "updated_at",
+        )
+    )
     PaymentTransition.objects.create(
         payment=payment,
         from_status=Payment.Status.INITIATED,
@@ -330,44 +510,17 @@ def submit_manual_recharge(
     subscription.save(
         update_fields=("payment_verification", "provisional_payment_id", "updated_at")
     )
-    try:
-        with transaction.atomic():
-            submission = ManualRechargeSubmission.objects.create(
-                payment=payment,
-                user=user,
-                # Compatibility mirror for legacy readers; all new use reads
-                # the related recharge code rows below.
-                recharge_code_ciphertext=encrypt_recharge_code(normalized_codes[0]),
-                recharge_code_digest=digests[0],
-                recharge_code_last4=normalized_codes[0][-4:],
-                subscription_period_started_at=paid_start,
-                subscription_period_ends_at=paid_end,
-                previous_subscription_state=previous,
-                is_early_renewal=is_early_renewal,
-                previous_subscription_end_at=(
-                    previous_subscription_end_at if is_early_renewal else None
-                ),
-                extension_started_at=paid_start if is_early_renewal else None,
-                extension_ends_at=paid_end if is_early_renewal else None,
-            )
-            ManualRechargeCode.objects.bulk_create(
-                [
-                    ManualRechargeCode(
-                        submission=submission,
-                        position=position,
-                        ciphertext=encrypt_recharge_code(code),
-                        digest=digest,
-                        last4=code[-4:],
-                    )
-                    for position, (code, digest) in enumerate(
-                        zip(normalized_codes, digests, strict=True), start=1
-                    )
-                ]
-            )
-    except IntegrityError as error:
-        # The only uniqueness left on this path is one pending submission per
-        # user, which a concurrent second request can still lose.
-        raise ManualPaymentError("A recharge card is already awaiting review.") from error
+    submission = _store_recharge_codes(
+        payment=payment,
+        user=user,
+        normalized_codes=normalized_codes,
+        digests=digests,
+        period_started_at=paid_start,
+        period_ends_at=paid_end,
+        previous=previous,
+        is_early_renewal=is_early_renewal,
+        previous_subscription_end_at=previous_subscription_end_at,
+    )
     record_audit(
         actor=user,
         action="payment_submitted",
@@ -383,6 +536,7 @@ def submit_manual_recharge(
             "status": submission.status,
             "subscription_period_ends_at": paid_end,
             "is_early_renewal": is_early_renewal,
+            "installment_agreement_id": payment.installment_agreement_id,
         },
     )
     message = _telegram_message(
@@ -391,6 +545,145 @@ def submit_manual_recharge(
             if is_early_renewal
             else ManualPaymentTelegramMessage.Event.NEW_SUBSCRIPTION
         ),
+        payment=payment,
+        submission=submission,
+        subscription=subscription,
+        recharge_codes=tuple(normalized_codes),
+    )
+    transaction.on_commit(lambda: notify_manual_payment(message))
+    return ManualPaymentResult(payment, submission, subscription, True)
+
+
+@transaction.atomic
+def submit_installment_payment(
+    *,
+    user: User,
+    agreement_id: UUID,
+    recharge_codes: list[str],
+    idempotency_key: str,
+) -> ManualPaymentResult:
+    """Pay the next installment of a term bought in parts.
+
+    The term itself was granted with the first installment, so this payment
+    reserves no period and rolls nothing back when rejected. What it changes is
+    whether the installment schedule holds access back, which
+    ``refresh_subscription`` re-derives after the payment is recorded and again
+    after it is reviewed.
+    """
+
+    if len(idempotency_key.strip()) < 12:
+        raise ManualPaymentError("A stable idempotency key is required.")
+    normalized_codes, digests = _validated_codes(recharge_codes)
+    account = lock_individual_account(user=user)
+    existing_payment = (
+        Payment.objects.filter(account=account, idempotency_key=idempotency_key)
+        .select_related("subscription")
+        .first()
+    )
+    if existing_payment is not None:
+        try:
+            submission = existing_payment.manual_submission
+        except ManualRechargeSubmission.DoesNotExist as error:
+            raise ManualPaymentError(
+                "This idempotency key belongs to a different payment flow."
+            ) from error
+        return ManualPaymentResult(
+            payment=existing_payment,
+            submission=submission,
+            subscription=existing_payment.subscription,
+            created=False,
+        )
+    if ManualRechargeSubmission.objects.filter(
+        user=user, status=ManualRechargeSubmission.Status.PENDING
+    ).exists():
+        raise ManualPaymentError("A recharge card is already awaiting review.")
+    agreement = (
+        InstallmentAgreement.objects.select_for_update()
+        .select_related("price__plan_version")
+        .filter(id=agreement_id, account=account, status=InstallmentAgreement.Status.ACTIVE)
+        .first()
+    )
+    if agreement is None:
+        raise ManualPaymentError("There is no installment plan to pay.")
+    subscription = Subscription.objects.select_for_update().get(id=agreement.subscription_id)
+    now = timezone.now()
+    subscription = refresh_subscription(subscription=subscription, now=now)
+    if subscription.status not in (Subscription.Status.ACTIVE, Subscription.Status.SUSPENDED):
+        raise ManualPaymentError("This subscription has ended.")
+    if not subscription.current_period_started_at or not subscription.current_period_ends_at:
+        raise ManualPaymentError("This subscription has no paid term to pay toward.")
+    snapshot = installment_snapshot(agreement, now=now)
+    if snapshot.next_number is None or snapshot.next_amount_minor is None:
+        raise ManualPaymentError("Every installment is already paid.")
+    try:
+        payment, _ = create_payment(
+            account=account,
+            subscription=subscription,
+            price=agreement.price,
+            idempotency_key=idempotency_key,
+            amount_minor=snapshot.next_amount_minor,
+        )
+    except ValueError as error:
+        raise ManualPaymentError(str(error)) from error
+    payment.method = Payment.Method.LIBYANA
+    payment.status = Payment.Status.PENDING
+    payment.installment_agreement = agreement
+    payment.installment_number = snapshot.next_number
+    payment.revision += 1
+    try:
+        with transaction.atomic():
+            payment.save(
+                update_fields=(
+                    "method",
+                    "status",
+                    "installment_agreement",
+                    "installment_number",
+                    "revision",
+                    "updated_at",
+                )
+            )
+    except IntegrityError as error:
+        raise ManualPaymentError("This installment is already paid or awaiting review.") from error
+    PaymentTransition.objects.create(
+        payment=payment,
+        from_status=Payment.Status.INITIATED,
+        to_status=Payment.Status.PENDING,
+        source=PaymentTransition.Source.SYSTEM,
+        reason_code="libyana_installment_submitted",
+        idempotency_key=f"libyana-submitted:{payment.id}",
+        effective_at=now,
+    )
+    submission = _store_recharge_codes(
+        payment=payment,
+        user=user,
+        normalized_codes=normalized_codes,
+        digests=digests,
+        period_started_at=subscription.current_period_started_at,
+        period_ends_at=subscription.current_period_ends_at,
+        previous=_snapshot_subscription(subscription),
+        is_early_renewal=False,
+        previous_subscription_end_at=None,
+    )
+    # Paid inside the two-day window: access comes back now, not at approval.
+    subscription = refresh_subscription(subscription=subscription, now=now)
+    record_audit(
+        actor=user,
+        action="payment_submitted",
+        domain="payments",
+        target_type="payments.manual_recharge_submission",
+        target_id=str(submission.id),
+        reason="Libyana recharge card submitted for an installment.",
+        source="payments.api",
+        new_state={
+            "payment_id": payment.id,
+            "user_id": user.id,
+            "installment_agreement_id": agreement.id,
+            "installment_number": payment.installment_number,
+            "status": submission.status,
+        },
+    )
+    message = _telegram_message(
+        event=ManualPaymentTelegramMessage.Event.NEW_SUBSCRIPTION,
         payment=payment,
         submission=submission,
         subscription=subscription,
@@ -604,6 +897,22 @@ def review_manual_recharge(
         effective_at=now,
         metadata={"review_reason": reason.strip()[:500]},
     )
+    if payment.installment_agreement_id:
+        if decision == "reject" and payment.installment_number == 1:
+            # The purchase itself was refused and rolled back above; there is
+            # nothing left to pay installments toward.
+            InstallmentAgreement.objects.filter(
+                id=payment.installment_agreement_id,
+                status=InstallmentAgreement.Status.ACTIVE,
+            ).update(status=InstallmentAgreement.Status.CANCELLED, cancelled_at=now, updated_at=now)
+        # Re-derive the hold: an approval can release it, a rejection can
+        # bring it back.
+        subscription = refresh_subscription(
+            subscription=Subscription.objects.select_related("plan_version", "account").get(
+                id=subscription.id
+            ),
+            now=now,
+        )
     if decision == "approve":
         issue_paid_invoice(payment_id=payment.id)
     create_notification(

@@ -103,6 +103,11 @@ export function canAccessRoute(userOrSession, path, operationsSession) {
     // Sheet Summary, and its Focus workspace. Django still authorises the PDF
     // behind each of them.
     /^\/materials\/catalog\/[^/]+(?:\/sheets\/[^/]+(?:\/(?:workspace|summary))?)?$/.test(currentPath) ||
+    // The student's own sheets in a subject, and one of them in Focus. Django
+    // only ever returns the signed-in student's own sheets.
+    /^\/materials\/catalog\/[^/]+\/mine(?:\/[0-9a-f-]{36}\/workspace)?$/.test(currentPath) ||
+    // A whiteboard tab of the Focus workspace; its pages stay on this device.
+    /^\/whiteboards\/[^/]+\/workspace$/.test(currentPath) ||
     // This client-side route guard only establishes authentication. Django's
     // Focus API remains the authority for Lock In entitlement decisions.
     /^\/lock-in(?:\/[^/]+)?$/.test(currentPath) ||

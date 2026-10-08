@@ -23,6 +23,8 @@ import { formatDateTime, formatNumber } from "../../lib/i18n.js";
 import { Icon } from "../../lib/icons.jsx";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog.jsx";
 import { EmptyState, ErrorPanel, LoadingPanel } from "../../components/ui/index.jsx";
+import { QueueRefreshStatus, QueueSkeleton } from "./QueueLoading.jsx";
+import { QueueDetail } from "./QueueDetail.jsx";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -186,7 +188,7 @@ function DebouncedSearch({ label, value, onChange, placeholder }) {
   );
 }
 
-function PaymentRow({ payment, selected, onSelect }) {
+function PaymentRow({ payment, selected, onSelect, refreshing }) {
   const state = paymentState(payment);
   const manual = payment.manual_submission;
   const person = payment.user.full_name || payment.user.username || payment.user.email || "Unknown account";
@@ -194,7 +196,7 @@ function PaymentRow({ payment, selected, onSelect }) {
   return (
     <tr className={selected ? "is-selected" : ""}>
       <th scope="row">
-        <button type="button" className="ops-row-link" onClick={() => onSelect(payment.id)} aria-expanded={selected}>
+        <button type="button" className="ops-row-link" disabled={refreshing} onClick={(event) => onSelect(payment.id, event.currentTarget)} aria-expanded={selected}>
           <b>{person}</b>
           <small>
             {payment.user.username ? `@${payment.user.username}` : ""}
@@ -510,8 +512,8 @@ function PaymentDetail({ paymentId, canManage, onReviewed, onClose }) {
   const data = useAsyncData(() => adminControlApi.purchase(paymentId), [paymentId]);
   const [notice, setNotice] = useState("");
 
-  if (data.loading) return <section className="panel ops-detail"><LoadingPanel /></section>;
-  if (data.error) return <section className="panel ops-detail"><ErrorPanel message={data.error} onRetry={data.reload} /></section>;
+  if (data.loading) return <QueueDetail label="Payment detail"><LoadingPanel /></QueueDetail>;
+  if (data.error) return <QueueDetail label="Payment detail"><ErrorPanel message={data.error} onRetry={data.reload} /></QueueDetail>;
 
   const payment = data.data;
   const manual = payment.manual_submission;
@@ -525,7 +527,7 @@ function PaymentDetail({ paymentId, canManage, onReviewed, onClose }) {
   }
 
   return (
-    <section className="panel ops-detail" aria-label="Payment detail">
+    <QueueDetail label="Payment detail">
       <div className="ops-panel-head">
         <div>
           <p className="eyebrow">{payment.method === "libyana" ? "Libyana recharge card" : "Payment"}</p>
@@ -577,7 +579,7 @@ function PaymentDetail({ paymentId, canManage, onReviewed, onClose }) {
           ))}
         </ol>
       </section>
-    </section>
+    </QueueDetail>
   );
 }
 
@@ -587,10 +589,12 @@ export default function PaymentsConsole({ canManage }) {
   const [sort, setSort] = useState("newest");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(null);
+  const selectedTrigger = useRef(null);
 
   const list = useAsyncData(
-    () => adminControlApi.purchases({ page, query, status, sort }),
-    [page, query, status, sort]
+    (signal) => adminControlApi.purchases({ page, query, status, sort, signal }),
+    [page, query, status, sort],
+    { keepPreviousData: true }
   );
   const summary = useAsyncData(() => adminControlApi.analytics(), []);
 
@@ -611,7 +615,6 @@ export default function PaymentsConsole({ canManage }) {
 
   return (
     <section className="operations-workspace">
-      <p className="ops-lead">Review Libyana recharge cards and follow every payment through to the access it grants.</p>
       <section className="ops-metrics" aria-label="Payment summary">
         <Metric
           label="Awaiting review"
@@ -643,10 +646,11 @@ export default function PaymentsConsole({ canManage }) {
         </div>
       </div>
 
-      {list.loading ? <LoadingPanel variant="list" /> : list.error ? (
+      <QueueRefreshStatus refreshing={list.refreshing} />
+      {list.loading ? <QueueSkeleton /> : list.error ? (
         <ErrorPanel message={list.error} onRetry={list.reload} />
       ) : (
-        <section className="panel ops-table-panel">
+        <section className="panel ops-table-panel" aria-busy={list.refreshing || undefined}>
           <div className="ops-panel-head">
             <h2>{PAYMENT_FILTERS.find(([code]) => code === status)?.[1] || "Payments"}</h2>
             <span>{formatNumber(list.data.count)} {list.data.count === 1 ? "payment" : "payments"}</span>
@@ -674,7 +678,8 @@ export default function PaymentsConsole({ canManage }) {
                       key={payment.id}
                       payment={payment}
                       selected={selected === payment.id}
-                      onSelect={setSelected}
+                      onSelect={(id, trigger) => { selectedTrigger.current = trigger; setSelected(id); }}
+                      refreshing={list.refreshing}
                     />
                   ))}
                 </tbody>
@@ -690,9 +695,9 @@ export default function PaymentsConsole({ canManage }) {
           )}
           {list.data.count > list.data.results.length && (
             <div className="ops-pager">
-              <button className="btn btn-soft compact" type="button" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</button>
+              <button className="btn btn-soft compact" type="button" disabled={list.refreshing || page <= 1} onClick={() => setPage(page - 1)}>Previous</button>
               <span>Page {page}</span>
-              <button className="btn btn-soft compact" type="button" disabled={page * 25 >= list.data.count} onClick={() => setPage(page + 1)}>Next</button>
+              <button className="btn btn-soft compact" type="button" disabled={list.refreshing || page * 25 >= list.data.count} onClick={() => setPage(page + 1)}>Next</button>
             </div>
           )}
         </section>
@@ -700,10 +705,15 @@ export default function PaymentsConsole({ canManage }) {
 
       {selected && (
         <PaymentDetail
+          key={selected}
           paymentId={selected}
           canManage={canManage}
           onReviewed={reload}
-          onClose={() => setSelected(null)}
+          onClose={() => {
+            setSelected(null);
+            selectedTrigger.current?.focus({ preventScroll: true });
+            selectedTrigger.current?.scrollIntoView({ block: "center", behavior: "instant" });
+          }}
         />
       )}
     </section>

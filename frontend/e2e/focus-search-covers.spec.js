@@ -71,8 +71,25 @@ async function storedAnnotationTypes(page) {
 }
 
 async function centreOf(locator) {
-  const box = await locator.boundingBox();
-  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  // WebKit scrollIntoView on an SVG group follows the outer page SVG rather
+  // than the cover's rectangle. Scroll the reader to the actual touch target.
+  await locator.evaluate((element) => {
+    const stage = element.closest(".workspace-v2-document-stage");
+    const target = element.getBoundingClientRect();
+    const frame = stage.getBoundingClientRect();
+    stage.scrollTop += target.y + target.height / 2 - frame.y - frame.height / 2;
+    stage.scrollLeft += target.x + target.width / 2 - frame.x - frame.width / 2;
+  });
+  // SVG intersection/bounding-box protocol measurements differ in WebKit;
+  // the DOM bounds and the actual contact target are the geometry we need.
+  await expect.poll(() => locator.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    return element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+  })).toBe(true);
+  return locator.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  });
 }
 
 test("search finds text on every page, steps through it and shows the page it is on", async ({ page }) => {
@@ -111,7 +128,9 @@ test("search finds text on every page, steps through it and shows the page it is
 test("Find opens the reader's own search", async ({ page }) => {
   await mockWorkspace(page);
   await openWorkspace(page);
-  await page.locator(".workspace-v2-document-stage").click({ position: { x: 5, y: 5 } });
+  // The toolbar lies over the stage's top edge; focus the stage in the gap below it.
+  const toolbarBottom = await page.locator(".workspace-v2-toolbar").evaluate((node) => node.getBoundingClientRect().bottom);
+  await page.locator(".workspace-v2-document-stage").click({ position: { x: 5, y: Math.ceil(toolbarBottom) + 4 } });
   await page.keyboard.press("Control+f");
   await expect(page.getByRole("searchbox")).toBeFocused();
   await page.keyboard.press("Escape");
@@ -178,7 +197,7 @@ test("an area hidden from the Add menu stays hidden after reopening the sheet", 
   await expect(restored).not.toHaveClass(/is-revealed/);
 });
 
-test("the search reads Arabic and lays out right to left", async ({ page }) => {
+test("the search reads Arabic and lays out right to left", async ({ page }, testInfo) => {
   await mockWorkspace(page, { language: "ar" });
   await openWorkspace(page, { width: 390, height: 844 });
   await page.locator('[data-workspace-surface="more"]').click();
@@ -193,9 +212,159 @@ test("the search reads Arabic and lays out right to left", async ({ page }) => {
   const bounds = await panel.boundingBox();
   expect(bounds.x).toBeGreaterThanOrEqual(0);
   expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
+  await page.screenshot({ path: testInfo.outputPath("search-arabic.png") });
 
   // On a phone, showing a match closes the panel; the navigator keeps the place.
   await results.first().click();
   await expect(panel).toHaveCount(0);
   await expect(page.locator(".workspace-search-navigator")).toContainText("1 من 1");
+});
+
+test("changing the query invalidates results before debounce can run", async ({ page }) => {
+  await mockWorkspace(page);
+  await openWorkspace(page);
+  const field = await openSearch(page);
+  await field.fill("end of page 2");
+  await expect(page.getByRole("button", { name: /Hide every match/ })).toBeVisible();
+  await page.clock.install();
+  await page.clock.pauseAt(new Date());
+  await field.fill("new query");
+  await expect(page.locator(".workspace-search-results")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Hide every match/ })).toHaveCount(0);
+  await field.press("Enter");
+  await expect(page.locator('[data-annotation-type="cover"]')).toHaveCount(0);
+});
+
+test("hide one result keeps the search available and prevents duplicate covers", async ({ page }) => {
+  await mockWorkspace(page);
+  await openWorkspace(page);
+  const field = await openSearch(page);
+  await field.fill("end of page 12");
+  await expect(page.getByRole("list", { name: "Search results" }).getByRole("button")).toHaveCount(1);
+  await field.press("Enter");
+  await page.locator(".workspace-search-footer").getByRole("button", { name: /^Hide this match/ }).click();
+  await expect(page.locator('[data-annotation-type="cover"]')).toHaveCount(1);
+  await expect(field).toHaveValue("end of page 12");
+  await expect(page.locator(".workspace-search-footer").getByRole("button", { name: /^Already hidden/ })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Hide every match (0)" })).toBeDisabled();
+  await page.getByRole("button", { name: "Close search" }).click();
+  await expect(page.locator(".workspace-search-navigator").getByRole("button", { name: "Already hidden" })).toBeDisabled();
+});
+
+test("returning to a sheet within the workspace hides its answers again", async ({ page }) => {
+  await mockWorkspace(page);
+  await openWorkspace(page);
+  const field = await openSearch(page);
+  await field.fill("end of page 2");
+  await page.getByRole("button", { name: /Hide every match/ }).click();
+  const cover = page.locator('[data-annotation-type="cover"]');
+  await expect(cover).toHaveCount(1);
+  await cover.scrollIntoViewIfNeeded();
+  const point = await centreOf(cover);
+  await tapAt(page, point.x, point.y, 91);
+  await expect(cover).toHaveClass(/is-revealed/);
+  await expect.poll(async () => (await storedAnnotationTypes(page)).includes("cover")).toBe(true);
+  // Client-side route changes reuse the workspace component.
+  await page.evaluate(() => { location.hash = "#/materials/catalog/biochemistry-1/sheets/vitamin-2/workspace"; });
+  await expect(page.locator('[data-annotation-type="cover"]')).toHaveCount(0);
+  await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]")).toHaveCount(17);
+  await page.evaluate(() => { location.hash = "#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace"; });
+  await expect(cover).toHaveCount(1);
+  await expect(cover).not.toHaveClass(/is-revealed/);
+});
+
+test("a finger can hide an area while drawing stays restricted to a stylus", async ({ page }) => {
+  await mockWorkspace(page);
+  await openWorkspace(page, { width: 390, height: 844 });
+  await page.locator('[data-workspace-surface="add"]').click();
+  await page.locator('[data-workspace-tool="cover"]').click();
+  await page.evaluate(() => {
+    const stage = document.querySelector(".workspace-v2-document-stage");
+    const bounds = document.querySelector(".workspace-v2-a4-page").getBoundingClientRect();
+    const start = { x: bounds.x + bounds.width * .2, y: bounds.y + bounds.height * .2 };
+    const end = { x: bounds.x + bounds.width * .6, y: bounds.y + bounds.height * .35 };
+    const event = (type, point) => new PointerEvent(type, {
+      pointerId: 111, pointerType: "touch", isPrimary: true, clientX: point.x, clientY: point.y,
+      button: 0, buttons: type === "pointerup" ? 0 : 1, width: 9, height: 9,
+      bubbles: true, cancelable: true
+    });
+    document.elementFromPoint(start.x, start.y).dispatchEvent(event("pointerdown", start));
+    stage.dispatchEvent(event("pointermove", end));
+    stage.dispatchEvent(event("pointerup", end));
+  });
+  await expect(page.locator('[data-annotation-type="cover"]')).toHaveCount(1);
+  await expect(page.locator('[data-annotation-type="pen"]')).toHaveCount(0);
+});
+
+for (const viewport of [
+  { width: 320, height: 568, label: "phone" },
+  { width: 834, height: 1112, label: "iPad portrait" },
+  { width: 1194, height: 834, label: "iPad landscape" },
+  { width: 844, height: 390, label: "phone landscape" }
+]) {
+  test(`search and recall controls remain reachable on ${viewport.label}`, async ({ page }, testInfo) => {
+    await mockWorkspace(page);
+    await openWorkspace(page, viewport);
+    const field = await openSearch(page);
+    await field.fill("reader test fixture");
+    await expect(page.locator("#workspace-search-summary")).toHaveText(/^Matches: \d+$/);
+    const panel = page.locator("#workspace-search-popover");
+    const bounds = await panel.boundingBox();
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
+    expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
+    await page.screenshot({ path: testInfo.outputPath("search-results.png") });
+    await field.press("Enter");
+    if (viewport.width <= 820) await expect(panel).toHaveCount(0);
+    else await page.getByRole("button", { name: "Close search" }).click();
+    const navigator = page.locator(".workspace-search-navigator");
+    await expect(navigator.getByRole("button", { name: "Hide this match" })).toBeInViewport();
+    const controlBounds = await navigator.boundingBox();
+    expect(controlBounds.x).toBeGreaterThanOrEqual(0);
+    expect(controlBounds.x + controlBounds.width).toBeLessThanOrEqual(viewport.width);
+    expect(controlBounds.height).toBeLessThanOrEqual(56);
+    expect((await navigator.locator(".workspace-search-navigator-query").boundingBox()).width).toBeGreaterThanOrEqual(90);
+    await navigator.getByRole("button", { name: "Hide this match" }).click();
+    await expect(navigator.getByRole("button", { name: "Already hidden" })).toBeDisabled();
+    await page.screenshot({ path: testInfo.outputPath("recall-navigator.png") });
+  });
+}
+
+test.describe("search above the virtual keyboard", () => {
+  test.use({ hasTouch: true });
+  for (const viewport of [{ width: 320, height: 568 }, { width: 834, height: 1112 }]) {
+    test(`typing keeps results reachable at ${viewport.width}px`, async ({ page }) => {
+      await mockWorkspace(page);
+      await openWorkspace(page, viewport);
+      const field = await openSearch(page);
+      await field.fill("reader test fixture");
+      await expect(page.locator("#workspace-search-summary")).toHaveText(/^Matches: \d+$/);
+      const keyboardHeight = viewport.width === 320 ? 260 : 380;
+      await page.evaluate((height) => {
+        Object.defineProperty(window.visualViewport, "height", { configurable: true, get: () => document.documentElement.clientHeight - height });
+        window.visualViewport.dispatchEvent(new Event("resize"));
+      }, keyboardHeight);
+      await expect(page.locator(".workspace-v2")).toHaveAttribute("data-keyboard", "open");
+      const panel = page.locator("#workspace-search-popover");
+      const bounds = await panel.boundingBox();
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height - keyboardHeight);
+      expect(await field.evaluate((element) => parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(16);
+      const results = page.locator(".workspace-search-results");
+      expect(await results.evaluate((element) => element.clientHeight)).toBeGreaterThan(44);
+      const first = results.getByRole("button").first();
+      await first.scrollIntoViewIfNeeded();
+      const resultBounds = await first.boundingBox();
+      expect(resultBounds.y).toBeLessThan(viewport.height - keyboardHeight);
+      await first.click();
+      await expect.poll(() => page.evaluate(() => document.activeElement?.matches('input[type="search"]'))).toBe(false);
+      // The harness restores the viewport as the real keyboard would.
+      await page.evaluate(() => {
+        delete window.visualViewport.height;
+        window.visualViewport.dispatchEvent(new Event("resize"));
+      });
+      await expect(page.locator(".workspace-v2")).not.toHaveAttribute("data-keyboard", "open");
+      if (viewport.width > 820) await expect(page.locator(".workspace-search-footer").getByRole("button", { name: /^Hide this match/ })).toBeVisible();
+      else await expect(page.locator(".workspace-search-navigator")).toBeVisible();
+    });
+  }
 });

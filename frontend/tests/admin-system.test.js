@@ -71,6 +71,23 @@ test("operations console navigation fails closed without the overview capability
   assert.equal(canAccessRoute(user, "/operations/admin/overview", { capabilities: ["overview.view"] }), true);
 });
 
+for (const list of ["users", "purchases", "subscriptions"]) {
+  test(`admin ${list} cancels an obsolete read without losing the error contract`, async () => {
+    setup();
+    let started;
+    const fetchStarted = new Promise((resolve) => { started = resolve; });
+    globalThis.fetch = async (_url, options) => new Promise((_resolve, reject) => {
+      started();
+      options.signal.addEventListener("abort", () => reject(new globalThis.DOMException("Cancelled", "AbortError")), { once: true });
+    });
+    const controller = new AbortController();
+    const pending = adminControlApi[list]({ query: "alice", signal: controller.signal });
+    await fetchStarted;
+    controller.abort();
+    await assert.rejects(pending, (error) => error.code === "aborted");
+  });
+}
+
 test("Content Studio uses the content capability rather than the overview capability", () => {
   const user = { id: USER_ID, roles: ["student"] };
   assert.equal(canAccessRoute(user, "/operations/admin/content", { capabilities: ["content.view"] }), true);

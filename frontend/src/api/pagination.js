@@ -40,17 +40,6 @@ export function createPageState(page = 1, pageSize = DEFAULT_PAGE_SIZE) {
 }
 
 /**
- * @param {string|null} [cursor]
- * @param {number} [pageSize]
- */
-export function createCursorState(cursor = null, pageSize = DEFAULT_PAGE_SIZE) {
-  return {
-    cursor: typeof cursor === "string" && cursor ? cursor : null,
-    pageSize: Math.min(MAX_PAGE_SIZE, normalisePositiveInteger(pageSize, DEFAULT_PAGE_SIZE))
-  };
-}
-
-/**
  * @param {{page?: number, pageSize?: number, cursor?: string|null}} state
  */
 export function resetPagination(state = {}) {

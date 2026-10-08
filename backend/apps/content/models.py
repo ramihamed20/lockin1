@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.db import models
 from django.db.models import F, Q
+from django.db.models.functions import Lower
 
 from apps.education.models import EducationNode, StudentCohort
 from apps.files.models import ManagedFile
@@ -388,3 +389,210 @@ class ActiveStudyQuestionContent(models.Model):
 
     def __str__(self) -> str:
         return f"{self.sheet_id}:{self.difficulty}:active-study-questions"
+
+
+class PersonalSheet(models.Model):
+    """A PDF a student added to one of their own subjects, visible only to them."""
+
+    class ActiveStudyStatus(models.TextChoices):
+        # Personal sheets have no generated questions yet. The status is stored
+        # so enabling Active Study later is a state change, not a schema change.
+        UNAVAILABLE = "unavailable", "Not available"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="personal_sheets",
+    )
+    subject = models.ForeignKey(
+        CatalogSubject,
+        on_delete=models.PROTECT,
+        related_name="personal_sheets",
+    )
+    managed_file = models.OneToOneField(
+        ManagedFile,
+        on_delete=models.PROTECT,
+        related_name="personal_sheet",
+    )
+    title = models.CharField(max_length=120)
+    page_count = models.PositiveIntegerField(null=True, blank=True)
+    active_study_status = models.CharField(
+        max_length=24,
+        choices=ActiveStudyStatus.choices,
+        default=ActiveStudyStatus.UNAVAILABLE,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at", "-id")
+        constraints = [
+            models.UniqueConstraint(
+                Lower("title"),
+                "owner",
+                "subject",
+                name="personal_sheet_owner_subject_title_unique",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=("owner", "subject", "-created_at"),
+                name="content_personal_sheet_idx",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return self.title
+
+
+class PersonalSheetWorkspace(models.Model):
+    """Reader state for a personal sheet; its ink lives in a Focus annotation collection."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    sheet = models.OneToOneField(PersonalSheet, on_delete=models.CASCADE, related_name="workspace")
+    state = models.JSONField(default=dict, blank=True)
+    revision = models.PositiveBigIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return f"{self.sheet_id}:{self.revision}"
+
+
+class PersonalSheetWorkspaceReceipt(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        PersonalSheetWorkspace, on_delete=models.CASCADE, related_name="receipts"
+    )
+    idempotency_key = models.UUIDField()
+    request_digest = models.CharField(max_length=64)
+    response_payload = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("workspace", "idempotency_key"),
+                name="content_personal_receipt_unique",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.workspace_id}:{self.idempotency_key}"
+
+
+class PracticeSet(models.Model):
+    """An ordered run of image slides a student names by typing, owned by one subject."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    subject = models.ForeignKey(
+        CatalogSubject,
+        on_delete=models.PROTECT,
+        related_name="practice_sets",
+    )
+    title = models.CharField(max_length=120)
+    is_published = models.BooleanField(default=False, db_index=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("created_at", "id")
+        constraints = [
+            models.UniqueConstraint(
+                Lower("title"),
+                "subject",
+                name="content_practice_set_title_unique",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return self.title
+
+
+class PracticeSlide(models.Model):
+    """One image and the name that must be typed for it, in the set's order."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    practice_set = models.ForeignKey(
+        PracticeSet,
+        on_delete=models.CASCADE,
+        related_name="slides",
+    )
+    managed_file = models.OneToOneField(
+        ManagedFile,
+        on_delete=models.PROTECT,
+        related_name="practice_slide",
+    )
+    position = models.PositiveIntegerField(default=0)
+    answer = models.CharField(max_length=200, blank=True)
+    # Where on the image the question points, as a fraction of its width and height.
+    hotspot_x = models.FloatField(null=True, blank=True)
+    hotspot_y = models.FloatField(null=True, blank=True)
+    hotspot_shape = models.CharField(max_length=10, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("position", "created_at", "id")
+        indexes = [
+            models.Index(fields=("practice_set", "position"), name="content_practice_slide_pos")
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(hotspot_x__isnull=True, hotspot_y__isnull=True, hotspot_shape="")
+                    | Q(
+                        hotspot_x__gte=0,
+                        hotspot_x__lte=1,
+                        hotspot_y__gte=0,
+                        hotspot_y__lte=1,
+                        hotspot_shape__in=("circle", "arrow"),
+                    )
+                ),
+                name="content_practice_slide_hotspot_valid",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.practice_set_id}:{self.position}"
+
+
+class PracticeSlideProgress(models.Model):
+    """What one student has done with one slide, which drives review and stats."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="practice_progress",
+    )
+    slide = models.ForeignKey(
+        PracticeSlide,
+        on_delete=models.CASCADE,
+        related_name="progress",
+    )
+    attempts = models.PositiveIntegerField(default=0)
+    miss_count = models.PositiveIntegerField(default=0)
+    # Consecutive clean answers; a miss resets it and a hinted answer keeps it.
+    streak = models.PositiveSmallIntegerField(default=0)
+    last_correct = models.BooleanField(default=False)
+    last_attempt_at = models.DateTimeField(null=True, blank=True)
+    due_at = models.DateTimeField(null=True, blank=True)
+    # A first-letter hint was shown and the next check has not been made yet.
+    hint_pending = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=("user", "slide"), name="content_practice_progress_once")
+        ]
+        indexes = [models.Index(fields=("user", "due_at"), name="content_practice_prog_due")]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.slide_id}"

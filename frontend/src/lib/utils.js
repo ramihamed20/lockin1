@@ -1,12 +1,4 @@
-import {
-  appIconOptions,
-  defaultThemeSettings,
-  focusDurations,
-  onboardingDefaults,
-  reminderDefaults,
-  sessionLengthOptions,
-  streakProtectionDefaults
-} from "./constants.js";
+import { appIconOptions, defaultThemeSettings, reminderDefaults } from "./constants.js";
 
 export function assetPath(path) {
   if (!path) return "";
@@ -23,10 +15,6 @@ export function assetPath(path) {
  */
 export function cssVars(values) {
   return /** @type {import("react").CSSProperties} */ (values);
-}
-
-export function themePreview(character, theme) {
-  return assetPath(`/assets/themes/${character}-${theme}-640.webp`);
 }
 
 export function autoThemeForDate(date = new Date()) {
@@ -49,50 +37,6 @@ export function readLocalThemeSettings() {
     return normalizeThemeSettings(JSON.parse(localStorage.getItem("lock-in.theme.settings") || "{}"));
   } catch {
     return defaultThemeSettings;
-  }
-}
-
-// --- Session preferences ---
-
-export function readSessionCountPreference() {
-  try {
-    const stored = JSON.parse(localStorage.getItem("lock-in.session.count") || "10");
-    return sessionLengthOptions.includes(stored) ? stored : 10;
-  } catch {
-    return 10;
-  }
-}
-
-export function readFocusDurationPreference() {
-  try {
-    const stored = Number(localStorage.getItem("lock-in.focus.minutes") || "25");
-    return focusDurations.some((item) => item.minutes === stored) ? stored : 25;
-  } catch {
-    return 25;
-  }
-}
-
-// --- Onboarding ---
-
-export function onboardingKey(email = "") {
-  return `lock-in.onboarding.${email || "guest"}`;
-}
-
-export function readOnboardingState(email = "") {
-  try {
-    const stored = JSON.parse(localStorage.getItem(onboardingKey(email)) || "{}");
-    return {
-      ...onboardingDefaults,
-      ...stored,
-      completed: Boolean(stored.completed),
-      dailyTarget: [10, 15, 20].includes(Number(stored.dailyTarget)) ? Number(stored.dailyTarget) : onboardingDefaults.dailyTarget,
-      focusMinutes: focusDurations.some((item) => item.minutes === Number(stored.focusMinutes))
-        ? Number(stored.focusMinutes)
-        : onboardingDefaults.focusMinutes,
-      focusMaterialId: stored.focusMaterialId ? String(stored.focusMaterialId) : ""
-    };
-  } catch {
-    return onboardingDefaults;
   }
 }
 
@@ -130,30 +74,6 @@ export function parseReminderTime(time) {
   return { hours, minutes };
 }
 
-// --- Streak ---
-
-export function streakProtectionKey(email = "") {
-  return `lock-in.streakProtection.${email || "guest"}`;
-}
-
-export function weekStamp(date = new Date()) {
-  return String(Math.floor(date.getTime() / 604800000));
-}
-
-export function readStreakProtection(email = "") {
-  try {
-    return { ...streakProtectionDefaults, ...JSON.parse(localStorage.getItem(streakProtectionKey(email)) || "{}") };
-  } catch {
-    return streakProtectionDefaults;
-  }
-}
-
-// --- Level ---
-
-export function levelMemoryKey(email = "") {
-  return `lock-in.lastLevel.${email || "guest"}`;
-}
-
 // --- Greeting ---
 
 export function greeting() {
@@ -184,18 +104,4 @@ export function relativeTime(value) {
   const days = Math.round(hours / 24);
   if (tense !== "ago") return days === 1 ? "Tomorrow" : `in ${days}d`;
   return days === 1 ? "Yesterday" : `${days}d ago`;
-}
-
-// --- Question helpers ---
-
-export function explanationReviewTip(question, feedback) {
-  if (feedback.reviewScheduled) return "This is now in spaced review. Revisit it when it becomes due, then answer without looking.";
-  if (question.difficulty === "Hard") return "Write a one-line contrast with the nearest wrong option, then retry it in a focused session.";
-  if (question.difficulty === "Medium") return `Repeat the ${question.materialTitle || "material"} cue once, then connect it to the correct choice.`;
-  return "Keep it warm with a quick flashcard pass later today.";
-}
-
-export function correctEncouragement(seed = 0) {
-  const messages = ["Great recall!", "You nailed it.", "Clean answer.", "Strong memory.", "Keep that rhythm."];
-  return messages[Math.abs(Number(seed)) % messages.length];
 }

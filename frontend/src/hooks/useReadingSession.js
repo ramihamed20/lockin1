@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { focusApi } from "../api/focus.js";
+import { useWorkspacePaneActive } from "../workspace/catalog/workspacePane.js";
 
 /**
  * Report a reading sitting to the server, so studying counts as a study day.
@@ -30,8 +31,12 @@ function newClientInstanceId() {
  * @param {{ enabled?: boolean }} [options] `enabled: false` reports nothing,
  * which is what a Sheet Summary and a fixture sheet both want.
  */
-export function useReadingSession(documentVersionId, { enabled = true } = {}) {
+export function useReadingSession(documentVersionId, { enabled: requested = true } = {}) {
   const sessionIdRef = useRef("");
+  // A tab kept open behind the one on screen is not being read: its sitting
+  // closes when it is left and a new one opens when it is shown again.
+  const paneActive = useWorkspacePaneActive();
+  const enabled = requested && paneActive;
 
   useEffect(() => {
     if (!enabled || !documentVersionId) return undefined;

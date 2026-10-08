@@ -16,6 +16,7 @@ export const STUDIO_AREAS = [
   ["content", "Content", "content.view", "file", "Library"],
   ["questions", "Questions", "assessments.view", "file-question", "Library"],
   ["notifications", "Notifications", "notifications.view", "bell", "Engagement"],
+  ["feedback", "Suggestions", "moderation.view", "messages", "Engagement"],
   ["reports", "Moderation", "moderation.view", "messages", "Engagement"],
   ["audit", "Activity", "audit.view", "activity", "Platform"],
   ["exports", "Exports", "reports.export", "file", "Platform"],

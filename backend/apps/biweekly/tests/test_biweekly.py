@@ -309,6 +309,31 @@ def test_review_template_groups_three_normal_cards_without_fixed_limit(count):
     assert html.count("Because the source says so.") == count
 
 
+def test_review_template_says_how_many_times_a_repeated_mistake_was_missed():
+    user = create_user(with_trial=True)
+    start, end = closed_period(user)
+    repeated = {**question(1), "repetitions": 3}
+    once = question(2)
+    report = BiweeklySnapshot.objects.create(
+        user=user,
+        report_type="review",
+        period_start=start,
+        period_end=end,
+        data={"questions": [repeated, once], "mistake_count": 2},
+    )
+    html = render_to_string(
+        "biweekly/review.html",
+        {
+            "report": report,
+            "pages": _review_context(report)["pages"],
+            "mistake_count": 2,
+            "period_label": "test",
+        },
+    )
+    assert html.count("Missed 3 times") == 1
+    assert "Missed 1 times" not in html
+
+
 def test_long_explanation_is_not_truncated_in_review_template():
     user = create_user(with_trial=True)
     start, end = closed_period(user)

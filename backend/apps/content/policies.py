@@ -67,6 +67,16 @@ def can_access_managed_file(*, user: User, managed_file: ManagedFile, download: 
         if download or not user.is_authenticated:
             return False
         return is_content_administrator(user) or is_published_media(managed_file.id)
+    if managed_file.kind == ManagedFile.Kind.PRACTICE_IMAGE:
+        # A slide image is shown inline only: students see the images of
+        # published sets in their own cohort, administrators see every upload.
+        from apps.content.practice_sets import can_view_practice_image
+
+        if download or not user.is_authenticated:
+            return False
+        return is_content_administrator(user) or can_view_practice_image(
+            user=user, managed_file_id=managed_file.id
+        )
     if is_content_administrator(user) or managed_file.owner_id == user.id:
         return True
     assets = LearningObjectAsset.objects.filter(

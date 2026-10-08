@@ -25,7 +25,12 @@ from apps.files.services import (
 )
 from apps.focus.selectors import annotation_collection_revision
 from apps.focus.services import touch_reading_session
-from apps.questions.answering import XP_BY_DIFFICULTY, AnswerRejected, answer_question
+from apps.questions.answering import (
+    XP_BY_DIFFICULTY,
+    AnswerRejected,
+    answer_question,
+    retry_question,
+)
 from apps.questions.models import Question, QuestionAnswer, QuestionVersion
 from apps.xp.models import XpBalance
 
@@ -237,6 +242,7 @@ def _published_documents_by_subject(
         .select_related(
             "managed_file",
             "version__academic_node",
+            "version__learning_object__published_version",
         )
         .prefetch_related("version__learning_object__active_study_settings_set")
         .prefetch_related("version__learning_object__active_study_question_content")
@@ -736,6 +742,45 @@ class CatalogSheetQuestionAnswerView(APIView):
                 "xp_total": balance.total_points if balance is not None else 0,
             },
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+
+class CatalogSheetQuestionRetryView(APIView):
+    """Grade another try at an answered question; a wrong one counts as a repeat mistake.
+
+    The recorded answer and its XP never change. ``retry_key`` makes a resent
+    request count once.
+    """
+
+    def post(self, request: Request, sheet_id: UUID, question_id: UUID) -> Response:
+        user = _user(request)
+        sheet, _ = _owned_question_sheet(user, sheet_id)
+        question = get_object_or_404(_sheet_questions(sheet), id=question_id)
+        data = request.data if isinstance(request.data, dict) else {}
+        raw = data.get("choice_ids")
+        if not isinstance(raw, list) or not raw:
+            raise AnswerInvalid("Choose an answer.")
+        try:
+            choice_ids = [UUID(str(item)) for item in raw]
+        except ValueError as error:
+            raise AnswerInvalid("That choice does not belong to this question.") from error
+        try:
+            retry_key = UUID(str(data.get("retry_key", "")))
+        except ValueError as error:
+            raise AnswerInvalid("A retry key is required.") from error
+        try:
+            is_correct, _, correct, mistakes = retry_question(
+                user=user, question=question, choice_ids=choice_ids, retry_key=retry_key
+            )
+        except AnswerRejected as error:
+            raise AnswerInvalid(str(error)) from error
+        return Response(
+            {
+                "question_id": str(question.id),
+                "is_correct": is_correct,
+                "correct_choice_ids": sorted(str(choice_id) for choice_id in correct),
+                "mistake_count": mistakes,
+            }
         )
 
 

@@ -9,6 +9,7 @@ class QuestionImportValidateSerializer(StrictSerializer):
 
 class QuestionImportCommitSerializer(QuestionImportValidateSerializer):
     publish = serializers.BooleanField(default=False)
+    source = serializers.ChoiceField(choices=("ai-sheet", "exam"), default="ai-sheet")
 
 
 class QuestionBulkActionSerializer(StrictSerializer):

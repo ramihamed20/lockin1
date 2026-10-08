@@ -5,6 +5,7 @@ const routeDefinitions = [
   { match: (path) => path === "/materials", key: "route.materials" },
   { match: (path) => path === "/materials/catalog", key: "route.notFound" },
   { match: (path) => path.startsWith("/materials/catalog/") && path.endsWith("/workspace"), key: "route.focus" },
+  { match: (path) => path.startsWith("/whiteboards/") && path.endsWith("/workspace"), key: "route.focus" },
   { match: (path) => path.startsWith("/materials/catalog/"), key: "route.material" },
   { match: (path) => path === "/paper-workspace", key: "route.paperWorkspace" },
   { match: (path) => path === "/lock-in" || path.startsWith("/lock-in/"), key: "route.lockIn" },
@@ -42,8 +43,4 @@ export function routeMetadata(pathname, t = (key) => key) {
     h1: label,
     breadcrumbLabel: label
   };
-}
-
-export function routeMetadataDefinitions() {
-  return [...routeDefinitions];
 }

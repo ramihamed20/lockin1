@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Plan, PlanVersion, Price, Product
+from .models import Plan, PlanVersion, Price, Product, fixed_period_end
 
 
 class PriceSerializer(serializers.ModelSerializer[Price]):
@@ -18,6 +18,8 @@ class PriceSerializer(serializers.ModelSerializer[Price]):
             "tax_behavior",
             "valid_until",
             "first_subscription_only",
+            "eligibility",
+            "installment_amounts_minor",
         )
 
 
@@ -25,6 +27,11 @@ class PlanVersionSerializer(serializers.ModelSerializer[PlanVersion]):
     prices = PriceSerializer(many=True, read_only=True)
     availability = serializers.SerializerMethodField()
     scope = serializers.SerializerMethodField()
+    fixed_period_ends_at = serializers.SerializerMethodField()
+
+    def get_fixed_period_ends_at(self, version: PlanVersion) -> str | None:
+        ends_at = fixed_period_end(version)
+        return ends_at.isoformat() if ends_at else None
 
     def get_availability(self, version: PlanVersion) -> str:
         value = version.terms.get("availability", "available")
@@ -46,6 +53,7 @@ class PlanVersionSerializer(serializers.ModelSerializer[PlanVersion]):
             "grace_days",
             "availability",
             "scope",
+            "fixed_period_ends_at",
             "prices",
         )
 

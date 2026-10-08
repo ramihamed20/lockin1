@@ -96,6 +96,10 @@ def _byte_range(value: str, size: int) -> tuple[int, int] | None:
     if match is None:
         return None
     start_text, end_text = match.groups()
+    # Oversized decimal headers must yield 416 rather than Python's integer
+    # conversion limit raising an uncaught ValueError.
+    if len(start_text) > 20 or len(end_text) > 20:
+        return None
     if not start_text and not end_text:
         return None
     if start_text:

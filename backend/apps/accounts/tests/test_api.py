@@ -479,6 +479,60 @@ def test_email_change_requires_password_and_verifies_new_address() -> None:
     assert user.is_email_verified
 
 
+def test_email_change_confirmation_handles_an_address_claimed_after_request() -> None:
+    user = create_user()
+    original_email = user.email
+    client, csrf = csrf_client()
+    client.force_login(user)
+    accepted = client.post(
+        "/api/v1/account/email",
+        {"new_email": "claimed-later@example.com", "current_password": PASSWORD},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+    assert accepted.status_code == 200
+    raw_token = token_from_latest_email()
+    create_user(email="claimed-later@example.com")
+
+    confirmed = client.post(
+        "/api/v1/account/email/confirm",
+        {"token": raw_token},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+
+    assert confirmed.status_code == 400
+    assert confirmed.json()["error"]["code"] == "email_unavailable"
+    user.refresh_from_db()
+    assert user.email == original_email
+    assert OneTimeToken.objects.get(user=user, kind=OneTimeToken.Kind.EMAIL_CHANGE).is_usable
+    assert not AccountSecurityEvent.objects.filter(
+        user=user, event_type=AccountSecurityEvent.EventType.EMAIL_CHANGED
+    ).exists()
+
+
+def test_resend_cooldown_does_not_disclose_recent_unverified_accounts() -> None:
+    from apps.accounts.services import issue_verification_code
+
+    user = create_user(email="recent-verification@example.com", verified=False)
+    issue_verification_code(user=user)
+    client, csrf = csrf_client()
+    recent = client.post(
+        "/api/v1/auth/resend-verification",
+        {"email": user.email},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+    unknown = client.post(
+        "/api/v1/auth/resend-verification",
+        {"email": "unknown-verification@example.com"},
+        format="json",
+        HTTP_X_CSRFTOKEN=csrf,
+    )
+    assert recent.status_code == unknown.status_code == 200
+    assert recent.json() == unknown.json()
+
+
 def test_account_deletion_request_requires_password_email_confirmation_and_tracks_status(
     settings: Any,
 ) -> None:

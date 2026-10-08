@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, EyeOff, Loader2, Search, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, EyeOff, Loader2, Search, SearchX, X } from "lucide-react";
 import { useI18n } from "../../components/I18nProvider.jsx";
 import { createDocumentTextSource, normalizeSearchQuery, searchDocument } from "./documentSearch.js";
+import { MAX_COVERS_PER_ACTION } from "./recallCovers.js";
 
 const SEARCH_DELAY_MS = 220;
 const MIN_QUERY_LENGTH = 2;
 const LISTED_RESULTS = 200;
-/** @typedef {{ status: "idle" | "searching" | "done", matches: any[], searchedPages: number, totalPages: number, truncated: boolean }} SearchState */
+/** @typedef {{ status: "idle" | "searching" | "done", matches: any[], searchedPages: number, totalPages: number, truncated: boolean, key?: object }} SearchState */
 /** @type {SearchState} */
 const IDLE = Object.freeze({ status: "idle", matches: [], searchedPages: 0, totalPages: 0, truncated: false });
 const NO_MATCHES = Object.freeze([]);
@@ -23,6 +24,16 @@ export function useDocumentSearch(documentProxy, { firstPage, lastPage }) {
   const [state, setState] = useState(/** @type {SearchState} */ (IDLE));
   const [activeIndex, setActiveIndex] = useState(-1);
   const source = useMemo(() => (documentProxy ? createDocumentTextSource(documentProxy) : null), [documentProxy]);
+  const normalizedQuery = normalizeSearchQuery(query);
+  const searchKey = useMemo(() => ({ source, firstPage, lastPage, normalizedQuery }), [source, firstPage, lastPage, normalizedQuery]);
+  // Results belong to an exact query/document/range. Old results become
+  // unusable in the render that changes any of those inputs, before debounce.
+  const currentState = state.key === searchKey ? state : {
+    ...IDLE,
+    status: source && normalizedQuery.length >= MIN_QUERY_LENGTH ? "searching" : "idle",
+    totalPages: Math.max(0, lastPage - firstPage + 1)
+  };
+  const currentIndex = state.key === searchKey ? activeIndex : -1;
 
   useEffect(() => {
     if (!source || normalizeSearchQuery(query).length < MIN_QUERY_LENGTH) {
@@ -33,31 +44,31 @@ export function useDocumentSearch(documentProxy, { firstPage, lastPage }) {
     let cancelled = false;
     const timer = window.setTimeout(async () => {
       setActiveIndex(-1);
-      setState({ ...IDLE, status: "searching", totalPages: Math.max(0, lastPage - firstPage + 1) });
+      setState({ ...IDLE, key: searchKey, status: "searching", totalPages: Math.max(0, lastPage - firstPage + 1) });
       const result = await searchDocument(source, query, {
         firstPage,
         lastPage,
         isCancelled: () => cancelled,
-        onProgress: (progress) => { if (!cancelled) setState({ status: "searching", truncated: false, ...progress }); }
+        onProgress: (progress) => { if (!cancelled) setState({ key: searchKey, status: "searching", truncated: false, ...progress }); }
       });
       if (cancelled || !result) return;
-      setState({ status: "done", ...result });
+      setState({ key: searchKey, status: "done", ...result });
     }, SEARCH_DELAY_MS);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [firstPage, lastPage, query, source]);
+  }, [firstPage, lastPage, query, source, searchKey]);
 
   const matchesByPage = useMemo(() => {
     const pages = new Map();
-    for (const match of state.matches) {
+    for (const match of currentState.matches) {
       const bucket = pages.get(match.page);
       if (bucket) bucket.push(match);
       else pages.set(match.page, [match]);
     }
     return pages;
-  }, [state.matches]);
+  }, [currentState.matches]);
 
   const clear = useCallback(() => {
     setQuery("");
@@ -67,13 +78,13 @@ export function useDocumentSearch(documentProxy, { firstPage, lastPage }) {
   return {
     query,
     setQuery,
-    status: state.status,
-    matches: state.matches,
-    searchedPages: state.searchedPages,
-    totalPages: state.totalPages,
-    truncated: state.truncated,
-    activeIndex,
-    activeMatch: state.matches[activeIndex] || null,
+    status: currentState.status,
+    matches: currentState.matches,
+    searchedPages: currentState.searchedPages,
+    totalPages: currentState.totalPages,
+    truncated: currentState.truncated,
+    activeIndex: currentIndex,
+    activeMatch: currentState.matches[currentIndex] || null,
     setActiveIndex,
     matchesByPage,
     clear,
@@ -109,15 +120,19 @@ function stepIndex(search, direction) {
  * @param {{
  *   search: ReturnType<typeof useDocumentSearch>,
  *   onShowMatch: (match: any) => void,
- *   onHideMatches: (matches: any[]) => void,
+ *   onHideMatches: (matches: any[], keepSearch?: boolean) => void,
+ *   coveredIds?: Set<string>,
  *   onClose: () => void,
  *   open: boolean
  * }} props
  */
-export function DocumentSearchPanel({ search, onShowMatch, onHideMatches, onClose, open }) {
+export function DocumentSearchPanel({ search, onShowMatch, onHideMatches, onClose, open, coveredIds = new Set() }) {
   const { t } = useI18n();
   const inputRef = useRef(/** @type {HTMLInputElement | null} */ (null));
   const listRef = useRef(/** @type {HTMLOListElement | null} */ (null));
+  const [listedResults, setListedResults] = useState(LISTED_RESULTS);
+
+  useEffect(() => setListedResults(LISTED_RESULTS), [search.query]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -130,12 +145,17 @@ export function DocumentSearchPanel({ search, onShowMatch, onHideMatches, onClos
 
   useEffect(() => {
     if (search.activeIndex < 0) return;
+    if (search.activeIndex >= listedResults) {
+      setListedResults(Math.ceil((search.activeIndex + 1) / LISTED_RESULTS) * LISTED_RESULTS);
+      return;
+    }
     listRef.current?.querySelector(`[data-search-index="${search.activeIndex}"]`)?.scrollIntoView({ block: "nearest" });
-  }, [search.activeIndex]);
+  }, [search.activeIndex, listedResults]);
 
   const show = (index) => {
     const match = search.matches[index];
     if (!match) return;
+    inputRef.current?.blur();
     search.setActiveIndex(index);
     onShowMatch(match);
   };
@@ -143,6 +163,9 @@ export function DocumentSearchPanel({ search, onShowMatch, onHideMatches, onClos
   const total = search.matches.length;
   const searching = search.status === "searching";
   const hasQuery = normalizeSearchQuery(search.query).length >= MIN_QUERY_LENGTH;
+  const remaining = search.matches.filter((match) => !coveredIds.has(match.id));
+  const tooManyCovers = remaining.reduce((count, match) => count + match.rectangles.length, 0) > MAX_COVERS_PER_ACTION;
+  const activeCovered = Boolean(search.activeMatch && coveredIds.has(search.activeMatch.id));
   let summary = "";
   if (!search.ready) summary = t("focus.searchPreparing");
   else if (!hasQuery) summary = t("focus.searchHint");
@@ -153,7 +176,7 @@ export function DocumentSearchPanel({ search, onShowMatch, onHideMatches, onClos
 
   return <>
     <header>
-      <strong>{t("focus.searchDocument")}</strong>
+      <span className="workspace-search-heading"><Search size={18} aria-hidden="true" /><strong>{t("focus.searchDocument")}</strong></span>
       <button type="button" aria-label={t("focus.closeSearch")} onClick={onClose}><X size={17} /></button>
     </header>
     <div className="workspace-search-field">
@@ -180,6 +203,7 @@ export function DocumentSearchPanel({ search, onShowMatch, onHideMatches, onClos
       {searching && <Loader2 className="workspace-search-spinner" size={16} aria-hidden="true" />}
       {search.query && <button type="button" className="workspace-search-clear" aria-label={t("focus.clearSearch")} onClick={() => { search.clear(); inputRef.current?.focus(); }}><X size={15} /></button>}
     </div>
+    {searching && <div className="workspace-search-progress" aria-hidden="true"><span style={{ width: `${search.totalPages ? search.searchedPages / search.totalPages * 100 : 0}%` }} /></div>}
     <div className="workspace-search-status">
       <p id="workspace-search-summary" role="status" aria-live="polite">
         {total > 0 && search.activeIndex >= 0 ? t("focus.searchPosition", { current: search.activeIndex + 1, total }) : summary}
@@ -189,25 +213,36 @@ export function DocumentSearchPanel({ search, onShowMatch, onHideMatches, onClos
         <button type="button" aria-label={t("focus.nextMatch")} disabled={!total} onClick={() => show(stepIndex(search, 1))}><ChevronDown size={17} /></button>
       </span>
     </div>
+    {!total && <div className="workspace-search-empty">
+      {searching ? <Loader2 className="workspace-search-spinner" size={28} aria-hidden="true" /> : hasQuery ? <SearchX size={30} aria-hidden="true" /> : <Search size={30} aria-hidden="true" />}
+      <strong>{t(searching ? "focus.searchReading" : hasQuery ? "focus.searchTryAnother" : "focus.searchStart")}</strong>
+      <p>{t(hasQuery ? "focus.searchTextOnly" : "focus.searchRecallHint")}</p>
+    </div>}
     {total > 0 && <ol className="workspace-search-results" ref={listRef} aria-label={t("focus.searchResults")}>
-      {search.matches.slice(0, LISTED_RESULTS).map((match, index) => <li key={match.id}>
+      {search.matches.slice(0, listedResults).map((match, index) => <li key={match.id}>
         <button type="button" data-search-index={index} aria-current={index === search.activeIndex ? "true" : undefined} onClick={() => show(index)}>
-          <small>{t("focus.pageNumberLabel", { page: match.page })}</small>
+          <small><span className="workspace-search-page">{t("focus.pageNumberLabel", { page: match.page })}</span>{coveredIds.has(match.id) && <span className="workspace-search-covered"><Check size={12} aria-hidden="true" />{t("focus.matchHidden")}</span>}</small>
           <span dir="auto">{match.snippet.before}<mark>{match.snippet.match}</mark>{match.snippet.after}</span>
         </button>
       </li>)}
+      {total > listedResults && <li><button type="button" className="workspace-search-load-more" onClick={() => setListedResults((count) => count + LISTED_RESULTS)}>{t("focus.searchShowMore", { count: total - listedResults })}</button></li>}
     </ol>}
     {total > 0 && !searching && <footer className="workspace-search-footer">
-      <button type="button" onClick={() => onHideMatches(search.matches)}>
+      <p>{t("focus.searchRecallTitle")}</p>
+      {search.activeMatch && <button type="button" className="workspace-search-hide-one" disabled={activeCovered} onClick={() => onHideMatches([search.activeMatch], true)}>
+        {activeCovered ? <Check size={17} aria-hidden="true" /> : <EyeOff size={17} aria-hidden="true" />}
+        <span><strong>{t(activeCovered ? "focus.matchHidden" : "focus.hideSelectedMatch")}</strong><small>{t("focus.hideSelectedHint")}</small></span>
+      </button>}
+      <button type="button" disabled={!remaining.length || tooManyCovers} onClick={() => onHideMatches(remaining)}>
         <EyeOff size={17} aria-hidden="true" />
-        <span><strong>{t("focus.hideMatches", { count: total })}</strong><small>{t("focus.hideMatchesHint")}</small></span>
+        <span><strong>{t("focus.hideMatches", { count: remaining.length })}</strong><small>{t(tooManyCovers ? "focus.narrowSearchForCovers" : "focus.hideMatchesHint")}</small></span>
       </button>
     </footer>}
   </>;
 }
 
 /** The position and the arrows, kept on screen while the panel is closed. */
-export function SearchNavigator({ search, onShowMatch, onOpen }) {
+export function SearchNavigator({ search, onShowMatch, onOpen, onHideMatch, covered = false }) {
   const { t } = useI18n();
   const total = search.matches.length;
   if (!total || search.activeIndex < 0) return null;
@@ -224,6 +259,7 @@ export function SearchNavigator({ search, onShowMatch, onOpen }) {
     </button>
     <button type="button" aria-label={t("focus.previousMatch")} onClick={() => show(-1)}><ChevronUp size={17} /></button>
     <button type="button" aria-label={t("focus.nextMatch")} onClick={() => show(1)}><ChevronDown size={17} /></button>
+    <button type="button" aria-label={t(covered ? "focus.matchHidden" : "focus.hideSelectedMatch")} disabled={covered} onClick={onHideMatch}>{covered ? <Check size={17} /> : <EyeOff size={17} />}</button>
     <button type="button" aria-label={t("focus.clearSearch")} onClick={search.clear}><X size={16} /></button>
   </div>;
 }

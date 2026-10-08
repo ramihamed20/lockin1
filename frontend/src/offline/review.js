@@ -3,6 +3,7 @@ import { offlineDatabase } from "./database.js";
 import { offlineAccessStatus } from "./lease.js";
 import { enqueueOperation, registerOperationHandler } from "./queue.js";
 import { offlineUnavailableError } from "./resolver.js";
+import { captureOfflineSession } from "./sessionScope.js";
 
 /**
  * Review without a connection.
@@ -17,16 +18,21 @@ import { offlineUnavailableError } from "./resolver.js";
 
 const SNAPSHOT_KEY = "review-snapshot";
 
-export async function refreshReviewSnapshot(userId) {
+export async function refreshReviewSnapshot(userId, assertCurrent = captureOfflineSession(userId)) {
   const snapshot = await request("/offline/review/");
   if (!snapshot || typeof snapshot.subjects !== "object" || !snapshot.answer_keys) throw new Error("Invalid Review snapshot.");
-  await offlineDatabase.put(userId, SNAPSHOT_KEY, { ...snapshot, fetched_at: new Date().toISOString() });
+  await offlineDatabase.putScoped(userId, SNAPSHOT_KEY, { ...snapshot, fetched_at: new Date().toISOString() }, assertCurrent);
   return snapshot;
 }
 
-/** Online reads are kept too, so a screen opened before going offline reopens. */
-export async function rememberReviewRead(userId, key, value) {
-  await offlineDatabase.put(userId, `review:${key}`, value);
+/** Online reads are kept too, so a screen opened before going offline reopens.
+ * @param {string} userId
+ * @param {string} key
+ * @param {any} value
+ * @param {() => void} [assertCurrent]
+ */
+export async function rememberReviewRead(userId, key, value, assertCurrent = captureOfflineSession(userId)) {
+  await offlineDatabase.putScoped(userId, `review:${key}`, value, assertCurrent);
 }
 
 function subjectPayload(snapshot, subjectKey) {

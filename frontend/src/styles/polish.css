@@ -371,6 +371,12 @@
   @media (pointer: coarse) {
     /* Mobile Safari zooms the viewport when a focused text field is under 16px. */
     .search-box input { font-size: 16px; }
+    /* The compact size above is for pointers. On touch, every button keeps the
+       44px target system.css promises -- this layer loads later, so without
+       repeating it here the empty-state and row actions shrank to 34px. */
+    .btn,
+    .btn.compact { min-height: var(--touch-target); }
+    .ui-section-link { display: inline-flex; align-items: center; min-block-size: var(--touch-target); }
   }
 
   @media (min-width: 640px) and (min-height: 560px) {

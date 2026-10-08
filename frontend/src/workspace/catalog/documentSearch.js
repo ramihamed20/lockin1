@@ -73,6 +73,7 @@ export function buildPageTextIndex(textContent, viewport) {
   const sourceAt = [];
   /** @type {Array<{ x: number, y: number, width: number, height: number } | null>} */
   const boxes = [];
+  let previousRun = null;
 
   const appendSpace = () => {
     if (!text || text.endsWith(" ")) return;
@@ -85,7 +86,7 @@ export function buildPageTextIndex(textContent, viewport) {
   for (const item of textContent?.items || []) {
     const characters = [...String(item?.str || "")];
     if (!characters.length || !Array.isArray(item.transform)) {
-      if (item?.hasEOL) appendSpace();
+      if (item?.hasEOL) { appendSpace(); previousRun = null; }
       continue;
     }
     const placed = multiply(viewport.transform, item.transform);
@@ -96,7 +97,15 @@ export function buildPageTextIndex(textContent, viewport) {
     const top = (placed[5] - fontHeight * ASCENT) * scaleY;
     const height = fontHeight * scaleY;
 
-    if (text && !text.endsWith(" ")) appendSpace();
+    // PDF.js may split a word at a font/style change. A text item is not a
+    // word boundary: only a real gap or a new line needs a separator.
+    const gap = previousRun && (rightToLeft
+      ? previousRun.x - placed[4] - runWidth
+      : placed[4] - previousRun.x - previousRun.width);
+    const contiguous = previousRun && previousRun.rtl === rightToLeft
+      && Math.abs(previousRun.baseline - placed[5]) < Math.max(fontHeight, previousRun.height) * .3
+      && gap >= -fontHeight * .2 && gap <= fontHeight * .15;
+    if (text && !text.endsWith(" ") && !contiguous) appendSpace();
     characters.forEach((character, index) => {
       const offset = rightToLeft ? runWidth - (index + 1) * characterWidth : index * characterWidth;
       const box = { x: (placed[4] + offset) * scaleX, y: top, width: characterWidth * scaleX, height };
@@ -109,7 +118,8 @@ export function buildPageTextIndex(textContent, viewport) {
       }
       source += character;
     });
-    if (item.hasEOL) appendSpace();
+    previousRun = { x: placed[4], width: runWidth, baseline: placed[5], height: fontHeight, rtl: rightToLeft };
+    if (item.hasEOL) { appendSpace(); previousRun = null; }
   }
   return { text, source, sourceAt, boxes };
 }
@@ -133,12 +143,11 @@ function rectanglesFor(boxes, start, end) {
       rectangles.push(current);
     }
   }
-  return rectangles.map((rectangle) => ({
-    x: Math.max(0, rectangle.x - 2),
-    y: Math.max(0, rectangle.y - 2),
-    width: Math.min(PAGE_SPACE, rectangle.width + 4),
-    height: Math.min(PAGE_SPACE, rectangle.height + 4)
-  }));
+  return rectangles.map((rectangle) => {
+    const x = Math.max(0, rectangle.x - 2);
+    const y = Math.max(0, rectangle.y - 2);
+    return { x, y, width: Math.max(0, Math.min(PAGE_SPACE, rectangle.x + rectangle.width + 2) - x), height: Math.max(0, Math.min(PAGE_SPACE, rectangle.y + rectangle.height + 2) - y) };
+  }).filter((rectangle) => rectangle.width > 0 && rectangle.height > 0);
 }
 
 function snippetFor(index, start, end) {
@@ -201,7 +210,7 @@ export function createDocumentTextSource(documentProxy) {
         const pending = (async () => {
           const pdfPage = await documentProxy.getPage(page);
           const viewport = pdfPage.getViewport({ scale: 1 });
-          const textContent = await pdfPage.getTextContent();
+          const textContent = await readPageText(pdfPage);
           return buildPageTextIndex(textContent, viewport);
         })();
         // A page that failed to read is retried by the next search.
@@ -211,6 +220,26 @@ export function createDocumentTextSource(documentProxy) {
       return cache.get(page);
     }
   };
+}
+
+async function readPageText(pdfPage) {
+  // Current PDF.js uses async iteration over ReadableStream in getTextContent.
+  // Older iPad Safari supports getReader but lacks that iterator, even in the
+  // legacy PDF.js distribution. Read the same chunks through its public API.
+  if (typeof globalThis.ReadableStream?.prototype[Symbol.asyncIterator] === "function"
+    || typeof pdfPage.streamTextContent !== "function") return pdfPage.getTextContent();
+  const reader = pdfPage.streamTextContent().getReader();
+  const items = [];
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      items.push(...value.items);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return { items };
 }
 
 /**

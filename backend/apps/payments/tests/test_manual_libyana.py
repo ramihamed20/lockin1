@@ -19,7 +19,7 @@ from apps.refunds.models import Refund
 from apps.subscriptions.models import Subscription
 from apps.subscriptions.services import create_trial_for_user, refresh_subscription
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("legacy_duration_prices")]
 
 
 @pytest.fixture(autouse=True)

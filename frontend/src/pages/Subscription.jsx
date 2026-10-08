@@ -23,13 +23,129 @@ function money(amountMinor, currency, exponent = 3, locale = "en") {
   }
 }
 
-function paidOffers(catalog) {
+function lydOffers(catalog) {
   return catalog.results.flatMap((product) => (product.plans || []).flatMap((plan) => {
     const version = plan.current_version;
+    // The server sends each reader only the one price they would pay.
     const price = version?.prices?.find((item) => String(item.currency).toUpperCase() === "LYD");
     if (!version || !price || (price.first_subscription_only && !catalog.firstSubscriptionOfferEligible)) return [];
     return [{ product, plan, version, price }];
   })).sort((left, right) => Number(left.price.amount_minor) - Number(right.price.amount_minor));
+}
+
+// What the server would refuse is not offered: a term already covered, or a
+// new plan while installments are still open.
+function paidOffers(catalog) {
+  return lydOffers(catalog).filter(({ price }) => !price.purchase_blocked_reason);
+}
+
+const MAX_CARDS = 5;
+
+function addMonths(date, count) {
+  const next = new Date(date);
+  const day = next.getDate();
+  next.setDate(1);
+  next.setMonth(next.getMonth() + count);
+  next.setDate(Math.min(day, new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate()));
+  return next;
+}
+
+function RechargeCodeFields({ codes, setCodes, oneCardOnly, idPrefix, t }) {
+  const visible = oneCardOnly ? codes.slice(0, 1) : codes;
+  function update(index, value) {
+    setCodes(codes.map((code, position) => position === index ? value.replace(/\D/g, "").slice(0, 13) : code));
+  }
+  return (
+    <div className="libyana-code-stack">
+      {visible.map((code, index) => (
+        <label className="field libyana-code-field" key={`${idPrefix}-${index}`}>
+          <span>{index === 0 ? t("subscription.rechargeCode") : t("subscription.additionalRechargeCode")}</span>
+          <input type="text" inputMode="numeric" autoComplete="off" dir="ltr" pattern="[0-9]{13}" minLength={13} maxLength={13} value={code} onChange={(event) => update(index, event.target.value)} placeholder={t("subscription.codePlaceholder")} aria-describedby={index === 0 ? `${idPrefix}-hint` : undefined} required={index === 0} />
+          {index === 0 && <small id={`${idPrefix}-hint`}>{t("subscription.codeHint")}</small>}
+        </label>
+      ))}
+      {!oneCardOnly && codes.length < MAX_CARDS && (
+        <button className="btn btn-soft compact libyana-add-card" type="button" onClick={() => setCodes([...codes, ""])}>{t("subscription.addCard")}</button>
+      )}
+    </div>
+  );
+}
+
+function codesReady(codes, oneCardOnly) {
+  const used = oneCardOnly ? codes.slice(0, 1) : codes.filter(Boolean);
+  return used.length > 0 && codes[0].length === 13 && used.every((code) => code.length === 13);
+}
+
+function submittedCodes(codes, oneCardOnly) {
+  return oneCardOnly ? [codes[0]] : codes.filter(Boolean);
+}
+
+/**
+ * A term bought in parts: what is paid, what is next, and -- when an
+ * installment is late -- why access is paused and how to get it back.
+ */
+function InstallmentPlan({ plan, pendingManualReview, locale, t, onPay }) {
+  const [codes, setCodes] = useState([""]);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const attemptKey = useRef("");
+  if (!plan || plan.state === "completed" || plan.state === "cancelled") return null;
+  const amount = (value) => money(value, plan.currency, plan.currency_exponent, locale);
+  const next = plan.next_amount_minor != null ? amount(plan.next_amount_minor) : "";
+  const tone = { overdue: "rejected", defaulted: "rejected", in_review: "pending" }[plan.state] || "approved";
+  const message = {
+    overdue: [t("subscription.installmentOverdueTitle"), t("subscription.installmentOverdueBody", { amount: next, date: plan.payment_window_ends_at ? formatDateTime(plan.payment_window_ends_at) : "—" })],
+    defaulted: plan.pending_number != null
+      ? [t("subscription.installmentReviewTitle"), t("subscription.installmentLateReviewBody")]
+      : [t("subscription.installmentDefaultedTitle"), t("subscription.installmentDefaultedBody", { amount: next })],
+    in_review: [t("subscription.installmentReviewTitle"), t("subscription.installmentReviewBody")],
+    current: [t("subscription.installmentPlanTitle"), plan.next_due_at ? t("subscription.installmentNextBody", { amount: next, date: formatDate(plan.next_due_at, { dateStyle: "medium" }) }) : ""]
+  }[plan.state] || [t("subscription.installmentPlanTitle"), ""];
+  const canPay = plan.next_number != null && plan.pending_number == null && !pendingManualReview;
+
+  async function pay(event) {
+    event.preventDefault();
+    if (submitting || !codesReady(codes, false)) return;
+    setSubmitting(true);
+    setError("");
+    if (!attemptKey.current) attemptKey.current = generateIdempotencyKey();
+    try {
+      await onPay(plan.agreement_id, submittedCodes(codes, false), attemptKey.current);
+      attemptKey.current = "";
+      setCodes([""]);
+    } catch (requestError) {
+      setError(requestError.message || t("subscription.submitError"));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <section className={`subscription-review-banner subscription-installments is-${tone}`} role={tone === "rejected" ? "alert" : "status"} aria-labelledby="installment-plan-title">
+      <div>
+        <h2 id="installment-plan-title">{message[0]}</h2>
+        {message[1] && <p>{message[1]}</p>}
+        <p className="subscription-installment-progress">{t("subscription.installmentProgress", { paid: amount(plan.paid_amount_minor), total: amount(plan.total_amount_minor) })}</p>
+        <ol className="subscription-installment-list">
+          {plan.installments.map((item) => (
+            <li key={item.number} className={`is-${item.status}`}>
+              <span>{amount(item.amount_minor)}</span>
+              <span>{formatDate(item.due_at, { dateStyle: "medium" })}</span>
+              <strong>{t(`subscription.installmentStatus.${item.status}`)}</strong>
+            </li>
+          ))}
+        </ol>
+        {canPay && (
+          <form className="subscription-installment-pay" onSubmit={pay}>
+            <h3>{t("subscription.payInstallment", { amount: next })}</h3>
+            <RechargeCodeFields codes={codes} setCodes={setCodes} oneCardOnly={false} idPrefix="installment-code" t={t} />
+            {error && <p className="form-alert error" role="alert">{error}</p>}
+            <button className="btn btn-primary" type="submit" disabled={submitting || !codesReady(codes, false)}>{submitting ? t("subscription.submitting") : t("subscription.submitCard")}</button>
+          </form>
+        )}
+      </div>
+    </section>
+  );
 }
 
 function comingSoonOffers(catalog) {
@@ -62,8 +178,18 @@ const PLAN_COPY = {
   lockin_first_month: { en: ["First month", "One-month subscription"], ar: ["الشهر الأول", "اشتراك لمدة شهر"] },
   lockin_two_months: { en: ["Two months", "Two-month subscription"], ar: ["شهران", "اشتراك لمدة شهرين"] },
   lockin_three_months: { en: ["Three months", "Three-month subscription"], ar: ["3 أشهر", "اشتراك لمدة ثلاثة أشهر"] },
-  lockin_four_months: { en: ["Four months", "Four-month subscription"], ar: ["4 أشهر", "اشتراك لمدة أربعة أشهر"] }
+  lockin_four_months: { en: ["Four months", "Four-month subscription"], ar: ["4 أشهر", "اشتراك لمدة أربعة أشهر"] },
+  dentistry_pre_midterm: { en: ["Pre-midterm", "Access until 25 January 2027"], ar: ["قبل النصفي", "اشتراك حتى 25 يناير 2027"] },
+  dentistry_post_midterm: { en: ["Post-midterm", "Access until 21 May 2027"], ar: ["بعد النصفي", "اشتراك حتى 21 مايو 2027"] },
+  dentistry_full_year: { en: ["Full year", "Access until 21 May 2027"], ar: ["العام الكامل", "اشتراك حتى 21 مايو 2027"] }
 };
+
+function priceBadge(price, t) {
+  if (price.first_subscription_only) return t("subscription.firstOffer");
+  if (price.eligibility === "loyalty_2026") return t("subscription.loyaltyPrice");
+  if (price.eligibility === "four_month_upgrade") return t("subscription.upgradePrice");
+  return "";
+}
 
 function offerCopy(plan, version, locale) {
   const translated = PLAN_COPY[plan.code]?.[locale];
@@ -78,7 +204,7 @@ function offerCopy(plan, version, locale) {
  * administrator reaches this screen on its own. The payment-history list below
  * is a record; this is the live state.
  */
-function ReviewBanner({ review, t, onRetry }) {
+function ReviewBanner({ review, t, onRetry = undefined }) {
   if (!review) return null;
   const tone = { pending: "pending", approved: "approved", rejected: "rejected" }[review.status];
   if (!tone) return null;
@@ -111,33 +237,6 @@ function ReviewBanner({ review, t, onRetry }) {
   );
 }
 
-const CHECKOUT_STEPS = ["plan", "review", "pay"];
-
-/**
- * Where the reader is in the purchase: choose a plan, see what it costs and
- * includes, then pay. Earlier steps stay clickable so a plan can be changed
- * without starting over.
- */
-function CheckoutStepper({ step, onStep, t }) {
-  const current = CHECKOUT_STEPS.indexOf(step);
-  const labels = { plan: t("subscription.stepPlan"), review: t("subscription.stepReview"), pay: t("subscription.stepPay") };
-  return (
-    <ol className="subscription-stepper" aria-label={t("subscription.stepsLabel")}>
-      {CHECKOUT_STEPS.map((key, index) => {
-        const state = index < current ? "done" : index === current ? "current" : "upcoming";
-        return (
-          <li key={key} className={`is-${state}`}>
-            <button type="button" disabled={index > current} aria-current={state === "current" ? "step" : undefined} onClick={() => onStep(key)}>
-              <span className="subscription-stepper-index" aria-hidden="true">{state === "done" ? "✓" : index + 1}</span>
-              <span>{labels[key]}</span>
-            </button>
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
 function paymentStatus(value, t) {
   const labels = {
     pending: t("subscription.pending"),
@@ -153,9 +252,8 @@ export default function Subscription() {
   const subscriptionSession = useSubscriptionSession();
   const details = useAsyncData(() => billingApi.details(), []);
   const [selectedPlan, setSelectedPlan] = useState("");
-  const [step, setStep] = useState("plan");
-  const purchaseRef = useRef(null);
-  const [codes, setCodes] = useState(["", ""]);
+  const [codes, setCodes] = useState([""]);
+  const [payInInstallments, setPayInInstallments] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -163,6 +261,7 @@ export default function Subscription() {
   // has actually been accepted. See submitPayment.
   const paymentAttemptKey = useRef("");
   const offers = useMemo(() => details.data ? paidOffers(details.data.catalog) : [], [details.data]);
+  const coveredOffers = useMemo(() => details.data ? lydOffers(details.data.catalog).length - offers.length : 0, [details.data, offers]);
   const comingSoon = useMemo(() => details.data ? comingSoonOffers(details.data.catalog) : [], [details.data]);
   const effectivePlan = selectedPlan || offers[0]?.plan.id || "";
   const review = subscriptionSession.manualPaymentReview;
@@ -183,22 +282,30 @@ export default function Subscription() {
     reloadDetails();
   }, [reloadDetails, reviewStamp]);
 
-  if (details.loading) return <LoadingPanel variant="list" />;
-  if (details.error) return <ErrorPanel message={details.error} onRetry={details.reload} />;
+  if (details.loading) return <Page width="reading" title={t("subscription.title")} showHeading><LoadingPanel variant="list" /></Page>;
+  if (details.error) return <Page width="reading" title={t("subscription.title")} showHeading><ErrorPanel message={details.error} onRetry={details.reload} /></Page>;
 
   const { subscription, directAccess, accessExempt } = subscriptionSession;
   const { payments, catalog } = details.data;
   const recentPayments = payments.filter((payment) => payment.method === "libyana").slice(0, 5);
   const selectedOffer = offers.find(({ plan }) => plan.id === effectivePlan) || offers[0];
   const oneCardOnly = isFiveLyd(selectedOffer?.price);
+  const installmentsOffered = Boolean(selectedOffer?.price?.installments_available);
+  const installmentMode = installmentsOffered && payInInstallments;
+  const installmentAmounts = selectedOffer?.price?.installment_amounts_minor || [];
+  const dueNowMinor = installmentMode ? installmentAmounts[0] : selectedOffer?.price?.amount_minor;
+  const installmentPlan = subscription?.installment_plan || null;
+  const installmentHold = installmentPlan?.state === "overdue" || installmentPlan?.state === "defaulted";
   // Asked of the access session, not of the payment list this screen loaded
   // when it opened. The list cannot know that a reviewer decided thirty seconds
   // ago, so readers whose card was approved -- or rejected -- sat in front of
   // "a payment is already under review" with the form hidden, unable to pay and
   // with nothing on the screen telling them why.
   const pendingManualReview = subscriptionSession.pendingManualPayment;
-  const renewalBlocked = subscription?.status === "active" && subscription?.access_allowed && !subscription?.early_renewal_available;
-  const canSubmit = review?.status === "rejected" || (!renewalBlocked && !pendingManualReview);
+  // Whether a plan can be bought now is decided per price by the server (a
+  // term already covered, installments still open, the legacy seven-day
+  // renewal window); only offers it would accept reach this screen.
+  const canSubmit = review?.status === "rejected" || !pendingManualReview;
   const periodEnd = subscription?.status === "trialing"
     ? subscription?.trial_ends_at
     : subscription?.current_period_ends_at;
@@ -209,27 +316,23 @@ export default function Subscription() {
       : "—";
 
   if (directAccess || accessExempt) {
+    const freeUntil = subscription?.free_access_until || "";
+    const heading = freeUntil ? t("subscription.freeAccess") : t("subscription.directAccess");
+    const body = freeUntil
+      ? t("subscription.freeAccessBody", { date: formatDate(freeUntil, { dateStyle: "long" }) })
+      : t("subscription.directAccessBody");
     return (
-      <Page title={t("subscription.directAccess")} subtitle={t("subscription.directAccessBody")}>
+      <Page title={heading} subtitle={body}>
         <section className="subscription-saved-banner subscription-direct-access">
-          <div><h2>{t("subscription.directAccess")}</h2><p>{t("subscription.directAccessBody")}</p></div>
+          <div><h2>{heading}</h2><p>{body}</p></div>
         </section>
         <ComingSoonPlans offers={comingSoon} t={t} />
       </Page>
     );
   }
 
-  // Moving between steps keeps the purchase in view: on a phone the next step
-  // would otherwise open below the fold with nothing telling the reader it did.
-  function goToStep(next) {
-    setStep(next);
-    setError("");
-    window.requestAnimationFrame(() => purchaseRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }));
-  }
-
   async function submitPayment(event) {
     event.preventDefault();
-    if (step !== "pay") { goToStep(step === "plan" ? "review" : "pay"); return; }
     if (!effectivePlan || submitting) return;
     setSubmitting(true);
     setError("");
@@ -244,13 +347,14 @@ export default function Subscription() {
     try {
       const result = await billingApi.submitLibyana(
         effectivePlan,
-        oneCardOnly ? [codes[0]] : codes.filter(Boolean),
-        paymentAttemptKey.current
+        submittedCodes(codes, oneCardOnly),
+        paymentAttemptKey.current,
+        installmentMode
       );
       paymentAttemptKey.current = "";
       subscriptionSession.setAuthoritativeSubscription(result.subscription);
-      setCodes(["", ""]);
-      setStep("plan");
+      setCodes([""]);
+      setPayInInstallments(false);
       setNotice(t("subscription.submitted"));
       details.reload();
     } catch (requestError) {
@@ -260,22 +364,34 @@ export default function Subscription() {
     }
   }
 
+  async function payInstallment(agreementId, rechargeCodes, attemptKey) {
+    setNotice("");
+    const result = await billingApi.payInstallment(agreementId, rechargeCodes, attemptKey);
+    subscriptionSession.setAuthoritativeSubscription(result.subscription);
+    setNotice(t("subscription.installmentSubmitted"));
+    details.reload();
+  }
+
   return (
     <Page title={t("subscription.title")} headingHandled>
       <div className="subscription-premium subscription-v2">
-        <ReviewBanner review={review} t={t} onRetry={() => setStep("plan")} />
+        {/* While an installment holds access back, the review banner's "your
+            access is on" is not true; the installment panel says what is. */}
+        {!installmentHold && <ReviewBanner review={review} t={t} />}
 
-        {!subscription?.access_allowed && !pendingManualReview && (
+        <InstallmentPlan plan={installmentPlan} pendingManualReview={pendingManualReview} locale={locale} t={t} onPay={payInstallment} />
+
+        {!subscription?.access_allowed && !pendingManualReview && !installmentHold && (
           <section className="subscription-review-banner is-expired" role="status">
             <div><h2>{t("subscription.expiredTitle")}</h2><p>{t("subscription.expiredBody")}</p></div>
-            <a className="btn btn-primary" href="#libyana-payment" onClick={() => setStep("plan")}>{t("subscription.renew")}</a>
+            <a className="btn btn-primary" href="#libyana-payment">{t("subscription.renew")}</a>
           </section>
         )}
 
         {subscription?.early_renewal_available && (
           <section className="subscription-saved-banner subscription-early-renewal">
             <div><h2>{t("subscription.earlyRenewalDays", { count: subscription.remaining_days })}</h2><p>{t("subscription.earlyRenewalPromise")}</p></div>
-            <a className="btn btn-primary" href="#libyana-payment" onClick={() => setStep("plan")}>{t("subscription.renew")}</a>
+            <a className="btn btn-primary" href="#libyana-payment">{t("subscription.renew")}</a>
           </section>
         )}
 
@@ -288,7 +404,7 @@ export default function Subscription() {
           </div>
           <div className="subscription-current-summary">
             <span>{t("subscription.currentPlan")}</span>
-            <strong>{subscription?.plan_title || t("subscription.noPlan")}</strong>
+            <strong>{PLAN_COPY[subscription?.plan_code]?.[locale]?.[0] || subscription?.plan_title || t("subscription.noPlan")}</strong>
             <SubscriptionStatus subscription={subscription} compact />
             {subscription && <dl className="subscription-v2-facts">
               <div><dt>{subscription.status === "trialing" ? t("subscription.trialExpiration") : t("subscription.subscriptionExpiration")}</dt><dd>{periodEnd ? formatDate(periodEnd, { dateStyle: "medium" }) : "—"}</dd></div>
@@ -299,8 +415,14 @@ export default function Subscription() {
           </div>
         </header>
 
-        <section className="subscription-purchase" id="libyana-payment" ref={purchaseRef} dir={direction} aria-labelledby="subscription-plan-heading">
-          {!catalog.manualPaymentAvailable || !offers.length ? (
+        <section className="subscription-purchase" id="libyana-payment" dir={direction} aria-labelledby="subscription-plan-heading">
+          {!offers.length && coveredOffers > 0 ? (
+            <div className="subscription-payment-unavailable">
+              <h2>{t("subscription.nothingToBuyTitle")}</h2>
+              <p>{t("subscription.nothingToBuyBody")}</p>
+              {notice && <p className="form-alert success" role="status">{notice}</p>}
+            </div>
+          ) : !catalog.manualPaymentAvailable || !offers.length ? (
             <EmptyState title={t("subscription.noOffers")} text={t("subscription.noOffersBody")} />
           ) : !canSubmit ? (
             <div className="subscription-payment-unavailable">
@@ -308,99 +430,67 @@ export default function Subscription() {
               <p>{pendingManualReview ? t("subscription.pendingPaymentBody") : t("subscription.renewalNotYetBody")}</p>
             </div>
           ) : (
-            <form className="subscription-checkout" onSubmit={submitPayment}>
-              <h2 className="subscription-v2-heading">{t("subscription.choosePlan")}</h2>
-              <CheckoutStepper step={step} onStep={goToStep} t={t} />
-
-              {step === "plan" && <fieldset className="subscription-plan-options">
-                <legend className="visually-hidden" id="subscription-plan-heading">{t("subscription.choosePlan")}</legend>
+            <form className="subscription-checkout subscription-quick-checkout" onSubmit={submitPayment}>
+              <h2 className="subscription-v2-heading" id="subscription-plan-heading">{t("subscription.choosePlan")}</h2>
+              <fieldset className="subscription-plan-options">
+                <legend className="visually-hidden">{t("subscription.choosePlan")}</legend>
                 <div className="subscription-plan-grid">
                   {offers.map(({ plan, version, price }) => {
                     const copy = offerCopy(plan, version, locale);
                     return (
                     <label className={effectivePlan === plan.id ? "selected" : ""} key={plan.id}>
-                      <input type="radio" name="subscription-plan" value={plan.id} checked={effectivePlan === plan.id} onChange={() => { setSelectedPlan(plan.id); setCodes(["", ""]); }} />
+                      <input type="radio" name="subscription-plan" value={plan.id} aria-label={copy.title} checked={effectivePlan === plan.id} onChange={() => { setSelectedPlan(plan.id); setCodes([""]); setPayInInstallments(false); setError(""); }} />
                       <span className="subscription-plan-copy">
                         <strong>{copy.title}</strong>
                         <small>{copy.description}</small>
                       </span>
                       <span className="subscription-plan-price">
                         <b>{money(price.amount_minor, price.currency, price.currency_exponent, locale)}</b>
-                        {price.first_subscription_only && <small>{t("subscription.firstOffer")}</small>}
+                        {priceBadge(price, t) && <small>{priceBadge(price, t)}</small>}
                       </span>
                       <span className="subscription-plan-check" aria-hidden="true">✓</span>
                     </label>
                     );
                   })}
                 </div>
-              </fieldset>}
+              </fieldset>
 
-              {step !== "plan" && selectedOffer && (
-                <section className="subscription-order-summary" aria-labelledby="subscription-order-title">
-                  <div className="subscription-order-plan">
-                    <h2 id="subscription-order-title">{offerCopy(selectedOffer.plan, selectedOffer.version, locale).title}</h2>
-                  </div>
-                  <div className="subscription-order-price">
-                    <span>{t("subscription.total")}</span>
-                    <b>{money(selectedOffer.price.amount_minor, selectedOffer.price.currency, selectedOffer.price.currency_exponent, locale)}</b>
-                    {selectedOffer.price.first_subscription_only && <small>{t("subscription.firstOffer")}</small>}
-                  </div>
-                  {step === "pay" && <button className="btn btn-soft compact subscription-change-plan" type="button" onClick={() => goToStep("plan")}>{t("subscription.changePlan")}</button>}
-                </section>
-              )}
-
-              {step === "review" && selectedOffer && (
-                <div className="subscription-review-step">
-                  <ul className="subscription-benefits" aria-label={t("subscription.included")}>
-                    {[offerCopy(selectedOffer.plan, selectedOffer.version, locale).description, t("subscription.allCollegesYears")]
-                      .filter(Boolean)
-                      .map((benefit, index) => <li key={`${benefit}-${index}`}><span aria-hidden="true">✓</span><span>{benefit}</span></li>)}
-                  </ul>
-                  <section className="subscription-how" aria-labelledby="subscription-how-title">
-                    <h3 id="subscription-how-title">{t("subscription.howItWorks")}</h3>
-                    <ol>
-                      <li>{oneCardOnly ? t("subscription.howBuyOneCard") : t("subscription.howBuyCards")}</li>
-                      <li>{t("subscription.howEnterCode")}</li>
-                      <li>{t("subscription.howReview")}</li>
-                    </ol>
-                  </section>
-                </div>
-              )}
-
-              {step !== "pay" && (
-                <div className="subscription-step-actions">
-                  {step === "review" && <button className="btn btn-soft" type="button" onClick={() => goToStep("plan")}>{t("subscription.back")}</button>}
-                  <button className="btn btn-primary" type="submit" disabled={!selectedOffer}>{step === "plan" ? t("subscription.continueToDetails") : t("subscription.continueToPayment")}</button>
-                </div>
-              )}
-
-              {step === "pay" && <div className="subscription-payment-step">
-                <div className="subscription-payment-heading">
-                  <span>{t("subscription.paymentStep")}</span>
-                  <h2>{t("subscription.payLibyana")}</h2>
-                </div>
-                <div className="libyana-code-stack">
-                  <label className="field libyana-code-field">
-                    <span>{t("subscription.rechargeCode")}</span>
-                    <input type="text" inputMode="numeric" autoComplete="off" dir="ltr" pattern="[0-9]{13}" minLength={13} maxLength={13} value={codes[0]} onChange={(event) => setCodes([event.target.value.replace(/\D/g, "").slice(0, 13), codes[1]])} placeholder={t("subscription.codePlaceholder")} aria-describedby="libyana-code-hint" required />
-                    <small id="libyana-code-hint">{t("subscription.codeHint")}</small>
-                  </label>
-                  {!oneCardOnly && <label className="field libyana-code-field">
-                    <span>{t("subscription.additionalRechargeCode")}</span>
-                    <input type="text" inputMode="numeric" autoComplete="off" dir="ltr" pattern="[0-9]{13}" minLength={13} maxLength={13} value={codes[1]} onChange={(event) => setCodes([codes[0], event.target.value.replace(/\D/g, "").slice(0, 13)])} placeholder={t("subscription.codePlaceholder")} />
-                  </label>}
-                </div>
+              {selectedOffer && <div className="subscription-pay-box">
+                {installmentsOffered && (
+                  <fieldset className="subscription-pay-toggle">
+                    <legend className="visually-hidden">{t("subscription.howToPay")}</legend>
+                    <label className={!payInInstallments ? "selected" : ""}>
+                      <input type="radio" name="subscription-payment-option" aria-label={t("subscription.payOnce")} checked={!payInInstallments} onChange={() => setPayInInstallments(false)} />
+                      <strong>{t("subscription.payOnce")}</strong>
+                    </label>
+                    <label className={payInInstallments ? "selected" : ""}>
+                      <input type="radio" name="subscription-payment-option" aria-label={t("subscription.payInInstallments")} checked={payInInstallments} onChange={() => setPayInInstallments(true)} />
+                      <strong>{t("subscription.payInInstallments")}</strong>
+                    </label>
+                  </fieldset>
+                )}
+                {installmentMode && (
+                  <ol className="subscription-installment-preview" aria-label={t("subscription.payInInstallments")}>
+                    {installmentAmounts.map((value, index) => <li key={index}><b>{money(value, selectedOffer.price.currency, selectedOffer.price.currency_exponent, locale)}</b><small>{index === 0 ? t("subscription.installmentNow") : formatDate(addMonths(new Date(), index), { dateStyle: "medium" })}</small></li>)}
+                  </ol>
+                )}
+                <RechargeCodeFields codes={codes} setCodes={setCodes} oneCardOnly={oneCardOnly} idPrefix="libyana-code" t={t} />
                 {error && <p className="form-alert error" role="alert">{error}</p>}
                 {notice && <p className="form-alert success" role="status">{notice}</p>}
-                <button className="btn btn-primary libyana-submit" type="submit" disabled={submitting || codes[0].length !== 13 || (!oneCardOnly && codes[1] && codes[1].length !== 13)}>{submitting ? t("subscription.submitting") : t("subscription.submitCard")}</button>
-                <p className="subscription-code-privacy">{t("subscription.codePrivacy")}</p>
+                <button className="btn btn-primary libyana-submit" type="submit" disabled={submitting || !codesReady(codes, oneCardOnly)}>
+                  {submitting ? t("subscription.submitting") : t("subscription.payAmount", { amount: money(dueNowMinor, selectedOffer.price.currency, selectedOffer.price.currency_exponent, locale) })}
+                </button>
+                <p className="subscription-terms-note">
+                  {t("subscription.agreeToTerms")} <a href="#/terms">{t("subscription.termsLink")}</a>
+                </p>
               </div>}
-              {step !== "pay" && notice && <p className="form-alert success" role="status">{notice}</p>}
             </form>
           )}
         </section>
 
         <ComingSoonPlans offers={comingSoon} t={t} />
+
+        <p className="subscription-terms-footer"><a href="#/terms">{t("subscription.termsFooter")}</a></p>
 
         <div className="subscription-secondary-sections">
           <details className="subscription-secondary">

@@ -1,10 +1,9 @@
 /**
- * Ink that is never saved. Two pens draw it:
- *
- * - Pointer: a laser trail. Every sample fades on its own a moment after it is
- *   drawn, so the line erases itself behind the tip while the pen still moves.
- * - Neon: a glowing line that holds for the whole gesture and fades out once
- *   the finger or stylus lifts.
+ * Ink that is never saved. Two pens draw it, Pointer and Neon. A stroke stays
+ * fully visible while the pen is down and for TRANSIENT_HOLD_MS after the last
+ * lift, then fades out over TRANSIENT_FADE_MS. Writing again inside the hold
+ * restarts it for everything still on screen, so a word or a sentence vanishes
+ * together once the student stops.
  *
  * Neither becomes an annotation, an undo step or a sync write. The store is a
  * plain object so the workspace can feed it from pointer events without React
@@ -14,10 +13,10 @@
 export const TRANSIENT_INK_KIND = Object.freeze({ POINTER: "pointer", NEON: "neon" });
 export const TRANSIENT_PEN_PROFILES = new Set(Object.values(TRANSIENT_INK_KIND));
 
-/** How long one pointer sample stays visible, fading all the way. */
-export const POINTER_TRAIL_MS = 700;
-/** How long a neon stroke takes to fade after the pen lifts. */
-export const NEON_FADE_MS = 450;
+/** How long ink stays fully visible after the pen stops. */
+export const TRANSIENT_HOLD_MS = 3000;
+/** How long the fade-out takes once the hold is over. */
+export const TRANSIENT_FADE_MS = 800;
 
 /** The colour each pen starts with before the student picks one. */
 export const TRANSIENT_DEFAULT_COLOR = Object.freeze({
@@ -27,57 +26,53 @@ export const TRANSIENT_DEFAULT_COLOR = Object.freeze({
 
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
 
-/** Opacity of a pointer sample drawn at `time`. */
-export function pointerAlpha(time, now) {
-  return clamp01(1 - (now - time) / POINTER_TRAIL_MS);
-}
-
-/** Opacity of a whole neon stroke. */
-export function neonAlpha(stroke, now) {
-  return stroke.endedAt === null ? 1 : clamp01(1 - (now - stroke.endedAt) / NEON_FADE_MS);
+/** Opacity of a stroke: full until its `fadeAt`, then fading out. */
+export function transientAlpha(stroke, now) {
+  return stroke.fadeAt === null ? 1 : clamp01(1 - (now - stroke.fadeAt) / TRANSIENT_FADE_MS);
 }
 
 /** Whether a stroke has nothing left to show and can be dropped. */
 export function transientStrokeExpired(stroke, now) {
-  if (stroke.endedAt === null) return false;
-  if (stroke.kind === TRANSIENT_INK_KIND.NEON) return now - stroke.endedAt >= NEON_FADE_MS;
-  const last = stroke.points[stroke.points.length - 1];
-  return !last || now - Math.max(last.t, stroke.endedAt) >= POINTER_TRAIL_MS;
+  return stroke.fadeAt !== null && now - stroke.fadeAt >= TRANSIENT_FADE_MS;
 }
 
 const now = () => (typeof window !== "undefined" && window.performance ? window.performance.now() : Date.now());
 
 export function createTransientInk({ clock = now } = {}) {
-  /** @type {Array<{ kind: string, page: any, color: string, width: number, points: Array<{ x: number, y: number, t: number }>, endedAt: number | null }>} */
+  /** @type {Array<{ kind: string, page: any, color: string, width: number, points: Array<{ x: number, y: number, t: number }>, fadeAt: number | null }>} */
   let strokes = [];
   let active = null;
   const listeners = new Set();
   const notify = () => { for (const listener of listeners) listener(); };
 
+  // Ink that has not started fading waits for the pen to stop; ink already
+  // fading carries on and is never pulled back to full opacity.
+  const holdPending = (time) => {
+    for (const stroke of strokes) if (stroke.fadeAt === null || stroke.fadeAt > time) stroke.fadeAt = null;
+  };
+  const scheduleFade = (time) => {
+    for (const stroke of strokes) if (stroke.fadeAt === null || stroke.fadeAt > time) stroke.fadeAt = time + TRANSIENT_HOLD_MS;
+  };
+
   return {
     begin({ kind, page, color, width, point }) {
-      if (active) active.endedAt = clock();
-      active = { kind, page, color, width, points: [], endedAt: null };
+      const time = clock();
+      holdPending(time);
+      active = { kind, page, color, width, points: [], fadeAt: null };
       strokes.push(active);
-      if (point) active.points.push({ x: point.x, y: point.y, t: clock() });
+      if (point) active.points.push({ x: point.x, y: point.y, t: time });
       notify();
     },
     extend(points) {
       if (!active || !points?.length) return;
       const time = clock();
       for (const point of points) active.points.push({ x: point.x, y: point.y, t: time });
-      // A pointer sample older than the trail is invisible for good.
-      if (active.kind === TRANSIENT_INK_KIND.POINTER) {
-        const firstVisible = active.points.findIndex((point) => time - point.t < POINTER_TRAIL_MS);
-        // Keep the one sample before the visible run so the first segment still has a start.
-        if (firstVisible > 1) active.points.splice(0, firstVisible - 1);
-      }
       notify();
     },
     end() {
       if (!active) return;
-      active.endedAt = clock();
       active = null;
+      scheduleFade(clock());
       notify();
     },
     clear() {

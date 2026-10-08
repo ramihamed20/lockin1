@@ -58,9 +58,6 @@ export function reportConnectionSuccess() {
   publish("connected");
   return wasDisconnected;
 }
-export function reportBrowserOnline() {
-  if (snapshot.status !== "connected") { publish("reconnecting"); scheduleProbe(); }
-}
 export function reportBrowserOffline() {
   failures = Math.max(failures, 2);
   publish("offline");

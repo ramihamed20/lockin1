@@ -12,6 +12,7 @@ from apps.content.editions import (
     normalize_view,
 )
 from apps.content.models import LearningObject, LearningObjectVersion
+from apps.content.personal_sheets import owned_sheet
 from apps.content.policies import can_view_learning_object
 
 from .domain_types import FocusDocumentReference
@@ -67,4 +68,38 @@ def resolve_focus_document(
         size_bytes=asset.managed_file.size_bytes,
         checksum_sha256=asset.managed_file.checksum_sha256,
         page_count=page_count,
+    )
+
+
+def resolve_annotation_document(
+    *,
+    user: User,
+    document_version_id: UUID,
+    edition: str = UNIVERSITY,
+    view: str = STUDY,
+) -> FocusDocumentReference:
+    """The document a reader's marks are stored under, including their own sheets.
+
+    A personal sheet is addressed by its own id and only its owner resolves it.
+    Only the annotation routes call this: the session and reading routes keep
+    `resolve_focus_document`, so an own sheet never starts a reading session or
+    earns study credit.
+    """
+
+    sheet = owned_sheet(owner=user, sheet_id=document_version_id)
+    if sheet is not None:
+        managed_file = sheet.managed_file
+        return FocusDocumentReference(
+            document_id=sheet.id,
+            document_version_id=sheet.id,
+            file_id=managed_file.id,
+            title=sheet.title,
+            language="",
+            view_url=f"/api/v1/files/{managed_file.id}/view",
+            size_bytes=managed_file.size_bytes,
+            checksum_sha256=managed_file.checksum_sha256,
+            page_count=sheet.page_count,
+        )
+    return resolve_focus_document(
+        user=user, document_version_id=document_version_id, edition=edition, view=view
     )

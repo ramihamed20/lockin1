@@ -266,11 +266,29 @@ test("with a drawing tool, a stylus drag beside the page scrolls instead of draw
   await expect.poll(async () => stage.evaluate((node) => node.scrollTop)).toBeGreaterThan(startTop + 100);
   expect((await savedAnnotations(page)).length).toBe(0);
 
-  // On the page itself the same stylus still writes.
-  const onPage = { x: pageBox.x + pageBox.width * .3, y: (await firstPageBox(page)).y + 40 };
-  const visible = await stage.boundingBox();
-  const writeY = Math.max(onPage.y, visible.y + 60);
-  await drawStroke(stage, 63, Array.from({ length: 10 }, (_, index) => ({ x: onPage.x + index * 6, y: writeY + Math.sin(index) * 20 })));
+  // The flick can glide into page two. Clamping page one's old coordinates
+  // to the viewport can put the next stroke in the gap between pages.
+  const onPage = await stage.evaluate((node) => {
+    const viewport = node.getBoundingClientRect();
+    for (const element of node.querySelectorAll("[data-workspace-page]")) {
+      const box = element.getBoundingClientRect();
+      const top = Math.max(box.top, viewport.top + 40);
+      const bottom = Math.min(box.bottom, viewport.bottom - 40);
+      if (bottom - top < 100) continue;
+      const x = box.left + box.width * .3;
+      const y = (top + bottom) / 2;
+      if (document.elementFromPoint(x, y)?.closest("[data-workspace-page]") !== element) continue;
+      // Hit-test and touch down in one browser task: momentum cannot move a
+      // gap under a point between a remote boundingBox read and pointerdown.
+      node.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 63, pointerType: "pen", isPrimary: true, clientX: x, clientY: y, button: 0, buttons: 1, pressure: .5, width: 2, height: 2, bubbles: true, cancelable: true }));
+      return { x, y };
+    }
+    return null;
+  });
+  expect(onPage).not.toBeNull();
+  // On a currently visible page the same stylus still writes.
+  for (let index = 1; index < 10; index++) await dispatchPointer(stage, "pointermove", 63, onPage.x + index * 6, onPage.y + Math.sin(index) * 20);
+  await dispatchPointer(stage, "pointerup", 63, onPage.x + 54, onPage.y + Math.sin(9) * 20);
   await expect.poll(async () => (await savedAnnotations(page)).filter((item) => item.type === "pen").length).toBe(1);
 });
 

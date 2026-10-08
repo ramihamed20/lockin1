@@ -35,6 +35,10 @@ def _subscription_changed(event: SubscriptionStatusChanged) -> None:
     sync_subscription_entitlements(subscription_id=event.subscription_id)
     if event.user_id is None:
         return
+    # Installment holds and releases send their own, specific notifications;
+    # "needs administrator review" would tell the reader the wrong thing.
+    if event.reason_code.startswith("installment_"):
+        return
     messages: dict[str, tuple[str, str]] = {
         Subscription.Status.TRIALING: (
             "Trial started",

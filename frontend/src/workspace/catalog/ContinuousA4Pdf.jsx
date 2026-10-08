@@ -269,7 +269,8 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
  *   onDocumentLoaded?: (documentProxy: any) => void,
  *   onCurrentPageChange: (pageNumber: number, virtualPageId: number | null) => void,
  *   renderPageOverlay: (pageNumber: number, pageAspectRatio: number) => import("react").ReactNode,
- *   onPdfPageRendered?: (duration: number) => void
+ *   onPdfPageRendered?: (duration: number) => void,
+ *   documentFooter?: import("react").ReactNode
  * }} props
  */
 export function ContinuousA4Pdf({
@@ -286,7 +287,8 @@ export function ContinuousA4Pdf({
   onDocumentLoaded,
   onCurrentPageChange,
   renderPageOverlay,
-  onPdfPageRendered
+  onPdfPageRendered,
+  documentFooter = null
 }) {
   const [documentProxy, setDocumentProxy] = useState(null);
   const [status, setStatus] = useState("Loading PDF…");
@@ -856,6 +858,7 @@ export function ContinuousA4Pdf({
             </div>}
           </section>
         ))}
+        {documentProxy && documentFooter}
         </div>
       </div>
       {!documentProxy && <div className="workspace-v2-a4-status" role={pdfError ? "alert" : "status"} style={{ bottom: "auto", height: `${stageViewport.height}px` }}>

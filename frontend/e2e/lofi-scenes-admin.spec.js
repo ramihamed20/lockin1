@@ -11,6 +11,21 @@ import { fulfillAccessContract } from "./fixtures/productionApi.js";
  */
 
 const CLIP = readFileSync(new URL("./fixtures/lofi-loop.webm", import.meta.url));
+
+async function fixtureIsUnsupported(page) {
+  // Windows WebKit can advertise VP8 while its installed media decoder rejects
+  // this fixture. Probe the native element independently of the app validator.
+  return page.evaluate((bytes) => new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: "video/webm" }));
+    const timer = setTimeout(() => { cleanup(); reject(new Error("Native fixture decoder did not settle")); }, 5000);
+    function cleanup() { clearTimeout(timer); video.removeAttribute("src"); video.load(); URL.revokeObjectURL(url); }
+    video.onloadedmetadata = () => { cleanup(); resolve(false); };
+    video.onerror = () => { const unsupported = video.error?.code === 4; cleanup(); resolve(unsupported); };
+    video.src = url;
+    video.load();
+  }), Array.from(CLIP));
+}
 /** Real servers return UUIDs; the prefix says what kind of thing it is. */
 const uuid = (prefix, n) => `${prefix}-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const CLIP_ID = (n) => uuid("c11bc11b", n);
@@ -89,7 +104,9 @@ async function openStudio(page, studio) {
     if (method === "GET") return json({ count: 0, results: [] });
     return json({ error: { code: "not_found", message: "Unused" } }, 404);
   });
+  const sceneLoad = page.waitForResponse((response) => response.url().endsWith("/api/v1/operations/admin/lofi-scenes") && response.request().method() === "GET" && response.status() === 200);
   await page.goto("/#/operations/admin/content");
+  await sceneLoad;
   const panel = page.locator("section.paper-media-admin");
   await expect(panel.getByRole("heading", { name: "Lo-Fi scenes" })).toBeVisible();
   return panel;
@@ -107,7 +124,8 @@ async function addScene(panel, title, { cover = false } = {}) {
   await expect(editor).toHaveCount(0);
 }
 
-test("an administrator uploads short clips once and manages the scenes students see", async ({ page }, testInfo) => {
+test("an administrator uploads short clips once and manages the scenes students see", async ({ page, browserName }, testInfo) => {
+  test.skip(browserName === "webkit" && await fixtureIsUnsupported(page), "The native WebKit decoder rejects the VP8 fixture (MEDIA_ERR_SRC_NOT_SUPPORTED); app validation remains enabled.");
   const studio = createStudio();
   await page.setViewportSize({ width: 1440, height: 1000 });
   const panel = await openStudio(page, studio);
@@ -147,7 +165,8 @@ test("an administrator uploads short clips once and manages the scenes students 
   expect(studio.calls.filter((call) => call.startsWith("DELETE"))).toEqual([`DELETE /lofi-scenes/${SCENE_ID(2)}`]);
 });
 
-test("unsuitable clips are explained before anything is uploaded", async ({ page }) => {
+test("unsuitable clips are explained before anything is uploaded", async ({ page, browserName }) => {
+  test.skip(browserName === "webkit" && await fixtureIsUnsupported(page), "The native WebKit decoder rejects the VP8 fixture (MEDIA_ERR_SRC_NOT_SUPPORTED); app validation remains enabled.");
   const studio = createStudio();
   studio.limits.min_seconds = 3;
   await page.setViewportSize({ width: 1280, height: 900 });

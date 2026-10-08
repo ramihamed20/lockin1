@@ -80,9 +80,19 @@ _validate_optional_oauth_provider(
 )
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 if not CSRF_TRUSTED_ORIGINS or any(
-    urlparse(origin).scheme != "https" for origin in CSRF_TRUSTED_ORIGINS
+    urlparse(origin).scheme != "https"
+    or not urlparse(origin).hostname
+    or "*" in origin
+    or urlparse(origin).username is not None
+    or urlparse(origin).path
+    or urlparse(origin).params
+    or urlparse(origin).query
+    or urlparse(origin).fragment
+    for origin in CSRF_TRUSTED_ORIGINS
 ):
-    raise ImproperlyConfigured("DJANGO_CSRF_TRUSTED_ORIGINS must contain HTTPS origins only.")
+    raise ImproperlyConfigured(
+        "DJANGO_CSRF_TRUSTED_ORIGINS must contain explicit HTTPS origins only."
+    )
 EMAIL_BACKEND = require_env("DJANGO_EMAIL_BACKEND")
 DEFAULT_FROM_EMAIL = require_env("DEFAULT_FROM_EMAIL")
 if "\n" in DEFAULT_FROM_EMAIL or "\r" in DEFAULT_FROM_EMAIL or "@" not in DEFAULT_FROM_EMAIL:

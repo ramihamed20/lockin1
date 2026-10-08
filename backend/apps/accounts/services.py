@@ -1,4 +1,5 @@
 import hashlib
+import math
 import secrets
 import time
 from dataclasses import dataclass
@@ -8,6 +9,7 @@ from urllib.parse import urlencode
 from django.conf import settings
 from django.contrib.auth import login, logout
 from django.contrib.sessions.models import Session
+from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.db import IntegrityError, transaction
 from django.http import HttpRequest
@@ -41,6 +43,19 @@ class AccountTokenError(ValueError):
 
 class AccountStateError(ValueError):
     pass
+
+
+def _lock_current_identity(user: User) -> User:
+    """Recheck a preauthenticated snapshot while holding the account lock."""
+    current = User.objects.select_for_update().get(id=user.id)
+    if (
+        not current.is_active
+        or current.status != User.Status.ACTIVE
+        or current.password != user.password
+        or current.email != user.email
+    ):
+        raise AccountStateError("The account changed. Sign in again before continuing.")
+    return current
 
 
 @transaction.atomic
@@ -165,6 +180,9 @@ def issue_token(
     value: str = "",
     scope: str = "",
 ) -> IssuedToken:
+    # Lock an existing parent even when no token exists yet. Locking/revoking
+    # only token rows cannot serialize two simultaneous first issuances.
+    User.objects.select_for_update().only("id").get(id=user.id)
     now = timezone.now()
     OneTimeToken.objects.filter(user=user, kind=kind, used_at__isnull=True).update(used_at=now)
     raw_token = value or _new_token_value()
@@ -193,12 +211,19 @@ def issue_verification_code(*, user: User) -> IssuedToken:
 
 def _get_usable_token(*, raw_token: str, kind: str) -> OneTimeToken:
     try:
-        token = (
-            OneTimeToken.objects.select_for_update()
-            .select_related("user")
-            .get(token_digest=_token_digest(raw_token), kind=kind)
+        digest = _token_digest(raw_token)
+        user_id = OneTimeToken.objects.values_list("user_id", flat=True).get(
+            token_digest=digest, kind=kind
         )
-    except OneTimeToken.DoesNotExist as error:
+        # Every token flow locks the account before its token. This prevents
+        # issuance and consumption from taking those locks in opposite orders.
+        User.objects.select_for_update().only("id").get(id=user_id)
+        token = (
+            OneTimeToken.objects.select_for_update(of=("self",))
+            .select_related("user")
+            .get(token_digest=digest, kind=kind)
+        )
+    except (OneTimeToken.DoesNotExist, User.DoesNotExist) as error:
         raise AccountTokenError("This link is invalid or has expired.") from error
     if not token.is_usable:
         raise AccountTokenError("This link is invalid or has expired.")
@@ -262,8 +287,9 @@ def verify_email_code(*, user: User, code: str) -> User:
 
     verified: User | None = None
     with transaction.atomic():
+        User.objects.select_for_update().only("id").get(id=user.id)
         token = (
-            OneTimeToken.objects.select_for_update()
+            OneTimeToken.objects.select_for_update(of=("self",))
             .select_related("user")
             .filter(
                 user=user,
@@ -308,9 +334,15 @@ def verify_email_code(*, user: User, code: str) -> User:
     return verified
 
 
-def resend_verification(*, user: User) -> IssuedToken:
-    if user.is_email_verified:
-        raise AccountStateError("This account is already verified.")
+@transaction.atomic
+def resend_verification(*, user: User) -> IssuedToken | None:
+    # Check eligibility and cooldown under the same account lock used to issue
+    # a token. Two HTTP requests must not both pass an unlocked cooldown read.
+    user = User.objects.select_for_update().get(id=user.id)
+    if user.status != User.Status.ACTIVE or user.is_email_verified:
+        return None
+    if verification_code_resend_wait(user=user):
+        return None
     return issue_verification_code(user=user)
 
 
@@ -335,13 +367,21 @@ def verification_code_resend_wait(*, user: User) -> int:
         return 0
     cooldown = int(getattr(settings, "ACCOUNT_VERIFICATION_RESEND_COOLDOWN_SECONDS", 60))
     elapsed = (timezone.now() - latest).total_seconds()
-    return max(0, int(cooldown - elapsed))
+    return max(0, math.ceil(cooldown - elapsed))
 
 
+@transaction.atomic
 def request_password_reset(*, email: str) -> tuple[User, IssuedToken] | None:
-    user = User.objects.filter(
-        email=normalize_email(email), status=User.Status.ACTIVE, email_verified_at__isnull=False
-    ).first()
+    # The email predicate and token creation must share the identity lock.
+    # Otherwise a concurrent email change can revoke tokens before this request
+    # creates a new recovery link for the old mailbox.
+    user = (
+        User.objects.select_for_update()
+        .filter(
+            email=normalize_email(email), status=User.Status.ACTIVE, email_verified_at__isnull=False
+        )
+        .first()
+    )
     if user is None:
         return None
     token = issue_token(
@@ -371,7 +411,9 @@ def confirm_password_reset(*, raw_token: str, new_password: str) -> User:
     return user
 
 
+@transaction.atomic
 def request_email_change(*, user: User, new_email: str) -> IssuedToken:
+    user = _lock_current_identity(user)
     normalized = normalize_email(new_email)
     if User.objects.filter(email=normalized).exclude(id=user.id).exists():
         raise AccountStateError("That email address is already in use.")
@@ -395,10 +437,20 @@ def confirm_email_change(*, raw_token: str) -> User:
         user.email_verified_at = timezone.now()
         user.full_clean(exclude={"password"})
         user.save(update_fields=("email", "email_verified_at", "updated_at"))
+    except ValidationError as error:
+        # The address may have been claimed since the link was issued. Model
+        # validation detects that before the database's unique constraint does.
+        if "email" not in error.message_dict:
+            raise
+        raise AccountStateError("That email address is already in use.") from error
     except IntegrityError as error:
         raise AccountStateError("That email address is already in use.") from error
     token.used_at = timezone.now()
     token.save(update_fields=("used_at",))
+    # Old-mailbox recovery/deletion links and existing devices must lose
+    # authority at the same commit that changes the account's email identity.
+    OneTimeToken.objects.filter(user=user, used_at__isnull=True).update(used_at=timezone.now())
+    invalidate_sessions(user=user)
     AccountSecurityEvent.objects.create(
         user=user,
         actor=user,
@@ -413,7 +465,7 @@ def account_deletion_status(*, user: User) -> AccountDeletionRequest | None:
 
 @transaction.atomic
 def request_account_deletion(*, user: User) -> tuple[AccountDeletionRequest, IssuedToken]:
-    user = User.objects.select_for_update().get(id=user.id)
+    user = _lock_current_identity(user)
     existing = account_deletion_status(user=user)
     if existing is not None and existing.status in {
         AccountDeletionRequest.Status.CONFIRMED,
@@ -498,6 +550,7 @@ def confirm_account_deletion(*, raw_token: str) -> AccountDeletionRequest:
 
 @transaction.atomic
 def cancel_account_deletion(*, user: User) -> AccountDeletionRequest:
+    _lock_current_identity(user)
     try:
         deletion_request = (
             AccountDeletionRequest.objects.select_for_update()
@@ -542,6 +595,14 @@ def cancel_account_deletion(*, user: User) -> AccountDeletionRequest:
 
 @transaction.atomic
 def change_password(*, user: User, new_password: str, keep_session_key: str | None) -> None:
+    _lock_current_identity(user)
+    if (
+        keep_session_key
+        and not Session.objects.filter(
+            session_key=keep_session_key, expire_date__gt=timezone.now()
+        ).exists()
+    ):
+        raise AccountStateError("The account changed. Sign in again before continuing.")
     user.set_password(new_password)
     user.save(update_fields=("password", "updated_at"))
     invalidate_sessions(user=user, keep_session_key=keep_session_key)
@@ -593,6 +654,7 @@ def register_account_session(*, request: HttpRequest, user: User) -> AccountSess
     )[0]
 
 
+@transaction.atomic
 def establish_account_session(
     *,
     request: HttpRequest,
@@ -603,6 +665,9 @@ def establish_account_session(
 ) -> None:
     """Create the same rotated Django session for password and social login."""
 
+    current = _lock_current_identity(user)
+    if not current.is_email_verified:
+        raise AccountStateError("The account changed. Sign in again before continuing.")
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
     idle_seconds, _ = session_windows(remember=bool(remember_me))
     # Stamped at sign-in and never rewritten: SlidingSessionMiddleware measures
@@ -631,7 +696,11 @@ def touch_account_session(*, request: HttpRequest, user: User) -> None:
     )
 
 
+@transaction.atomic
 def invalidate_sessions(*, user: User, keep_session_key: str | None = None) -> int:
+    # Serialize the Django session and its account metadata with new logins.
+    # Otherwise a login between reading keys and deleting metadata is orphaned.
+    User.objects.select_for_update().only("id").get(id=user.id)
     sessions = AccountSession.objects.filter(user=user)
     if keep_session_key:
         sessions = sessions.exclude(session_key=keep_session_key)
@@ -642,7 +711,9 @@ def invalidate_sessions(*, user: User, keep_session_key: str | None = None) -> i
     return len(keys)
 
 
+@transaction.atomic
 def logout_current_session(*, request: HttpRequest, user: User) -> None:
+    User.objects.select_for_update().only("id").get(id=user.id)
     session_key = request.session.session_key
     if session_key:
         AccountSession.objects.filter(user=user, session_key=session_key).delete()

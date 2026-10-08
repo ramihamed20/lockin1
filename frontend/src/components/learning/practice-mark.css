@@ -1,0 +1,38 @@
+/* The picture a mark sits on, shared by the student player and the admin editor. */
+/* The frame hugs the image so a mark placed by percentage lands on the same
+   spot of the picture at every size. */
+.practice-frame { position: relative; display: inline-block; max-inline-size: 100%; line-height: 0; }
+
+/* Left and top are physical on purpose: the picture does not mirror in Arabic. */
+.practice-mark { position: absolute; pointer-events: none; }
+
+.practice-mark--circle {
+  inline-size: 56px;
+  block-size: 56px;
+  translate: -50% -50%;
+  border: 3px solid #ffcf33;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.55), inset 0 0 0 2px rgba(0, 0, 0, 0.55);
+  animation: practice-mark-pulse 1.8s ease-in-out infinite;
+}
+
+.practice-mark--arrow {
+  inline-size: 76px;
+  block-size: 29px;
+  translate: -100% -50%;
+  fill: #ffcf33;
+  stroke: rgba(0, 0, 0, 0.7);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+}
+
+.practice-mark--arrow[data-from="end"] { translate: 0 -50%; scale: -1 1; transform-origin: center; }
+
+@keyframes practice-mark-pulse {
+  50% { scale: 1.12; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .practice-mark--circle { animation: none; }
+}

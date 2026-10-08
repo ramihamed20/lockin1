@@ -25,6 +25,7 @@ from apps.entitlements.models import EntitlementDefinition, EntitlementGrant
 from apps.questions.admin_services import import_questions
 from apps.questions.answering import answer_question
 from apps.questions.models import Question, QuestionAnswer
+from apps.review.models import ReviewItem
 from apps.xp.models import XpBalance, XpTransaction
 
 from .helpers import published_pdf
@@ -244,6 +245,66 @@ def test_a_wrong_answer_earns_nothing_and_stays_locked() -> None:
     assert reopened["answered"] == 1
     answered = next(item for item in reopened["results"] if item["answer"])
     assert answered["answer"] == body["answer"]
+
+
+def _retry(client: APIClient, sheet: LearningObject, question: dict, choice: str, key=None):  # type: ignore[no-untyped-def,type-arg]
+    choice_id = next(item["id"] for item in question["choices"] if item["text"] == choice)
+    return client.post(
+        f"/api/v1/catalog/sheets/{sheet.id}/questions/{question['id']}/retry",
+        {"choice_ids": [choice_id], "retry_key": str(key or uuid4())},
+        format="json",
+    )
+
+
+@override_settings(COHORT_CONTENT_ENFORCEMENT=True)
+def test_each_wrong_retry_counts_as_another_mistake_without_touching_the_answer() -> None:
+    fixture = _fixture()
+    sheet, student = fixture["zawiya_sheet"], fixture["zawiya_student"]
+    assert isinstance(sheet, LearningObject) and isinstance(student, User)
+    client = _client(student)
+    easy = _questions(client, sheet)["easy"]
+
+    # A retry before the first answer would be a way around the lock.
+    assert _retry(client, sheet, easy, "Spinous").status_code == 400
+
+    assert _answer(client, sheet, easy, "Spinous").status_code == 201
+    item = ReviewItem.objects.get(user=student)
+    assert item.mistake_count == 1
+
+    key = uuid4()
+    second = _retry(client, sheet, easy, "Granular", key)
+    assert second.status_code == 200
+    assert second.json()["is_correct"] is False
+    assert second.json()["mistake_count"] == 2
+
+    # A resent request is the same mistake, not a third.
+    assert _retry(client, sheet, easy, "Granular", key).json()["mistake_count"] == 2
+    assert _retry(client, sheet, easy, "Cornified").json()["mistake_count"] == 3
+
+    right = _retry(client, sheet, easy, "Basal")
+    assert right.json()["is_correct"] is True
+    assert right.json()["mistake_count"] == 3
+
+    item.refresh_from_db()
+    assert item.mistake_count == 3
+    assert QuestionAnswer.objects.get(user=student).is_correct is False
+    assert not XpTransaction.objects.filter(user=student).exists()
+
+
+@override_settings(COHORT_CONTENT_ENFORCEMENT=True)
+def test_a_correct_retry_of_a_right_answer_records_nothing() -> None:
+    fixture = _fixture()
+    sheet, student = fixture["zawiya_sheet"], fixture["zawiya_student"]
+    assert isinstance(sheet, LearningObject) and isinstance(student, User)
+    client = _client(student)
+    easy = _questions(client, sheet)["easy"]
+    assert _answer(client, sheet, easy, "Basal").status_code == 201
+
+    response = _retry(client, sheet, easy, "Basal")
+    assert response.json()["is_correct"] is True
+    assert response.json()["mistake_count"] == 0
+    assert not ReviewItem.objects.filter(user=student).exists()
+    assert XpTransaction.objects.filter(user=student).count() == 1
 
 
 @override_settings(COHORT_CONTENT_ENFORCEMENT=True)

@@ -7,14 +7,16 @@
  * a reviewer moving between them should not have to re-learn what a colour
  * means.
  */
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { adminControlApi } from "../../api/adminControl.js";
-import { useAsyncData } from "../../hooks/useAsyncData.js";
+import { useAsyncData, useDebouncedValue } from "../../hooks/useAsyncData.js";
 import { formatDateTime, formatNumber } from "../../lib/i18n.js";
 import { Icon } from "../../lib/icons.jsx";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog.jsx";
 import { EmptyState, ErrorPanel, LoadingPanel } from "../../components/ui/index.jsx";
 import { StatusBadge, money, subscriptionState } from "./PaymentsConsole.jsx";
+import { QueueRefreshStatus, QueueSkeleton } from "./QueueLoading.jsx";
+import { QueueDetail } from "./QueueDetail.jsx";
 
 const SUBSCRIPTION_FILTERS = [
   ["", "All", "Every subscription on record"],
@@ -74,8 +76,8 @@ function SubscriptionDetail({ subscriptionId, canManage, onChanged, onClose }) {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState("");
 
-  if (data.loading) return <section className="panel ops-detail"><LoadingPanel /></section>;
-  if (data.error) return <section className="panel ops-detail"><ErrorPanel message={data.error} onRetry={data.reload} /></section>;
+  if (data.loading) return <QueueDetail label="Subscription detail"><LoadingPanel /></QueueDetail>;
+  if (data.error) return <QueueDetail label="Subscription detail"><ErrorPanel message={data.error} onRetry={data.reload} /></QueueDetail>;
 
   const item = data.data;
   const education = item.user.education || {};
@@ -126,7 +128,7 @@ function SubscriptionDetail({ subscriptionId, canManage, onChanged, onClose }) {
   }
 
   return (
-    <section className="panel ops-detail" aria-label="Subscription detail">
+    <QueueDetail label="Subscription detail">
       <div className="ops-panel-head">
         <div>
           <p className="eyebrow">Subscription</p>
@@ -219,7 +221,7 @@ function SubscriptionDetail({ subscriptionId, canManage, onChanged, onClose }) {
         onCancel={() => setConfirm(false)}
         onConfirm={mutate}
       />
-    </section>
+    </QueueDetail>
   );
 }
 
@@ -229,10 +231,13 @@ export default function SubscriptionsConsole({ canManage }) {
   const [sort, setSort] = useState("newest");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(null);
+  const selectedTrigger = useRef(null);
+  const settledQuery = useDebouncedValue(query);
 
   const list = useAsyncData(
-    () => adminControlApi.subscriptions({ page, query, status, sort }),
-    [page, query, status, sort]
+    (signal) => adminControlApi.subscriptions({ page, query: settledQuery, status, sort, signal }),
+    [page, settledQuery, status, sort],
+    { keepPreviousData: true }
   );
   const summary = useAsyncData(() => adminControlApi.analytics(), []);
 
@@ -287,10 +292,11 @@ export default function SubscriptionsConsole({ canManage }) {
         </div>
       </div>
 
-      {list.loading ? <LoadingPanel variant="list" /> : list.error ? (
+      <QueueRefreshStatus refreshing={list.refreshing} />
+      {list.loading ? <QueueSkeleton /> : list.error ? (
         <ErrorPanel message={list.error} onRetry={list.reload} />
       ) : (
-        <section className="panel ops-table-panel">
+        <section className="panel ops-table-panel" aria-busy={list.refreshing || undefined}>
           <div className="ops-panel-head">
             <h2>{SUBSCRIPTION_FILTERS.find(([code]) => code === status)?.[1] || "Subscriptions"}</h2>
             <span>{formatNumber(list.data.count)} {list.data.count === 1 ? "subscription" : "subscriptions"}</span>
@@ -313,7 +319,7 @@ export default function SubscriptionsConsole({ canManage }) {
                   {list.data.results.map((subscription) => (
                     <tr key={subscription.id} className={selected === subscription.id ? "is-selected" : ""}>
                       <th scope="row">
-                        <button type="button" className="ops-row-link" onClick={() => setSelected(subscription.id)} aria-expanded={selected === subscription.id}>
+                        <button type="button" className="ops-row-link" disabled={list.refreshing} onClick={(event) => { selectedTrigger.current = event.currentTarget; setSelected(subscription.id); }} aria-expanded={selected === subscription.id}>
                           <b>{subscription.user.full_name || subscription.user.username || subscription.user.email || "Unknown account"}</b>
                           <small>{subscription.user.email || "—"}</small>
                         </button>
@@ -333,9 +339,9 @@ export default function SubscriptionsConsole({ canManage }) {
           )}
           {list.data.count > list.data.results.length && (
             <div className="ops-pager">
-              <button className="btn btn-soft compact" type="button" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</button>
+              <button className="btn btn-soft compact" type="button" disabled={list.refreshing || page <= 1} onClick={() => setPage(page - 1)}>Previous</button>
               <span>Page {page}</span>
-              <button className="btn btn-soft compact" type="button" disabled={page * 25 >= list.data.count} onClick={() => setPage(page + 1)}>Next</button>
+              <button className="btn btn-soft compact" type="button" disabled={list.refreshing || page * 25 >= list.data.count} onClick={() => setPage(page + 1)}>Next</button>
             </div>
           )}
         </section>
@@ -343,10 +349,15 @@ export default function SubscriptionsConsole({ canManage }) {
 
       {selected && (
         <SubscriptionDetail
+          key={selected}
           subscriptionId={selected}
           canManage={canManage}
           onChanged={reload}
-          onClose={() => setSelected(null)}
+          onClose={() => {
+            setSelected(null);
+            selectedTrigger.current?.focus({ preventScroll: true });
+            selectedTrigger.current?.scrollIntoView({ block: "center", behavior: "instant" });
+          }}
         />
       )}
     </section>

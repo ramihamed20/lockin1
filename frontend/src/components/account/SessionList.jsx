@@ -40,6 +40,7 @@ export function SessionList({ onCurrentSessionRevoked, refreshKey = 0 }) {
   }, [refreshKey]);
 
   async function revoke(session) {
+    if (pending) return;
     setPending(session.id);
     setError(null);
     try {
@@ -86,6 +87,7 @@ export function SessionList({ onCurrentSessionRevoked, refreshKey = 0 }) {
       </ul>
       <ConfirmDialog
         open={Boolean(confirming)}
+        busy={Boolean(pending)}
         title={confirming?.is_current ? t("settings.sessionSignOutTitle") : t("settings.sessionRevokeTitle")}
         message={confirming?.is_current ? t("settings.sessionSignOutMessage") : t("settings.sessionRevokeMessage")}
         confirmLabel={confirming?.is_current ? t("settings.sessionSignOut") : t("settings.sessionRevoke")}

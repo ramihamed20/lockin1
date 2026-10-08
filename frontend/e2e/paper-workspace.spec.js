@@ -141,7 +141,8 @@ async function mockStudent(page, server, session = {}, scenes = [], youtube = yo
   await page.route(/^https:\/\/(www\.)?youtube\.com\//, (route) => route.abort());
 }
 
-test("a student sets up a paper session, plays a video and passes a checkpoint", async ({ page }, testInfo) => {
+test("a student sets up a paper session and plays a video", async ({ page }) => {
+  await withoutServiceWorker(page);
   const server = createServer();
   await mockStudent(page, server);
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -154,12 +155,15 @@ test("a student sets up a paper session, plays a video and passes a checkpoint",
   await expect(page.getByRole("radiogroup", { name: "Active Study" })).toHaveCount(0);
   await page.getByRole("button", { name: /Oral Histology/ }).click();
 
-  // Only that subject's sheets with Active Study; the difficulty waits for a sheet.
+  // Only that subject's sheets; the difficulty waits for a sheet.
   await expect(page.getByRole("radio", { name: /Sheet 3 · Epithelial Tissue/ })).toBeVisible();
   await expect(page.getByRole("radio", { name: /Maxillary Incisors/ })).toHaveCount(0);
   await expect(page.getByRole("radiogroup", { name: "Active Study" })).toHaveCount(0);
   await page.getByRole("radio", { name: /Sheet 3 · Epithelial Tissue/ }).click();
-  await expect(page.getByRole("radio", { name: /Not configured/ })).toHaveCount(0);
+  // A sheet whose Active Study isn't ready stays visible so the subject never
+  // disappears unexplained, but it cannot be picked.
+  await expect(page.getByRole("radio", { name: /Not configured/ })).toBeDisabled();
+  await expect(page.getByRole("radio", { name: /Not configured/ })).toContainText("Active Study is being prepared");
   await expect(page.getByRole("radio", { name: "Hard" })).toBeDisabled();
 
   // A sheet the server cannot confirm is never started.
@@ -170,8 +174,9 @@ test("a student sets up a paper session, plays a video and passes a checkpoint",
   await page.getByRole("radio", { name: /Sheet 3 · Epithelial Tissue/ }).click();
 
   await page.getByRole("radio", { name: "Medium" }).click();
-  await page.screenshot({ path: testInfo.outputPath("paper-setup.png") });
+  const started = page.waitForResponse((response) => response.url().endsWith("/start") && response.request().method() === "POST" && response.status() === 200);
   await page.getByRole("button", { name: /Start Session/ }).click();
+  await started;
 
   // Workspace: timer, lofi scene, notes and the run's status.
   await expect(page.getByRole("timer")).toHaveText(/^(50:00|49:5\d)$/);
@@ -183,25 +188,29 @@ test("a student sets up a paper session, plays a video and passes a checkpoint",
   await page.getByRole("button", { name: "Pause" }).first().click();
   await expect(page.getByText("Paused")).toBeVisible();
   await page.getByRole("button", { name: "Resume" }).click();
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: testInfo.outputPath("paper-workspace.png") });
 
   // A pasted link plays in place of the lofi scene, and can be switched back.
   const search = page.getByRole("searchbox", { name: "Search YouTube" });
   await search.fill("https://youtu.be/dQw4w9WgXcQ");
   await page.getByRole("button", { name: "Play this video" }).click();
   await expect(page.locator("iframe.paper-player-frame")).toHaveAttribute("src", /^https:\/\/www\.youtube-nocookie\.com\/embed\/dQw4w9WgXcQ\?/);
-  // A text search lists results in place; nothing links out to youtube.com.
-  await search.fill("oral histology epithelium");
-  await search.press("Enter");
-  await expect(page.locator(".paper-results").getByRole("button", { name: /Oral Histology: Epithelium/ })).toBeVisible();
-  await expect(page.locator(".paper-results a")).toHaveCount(0);
-  await page.screenshot({ path: testInfo.outputPath("paper-search.png") });
-  await page.keyboard.press("Escape");
+  // Text search, thumbnails and keyboard dismissal have their own tests.
   await page.locator(".paper-player").hover();
   await page.getByRole("button", { name: "Back to lofi" }).click();
   await expect(page.locator("iframe.paper-player-frame")).toHaveCount(0);
 
+});
+
+test("a paper checkpoint saves answers and advances the session", async ({ page }) => {
+  await withoutServiceWorker(page);
+  const server = createServer();
+  await mockStudent(page, server);
+  await page.addInitScript(() => localStorage.setItem("lock-in.paper-workspace.setup", JSON.stringify({ subjectSlug: "paper-e2e-oral-histology", sheetId: "5b0e2f7a-9d4c-4a51-8f11-2a7c0e3b9a10", difficulty: "medium" })));
+  await page.goto("/#/paper-workspace");
+  await page.getByRole("button", { name: /Start Session/ }).click();
+  const status = page.locator(".paper-status");
+  await expect(status.getByText("Part 1 of 2")).toBeVisible();
+  await page.getByRole("textbox", { name: "Notes" }).fill("Basal lamina = lucida + densa");
   // Checkpoint opens a modal dialog and answers are checked one by one. The
   // run was already moved on elsewhere, so completing the reading is refused;
   // the questions still open.
@@ -219,7 +228,6 @@ test("a student sets up a paper session, plays a video and passes a checkpoint",
   await expect(dialog.getByText(QUESTIONS[0].explanation)).toHaveCount(0);
   await expect(dialog.getByRole("button", { name: /Tight junction/ })).toHaveClass(/is-correct/);
   await expect(dialog.getByRole("button", { name: /Gap junction/ })).toHaveClass(/is-wrong/);
-  await page.screenshot({ path: testInfo.outputPath("paper-checkpoint.png") });
   await dialog.getByRole("button", { name: /Next/ }).click();
   await dialog.getByRole("button", { name: /Diffusion/ }).click();
   await dialog.getByRole("button", { name: /See result/ }).click();
@@ -522,7 +530,7 @@ test("an empty or refused YouTube search says so and suggests a link", async ({ 
   expect(youtube.queries).toEqual(["zzzz nothing", "busy", "down"]);
 });
 
-test("the default lofi plays its own soundtrack, with volume and mute, and yields to a video", async ({ page }) => {
+test("the default lofi plays nature audio, with volume and mute, and yields to a video", async ({ page }) => {
   // Records the real-time contexts and the looping soundtrack they play.
   await page.addInitScript(() => {
     const contexts = [];
@@ -651,10 +659,15 @@ test("a short Lo-Fi clip loops seamlessly in one element, from one download", as
   await expect(video).toHaveAttribute("src", "/api/v1/files/clip-rain/view");
   await expect(video).toHaveAttribute("poster", "/api/v1/files/cover-rain/view");
   expect(await video.evaluate((node) => [node.loop, node.controls, node.preload])).toEqual([true, false, "auto"]);
+  expect(await video.evaluate((node) => node.muted)).toBe(true);
+  const bar = page.getByRole("group", { name: "Video controls" });
+  await page.locator(".paper-player").hover();
+  await bar.getByRole("button", { name: "Mute" }).click();
+  await bar.getByRole("button", { name: "Unmute" }).click();
+  expect(await video.evaluate((node) => node.muted)).toBe(true);
 
   // Watch the element itself: it must never reload, end, or be replaced.
   await video.evaluate((node) => {
-    node.muted = true; // headless autoplay; the loop is what is under test
     const log = { wraps: 0, loadstart: 0, emptied: 0, ended: 0, last: 0 };
     node.dataset.watched = "1";
     for (const name of ["loadstart", "emptied", "ended"]) node.addEventListener(name, () => { log[name] += 1; });
@@ -718,7 +731,9 @@ test("students change, close and reopen Lo-Fi, and their scene is remembered", a
 
 test("the study timer, not the clip, decides when Lo-Fi stops", async ({ page }) => {
   await withoutServiceWorker(page);
-  await page.clock.install();
+  const start = new Date("2026-10-05T12:00:00Z");
+  await page.clock.install({ time: start });
+  await page.clock.pauseAt(new Date(start.getTime() + 60_000));
   await mockStudent(page, createServer(), {}, LOFI_SCENES);
   await serveSceneFiles(page);
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -730,12 +745,13 @@ test("the study timer, not the clip, decides when Lo-Fi stops", async ({ page })
 
   const video = page.locator(".paper-player video.paper-media");
   await video.evaluate((node) => { node.muted = true; return node.play(); });
-  // 24 minutes on, a 2 s clip has looped hundreds of times and is still going.
-  await page.clock.runFor(24 * 60 * 1000);
+  // Advance the deadline without replaying 86,400 animation frames and
+  // starving other browser workers. The clip remains independent of it.
+  await page.clock.fastForward(24 * 60 * 1000);
   await expect(page.getByRole("timer")).toHaveText(/^0?1:00$/);
   expect(await video.evaluate((node) => node.paused)).toBe(false);
   // At 00:00 the session is over and so is the loop.
-  await page.clock.runFor(61 * 1000);
+  await page.clock.fastForward(61 * 1000);
   await expect(page.getByRole("timer")).toHaveText("00:00");
   await expect.poll(() => video.evaluate((node) => node.paused)).toBe(true);
 });

@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     "apps.operational_actions.apps.OperationalActionsConfig",
     "apps.operations_integrations.apps.OperationsIntegrationsConfig",
     "apps.admin_control.apps.AdminControlConfig",
+    "apps.feedback.apps.FeedbackConfig",
 ]
 
 MIDDLEWARE = [
@@ -166,6 +167,7 @@ ACCOUNT_REMEMBER_SESSION_ABSOLUTE_AGE_SECONDS = env_int(
 ACCOUNT_SESSION_SLIDE_INTERVAL_SECONDS = env_int("ACCOUNT_SESSION_SLIDE_INTERVAL_SECONDS", 300)
 ACCOUNT_LOGIN_WINDOW_SECONDS = env_int("ACCOUNT_LOGIN_WINDOW_SECONDS", 900)
 ACCOUNT_LOGIN_ATTEMPT_LIMIT = env_int("ACCOUNT_LOGIN_ATTEMPT_LIMIT", 5)
+ACCOUNT_LOGIN_ACCOUNT_ATTEMPT_LIMIT = env_int("ACCOUNT_LOGIN_ACCOUNT_ATTEMPT_LIMIT", 10)
 ACCOUNT_LOGIN_SOURCE_ATTEMPT_LIMIT = env_int("ACCOUNT_LOGIN_SOURCE_ATTEMPT_LIMIT", 30)
 ACCOUNT_SENSITIVE_WINDOW_SECONDS = env_int("ACCOUNT_SENSITIVE_WINDOW_SECONDS", 900)
 ACCOUNT_SENSITIVE_REQUEST_LIMIT = env_int("ACCOUNT_SENSITIVE_REQUEST_LIMIT", 5)
@@ -240,6 +242,10 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CONTENT_MAX_PDF_BYTES = env_int("CONTENT_MAX_PDF_BYTES", 50 * 1024 * 1024)
 CONTENT_MAX_AUDIO_BYTES = env_int("CONTENT_MAX_AUDIO_BYTES", 100 * 1024 * 1024)
+PERSONAL_SHEET_MAX_BYTES = env_int("PERSONAL_SHEET_MAX_BYTES", 20 * 1024 * 1024)
+PERSONAL_SHEETS_MAX_PER_ACCOUNT = env_int("PERSONAL_SHEETS_MAX_PER_ACCOUNT", 20)
+PRACTICE_IMAGE_MAX_BYTES = env_int("PRACTICE_IMAGE_MAX_BYTES", 8 * 1024 * 1024)
+PRACTICE_SLIDES_MAX_PER_SET = env_int("PRACTICE_SLIDES_MAX_PER_SET", 200)
 # Lo-Fi scenes are short clips the player loops on the client, so a few seconds
 # to a few minutes is all one ever needs; nothing longer is stored.
 PAPER_WORKSPACE_MEDIA_MAX_BYTES = env_int("PAPER_WORKSPACE_MEDIA_MAX_BYTES", 80 * 1024 * 1024)
@@ -320,6 +326,11 @@ SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 EXPOSE_API_DOCS = True
 
 REST_FRAMEWORK = {
+    "DEFAULT_PARSER_CLASSES": [
+        "platform_core.api.parsers.BoundedJSONParser",
+        "rest_framework.parsers.FormParser",
+        "rest_framework.parsers.MultiPartParser",
+    ],
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "apps.accounts.authentication.CsrfEnforcedSessionAuthentication",
     ],

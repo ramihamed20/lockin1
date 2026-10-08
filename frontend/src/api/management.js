@@ -1,3 +1,4 @@
+import { objectPayload } from "./payloads.js";
 import { ApiError, request } from "./client.js";
 import { buildQueryString } from "./pagination.js";
 
@@ -17,13 +18,6 @@ function compact(value) {
 function optionalText(key, value) {
   const text = compact(value);
   return text ? { [key]: text } : {};
-}
-
-function objectPayload(payload, message) {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    throw new ApiError(500, payload, message, "invalid_response");
-  }
-  return /** @type {Record<string, unknown>} */ (payload);
 }
 
 function objectWithId(payload, message) {

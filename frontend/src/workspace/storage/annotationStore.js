@@ -66,12 +66,40 @@ export function createAnnotationStore(environment = {}) {
   const local = environment.localStorage ?? (typeof globalThis !== "undefined" ? globalThis.localStorage : null);
   /** @type {Promise<IDBDatabase>|null} */
   let connection = null;
+  let pendingOperations = 0;
+  let closeRequested = false;
+
+  function closeWhenIdle() {
+    if (!closeRequested || pendingOperations || !connection) return;
+    const opening = connection;
+    connection = null;
+    void opening.then((database) => {
+      database.onversionchange = null;
+      database.close();
+    }).catch(() => {});
+  }
+
+  function close() {
+    closeRequested = true;
+    closeWhenIdle();
+  }
+
+  async function withDatabase(action) {
+    pendingOperations += 1;
+    try {
+      return await action(await open());
+    } finally {
+      pendingOperations -= 1;
+      closeWhenIdle();
+    }
+  }
 
   function open() {
     if (!factory) return Promise.reject(new WorkspaceStorageError("Local storage is unavailable in this browser.", "unsupported"));
     if (connection) return connection;
     connection = new Promise((resolve, reject) => {
       const request = factory.open(WORKSPACE_DB_NAME, WORKSPACE_DB_VERSION);
+      let rejected = false;
       request.onupgradeneeded = () => {
         const database = request.result;
         if (!database.objectStoreNames.contains(DOCUMENT_STORE)) database.createObjectStore(DOCUMENT_STORE, { keyPath: "id" });
@@ -82,6 +110,9 @@ export function createAnnotationStore(environment = {}) {
       };
       request.onsuccess = () => {
         const database = request.result;
+        // A blocked open may succeed after its caller has already fallen back.
+        // That late connection has no owner and must not stay open.
+        if (rejected) { database.close(); return; }
         // A newer tab upgrading the schema must not leave this one holding a
         // stale connection that blocks it.
         database.onversionchange = () => {
@@ -91,7 +122,10 @@ export function createAnnotationStore(environment = {}) {
         resolve(database);
       };
       request.onerror = () => reject(request.error || new Error("IndexedDB could not be opened"));
-      request.onblocked = () => reject(new WorkspaceStorageError("Another tab is upgrading local storage.", "blocked"));
+      request.onblocked = () => {
+        rejected = true;
+        reject(new WorkspaceStorageError("Another tab is upgrading local storage.", "blocked"));
+      };
     }).catch((error) => {
       connection = null;
       throw error;
@@ -99,8 +133,7 @@ export function createAnnotationStore(environment = {}) {
     return connection;
   }
 
-  async function readDocument({ owner, materialSlug, sheetSlug }) {
-    const database = await open();
+  async function readDocumentWithDatabase(database, { owner, materialSlug, sheetSlug }) {
     const id = workspaceDocumentId(owner, materialSlug, sheetSlug);
     const transaction = database.transaction([DOCUMENT_STORE, PAGE_STORE], "readonly");
     const documentRecord = await requestResult(transaction.objectStore(DOCUMENT_STORE).get(id));
@@ -126,11 +159,11 @@ export function createAnnotationStore(environment = {}) {
   }
 
   /**
+   * @param {IDBDatabase} database
    * @param {{ owner: string, materialSlug: string, sheetSlug: string, view: WorkspaceView,
    *   notes: any[], virtualPages?: any[], pages: Map<number, any[]>, removedPages?: number[], savedAt?: string }} snapshot
    */
-  async function writeDocument({ owner, materialSlug, sheetSlug, view, notes, virtualPages = [], pages, removedPages = [], savedAt = new Date().toISOString() }) {
-    const database = await open();
+  async function writeDocumentWithDatabase(database, { owner, materialSlug, sheetSlug, view, notes, virtualPages = [], pages, removedPages = [], savedAt = new Date().toISOString() }) {
     const id = workspaceDocumentId(owner, materialSlug, sheetSlug);
     try {
       const transaction = database.transaction([DOCUMENT_STORE, PAGE_STORE], "readwrite");
@@ -161,8 +194,7 @@ export function createAnnotationStore(environment = {}) {
     }
   }
 
-  async function deleteDocument({ owner, materialSlug, sheetSlug }) {
-    const database = await open();
+  async function deleteDocumentWithDatabase(database, { owner, materialSlug, sheetSlug }) {
     const id = workspaceDocumentId(owner, materialSlug, sheetSlug);
     const transaction = database.transaction([DOCUMENT_STORE, PAGE_STORE], "readwrite");
     transaction.objectStore(DOCUMENT_STORE).delete(id);
@@ -170,6 +202,10 @@ export function createAnnotationStore(environment = {}) {
     for (const key of keys || []) transaction.objectStore(PAGE_STORE).delete(key);
     await transactionSettled(transaction);
   }
+
+  const readDocument = (document) => withDatabase((database) => readDocumentWithDatabase(database, document));
+  const writeDocument = (snapshot) => withDatabase((database) => writeDocumentWithDatabase(database, snapshot));
+  const deleteDocument = (document) => withDatabase((database) => deleteDocumentWithDatabase(database, document));
 
   /**
    * Moves a legacy localStorage snapshot into IndexedDB exactly once.
@@ -217,5 +253,5 @@ export function createAnnotationStore(environment = {}) {
     return { migrated: true, annotations: annotations.length, notes: verified.notes.length };
   }
 
-  return { open, readDocument, writeDocument, deleteDocument, migrateLegacyDocument };
+  return { open, close, readDocument, writeDocument, deleteDocument, migrateLegacyDocument };
 }

@@ -80,9 +80,10 @@ def import_questions(
 ) -> tuple[QuestionImportBatch, ImportValidationResult]:
     """Import one validated batch.
 
-    ``metadata`` is stored on every imported question's version. The Question
-    import itself never passes it; All Questions uses it to mark the batches it
-    owns so a later run can replace exactly those and nothing else.
+    ``metadata`` is stored on every imported question's version. All Questions
+    uses it to mark the batches it owns so a later run can replace exactly
+    those; the Question import uses it to file a batch as ``source: exam``
+    (previous years' questions).
     """
     validation = validate_question_import(payload)
     node = _sheet_node(sheet)

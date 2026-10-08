@@ -391,7 +391,7 @@ html.ix-hover :is(.theme-section, .settings-panel) > .settings-row:hover {
 .themes-page[data-active-section="offline"] > #settings-offline,
 .themes-page[data-active-section="account"] > #settings-account {
   display: grid;
-  animation: refine-section-in var(--motion-panel-duration) var(--motion-enter-ease) both;
+  animation: refine-section-in var(--motion-panel-duration) var(--motion-enter-ease) backwards;
 }
 
 @keyframes refine-section-in {
@@ -681,7 +681,7 @@ html.ix-hover :is(.theme-section, .settings-panel) > .settings-row:hover {
 .notifications-dropdown,
 .global-search-panel--desktop {
   transform-origin: top right;
-  animation: refine-popover-in var(--motion-popover-duration) var(--motion-enter-ease) both;
+  animation: refine-popover-in var(--motion-popover-duration) var(--motion-enter-ease) backwards;
 }
 
 :root[dir="rtl"] .notifications-dropdown {
@@ -698,7 +698,7 @@ html.ix-hover :is(.theme-section, .settings-panel) > .settings-row:hover {
 .reminder-toast,
 .level-up-toast,
 .unlock-toast {
-  animation: toast-rise 320ms var(--motion-enter-ease) both;
+  animation: toast-rise 320ms var(--motion-enter-ease) backwards;
 }
 
 /* Outcomes (saved, failed, invalid) arrive with a small settle so the eye
@@ -712,7 +712,7 @@ html.ix-hover :is(.theme-section, .settings-panel) > .settings-row:hover {
 .inline-error,
 .form-error,
 .error-panel {
-  animation: refine-feedback-in var(--motion-control-duration) var(--motion-enter-ease) both;
+  animation: refine-feedback-in var(--motion-control-duration) var(--motion-enter-ease) backwards;
 }
 
 /* `.form-error` carried error text with no styling at all. */

@@ -26,7 +26,7 @@ from apps.subscriptions.services import (
     transition_subscription,
 )
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("legacy_duration_prices")]
 
 
 def _trial(email: str = "subscription-edge@example.com"):

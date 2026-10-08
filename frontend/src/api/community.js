@@ -1,3 +1,4 @@
+import { objectPayload } from "./payloads.js";
 import { API_BASE_PATH, ApiError, request } from "./client.js";
 import { buildQueryString, generateIdempotencyKey } from "./pagination.js";
 
@@ -6,13 +7,6 @@ const COMMENT_PAGE_SIZE = 40;
 const SPACE_PAGE_SIZE = 20;
 const REPORT_PAGE_SIZE = 20;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function objectPayload(payload, message) {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    throw new ApiError(500, payload, message, "invalid_response");
-  }
-  return /** @type {Record<string, unknown>} */ (payload);
-}
 
 function requireId(source, payload, message) {
   if (typeof source.id !== "string" || !source.id) {

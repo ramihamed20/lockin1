@@ -77,9 +77,10 @@ async function choosePen(page, name) {
   await expect(options).toBeHidden();
 }
 
-test("Neon glows red while drawing and clears after the lift, Pointer fades while drawing; neither is saved", async ({ page }) => {
+test("Neon and Pointer glow while drawing, stay three seconds after the lift, then clear; neither is saved", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
   await page.setViewportSize({ width: 1280, height: 900 });
+  await page.addInitScript(() => localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now())));
   await page.goto(ROUTE);
   await page.getByRole("button", { name: /Normal Study/ }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
@@ -88,7 +89,8 @@ test("Neon glows red while drawing and clears after the lift, Pointer fades whil
   const x = bounds.x + bounds.width * .2;
   const y = bounds.y + Math.min(bounds.height, 700) * .4;
 
-  // Neon: holds for the whole gesture, glows in its default red, then clears.
+  // Neon: holds for the whole gesture, glows in its default red, stays three
+  // seconds after the lift, then clears.
   await choosePen(page, /Neon Pen/);
   await dispatchPointer(stage, "pointerdown", x, y);
   for (let step = 1; step <= 12; step += 1) await dispatchPointer(stage, "pointermove", x + step * 18, y + (step % 2) * 10);
@@ -97,21 +99,20 @@ test("Neon glows red while drawing and clears after the lift, Pointer fades whil
   expect(held.painted).toBeGreaterThan(200);
   expect(held.red).toBe(true);
   await dispatchPointer(stage, "pointerup", x + 216, y);
-  await expect.poll(async () => (await transientInk(page)).painted, { timeout: 3_000 }).toBe(0);
+  await page.waitForTimeout(1_500);
+  expect((await transientInk(page)).painted).toBeGreaterThan(200);
+  await expect.poll(async () => (await transientInk(page)).painted, { timeout: 6_000 }).toBe(0);
 
-  // Pointer: the trail erases itself behind the tip while the pen is still down.
+  // Pointer: the same hold and fade as Neon.
   await choosePen(page, /Pointer Pen/);
   await dispatchPointer(stage, "pointerdown", x, y + 80);
   for (let step = 1; step <= 12; step += 1) await dispatchPointer(stage, "pointermove", x + step * 18, y + 80);
   // Painting happens on the next animation frame, not in the pointer event.
   await expect.poll(async () => (await transientInk(page)).painted, { intervals: [16, 32, 50] }).toBeGreaterThan(200);
-  // A second later, still pressed: the start of the line has erased itself
-  // and only the tip remains.
-  await page.waitForTimeout(1_000);
-  expect((await transientInk(page, { from: x - 20, to: x + 120 })).painted).toBe(0);
-  expect((await transientInk(page, { from: x + 196, to: x + 240 })).painted).toBeGreaterThan(0);
   await dispatchPointer(stage, "pointerup", x + 216, y + 80);
-  await expect.poll(async () => (await transientInk(page)).painted, { timeout: 3_000 }).toBe(0);
+  await page.waitForTimeout(1_500);
+  expect((await transientInk(page)).painted).toBeGreaterThan(200);
+  await expect.poll(async () => (await transientInk(page)).painted, { timeout: 6_000 }).toBe(0);
 
   // Nothing reached the sheet, the history or the saved workspace.
   await page.waitForTimeout(1_200);

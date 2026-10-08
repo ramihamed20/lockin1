@@ -9,6 +9,9 @@ import { CatalogSheetCard } from "../components/learning/CatalogSheetCard.jsx";
 import { CatalogTile } from "../components/learning/CatalogTile.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
 import OfflineSheetAction from "../offline/OfflineSheetAction.jsx";
+import { PersonalSheetsBranch } from "../components/learning/PersonalSheets.jsx";
+
+export { PersonalSheetsPage } from "../components/learning/PersonalSheets.jsx";
 
 export default function Materials({ user = null }) {
   const { t } = useI18n();
@@ -61,19 +64,22 @@ export function CatalogMaterialSheets({ user = null }) {
   if (error) return <Page width="reading" title={t("materials.notFoundTitle")}><ErrorPanel message={error} onRetry={reload} /></Page>;
   if (!material) return <Page width="reading" title={t("materials.notFoundTitle")}><ErrorPanel message={t("materials.notFoundText")} /></Page>;
 
-  if (!material.sheets.length) {
-    return <Page width="reading" title={material.title}><EmptyState icon="study" title={t("materials.noSheetsTitle")} text={t("materials.noSheetsText")} /></Page>;
-  }
-
   return (
     <Page width="reading" title={material.title} headingHandled>
       <section className="catalog-directory" aria-labelledby="catalog-subject-heading">
         <CatalogDirectoryHeader id="catalog-subject-heading" title={material.title} backTo="/materials" backLabel={t("route.materials")} />
-        <section className="sheet-grid catalog-sheet-grid" aria-label={t("materials.sheetsOf", { name: material.title })}>
-          {material.sheets.map((sheet) => (
-            <CatalogSheetCard key={sheet.slug} material={material} sheet={sheet} to={`/materials/catalog/${material.slug}/sheets/${sheet.slug}`} />
-          ))}
-        </section>
+        {/* The student's own sheets are a branch of every subject, so the
+            subject is never a dead end even before anything is published. */}
+        <PersonalSheetsBranch material={material} user={user} />
+        {material.sheets.length
+          ? (
+            <section className="sheet-grid catalog-sheet-grid" aria-label={t("materials.sheetsOf", { name: material.title })}>
+              {material.sheets.map((sheet) => (
+                <CatalogSheetCard key={sheet.slug} material={material} sheet={sheet} to={`/materials/catalog/${material.slug}/sheets/${sheet.slug}`} />
+              ))}
+            </section>
+          )
+          : <EmptyState icon="study" title={t("materials.noSheetsTitle")} text={t("materials.noSheetsText")} />}
       </section>
     </Page>
   );

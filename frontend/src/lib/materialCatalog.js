@@ -256,10 +256,6 @@ export function getLastOpenedCatalogSheet() {
   return getRecentOpenedCatalogSheets()[0] || null;
 }
 
-
-/** The editions a sheet can be read in, oldest contract first. */
-export const SHEET_EDITIONS = ["university", "lockin"];
-
 /** The suffix the server gives a sheet's Lock-in catalog address. */
 export const LOCKIN_SLUG_SUFFIX = "-lockin";
 

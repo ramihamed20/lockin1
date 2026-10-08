@@ -419,6 +419,7 @@ test("Active Study can restart saved progress from Part 1 without changing the P
 });
 
 test("a sheet opens in Normal Study, reopens where Active Study was saved, and Don't Save restarts from Part 1", async ({ page }) => {
+  test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
   const saved = { id: "exit-saved-run", difficulty: "medium", status: "active", stage: "reading", current_part: 2, number_of_parts: 4, completed_parts: [1], current_page_range: { part: 2, start_page: 11, end_page: 20 } };
   const fresh = { ...saved, id: "exit-fresh-run", current_part: 1, completed_parts: [], current_page_range: { part: 1, start_page: 1, end_page: 10 } };
@@ -640,6 +641,7 @@ test("a published catalogue sheet renders its PDF and zooms with the wheel", asy
 });
 
 test("an Active Study checkpoint asks before closing, saves or discards only the attempt, restarts, and explains misses", async ({ page }) => {
+  test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
   const questions = [
     { question: "Which vitamin is fat-soluble?", options: { A: "Vitamin C", B: "Vitamin K", C: "Vitamin B1", D: "Vitamin B12" }, correct: "B", explanation: "Vitamins A, D, E and K are fat-soluble." },
@@ -670,7 +672,14 @@ test("an Active Study checkpoint asks before closing, saves or discards only the
       return json({ correct: body.selected_answer === item.correct, correct_answer: item.correct, explanation: item.explanation, answered_count: Object.keys(serverAnswers).length, total: questions.length });
     }
     if (pathname.endsWith("/submit")) {
-      return json({ run: { ...run, stage: "checkpoint_result" }, result: { score: 1, total: 2, passed: false, xp_awarded: 0 } });
+      // The whole attempt arrives with the submit; the server grades it in one request.
+      const body = route.request().postDataJSON();
+      const review = body.answers.map((held) => {
+        const item = questions[held.position - 1];
+        serverAnswers[held.position] = held.selected_answer;
+        return { position: held.position, correct: held.selected_answer === item.correct, correct_answer: item.correct, explanation: item.explanation };
+      });
+      return json({ run: { ...run, stage: "checkpoint_result" }, result: { score: review.filter((item) => item.correct).length, total: 2, passed: false, xp_awarded: 0, review } });
     }
     return json({ run });
   });
@@ -725,6 +734,9 @@ test("an Active Study checkpoint asks before closing, saves or discards only the
   const result = page.getByRole("dialog", { name: "1 / 2" });
   const missed = result.getByRole("list", { name: "Missed questions" });
   await expect(missed.getByText(questions[0].question)).toBeVisible();
+  // Grading is one request: the answers travel with the submit, not one call per question.
+  expect(calls.filter((call) => call === "answer")).toHaveLength(0);
+  expect(calls.filter((call) => call === "submit")).toHaveLength(1);
   await expect(missed.getByText(questions[1].question)).toHaveCount(0);
   await expect(missed.getByText(questions[0].explanation)).toHaveCount(0);
   await missed.getByRole("button", { name: "Explanation" }).click();
@@ -762,6 +774,12 @@ test("passing a checkpoint unlocks the next part below the reader instead of ret
   await expect(indicator).toHaveAttribute("aria-label", "PDF page 10 of 10");
   const stage = page.locator(".workspace-v2-document-stage");
   await expect.poll(async () => stage.evaluate((node) => node.scrollTop)).toBeGreaterThan(1000);
+  // The page indicator updates before its scheduled scroll and PDF placement.
+  // Measure only once page 10 has reached the reader's actual top padding.
+  await expect.poll(() => stage.evaluate((node) => {
+    const target = node.querySelector('[data-pdf-page="10"]');
+    return Math.abs(target.getBoundingClientRect().top - node.getBoundingClientRect().top - (Number.parseFloat(getComputedStyle(node).paddingTop) || 0));
+  })).toBeLessThan(4);
   // Measured once the smooth jump has come to rest.
   let readingTop = -1;
   await expect.poll(async () => {
@@ -770,6 +788,7 @@ test("passing a checkpoint unlocks the next part below the reader instead of ret
     readingTop = top;
     return settled;
   }).toBe(true);
+
 
   await page.getByRole("button", { name: "Open checkpoint" }).click();
   const quiz = page.getByRole("dialog", { name: /Which vitamin/ });
@@ -788,6 +807,9 @@ test("passing a checkpoint unlocks the next part below the reader instead of ret
 });
 
 test("an online True/False checkpoint is answered and submitted through the server", async ({ page }) => {
+  // Three server-backed answers, result navigation, and a full reload take
+  // about 30s on parallel WebKit. Keep assertions within their own budgets.
+  test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
   const part1 = { id: "typed-run", difficulty: "medium", status: "active", stage: "reading", current_part: 1, number_of_parts: 4, completed_parts: [], current_page_range: { part: 1, start_page: 1, end_page: 10 } };
   const part2 = { ...part1, current_part: 2, completed_parts: [1], current_page_range: { part: 2, start_page: 11, end_page: 20 } };
@@ -823,8 +845,19 @@ test("an online True/False checkpoint is answered and submitted through the serv
       return json({ correct: body.selected_answer === item.correct, correct_answer: item.correct, explanation: "", answered_count: posted.length, total: questions.length });
     }
     if (pathname.endsWith("/submit")) {
+      // Every answer travels with the submit, and the server refuses a key the question does not offer.
+      const body = request.postDataJSON();
+      const review = body.answers.map((held) => {
+        const item = questions[held.position - 1];
+        if (!item || !Object.hasOwn(item.options, held.selected_answer)) return null;
+        posted.push(held.selected_answer);
+        return { position: held.position, correct: held.selected_answer === item.correct, correct_answer: item.correct, explanation: "" };
+      });
+      if (review.includes(null)) {
+        return json({ error: { code: "invalid", message: "The request could not be completed.", fields: {}, request_id: null } }, 400);
+      }
       run = part2;
-      return json({ run: part2, result: { score: 3, total: 3, passed: true, completed: false, xp_awarded: 0 } });
+      return json({ run: part2, result: { score: review.filter((item) => item.correct).length, total: 3, passed: true, completed: false, xp_awarded: 0, review } });
     }
     return json({ run });
   });

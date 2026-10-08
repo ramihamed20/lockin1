@@ -134,8 +134,6 @@ const LOCKIN_ICONS = {
   )
 };
 
-export const LOCKIN_ICON_NAMES = Object.freeze(Object.keys(LOCKIN_ICONS));
-
 /**
  * @typedef {object} LockinIconProps
  * @property {string} name

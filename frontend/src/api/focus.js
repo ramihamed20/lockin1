@@ -1,22 +1,7 @@
+import { objectPayload, pagePayload } from "./payloads.js";
 import { ApiError, request } from "./client.js";
-import { normalizePaginatedResponse } from "./contracts.js";
 import { buildQueryString } from "./pagination.js";
 import { activeStudyClient } from "../offline/activeStudy.js";
-
-function objectPayload(payload, message) {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    throw new ApiError(500, payload, message, "invalid_response");
-  }
-  return /** @type {Record<string, unknown>} */ (payload);
-}
-
-function pagePayload(payload, message) {
-  const source = objectPayload(payload, message);
-  if (!Array.isArray(source.results) || typeof source.count !== "number") {
-    throw new ApiError(500, payload, message, "invalid_response");
-  }
-  return normalizePaginatedResponse(source);
-}
 
 const SESSION_ACTIONS = new Set(["pause", "resume", "complete", "abandon"]);
 const LOCK_IN_ACTIONS = new Set(["pause", "resume", "complete", "abandon", "start-break", "end-break"]);
@@ -93,9 +78,16 @@ export const focusApi = {
     ), "The answer could not be saved.");
   },
 
-  async submitManagedActiveStudy(runId, attemptId) {
+  /**
+   * Grade an attempt. With `answers` ({ position, selectedAnswer }[]) the
+   * whole attempt is saved and graded in this one request, and `result.review`
+   * carries each question's verdict, so a 50-question exam is not 50 round trips.
+   */
+  async submitManagedActiveStudy(runId, attemptId, answers = []) {
+    const held = answers.map(({ position, selectedAnswer }) => ({ position, selected_answer: selectedAnswer }));
     return objectPayload(await activeStudyClient.submit(runId, attemptId,
-      (serverRunId, options = {}) => request(`/focus/managed-active-study/${serverRunId}/submit`, { ...options, method: "POST", body: { attempt_id: attemptId } })
+      (serverRunId, options = {}) => request(`/focus/managed-active-study/${serverRunId}/submit`, { ...options, method: "POST", body: held.length ? { attempt_id: attemptId, answers: held } : { attempt_id: attemptId } }),
+      answers
     ), "The Active Study result could not be saved.");
   },
 

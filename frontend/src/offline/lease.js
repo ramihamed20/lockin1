@@ -1,4 +1,5 @@
 import { offlineDatabase } from "./database.js";
+import { captureOfflineSession, currentOfflineUserId } from "./sessionScope.js";
 
 const runtimeAnchors = new Map();
 const reportedRollbacks = new Set();
@@ -38,7 +39,7 @@ export async function verifyLease(token, userId, publicKeyBase64) {
   }
 }
 
-export async function saveVerifiedLease(userId, lease) {
+export async function saveVerifiedLease(userId, lease, assertCurrent = captureOfflineSession(userId)) {
   const pinnedKey = import.meta.env?.VITE_OFFLINE_LEASE_PUBLIC_KEY || (!import.meta.env?.PROD ? lease.public_key : "");
   if (!pinnedKey || (import.meta.env?.PROD && pinnedKey !== lease.public_key)) return false;
   const claims = await verifyLease(lease.token, userId, pinnedKey);
@@ -49,7 +50,7 @@ export async function saveVerifiedLease(userId, lease) {
   // check compares the device only with its own earlier readings, so a device
   // whose clock is simply set differently from the server still works.
   const serverOffset = Math.max(0, claims.iat * 1000 - now);
-  await offlineDatabase.put(userId, "lease", { token: lease.token, publicKey: pinnedKey, trustedWall: now, serverOffset });
+  await offlineDatabase.putScoped(userId, "lease", { token: lease.token, publicKey: pinnedKey, trustedWall: now, serverOffset }, assertCurrent);
   runtimeAnchors.set(userId, { token: lease.token, wall: now, tick: globalThis.performance.now() });
   reportedRollbacks.delete(userId);
   return true;
@@ -58,6 +59,8 @@ export async function saveVerifiedLease(userId, lease) {
 export const CLOCK_ROLLBACK_TOLERANCE_MS = 5 * 60_000;
 
 export async function offlineAccessStatus(userId) {
+  if (currentOfflineUserId() !== String(userId)) return { available: false, reason: "account" };
+  const assertCurrent = captureOfflineSession(userId);
   const stored = await offlineDatabase.get(userId, "lease");
   if (!stored) return { available: false, reason: "missing" };
   const pinnedKey = import.meta.env?.VITE_OFFLINE_LEASE_PUBLIC_KEY || (!import.meta.env?.PROD ? stored.publicKey : "");
@@ -87,6 +90,7 @@ export async function offlineAccessStatus(userId) {
   if (effectiveNow >= claims.exp * 1000) return { available: false, reason: "expired", claims };
   // Advancing the floor once a minute is enough for a five-minute tolerance and
   // keeps every offline read from writing the lease record.
-  if (now - stored.trustedWall > 60_000) await offlineDatabase.put(userId, "lease", { ...stored, trustedWall: now });
+  assertCurrent();
+  if (now - stored.trustedWall > 60_000) await offlineDatabase.putScoped(userId, "lease", { ...stored, trustedWall: now }, assertCurrent);
   return { available: true, claims };
 }

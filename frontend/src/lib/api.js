@@ -1,11 +1,9 @@
 import {
   ApiError,
   apiClient,
-  getSessionMarker,
   isApiError,
   onUnauthorized,
-  request,
-  setSessionMarker
+  request
 } from "../api/client.js";
 import { accountsApi } from "../api/accounts.js";
 import { normalizeOperationsSession } from "../api/contracts.js";
@@ -46,16 +44,6 @@ export const authApi = {
   logout: () => accountsApi.logout(),
   logoutAll: () => accountsApi.logoutAll()
 };
-
-// Compatibility aliases for existing callers. These never contain or transmit
-// a token; the value is only the documented local session boot marker.
-export function getToken() {
-  return getSessionMarker();
-}
-
-export function setToken(value) {
-  setSessionMarker(Boolean(value));
-}
 
 export {
   ApiError,

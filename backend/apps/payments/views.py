@@ -8,10 +8,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import User
+from apps.accounts.rate_limits import AttemptBudget, reserve_attempts
 from apps.accounts.services import (
     auth_attempt_fingerprint,
-    auth_attempt_is_limited,
-    record_auth_attempt,
 )
 from apps.product_catalog.models import Price
 from apps.product_catalog.selectors import active_libyana_price_for_plan, active_price
@@ -26,11 +25,15 @@ from platform_core.network import client_ip
 from .manual_services import (
     DuplicateRechargeCodeError,
     ManualPaymentError,
+    ManualPaymentResult,
+    price_eligibilities,
+    submit_installment_payment,
     submit_manual_recharge,
 )
 from .models import Payment
 from .selectors import payments_for_user
 from .serializers import (
+    ManualInstallmentRequestSerializer,
     ManualRechargeRequestSerializer,
     ManualRechargeSubmissionSerializer,
     PaymentIntentSerializer,
@@ -95,6 +98,49 @@ class PaymentIntentView(APIView):
         )
 
 
+def _manual_payment_rate_limited(*, request: Request, user: User) -> Response | None:
+    key_hash = auth_attempt_fingerprint(
+        scope="manual_payment",
+        identifier=str(user.id),
+        remote_address=client_ip(request),
+    )
+    account_hash = auth_attempt_fingerprint(
+        scope="manual_payment_account",
+        identifier=str(user.id),
+        remote_address="",
+    )
+    window = int(getattr(settings, "MANUAL_PAYMENT_RATE_WINDOW_SECONDS", 3600))
+    limit = int(getattr(settings, "MANUAL_PAYMENT_RATE_LIMIT", 5))
+    if (
+        reserve_attempts(
+            [
+                AttemptBudget("manual_payment", key_hash, window, limit),
+                AttemptBudget("manual_payment_account", account_hash, window, limit),
+            ]
+        )
+        is None
+    ):
+        return Response(
+            {
+                "detail": "Too many recharge submissions. Try again later.",
+                "code": "rate_limited",
+            },
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+    return None
+
+
+def _manual_payment_response(result: ManualPaymentResult) -> Response:
+    return Response(
+        {
+            "payment": PaymentSerializer(result.payment).data,
+            "submission": ManualRechargeSubmissionSerializer(result.submission).data,
+            "subscription": SubscriptionSerializer(result.subscription).data,
+        },
+        status=status.HTTP_201_CREATED if result.created else status.HTTP_200_OK,
+    )
+
+
 class ManualLibyanaPaymentView(APIView):
     def post(self, request: Request) -> Response:
         serializer = ManualRechargeRequestSerializer(data=request.data)
@@ -102,28 +148,15 @@ class ManualLibyanaPaymentView(APIView):
         user = request.user
         if not isinstance(user, User):
             raise NotFound()
-        key_hash = auth_attempt_fingerprint(
-            scope="manual_payment",
-            identifier=str(user.id),
-            remote_address=client_ip(request),
-        )
-        if auth_attempt_is_limited(
-            key_hash=key_hash,
-            scope="manual_payment",
-            window_seconds=int(getattr(settings, "MANUAL_PAYMENT_RATE_WINDOW_SECONDS", 3600)),
-            limit=int(getattr(settings, "MANUAL_PAYMENT_RATE_LIMIT", 5)),
-        ):
-            return Response(
-                {
-                    "detail": "Too many recharge submissions. Try again later.",
-                    "code": "rate_limited",
-                },
-                status=status.HTTP_429_TOO_MANY_REQUESTS,
-            )
-        record_auth_attempt(key_hash=key_hash, scope="manual_payment")
+        limited = _manual_payment_rate_limited(request=request, user=user)
+        if limited is not None:
+            return limited
         idempotency_key = request.headers.get("Idempotency-Key", "")[:180]
         try:
-            price = active_libyana_price_for_plan(plan_id=serializer.validated_data["plan_id"])
+            price = active_libyana_price_for_plan(
+                plan_id=serializer.validated_data["plan_id"],
+                eligibilities=price_eligibilities(user=user),
+            )
             result = submit_manual_recharge(
                 user=user,
                 price=price,
@@ -131,6 +164,7 @@ class ManualLibyanaPaymentView(APIView):
                     str(value) for value in serializer.validated_data["recharge_codes"]
                 ],
                 idempotency_key=idempotency_key,
+                pay_in_installments=bool(serializer.validated_data["pay_in_installments"]),
             )
         except Price.DoesNotExist as error:
             raise ValidationError(
@@ -142,11 +176,32 @@ class ManualLibyanaPaymentView(APIView):
             ) from error
         except ManualPaymentError as error:
             raise ValidationError({"payment": [str(error)]}) from error
-        return Response(
-            {
-                "payment": PaymentSerializer(result.payment).data,
-                "submission": ManualRechargeSubmissionSerializer(result.submission).data,
-                "subscription": SubscriptionSerializer(result.subscription).data,
-            },
-            status=status.HTTP_201_CREATED if result.created else status.HTTP_200_OK,
-        )
+        return _manual_payment_response(result)
+
+
+class ManualInstallmentPaymentView(APIView):
+    def post(self, request: Request) -> Response:
+        serializer = ManualInstallmentRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        if not isinstance(user, User):
+            raise NotFound()
+        limited = _manual_payment_rate_limited(request=request, user=user)
+        if limited is not None:
+            return limited
+        try:
+            result = submit_installment_payment(
+                user=user,
+                agreement_id=serializer.validated_data["agreement_id"],
+                recharge_codes=[
+                    str(value) for value in serializer.validated_data["recharge_codes"]
+                ],
+                idempotency_key=request.headers.get("Idempotency-Key", "")[:180],
+            )
+        except DuplicateRechargeCodeError as error:
+            raise ValidationError(
+                {"recharge_codes": [str(error)]}, code="duplicate_code"
+            ) from error
+        except ManualPaymentError as error:
+            raise ValidationError({"payment": [str(error)]}) from error
+        return _manual_payment_response(result)

@@ -200,15 +200,70 @@ test("Active Study downloads, runs a checkpoint with the server unreachable and 
 });
 
 /** Online: verify access and download the University Sheet with its Active Study bundle. */
-async function downloadUniversitySheet(page) {
+async function downloadUniversitySheet(page, { waitForController = true } = {}) {
   await page.goto("/#/settings?section=offline");
-  await page.waitForFunction(() => Boolean(navigator.serviceWorker?.controller), null, { timeout: 15_000 });
+  if (waitForController) await page.waitForFunction(() => Boolean(navigator.serviceWorker?.controller), null, { timeout: 15_000 });
   const offlineSection = page.locator("#settings-offline");
   await expect(offlineSection.getByText("Offline access available")).toBeVisible({ timeout: 20_000 });
   await offlineSection.getByRole("button", { name: "Manage Downloads" }).click();
   await offlineSection.getByRole("button", { name: "Download University Sheet" }).click();
   await expect(offlineSection.getByRole("button", { name: /University Sheet · ✓ Available Offline/ })).toBeVisible({ timeout: 20_000 });
 }
+
+test.describe("navigation during PDF startup", () => {
+  test.use({ serviceWorkers: "block" });
+  test("a page chosen before PDF readiness survives the initial placement @chromium-only", async ({ page, context }) => {
+    let releaseWorker;
+    const workerGate = new Promise((resolve) => { releaseWorker = resolve; });
+    let workerRequested = false;
+    await context.route("**/assets/pdf.worker*.mjs", async (route) => {
+      workerRequested = true;
+      await workerGate;
+      await route.continue();
+    });
+    const state = { serverDown: false, synced: [] };
+    await mockServer(page, state);
+    await downloadUniversitySheet(page, { waitForController: false });
+    await page.goto(WORKSPACE_ROUTE);
+    const mode = page.getByRole("dialog", { name: "Choose study mode" });
+    await expect(mode).toBeVisible();
+    state.serverDown = true;
+    await mode.getByRole("button", { name: /Start Active Study/ }).click();
+    await expect.poll(() => workerRequested).toBe(true);
+    const indicator = page.locator(".workspace-v2-page-number");
+    await expect(indicator).toHaveAttribute("aria-label", "PDF page 1 of 10");
+    await indicator.click();
+    const input = page.getByRole("spinbutton", { name: "Go to page" });
+    await input.fill("10");
+    await input.press("Enter");
+    releaseWorker();
+    await expect(page.locator('.workspace-v2-a4-page[data-pdf-page="10"] canvas.is-visible')).toBeVisible({ timeout: 20_000 });
+    await expect(indicator).toHaveAttribute("aria-label", "PDF page 10 of 10");
+    await expect(page.getByRole("button", { name: "Open checkpoint" })).toBeVisible();
+  });
+  test("an online page choice before PDF readiness survives the initial placement", async ({ page, context }) => {
+    let releaseWorker;
+    const workerGate = new Promise((resolve) => { releaseWorker = resolve; });
+    let workerRequested = false;
+    await context.route("**/assets/pdf.worker*.mjs", async (route) => {
+      workerRequested = true;
+      await workerGate;
+      await route.continue();
+    });
+    await mockServer(page, { serverDown: false, synced: [] });
+    await page.goto(WORKSPACE_ROUTE);
+    await page.getByRole("dialog", { name: "Choose study mode" }).getByRole("button", { name: /Normal Study/ }).click();
+    await expect.poll(() => workerRequested).toBe(true);
+    const indicator = page.locator(".workspace-v2-page-number");
+    await indicator.click();
+    const input = page.getByRole("spinbutton", { name: "Go to page" });
+    await input.fill("10");
+    await input.press("Enter");
+    releaseWorker();
+    await expect(page.locator('.workspace-v2-a4-page[data-pdf-page="10"] canvas.is-visible')).toBeVisible({ timeout: 20_000 });
+    await expect(indicator).toHaveAttribute("aria-label", "PDF page 10 of 41");
+  });
+});
 
 test("a passed checkpoint keeps the next part through a reload and syncs by itself when the server answers late", async ({ page }) => {
   test.setTimeout(150_000);
@@ -253,12 +308,25 @@ test("a passed checkpoint keeps the next part through a reload and syncs by itse
   await expect(page.getByRole("button", { name: "Open checkpoint" })).toHaveCount(0);
 
   // The radio comes back before the server does: the first sync fails.
+  // Several foreground events may already have failed: the real policy backs
+  // off for 15 s, 60 s, then 5 minutes. Observe its scheduled timer and advance
+  // app time, rather than assuming every retry must arrive within 30 seconds.
+  await page.clock.install();
+  await page.evaluate(() => {
+    window.__offlineRetryDelay = 0;
+    const original = window.setTimeout;
+    window.setTimeout = (callback, delay, ...args) => {
+      if ([15_250, 60_250, 300_250].includes(delay)) window.__offlineRetryDelay = delay;
+      return original(callback, delay, ...args);
+    };
+  });
   await page.evaluate(() => window.dispatchEvent(new Event("online")));
-  await page.waitForTimeout(1_500);
+  await expect.poll(() => page.evaluate(() => window.__offlineRetryDelay)).toBeGreaterThan(0);
   expect(state.synced).toHaveLength(0);
   // The server answers again. No online, focus or visibility event follows,
   // yet the saved attempt uploads by itself, exactly once.
   state.serverDown = false;
+  await page.clock.fastForward(await page.evaluate(() => window.__offlineRetryDelay) + 1);
   await expect.poll(() => state.synced.length, { timeout: 30_000 }).toBe(1);
   expect(state.synced[0]).toMatchObject({ operation_type: "active_study_attempt", payload: { kind: "checkpoint", part: 1 } });
   await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();

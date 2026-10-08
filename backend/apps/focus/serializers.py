@@ -254,8 +254,19 @@ class ManagedActiveStudyAnswerSerializer(StrictSerializer):
     selected_answer = serializers.ChoiceField(choices=ANSWER_KEYS)
 
 
+class ManagedActiveStudySubmittedAnswerSerializer(StrictSerializer):
+    position = serializers.IntegerField(min_value=1, max_value=100)
+    selected_answer = serializers.ChoiceField(choices=ANSWER_KEYS)
+
+
 class ManagedActiveStudySubmitSerializer(StrictSerializer):
     attempt_id = serializers.UUIDField()
+    answers = ManagedActiveStudySubmittedAnswerSerializer(many=True, required=False)
+
+    def validate_answers(self, value: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        if len(value) > 100:
+            raise serializers.ValidationError("Too many answers.")
+        return value
 
 
 class LockInTeamMessageSerializer(serializers.ModelSerializer[FocusTeamMessage]):

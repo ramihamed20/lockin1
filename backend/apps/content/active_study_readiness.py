@@ -273,19 +273,6 @@ def university_structure(
     )
 
 
-def university_parts_by_difficulty(
-    *, sheet: LearningObject, source_version: LearningObjectVersion | None = None
-) -> tuple[dict[str, int] | None, str | None]:
-    """How many parts each difficulty has for this sheet.
-
-    This is the structure the question bank is written against, so the Lock-in
-    edition inherits it rather than deriving one of its own.
-    """
-
-    structure, error = university_structure(sheet=sheet, source_version=source_version)
-    return (structure.parts_by_difficulty if structure else None), error
-
-
 def lockin_plan_inputs(
     *, sheet: LearningObject, source_version: LearningObjectVersion | None = None
 ) -> tuple[dict[str, object] | None, str]:

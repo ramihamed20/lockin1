@@ -71,6 +71,10 @@ for (const viewport of VIEWPORTS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto("/#/");
 
+    // Navigation depends on the authenticated shell. Trace recording and a
+    // cold install can outlast a generic five-second locator assertion.
+    await expect(page.getByRole("button", { name: "Open profile menu" })).toBeVisible({ timeout: 15_000 });
+
     const compact = viewport.width < 640;
     if (compact) await page.getByRole("button", { name: "More" }).click();
     const nav = compact ? page.locator("#mobile-drawer") : page.getByRole("navigation", { name: "Primary" });
@@ -84,28 +88,20 @@ for (const viewport of VIEWPORTS) {
     expect(plansBox.y - storeBox.y).toBeLessThan(storeBox.height * 1.8);
     await plans.click();
 
-    const steps = page.getByRole("list", { name: "Subscription steps" });
-    await expect(steps.getByRole("button", { name: /Choose plan/ })).toHaveAttribute("aria-current", "step");
-    await expect(page.getByRole("textbox", { name: /^Recharge card code/ })).toHaveCount(0);
+    // One screen: the plan list and the card field together, no steps between.
+    await expect(page.getByRole("list", { name: "Subscription steps" })).toHaveCount(0);
     await page.getByRole("radio", { name: /Two months/ }).check();
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
-
-    await expect(steps.getByRole("button", { name: /Price & details/ })).toHaveAttribute("aria-current", "step");
-    await expect(page.getByRole("heading", { name: "Two months" })).toBeVisible();
-    await expect(page.getByText(/25/).first()).toBeVisible();
-    await expect(page.getByRole("heading", { name: "How it works" })).toBeVisible();
-    await page.getByRole("button", { name: "Continue to payment" }).click();
-
-    await expect(page.getByRole("heading", { name: "Pay with Libyana" })).toBeVisible();
     const code = page.getByRole("textbox", { name: /^Recharge card code/ });
+    await code.scrollIntoViewIfNeeded();
     await expect(code).toBeInViewport();
     await code.fill("1234567890123");
+    await expect(page.getByRole("link", { name: "terms and refund policy", exact: true })).toBeVisible();
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(1);
     await page.screenshot({ path: testInfo.outputPath(`subscription-${viewport.name}.png`), fullPage: true });
 
-    await page.getByRole("button", { name: "Submit card and continue" }).click();
+    await page.getByRole("button", { name: /^Pay / }).click();
     await expect.poll(() => submitted).not.toBeNull();
     expect(submitted.plan_id).toBe("plan-two");
     expect(submitted.recharge_codes).toEqual(["1234567890123"]);

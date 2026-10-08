@@ -60,6 +60,29 @@ test("right-to-left runs are measured from their right edge", () => {
   assert.ok(match.rectangles[0].x > (140 / 600) * 1000, `x was ${match.rectangles[0].x}`);
 });
 
+test("a word split by a font change stays searchable without inventing spaces", () => {
+  const index = buildPageTextIndex({ items: [item("bio", 50, 700, 30), item("chemistry", 80, 700, 90)] }, VIEWPORT);
+  assert.equal(index.text, "biochemistry");
+  assert.equal(findPageMatches(index, normalizeSearchQuery("biochemistry"), 1).length, 1);
+  const separateWords = buildPageTextIndex({ items: [item("bio", 50, 700, 30), item("chemistry", 85, 700, 90)] }, VIEWPORT);
+  assert.equal(separateWords.text, "bio chemistry");
+});
+
+test("contiguous Arabic fragments stay joined in right-to-left reading order", () => {
+  const index = buildPageTextIndex({ items: [item("أس", 140, 700, 20, { dir: "rtl" }), item("نان", 110, 700, 30, { dir: "rtl" })] }, VIEWPORT);
+  assert.equal(index.text, "اسنان");
+  assert.equal(findPageMatches(index, normalizeSearchQuery("أسنان"), 1).length, 1);
+});
+
+test("search rectangles stay within the page at its edges", () => {
+  const index = buildPageTextIndex({ items: [item("edge", 580, 4, 40)] }, VIEWPORT);
+  const [match] = findPageMatches(index, "edge", 1);
+  for (const rect of match.rectangles) {
+    assert.ok(rect.x >= 0 && rect.x + rect.width <= 1000);
+    assert.ok(rect.y >= 0 && rect.y + rect.height <= 1000);
+  }
+});
+
 test("Arabic stored in visual order is still found", () => {
   const reversed = [..."اللثة"].reverse().join("");
   const index = buildPageTextIndex({ items: [item(reversed, 100, 700, 50)] }, VIEWPORT);
@@ -95,4 +118,27 @@ test("searching a document walks only the pages it is given and can be cancelled
 
   assert.equal(await searchDocument(source, "molar", { firstPage: 1, lastPage: 5, isCancelled: () => true }), null);
   assert.deepEqual((await searchDocument(source, "   ", { firstPage: 1, lastPage: 5, isCancelled: () => false })).matches, []);
+});
+
+test("PDF text can be read on Safari without a ReadableStream async iterator", async (context) => {
+  const descriptor = Object.getOwnPropertyDescriptor(ReadableStream.prototype, Symbol.asyncIterator);
+  Object.defineProperty(ReadableStream.prototype, Symbol.asyncIterator, { configurable: true, value: undefined });
+  context.after(() => Object.defineProperty(ReadableStream.prototype, Symbol.asyncIterator, descriptor));
+  let reads = 0;
+  const source = createDocumentTextSource({ numPages: 1, async getPage() {
+    return {
+      getViewport: () => VIEWPORT,
+      getTextContent: () => { throw new Error("Safari cannot iterate this stream"); },
+      streamTextContent: () => new ReadableStream({ start(controller) {
+        reads++;
+        controller.enqueue({ items: [item("bio", 50, 700, 30)] });
+        controller.enqueue({ items: [item("chemistry", 80, 700, 90)] });
+        controller.close();
+      } })
+    };
+  } });
+  const result = await searchDocument(source, "biochemistry", { firstPage: 1, lastPage: 1, isCancelled: () => false });
+  assert.equal(result.matches.length, 1);
+  await source.pageIndex(1);
+  assert.equal(reads, 1);
 });
