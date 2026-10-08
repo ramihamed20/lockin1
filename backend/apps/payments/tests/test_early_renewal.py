@@ -13,7 +13,7 @@ from apps.product_catalog.models import Plan
 from apps.subscriptions.models import Subscription
 from apps.subscriptions.services import advance_billing_period, create_trial_for_user
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("legacy_duration_prices")]
 
 
 @pytest.fixture(autouse=True)

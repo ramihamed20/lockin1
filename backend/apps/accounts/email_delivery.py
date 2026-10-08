@@ -13,6 +13,7 @@ from django.utils.crypto import salted_hmac
 from .models import AccountEmailDelivery, OneTimeToken, User
 
 MAX_ATTEMPTS = 5
+CLAIM_SECONDS = 300
 
 
 def _cipher() -> Fernet:
@@ -66,9 +67,16 @@ def dispatch_due_account_emails(*, limit: int = 50) -> int:
                 AccountEmailDelivery.Status.FAILED,
             }:
                 continue
+            claimed_at = timezone.now()
+            # Candidate ids were read before this lock. Another worker may
+            # have claimed this row since then; SENDING alone is not a lease.
+            if delivery.next_attempt_at > claimed_at:
+                continue
             delivery.status = AccountEmailDelivery.Status.SENDING
             delivery.attempts += 1
-            delivery.save(update_fields=("status", "attempts", "updated_at"))
+            attempt = delivery.attempts
+            delivery.next_attempt_at = claimed_at + timedelta(seconds=CLAIM_SECONDS)
+            delivery.save(update_fields=("status", "attempts", "next_attempt_at", "updated_at"))
         try:
             body = _cipher().decrypt(delivery.encrypted_body.encode("ascii")).decode("utf-8")
             send_mail(
@@ -81,14 +89,20 @@ def dispatch_due_account_emails(*, limit: int = 50) -> int:
         except Exception as error:  # SMTP outages must be durable and observable.
             with transaction.atomic():
                 delivery = AccountEmailDelivery.objects.select_for_update().get(id=delivery_id)
+                if (
+                    delivery.attempts != attempt
+                    or delivery.status != AccountEmailDelivery.Status.SENDING
+                ):
+                    continue
                 terminal = delivery.attempts >= MAX_ATTEMPTS
                 delivery.status = (
                     AccountEmailDelivery.Status.FAILED
                     if terminal
                     else AccountEmailDelivery.Status.PENDING
                 )
-                delivery.next_attempt_at = now + _delay(delivery.attempts)
-                delivery.failed_at = now if terminal else None
+                failed_at = timezone.now()
+                delivery.next_attempt_at = failed_at + _delay(delivery.attempts)
+                delivery.failed_at = failed_at if terminal else None
                 delivery.last_error = type(error).__name__[:240]
                 delivery.save(
                     update_fields=(
@@ -102,6 +116,11 @@ def dispatch_due_account_emails(*, limit: int = 50) -> int:
             continue
         with transaction.atomic():
             delivery = AccountEmailDelivery.objects.select_for_update().get(id=delivery_id)
+            if (
+                delivery.attempts != attempt
+                or delivery.status != AccountEmailDelivery.Status.SENDING
+            ):
+                continue
             delivery.status = AccountEmailDelivery.Status.SENT
             delivery.sent_at = timezone.now()
             delivery.last_error = ""

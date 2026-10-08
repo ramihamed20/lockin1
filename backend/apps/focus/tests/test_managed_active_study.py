@@ -498,6 +498,112 @@ def test_answer_is_server_scored_and_cannot_be_rewritten() -> None:
         )
 
 
+def _batch(payload: dict[str, Any], count_right: int) -> list[dict[str, Any]]:
+    return [
+        {
+            "position": item["position"],
+            "selected_answer": "B" if item["position"] <= count_right else "A",
+        }
+        for item in payload["questions"]
+    ]
+
+
+def test_submit_with_every_answer_grades_like_answering_one_by_one() -> None:
+    user, sheet, _ = _setup()
+    run, payload = _open_checkpoint(user, sheet)
+    run, result = submit(
+        user=user, run_id=run.id, attempt_id=payload["attempt_id"], answers=_batch(payload, 12)
+    )
+    assert result["score"] == 12 and result["passed"] is True
+    assert [item["position"] for item in result["review"]] == list(range(1, 16))
+    assert [item["correct"] for item in result["review"]] == [True] * 12 + [False] * 3
+    assert all(item["explanation"] for item in result["review"])
+    assert ReviewItem.objects.filter(user=user, canonical_key__contains=":checkpoint:").count() == 3
+    assert ActiveStudyAnswer.objects.filter(attempt_id=payload["attempt_id"]).count() == 15
+
+
+def test_submit_with_answers_costs_far_fewer_queries_than_one_request_per_answer() -> None:
+    user, sheet, _ = _setup()
+    run, payload = _open_checkpoint(user, sheet)
+    with CaptureQueriesContext(connection) as batch:
+        run, _ = submit(
+            user=user, run_id=run.id, attempt_id=payload["attempt_id"], answers=_batch(payload, 15)
+        )
+    complete_part_reading(user=user, run_id=run.id)
+    second = questions(user=user, run_id=run.id)
+    with CaptureQueriesContext(connection) as sequential:
+        _answer_count(user, run, second, 15)
+        submit(user=user, run_id=run.id, attempt_id=second["attempt_id"])
+    assert len(batch) < len(sequential) / 2
+
+
+def test_resubmitting_a_batch_is_idempotent_and_returns_the_same_review() -> None:
+    user, sheet, _ = _setup()
+    run, payload = _open_checkpoint(user, sheet)
+    answers = _batch(payload, 10)
+    _, first = submit(user=user, run_id=run.id, attempt_id=payload["attempt_id"], answers=answers)
+    _, again = submit(user=user, run_id=run.id, attempt_id=payload["attempt_id"], answers=answers)
+    assert again["already_submitted"] is True
+    assert again["review"] == first["review"]
+    assert ActiveStudyAnswer.objects.filter(attempt_id=payload["attempt_id"]).count() == 15
+    assert ReviewItem.objects.filter(user=user, canonical_key__contains=":checkpoint:").count() == 5
+
+
+def test_submit_with_answers_keeps_every_rule_of_the_single_answer_path() -> None:
+    user, sheet, _ = _setup()
+    run, payload = _open_checkpoint(user, sheet)
+    answer(
+        user=user, run_id=run.id, attempt_id=payload["attempt_id"], position=1, selected_answer="A"
+    )
+    attempt_id = payload["attempt_id"]
+    # An answer the student already locked in cannot be rewritten by the batch.
+    with pytest.raises(ManagedActiveStudyRuleError):
+        submit(user=user, run_id=run.id, attempt_id=attempt_id, answers=_batch(payload, 15))
+    # Missing answers are refused, and nothing from the refused batch is kept.
+    with pytest.raises(ManagedActiveStudyRuleError):
+        submit(user=user, run_id=run.id, attempt_id=attempt_id, answers=_batch(payload, 0)[1:5])
+    assert ActiveStudyAnswer.objects.filter(attempt_id=attempt_id).count() == 1
+    with pytest.raises(ManagedActiveStudyRuleError):
+        submit(
+            user=user,
+            run_id=run.id,
+            attempt_id=attempt_id,
+            answers=[{"position": 99, "selected_answer": "A"}],
+        )
+    with pytest.raises(ManagedActiveStudyRuleError):
+        submit(
+            user=user,
+            run_id=run.id,
+            attempt_id=attempt_id,
+            answers=[{"position": 2, "selected_answer": "T"}],
+        )
+    # The one answer kept stays gradable alongside the rest of a good batch.
+    rest = [item for item in _batch(payload, 0) if item["position"] != 1]
+    _, result = submit(user=user, run_id=run.id, attempt_id=attempt_id, answers=rest)
+    assert result["score"] == 0 and len(result["review"]) == 15
+
+
+def test_submit_endpoint_accepts_answers_and_rejects_unknown_fields() -> None:
+    user, sheet, _ = _setup()
+    _grant_focus(user)
+    run, payload = _open_checkpoint(user, sheet)
+    client = _client(user)
+    url = f"/api/v1/focus/managed-active-study/{run.id}/submit"
+    bad = client.post(
+        url,
+        {"attempt_id": payload["attempt_id"], "answers": [{"position": 1, "selected_answer": "Z"}]},
+        format="json",
+    )
+    assert bad.status_code == 400
+    response = client.post(
+        url, {"attempt_id": payload["attempt_id"], "answers": _batch(payload, 15)}, format="json"
+    )
+    assert response.status_code == 200, response.json()
+    body = response.json()
+    assert body["result"]["passed"] is True and len(body["result"]["review"]) == 15
+    assert body["run"]["current_part"] == 2
+
+
 def test_abandon_retains_attempt_evidence_and_allows_a_fresh_run() -> None:
     user, sheet, _ = _setup()
     run, payload = _open_checkpoint(user, sheet)

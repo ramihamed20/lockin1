@@ -8,9 +8,9 @@ function source(path) {
 
 test("manual Libyana checkout sends only the selected plan and recharge codes", () => {
   const billing = source("../src/api/billing.js");
-  const manualCheckout = billing.match(/async submitLibyana[\s\S]+?\n  }\n};/)?.[0] || "";
+  const manualCheckout = billing.match(/async submitLibyana[\s\S]+?\n  },/)?.[0] || "";
 
-  assert.match(manualCheckout, /body:\s*\{ plan_id: planId, recharge_codes: rechargeCodes \}/);
+  assert.match(manualCheckout, /body:\s*\{ plan_id: planId, recharge_codes: rechargeCodes, pay_in_installments: payInInstallments \}/);
   assert.doesNotMatch(manualCheckout, /body:\s*\{[^}]*price/i);
   assert.doesNotMatch(manualCheckout, /body:\s*\{[^}]*duration/i);
   assert.doesNotMatch(manualCheckout, /body:\s*\{[^}]*status/i);
@@ -50,7 +50,8 @@ test("subscription UI preserves LTR recharge entry inside Arabic RTL and uses se
   assert.match(page, /effectivePlan/);
   assert.match(page, /billingApi\.submitLibyana\(/);
   assert.match(page, /early_renewal_available/);
-  assert.match(page, /status === "active" && subscription\?\.access_allowed/);
+  // The server says, per price, whether it can be bought now.
+  assert.match(page, /!price\.purchase_blocked_reason/);
   assert.match(page, /pattern="\[0-9\]\{13\}"/);
   assert.match(page, /setAuthoritativeSubscription\(result\.subscription\)/);
   assert.doesNotMatch(page, /billingApi\.currentSubscription/);
@@ -115,13 +116,24 @@ test("plans are one click from the sidebar, directly under Store", async () => {
   assert.notEqual(translate("ar", "nav.subscription"), "nav.subscription");
 });
 
-test("subscribing is a guided flow: plan, then price and details, then payment", () => {
+test("subscribing is one screen: pick a plan, then pay, with the terms one link away", () => {
   const page = source("../src/pages/Subscription.jsx");
-  assert.match(page, /const CHECKOUT_STEPS = \["plan", "review", "pay"\]/);
-  assert.match(page, /aria-current=\{state === "current" \? "step" : undefined\}/);
-  // Payment codes are only asked for once a plan and its price have been seen.
-  assert.match(page, /\{step === "pay" && <div className="subscription-payment-step">/);
-  assert.match(page, /if \(step !== "pay"\) \{ goToStep\(step === "plan" \? "review" : "pay"\); return; \}/);
-  assert.match(page, /subscription\.continueToPayment/);
-  assert.match(page, /subscription\.changePlan/);
+  // No intermediate steps or explanations between the plan and the card.
+  assert.doesNotMatch(page, /CHECKOUT_STEPS|goToStep|subscription\.howItWorks/);
+  assert.match(page, /subscription\.payAmount", \{ amount:/);
+  assert.match(page, /subscription-pay-toggle/);
+  assert.match(page, /href="#\/terms"/);
+});
+
+test("the public terms page states the account-sharing rule and the 15-day refund window", () => {
+  const page = source("../src/components/PublicInfoPage.jsx");
+  const terms = source("../src/lib/termsContent.js");
+  assert.match(page, /TERMS\[locale\]/);
+  assert.match(terms, /أول 15 يوماً/);
+  assert.match(terms, /first 15 days/);
+  assert.match(terms, /مشاركة الحساب/);
+  // The owner removed the content-copying clause.
+  assert.doesNotMatch(terms, /id: "content"/);
+  assert.match(page, /t\.me\/\$\{SUPPORT_TELEGRAM\}/);
+  assert.match(page, /SUPPORT_TELEGRAM = "LockinTeam"/);
 });

@@ -254,6 +254,35 @@ def test_json_validate_import_history_and_safe_undo() -> None:
     assert set(questions.values_list("workflow_status", flat=True)) == {"retired"}
 
 
+def test_import_source_files_a_batch_under_exam_questions_only_when_asked() -> None:
+    admin = create_admin()
+    _, subject, _ = published_path(admin=admin)
+    sheet = _sheet(admin=admin, subject=subject)
+    client = APIClient()
+    client.force_authenticate(admin)
+    url = f"/api/v1/operations/admin/content/sheets/{sheet.id}/questions/import"
+
+    years = client.post(url, {"payload": _payload(), "source": "exam"}, format="json")
+    regular = client.post(url, {"payload": _payload()}, format="json")
+    invalid = client.post(url, {"payload": _payload(), "source": "other"}, format="json")
+
+    assert years.status_code == 201
+    assert regular.status_code == 201
+    assert invalid.status_code == 400
+    years_versions = QuestionVersion.objects.filter(
+        question__import_batch_id=years.json()["batch"]["id"]
+    )
+    regular_versions = QuestionVersion.objects.filter(
+        question__import_batch_id=regular.json()["batch"]["id"]
+    )
+    assert {version.metadata.get("source") for version in years_versions} == {"exam"}
+    assert {version.metadata.get("source") for version in regular_versions} == {None}
+    listed = client.get(
+        f"/api/v1/operations/admin/content/sheets/{sheet.id}/questions", {"source": "exam"}
+    ).json()
+    assert listed["count"] == 3
+
+
 def test_import_validation_rejects_schema_answer_and_unknown_fields() -> None:
     invalid_payloads = [
         {**_payload(), "version": "unknown"},

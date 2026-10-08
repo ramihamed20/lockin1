@@ -9,5 +9,3 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 export function loadPdfLibrary() {
   return Promise.resolve(pdfjsLib);
 }
-
-export const PDFJS_VERSION = pdfjsLib.version;

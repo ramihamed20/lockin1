@@ -251,6 +251,9 @@ class Command(BaseCommand):
         from apps.subscriptions.models import Subscription, SubscriptionAccount
 
         now = timezone.now()
+        # Retired from sale by product_catalog.0007; the browser renewal flows
+        # still exercise the duration-plan path that existing subscribers use.
+        Price.objects.filter(code="lockin_monthly_10_lyd").update(status=Price.Status.ACTIVE)
         paid_price = Price.objects.select_related("plan_version").get(code="lockin_monthly_10_lyd")
         trial_plan = Plan.objects.select_related("current_version").get(
             code=settings.DEFAULT_TRIAL_PLAN_CODE

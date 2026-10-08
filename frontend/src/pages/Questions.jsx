@@ -9,12 +9,14 @@ import { CatalogTile } from "../components/learning/CatalogTile.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
 import { QuestionExplanation } from "../components/shared/QuestionExplanation.jsx";
 import { prefersReducedMotion } from "../lib/motion.js";
+import { DirectoryState, QuestionBreadcrumbs, QuestionDirectoryHeader } from "../components/learning/QuestionDirectory.jsx";
+import { PracticeCategory, PracticeSubject, PracticePlayerPage } from "../components/learning/PracticeQuestions.jsx";
 
 /**
  * Exam and AI sheet questions share the player, but use separate published banks.
  */
 const QUESTION_CATEGORIES = [
-  { id: "practice", titleKey: "questions.practice", metaKey: "questions.practiceMeta", icon: "brain", available: false },
+  { id: "practice", titleKey: "questions.practice", metaKey: "questions.practiceMeta", icon: "brain", available: true },
   { id: "years", titleKey: "questions.years", metaKey: "questions.yearsMeta", icon: "calendar", available: true },
   { id: "ai-sheet", titleKey: "questions.aiSheet", metaKey: "questions.aiSheetMeta", icon: "file-question", available: true },
   { id: "mix", titleKey: "questions.mix", metaKey: "questions.mixMeta", icon: "shuffle", available: false }
@@ -65,44 +67,18 @@ export default function Questions({ user = null }) {
   );
 }
 
-function QuestionDirectoryHeader({ id, title, subtitle = "", backTo = "", backLabel = "", breadcrumbs = null }) {
-  return <header className="catalog-directory-header">
-    {backTo && <Link className="catalog-back-link" to={backTo}><Icon name="arrow-left" size={18} aria-hidden="true" /><span dir="auto">{backLabel}</span></Link>}
-    {breadcrumbs}
-    <div className="catalog-directory-title"><h1 id={id} dir="auto">{title}</h1>{subtitle && <p dir="auto">{subtitle}</p>}</div>
-  </header>;
-}
-
-/**
- * Loading, empty and failed directories keep the heading and the way back the
- * loaded page has, so a state never leaves the student on a titleless screen.
- */
-function DirectoryState({ title, backTo = "", backLabel = "", children }) {
-  return <Page width="reading" title={title} headingHandled>
-    <section className="question-directory" aria-labelledby="question-state-heading">
-      <QuestionDirectoryHeader id="question-state-heading" title={title} backTo={backTo} backLabel={backLabel} />
-      {children}
-    </section>
-  </Page>;
-}
-
 function CategoryCard({ category }) {
   const { t } = useI18n();
   return <CatalogTile title={t(category.titleKey)} meta={t(category.metaKey)} icon={category.icon} kind="question" to={category.available ? `/questions/categories/${category.id}` : ""} status={category.available ? "" : t("common.soon")} />;
 }
 
-function QuestionBreadcrumbs({ category, material = null, sheetTitle = "" }) {
-  const { t } = useI18n();
-  return <nav className="question-breadcrumb" aria-label={t("questions.breadcrumbs")}>
-    <Link to="/questions">{t("route.questions")}</Link>
-    <Icon name="chevron-right" size={14} aria-hidden="true" />
-    {material ? <Link to={`/questions/categories/${category.id}`}>{t(category.titleKey)}</Link> : <span aria-current="page">{t(category.titleKey)}</span>}
-    {material && <><Icon name="chevron-right" size={14} aria-hidden="true" />{sheetTitle ? <Link to={`/questions/categories/${category.id}/subjects/${material.slug}`} dir="auto">{material.title}</Link> : <span aria-current="page" dir="auto">{material.title}</span>}</>}
-    {sheetTitle && <><Icon name="chevron-right" size={14} aria-hidden="true" /><span aria-current="page" dir="auto">{sheetTitle}</span></>}
-  </nav>;
+export function QuestionCategory({ user = null }) {
+  const { categoryId } = useParams();
+  if (categoryId === "practice") return <PracticeCategory user={user} category={cohortCategories(user).find((item) => item.id === "practice")} />;
+  return <ExamCategory user={user} />;
 }
 
-export function QuestionCategory({ user = null }) {
+function ExamCategory({ user = null }) {
   const { categoryId } = useParams();
   const { t } = useI18n();
   const category = cohortCategories(user).find((item) => item.id === categoryId);
@@ -115,7 +91,7 @@ export function QuestionCategory({ user = null }) {
   // not a curriculum with nothing in it.
   if (loading) return <DirectoryState title={t(category.titleKey)} {...back}><LoadingPanel variant="material-list" /></DirectoryState>;
   if (error) return <DirectoryState title={t(category.titleKey)} {...back}><ErrorPanel message={error} onRetry={reload} /></DirectoryState>;
-  if (!materials.length) return <DirectoryState title={t(category.titleKey)} {...back}><EmptyState icon="study" title={t("questions.noQuestionsTitle")} text={t("questions.noQuestionsText")} /></DirectoryState>;
+  if (!materials.length) return <DirectoryState title={t(category.titleKey)} {...back}><EmptyState icon="study" title={t("questions.noQuestionsTitle")} text={t("questions.noSubjectsText")} /></DirectoryState>;
 
   return (
     <Page width="reading" title={t(category.titleKey)} headingHandled>
@@ -139,6 +115,12 @@ export function QuestionCategory({ user = null }) {
 
 /** The sheets of one subject that carry questions, under their own names. */
 export function QuestionSubjectSheets({ user = null }) {
+  const { categoryId } = useParams();
+  if (categoryId === "practice") return <PracticeSubject user={user} category={cohortCategories(user).find((item) => item.id === "practice")} />;
+  return <ExamSubjectSheets user={user} />;
+}
+
+function ExamSubjectSheets({ user = null }) {
   const { categoryId, subjectId } = useParams();
   const { t } = useI18n();
   const category = cohortCategories(user).find((item) => item.id === categoryId);
@@ -183,6 +165,12 @@ export function QuestionSubjectSheets({ user = null }) {
  * nor re-award it.
  */
 export function QuestionSheetQuestions({ user = null }) {
+  const { categoryId } = useParams();
+  if (categoryId === "practice") return <PracticePlayerPage category={cohortCategories(user).find((item) => item.id === "practice")} />;
+  return <ExamSheetQuestions user={user} />;
+}
+
+function ExamSheetQuestions({ user = null }) {
   const { categoryId, subjectId, sheetId } = useParams();
   const { t } = useI18n();
   const category = cohortCategories(user).find((item) => item.id === categoryId);
@@ -228,15 +216,33 @@ function QuestionPlayer({ sheetId, userId, source, questions, backTo }) {
   const [finished, setFinished] = useState(false);
   // Which way the last move went, so the next card arrives from that side.
   const [travel, setTravel] = useState("forward");
+  // Restart is a practice round over the same sheet. The server keeps each
+  // student's one graded answer (and its XP) for good, so a round never touches
+  // it: questions already answered are re-graded here from the verdict the
+  // server already revealed, and a question never answered still goes to the
+  // server like any first answer.
+  const [replay, setReplay] = useState(/** @type {Record<string, any> | null} */ (null));
+  const [round, setRound] = useState(0);
   const playerRef = useRef(null);
   const total = questions.length;
   const question = questions[index];
   const position = index + 1;
   const answeredCount = Object.keys(answers).length;
-  const answered = Boolean(question && answers[question.id]);
+  const shown = replay || answers;
+  const answered = Boolean(question && shown[question.id]);
 
-  function record(questionId, answer) {
-    setAnswers((current) => (current[questionId] ? current : { ...current, [questionId]: answer }));
+  function record(questionId, answer, local = false) {
+    if (!local) setAnswers((current) => (current[questionId] ? current : { ...current, [questionId]: answer }));
+    setReplay((current) => (current && !current[questionId] ? { ...current, [questionId]: answer } : current));
+  }
+
+  function restart() {
+    setReplay({});
+    setRound((current) => current + 1);
+    setFinished(false);
+    setTravel("back");
+    setIndex(0);
+    setStarted(true);
   }
 
   function go(next) {
@@ -281,15 +287,18 @@ function QuestionPlayer({ sheetId, userId, source, questions, backTo }) {
       <span className="question-session-intro-icon"><Icon name="file-question" size={22} /></span>
       <div><h2 id="question-session-intro-title">{t("questions.readyTitle")}</h2><p>{answeredCount ? t("questions.answeredOf", { answered: answeredCount, total }) : t("questions.sessionIntro", { count: total })}</p></div>
       {answeredCount > 0 && <QuestionRail questions={questions} answers={answers} current={-1} />}
-      <button className="btn btn-primary" type="button" onClick={() => setStarted(true)}>{reviewing ? t("questions.reviewAnswers") : resuming ? t("questions.resumeAt", { index: position }) : t("questions.startQuestions")}</button>
+      <div className="question-session-intro-actions">
+        {answeredCount > 0 && <button className="btn btn-soft" type="button" onClick={restart}><Icon name="reset" size={16} />{t("questions.restart")}</button>}
+        <button className="btn btn-primary" type="button" onClick={() => setStarted(true)}>{reviewing ? t("questions.reviewAnswers") : resuming ? t("questions.resumeAt", { index: position }) : t("questions.startQuestions")}</button>
+      </div>
     </section>;
   }
 
   if (finished) {
-    const results = Object.values(answers);
+    const results = Object.values(shown);
     const correct = results.filter((answer) => answer.is_correct).length;
     const xp = results.reduce((sum, answer) => sum + (answer.xp_awarded || 0), 0);
-    const firstMistake = questions.findIndex((item) => answers[item.id] && !answers[item.id].is_correct);
+    const firstMistake = questions.findIndex((item) => shown[item.id] && !shown[item.id].is_correct);
     const score = total ? Math.round((correct / total) * 100) : 0;
     return (
       <section className="question-player question-player-summary" aria-live="polite">
@@ -299,11 +308,12 @@ function QuestionPlayer({ sheetId, userId, source, questions, backTo }) {
         <h2>{correct === total ? t("questions.allCorrect") : t("questions.sheetComplete")}</h2>
         <p className="muted">{t("questions.sheetScore", { correct, total })}</p>
         {xp > 0 && <span className="question-xp-chip">{t("questions.xpEarned", { count: xp })}</span>}
-        <QuestionRail questions={questions} answers={answers} current={-1} />
+        <QuestionRail questions={questions} answers={shown} current={-1} />
         <div className="question-player-actions">
           {firstMistake >= 0
             ? <button className="btn btn-soft" type="button" onClick={() => { setFinished(false); setTravel("back"); setIndex(firstMistake); }}>{t("questions.reviewMistakes")}</button>
             : <button className="btn btn-soft" type="button" onClick={() => { setFinished(false); setTravel("back"); setIndex(0); }}>{t("questions.reviewAnswers")}</button>}
+          <button className="btn btn-soft" type="button" onClick={restart}><Icon name="reset" size={16} />{t("questions.restart")}</button>
           <Link className="btn btn-primary" to={backTo}>{t("questions.backToSheets")}</Link>
         </div>
       </section>
@@ -315,7 +325,10 @@ function QuestionPlayer({ sheetId, userId, source, questions, backTo }) {
       <header className="question-progress">
         <div className="question-progress-meta">
           <strong aria-live="polite">{t("questions.progress", { index: position, total })}</strong>
-          <span className="muted">{t("questions.remaining", { count: total - position })}</span>
+          <span className="question-progress-side">
+            <span className="muted">{t("questions.remaining", { count: total - position })}</span>
+            {Object.keys(shown).length > 0 && <button className="btn btn-ghost compact" type="button" onClick={restart}><Icon name="reset" size={14} />{t("questions.restart")}</button>}
+          </span>
         </div>
         <div
           className="question-progress-track"
@@ -326,16 +339,18 @@ function QuestionPlayer({ sheetId, userId, source, questions, backTo }) {
           aria-valuenow={position}
         >
           <span style={{ transform: `scaleX(${position / total})` }} />
-          <QuestionRail questions={questions} answers={answers} current={index} />
+          <QuestionRail questions={questions} answers={shown} current={index} />
         </div>
       </header>
+      {replay && <p className="save-hint question-replay-note" role="status">{t("questions.restartNote")}</p>}
       <PracticeItem
-        key={question.id}
+        key={`${round}:${question.id}`}
         sheetId={sheetId}
         userId={userId}
         source={source}
         question={question}
-        answer={answers[question.id] || null}
+        answer={shown[question.id] || null}
+        recorded={replay ? answers[question.id] || null : null}
         onAnswered={record}
       />
       <nav className="question-player-actions" aria-label={t("questions.navigationLabel")}>
@@ -343,11 +358,11 @@ function QuestionPlayer({ sheetId, userId, source, questions, backTo }) {
           <Icon name="chevron-left" size={17} /> {t("questions.previousQuestion")}
         </button>
         {position < total ? (
-          <button className={`btn ${answers[question.id] ? "btn-primary" : "btn-soft"}`} type="button" onClick={() => go(index + 1)}>
+          <button className={`btn ${shown[question.id] ? "btn-primary" : "btn-soft"}`} type="button" onClick={() => go(index + 1)}>
             {t("questions.nextQuestion")} <Icon name="chevron-right" size={17} />
           </button>
         ) : (
-          <button className={`btn ${answers[question.id] ? "btn-primary" : "btn-soft"}`} type="button" disabled={!Object.keys(answers).length} onClick={() => setFinished(true)}>
+          <button className={`btn ${shown[question.id] ? "btn-primary" : "btn-soft"}`} type="button" disabled={!Object.keys(shown).length} onClick={() => setFinished(true)}>
             {t("questions.finishSheet")}
           </button>
         )}
@@ -382,7 +397,7 @@ function QuestionRail({ questions, answers, current }) {
  * complete, so only that type keeps a check button. The card locks while the
  * request is in flight and for good once the server has graded it.
  */
-function PracticeItem({ sheetId, userId, source, question, answer, onAnswered }) {
+function PracticeItem({ sheetId, userId, source, question, answer, recorded = null, onAnswered }) {
   const { t } = useI18n();
   const [selected, setSelected] = useState([]);
   const [pending, setPending] = useState(false);
@@ -413,6 +428,30 @@ function PracticeItem({ sheetId, userId, source, question, answer, onAnswered })
 
   async function submit(choiceIds) {
     if (answer || inFlight.current || !choiceIds.length) return;
+    if (recorded) {
+      // Practice round on a question the server already graded: worth no XP.
+      // The server counts a wrong try as another mistake in Review; if it cannot
+      // be reached the try is still judged here against the recorded verdict.
+      inFlight.current = true;
+      setPending(true);
+      setError("");
+      let correctIds = recorded.correct_choice_ids || [];
+      let isCorrect = choiceIds.length === correctIds.length && choiceIds.every((id) => correctIds.includes(id));
+      try {
+        const response = await catalogWorkspaceApi.retryQuestion(sheetId, question.id, choiceIds);
+        if (typeof response?.is_correct === "boolean") {
+          isCorrect = response.is_correct;
+          if (Array.isArray(response.correct_choice_ids)) correctIds = response.correct_choice_ids;
+        }
+      } catch {
+        // Offline or rejected: keep the local verdict.
+      }
+      answeredHere.current = true;
+      onAnswered(question.id, { ...recorded, correct_choice_ids: correctIds, selected_choice_ids: choiceIds, is_correct: isCorrect, xp_awarded: 0 }, true);
+      inFlight.current = false;
+      setPending(false);
+      return;
+    }
     inFlight.current = true;
     setPending(true);
     setError("");
@@ -446,7 +485,7 @@ function PracticeItem({ sheetId, userId, source, question, answer, onAnswered })
     <article className={`question-card question-player-card${tone}`} aria-busy={pending}>
       <div className="question-card-meta">
         <span className={`question-difficulty is-${question.difficulty}`}>{t(`questions.difficulty.${question.difficulty}`)}</span>
-        {question.xp_value > 0 && !answer && <span className="muted">{t("questions.xpValue", { count: question.xp_value })}</span>}
+        {question.xp_value > 0 && !answer && !recorded && <span className="muted">{t("questions.xpValue", { count: question.xp_value })}</span>}
       </div>
       <h2 dir="auto">{question.prompt}</h2>
       {multiple && !answer && <p className="save-hint">{t("assessment.selectEvery")}</p>}

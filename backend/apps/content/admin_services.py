@@ -464,7 +464,10 @@ def _file_in_role(sheet: LearningObject, role: str) -> ManagedFile | None:
     version = sheet.current_version
     if version is None:
         raise ContentRuleError("The sheet has no current version.")
-    asset = version.assets.select_related("managed_file").filter(role=role).first()
+    if "assets" in getattr(version, "_prefetched_objects_cache", {}):
+        asset = next((item for item in version.assets.all() if item.role == role), None)
+    else:
+        asset = version.assets.select_related("managed_file").filter(role=role).first()
     return asset.managed_file if asset is not None else None
 
 

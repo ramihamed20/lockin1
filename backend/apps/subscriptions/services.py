@@ -8,7 +8,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.accounts.models import User
-from apps.product_catalog.models import Plan, PlanVersion, Price
+from apps.product_catalog.models import Plan, PlanVersion, Price, fixed_period_end
 from platform_core.events import publish_after_commit
 
 from .events import (
@@ -66,6 +66,12 @@ def paid_period_window(
         anchor = subscription.current_period_ends_at
     else:
         anchor = effective_at
+    fixed_end = fixed_period_end(price.plan_version)
+    if fixed_end is not None:
+        # A term plan ends on its calendar date whenever it is bought.
+        if fixed_end <= anchor:
+            raise ValueError("This term has already ended.")
+        return anchor, fixed_end
     return anchor, advance_billing_period(
         anchor, interval=price.interval, count=price.interval_count
     )
@@ -392,6 +398,16 @@ def refresh_subscription(
     *, subscription: Subscription, now: datetime | None = None
 ) -> Subscription:
     current = now or timezone.now()
+    subscription = _refresh_lifecycle(subscription=subscription, now=current)
+    # Imported here: payments reads subscription models, so a module-level
+    # import in this direction would close the loop.
+    from apps.payments.installments import enforce_installments
+
+    return enforce_installments(subscription=subscription, now=current)
+
+
+def _refresh_lifecycle(*, subscription: Subscription, now: datetime) -> Subscription:
+    current = now
     if (
         subscription.status == Subscription.Status.ACTIVE
         and not subscription.current_period_ends_at
@@ -466,7 +482,7 @@ def refresh_subscription(
         # A grace window may already have elapsed when the scheduler catches
         # up. Continue through the authoritative state machine so one run does
         # not leave an already-expired subscription in GRACE for another cycle.
-        return refresh_subscription(subscription=transitioned, now=current)
+        return _refresh_lifecycle(subscription=transitioned, now=current)
     if (
         subscription.status == Subscription.Status.GRACE
         and subscription.grace_ends_at

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from django.db import transaction
@@ -14,6 +14,17 @@ from .events import RefundFailed, RefundRequested, RefundSucceeded
 from .models import Refund, RefundTransition
 from .validation import validate_refund_transition
 
+# Published refund policy: a subscription is refundable within its first 15
+# days and not after. For a term bought in installments the window runs from
+# the first installment, so a later installment does not reopen it.
+REFUND_WINDOW = timedelta(days=15)
+
+
+def refund_window_ends_at(payment: Payment) -> datetime:
+    agreement = payment.installment_agreement
+    start = agreement.anchor_at if agreement is not None else payment.created_at
+    return start + REFUND_WINDOW
+
 
 @dataclass(frozen=True, slots=True)
 class RefundTransitionResult:
@@ -27,7 +38,11 @@ def request_refund(
 ) -> tuple[Refund, bool]:
     if not idempotency_key:
         raise ValueError("An idempotency key is required.")
-    payment = Payment.objects.select_for_update().select_related("account").get(id=payment_id)
+    payment = (
+        Payment.objects.select_for_update(of=("self",))
+        .select_related("account", "installment_agreement")
+        .get(id=payment_id)
+    )
     existing = Refund.objects.filter(payment=payment, idempotency_key=idempotency_key).first()
     if existing is not None:
         return existing, False
@@ -36,6 +51,8 @@ def request_refund(
         Payment.Status.PARTIALLY_REFUNDED,
     ):
         raise ValueError("Only a settled payment can be refunded.")
+    if timezone.now() > refund_window_ends_at(payment):
+        raise ValueError("The 15-day refund period for this subscription has ended.")
     reserved = (
         payment.refunds.filter(
             status__in=(Refund.Status.REQUESTED, Refund.Status.PENDING, Refund.Status.SUCCEEDED)

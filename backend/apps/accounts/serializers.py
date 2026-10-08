@@ -58,8 +58,10 @@ class RegistrationSerializer(StrictSerializer):
     )
     full_name = serializers.CharField(max_length=150, trim_whitespace=True)
     email = serializers.EmailField(max_length=254)
-    password = serializers.CharField(write_only=True, trim_whitespace=False)
-    password_confirm = serializers.CharField(write_only=True, trim_whitespace=False)
+    password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=1024)
+    password_confirm = serializers.CharField(
+        write_only=True, trim_whitespace=False, max_length=1024
+    )
     preferred_language = serializers.ChoiceField(choices=User.Language.choices)
     cohort_id = serializers.PrimaryKeyRelatedField(
         queryset=StudentCohort.objects.filter(is_active=True).exclude(code="year-3"),
@@ -110,8 +112,10 @@ class VerificationCodeSerializer(StrictSerializer):
 
 
 class PasswordResetConfirmSerializer(TokenSerializer):
-    new_password = serializers.CharField(write_only=True, trim_whitespace=False)
-    new_password_confirm = serializers.CharField(write_only=True, trim_whitespace=False)
+    new_password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=1024)
+    new_password_confirm = serializers.CharField(
+        write_only=True, trim_whitespace=False, max_length=1024
+    )
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         if attrs["new_password"] != attrs["new_password_confirm"]:
@@ -124,7 +128,7 @@ class PasswordResetConfirmSerializer(TokenSerializer):
 
 class LoginSerializer(StrictSerializer):
     email = serializers.EmailField(max_length=254)
-    password = serializers.CharField(write_only=True, trim_whitespace=False)
+    password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=1024)
     remember_me = serializers.BooleanField(default=False)
 
     def validate_email(self, value: str) -> str:
@@ -267,9 +271,13 @@ class ProfileAvatarUploadSerializer(StrictSerializer):
 
 
 class PasswordChangeSerializer(StrictSerializer):
-    current_password = serializers.CharField(write_only=True, trim_whitespace=False)
-    new_password = serializers.CharField(write_only=True, trim_whitespace=False)
-    new_password_confirm = serializers.CharField(write_only=True, trim_whitespace=False)
+    current_password = serializers.CharField(
+        write_only=True, trim_whitespace=False, max_length=1024
+    )
+    new_password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=1024)
+    new_password_confirm = serializers.CharField(
+        write_only=True, trim_whitespace=False, max_length=1024
+    )
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         user = self.context.get("user")
@@ -287,7 +295,9 @@ class PasswordChangeSerializer(StrictSerializer):
 
 class EmailChangeRequestSerializer(StrictSerializer):
     new_email = serializers.EmailField(max_length=254)
-    current_password = serializers.CharField(write_only=True, trim_whitespace=False)
+    current_password = serializers.CharField(
+        write_only=True, trim_whitespace=False, max_length=1024
+    )
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         user = self.context.get("user")
@@ -304,7 +314,9 @@ class EmailChangeRequestSerializer(StrictSerializer):
 
 
 class AccountDeletionPasswordSerializer(StrictSerializer):
-    current_password = serializers.CharField(write_only=True, trim_whitespace=False)
+    current_password = serializers.CharField(
+        write_only=True, trim_whitespace=False, max_length=1024
+    )
 
     def validate_current_password(self, value: str) -> str:
         user = self.context.get("user")

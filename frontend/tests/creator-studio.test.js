@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const page = await readFile(new URL("../src/pages/OperationsAdmin.jsx", import.meta.url), "utf8");
-const styles = await readFile(new URL("../src/pages/creator-studio.css", import.meta.url), "utf8");
+const styles = (await readFile(new URL("../src/pages/creator-studio.css", import.meta.url), "utf8")).replace(/\r\n/g, "\n");
 
 const areas = await readFile(new URL("../src/lib/studioAreas.js", import.meta.url), "utf8");
 

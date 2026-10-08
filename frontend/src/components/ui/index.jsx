@@ -11,6 +11,9 @@ import { cssVars } from "../../lib/utils.js";
 
 /** @type {import("react").Context<boolean>} */
 const PageIdentityContext = createContext(false);
+/** True inside a Page that prints its own visible title. */
+/** @type {import("react").Context<boolean>} */
+const PageHeadingContext = createContext(false);
 
 /**
  * `width="reading"` sets the page in the one reading column list and detail
@@ -26,11 +29,13 @@ export function Page({ title, subtitle = "", children, showHeading = false, head
   const resolvedTitle = !title || title === englishMetadata.h1 ? metadata.h1 : title;
   return (
     <PageIdentityContext.Provider value={true}>
-      <div className={width ? `page page--${width}` : "page"}>
-        {showHeading && <header className="section-heading"><h1 dir="auto">{resolvedTitle}</h1>{subtitle && <p dir="auto">{subtitle}</p>}</header>}
-        {!showHeading && !headingHandled && <h1 className="visually-hidden" dir="auto">{resolvedTitle}</h1>}
-        {children}
-      </div>
+      <PageHeadingContext.Provider value={Boolean(showHeading || headingHandled)}>
+        <div className={width ? `page page--${width}` : "page"}>
+          {showHeading && <header className="section-heading"><h1 dir="auto">{resolvedTitle}</h1>{subtitle && <p dir="auto">{subtitle}</p>}</header>}
+          {!showHeading && !headingHandled && <h1 className="visually-hidden" dir="auto">{resolvedTitle}</h1>}
+          {children}
+        </div>
+      </PageHeadingContext.Provider>
     </PageIdentityContext.Provider>
   );
 }
@@ -90,6 +95,10 @@ function SkeletonCard({ children, className = "" }) {
 }
 
 function SkeletonHeader() {
+  // Under a page that already prints its real title, placeholder bars for a
+  // title would only stack a second, fake heading beneath the real one.
+  const headingVisible = useContext(PageHeadingContext);
+  if (headingVisible) return null;
   return <header className="skeleton-page-heading"><Skeleton className="skeleton-kicker" /><Skeleton className="skeleton-title" /><Skeleton className="skeleton-subtitle" /></header>;
 }
 
@@ -104,7 +113,17 @@ function CardGridSkeleton({ count = 6, card = "standard" }) {
 }
 
 function DashboardSkeleton() {
-  return <div className="skeleton-page skeleton-page--dashboard"><section className="skeleton-dashboard-layout"><div><SkeletonCard className="skeleton-continue-card"><SkeletonText lines={2} /><Skeleton className="skeleton-progress" /><SkeletonButton /></SkeletonCard><SkeletonCard className="skeleton-list-card"><SkeletonText lines={1} />{Array.from({ length: 3 }, (_, index) => <div className="skeleton-list-row" key={index}><SkeletonAvatar /><SkeletonText lines={2} /></div>)}</SkeletonCard></div><div><SkeletonCard className="skeleton-visual-card"><Skeleton className="skeleton-visual" /></SkeletonCard></div></section><SkeletonHeader /><CardGridSkeleton count={5} card="stat" /><SkeletonCard className="skeleton-list-card"><SkeletonText lines={2} />{Array.from({ length: 3 }, (_, index) => <div className="skeleton-list-row" key={index}><SkeletonAvatar /><SkeletonText lines={2} /></div>)}</SkeletonCard></div>;
+  // Same order as the screen it stands in for: the state row (Level twice as
+  // wide), then Continue and Recent beside the scene, so nothing reflows when
+  // the numbers arrive.
+  const rows = Array.from({ length: 3 }, (_, index) => <div className="skeleton-list-row" key={index}><SkeletonAvatar /><SkeletonText lines={2} /></div>);
+  return <div className="skeleton-page skeleton-page--dashboard">
+    <section className="skeleton-dashboard-stats">{Array.from({ length: 5 }, (_, index) => <SkeletonCard key={index} className={index === 0 ? "skeleton-stat is-wide" : "skeleton-stat"}><Skeleton className="skeleton-stat-value" /><Skeleton className="skeleton-stat-label" /></SkeletonCard>)}</section>
+    <section className="skeleton-dashboard-layout">
+      <div><SkeletonCard className="skeleton-continue-card"><SkeletonText lines={2} /><SkeletonButton /></SkeletonCard><SkeletonCard className="skeleton-list-card"><SkeletonText lines={1} />{rows}</SkeletonCard></div>
+      <div><SkeletonCard className="skeleton-visual-card"><Skeleton className="skeleton-visual" /></SkeletonCard></div>
+    </section>
+  </div>;
 }
 
 function MaterialsListSkeleton({ sheets = false }) {
@@ -151,6 +170,9 @@ function AdminOverviewSkeleton() {
 }
 
 function StandardSkeleton({ variant }) {
+  if (variant === "admin-detail") return <div className="skeleton-page"><SkeletonText lines={3} /><SkeletonCard><SkeletonText lines={6} /></SkeletonCard><SkeletonCard><SkeletonText lines={4} /></SkeletonCard></div>;
+  if (variant === "admin-list") return <div className="skeleton-page"><SkeletonCard className="skeleton-list-card">{Array.from({ length: 5 }, (_, index) => <div className="skeleton-list-row" key={index}><SkeletonAvatar /><SkeletonText lines={2} /><SkeletonButton /></div>)}</SkeletonCard></div>;
+  if (variant === "admin-form") return <div className="skeleton-page"><SkeletonCard><SkeletonText lines={2} />{Array.from({ length: 4 }, (_, index) => <div className="skeleton-list-row" key={index}><SkeletonText lines={2} /><SkeletonButton /></div>)}</SkeletonCard></div>;
   if (variant === "admin-overview") return <AdminOverviewSkeleton />;
   if (variant === "dashboard") return <DashboardSkeleton />;
   if (variant === "profile") return <ProfileSkeleton />;
@@ -165,13 +187,17 @@ function StandardSkeleton({ variant }) {
 }
 
 function loadingVariant(pathname) {
-  if (/^\/$/.test(pathname)) return "dashboard";
+  if (/^\/operations\/admin\/(overview|analytics)/.test(pathname)) return "admin-overview";
+  if (/^\/operations\/admin\/(settings|system)/.test(pathname)) return "admin-form";
+  if (/^\/operations\/admin\//.test(pathname)) return "admin-list";
+  if (/^\/(dashboard)?$/.test(pathname)) return "dashboard";
   if (/^\/profile/.test(pathname)) return "profile";
   if (/^\/progress/.test(pathname)) return "progress";
   if (/\/workspace|^\/focus\//.test(pathname)) return "document";
   if (/\/results?\//.test(pathname)) return "result";
   if (/\/attempts?\//.test(pathname)) return "quiz";
-  if (/^\/(notifications|review|bookmarks|community)/.test(pathname)) return "list";
+  if (/^\/(materials|questions)$/.test(pathname)) return "material-list";
+  if (/^\/(notifications|review|bookmarks|community|achievements|subscription|my-group|analysis)/.test(pathname)) return "list";
   return "grid";
 }
 
@@ -182,12 +208,50 @@ export function LoadingPanel({ variant = "auto" }) {
   const metadata = routeMetadata(location.pathname, t);
   const resolvedVariant = variant === "auto" ? loadingVariant(location.pathname) : variant;
   return (
-    <section className={`loading-panel loading-panel--${resolvedVariant}`} aria-label="Loading content" aria-busy="true">
+    <section className={`loading-panel loading-panel--${resolvedVariant}`} aria-label={t("common.loading")} aria-busy="true">
       {!hasPageIdentity && <h1 className="visually-hidden">{metadata.h1}</h1>}
       <StandardSkeleton variant={resolvedVariant} />
     </section>
   );
 }
+
+/**
+ * The Suspense fallback for a route whose code is still arriving. A chunk from
+ * the cache resolves in a frame or two, and flashing a skeleton for that long
+ * reads as flicker, so nothing is drawn for the first ~300 ms. Past that (a
+ * cold start on a slow connection) the route's own skeleton appears, shaped
+ * like the screen that is coming, instead of an empty content area.
+ */
+export function DeferredLoadingPanel({ delay = 300 }) {
+  const [visible, setVisible] = useState(false);
+  const location = useLocation();
+  const { t } = useI18n();
+  useEffect(() => {
+    const timer = window.setTimeout(() => setVisible(true), delay);
+    return () => window.clearTimeout(timer);
+  }, [delay]);
+  if (!visible) return null;
+  // Screens with a large title wait inside the same column under the same
+  // title they will show, so the arrival changes only the content.
+  const frame = ROUTE_LOADING_FRAMES[location.pathname];
+  if (frame) return <Page width={frame.width} title={frame.titleKey ? t(frame.titleKey) : ""} showHeading><LoadingPanel /></Page>;
+  return <div className="route-loading-fallback"><LoadingPanel /></div>;
+}
+
+/** Routes whose loaded screen opens with a large title (the route's own name
+ * unless `titleKey` says otherwise) and the column it sits in. */
+const ROUTE_LOADING_FRAMES = {
+  "/materials": { width: "reading" },
+  "/questions": { width: "reading" },
+  "/review": { width: "reading" },
+  "/bookmarks": { width: "reading" },
+  "/achievements": { width: "reading" },
+  "/notifications": { width: "reading" },
+  "/analysis": { width: "reading" },
+  "/subscription": { width: "reading" },
+  "/my-group": { width: "reading" },
+  "/progress": { width: "", titleKey: "progress.title" }
+};
 
 export function ErrorPanel({ message, onRetry = null }) {
   const hasPageIdentity = useContext(PageIdentityContext);
@@ -236,15 +300,6 @@ export function SessionConfetti() {
     <div className="session-confetti" aria-hidden="true">
       {Array.from({ length: 14 }, (_, index) => <span key={index} style={cssVars({ "--i": index })} />)}
     </div>
-  );
-}
-
-export function MiniFeature({ title, text, icon }) {
-  return (
-    <article className="mini-feature">
-      <span className="stat-icon"><Icon name={icon} /></span>
-      <div><h2>{title}</h2><p>{text}</p></div>
-    </article>
   );
 }
 

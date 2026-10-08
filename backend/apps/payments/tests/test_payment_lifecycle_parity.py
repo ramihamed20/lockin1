@@ -22,7 +22,7 @@ from apps.product_catalog.models import Plan, Price
 from apps.subscriptions.models import Subscription, SubscriptionTransition
 from apps.subscriptions.services import create_trial_for_user
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("legacy_duration_prices")]
 
 STUDY_ENTITLEMENT = "content.premium"
 

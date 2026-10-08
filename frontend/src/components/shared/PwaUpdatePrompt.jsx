@@ -4,6 +4,8 @@ import { useI18n } from "../I18nProvider.jsx";
 import { usePwaUpdates } from "../../pwa/usePwaUpdates.js";
 import { UPDATE_STATUS } from "../../pwa/updateManager.js";
 import { isFeatureComingSoon } from "../../lib/featureAvailability.js";
+import { whatsNewText } from "../../lib/whatsNew.js";
+import { usePendingRelease } from "../../pwa/usePendingRelease.js";
 
 /**
  * A quiet card, never a modal: finding an update must not interrupt a reader
@@ -11,7 +13,7 @@ import { isFeatureComingSoon } from "../../lib/featureAvailability.js";
  */
 export function PwaUpdatePrompt({ deferred = false }) {
   const location = useLocation();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { status, dismissed, error, applyUpdate, dismiss } = usePwaUpdates();
   const inImmersiveWorkspace = (!isFeatureComingSoon("lock-in") && (location.pathname === "/lock-in"
     || location.pathname.startsWith("/lock-in/")))
@@ -21,10 +23,11 @@ export function PwaUpdatePrompt({ deferred = false }) {
   const reloadRequired = status === UPDATE_STATUS.RELOAD_REQUIRED;
   const activationFailed = status === UPDATE_STATUS.AVAILABLE && error === "activation-failed";
   const visible = status === UPDATE_STATUS.AVAILABLE || updating || reloadRequired;
+  const pending = usePendingRelease(status === UPDATE_STATUS.AVAILABLE && !activationFailed);
   if (deferred || inImmersiveWorkspace || dismissed || !visible) return null;
 
-  const title = reloadRequired ? t("pwa.update.reloadTitle") : activationFailed ? t("pwa.update.paused") : t("pwa.update.title");
-  const body = reloadRequired ? t("pwa.update.reloadBody") : activationFailed ? t("pwa.update.error") : updating ? t("pwa.update.applying") : t("pwa.update.body");
+  const title = reloadRequired ? t("pwa.update.reloadTitle") : activationFailed ? t("pwa.update.paused") : pending ? t("pwa.update.titleVersion", { version: pending.version }) : t("pwa.update.title");
+  const body = reloadRequired ? t("pwa.update.reloadBody") : activationFailed ? t("pwa.update.error") : updating ? t("pwa.update.applying") : pending ? whatsNewText(pending.summary, locale) : t("pwa.update.body");
 
   return (
     <aside className="pwa-update-prompt" role="status" aria-live="polite" data-update-status={status}>

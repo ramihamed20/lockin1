@@ -43,7 +43,7 @@ function AnalysisDetail({ data, t }) {
 
 function ReviewDetail({ data, reportId, t }) {
   return <div className="biweekly-detail"><section className="biweekly-current"><h2>{t("biweekly.mistakes", { count: data.mistake_count })}</h2>{data.mistake_count ? <Link className="btn btn-primary" to={`/review/biweekly/${reportId}/test`}>{t("biweekly.startTest")}</Link> : <p>{t("biweekly.noMistakes")}</p>}</section>
-    {data.questions.map((question, index) => <article className="biweekly-history" key={question.review_item_id}><small>{question.subject} · {question.sheet}</small><h2>{index + 1}. {question.prompt}</h2><ol type="A">{question.options.map((option) => <li key={option.id}>{option.text}</li>)}</ol><p>{t("biweekly.studentAnswer")}: {question.student_answers.join(", ")}</p><p>{t("biweekly.correctAnswer")}: {question.correct_answers.join(", ")}</p><p>{t("biweekly.why")}: {question.explanation || "—"}</p></article>)}
+    {data.questions.map((question, index) => <article className="biweekly-history" key={question.review_item_id}><small>{question.subject} · {question.sheet}{question.repetitions > 1 ? ` · ${t("biweekly.missedTimes", { count: question.repetitions })}` : ""}</small><h2>{index + 1}. {question.prompt}</h2><ol type="A">{question.options.map((option) => <li key={option.id}>{option.text}</li>)}</ol><p>{t("biweekly.studentAnswer")}: {question.student_answers.join(", ")}</p><p>{t("biweekly.correctAnswer")}: {question.correct_answers.join(", ")}</p><p>{t("biweekly.why")}: {question.explanation || "—"}</p></article>)}
   </div>;
 }
 

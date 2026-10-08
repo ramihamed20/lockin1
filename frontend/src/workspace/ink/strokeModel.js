@@ -478,12 +478,6 @@ export function strokeIntersectsEraserPath(annotation, eraserStart, eraserEnd, r
   return false;
 }
 
-export function strokeIntersectsEraserPolyline(annotation, eraserPoints, radius) {
-  const path = Array.isArray(eraserPoints) ? eraserPoints : [];
-  if (!path.length) return false;
-  return strokeIntersectsEraserIndex(annotation, createEraserPathIndex(path, radius), radius);
-}
-
 /**
  * Measures how meaningfully a scribble covers a stroke. A single incidental
  * crossing of a long stroke has low coverage and one intersection run, while

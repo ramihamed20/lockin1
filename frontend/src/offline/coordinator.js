@@ -6,6 +6,7 @@ import { flushPendingOperations, pendingOfflineOperations } from "./queue.js";
 // Registers the Focus and Review operation handlers with the shared queue.
 import "./focusSync.js";
 import { refreshReviewSnapshot } from "./review.js";
+import { captureOfflineSession, currentOfflineUserId } from "./sessionScope.js";
 
 export const DEFAULT_OFFLINE_PREFERENCES = Object.freeze({
   automatic: false,
@@ -69,6 +70,7 @@ export function syncFailureState(error) {
 async function scheduleAutomaticRetry(userId, { failed }) {
   globalThis.clearTimeout(retryTimers.get(userId)?.timer);
   retryTimers.delete(userId);
+  if (currentOfflineUserId() !== String(userId)) return;
   const pending = await pendingOfflineOperations(userId).catch(() => []);
   if (!pending.length) return;
   const failures = lastRuns.get(userId)?.failures || 0;
@@ -95,15 +97,20 @@ export const __testing = Object.freeze({
   scheduledRetry: (userId) => retryTimers.get(userId) || null
 });
 
-async function reconcileAfterFlush(userId, acknowledged) {
+async function reconcileAfterFlush(userId, acknowledged, assertCurrent) {
   const keys = new Set(acknowledged
     .filter(({ operation }) => operation.operation_type.startsWith("active_study_"))
     .map(({ operation }) => operation.entity_id));
   if (keys.size) {
     const { reconcileActiveStudyRuns } = await import("./activeStudy.js");
-    await reconcileActiveStudyRuns(userId, keys, (sheetId, edition) => request(
-      `/focus/managed-active-study/sheets/${sheetId}` + (edition && edition !== "university" ? `?edition=${encodeURIComponent(edition)}` : "")
-    )).catch(() => undefined);
+    await reconcileActiveStudyRuns(userId, keys, async (sheetId, edition) => {
+      assertCurrent();
+      const availability = await request(
+        `/focus/managed-active-study/sheets/${sheetId}` + (edition && edition !== "university" ? `?edition=${encodeURIComponent(edition)}` : "")
+      );
+      assertCurrent();
+      return availability;
+    }, assertCurrent).catch(() => undefined);
   }
 }
 
@@ -123,6 +130,7 @@ async function reconcileAfterFlush(userId, acknowledged) {
  * @param {{ force?: boolean, scheduled?: boolean }} [options]
  */
 export async function synchronizeOffline(userId, onState = () => {}, { force = true, scheduled = false } = {}) {
+  const assertCurrent = captureOfflineSession(userId);
   if (activeRuns.has(userId)) return activeRuns.get(userId);
   if (throttled(userId, force || scheduled)) return null;
   const publish = publisher(userId, onState);
@@ -131,7 +139,7 @@ export async function synchronizeOffline(userId, onState = () => {}, { force = t
     let leaseError = null;
     try {
       const leaseResponse = await request("/offline/lease/");
-      if (!(await saveVerifiedLease(userId, leaseResponse.lease))) {
+      if (!(await saveVerifiedLease(userId, leaseResponse.lease, assertCurrent))) {
         throw new Error("The offline access lease could not be verified on this device.");
       }
     } catch (error) {
@@ -139,18 +147,21 @@ export async function synchronizeOffline(userId, onState = () => {}, { force = t
       if (error?.status === 0 || error?.status === 401) throw error;
       leaseError = error;
     }
+    assertCurrent();
     const hadPendingWork = (await pendingOfflineOperations(userId)).length > 0;
     if (hadPendingWork) publish("syncing");
     const flushed = await flushPendingOperations(userId, { force });
-    await reconcileAfterFlush(userId, flushed.acknowledged);
+    assertCurrent();
+    await reconcileAfterFlush(userId, flushed.acknowledged, assertCurrent);
+    assertCurrent();
     if (leaseError) {
       // Access may have ended after work was recorded. The previous signed
       // lease still proves that work for the sync grace window. A successful
       // upload must be shown as such even though no new content can be issued.
       if (!hadPendingWork) throw leaseError;
       const now = new Date().toISOString();
-      await offlineDatabase.put(userId, "lastSync", now);
-      await offlineDatabase.put(userId, "syncCursor", { at: now, pending: flushed.remaining.length, failedDownloads: 0 });
+      await offlineDatabase.putScoped(userId, "lastSync", now, assertCurrent);
+      await offlineDatabase.putScoped(userId, "syncCursor", { at: now, pending: flushed.remaining.length, failedDownloads: 0 }, assertCurrent);
       publish(flushed.remaining.length ? "partial" : "synced", { xpTotal: flushed.xpTotal });
       return null;
     }
@@ -163,16 +174,18 @@ export async function synchronizeOffline(userId, onState = () => {}, { force = t
         request("/catalog/questions?source=exam"),
         request("/catalog/questions?source=ai-sheet")
       ]);
-      if (Array.isArray(materials?.results)) await offlineDatabase.put(userId, "materials", materials);
+      assertCurrent();
+      if (Array.isArray(materials?.results)) await offlineDatabase.putScoped(userId, "materials", materials, assertCurrent);
       for (const [index, source] of ["exam", "ai-sheet"].entries()) {
-        if (Array.isArray(directories[index]?.results)) await offlineDatabase.put(userId, `question-directory:${source}`, directories[index]);
+        if (Array.isArray(directories[index]?.results)) await offlineDatabase.putScoped(userId, `question-directory:${source}`, directories[index], assertCurrent);
       }
       // Local Review answers are reflected in the stored snapshot; replacing it
       // before they are acknowledged would briefly undo them on screen.
       if (!remaining.some((operation) => operation.operation_type === "review_answer")) {
-        await refreshReviewSnapshot(userId).catch(() => undefined);
+        await refreshReviewSnapshot(userId, assertCurrent).catch(() => undefined);
       }
-      const manifest = await fetchOfflineManifest(userId);
+      assertCurrent();
+      const manifest = await fetchOfflineManifest(userId, assertCurrent);
       const preferences = await readOfflinePreferences(userId);
       let failedDownloads = 0;
       // Without Automatic Downloads nothing is fetched here: a changed item keeps
@@ -185,7 +198,7 @@ export async function synchronizeOffline(userId, onState = () => {}, { force = t
           if (await isOfflineItemStored(userId, item, manifest)) continue;
           publish("downloading");
           try {
-            await downloadOfflineItem(userId, item, () => {}, { manifest });
+            await downloadOfflineItem(userId, item, () => {}, { manifest, assertCurrent });
           } catch {
             // A failed download stays retryable; independent items continue.
             failedDownloads += 1;
@@ -193,8 +206,8 @@ export async function synchronizeOffline(userId, onState = () => {}, { force = t
         }
       }
       const now = new Date().toISOString();
-      await offlineDatabase.put(userId, "lastSync", now);
-      await offlineDatabase.put(userId, "syncCursor", { at: now, pending: remaining.length, failedDownloads });
+      await offlineDatabase.putScoped(userId, "lastSync", now, assertCurrent);
+      await offlineDatabase.putScoped(userId, "syncCursor", { at: now, pending: remaining.length, failedDownloads }, assertCurrent);
       publish(failedDownloads || remaining.length ? "partial" : "synced", { xpTotal: flushed.xpTotal });
       return manifest;
     } catch (error) {
@@ -213,6 +226,7 @@ export async function synchronizeOffline(userId, onState = () => {}, { force = t
     void scheduleAutomaticRetry(userId, { failed: false });
     return manifest;
   } catch (error) {
+    if (!assertCurrent.isCurrent()) throw error;
     const failures = (lastRuns.get(userId)?.failures || 0) + 1;
     lastRuns.set(userId, { at: Date.now(), failures });
     publish(error?.afterFlush ? "partial" : syncFailureState(error));

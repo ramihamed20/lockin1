@@ -15,6 +15,27 @@ from .admin_views import (
     AdminSubjectListView,
     AdminSubjectSheetListView,
 )
+from .personal_sheet_views import (
+    PersonalSheetCollectionView,
+    PersonalSheetDeleteView,
+    PersonalSheetDetailView,
+    PersonalSheetWorkspaceView,
+)
+from .practice_views import (
+    AdminPracticeAnswersView,
+    AdminPracticeDuplicateView,
+    AdminPracticeReorderView,
+    AdminPracticeSetDetailView,
+    AdminPracticeSetListView,
+    AdminPracticeSlideCollectionView,
+    AdminPracticeSlideDetailView,
+    AdminPracticeSlideImageView,
+    AdminPracticeSlideMoveView,
+    PracticeCheckView,
+    PracticeDirectoryView,
+    PracticeHintView,
+    PracticeSetView,
+)
 from .views import (
     ArchiveLearningObjectView,
     CatalogDocumentResolveView,
@@ -22,6 +43,7 @@ from .views import (
     CatalogQuestionMaterialListView,
     CatalogSheetQuestionAnswerView,
     CatalogSheetQuestionListView,
+    CatalogSheetQuestionRetryView,
     CatalogWorkspaceView,
     ManagementLearningObjectDetailView,
     ManagementLearningObjectListView,
@@ -42,6 +64,26 @@ urlpatterns = [
     path("catalog/documents/<uuid:document_id>/workspace", CatalogWorkspaceView.as_view()),
     path("catalog/materials", CatalogMaterialListView.as_view(), name="catalog-materials"),
     path(
+        "catalog/materials/<slug:material_slug>/personal-sheets",
+        PersonalSheetCollectionView.as_view(),
+        name="personal-sheets",
+    ),
+    path(
+        "personal-sheets/delete",
+        PersonalSheetDeleteView.as_view(),
+        name="personal-sheets-delete",
+    ),
+    path(
+        "personal-sheets/<uuid:sheet_id>",
+        PersonalSheetDetailView.as_view(),
+        name="personal-sheet-detail",
+    ),
+    path(
+        "personal-sheets/<uuid:sheet_id>/workspace",
+        PersonalSheetWorkspaceView.as_view(),
+        name="personal-sheet-workspace",
+    ),
+    path(
         "catalog/questions",
         CatalogQuestionMaterialListView.as_view(),
         name="catalog-questions",
@@ -57,8 +99,70 @@ urlpatterns = [
         name="catalog-sheet-question-answer",
     ),
     path(
+        "catalog/sheets/<uuid:sheet_id>/questions/<uuid:question_id>/retry",
+        CatalogSheetQuestionRetryView.as_view(),
+        name="catalog-sheet-question-retry",
+    ),
+    path(
         "catalog/documents/<slug:material_slug>/<slug:sheet_slug>",
         CatalogDocumentResolveView.as_view(),
+    ),
+    path("catalog/practice", PracticeDirectoryView.as_view(), name="practice-directory"),
+    path("catalog/practice/<uuid:set_id>", PracticeSetView.as_view(), name="practice-set"),
+    path(
+        "catalog/practice/<uuid:set_id>/slides/<uuid:slide_id>/check",
+        PracticeCheckView.as_view(),
+        name="practice-check",
+    ),
+    path(
+        "catalog/practice/<uuid:set_id>/slides/<uuid:slide_id>/hint",
+        PracticeHintView.as_view(),
+        name="practice-hint",
+    ),
+    path(
+        "operations/admin/content/subjects/<uuid:subject_id>/practice",
+        AdminPracticeSetListView.as_view(),
+        name="admin-practice-sets",
+    ),
+    path(
+        "operations/admin/content/practice/<uuid:set_id>",
+        AdminPracticeSetDetailView.as_view(),
+        name="admin-practice-set",
+    ),
+    path(
+        "operations/admin/content/practice/<uuid:set_id>/slides",
+        AdminPracticeSlideCollectionView.as_view(),
+        name="admin-practice-slides",
+    ),
+    path(
+        "operations/admin/content/practice/<uuid:set_id>/slides/<uuid:slide_id>",
+        AdminPracticeSlideDetailView.as_view(),
+        name="admin-practice-slide",
+    ),
+    path(
+        "operations/admin/content/practice/<uuid:set_id>/reorder",
+        AdminPracticeReorderView.as_view(),
+        name="admin-practice-reorder",
+    ),
+    path(
+        "operations/admin/content/practice/<uuid:set_id>/answers",
+        AdminPracticeAnswersView.as_view(),
+        name="admin-practice-answers",
+    ),
+    path(
+        "operations/admin/content/practice/<uuid:set_id>/duplicate",
+        AdminPracticeDuplicateView.as_view(),
+        name="admin-practice-duplicate",
+    ),
+    path(
+        "operations/admin/content/practice/<uuid:set_id>/slides/<uuid:slide_id>/move",
+        AdminPracticeSlideMoveView.as_view(),
+        name="admin-practice-slide-move",
+    ),
+    path(
+        "operations/admin/content/practice/<uuid:set_id>/slides/<uuid:slide_id>/image",
+        AdminPracticeSlideImageView.as_view(),
+        name="admin-practice-slide-image",
     ),
     path(
         "operations/admin/content/subjects",

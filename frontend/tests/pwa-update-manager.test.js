@@ -129,6 +129,22 @@ function setup(options) {
   return { env, manager, registration };
 }
 
+test("manual checks queued behind an automatic check ask for the current deployment", async () => {
+  const { manager, registration } = setup();
+  let finishAutomatic;
+  registration.updateImpl = () => new Promise((resolve) => { finishAutomatic = resolve; });
+  const automatic = manager.check();
+  const manual = manager.check({ manual: true });
+  const repeated = manager.check({ manual: true });
+  assert.equal(manual, repeated);
+  registration.updateImpl = async () => { publishUpdate(registration).finishInstall(); };
+  finishAutomatic();
+  await Promise.all([automatic, manual, repeated]);
+  assert.equal(registration.updateCalls, 2);
+  assert.equal(manager.getSnapshot().status, UPDATE_STATUS.AVAILABLE);
+  manager.stop();
+});
+
 test("automatic checks are throttled", () => {
   assert.equal(shouldCheckForUpdate(null, 1000), true);
   assert.equal(shouldCheckForUpdate(1000, 1000 + UPDATE_CHECK_MIN_GAP_MS - 1), false);
@@ -335,10 +351,11 @@ test("checks never overlap, however many triggers fire", async () => {
   const manual = manager.check({ manual: true });
   assert.equal(registration.updateCalls, 1);
 
+  registration.updateImpl = async () => {};
   release();
   await manual;
   env.fire.window("focus");
-  assert.equal(registration.updateCalls, 1, "a focus right after a check is throttled");
+  assert.equal(registration.updateCalls, 2, "the queued manual check finishes before focus is throttled");
   manager.stop();
 });
 

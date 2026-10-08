@@ -1,5 +1,6 @@
 import { offlineDatabase } from "./database.js";
 import { offlineAccessStatus } from "./lease.js";
+import { captureOfflineSession } from "./sessionScope.js";
 
 /**
  * The one place that decides where study content comes from.
@@ -26,28 +27,31 @@ export function offlineUnavailableError(message = "This content hasn’t been do
  * @param {string} userId
  * @param {() => Promise<T>} online
  * @param {() => Promise<T | null | undefined>} offline
- * @param {{ remember?: (value: T) => Promise<unknown> }} [options] `remember`
+ * @param {{ remember?: (value: T, assertCurrent: () => void) => Promise<unknown> }} [options] `remember`
  * stores a successful online answer for a later offline read.
  * @returns {Promise<T>}
  */
 export async function resolveContent(userId, online, offline, { remember } = {}) {
+  const assertCurrent = userId ? captureOfflineSession(userId) : () => {};
   let value;
   try {
     value = await online();
   } catch (error) {
     if (!isNetworkFailure(error) || !userId || !(await offlineAccessStatus(userId).catch(() => ({ available: false }))).available) throw error;
     const stored = await offline();
+    assertCurrent();
     if (stored == null) throw offlineUnavailableError();
     return stored;
   }
-  if (userId && remember) await remember(value).catch(() => undefined);
+  assertCurrent();
+  if (userId && remember) await remember(value, assertCurrent).catch(() => undefined);
   return value;
 }
 
 /** A stored directory or page, keyed within the account's own database. */
 export function resolveStored(userId, key, online) {
   return resolveContent(userId, online, () => offlineDatabase.get(userId, key), {
-    remember: (value) => offlineDatabase.put(userId, key, value)
+    remember: (value, assertCurrent) => offlineDatabase.putScoped(userId, key, value, assertCurrent)
   });
 }
 
@@ -69,26 +73,9 @@ export async function resolveQuestions(userId, sheetId, source, online) {
   });
 }
 
-/** The downloaded Active Study bundle for one edition, or null. */
-export async function resolveActiveStudy(userId, sheetId, edition) {
-  if (!userId || !(await offlineAccessStatus(userId)).available) return null;
-  const { getOfflineActiveStudy } = await import("./downloads.js");
-  return getOfflineActiveStudy(userId, sheetId, edition);
-}
-
-export async function resolveCheckpoint(userId, sheetId, edition, difficulty, part) {
-  const bundle = await resolveActiveStudy(userId, sheetId, edition);
-  return bundle?.difficulties?.[difficulty]?.parts?.find((item) => item.part === part) || null;
-}
-
-export async function resolveFinalExam(userId, sheetId, edition, difficulty) {
-  const bundle = await resolveActiveStudy(userId, sheetId, edition);
-  return bundle?.difficulties?.[difficulty]?.final_exam || null;
-}
-
 export async function resolveReviewData(userId, key, online) {
   const { readOfflineReview, rememberReviewRead } = await import("./review.js");
   return resolveContent(userId, online, () => readOfflineReview(userId, key), {
-    remember: (value) => rememberReviewRead(userId, key, value)
+    remember: (value, assertCurrent) => rememberReviewRead(userId, key, value, assertCurrent)
   });
 }

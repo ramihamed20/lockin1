@@ -105,6 +105,14 @@ async function drawImage(context, item) {
   context.drawImage(image, item.x, item.y, item.width, item.height);
 }
 
+/** A hidden-answer cover prints as the solid box the student studies with. */
+function drawCover(context, item) {
+  context.fillStyle = item.color || "#6d7cff";
+  context.beginPath();
+  context.roundRect(item.x, item.y, item.width, item.height, Math.min(10, item.width / 4, item.height / 4));
+  context.fill();
+}
+
 function drawCard(context, item) {
   const colors = { sticky: "#fff3a8", note: "#edf2ff", lined: "#ffffff", revision: "#ffe8ed" };
   context.fillStyle = colors[item.cardKind] || colors.note;
@@ -239,6 +247,7 @@ export async function renderWorkspacePage({ pdf, pageNumber, background = "blank
     } else if (item.type === "image") {
       try { await drawImage(context, item); } catch { /* Corrupt local image does not hide the rest of the page. */ }
     } else if (item.type === "card") drawCard(context, item);
+    else if (item.type === "cover") drawCover(context, item);
     context.restore();
   }
   context.restore();

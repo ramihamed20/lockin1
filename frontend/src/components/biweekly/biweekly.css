@@ -16,7 +16,10 @@
 }
 
 .biweekly-current.is-loading { min-height: 96px; }
-.biweekly-skeleton { display: block; width: min(320px, 70%); height: 18px; }
+.biweekly-skeleton-lines { display: grid; flex: 1 1 auto; gap: 8px; min-width: 0; }
+.biweekly-skeleton { display: block; width: min(240px, 70%); height: 18px; }
+.biweekly-skeleton.is-kicker { width: min(110px, 40%); height: 12px; }
+.biweekly-skeleton.is-meta { width: min(280px, 85%); height: 12px; }
 
 .biweekly-current-main {
   display: flex;
@@ -146,7 +149,9 @@
 
 html.ix-hover .biweekly-row-actions a:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); }
 
-.biweekly-empty { margin: 0; padding-inline: 16px; color: var(--muted); }
+/* Aligned with the history title above it: with no list there is no row inset
+   to line up with, and the text sat 12px further in than its own heading. */
+.biweekly-empty { margin: 0; padding-inline: 4px; color: var(--muted); }
 
 @media (pointer: coarse) {
   .biweekly-row-actions a { min-height: 44px; }

@@ -106,8 +106,11 @@ test("tool settings exit sooner and unmount immediately with reduced motion", as
   await pen.click();
   const inspector = page.locator(".workspace-v2-tool-options");
   await expect(inspector).toBeVisible();
+  await page.clock.install();
+  await page.clock.pauseAt(new Date(Date.now() + 60_000));
   await pen.click();
   await expect(inspector).toHaveClass(/is-exiting/);
+  await page.clock.fastForward(200);
   await expect(inspector).toHaveCount(0);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await pen.click();

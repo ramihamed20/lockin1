@@ -17,7 +17,7 @@ import { IDLE_DELAY_MS, SKIP_SECONDS, formatMediaTime, skipTarget } from "./medi
  * - an admin video is a real <video> element;
  * - a YouTube embed is driven over postMessage (see lib/youtube.js);
  * - the default lofi (the built-in scene, or an admin image) plays and pauses
- *   its generated soundtrack (lofiAudio.js) together with the animation.
+ *   its generated rain (lofiAudio.js) together with the animation.
  */
 
 const NO_MEDIA = { canPlay: false, canSeek: false, hasAudio: false, needsTap: false, playing: false, time: 0, duration: 0, volume: 1, muted: false, toggle() {}, seekTo() {}, skip() {}, setVolume() {}, toggleMute() {} };
@@ -26,7 +26,7 @@ function reducedMotion() {
   return typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches);
 }
 
-/** A <video> element. Autoplay is attempted with sound, never muted on purpose. */
+/** A scene video. Its silent picture plays alongside the player's nature audio. */
 export function useVideoMedia(ref, { enabled, src }) {
   const [state, setState] = useState({ playing: false, time: 0, duration: 0, volume: 1, muted: false });
 
@@ -43,8 +43,7 @@ export function useVideoMedia(ref, { enabled, src }) {
     const events = ["play", "pause", "timeupdate", "durationchange", "loadedmetadata", "volumechange", "ended", "seeked"];
     events.forEach((name) => video.addEventListener(name, sync));
     sync();
-    // A browser that refuses autoplay with sound leaves the video paused; the
-    // reader's first Play is a user gesture and starts it with sound.
+    // A browser that refuses autoplay leaves the scene paused until Play.
     if (!reducedMotion()) video.play()?.catch?.(sync);
     return () => events.forEach((name) => video.removeEventListener(name, sync));
   }, [ref, enabled, src]);

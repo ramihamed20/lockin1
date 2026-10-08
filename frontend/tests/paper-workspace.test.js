@@ -47,7 +47,7 @@ test("search stays inside Lock-in: nothing links or opens youtube.com", async ()
   assert.match(page, /focusApi\.searchYouTube\(/);
 });
 
-test("the synthesized lofi loop is audible, never clips, and needs no Web Audio to build", async () => {
+test("the generated rain is audible, never clips, and needs no Web Audio to build", async () => {
   const { synthesizeLofiLoop, LOFI_LOOP_SECONDS } = await import("../src/workspace/paper/lofiAudio.js");
   const samples = synthesizeLofiLoop();
   assert.equal(samples.length, Math.ceil(LOFI_LOOP_SECONDS * 24000));
@@ -64,14 +64,17 @@ test("the synthesized lofi loop is audible, never clips, and needs no Web Audio 
   assert.deepEqual(synthesizeLofiLoop().subarray(0, 64), samples.subarray(0, 64));
 });
 
-test("the lofi soundtrack is one seamless loop of whole bars", async () => {
-  const { lofiScore, LOFI_LOOP_SECONDS } = await import("../src/workspace/paper/lofiAudio.js");
-  const events = lofiScore();
-  assert.ok(LOFI_LOOP_SECONDS > 20 && LOFI_LOOP_SECONDS < 40);
-  assert.ok(events.some((event) => event.kind === "keys") && events.some((event) => event.kind === "bass"));
-  for (const event of events) {
-    assert.ok(event.time >= 0 && event.time < LOFI_LOOP_SECONDS, `${event.kind} at ${event.time}`);
-    assert.ok(event.gain > 0 && event.gain <= 1);
+test("rain loops without a boundary click or a silent gap", async () => {
+  const { synthesizeLofiLoop } = await import("../src/workspace/paper/lofiAudio.js");
+  const samples = synthesizeLofiLoop();
+  let jumpEnergy = 0;
+  for (let index = 1; index < samples.length; index += 1) jumpEnergy += (samples[index] - samples[index - 1]) ** 2;
+  const typicalJump = Math.sqrt(jumpEnergy / (samples.length - 1));
+  assert.ok(Math.abs(samples[0] - samples.at(-1)) < typicalJump * 3, "loop seam clicks");
+  for (const start of [0, samples.length - 24000]) {
+    let energy = 0;
+    for (let index = start; index < start + 24000; index += 1) energy += samples[index] ** 2;
+    assert.ok(Math.sqrt(energy / 24000) > 0.05, "loop fades into silence");
   }
 });
 
@@ -86,6 +89,67 @@ test("Paper Workspace is a subscription-protected Study route in the sidebar", a
   ]);
   assert.match(app, /<Route path="\/paper-workspace" element=\{<PaperWorkspace user=\{user\} \/>\} \/>/);
   assert.match(guard, /"\/paper-workspace"/);
+});
+
+const sheet = (id, ready, extra = {}) => ({ slug: `s-${id}`, learningObjectId: id, title: `Sheet ${id}`, hasActiveStudy: ready, ...extra });
+
+test("a subject is listed whenever it has a published sheet, ready or not", async () => {
+  const { buildPaperGroups } = await import("../src/workspace/paper/sheetGroups.js");
+  const groups = buildPaperGroups([
+    { slug: "biochemistry-1", title: "Biochemistry 1", sheets: [sheet("b1", true)] },
+    // The reported bug: every sheet is not ready, and the whole subject used to vanish.
+    { slug: "histology-1", title: "Histology 1", sheets: [sheet("h1", false), sheet("h2", false)] }
+  ]);
+  assert.deepEqual(groups.map((group) => group.slug), ["biochemistry-1", "histology-1"]);
+  const histology = groups[1];
+  assert.equal(histology.sheets.length, 2);
+  assert.equal(histology.readyCount, 0);
+  assert.ok(histology.sheets.every((item) => item.ready === false));
+});
+
+test("every sheet of a subject shows, and only ready ones are counted as startable", async () => {
+  const { buildPaperGroups } = await import("../src/workspace/paper/sheetGroups.js");
+  const [group] = buildPaperGroups([
+    { slug: "x", title: "X", sheets: [sheet("1", true), sheet("2", false), sheet("3", true), sheet("4", false), sheet("5", true)] }
+  ]);
+  assert.deepEqual(group.sheets.map((item) => item.learningObjectId), ["1", "2", "3", "4", "5"]);
+  assert.equal(group.readyCount, 3);
+  assert.deepEqual(group.sheets.map((item) => item.ready), [true, false, true, false, true]);
+});
+
+test("visibility depends on the sheets themselves, never on a subject's name, slug or position", async () => {
+  const { buildPaperGroups } = await import("../src/workspace/paper/sheetGroups.js");
+  const sheets = [sheet("a", false)];
+  for (const [slug, title] of [["histology-1", "Histology 1"], ["biochemistry-1", "Biochemistry 1"], ["", ""], ["anything", "Anything 99"]]) {
+    const groups = buildPaperGroups([{ slug, title, sheets }]);
+    assert.equal(groups.length, 1, `${slug || "(blank)"}`);
+  }
+  // Same input in a different order lists the same subjects in that order.
+  const a = { slug: "a", title: "A", sheets: [sheet("1", true)] };
+  const b = { slug: "b", title: "B", sheets: [sheet("2", false)] };
+  assert.deepEqual(buildPaperGroups([a, b]).map((g) => g.slug), ["a", "b"]);
+  assert.deepEqual(buildPaperGroups([b, a]).map((g) => g.slug), ["b", "a"]);
+});
+
+test("a subject with no openable sheet is the only kind left out", async () => {
+  const { buildPaperGroups } = await import("../src/workspace/paper/sheetGroups.js");
+  const groups = buildPaperGroups([
+    { slug: "empty", title: "No sheets", sheets: [] },
+    { slug: "missing", title: "Sheets field absent" },
+    { slug: "no-id", title: "Unopenable", sheets: [sheet("", true), sheet(null, true)] },
+    { slug: "one", title: "One", sheets: [sheet("only", false)] }
+  ]);
+  assert.deepEqual(groups.map((group) => group.slug), ["one"]);
+  assert.deepEqual(buildPaperGroups(undefined), []);
+  assert.deepEqual(buildPaperGroups(null), []);
+});
+
+test("the page uses the shared grouping and does not filter subjects by readiness itself", async () => {
+  const page = await readFile(new URL("../src/pages/PaperWorkspace.jsx", import.meta.url), "utf8");
+  assert.match(page, /buildPaperGroups\(materials\)/);
+  assert.doesNotMatch(page, /filter\(\(sheet\) => sheet\.learningObjectId && sheet\.hasActiveStudy\)/);
+  // Start is the only gate: a not-ready sheet is disabled, not hidden.
+  assert.match(page, /disabled=\{!item\.ready\}/);
 });
 
 test("skips move exactly 10 seconds and stay inside the media", async () => {
@@ -113,19 +177,18 @@ test("the embed takes Lock-in's control bar and is never muted on purpose", () =
   assert.equal(url.searchParams.get("mute"), null);
 });
 
-test("workspace media plays with sound; only admin previews are muted", async () => {
-  const [media, panel, controls] = await Promise.all([
+test("Lo-Fi scene videos are silent and the player supplies nature audio", async () => {
+  const [media, panel, player] = await Promise.all([
     readFile(new URL("../src/workspace/paper/WorkspaceMedia.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/admin/LofiScenesPanel.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/workspace/paper/MediaControls.jsx", import.meta.url), "utf8")
+    readFile(new URL("../src/pages/PaperWorkspace.jsx", import.meta.url), "utf8")
   ]);
-  assert.match(media, /muted=\{preview\}/);
-  assert.doesNotMatch(media, /^\s+muted\s*$/m);
+  assert.match(media, /^\s+muted\s*$/m);
   // Every admin preview (list thumbnail, focal editor, crop frames) is silent.
   const previews = panel.match(/<WorkspaceMedia [^>]*\/>/g) || [];
   assert.ok(previews.length >= 3);
   assert.ok(previews.every((tag) => / preview \/>$/.test(tag)));
-  assert.doesNotMatch(controls, /\.muted = true/);
+  assert.match(player, /useLofiMedia\(\{ enabled: showLofi,/);
 });
 
 test("both checkpoint surfaces guard exits and discard only the open attempt", async () => {

@@ -56,6 +56,8 @@
   font-variant-numeric: tabular-nums;
 }
 
+.question-progress-side { display: inline-flex; align-items: center; gap: 10px; }
+
 .question-progress-meta .muted {
   color: var(--soft);
   font-size: var(--text-sm);
@@ -244,7 +246,7 @@ html.ix-hover .question-player-card .choices button:not(:disabled):hover {
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  animation: study-reveal var(--motion-panel-duration) var(--motion-enter-ease) both;
+  animation: study-reveal var(--motion-panel-duration) var(--motion-enter-ease) backwards;
   /* Brought into view above the pinned action bar, not underneath it. */
   scroll-margin-bottom: calc(var(--mobile-bottom-nav-height, 0px) + 84px);
 }
@@ -324,11 +326,11 @@ html.ix-hover :is(.question-player-card, .review-answer-outcome) .question-expla
 }
 
 .question-player[data-travel="forward"] .question-player-card {
-  animation: study-in-forward 260ms var(--motion-enter-ease) both;
+  animation: study-in-forward 260ms var(--motion-enter-ease) backwards;
 }
 
 .question-player[data-travel="back"] .question-player-card {
-  animation: study-in-back 260ms var(--motion-enter-ease) both;
+  animation: study-in-back 260ms var(--motion-enter-ease) backwards;
 }
 
 :root[dir="rtl"] .question-player[data-travel="forward"] .question-player-card { animation-name: study-in-back; }
@@ -435,11 +437,13 @@ html.ix-hover .question-player > .question-player-actions .btn-soft:first-child:
 .question-session-intro h2 { margin: 0; font-size: var(--text-lg); }
 .question-session-intro p { margin: 2px 0 0; color: var(--muted); font-size: var(--text-sm); }
 .question-session-intro > .question-rail { grid-column: 1 / -1; grid-row: 2; }
-.question-session-intro > .btn { grid-column: 3; grid-row: 1; }
+.question-session-intro-actions { grid-column: 3; grid-row: 1; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.question-session-intro-actions .btn { white-space: nowrap; }
 
 @media (max-width: 560px) {
   .question-session-intro { grid-template-columns: 44px minmax(0, 1fr); }
-  .question-session-intro > .btn { grid-column: 1 / -1; grid-row: auto; width: 100%; }
+  .question-session-intro-actions { grid-column: 1 / -1; grid-row: auto; flex-direction: column-reverse; }
+  .question-session-intro-actions .btn { width: 100%; }
 }
 
 .question-player-summary {
@@ -894,6 +898,7 @@ html.ix-hover .review-session-header > .btn:hover { color: var(--text); backgrou
 .review-question-source span { font-weight: var(--weight-medium); }
 .review-question-source span::after { content: " · "; }
 .review-question-source strong { color: var(--muted); font-size: var(--text-xs); font-weight: var(--weight-semibold); }
+.review-question-source .review-missed-count { margin-inline-start: var(--space-2, 0.5rem); padding: 0.0625rem 0.5rem; border-radius: 999px; background: color-mix(in srgb, var(--danger, #c0392b) 12%, transparent); color: var(--danger, #c0392b); font-style: normal; font-weight: var(--weight-semibold); }
 
 .review-session-question > h2 {
   margin: 0;
@@ -950,7 +955,7 @@ html.ix-hover .review-choice:not(.is-correct):not(.is-wrong):not(.is-selected):h
   border-top: 1px solid var(--polish-line);
   border-radius: 0;
   background: transparent;
-  animation: study-reveal var(--motion-panel-duration) var(--motion-enter-ease) both;
+  animation: study-reveal var(--motion-panel-duration) var(--motion-enter-ease) backwards;
 }
 
 .review-answer-outcome > svg { flex: 0 0 auto; margin-top: 2px; }

@@ -19,7 +19,7 @@ from apps.payments.telegram import ManualPaymentTelegramMessage, notify_manual_p
 from apps.product_catalog.models import Plan, Price
 from apps.subscriptions.services import create_trial_for_user
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("legacy_duration_prices")]
 
 
 @pytest.fixture(autouse=True)

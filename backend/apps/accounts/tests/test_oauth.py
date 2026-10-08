@@ -135,6 +135,7 @@ def test_google_callback_creates_user_in_existing_session_system(
         email_verified=True,
         full_name="OAuth Student",
         is_private_relay=False,
+        hosted_domain="example.com",
     )
 
     with (
@@ -192,6 +193,7 @@ def test_verified_existing_email_is_linked_without_duplicate_user(settings: Any)
         email_verified=True,
         full_name="Ignored Provider Name",
         is_private_relay=False,
+        hosted_domain="example.com",
     )
 
     with patch("apps.accounts.oauth.exchange_oauth_code", return_value=profile):
@@ -219,6 +221,7 @@ def test_unverified_existing_email_cannot_be_taken_over_or_replayed(settings: An
         email_verified=True,
         full_name="Attacker",
         is_private_relay=False,
+        hosted_domain="example.com",
     )
 
     with patch("apps.accounts.oauth.exchange_oauth_code", return_value=profile):
@@ -494,6 +497,7 @@ def test_social_registration_failures_are_converted_to_safe_domain_errors(settin
         email_verified=True,
         full_name="Safe Failure",
         is_private_relay=False,
+        hosted_domain="example.com",
     )
     with (
         patch("apps.accounts.oauth._registration_enabled", return_value=False),
@@ -524,6 +528,7 @@ def test_social_registration_failures_are_converted_to_safe_domain_errors(settin
         email_verified=True,
         full_name="Identity Race",
         is_private_relay=False,
+        hosted_domain="example.com",
     )
     with (
         patch("apps.accounts.oauth.SocialIdentity.objects.create", side_effect=IntegrityError),
@@ -542,6 +547,7 @@ def test_social_registration_failures_are_converted_to_safe_domain_errors(settin
         email_verified=True,
         full_name="Inactive Match",
         is_private_relay=False,
+        hosted_domain="example.com",
     )
     with pytest.raises(OAuthAccountLinkError, match="cannot sign in"):
         resolve_social_user(profile=inactive_profile, flow=registration_flow)
@@ -567,6 +573,7 @@ def test_social_identity_reconnect_updates_metadata_and_blocks_unsafe_links(sett
         email_verified=True,
         full_name="Linked Student",
         is_private_relay=False,
+        hosted_domain="example.com",
     )
     assert resolve_social_user(profile=refreshed_profile, flow=flow) == linked_user
     identity.refresh_from_db()
@@ -586,6 +593,7 @@ def test_social_identity_reconnect_updates_metadata_and_blocks_unsafe_links(sett
         email_verified=False,
         full_name="Unverified",
         is_private_relay=False,
+        hosted_domain="example.com",
     )
     with pytest.raises(OAuthAccountLinkError, match="verified email"):
         resolve_social_user(profile=missing_verified_email, flow=flow)
@@ -605,6 +613,7 @@ def test_social_identity_reconnect_updates_metadata_and_blocks_unsafe_links(sett
         email_verified=True,
         full_name="Already Linked",
         is_private_relay=False,
+        hosted_domain="example.com",
     )
     with pytest.raises(OAuthAccountLinkError, match="different account"):
         resolve_social_user(profile=conflicting_profile, flow=flow)
@@ -702,6 +711,7 @@ def test_google_login_signs_in_an_existing_social_account(settings: Any) -> None
         email_verified=True,
         full_name="Returning Student",
         is_private_relay=False,
+        hosted_domain="example.com",
     )
 
     with patch("apps.accounts.oauth.exchange_oauth_code", return_value=profile):
@@ -732,6 +742,7 @@ def test_a_new_google_user_is_created_from_either_screen(settings: Any, intent: 
         email_verified=True,
         full_name="First Timer",
         is_private_relay=False,
+        hosted_domain="example.com",
     )
 
     with patch("apps.accounts.oauth.exchange_oauth_code", return_value=profile):
@@ -758,6 +769,7 @@ def test_the_accepted_policy_version_is_recorded_against_the_new_account(setting
         email_verified=True,
         full_name="Recorded Consent",
         is_private_relay=False,
+        hosted_domain="example.com",
     )
 
     with patch("apps.accounts.oauth.exchange_oauth_code", return_value=profile):
@@ -788,6 +800,7 @@ def test_a_flow_without_recorded_consent_cannot_create_an_account(settings: Any)
         email_verified=True,
         full_name="No Consent",
         is_private_relay=False,
+        hosted_domain="example.com",
     )
 
     for intent in ("login", "register"):
@@ -834,6 +847,7 @@ def test_consented_login_creation_still_enforces_state_binding_and_single_use(
         email_verified=True,
         full_name="Protected",
         is_private_relay=False,
+        hosted_domain="example.com",
     )
 
     # The state alone is not enough: another browser holds no binding cookie.
@@ -872,6 +886,7 @@ def test_google_signup_after_the_signup_prompt_creates_the_account(settings: Any
         email_verified=True,
         full_name="First Timer",
         is_private_relay=False,
+        hosted_domain="example.com",
     )
 
     with patch("apps.accounts.oauth.exchange_oauth_code", return_value=profile):
@@ -897,6 +912,7 @@ def test_disabled_registration_still_reports_a_closed_platform(settings: Any) ->
         email_verified=True,
         full_name="Closed Platform",
         is_private_relay=False,
+        hosted_domain="example.com",
     )
 
     with (
@@ -931,6 +947,7 @@ def _complete_google_signup(
         email_verified=True,
         full_name=provider_name,
         is_private_relay=False,
+        hosted_domain="example.com",
     )
     with patch("apps.accounts.oauth.exchange_oauth_code", return_value=profile):
         response = client.get(
@@ -1099,6 +1116,7 @@ def test_an_existing_google_account_keeps_its_name_and_signs_in_unchanged(settin
         email_verified=True,
         full_name="Rami ha",
         is_private_relay=False,
+        hosted_domain="example.com",
     )
 
     with patch("apps.accounts.oauth.exchange_oauth_code", return_value=profile):

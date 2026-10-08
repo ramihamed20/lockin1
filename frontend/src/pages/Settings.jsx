@@ -18,6 +18,7 @@ import { Page, ErrorPanel, RadioGroup, RadioOption, Switch } from "../components
 import { ResponsiveThemePreview } from "../components/shared/ResponsiveThemePreview.jsx";
 import OfflineSettings from "../offline/OfflineSettings.jsx";
 import AppUpdateSettings from "../pwa/AppUpdateSettings.jsx";
+import FeedbackSettings from "./Feedback.jsx";
 import { BUILD_INFO } from "../pwa/buildInfo.js";
 import { UPDATE_STATUS } from "../pwa/updateManager.js";
 import { usePwaUpdates } from "../pwa/usePwaUpdates.js";
@@ -36,6 +37,7 @@ const SECTIONS = [
   { id: "appearance", labelKey: "common.appearance", icon: "palette" },
   { id: "notifications", labelKey: "settings.notifications", icon: "bell" },
   { id: "offline", labelKey: "offline.title", icon: "package" },
+  { id: "suggest", labelKey: "settings.suggest.section", icon: "messages" },
   { id: "updates", labelKey: "settings.updates.section", icon: "sparkles" }
 ];
 
@@ -183,6 +185,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
     appearance: themeValue,
     notifications: reminderSettings.enabled ? reminderSettings.time : t("settings.valueOff"),
     offline: "",
+    suggest: "",
     updates: updateStatus === UPDATE_STATUS.AVAILABLE || updateStatus === UPDATE_STATUS.RELOAD_REQUIRED
       ? t("settings.updates.availableShort")
       : BUILD_INFO.version
@@ -341,6 +344,8 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
 
           {activeSection === "offline" && user?.id && <OfflineSettings userId={user.id} />}
 
+          {activeSection === "suggest" && <FeedbackSettings />}
+
           {activeSection === "updates" && <AppUpdateSettings />}
 
           {saving && <p className="save-hint settings-v2-saving" role="status">{t("settings.saving")}</p>}
@@ -474,9 +479,9 @@ function PasswordCard({ id, headingId }) {
   return <div className="ui-group-block settings-v2-block" id={id}>
     <h3 className="ui-group-title" id={headingId} tabIndex={-1}>{t("settings.changePassword")}</h3>
     <form className="ui-group settings-v2-form" onSubmit={submit}>
-      <label className="field"><span>{t("settings.currentPassword")}</span><input type="password" autoComplete="current-password" value={form.currentPassword} onChange={(event) => setForm({ ...form, currentPassword: event.target.value })} required {...fieldErrorAttributes(error, "current_password", "settings-current-password-error")} /><AccountFieldErrors error={error} field="current_password" id="settings-current-password-error" /></label>
-      <label className="field"><span>{t("settings.newPassword")}</span><input type="password" autoComplete="new-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required {...fieldErrorAttributes(error, "new_password", "settings-new-password-error")} /><AccountFieldErrors error={error} field="new_password" id="settings-new-password-error" /></label>
-      <label className="field"><span>{t("settings.confirmNewPassword")}</span><input type="password" autoComplete="new-password" value={form.passwordConfirm} onChange={(event) => setForm({ ...form, passwordConfirm: event.target.value })} required {...fieldErrorAttributes(error, "new_password_confirm", "settings-confirm-password-error")} /><AccountFieldErrors error={error} field="new_password_confirm" id="settings-confirm-password-error" /></label>
+      <label className="field"><span>{t("settings.currentPassword")}</span><input type="password" autoComplete="current-password" value={form.currentPassword} onChange={(event) => setForm((current) => ({ ...current, currentPassword: event.target.value }))} required {...fieldErrorAttributes(error, "current_password", "settings-current-password-error")} /><AccountFieldErrors error={error} field="current_password" id="settings-current-password-error" /></label>
+      <label className="field"><span>{t("settings.newPassword")}</span><input type="password" autoComplete="new-password" value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} required {...fieldErrorAttributes(error, "new_password", "settings-new-password-error")} /><AccountFieldErrors error={error} field="new_password" id="settings-new-password-error" /></label>
+      <label className="field"><span>{t("settings.confirmNewPassword")}</span><input type="password" autoComplete="new-password" value={form.passwordConfirm} onChange={(event) => setForm((current) => ({ ...current, passwordConfirm: event.target.value }))} required {...fieldErrorAttributes(error, "new_password_confirm", "settings-confirm-password-error")} /><AccountFieldErrors error={error} field="new_password_confirm" id="settings-confirm-password-error" /></label>
       <AccountFieldErrors error={error} />
       <div className="settings-v2-form-actions">
         <span role="status">{message}</span>
@@ -632,7 +637,7 @@ function ConnectedAccountsCard({ email }) {
   ];
   return <div className="ui-group-block settings-v2-block">
     <h3 className="ui-group-title">{t("settings.connectedAccounts")}</h3>
-    <ul className="ui-group">
+    <ul className="ui-group settings-v2-providers">
       {providers.map((provider) => <li key={provider.id} className="ui-row">
         <span className="ui-row-icon"><Icon name={provider.icon} size={17} /></span>
         <span className="ui-row-body"><strong>{provider.title}</strong><small dir="auto">{provider.detail}</small></span>

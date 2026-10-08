@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Any
 
 from django.db import models
@@ -101,6 +102,13 @@ class Price(models.Model):
         INCLUSIVE = "inclusive", "Inclusive"
         EXCLUSIVE = "exclusive", "Exclusive"
 
+    class Eligibility(models.TextChoices):
+        # A restricted price replaces the general price of the same plan version
+        # for the readers it names; everyone else never sees it.
+        EVERYONE = "", "Everyone"
+        LOYALTY_2026 = "loyalty_2026", "Paid subscribers before the first-month offer ended"
+        FOUR_MONTH_UPGRADE = "four_month_upgrade", "Four-month subscribers upgrading"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     plan_version = models.ForeignKey(PlanVersion, on_delete=models.PROTECT, related_name="prices")
     code = models.SlugField(max_length=80, unique=True)
@@ -114,6 +122,13 @@ class Price(models.Model):
         max_length=12, choices=TaxBehavior.choices, default=TaxBehavior.UNSPECIFIED
     )
     first_subscription_only = models.BooleanField(default=False)
+    eligibility = models.CharField(
+        max_length=40, choices=Eligibility.choices, default=Eligibility.EVERYONE, blank=True
+    )
+    # Empty: pay in full only. Otherwise the amounts of each installment, the
+    # first due at purchase and each later one a month after the previous; they
+    # always sum to ``amount_minor``.
+    installment_amounts_minor = models.JSONField(default=list, blank=True)
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.DRAFT)
     valid_from = models.DateTimeField(null=True, blank=True)
     valid_until = models.DateTimeField(null=True, blank=True)
@@ -151,4 +166,25 @@ class Price(models.Model):
     def save(self, *args: Any, **kwargs: Any) -> None:
         self.currency = self.currency.upper()
         self.region_code = self.region_code.upper()
+        amounts = self.installment_amounts_minor or []
+        if amounts and (
+            len(amounts) < 2
+            or any(not isinstance(value, int) or value <= 0 for value in amounts)
+            or sum(amounts) != self.amount_minor
+        ):
+            raise ValueError(
+                "Installments must be two or more positive amounts summing to the price."
+            )
         super().save(*args, **kwargs)
+
+    @property
+    def fixed_period_ends_at(self) -> datetime | None:
+        """The calendar end of a term plan (a semester), or ``None`` for a duration plan."""
+        return fixed_period_end(self.plan_version)
+
+
+def fixed_period_end(plan_version: "PlanVersion") -> datetime | None:
+    value = (plan_version.terms or {}).get("fixed_period_ends_at")
+    if not value:
+        return None
+    return datetime.fromisoformat(str(value))

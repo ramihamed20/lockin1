@@ -14,7 +14,7 @@ import OfflineExpiredScreen from "../../offline/OfflineExpiredScreen.jsx";
 const SUBSCRIPTION_PROTECTED_PATHS = [
   "/dashboard", "/study-plan", "/materials", "/paper-workspace", "/lock-in", "/search",
   "/questions", "/review", "/bookmarks", "/progress", "/progression",
-  "/achievements"
+  "/achievements", "/whiteboards"
 ];
 
 function isDefinitelyOffline() {

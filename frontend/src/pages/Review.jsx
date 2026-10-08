@@ -42,7 +42,7 @@ export default function ReviewCenter({ user = null }) {
   const review = useAsyncData(() => loadReviewCenter(user?.id || ""), [user?.id]);
   const biweekly = useBiweekly("review");
   if (review.loading) return <ReviewCenterSkeleton />;
-  if (review.error) return <Page width="reading" title={t("review.center")}><ErrorPanel message={review.error} onRetry={review.reload} /></Page>;
+  if (review.error) return <Page width="reading" title={t("review.center")} showHeading><ErrorPanel message={review.error} onRetry={review.reload} /></Page>;
 
   const { bank, queue, weekly } = review.data;
   const weeklyStatus = weekly.session?.status;
@@ -109,7 +109,7 @@ export default function ReviewCenter({ user = null }) {
 
 function ReviewCenterSkeleton() {
   const { t } = useI18n();
-  return <Page width="reading" title={t("review.center")}><div className="review-center-skeleton" aria-label={t("review.loadingCenter")} aria-busy="true"><span /><span /><span /></div></Page>;
+  return <Page width="reading" title={t("review.center")} showHeading><div className="review-center-skeleton" aria-label={t("review.loadingCenter")} aria-busy="true"><span /><span /><span /></div></Page>;
 }
 
 function SubjectRow({ subject }) {
@@ -124,14 +124,14 @@ function RecentMistake({ item }) {
   // One row per mistake: the question, what you chose struck through beside
   // what was right, and where it came from. The answer labels stay for
   // assistive technology; sighted readers get the strike and the check.
-  const content = <><div className="recent-mistake-marker" aria-hidden="true"><Icon name="x" size={16} /></div><div className="recent-mistake-copy"><h3 dir="auto">{item.prompt}</h3><dl className="recent-mistake-answers"><div className="is-wrong"><dt>{t("review.yourAnswer")}</dt><dd dir="auto">{selected}</dd></div><Icon className="recent-mistake-arrow" name="chevron-right" size={14} aria-hidden="true" /><div className="is-correct"><dt>{t("review.correctAnswer")}</dt><dd dir="auto">{correct}</dd></div></dl><p className="recent-mistake-source" dir="auto">{item.subject_label || t("review.otherSubject")} · {item.source_label || item.original_source?.label || t("review.sourceUnavailable")}{item.source_question_index ? ` · ${t("review.questionIndex", { index: item.source_question_index })}` : ""} · <time dateTime={item.answered_at}>{relativeTime(item.answered_at, t)}</time></p></div>{item.subject_key && <Icon className="recent-mistake-chevron" name="chevron-right" size={17} aria-hidden="true" />}</>;
+  const content = <><div className="recent-mistake-marker" aria-hidden="true"><Icon name="x" size={16} /></div><div className="recent-mistake-copy"><h3 dir="auto">{item.prompt}</h3><dl className="recent-mistake-answers"><div className="is-wrong"><dt>{t("review.yourAnswer")}</dt><dd dir="auto">{selected}</dd></div><Icon className="recent-mistake-arrow" name="chevron-right" size={14} aria-hidden="true" /><div className="is-correct"><dt>{t("review.correctAnswer")}</dt><dd dir="auto">{correct}</dd></div></dl><p className="recent-mistake-source" dir="auto">{item.subject_label || t("review.otherSubject")} · {item.source_label || item.original_source?.label || t("review.sourceUnavailable")}{item.source_question_index ? ` · ${t("review.questionIndex", { index: item.source_question_index })}` : ""}{item.mistake_count > 1 ? ` · ${t("review.missedTimes", { count: item.mistake_count })}` : ""} · <time dateTime={item.answered_at}>{relativeTime(item.answered_at, t)}</time></p></div>{item.subject_key && <Icon className="recent-mistake-chevron" name="chevron-right" size={17} aria-hidden="true" />}</>;
   return item.subject_key ? <Link className="recent-mistake" to={`/review/bank/${encodeURIComponent(item.subject_key)}`}>{content}</Link> : <article className="recent-mistake">{content}</article>;
 }
 
 export function ReviewBank({ user = null }) {
   const { t } = useI18n();
   const bank = useAsyncData(() => reviewApi.getBank(user?.id || ""), [user?.id]);
-  if (bank.loading) return <LoadingPanel variant="list" />;
+  if (bank.loading) return <Page width="reading" title={t("review.bank")}><LoadingPanel variant="list" /></Page>;
   if (bank.error) return <Page width="reading" title={t("review.bank")}><ErrorPanel message={bank.error} onRetry={bank.reload} /></Page>;
   return (
     <Page width="reading" title={t("review.bank")} subtitle={t("review.bankSubtitle")}>
@@ -150,7 +150,7 @@ function ReviewQuestionCard({ item, selectedIds = [], onSelect, outcome, busy, e
   const multiple = item.answer_mode === "multiple";
   return (
     <article className="review-session-question">
-      <div className="review-question-source"><span>{t("review.originallyFrom")}</span><strong dir="auto">{sourceDescription(item, t)}</strong></div>
+      <div className="review-question-source"><span>{t("review.originallyFrom")}</span><strong dir="auto">{sourceDescription(item, t)}</strong>{item.mistake_count > 1 && <em className="review-missed-count">{t("review.missedTimes", { count: item.mistake_count })}</em>}</div>
       <h2 dir="auto">{item.prompt}</h2>
       <fieldset className="review-choice-list" disabled={busy || Boolean(outcome)}>
         <legend className="visually-hidden">{t(multiple ? "review.chooseEvery" : "review.chooseOne")}</legend>
@@ -162,7 +162,7 @@ function ReviewQuestionCard({ item, selectedIds = [], onSelect, outcome, busy, e
           return <label className={`review-choice ${state}`} key={option.id}><input type={multiple ? "checkbox" : "radio"} name={`review-answer-${item.id}`} value={option.id} checked={selected} onChange={() => onSelect(option.id, multiple)} /><span className="review-choice-letter">{String.fromCharCode(65 + index)}</span><span dir="auto">{option.text || t("review.optionUnavailable")}</span>{isCorrect && <span className="review-choice-state"><Icon name="check" size={18} /> {t("review.correct")}</span>}{isWrong && <span className="review-choice-state"><Icon name="x" size={18} /> {t("review.yourAnswer")}</span>}</label>;
         })}
       </fieldset>
-      {!outcome && <button className="btn btn-primary review-submit-answer" type="button" disabled={!selectedIds.length || busy} onClick={onSubmit}>{t(busy ? "review.checking" : "review.checkAnswer")}</button>}
+      {!outcome && <button className="btn btn-primary review-submit-answer" type="button" disabled={!selectedIds.length || busy} aria-busy={busy || undefined} onClick={onSubmit}>{t(busy ? "review.checking" : "review.checkAnswer")}</button>}
       {outcome && <section className={`review-answer-outcome ${outcome.was_correct ? "is-correct" : "is-incorrect"}`} role="status" aria-live="polite"><Icon name={outcome.was_correct ? "check" : "alert-triangle"} size={20} /><div><strong>{t(outcome.was_correct ? "review.correctMoved" : "review.notYet")}</strong><p>{t(outcome.was_correct ? "review.correctBody" : "review.incorrectBody")}</p><QuestionExplanation explanation={outcome.review_item?.explanation} /></div></section>}
       {error && <p className="inline-error" role="alert" dir="auto">{error}</p>}
     </article>
@@ -311,7 +311,7 @@ export function WeeklyRecall({ user = null }) {
 
   if (detail.error) return <Page width="reading" title={t("review.weekly")}><ErrorPanel message={detail.error} onRetry={detail.reload} /></Page>;
   if (detail.loading || weekly === null) return <LoadingPanel variant="quiz" />;
-  if (!session) return <Page width="reading" title={t("review.weekly")} subtitle={t("review.weeklySubtitle")}><section className="weekly-recall-start"><span><Icon name="calendar" size={28} /></span><h2 dir="auto">{weekly.available ? t("review.weeklyEligible", { count: weekly.eligible_count }) : t("review.weeklyNotReady")}</h2><p>{t(weekly.available ? "review.weeklyStableCopy" : "review.weeklyPrepareCopy")}</p>{weekly.available && <button className="btn btn-primary" type="button" disabled={busy} onClick={() => void start()}>{t(busy ? "review.preparingSet" : "review.startWeekly")}</button>}{error && <p className="inline-error" role="alert" dir="auto">{error}</p>}<Link className="btn btn-soft" to="/review">{t("review.backToCenter")}</Link></section></Page>;
+  if (!session) return <Page width="reading" title={t("review.weekly")} subtitle={t("review.weeklySubtitle")}><section className="weekly-recall-start"><span><Icon name="calendar" size={28} /></span><h2 dir="auto">{weekly.available ? t("review.weeklyEligible", { count: weekly.eligible_count }) : t("review.weeklyNotReady")}</h2><p>{t(weekly.available ? "review.weeklyStableCopy" : "review.weeklyPrepareCopy")}</p>{weekly.available && <button className="btn btn-primary" type="button" disabled={busy} aria-busy={busy || undefined} onClick={() => void start()}>{t(busy ? "review.preparingSet" : "review.startWeekly")}</button>}{error && <p className="inline-error" role="alert" dir="auto">{error}</p>}<Link className="btn btn-soft" to="/review">{t("review.backToCenter")}</Link></section></Page>;
   if (session.status === "completed" && showCompleted) return <Page width="reading" title={t("review.weekly")}><section className="review-session-complete"><span><Icon name="check" size={28} /></span><h2>{t("review.weeklyDone")}</h2><p dir="auto">{t("review.weeklyScore", { correct: session.correct_answers, total: session.total_questions })}</p><div className="result-actions"><Link className="btn btn-primary" to="/review/bank">{t("review.openBank")}</Link><Link className="btn btn-soft" to="/review">{t("review.backToCenter")}</Link></div></section></Page>;
   if (!question || !item) return <Page width="reading" title={t("review.weekly")}><ErrorPanel message={t("review.weeklyNoQuestions")} onRetry={detail.reload} /></Page>;
 

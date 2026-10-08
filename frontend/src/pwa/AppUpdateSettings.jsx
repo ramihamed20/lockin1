@@ -4,6 +4,9 @@ import { useI18n } from "../components/I18nProvider.jsx";
 import { BUILD_INFO } from "./buildInfo.js";
 import { UPDATE_STATUS } from "./updateManager.js";
 import { usePwaUpdates } from "./usePwaUpdates.js";
+import { OPEN_WHATS_NEW_EVENT, ReleaseNotesDialog } from "../components/WhatsNew.jsx";
+import { WHATS_NEW, whatsNewText } from "../lib/whatsNew.js";
+import { usePendingRelease } from "./usePendingRelease.js";
 
 const STATUS_COPY = {
   [UPDATE_STATUS.IDLE]: ["settings.updates.idle", ""],
@@ -41,10 +44,14 @@ export default function AppUpdateSettings() {
   const { t, locale } = useI18n();
   const { status, error, lastCheckedAt, checkForUpdates, applyUpdate } = usePwaUpdates();
   const now = useNow(30 * 1000);
+  const pending = usePendingRelease(status === UPDATE_STATUS.AVAILABLE);
+  const [explaining, setExplaining] = useState(false);
   const [titleKey, detailKey] = STATUS_COPY[status] || STATUS_COPY[UPDATE_STATUS.IDLE];
   const checked = lastCheckedLabel(t, locale, lastCheckedAt, now);
   const activationFailed = status === UPDATE_STATUS.AVAILABLE && error === "activation-failed";
-  const detail = activationFailed ? t("pwa.update.error") : detailKey ? t(detailKey) : checked;
+  const announced = status === UPDATE_STATUS.AVAILABLE && !activationFailed && pending;
+  const detail = activationFailed ? t("pwa.update.error") : announced ? whatsNewText(pending.summary, locale) : detailKey ? t(detailKey) : checked;
+  const title = announced ? t("pwa.update.titleVersion", { version: pending.version }) : t(titleKey);
   const canApply = status === UPDATE_STATUS.AVAILABLE || status === UPDATE_STATUS.RELOAD_REQUIRED || status === UPDATE_STATUS.UPDATING;
   const busy = status === UPDATE_STATUS.CHECKING || status === UPDATE_STATUS.UPDATING;
   const ok = status === UPDATE_STATUS.UP_TO_DATE;
@@ -70,20 +77,31 @@ export default function AppUpdateSettings() {
         <div className="ui-row app-updates-status" data-update-status={status}>
           <span className={`ui-row-icon app-updates-icon${ok ? " is-ok" : canApply ? " is-ready" : ""}`} aria-hidden="true"><Icon name={icon} size={17} /></span>
           <span className="ui-row-body" role="status" aria-live="polite">
-            <strong>{t(titleKey)}</strong>
+            <strong>{title}</strong>
             {detail && <small>{detail}</small>}
           </span>
           {busy && <span className="offline-v2-spinner" aria-hidden="true" />}
         </div>
+        {/* A press started on Check must not activate a newly arrived update. */}
         {canApply
-          ? <button type="button" className="ui-row settings-v2-action" onClick={() => { void applyUpdate(); }} disabled={status === UPDATE_STATUS.UPDATING}>
+          ? <button key="apply" type="button" className="ui-row settings-v2-action" onClick={() => { if (announced) setExplaining(true); else void applyUpdate(); }} disabled={status === UPDATE_STATUS.UPDATING}>
             <span className="ui-row-body"><span>{status === UPDATE_STATUS.RELOAD_REQUIRED ? t("pwa.update.reload") : t("pwa.update.now")}</span></span>
           </button>
-          : <button type="button" className="ui-row settings-v2-action" onClick={() => { void checkForUpdates(); }} disabled={busy || status === UPDATE_STATUS.UNSUPPORTED}>
+          : <button key="check" type="button" className="ui-row settings-v2-action" onClick={() => { void checkForUpdates(); }} disabled={busy || status === UPDATE_STATUS.UNSUPPORTED}>
             <span className="ui-row-body"><span>{t("settings.updates.check")}</span></span>
           </button>}
+        <button type="button" className="ui-row settings-v2-action" onClick={() => window.dispatchEvent(new Event(OPEN_WHATS_NEW_EVENT))}>
+          <span className="ui-row-body"><span>{t("whatsNew.open")}</span></span>
+        </button>
       </div>
       <p className="ui-group-footer">{t("settings.updates.auto")}</p>
     </div>
+    <ReleaseNotesDialog
+      open={explaining && Boolean(announced)}
+      release={pending || WHATS_NEW}
+      mode="before"
+      onClose={() => setExplaining(false)}
+      onConfirm={() => { setExplaining(false); void applyUpdate(); }}
+    />
   </section>;
 }

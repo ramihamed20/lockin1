@@ -1,6 +1,7 @@
 import { API_BASE_PATH, request } from "../api/client.js";
 import { offlineDatabase } from "./database.js";
 import { offlineAccessStatus } from "./lease.js";
+import { captureOfflineSession, mutateOfflineCache } from "./sessionScope.js";
 
 const cacheName = (userId) => `lock-in-private-offline-v1-${userId}`;
 const cacheKey = (userId, itemId, checksum = "") => new URL(`/__lockin_offline__/${encodeURIComponent(userId)}/${encodeURIComponent(itemId)}${checksum ? `/${encodeURIComponent(checksum)}` : ""}`, globalThis.location.origin).href;
@@ -16,10 +17,10 @@ function cacheRequestUrl(request) { return typeof request === "string" ? request
 // include answer keys, which must never sit in a cache a URL could address.
 const JSON_TYPES = new Set(["questions", "active_study"]);
 
-export async function fetchOfflineManifest(userId) {
+export async function fetchOfflineManifest(userId, assertCurrent = captureOfflineSession(userId)) {
   const manifest = await request("/offline/manifest/");
   if (!Array.isArray(manifest?.items) || !Array.isArray(manifest?.subjects)) throw new Error("Invalid offline manifest.");
-  await offlineDatabase.put(userId, "manifest", { ...manifest, fetched_at: new Date().toISOString() });
+  await offlineDatabase.putScoped(userId, "manifest", { ...manifest, fetched_at: new Date().toISOString() }, assertCurrent);
   return manifest;
 }
 
@@ -106,15 +107,17 @@ function jsonSize(value) {
 }
 
 /** Keeps exactly one stored version of a JSON bundle. */
-async function storeJsonContent(userId, item, bundle) {
+async function storeJsonContent(userId, item, bundle, assertCurrent) {
   const metadata = { ...item, downloadedAt: new Date().toISOString(), storedSize: jsonSize(bundle) };
-  await offlineDatabase.putMany(userId, [
+  await offlineDatabase.putManyScoped(userId, [
     [`content:${item.id}:${item.checksum}`, bundle],
     [`download:${item.id}`, metadata]
-  ]);
-  for (const key of await offlineDatabase.keys(userId)) {
+  ], assertCurrent);
+  const storedKeys = await offlineDatabase.keys(userId);
+  assertCurrent();
+  for (const key of storedKeys) {
     const text = String(key);
-    if (text.startsWith(`content:${item.id}:`) && text !== `content:${item.id}:${item.checksum}`) await offlineDatabase.delete(userId, key);
+    if (text.startsWith(`content:${item.id}:`) && text !== `content:${item.id}:${item.checksum}`) await offlineDatabase.deleteScoped(userId, key, assertCurrent);
   }
   return metadata;
 }
@@ -141,18 +144,20 @@ export function validActiveStudyBundle(bundle, item) {
 }
 
 // Anchored paths with one identifier segment: no "/" or "." can reach it.
-async function downloadJson(userId, item) {
+async function downloadJson(userId, item, assertCurrent) {
+  assertCurrent();
   if (item.type === "questions") {
     if (!/^\/api\/v1\/offline\/questions\/[\w-]+\/\?source=(exam|ai-sheet)$/i.test(item.download_url)) throw new Error("Invalid question download.");
     const bundle = await request(item.download_url.slice(API_BASE_PATH.length));
     if (bundle?.content_version !== item.checksum || !Array.isArray(bundle.results) || bundle.results.length !== bundle.count || !bundle.answer_keys ||
         bundle.results.some((question) => !Array.isArray(bundle.answer_keys[question.id]?.correct_choice_ids))) throw new Error("Question download is incomplete.");
-    return storeJsonContent(userId, item, bundle);
+    return storeJsonContent(userId, item, bundle, assertCurrent);
   }
   if (!/^\/api\/v1\/offline\/active-study\/[\w-]+\/\?edition=(university|lockin)$/i.test(item.download_url)) throw new Error("Invalid Active Study download.");
   const bundle = await request(item.download_url.slice(API_BASE_PATH.length));
   if (!validActiveStudyBundle(bundle, item)) throw new Error("The Active Study download is incomplete.");
-  const metadata = await storeJsonContent(userId, item, bundle);
+  const metadata = await storeJsonContent(userId, item, bundle, assertCurrent);
+  assertCurrent();
   // Seeds this device's progress from the server. Progress this device made
   // itself is never overwritten here.
   const { seedActiveStudyRuns } = await import("./activeStudy.js");
@@ -160,8 +165,9 @@ async function downloadJson(userId, item) {
   return metadata;
 }
 
-async function downloadFile(userId, item, onProgress) {
-  if (!item.download_url.startsWith(`${API_BASE_PATH}/files/`)) throw new Error("Invalid download item.");
+async function downloadFile(userId, item, onProgress, assertCurrent) {
+  assertCurrent();
+  if (!/^\/api\/v1\/files\/[\w-]+\/(view|download)$/.test(item.download_url)) throw new Error("Invalid download item.");
   const response = await fetch(item.download_url, { credentials: "include", cache: "no-store" });
   if (!response.ok) throw new Error("Download failed.");
   const total = Number(response.headers.get("Content-Length")) || item.size;
@@ -185,26 +191,31 @@ async function downloadFile(userId, item, onProgress) {
   if ((item.size && received !== item.size) || (item.checksum && await sha256(blob) !== item.checksum.toLowerCase())) {
     throw new Error("Download integrity check failed.");
   }
-  const cache = await caches.open(cacheName(userId));
-  const key = cacheKey(userId, item.id, item.checksum);
-  await cache.put(key, new Response(blob, { headers: { "Content-Type": blob.type, "Content-Length": String(received) } }));
-  const metadata = { ...item, downloadedAt: new Date().toISOString(), storedSize: received };
-  try {
-    await offlineDatabase.put(userId, `download:${item.id}`, metadata);
-  } catch (error) {
-    await cache.delete(key);
-    throw error;
-  }
-  // The new version is committed before removing the old one. A failed
-  // download or metadata write leaves the previous PDF usable offline.
-  for (const request of await cache.keys()) {
-    const url = cacheRequestUrl(request);
-    if (belongsToItem(url, userId, item.id) && url !== key) await cache.delete(request);
-  }
-  return metadata;
+  return mutateOfflineCache(userId, async () => {
+    assertCurrent();
+    const cache = await caches.open(cacheName(userId));
+    assertCurrent();
+    const key = cacheKey(userId, item.id, item.checksum);
+    await cache.put(key, new Response(blob, { headers: { "Content-Type": blob.type, "Content-Length": String(received) } }));
+    const metadata = { ...item, downloadedAt: new Date().toISOString(), storedSize: received };
+    try {
+      await offlineDatabase.putScoped(userId, `download:${item.id}`, metadata, assertCurrent);
+    } catch (error) {
+      await cache.delete(key);
+      throw error;
+    }
+    // The new version is committed before removing the old one. A failed
+    // download or metadata write leaves the previous PDF usable offline.
+    for (const request of await cache.keys()) {
+      const url = cacheRequestUrl(request);
+      if (belongsToItem(url, userId, item.id) && url !== key) await cache.delete(request);
+    }
+    return metadata;
+  });
 }
 
-async function downloadOne(userId, item, onProgress) {
+async function downloadOne(userId, item, onProgress, assertCurrent) {
+  assertCurrent();
   if (!item?.available || typeof item.download_url !== "string") throw new Error("Invalid download item.");
   if (await isOwnContentStored(userId, item)) return readDownloadMetadata(userId, item.id);
   if (item.size && navigator.storage?.estimate) {
@@ -213,7 +224,7 @@ async function downloadOne(userId, item, onProgress) {
       throw new Error("This device is low on storage. Remove a download and try again.");
     }
   }
-  const metadata = JSON_TYPES.has(item.type) ? await downloadJson(userId, item) : await downloadFile(userId, item, onProgress);
+  const metadata = JSON_TYPES.has(item.type) ? await downloadJson(userId, item, assertCurrent) : await downloadFile(userId, item, onProgress, assertCurrent);
   onProgress(1);
   return metadata;
 }
@@ -225,14 +236,14 @@ async function downloadOne(userId, item, onProgress) {
  * @param {string} userId
  * @param {any} item
  * @param {(progress: number) => void} [onProgress]
- * @param {{ manual?: boolean, manifest?: any }} [options]
+ * @param {{ manual?: boolean, manifest?: any, assertCurrent?: () => void }} [options]
  */
-export async function downloadOfflineItem(userId, item, onProgress = () => {}, { manual = false, manifest = null } = {}) {
+export async function downloadOfflineItem(userId, item, onProgress = () => {}, { manual = false, manifest = null, assertCurrent = captureOfflineSession(userId) } = {}) {
   const graph = dependencyGraph(manifest || await readOfflineManifest(userId) || { items: [item] }, item);
   if (manual && navigator.storage?.persist) await navigator.storage.persist().catch(() => false);
   let metadata = null;
   for (let index = 0; index < graph.length; index += 1) {
-    metadata = await downloadOne(userId, graph[index], (progress) => onProgress((index + progress) / graph.length));
+    metadata = await downloadOne(userId, graph[index], (progress) => onProgress((index + progress) / graph.length), assertCurrent);
   }
   onProgress(1);
   return metadata;
@@ -288,7 +299,7 @@ export async function removeOfflineItem(userId, itemId) {
 }
 
 export async function clearOfflineDownloads(userId) {
-  await caches.delete(cacheName(userId));
+  await mutateOfflineCache(userId, () => caches.delete(cacheName(userId)));
   for (const key of await offlineDatabase.keys(userId)) {
     if (String(key).startsWith("download:") || String(key).startsWith("content:")) await offlineDatabase.delete(userId, key);
   }
@@ -296,7 +307,7 @@ export async function clearOfflineDownloads(userId) {
 
 export async function offlineDownloadStats(userId) {
   const keys = (await offlineDatabase.keys(userId)).filter((key) => String(key).startsWith("download:"));
-  const records = (await Promise.all(keys.map((key) => offlineDatabase.get(userId, key)))).filter(Boolean);
+  const records = (await offlineDatabase.getMany(userId, keys)).filter(Boolean);
   const cache = await caches.open(cacheName(userId));
   const items = (await Promise.all(records.map(async (item) => {
     const present = JSON_TYPES.has(item.type)

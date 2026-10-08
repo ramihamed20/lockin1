@@ -12,6 +12,7 @@ from apps.subscriptions.models import Subscription
 from platform_core.events import publish_after_commit
 
 from .events import EntitlementGranted, EntitlementRevoked
+from .free_access import free_access_ends_at
 from .models import (
     EntitlementDefinition,
     EntitlementGrant,
@@ -264,6 +265,11 @@ def entitlement_decision(
     if is_subscription_exempt(user):
         return EntitlementDecision(code=code, allowed=True, reason="founder_access")
     current = at or timezone.now()
+    free_until = free_access_ends_at(user, current)
+    if free_until is not None:
+        return EntitlementDecision(
+            code=code, allowed=True, reason="free_access_window", expires_at=free_until
+        )
     grant = effective_grants_for_user(user=user, at=current).filter(entitlement__code=code).first()
     if grant is None:
         return EntitlementDecision(code=code, allowed=False, reason="entitlement_required")

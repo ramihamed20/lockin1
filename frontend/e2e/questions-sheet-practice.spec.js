@@ -80,7 +80,7 @@ const GRADING = {
   "question-two": { correct: "two-a", explanation: "They form most of the epidermis.", xp: 10 }
 };
 
-async function mockStudent(page, { directory = DIRECTORY, submissions = [] } = {}) {
+async function mockStudent(page, { directory = DIRECTORY, submissions = [], retries = [] } = {}) {
   const recorded = {};
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -122,6 +122,19 @@ async function mockStudent(page, { directory = DIRECTORY, submissions = [] } = {
         answered_at: "2026-09-18T10:00:00Z"
       };
       return json({ question_id: questionId, created, answer: recorded[questionId], xp_total: 0 }, created ? 201 : 200);
+    }
+    const retrying = pathname.match(/^\/api\/v1\/catalog\/sheets\/[^/]+\/questions\/([^/]+)\/retry$/);
+    if (retrying && request.method() === "POST") {
+      const questionId = retrying[1];
+      const { choice_ids: choiceIds, retry_key: retryKey } = request.postDataJSON();
+      retries.push({ questionId, choiceIds, retryKey });
+      const grading = GRADING[questionId];
+      return json({
+        question_id: questionId,
+        is_correct: choiceIds.length === 1 && choiceIds[0] === grading.correct,
+        correct_choice_ids: [grading.correct],
+        mistake_count: 2
+      });
     }
     if (request.method() === "GET") return json({ count: 0, results: [] });
     return json({ error: { code: "not_found", message: "Unused" } }, 404);
@@ -197,6 +210,66 @@ test("a published sheet is reachable from Questions and its questions can be ans
   await expect(page.locator(".question-player-summary").getByText("+10 XP")).toBeVisible();
 
   await page.screenshot({ path: testInfo.outputPath("questions-sheet-practice.png") });
+});
+
+test("a sheet can be restarted as a practice round that keeps the recorded answers and XP and counts wrong tries as mistakes", async ({
+  page
+}) => {
+  const submissions = [];
+  const retries = [];
+  await mockStudent(page, { submissions, retries });
+  await page.setViewportSize({ width: 1180, height: 820 });
+  await page.goto(`/#/questions/categories/ai-sheet/subjects/dentistry-tripoli-year-1-oral-histology/sheets/${SHEET_ID}`);
+  await page.getByRole("button", { name: "Start Questions" }).click();
+
+  const card = page.locator(".question-card");
+  // Nothing to restart before the first answer.
+  await expect(page.getByRole("button", { name: "Restart" })).toHaveCount(0);
+  await card.getByRole("button", { name: /Spinous/ }).click();
+  await page.getByRole("button", { name: /Next question/ }).click();
+  await card.getByRole("button", { name: /True/ }).click();
+  await page.getByRole("button", { name: "Finish" }).click();
+  await expect(page.getByText("1 of 2 correct")).toBeVisible();
+  expect(submissions).toHaveLength(2);
+
+  await page.locator(".question-player-summary").getByRole("button", { name: "Restart" }).click();
+
+  // Back at question 1, clean, with the round named.
+  await expect(page.getByText("Question 1 of 2")).toBeVisible();
+  await expect(page.getByText(/recorded answers and XP stay/)).toBeVisible();
+  await expect(card.getByRole("button", { name: /Basal/ })).toBeEnabled();
+  await expect(card.getByText("Not quite")).toHaveCount(0);
+  await expect(card.getByText(/XP if correct/)).toHaveCount(0);
+
+  // Re-answering is worth nothing and never touches the recorded answer; each
+  // try goes to the retry endpoint so a wrong one counts in Review.
+  expect(retries).toHaveLength(0);
+  await card.getByRole("button", { name: /Basal/ }).click();
+  await expect(card.getByText("Correct")).toBeVisible();
+  await expect(card.getByText(/\+\d+ XP/)).toHaveCount(0);
+  await page.getByRole("button", { name: /Next question/ }).click();
+  await card.getByRole("button", { name: /True/ }).click();
+  await page.getByRole("button", { name: "Finish" }).click();
+  await expect(page.getByText("2 of 2 correct")).toBeVisible();
+  await expect(page.locator(".question-player-summary").getByText(/\+\d+ XP/)).toHaveCount(0);
+  expect(submissions).toHaveLength(2);
+  expect(retries.map((retry) => [retry.questionId, retry.choiceIds[0]])).toEqual([
+    ["question-one", "one-a"],
+    ["question-two", "two-a"]
+  ]);
+
+  // The in-question control restarts too.
+  await page.locator(".question-player-summary").getByRole("button", { name: "Restart" }).click();
+  await expect(page.getByRole("button", { name: "Restart" })).toHaveCount(0);
+  await card.getByRole("button", { name: /Spinous/ }).click();
+  await expect(card.getByText("Not quite")).toBeVisible();
+  expect(retries).toHaveLength(3);
+  expect(retries[2]).toMatchObject({ questionId: "question-one", choiceIds: ["one-b"] });
+  expect(new Set(retries.map((retry) => retry.retryKey)).size).toBe(3);
+  await page.getByRole("button", { name: "Restart" }).click();
+  await expect(page.getByText("Question 1 of 2")).toBeVisible();
+  await expect(card.getByRole("button", { name: /Basal/ })).toBeEnabled();
+  expect(submissions).toHaveLength(2);
 });
 
 test("a cohort with no published questions is told so, not shown an empty subject list", async ({

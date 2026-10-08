@@ -93,15 +93,18 @@ for (const orientation of ["portrait", "landscape"]) {
       await page.goto(ROUTE);
       await page.getByRole("button", { name: /Normal Study/ }).click();
       await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
-      // Phones use a compact toolbar that follows the real safe area; tablets
-      // keep their toolbar clear of the status-bar band.
+      // The toolbar is the reader's top edge at every size: flush with the top
+      // and both sides. Its padding, not a gap, clears the status-bar band.
       const compactPhone = viewport.width <= 560 || (viewport.height <= 500 && viewport.width <= 900);
       const toolbarBox = await page.locator(".workspace-v2-toolbar").boundingBox();
+      expect(toolbarBox.y, `the ${viewport.name} toolbar leaves a gap above it`).toBe(0);
+      expect(toolbarBox.x, `the ${viewport.name} toolbar leaves a gap beside it`).toBe(0);
+      expect(toolbarBox.width).toBe(viewport.width);
       if (compactPhone) {
-        expect(toolbarBox.y).toBeLessThanOrEqual(12);
-        expect(toolbarBox.height, `the ${viewport.name} toolbar is taller than the compact bar`).toBeLessThanOrEqual(54);
-      } else if (viewport.width < 1200) {
-        expect(toolbarBox.y).toBeGreaterThanOrEqual(34);
+        // The open-document tabs are a row of their own above the tools.
+        const tabsBox = await page.locator(".workspace-v2-toolbar > .workspace-tabs").boundingBox();
+        expect(tabsBox.height, `the ${viewport.name} tab row is taller than one touch target`).toBeLessThanOrEqual(48);
+        expect(toolbarBox.height - tabsBox.height, `the ${viewport.name} toolbar is taller than the compact bar`).toBeLessThanOrEqual(56);
       }
 
       // The reader always fills the viewport, and the page dock is reachable.
@@ -218,14 +221,15 @@ test("the iPad toolbar keeps direct tools, quick colors, and Active Study usable
   await page.getByRole("button", { name: /Normal Study/ }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
   const toolbar = page.locator(".workspace-v2-toolbar");
-  await expect(toolbar).toHaveCSS("border-radius", "26px");
-  expect((await toolbar.boundingBox()).y).toBeGreaterThanOrEqual(34);
+  await expect(toolbar).toHaveCSS("border-radius", "0px");
+  expect(await toolbar.boundingBox()).toMatchObject({ x: 0, y: 0, width: 834 });
   await expect(toolbar.locator(".workspace-v3-quick-color")).toHaveCount(3);
   const sizing = await toolbar.evaluate((node) => {
     const boxes = [...node.querySelectorAll("button")].filter((button) => getComputedStyle(button).display !== "none").map((button) => ({ label: button.getAttribute("aria-label"), box: button.getBoundingClientRect() }));
     const rail = node.querySelector(".workspace-v3-primary").getBoundingClientRect();
     return {
-      tooSmall: boxes.filter(({ box }) => box.width < 44 || box.height < 44).map(({ label }) => label),
+      // The tablet bar is compact by design: 40px tools and 34px tabs.
+      tooSmall: boxes.filter(({ box }) => box.width < 34 || box.height < 34).map(({ label }) => label),
       clipped: boxes.filter(({ box, label }) => label && box.left >= rail.left && box.left < rail.right && box.right > rail.right + 3).map(({ label }) => label),
       toolbarOverflow: node.scrollWidth - node.clientWidth
     };
@@ -315,7 +319,7 @@ test("the iPad toolbar keeps direct tools, quick colors, and Active Study usable
 
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.evaluate(() => { document.documentElement.dataset.theme = "day"; });
-  await expect(toolbar.locator(".workspace-v2-tool-caption").first()).toBeVisible();
+  await expect(toolbar.locator(".workspace-v2-tool-caption")).toHaveCount(0);
   await expect.poll(() => toolbar.locator(".workspace-v2-tool-indicator").evaluate((node) => getComputedStyle(node).opacity)).toBe("1");
   await expect.poll(() => toolbar.locator(".workspace-v2-tool-indicator").evaluate((node) => getComputedStyle(node).backgroundColor)).not.toBe("rgba(0, 0, 0, 0)");
   await expect.poll(async () => toolbar.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);

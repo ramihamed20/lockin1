@@ -426,7 +426,10 @@
  *   < 700      compact: stacked top bar, single-column panels, 2-up metrics
  *   < 480      phone: everything in one column */
 @container studio (max-width: 1099px) {
-  .creator-studio { grid-template-columns: 76px minmax(0, 1fr); }
+  /* No rail column here: the studio no longer renders its own rail (the
+     product sidebar navigates it), and reserving 76px for one squeezed the
+     page header -- title, breadcrumb and description -- into that column on
+     1280-1366px laptops. */
   .creator-studio-rail { width: 76px; }
   .creator-studio-rail .creator-studio-brand > span:nth-child(2),
   .creator-studio-rail .creator-studio-brand button,
@@ -640,9 +643,15 @@
   cursor: pointer;
 }
 
-.ops-chip:hover {
+/* Gated like every other hover in the app, so a tapped chip on an iPad does
+   not keep its hover state after the finger lifts. */
+.ops-chip:hover:where(html.ix-hover *) {
   border-color: var(--border-hover);
   color: var(--text);
+}
+
+@media (pointer: coarse) {
+  .ops-chip { min-height: var(--touch-target); }
 }
 
 .ops-chip.is-selected {
@@ -688,6 +697,12 @@
   padding: var(--space-5);
 }
 
+.ops-refresh-status { min-block-size: 1.5em; margin: 0; color: var(--muted); font-size: var(--text-sm); }
+.ops-skeleton-count { inline-size: 5rem; }
+.ops-skeleton-rows { display: grid; }
+.ops-skeleton-row { display: grid; grid-template-columns: 2fr repeat(5, minmax(0, 1fr)); gap: var(--space-4); align-items: center; padding-block: var(--space-4); border-block-start: 1px solid var(--border); }
+.ops-skeleton-row > .skeleton { inline-size: 100%; block-size: 1em; }
+
 /* Wide content scrolls inside its own box; the page itself never scrolls
    sideways. */
 .ops-table-scroll {
@@ -719,7 +734,7 @@
   white-space: nowrap;
 }
 
-.ops-table tbody tr:hover {
+.ops-table tbody tr:hover:where(html.ix-hover *) {
   background: color-mix(in srgb, var(--surface-3) 50%, transparent);
 }
 
@@ -743,7 +758,7 @@
   font-weight: 400;
 }
 
-.ops-row-link:hover b {
+.ops-row-link:hover:where(html.ix-hover *) b {
   text-decoration: underline;
 }
 
@@ -771,6 +786,7 @@
 }
 
 .ops-detail {
+  scroll-margin-block-start: var(--space-5);
   margin-top: var(--space-5);
   padding: var(--space-5);
   border: 1px solid color-mix(in srgb, var(--primary) 26%, var(--border));
@@ -911,6 +927,10 @@
     align-items: stretch;
   }
 
+  .ops-search {
+    flex-basis: auto;
+  }
+
   .ops-metric strong {
     font-size: var(--text-xl);
   }
@@ -958,6 +978,9 @@
    that has to be swiped sideways to find the status. */
 @container studio (max-width: 819px) {
   .ops-table-scroll { overflow-x: visible; margin-inline: 0; padding-inline: 0; }
+  .ops-skeleton-rows { gap: 10px; }
+  .ops-skeleton-row { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; }
+  .ops-skeleton-row > .skeleton-text { grid-column: 1 / -1; }
   .ops-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .ops-table,
   .ops-table tbody,
@@ -973,4 +996,30 @@
   .ops-table td { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 5px 0; border: 0; text-align: end; }
   .ops-table td::before { content: attr(data-label); flex: 0 0 auto; color: var(--muted); font-size: var(--text-xs); font-weight: 650; letter-spacing: .04em; text-transform: uppercase; text-align: start; }
   .ops-table td .ops-cell-note { display: block; }
+}
+
+@layer system {
+/* Readable controls and long identifiers across the whole Studio. */
+.creator-studio-content .btn,
+.creator-studio-content .btn.compact,
+.creator-studio-content select,
+.creator-studio-content input:not([type="checkbox"]):not([type="radio"]),
+.creator-detail-drawer .btn,
+.creator-detail-drawer .btn.compact,
+.creator-detail-drawer input:not([type="checkbox"]):not([type="radio"]),
+.creator-detail-drawer select,
+.creator-detail-drawer .creator-detail-tabs button { min-height: 44px; }
+}
+@layer app {
+.creator-detail-drawer > header { position: sticky; inset-block-start: -20px; z-index: 3; background: var(--surface); }
+.creator-detail-drawer > header > div { min-width: 0; overflow-wrap: anywhere; }
+.creator-detail-drawer > header .btn { flex-shrink: 0; position: static; }
+.creator-detail-drawer .operations-actions { flex-wrap: wrap; }
+@media (max-width: 599px) {
+  .creator-detail-drawer { width: 100%; padding: 16px; padding-block-end: max(16px, env(safe-area-inset-bottom)); }
+  .creator-detail-drawer > header { display: flex; inset-block-start: -16px; }
+  .creator-detail-drawer .operations-detail-grid,
+  .creator-detail-drawer .operations-check-grid { grid-template-columns: minmax(0, 1fr); }
+  .creator-detail-drawer .creator-detail-tabs { overflow-x: auto; }
+}
 }

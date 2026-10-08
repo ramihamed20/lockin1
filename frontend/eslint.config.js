@@ -34,6 +34,7 @@ export default [
         Intl: "readonly",
         Notification: "readonly",
         Response: "readonly",
+        ReadableStream: "readonly",
         URL: "readonly",
         URLSearchParams: "readonly",
         caches: "readonly",

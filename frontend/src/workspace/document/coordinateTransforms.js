@@ -155,22 +155,6 @@ export function pagePointFromClient(clientX, clientY, rect, pageWidth, pageHeigh
   };
 }
 
-export function normalizePagePoint(point, pageWidth, pageHeight) {
-  return {
-    ...point,
-    x: Math.min(1, Math.max(0, Number(point.x) / Math.max(Number(pageWidth) || 0, 1))),
-    y: Math.min(1, Math.max(0, Number(point.y) / Math.max(Number(pageHeight) || 0, 1)))
-  };
-}
-
-export function denormalizePagePoint(point, pageWidth, pageHeight) {
-  return {
-    ...point,
-    x: Number(point.x) * Math.max(Number(pageWidth) || 0, 1),
-    y: Number(point.y) * Math.max(Number(pageHeight) || 0, 1)
-  };
-}
-
 export function zoomScrollForAnchor({
   scrollLeft,
   scrollTop,

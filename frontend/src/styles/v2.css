@@ -48,6 +48,7 @@
 .settings-v2-icon--appearance { background: #c7892a; }
 .settings-v2-icon--notifications { background: #d6524f; }
 .settings-v2-icon--offline { background: #2f9a6c; }
+.settings-v2-icon--suggest { background: #d9822b; }
 .settings-v2-icon--updates { background: #3b82c4; }
 
 /* Settings → Updates. Build identifiers stay left-to-right in Arabic. */
@@ -403,7 +404,7 @@ html.ix-hover .settings-v2-back:hover {
   }
 
   .settings-v2[data-view="detail"] > .settings-v2-detail {
-    animation: settings-v2-push var(--motion-panel-duration) var(--motion-enter-ease) both;
+    animation: settings-v2-push var(--motion-panel-duration) var(--motion-enter-ease) backwards;
   }
 
   .settings-v2-nav .ui-row[data-current] {
@@ -411,6 +412,10 @@ html.ix-hover .settings-v2-back:hover {
   }
 }
 
+/* Entrance animations here fill backwards, never both: a finished `both`
+   fill keeps an identity transform, which makes the panel the containing
+   block for position:fixed. The Offline "remove downloads" confirmation in
+   this panel was then placed against the scrolled panel, not the screen. */
 @keyframes settings-v2-push {
   from { opacity: 0; transform: translateX(18px); }
   to { opacity: 1; transform: none; }
@@ -898,6 +903,90 @@ html.ix-hover .dash-state:hover {
   }
 }
 
+/* --- Touch chrome without blur -------------------------------------------- */
+
+/* On touch devices responsive.css turns backdrop blur off (GPU cost while
+   scrolling) and meant to give the bars a solid fill instead. The blur removal
+   is !important and won; the solid fill sat in the app layer and lost to the
+   translucent material here, so phones and iPads got a 78-80% see-through bar
+   with nothing blurring it -- page text read straight through the tab labels.
+   Without blur, the bars are solid. */
+@media (hover: none) and (pointer: coarse) {
+  .bottom-nav {
+    background: var(--surface);
+  }
+
+  .topbar {
+    background: var(--bg);
+  }
+}
+
+/* --- Dashboard: no recent sheets yet ---------------------------------------- */
+
+/* Beside the scene the card stretches to the picture's height. Empty, that was
+   one line of text at the top of a tall blank panel; the message now sits in
+   the middle of the space it owns, with the list's own mark above it. */
+.dashboard-recent-sheets.is-empty {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.dashboard-recent-sheets.is-empty .dashboard-review-list {
+  display: grid;
+  align-content: center;
+}
+
+.dashboard-recent-empty {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  max-width: 28ch;
+  margin: 0 auto;
+  color: var(--muted);
+  font-size: var(--text-md);
+  text-align: center;
+  text-wrap: balance;
+}
+
+.dashboard-recent-empty > span {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  color: var(--soft);
+  background: var(--surface-2);
+}
+
+/* --- Progress title --------------------------------------------------------- */
+
+/* The one page that still drew its own 32px title: it now shares the large
+   title every other screen uses, so moving between tabs does not change the
+   size or the baseline of the heading. */
+.progress-page-heading {
+  align-items: center;
+  /* The page's own gap spaces the title from what follows, as on every other
+     screen; the extra margin stacked 36px between title, period and tabs. */
+  margin: 0;
+}
+
+.progress-page-heading h1 {
+  margin: 0;
+  font-size: var(--title-large);
+  font-weight: var(--weight-bold);
+  line-height: 1.15;
+  letter-spacing: var(--tracking-title);
+}
+
+@media (max-width: 639px) {
+  .progress-page-heading {
+    align-items: stretch;
+  }
+
+  .progress-page-heading h1 {
+    font-size: var(--title-large-phone);
+  }
+}
+
 /* --- Review hub ------------------------------------------------------------ */
 
 /* Icon beside its title at every width (the historical phone rule stacked
@@ -928,6 +1017,35 @@ html.ix-hover .dash-state:hover {
 
 .review-v2 > .biweekly-history {
   margin-block-start: 12px;
+}
+
+/* One card language for the hub's three entries. They had grown three paddings
+   (26 / 22 / 18 px), two icon wells (44 / 40 px) and three title treatments.
+   The Review Bank keeps the larger title as the screen's primary card; the
+   other two read as its secondary siblings. */
+.review-v2 :is(.review-bank-entry, .weekly-recall-entry, .biweekly-current) {
+  padding: clamp(16px, 2vw, 22px);
+}
+
+.review-v2 .biweekly-current-main {
+  align-items: center;
+}
+
+.review-v2 .biweekly-current-icon {
+  flex-basis: 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+}
+
+.review-v2 :is(.weekly-recall-entry, .biweekly-current) h2 {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.015em;
+}
+
+.review-v2 .review-bank-entry h2 {
+  font-weight: var(--weight-bold);
 }
 
 /* --- Subscription ----------------------------------------------------------- */
@@ -1011,7 +1129,29 @@ html.ix-hover .dash-state:hover {
 }
 
 .subscription-v2 .subscription-payment-unavailable {
+  display: grid;
+  gap: 4px;
   max-width: none;
+  padding: 18px;
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+/* An information card, not a headline: it explains why the form is absent, so
+   it reads one step below the plan name above it (it had grown a 22px title,
+   larger than the plan itself). */
+.subscription-v2 .subscription-payment-unavailable h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.012em;
+}
+
+.subscription-v2 .subscription-payment-unavailable p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-md);
 }
 
 /* Coming-soon plans are a section, not a card holding cards. */
@@ -1143,6 +1283,47 @@ html.ix-hover .dash-state:hover {
   width: min(440px, 100%);
   height: 190px;
 }
+
+/* Dashboard placeholder: the state row measured like .dash-states (2, 3 or 6
+   columns by the width it gets, Level twice as wide), then the study column
+   beside a scene that fills the column's height, as the loaded page does. */
+.skeleton-page--dashboard {
+  display: grid;
+  gap: clamp(14px, 1.5vw, 20px);
+  container: skeleton-dash / inline-size;
+}
+
+.skeleton-dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@container skeleton-dash (min-width: 480px) {
+  .skeleton-dashboard-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@container skeleton-dash (min-width: 860px) {
+  .skeleton-dashboard-stats { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+}
+
+.loading-panel .skeleton-card.skeleton-stat {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 104px;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+}
+
+.skeleton-stat.is-wide { grid-column: span 2; }
+.skeleton-stat-value { width: 44px; height: 26px; }
+.skeleton-stat-label { width: min(110px, 70%); height: 12px; }
+
+.skeleton-page--dashboard .skeleton-dashboard-layout { margin: 0; }
+.skeleton-page--dashboard .skeleton-dashboard-layout > div:last-child { align-content: stretch; }
+.skeleton-page--dashboard .skeleton-visual-card { display: grid; min-height: 0; padding: 0; overflow: hidden; }
+.skeleton-page--dashboard .skeleton-visual { height: auto; min-height: 260px; border-radius: 0; }
 
 @keyframes v2-reveal {
   from { opacity: 0; transform: translateY(-4px); }
@@ -1334,7 +1515,9 @@ label.ui-row.offline-v2-choice { cursor: pointer; }
   background: var(--surface);
 }
 
-.paper-panel > .paper-picked { padding: 8px 16px; }
+/* The list's rows touch (their hairline separates them); the picked subject is
+   one row whose icon needs the same 14px from its label as a sheet row's. */
+.paper-panel > .paper-picked { gap: 14px; padding: 8px 16px; }
 
 .paper-panel > .paper-sheet-list .paper-sheet { position: relative; border-radius: 0; }
 
@@ -1602,7 +1785,13 @@ html.ix-hover .notifications-v2 .notification-feed-item:hover { background: colo
 
 .achievements-v2-row.is-locked .ui-row-icon { color: var(--soft); background: var(--surface-2); }
 
-.achievements-v2-row .ui-row-value { padding-block-start: 2px; font-variant-numeric: tabular-nums; }
+/* A provider's state ("Not connected", "Primary") is the row's answer: it keeps
+   its words and the explanation beside it wraps (it was cut to "Not connec..."). */
+.settings-v2-providers .ui-row-value { flex-shrink: 0; max-width: 45%; white-space: normal; text-align: end; }
+
+/* The count ("0/7") is the row's answer and is always short: it keeps its
+   width, and the description beside it wraps instead (it was cut to "0..."). */
+.achievements-v2-row .ui-row-value { flex-shrink: 0; padding-block-start: 2px; font-variant-numeric: tabular-nums; }
 
 /* --- Answer rows ------------------------------------------------------------ */
 

@@ -15,7 +15,7 @@ from django.test.utils import CaptureQueriesContext
 from rest_framework.test import APIClient
 
 from apps.accounts.tests.helpers import create_user
-from apps.content.admin_services import create_sheet
+from apps.content.admin_services import create_sheet, sheet_edition_summaries
 from apps.content.admin_views import _sheets
 from apps.content.models import CatalogSubject
 from apps.education.models import AcademicProgram, EducationNode, StudentCohort
@@ -54,7 +54,7 @@ def _query_count(client: APIClient, path: str) -> tuple[int, Any]:
     return len(context.captured_queries), response.json()
 
 
-def test_sheet_list_query_count_stays_within_a_per_row_budget() -> None:
+def test_sheet_list_query_count_does_not_grow_with_sheets() -> None:
     admin = create_admin()
     _, subject, _ = published_path(admin=admin)
     client = APIClient()
@@ -69,10 +69,20 @@ def test_sheet_list_query_count_stays_within_a_per_row_budget() -> None:
 
     assert body["count"] == 6
     # Counts, history and summary visibility are batched for the whole list.
-    # What still runs per row is edition and Active Study settings resolution,
-    # which is shared with the student reader and deliberately left alone.
-    per_row = (many - one) / 5
-    assert per_row <= 5, f"{one} queries for one sheet, {many} for six"
+    # Edition files and settings must reuse the list's prefetches as well.
+    assert many == one, f"{one} queries for one sheet, {many} for six"
+
+
+def test_sheet_editions_reuse_prefetched_files_and_settings() -> None:
+    admin = create_admin()
+    _, subject, _ = published_path(admin=admin)
+    _sheet(admin=admin, subject=subject, title="Prefetched editions", publish=True)
+    sheet = _sheets(subject).get()
+    with CaptureQueriesContext(connection) as queries:
+        editions = sheet_edition_summaries(sheet=sheet)
+    assert editions[0]["available"] is True
+    assert editions[1]["available"] is False
+    assert len(queries) == 0, len(queries)
 
 
 def test_batched_sheet_facts_match_the_single_sheet_serializer() -> None:
@@ -179,6 +189,6 @@ def test_student_materials_directory_query_growth_per_sheet() -> None:
     many, body = _query_count(client, path)
 
     assert len(body["results"][0]["sheets"]) == 6
-    # Measured at 12 queries for one sheet and 17 for six: Active Study
-    # readiness is resolved per sheet. Keep it from growing further.
-    assert (many - one) / 5 <= 1.5, f"{one} queries for one sheet, {many} for six"
+    # Readiness uses the already joined published version rather than fetching
+    # that version once per sheet. Adding sheets must not add those queries.
+    assert many <= one, f"{one} queries for one sheet, {many} for six"

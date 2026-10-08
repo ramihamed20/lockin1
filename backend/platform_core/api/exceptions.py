@@ -1,9 +1,12 @@
 from typing import Any
 
+from django.core.exceptions import RequestDataTooBig
 from rest_framework import status
 from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
+
+from .parsers import PayloadTooLarge
 
 
 class RequestRejected(APIException):
@@ -16,6 +19,10 @@ class RequestRejected(APIException):
 
 
 def lockin_exception_handler(exc: Exception, context: dict[str, Any]) -> Response | None:
+    # CSRF can inspect DRF's POST facade after a parser refused the body. Keep
+    # Django's size rejection in the same safe API envelope as the JSON limit.
+    if isinstance(exc, RequestDataTooBig):
+        exc = PayloadTooLarge()
     response = exception_handler(exc, context)
     if response is None:
         return None

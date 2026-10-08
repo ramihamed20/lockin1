@@ -34,7 +34,9 @@ function detailPath(type, id) {
 /** The current period: when the next report arrives, and the latest one if it is ready. */
 export function BiweeklyCurrent({ type, biweekly }) {
   const { t, locale } = useI18n();
-  if (biweekly.loading) return <section className="biweekly-current is-loading" aria-busy="true"><span className="skeleton biweekly-skeleton" /></section>;
+  // The placeholder has the loaded card's shape (icon, kicker, title, period),
+  // so the card does not change height or jump when the period arrives.
+  if (biweekly.loading) return <section className="biweekly-current is-loading" aria-busy="true" aria-label={t("common.loading")}><div className="biweekly-current-main" aria-hidden="true"><span className="skeleton biweekly-current-icon" /><span className="biweekly-skeleton-lines"><span className="skeleton biweekly-skeleton is-kicker" /><span className="skeleton biweekly-skeleton" /><span className="skeleton biweekly-skeleton is-meta" /></span></div></section>;
   if (biweekly.error) return <section className="biweekly-current"><p role="alert">{biweekly.error}</p><button className="btn btn-soft compact" type="button" onClick={biweekly.reload}>{t("common.tryAgain")}</button></section>;
   const { current_period: current, history } = biweekly.data;
   const latest = history[0];

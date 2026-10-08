@@ -731,7 +731,7 @@ body::after {
 }
 
 .confirm-dialog {
-  animation: ui-dialog-in var(--motion-popover-duration) var(--motion-enter-ease) both;
+  animation: ui-dialog-in var(--motion-popover-duration) var(--motion-enter-ease) backwards;
 }
 
 .confirm-dialog h3 {
@@ -859,6 +859,39 @@ textarea:focus {
     /* 16px stops iOS from zooming the page when a field takes focus. */
     font-size: 16px;
   }
+}
+
+/* Invalid: the field that needs attention says so with its edge, the same
+   way in every form. The generic select rule above sits in this layer, so it
+   used to outrank each form's own invalid style -- a register form showed
+   "This field is required." under a select that still looked fine. */
+:root :is(.field input:not([type="checkbox"]):not([type="radio"]), select, textarea)[aria-invalid="true"] {
+  border-color: var(--danger);
+  background-color: color-mix(in srgb, var(--danger) 8%, var(--surface-2));
+}
+
+:root :is(.field input:not([type="checkbox"]):not([type="radio"]), select, textarea)[aria-invalid="true"]:focus {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 22%, transparent);
+}
+
+/* A select that lives inside a framed control (an icon plus the select, one
+   capsule) borrows that frame. Without this the field rule above drew a second
+   bordered box inside the first -- the "pill in a pill" on the period picker
+   and the sign-in language switch. The host shows focus with :focus-within. */
+:root :is(.progress-range-control, .auth-v2-language) select {
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-inline: 0 24px;
+  border: 0;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.progress-range-control:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 .check-row {

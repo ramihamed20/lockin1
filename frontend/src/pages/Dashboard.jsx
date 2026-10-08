@@ -12,14 +12,14 @@ import { useI18n } from "../components/I18nProvider.jsx";
 import { formatNumber } from "../lib/i18n.js";
 import { MyGroupCard } from "../components/myGroup/MyGroupCard.jsx";
 
-async function loadDashboard() {
+async function loadDashboard(user) {
   const [accountResult, learningResult, reviewResult, bankResult, xpResult, streakResult] = await Promise.allSettled([
     dashboardApi.accountDashboard(),
     progressApi.learningDashboard(),
     reviewApi.getQueue(),
     reviewApi.getBank(),
     motivationApi.xpSummary(),
-    motivationApi.streakSummary()
+    motivationApi.streakSummary({ scope: user })
   ]);
   if (accountResult.status === "rejected" && learningResult.status === "rejected" && reviewResult.status === "rejected" && bankResult.status === "rejected") {
     throw accountResult.reason;
@@ -38,9 +38,9 @@ async function loadDashboard() {
   };
 }
 
-export default function Dashboard({ themeSettings, activeTheme }) {
+export default function Dashboard({ user, themeSettings, activeTheme }) {
   const { t } = useI18n();
-  const dashboard = useAsyncData(loadDashboard, []);
+  const dashboard = useAsyncData(() => loadDashboard(user), []);
 
   if (dashboard.loading) return <LoadingPanel variant="dashboard" />;
   if (dashboard.error) return <ErrorPanel message={dashboard.error} onRetry={dashboard.reload} />;
@@ -158,10 +158,12 @@ function RecentContent({ sheetEntries }) {
   const { t } = useI18n();
   const visibleSheets = sheetEntries.slice(0, 4);
   return (
-    <article className="panel dashboard-review-card dashboard-recent-sheets">
+    <article className={`panel dashboard-review-card dashboard-recent-sheets${visibleSheets.length ? "" : " is-empty"}`}>
       <div className="panel-title"><h2>{t("dashboard.recentSheets")}</h2><span><Icon name="layers" size={16} /></span></div>
       <div className="dashboard-review-list">
-        {visibleSheets.length ? visibleSheets.map((entry) => <RecentSheetLink key={entry.path} entry={entry} />) : <p>{t("dashboard.recentEmpty")}</p>}
+        {visibleSheets.length
+          ? visibleSheets.map((entry) => <RecentSheetLink key={entry.path} entry={entry} />)
+          : <p className="dashboard-recent-empty"><span aria-hidden="true"><Icon name="layers" size={20} /></span>{t("dashboard.recentEmpty")}</p>}
       </div>
     </article>
   );

@@ -88,27 +88,8 @@ export const themeOptions = [
   { id: "night", label: "Night", time: "20:00 - 05:00" }
 ];
 
-export const sessionLengthOptions = [5, 10, 20, "all"];
-
-export const focusDurations = [
-  { minutes: 25, label: "Focus" },
-  { minutes: 15, label: "Review" },
-  { minutes: 5, label: "Break" }
-];
-
-export const onboardingDefaults = {
-  completed: false,
-  dailyTarget: 15,
-  focusMaterialId: "",
-  focusMinutes: 25
-};
-
 export const reminderDefaults = {
   enabled: false,
   time: "20:00",
   lastSentDate: ""
-};
-
-export const streakProtectionDefaults = {
-  usedWeek: ""
 };

@@ -4,11 +4,25 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from apps.accounts.roles import is_subscription_exempt
+from apps.entitlements.free_access import free_access_ends_at
 from apps.entitlements.services import entitlement_decision
 
 from .models import Subscription, SubscriptionTransition
 
 DIRECT_STUDY_ENTITLEMENTS = ("focus.workspace", "content.premium", "files.download")
+
+
+def free_access_snapshot(ends_at: datetime) -> dict[str, object]:
+    """A subscription-shaped response for a student in a free-access window."""
+
+    return {
+        **founder_access_snapshot(),
+        "plan_title": "Free access",
+        "status": "free_access",
+        "status_reason": "free_access_window",
+        "free_access_until": ends_at.isoformat(),
+        "expires_at": ends_at.isoformat(),
+    }
 
 
 def founder_access_snapshot() -> dict[str, object]:
@@ -38,6 +52,7 @@ def founder_access_snapshot() -> dict[str, object]:
         "remaining_days": 0,
         "early_renewal_available": False,
         "manual_payment_review": None,
+        "installment_plan": None,
         "transitions": [],
     }
 
@@ -95,10 +110,12 @@ class SubscriptionSerializer(serializers.ModelSerializer[Subscription]):
     transitions = SubscriptionTransitionSerializer(many=True, read_only=True)
     access_allowed = serializers.SerializerMethodField()
     access_exempt = serializers.SerializerMethodField()
+    free_access_until = serializers.SerializerMethodField()
     expires_at = serializers.SerializerMethodField()
     remaining_days = serializers.SerializerMethodField()
     early_renewal_available = serializers.SerializerMethodField()
     manual_payment_review = serializers.SerializerMethodField()
+    installment_plan = serializers.SerializerMethodField()
 
     class Meta:
         model = Subscription
@@ -122,15 +139,28 @@ class SubscriptionSerializer(serializers.ModelSerializer[Subscription]):
             "revision",
             "access_allowed",
             "access_exempt",
+            "free_access_until",
             "expires_at",
             "remaining_days",
             "early_renewal_available",
             "manual_payment_review",
+            "installment_plan",
             "transitions",
         )
 
+    def get_installment_plan(self, subscription: Subscription) -> dict[str, object] | None:
+        # Imported here: payments reads subscription models.
+        from apps.payments.installments import installment_payload
+
+        return installment_payload(subscription)
+
     def get_manual_payment_review(self, subscription: Subscription) -> dict[str, object] | None:
         return _manual_payment_review(subscription)
+
+    def get_free_access_until(self, subscription: Subscription) -> str | None:
+        primary_user = subscription.account.primary_user
+        ends_at = free_access_ends_at(primary_user) if primary_user is not None else None
+        return ends_at.isoformat() if ends_at else None
 
     def get_access_allowed(self, subscription: Subscription) -> bool:
         primary_user = subscription.account.primary_user
@@ -145,7 +175,9 @@ class SubscriptionSerializer(serializers.ModelSerializer[Subscription]):
 
     def get_access_exempt(self, subscription: Subscription) -> bool:
         primary_user = subscription.account.primary_user
-        return primary_user is not None and is_subscription_exempt(primary_user)
+        return primary_user is not None and (
+            is_subscription_exempt(primary_user) or free_access_ends_at(primary_user) is not None
+        )
 
     def get_expires_at(self, subscription: Subscription) -> datetime | None:
         """Return the authoritative deadline for the currently granted access state."""
@@ -172,7 +204,9 @@ class SubscriptionSerializer(serializers.ModelSerializer[Subscription]):
 
     def get_early_renewal_available(self, subscription: Subscription) -> bool:
         primary_user = subscription.account.primary_user
-        if primary_user is not None and is_subscription_exempt(primary_user):
+        if primary_user is not None and (
+            is_subscription_exempt(primary_user) or free_access_ends_at(primary_user) is not None
+        ):
             return False
         end = subscription.current_period_ends_at
         now = timezone.now()

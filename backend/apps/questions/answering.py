@@ -16,6 +16,7 @@ a second award impossible even if the first lock were bypassed.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import datetime
 from uuid import UUID
 
 from django.db import IntegrityError, transaction
@@ -57,6 +58,93 @@ def _selection(version: QuestionVersion, choice_ids: Iterable[UUID]) -> list[UUI
     return selected
 
 
+def _record_wrong(
+    *,
+    user: User,
+    question: Question,
+    version: QuestionVersion,
+    selected: list[UUID],
+    correct: set[UUID],
+    event_key: str,
+    now: datetime,
+) -> None:
+    """Put a wrong answer in the Review Bank; each distinct event counts once."""
+
+    from apps.review.contracts import QuestionAttemptEvent
+    from apps.review.models import ReviewItem
+    from apps.review.services import record_question_attempt, subject_for_node
+
+    subject = subject_for_node(version.academic_node)
+    sheet = version.source_learning_object
+    options = tuple({"id": str(option.id), "text": option.text} for option in version.options.all())
+    record_question_attempt(
+        event=QuestionAttemptEvent(
+            user=user,
+            event_key=event_key,
+            canonical_key=f"question:{question.id}",
+            subject_key=f"node:{subject.id}",
+            subject_label=subject.title,
+            source_type=ReviewItem.SourceType.SHEET,
+            source_id=str(sheet.id) if sheet else "",
+            source_label=(
+                sheet.published_version.title
+                if sheet and sheet.published_version
+                else subject.title
+            ),
+            source_question_index=None,
+            prompt=version.prompt,
+            explanation=version.explanation,
+            options=options,
+            selected_option_ids=tuple(str(value) for value in selected),
+            correct_option_ids=tuple(str(value) for value in correct),
+            is_correct=False,
+            answered_at=now,
+            question_version=version,
+            subject=subject,
+        )
+    )
+
+
+def retry_question(
+    *, user: User, question: Question, choice_ids: Iterable[UUID], retry_key: UUID
+) -> tuple[bool, QuestionVersion, set[UUID], int]:
+    """Grade another try at a question the student already answered.
+
+    The first answer, its verdict and its XP stay as recorded. A wrong retry is
+    one more mistake in the Review Bank, so the question's mistake count rises
+    each time it is missed; a right one records nothing. ``retry_key`` makes a
+    resent request count once. Returns whether it was right, the version it was
+    graded against, the correct choices and the question's mistake count.
+    """
+
+    if not QuestionAnswer.objects.filter(user=user, question=question).exists():
+        raise AnswerRejected("Answer this question first.")
+    version = question.published_version
+    if version is None or question.retired_at is not None:
+        raise AnswerRejected("This question is not available.")
+    selected = _selection(version, choice_ids)
+    correct = {option.id for option in version.options.all() if option.is_correct}
+    is_correct = set(selected) == correct
+    if not is_correct:
+        _record_wrong(
+            user=user,
+            question=question,
+            version=version,
+            selected=selected,
+            correct=correct,
+            event_key=f"normal-question-retry:{retry_key}",
+            now=timezone.now(),
+        )
+    from apps.review.models import ReviewItem
+
+    mistakes = (
+        ReviewItem.objects.filter(user=user, canonical_key=f"question:{question.id}")
+        .values_list("mistake_count", flat=True)
+        .first()
+    )
+    return is_correct, version, correct, mistakes or 0
+
+
 def answer_question(
     *, user: User, question: Question, choice_ids: Iterable[UUID]
 ) -> tuple[QuestionAnswer, bool]:
@@ -88,40 +176,14 @@ def answer_question(
                 answered_at=now,
             )
             if not is_correct:
-                from apps.review.contracts import QuestionAttemptEvent
-                from apps.review.models import ReviewItem
-                from apps.review.services import record_question_attempt, subject_for_node
-
-                subject = subject_for_node(version.academic_node)
-                sheet = version.source_learning_object
-                options = tuple(
-                    {"id": str(option.id), "text": option.text} for option in version.options.all()
-                )
-                record_question_attempt(
-                    event=QuestionAttemptEvent(
-                        user=user,
-                        event_key=f"normal-question:{answer.id}",
-                        canonical_key=f"question:{question.id}",
-                        subject_key=f"node:{subject.id}",
-                        subject_label=subject.title,
-                        source_type=ReviewItem.SourceType.SHEET,
-                        source_id=str(sheet.id) if sheet else "",
-                        source_label=(
-                            sheet.published_version.title
-                            if sheet and sheet.published_version
-                            else subject.title
-                        ),
-                        source_question_index=None,
-                        prompt=version.prompt,
-                        explanation=version.explanation,
-                        options=options,
-                        selected_option_ids=tuple(str(value) for value in selected),
-                        correct_option_ids=tuple(str(value) for value in correct),
-                        is_correct=False,
-                        answered_at=now,
-                        question_version=version,
-                        subject=subject,
-                    )
+                _record_wrong(
+                    user=user,
+                    question=question,
+                    version=version,
+                    selected=selected,
+                    correct=correct,
+                    event_key=f"normal-question:{answer.id}",
+                    now=now,
                 )
                 return answer, True
             award, created = award_xp(

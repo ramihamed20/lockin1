@@ -137,7 +137,7 @@
    so the chosen colour reads at a glance without a second white outline. */
 .workspace-v2-color-swatch.is-active::before { border-color: transparent; box-shadow: 0 0 0 2px var(--workspace-panel), 0 0 0 4px var(--workspace-gold-bright); }
 .workspace-v2-color-delete { position: absolute; z-index: 1; right: 5px; bottom: -1px; display: grid; width: 24px; height: 18px; place-items: center; padding: 0; border: 0; border-radius: 6px; color: var(--workspace-chrome-secondary); background: var(--workspace-control-bg); cursor: pointer; }
-.workspace-v2-color-delete:hover { color: var(--workspace-chrome-text); background: color-mix(in srgb, var(--purple) 26%, var(--workspace-control-bg)); }
+.workspace-v2-color-delete:hover:where(html.ix-hover *) { color: var(--workspace-chrome-text); background: color-mix(in srgb, var(--purple) 26%, var(--workspace-control-bg)); }
 .workspace-v2-custom-color { position: relative; display: inline-flex; min-width: 48px; height: 34px; flex: 0 0 auto; align-items: center; justify-content: center; gap: 3px; padding: 0 7px; border: 1px dashed var(--workspace-control-border) !important; border-radius: var(--workspace-toolbar-radius); color: var(--workspace-chrome-secondary); background: transparent !important; cursor: pointer; font-size: .62rem; font-weight: 750; }
 .workspace-v2-custom-color.is-active { color: var(--workspace-gold-bright); border-style: solid !important; border-color: color-mix(in srgb, var(--workspace-gold) 46%, transparent) !important; background: color-mix(in srgb, var(--workspace-gold) 15%, transparent) !important; }
 .workspace-v2-custom-color-editor { display: flex; height: 34px; align-items: center; gap: 2px; padding: 2px; border-radius: var(--workspace-toolbar-radius); background: var(--workspace-control-bg); }
@@ -234,7 +234,7 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2-settings-confirm button { min-height: 40px; flex: 1 1 auto; padding: 0 10px; border: 0; border-radius: var(--workspace-toolbar-radius); color: var(--workspace-on-accent); background: var(--workspace-gold); cursor: pointer; font-size: .7rem; font-weight: 750; }
 .workspace-v2-settings-confirm button:last-child { color: var(--workspace-chrome-secondary); background: color-mix(in srgb, var(--purple) 20%, transparent); }
 .workspace-v2-page-number { display: inline-flex; min-height: 30px; align-items: center; gap: 3px; padding: 0 9px; border: 0; border-radius: 8px; color: #e8ecf8; background: rgba(13,19,39,.9); box-shadow: 0 2px 6px rgba(0,0,0,.3); cursor: pointer; font-size: .66rem; font-variant-numeric: tabular-nums; }
-.workspace-v2-page-number:hover, .workspace-v2-page-dock.is-open .workspace-v2-page-number { color: #fff; background: rgba(24,33,62,.96); }
+.workspace-v2-page-number:hover:where(html.ix-hover *), .workspace-v2-page-dock.is-open .workspace-v2-page-number { color: #fff; background: rgba(24,33,62,.96); }
 .workspace-v2-page-number span { color: #9ba6be; }
 .workspace-v2-page-navigator { display: grid; gap: 6px; padding: 7px; border: 1px solid var(--workspace-border); border-radius: 11px; color: #e8ecf8; background: var(--workspace-panel); box-shadow: 0 8px 18px rgba(0,0,0,.34); animation: workspace-options-in 150ms cubic-bezier(.16,1,.3,1); }
 .workspace-v2-page-jump, .workspace-v2-zoom-control { display: flex; align-items: center; gap: 3px; }
@@ -311,7 +311,7 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2-selection-box circle { fill: #fff; stroke: #7650ed; stroke-width: 4; vector-effect: non-scaling-stroke; pointer-events: all; cursor: nwse-resize; }
 .workspace-v2-selection-menu { position: absolute !important; z-index: 6 !important; display: flex; max-width: min(580px, calc(100vw - 24px)); flex-wrap: wrap; justify-content: center; gap: 4px; padding: 5px; border-radius: 9px; color: #fff; background: #0e1428; box-shadow: 0 8px 20px rgba(5,10,30,.28); transform: translate(-50%, calc(-100% - 12px)); }
 .workspace-v2-selection-menu button { display: inline-flex; min-height: 36px; align-items: center; gap: 5px; padding: 0 10px; border: 0; border-radius: 7px; color: #e9edfb; background: transparent; cursor: pointer; font-size: .7rem; }
-.workspace-v2-selection-menu button:hover { background: rgba(118,80,237,.22); }
+.workspace-v2-selection-menu button:hover:where(html.ix-hover *) { background: rgba(118,80,237,.22); }
 .workspace-v2-selection-menu button:disabled { opacity: .4; cursor: default; }
 .workspace-v2-selection-menu button.is-danger { color: #ffb0b6; }
 .workspace-v2-document h1 { width: max-content; max-width: 100%; margin: 0 0 22px; padding-bottom: 6px; border-bottom: 3px solid #7650ed; color: #16182d; font-family: Georgia, serif; font-size: clamp(2rem, 4vw, 2.75rem); letter-spacing: -.02em; }
@@ -330,7 +330,7 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 
 .workspace-v2-selection-actions { display: flex; width: max-content; max-width: 100%; gap: 3px; margin: 10px 0 4px 24px; padding: 8px; overflow-x: auto; border-radius: 11px; background: #0e1428; box-shadow: 0 4px 8px rgba(5, 10, 30, .28); }
 .workspace-v2-selection-actions button { min-width: 88px; min-height: 50px; display: grid; place-items: center; gap: 4px; padding: 6px 8px; border: 0; border-radius: 8px; color: #eef1ff; background: transparent; font-size: .68rem; cursor: pointer; }
-.workspace-v2-selection-actions button:hover { background: rgba(118,80,237,.22); }
+.workspace-v2-selection-actions button:hover:where(html.ix-hover *) { background: rgba(118,80,237,.22); }
 .workspace-v2-selection-actions button:disabled { color: #788199; background: transparent; cursor: not-allowed; }
 
 .workspace-v2-clinical-note { display: flex; gap: 16px; align-items: flex-start; margin-top: 28px; padding: 22px; border: 1px solid #d9cff5; border-radius: 10px; background: #f0ecff; }
@@ -360,11 +360,11 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 
 .workspace-v2-note-list, .workspace-v2-highlight-list { display: grid; gap: 7px; }
 .workspace-v2-note-card, .workspace-v2-highlight-card { width: 100%; padding: 10px; border: 1px solid rgba(130,151,205,.09); border-radius: 9px; color: inherit; background: #101831; cursor: pointer; text-align: start; }
-.workspace-v2-note-card:hover, .workspace-v2-highlight-card:hover { border-color: rgba(142,97,255,.36); background: #141d38; }
+.workspace-v2-note-card:hover:where(html.ix-hover *), .workspace-v2-highlight-card:hover:where(html.ix-hover *) { border-color: rgba(142,97,255,.36); background: #141d38; }
 .workspace-v2-note-item { position: relative; }
 .workspace-v2-note-item .workspace-v2-note-card { padding-inline-end: 48px; }
 .workspace-v2-note-delete { position: absolute; inset-block-start: 6px; inset-inline-end: 6px; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid rgba(255,176,182,.28); border-radius: 8px; color: #ffb0b6; background: transparent; cursor: pointer; }
-.workspace-v2-note-delete:hover { background: rgba(255,176,182,.1); }
+.workspace-v2-note-delete:hover:where(html.ix-hover *) { background: rgba(255,176,182,.1); }
 :root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2-note-delete { color: var(--danger); border-color: var(--workspace-border); }
 .workspace-v2-card-meta { display: flex; justify-content: space-between; gap: 8px; }
 .workspace-v2-card-meta > span, .workspace-v2-card-tags > span { color: #8d98b5; font-size: .66rem; }
@@ -404,7 +404,7 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2-mode-card { min-width: 0; display: grid; color: var(--workspace-chrome-text); border: 1px solid var(--workspace-control-border); border-radius: 12px; background: var(--workspace-panel-2); text-align: start; }
 button.workspace-v2-mode-card { cursor: pointer; }
 button.workspace-v2-mode-card { grid-template-columns: 40px minmax(0,1fr) 24px; align-items: center; gap: 10px; min-height: 64px; padding: 10px 12px; }
-button.workspace-v2-mode-card:hover { border-color: var(--accent-border); background: var(--workspace-control-hover); }
+button.workspace-v2-mode-card:hover:where(html.ix-hover *) { border-color: var(--accent-border); background: var(--workspace-control-hover); }
 button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 .workspace-v2-mode-card.is-active-study { gap: 12px; padding: 12px; border-color: var(--accent-border); }
 .workspace-v2-mode-heading { display: grid; grid-template-columns: 40px minmax(0,1fr); align-items: center; gap: 10px; }
@@ -766,7 +766,7 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   color: var(--workspace-chrome-text);
 }
 
-:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2 :is(.workspace-v2-selection-menu button:hover, .workspace-v2-selection-actions button:hover) {
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2 :is(.workspace-v2-selection-menu button:hover, .workspace-v2-selection-actions button:hover):where(html.ix-hover *) {
   background: var(--interactive-selected);
 }
 
@@ -928,11 +928,11 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 
 .workspace-v3-menu-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 8px; }
 .workspace-v3-menu-grid > button { display: grid; min-width: 0; min-height: 64px; place-items: center; gap: 4px; padding: 7px 4px; border: 0; border-radius: 10px; color: var(--workspace-chrome-secondary); background: transparent; cursor: pointer; font-size: .65rem; font-weight: 700; }
-.workspace-v3-menu-grid > button:hover { color: var(--workspace-chrome-text); background: var(--workspace-control-hover); }
+.workspace-v3-menu-grid > button:hover:where(html.ix-hover *) { color: var(--workspace-chrome-text); background: var(--workspace-control-hover); }
 
 .workspace-v3-menu-list { display: grid; padding: 6px; }
 .workspace-v3-menu-list > button { display: grid; min-height: 48px; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: 7px; padding: 5px 7px; border: 0; border-radius: 10px; color: var(--workspace-chrome-text); background: transparent; cursor: pointer; text-align: start; }
-.workspace-v3-menu-list > button:hover { background: var(--workspace-control-hover); }
+.workspace-v3-menu-list > button:hover:where(html.ix-hover *) { background: var(--workspace-control-hover); }
 .workspace-v3-menu-list > button > span { display: grid; gap: 1px; }
 .workspace-v3-menu-list strong { font-size: .72rem; }
 .workspace-v3-menu-list small { color: var(--workspace-chrome-muted); font-size: .61rem; line-height: 1.25; }
@@ -1117,19 +1117,18 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 
 /* Tablet Focus controls: the existing tool state and inspectors live in a
    floating shell. The PDF row still owns its own geometry and zoom bounds. */
-.workspace-v2-tool-caption,
 .workspace-v3-quick-colors { display: none; }
 .workspace-v2 { --workspace-toolbar-surface: color-mix(in srgb, var(--workspace-panel) 97%, transparent); }
 
 @media (min-width: 700px) and (min-height: 600px) {
   .workspace-v2-toolbar {
     width: calc(100% - 24px);
-    min-height: 68px;
-    gap: 6px;
-    margin: 10px 12px 0;
-    padding: 6px 9px;
+    min-height: 52px;
+    gap: 4px;
+    margin: 8px 12px 0;
+    padding: 4px 7px;
     border: 1px solid color-mix(in srgb, var(--workspace-chrome-text) 12%, transparent);
-    border-radius: 24px;
+    border-radius: 18px;
     background: var(--workspace-toolbar-surface);
     box-shadow: 0 5px 12px rgba(0, 0, 0, .23), inset 0 1px color-mix(in srgb, #fff 8%, transparent);
     backdrop-filter: blur(16px) saturate(1.12);
@@ -1141,7 +1140,7 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v3-primary { gap: 6px; justify-content: center; }
   .workspace-v2-tool-list { gap: 2px; }
   .workspace-v2-toolbar .workspace-v2-icon-button,
-  .workspace-v2-toolbar .workspace-v2-study-mode-button { min-width: 48px; width: 48px; min-height: 48px; height: 48px; border-radius: 13px; }
+  .workspace-v2-toolbar .workspace-v2-study-mode-button { min-width: 44px; width: 44px; min-height: 44px; height: 44px; border-radius: 12px; }
   .workspace-v2-toolbar .workspace-v2-icon-button { color: var(--workspace-chrome-text); }
   .workspace-v2-toolbar .workspace-v3-tool-button.is-hero { color: var(--workspace-chrome-text); }
   .workspace-v2-toolbar .workspace-v3-tool-button.is-active {
@@ -1152,7 +1151,7 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v2-toolbar .workspace-v3-tool-button.is-active:is([data-workspace-tool="pen"], [data-workspace-tool="highlighter"])::after {
     position: absolute;
     inset-block-end: 3px;
-    inset-inline: 17px;
+    inset-inline: 15px;
     height: 2px;
     border-radius: 3px;
     background: var(--workspace-tool-color);
@@ -1160,8 +1159,8 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   }
   .workspace-v2-toolbar .workspace-v3-tool-button { position: relative; }
   .workspace-v2-toolbar .workspace-v3-quick-colors { display: flex; flex: 0 0 auto; align-items: center; gap: 1px; padding-inline: 7px; border-inline-start: 1px solid color-mix(in srgb, var(--workspace-chrome-text) 13%, transparent); }
-  .workspace-v3-quick-color { display: grid; width: 44px; height: 48px; flex: 0 0 44px; place-items: center; padding: 0; border: 0; border-radius: 12px; background: transparent; cursor: pointer; transition: background-color 150ms var(--workspace-ease), transform 120ms var(--workspace-ease); }
-  .workspace-v3-quick-color > span { display: block; width: 22px; height: 22px; border-radius: 50%; background: var(--workspace-tool-color); box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); transition: box-shadow 150ms var(--workspace-ease), transform 150ms var(--workspace-ease); }
+  .workspace-v3-quick-color { display: grid; width: 44px; height: 44px; flex: 0 0 44px; place-items: center; padding: 0; border: 0; border-radius: 12px; background: transparent; cursor: pointer; transition: background-color 150ms var(--workspace-ease), transform 120ms var(--workspace-ease); }
+  .workspace-v3-quick-color > span { display: block; width: 18px; height: 18px; border-radius: 50%; background: var(--workspace-tool-color); box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); transition: box-shadow 150ms var(--workspace-ease), transform 150ms var(--workspace-ease); }
   .workspace-v3-quick-color.is-active > span { box-shadow: 0 0 0 2px var(--workspace-toolbar-surface), 0 0 0 4px var(--workspace-violet-bright); transform: scale(1.04); }
   .workspace-v3-quick-color:disabled { opacity: .42; cursor: default; }
   .workspace-v3-quick-color:active:not(:disabled) { transform: scale(.94); }
@@ -1169,7 +1168,7 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v2-toolbar-actions { gap: 2px; padding-inline-start: 9px; border-color: color-mix(in srgb, var(--workspace-chrome-text) 13%, transparent); background: transparent; }
   .workspace-v2-toolbar-actions .workspace-v3-search { display: none; }
   .workspace-v2-toolbar .workspace-v2-study-mode-button { color: var(--workspace-chrome-text); border: 0; background: transparent; }
-  .workspace-v2-toolbar .workspace-v2-study-mode-button.has-progress { width: 48px; min-width: 48px; padding: 0; background: color-mix(in srgb, var(--workspace-gold) 16%, transparent); }
+  .workspace-v2-toolbar .workspace-v2-study-mode-button.has-progress { width: 44px; min-width: 44px; padding: 0; background: color-mix(in srgb, var(--workspace-gold) 16%, transparent); }
   .workspace-v2-toolbar .workspace-v2-study-mode-status { display: none; }
   .workspace-v2-tool-options {
     top: calc(var(--workspace-toolbar-height, 68px) + 18px);
@@ -1235,16 +1234,14 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v2-selection-menu button { min-height: 44px; border-radius: 9px; }
 }
 
-@media (min-width: 900px) and (min-height: 600px) {
-  .workspace-v2-toolbar .workspace-v3-tool-button,
-  .workspace-v2-toolbar .workspace-v3-history-button,
-  .workspace-v2-toolbar .workspace-v3-utility-button,
-  .workspace-v2-toolbar .workspace-v2-study-mode-button { width: 55px; min-width: 55px; height: 56px; min-height: 56px; align-content: center; gap: 2px; }
-  .workspace-v2-toolbar .workspace-v2-icon-button:has(.workspace-v2-tool-caption),
-  .workspace-v2-toolbar .workspace-v2-study-mode-button { display: grid; justify-items: center; }
-  .workspace-v2-toolbar .workspace-v2-tool-caption { display: block; color: var(--workspace-chrome-secondary); font-size: .61rem; font-weight: 600; line-height: 1; white-space: nowrap; }
-  .workspace-v2-toolbar .is-active .workspace-v2-tool-caption { color: var(--workspace-chrome-text); }
-  .workspace-v2-toolbar .workspace-v3-tool-button.is-active:is([data-workspace-tool="pen"], [data-workspace-tool="highlighter"])::after { inset-block-end: 3px; }
+/* A desktop pointer is precise, so the bar can be smaller than the 44px
+   touch targets the tablet and phone layouts keep. */
+@media (min-width: 1200px) and (min-height: 600px) and (pointer: fine) {
+  .workspace-v2-toolbar .workspace-v2-icon-button,
+  .workspace-v2-toolbar .workspace-v2-study-mode-button,
+  .workspace-v2-toolbar .workspace-v2-study-mode-button.has-progress { min-width: 40px; width: 40px; min-height: 40px; height: 40px; border-radius: 11px; }
+  .workspace-v2-toolbar .workspace-v3-tool-button.is-active:is([data-workspace-tool="pen"], [data-workspace-tool="highlighter"])::after { inset-inline: 13px; }
+  .workspace-v3-quick-color { width: 32px; height: 40px; flex-basis: 32px; }
 }
 
 @media (min-width: 700px) and (max-width: 810px) and (min-height: 600px) {
@@ -1260,7 +1257,7 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 /* A content-resizing virtual keyboard can cross the 600px media boundary.
    Keep the tablet toolbar's grid row fixed while the reader frame is pinned. */
 @media (min-width: 700px) and (max-height: 599px) {
-  .workspace-v2[data-keyboard="open"] .workspace-v2-toolbar { min-height: 68px; }
+  .workspace-v2[data-keyboard="open"] .workspace-v2-toolbar { min-height: 52px; }
 }
 
 @media (max-width: 699px), (max-height: 599px) {
@@ -1599,7 +1596,7 @@ html.ix-hover .workspace-v2-action-popover .workspace-v3-menu-grid > button:not(
 
 .workspace-v2-study-restart { display: grid; gap: 8px; border-block-start: 1px solid var(--workspace-border); padding-block-start: 10px; }
 .workspace-v2-study-restart > button { min-height: 40px; border: 0; color: var(--workspace-chrome-secondary); background: transparent; cursor: pointer; font-size: .7rem; }
-.workspace-v2-study-restart > button:hover { color: var(--workspace-chrome-text); }
+.workspace-v2-study-restart > button:hover:where(html.ix-hover *) { color: var(--workspace-chrome-text); }
 .workspace-v2-study-restart p { margin: 0; color: var(--workspace-chrome-secondary); font-size: .72rem; line-height: 1.45; }
 .workspace-v2-study-restart > div { display: flex; justify-content: flex-end; gap: 8px; }
 .workspace-v2-study-restart > div button { min-height: 40px; padding-inline: 12px; border: 1px solid var(--workspace-control-border); border-radius: 9px; color: var(--workspace-chrome-text); background: var(--workspace-control-bg); cursor: pointer; font-size: .7rem; }

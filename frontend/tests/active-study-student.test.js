@@ -45,9 +45,13 @@ test("managed Active Study is unified with the old one-question quiz experience"
   for (const name of [
     "startManagedActiveStudy",
     "getManagedActiveStudyQuestions",
-    "answerManagedActiveStudyQuestion",
     "submitManagedActiveStudy"
   ]) assert.match(workspace, new RegExp(`focusApi\\.${name}`));
+  // The whole attempt is saved and graded by the submit request. One request
+  // per question made a 50-question exam wait up to 40 seconds for its result.
+  const submitActiveQuiz = workspace.slice(workspace.indexOf("async function submitActiveQuiz"), workspace.indexOf("async function continueActiveStudyAnyway"));
+  assert.match(submitActiveQuiz, /submitManagedActiveStudy\(activeStudy\.id, activeQuiz\.attempt_id, held\)/);
+  assert.doesNotMatch(submitActiveQuiz, /answerManagedActiveStudyQuestion/);
   assert.match(workspace, /function ActiveStudyQuiz/);
   // The checkpoint reads in the interface language; the English copy is
   // unchanged, so it is asserted in the catalogue rather than the source.

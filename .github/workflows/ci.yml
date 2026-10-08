@@ -2,8 +2,11 @@ name: production-quality-gate
 
 on:
   pull_request:
+  # Pull requests already run every gate on the branch head, so branches are
+  # not also run on push: that was the same suite twice per commit. Only main
+  # runs on push, which the publish job needs.
   push:
-    branches: [main, "codex/**"]
+    branches: [main]
 
 permissions:
   contents: read
@@ -57,9 +60,22 @@ jobs:
           python -m mypy .
           python manage.py makemigrations --check --dry-run
           python manage.py check
+      # This database is thrown away with the runner, so durability buys
+      # nothing; without fsync the 149 migrations each worker replays run far
+      # faster. Production configuration is untouched.
+      - name: Disable durability on the throwaway CI database
+        run: >-
+          docker exec "${{ job.services.postgres.id }}"
+          psql --username lockin_owner --dbname lockin_test --set ON_ERROR_STOP=1
+          --command "ALTER SYSTEM SET fsync = off"
+          --command "ALTER SYSTEM SET synchronous_commit = off"
+          --command "ALTER SYSTEM SET full_page_writes = off"
+          --command "SELECT pg_reload_conf()"
+      # One worker per runner core, each with its own test database. The
+      # slowest tests are reported so the next bottleneck is visible in the log.
       - name: PostgreSQL test suite
         working-directory: backend
-        run: python -m pytest
+        run: python -m pytest -n auto --durations=15
       - name: Create least-privilege runtime role
         run: >-
           docker exec "${{ job.services.postgres.id }}"
@@ -206,7 +222,12 @@ jobs:
           pnpm run check:bundle
 
   browser:
+    name: browser (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     # Chromium and its system dependencies ship inside this image, so the job
     # downloads neither. `playwright install --with-deps chromium` stalled
     # indefinitely right after its 167 MB download reported 100%, twice in a
@@ -236,9 +257,11 @@ jobs:
       # reader specs open (frontend/e2e/fixtures/catalog.js). Everything else is
       # identical production code, and the "frontend" job above still builds and
       # budget-checks the real production bundle.
+      #
+      # The suite is split across three runners; every spec runs in exactly one.
       - name: Production-bundle browser regression
         working-directory: frontend
-        run: pnpm run build:e2e && pnpm run test:e2e
+        run: pnpm run build:e2e && pnpm run test:e2e --shard=${{ matrix.shard }}/3
 
   containers:
     runs-on: ubuntu-latest

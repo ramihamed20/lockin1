@@ -1,21 +1,6 @@
-import { ApiError, request } from "./client.js";
-import { normalizePaginatedResponse } from "./contracts.js";
+import { objectPayload, pagePayload } from "./payloads.js";
+import { request } from "./client.js";
 import { buildQueryString } from "./pagination.js";
-
-function objectPayload(payload, message) {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    throw new ApiError(500, payload, message, "invalid_response");
-  }
-  return /** @type {Record<string, unknown>} */ (payload);
-}
-
-function pagePayload(payload, message) {
-  const source = objectPayload(payload, message);
-  if (!Array.isArray(source.results) || typeof source.count !== "number") {
-    throw new ApiError(500, payload, message, "invalid_response");
-  }
-  return normalizePaginatedResponse(source);
-}
 
 /** Server-authoritative bookmarks and learning progress. */
 export const progressApi = {

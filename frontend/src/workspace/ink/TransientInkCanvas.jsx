@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { inkCanvasOutputScale } from "../catalog/renderBudget.js";
-import { TRANSIENT_INK_KIND, neonAlpha, pointerAlpha } from "./transientInk.js";
+import { TRANSIENT_INK_KIND, transientAlpha } from "./transientInk.js";
 
 function tracePath(context, points) {
   context.beginPath();
@@ -20,53 +20,45 @@ function tracePath(context, points) {
 
 /** A glowing coloured line with a bright core, like a neon tube. */
 function paintNeon(context, stroke, now, devicePxPerUnit) {
-  const alpha = neonAlpha(stroke, now);
+  const alpha = transientAlpha(stroke, now);
   if (!stroke.points.length || alpha <= 0) return;
-  context.globalAlpha = alpha;
   context.strokeStyle = stroke.color;
   context.lineWidth = stroke.width;
-  // shadowBlur is in device pixels whatever the transform is.
   context.shadowColor = stroke.color;
-  context.shadowBlur = stroke.width * devicePxPerUnit * 2.4;
+  // Wide halo, then tighter layers, so the light spreads well beyond the line.
+  // shadowBlur is in device pixels whatever the transform is.
+  for (const [blur, layerAlpha] of NEON_GLOW_LAYERS) {
+    context.globalAlpha = alpha * layerAlpha;
+    context.shadowBlur = stroke.width * devicePxPerUnit * blur;
+    tracePath(context, stroke.points);
+    context.stroke();
+  }
+  context.globalAlpha = alpha;
+  context.shadowBlur = stroke.width * devicePxPerUnit * .8;
+  context.shadowColor = "rgba(255, 255, 255, .9)";
+  context.strokeStyle = "rgba(255, 255, 255, .92)";
+  context.lineWidth = stroke.width * .4;
   tracePath(context, stroke.points);
-  context.stroke();
-  context.stroke();
-  context.shadowBlur = 0;
-  context.strokeStyle = "rgba(255, 255, 255, .82)";
-  context.lineWidth = stroke.width * .36;
   context.stroke();
 }
 
-/**
- * A laser trail. Samples are grouped into a few bands of equal opacity and each
- * band is one continuous path, so the fade reads as smooth rather than beaded
- * by the round caps of hundreds of overlapping segments.
- */
-const POINTER_BANDS = 8;
+const NEON_GLOW_LAYERS = [[7, .55], [3.6, .8], [1.6, 1]];
 
+/** A laser line with a soft glow and a bright dot at the tip while it moves. */
 function paintPointer(context, stroke, now, devicePxPerUnit) {
   const { points } = stroke;
-  if (!points.length) return;
+  const alpha = transientAlpha(stroke, now);
+  if (!points.length || alpha <= 0) return;
+  context.globalAlpha = alpha;
   context.strokeStyle = stroke.color;
   context.fillStyle = stroke.color;
   context.lineWidth = stroke.width;
   context.shadowColor = stroke.color;
-  context.shadowBlur = stroke.width * devicePxPerUnit * 1.6;
-  let index = 1;
-  while (index < points.length) {
-    const band = Math.ceil(pointerAlpha(points[index].t, now) * POINTER_BANDS);
-    const start = index - 1;
-    while (index + 1 < points.length && Math.ceil(pointerAlpha(points[index + 1].t, now) * POINTER_BANDS) === band) index += 1;
-    if (band > 0) {
-      context.globalAlpha = band / POINTER_BANDS;
-      tracePath(context, points.slice(start, index + 1));
-      context.stroke();
-    }
-    index += 1;
-  }
-  if (stroke.endedAt === null) {
+  context.shadowBlur = stroke.width * devicePxPerUnit * 3;
+  tracePath(context, points);
+  context.stroke();
+  if (stroke.fadeAt === null) {
     const tip = points[points.length - 1];
-    context.globalAlpha = 1;
     context.beginPath();
     context.arc(tip.x, tip.y, stroke.width * .9, 0, Math.PI * 2);
     context.fill();
@@ -86,10 +78,12 @@ export function TransientInkCanvas({ store, pageNumber }) {
     const canvas = canvasRef.current;
     if (!canvas || !store) return undefined;
     let frame = null;
+    let wake = null;
     let painted = false;
 
     const paint = () => {
       frame = null;
+      if (wake !== null) { clearTimeout(wake); wake = null; }
       const time = store.now();
       const strokes = store.visible(pageNumber, time);
       if (!strokes.length) {
@@ -120,7 +114,15 @@ export function TransientInkCanvas({ store, pageNumber }) {
         context.restore();
       }
       painted = true;
-      frame = requestAnimationFrame(paint);
+      // Held ink does not change, so sleep until the pen moves again or the
+      // fade is due instead of redrawing glowing strokes every frame.
+      const animating = store.isDrawing() || strokes.some((stroke) => stroke.fadeAt !== null && stroke.fadeAt <= time);
+      if (animating) {
+        frame = requestAnimationFrame(paint);
+      } else {
+        const next = Math.min(...strokes.map((stroke) => stroke.fadeAt ?? Infinity));
+        if (Number.isFinite(next)) wake = setTimeout(schedule, Math.max(0, next - time));
+      }
     };
     const schedule = () => { if (frame === null) frame = requestAnimationFrame(paint); };
     const unsubscribe = store.subscribe(schedule);
@@ -128,6 +130,7 @@ export function TransientInkCanvas({ store, pageNumber }) {
     return () => {
       unsubscribe();
       if (frame !== null) cancelAnimationFrame(frame);
+      if (wake !== null) clearTimeout(wake);
     };
   }, [pageNumber, store]);
 

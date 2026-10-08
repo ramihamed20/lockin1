@@ -80,12 +80,17 @@ import { generateIdempotencyKey } from "../api/pagination.js";
 import { rememberLastOpenedCatalogSheet, resolveSheetEdition, withEditionPdfUrl } from "../lib/materialCatalog.js";
 import { useCatalogMaterials } from "../hooks/useCatalogMaterials.js";
 import { useCatalogDocument } from "../hooks/useCatalogDocument.js";
+import { useAsyncData } from "../hooks/useAsyncData.js";
+import { PERSONAL_MATERIAL, personalSheetsApi, personalWorkspaceApi } from "../api/personalSheets.js";
 import { useReadingSession } from "../hooks/useReadingSession.js";
 import { subscribeConnection } from "../lib/connectionState.js";
 import { createCatalogServerSync } from "../workspace/catalog/catalogServerSync.js";
+import { DocumentSearchPanel, SearchHighlights, SearchNavigator, useDocumentSearch } from "../workspace/catalog/DocumentSearchPanel.jsx";
+import { coverRectangle, coveredSearchMatchIds, MAX_COVERS_PER_ACTION, searchCoverEntries } from "../workspace/catalog/recallCovers.js";
 import { assetPath, cssVars } from "../lib/utils.js";
 import { subscribeViewport } from "../lib/viewport.js";
 import { usePageTitle } from "../hooks/usePageTitle.js";
+import { useWorkspacePaneActive } from "../workspace/catalog/workspacePane.js";
 import {
   centeredScrollLeft,
   continuousPinchScale,
@@ -170,6 +175,26 @@ import { canvasesToPdf, renderWorkspacePage } from "../workspace/catalog/workspa
 import { canShareFile, createExportHandle, exportFileNameFor, formatFileSize, isAppleTouchDevice, shareExportFile, triggerDownload } from "../workspace/catalog/exportDelivery.js";
 import { loadPdfLibrary } from "../workspace/catalog/pdfJsAdapter.js";
 import { activeStudyResumePage } from "../workspace/catalog/visiblePdfPages.js";
+import WorkspaceTabBar from "../workspace/catalog/WorkspaceTabBar.jsx";
+import {
+  closeWorkspaceTab,
+  createWhiteboardId,
+  forgetPersonalTabs,
+  isWhiteboardId,
+  nextWhiteboardNumber,
+  openWorkspaceTab,
+  personalTab,
+  personalTabId,
+  sheetTab,
+  sheetTabId,
+  updateWorkspaceTab,
+  useWorkspaceTabs,
+  whiteboardTab,
+  whiteboardTabId,
+  workspaceTabRoute
+} from "../workspace/catalog/workspaceTabs.js";
+// Served as its own file: production CSP refuses a data: URL for the PDF reader.
+import whiteboardPageUrl from "../workspace/catalog/whiteboard-lined-page.pdf?url&no-inline";
 import { ToolPreview } from "../workspace/catalog/ToolPreview.jsx";
 import { LiveAnnotationCanvas } from "../workspace/ink/LiveAnnotationCanvas.jsx";
 import { TransientInkCanvas } from "../workspace/ink/TransientInkCanvas.jsx";
@@ -257,7 +282,7 @@ const SETTINGS_SECTIONS = Object.freeze([
 ]);
 const PAGE_BACKGROUND_CHOICES = Object.freeze([["blank", "focus.background.blank"], ["lined", "focus.background.ruled"], ["grid", "focus.background.grid"], ["dot", "focus.background.dotted"]]);
 const DRAWING_TOOLS = new Set(["pen", "pencil", "highlighter", "eraser", "shapes", "select"]);
-const POPOVER_SURFACES = new Set(["add", "page-background", "card", "text", "more", "export", "history", "settings"]);
+const POPOVER_SURFACES = new Set(["add", "page-background", "card", "text", "more", "export", "history", "settings", "search"]);
 const CONFIGURABLE_TOOLS = new Set(["pen", "pencil", "highlighter", "eraser", "select", "shapes"]);
 /** @type {Array<[string, string, import("lucide-react").LucideIcon, string]>} */
 const PEN_PROFILE_OPTIONS = [
@@ -324,9 +349,9 @@ function isStageControl(target) {
   return Boolean(target?.closest?.(STAGE_CONTROL_SELECTOR));
 }
 
-function WorkspaceIconButton({ label, caption = null, active = false, children, className = "", ...props }) {
+function WorkspaceIconButton({ label, active = false, children, className = "", ...props }) {
   return <button className={`workspace-v2-icon-button${active ? " is-active" : ""}${className ? ` ${className}` : ""}`} type="button" aria-label={label} title={label} {...props}>
-    {children}{caption && <span className="workspace-v2-tool-caption" aria-hidden="true">{caption}</span>}
+    {children}
   </button>;
 }
 
@@ -388,8 +413,8 @@ function SettingsToggle({ icon: ToggleIcon, label, description, checked, onChang
 }
 
 const WorkspaceAnnotation = memo(
-/** @param {{ annotation: any, draft?: boolean, interactionOnly?: boolean, groupedHighlighter?: boolean, pageAspect?: number }} props */
-function WorkspaceAnnotation({ annotation, draft = false, interactionOnly = false, groupedHighlighter = false, pageAspect = 1 }) {
+/** @param {{ annotation: any, draft?: boolean, interactionOnly?: boolean, groupedHighlighter?: boolean, pageAspect?: number, revealed?: boolean }} props */
+function WorkspaceAnnotation({ annotation, draft = false, interactionOnly = false, groupedHighlighter = false, pageAspect = 1, revealed = false }) {
   const common = { "data-annotation-id": annotation.id, "data-annotation-type": annotation.type };
   if (["pen", "pencil", "highlighter"].includes(annotation.type)) {
     const geometry = strokeRenderGeometry(annotation);
@@ -453,6 +478,14 @@ function WorkspaceAnnotation({ annotation, draft = false, interactionOnly = fals
     return <text {...commonWithOpacity} x={annotation.x} y={annotation.y} fill={annotation.color} fontSize={fontSize} fontWeight={annotation.bold ? 700 : 400} fontFamily="system-ui, sans-serif" textAnchor={textAnchor}>{String(annotation.text).split("\n").map((line, index) => <tspan key={index} x={annotation.x} dy={index ? fontSize * 1.3 : 0}>{line || " "}</tspan>)}</text>;
   }
   if (annotation.type === "image") return <image {...commonWithOpacity} href={annotation.src} x={annotation.x} y={annotation.y} width={annotation.width} height={annotation.height} preserveAspectRatio="xMidYMid meet" />;
+  if (annotation.type === "cover") {
+    // Hidden, the cover is a solid box; revealed, only its outline stays so the
+    // student can see what was hidden and hide it again with another tap.
+    const radius = Math.min(10, annotation.width / 4, annotation.height / 4);
+    return <g {...common} className={`workspace-cover${revealed ? " is-revealed" : ""}`} opacity={draft ? 0.68 : 1}>
+      <rect x={annotation.x} y={annotation.y} width={annotation.width} height={annotation.height} rx={radius} fill={annotation.color} stroke={annotation.color} strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
+    </g>;
+  }
   if (annotation.type === "card") {
     const colors = { sticky: "#fff3a8", note: "#edf2ff", lined: "#ffffff", revision: "#ffe8ed" };
     const header = { sticky: "Sticky Note", note: "Note Card", lined: "Lined Card", revision: "Revision Card" }[annotation.cardKind] || "Note Card";
@@ -473,9 +506,14 @@ function WorkspaceAnnotation({ annotation, draft = false, interactionOnly = fals
   return null;
 });
 
+const NO_REVEALED_COVERS = new Set();
+// Covers are drawn in this slate blue: distinct from the gold the app keeps for
+// the one focal action, and dark enough that nothing shows through.
+const COVER_COLOR = "#5f6fd8";
+
 const AnnotationVisuals = memo(
-/** @param {{ annotations: any[], hiddenIds?: Set<string>, prefix?: string, includeHitTargets?: boolean, pageAspect?: number }} props */
-function AnnotationVisuals({ annotations, hiddenIds = new Set(), prefix = "annotation", includeHitTargets = false, pageAspect = 1 }) {
+/** @param {{ annotations: any[], hiddenIds?: Set<string>, prefix?: string, includeHitTargets?: boolean, pageAspect?: number, revealedIds?: Set<string> }} props */
+function AnnotationVisuals({ annotations, hiddenIds = new Set(), prefix = "annotation", includeHitTargets = false, pageAspect = 1, revealedIds = NO_REVEALED_COVERS }) {
   const visible = (annotations || []).filter((annotation) => !hiddenIds.has(annotation.id)).sort((a, b) => (a.zOrder || 0) - (b.zOrder || 0));
   const highlightGroups = new Map();
   for (const annotation of visible) if (annotation.type === "highlighter") {
@@ -487,7 +525,7 @@ function AnnotationVisuals({ annotations, hiddenIds = new Set(), prefix = "annot
     {[...highlightGroups].map(([key, items]) => <g key={`${prefix}-highlight-${key}`} className="workspace-v2-highlighter-group" opacity={items[0].opacity ?? .34} style={{ mixBlendMode: "multiply" }}>
       {items.map((annotation) => <WorkspaceAnnotation key={`${prefix}-${annotation.id}`} annotation={annotation} groupedHighlighter pageAspect={pageAspect} />)}
     </g>)}
-    {visible.filter((annotation) => annotation.type !== "highlighter").map((annotation) => <WorkspaceAnnotation key={`${prefix}-${annotation.id}`} annotation={annotation} pageAspect={pageAspect} />)}
+    {visible.filter((annotation) => annotation.type !== "highlighter").map((annotation) => <WorkspaceAnnotation key={`${prefix}-${annotation.id}`} annotation={annotation} pageAspect={pageAspect} revealed={annotation.type === "cover" && revealedIds.has(annotation.id)} />)}
     {includeHitTargets && (annotations || []).filter((annotation) => annotation.type === "pen").map((annotation) => <WorkspaceAnnotation key={`${prefix}-hit-${annotation.id}`} annotation={annotation} interactionOnly />)}
   </>;
 });
@@ -637,7 +675,7 @@ const ACTIVE_DIFFICULTIES = [
   ["hard", "questions.difficulty.hard", "materials.activeDifficulty.hard"]
 ];
 
-function StudyModeDialog({ difficulty, setDifficulty, activeAvailable, restartProgress, completed = [], busy, error, onNormal, onActive, onRestart, activeOnly = false }) {
+function StudyModeDialog({ difficulty, setDifficulty, activeAvailable, restartProgress, completed = [], busy, checking = false, error, onNormal, onActive, onRestart, activeOnly = false }) {
   const { t } = useI18n();
   const dialogRef = useDialogFocus();
   const [confirmRestart, setConfirmRestart] = useState(false);
@@ -660,7 +698,7 @@ function StudyModeDialog({ difficulty, setDifficulty, activeAvailable, restartPr
             <div className="workspace-v2-difficulty" role="radiogroup" aria-label={t("materials.activeDifficultyGroup")}>
               {ACTIVE_DIFFICULTIES.map(([id, labelKey, detailKey]) => { const done = completed.includes(id); return <button key={id} type="button" role="radio" aria-label={`${t(labelKey)}: ${t(detailKey)}${done ? ` · ${t("materials.activeDifficultyDone")}` : ""}`} title={t(detailKey)} aria-checked={difficulty === id} className={difficulty === id ? "is-selected" : ""} onClick={() => { setDifficulty(id); setConfirmRestart(false); }}>{t(labelKey)}{done && <Check className="workspace-v2-difficulty-done" size={13} strokeWidth={2.6} aria-hidden="true" />}</button>; })}
             </div>
-            <button type="button" className="workspace-v2-active-start" onClick={onActive} disabled={busy || !activeAvailable}>{t(busy ? "materials.activeStudyStarting" : activeAvailable ? "materials.startActiveStudy" : "materials.activeStudyUnavailable")}<ChevronRight size={16} /></button>
+            <button type="button" className="workspace-v2-active-start" onClick={onActive} disabled={busy || !activeAvailable}>{t(checking ? "materials.activeStudyChecking" : busy ? "materials.activeStudyStarting" : activeAvailable ? "materials.startActiveStudy" : "materials.activeStudyUnavailable")}<ChevronRight size={16} /></button>
             {restartProgress && <div className="workspace-v2-study-restart">
               {!confirmRestart ? <button type="button" onClick={() => setConfirmRestart(true)} disabled={busy}>{t("materials.restartSavedStudy", { difficulty: t(`questions.difficulty.${difficulty}`) })}</button> : <>
                 <p>{t("materials.restartStudyConfirm")}</p>
@@ -838,8 +876,78 @@ function ActiveStudyQuiz({ quiz, answers, setAnswers, locked = {}, result, busy,
  * `variant` picks which of the sheet's PDFs it opens -- the edition's study
  * PDF, or that edition's Sheet Summary. Controls, theme, zoom, navigation and
  * file delivery are the same either way, because they are the same reader.
+ * A whiteboard is the same reader too, over one lined page plus added pages.
  */
 export default function CatalogFocusWorkspace({ user = null, variant = "study" }) {
+  if (variant === "whiteboard") return <WhiteboardWorkspace user={user} />;
+  if (variant === "personal") return <PersonalSheetWorkspace user={user} />;
+  return <CatalogSheetWorkspace user={user} variant={variant} />;
+}
+
+const PERSONAL_SCOPE = Object.freeze({ edition: "university", view: "study" });
+
+/**
+ * A PDF the student added to one of their subjects. It opens in the same
+ * reader, without Active Study or reading credit. Its marks and reader state
+ * sync to the student's other devices under the sheet's own id.
+ */
+function PersonalSheetWorkspace({ user = null }) {
+  const { materialSlug = "", sheetId = "" } = useParams();
+  const { t } = useI18n();
+  const [missing, setMissing] = useState(false);
+  const { data, loading, error, reload } = useAsyncData((signal) => personalSheetsApi.get(sheetId, { signal }).then(
+    (result) => { setMissing(false); return result; },
+    (failure) => { if (failure?.status === 404) setMissing(true); throw failure; }
+  ), [sheetId]);
+  const sheet = data?.sheet || null;
+  const subjectSlug = data?.subject?.slug || materialSlug;
+  const { materials: catalogMaterials } = useCatalogMaterials(user);
+  const ownerKey = useMemo(() => ownerStorageKey(user), [user]);
+  // A sheet that is gone (deleted on another device) leaves no dead tab behind.
+  useEffect(() => {
+    if (missing) forgetPersonalTabs(ownerKey, [sheetId]);
+  }, [missing, ownerKey, sheetId]);
+  const materials = useMemo(() => (sheet ? [{
+    slug: PERSONAL_MATERIAL,
+    title: data?.subject?.title || t("personalSheets.title"),
+    sheets: [{ slug: sheet.id, title: sheet.title, pdfUrl: sheet.viewUrl, pageCount: sheet.pageCount || 1, hasActiveStudy: false }]
+  }] : []), [data?.subject?.title, sheet, t]);
+  const syncedDocument = useMemo(() => (sheet ? { id: sheet.id, versionId: sheet.id, viewUrl: sheet.viewUrl, checksum: "" } : null), [sheet]);
+  const title = t("personalSheets.readerLabel");
+  if (loading) return <Page title={title}><LoadingPanel variant="document" /></Page>;
+  if (error || !sheet) return <Page title={title}><ErrorPanel message={error || t("personalSheets.notFound")} onRetry={reload} /></Page>;
+  if (!sheet.viewUrl) {
+    return <Page title={sheet.title}><ErrorPanel message={t(sheet.status === "processing" ? "personalSheets.processing" : "personalSheets.unavailable")} onRetry={reload} /></Page>;
+  }
+  return <CatalogFocusWorkspaceView key={sheet.id} user={user} materials={materials} materialSlug={PERSONAL_MATERIAL} tabMaterials={catalogMaterials} sheetSlug={sheet.id} catalogDocument={syncedDocument} documentScope={PERSONAL_SCOPE} personalBackTo={`/materials/catalog/${subjectSlug}/mine`} personalSubject={subjectSlug} preferredMode="normal" />;
+}
+
+const WHITEBOARD_MATERIAL = "whiteboard";
+
+/**
+ * The reader's own lined pages. The base page is a bundled one-page PDF and
+ * every page after it is an added lined page, so ink, undo, export and page
+ * handling are the sheet reader's own. A whiteboard has no server document
+ * yet, so it is kept in this device's store.
+ */
+function WhiteboardWorkspace({ user = null }) {
+  const { boardId = "" } = useParams();
+  const { t } = useI18n();
+  const ownerKey = useMemo(() => ownerStorageKey(user), [user]);
+  const [tabs] = useWorkspaceTabs(ownerKey);
+  const { materials } = useCatalogMaterials(user);
+  const number = tabs.tabs.find((tab) => tab.id === whiteboardTabId(boardId))?.number || nextWhiteboardNumber(tabs.tabs);
+  const title = t("workspaceTabs.whiteboardNumber", { number });
+  const boardMaterials = useMemo(() => [{
+    slug: WHITEBOARD_MATERIAL,
+    title: t("workspaceTabs.whiteboard"),
+    sheets: [{ slug: boardId, title, number, pdfUrl: whiteboardPageUrl, pageCount: 1, hasActiveStudy: false }]
+  }], [boardId, t, title, number]);
+  if (!isWhiteboardId(boardId)) return <Page title={t("materials.sheetNotFoundTitle")}><EmptyState icon="study" title={t("materials.sheetNotFoundTitle")} text={t("materials.sheetNotFoundText")} /></Page>;
+  return <CatalogFocusWorkspaceView key={boardId} user={user} materials={boardMaterials} tabMaterials={materials} materialSlug={WHITEBOARD_MATERIAL} sheetSlug={boardId} whiteboard preferredMode="normal" />;
+}
+
+function CatalogSheetWorkspace({ user = null, variant = "study" }) {
   const { materialSlug, sheetSlug } = useParams();
   const location = useLocation();
   const { t } = useI18n();
@@ -902,16 +1010,24 @@ export default function CatalogFocusWorkspace({ user = null, variant = "study" }
     return <Page title={sheet.title}><ErrorPanel message={t("materials.editionUnavailable")} onRetry={summaryMode ? undefined : catalogDocument.reload} /></Page>;
   }
   const preferredMode = location.state?.studyMode === "normal" || location.state?.studyMode === "active" ? location.state.studyMode : "";
-  return <CatalogFocusWorkspaceView user={user} materials={resolvedMaterials} catalogDocument={catalogDocument.document} documentScope={documentScope} onDocumentChanged={catalogDocument.reload} summaryMode={summaryMode} preferredMode={preferredMode} />;
+  // Each document is its own reader: moving between tabs never carries one
+  // sheet's study mode, Active Study run or tool state into another.
+  return <CatalogFocusWorkspaceView key={`${materialSlug}/${sheetSlug}/${documentScope.view}`} user={user} materials={resolvedMaterials} catalogDocument={catalogDocument.document} documentScope={documentScope} onDocumentChanged={catalogDocument.reload} summaryMode={summaryMode} preferredMode={preferredMode} />;
 }
 
-function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocument = null, documentScope = null, onDocumentChanged = () => {}, summaryMode = false, preferredMode = "" }) {
+function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials = materials, materialSlug: materialSlugProp = "", sheetSlug: sheetSlugProp = "", whiteboard = false, personalBackTo = "", personalSubject = "", catalogDocument = null, documentScope = null, onDocumentChanged = () => {}, summaryMode = false, preferredMode = "" }) {
+  // A student's own sheet: no Active Study and no reading credit.
+  const personal = Boolean(personalBackTo);
   const { t } = useI18n();
+  // False while this reader is a tab kept open behind the one on screen.
+  const paneActive = useWorkspacePaneActive();
   // Effects that report status read the current language through a ref, so a
   // language change never re-runs them (their dependencies stay as they were).
   const translateRef = useRef(t);
   translateRef.current = t;
-  const { materialSlug, sheetSlug } = useParams();
+  const params = useParams();
+  const materialSlug = materialSlugProp || params.materialSlug || "";
+  const sheetSlug = sheetSlugProp || params.sheetSlug || "";
   // A Sheet Summary is a different document from the sheet it belongs to, and
   // the local cache is keyed by slug, so it needs a key of its own or the two
   // sets of marks would be cached over each other on this device.
@@ -919,7 +1035,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   // Reading a sheet is what the streak is meant to count, so the sitting is
   // reported. A Sheet Summary is a reference lookup rather than a study
   // sitting, and a fixture sheet has no server document to report against.
-  useReadingSession(catalogDocument?.versionId || "", { enabled: !summaryMode });
+  useReadingSession(catalogDocument?.versionId || "", { enabled: !summaryMode && !whiteboard && !personal });
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const rootRef = useRef(null);
@@ -1048,8 +1164,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
 
   useEffect(() => {
     // A summary is a reference read, not the sheet a student left off in.
-    if (material && sheet && !summaryMode) rememberLastOpenedCatalogSheet(materialSlug, sheetSlug, { material, sheet });
-  }, [material, materialSlug, sheet, sheetSlug, summaryMode]);
+    if (material && sheet && !summaryMode && !whiteboard && !personal) rememberLastOpenedCatalogSheet(materialSlug, sheetSlug, { material, sheet });
+  }, [material, materialSlug, personal, sheet, sheetSlug, summaryMode, whiteboard]);
 
   // Annotations now live in IndexedDB and load asynchronously, so nothing is
   // persisted until the stored document has been read back. Saving before
@@ -1132,6 +1248,21 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const [cardDraft, setCardDraft] = useState("");
   const [editingCardId, setEditingCardId] = useState(null);
   const [clipSelecting, setClipSelecting] = useState(false);
+  const [coverSelecting, setCoverSelecting] = useState(false);
+  useEffect(() => {
+    if (activeTool !== "select") {
+      setCoverSelecting(false);
+      setClipSelecting(false);
+    }
+  }, [activeTool]);
+  // Which covers are lifted. Deliberately not saved: every visit starts with
+  // the answers hidden, which is the point of hiding them.
+  const [revealedCoverIds, setRevealedCoverIds] = useState(() => new Set());
+  // A tab kept open behind another is left; coming back is a new visit.
+  useEffect(() => {
+    if (!paneActive) setRevealedCoverIds((current) => (current.size ? new Set() : current));
+  }, [paneActive]);
+  const [searchDocumentProxy, setSearchDocumentProxy] = useState(null);
   const [settingsTab, setSettingsTab] = useState("drawing");
   const [backupBusy, setBackupBusy] = useState(false);
   // idle | preparing | ready | failed. The finished file lives in
@@ -1141,7 +1272,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const exportHandleRef = useRef(null);
   const exportRunRef = useRef(0);
   const pdfDocumentProxyRef = useRef(null);
-  const handlePdfDocumentLoaded = useCallback((documentProxy) => { pdfDocumentProxyRef.current = documentProxy; }, []);
+  const handlePdfDocumentLoaded = useCallback((documentProxy) => {
+    pdfDocumentProxyRef.current = documentProxy;
+    setSearchDocumentProxy(documentProxy);
+  }, []);
   // Leaving the workspace abandons a running export and frees a finished one.
   useEffect(() => () => {
     exportRunRef.current += 1;
@@ -1284,12 +1418,15 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const pageOffsetStaleRef = useRef(false);
 
   const [topicTitle, topicSummary] = SUBJECT_COPY[materialSlug] || [material?.title || "Study material", sheet?.summary || "Focused study workspace."];
-  const sheetRoute = `/materials/catalog/${materialSlug}/sheets/${sheetSlug}`;
+  const sheetRoute = whiteboard ? "/materials" : personal ? personalBackTo : `/materials/catalog/${materialSlug}/sheets/${sheetSlug}`;
   const activePageRange = studyMode === "active" && activeStudy?.status === "active" ? activeStudy.current_page_range : null;
   // Active Study unlocks cumulatively. Earlier pages remain available while
   // the server-owned current range continues to determine checkpoint content.
   const accessiblePageStart = 1;
   const accessiblePageCount = activePageRange?.end_page || pageCount;
+  // Search reads only the pages the reader may show: Active Study keeps the
+  // parts that are still locked out of the results as well as out of view.
+  const documentSearch = useDocumentSearch(searchDocumentProxy, { firstPage: accessiblePageStart, lastPage: accessiblePageCount });
   const activeStudyButtonReady = studyMode === "active"
     && activeStudy?.status === "active"
     && (activeStudy.stage === "checkpoint" || activeStudy.stage === "final" || ACTIVE_RESULT_STAGES.has(activeStudy.stage) || (activeStudy.stage === "reading" && page >= accessiblePageCount));
@@ -1299,6 +1436,27 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const activeStudyReady = selectedActiveStudyAvailability?.status === "ready"
     || (activeStudyAvailability === null && Boolean(sheet?.hasActiveStudy));
   const activeEntryKey = `${ownerKey}/${materialSlug}/${storageSlug}`;
+
+  // The strip of open documents; the document in this reader is always one.
+  const [workspaceTabs, updateWorkspaceTabs] = useWorkspaceTabs(ownerKey);
+  const currentTabId = whiteboard ? whiteboardTabId(sheetSlug) : personal ? personalTabId(sheetSlug) : sheetTabId(materialSlug, sheetSlug);
+  const currentTab = (title) => (whiteboard
+    ? null
+    : personal ? personalTab({ materialSlug: personalSubject, personalId: sheetSlug, title }) : sheetTab({ materialSlug, sheetSlug, title }));
+  const showWorkspaceTabs = !summaryMode && Boolean(sheet);
+  const sheetTitle = sheet?.title || "";
+  useEffect(() => {
+    if (!showWorkspaceTabs || !paneActive) return;
+    updateWorkspaceTabs((state) => openWorkspaceTab(state, whiteboard
+      ? state.tabs.find((tab) => tab.id === currentTabId) || whiteboardTab({ boardId: sheetSlug, number: nextWhiteboardNumber(state.tabs) })
+      : currentTab(sheetTitle)));
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- currentTab only reads the values listed
+  }, [currentTabId, materialSlug, paneActive, personalSubject, sheetSlug, sheetTitle, showWorkspaceTabs, updateWorkspaceTabs, whiteboard]);
+  // Returning to a sheet tab skips the study mode question already answered there.
+  useEffect(() => {
+    if (!showWorkspaceTabs || whiteboard || personal || !studyMode) return;
+    updateWorkspaceTabs((state) => updateWorkspaceTab(state, currentTabId, { mode: studyMode }));
+  }, [currentTabId, personal, showWorkspaceTabs, studyMode, updateWorkspaceTabs, whiteboard]);
   const chooseActiveStudyRef = useRef(/** @type {null | ((difficulty?: string, options?: { resuming?: boolean }) => Promise<void>)} */ (null));
   const activeEntryCheckedRef = useRef("");
 
@@ -1377,6 +1535,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     }
     return groups;
   }, [annotations]);
+  const coverIds = useMemo(() => annotations.filter((item) => item.type === "cover").map((item) => item.id), [annotations]);
+  const allCoversRevealed = coverIds.length > 0 && coverIds.every((id) => revealedCoverIds.has(id));
+  const coveredMatchIds = useMemo(() => coveredSearchMatchIds(documentSearch.matches, annotations), [documentSearch.matches, annotations]);
   const annotationSpatialIndex = useMemo(() => createAnnotationSpatialIndex(annotations), [annotations]);
   // A selection belongs to the page its items are on, not to whichever page
   // the reader currently counts as current while scrolling.
@@ -1944,6 +2105,12 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     zoomRef.current = initialZoom;
     setZoom(initialZoom);
     const positionInitialPage = () => {
+      // A study resume or explicit navigation made while PDF.js was loading
+      // owns the position. Initial placement must not overwrite that choice.
+      if (pendingReaderAnchorRef.current) {
+        initialPageViewRef.current = viewKey;
+        return;
+      }
       const initialPage = stage.querySelector('[data-pdf-page="1"]');
       if (!initialPage) return;
       const stageBounds = stage.getBoundingClientRect();
@@ -1978,6 +2145,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   const pendingReaderAnchorRef = useRef(null);
 
   const applyPendingReaderAnchor = useCallback(() => {
+    if (sheet?.pdfUrl && initialPageViewRef.current !== `${materialSlug}/${sheetSlug}`) return;
     const anchor = pendingReaderAnchorRef.current;
     const stage = stageRef.current;
     const target = stage?.querySelector(`[data-workspace-page="${anchor?.key}"]`);
@@ -1995,7 +2163,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     pageRef.current = anchor.page;
     setPage(anchor.page);
     setActiveVirtualPageId(anchor.virtualPageId ?? null);
-  }, []);
+  }, [materialSlug, sheet?.pdfUrl, sheetSlug]);
 
   /**
    * Moves the reader to a page, or back to an anchor taken with
@@ -2242,6 +2410,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     hydratedRef.current = false;
     savedPageSignaturesRef.current = new Map();
     setRestored(null);
+    setRevealedCoverIds(new Set());
+    setCoverSelecting(false);
+    setClipSelecting(false);
+    documentSearch.clear();
     setSaveState("idle");
     setSaveErrorReason("");
     const legacyKey = catalogWorkspaceStorageKey(ownerKey, materialSlug, storageSlug);
@@ -2324,7 +2496,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         // A Sheet Summary has no catalog document of its own, so its marks sync
         // while its notes and last page stay on the device.
         workspaceDocumentId: scopeView === "summary" ? null : catalogDocumentId,
-        owner: ownerKey
+        owner: ownerKey,
+        ...(personal ? { catalog: personalWorkspaceApi } : {})
       })
       : null;
     serverSyncRef.current = sync;
@@ -2336,6 +2509,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       scope: { edition: scopeEdition, view: scopeView },
       workspaceDocumentId: scopeView === "summary" ? null : catalogDocumentId,
       owner: ownerKey,
+      kind: personal ? "personal" : "catalog",
       materialSlug,
       sheetSlug: storageSlug,
       pageCount: pageCountRef.current
@@ -2530,7 +2704,12 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
 
   // Leaving the workspace cancels the debounce timer, so the last edits are
   // written on the way out instead of being dropped with it.
-  useEffect(() => () => { persistWorkspaceRef.current?.(); }, []);
+  useEffect(() => () => {
+    const store = annotationStoreRef.current;
+    // Finish the final write before releasing this reader's connection. The
+    // store also drains hydration/writes already in flight before closing.
+    void Promise.resolve(persistWorkspaceRef.current?.()).finally(() => store.close());
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -2546,13 +2725,15 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   useEffect(() => {
     let active = true;
     setBookmarked(false);
+    // Bookmarks name catalog sheets; a student's own sheet is not one.
+    if (personal) return undefined;
     progressApi.getCatalogBookmark(materialSlug, sheetSlug)
       .then(() => { if (active) setBookmarked(true); })
       .catch((error) => {
         if (active && error?.status !== 404) setFocusMessage(error.message || translateRef.current("focus.bookmarkStatusFailed"));
       });
     return () => { active = false; };
-  }, [materialSlug, sheetSlug]);
+  }, [materialSlug, personal, sheetSlug]);
 
   useEffect(() => {
     const sessionId = focusPayload?.session?.id;
@@ -2609,6 +2790,19 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     const handleKeyDown = (event) => {
       if (isTypingTarget(event.target)) return;
       const commandKey = event.ctrlKey || event.metaKey;
+      if (event.key === "Escape" && coverSelecting) {
+        setCoverSelecting(false);
+        setActiveTool("hand");
+        setFocusMessage("");
+        return;
+      }
+      // The canvases hold no text the browser could find, so Find opens the
+      // reader's own search once the document is open.
+      if (commandKey && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "f" && pdfDocumentProxyRef.current) {
+        event.preventDefault();
+        setOpenSurface("search");
+        return;
+      }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
         event.preventDefault();
         if (event.shiftKey) redoTool(); else undoTool();
@@ -2679,10 +2873,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       setActiveTool(previousToolRef.current);
       setOpenSurface(null);
     };
+    if (!paneActive) return undefined;
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
     return () => { window.removeEventListener("keydown", handleKeyDown); window.removeEventListener("keyup", handleKeyUp); };
-  }, [accessiblePageCount, activePageKey, page, redoTool, runCommand, selectedAnnotations, undoTool]);
+  }, [accessiblePageCount, activePageKey, coverSelecting, page, paneActive, redoTool, runCommand, selectedAnnotations, undoTool]);
 
   // Ids that no longer exist (undone, deleted, restored over) fall out of the
   // selection; nothing else ends it behind the student's back.
@@ -4070,7 +4265,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
    * Select tool's to handle (the gutter beside the pages, hidden annotations).
    */
   function beginSelectionPointer(event) {
-    if (annotationsHidden || startsOutsidePages(event)) return false;
+    if ((!coverSelecting && annotationsHidden) || startsOutsidePages(event)) return false;
     const gesture = gestureRef.current;
     const point = documentPoint(event.clientX, event.clientY);
     const annotationPage = point.page;
@@ -4083,8 +4278,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     const handle = current.length ? event.target?.closest?.("[data-resize-handle]")?.getAttribute("data-resize-handle") : null;
     let ids = null;
     let tapId = null;
-    if (handle) ids = current.map((item) => item.id);
-    else {
+    if (handle && !coverSelecting) ids = current.map((item) => item.id);
+    else if (!coverSelecting) {
       const hit = hitTestAnnotations(onPage, point, { tolerance, aspect });
       const toleranceY = tolerance / Math.max(.01, aspect);
       const insideSelection = Boolean(currentBounds
@@ -4101,7 +4296,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       }
     }
     if (!ids) {
-      if (event.pointerType === "touch" && !pointerCanDraw("touch", drawingInput)) {
+      // Hiding an area is an explicit rectangle gesture, so a finger can do it
+      // even while ink remains restricted to Apple Pencil.
+      if (!coverSelecting && event.pointerType === "touch" && !pointerCanDraw("touch", drawingInput)) {
         gesture.selectionTapClear = true;
         return false;
       }
@@ -4361,6 +4558,14 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       } else if (isClick) gesture.lastTap = { x: event.clientX, y: event.clientY, time: event.timeStamp };
     }
     if (gesture.pan?.pointerId === event.pointerId) {
+      // A tap that lands on a hidden-answer cover lifts it (or puts it back),
+      // whichever tool is chosen: a finger pans with every tool, so this is
+      // where a tap on the page arrives. It is not also the first half of a
+      // double-tap zoom.
+      if (Math.hypot(event.clientX - gesture.pan.x, event.clientY - gesture.pan.y) < 10 && toggleCoversAt(event.clientX, event.clientY)) {
+        gesture.lastTap = null;
+        gesture.selectionTapClear = false;
+      }
       // A finger that only tapped empty page with the Select tool clears the
       // selection; one that scrolled keeps it.
       if (gesture.selectionTapClear) {
@@ -4440,6 +4645,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
         if (bounds?.width > 10 && bounds?.height > 10) captureStudyClip(bounds, draft.page);
         else setFocusMessage(t("focus.selectALargerAreaFor"));
         setClipSelecting(false);
+      } else if (coverSelecting) {
+        const bounds = gestureBounds(polygon);
+        if (bounds?.width > 6 && bounds?.height > 6) addCovers([{ page: draft.page, kind: "area", label: "", ...bounds }]);
+        else setFocusMessage(t("focus.selectALargerAreaToHide"));
+        setCoverSelecting(false);
       } else {
         const ids = polygon.length >= 3 ? lassoSelectionIds(polygon, draft.page) : [];
         setSelectedIds(ids);
@@ -4633,6 +4843,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     const virtual = isVirtualPageKey(nextPage) ? virtualPagesRef.current.find((item) => item.id === nextPage) : null;
     const targetPage = virtual?.afterPage || Math.min(accessiblePageCount, Math.max(accessiblePageStart, Number(nextPage) || accessiblePageStart));
     if (virtual && (targetPage < accessiblePageStart || targetPage > accessiblePageCount)) return;
+    if (!point && sheet?.pdfUrl && initialPageViewRef.current !== `${materialSlug}/${sheetSlug}`) {
+      placeReaderAt({ page: targetPage, virtualPageId: virtual?.id ?? null, pageOffset: null, left: null });
+      return;
+    }
     setPage(targetPage);
     setActiveVirtualPageId(virtual?.id ?? null);
     const stage = stageRef.current;
@@ -4676,6 +4890,24 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     setOpenSurface(null);
     requestAnimationFrame(() => requestAnimationFrame(() => jumpToPagePosition(id)));
     setFocusMessage(t("focus.backgroundPageAdded", { background: t((PAGE_BACKGROUND_CHOICES.find(([id]) => id === selectedBackground) || PAGE_BACKGROUND_CHOICES[0])[1]), page }));
+  }
+
+  /** A whiteboard grows at its end: each new lined page goes after the last one. */
+  function addWhiteboardPage() {
+    if (!pdfDocumentReady) return;
+    const before = virtualPagesRef.current;
+    const id = createVirtualPageId(before);
+    const next = insertVirtualPage(before, 1, id, before.length ? before[before.length - 1].id : null, "lined");
+    if (next.length === before.length) {
+      setFocusMessage(t("focus.thisWorkspaceHasReachedIts"));
+      return;
+    }
+    const command = { type: "workspace-page", beforePages: before, afterPages: next, beforeItems: [], afterItems: [], beforeNotes: [], afterNotes: [] };
+    applyWorkspacePageCommand(command, "redo");
+    recordCommand(command);
+    setActiveVirtualPageId(id);
+    setSelectedIds([]);
+    requestAnimationFrame(() => requestAnimationFrame(() => jumpToPagePosition(id)));
   }
 
   /** Changes the background of the added page being read; Undo restores it. */
@@ -4774,6 +5006,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   jumpToPageRef.current = jumpToPagePosition;
 
   function selectTool(nextTool) {
+    setCoverSelecting(false);
+    setClipSelecting(false);
     if (annotationsHidden && ["pen", "pencil", "highlighter", "eraser", "select", "shapes"].includes(nextTool)) setAnnotationsHidden(false);
     if (nextTool === "note") {
       const openingNotes = openSurface !== "notes";
@@ -4928,6 +5162,79 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     runCommand({ type: "remove", items: [card] });
     setSelectedIds([]);
     setFocusMessage(t("focus.noteDeletedUndoRestoresIt"));
+  }
+
+  /**
+   * Adds hide-and-reveal covers as one undoable step. Each entry is a box in
+   * page space; entries that share a groupId move and delete together.
+   */
+  function addCovers(entries) {
+    if (!entries.length) return [];
+    if (entries.length > MAX_COVERS_PER_ACTION) {
+      setFocusMessage(t("focus.narrowSearchForCovers"));
+      return [];
+    }
+    const items = entries.map((entry) => {
+      return {
+        id: generateIdempotencyKey(),
+        page: entry.page,
+        type: "cover",
+        kind: entry.kind,
+        label: entry.label || "",
+        groupId: entry.groupId || "",
+        color: COVER_COLOR,
+        opacity: 1,
+        ...coverRectangle(entry)
+      };
+    });
+    runCommand({ type: "add", items });
+    if (annotationsHidden) setAnnotationsHidden(false);
+    // Hiding is preparation for recall: return to reading, where the next tap
+    // on a cover reveals it rather than selecting it.
+    setSelectedIds([]);
+    setActiveTool("hand");
+    items.forEach((item) => revealInsertedAnnotation(item.id));
+    setFocusMessage(items.length === 1 ? t("focus.coverAdded") : t("focus.coversAdded", { count: items.length }));
+    return items;
+  }
+
+  function hideSearchMatches(matches, keepSearch = false) {
+    const entries = searchCoverEntries(matches, annotationsRef.current, generateIdempotencyKey);
+    if (!addCovers(entries).length) return;
+    if (!keepSearch) documentSearch.clear();
+    if (!keepSearch || window.matchMedia?.("(max-width: 820px)").matches) setOpenSurface(null);
+  }
+
+  function showSearchMatch(match) {
+    const [first] = match?.rectangles || [];
+    if (!first) return;
+    jumpToPagePosition(match.page, { x: first.x + first.width / 2, y: first.y + first.height / 2 });
+  }
+
+  /** The covers under a point; a grouped cover lifts with its group. */
+  function coverIdsAtPoint(point) {
+    if (annotationsHidden || !point?.page) return [];
+    const onPage = annotationsRef.current.filter((item) => item.page === point.page);
+    const hit = [...onPage].reverse().find((item) => item.type === "cover"
+      && point.x >= item.x && point.x <= item.x + item.width && point.y >= item.y && point.y <= item.y + item.height);
+    if (!hit) return [];
+    return hit.groupId ? onPage.filter((item) => item.type === "cover" && item.groupId === hit.groupId).map((item) => item.id) : [hit.id];
+  }
+
+  function toggleCoversAt(clientX, clientY) {
+    const ids = coverIdsAtPoint(documentPoint(clientX, clientY));
+    if (!ids.length) return false;
+    setRevealedCoverIds((current) => {
+      const next = new Set(current);
+      const reveal = !current.has(ids[0]);
+      ids.forEach((id) => (reveal ? next.add(id) : next.delete(id)));
+      return next;
+    });
+    return true;
+  }
+
+  function toggleAllCovers() {
+    setRevealedCoverIds(allCoversRevealed ? new Set() : new Set(coverIds));
   }
 
   function captureStudyClip(bounds, pageKey) {
@@ -5243,19 +5550,17 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     if (!activeStudy || !activeQuiz || activeStudyBusy) return;
     setActiveStudyBusy(true);
     try {
-      const review = [];
-      for (const question of activeQuiz.questions) {
-        const checked = /** @type {any} */ (await focusApi.answerManagedActiveStudyQuestion(activeStudy.id, {
-          attemptId: activeQuiz.attempt_id,
-          position: question.position,
-          selectedAnswer: activeAnswers[question.id]
-        }));
-        const held = activeAnswers[question.id];
-        setActiveLocked((current) => ({ ...current, [question.id]: held }));
-        review.push({ position: question.position, prompt: question.prompt, correct: Boolean(checked?.correct), explanation: typeof checked?.explanation === "string" ? checked.explanation : "" });
-      }
-      const payload = await focusApi.submitManagedActiveStudy(activeStudy.id, activeQuiz.attempt_id);
+      // One request saves and grades the whole attempt; answering each
+      // question separately made a 50-question exam wait on 50 round trips.
+      const held = activeQuiz.questions.map((question) => ({ position: question.position, selectedAnswer: activeAnswers[question.id] }));
+      const payload = await focusApi.submitManagedActiveStudy(activeStudy.id, activeQuiz.attempt_id, held);
       const result = /** @type {any} */ (payload.result);
+      const verdicts = new Map((Array.isArray(result.review) ? result.review : []).map((item) => [item.position, item]));
+      const review = activeQuiz.questions.map((question) => {
+        const checked = verdicts.get(question.position);
+        return { position: question.position, prompt: question.prompt, correct: Boolean(checked?.correct), explanation: typeof checked?.explanation === "string" ? checked.explanation : "" };
+      });
+      setActiveLocked(Object.fromEntries(activeQuiz.questions.map((question) => [question.id, activeAnswers[question.id]])));
       clearActiveStudyDraft(activeQuiz.attempt_id);
       setActiveStudy(payload.run);
       setActiveResult({ ...result, review, outcome: result.passed ? "passed" : (activeQuiz.kind === "final" ? "failed" : "advisory") });
@@ -5501,6 +5806,41 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
     link.remove();
     window.setTimeout(() => window.URL.revokeObjectURL(url), 0);
     setFocusMessage(t("focus.backedUp", { marks: payload.annotations.length, notes: payload.notes.length }));
+  }
+
+  // Moving to another tab keeps an Active Study run where it is, the way
+  // "Save" does on exit, so coming back resumes it at the same page.
+  function holdActiveStudyPlace() {
+    if (studyMode !== "active" || !activeStudy?.id || activeStudy.status !== "active") return;
+    writeActiveStudyResume(activeStudy.id, pageRef.current);
+    writeActiveStudyEntry(activeEntryKey, activeStudy.difficulty);
+  }
+
+  function goToWorkspaceTab(tab) {
+    holdActiveStudyPlace();
+    navigate(workspaceTabRoute(tab), { replace: true, state: tab.mode === "normal" ? { studyMode: "normal" } : undefined });
+  }
+
+  function showWorkspaceTab(tab) {
+    updateWorkspaceTabs((state) => openWorkspaceTab(state, tab));
+    goToWorkspaceTab(tab);
+  }
+
+  function openSheetTab(choice) {
+    const tab = choice.kind === "personal" ? personalTab(choice) : sheetTab(choice);
+    showWorkspaceTab(workspaceTabs.tabs.find((item) => item.id === tab.id) || tab);
+  }
+
+  function openNewWhiteboard() {
+    showWorkspaceTab(whiteboardTab({ boardId: createWhiteboardId(), number: nextWhiteboardNumber(workspaceTabs.tabs) }));
+  }
+
+  function closeTab(tab) {
+    const { state, next } = closeWorkspaceTab(workspaceTabs, tab.id);
+    updateWorkspaceTabs(() => state);
+    if (tab.id !== currentTabId) return;
+    if (next) goToWorkspaceTab(next);
+    else navigate(sheetRoute);
   }
 
   // Leaving mid Active Study asks whether to keep this run's place.
@@ -5888,13 +6228,15 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   function renderPdfPageOverlay(pageNumber, pageAspect = 1) {
     const annotationsOnPage = annotationsByPage.get(pageNumber) || NO_ANNOTATIONS;
     const pageIsCurrent = pageNumber === activePageKey;
+    const searchMatches = documentSearch.matchesByPage.get(pageNumber);
     // Every page overlay sits above a composited PDF canvas, so even an empty
     // one costs the compositor a page-sized layer while scrolling. Only pages
-    // with marks, and the page being written on, need one.
-    if (!pageIsCurrent && !annotationsOnPage.length) return null;
+    // with marks or search matches, and the page being written on, need one.
+    if (!pageIsCurrent && !annotationsOnPage.length && !searchMatches) return null;
     return <>
+      {searchMatches && <SearchHighlights matches={searchMatches} activeId={documentSearch.activeMatch?.id} />}
       <svg className={annotationLayerClass} viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-label={isVirtualPageKey(pageNumber) ? t("focus.blankPageAnnotations") : t("focus.annotationsForPage", { page: pageNumber })}>
-        <AnnotationVisuals annotations={annotationsHidden ? NO_ANNOTATIONS : annotationsOnPage} prefix={`page-${pageNumber}`} includeHitTargets={activeTool === "select" && !annotationsHidden} pageAspect={pageAspect} />
+        <AnnotationVisuals annotations={annotationsHidden ? NO_ANNOTATIONS : annotationsOnPage} prefix={`page-${pageNumber}`} includeHitTargets={activeTool === "select" && !annotationsHidden} pageAspect={pageAspect} revealedIds={revealedCoverIds} />
         {pageIsCurrent && draftAnnotation && draftAnnotation.type !== "lasso" && <WorkspaceAnnotation annotation={draftAnnotation} draft pageAspect={pageAspect} />}
         {selectionPage === pageNumber && renderSelectionBox(pageNumber)}
       </svg>
@@ -5904,15 +6246,16 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
   }
 
   return (
-    <main className={`workspace-v2${isDocumentFullscreen ? " is-document-fullscreen" : ""}`} ref={rootRef} aria-label={`${sheet.title} Focus Workspace`}>
+    <main className={`workspace-v2${isDocumentFullscreen ? " is-document-fullscreen" : ""}${whiteboard ? " is-whiteboard" : ""}${showWorkspaceTabs ? " has-tabs" : ""}`} ref={rootRef} aria-label={`${sheet.title} Focus Workspace`}>
       <div className={`workspace-v2-body${sideOpen ? " has-side" : ""}`}>
         <section ref={readerRef} className={`workspace-v2-reader${isDocumentFullscreen ? " is-document-fullscreen" : ""}`} aria-label={t("focus.documentReader")}>
           <nav className="workspace-v2-toolbar" aria-label={t("focus.documentTools")} ref={toolbarRef}>
+            {showWorkspaceTabs && <WorkspaceTabBar tabs={workspaceTabs.tabs.length ? workspaceTabs.tabs : [whiteboard ? whiteboardTab({ boardId: sheetSlug }) : currentTab(sheetTitle)]} activeId={currentTabId} materials={tabMaterials} portalRef={rootRef} onSelect={showWorkspaceTab} onClose={closeTab} onNewWhiteboard={openNewWhiteboard} onOpenSheet={openSheetTab} />}
             <div className="workspace-v2-control-group is-exit">
               <WorkspaceIconButton label={t("focus.exitWorkspace")} onClick={requestWorkspaceExit}><ArrowLeft size={19} /></WorkspaceIconButton>
               <div className="workspace-v3-document-context" dir="auto">
                 <strong>{sheet.title}</strong>
-                <span>{summaryMode ? t("materials.sheetSummary") : sheetEdition?.edition === "lockin" ? t("focus.lockinEdition") : t("focus.universityEdition")}</span>
+                <span>{whiteboard ? t("workspaceTabs.whiteboardStoredHere") : personal ? t("personalSheets.readerLabel") : summaryMode ? t("materials.sheetSummary") : sheetEdition?.edition === "lockin" ? t("focus.lockinEdition") : t("focus.universityEdition")}</span>
               </div>
             </div>
             <div className="workspace-v3-primary" ref={toolRailRef}>
@@ -5925,7 +6268,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
                     key={id}
                     className={`workspace-v3-tool-button${id === "pen" ? " is-hero" : ""}${responsiveClass ? ` ${responsiveClass}` : ""}`}
                     label={label}
-                    caption={label}
                     active={activeTool === id}
                     aria-pressed={activeTool === id}
                     aria-expanded={CONFIGURABLE_TOOLS.has(id) ? expanded : undefined}
@@ -5935,22 +6277,22 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
                     onClick={() => chooseWritingTool(id)}
                   ><ToolIcon size={19} /></WorkspaceIconButton>;
                 })}
-                <WorkspaceIconButton label={t("focus.add")} caption={t("focus.add")} className="workspace-v3-tool-button" active={openSurface === "add"} aria-expanded={openSurface === "add"} aria-controls="workspace-add-popover" data-workspace-surface="add" onClick={() => setOpenSurface((current) => current === "add" ? null : "add")}><Plus size={20} /></WorkspaceIconButton>
+                <WorkspaceIconButton label={t("focus.add")} className="workspace-v3-tool-button" active={openSurface === "add"} aria-expanded={openSurface === "add"} aria-controls="workspace-add-popover" data-workspace-surface="add" onClick={() => setOpenSurface((current) => current === "add" ? null : "add")}><Plus size={20} /></WorkspaceIconButton>
               </div>
               <div className="workspace-v3-quick-colors" role="group" aria-label={t("focus.quickAnnotationColors")}>
                 {quickColors.map((color) => <button key={color} type="button" className={`workspace-v3-quick-color${activeColor === color ? " is-active" : ""}`} aria-label={t("focus.useColor", { color })} aria-pressed={activeColor === color} title={color} disabled={!showColorPalette} style={cssVars({ "--workspace-tool-color": color })} onClick={() => chooseAnnotationColor(color)}><span /></button>)}
               </div>
               <div className="workspace-v2-history" aria-label={t("focus.editHistory")}>
-                <WorkspaceIconButton label={t("focus.undoCtrlZ")} caption={t("focus.undo")} className="workspace-v3-history-button" disabled={!undoHistory.length} onClick={undoTool}><Undo2 size={18} /></WorkspaceIconButton>
-                <WorkspaceIconButton label={t("focus.redoCtrlShiftZ")} caption={t("focus.redo")} className="workspace-v3-history-button" disabled={!redoHistory.length} onClick={redoTool}><Redo2 size={18} /></WorkspaceIconButton>
+                <WorkspaceIconButton label={t("focus.undoCtrlZ")} className="workspace-v3-history-button" disabled={!undoHistory.length} onClick={undoTool}><Undo2 size={18} /></WorkspaceIconButton>
+                <WorkspaceIconButton label={t("focus.redoCtrlShiftZ")} className="workspace-v3-history-button" disabled={!redoHistory.length} onClick={redoTool}><Redo2 size={18} /></WorkspaceIconButton>
               </div>
             </div>
             <input ref={imageInputRef} className="workspace-v2-file-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={addImage} tabIndex={-1} aria-hidden="true" />
             <div className="workspace-v2-toolbar-actions" aria-label={t("focus.workspaceControls")}>
               <WorkspaceIconButton label={t("focus.searchDocumentComingLater")} className="workspace-v3-search" disabled><Search size={18} /></WorkspaceIconButton>
-              <WorkspaceIconButton label={sideOpen ? t("focus.closeNotes") : t("focus.openNotes")} caption={t("focus.comments")} className="workspace-v3-utility-button" active={sideOpen} aria-pressed={sideOpen} aria-expanded={sideOpen} aria-controls="workspace-notes-panel" data-workspace-tool="note" onClick={() => selectTool("note")}><MessageSquare size={18} /></WorkspaceIconButton>
-              <button type="button" className={`workspace-v2-study-mode-button is-${studyMode || "choose"}${studyMode === "active" && activeStudy ? " has-progress" : ""}`} onClick={() => { setOpenSurface(null); setModeDialogOpen(true); }} aria-label={studyMode === "active" && activeStudy ? t("focus.activeStudyPartLabel", { part: activeStudy.current_part, total: activeStudy.number_of_parts }) : t("focus.chooseStudyMode")} title={studyMode === "active" && activeStudy ? t("focus.activeStudyPartTitle", { part: activeStudy.current_part, total: activeStudy.number_of_parts }) : t("focus.chooseStudyMode")}><Brain size={18} /><span className="workspace-v2-tool-caption" aria-hidden="true">{t("focus.study")}</span>{studyMode === "active" && activeStudy && <span className="workspace-v2-study-mode-status"><strong>{t("focus.active")}</strong><small>{t("focus.partShort", { part: activeStudy.current_part, total: activeStudy.number_of_parts })}</small></span>}</button>
-              <WorkspaceIconButton label={t("focus.moreWorkspaceActions")} caption={t("focus.more")} className="workspace-v3-utility-button" active={openSurface === "more" || settingsOpen} aria-expanded={openSurface === "more" || settingsOpen} aria-controls="workspace-more-popover" data-workspace-surface="more" onClick={() => setOpenSurface((current) => current === "more" ? null : "more")}><MoreHorizontal size={20} /></WorkspaceIconButton>
+              <WorkspaceIconButton label={sideOpen ? t("focus.closeNotes") : t("focus.openNotes")} className="workspace-v3-utility-button" active={sideOpen} aria-pressed={sideOpen} aria-expanded={sideOpen} aria-controls="workspace-notes-panel" data-workspace-tool="note" onClick={() => selectTool("note")}><MessageSquare size={18} /></WorkspaceIconButton>
+              {!whiteboard && !personal && <button type="button" className={`workspace-v2-study-mode-button is-${studyMode || "choose"}${studyMode === "active" && activeStudy ? " has-progress" : ""}`} onClick={() => { setOpenSurface(null); setModeDialogOpen(true); }} aria-label={studyMode === "active" && activeStudy ? t("focus.activeStudyPartLabel", { part: activeStudy.current_part, total: activeStudy.number_of_parts }) : t("focus.chooseStudyMode")} title={studyMode === "active" && activeStudy ? t("focus.activeStudyPartTitle", { part: activeStudy.current_part, total: activeStudy.number_of_parts }) : t("focus.chooseStudyMode")}><Brain size={18} />{studyMode === "active" && activeStudy && <span className="workspace-v2-study-mode-status"><strong>{t("focus.active")}</strong><small>{t("focus.partShort", { part: activeStudy.current_part, total: activeStudy.number_of_parts })}</small></span>}</button>}
+              <WorkspaceIconButton label={t("focus.moreWorkspaceActions")} className="workspace-v3-utility-button" active={openSurface === "more" || settingsOpen} aria-expanded={openSurface === "more" || settingsOpen} aria-controls="workspace-more-popover" data-workspace-surface="more" onClick={() => setOpenSurface((current) => current === "more" ? null : "more")}><MoreHorizontal size={20} /></WorkspaceIconButton>
             </div>
           </nav>
 
@@ -5961,12 +6303,13 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
               <button type="button" aria-label={t("focus.image")} data-workspace-tool="image" onClick={() => selectTool("image")}><ImageIcon size={18} /><span><strong>{t("focus.addImage")}</strong></span></button>
               <button type="button" onClick={() => { setCardKind("sticky"); setCardDraft(""); setEditingCardId(null); setOpenSurface("card"); }}><StickyNote size={18} /><span><strong>{t("focus.addStickyNote")}</strong></span></button>
               <button type="button" onClick={() => { setCardKind("note"); setCardDraft(""); setEditingCardId(null); setOpenSurface("card"); }}><FileText size={18} /><span><strong>{t("focus.addNoteCard")}</strong></span></button>
-              {sheet.pdfUrl && <button type="button" onClick={() => { setClipSelecting(true); setLassoMode("rectangle"); setActiveTool("select"); setSelectedIds([]); setOpenSurface(null); setFocusMessage(t("focus.dragARectangleOverThe")); }}><Camera size={18} /><span><strong>{t("focus.addStudyClip")}</strong></span></button>}
+              {sheet.pdfUrl && <button type="button" onClick={() => { setClipSelecting(true); setCoverSelecting(false); setLassoMode("rectangle"); setActiveTool("select"); setSelectedIds([]); setOpenSurface(null); setFocusMessage(t("focus.dragARectangleOverThe")); }}><Camera size={18} /><span><strong>{t("focus.addStudyClip")}</strong></span></button>}
+              <button type="button" data-workspace-tool="cover" onClick={() => { setCoverSelecting(true); setClipSelecting(false); setLassoMode("rectangle"); setActiveTool("select"); setSelectedIds([]); setOpenSurface(null); setFocusMessage(t("focus.dragOverWhatToHide")); }}><EyeOff size={18} /><span><strong>{t("focus.hidePartOfPage")}</strong><small>{t("focus.hidePartOfPageHint")}</small></span></button>
               {sheet.pdfUrl && <hr className="workspace-v9-menu-separator" />}
               {sheet.pdfUrl && <button type="button" data-drill="" aria-label={t("focus.addPage")} onClick={() => setOpenSurface("page-background")}><Plus size={18} /><span><strong>{t("focus.addPage2")}</strong></span></button>}
               <hr className="workspace-v9-menu-separator" />
               <button type="button" onClick={() => selectTool("note")}><MessageSquare size={18} /><span><strong>{t("focus.openNotes")}</strong></span></button>
-              <button type="button" onClick={toggleBookmark} disabled={bookmarkBusy} aria-pressed={bookmarked}><Bookmark size={18} /><span><strong>{bookmarked ? t("focus.removeBookmark") : t("focus.bookmarkPage")}</strong></span></button>
+              {!personal && <button type="button" onClick={toggleBookmark} disabled={bookmarkBusy} aria-pressed={bookmarked}><Bookmark size={18} /><span><strong>{bookmarked ? t("focus.removeBookmark") : t("focus.bookmarkPage")}</strong></span></button>}
             </div>
             {studyMode === "active" && <p className="workspace-v7-menu-note"><Info size={15} aria-hidden="true" />{t("focus.pagesYouAddBelongTo")}</p>}
           </section>}
@@ -6003,6 +6346,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
           {popover("more").shown && <section {...popover("more").props} id="workspace-more-popover" className="workspace-v2-action-popover is-more" role="dialog" aria-label={t("focus.moreWorkspaceActions")} onPointerDown={(event) => event.stopPropagation()}>
             <header><strong>{t("focus.workspace")}</strong><button type="button" aria-label={t("focus.closeWorkspaceActions")} onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="more"]')}><X size={17} /></button></header>
             <div className="workspace-v3-menu-list">
+              {sheet.pdfUrl && <button type="button" data-workspace-action="search" onClick={() => setOpenSurface("search")} disabled={!searchDocumentProxy}><Search size={18} /><span><strong>{t("focus.searchDocument")}</strong>{documentSearch.matches.length > 0 && <small dir="auto">{documentSearch.query}</small>}</span></button>}
               <button type="button" onClick={() => chooseWritingTool("pencil")}><Pencil size={18} /><span><strong>{t("focus.pencil")}</strong></span></button>
               <button type="button" className="workspace-v3-compact-only" onClick={() => chooseWritingTool("shapes")}><Shapes size={18} /><span><strong>{t("focus.shapes")}</strong></span></button>
               <button type="button" className="workspace-v3-phone-only" onClick={() => chooseWritingTool("highlighter")}><Highlighter size={18} /><span><strong>{t("focus.highlight")}</strong></span></button>
@@ -6014,7 +6358,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
               <button type="button" onClick={() => exportStudyDocument("original")} disabled={exportBusy || studyMode === "active"}><Download size={18} /><span><strong>{t("focus.downloadOriginal")}</strong></span></button>
               <button type="button" onClick={() => exportStudyDocument("png")} disabled={exportBusy}><Camera size={18} /><span><strong>{t("focus.pageSnapshot")}</strong></span></button>
               <hr className="workspace-v9-menu-separator" />
-              <button type="button" aria-label={bookmarked ? t("focus.removeFromBookmarks") : t("focus.saveToBookmarks")} aria-pressed={bookmarked} onClick={toggleBookmark} disabled={bookmarkBusy}><Bookmark size={18} fill={bookmarked ? "currentColor" : "none"} /><span><strong>{bookmarked ? t("focus.removeBookmark") : t("focus.bookmarkPage")}</strong></span></button>
+              {!personal && <button type="button" aria-label={bookmarked ? t("focus.removeFromBookmarks") : t("focus.saveToBookmarks")} aria-pressed={bookmarked} onClick={toggleBookmark} disabled={bookmarkBusy}><Bookmark size={18} fill={bookmarked ? "currentColor" : "none"} /><span><strong>{bookmarked ? t("focus.removeBookmark") : t("focus.bookmarkPage")}</strong></span></button>}
+              {coverIds.length > 0 && <button type="button" onClick={toggleAllCovers}>{allCoversRevealed ? <EyeOff size={18} /> : <Eye size={18} />}<span><strong>{allCoversRevealed ? t("focus.hideAllCovers") : t("focus.revealAllCovers")}</strong><small>{t("focus.hiddenOnPage")}: {coverIds.length}</small></span></button>}
               <button type="button" onClick={() => { setAnnotationsHidden((value) => !value); setSelectedIds([]); setActiveTool("hand"); }} aria-pressed={annotationsHidden}>{annotationsHidden ? <Eye size={18} /> : <EyeOff size={18} />}<span><strong>{annotationsHidden ? t("focus.showAnnotations") : t("focus.hideAnnotations")}</strong></span></button>
               <button type="button" onClick={toggleDocumentFullscreen}>{isDocumentFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}<span><strong>{isDocumentFullscreen ? t("focus.exitFullScreen") : t("focus.fullScreenMode")}</strong></span></button>
               <hr className="workspace-v9-menu-separator" />
@@ -6039,6 +6384,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
             <header><strong>{t("focus.versionHistory")}</strong><button type="button" aria-label={t("focus.closeVersionHistory")} onClick={() => setOpenSurface("more")}><X size={17} /></button></header>
             <div className="workspace-v3-menu-list workspace-v6-history"><p>{t("focus.editsFromThisSessionUse")}</p><strong>{undoHistory.length} edit{undoHistory.length === 1 ? "" : "s"} available</strong><button type="button" onClick={undoTool} disabled={!undoHistory.length}><Undo2 size={18} /><span><strong>{t("focus.undoMostRecentEdit")}</strong><small>{t("focus.redoRemainsAvailableInThe")}</small></span></button></div>
           </section>}
+
+          {popover("search").shown && <section {...popover("search").props} id="workspace-search-popover" className="workspace-v2-action-popover is-more is-search" role="dialog" aria-label={t("focus.searchDocument")} onPointerDown={(event) => event.stopPropagation()}>
+            <DocumentSearchPanel search={documentSearch} coveredIds={coveredMatchIds} open={openSurface === "search"} onShowMatch={showSearchMatch} onHideMatches={hideSearchMatches} onClose={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="more"]')} />
+          </section>}
+          {openSurface !== "search" && <SearchNavigator search={documentSearch} onShowMatch={showSearchMatch} onOpen={() => setOpenSurface("search")} onHideMatch={() => documentSearch.activeMatch && hideSearchMatches([documentSearch.activeMatch], true)} covered={Boolean(documentSearch.activeMatch && coveredMatchIds.has(documentSearch.activeMatch.id))} />}
 
           {displayedToolOptions && <div ref={toolOptionsRef} id={`workspace-${displayedToolOptions}-options`} className={`workspace-v2-tool-options${toolOptionsOpen ? "" : " is-exiting"}`} data-workspace-tool={toolOptionsOpen ? displayedToolOptions : undefined} role="dialog" aria-label={`${activeToolLabel} options`} aria-hidden={!toolOptionsOpen} inert={toolOptionsOpen ? undefined : ""} onPointerDown={(event) => event.stopPropagation()}>
             <div className="workspace-v2-tool-options-title">
@@ -6194,9 +6544,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
             onLostPointerCapture={lostWorkspacePointer}
             onPointerLeave={() => { hideStylusHover(); hideEraserHitbox(); }}
           >
-            {sheet.pdfUrl ? <ContinuousA4Pdf pdfUrl={sheet.pdfUrl} pageCount={pageCount} visiblePageStart={accessiblePageStart} visiblePageCount={accessiblePageCount} zoom={zoom} stageRef={stageRef} documentRootRef={documentRef} onPageCount={syncPdfPageCount} onDocumentReady={markPdfDocumentReady} onDocumentLoaded={handlePdfDocumentLoaded} onCurrentPageChange={handleCurrentWorkspacePage} virtualPages={virtualPages} renderPageOverlay={renderPdfPageOverlay} onPdfPageRendered={recordPdfPageRender} /> : <article ref={documentRef} className="workspace-v2-document" onDoubleClick={smartZoom} style={cssVars({ "--workspace-document-width": `${PAGE_WIDTH * zoom}px`, "--workspace-document-min-height": `${760 * zoom}px`, "--workspace-document-max-width": "none" })}>
+            {sheet.pdfUrl ? <ContinuousA4Pdf pdfUrl={sheet.pdfUrl} pageCount={pageCount} visiblePageStart={accessiblePageStart} visiblePageCount={accessiblePageCount} zoom={zoom} stageRef={stageRef} documentRootRef={documentRef} onPageCount={syncPdfPageCount} onDocumentReady={markPdfDocumentReady} onDocumentLoaded={handlePdfDocumentLoaded} onCurrentPageChange={handleCurrentWorkspacePage} virtualPages={virtualPages} renderPageOverlay={renderPdfPageOverlay} onPdfPageRendered={recordPdfPageRender} documentFooter={whiteboard ? <div className="workspace-whiteboard-footer"><button type="button" onClick={addWhiteboardPage}><Plus size={18} /><span>{t("workspaceTabs.addPage")}</span></button></div> : null} /> : <article ref={documentRef} className="workspace-v2-document" onDoubleClick={smartZoom} style={cssVars({ "--workspace-document-width": `${PAGE_WIDTH * zoom}px`, "--workspace-document-min-height": `${760 * zoom}px`, "--workspace-document-max-width": "none" })}>
               <svg className={annotationLayerClass} viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-label={t("focus.documentAnnotations")}>
-                <AnnotationVisuals annotations={annotationsHidden ? [] : pageAnnotations} prefix={`document-${page}`} includeHitTargets={activeTool === "select" && !annotationsHidden} />
+                <AnnotationVisuals annotations={annotationsHidden ? [] : pageAnnotations} prefix={`document-${page}`} includeHitTargets={activeTool === "select" && !annotationsHidden} revealedIds={revealedCoverIds} />
                 {draftAnnotation && draftAnnotation.type !== "lasso" && <WorkspaceAnnotation annotation={draftAnnotation} draft />}
                 {selectionPage !== null && renderSelectionBox(page)}
               </svg>
@@ -6248,7 +6598,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
               aria-expanded={pageNavigatorOpen}
               aria-controls="workspace-page-navigator"
               onClick={() => setOpenSurface((current) => current === "pages" ? null : "pages")}
-            ><Hash size={12} aria-hidden="true" /><strong>{page}</strong><span>/ {accessiblePageCount}</span></button>
+            ><Hash size={12} aria-hidden="true" />{whiteboard
+              // A whiteboard counts its own pages: the lined base page, then each added one.
+              ? <><strong>{activeVirtualPageId === null ? 1 : Math.max(1, virtualPages.findIndex((item) => item.id === activeVirtualPageId) + 2)}</strong><span>/ {virtualPages.length + 1}</span></>
+              : <><strong>{page}</strong><span>/ {accessiblePageCount}</span></>}</button>
           </div>}
           {/* Laptop and desktop readers get a zoom bar that is always on screen. CSS
               shows it only for a fine pointer without a touchscreen, so phones and
@@ -6299,7 +6652,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], catalogDocumen
       {studyMode === "active" && activeStudy?.status === "active" && (["reading", "checkpoint", "final"].includes(activeStudy.stage) || ACTIVE_RESULT_STAGES.has(activeStudy.stage)) && <div className="workspace-v2-checkpoint-dock" role="status" aria-live="polite">
         <button type="button" className={`workspace-v2-checkpoint-button${activeStudyButtonReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeStudyButtonReady} aria-label={activeStudyButtonReady ? t(activeStudy.stage.startsWith("final") ? "activeStudy.openFinal" : "activeStudy.openCheckpoint") : t("activeStudy.reachToUnlock", { page: accessiblePageCount })}>{!activeStudy.stage.startsWith("final") && activeStudy.number_of_parts > 1 && <span className="workspace-v9-step-part" aria-hidden="true">{t("activeStudy.partOf", { part: activeStudy.current_part, total: activeStudy.number_of_parts })}</span>}{activeStudyButtonReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t(activeStudy.stage.startsWith("final") ? "activeStudy.finalExam" : "activeStudy.checkpoint")}</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t("activeStudy.reachPage", { page: accessiblePageCount })}</span></>}</button>
       </div>}
-      {modeDialogOpen && <StudyModeDialog difficulty={activeDifficulty} setDifficulty={setActiveDifficulty} activeAvailable={activeStudyReady} restartProgress={selectedActiveStudyAvailability?.progress} completed={(activeStudyAvailability?.difficulties || []).filter((item) => item.completed).map((item) => item.difficulty)} busy={activeStudyBusy || activeStudyAvailabilityLoading} error={activeStudyError} onNormal={chooseNormalStudy} onActive={() => chooseActiveStudy()} onRestart={restartActiveStudy} activeOnly={entryModePreference === "active"} />}
+      {modeDialogOpen && <StudyModeDialog difficulty={activeDifficulty} setDifficulty={setActiveDifficulty} activeAvailable={activeStudyReady} restartProgress={selectedActiveStudyAvailability?.progress} completed={(activeStudyAvailability?.difficulties || []).filter((item) => item.completed).map((item) => item.difficulty)} busy={activeStudyBusy || activeStudyAvailabilityLoading} checking={activeStudyAvailabilityLoading && !activeStudyBusy} error={activeStudyError} onNormal={chooseNormalStudy} onActive={() => chooseActiveStudy()} onRestart={restartActiveStudy} activeOnly={entryModePreference === "active"} />}
       <ConfirmDialog open={deletePageConfirmOpen} title={t("focus.deleteBlankPageConfirm")} message={t("focus.deleteBlankPageUndo")} confirmLabel={t("common.delete")} onCancel={() => setDeletePageConfirmOpen(false)} onConfirm={() => deleteBlankPage({ confirmed: true })} />
       <ActiveStudyExitDialog open={activeExitOpen} busy={activeStudyBusy} onSave={exitActiveStudyAndSave} onDiscard={exitActiveStudyWithoutSaving} onCancel={() => setActiveExitOpen(false)} />
       {activeQuiz && activeStudy && <ActiveStudyQuiz key={activeQuiz.attempt_id} quiz={activeQuiz} answers={activeAnswers} setAnswers={setActiveAnswers} locked={activeLocked} result={activeResult} busy={activeStudyBusy} onSubmit={submitActiveQuiz} onDismiss={dismissActiveQuiz} onRetake={retakeActiveQuiz} onContinue={continueActiveStudyAnyway} onDiscard={(done) => discardActiveAttempt({ restart: false }, done)} onRestart={(done) => discardActiveAttempt({ restart: true }, done)} />}

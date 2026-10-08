@@ -27,7 +27,7 @@ from apps.payments.telegram_actions import TELEGRAM_REVIEW_SOURCE
 from apps.product_catalog.models import Plan, Price
 from apps.subscriptions.services import create_trial_for_user
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("legacy_duration_prices")]
 
 WEBHOOK = "/api/v1/billing/webhooks/telegram"
 SECRET = "telegram-webhook-secret-token-for-tests-0002"  # noqa: S105 - test fixture value.

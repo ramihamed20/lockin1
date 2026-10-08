@@ -373,6 +373,9 @@ test("a persistent session failure stops retrying and offers a retry that works"
   // renders and its own access check offers an unrelated "Try again", so a
   // page-wide locator stops describing the boot failure this test is about.
   const retry = shell.getByRole("button", { name: "Try again" });
+  // The retry action can briefly paint before the passive effect starts its
+  // first automatic backoff. Assert the exhausted budget before using it.
+  await expect.poll(() => captured.sessionRequests, { timeout: 20_000 }).toBe(4);
   await expect(retry).toBeVisible({ timeout: 20_000 });
   expect(captured.sessionRequests).toBe(4);
 
@@ -625,7 +628,9 @@ test("confirming logs out exactly once, however many times the button is pressed
   await expect(confirm).toBeDisabled();
   await expect(confirm).toHaveText("Logging out…");
   await expect(dialog.getByRole("button", { name: "Cancel" })).toBeDisabled();
-  await confirm.click({ force: true }).catch(() => {});
+  // Native clicks on a disabled button are ignored. Playwright's click still
+  // waits for enabled state with force, which would wait out this entire test.
+  await confirm.evaluate((button) => button.click());
   await page.keyboard.press("Escape");
   await expect(dialog).toBeVisible();
 
@@ -758,6 +763,29 @@ test("going back after logout never shows the account again", async ({ page }) =
     await expect(page.getByText("Auth Student")).toHaveCount(0);
     await expect(page.getByText("student@example.test")).toHaveCount(0);
   }
+});
+
+test("a restored session is rechecked as soon as authenticated UI commits", async ({ page }) => {
+  await mockAuth(page, { sessionUser: userPayload() });
+  let checks = 0;
+  await page.route("**/api/v1/auth/session", async (route) => {
+    checks += 1;
+    await route.fulfill({ status: checks === 1 ? 200 : 403, contentType: "application/json", body: JSON.stringify(checks === 1 ? { user: userPayload() } : { error: { code: "not_authenticated", message: "Authentication required." } }) });
+  });
+  await page.addInitScript(() => {
+    localStorage.setItem("lock-in.locale", "en");
+    const observer = new MutationObserver(() => {
+      if (!document.querySelector(".app-shell")) return;
+      observer.disconnect();
+      // A DOM observer runs after commit but before deferred passive effects.
+      window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true }));
+    });
+    observer.observe(document, { subtree: true, childList: true });
+  });
+  await page.goto("/#/");
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible({ timeout: 15_000 });
+  expect(checks).toBeGreaterThan(1);
+  await expect(page.getByRole("button", { name: "Open profile menu" })).toHaveCount(0);
 });
 
 test("a restored page with an ended session re-checks and lands on sign-in", async ({ page }) => {

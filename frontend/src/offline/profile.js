@@ -1,33 +1,25 @@
 import { offlineDatabase } from "./database.js";
 import { offlineAccessStatus } from "./lease.js";
 import { clearOfflineDownloads } from "./downloads.js";
-
-const CURRENT_USER_KEY = "lock-in.offline-current-user-id";
-
-/** The signed-in account whose offline database API modules may read. */
-export function currentOfflineUserId() {
-  try {
-    return globalThis.localStorage?.getItem(CURRENT_USER_KEY) || "";
-  } catch {
-    return "";
-  }
-}
+import { CURRENT_USER_KEY, captureOfflineSession, invalidateOfflineSession } from "./sessionScope.js";
+export { currentOfflineUserId } from "./sessionScope.js";
 
 export async function rememberOfflineUser(user) {
   if (!user?.id) return;
   const previous = localStorage.getItem(CURRENT_USER_KEY);
   if (previous && previous !== String(user.id)) await forgetOfflineUser(previous);
-  await offlineDatabase.put(user.id, "profile", user);
   localStorage.setItem(CURRENT_USER_KEY, String(user.id));
+  await offlineDatabase.putScoped(user.id, "profile", user, captureOfflineSession(user.id));
 }
 
 export async function restoreOfflineUser() {
   const userId = localStorage.getItem(CURRENT_USER_KEY);
   if (!userId) return null;
+  const assertCurrent = captureOfflineSession(userId);
   const status = await offlineAccessStatus(userId);
-  if (!status.available) return null;
+  if (!status.available || !assertCurrent.isCurrent()) return null;
   const user = await offlineDatabase.get(userId, "profile");
-  return user?.id === userId ? user : null;
+  return assertCurrent.isCurrent() && user?.id === userId ? user : null;
 }
 
 // The student's own unsynced work and the progress it belongs to. Nothing here
@@ -41,6 +33,7 @@ const RETAINED_PREFIXES = ["operation:", "queue:", "as-run:", "as-runid:", "as-c
  */
 export async function forgetOfflineUser(userId) {
   if (!userId) return;
+  invalidateOfflineSession();
   if (localStorage.getItem(CURRENT_USER_KEY) === String(userId)) localStorage.removeItem(CURRENT_USER_KEY);
   await offlineDatabase.delete(userId, "lease");
   await clearOfflineDownloads(userId);

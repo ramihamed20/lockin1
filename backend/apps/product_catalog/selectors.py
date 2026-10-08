@@ -46,9 +46,20 @@ def active_price(*, price_id: UUID | str) -> Price:
     return price
 
 
-def active_libyana_price_for_plan(*, plan_id: UUID | str) -> Price:
+def price_for_reader(*, prices: list[Price], eligibilities: frozenset[str]) -> Price | None:
+    """One price per plan: a restricted price the reader holds wins over the general one."""
+
+    restricted = [p for p in prices if p.eligibility and p.eligibility in eligibilities]
+    general = [p for p in prices if not p.eligibility]
+    pool = restricted or general
+    return min(pool, key=lambda p: (p.amount_minor, str(p.id))) if pool else None
+
+
+def active_libyana_price_for_plan(
+    *, plan_id: UUID | str, eligibilities: frozenset[str] = frozenset()
+) -> Price:
     now = timezone.now()
-    price = (
+    prices = list(
         Price.objects.select_related("plan_version__plan__product")
         .filter(
             plan_version__plan_id=plan_id,
@@ -64,8 +75,8 @@ def active_libyana_price_for_plan(*, plan_id: UUID | str) -> Price:
             Q(valid_until__isnull=True) | Q(valid_until__gt=now),
         )
         .order_by("-published_at", "id")
-        .first()
     )
+    price = price_for_reader(prices=prices, eligibilities=eligibilities)
     if price is None:
         raise Price.DoesNotExist
     if price.plan_version.terms.get("availability") == "coming_soon":

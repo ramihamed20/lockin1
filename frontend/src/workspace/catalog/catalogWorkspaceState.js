@@ -40,7 +40,7 @@ export function catalogWorkspaceStorageKey(owner, materialSlug, sheetSlug) {
 
 export function sanitizeCatalogAnnotation(annotation) {
   if (!annotation || typeof annotation !== "object" || typeof annotation.id !== "string") return null;
-  if (!["pen", "pencil", "highlighter", "shape", "text", "image", "card"].includes(annotation.type)) return null;
+  if (!["pen", "pencil", "highlighter", "shape", "text", "image", "card", "cover"].includes(annotation.type)) return null;
   const base = {
     id: annotation.id,
     page: isVirtualPageKey(annotation.page) ? annotation.page : Math.max(1, Math.round(finite(annotation.page, 1))),
@@ -98,6 +98,19 @@ export function sanitizeCatalogAnnotation(annotation) {
       y: safePoint(annotation).y,
       width: Math.min(900, Math.max(120, finite(annotation.width, 290))),
       height: Math.min(900, Math.max(100, finite(annotation.height, 230)))
+    };
+  }
+  if (annotation.type === "cover") {
+    // A hide-and-reveal box over part of the page: a picture's label, a term
+    // found by search, or any area the student wants to recall.
+    return {
+      ...base,
+      kind: annotation.kind === "text" ? "text" : "area",
+      label: typeof annotation.label === "string" ? annotation.label.trim().slice(0, 200) : "",
+      x: safePoint(annotation).x,
+      y: safePoint(annotation).y,
+      width: Math.min(1000, Math.max(6, finite(annotation.width, 160))),
+      height: Math.min(1000, Math.max(6, finite(annotation.height, 60)))
     };
   }
   return null;
@@ -286,7 +299,7 @@ export function annotationBounds(annotation) {
       height: Math.max(1, Math.abs(annotation.end.y - annotation.start.y))
     };
   }
-  if (annotation.type === "image" || annotation.type === "card") return { x: annotation.x, y: annotation.y, width: annotation.width, height: annotation.height };
+  if (annotation.type === "image" || annotation.type === "card" || annotation.type === "cover") return { x: annotation.x, y: annotation.y, width: annotation.width, height: annotation.height };
   if (annotation.type === "text") {
     const lines = String(annotation.text || "").split("\n");
     const fontSize = Math.max(18, annotation.width * 5);
@@ -464,7 +477,7 @@ export function resizeAnnotation(annotation, fromBounds, toBounds) {
   const scaleWidth = Math.sqrt(Math.max(0.01, scaleX * scaleY));
   if (["pen", "pencil", "highlighter"].includes(annotation.type)) return { ...annotation, width: annotation.width * scaleWidth, points: annotation.points.map(resize), ...(annotation.erasures ? { erasures: annotation.erasures.map((item) => ({ radius: item.radius * scaleWidth, points: item.points.map(resize) })) } : {}) };
   if (annotation.type === "shape") return { ...annotation, width: annotation.width * scaleWidth, start: resize(annotation.start), end: resize(annotation.end) };
-  if (annotation.type === "image" || annotation.type === "card") return { ...annotation, ...resize(annotation), width: annotation.width * scaleX, height: annotation.height * scaleY };
+  if (annotation.type === "image" || annotation.type === "card" || annotation.type === "cover") return { ...annotation, ...resize(annotation), width: annotation.width * scaleX, height: annotation.height * scaleY };
   return { ...annotation, ...resize(annotation), width: annotation.width * scaleWidth };
 }
 

@@ -12,13 +12,13 @@ function open(userId) {
   });
 }
 
-async function transact(userId, mode, action) {
+async function transact(userId, mode, action, readResult = (request) => request.result) {
   const db = await open(userId);
   try {
     return await new Promise((resolve, reject) => {
       const transaction = db.transaction(STORE, mode);
       const result = action(transaction.objectStore(STORE));
-      transaction.oncomplete = () => resolve(result.result);
+      transaction.oncomplete = () => resolve(readResult(result));
       transaction.onerror = () => reject(transaction.error);
       transaction.onabort = () => reject(transaction.error);
     });
@@ -29,13 +29,32 @@ async function transact(userId, mode, action) {
 
 export const offlineDatabase = {
   get: (userId, key) => transact(userId, "readonly", (store) => store.get(key)),
+  getMany: (userId, keys) => keys.length ? transact(userId, "readonly",
+    (store) => keys.map((key) => store.get(key)),
+    (requests) => requests.map((request) => request.result)) : Promise.resolve([]),
   put: (userId, key, value) => transact(userId, "readwrite", (store) => store.put(value, key)),
+  // Check after opening the connection, immediately before the transaction's
+  // write. Logout cleanup then either runs after this write or fences it out.
+  putScoped: (userId, key, value, assertCurrent) => transact(userId, "readwrite", (store) => {
+    assertCurrent();
+    return store.put(value, key);
+  }),
+  putManyScoped: (userId, entries, assertCurrent) => transact(userId, "readwrite", (store) => {
+    assertCurrent();
+    let request;
+    for (const [key, value] of entries) request = store.put(value, key);
+    return request;
+  }),
   putMany: (userId, entries) => transact(userId, "readwrite", (store) => {
     let request;
     for (const [key, value] of entries) request = store.put(value, key);
     return request;
   }),
   delete: (userId, key) => transact(userId, "readwrite", (store) => store.delete(key)),
+  deleteScoped: (userId, key, assertCurrent) => transact(userId, "readwrite", (store) => {
+    assertCurrent();
+    return store.delete(key);
+  }),
   keys: (userId) => transact(userId, "readonly", (store) => store.getAllKeys()),
   clear: (userId) => transact(userId, "readwrite", (store) => store.clear())
 };

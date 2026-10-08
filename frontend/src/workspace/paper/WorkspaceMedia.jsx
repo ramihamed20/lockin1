@@ -5,9 +5,9 @@
  * player, an iPad in either orientation, and a phone.
  *
  * Playback belongs to the player's control bar (MediaControls.jsx), which
- * receives the <video> through `videoRef`. The video is not muted: sound plays
- * normally, and a browser that refuses autoplay with sound waits for Play.
- * `preview` (the admin cropping frames) plays silently on its own instead.
+ * receives the <video> through `videoRef`. Scenes are silent visuals: Paper
+ * Workspace supplies its own nature audio. `preview` (the admin cropping
+ * frames) plays silently on its own instead.
  *
  * A Lo-Fi scene is a short clip repeated by the browser itself (`loop`): the
  * same element and the same downloaded file play again from the start with no
@@ -30,9 +30,7 @@ export function WorkspaceMedia({ media, label, className = "", videoRef = undefi
   const classes = `paper-media ${className}`.trim();
   if (media.media_type === "video") {
     return (
-      // Ambient study music behind the workspace: there is no speech, and no
-      // caption track exists for an administrator's upload.
-      // eslint-disable-next-line jsx-a11y/media-has-caption -- see above
+      // Silent scene with no speech; nature audio belongs to the player.
       <video
         ref={videoRef}
         className={classes}
@@ -41,7 +39,7 @@ export function WorkspaceMedia({ media, label, className = "", videoRef = undefi
         style={style}
         aria-label={label}
         loop
-        muted={preview}
+        muted
         autoPlay={preview}
         playsInline
         preload="auto"

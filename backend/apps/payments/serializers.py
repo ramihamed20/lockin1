@@ -61,14 +61,24 @@ class ManualRechargeSubmissionSerializer(serializers.ModelSerializer[ManualRecha
         return [f"•••• {code.last4}" for code in codes]
 
 
-class ManualRechargeRequestSerializer(StrictSerializer):
-    plan_id = serializers.UUIDField()
-    recharge_codes = serializers.ListField(
+def _recharge_codes_field() -> serializers.ListField:
+    return serializers.ListField(
         child=serializers.RegexField(r"^[0-9]{13}$"),
         min_length=1,
-        max_length=2,
+        max_length=5,
         write_only=True,
     )
+
+
+class ManualRechargeRequestSerializer(StrictSerializer):
+    plan_id = serializers.UUIDField()
+    recharge_codes = _recharge_codes_field()
+    pay_in_installments = serializers.BooleanField(required=False, default=False)
+
+
+class ManualInstallmentRequestSerializer(StrictSerializer):
+    agreement_id = serializers.UUIDField()
+    recharge_codes = _recharge_codes_field()
 
 
 class PaymentIntentSerializer(serializers.Serializer[dict[str, object]]):

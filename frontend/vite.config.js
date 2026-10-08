@@ -46,6 +46,30 @@ function removeLegacyWorkerInDevelopment() {
   };
 }
 
+/**
+ * Publishes the release notes beside the app as release-notes.json, from the
+ * same data the app bundles. A running (older) app fetches it to explain an
+ * update before the reader installs it. The file is unhashed and outside the
+ * precache, so it always reflects the newest deployment.
+ */
+function releaseNotesFile(release) {
+  const body = JSON.stringify(release);
+  return {
+    name: "lock-in-release-notes",
+    configureServer(server) {
+      server.middlewares.use((request, response, next) => {
+        if (new URL(request.url || "/", "http://vite.local").pathname !== "/release-notes.json") return next();
+        response.setHeader("Content-Type", "application/json; charset=utf-8");
+        response.setHeader("Cache-Control", "no-store");
+        response.end(body);
+      });
+    },
+    generateBundle() {
+      this.emitFile({ type: "asset", fileName: "release-notes.json", source: body });
+    }
+  };
+}
+
 export default defineConfig(async ({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   // Only `npm run build:e2e` sets this; every other build compiles in null.
@@ -53,6 +77,7 @@ export default defineConfig(async ({ mode }) => {
   const e2eCatalogMaterials = process.env.LOCKIN_E2E_CATALOG === "1"
     ? (await import("./e2e/fixtures/catalog.js")).e2eCatalogMaterials()
     : null;
+  const { WHATS_NEW } = await import("./src/lib/whatsNew.js");
   const appVersion = env.VITE_APP_VERSION || process.env.GITHUB_SHA || "local";
   // Shown in Settings so a stale deployment can be diagnosed. The package
   // version is the human release; the build time makes every production build
@@ -76,6 +101,7 @@ export default defineConfig(async ({ mode }) => {
   },
   plugins: [
     react(),
+    releaseNotesFile(WHATS_NEW),
     ...(mode === "development" ? [removeLegacyWorkerInDevelopment()] : []),
     VitePWA({
       registerType: "prompt",

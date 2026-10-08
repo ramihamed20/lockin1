@@ -49,6 +49,7 @@ from .oauth import (
     oauth_provider_status,
 )
 from .permissions import IsAdministrator
+from .rate_limits import AttemptBudget, reserve_attempts
 from .roles import Role, RoleChangeError, replace_managed_roles
 from .selectors import dashboard_summary
 from .serializers import (
@@ -75,7 +76,6 @@ from .services import (
     _token_digest,
     account_deletion_status,
     auth_attempt_fingerprint,
-    auth_attempt_is_limited,
     build_account_link,
     cancel_account_deletion,
     change_password,
@@ -86,10 +86,7 @@ from .services import (
     establish_account_session,
     invalidate_sessions,
     login_fingerprint,
-    login_is_limited,
     logout_current_session,
-    record_auth_attempt,
-    record_login_failure,
     register_user,
     request_account_deletion,
     request_email_change,
@@ -97,7 +94,6 @@ from .services import (
     resend_verification,
     send_account_email,
     touch_account_session,
-    verification_code_resend_wait,
     verify_email_code,
 )
 
@@ -155,20 +151,29 @@ def _enforce_sensitive_request_limit(*, request: Request, scope: str, identifier
         identifier="*",
         remote_address=remote_address,
     )
-    if auth_attempt_is_limited(
-        key_hash=key_hash,
-        scope=scope,
-        window_seconds=int(settings.ACCOUNT_SENSITIVE_WINDOW_SECONDS),
-        limit=int(settings.ACCOUNT_SENSITIVE_REQUEST_LIMIT),
-    ) or auth_attempt_is_limited(
-        key_hash=source_hash,
-        scope=source_scope,
-        window_seconds=int(settings.ACCOUNT_SENSITIVE_WINDOW_SECONDS),
-        limit=int(settings.ACCOUNT_SENSITIVE_SOURCE_REQUEST_LIMIT),
-    ):
+    window = int(settings.ACCOUNT_SENSITIVE_WINDOW_SECONDS)
+    budgets = [
+        AttemptBudget(scope, key_hash, window, int(settings.ACCOUNT_SENSITIVE_REQUEST_LIMIT)),
+        AttemptBudget(
+            source_scope, source_hash, window, int(settings.ACCOUNT_SENSITIVE_SOURCE_REQUEST_LIMIT)
+        ),
+    ]
+    # A provider name is shared by every user; only account/token identifiers
+    # receive a source-independent budget.
+    if scope != "oauth_start":
+        account_scope = f"{scope}_account"
+        budgets.append(
+            AttemptBudget(
+                account_scope,
+                auth_attempt_fingerprint(
+                    scope=account_scope, identifier=identifier, remote_address="*"
+                ),
+                window,
+                int(settings.ACCOUNT_SENSITIVE_REQUEST_LIMIT),
+            )
+        )
+    if reserve_attempts(budgets) is None:
         raise TooManyAccountRequests()
-    record_auth_attempt(key_hash=key_hash, scope=scope)
-    record_auth_attempt(key_hash=source_hash, scope=source_scope)
 
 
 def _send_verification_code_email(*, user: User, code: str) -> None:
@@ -271,12 +276,15 @@ class VerifyEmailView(APIView):
         # An account that may not sign in is verified without one.
         if user.status != User.Status.ACTIVE or not user.is_active:
             return Response({"status": "verified", "user": None})
-        establish_account_session(
-            request=_http_request(request),
-            user=user,
-            remember_me=False,
-            metadata={"method": "email_verification"},
-        )
+        try:
+            establish_account_session(
+                request=_http_request(request),
+                user=user,
+                remember_me=False,
+                metadata={"method": "email_verification"},
+            )
+        except AccountStateError:
+            return Response({"status": "verified", "user": None})
         return Response({"status": "verified", "user": UserSerializer(user).data})
 
 
@@ -300,11 +308,14 @@ class ResendVerificationView(APIView):
         # button, a reload, or a direct call cannot turn one mailbox into a
         # flood. The answer stays the same either way: whether an address is
         # registered is not something this endpoint tells a stranger.
-        wait = verification_code_resend_wait(user=user) if user is not None else 0
-        if user is not None and wait == 0:
+        if user is not None:
             token = resend_verification(user=user)
-            _send_verification_code_email(user=user, code=token.raw_token)
-        return Response({"status": "accepted", "retry_after_seconds": wait})
+            if token is not None:
+                _send_verification_code_email(user=user, code=token.raw_token)
+        # A token's remaining lifetime reveals recent account activity. The
+        # public countdown is identical for unknown, verified and known users.
+        cooldown = int(getattr(settings, "ACCOUNT_VERIFICATION_RESEND_COOLDOWN_SECONDS", 60))
+        return Response({"status": "accepted", "retry_after_seconds": cooldown})
 
 
 class PasswordResetRequestView(APIView):
@@ -365,26 +376,53 @@ class LoginView(APIView):
             identifier="*",
             remote_address=remote_address,
         )
-        if login_is_limited(key_hash=fingerprint) or auth_attempt_is_limited(
-            key_hash=source_fingerprint,
-            scope=source_scope,
-            window_seconds=int(settings.ACCOUNT_LOGIN_WINDOW_SECONDS),
-            limit=int(settings.ACCOUNT_LOGIN_SOURCE_ATTEMPT_LIMIT),
-        ):
+        account_scope = "login_account"
+        account_fingerprint = auth_attempt_fingerprint(
+            scope=account_scope,
+            identifier=email,
+            remote_address="*",
+        )
+        window = int(settings.ACCOUNT_LOGIN_WINDOW_SECONDS)
+        attempts = reserve_attempts(
+            [
+                AttemptBudget(
+                    "login", fingerprint, window, int(settings.ACCOUNT_LOGIN_ATTEMPT_LIMIT)
+                ),
+                AttemptBudget(
+                    source_scope,
+                    source_fingerprint,
+                    window,
+                    int(settings.ACCOUNT_LOGIN_SOURCE_ATTEMPT_LIMIT),
+                ),
+                AttemptBudget(
+                    account_scope,
+                    account_fingerprint,
+                    window,
+                    int(settings.ACCOUNT_LOGIN_ACCOUNT_ATTEMPT_LIMIT),
+                ),
+            ]
+        )
+        if attempts is None:
             raise TooManyAccountRequests()
         user = authenticate(_http_request(request), username=email, password=str(data["password"]))
         if not isinstance(user, User) or not user.is_email_verified:
-            record_login_failure(key_hash=fingerprint)
-            record_auth_attempt(key_hash=source_fingerprint, scope=source_scope)
             raise AuthenticationFailed(
                 "The email or password is incorrect.", code="invalid_credentials"
             )
+        try:
+            establish_account_session(
+                request=_http_request(request),
+                user=user,
+                remember_me=bool(data["remember_me"]),
+            )
+        except AccountStateError as error:
+            raise AuthenticationFailed(
+                "The email or password is incorrect.", code="invalid_credentials"
+            ) from error
         clear_login_failures(key_hash=fingerprint)
-        establish_account_session(
-            request=_http_request(request),
-            user=user,
-            remember_me=bool(data["remember_me"]),
-        )
+        from .models import AuthAttempt
+
+        AuthAttempt.objects.filter(pk__in=attempts).delete()
         return Response({"user": UserSerializer(user).data})
 
 
@@ -462,16 +500,22 @@ def _oauth_callback_redirect(
         identifier=provider,
         remote_address=client_ip(request),
     )
-    if auth_attempt_is_limited(
-        key_hash=callback_fingerprint,
-        scope=callback_scope,
-        window_seconds=int(settings.ACCOUNT_SENSITIVE_WINDOW_SECONDS),
-        limit=int(settings.ACCOUNT_SENSITIVE_SOURCE_REQUEST_LIMIT),
+    if (
+        reserve_attempts(
+            [
+                AttemptBudget(
+                    callback_scope,
+                    callback_fingerprint,
+                    int(settings.ACCOUNT_SENSITIVE_WINDOW_SECONDS),
+                    int(settings.ACCOUNT_SENSITIVE_SOURCE_REQUEST_LIMIT),
+                )
+            ]
+        )
+        is None
     ):
         return HttpResponseRedirect(
             oauth_frontend_redirect(provider=provider, outcome="error", error="rate_limited")
         )
-    record_auth_attempt(key_hash=callback_fingerprint, scope=callback_scope)
 
     source = cast(Mapping[str, object], payload) if isinstance(payload, Mapping) else {}
     state_value = source.get("state", "")
@@ -710,19 +754,25 @@ class PasswordChangeView(APIView):
         serializer = PasswordChangeSerializer(data=request.data, context={"user": user})
         serializer.is_valid(raise_exception=True)
         old_session_key = request.session.session_key
-        change_password(
-            user=user,
-            new_password=str(serializer.validated_data["new_password"]),
-            keep_session_key=old_session_key,
-        )
-        update_session_auth_hash(_http_request(request), user)
-        new_session_key = request.session.session_key
-        if old_session_key and new_session_key:
-            AccountSession.objects.filter(user=user, session_key=old_session_key).update(
-                session_key=new_session_key,
-                expires_at=request.session.get_expiry_date(),
-                last_seen_at=timezone.now(),
-            )
+        try:
+            # Keep the account lock until the rotated session is persisted and
+            # tracked. Logout-all must see either the old key or the new key.
+            with transaction.atomic():
+                change_password(
+                    user=user,
+                    new_password=str(serializer.validated_data["new_password"]),
+                    keep_session_key=old_session_key,
+                )
+                update_session_auth_hash(_http_request(request), user)
+                new_session_key = request.session.session_key
+                if old_session_key and new_session_key:
+                    AccountSession.objects.filter(user=user, session_key=old_session_key).update(
+                        session_key=new_session_key,
+                        expires_at=request.session.get_expiry_date(),
+                        last_seen_at=timezone.now(),
+                    )
+        except AccountStateError as error:
+            raise RequestRejected(str(error), code="account_changed") from error
         return Response({"status": "password_changed"})
 
 
@@ -871,8 +921,10 @@ class SessionListView(APIView):
 class SessionDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @transaction.atomic
     def delete(self, request: Request, session_id: UUID) -> Response:
         user = _user(request)
+        User.objects.select_for_update().only("id").get(id=user.id)
         try:
             account_session = AccountSession.objects.get(id=session_id, user=user)
         except AccountSession.DoesNotExist as error:

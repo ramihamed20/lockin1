@@ -1,6 +1,6 @@
 {
   "name": "@lock-in/client",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.19.0",
@@ -20,7 +20,6 @@
     "check:bundle": "node scripts/check-bundle.mjs"
   },
   "dependencies": {
-    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",
     "pdfjs-dist": "6.3.289",

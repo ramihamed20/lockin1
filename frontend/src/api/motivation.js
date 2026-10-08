@@ -1,13 +1,11 @@
+import { objectPayload } from "./payloads.js";
 import { ApiError, request, API_BASE_PATH } from "./client.js";
 import { normalizePaginatedResponse } from "./contracts.js";
 import { buildQueryString } from "./pagination.js";
 
-function objectPayload(payload, message) {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    throw new ApiError(500, payload, message, "invalid_response");
-  }
-  return /** @type {Record<string, unknown>} */ (payload);
-}
+// Share only overlapping reads from the same live user object. A new session
+// gets a new scope, and settled responses are never cached.
+const pendingStreakReads = new WeakMap();
 
 function pagePayload(payload, message) {
   const source = objectPayload(payload, message);
@@ -48,8 +46,17 @@ export const motivationApi = {
     );
   },
 
-  async streakSummary() {
-    return objectPayload(await request("/progression/streak"), "The streak response was incomplete.");
+  /** @param {{ scope?: object, force?: boolean }} [options] */
+  async streakSummary({ scope, force = false } = {}) {
+    if (scope && !force && pendingStreakReads.has(scope)) return pendingStreakReads.get(scope);
+    if (scope && force) pendingStreakReads.delete(scope);
+    const pending = request("/progression/streak")
+      .then((payload) => objectPayload(payload, "The streak response was incomplete."))
+      .finally(() => {
+        if (scope && pendingStreakReads.get(scope) === pending) pendingStreakReads.delete(scope);
+      });
+    if (scope && !force) pendingStreakReads.set(scope, pending);
+    return pending;
   },
 
   async achievements() {

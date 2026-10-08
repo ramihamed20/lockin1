@@ -22,7 +22,7 @@ from platform_core.events import publish_after_commit
 
 from .events import UserEmailVerified, UserRegistered
 from .models import AccountSecurityEvent, OAuthFlow, SocialIdentity, User
-from .services import establish_account_session, normalize_email
+from .services import AccountStateError, establish_account_session, normalize_email
 
 GOOGLE_AUTHORIZATION_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"  # noqa: S105
@@ -76,6 +76,7 @@ class ProviderProfile:
     email_verified: bool
     full_name: str
     is_private_relay: bool
+    hosted_domain: str = ""
 
 
 def _configured_value(name: str) -> str:
@@ -394,6 +395,7 @@ def exchange_oauth_code(
         is_private_relay=(
             _truthy_claim(claims.get("is_private_email")) or domain in APPLE_PRIVATE_RELAY_DOMAINS
         ),
+        hosted_domain=str(claims.get("hd", "")).strip().lower(),
     )
 
 
@@ -431,6 +433,17 @@ def resolve_social_user(*, profile: ProviderProfile, flow: OAuthFlow) -> User:
         raise OAuthAccountLinkError(
             "A verified email is required before this social account can be linked."
         )
+    if profile.provider == SocialIdentity.Provider.GOOGLE:
+        domain = profile.email.rsplit("@", 1)[-1].lower()
+        # Google's verified flag for third-party email can outlive mailbox
+        # ownership. Only Gmail or an attested Workspace domain can establish
+        # a new email-based identity; existing subject links remain valid.
+        if domain != "gmail.com" and not (
+            profile.hosted_domain and profile.hosted_domain == domain
+        ):
+            raise OAuthAccountLinkError(
+                "Sign in with your password or use a Google-managed email account."
+            )
     matched_user = User.objects.select_for_update().filter(email=profile.email).first()
     created = False
     if matched_user is not None:
@@ -530,13 +543,16 @@ def complete_oauth_callback(
         apple_user_payload=apple_user_payload,
     )
     user = resolve_social_user(profile=profile, flow=flow)
-    establish_account_session(
-        request=request,
-        user=user,
-        remember_me=flow.remember_me,
-        event_type=AccountSecurityEvent.EventType.SOCIAL_LOGIN_SUCCEEDED,
-        metadata={"provider": provider},
-    )
+    try:
+        establish_account_session(
+            request=request,
+            user=user,
+            remember_me=flow.remember_me,
+            event_type=AccountSecurityEvent.EventType.SOCIAL_LOGIN_SUCCEEDED,
+            metadata={"provider": provider},
+        )
+    except AccountStateError as error:
+        raise OAuthAccountLinkError("This account cannot sign in.") from error
     return user
 
 

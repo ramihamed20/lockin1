@@ -1,0 +1,42 @@
+.feedback-form,
+.feedback-history {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  margin-block-end: 16px;
+}
+
+.feedback-form textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.feedback-count {
+  justify-self: end;
+  color: var(--muted, inherit);
+}
+
+.feedback-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feedback-list li {
+  display: grid;
+  gap: 4px;
+  padding-block-end: 12px;
+  border-block-end: 1px solid var(--line, rgba(128, 128, 128, 0.25));
+}
+
+.feedback-list li:last-child {
+  border-block-end: 0;
+  padding-block-end: 0;
+}
+
+.feedback-list p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

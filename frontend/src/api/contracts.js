@@ -160,32 +160,3 @@ export function normalizePaginatedResponse(payload) {
     results: Array.isArray(source.results) ? source.results : []
   };
 }
-
-/**
- * @param {unknown} error
- */
-export function normalizeError(error) {
-  if (error && typeof error === "object") {
-    const source = /** @type {Record<string, unknown>} */ (error);
-    return {
-      status: typeof source.status === "number" ? source.status : 0,
-      code: typeof source.code === "string" ? source.code : "request_failed",
-      message: typeof source.message === "string" ? source.message : "The request could not be completed.",
-      fields: source.fields && typeof source.fields === "object" ? source.fields : null,
-      request_id:
-        typeof source.request_id === "string"
-          ? source.request_id
-          : typeof source.requestId === "string"
-            ? source.requestId
-            : null
-    };
-  }
-
-  return {
-    status: 0,
-    code: "request_failed",
-    message: "The request could not be completed.",
-    fields: null,
-    request_id: null
-  };
-}

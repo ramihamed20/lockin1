@@ -35,6 +35,18 @@ export const catalogWorkspaceApi = {
     }), () => answerQuestionOffline(userId, sheetId, source, questionId, choiceIds));
   },
   /**
+   * Try an answered question again. The recorded answer and XP stay put; a
+   * wrong try is one more mistake in Review, counted once per `retryKey`.
+   * @param {string} sheetId
+   * @param {string} questionId
+   * @param {string[]} choiceIds
+   */
+  retryQuestion(sheetId, questionId, choiceIds, retryKey = generateIdempotencyKey()) {
+    return request(`/catalog/sheets/${encodeURIComponent(sheetId)}/questions/${encodeURIComponent(questionId)}/retry`, {
+      method: "POST", retryable: true, body: { choice_ids: choiceIds, retry_key: retryKey }
+    });
+  },
+  /**
    * @param {string} materialSlug
    * @param {string} sheetSlug
    * @param {{ signal?: AbortSignal, view?: string }} [options] `view: "summary"`

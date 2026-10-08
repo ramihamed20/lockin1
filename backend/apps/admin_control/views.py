@@ -37,6 +37,7 @@ from .selectors import (
     campaigns,
     operational_analytics,
     serialize_purchase,
+    serialize_purchase_list,
     serialize_subscription,
     serialize_user_detail,
 )
@@ -148,10 +149,11 @@ class AdminPurchaseListView(APIView):
             query=request.query_params.get("q", "")[:100],
             status=status_filter,
             sort=_ordering(request, PURCHASE_ORDERINGS),
+            include_history=False,
         )
         paginator = LockinPagination()
         page = paginator.paginate_queryset(records, request, view=self)
-        return paginator.get_paginated_response([serialize_purchase(item) for item in (page or [])])
+        return paginator.get_paginated_response(serialize_purchase_list(page or []))
 
 
 class AdminPurchaseDetailView(APIView):

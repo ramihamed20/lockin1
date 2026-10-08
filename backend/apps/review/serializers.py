@@ -146,6 +146,7 @@ def mistake_event_payload(event: Any) -> dict[str, object]:
         "source_label": event.source_label_snapshot or None,
         "source_question_index": event.source_question_index,
         "original_source": _original_source(item),
+        "mistake_count": item.mistake_count,
         "answered_at": event.answered_at,
     }
 

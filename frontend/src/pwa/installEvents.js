@@ -29,10 +29,6 @@ export function getInstallSnapshot() {
   return snapshot;
 }
 
-export function canPromptInstall() {
-  return Boolean(snapshot.prompt);
-}
-
 export async function promptForPwaInstall() {
   const installPrompt = snapshot.prompt;
   if (!installPrompt) throw new Error("The browser install prompt is no longer available.");

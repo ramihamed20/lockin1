@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { normalizeUserError } from "../lib/errors.js";
 
 /**
@@ -21,20 +21,33 @@ import { normalizeUserError } from "../lib/errors.js";
  * *which record* is shown -- a detail view must never display the previous
  * record's data while the next one loads.
  *
+ * `reload()` always keeps what is on screen. It asks for the same record
+ * again (after a save, a retry, a pull to refresh), so showing it while the
+ * fresh copy arrives is never showing the wrong thing -- and the page no
+ * longer collapses to a skeleton and back after every action.
+ *
  * @param {(signal: AbortSignal) => Promise<any>} loader
  * @param {unknown[]} deps
- * @param {{ keepPreviousData?: boolean }} [options]
+ * @param {{ keepPreviousData?: boolean, retainOnError?: boolean }} [options]
  */
-export function useAsyncData(loader, deps = [], { keepPreviousData = false } = {}) {
+export function useAsyncData(loader, deps = [], { keepPreviousData = false, retainOnError = false } = {}) {
   const [state, setState] = useState({ loading: true, refreshing: false, error: "", data: null });
   const [reloadVersion, setReloadVersion] = useState(0);
+  const lastRun = useRef({ deps: /** @type {unknown[] | null} */ (null), reloadVersion: 0 });
 
   /* eslint-disable react-hooks/exhaustive-deps -- callers provide the loader's semantic dependency list */
   useEffect(() => {
     let active = true;
     const controller = typeof AbortController === "undefined" ? null : new AbortController();
+    const previous = lastRun.current;
+    const sameRecord = previous.deps !== null
+      && previous.deps.length === deps.length
+      && previous.deps.every((value, index) => Object.is(value, deps[index]));
+    const reloadOnly = sameRecord && previous.reloadVersion !== reloadVersion;
+    lastRun.current = { deps, reloadVersion };
     setState((prev) => {
-      const keep = keepPreviousData && prev.data !== null && !prev.error;
+      const keep = prev.data !== null
+        && (reloadOnly || (keepPreviousData && (!prev.error || retainOnError)));
       return keep
         ? { ...prev, loading: false, refreshing: true }
         : { ...prev, loading: true, refreshing: false, error: "" };
@@ -48,12 +61,15 @@ export function useAsyncData(loader, deps = [], { keepPreviousData = false } = {
         // A cancelled request is not a failure the reader should see: it was
         // this hook that cancelled it, and whatever replaced it owns the screen.
         if (!active || error?.code === "aborted" || error?.name === "AbortError") return;
-        setState({
+        setState((prev) => ({
           loading: false,
           refreshing: false,
           error: normalizeUserError(error?.message, "This information could not be loaded."),
-          data: null
-        });
+          // Opt-in read-only lists may stay usable during a connectivity
+          // failure. Authorization, validation and missing-record errors clear
+          // the previous data immediately.
+          data: retainOnError && keepPreviousData && (error?.status === 0 || error?.status >= 500) ? prev.data : null
+        }));
       });
     return () => {
       active = false;

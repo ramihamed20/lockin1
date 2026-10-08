@@ -14,9 +14,9 @@ async function useLocale(page, locale) {
 }
 
 /** The checkout is guided: a plan, its price and details, then payment. */
+// The checkout is one screen now: choosing a plan already shows the card field.
 async function continueToPayment(page) {
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await page.getByRole("button", { name: "Continue to payment" }).click();
+  await page.getByRole("textbox", { name: /^Recharge card code/ }).scrollIntoViewIfNeeded();
 }
 
 async function login(page, email, password, locale = "en") {
@@ -133,14 +133,12 @@ test("trial welcome and provisional Libyana payment work on production viewports
 
   await page.getByRole("button", { name: "Subscribe now" }).click();
   await continueToPayment(page);
-  await expect(page.getByRole("heading", { name: "Pay with Libyana" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Plans coming soon" })).toBeVisible();
-  await expect(page.getByText("نصف السنة - طب الأسنان", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Coming Soon", exact: true })).toBeDisabled();
+  // The half-year placeholder was replaced by the dentistry term plans.
+  await expect(page.getByRole("radio", { name: /Pre-midterm/ })).toBeVisible();
   const code = page.locator("#libyana-payment input[required]");
   await expect(code).toHaveAttribute("dir", "ltr");
   await code.fill("4567890123456");
-  await page.getByRole("button", { name: "Submit card and continue" }).click();
+  await page.getByRole("button", { name: /^Pay / }).click();
   await expect(page.getByText("Payment being reviewed", { exact: true })).toBeVisible({
     timeout: 15_000
   });
@@ -324,7 +322,7 @@ test("early renewal preserves paid days through pending, rejection, and approval
   await login(tooEarlyPage, "qa.renewal-early@lockin.local", "StudyQA123!");
   await tooEarlyPage.goto("/#/subscription");
   await expect(tooEarlyPage.getByRole("heading", { name: "Early renewal is not available yet" })).toBeVisible();
-  await expect(tooEarlyPage.getByRole("button", { name: "Submit card and continue" })).toHaveCount(0);
+  await expect(tooEarlyPage.getByRole("button", { name: /^Pay / })).toHaveCount(0);
   await tooEarlyContext.close();
 
   const renewalContext = await browser.newContext();
@@ -348,7 +346,7 @@ test("early renewal preserves paid days through pending, rejection, and approval
   await continueToPayment(renewalPage);
   await renewalPage.getByRole("textbox", { name: /^Recharge card code/ }).fill("7000000000001");
   const pendingResponse = renewalPage.waitForResponse((response) => response.url().includes("/payments/manual-libyana") && response.status() === 201);
-  await renewalPage.getByRole("button", { name: "Submit card and continue" }).click();
+  await renewalPage.getByRole("button", { name: /^Pay / }).click();
   const pendingPayload = await (await pendingResponse).json();
   const provisionalEnd = pendingPayload.subscription.current_period_ends_at;
   expect(new Date(provisionalEnd).getTime()).toBe(new Date(addDays(before.current_period_ends_at, 30)).getTime());
@@ -376,7 +374,7 @@ test("early renewal preserves paid days through pending, rejection, and approval
   await continueToPayment(renewalPage);
   await renewalPage.getByRole("textbox", { name: /^Recharge card code/ }).fill("7000000000002");
   const approvedPendingResponse = renewalPage.waitForResponse((response) => response.url().includes("/payments/manual-libyana") && response.status() === 201);
-  await renewalPage.getByRole("button", { name: "Submit card and continue" }).click();
+  await renewalPage.getByRole("button", { name: /^Pay / }).click();
   const approvedPendingPayload = await (await approvedPendingResponse).json();
   expect(approvedPendingPayload.subscription.current_period_ends_at).toBe(provisionalEnd);
 

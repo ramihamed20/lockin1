@@ -1,0 +1,169 @@
+.admin-practice { gap: var(--space-3); }
+.admin-practice .admin-subject-list > button { grid-template-columns: auto minmax(0, 1fr) auto auto; }
+
+.admin-practice-create,
+.admin-practice-rename {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-3);
+}
+
+.admin-practice-hint { margin: 0; color: var(--muted); font-size: var(--text-sm); }
+
+.admin-practice-drop {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 16px;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  transition: border-color 0.16s ease, background-color 0.16s ease;
+}
+.admin-practice-drop.is-dragging {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--surface) 88%, var(--color-primary) 12%);
+}
+.admin-practice-drop p { margin: 2px 0 0; color: var(--muted); font-size: var(--text-sm); }
+.admin-practice-drop .check-row { grid-column: 1 / -1; min-height: 36px; }
+.admin-practice-drop label.btn { cursor: pointer; white-space: nowrap; }
+.admin-practice-drop label.btn[aria-disabled="true"] { opacity: 0.6; pointer-events: none; }
+.admin-practice-file {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+.admin-practice-file:focus-visible + label.btn { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+.admin-practice-progress { block-size: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.admin-practice-progress > span {
+  display: block;
+  block-size: 100%;
+  background: var(--color-primary);
+  transform-origin: left center;
+  transition: transform 0.2s ease;
+}
+[dir="rtl"] .admin-practice-progress > span { transform-origin: right center; }
+
+.form-alert ul { margin: 6px 0 0; padding-inline-start: 18px; font-size: var(--text-sm); }
+
+.admin-practice-slides { list-style: none; margin: 0; padding: 0; display: grid; border-top: 1px solid var(--border); }
+.admin-practice-slide {
+  display: grid;
+  grid-template-columns: 28px 96px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border);
+}
+.admin-practice-slide.is-missing { background: color-mix(in srgb, var(--surface) 92%, var(--warning, #d97706) 8%); }
+.admin-practice-number { color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 700; text-align: center; }
+.admin-practice-thumb {
+  display: grid;
+  place-items: center;
+  inline-size: 96px;
+  block-size: 72px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.admin-practice-thumb img { inline-size: 100%; block-size: 100%; object-fit: contain; }
+.admin-practice-slide-body { min-inline-size: 0; display: grid; gap: 4px; }
+.admin-practice-file-name { color: var(--muted); font-size: var(--text-xs); overflow-wrap: anywhere; }
+.admin-practice-row-actions { display: inline-flex; gap: 6px; }
+
+.admin-practice-tools { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-block-start: 4px; }
+.admin-practice-moveto { display: inline-flex; align-items: center; gap: 6px; }
+.admin-practice-moveto label { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); color: var(--muted); }
+.admin-practice-moveto input {
+  inline-size: 72px;
+  min-block-size: 36px;
+  padding-inline: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--surface-2);
+  color: inherit;
+  font-size: max(16px, var(--text-sm));
+}
+
+/* The mark editor opens under the row it belongs to and uses the full width. */
+.admin-practice-hotspot { grid-column: 1 / -1; display: grid; gap: var(--space-3); padding-block: var(--space-3) 4px; border-top: 1px dashed var(--border); }
+.admin-practice-hotspot p { margin: 0; color: var(--muted); font-size: var(--text-sm); }
+.admin-practice-hotspot-stage { display: grid; justify-items: center; }
+.admin-practice-frame { padding: 0; border: 0; background: none; cursor: crosshair; }
+.admin-practice-frame:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+.admin-practice-hotspot-stage img {
+  display: block;
+  max-inline-size: 100%;
+  max-block-size: min(60vh, 520px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  user-select: none;
+  -webkit-user-select: none;
+}
+.admin-practice-hotspot-controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-3); }
+.admin-practice-hotspot-controls fieldset { margin: 0; padding: 0; border: 0; display: flex; align-items: center; gap: 14px; min-inline-size: 0; }
+.admin-practice-hotspot-controls legend { float: inline-start; padding: 0; margin-inline-end: 12px; color: var(--muted); font-size: var(--text-sm); font-weight: 600; }
+.admin-practice-hotspot-controls fieldset label { display: inline-flex; align-items: center; gap: 6px; min-block-size: 40px; cursor: pointer; }
+.admin-practice-hotspot-controls .field { inline-size: 110px; }
+.admin-practice-hotspot-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.admin-practice-row-actions .btn { min-inline-size: 40px; min-block-size: 40px; }
+
+.admin-practice-import { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+.admin-practice-import-toggle {
+  inline-size: 100%;
+  min-block-size: 48px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-inline: 14px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-weight: 700;
+  text-align: start;
+}
+.admin-practice-import-body { display: grid; gap: var(--space-3); padding: 0 14px 14px; }
+.admin-practice-import-body p { margin: 0; color: var(--muted); font-size: var(--text-sm); }
+.admin-practice-import-body textarea {
+  inline-size: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--surface-2);
+  color: inherit;
+  font: inherit;
+  font-size: max(16px, var(--text-sm));
+}
+.admin-practice-import-body summary { cursor: pointer; min-block-size: 36px; display: flex; align-items: center; color: var(--color-primary); font-weight: 700; }
+.admin-practice-import-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.admin-practice-preview ol { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; max-block-size: 260px; overflow: auto; }
+.admin-practice-preview li { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 4px 8px; align-items: baseline; padding: 6px 8px; border-radius: var(--radius-sm, 8px); background: var(--surface-2); }
+.admin-practice-preview li > span { color: var(--muted); font-variant-numeric: tabular-nums; text-align: center; }
+.admin-practice-preview li > b { overflow-wrap: anywhere; }
+.admin-practice-preview li > small { grid-column: 2; color: var(--muted); overflow-wrap: anywhere; }
+.admin-practice-preview li.is-blank { opacity: 0.55; }
+
+.admin-practice-danger { display: flex; justify-content: flex-end; padding-block-start: var(--space-3); border-top: 1px solid var(--border); }
+
+@media (max-width: 640px) {
+  .admin-practice-create,
+  .admin-practice-rename { grid-template-columns: 1fr; }
+  .admin-practice-drop { grid-template-columns: auto minmax(0, 1fr); }
+  .admin-practice-drop label.btn { grid-column: 1 / -1; justify-content: center; min-block-size: 46px; }
+  .admin-practice-slide { grid-template-columns: 72px minmax(0, 1fr); }
+  .admin-practice-number { display: none; }
+  .admin-practice-thumb { inline-size: 72px; block-size: 56px; }
+  .admin-practice-row-actions { grid-column: 1 / -1; justify-content: flex-end; }
+  .admin-practice-hotspot-controls .field { inline-size: calc(50% - 8px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-practice-drop,
+  .admin-practice-progress > span { transition: none; }
+}

@@ -79,6 +79,7 @@ from .catalog_subjects import study_paths_for
 from .editions import UnknownEditionError, normalize_edition
 from .models import (
     ActiveStudyQuestionContent,
+    CatalogDocument,
     CatalogSubject,
     LearningObject,
     LearningObjectAsset,
@@ -250,6 +251,7 @@ class _SheetListFacts:
     with_history: set[UUID]
     audited_published: set[str]
     published_summaries: set[tuple[UUID, UUID]]
+    student_visible_versions: set[UUID]
 
     @classmethod
     def load(cls, sheets: list[LearningObject]) -> _SheetListFacts:
@@ -275,6 +277,18 @@ class _SheetListFacts:
             | referenced(ActiveStudyQuestionContent, "sheet_id")
         )
         published_version_ids = [s.published_version_id for s in sheets if s.published_version_id]
+        # is_student_visible uses the first active document (by primary key).
+        # Keep that rule, including unavailable files and alternate editions.
+        visibility: dict[UUID, bool] = {}
+        for document in (
+            CatalogDocument.objects.filter(version_id__in=published_version_ids, is_active=True)
+            .select_related("managed_file")
+            .order_by("pk")
+        ):
+            if document.version_id not in visibility:
+                visibility[document.version_id] = (
+                    managed_file_delivery_size(document.managed_file) is not None
+                )
         return cls(
             question_counts=grouped(
                 Question.objects.filter(current_version__source_learning_object_id__in=ids),
@@ -301,6 +315,9 @@ class _SheetListFacts:
                     version_id__in=published_version_ids, role=LearningObjectAsset.Role.SUMMARY
                 ).values_list("version_id", "managed_file_id")
             ),
+            student_visible_versions={
+                version_id for version_id, visible in visibility.items() if visible
+            },
         )
 
 
@@ -354,7 +371,12 @@ def serialize_sheet(
         # fact: a sheet outside every cohort's Catalog branch is published and
         # invisible. Saying which is which here is what stops that being
         # discovered by the students who cannot find the sheet.
-        "student_visible": is_student_visible(sheet),
+        "student_visible": (
+            sheet.archived_at is None
+            and sheet.published_version_id in facts.student_visible_versions
+            if facts is not None
+            else is_student_visible(sheet)
+        ),
         "revision": sheet.revision,
         "published_at": sheet.published_at,
         "archived_at": sheet.archived_at,

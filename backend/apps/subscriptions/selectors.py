@@ -2,13 +2,7 @@ from django.db.models import QuerySet
 
 from apps.accounts.models import User
 
-from .models import Subscription, SubscriptionAccount
-
-
-def account_for_user(*, user: User) -> SubscriptionAccount | None:
-    return SubscriptionAccount.objects.filter(
-        kind=SubscriptionAccount.Kind.INDIVIDUAL, primary_user=user
-    ).first()
+from .models import Subscription
 
 
 def subscriptions_for_user(*, user: User) -> QuerySet[Subscription]:

@@ -1,6 +1,7 @@
 import { request } from "../api/client.js";
 import { offlineDatabase } from "./database.js";
 import { getOfflineQuestions } from "./downloads.js";
+import { captureOfflineSession } from "./sessionScope.js";
 
 /**
  * The one durable queue for work done offline: question answers, Active Study
@@ -32,7 +33,7 @@ const MAX_BACKOFF_MS = 5 * 60_000;
  * Per type hooks. `onAccepted` applies the authoritative server result locally;
  * `execute` marks an operation the client replays itself against existing
  * endpoints (Focus documents) instead of the batch sync endpoint.
- * @type {Map<string, { onAccepted?: (userId: string, operation: OfflineOperation, result: any) => Promise<void>, onRejected?: (userId: string, operation: OfflineOperation, rejection: any) => Promise<void>, execute?: (userId: string, operation: OfflineOperation) => Promise<"done" | "deferred"> }>}
+ * @type {Map<string, { onAccepted?: (userId: string, operation: OfflineOperation, result: any) => Promise<void>, onRejected?: (userId: string, operation: OfflineOperation, rejection: any) => Promise<void>, execute?: (userId: string, operation: OfflineOperation, assertCurrent: () => void) => Promise<"done" | "deferred"> }>}
  */
 const handlers = new Map();
 
@@ -101,7 +102,7 @@ export async function removeOperation(userId, operationId) {
 /** Every stored operation, oldest first. */
 export async function listOperations(userId) {
   const keys = (await offlineDatabase.keys(userId)).filter((key) => String(key).startsWith(OPERATION_PREFIX));
-  const values = (await Promise.all(keys.map((key) => offlineDatabase.get(userId, key)))).filter(Boolean);
+  const values = (await offlineDatabase.getMany(userId, keys)).filter(Boolean);
   return values.sort((a, b) => (a.client_sequence || 0) - (b.client_sequence || 0)
     || String(a.local_created_at).localeCompare(String(b.local_created_at)));
 }
@@ -148,10 +149,12 @@ export function isConnectivityError(error) {
   return error?.status === 0 || error?.status === 429 || Number(error?.status) >= 500;
 }
 
-async function flushServerBatch(userId, batch, leaseToken) {
+async function flushServerBatch(userId, batch, leaseToken, assertCurrent) {
+  assertCurrent();
   await offlineDatabase.putMany(userId, batch.map((operation) => [`${OPERATION_PREFIX}${operation.operation_id}`, { ...operation, sync_status: OPERATION_STATUS.SYNCING }]));
   let response;
   try {
+    assertCurrent();
     response = await request("/offline/sync/", {
       method: "POST",
       retryable: true,
@@ -170,6 +173,7 @@ async function flushServerBatch(userId, batch, leaseToken) {
     await offlineDatabase.putMany(userId, batch.map((operation) => [`${OPERATION_PREFIX}${operation.operation_id}`, scheduleRetry(operation, { code: "connection", ...reason })]));
     throw error;
   }
+  assertCurrent();
   const byId = new Map(batch.map((operation) => [operation.operation_id, operation]));
   const acknowledged = [];
   for (const accepted of response?.accepted || []) {
@@ -206,15 +210,18 @@ async function flushServerBatch(userId, batch, leaseToken) {
   return { acknowledged, xpTotal: response?.xp_total };
 }
 
-async function flushLocalOperation(userId, operation) {
+async function flushLocalOperation(userId, operation, assertCurrent) {
+  assertCurrent();
   const handler = handlers.get(operation.operation_type);
   if (!handler?.execute) return false;
   try {
-    const outcome = await handler.execute(userId, operation);
+    const outcome = await handler.execute(userId, operation, assertCurrent);
+    assertCurrent();
     if (outcome === "deferred") return false;
     await removeOperation(userId, operation.operation_id);
     return true;
   } catch (error) {
+    if (error?.code === "not_authenticated") throw error;
     if (isConnectivityError(error)) {
       await saveOperation(userId, scheduleRetry(operation, { code: "connection" }));
       throw error;
@@ -231,6 +238,7 @@ async function flushLocalOperation(userId, operation) {
  * connection that has just returned or a manual "Sync now".
  */
 export async function flushPendingOperations(userId, { force = false } = {}) {
+  const assertCurrent = captureOfflineSession(userId);
   const now = Date.now();
   const pending = (await pendingOfflineOperations(userId)).filter((operation) => force || due(operation, now));
   const acknowledged = [];
@@ -242,7 +250,7 @@ export async function flushPendingOperations(userId, { force = false } = {}) {
       const lease = await offlineDatabase.get(userId, "lease");
       if (!lease?.token) throw new Error("An offline access lease is required to sync saved work.");
       for (let start = 0; start < serverOperations.length; start += BATCH_SIZE) {
-        const result = await flushServerBatch(userId, serverOperations.slice(start, start + BATCH_SIZE), lease.token);
+        const result = await flushServerBatch(userId, serverOperations.slice(start, start + BATCH_SIZE), lease.token, assertCurrent);
         acknowledged.push(...result.acknowledged);
         if (typeof result.xpTotal === "number") xpTotal = result.xpTotal;
       }
@@ -255,7 +263,7 @@ export async function flushPendingOperations(userId, { force = false } = {}) {
   // is gone, in which case they would only fail the same way.
   if (!serverError || !isConnectivityError(serverError)) {
     for (const operation of pending.filter((item) => item.local)) {
-      if (await flushLocalOperation(userId, operation)) acknowledged.push({ operation, result: null });
+      if (await flushLocalOperation(userId, operation, assertCurrent)) acknowledged.push({ operation, result: null });
     }
   }
   if (serverError) throw Object.assign(serverError, { acknowledged });

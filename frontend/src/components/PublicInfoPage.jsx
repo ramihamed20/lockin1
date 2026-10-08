@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Brand } from "./layout/index.jsx";
+import { useI18n } from "./I18nProvider.jsx";
+import { TERMS } from "../lib/termsContent.js";
 
 const legalConfig = {
   entity: import.meta.env.VITE_LEGAL_ENTITY?.trim() || "Lock-in",
@@ -15,6 +17,12 @@ function SupportEmail() {
     return <p className="public-info-notice" role="status">Support contact details are not configured in this environment.</p>;
   }
   return <a className="public-info-email" href={`mailto:${legalConfig.supportEmail}`}>{legalConfig.supportEmail}</a>;
+}
+
+const SUPPORT_TELEGRAM = "LockinTeam";
+
+function SupportTelegram() {
+  return <a className="public-info-email" href={`https://t.me/${SUPPORT_TELEGRAM}`} target="_blank" rel="noreferrer" dir="ltr">Telegram: @{SUPPORT_TELEGRAM}</a>;
 }
 
 function PublicInfoLayout({ title, intro, children }) {
@@ -42,7 +50,8 @@ function PublicInfoLayout({ title, intro, children }) {
 }
 
 export function PublicInfoPage({ page }) {
-  const title = page === "privacy" ? "Privacy Policy" : page === "support" ? "Support" : "Terms of Service";
+  const { t } = useI18n();
+  const title = page === "privacy" ? "Privacy Policy" : page === "support" ? "Support" : t("terms.title");
 
   useEffect(() => {
     document.title = `${title} — Lock-in`;
@@ -55,6 +64,7 @@ export function PublicInfoPage({ page }) {
           <h2>Contact support</h2>
           <p>For account access, data requests, security concerns, or help using the study workspace, contact:</p>
           <SupportEmail />
+          <SupportTelegram />
           <p className="public-info-meta">Please do not include your password, recovery token, or other sensitive credentials in an email.</p>
         </section>
       </PublicInfoLayout>
@@ -90,25 +100,34 @@ export function PublicInfoPage({ page }) {
     );
   }
 
+  return <TermsOfService />;
+}
+
+// Public, so the rules -- account sharing, the 15-day refund window -- can be
+// read before signing up and are the same page the sign-up consent links to.
+function TermsOfService() {
+  const { locale, direction, t } = useI18n();
+  const terms = TERMS[locale] || TERMS.en;
+  const arabic = locale === "ar";
   return (
-    <PublicInfoLayout title="Terms of Service" intro={`Terms version: ${legalConfig.policyVersion}`}>
-      <section className="public-info-section">
-        <h2>Using Lock-in</h2>
-        <p>Lock-in provides a private study workspace. Keep your account credentials confidential, use the service lawfully, and do not interfere with other users, platform security, or content rights.</p>
-      </section>
-      <section className="public-info-section">
-        <h2>Accounts and content</h2>
-        <p>You are responsible for activity under your account. Creator and community content must be lawful, accurate where presented as educational material, and respectful of others’ rights. The platform may restrict content or accounts to protect users and the service.</p>
-      </section>
-      <section className="public-info-section">
-        <h2>Availability and changes</h2>
-        <p>We work to keep the workspace available and secure, but maintenance, security events, or external service failures can affect availability. Material changes to these terms will be presented with an updated policy version.</p>
-      </section>
-      {legalConfig.jurisdiction && <section className="public-info-section"><h2>Governing law</h2><p>These terms are governed by the laws of {legalConfig.jurisdiction}, subject to applicable consumer and data-protection rights.</p></section>}
-      <section className="public-info-section">
-        <h2>Contact</h2>
-        <p>Questions about these terms: <SupportEmail /></p>
-      </section>
-    </PublicInfoLayout>
+    <div dir={direction}>
+      <PublicInfoLayout title={t("terms.title")} intro={terms.updated}>
+        {terms.sections.map((section) => (
+          <section className="public-info-section" key={section.id} id={`terms-${section.id}`}>
+            <h2>{section.title}</h2>
+            <ul className="public-info-list">
+              {section.items.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          </section>
+        ))}
+        {legalConfig.jurisdiction && !arabic && <section className="public-info-section"><h2>Governing law</h2><p>These terms are governed by the laws of {legalConfig.jurisdiction}, subject to applicable consumer and data-protection rights.</p></section>}
+        <section className="public-info-section">
+          <h2>{arabic ? "التواصل" : "Contact"}</h2>
+          <p>{arabic ? "للاستفسار عن هذه الشروط أو طلب استرداد:" : "Questions about these terms or a refund request:"}</p>
+          <SupportEmail />
+          <SupportTelegram />
+        </section>
+      </PublicInfoLayout>
+    </div>
   );
 }

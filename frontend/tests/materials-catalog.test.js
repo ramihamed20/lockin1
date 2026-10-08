@@ -125,7 +125,10 @@ test("Catalog sheet exposes a Normal Mode summary, opened in the study reader", 
   assert.match(materials, /materials\.summaryDescription/);
   assert.doesNotMatch(materials, /catalog-summary-card is-unavailable/);
   // The summary opens in the study reader, not in a viewer of its own.
-  assert.match(app, /sheets\/:sheetSlug\/summary" element=\{<CatalogFocusWorkspace user=\{user\} variant="summary"/);
+  // Reader addresses are registered in App and rendered by the keep-alive host.
+  const host = await readFile(new URL("../src/workspace/catalog/WorkspaceKeepAlive.jsx", import.meta.url), "utf8");
+  assert.match(app, /sheets\/:sheetSlug\/summary" element=\{null\}/);
+  assert.match(host, /sheets\/:sheetSlug\/summary" element=\{<Workspace user=\{user\} variant="summary"/);
   assert.doesNotMatch(materials, /iframe/);
   assert.doesNotMatch(materials, /CatalogSheetSummary/);
   assert.match(workspace, /const summaryMode = variant === "summary"/);

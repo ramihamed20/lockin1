@@ -1,0 +1,813 @@
+/* ==========================================================================
+   My sheets: a student's own PDFs inside one subject.
+
+   The branch tile on the subject page, the list page with its selection mode,
+   and the Add dialog. Built on the V2 tokens; the dialog borrows the shared
+   confirm-dialog shell (backdrop, phone sheet, enter and exit motion).
+   ========================================================================== */
+
+@layer system {
+
+/* --- Subject page: the branch ------------------------------------------- */
+
+.personal-branch {
+  width: min(100%, 760px);
+  margin-block-end: 18px;
+}
+
+.personal-branch__surface {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 68px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--card-edge));
+  border-radius: var(--radius-lg);
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+  text-decoration: none;
+  transition:
+    border-color var(--motion-control-duration) var(--motion-enter-ease),
+    background-color var(--motion-control-duration) var(--motion-enter-ease);
+}
+
+html.ix-hover .personal-branch__surface:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--card-edge));
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+}
+
+.personal-branch__icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+.personal-branch__copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.personal-branch__copy strong {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+}
+
+.personal-branch__copy small {
+  overflow: hidden;
+  color: var(--soft);
+  font-size: var(--text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.personal-branch__end {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--soft);
+}
+
+.personal-branch__count {
+  min-width: 26px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.personal-branch__add {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-full);
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+/* --- List page ------------------------------------------------------------- */
+
+.personal-sheets {
+  display: grid;
+  gap: 14px;
+  width: min(100%, 760px);
+}
+
+.personal-sheets__header {
+  margin-block-end: 2px;
+}
+
+.personal-sheets__private {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 0;
+  color: var(--soft);
+  font-size: var(--text-sm);
+}
+
+.personal-sheets__bar {
+  min-height: 52px;
+}
+
+.personal-sheets__bar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  min-height: 52px;
+  animation: personal-bar-in var(--motion-popover-duration) var(--motion-enter-ease) backwards;
+}
+
+.personal-sheets__bar-row.is-select {
+  flex-wrap: nowrap;
+  gap: 8px;
+  padding-inline: 6px;
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+}
+
+@keyframes personal-bar-in {
+  from { opacity: 0; transform: translateY(-6px); }
+}
+
+.personal-sheets__usage {
+  display: grid;
+  gap: 7px;
+  min-width: 132px;
+}
+
+.personal-sheets__usage-text {
+  color: var(--soft);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.personal-sheets__meter {
+  display: block;
+  inline-size: 148px;
+  block-size: 4px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--surface-3);
+}
+
+.personal-sheets__meter > span {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: inline-size var(--motion-panel-duration) var(--motion-enter-ease);
+}
+
+.personal-sheets__meter.is-near > span { background: var(--warning); }
+.personal-sheets__meter.is-full > span { background: var(--danger); }
+
+.personal-sheets__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-inline-start: auto;
+}
+
+.personal-sheets__actions .btn,
+.personal-sheets__dock-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.personal-sheets__text-button {
+  flex: none;
+  min-height: 44px;
+  padding-inline: 12px;
+  border: 0;
+  border-radius: var(--radius-full);
+  color: var(--accent-text);
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}
+
+.personal-sheets__bar-status {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.personal-sheets__note,
+.personal-sheets__error {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.personal-sheets__note { color: var(--soft); }
+.personal-sheets__error { color: var(--danger); }
+
+/* The empty list doubles as the drop target for the first PDF. */
+.personal-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 36px 20px 32px;
+  border: 1.5px dashed color-mix(in srgb, var(--accent) 30%, var(--card-edge));
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--accent) 3%, transparent);
+  text-align: center;
+  transition:
+    border-color var(--motion-control-duration) var(--motion-enter-ease),
+    background-color var(--motion-control-duration) var(--motion-enter-ease);
+}
+
+.personal-empty.is-dragging {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+
+.personal-empty h2 {
+  margin: 10px 0 0;
+  font-size: var(--text-lg, 1.0625rem);
+  font-weight: var(--weight-semibold);
+}
+
+.personal-empty p {
+  max-width: 42ch;
+  margin: 0 0 10px;
+  color: var(--soft);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.personal-empty .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.personal-empty__art {
+  position: relative;
+  width: 76px;
+  height: 84px;
+}
+
+.personal-empty__page {
+  position: absolute;
+  inset: 6px 12px 0;
+  border: 1px solid var(--card-edge);
+  border-radius: 10px;
+  background: var(--surface-2);
+  transition: transform 360ms var(--motion-spring, var(--motion-enter-ease));
+}
+
+.personal-empty__page.is-back { transform: rotate(-11deg) translateX(-8px); background: var(--surface); }
+.personal-empty__page.is-mid { transform: rotate(7deg) translateX(7px); }
+
+.personal-empty__page.is-front {
+  display: grid;
+  place-items: center;
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--card-edge));
+  color: var(--accent-text);
+  background: var(--surface-3);
+}
+
+.personal-empty__page.is-front > span {
+  position: absolute;
+  inset-block-end: 8px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  color: var(--bg);
+  background: var(--text);
+  font-size: 9px;
+  font-weight: var(--weight-bold);
+  line-height: 1.3;
+}
+
+.personal-empty.is-dragging .personal-empty__page.is-back { transform: rotate(-18deg) translate(-16px, 4px); }
+.personal-empty.is-dragging .personal-empty__page.is-mid { transform: rotate(14deg) translate(15px, 3px); }
+.personal-empty.is-dragging .personal-empty__page.is-front { transform: translateY(-8px) scale(1.04); }
+
+.personal-sheets__list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* --- One sheet row --------------------------------------------------------- */
+
+/* The row collapses through its own grid track when it is deleted, so the
+   rows below close the gap instead of jumping. */
+.personal-sheet {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows 260ms var(--motion-exit-ease),
+    opacity 200ms var(--motion-exit-ease),
+    transform 260ms var(--motion-exit-ease),
+    margin 260ms var(--motion-exit-ease);
+}
+
+.personal-sheet.is-leaving {
+  grid-template-rows: 0fr;
+  margin-block-end: -8px;
+  opacity: 0;
+  transform: translateX(-24px) scale(0.98);
+}
+
+:dir(rtl) .personal-sheet.is-leaving,
+[dir="rtl"] .personal-sheet.is-leaving {
+  transform: translateX(24px) scale(0.98);
+}
+
+.personal-sheet__surface {
+  display: grid;
+  grid-template-columns: auto 40px minmax(0, 1fr) auto;
+  align-items: center;
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+  padding: 11px 14px;
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-lg);
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-control-duration) var(--motion-enter-ease),
+    background-color var(--motion-control-duration) var(--motion-enter-ease);
+}
+
+.personal-sheet__surface > * { min-height: 0; }
+
+html.ix-hover .personal-sheet:not(.is-unavailable) a.personal-sheet__surface:hover,
+html.ix-hover button.personal-sheet__surface:hover {
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--card-edge));
+  background: color-mix(in srgb, var(--text) 3%, var(--surface));
+}
+
+.personal-sheet.is-unavailable .personal-sheet__surface:not(button) {
+  cursor: default;
+}
+
+.personal-sheet.is-unavailable .personal-sheet__icon { opacity: 0.55; }
+
+/* The check slot is zero wide while browsing and opens in selection mode,
+   one row a moment after the one above it. */
+.personal-sheet__check {
+  display: grid;
+  place-items: center;
+  inline-size: 0;
+  block-size: 24px;
+  margin-inline-end: 0;
+  border: 2px solid transparent;
+  border-radius: var(--radius-full);
+  color: transparent;
+  opacity: 0;
+  transform: scale(0.4);
+  transition:
+    inline-size 240ms var(--motion-enter-ease),
+    margin 240ms var(--motion-enter-ease),
+    opacity 180ms var(--motion-enter-ease),
+    transform 260ms var(--motion-spring, var(--motion-enter-ease)),
+    border-color 150ms ease,
+    background-color 150ms ease,
+    color 150ms ease;
+  transition-delay: calc(var(--row-index, 0) * 22ms);
+}
+
+.personal-sheets.is-selecting .personal-sheet__check {
+  inline-size: 24px;
+  margin-inline-end: 12px;
+  border-color: var(--border-strong);
+  opacity: 1;
+  transform: none;
+}
+
+.personal-sheet.is-selected .personal-sheet__check {
+  border-color: var(--accent);
+  color: var(--on-accent);
+  background: var(--accent);
+  transition-delay: 0ms;
+  animation: personal-check-pop 260ms var(--motion-spring, var(--motion-enter-ease));
+}
+
+@keyframes personal-check-pop {
+  50% { transform: scale(1.18); }
+}
+
+.personal-sheet.is-selected .personal-sheet__surface {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--card-edge));
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.personal-sheet__icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+.personal-sheet__badge {
+  position: absolute;
+  inset-block-end: -4px;
+  inset-inline-end: -5px;
+  padding: 1px 4px;
+  border-radius: 5px;
+  color: var(--bg);
+  background: var(--text);
+  font-size: 8.5px;
+  font-weight: var(--weight-bold);
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+}
+
+.personal-sheet__copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  margin-inline-start: 12px;
+}
+
+.personal-sheet__copy strong {
+  overflow: hidden;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.personal-sheet__copy small {
+  overflow: hidden;
+  color: var(--soft);
+  font-size: var(--text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.personal-sheet__end {
+  display: grid;
+  place-items: center;
+  inline-size: 28px;
+  margin-inline-start: 8px;
+  color: var(--soft);
+  transition: opacity 160ms ease, inline-size 240ms var(--motion-enter-ease), margin 240ms var(--motion-enter-ease);
+}
+
+.personal-sheets.is-selecting .personal-sheet__end,
+.personal-sheet.is-unavailable .personal-sheet__end {
+  inline-size: 0;
+  margin-inline-start: 0;
+  opacity: 0;
+}
+
+/* A sheet that has just been added arrives, and is lit for a moment. */
+.personal-sheet.is-fresh .personal-sheet__surface {
+  animation:
+    personal-row-in 460ms var(--motion-spring, var(--motion-enter-ease)) backwards,
+    personal-row-glow 1800ms ease-out 200ms backwards;
+}
+
+@keyframes personal-row-in {
+  from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+}
+
+@keyframes personal-row-glow {
+  from {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+}
+
+/* --- Selection dock -------------------------------------------------------- */
+
+.personal-sheets__dock {
+  position: sticky;
+  inset-block-end: calc(var(--mobile-bottom-nav-height, 0px) + 12px);
+  z-index: var(--z-sticky, 20);
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-block-start: -14px;
+  pointer-events: none;
+  transition:
+    grid-template-rows var(--motion-panel-duration) var(--motion-enter-ease),
+    margin var(--motion-panel-duration) var(--motion-enter-ease);
+}
+
+.personal-sheets__dock.is-open {
+  grid-template-rows: 1fr;
+  margin-block-start: 4px;
+  pointer-events: auto;
+}
+
+.personal-sheets__dock-button {
+  min-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity var(--motion-control-duration) var(--motion-exit-ease),
+    transform var(--motion-panel-duration) var(--motion-exit-ease);
+}
+
+.personal-sheets__dock.is-open .personal-sheets__dock-button {
+  min-height: 50px;
+  opacity: 1;
+  transform: none;
+  box-shadow: var(--shadow-float, 0 10px 30px rgb(0 0 0 / 0.3));
+  transition:
+    opacity var(--motion-control-duration) var(--motion-enter-ease) 60ms,
+    transform var(--motion-panel-duration) var(--motion-spring, var(--motion-enter-ease)) 40ms;
+}
+
+.personal-sheets__dock-button:disabled {
+  opacity: 0.55;
+}
+
+.personal-sheets__dock.is-open .personal-sheets__dock-button:disabled {
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+/* --- Add dialog ------------------------------------------------------------ */
+
+.confirm-dialog.personal-add {
+  display: grid;
+  gap: 14px;
+  width: min(460px, 100%);
+  text-align: start;
+}
+
+.personal-add__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.personal-add__head h2 {
+  margin: 0;
+  font-size: var(--text-xl, 1.25rem);
+  font-weight: var(--weight-bold);
+}
+
+.personal-add__close {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: var(--radius-full);
+  color: var(--soft);
+  background: var(--surface-3);
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .personal-add__close { width: 44px; height: 44px; }
+}
+
+.personal-drop {
+  position: relative;
+  display: grid;
+  min-height: 148px;
+  overflow: hidden;
+  padding: 18px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  cursor: pointer;
+  transition:
+    border-color var(--motion-control-duration) var(--motion-enter-ease),
+    background-color var(--motion-control-duration) var(--motion-enter-ease),
+    transform var(--motion-control-duration) var(--motion-enter-ease);
+}
+
+html.ix-hover .personal-drop:not(.is-busy):hover,
+.personal-drop.is-dragging {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface-2));
+}
+
+.personal-drop.is-dragging { transform: scale(1.015); }
+
+.personal-drop:focus-within {
+  outline: 2px solid var(--focus, var(--accent));
+  outline-offset: 2px;
+}
+
+.personal-drop.has-file {
+  min-height: 0;
+  border-style: solid;
+  border-color: var(--card-edge);
+}
+
+.personal-drop.is-invalid { border-color: var(--danger); }
+.personal-drop.is-busy { cursor: progress; }
+
+.personal-drop__empty {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.personal-drop__empty strong {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+}
+
+.personal-drop__empty small {
+  color: var(--soft);
+  font-size: var(--text-sm);
+}
+
+.personal-drop__icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-block-end: 4px;
+  border-radius: var(--radius-full);
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  transition: transform 320ms var(--motion-spring, var(--motion-enter-ease));
+}
+
+.personal-drop.is-dragging .personal-drop__icon { transform: translateY(-4px) scale(1.08); }
+
+.personal-drop__file {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  animation: personal-bar-in var(--motion-popover-duration) var(--motion-enter-ease) backwards;
+}
+
+.personal-drop__file-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+.personal-drop__file-icon > span {
+  position: absolute;
+  inset-block-end: -4px;
+  inset-inline-end: -5px;
+  padding: 1px 4px;
+  border-radius: 5px;
+  color: var(--bg);
+  background: var(--text);
+  font-size: 8.5px;
+  font-weight: var(--weight-bold);
+  line-height: 1.3;
+}
+
+.personal-drop__file-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.personal-drop__file-copy strong {
+  overflow: hidden;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.personal-drop__file-copy small {
+  color: var(--soft);
+  font-size: var(--text-sm);
+}
+
+.personal-drop__change {
+  color: var(--accent-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.personal-drop__progress {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: 3px;
+  overflow: hidden;
+  background: var(--surface-3);
+}
+
+.personal-drop__progress > span {
+  display: block;
+  block-size: 100%;
+  background: var(--accent);
+  transform-origin: left center;
+  transition: transform 200ms linear;
+}
+
+:dir(rtl) .personal-drop__progress > span,
+[dir="rtl"] .personal-drop__progress > span { transform-origin: right center; }
+
+.personal-drop__progress > span.is-indeterminate {
+  animation: personal-progress-pulse 1100ms ease-in-out infinite;
+}
+
+@keyframes personal-progress-pulse {
+  50% { opacity: 0.45; }
+}
+
+.personal-add__field input { min-height: 44px; }
+
+.personal-add__error {
+  margin: -6px 0 0;
+  color: var(--danger);
+  font-size: var(--text-sm);
+}
+
+.field.personal-add__field small.personal-add__error {
+  margin: 0;
+  color: var(--danger);
+}
+
+.confirm-actions.personal-add__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-block-start: 4px;
+}
+
+.personal-add__actions .btn { min-width: 112px; }
+
+@media (max-width: 47.99rem) {
+  .confirm-dialog.personal-add { width: 100%; }
+  .confirm-actions.personal-add__actions { display: grid; grid-template-columns: 1fr 1.4fr; }
+  .personal-sheets__meter { inline-size: 112px; }
+  .personal-sheets__actions { margin-inline-start: 0; }
+  .personal-sheets__bar-row:not(.is-select) .personal-sheets__actions .btn { min-height: 44px; }
+}
+
+@media (max-width: 23.5rem) {
+  .personal-sheets__bar-row:not(.is-select) { display: grid; }
+  .personal-sheets__actions { justify-content: stretch; }
+  .personal-sheets__actions .btn { flex: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .personal-sheets__bar-row,
+  .personal-sheet.is-fresh .personal-sheet__surface,
+  .personal-sheet.is-selected .personal-sheet__check,
+  .personal-drop__file,
+  .personal-drop__progress > span.is-indeterminate {
+    animation: none;
+  }
+
+  .personal-sheet,
+  .personal-sheet__check,
+  .personal-sheet__end,
+  .personal-sheets__dock,
+  .personal-sheets__dock-button,
+  .personal-drop,
+  .personal-drop__icon,
+  .personal-empty__page {
+    transition: none;
+  }
+}
+
+}

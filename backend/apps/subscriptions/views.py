@@ -10,10 +10,16 @@ from rest_framework.views import APIView
 from apps.accounts.models import User
 from apps.accounts.permissions import IsAdministrator
 from apps.accounts.roles import is_subscription_exempt
+from apps.entitlements.free_access import free_access_ends_at
 
 from .models import Subscription, SubscriptionTransition
 from .selectors import current_subscription_for_user
-from .serializers import AdminTransitionSerializer, SubscriptionSerializer, founder_access_snapshot
+from .serializers import (
+    AdminTransitionSerializer,
+    SubscriptionSerializer,
+    founder_access_snapshot,
+    free_access_snapshot,
+)
 from .services import refresh_subscription, schedule_cancellation, transition_subscription
 
 
@@ -24,13 +30,15 @@ class CurrentSubscriptionView(APIView):
             raise NotFound()
         subscription = current_subscription_for_user(user=user)
         if subscription is None:
-            return Response(
-                {
-                    "subscription": (
-                        founder_access_snapshot() if is_subscription_exempt(user) else None
-                    )
-                }
+            free_until = free_access_ends_at(user)
+            snapshot = (
+                founder_access_snapshot()
+                if is_subscription_exempt(user)
+                else free_access_snapshot(free_until)
+                if free_until
+                else None
             )
+            return Response({"subscription": snapshot})
         subscription = refresh_subscription(subscription=subscription)
         return Response({"subscription": SubscriptionSerializer(subscription).data})
 

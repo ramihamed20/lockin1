@@ -45,7 +45,7 @@ from .annotation_services import (
     sync_annotations,
 )
 from .domain_types import AnnotationMutation, WorkspaceStateInput
-from .integrations import resolve_focus_document
+from .integrations import resolve_annotation_document, resolve_focus_document
 from .managed_active_study import (
     ManagedActiveStudyRuleError,
     complete_part_reading,
@@ -352,6 +352,7 @@ class ManagedActiveStudySubmitView(APIView):
                 user=_authorize(request),
                 run_id=run_id,
                 attempt_id=serializer.validated_data["attempt_id"],
+                answers=serializer.validated_data.get("answers", ()),
             )
         except ManagedActiveStudyRuleError as error:
             raise FocusRejected(str(error)) from error
@@ -1292,7 +1293,7 @@ class FocusAnnotationsView(APIView):
     @extend_schema(operation_id="focus_annotations_list", responses={200: OpenApiTypes.OBJECT})
     def get(self, request: Request, document_version_id: UUID) -> Response:
         user = _authorize(request)
-        document = resolve_focus_document(
+        document = resolve_annotation_document(
             user=user,
             document_version_id=document_version_id,
             edition=_edition(request),
@@ -1328,7 +1329,7 @@ class FocusAnnotationsView(APIView):
     )
     def post(self, request: Request, document_version_id: UUID) -> Response:
         user = _authorize(request)
-        document = resolve_focus_document(
+        document = resolve_annotation_document(
             user=user,
             document_version_id=document_version_id,
             edition=_edition(request),

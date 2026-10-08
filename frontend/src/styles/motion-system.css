@@ -138,7 +138,7 @@
       padding: 28px 20px calc(20px + var(--safe-bottom, 0px));
       border-width: 1px 0 0;
       border-radius: 22px 22px 0 0;
-      animation: motion-sheet-in 420ms var(--ease-spring) both;
+      animation: motion-sheet-in 420ms var(--ease-spring) backwards;
     }
 
     /* The grabber reads as "this came up from below and goes back down". */
@@ -156,6 +156,39 @@
 
     .confirm-backdrop.is-closing .confirm-dialog {
       animation: motion-sheet-out 200ms var(--ease-in-soft) both;
+    }
+  }
+
+  /* --- Reduced motion: one net under every component ---------------------- *
+   * Components still carry their own reduced alternatives (a fade for a
+   * slide, a slower spinner), and those keep working. This catches the rest:
+   * any transition or keyframe a later screen adds without one ends at its
+   * final frame immediately, so nothing travels across the screen. Exit
+   * animations still fire `animationend`, so surfaces that unmount after their
+   * exit still unmount.
+   *
+   * Progress indicators are exempt: a spinner that stops looks like a hang,
+   * and the startup bar's delay is what keeps it from flashing on fast loads. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+      transition-delay: 0s !important;
+    }
+
+    :not(:is(
+      .startup-progress, .startup-progress > span, .pwa-launch-progress > span,
+      .auth-v2-spinner, .paper-search-spinner, .workspace-search-spinner,
+      .offline-v2-spinner, .connection-status--reconnecting svg,
+      .workspace-v8-export-icon svg, .question-player-card .choices button.is-pending .choice-prefix
+    )),
+    :not(.btn[aria-busy="true"])::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      animation-delay: 0s !important;
     }
   }
 

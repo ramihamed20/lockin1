@@ -87,7 +87,10 @@ import {
   Flag,
   Pause,
   Play,
-  VolumeX
+  VolumeX,
+  FolderOpen,
+  Upload,
+  Check
 } from "lucide-react";
 
 const icons = {
@@ -179,7 +182,10 @@ const icons = {
   "volume-off": VolumeX,
   "rotate-back": RotateCcw,
   "rotate-forward": RotateCw,
-  minimize: Minimize2
+  minimize: Minimize2,
+  folder: FolderOpen,
+  upload: Upload,
+  tick: Check
 };
 
 /** @typedef {import("lucide-react").LucideProps & {name: string}} IconProps */

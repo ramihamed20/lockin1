@@ -14,6 +14,7 @@ import { cssVars } from "../lib/utils.js";
 import { parseYouTubeVideoId, youTubeEmbedUrl } from "../lib/youtube.js";
 import { LofiScene } from "../workspace/paper/LofiScene.jsx";
 import { WorkspaceMedia } from "../workspace/paper/WorkspaceMedia.jsx";
+import { buildPaperGroups } from "../workspace/paper/sheetGroups.js";
 import { MediaControlBar, useIdleControls, useLofiMedia, useVideoMedia, useYouTubeMedia } from "../workspace/paper/MediaControls.jsx";
 import "./paper-workspace.css";
 
@@ -34,6 +35,7 @@ const DEFAULT_MINUTES = 50;
 const SETUP_KEY = "lock-in.paper-workspace.setup";
 const SCENE_KEY = "lock-in.paper-workspace.scene";
 const BUILT_IN_SCENE = "built-in";
+const DEFAULT_LOFI_VIDEO_ID = "FxAgAyZYXJ8";
 const NOTES_KEY_PREFIX = "lock-in.paper-workspace.notes.";
 
 function readStorage(key) {
@@ -57,13 +59,7 @@ export default function PaperWorkspace({ user }) {
   const { materials, loading, error, reload } = useCatalogMaterials(user);
   const [session, setSession] = useState(null);
 
-  const groups = useMemo(() => materials
-    .map((material) => ({
-      slug: material.slug,
-      title: material.title,
-      sheets: (material.sheets || []).filter((sheet) => sheet.learningObjectId && sheet.hasActiveStudy)
-    }))
-    .filter((group) => group.sheets.length), [materials]);
+  const groups = useMemo(() => buildPaperGroups(materials), [materials]);
 
   if (loading) return <LoadingPanel />;
   if (error) return <ErrorPanel message={error} onRetry={reload} />;
@@ -89,8 +85,9 @@ function PaperSetup({ groups, onStart }) {
     groups.some((group) => group.slug === saved.subjectSlug) ? saved.subjectSlug : groups.length === 1 ? groups[0].slug : ""
   ));
   const subject = groups.find((group) => group.slug === subjectSlug) || null;
+  // Only a sheet that can be started is ever picked for the student.
   const [sheetId, setSheetId] = useState(() => {
-    const sheets = groups.find((group) => group.slug === subjectSlug)?.sheets || [];
+    const sheets = (groups.find((group) => group.slug === subjectSlug)?.sheets || []).filter((item) => item.ready);
     if (sheets.some((item) => item.learningObjectId === saved.sheetId)) return saved.sheetId;
     return sheets.length === 1 ? sheets[0].learningObjectId : "";
   });
@@ -105,7 +102,7 @@ function PaperSetup({ groups, onStart }) {
   const sheet = subject?.sheets.find((item) => item.learningObjectId === sheetId) || null;
 
   function chooseSubject(slug) {
-    const sheets = groups.find((group) => group.slug === slug)?.sheets || [];
+    const sheets = (groups.find((group) => group.slug === slug)?.sheets || []).filter((item) => item.ready);
     setSubjectSlug(slug);
     setSheetId(sheets.length === 1 ? sheets[0].learningObjectId : "");
   }
@@ -180,7 +177,10 @@ function PaperSetup({ groups, onStart }) {
                 <span className="paper-sheet-glyph"><Icon name="book-open" size={19} /></span>
                 <span className="paper-sheet-meta">
                   <strong dir="auto">{group.title}</strong>
-                  <small>{t("paper.sheetCount", { count: group.sheets.length })}</small>
+                  <small>
+                    {t("paper.sheetCount", { count: group.sheets.length })}
+                    {group.readyCount < group.sheets.length ? ` · ${t("paper.readyCount", { count: group.readyCount })}` : ""}
+                  </small>
                 </span>
                 <Icon name="chevron-right" size={18} className="paper-row-chevron" />
               </button>
@@ -194,16 +194,19 @@ function PaperSetup({ groups, onStart }) {
           <h3 className="paper-label" id="paper-sheet-label">{t("paper.sheet")}</h3>
           <div className="paper-sheet-list" role="radiogroup" aria-labelledby="paper-sheet-label">
             {subject.sheets.map((item) => (
-              <button key={item.learningObjectId} type="button" role="radio" aria-checked={item.learningObjectId === sheetId} className="paper-sheet" onClick={() => setSheetId(item.learningObjectId)}>
+              <button key={item.learningObjectId} type="button" role="radio" aria-checked={item.learningObjectId === sheetId} aria-disabled={!item.ready || undefined} disabled={!item.ready} className={`paper-sheet${item.ready ? "" : " is-pending"}`} onClick={() => setSheetId(item.learningObjectId)}>
                 <span className="paper-sheet-glyph"><Icon name="file" size={19} /></span>
                 <span className="paper-sheet-meta">
                   <strong dir="auto">{item.title}</strong>
-                  {item.pageCount ? <small>{t("paper.pageCount", { count: item.pageCount })}</small> : null}
+                  {!item.ready
+                    ? <small>{t("paper.sheetNotReady")}</small>
+                    : item.pageCount ? <small>{t("paper.pageCount", { count: item.pageCount })}</small> : null}
                 </span>
                 <span className="paper-radio" aria-hidden="true" />
               </button>
             ))}
           </div>
+          {!subject.readyCount && <p className="paper-note" dir="auto">{t("paper.subjectNotReady")}</p>}
         </section>
       )}
 
@@ -387,7 +390,8 @@ function PaperPlayer({ sessionOver = false }) {
   // offers a new search instead of showing stale results.
   const [search, setSearch] = useState(/** @type {{ status: "idle" | "loading" | "done" | "error", query: string, results: any[], errorKey: string }} */ ({ status: "idle", query: "", results: [], errorKey: "" }));
   const searchSeq = useRef(0);
-  const [videoId, setVideoId] = useState("");
+  const [pickedVideo, setPickedVideo] = useState("");
+  const [scenesLoaded, setScenesLoaded] = useState(false);
   const [lofiPlaying, setLofiPlaying] = useState(true);
   // The administrator's scenes, in their order. The student's pick is a
   // per-device convenience; without one (or when it is gone) the first scene
@@ -401,11 +405,16 @@ function PaperPlayer({ sessionOver = false }) {
     let cancelled = false;
     focusApi.getLofiScenes()
       .then((list) => { if (!cancelled) setScenes(list); })
-      .catch(() => { /* keep the built-in scene */ });
+      .catch(() => { /* keep the default video */ })
+      .finally(() => { if (!cancelled) setScenesLoaded(true); });
     return () => { cancelled = true; };
   }, []);
   const playable = scenes.filter((item) => !failed.includes(item.id));
   const scene = sceneId === BUILT_IN_SCENE ? null : playable.find((item) => item.id === sceneId) || playable[0] || null;
+  // With no scene uploaded by an administrator, the default is a free nature-sounds
+  // stream (birdsong in a forest, no music) rather than anything synthesized.
+  const usesDefaultVideo = scenesLoaded && lofiOpen && !scene && !pickedVideo;
+  const videoId = pickedVideo || (usesDefaultVideo ? DEFAULT_LOFI_VIDEO_ID : "");
   const media = scene ? { url: scene.url, media_type: scene.media_type, focal_x: scene.focal_x, focal_y: scene.focal_y } : null;
   const [fullscreen, setFullscreen] = useState(false);
   const searchRef = useRef(null);
@@ -416,14 +425,21 @@ function PaperPlayer({ sessionOver = false }) {
   const tapWakesRef = useRef(false);
   const linkId = parseYouTubeVideoId(query);
   const trimmed = query.trim();
-  const showLofi = !videoId && lofiOpen;
+  const showLofi = !videoId && lofiOpen && Boolean(scene);
   const adminVideo = showLofi && media?.media_type === "video";
   const videoMedia = useVideoMedia(videoRef, { enabled: adminVideo, src: media?.url || "" });
   const youTubeMedia = useYouTubeMedia(frameRef, videoId);
-  // The default lofi (the built-in scene or an admin image) has its own
-  // soundtrack, silenced whenever a YouTube video or an admin video plays.
-  const lofiMedia = useLofiMedia({ enabled: showLofi && !adminVideo, playing: lofiPlaying, setPlaying: setLofiPlaying });
-  const source = videoId ? youTubeMedia : adminVideo ? videoMedia : lofiMedia;
+  // Every Lo-Fi scene uses nature audio. Uploaded clips stay silent; their
+  // playback state drives the rain, while volume and mute belong to the rain.
+  const lofiMedia = useLofiMedia({ enabled: showLofi, playing: adminVideo ? videoMedia.playing : lofiPlaying, setPlaying: setLofiPlaying });
+  const source = videoId ? youTubeMedia : adminVideo ? {
+    ...videoMedia,
+    hasAudio: lofiMedia.hasAudio,
+    volume: lofiMedia.volume,
+    muted: lofiMedia.muted,
+    setVolume: lofiMedia.setVolume,
+    toggleMute: lofiMedia.toggleMute
+  } : lofiMedia;
   const controls = useIdleControls();
 
   // The study timer decides when Lo-Fi stops, never the clip: at 00:00 the
@@ -465,7 +481,7 @@ function PaperPlayer({ sessionOver = false }) {
 
   function play(id) {
     searchSeq.current += 1;
-    setVideoId(id);
+    setPickedVideo(id);
     setQuery("");
     setOpen(false);
     setSearch({ status: "idle", query: "", results: [], errorKey: "" });
@@ -614,9 +630,13 @@ function PaperPlayer({ sessionOver = false }) {
           onPointerDown={() => { tapWakesRef.current = controls.idle; }}
           onClick={() => { if (!tapWakesRef.current && source.canPlay) source.toggle(); }}
         />
-        {videoId ? (
+        {pickedVideo ? (
           <div className="paper-player-top">
-            <button type="button" className="paper-glass-button" onClick={() => { setVideoId(""); setLofiOpen(true); }}><Icon name="headphones" size={15} />{t("paper.backToLofi")}</button>
+            <button type="button" className="paper-glass-button" onClick={() => { setPickedVideo(""); setLofiOpen(true); }}><Icon name="headphones" size={15} />{t("paper.backToLofi")}</button>
+            <span className="paper-player-top-spacer" />
+            <button type="button" className="paper-glass-button is-round" onClick={() => { setPickedVideo(""); setLofiOpen(true); }} aria-label={t("paper.closeVideo")} title={t("paper.closeVideo")}>
+              <Icon name="x" size={16} />
+            </button>
           </div>
         ) : (
           <div className="paper-player-top">

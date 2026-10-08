@@ -45,7 +45,9 @@ def create_payment(
     subscription: Subscription,
     price: Price,
     idempotency_key: str,
+    amount_minor: int | None = None,
 ) -> tuple[Payment, bool]:
+    """``amount_minor`` overrides the price only for one installment of it."""
     if not idempotency_key:
         raise ValueError("An idempotency key is required.")
     if (
@@ -61,7 +63,7 @@ def create_payment(
         account=account,
         subscription=subscription,
         price=price,
-        amount_minor=price.amount_minor,
+        amount_minor=price.amount_minor if amount_minor is None else amount_minor,
         currency=price.currency,
         currency_exponent=price.currency_exponent,
         status=Payment.Status.INITIATED,

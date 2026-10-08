@@ -31,8 +31,8 @@ export default function MyGroup() {
     setSearchParams(name ? { [name]: "1" } : {}, { replace: true });
   }
 
-  if (remote.loading && !data) return <LoadingPanel />;
-  if (remote.error && !data) return <ErrorPanel message={t("myGroup.loadError")} onRetry={remote.reload} />;
+  if (remote.loading && !data) return <Page width="reading" title="My Group" showHeading><LoadingPanel variant="list" /></Page>;
+  if (remote.error && !data) return <Page width="reading" title="My Group" showHeading><ErrorPanel message={t("myGroup.loadError")} onRetry={remote.reload} /></Page>;
 
   if (!data.available) {
     return (

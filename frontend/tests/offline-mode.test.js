@@ -248,6 +248,24 @@ test("a downloaded mixed checkpoint grades True/False offline and queues its typ
   assert.equal(pending[0].payload.answers[0].selected_answer, "T");
 });
 
+test("submitting every answer with the attempt grades offline and returns each question's verdict", async () => {
+  const userId = await freshUser();
+  await downloadActiveStudy(userId);
+  offline();
+  const { run } = await focusApi.startManagedActiveStudy({ sheetId: SHEET, difficulty: "medium", edition: "university" });
+  await focusApi.managedActiveStudyAction(run.id, "complete-reading");
+  const quiz = await focusApi.getManagedActiveStudyQuestions(run.id);
+  const answers = quiz.questions.map((item) => ({ position: item.position, selectedAnswer: item.position <= 12 ? "B" : "A" }));
+  const submitted = await focusApi.submitManagedActiveStudy(run.id, quiz.attempt_id, answers);
+  assert.equal(submitted.result.score, 12);
+  assert.equal(submitted.result.passed, true);
+  assert.equal(submitted.result.review.length, quiz.questions.length);
+  assert.deepEqual(submitted.result.review.map((item) => item.correct), quiz.questions.map((item) => item.position <= 12));
+  assert.ok(submitted.result.review.every((item) => typeof item.explanation === "string"));
+  const pending = await queue.pendingOfflineOperations(userId);
+  assert.equal(pending[0].payload.answers.length, quiz.questions.length);
+});
+
 test("a failed checkpoint offers retake or continue, and the Final Exam completes offline", async () => {
   const userId = await freshUser();
   await downloadActiveStudy(userId);
