@@ -107,10 +107,7 @@ class Price(models.Model):
         # for the readers it names; everyone else never sees it.
         EVERYONE = "", "Everyone"
         LOYALTY_2026 = "loyalty_2026", "Paid subscribers before the first-month offer ended"
-        FOUR_MONTH_UPGRADE = (
-            "four_month_upgrade",
-            "Four-month and pre-midterm subscribers upgrading",
-        )
+        FOUR_MONTH_UPGRADE = "four_month_upgrade", "Four-month subscribers upgrading"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     plan_version = models.ForeignKey(PlanVersion, on_delete=models.PROTECT, related_name="prices")

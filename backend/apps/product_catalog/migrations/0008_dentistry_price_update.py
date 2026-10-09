@@ -15,6 +15,8 @@ SUPERSEDED = (
     "dentistry_pre_midterm_loyalty_35_lyd",
     "dentistry_full_year_90_lyd",
     "dentistry_full_year_upgrade_40_lyd",
+    # Briefly published in a local build before the upgrade moved to post-midterm.
+    "dentistry_full_year_upgrade_30_lyd",
 )
 
 # plan code, price code, amount_minor, eligibility, installments, months, ends at
@@ -48,12 +50,12 @@ NEW_PRICES = (
         POST_MIDTERM_ENDS_AT,
     ),
     (
-        "dentistry_full_year",
-        "dentistry_full_year_upgrade_30_lyd",
-        30_000,
+        "dentistry_post_midterm",
+        "dentistry_post_midterm_upgrade_20_lyd",
+        20_000,
         "four_month_upgrade",
-        [15_000, 10_000, 5_000],
-        8,
+        [10_000, 10_000],
+        4,
         POST_MIDTERM_ENDS_AT,
     ),
 )
@@ -101,7 +103,7 @@ class Migration(migrations.Migration):
                     ("loyalty_2026", "Paid subscribers before the first-month offer ended"),
                     (
                         "four_month_upgrade",
-                        "Four-month and pre-midterm subscribers upgrading",
+                        "Four-month subscribers upgrading",
                     ),
                 ],
                 default="",

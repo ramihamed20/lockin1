@@ -205,31 +205,29 @@ def test_a_free_trial_alone_cannot_buy_at_the_loyalty_price() -> None:
         _buy(user, "dentistry_pre_midterm_loyalty_25_lyd")
 
 
-def test_four_month_subscribers_get_the_30_upgrade_and_not_the_loyalty_price() -> None:
+def test_four_month_subscribers_get_post_midterm_for_20_and_not_the_loyalty_price() -> None:
     user = _reader("four-months")
     with at(START):
         result = _buy(user, "lockin_four_months_30_lyd", cards=2)
         _review(result.payment, "approve")
         catalog = _catalog(user)
-    assert [p["amount_minor"] for p in catalog["dentistry_full_year"]["prices"]] == [30_000]
-    assert catalog["dentistry_full_year"]["prices"][0]["installment_amounts_minor"] == [
-        15_000,
-        10_000,
-        5_000,
-    ]
+    post = catalog["dentistry_post_midterm"]["prices"]
+    assert [p["amount_minor"] for p in post] == [20_000]
+    assert post[0]["installment_amounts_minor"] == [10_000, 10_000]
     assert [p["amount_minor"] for p in catalog["dentistry_pre_midterm"]["prices"]] == [30_000]
 
 
-def test_pre_midterm_subscribers_upgrade_to_the_full_year_for_30() -> None:
-    user = _reader("pre-midterm-upgrade")
+def test_pre_midterm_subscribers_get_no_special_price() -> None:
+    user = _reader("pre-midterm-plain")
     with at(START):
         result = _buy(user, "dentistry_pre_midterm_30_lyd", cards=3)
         _review(result.payment, "approve")
         catalog = _catalog(user)
-    assert [p["amount_minor"] for p in catalog["dentistry_full_year"]["prices"]] == [30_000]
+    assert [p["amount_minor"] for p in catalog["dentistry_post_midterm"]["prices"]] == [50_000]
+    assert [p["amount_minor"] for p in catalog["dentistry_full_year"]["prices"]] == [80_000]
 
 
-def test_a_loyal_pre_midterm_subscriber_gets_the_70_full_year_only_without_the_upgrade() -> None:
+def test_a_loyal_subscriber_gets_25_pre_midterm_50_post_midterm_and_70_full_year() -> None:
     loyal = _reader("loyal-full-year")
     with at(START):
         offer = _buy(loyal, "lockin_first_month_5_lyd")
@@ -237,6 +235,7 @@ def test_a_loyal_pre_midterm_subscriber_gets_the_70_full_year_only_without_the_u
         catalog = _catalog(loyal)
     assert [p["amount_minor"] for p in catalog["dentistry_full_year"]["prices"]] == [70_000]
     assert [p["amount_minor"] for p in catalog["dentistry_pre_midterm"]["prices"]] == [25_000]
+    assert [p["amount_minor"] for p in catalog["dentistry_post_midterm"]["prices"]] == [50_000]
 
 
 def test_a_rejected_term_upgrade_restores_the_running_subscription() -> None:
