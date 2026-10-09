@@ -29,6 +29,8 @@ export function BiweeklyDetail({ type }) {
 /** The latest closed week: the numbers and the mistakes quiz side by side, one PDF for each. */
 export function WeeklySummaryPage() {
   const { t, locale } = useI18n();
+  // Phones show one part at a time; wide screens show both and ignore this.
+  const [part, setPart] = useState("analysis");
   const state = useAsyncData(async () => {
     const [analysisHistory, reviewHistory] = await Promise.all([biweeklyApi.history("analysis"), biweeklyApi.history("review")]);
     const analysis = analysisHistory.history[0];
@@ -45,12 +47,15 @@ export function WeeklySummaryPage() {
   if (!analysis && !review) return <Page title={t("weekly.title")}><p>{t("biweekly.noHistory")}</p></Page>;
   const period = analysis || review;
   return <Page width="wide" title={t("weekly.title")} subtitle={periodLabel(period.period_start, period.period_end, locale)}>
+    <div className="weekly-summary-tabs" role="tablist" aria-label={t("weekly.title")}>
+      {[["analysis", "biweekly.analysisTitle"], ["review", "biweekly.reviewTitle"]].map(([key, label]) => <button key={key} type="button" role="tab" id={`weekly-tab-${key}`} aria-selected={part === key} aria-controls={`weekly-panel-${key}`} className={part === key ? "is-active" : ""} onClick={() => setPart(key)}>{t(label)}</button>)}
+    </div>
     <div className="weekly-summary-grid">
-      <section className="weekly-summary-column" aria-label={t("biweekly.analysisTitle")}>
+      <section id="weekly-panel-analysis" role="tabpanel" aria-labelledby="weekly-tab-analysis" className={`weekly-summary-column${part === "analysis" ? " is-current" : ""}`} aria-label={t("biweekly.analysisTitle")}>
         <div className="weekly-summary-head"><h2>{t("biweekly.analysisTitle")}</h2>{analysis && <a className="btn btn-primary compact" href={biweeklyApi.pdfUrl("analysis", analysis.id)}>{t("weekly.downloadSummary")}</a>}</div>
         {analysis ? <AnalysisDetail data={analysis.data} t={t} /> : <p>{t("biweekly.lowActivity")}</p>}
       </section>
-      <section className="weekly-summary-column" aria-label={t("biweekly.reviewTitle")}>
+      <section id="weekly-panel-review" role="tabpanel" aria-labelledby="weekly-tab-review" className={`weekly-summary-column${part === "review" ? " is-current" : ""}`} aria-label={t("biweekly.reviewTitle")}>
         <div className="weekly-summary-head"><h2>{t("biweekly.reviewTitle")}</h2>{review && <a className="btn btn-primary compact" href={biweeklyApi.pdfUrl("review", review.id)}>{t("weekly.downloadQuestions")}</a>}</div>
         {review ? <ReviewDetail data={review.data} reportId={review.id} t={t} /> : <p>{t("biweekly.noMistakes")}</p>}
       </section>
@@ -64,7 +69,7 @@ function AnalysisDetail({ data, t }) {
     [t("biweekly.studyTime"), `${Math.floor(metrics.study_time_seconds / 3600)}h ${String(Math.floor(metrics.study_time_seconds % 3600 / 60)).padStart(2, "0")}m`],
     [t("biweekly.questions", { count: metrics.questions_answered }), metrics.questions_answered],
     [t("biweekly.accuracy"), metrics.accuracy == null ? "—" : `${metrics.accuracy}%`],
-    [t("biweekly.activeDays"), `${metrics.active_days} / 7`],
+    [t("biweekly.activeDays"), `2066${metrics.active_days} / 72069`],
     [t("biweekly.mistakesMastered"), metrics.mistakes_mastered]
   ];
   return <div className="biweekly-detail"><section className="biweekly-current"><h2>{t("biweekly.numbers")}</h2><dl className="biweekly-metric-list">{rows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></section>

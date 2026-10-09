@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { biweeklyApi } from "../../api/biweekly.js";
 import { Icon } from "../../lib/icons.jsx";
 import { useI18n } from "../I18nProvider.jsx";
+import "./biweekly.css";
 
 const SEEN_KEY = "lock-in.weekly-summary.seen";
 

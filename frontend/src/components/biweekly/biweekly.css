@@ -191,3 +191,21 @@ html.ix-hover .biweekly-row-actions a:hover { background: color-mix(in srgb, var
 .weekly-summary-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 .weekly-summary-head h2 { margin: 0; }
 .weekly-ready-toast > div { display: grid; gap: 6px; justify-items: start; }
+
+.weekly-summary-tabs { display: none; }
+@media (max-width: 899px) {
+  .weekly-summary-tabs { position: sticky; top: 0; z-index: 2; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-block-end: 14px; padding: 4px; border-radius: 14px; background: var(--surface, rgb(255 255 255 / .06)); backdrop-filter: blur(12px); }
+  .weekly-summary-tabs button { min-height: 44px; padding: 0 10px; border: 0; border-radius: 10px; color: inherit; background: transparent; font: inherit; font-weight: 650; cursor: pointer; opacity: .7; }
+  .weekly-summary-tabs button.is-active { opacity: 1; color: #1a1405; background: var(--primary, #f2c14e); }
+  .weekly-summary-column:not(.is-current) { display: none; }
+  .weekly-summary-head h2 { display: none; }
+  .weekly-summary-head { justify-content: stretch; }
+  .weekly-summary-head .btn { width: 100%; min-height: 44px; justify-content: center; }
+}
+
+/* Some shared toast rules pin both top and bottom on phones, which stretched
+   this card to full height. Size it to its content. */
+.reminder-toast.weekly-ready-toast { height: fit-content; align-self: start; }
+@media (max-width: 640px) {
+  .reminder-toast.weekly-ready-toast { top: auto; bottom: calc(84px + env(safe-area-inset-bottom)); }
+}
