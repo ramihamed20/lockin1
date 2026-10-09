@@ -1,4 +1,4 @@
-"""Frozen 14-day reports. The close command is the normal writer; reads only fill a missed close."""
+"""Frozen 7-day reports. The close command is the normal writer; reads only fill a missed close."""
 
 from collections import Counter, defaultdict
 from datetime import UTC, datetime, timedelta
@@ -20,7 +20,7 @@ from apps.xp.models import XpTransaction
 
 from .models import BiweeklySnapshot
 
-PERIOD = timedelta(days=14)
+PERIOD = timedelta(days=7)
 
 
 def launch_at() -> datetime:
@@ -251,7 +251,7 @@ def analysis_data(
     if previous and len(questions) >= 10 and previous.get("questions_answered", 0) >= 10:
         old_accuracy = previous.get("accuracy")
         if old_accuracy is not None and metrics["accuracy"] >= old_accuracy + 5:
-            insights.append("Your question accuracy improved over the previous two weeks.")
+            insights.append("Your question accuracy improved over the previous week.")
     if not questions:
         insights.append("Not enough question activity yet to calculate a reliable trend.")
     if subjects and not any(subject["reliable"] for subject in subjects):

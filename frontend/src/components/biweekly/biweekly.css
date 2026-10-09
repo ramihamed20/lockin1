@@ -185,3 +185,9 @@ html.ix-hover .biweekly-row-actions a:hover { background: color-mix(in srgb, var
 .biweekly-option { display: flex; align-items: flex-start; gap: 10px; min-height: 44px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--surface-2); cursor: pointer; }
 .biweekly-option input { flex: none; margin-top: 3px; accent-color: var(--accent); }
 }
+
+.weekly-summary-grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); align-items: start; }
+.weekly-summary-column { display: grid; min-width: 0; gap: 12px; }
+.weekly-summary-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.weekly-summary-head h2 { margin: 0; }
+.weekly-ready-toast > div { display: grid; gap: 6px; justify-items: start; }
