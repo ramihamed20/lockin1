@@ -91,3 +91,13 @@ test("both update paths explain the release and the notes follow the update", as
   assert.match(prompt, /usePendingRelease/);
   assert.match(prompt, /pwa\.update\.titleVersion/);
 });
+
+test("an item with an audience is shown only to that audience", async () => {
+  const { releaseItemsFor } = await import("../src/lib/whatsNew.js");
+  const release = { items: [{ title: { en: "all" } }, { audience: "dentistry", title: { en: "dent" } }] };
+  const dentist = { cohort: { program: { code: "dentistry-tripoli" } } };
+  const other = { cohort: { program: { code: "human-medicine" } } };
+  assert.deepEqual(releaseItemsFor(release, dentist).map((item) => item.title.en), ["all", "dent"]);
+  assert.deepEqual(releaseItemsFor(release, other).map((item) => item.title.en), ["all"]);
+  assert.deepEqual(releaseItemsFor(release, null).map((item) => item.title.en), ["all"]);
+});

@@ -9,7 +9,7 @@ test("countdown uses the exact closing timestamp", () => {
   assert.equal(countdownDays("2026-10-13T00:00:00Z", Date.parse("2026-10-13T00:00:00Z")), 0);
 });
 
-test("multiple 14-day periods remain visible within the same archive month", () => {
+test("multiple weekly periods remain visible within the same archive month", () => {
   const history = [
     { id: "second", period_start: "2026-10-13T00:00:00Z", period_end: "2026-10-27T00:00:00Z" },
     { id: "first", period_start: "2026-09-29T00:00:00Z", period_end: "2026-10-13T00:00:00Z" },

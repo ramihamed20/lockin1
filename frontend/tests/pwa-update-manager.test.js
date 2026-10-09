@@ -446,7 +446,7 @@ test("version and build are injected at build time and shown in Settings", async
   assert.match(config, /__APP_BUILD_TIME__: JSON\.stringify\(buildTime\)/);
   assert.match(config, /registerType: "prompt"/, "updates stay user-controlled");
   assert.match(settings, /\{ id: "updates"/);
-  assert.match(settings, /<AppUpdateSettings \/>/);
+  assert.match(settings, /<AppUpdateSettings user=\{user\} \/>/);
   assert.match(section, /BUILD_INFO\.version/);
   assert.match(section, /BUILD_INFO\.build/);
   assert.match(section, /checkForUpdates/);

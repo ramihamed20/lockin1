@@ -34,6 +34,7 @@ import { isFeatureComingSoon } from "./lib/featureAvailability.js";
 import { synchronizeOffline } from "./offline/coordinator.js";
 import { forgetOfflineUser, rememberOfflineUser, restoreOfflineUser } from "./offline/profile.js";
 import OfflineIndicator from "./offline/OfflineIndicator.jsx";
+import { WeeklyReadyToast } from "./components/biweekly/WeeklyReadyToast.jsx";
 import { WhatsNew } from "./components/WhatsNew.jsx";
 
 // --- Lazy-loaded pages ---
@@ -64,6 +65,7 @@ const Bookmarks = lazyWithRecovery(() => import("./pages/Bookmarks.jsx"));
 const Progress = lazyWithRecovery(() => import("./pages/Progress.jsx"));
 const AnalysisPage = lazyWithRecovery(() => import("./pages/Biweekly.jsx").then((module) => ({ default: module.AnalysisPage })));
 const BiweeklyDetail = lazyWithRecovery(() => import("./pages/Biweekly.jsx").then((module) => ({ default: module.BiweeklyDetail })));
+const WeeklySummaryPage = lazyWithRecovery(() => import("./pages/Biweekly.jsx").then((module) => ({ default: module.WeeklySummaryPage })));
 const BiweeklyTest = lazyWithRecovery(() => import("./pages/Biweekly.jsx").then((module) => ({ default: module.BiweeklyTest })));
 const Achievements = lazyWithRecovery(() => import("./pages/Achievements.jsx"));
 const Notifications = lazyWithRecovery(() => import("./pages/Notifications.jsx"));
@@ -739,6 +741,7 @@ function App() {
                 <Route path="/ranked/*" element={<FeatureComingSoon featureId="rank" />} />
                 <Route path="/bookmarks" element={<Bookmarks />} />
                 <Route path="/progress" element={<Progress />} />
+                <Route path="/weekly-summary" element={<WeeklySummaryPage />} />
                 <Route path="/analysis" element={<AnalysisPage />} />
                 <Route path="/analysis/:id" element={<BiweeklyDetail type="analysis" />} />
                 <Route path="/progression" element={<Progress />} />
@@ -760,6 +763,7 @@ function App() {
           </Suspense>
         </ErrorBoundary>
       </Shell>
+      {!inLockInMode && !inFocusWorkspace && user && <WeeklyReadyToast />}
       {!inLockInMode && !inFocusWorkspace && reminderToast && <ReminderToast message={reminderToast} onDismiss={() => setReminderToast("")} />}
       {!inLockInMode && !inFocusWorkspace && sessionNotice && <ReminderToast title="Session" icon="alert-triangle" message={sessionNotice} onDismiss={() => setSessionNotice("")} />}
       {logoutConfirmDialog}

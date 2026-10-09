@@ -74,7 +74,7 @@ def _analysis_context(report: BiweeklySnapshot) -> dict[str, Any]:
         ("QUESTIONS", metrics["questions_answered"]),
         ("ACCURACY", f"{metrics['accuracy']}%" if metrics["accuracy"] is not None else "—"),
         ("XP EARNED", metrics["xp_earned"]),
-        ("ACTIVE DAYS", f"{metrics['active_days']} / 14"),
+        ("ACTIVE DAYS", f"{metrics['active_days']} / 7"),
         ("SHEETS COMPLETED", metrics["sheets_completed"]),
         ("CHECKPOINTS", metrics["active_study_checkpoints"]),
         ("FINAL EXAMS", metrics["final_exams_completed"]),
@@ -84,11 +84,11 @@ def _analysis_context(report: BiweeklySnapshot) -> dict[str, Any]:
         {"label": "LONGEST FOCUS SESSION", "value": _duration(metrics["longest_session_seconds"])},
         {"label": "AVERAGE FOCUS SESSION", "value": _duration(metrics["average_session_seconds"])},
         {"label": "QUESTIONS PRACTICED", "value": metrics["questions_answered"]},
-        {"label": "ACTIVE DAYS", "value": f"{metrics['active_days']} / 14"},
+        {"label": "ACTIVE DAYS", "value": f"{metrics['active_days']} / 7"},
     ]
     next_steps = []
     if metrics["active_days"] < 7:
-        next_steps.append("Aim for more regular study days in your next two-week period.")
+        next_steps.append("Aim for more regular study days in your next week.")
     if metrics["questions_answered"] < 10:
         next_steps.append("Try a short question practice set to build a clearer performance trend.")
     elif metrics["accuracy"] is not None and metrics["accuracy"] < 70:
@@ -96,7 +96,7 @@ def _analysis_context(report: BiweeklySnapshot) -> dict[str, Any]:
     if metrics["mistakes_unresolved"]:
         next_steps.append("Open Review and revisit your unresolved mistakes.")
     if not next_steps:
-        next_steps.append("Keep a steady study rhythm and review your next report in 14 days.")
+        next_steps.append("Keep a steady study rhythm and review your next report in 7 days.")
     return {
         "metrics": metrics,
         "study_time": _duration(metrics["study_time_seconds"]),

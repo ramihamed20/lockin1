@@ -170,6 +170,16 @@ function ComingSoonPlans({ offers, t }) {
   </section>;
 }
 
+// What each dentistry price cost before the 2026-10-09 reduction, shown struck
+// through beside the new one. Keyed by price code; amounts are in minor units.
+const PREVIOUS_PRICE_MINOR = {
+  dentistry_pre_midterm_30_lyd: 45_000,
+  dentistry_pre_midterm_loyalty_25_lyd: 35_000,
+  dentistry_full_year_80_lyd: 90_000,
+  dentistry_full_year_loyalty_70_lyd: 90_000,
+  dentistry_full_year_upgrade_20_lyd: 40_000
+};
+
 function isFiveLyd(price) {
   return Number(price?.amount_minor) === 5 * (10 ** Number(price?.currency_exponent || 0));
 }
@@ -445,6 +455,7 @@ export default function Subscription() {
                         <small>{copy.description}</small>
                       </span>
                       <span className="subscription-plan-price">
+                        {PREVIOUS_PRICE_MINOR[price.code] && <s className="subscription-plan-was"><span className="visually-hidden">{t("subscription.wasPrice")} </span>{money(PREVIOUS_PRICE_MINOR[price.code], price.currency, price.currency_exponent, locale)}</s>}
                         <b>{money(price.amount_minor, price.currency, price.currency_exponent, locale)}</b>
                         {priceBadge(price, t) && <small>{priceBadge(price, t)}</small>}
                       </span>

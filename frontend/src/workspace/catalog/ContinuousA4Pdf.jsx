@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useWorkspacePaneActive } from "./workspacePane.js";
 import { assetPath } from "../../lib/utils.js";
 import { boundedOutputScale, pdfPageAspectRatio } from "../document/coordinateTransforms.js";
 import { WORKSPACE_RENDER } from "../config.js";
@@ -75,13 +76,14 @@ async function measureEveryPage(documentProxy, isCancelled) {
 }
 
 const A4PdfCanvas = memo(
-/** @param {{ documentProxy: any, pageNumber: number, pageAspectRatio: number, renderZoom: number, shouldRender: boolean, evictionDelayMs?: number, renderRevision: number, renderController: { suspended: boolean, generation: number, scrolling: boolean, deferred: Set<() => void> }, priority: number, renderQueue: PdfRenderQueue, onPageGeometry?: (pageNumber: number, width: number, height: number) => void, onPageRendered?: (duration: number) => void, onPageOutcome?: (pageNumber: number, failed: boolean) => void }} props */
-function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, shouldRender, evictionDelayMs = CANVAS_EVICTION_MS, renderRevision, renderController, priority, renderQueue, onPageGeometry, onPageRendered, onPageOutcome }) {
+/** @param {{ documentProxy: any, pageNumber: number, pageAspectRatio: number, renderZoom: number, shouldRender: boolean, evictionDelayMs?: number, renderRevision: number, wakeToken?: number, renderController: { suspended: boolean, generation: number, scrolling: boolean, deferred: Set<() => void> }, priority: number, renderQueue: PdfRenderQueue, onPageGeometry?: (pageNumber: number, width: number, height: number) => void, onPageRendered?: (duration: number) => void, onPageOutcome?: (pageNumber: number, failed: boolean) => void }} props */
+function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, shouldRender, evictionDelayMs = CANVAS_EVICTION_MS, renderRevision, wakeToken = 0, renderController, priority, renderQueue, onPageGeometry, onPageRendered, onPageOutcome }) {
   const canvasRefs = useRef([null, null]);
   const visibleCanvasRef = useRef(0);
   const renderedRef = useRef({ documentProxy: null, qualityScale: 0 });
   const evictionTimerRef = useRef(null);
   const retiredCanvasRafRef = useRef(null);
+  const wakeTokenRef = useRef(wakeToken);
   const maximumPixels = catalogCanvasPixelBudget(window.visualViewport?.width || window.innerWidth, window.matchMedia?.("(pointer: coarse)").matches);
   const qualityScale = a4RenderQualityScale(renderZoom, window.devicePixelRatio, pageAspectRatio, maximumPixels);
 
@@ -108,7 +110,11 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
       }
       return undefined;
     }
-    if (renderedRef.current.documentProxy === documentProxy
+    // A tab that was kept hidden may have lost its page bitmaps without telling
+    // us (mobile browsers reclaim them); coming back repaints every live page.
+    const woken = wakeTokenRef.current !== wakeToken;
+    wakeTokenRef.current = wakeToken;
+    if (!woken && renderedRef.current.documentProxy === documentProxy
       && renderedRef.current.qualityScale >= qualityScale
       && canvasRefs.current[visibleCanvasRef.current]?.width > 0) return undefined;
 
@@ -237,7 +243,7 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
     });
 
     return cancelQueuedRender;
-  }, [documentProxy, evictionDelayMs, onPageGeometry, onPageOutcome, onPageRendered, pageNumber, priority, qualityScale, renderController, renderQueue, renderRevision, shouldRender]);
+  }, [documentProxy, evictionDelayMs, onPageGeometry, onPageOutcome, onPageRendered, pageNumber, priority, qualityScale, renderController, renderQueue, renderRevision, shouldRender, wakeToken]);
 
   useEffect(() => () => {
     renderQueue.cancel(`page:${pageNumber}`);
@@ -300,6 +306,14 @@ export function ContinuousA4Pdf({
   const [primaryPage, setPrimaryPage] = useState(1);
   const [renderScale, setRenderScale] = useState(zoom);
   const [renderRevision, setRenderRevision] = useState(0);
+  // Bumped each time this tab returns to the screen, see A4PdfCanvas.
+  const paneActive = useWorkspacePaneActive();
+  const [wakeToken, setWakeToken] = useState(0);
+  const wasPaneActiveRef = useRef(paneActive);
+  useEffect(() => {
+    if (paneActive && !wasPaneActiveRef.current) setWakeToken((token) => token + 1);
+    wasPaneActiveRef.current = paneActive;
+  }, [paneActive]);
   const [defaultPageAspectRatio, setDefaultPageAspectRatio] = useState(A4_PAGE_RATIO);
   const [pageAspectRatios, setPageAspectRatios] = useState(() => new Map());
   // Page boxes only exist once the file has been measured, so anything that
@@ -726,7 +740,7 @@ export function ContinuousA4Pdf({
       pageObserver.disconnect();
       documentRoot.removeEventListener("workspace:zoomgeometrysettled", updateCurrentFromGeometry);
     };
-  }, [commitNearbyPages, commitPrimaryPage, documentRootRef, pageCount, pageGeometryReady, stageRef, visiblePageCount, visiblePageStart, virtualPages]);
+  }, [commitNearbyPages, commitPrimaryPage, documentRootRef, pageCount, pageGeometryReady, stageRef, visiblePageCount, visiblePageStart, virtualPages, wakeToken]);
 
   // Nothing is laid out at a guessed page shape. The sheet knows its page count
   // long before the file is open, so the reader used to raise a full document of
@@ -844,6 +858,7 @@ export function ContinuousA4Pdf({
               shouldRender={pagesToRender.has(entry.pdfPage)}
               evictionDelayMs={Math.abs(entry.pdfPage - primaryPage) > renderReach * 2 ? DISTANT_CANVAS_EVICTION_MS : CANVAS_EVICTION_MS}
               renderRevision={pagesToRender.has(entry.pdfPage) ? renderRevision : 0}
+              wakeToken={wakeToken}
               renderController={renderControllerRef.current}
               priority={entry.pdfPage === primaryPage ? 0 : Math.abs(entry.pdfPage - primaryPage) * 10 + (entry.pdfPage < primaryPage ? 1 : 0)}
               renderQueue={renderQueueRef.current}

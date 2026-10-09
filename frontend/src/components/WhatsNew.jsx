@@ -3,7 +3,7 @@ import { Icon } from "../lib/icons.jsx";
 import { useI18n } from "./I18nProvider.jsx";
 import { acquireBodyScrollLock } from "../lib/bodyScrollLock.js";
 import { usePresence } from "../lib/motion.js";
-import { WHATS_NEW, readSeenRelease, whatsNewDecision, whatsNewText, writeSeenRelease } from "../lib/whatsNew.js";
+import { WHATS_NEW, readSeenRelease, releaseItemsFor, whatsNewDecision, whatsNewText, writeSeenRelease } from "../lib/whatsNew.js";
 import "./whats-new.css";
 
 const TELEGRAM_URL = "https://t.me/lock_in_official";
@@ -24,7 +24,7 @@ function automatedBrowserWithoutOptIn() {
  * The release notes dialog. "after" is the panel shown once the new version is
  * running; "before" explains a waiting update and offers Update now / Later.
  */
-export function ReleaseNotesDialog({ open, release = WHATS_NEW, mode = "after", onClose, onConfirm = undefined }) {
+export function ReleaseNotesDialog({ open, release = WHATS_NEW, mode = "after", user = null, onClose, onConfirm = undefined }) {
   const { t, locale } = useI18n();
   const ref = useRef(null);
   const presence = usePresence(open, 180);
@@ -75,7 +75,7 @@ export function ReleaseNotesDialog({ open, release = WHATS_NEW, mode = "after", 
           <button className="whats-new__close" type="button" aria-label={t("confirm.close")} onClick={onClose}><Icon name="x" size={18} /></button>
         </header>
         <ul className="whats-new__list">
-          {release.items.map((item) => (
+          {releaseItemsFor(release, user).map((item) => (
             <li className="whats-new__item" key={item.icon + item.title.en}>
               <span className="whats-new__icon" aria-hidden="true"><Icon name={item.icon} size={18} /></span>
               <span className="whats-new__text">
@@ -128,5 +128,5 @@ export function WhatsNew({ user, suppressed = false }) {
     setOpen(false);
   }, [userId]);
 
-  return <ReleaseNotesDialog open={open} onClose={close} />;
+  return <ReleaseNotesDialog open={open} user={user} onClose={close} />;
 }

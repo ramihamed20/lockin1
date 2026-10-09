@@ -40,7 +40,7 @@ function lastCheckedLabel(t, locale, checkedAt, now) {
 }
 
 /** Settings → Updates: what is installed, and a real worker update check. */
-export default function AppUpdateSettings() {
+export default function AppUpdateSettings({ user = null }) {
   const { t, locale } = useI18n();
   const { status, error, lastCheckedAt, checkForUpdates, applyUpdate } = usePwaUpdates();
   const now = useNow(30 * 1000);
@@ -100,6 +100,7 @@ export default function AppUpdateSettings() {
       open={explaining && Boolean(announced)}
       release={pending || WHATS_NEW}
       mode="before"
+      user={user}
       onClose={() => setExplaining(false)}
       onConfirm={() => { setExplaining(false); void applyUpdate(); }}
     />

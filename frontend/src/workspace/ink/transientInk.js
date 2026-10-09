@@ -14,7 +14,7 @@ export const TRANSIENT_INK_KIND = Object.freeze({ POINTER: "pointer", NEON: "neo
 export const TRANSIENT_PEN_PROFILES = new Set(Object.values(TRANSIENT_INK_KIND));
 
 /** How long ink stays fully visible after the pen stops. */
-export const TRANSIENT_HOLD_MS = 3000;
+export const TRANSIENT_HOLD_MS = 1500;
 /** How long the fade-out takes once the hold is over. */
 export const TRANSIENT_FADE_MS = 800;
 

@@ -6375,6 +6375,13 @@ a.streak-card:hover:where(html.ix-hover *) {
   font-size: var(--text-xl);
 }
 
+.subscription-plan-was {
+  color: var(--text-muted, var(--muted));
+  font-size: var(--text-sm);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
 .subscription-plan-price small {
   color: var(--primary);
   font-size: var(--text-xs);

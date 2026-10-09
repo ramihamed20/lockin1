@@ -346,7 +346,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
 
           {activeSection === "suggest" && <FeedbackSettings />}
 
-          {activeSection === "updates" && <AppUpdateSettings />}
+          {activeSection === "updates" && <AppUpdateSettings user={user} />}
 
           {saving && <p className="save-hint settings-v2-saving" role="status">{t("settings.saving")}</p>}
         </div>

@@ -140,11 +140,11 @@ def test_a_new_reader_sees_the_three_terms_at_their_general_prices() -> None:
     def amount(code: str) -> list[int]:
         return [p["amount_minor"] for p in catalog[code]["prices"]]
 
-    assert amount("dentistry_pre_midterm") == [45_000]
+    assert amount("dentistry_pre_midterm") == [30_000]
     assert amount("dentistry_post_midterm") == [50_000]
-    assert amount("dentistry_full_year") == [90_000]
+    assert amount("dentistry_full_year") == [80_000]
     full_year = catalog["dentistry_full_year"]["prices"][0]
-    assert full_year["installment_amounts_minor"] == [30_000] + [10_000] * 6
+    assert full_year["installment_amounts_minor"] == [30_000] + [10_000] * 5
     assert full_year["installments_available"] is True
     assert full_year["purchase_blocked_reason"] is None
     assert catalog["dentistry_pre_midterm"]["fixed_period_ends_at"] == (
@@ -167,22 +167,22 @@ def test_the_first_month_offer_stops_at_midnight_tripoli_on_the_ninth() -> None:
     assert datetime(2026, 10, 9, 22, 0, tzinfo=UTC) == FIRST_MONTH_OFFER_ENDS_AT
 
 
-def test_a_paying_subscriber_before_the_deadline_gets_pre_midterm_for_35() -> None:
+def test_a_paying_subscriber_before_the_deadline_gets_pre_midterm_for_25() -> None:
     user = _reader("loyal")
     with at(START):
         result = _buy(user, "lockin_first_month_5_lyd")
         _review(result.payment, "approve")
     with at(START + timedelta(days=3)):
         prices = _catalog(user)["dentistry_pre_midterm"]["prices"]
-        assert [p["amount_minor"] for p in prices] == [35_000]
-        assert prices[0]["installment_amounts_minor"] == [20_000, 10_000, 5_000]
+        assert [p["amount_minor"] for p in prices] == [25_000]
+        assert prices[0]["installment_amounts_minor"] == [10_000, 10_000, 5_000]
         upgrade = submit_manual_recharge(
             user=user,
-            price=_price("dentistry_pre_midterm_loyalty_35_lyd"),
+            price=_price("dentistry_pre_midterm_loyalty_25_lyd"),
             recharge_codes=[_code(), _code()],
             idempotency_key=next(_key),
         )
-    assert upgrade.payment.amount_minor == 35_000
+    assert upgrade.payment.amount_minor == 25_000
     subscription = _subscription(user)
     assert subscription.current_period_ends_at == PRE_MIDTERM_ENDS_AT
     # The running month is kept, not cut short or restarted.
@@ -196,28 +196,47 @@ def test_a_payment_submitted_after_the_deadline_does_not_earn_the_loyalty_price(
         result = _buy(user, "lockin_first_month_5_lyd")
         _review(result.payment, "approve")
         prices = _catalog(user)["dentistry_pre_midterm"]["prices"]
-    assert [p["amount_minor"] for p in prices] == [45_000]
+    assert [p["amount_minor"] for p in prices] == [30_000]
 
 
 def test_a_free_trial_alone_cannot_buy_at_the_loyalty_price() -> None:
     user = _reader("trial-only")
     with at(START), pytest.raises(ManualPaymentError, match="not available for your account"):
-        _buy(user, "dentistry_pre_midterm_loyalty_35_lyd")
+        _buy(user, "dentistry_pre_midterm_loyalty_25_lyd")
 
 
-def test_four_month_subscribers_get_the_40_upgrade_and_not_the_loyalty_price() -> None:
+def test_four_month_subscribers_get_post_midterm_for_20_and_not_the_loyalty_price() -> None:
     user = _reader("four-months")
     with at(START):
         result = _buy(user, "lockin_four_months_30_lyd", cards=2)
         _review(result.payment, "approve")
         catalog = _catalog(user)
-    assert [p["amount_minor"] for p in catalog["dentistry_full_year"]["prices"]] == [40_000]
-    assert catalog["dentistry_full_year"]["prices"][0]["installment_amounts_minor"] == [
-        20_000,
-        10_000,
-        10_000,
-    ]
-    assert [p["amount_minor"] for p in catalog["dentistry_pre_midterm"]["prices"]] == [45_000]
+    post = catalog["dentistry_post_midterm"]["prices"]
+    assert [p["amount_minor"] for p in post] == [20_000]
+    assert post[0]["installment_amounts_minor"] == [10_000, 10_000]
+    assert [p["amount_minor"] for p in catalog["dentistry_full_year"]["prices"]] == [20_000]
+    assert [p["amount_minor"] for p in catalog["dentistry_pre_midterm"]["prices"]] == [30_000]
+
+
+def test_pre_midterm_subscribers_get_no_special_price() -> None:
+    user = _reader("pre-midterm-plain")
+    with at(START):
+        result = _buy(user, "dentistry_pre_midterm_30_lyd", cards=3)
+        _review(result.payment, "approve")
+        catalog = _catalog(user)
+    assert [p["amount_minor"] for p in catalog["dentistry_post_midterm"]["prices"]] == [50_000]
+    assert [p["amount_minor"] for p in catalog["dentistry_full_year"]["prices"]] == [80_000]
+
+
+def test_a_loyal_subscriber_gets_25_pre_midterm_50_post_midterm_and_70_full_year() -> None:
+    loyal = _reader("loyal-full-year")
+    with at(START):
+        offer = _buy(loyal, "lockin_first_month_5_lyd")
+        _review(offer.payment, "approve")
+        catalog = _catalog(loyal)
+    assert [p["amount_minor"] for p in catalog["dentistry_full_year"]["prices"]] == [70_000]
+    assert [p["amount_minor"] for p in catalog["dentistry_pre_midterm"]["prices"]] == [25_000]
+    assert [p["amount_minor"] for p in catalog["dentistry_post_midterm"]["prices"]] == [50_000]
 
 
 def test_a_rejected_term_upgrade_restores_the_running_subscription() -> None:
@@ -227,7 +246,7 @@ def test_a_rejected_term_upgrade_restores_the_running_subscription() -> None:
         _review(first.payment, "approve")
     before = _subscription(user)
     with at(START + timedelta(days=1)):
-        upgrade = _buy(user, "dentistry_full_year_90_lyd", cards=3)
+        upgrade = _buy(user, "dentistry_full_year_80_lyd", cards=3)
         assert _subscription(user).current_period_ends_at == POST_MIDTERM_ENDS_AT
         _review(upgrade.payment, "reject")
     after = _subscription(user)
@@ -238,22 +257,22 @@ def test_a_rejected_term_upgrade_restores_the_running_subscription() -> None:
 def test_a_term_already_covered_cannot_be_bought_again() -> None:
     user = _reader("covered")
     with at(START):
-        result = _buy(user, "dentistry_full_year_90_lyd", cards=3)
+        result = _buy(user, "dentistry_full_year_80_lyd", cards=3)
         _review(result.payment, "approve")
         catalog = _catalog(user)
         assert catalog["dentistry_pre_midterm"]["prices"][0]["purchase_blocked_reason"]
         with pytest.raises(ManualPaymentError, match="already covers"):
-            _buy(user, "dentistry_pre_midterm_45_lyd")
+            _buy(user, "dentistry_pre_midterm_30_lyd")
 
 
 def test_up_to_five_cards_are_accepted_and_six_are_refused() -> None:
     user = _reader("five-cards")
     with at(START):
-        result = _buy(user, "dentistry_full_year_90_lyd", cards=5)
+        result = _buy(user, "dentistry_full_year_80_lyd", cards=5)
     assert result.submission.recharge_codes.count() == 5
     other = _reader("six-cards")
     with at(START), pytest.raises(ManualPaymentError, match="between one and 5"):
-        _buy(other, "dentistry_full_year_90_lyd", cards=6)
+        _buy(other, "dentistry_full_year_80_lyd", cards=6)
 
 
 def test_the_api_accepts_an_installment_purchase() -> None:
@@ -273,16 +292,16 @@ def test_the_api_accepts_an_installment_purchase() -> None:
         )
     assert response.status_code == 201, response.json()
     body = response.json()
-    assert body["payment"]["amount_minor"] == 20_000
+    assert body["payment"]["amount_minor"] == 15_000
     plan = body["subscription"]["installment_plan"]
-    assert [item["amount_minor"] for item in plan["installments"]] == [20_000, 15_000, 10_000]
+    assert [item["amount_minor"] for item in plan["installments"]] == [15_000, 10_000, 5_000]
     assert plan["state"] == InstallmentState.IN_REVIEW
 
 
 # --- installments -----------------------------------------------------------
 
 
-def _installment_reader(name: str, price_code: str = "dentistry_pre_midterm_45_lyd"):
+def _installment_reader(name: str, price_code: str = "dentistry_pre_midterm_30_lyd"):
     user = _reader(name)
     with at(START):
         first = _buy(user, price_code, installments=True)
@@ -313,8 +332,8 @@ def test_the_first_installment_grants_the_whole_term() -> None:
     subscription = _subscription(user)
     assert subscription.status == Subscription.Status.ACTIVE
     assert subscription.current_period_ends_at == PRE_MIDTERM_ENDS_AT
-    assert agreement.installment_amounts_minor == [20_000, 15_000, 10_000]
-    assert Payment.objects.get(installment_agreement=agreement).amount_minor == 20_000
+    assert agreement.installment_amounts_minor == [15_000, 10_000, 5_000]
+    assert Payment.objects.get(installment_agreement=agreement).amount_minor == 15_000
     assert _has_access(user)
 
 
@@ -333,7 +352,7 @@ def test_a_missed_installment_suspends_access_and_paying_in_the_window_restores_
 
     # Paid within two days: access returns on submission, before review.
     result = _pay_next(user, agreement, due + timedelta(days=1))
-    assert result.payment.amount_minor == 15_000
+    assert result.payment.amount_minor == 10_000
     assert _subscription(user).status == Subscription.Status.ACTIVE
     assert _has_access(user)
 
@@ -379,7 +398,7 @@ def test_paying_every_installment_completes_the_agreement() -> None:
                 installment_agreement=agreement, status=Payment.Status.SUCCEEDED
             ).values_list("amount_minor", flat=True)
         )
-        == 45_000
+        == 30_000
     )
 
 
@@ -395,18 +414,18 @@ def test_a_rejected_first_installment_cancels_the_agreement() -> None:
 
 def test_installments_are_not_offered_when_the_schedule_would_outrun_the_term() -> None:
     user = _reader("too-late")
-    december = datetime(2026, 12, 1, 10, 0, tzinfo=UTC)
+    december = datetime(2026, 12, 25, 10, 0, tzinfo=UTC)
     with at(december):
         full_year = _catalog(user)["dentistry_full_year"]["prices"][0]
         assert full_year["installments_available"] is False
         with pytest.raises(ManualPaymentError, match="installments"):
-            _buy(user, "dentistry_full_year_90_lyd", installments=True)
+            _buy(user, "dentistry_full_year_80_lyd", installments=True)
 
 
 def test_another_plan_cannot_be_bought_while_installments_are_open() -> None:
     user, _ = _installment_reader("one-at-a-time")
     with at(START + timedelta(days=2)), pytest.raises(ManualPaymentError, match="installments"):
-        _buy(user, "dentistry_full_year_90_lyd", cards=3)
+        _buy(user, "dentistry_full_year_80_lyd", cards=3)
 
 
 # --- four-month conversion --------------------------------------------------
@@ -459,8 +478,8 @@ def test_a_subscription_is_refundable_for_fifteen_days_and_not_after() -> None:
     early = _reader("refund-early")
     late = _reader("refund-late")
     with at(START):
-        early_payment = _buy(early, "dentistry_pre_midterm_45_lyd").payment
-        late_payment = _buy(late, "dentistry_pre_midterm_45_lyd").payment
+        early_payment = _buy(early, "dentistry_pre_midterm_30_lyd").payment
+        late_payment = _buy(late, "dentistry_pre_midterm_30_lyd").payment
         _review(early_payment, "approve")
         _review(late_payment, "approve")
 

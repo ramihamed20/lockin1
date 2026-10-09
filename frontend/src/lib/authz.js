@@ -16,6 +16,7 @@ const CURRENT_AUTHENTICATED_ROUTES = new Set([
   "/store",
   "/progress",
   "/analysis",
+  "/weekly-summary",
   "/progression",
   "/achievements",
   "/notifications",
