@@ -17,6 +17,7 @@ from apps.product_catalog.dentistry_terms import (
     FIRST_MONTH_OFFER_ENDS_AT,
     FOUR_MONTHS,
     LEGACY_DURATION_PLANS,
+    PRE_MIDTERM,
 )
 from apps.product_catalog.models import Price, fixed_period_end
 from apps.subscriptions.models import Subscription, SubscriptionTransition
@@ -202,20 +203,25 @@ def price_eligibilities(*, user: User) -> frozenset[str]:
     """The restricted prices this reader may buy at.
 
     Four-month subscribers already hold the pre-midterm term, so they get the
-    full-year upgrade instead of the loyalty price. Everyone else who paid for
-    any duration plan submitted before the first-month offer closed -- approved
-    then or later -- gets the loyalty price. A free trial alone does not count.
+    full-year upgrade instead of the loyalty price. Pre-midterm subscribers get
+    the same upgrade, and keep the loyalty price too if they earned it. Everyone
+    else who paid for any duration plan submitted before the first-month offer
+    closed -- approved then or later -- gets the loyalty price. A free trial
+    alone does not count.
     """
 
     paid = Payment.objects.filter(account__primary_user=user, status=Payment.Status.SUCCEEDED)
     if paid.filter(price__plan_version__plan__code=FOUR_MONTHS).exists():
         return frozenset({Price.Eligibility.FOUR_MONTH_UPGRADE})
+    eligibilities: set[str] = set()
     if paid.filter(
         created_at__lt=FIRST_MONTH_OFFER_ENDS_AT,
         price__plan_version__plan__code__in=LEGACY_DURATION_PLANS,
     ).exists():
-        return frozenset({Price.Eligibility.LOYALTY_2026})
-    return frozenset()
+        eligibilities.add(Price.Eligibility.LOYALTY_2026)
+    if paid.filter(price__plan_version__plan__code=PRE_MIDTERM).exists():
+        eligibilities.add(Price.Eligibility.FOUR_MONTH_UPGRADE)
+    return frozenset(eligibilities)
 
 
 def purchase_block_reason(
