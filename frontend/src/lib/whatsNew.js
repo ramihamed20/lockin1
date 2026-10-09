@@ -7,14 +7,39 @@
  * already start on this version, so they are not shown the after-update panel.
  */
 export const WHATS_NEW = {
-  id: "0.1.1",
-  version: "0.1.1",
-  date: "2026-10-08",
+  id: "0.1.2",
+  version: "0.1.2",
+  date: "2026-10-09",
   summary: {
-    en: "My sheets, Practice, search and hide-to-recall in Focus, tabs and whiteboards, installment plans and suggestions.",
-    ar: "شيتاتي، وتدرّب، والبحث والإخفاء للتذكّر في التركيز، والتبويبات والسبورات، وخطط الأقساط، والاقتراحات."
+    en: "Lower dentistry prices, a weekly summary, and smoother tabs and whiteboards in Focus.",
+    ar: "أسعار أقل لطب الأسنان، وملخص أسبوعي، وتبويبات وسبورات أسلس في التركيز."
   },
   items: [
+    {
+      icon: "coins",
+      audience: "dentistry",
+      title: { en: "Lower dentistry prices", ar: "أسعار أقل لطب الأسنان" },
+      body: {
+        en: "Pre-midterm is now 30 LYD and the full year 80 LYD. If you joined with the 5 LYD offer, it is 25 and 70. Four-month subscribers can continue after the midterm for 20 LYD, or take the full year for 20 LYD. Post-midterm stays 50 LYD.",
+        ar: "قبل النصفي صار 30 د.ل والعام الكامل 80 د.ل. وإن اشتركت بعرض 5 دنانير فهما 25 و70. ومشتركو الأربعة أشهر يكملون بعد النصفي بـ20 د.ل، أو يأخذون العام الكامل بـ20 د.ل. وبعد النصفي يبقى 50 د.ل."
+      }
+    },
+    {
+      icon: "calendar",
+      title: { en: "Your weekly summary", ar: "ملخصك الأسبوعي" },
+      body: {
+        en: "Each week closes with a summary of your study and a quiz on your mistakes. When it is ready you get a card to open it, and each part has its own PDF.",
+        ar: "ينتهي كل أسبوع بملخص لدراستك واختبار على أخطائك. عندما يجهز تصلك بطاقة لفتحه، ولكل جزء ملف PDF خاص به."
+      }
+    },
+    {
+      icon: "layers",
+      title: { en: "Smoother tabs and whiteboards", ar: "تبويبات وسبورات أسلس" },
+      body: {
+        en: "Switching between open tabs no longer leaves a blank page, the Add page button on whiteboards is easier to tap, and Neon and Pointer ink fades faster.",
+        ar: "التنقل بين التبويبات لم يعد يترك صفحة بيضاء، وزر إضافة صفحة في السبورة أسهل في الضغط، وحبر النيون والمؤشر يختفي أسرع."
+      }
+    },
     {
       icon: "folder",
       title: { en: "My sheets", ar: "شيتاتي" },
@@ -23,47 +48,7 @@ export const WHATS_NEW = {
         ar: "أضف ملفات PDF خاصة بك داخل أي مادة. لا يراها غيرك، وتظهر كتابتك عليها على كل أجهزتك."
       }
     },
-    {
-      icon: "image",
-      title: { en: "Practice: name the picture", ar: "تدرّب: سمِّ الصورة" },
-      body: {
-        en: "See a slide and type its name. Missed slides come back for review, a hint gives the first letter, and every correct name earns XP.",
-        ar: "شاهد الشريحة واكتب اسمها. ترجع إليك الشرائح التي أخطأت فيها للمراجعة، وتعطيك الإشارة أول حرف، وكل اسم صحيح يكسبك نقاط خبرة."
-      }
-    },
-    {
-      icon: "search",
-      title: { en: "Search and hide to recall", ar: "بحث وإخفاء للتذكّر" },
-      body: {
-        en: "Search inside any document in Focus, jump to the page, or cover a term to test yourself. Tap a cover to reveal it.",
-        ar: "ابحث داخل أي مستند في وضع التركيز وانتقل إلى صفحته، أو غطِّ مصطلحًا لتختبر نفسك. اضغط على الغطاء لتكشفه."
-      }
-    },
-    {
-      icon: "layers",
-      title: { en: "Tabs and whiteboards", ar: "تبويبات وسبورات" },
-      body: {
-        en: "Keep several documents open in tabs, and add a lined whiteboard for your own notes. Whiteboards are saved on this device.",
-        ar: "افتح عدة مستندات في تبويبات، وأضف سبورة مسطّرة لملاحظاتك. تُحفظ السبورات على هذا الجهاز."
-      }
-    },
-    {
-      icon: "coins",
-      title: { en: "Pay in installments", ar: "الدفع على أقساط" },
-      body: {
-        en: "Where a plan offers it, you can pay for a term in installments from the Subscription page. The terms and refund policy are now one tap away.",
-        ar: "حيث تتوفر الخطة، يمكنك دفع قيمة الفصل على أقساط من صفحة الاشتراك. وأصبحت الشروط وسياسة الاسترداد على بعد ضغطة واحدة."
-      }
-    },
-    {
-      icon: "megaphone",
-      title: { en: "Tell us what to build", ar: "اقترح علينا" },
-      body: {
-        en: "Send suggestions from Settings and follow what happens to each one.",
-        ar: "أرسل اقتراحاتك من الإعدادات وتابع ما يحدث لكل اقتراح."
-      }
-    }
-  ]
+  ],
 };
 
 const STORAGE_PREFIX = "lock-in.whats-new.seen:";
@@ -102,6 +87,12 @@ export function whatsNewDecision({ seenId, dateJoined, release = WHATS_NEW }) {
   return "show";
 }
 
+/** Items marked with an audience are shown only to that audience. */
+export function releaseItemsFor(release, user) {
+  const dentistry = String(user?.cohort?.program?.code || "").startsWith("dentistry-");
+  return release.items.filter((item) => !item.audience || (item.audience === "dentistry" && dentistry));
+}
+
 export function whatsNewText(value, locale) {
   return value?.[locale === "ar" ? "ar" : "en"] || value?.en || "";
 }
@@ -127,7 +118,8 @@ export function normalizeRelease(raw) {
   const items = raw.items.slice(0, MAX_ITEMS).flatMap((item) => {
     const title = cleanLocalized(item?.title);
     const body = cleanLocalized(item?.body);
-    return title && body ? [{ icon: cleanText(item?.icon) || "sparkles", title, body }] : [];
+    const audience = item?.audience === "dentistry" ? "dentistry" : "";
+    return title && body ? [{ icon: cleanText(item?.icon) || "sparkles", ...(audience ? { audience } : {}), title, body }] : [];
   });
   return items.length ? { id, version, date: cleanText(raw.date), summary, items } : null;
 }
