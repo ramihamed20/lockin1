@@ -11,14 +11,14 @@ export const WHATS_NEW = {
   version: "0.1.2",
   date: "2026-10-09",
   summary: {
-    en: "Lower dentistry prices, a weekly summary, and smoother tabs and whiteboards in Focus.",
-    ar: "أسعار أقل لطب الأسنان، وملخص أسبوعي، وتبويبات وسبورات أسلس في التركيز."
+    en: "Subscription improvements, a weekly summary, and smoother tabs and whiteboards in Focus.",
+    ar: "تحسينات في الاشتراكات، وملخص أسبوعي، وتبويبات وسبورات أسلس في التركيز."
   },
   items: [
     {
       icon: "coins",
       audience: "dentistry",
-      title: { en: "Lower dentistry prices", ar: "أسعار أقل لطب الأسنان" },
+      title: { en: "Subscription improvements", ar: "تحسينات في الاشتراكات" },
       body: {
         en: "Pre-midterm is now 30 LYD and the full year 80 LYD. If you joined with the 5 LYD offer, it is 25 and 70. Four-month subscribers can continue after the midterm for 20 LYD, or take the full year for 20 LYD. Post-midterm stays 50 LYD.",
         ar: "قبل النصفي صار 30 د.ل والعام الكامل 80 د.ل. وإن اشتركت بعرض 5 دنانير فهما 25 و70. ومشتركو الأربعة أشهر يكملون بعد النصفي بـ20 د.ل، أو يأخذون العام الكامل بـ20 د.ل. وبعد النصفي يبقى 50 د.ل."
