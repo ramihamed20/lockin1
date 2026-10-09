@@ -50,6 +50,15 @@ NEW_PRICES = (
         POST_MIDTERM_ENDS_AT,
     ),
     (
+        "dentistry_full_year",
+        "dentistry_full_year_upgrade_20_lyd",
+        20_000,
+        "four_month_upgrade",
+        [10_000, 10_000],
+        8,
+        POST_MIDTERM_ENDS_AT,
+    ),
+    (
         "dentistry_post_midterm",
         "dentistry_post_midterm_upgrade_20_lyd",
         20_000,

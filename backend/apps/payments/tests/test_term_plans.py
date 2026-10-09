@@ -214,6 +214,7 @@ def test_four_month_subscribers_get_post_midterm_for_20_and_not_the_loyalty_pric
     post = catalog["dentistry_post_midterm"]["prices"]
     assert [p["amount_minor"] for p in post] == [20_000]
     assert post[0]["installment_amounts_minor"] == [10_000, 10_000]
+    assert [p["amount_minor"] for p in catalog["dentistry_full_year"]["prices"]] == [20_000]
     assert [p["amount_minor"] for p in catalog["dentistry_pre_midterm"]["prices"]] == [30_000]
 
 

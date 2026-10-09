@@ -2077,3 +2077,12 @@ html.ix-hover .workspace-tab:not(.is-active):hover { color: var(--fx-text-2); ba
   .workspace-v2 .workspace-v2-toolbar .workspace-v3-quick-color { width: 30px; height: 38px; flex-basis: 30px; }
   .workspace-v2 .workspace-v2-toolbar .workspace-v3-tool-button.is-active:is([data-workspace-tool="pen"], [data-workspace-tool="highlighter"])::after { inset-inline: 12px; }
 }
+
+/* On touch the Add page button sits at the very end of the scroll, where the
+   screen edge and the home indicator cover it. Give it a taller landing zone
+   and a larger target so it can be reached and tapped from the middle of the
+   screen. */
+@media (pointer: coarse) {
+  .workspace-whiteboard-footer { height: 160px; }
+  .workspace-whiteboard-footer button { min-height: 56px; margin-top: 8px; padding: 0 26px; font-size: .95rem; }
+}
