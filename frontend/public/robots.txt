@@ -1,4 +1,25 @@
-# Lock-in is an authenticated learning workspace. Do not index the login shell,
-# private application routes, or API responses.
+# Public information only. Authentication and authorization protect private data;
+# robots.txt is a crawl preference, never an access-control mechanism.
 User-agent: *
+User-agent: Googlebot
+User-agent: Bingbot
+User-agent: Applebot
+User-agent: OAI-SearchBot
+User-agent: PerplexityBot
+User-agent: Claude-SearchBot
 Disallow: /
+Allow: /about/$
+Allow: /medicine/$
+Allow: /dentistry/$
+Allow: /public-search.css$
+Allow: /icons/
+Allow: /robots.txt$
+Allow: /sitemap.xml$
+
+# Preserve the existing opt-out for model-training crawlers.
+User-agent: GPTBot
+User-agent: ClaudeBot
+User-agent: Google-Extended
+Disallow: /
+
+Sitemap: https://lockin.ly/sitemap.xml

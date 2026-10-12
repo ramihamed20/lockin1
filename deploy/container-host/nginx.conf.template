@@ -17,7 +17,8 @@ server {
     add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; frame-src 'self' https://www.youtube-nocookie.com; img-src 'self' blob: https://i.ytimg.com; manifest-src 'self'; media-src 'self' blob:; object-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; style-src-elem 'self'; worker-src 'self' blob:" always;
     add_header Permissions-Policy "camera=(), geolocation=(), microphone=(), payment=(), usb=()" always;
     add_header Referrer-Policy "no-referrer" always;
-    add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+    set $lockin_robots "noindex, nofollow, noarchive";
+    add_header X-Robots-Tag $lockin_robots always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "DENY" always;
     add_header Cross-Origin-Opener-Policy "same-origin" always;
@@ -85,6 +86,37 @@ server {
 
     location = /manifest.webmanifest {
         default_type application/manifest+json;
+        expires -1;
+        try_files $uri =404;
+    }
+
+    # Only these static, account-independent pages are eligible for indexing.
+    # set keeps every inherited security header intact; adding location-level
+    # add_header directives would silently discard the server header family.
+    location = /about/ {
+        set $lockin_robots "index, follow, max-image-preview:large";
+        try_files /about/index.html =404;
+        expires -1;
+    }
+
+    location = /medicine/ {
+        set $lockin_robots "index, follow, max-image-preview:large";
+        try_files /medicine/index.html =404;
+        expires -1;
+    }
+
+    location = /dentistry/ {
+        set $lockin_robots "index, follow, max-image-preview:large";
+        try_files /dentistry/index.html =404;
+        expires -1;
+    }
+
+    location ~ ^/(about|medicine|dentistry)(?:/index\.html)?$ {
+        return 308 /$1/;
+    }
+
+    location = /sitemap.xml {
+        default_type application/xml;
         expires -1;
         try_files $uri =404;
     }
