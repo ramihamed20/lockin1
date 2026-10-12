@@ -61,3 +61,11 @@ No database, product-study flow, payment policy or model-training consent change
 - [Cloudflare bot controls](https://developers.cloudflare.com/ai-crawl-control/configuration/ai-crawl-control-with-bots/).
 
 llms.txt is an optional source index, not an indexing substitute or appearance guarantee.
+
+## Image build source evidence
+
+Both image builders mount the complete repository context read-only during the Vite build using LOCKIN_PUBLIC_EVIDENCE_ROOT. Missing or changed source still fails the build; there is no skip-validation switch. Source evidence is not copied into runtime layers or public output.
+
+Build the separate edge image from the repository root with docker build -f frontend/Dockerfile [approved build arguments] .; Compose and CI use this same context. Root .dockerignore excludes nested local environment files. The image layer probe supplies only explicit source evidence and applies the same build-only prerequisite to historical comparison images.
+
+The freshness gate runs for builds, tests and the knowledge CLI. Development Vite startup does not require backend files inside the frontend development container.

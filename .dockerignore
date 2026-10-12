@@ -37,3 +37,10 @@ tmp
 # appear (frontend/test-results, frontend/playwright-report) were still sent.
 **/test-results
 **/playwright-report
+
+# The edge now uses the repository context; exclude nested local environments too.
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.production.example
+!**/.env.container-host.example

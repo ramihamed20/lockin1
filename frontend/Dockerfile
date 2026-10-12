@@ -2,11 +2,11 @@ FROM node:24.16.0-bookworm-slim AS build
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
 RUN npm install --global pnpm@11.19.0 --loglevel=error \
     && pnpm install --frozen-lockfile --reporter=append-only
 
-COPY . .
+COPY frontend .
 
 ARG VITE_API_BASE_URL=/api/v1
 ARG VITE_APP_VERSION=local
@@ -54,7 +54,9 @@ ENV VITE_API_BASE_URL=$VITE_API_BASE_URL \
 # release that only changes code reuses instead of downloading again. A file is
 # moved out only when it is byte-identical to its public/ source, so anything
 # the build generated or overrode stays with the bundle.
-RUN pnpm build \
+# Full checkout evidence is a build-only read-only mount, not served content.
+RUN --mount=type=bind,target=/lockin-source \
+    LOCKIN_PUBLIC_EVIDENCE_ROOT=/lockin-source pnpm build \
     && mkdir -p /app/dist-public \
     && cd /app/public \
     && find . -type f -exec sh -c 'for file do \
@@ -89,9 +91,9 @@ FROM nginx:1.27-alpine
 RUN addgroup -S -g 10001 lockin \
     && adduser -S -u 10001 -G lockin -H -D lockin
 
-COPY nginx/nginx.conf /etc/nginx/nginx.conf
-COPY nginx/cloudflare-real-ip.conf /etc/nginx/conf.d/00-cloudflare-real-ip.conf
-COPY nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY frontend/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY frontend/nginx/cloudflare-real-ip.conf /etc/nginx/conf.d/00-cloudflare-real-ip.conf
+COPY frontend/nginx/default.conf /etc/nginx/conf.d/default.conf
 # Stable public assets first, then the release's bundle. Together they are
 # exactly the dist/ tree `pnpm build` produced.
 COPY --from=build /app/dist-public /usr/share/nginx/html

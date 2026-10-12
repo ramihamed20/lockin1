@@ -71,8 +71,8 @@ function releaseNotesFile(release) {
   };
 }
 
-export default defineConfig(async ({ mode }) => {
-  writePublicKnowledge({ check: true });
+export default defineConfig(async ({ mode, command }) => {
+  if (command === "build") writePublicKnowledge({ check: true });
   const env = loadEnv(mode, process.cwd(), "");
   // Only `npm run build:e2e` sets this; every other build compiles in null.
   // See e2e/fixtures/catalog.js.

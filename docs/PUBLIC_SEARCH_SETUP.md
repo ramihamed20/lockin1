@@ -52,3 +52,5 @@ Password change/reset, email change, deletion and unlaunched feature instruction
 - [Google sitemap guidance](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap)
 
 Indexability and useful sources improve eligibility; no ranking, citation or recommendation is guaranteed.
+
+The edge image build context is the repository root (Dockerfile frontend/Dockerfile). Both image builds use read-only source mounts to preserve evidence verification without shipping source evidence in the runtime. No verification bypass was added.

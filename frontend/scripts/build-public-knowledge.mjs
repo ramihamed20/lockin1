@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "
 import { dirname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 export const frontendRoot = resolve(fileURLToPath(new URL("../", import.meta.url)));
-const repoRoot = resolve(frontendRoot, ".."), publicRoot = resolve(frontendRoot, "public"), origin = "https://lockin.ly";
+const repoRoot = resolve(process.env.LOCKIN_PUBLIC_EVIDENCE_ROOT || resolve(frontendRoot, "..")), publicRoot = resolve(frontendRoot, "public"), origin = "https://lockin.ly";
 export const knowledge = JSON.parse(readFileSync(resolve(frontendRoot, "content/public-knowledge.json"), "utf8").replace(/^\uFEFF/, ""));
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 const feature = (id) => knowledge.features.find((entry) => entry.id === id);

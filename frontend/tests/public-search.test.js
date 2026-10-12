@@ -3,6 +3,8 @@ import test from "node:test";
 import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { readFile } from "node:fs/promises";
 import { buildPublicFiles, knowledge, pruneWithdrawnPages, verifyKnowledgeEvidence, writePublicKnowledge } from "../scripts/build-public-knowledge.mjs";
 const { paths: pages } = buildPublicFiles();
@@ -106,4 +108,15 @@ test("withdrawing a verified guide removes its old public HTML and rejects unsaf
   const item=knowledge.features.find((entry)=>entry.id==="notes"), saved=item.publicDocumentable;
   try { item.publicDocumentable=false;assert.throws(verifyKnowledgeEvidence,/review marketing copy/); }
   finally { item.publicDocumentable=saved; }
+});
+
+
+test("standalone image builds require complete source evidence without a missing-source fallback",()=>{
+  const script=fileURLToPath(new URL("../scripts/build-public-knowledge.mjs",import.meta.url));
+  const root=fileURLToPath(new URL("../../",import.meta.url));
+  const valid=spawnSync(process.execPath,[script,"--check"],{encoding:"utf8",env:{...process.env,LOCKIN_PUBLIC_EVIDENCE_ROOT:root}});
+  assert.equal(valid.status,0,valid.stderr);
+  const missing=spawnSync(process.execPath,[script,"--check"],{encoding:"utf8",env:{...process.env,LOCKIN_PUBLIC_EVIDENCE_ROOT:join(root,"not-a-checkout")}});
+  assert.equal(missing.status,1);
+  assert.match(missing.stderr,/evidence missing/);
 });

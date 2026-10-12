@@ -418,8 +418,8 @@ services:
 
   edge:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
       args:
         VITE_API_BASE_URL: /api/v1
         VITE_APP_VERSION: ${LOCKIN_IMAGE_TAG:?Set LOCKIN_IMAGE_TAG}
