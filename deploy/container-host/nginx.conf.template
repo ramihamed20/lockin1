@@ -116,6 +116,7 @@ server {
     }
 
     location = /sitemap.xml {
+        types { application/xml xml; }
         default_type application/xml;
         expires -1;
         try_files $uri =404;
