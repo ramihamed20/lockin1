@@ -41,3 +41,29 @@ h1 { font-size: clamp(2.1rem, 6vw, 4.25rem); line-height: 1.35; font-weight: 650
   .site-header { flex-direction: column; }
   nav { gap: 0.25rem 1rem; }
 }
+
+/* Public prose follows the existing dark Lockin palette; no app styling changes. */
+h1, h2, h3 { text-wrap: balance; }
+p { text-wrap: pretty; }
+.story p + p { margin-block-start: 0.75rem; }
+.brand-line { color: var(--accent); font-size: 1.05rem; margin-block-start: 1.5rem; }
+.intro-guide { max-inline-size: 52rem; padding-block: clamp(2rem, 5vw, 4rem); }
+.intro-guide h1 { font-size: clamp(1.8rem, 4vw, 3rem); }
+.guide-list { list-style: none; padding: 0; margin-block: 0 3rem; }
+.guide-list li { padding-block: 1.2rem; border-block-start: 1px solid var(--line); }
+.guide-list a { display: inline-flex; align-items: center; min-block-size: 44px; font-size: 1.15rem; font-weight: 600; }
+.guide-list p { color: var(--muted); margin-block: 0.2rem 0; max-inline-size: 70ch; }
+.related { padding-block: 2rem; }
+.related h2 { font-size: 1.45rem; margin-block: 0 1rem; }
+.guide-body { max-inline-size: 70ch; padding-block-end: 2rem; }
+.guide-body h2 { font-size: 1.35rem; margin-block-start: 2rem; }
+.guide-body p, .guide-body li { color: var(--muted); }
+.guide-body li + li { margin-block-start: 0.8rem; }
+.breadcrumbs { margin-block-start: 1.5rem; font-size: 0.9rem; gap: 0.3rem; }
+.breadcrumbs a { min-block-size: 44px; }
+.verified { font-size: 0.9rem; }
+@media (max-width: 640px) {
+  .site-header, main, .site-footer { inline-size: min(100% - 2rem, 64rem); }
+  .intro-guide h1 { overflow-wrap: break-word; }
+}
+.brand-line { text-align: right; }

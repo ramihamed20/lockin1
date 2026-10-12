@@ -18,7 +18,7 @@ fetch_page() {
 }
 
 for agent in Googlebot Bingbot OAI-SearchBot PerplexityBot Claude-SearchBot; do
-    for page in about medicine dentistry; do
+    for page in about medicine dentistry features/notes features/active-study features/review features/questions help help/start-active-study; do
         fetch_page "/$page/" "$agent"
         grep -Eiq '^Content-Type: text/html' "$probe_dir/headers"
         grep -Eiq '^X-Robots-Tag: index, follow' "$probe_dir/headers"
@@ -36,7 +36,7 @@ done
 
 fetch_page "/sitemap.xml" Googlebot
 grep -Eiq '^Content-Type: application/xml' "$probe_dir/headers"
-[ "$(grep -o '<loc>' "$probe_dir/body" | wc -l | tr -d ' ')" = "3" ]
+[ "$(grep -o '<loc>' "$probe_dir/body" | wc -l | tr -d ' ')" = "63" ]
 if grep -Eq '/api/|/profile|/materials|#' "$probe_dir/body"; then exit 1; fi
 
 fetch_page "/robots.txt" OAI-SearchBot
@@ -49,7 +49,7 @@ for page in / /settings /about/private; do
     grep -Fq 'name="robots" content="noindex' "$probe_dir/body"
 done
 
-for page in about medicine dentistry; do
+for page in about medicine dentistry features/notes features/active-study features/review features/questions help help/start-active-study; do
     # shellcheck disable=SC2086
     redirect="$(curl $insecure --silent --show-error --max-time 15 \
         --header "Host: $public_host" --output /dev/null \

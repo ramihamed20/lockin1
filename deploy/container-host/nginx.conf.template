@@ -90,30 +90,20 @@ server {
         try_files $uri =404;
     }
 
-    # Only these static, account-independent pages are eligible for indexing.
-    # set keeps every inherited security header intact; adding location-level
-    # add_header directives would silently discard the server header family.
-    location = /about/ {
+    # BEGIN GENERATED PUBLIC KNOWLEDGE
+    # Exact published routes only; no prefix grant to private/help/API paths.
+    location ~ ^/(about|medicine|dentistry|features|features/notes|features/active-study|features/review|features/questions|help|help/topics/getting-started|help/topics/studying|help/topics/review-progress|help/topics/account-security|help/topics/troubleshooting|help/what-is-lockin|help/who-is-lockin-for|help/supported-universities|help/need-account|help/open-materials|help/cohort-content|help/sheet-editions|help/about-settings|help/open-pdf|help/pdf-notes|help/pen-tool|help/highlight-tool|help/erase-marks|help/text-notes|help/notes-private|help/pdf-original|help/active-study-what|help/start-active-study|help/active-availability|help/active-difficulty|help/active-parts|help/active-final|help/active-resume|help/active-restart|help/normal-or-active|help/question-sources|help/practical-questions|help/mixed-questions|help/question-explanations|help/find-mistakes|help/saved-mistakes|help/repeat-mistake|help/mastered-question|help/empty-review|help/weekly-recall|help/weekly-not-ready|help/start-weekly|help/weekly-errors|help/progress-page|help/periodic-reports|help/private-and-public|help/account-security|help/supported-access|help/missing-materials|help/missing-questions|help/reader-unavailable|help/notes-not-synced|help/active-start-error|help/contact-support)/$ {
         set $lockin_robots "index, follow, max-image-preview:large";
-        try_files /about/index.html =404;
-        expires -1;
+        try_files ${uri}index.html =404;
     }
-
-    location = /medicine/ {
-        set $lockin_robots "index, follow, max-image-preview:large";
-        try_files /medicine/index.html =404;
-        expires -1;
-    }
-
-    location = /dentistry/ {
-        set $lockin_robots "index, follow, max-image-preview:large";
-        try_files /dentistry/index.html =404;
-        expires -1;
-    }
-
-    location ~ ^/(about|medicine|dentistry)(?:/index\.html)?$ {
+    location ~ ^/(about|medicine|dentistry|features|features/notes|features/active-study|features/review|features/questions|help|help/topics/getting-started|help/topics/studying|help/topics/review-progress|help/topics/account-security|help/topics/troubleshooting|help/what-is-lockin|help/who-is-lockin-for|help/supported-universities|help/need-account|help/open-materials|help/cohort-content|help/sheet-editions|help/about-settings|help/open-pdf|help/pdf-notes|help/pen-tool|help/highlight-tool|help/erase-marks|help/text-notes|help/notes-private|help/pdf-original|help/active-study-what|help/start-active-study|help/active-availability|help/active-difficulty|help/active-parts|help/active-final|help/active-resume|help/active-restart|help/normal-or-active|help/question-sources|help/practical-questions|help/mixed-questions|help/question-explanations|help/find-mistakes|help/saved-mistakes|help/repeat-mistake|help/mastered-question|help/empty-review|help/weekly-recall|help/weekly-not-ready|help/start-weekly|help/weekly-errors|help/progress-page|help/periodic-reports|help/private-and-public|help/account-security|help/supported-access|help/missing-materials|help/missing-questions|help/reader-unavailable|help/notes-not-synced|help/active-start-error|help/contact-support)(?:/index\.html)?$ {
         return 308 /$1/;
     }
+    location = /llms.txt {
+        default_type text/plain;
+        try_files $uri =404;
+    }
+    # END GENERATED PUBLIC KNOWLEDGE
 
     location = /sitemap.xml {
         types { application/xml xml; }

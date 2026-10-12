@@ -1,3 +1,4 @@
+import { writePublicKnowledge } from "./scripts/build-public-knowledge.mjs";
 import { readFileSync } from "node:fs";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
@@ -71,6 +72,7 @@ function releaseNotesFile(release) {
 }
 
 export default defineConfig(async ({ mode }) => {
+  writePublicKnowledge({ check: true });
   const env = loadEnv(mode, process.cwd(), "");
   // Only `npm run build:e2e` sets this; every other build compiles in null.
   // See e2e/fixtures/catalog.js.

@@ -1,4 +1,4 @@
-import { createReadStream, existsSync, statSync } from "node:fs";
+import { readFileSync, createReadStream, existsSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -122,14 +122,16 @@ const server = createServer((request, response) => {
     return serveFixture(request, response, file);
   }
 
-  const redirect = pathname.match(/^\/(about|medicine|dentistry)(?:\/index\.html)?$/);
+  const publicRoutes = JSON.parse(readFileSync(resolve(root, "public-search-routes.json"), "utf8"));
+  const canonical = publicRoutes.find((path) => pathname === path.slice(0, -1) || pathname === path + "index.html");
+  const redirect = canonical;
   if (redirect) {
-    response.writeHead(308, { Location: `/${redirect[1]}/` });
+    response.writeHead(308, { Location: redirect });
     return response.end();
   }
-  const isPublicPage = ["/about/", "/medicine/", "/dentistry/"].includes(pathname);
+  const isPublicPage = publicRoutes.includes(pathname);
   const candidate = publicFile(isPublicPage ? `${pathname}index.html` : pathname);
-  if ((isPublicPage || pathname === "/sitemap.xml" || pathname === "/robots.txt") && !existsSync(candidate)) {
+  if ((isPublicPage || pathname === "/sitemap.xml" || pathname === "/robots.txt" || pathname === "/llms.txt") && !existsSync(candidate)) {
     response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
     return response.end("not found");
   }

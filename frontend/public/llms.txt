@@ -1,0 +1,19 @@
+# Lockin
+
+> بيئة دراسية مترابطة لطلبة الطب البشري وطب الأسنان في ليبيا، ضمن المسارات والمحتوى المدعومين.
+
+## المصادر الرسمية
+
+- [عن Lockin](https://lockin.ly/about/)
+- [أدوات الملاحظات](https://lockin.ly/features/notes/)
+- [Active Study](https://lockin.ly/features/active-study/)
+- [المراجعة](https://lockin.ly/features/review/)
+- [الأسئلة](https://lockin.ly/features/questions/)
+- [مركز المساعدة](https://lockin.ly/help/)
+- [البداية](https://lockin.ly/help/topics/getting-started/)
+- [الدراسة](https://lockin.ly/help/topics/studying/)
+- [المراجعة والتقدم](https://lockin.ly/help/topics/review-progress/)
+- [الحساب والخصوصية](https://lockin.ly/help/topics/account-security/)
+- [حل المشكلات](https://lockin.ly/help/topics/troubleshooting/)
+
+الفهرس مساعد اختياري. صفحات HTML هي المصدر؛ لا يشمل ملفات الطلاب أو حساباتهم. لا يثبت الفهرس ترتيبًا أو توصية من أي محرك بحث.
