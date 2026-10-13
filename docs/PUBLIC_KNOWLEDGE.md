@@ -73,3 +73,7 @@ The freshness gate runs for builds, tests and the knowledge CLI. Development Vit
 ## Presentation alignment — 2026-10-13
 
 The public pages now share a generated, byte-identical copy of src/styles/tokens.css with the application. Builds check this copy, robots permits this exact CSS resource, and the Nginx smoke verifies its MIME type. Compact reading widths, neutral grouped links, current navigation and capsule actions follow Lock-in V2. About/Support use existing Settings rows and icons, with Study and Help/contact groups. Product copy, public URLs and availability are unchanged. The i18n source digest was reviewed after adding four group-label translations only; all existing translated controls remain byte-for-byte unchanged.
+
+## Development routing — 2026-10-13
+
+Vite development now serves the published public route allowlist before its SPA fallback. Previously /about/ and /help/ returned the private app shell and re-ran account bootstrap; the production-only HTTP tests missed this. The dev handler returns the original static HTML (GET/HEAD), normalizes published aliases, fails missing public files closed and leaves private/app/API routing untouched. tests/public-knowledge-dev.test.js starts the actual Vite config and checks all published pages plus private fallback and CSS.

@@ -1,4 +1,5 @@
 import { writePublicKnowledge } from "./scripts/build-public-knowledge.mjs";
+import { publicKnowledgeInDevelopment } from "./scripts/public-knowledge-dev.mjs";
 import { readFileSync } from "node:fs";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
@@ -104,6 +105,7 @@ export default defineConfig(async ({ mode, command }) => {
   plugins: [
     react(),
     releaseNotesFile(WHATS_NEW),
+    publicKnowledgeInDevelopment(),
     ...(mode === "development" ? [removeLegacyWorkerInDevelopment()] : []),
     VitePWA({
       registerType: "prompt",
