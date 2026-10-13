@@ -1,6 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
 import { signE2eLease } from "./fixtures/offlineLease.js";
+
+// These tests verify public links, not PWA caching. Blocking service workers
+// keeps WebKit API mocks active after returning from a static public page.
+test.use({ serviceWorkers: "block" });
 async function mockAccount(page) {
   await page.route("**/api/v1/**", async(route)=>{
     const {pathname}=new URL(route.request().url());
