@@ -1,0 +1,1622 @@
+{
+  "version": 1,
+  "brand": {
+    "name": "Lockin",
+    "eyebrow": "بيئة دراسية مترابطة",
+    "headline": "دراستك. بتناغم.",
+    "english": "Everything in sync."
+  },
+  "lastVerified": "2026-10-12",
+  "verificationScope": "Reviewed repository capabilities; live release and outbound email are not certified.",
+  "features": [
+    {
+      "id": "product",
+      "name": "Lockin",
+      "status": "available",
+      "entry": "/#/",
+      "requirements": "المحتوى يتحدد حسب المسار والصلاحيات؛ لا يعني توفر كل مادة لكل طالب.",
+      "evidence": [
+        "frontend/src/App.jsx",
+        "frontend/src/lib/materialCatalog.js",
+        "frontend/tests/materials-catalog.test.js",
+        "frontend/src/lib/i18n.js"
+      ],
+      "lastVerified": "2026-10-12",
+      "verificationScope": "repository_and_existing_tests",
+      "publicDocumentable": true
+    },
+    {
+      "id": "materials",
+      "name": "الشيتات وقارئ PDF",
+      "status": "conditional",
+      "entry": "/#/materials",
+      "requirements": "شيت منشور وقابل للتسليم وصلاحية المحتوى بحسب الحساب.",
+      "evidence": [
+        "frontend/src/pages/Materials.jsx",
+        "frontend/src/components/learning/CatalogSheetCard.jsx",
+        "backend/apps/content/tests/test_catalog_workspace.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "lastVerified": "2026-10-12",
+      "verificationScope": "repository_and_existing_tests",
+      "publicDocumentable": true
+    },
+    {
+      "id": "notes",
+      "name": "أدوات الملاحظات والكتابة",
+      "status": "available",
+      "entry": "/#/materials",
+      "requirements": "داخل مساحة PDF المسموح بها؛ الحفظ والمزامنة يتأثران بالاتصال.",
+      "evidence": [
+        "frontend/src/pages/CatalogFocusWorkspace.jsx",
+        "backend/apps/focus/annotation_services.py",
+        "backend/apps/focus/tests/test_annotation_document_scope.py",
+        "frontend/e2e/focus-workspace-persistence.spec.js",
+        "frontend/src/lib/i18n.js"
+      ],
+      "lastVerified": "2026-10-12",
+      "verificationScope": "repository_and_existing_tests",
+      "publicDocumentable": true
+    },
+    {
+      "id": "active-study",
+      "name": "Active Study",
+      "status": "conditional",
+      "entry": "/#/materials",
+      "requirements": "شيت جاهز بأسئلة منشورة للمستوى المختار؛ ليست متاحة لكل شيت.",
+      "evidence": [
+        "frontend/src/pages/CatalogFocusWorkspace.jsx",
+        "backend/apps/focus/managed_active_study.py",
+        "backend/apps/focus/tests/test_managed_active_study.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "lastVerified": "2026-10-12",
+      "verificationScope": "repository_and_existing_tests",
+      "publicDocumentable": true
+    },
+    {
+      "id": "questions",
+      "name": "الأسئلة",
+      "status": "conditional",
+      "entry": "/#/questions",
+      "requirements": "مصادر وأسئلة منشورة ضمن المسار؛ Mix غير متاحة.",
+      "evidence": [
+        "frontend/src/pages/Questions.jsx",
+        "frontend/src/components/learning/PracticeQuestions.jsx",
+        "backend/apps/content/tests/test_catalog_questions.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "lastVerified": "2026-10-12",
+      "verificationScope": "repository_and_existing_tests",
+      "publicDocumentable": true
+    },
+    {
+      "id": "review",
+      "name": "بنك المراجعة",
+      "status": "available",
+      "entry": "/#/review",
+      "requirements": "الإجابات المدعومة التي يسجلها نظام المراجعة فقط.",
+      "evidence": [
+        "frontend/src/pages/Review.jsx",
+        "backend/apps/review/services.py",
+        "backend/apps/review/tests/test_api.py",
+        "frontend/e2e/review-bank.spec.js",
+        "frontend/src/lib/i18n.js"
+      ],
+      "lastVerified": "2026-10-12",
+      "verificationScope": "repository_and_existing_tests",
+      "publicDocumentable": true
+    },
+    {
+      "id": "weekly",
+      "name": "Weekly Recall",
+      "status": "conditional",
+      "entry": "/#/review/weekly",
+      "requirements": "يتطلب وجود أسئلة متقنة مؤهلة؛ لا يظهر اختبار فارغ.",
+      "evidence": [
+        "frontend/src/pages/Review.jsx",
+        "backend/apps/review/policy.py",
+        "backend/apps/review/views.py",
+        "backend/apps/review/tests/test_review.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "lastVerified": "2026-10-12",
+      "verificationScope": "repository_and_existing_tests",
+      "publicDocumentable": true
+    },
+    {
+      "id": "progress",
+      "name": "التقدم",
+      "status": "available",
+      "entry": "/#/progress",
+      "requirements": "بيانات النشاط المسجلة؛ لا ضمان لتحسن أكاديمي أو ترتيب.",
+      "evidence": [
+        "frontend/src/pages/Progress.jsx",
+        "frontend/src/api/motivation.js",
+        "frontend/src/lib/i18n.js"
+      ],
+      "lastVerified": "2026-10-12",
+      "verificationScope": "repository_and_existing_tests",
+      "publicDocumentable": true
+    },
+    {
+      "id": "biweekly",
+      "name": "التقارير الدورية",
+      "status": "conditional",
+      "entry": "/#/weekly-summary",
+      "requirements": "تقرير مولد ومتاح للحساب؛ نشاط كافٍ وفق سياسة التقارير.",
+      "evidence": [
+        "frontend/src/pages/Biweekly.jsx",
+        "backend/apps/biweekly/services.py",
+        "backend/apps/biweekly/tests/test_biweekly.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "lastVerified": "2026-10-12",
+      "verificationScope": "repository_and_existing_tests",
+      "publicDocumentable": true
+    },
+    {
+      "id": "account",
+      "name": "الحساب وتسجيل الدخول",
+      "status": "available",
+      "entry": "/#/settings?section=account",
+      "requirements": "حساب صالح وصلاحيات الخدمة؛ وصول البريد الفعلي يحتاج فحصًا منفصلًا.",
+      "evidence": [
+        "frontend/src/components/auth/AuthPage.jsx",
+        "frontend/src/pages/Settings.jsx",
+        "frontend/src/api/accounts.js",
+        "backend/apps/accounts/tests/test_api.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "lastVerified": "2026-10-12",
+      "verificationScope": "repository_and_existing_tests",
+      "publicDocumentable": true
+    },
+    {
+      "id": "support",
+      "name": "الدعم والملاحظات",
+      "status": "available",
+      "entry": "/#/settings?section=support",
+      "requirements": "مركز معرفة عام، ونموذج الاقتراحات للمستخدم المسجل.",
+      "evidence": [
+        "frontend/src/pages/Settings.jsx",
+        "frontend/src/pages/Feedback.jsx",
+        "backend/apps/feedback/tests/test_api.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "lastVerified": "2026-10-12",
+      "verificationScope": "repository_and_existing_tests",
+      "publicDocumentable": true
+    },
+    {
+      "id": "password-change",
+      "name": "تغيير كلمة المرور",
+      "status": "needs_verification",
+      "entry": "/#/settings?section=account",
+      "requirements": "يوجد نموذج وAPI واختبارات؛ تعليمات التنفيذ معلقة حتى التحقق من التدفق الحالي.",
+      "evidence": [
+        "frontend/src/pages/Settings.jsx",
+        "backend/apps/accounts/tests/test_security_regressions.py"
+      ],
+      "lastVerified": "2026-10-12",
+      "verificationScope": "repository_and_existing_tests",
+      "publicDocumentable": false
+    },
+    {
+      "id": "password-reset",
+      "name": "استعادة كلمة المرور",
+      "status": "needs_verification",
+      "entry": "/#/",
+      "requirements": "لم يُختبر استلام رسالة استعادة حقيقية؛ لا ننشر خطوات تفترض وصولها.",
+      "evidence": [
+        "frontend/src/components/auth/AuthPage.jsx",
+        "backend/apps/accounts/tests/test_email_delivery.py"
+      ],
+      "lastVerified": "2026-10-12",
+      "verificationScope": "repository_and_existing_tests",
+      "publicDocumentable": false
+    },
+    {
+      "id": "email-change",
+      "name": "تغيير البريد",
+      "status": "needs_verification",
+      "entry": "/#/profile",
+      "requirements": "يحتاج تحقق واجهة واستلام رسالة تأكيد حقيقية.",
+      "evidence": [
+        "frontend/src/pages/Profile.jsx",
+        "frontend/src/api/accounts.js"
+      ],
+      "lastVerified": "2026-10-12",
+      "verificationScope": "repository_and_existing_tests",
+      "publicDocumentable": false
+    },
+    {
+      "id": "account-deletion",
+      "name": "حذف الحساب",
+      "status": "partial",
+      "entry": "/#/settings?section=account",
+      "requirements": "طلب وتأكيد متاحان برمجيًا؛ المعالجة النهائية مرتبطة بسياسة الاحتفاظ المعتمدة.",
+      "evidence": [
+        "frontend/src/pages/Settings.jsx",
+        "docs/ACCOUNT_DELETION_RETENTION.md"
+      ],
+      "lastVerified": "2026-10-12",
+      "verificationScope": "repository_and_existing_tests",
+      "publicDocumentable": false
+    },
+    {
+      "id": "group-study",
+      "name": "الدراسة الجماعية",
+      "status": "coming_soon",
+      "entry": "/#/lock-in",
+      "requirements": "محجوبة بسجل إتاحة المنتج؛ My Group هو جدول مجموعات وليس دراسة جماعية مباشرة.",
+      "evidence": [
+        "frontend/src/lib/featureAvailability.js",
+        "frontend/src/pages/MyGroup.jsx"
+      ],
+      "lastVerified": "2026-10-12",
+      "verificationScope": "repository_and_existing_tests",
+      "publicDocumentable": false
+    },
+    {
+      "id": "rankings",
+      "name": "الترتيب بين الطلاب",
+      "status": "coming_soon",
+      "entry": "/#/ranked",
+      "requirements": "محجوبة بسجل إتاحة المنتج.",
+      "evidence": [
+        "frontend/src/lib/featureAvailability.js"
+      ],
+      "lastVerified": "2026-10-12",
+      "verificationScope": "repository_and_existing_tests",
+      "publicDocumentable": false
+    },
+    {
+      "id": "study-plan",
+      "name": "خطة الدراسة",
+      "status": "coming_soon",
+      "entry": "/#/study-plan",
+      "requirements": "محجوبة بسجل إتاحة المنتج.",
+      "evidence": [
+        "frontend/src/lib/featureAvailability.js"
+      ],
+      "lastVerified": "2026-10-12",
+      "verificationScope": "repository_and_existing_tests",
+      "publicDocumentable": false
+    },
+    {
+      "id": "community",
+      "name": "المجتمع",
+      "status": "coming_soon",
+      "entry": "/#/community",
+      "requirements": "محجوبة بسجل إتاحة المنتج.",
+      "evidence": [
+        "frontend/src/lib/featureAvailability.js"
+      ],
+      "lastVerified": "2026-10-12",
+      "verificationScope": "repository_and_existing_tests",
+      "publicDocumentable": false
+    },
+    {
+      "id": "flashcards",
+      "name": "Flashcards",
+      "status": "needs_verification",
+      "entry": null,
+      "requirements": "لم يُعثر على مسار طالب عامل؛ عناصر Card في القارئ ليست دليلًا على Flashcards.",
+      "evidence": [],
+      "lastVerified": "2026-10-12",
+      "verificationScope": "repository_and_existing_tests",
+      "publicDocumentable": false
+    },
+    {
+      "id": "pomodoro",
+      "name": "Pomodoro",
+      "status": "needs_verification",
+      "entry": null,
+      "requirements": "لم يُعثر على تدفق طالب مستقل مثبت؛ مؤقت التركيز ليس إثباتًا لهذه الميزة.",
+      "evidence": [],
+      "lastVerified": "2026-10-12",
+      "verificationScope": "repository_and_existing_tests",
+      "publicDocumentable": false
+    },
+    {
+      "id": "oral",
+      "name": "اختبارات شفوية",
+      "status": "needs_verification",
+      "entry": null,
+      "requirements": "لم يُثبت مسار طالب عامل؛ لا صفحة تسويقية.",
+      "evidence": [],
+      "lastVerified": "2026-10-12",
+      "verificationScope": "repository_and_existing_tests",
+      "publicDocumentable": false
+    }
+  ],
+  "categories": [
+    {
+      "id": "getting-started",
+      "title": "البداية",
+      "description": "التعريف والمسارات والوصول إلى المواد."
+    },
+    {
+      "id": "studying",
+      "title": "الدراسة",
+      "description": "الشيتات والملاحظات والدراسة النشطة والأسئلة."
+    },
+    {
+      "id": "review-progress",
+      "title": "المراجعة والتقدم",
+      "description": "بنك المراجعة واختبار الذاكرة والنشاط المسجل."
+    },
+    {
+      "id": "account-security",
+      "title": "الحساب والخصوصية",
+      "description": "الوصول وخصوصية بيانات الدراسة."
+    },
+    {
+      "id": "troubleshooting",
+      "title": "حل المشكلات",
+      "description": "أجوبة تساعدك على تحديد الخطوة التالية."
+    }
+  ],
+  "questions": [
+    {
+      "id": "what-is-lockin",
+      "category": "getting-started",
+      "relatedFeature": "product",
+      "question": "ما هي Lockin؟",
+      "shortAnswer": "Lockin بيئة دراسية مترابطة تجمع الشيتات والأسئلة والملاحظات والمراجعة في تجربة واحدة. وهي موجهة حاليًا لطلبة الطب البشري وطب الأسنان في ليبيا.",
+      "detailedSteps": [],
+      "keywords": [
+        "شنو لوكين",
+        "Connected Study Ecosystem",
+        "medical study app Libya"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/what-is-lockin/",
+      "featureAvailability": "available",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/App.jsx",
+        "frontend/src/lib/materialCatalog.js",
+        "frontend/tests/materials-catalog.test.js",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "who-is-lockin-for",
+      "category": "getting-started",
+      "relatedFeature": "product",
+      "question": "لمن تتوفر Lockin حاليًا؟",
+      "shortAnswer": "لطلبة الطب البشري وطب الأسنان في المسارات المدعومة داخل ليبيا. المواد والأسئلة التي تظهر لكل طالب مرتبطة بمساره وبالمحتوى المنشور له.",
+      "detailedSteps": [],
+      "keywords": [
+        "لمن تتوفر Lockin حاليًا؟",
+        "Lockin"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/who-is-lockin-for/",
+      "featureAvailability": "available",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/App.jsx",
+        "frontend/src/lib/materialCatalog.js",
+        "frontend/tests/materials-catalog.test.js",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "supported-universities",
+      "category": "getting-started",
+      "relatedFeature": "product",
+      "question": "هل تشمل Lockin كل الجامعات والسنوات؟",
+      "shortAnswer": "لا نفترض توفر كل جامعة أو سنة. خيارات المسار والمواد المتاحة داخل الحساب هي المرجع، وقد تكون بعض المسارات أو المواد غير مدعومة بعد.",
+      "detailedSteps": [],
+      "keywords": [
+        "إتاحة تشمل Lockin كل الجامعات والسنوات؟",
+        "Lockin"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/supported-universities/",
+      "featureAvailability": "available",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/App.jsx",
+        "frontend/src/lib/materialCatalog.js",
+        "frontend/tests/materials-catalog.test.js",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "need-account",
+      "category": "getting-started",
+      "relatedFeature": "account",
+      "question": "هل أحتاج حسابًا للدراسة؟",
+      "shortAnswer": "نعم. الصفحات التعريفية ومركز المساعدة عامة، بينما مواد الدراسة والتقدم والملاحظات داخل حسابك وتخضع للصلاحيات.",
+      "detailedSteps": [],
+      "keywords": [
+        "إتاحة أحتاج حسابًا للدراسة؟",
+        "الحساب وتسجيل الدخول"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/need-account/",
+      "featureAvailability": "available",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/components/auth/AuthPage.jsx",
+        "frontend/src/pages/Settings.jsx",
+        "frontend/src/api/accounts.js",
+        "backend/apps/accounts/tests/test_api.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "open-materials",
+      "category": "getting-started",
+      "relatedFeature": "materials",
+      "question": "كيف أصل إلى شيتاتي؟",
+      "shortAnswer": "ابدأ من قسم المواد في حسابك، ثم اختر المادة والشيت المتاح.",
+      "detailedSteps": [
+        "افتح قسم المواد بعد الدخول.",
+        "اختر المادة الظاهرة لمسارك الدراسي.",
+        "افتح الشيت ثم النسخة المتاحة منه للوصول إلى مساحة الدراسة."
+      ],
+      "keywords": [
+        "طريقة أصل إلى شيتاتي؟",
+        "الشيتات وقارئ PDF"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/open-materials/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Materials.jsx",
+        "frontend/src/components/learning/CatalogSheetCard.jsx",
+        "backend/apps/content/tests/test_catalog_workspace.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "cohort-content",
+      "category": "getting-started",
+      "relatedFeature": "materials",
+      "question": "لماذا تختلف موادي عن مواد زميل آخر؟",
+      "shortAnswer": "قائمة المواد مرتبطة بالمسار والسنة أو الدفعة المسجلة للحساب، وبالمحتوى المنشور. اختلاف المسار قد يعني اختلاف المواد والأسئلة.",
+      "detailedSteps": [],
+      "keywords": [
+        "لماذا تختلف موادي عن مواد زميل آخر؟",
+        "الشيتات وقارئ PDF"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/cohort-content/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Materials.jsx",
+        "frontend/src/components/learning/CatalogSheetCard.jsx",
+        "backend/apps/content/tests/test_catalog_workspace.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "sheet-editions",
+      "category": "getting-started",
+      "relatedFeature": "materials",
+      "question": "ما الفرق بين نسخ الشيت الظاهرة؟",
+      "shortAnswer": "قد يعرض الشيت نسخة الجامعة ونسخة Lockin عندما تكونان متاحتين. تظهر النسخ المنشورة والقابلة للفتح فقط؛ لا يلزم وجود النسختين لكل شيت.",
+      "detailedSteps": [],
+      "keywords": [
+        "ما الفرق بين نسخ الشيت الظاهرة؟",
+        "الشيتات وقارئ PDF"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/sheet-editions/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Materials.jsx",
+        "frontend/src/components/learning/CatalogSheetCard.jsx",
+        "backend/apps/content/tests/test_catalog_workspace.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "about-settings",
+      "category": "getting-started",
+      "relatedFeature": "support",
+      "question": "أين أجد معلومات Lockin داخل التطبيق؟",
+      "shortAnswer": "افتح الإعدادات ثم «عن Lockin» للتعريف والميزات، أو «الدعم» للوصول إلى مركز المساعدة وأدلته.",
+      "detailedSteps": [],
+      "keywords": [
+        "مكان أجد معلومات Lockin داخل التطبيق؟",
+        "الدعم والملاحظات"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/about-settings/",
+      "featureAvailability": "available",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Settings.jsx",
+        "frontend/src/pages/Feedback.jsx",
+        "backend/apps/feedback/tests/test_api.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "open-pdf",
+      "category": "studying",
+      "relatedFeature": "materials",
+      "question": "كيف أفتح الشيت للقراءة؟",
+      "shortAnswer": "اختر مادة ثم شيتًا ونسخة متاحة. افتح مساحة الدراسة واستخدم الدراسة العادية للقراءة والملاحظات.",
+      "detailedSteps": [
+        "افتح المواد واختر المادة.",
+        "افتح الشيت والنسخة المتاحة.",
+        "اختر الدراسة العادية إذا ظهرت نافذة اختيار وضع الدراسة."
+      ],
+      "keywords": [
+        "طريقة أفتح الشيت للقراءة؟",
+        "الشيتات وقارئ PDF"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/open-pdf/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Materials.jsx",
+        "frontend/src/components/learning/CatalogSheetCard.jsx",
+        "backend/apps/content/tests/test_catalog_workspace.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "pdf-notes",
+      "category": "studying",
+      "relatedFeature": "notes",
+      "question": "هل يمكنني كتابة ملاحظات على PDF؟",
+      "shortAnswer": "نعم، توجد أدوات قلم وتحديد ونص داخل مساحة دراسة الشيت. الملاحظات مرتبطة بمساحة العمل الخاصة بالحساب.",
+      "detailedSteps": [],
+      "keywords": [
+        "الكتابة على PDF",
+        "PDF annotation for students",
+        "أدوات المذاكرة على الآيباد"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/pdf-notes/",
+      "featureAvailability": "available",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/CatalogFocusWorkspace.jsx",
+        "backend/apps/focus/annotation_services.py",
+        "backend/apps/focus/tests/test_annotation_document_scope.py",
+        "frontend/e2e/focus-workspace-persistence.spec.js",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "pen-tool",
+      "category": "studying",
+      "relatedFeature": "notes",
+      "question": "كيف أكتب على صفحات الشيت؟",
+      "shortAnswer": "افتح الشيت في مساحة الدراسة واختر أداة القلم من شريط الأدوات، ثم اكتب أو ارسم على الصفحة.",
+      "detailedSteps": [
+        "افتح مساحة دراسة الشيت.",
+        "اختر القلم واضبط اللون أو السمك من خياراته عند الحاجة.",
+        "اكتب على الصفحة وتابع حالة الحفظ قبل مغادرة الجلسة."
+      ],
+      "keywords": [
+        "طريقة أكتب على صفحات الشيت؟",
+        "أدوات الملاحظات والكتابة"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/pen-tool/",
+      "featureAvailability": "available",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/CatalogFocusWorkspace.jsx",
+        "backend/apps/focus/annotation_services.py",
+        "backend/apps/focus/tests/test_annotation_document_scope.py",
+        "frontend/e2e/focus-workspace-persistence.spec.js",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "highlight-tool",
+      "category": "studying",
+      "relatedFeature": "notes",
+      "question": "كيف أحدد الأجزاء المهمة؟",
+      "shortAnswer": "استخدم أداة التحديد في مساحة الدراسة لتمييز مواضع مهمة على الصفحة. التحديد جزء من ملاحظات مساحة العمل وليس تعديلًا على الملف الأصلي.",
+      "detailedSteps": [],
+      "keywords": [
+        "طريقة أحدد الأجزاء المهمة؟",
+        "أدوات الملاحظات والكتابة"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/highlight-tool/",
+      "featureAvailability": "available",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/CatalogFocusWorkspace.jsx",
+        "backend/apps/focus/annotation_services.py",
+        "backend/apps/focus/tests/test_annotation_document_scope.py",
+        "frontend/e2e/focus-workspace-persistence.spec.js",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "erase-marks",
+      "category": "studying",
+      "relatedFeature": "notes",
+      "question": "كيف أمسح الكتابة التي أضفتها؟",
+      "shortAnswer": "اختر الممحاة لإزالة العلامات التي أنشأتها داخل مساحة العمل. الممحاة لا تحذف نص PDF الأصلي.",
+      "detailedSteps": [],
+      "keywords": [
+        "طريقة أمسح الكتابة التي أضفتها؟",
+        "أدوات الملاحظات والكتابة"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/erase-marks/",
+      "featureAvailability": "available",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/CatalogFocusWorkspace.jsx",
+        "backend/apps/focus/annotation_services.py",
+        "backend/apps/focus/tests/test_annotation_document_scope.py",
+        "frontend/e2e/focus-workspace-persistence.spec.js",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "text-notes",
+      "category": "studying",
+      "relatedFeature": "notes",
+      "question": "هل أستطيع إضافة نص مكتوب؟",
+      "shortAnswer": "توجد أداة نص إلى جانب أدوات الرسم في مساحة الدراسة. تستخدم لإضافة ملاحظات نصية قريبة من الصفحة التي تراجعها.",
+      "detailedSteps": [],
+      "keywords": [
+        "إتاحة أستطيع إضافة نص مكتوب؟",
+        "أدوات الملاحظات والكتابة"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/text-notes/",
+      "featureAvailability": "available",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/CatalogFocusWorkspace.jsx",
+        "backend/apps/focus/annotation_services.py",
+        "backend/apps/focus/tests/test_annotation_document_scope.py",
+        "frontend/e2e/focus-workspace-persistence.spec.js",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "notes-private",
+      "category": "account-security",
+      "relatedFeature": "notes",
+      "question": "هل يرى الطلاب الآخرون ملاحظاتي؟",
+      "shortAnswer": "ملاحظات مساحة العمل مرتبطة بالحساب والمستند، وتخضع لصلاحيات الوصول. الصفحات العامة لا تعرض ملاحظاتك أو إجاباتك أو ملفاتك.",
+      "detailedSteps": [],
+      "keywords": [
+        "إتاحة يرى الطلاب الآخرون ملاحظاتي؟",
+        "أدوات الملاحظات والكتابة"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/notes-private/",
+      "featureAvailability": "available",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/CatalogFocusWorkspace.jsx",
+        "backend/apps/focus/annotation_services.py",
+        "backend/apps/focus/tests/test_annotation_document_scope.py",
+        "frontend/e2e/focus-workspace-persistence.spec.js",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "pdf-original",
+      "category": "studying",
+      "relatedFeature": "notes",
+      "question": "هل الكتابة تغير الشيت الأصلي؟",
+      "shortAnswer": "العلامات والملاحظات تحفظ في مساحة العمل المرتبطة بالشيت. استخدامها لا يعني تعديل محتوى الملف الأصلي المنشور.",
+      "detailedSteps": [],
+      "keywords": [
+        "إتاحة الكتابة تغير الشيت الأصلي؟",
+        "أدوات الملاحظات والكتابة"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/pdf-original/",
+      "featureAvailability": "available",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/CatalogFocusWorkspace.jsx",
+        "backend/apps/focus/annotation_services.py",
+        "backend/apps/focus/tests/test_annotation_document_scope.py",
+        "frontend/e2e/focus-workspace-persistence.spec.js",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "active-study-what",
+      "category": "studying",
+      "relatedFeature": "active-study",
+      "question": "ما هو Active Study؟",
+      "shortAnswer": "هو وضع دراسة يربط أجزاء الشيت باختبارات بين المراحل، ثم اختبار نهائي عند إكمالها. يتطلب شيتًا جاهزًا بأسئلة منشورة.",
+      "detailedSteps": [],
+      "keywords": [
+        "الدراسة التفاعلية",
+        "active recall",
+        "مراحل الدراسة"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/active-study-what/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/CatalogFocusWorkspace.jsx",
+        "backend/apps/focus/managed_active_study.py",
+        "backend/apps/focus/tests/test_managed_active_study.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "start-active-study",
+      "category": "studying",
+      "relatedFeature": "active-study",
+      "question": "كيف أبدأ Active Study؟",
+      "shortAnswer": "افتح مساحة الشيت، واختر Active Study ومستوى الصعوبة، ثم اضغط «ابدأ الدراسة النشطة» عندما يكون الخيار متاحًا.",
+      "detailedSteps": [
+        "افتح المواد ثم المادة والشيت والنسخة المتاحة.",
+        "في اختيار وضع الدراسة، اختر Active Study.",
+        "اختر مستوى الصعوبة واضغط «ابدأ الدراسة النشطة».",
+        "إذا ظهرت رسالة عدم الإتاحة، استخدم الدراسة العادية أو شيتًا جاهزًا آخر."
+      ],
+      "keywords": [
+        "طريقة أبدأ Active Study؟",
+        "Active Study"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/start-active-study/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/CatalogFocusWorkspace.jsx",
+        "backend/apps/focus/managed_active_study.py",
+        "backend/apps/focus/tests/test_managed_active_study.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "active-availability",
+      "category": "studying",
+      "relatedFeature": "active-study",
+      "question": "هل Active Study متاحة لكل شيت؟",
+      "shortAnswer": "لا. إتاحتها تتطلب تجهيز الشيت والأسئلة المناسبة للمستوى المختار. وجود PDF وحده لا يعني جاهزية الدراسة النشطة.",
+      "detailedSteps": [],
+      "keywords": [
+        "إتاحة Active Study متاحة لكل شيت؟",
+        "Active Study"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/active-availability/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/CatalogFocusWorkspace.jsx",
+        "backend/apps/focus/managed_active_study.py",
+        "backend/apps/focus/tests/test_managed_active_study.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "active-difficulty",
+      "category": "studying",
+      "relatedFeature": "active-study",
+      "question": "هل أستطيع اختيار صعوبة Active Study؟",
+      "shortAnswer": "نعم. نافذة بدء الدراسة النشطة تعرض مستويات سهل ومتوسط وصعب. الجاهزية والتقدم مرتبطان بالمستوى المختار.",
+      "detailedSteps": [],
+      "keywords": [
+        "إتاحة أستطيع اختيار صعوبة Active Study؟",
+        "Active Study"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/active-difficulty/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/CatalogFocusWorkspace.jsx",
+        "backend/apps/focus/managed_active_study.py",
+        "backend/apps/focus/tests/test_managed_active_study.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "active-parts",
+      "category": "studying",
+      "relatedFeature": "active-study",
+      "question": "ماذا يحدث بعد قراءة جزء من الشيت؟",
+      "shortAnswer": "يتيح Active Study اختبار المرحلة عندما يصل الجزء إلى حالة تسمح بذلك. تتبع القراءة والأسئلة تقدم الدراسة نفسه، بدل بدء اختبار منفصل غير مرتبط بالشيت.",
+      "detailedSteps": [],
+      "keywords": [
+        "ماذا يحدث بعد قراءة جزء من الشيت؟",
+        "Active Study"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/active-parts/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/CatalogFocusWorkspace.jsx",
+        "backend/apps/focus/managed_active_study.py",
+        "backend/apps/focus/tests/test_managed_active_study.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "active-final",
+      "category": "studying",
+      "relatedFeature": "active-study",
+      "question": "هل يوجد اختبار في نهاية Active Study؟",
+      "shortAnswer": "نعم، يدعم التدفق اختبارًا نهائيًا بعد المراحل. يعتمد عدد الأسئلة ومحتواها على إعداد الشيت المنشور، وليس رقمًا موحدًا لكل المواد.",
+      "detailedSteps": [],
+      "keywords": [
+        "إتاحة يوجد اختبار في نهاية Active Study؟",
+        "Active Study"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/active-final/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/CatalogFocusWorkspace.jsx",
+        "backend/apps/focus/managed_active_study.py",
+        "backend/apps/focus/tests/test_managed_active_study.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "active-resume",
+      "category": "studying",
+      "relatedFeature": "active-study",
+      "question": "كيف أرجع إلى دراسة نشطة سابقة؟",
+      "shortAnswer": "استخدم خيار الخروج مع الحفظ عندما يظهر، ثم افتح الشيت نفسه والمستوى نفسه للعودة إلى التقدم المحفوظ. لا تتعامل مع إجابات لم تؤكد واجهة الاختبار إرسالها على أنها نتائج محفوظة.",
+      "detailedSteps": [],
+      "keywords": [
+        "طريقة أرجع إلى دراسة نشطة سابقة؟",
+        "Active Study"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/active-resume/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/CatalogFocusWorkspace.jsx",
+        "backend/apps/focus/managed_active_study.py",
+        "backend/apps/focus/tests/test_managed_active_study.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "active-restart",
+      "category": "studying",
+      "relatedFeature": "active-study",
+      "question": "ماذا يحدث إذا أعدت Active Study من البداية؟",
+      "shortAnswer": "إعادة البدء للمستوى المختار تعيد تقدم الدراسة النشطة إلى الجزء الأول بعد تأكيدك. رسالة التأكيد توضّح أن ملاحظات PDF وعلاماته تبقى.",
+      "detailedSteps": [],
+      "keywords": [
+        "ماذا يحدث إذا أعدت Active Study من البداية؟",
+        "Active Study"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/active-restart/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/CatalogFocusWorkspace.jsx",
+        "backend/apps/focus/managed_active_study.py",
+        "backend/apps/focus/tests/test_managed_active_study.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "normal-or-active",
+      "category": "studying",
+      "relatedFeature": "active-study",
+      "question": "ما الفرق بين الدراسة العادية وActive Study؟",
+      "shortAnswer": "الدراسة العادية للقراءة والعمل على الشيت؛ الدراسة النشطة تضيف مراحل وأسئلة واختبارًا نهائيًا للشيتات الجاهزة. أدوات PDF تبقى ضمن مساحة الدراسة.",
+      "detailedSteps": [],
+      "keywords": [
+        "ما الفرق بين الدراسة العادية وActive Study؟",
+        "Active Study"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/normal-or-active/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/CatalogFocusWorkspace.jsx",
+        "backend/apps/focus/managed_active_study.py",
+        "backend/apps/focus/tests/test_managed_active_study.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "question-sources",
+      "category": "studying",
+      "relatedFeature": "questions",
+      "question": "من أين أصل إلى الأسئلة؟",
+      "shortAnswer": "افتح قسم الأسئلة في حسابك ثم المصدر والمادة المتاحين لمسارك. تختلف الأسئلة المنشورة حسب المادة والمسار.",
+      "detailedSteps": [
+        "افتح قسم الأسئلة.",
+        "اختر المصدر المتاح، ثم المادة.",
+        "اختر مجموعة الأسئلة المنشورة وابدأ الاختبار وفق الخيارات المعروضة."
+      ],
+      "keywords": [
+        "من أين أصل إلى الأسئلة؟",
+        "الأسئلة"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/question-sources/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Questions.jsx",
+        "frontend/src/components/learning/PracticeQuestions.jsx",
+        "backend/apps/content/tests/test_catalog_questions.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "practical-questions",
+      "category": "studying",
+      "relatedFeature": "questions",
+      "question": "هل تدعم Lockin أسئلة طب الأسنان العملية؟",
+      "shortAnswer": "تدعم بعض مصادر التدريب أسئلة تعتمد على الشرائح والصور أو تحديد موضع. إتاحتها مرتبطة بالمادة والمحتوى المنشور؛ لا تشمل بالضرورة كل مادة أو كل طالب.",
+      "detailedSteps": [],
+      "keywords": [
+        "إتاحة تدعم Lockin أسئلة طب الأسنان العملية؟",
+        "الأسئلة"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/practical-questions/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Questions.jsx",
+        "frontend/src/components/learning/PracticeQuestions.jsx",
+        "backend/apps/content/tests/test_catalog_questions.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "mixed-questions",
+      "category": "studying",
+      "relatedFeature": "questions",
+      "question": "لماذا لا أستطيع فتح Mix؟",
+      "shortAnswer": "مصدر Mix موسوم غير متاح في سجل مصادر الأسئلة الحالي. استخدم أحد المصادر المتاحة لمسارك بدل افتراض وجود اختبار مختلط.",
+      "detailedSteps": [],
+      "keywords": [
+        "لماذا لا أستطيع فتح Mix؟",
+        "الأسئلة"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/mixed-questions/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Questions.jsx",
+        "frontend/src/components/learning/PracticeQuestions.jsx",
+        "backend/apps/content/tests/test_catalog_questions.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "question-explanations",
+      "category": "studying",
+      "relatedFeature": "questions",
+      "question": "هل توجد توضيحات للإجابات؟",
+      "shortAnswer": "تستخدم واجهات الأسئلة والمراجعة مكوّن توضيح للإجابة عندما يتوفر المحتوى. لا نفترض أن لكل سؤال توضيحًا منشورًا.",
+      "detailedSteps": [],
+      "keywords": [
+        "إتاحة توجد توضيحات للإجابات؟",
+        "الأسئلة"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/question-explanations/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Questions.jsx",
+        "frontend/src/components/learning/PracticeQuestions.jsx",
+        "backend/apps/content/tests/test_catalog_questions.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "find-mistakes",
+      "category": "review-progress",
+      "relatedFeature": "review",
+      "question": "كيف أراجع أخطائي؟",
+      "shortAnswer": "افتح مركز المراجعة ثم بنك المراجعة أو «ابدأ المراجعة» عند وجود أسئلة نشطة. أخطاء المصادر المدعومة هي التي تدخل هذا النظام.",
+      "detailedSteps": [
+        "افتح مركز المراجعة.",
+        "اختر «افتح بنك المراجعة» أو «ابدأ المراجعة» إذا ظهرت.",
+        "اختر المادة وأجب عن الأسئلة المعروضة، ثم تابع نتيجة المراجعة."
+      ],
+      "keywords": [
+        "طريقة أراجع أخطائي؟",
+        "بنك المراجعة"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/find-mistakes/",
+      "featureAvailability": "available",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Review.jsx",
+        "backend/apps/review/services.py",
+        "backend/apps/review/tests/test_api.py",
+        "frontend/e2e/review-bank.spec.js",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "saved-mistakes",
+      "category": "review-progress",
+      "relatedFeature": "review",
+      "question": "هل تحفظ كل إجابة خاطئة في بنك المراجعة؟",
+      "shortAnswer": "يسجل النظام أخطاء محاولات الأسئلة المدعومة بالمراجعة. لا نعد بحفظ أخطاء أي نشاط خارج هذا التدفق أو محاولات لم تصل إلى الخادم.",
+      "detailedSteps": [],
+      "keywords": [
+        "إتاحة تحفظ كل إجابة خاطئة في بنك المراجعة؟",
+        "بنك المراجعة"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/saved-mistakes/",
+      "featureAvailability": "available",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Review.jsx",
+        "backend/apps/review/services.py",
+        "backend/apps/review/tests/test_api.py",
+        "frontend/e2e/review-bank.spec.js",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "repeat-mistake",
+      "category": "review-progress",
+      "relatedFeature": "review",
+      "question": "ماذا يحدث إذا أخطأت في السؤال نفسه مرة أخرى؟",
+      "shortAnswer": "يحتفظ بنك المراجعة بالسؤال وسجل تكرار الخطأ بدل اعتباره سؤالًا مختلفًا في كل مرة، ليساعدك على العودة للنقطة التي تحتاج اهتمامًا.",
+      "detailedSteps": [],
+      "keywords": [
+        "ماذا يحدث إذا أخطأت في السؤال نفسه مرة أخرى؟",
+        "بنك المراجعة"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/repeat-mistake/",
+      "featureAvailability": "available",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Review.jsx",
+        "backend/apps/review/services.py",
+        "backend/apps/review/tests/test_api.py",
+        "frontend/e2e/review-bank.spec.js",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "mastered-question",
+      "category": "review-progress",
+      "relatedFeature": "review",
+      "question": "أين يذهب السؤال بعد الإجابة الصحيحة في المراجعة؟",
+      "shortAnswer": "يخرج من قائمة المراجعة النشطة ويصبح مؤهلًا لاسترجاع لاحق وفق سياسة المراجعة. اختفاؤه من القائمة النشطة لا يعني حذف سجله.",
+      "detailedSteps": [],
+      "keywords": [
+        "مكان يذهب السؤال بعد الإجابة الصحيحة في المراجعة؟",
+        "بنك المراجعة"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/mastered-question/",
+      "featureAvailability": "available",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Review.jsx",
+        "backend/apps/review/services.py",
+        "backend/apps/review/tests/test_api.py",
+        "frontend/e2e/review-bank.spec.js",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "empty-review",
+      "category": "review-progress",
+      "relatedFeature": "review",
+      "question": "ماذا يعني أن بنك المراجعة فارغ؟",
+      "shortAnswer": "لا توجد أسئلة نشطة تحتاج مراجعة في الوقت الحالي. قد يبقى سجل الأسئلة المتقنة محفوظًا، ولا يعني ذلك فقدان بياناتك.",
+      "detailedSteps": [],
+      "keywords": [
+        "ماذا يعني أن بنك المراجعة فارغ؟",
+        "بنك المراجعة"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/empty-review/",
+      "featureAvailability": "available",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Review.jsx",
+        "backend/apps/review/services.py",
+        "backend/apps/review/tests/test_api.py",
+        "frontend/e2e/review-bank.spec.js",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "weekly-recall",
+      "category": "review-progress",
+      "relatedFeature": "weekly",
+      "question": "ما هو Weekly Recall؟",
+      "shortAnswer": "اختبار ذاكرة دوري يستخدم أسئلة مؤهلة سبق أن صححتها في بنك المراجعة. يظهر عندما تتوفر أسئلة مناسبة لحسابك.",
+      "detailedSteps": [],
+      "keywords": [
+        "ما هو Weekly Recall؟",
+        "Weekly Recall"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/weekly-recall/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Review.jsx",
+        "backend/apps/review/policy.py",
+        "backend/apps/review/views.py",
+        "backend/apps/review/tests/test_review.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "weekly-not-ready",
+      "category": "review-progress",
+      "relatedFeature": "weekly",
+      "question": "لماذا يظهر Weekly Recall غير جاهز؟",
+      "shortAnswer": "قد لا توجد أسئلة متقنة مؤهلة بعد. ابدأ بتصحيح أسئلة في بنك المراجعة؛ لا ينشئ النظام اختبارًا فارغًا لمجرد مرور أسبوع.",
+      "detailedSteps": [],
+      "keywords": [
+        "لماذا يظهر Weekly Recall غير جاهز؟",
+        "Weekly Recall"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/weekly-not-ready/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Review.jsx",
+        "backend/apps/review/policy.py",
+        "backend/apps/review/views.py",
+        "backend/apps/review/tests/test_review.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "start-weekly",
+      "category": "review-progress",
+      "relatedFeature": "weekly",
+      "question": "كيف أبدأ اختبار الذاكرة؟",
+      "shortAnswer": "من مركز المراجعة، استخدم زر بدء أو استكمال اختبار الذاكرة عندما يظهر. إن لم يكن متاحًا، تابع بنك المراجعة أولًا.",
+      "detailedSteps": [],
+      "keywords": [
+        "طريقة أبدأ اختبار الذاكرة؟",
+        "Weekly Recall"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/start-weekly/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Review.jsx",
+        "backend/apps/review/policy.py",
+        "backend/apps/review/views.py",
+        "backend/apps/review/tests/test_review.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "weekly-errors",
+      "category": "review-progress",
+      "relatedFeature": "weekly",
+      "question": "ماذا يحدث للأخطاء في اختبار الذاكرة؟",
+      "shortAnswer": "الأسئلة التي تجيب عنها خطأ في Weekly Recall تعود إلى بنك المراجعة النشط وفق نتيجة الاختبار.",
+      "detailedSteps": [],
+      "keywords": [
+        "ماذا يحدث للأخطاء في اختبار الذاكرة؟",
+        "Weekly Recall"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/weekly-errors/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Review.jsx",
+        "backend/apps/review/policy.py",
+        "backend/apps/review/views.py",
+        "backend/apps/review/tests/test_review.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "progress-page",
+      "category": "review-progress",
+      "relatedFeature": "progress",
+      "question": "كيف أتابع تقدمي؟",
+      "shortAnswer": "افتح قسم التقدم للاطلاع على النشاط المسجل ونقاط التقدم وسجلها وأيام الاستمرارية. هذه مؤشرات استخدام، وليست ضمانًا لدرجة امتحان أو مقارنة أكاديمية.",
+      "detailedSteps": [],
+      "keywords": [
+        "طريقة أتابع تقدمي؟",
+        "التقدم"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/progress-page/",
+      "featureAvailability": "available",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Progress.jsx",
+        "frontend/src/api/motivation.js",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "periodic-reports",
+      "category": "review-progress",
+      "relatedFeature": "biweekly",
+      "question": "أين أجد تقارير الدراسة الدورية؟",
+      "shortAnswer": "تعرض واجهات التقارير تحليلًا ومراجعة للتقارير التي ولّدها النظام لحسابك. قد لا يظهر تقرير عند غياب نشاط كافٍ أو عدم وجود تقرير متاح.",
+      "detailedSteps": [],
+      "keywords": [
+        "مكان أجد تقارير الدراسة الدورية؟",
+        "التقارير الدورية"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/periodic-reports/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Biweekly.jsx",
+        "backend/apps/biweekly/services.py",
+        "backend/apps/biweekly/tests/test_biweekly.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "private-and-public",
+      "category": "account-security",
+      "relatedFeature": "product",
+      "question": "ما الذي يظهر للبحث وما الذي يبقى خاصًا؟",
+      "shortAnswer": "صفحات التعريف والميزات والأدلة فقط عامة. مواد الدراسة وبيانات الحساب والملاحظات والإجابات خلف صلاحيات التطبيق، ولا تدخل خريطة الموقع العامة.",
+      "detailedSteps": [],
+      "keywords": [
+        "ما الذي يظهر للبحث وما الذي يبقى خاصًا؟",
+        "Lockin"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/private-and-public/",
+      "featureAvailability": "available",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/App.jsx",
+        "frontend/src/lib/materialCatalog.js",
+        "frontend/tests/materials-catalog.test.js",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "account-security",
+      "category": "account-security",
+      "relatedFeature": "account",
+      "question": "كيف أحمي بيانات حسابي؟",
+      "shortAnswer": "لا تشارك كلمة المرور أو رموز التحقق أو روابط الاستعادة مع الآخرين. استخدم الحساب الخاص بك للوصول إلى بيانات الدراسة المرتبطة به.",
+      "detailedSteps": [],
+      "keywords": [
+        "طريقة أحمي بيانات حسابي؟",
+        "الحساب وتسجيل الدخول"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/account-security/",
+      "featureAvailability": "available",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/components/auth/AuthPage.jsx",
+        "frontend/src/pages/Settings.jsx",
+        "frontend/src/api/accounts.js",
+        "backend/apps/accounts/tests/test_api.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "supported-access",
+      "category": "account-security",
+      "relatedFeature": "materials",
+      "question": "هل الصفحة التعريفية تمنحني صلاحية كل الشيتات؟",
+      "shortAnswer": "لا. الصفحة تشرح طريقة العمل فقط. الوصول إلى الشيت أو الأسئلة يعتمد على المسار والمحتوى المنشور وصلاحيات الحساب أو الاشتراك.",
+      "detailedSteps": [],
+      "keywords": [
+        "إتاحة الصفحة التعريفية تمنحني صلاحية كل الشيتات؟",
+        "الشيتات وقارئ PDF"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/supported-access/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Materials.jsx",
+        "frontend/src/components/learning/CatalogSheetCard.jsx",
+        "backend/apps/content/tests/test_catalog_workspace.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "missing-materials",
+      "category": "troubleshooting",
+      "relatedFeature": "materials",
+      "question": "لماذا لا تظهر مادة أو شيت؟",
+      "shortAnswer": "قد يكون المسار غير مدعوم أو لم ينشر له محتوى بعد، أو لم يكن الشيت قابلًا للفتح. تحقق من مسارك في الحساب ولا تغيّره لمجرد التجربة؛ تغيير المسار قد يؤثر في تقدمك.",
+      "detailedSteps": [],
+      "keywords": [
+        "لماذا لا تظهر مادة أو شيت؟",
+        "الشيتات وقارئ PDF"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/missing-materials/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Materials.jsx",
+        "frontend/src/components/learning/CatalogSheetCard.jsx",
+        "backend/apps/content/tests/test_catalog_workspace.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "missing-questions",
+      "category": "troubleshooting",
+      "relatedFeature": "questions",
+      "question": "لماذا تظهر رسالة عدم وجود أسئلة؟",
+      "shortAnswer": "نشر الشيت ونشر الأسئلة عمليتان منفصلتان. قد يتوفر ملف للقراءة قبل توفر أسئلة للمادة أو المصدر المختار.",
+      "detailedSteps": [],
+      "keywords": [
+        "لماذا تظهر رسالة عدم وجود أسئلة؟",
+        "الأسئلة"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/missing-questions/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Questions.jsx",
+        "frontend/src/components/learning/PracticeQuestions.jsx",
+        "backend/apps/content/tests/test_catalog_questions.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "reader-unavailable",
+      "category": "troubleshooting",
+      "relatedFeature": "materials",
+      "question": "ماذا أفعل إذا تعذر فتح الشيت؟",
+      "shortAnswer": "تحقق من الاتصال ومن توفر الشيت وصلاحية حسابك، ثم استخدم إعادة المحاولة إن ظهرت. إذا استمرت المشكلة، أرسل وصفًا لها من الإعدادات دون مشاركة ملف محمي أو بيانات حساب حساسة.",
+      "detailedSteps": [],
+      "keywords": [
+        "ماذا أفعل إذا تعذر فتح الشيت؟",
+        "الشيتات وقارئ PDF"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/reader-unavailable/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Materials.jsx",
+        "frontend/src/components/learning/CatalogSheetCard.jsx",
+        "backend/apps/content/tests/test_catalog_workspace.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "notes-not-synced",
+      "category": "troubleshooting",
+      "relatedFeature": "notes",
+      "question": "ماذا أفعل إذا لم تتزامن ملاحظاتي؟",
+      "shortAnswer": "انتظر حالة الحفظ أو المزامنة الظاهرة وتحقق من الاتصال. لا تمسح بيانات المتصفح ولا تسجل الخروج كخطوة أولى قبل التأكد من حفظ العمل.",
+      "detailedSteps": [],
+      "keywords": [
+        "ماذا أفعل إذا لم تتزامن ملاحظاتي؟",
+        "أدوات الملاحظات والكتابة"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/notes-not-synced/",
+      "featureAvailability": "available",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/CatalogFocusWorkspace.jsx",
+        "backend/apps/focus/annotation_services.py",
+        "backend/apps/focus/tests/test_annotation_document_scope.py",
+        "frontend/e2e/focus-workspace-persistence.spec.js",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "active-start-error",
+      "category": "troubleshooting",
+      "relatedFeature": "active-study",
+      "question": "ماذا أفعل إذا تعذر بدء Active Study؟",
+      "shortAnswer": "تحقق من جاهزية الشيت والمستوى ومن الاتصال، واستخدم إعادة المحاولة إذا ظهرت. تستطيع مواصلة الدراسة العادية عندما تكون متاحة؛ لا نفترض جاهزية أسئلة الشيت.",
+      "detailedSteps": [],
+      "keywords": [
+        "ماذا أفعل إذا تعذر بدء Active Study؟",
+        "Active Study"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/active-start-error/",
+      "featureAvailability": "conditional",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/CatalogFocusWorkspace.jsx",
+        "backend/apps/focus/managed_active_study.py",
+        "backend/apps/focus/tests/test_managed_active_study.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    },
+    {
+      "id": "contact-support",
+      "category": "troubleshooting",
+      "relatedFeature": "support",
+      "question": "كيف أصل إلى الدعم؟",
+      "shortAnswer": "افتح الإعدادات ثم «الدعم» للوصول إلى مركز المساعدة. للإبلاغ عن مشكلة من حسابك، استخدم قسم الاقتراحات واختر تصنيف المشكلة وأرسل وصفًا مختصرًا.",
+      "detailedSteps": [
+        "افتح الإعدادات ثم الدعم.",
+        "ابحث في الأدلة المناسبة للمشكلة.",
+        "للإبلاغ، افتح الاقتراحات واكتب ما حدث وما كنت تحاول فعله، دون كلمة المرور أو رمز التحقق."
+      ],
+      "keywords": [
+        "طريقة أصل إلى الدعم؟",
+        "الدعم والملاحظات"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/contact-support/",
+      "featureAvailability": "available",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Settings.jsx",
+        "frontend/src/pages/Feedback.jsx",
+        "backend/apps/feedback/tests/test_api.py",
+        "frontend/src/lib/i18n.js"
+      ],
+      "status": "published"
+    }
+  ],
+  "pendingQuestions": [
+    {
+      "id": "change-password",
+      "relatedFeature": "password-change",
+      "question": "كيف أغير كلمة المرور؟",
+      "status": "needs_verification",
+      "reason": "يوجد نموذج وAPI واختبارات؛ تعليمات التنفيذ معلقة حتى التحقق من التدفق الحالي.",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Settings.jsx",
+        "backend/apps/accounts/tests/test_security_regressions.py"
+      ]
+    },
+    {
+      "id": "reset-password",
+      "relatedFeature": "password-reset",
+      "question": "نسيت كلمة المرور، كيف أستعيد حسابي؟",
+      "status": "needs_verification",
+      "reason": "لم يُختبر استلام رسالة استعادة حقيقية؛ لا ننشر خطوات تفترض وصولها.",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/components/auth/AuthPage.jsx",
+        "backend/apps/accounts/tests/test_email_delivery.py"
+      ]
+    },
+    {
+      "id": "change-email",
+      "relatedFeature": "email-change",
+      "question": "كيف أغير البريد الإلكتروني؟",
+      "status": "needs_verification",
+      "reason": "يحتاج تحقق واجهة واستلام رسالة تأكيد حقيقية.",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Profile.jsx",
+        "frontend/src/api/accounts.js"
+      ]
+    },
+    {
+      "id": "delete-account",
+      "relatedFeature": "account-deletion",
+      "question": "كيف أحذف حسابي؟",
+      "status": "needs_verification",
+      "reason": "طلب وتأكيد متاحان برمجيًا؛ المعالجة النهائية مرتبطة بسياسة الاحتفاظ المعتمدة.",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/pages/Settings.jsx",
+        "docs/ACCOUNT_DELETION_RETENTION.md"
+      ]
+    },
+    {
+      "id": "flashcards",
+      "relatedFeature": "flashcards",
+      "question": "هل تتوفر Flashcards؟",
+      "status": "needs_verification",
+      "reason": "لم يُعثر على مسار طالب عامل؛ عناصر Card في القارئ ليست دليلًا على Flashcards.",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": []
+    },
+    {
+      "id": "pomodoro",
+      "relatedFeature": "pomodoro",
+      "question": "هل تتوفر Pomodoro؟",
+      "status": "needs_verification",
+      "reason": "لم يُعثر على تدفق طالب مستقل مثبت؛ مؤقت التركيز ليس إثباتًا لهذه الميزة.",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": []
+    },
+    {
+      "id": "oral-exams",
+      "relatedFeature": "oral",
+      "question": "هل تتوفر اختبارات شفوية؟",
+      "status": "needs_verification",
+      "reason": "لم يُثبت مسار طالب عامل؛ لا صفحة تسويقية.",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": []
+    },
+    {
+      "id": "live-study-group",
+      "relatedFeature": "group-study",
+      "question": "كيف أبدأ دراسة جماعية؟",
+      "status": "needs_verification",
+      "reason": "محجوبة بسجل إتاحة المنتج؛ My Group هو جدول مجموعات وليس دراسة جماعية مباشرة.",
+      "lastVerified": "2026-10-12",
+      "verificationEvidence": [
+        "frontend/src/lib/featureAvailability.js",
+        "frontend/src/pages/MyGroup.jsx"
+      ]
+    }
+  ],
+  "evidenceDigests": {
+    "frontend/src/App.jsx": "2ceef8adc84e628ff802354172cf7d5a026ca3170a668061b21d99f57ab953c3",
+    "frontend/src/lib/materialCatalog.js": "00f7e188923bd420fcba2bb206e9e21e6eed1de29409eadea495468f4c2a543d",
+    "frontend/tests/materials-catalog.test.js": "447ec50b1f9ca08b98cd2bb2c149dc52837c7687ddac175114b65d7e4db938c7",
+    "frontend/src/lib/i18n.js": "935b0992b161a1a37af1baaee3c4eda374394f50b74ceaa0209e2fb7cb13e1dd",
+    "frontend/src/pages/Materials.jsx": "f85aa3d87661f5f361d3233ea207d585cf05c83250e7ce65ea43af9fb7c333ec",
+    "frontend/src/components/learning/CatalogSheetCard.jsx": "0bce127fc2679e5599d10951b9bbeefa6aaec2827e5222877b36d4695240d713",
+    "backend/apps/content/tests/test_catalog_workspace.py": "3fab31330499c8193155f4a29fc49f0e99d8b6038bab0763568f328e115cce7f",
+    "frontend/src/pages/CatalogFocusWorkspace.jsx": "d98ee3fc320e09a022da55a94173eed728b8b6db5eac591c4974c5e1d07b9e1b",
+    "backend/apps/focus/annotation_services.py": "f69372630ac361d91b813f3746df864e0977c77dc4f406d91b46fc852dc840e2",
+    "backend/apps/focus/tests/test_annotation_document_scope.py": "f3e6728a5fc81fe587f22ad6f720c7ced9b8ceadbf4d50be8e8219bf5fca2939",
+    "frontend/e2e/focus-workspace-persistence.spec.js": "a40d01b19ed3193f6b4b1ba214c0b9db4eb02ad2b4d975bce02872ec020c3979",
+    "backend/apps/focus/managed_active_study.py": "6a4cfed3aad91907abd6becc13234b82ba89719238d1fa9736bf6b1f3645e849",
+    "backend/apps/focus/tests/test_managed_active_study.py": "568a04a1b382ff9e9797c262ad59bbfd6bccca5f13d4e2b150c027ebd659546c",
+    "frontend/src/pages/Questions.jsx": "581a85fb9a7091f563e190fa88781f47789af1eea1225b0243f3be3d86227a99",
+    "frontend/src/components/learning/PracticeQuestions.jsx": "cad5822698f4d5fae7359af90416e9377ebf7607e3dac7db324c1525de891b64",
+    "backend/apps/content/tests/test_catalog_questions.py": "920c90319fa614dec0fbb78574e71d34202220e496b859bfa0dc7c552e32e920",
+    "frontend/src/pages/Review.jsx": "0f5d303c8f07ea16bdbb062b526fe34caa0d661e614c87d7f408ead8cf65bc68",
+    "backend/apps/review/services.py": "f7464c76dc122366bd01a422eca72ebe095ffa3045cd9fdfa7259182c841baa4",
+    "backend/apps/review/tests/test_api.py": "736f22eaa16b60e85e4714533a0025cadc29e62293f7031a48d143a078697417",
+    "frontend/e2e/review-bank.spec.js": "829fe1c5a7a770c14db1bd96d23fc952857c0ed2e0a8a3a3bf9e879c44d1a572",
+    "backend/apps/review/policy.py": "1e5d625ecfd5d00fe63dce8b862f0492f7e6e5d6420ae5b402aa7eca6f15d0ce",
+    "backend/apps/review/views.py": "d4c7b1a5e3f27c39f322654aca21701a4ae2ee445caa1adb7115f4c881dfcf91",
+    "backend/apps/review/tests/test_review.py": "1c80e2817783ede2a7d3270b120f88e89c97cf8e19a40112e6e27faac0bd95cc",
+    "frontend/src/pages/Progress.jsx": "a462e70ec487893d869703a1697facd871896a594ef0db162010021c6e25f391",
+    "frontend/src/api/motivation.js": "3c4e46a5c2e2ce13e52e3f62e7a9d402c2574c90d297f5915cd1c6bae733e176",
+    "frontend/src/pages/Biweekly.jsx": "a3fa9547869885abdf21f28b8b06eb6604238c867591e1375bf8770ca80c8ec2",
+    "backend/apps/biweekly/services.py": "2444650f428896e2cacd0a6f94d95a8656676bcd997d07595acd0d38fa693c32",
+    "backend/apps/biweekly/tests/test_biweekly.py": "651eb7d595f48a0bdc9c92caa90aae3146e4b21fec3ea0a5088e5d52d48c879c",
+    "frontend/src/components/auth/AuthPage.jsx": "40dbe29061f67a7f404408b8355bd7d207eed61a2b59c718bbb9b6bf951c9e9f",
+    "frontend/src/pages/Settings.jsx": "8eb92ec53c75d791f8db22e1170319d925953f1b43778b2687049f9ebf078569",
+    "frontend/src/api/accounts.js": "343c82d0ddb16095bea2574cabb1e8b592b3ec35a8cb6f5163f465ce6f26302a",
+    "backend/apps/accounts/tests/test_api.py": "f1db898373432b202439d7163d2799badd86aa75b9fd1f992d2949d5902a6cc6",
+    "frontend/src/pages/Feedback.jsx": "92204acf6852db18570eae60564de67c24ca68d118628fbdb1c8337087b4d4cb",
+    "backend/apps/feedback/tests/test_api.py": "338bdb17ab192bbf1e43a0982cfaf86f273f51130ba46c574aad7526653c318e",
+    "backend/apps/accounts/tests/test_security_regressions.py": "dbecaa675a618beb983edb6dbae59ec35393665dfe99899b42afbbffd10a16fa",
+    "backend/apps/accounts/tests/test_email_delivery.py": "5740aca699e1752eccf48d6675ba491aa28ac3d5364722a633ff81c2608ea588",
+    "frontend/src/pages/Profile.jsx": "d31d05023680158c9eb9b2fd10c37483d5fa4fa82a5f01d9fd819d6aed57267f",
+    "docs/ACCOUNT_DELETION_RETENTION.md": "bbbadadaca0c6c97a01df471ff300fedff71eafa16473ad21188695929764c00",
+    "frontend/src/lib/featureAvailability.js": "4b064b64bd851d433fce1990f720f689bf773848d4fbee69e5f76cbe3629d394",
+    "frontend/src/pages/MyGroup.jsx": "8bb12fa42170deb4d4bd3f9e7e8edf0b9914cec68f0e4e1878cf459fd40fdf4d"
+  }
+}

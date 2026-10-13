@@ -263,6 +263,12 @@ case "$headers" in
     *) fail "security headers are missing" ;;
 esac
 
+if LOCKIN_SEARCH_INSECURE=1 scripts/ci/public-search-smoke.sh "https://127.0.0.1:$https_port" "$public_host"; then
+    pass "public search pages and private indexing boundary verified"
+else
+    fail "public search pages or private indexing boundary failed"
+fi
+
 log "result"
 if [ "$failures" -ne 0 ]; then
     printf '%s check(s) failed.\n' "$failures" >&2

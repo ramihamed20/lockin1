@@ -19,6 +19,7 @@ import { ResponsiveThemePreview } from "../components/shared/ResponsiveThemePrev
 import OfflineSettings from "../offline/OfflineSettings.jsx";
 import AppUpdateSettings from "../pwa/AppUpdateSettings.jsx";
 import FeedbackSettings from "./Feedback.jsx";
+import PublicKnowledgeSettings from "./PublicKnowledgeSettings.jsx";
 import { BUILD_INFO } from "../pwa/buildInfo.js";
 import { UPDATE_STATUS } from "../pwa/updateManager.js";
 import { usePwaUpdates } from "../pwa/usePwaUpdates.js";
@@ -38,7 +39,9 @@ const SECTIONS = [
   { id: "notifications", labelKey: "settings.notifications", icon: "bell" },
   { id: "offline", labelKey: "offline.title", icon: "package" },
   { id: "suggest", labelKey: "settings.suggest.section", icon: "messages" },
-  { id: "updates", labelKey: "settings.updates.section", icon: "sparkles" }
+  { id: "updates", labelKey: "settings.updates.section", icon: "sparkles" },
+  { id: "about", labelKey: "settings.public.about", icon: "globe" },
+  { id: "support", labelKey: "settings.public.support", icon: "help" }
 ];
 
 const LEGACY_SECTIONS = {
@@ -347,6 +350,8 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
           {activeSection === "suggest" && <FeedbackSettings />}
 
           {activeSection === "updates" && <AppUpdateSettings user={user} />}
+
+          {["about", "support"].includes(activeSection) && <PublicKnowledgeSettings section={activeSection} />}
 
           {saving && <p className="save-hint settings-v2-saving" role="status">{t("settings.saving")}</p>}
         </div>

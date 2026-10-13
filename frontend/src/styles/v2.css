@@ -16,6 +16,20 @@
 
 /* --- Settings -------------------------------------------------------------- */
 
+/* About and Support follow the existing Settings grouped-list composition. */
+.settings-public-intro { display: grid; gap: var(--space-2); padding-inline: var(--space-4); }
+.settings-public-intro h3 { margin: 0; color: var(--text); font-size: var(--text-2xl); font-weight: var(--weight-semibold); line-height: 1.5; }
+.settings-public-intro p { margin: 0; max-inline-size: 56ch; color: var(--muted); font-size: var(--text-base); line-height: 1.65; }
+.settings-public-intro .settings-public-eyebrow,
+.settings-public-intro .settings-public-brandline { color: var(--soft); font-size: var(--text-sm); }
+.settings-public-brandline { text-align: -webkit-match-parent; }
+.settings-public .ui-row-body > span:first-child { white-space: normal; overflow: visible; }
+.settings-public-icon { background: var(--surface-2); color: var(--muted); }
+.settings-public-primary .ui-row { padding-block: var(--space-4); }
+.settings-public-primary .ui-row-body > span:first-child { color: var(--accent-text); }
+.settings-v2-icon--about, .settings-v2-icon--support { color: var(--info); background: var(--info-soft); }
+
+
 /* One column on phones and tablets: the section list is a screen of its own
    and a section opens in its place (with a way back). From 1100px the list
    stays beside the open section, the way desktop settings apps work. */

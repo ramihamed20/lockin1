@@ -253,6 +253,12 @@ else
     fail "object storage validation failed"
 fi
 
+if scripts/ci/public-search-smoke.sh "http://127.0.0.1:$published_port" "$public_host"; then
+    pass "public search pages and private indexing boundary verified"
+else
+    fail "public search pages or private indexing boundary failed"
+fi
+
 log "result"
 if [ "$failures" -ne 0 ]; then
     printf '%s check(s) failed.\n' "$failures" >&2
