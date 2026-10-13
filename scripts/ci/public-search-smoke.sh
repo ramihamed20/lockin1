@@ -34,6 +34,11 @@ for agent in Googlebot Bingbot OAI-SearchBot PerplexityBot Claude-SearchBot; do
     done
 done
 
+for asset in /public-search.css /public-search-tokens.css; do
+    fetch_page "$asset" Googlebot
+    grep -Eiq '^Content-Type: text/css' "$probe_dir/headers"
+done
+
 fetch_page "/sitemap.xml" Googlebot
 grep -Eiq '^Content-Type: application/xml' "$probe_dir/headers"
 [ "$(grep -o '<loc>' "$probe_dir/body" | wc -l | tr -d ' ')" = "63" ]

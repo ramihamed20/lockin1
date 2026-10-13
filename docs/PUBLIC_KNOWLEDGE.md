@@ -69,3 +69,7 @@ Both image builders mount the complete repository context read-only during the V
 Build the separate edge image from the repository root with docker build -f frontend/Dockerfile [approved build arguments] .; Compose and CI use this same context. Root .dockerignore excludes nested local environment files. The image layer probe supplies only explicit source evidence and applies the same build-only prerequisite to historical comparison images.
 
 The freshness gate runs for builds, tests and the knowledge CLI. Development Vite startup does not require backend files inside the frontend development container.
+
+## Presentation alignment — 2026-10-13
+
+The public pages now share a generated, byte-identical copy of src/styles/tokens.css with the application. Builds check this copy, robots permits this exact CSS resource, and the Nginx smoke verifies its MIME type. Compact reading widths, neutral grouped links, current navigation and capsule actions follow Lock-in V2. About/Support use existing Settings rows and icons, with Study and Help/contact groups. Product copy, public URLs and availability are unchanged. The i18n source digest was reviewed after adding four group-label translations only; all existing translated controls remain byte-for-byte unchanged.

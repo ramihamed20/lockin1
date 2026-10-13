@@ -59,7 +59,7 @@ test("generated pages, sitemap, canonical URLs and JSON-LD have one consistent p
     assert.equal(crumbs.at(-1).item,"https://lockin.ly"+path);
     for(const match of html.matchAll(/href="(\/[^"]*)"/g)){
       const target=match[1];
-      if(target.startsWith("/#/") || target.startsWith("/icons/") || target==="/public-search.css") continue;
+      if(target.startsWith("/#/") || target.startsWith("/icons/") || ["/public-search.css","/public-search-tokens.css"].includes(target)) continue;
       assert.ok(pages.includes(target),path+": broken link "+target);
     }
   }
@@ -119,4 +119,14 @@ test("standalone image builds require complete source evidence without a missing
   const missing=spawnSync(process.execPath,[script,"--check"],{encoding:"utf8",env:{...process.env,LOCKIN_PUBLIC_EVIDENCE_ROOT:join(root,"not-a-checkout")}});
   assert.equal(missing.status,1);
   assert.match(missing.stderr,/evidence missing/);
+});
+
+
+test("public pages share the current application design tokens",async()=>{
+  const actual=await readPublic("public-search-tokens.css");
+  const original=await readFile(new URL("../src/styles/tokens.css",import.meta.url),"utf8");
+  assert.equal(actual,original.replace(/\r\n/g,"\n"));
+  const about=await readPublic("about/index.html");
+  assert.match(about,/href="\/public-search-tokens\.css"/);
+  assert.match(await readPublic("robots.txt"),/Allow: \/public-search-tokens\.css\$/);
 });

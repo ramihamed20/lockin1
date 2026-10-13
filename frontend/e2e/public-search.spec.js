@@ -6,7 +6,7 @@ test("public search pages work without JavaScript, at phone and desktop widths",
   const context = await browser.newContext({ javaScriptEnabled: false, baseURL });
   try {
     const page = await context.newPage();
-    for (const width of [390, 1280]) {
+    for (const width of [320, 390, 820, 1280]) {
       await page.setViewportSize({ width, height: 900 });
       for (const slug of pages) {
         const response = await page.goto(`/${slug}/`);

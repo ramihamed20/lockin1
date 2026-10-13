@@ -1581,7 +1581,7 @@
     "frontend/src/App.jsx": "2ceef8adc84e628ff802354172cf7d5a026ca3170a668061b21d99f57ab953c3",
     "frontend/src/lib/materialCatalog.js": "00f7e188923bd420fcba2bb206e9e21e6eed1de29409eadea495468f4c2a543d",
     "frontend/tests/materials-catalog.test.js": "447ec50b1f9ca08b98cd2bb2c149dc52837c7687ddac175114b65d7e4db938c7",
-    "frontend/src/lib/i18n.js": "a3f6f556b1a4a63ff7f1ec080f2d688d80297b473a3dae188eb7d36eaa3234c3",
+    "frontend/src/lib/i18n.js": "935b0992b161a1a37af1baaee3c4eda374394f50b74ceaa0209e2fb7cb13e1dd",
     "frontend/src/pages/Materials.jsx": "f85aa3d87661f5f361d3233ea207d585cf05c83250e7ce65ea43af9fb7c333ec",
     "frontend/src/components/learning/CatalogSheetCard.jsx": "0bce127fc2679e5599d10951b9bbeefa6aaec2827e5222877b36d4695240d713",
     "backend/apps/content/tests/test_catalog_workspace.py": "3fab31330499c8193155f4a29fc49f0e99d8b6038bab0763568f328e115cce7f",
