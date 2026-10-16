@@ -17,6 +17,7 @@
     "typecheck": "tsc --project tsconfig.phase0.json --pretty false && tsc --project tsconfig.worker.json --pretty false",
     "test": "node --test tests/*.test.js",
     "test:e2e": "playwright test",
+    "test:e2e:production": "playwright test --config=playwright.production.config.js",
     "check:bundle": "node scripts/check-bundle.mjs"
   },
   "dependencies": {
