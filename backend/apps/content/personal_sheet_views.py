@@ -78,6 +78,17 @@ def _sheet_payload(sheet: PersonalSheet) -> dict[str, Any]:
         "status": sheet_status,
         "view_url": f"/api/v1/files/{managed_file.id}/view" if sheet_status == "ready" else None,
         "active_study": {"status": sheet.active_study_status},
+        # A copy of another student's shared marks; `author` is empty if they
+        # shared anonymously.
+        "copy": (
+            {
+                "author": sheet.copy_author,
+                "document_id": str(sheet.source_document_id),
+                "share_id": str(sheet.source_set_id) if sheet.source_set_id else "",
+            }
+            if sheet.source_document_id
+            else None
+        ),
     }
 
 
@@ -151,8 +162,22 @@ class PersonalSheetDetailView(APIView):
         if sheet is None:
             raise NotFound("Sheet not found.")
         return Response(
-            {"sheet": _sheet_payload(sheet), "subject": _subject_payload(sheet.subject)}
+            {
+                "sheet": {**_sheet_payload(sheet), "seed": sheet.seed},
+                "subject": _subject_payload(sheet.subject),
+            }
         )
+
+
+class PersonalSheetSeededView(APIView):
+    """The reader has stored a copy's starting marks, so the server can drop them."""
+
+    def post(self, request: Request, sheet_id: UUID) -> Response:
+        user = _user(request)
+        updated = PersonalSheet.objects.filter(id=sheet_id, owner=user).update(seed=None)
+        if not updated:
+            raise NotFound("Sheet not found.")
+        return Response({"seeded": True})
 
 
 class PersonalSheetDeleteView(APIView):

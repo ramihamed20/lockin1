@@ -1,4 +1,7 @@
+import logging
+import smtplib
 from collections.abc import Mapping
+from datetime import timedelta
 from typing import cast
 from uuid import UUID
 
@@ -7,7 +10,8 @@ from django.contrib.auth import authenticate, update_session_auth_hash
 from django.contrib.sessions.models import Session
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.uploadedfile import UploadedFile
-from django.db import IntegrityError, transaction
+from django.db import DatabaseError, IntegrityError, transaction
+from django.db.models import Q
 from django.http import HttpRequest, HttpResponseRedirect
 from django.middleware.csrf import get_token
 from django.utils import timezone
@@ -30,7 +34,7 @@ from apps.files.services import FileValidationError, create_managed_file
 from apps.system_configuration.services import get_configuration_value
 from platform_core.network import client_ip
 
-from .email_delivery import enqueue_account_email
+from .email_delivery import account_email_delivery_state, enqueue_account_email, failure_code
 from .models import AccountDeletionRequest, AccountSession, OneTimeToken, SocialIdentity, User
 from .oauth import (
     OAUTH_BROWSER_COOKIE_PATH,
@@ -94,6 +98,7 @@ from .services import (
     resend_verification,
     send_account_email,
     touch_account_session,
+    verification_code_failure_reason,
     verify_email_code,
 )
 
@@ -114,6 +119,59 @@ class RequestRejected(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
     default_detail = "The request could not be completed."
     default_code = "request_rejected"
+
+
+# A failed code or link names its reason only where AccountTokenError says it
+# is safe to (see there); everything else keeps one answer per flow.
+VERIFICATION_CODE_ERRORS = {
+    "invalid": ("invalid_verification_code", "This verification code is incorrect."),
+    "expired": ("verification_code_expired", "This verification code has expired."),
+    "used": ("verification_code_replaced", "This code was replaced by a newer one."),
+    "attempts_exceeded": (
+        "verification_attempts_exceeded",
+        "Too many incorrect attempts for this code.",
+    ),
+}
+RESET_LINK_ERRORS = {
+    "invalid": ("invalid_reset_token", "This reset link is invalid."),
+    "expired": ("reset_link_expired", "This reset link has expired."),
+    "used": ("reset_link_used", "This reset link has already been used."),
+}
+EMAIL_LINK_ERRORS = {
+    "invalid": ("invalid_or_expired_token", "This link is invalid or has expired."),
+    "expired": ("email_link_expired", "This link has expired."),
+    "used": ("email_link_used", "This link has already been used."),
+}
+
+
+def _token_error(
+    table: dict[str, tuple[str, str]], error: AccountTokenError
+) -> "InvalidAccountToken":
+    code, detail = table.get(getattr(error, "reason", "invalid"), table["invalid"])
+    return InvalidAccountToken(detail=detail, code=code)
+
+
+logger = logging.getLogger("lockin.email")
+
+
+def _report_synchronous_email_failure(flow: str, error: BaseException) -> None:
+    # The same privacy-safe shape the queue worker logs: no address, no link.
+    logger.warning(
+        "Account email failed",
+        extra={"event": "account_email.failed", "flow": flow, "error_code": failure_code(error)},
+    )
+
+
+class EmailAlreadyVerified(APIException):
+    status_code = status.HTTP_409_CONFLICT
+    default_detail = "This email is already verified. Sign in to continue."
+    default_code = "email_already_verified"
+
+
+class EmailDeliveryUnavailable(APIException):
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    default_detail = "The email could not be sent right now. Try again in a few minutes."
+    default_code = "email_delivery_unavailable"
 
 
 class RegistrationUnavailable(APIException):
@@ -195,6 +253,63 @@ def _send_verification_code_email(*, user: User, code: str) -> None:
     )
 
 
+EXISTING_ACCOUNT_NOTICE_COOLDOWN = timedelta(minutes=15)
+
+
+def _notify_existing_registration(*, email: str) -> None:
+    """Answer a sign-up for an address that already has an account -- by email.
+
+    The screen must look the same either way, so the truth goes to the
+    mailbox: an account still waiting for its code is sent a fresh one (the
+    resend cooldown still applies), and a verified account is sent a way back
+    in instead of a code that would never come. Suspended accounts get
+    nothing, exactly as a resend or a reset would.
+    """
+
+    try:
+        user = User.objects.filter(email=email, status=User.Status.ACTIVE).first()
+        if user is None:
+            return
+        if not user.is_email_verified:
+            token = resend_verification(user=user)
+            if token is not None:
+                _send_verification_code_email(user=user, code=token.raw_token)
+            return
+        # A sign-up attempt must never cancel a reset link the owner is about
+        # to use, and must not become a second way to fill their inbox: while
+        # a recent or still-usable reset link exists, the mailbox already has
+        # its way back in.
+        now = timezone.now()
+        if (
+            OneTimeToken.objects.filter(user=user, kind=OneTimeToken.Kind.PASSWORD_RESET)
+            .filter(
+                Q(created_at__gte=now - EXISTING_ACCOUNT_NOTICE_COOLDOWN)
+                | Q(used_at__isnull=True, expires_at__gt=now)
+            )
+            .exists()
+        ):
+            return
+        result = request_password_reset(email=email)
+        if result is not None:
+            existing, reset = result
+            link = build_account_link(path="/reset-password", raw_token=reset.raw_token)
+            enqueue_account_email(
+                user=existing,
+                token=OneTimeToken.objects.get(token_digest=_token_digest(reset.raw_token)),
+                subject="You already have a Lock-in account",
+                body=(
+                    "Someone, probably you, tried to create a Lock-in account with this email, "
+                    "but it already has one.\n\n"
+                    "Sign in with your password, or choose a new one with this single-use link:\n\n"
+                    f"{link}\n\n"
+                    "If this was not you, you can ignore this email."
+                ),
+            )
+    except DatabaseError:
+        # The reply is the same either way; the mailbox simply hears nothing.
+        logger.exception("Could not notify an existing account about a sign-up")
+
+
 def _send_password_reset_email(*, user: User, raw_token: str) -> None:
     link = build_account_link(path="/reset-password", raw_token=raw_token)
     enqueue_account_email(
@@ -239,9 +354,13 @@ class RegisterView(APIView):
                 raise
             if not User.objects.filter(email=str(data["email"])).exists():
                 raise
+            _notify_existing_registration(email=str(data["email"]))
         else:
             _send_verification_code_email(user=user, code=token.raw_token)
-        return Response({"status": "verification_required"}, status=status.HTTP_201_CREATED)
+        return Response(
+            {"status": "verification_required", "email_delivery": account_email_delivery_state()},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class VerifyEmailView(APIView):
@@ -260,13 +379,21 @@ class VerifyEmailView(APIView):
             scope="email_verification",
             identifier=email,
         )
+        code = str(serializer.validated_data["code"])
         user = User.objects.filter(email=email, email_verified_at__isnull=True).first()
         if user is None:
-            raise InvalidAccountToken()
+            # The code it was sent is the proof: only the person who received
+            # it learns that the address is already verified.
+            verified = User.objects.filter(email=email, email_verified_at__isnull=False).first()
+            if verified is not None and verification_code_failure_reason(
+                user=verified, code=code
+            ) in {"used", "attempts_exceeded"}:
+                raise EmailAlreadyVerified()
+            raise _token_error(VERIFICATION_CODE_ERRORS, AccountTokenError("invalid"))
         try:
-            user = verify_email_code(user=user, code=str(serializer.validated_data["code"]))
+            user = verify_email_code(user=user, code=code)
         except AccountTokenError as error:
-            raise InvalidAccountToken() from error
+            raise _token_error(VERIFICATION_CODE_ERRORS, error) from error
         # Entering the code proves control of the mailbox, which is the same
         # evidence a sign-in asks for -- and it was single-use, unexpired and
         # checked on the server before reaching this line. So the reader
@@ -315,7 +442,13 @@ class ResendVerificationView(APIView):
         # A token's remaining lifetime reveals recent account activity. The
         # public countdown is identical for unknown, verified and known users.
         cooldown = int(getattr(settings, "ACCOUNT_VERIFICATION_RESEND_COOLDOWN_SECONDS", 60))
-        return Response({"status": "accepted", "retry_after_seconds": cooldown})
+        return Response(
+            {
+                "status": "accepted",
+                "retry_after_seconds": cooldown,
+                "email_delivery": account_email_delivery_state(),
+            }
+        )
 
 
 class PasswordResetRequestView(APIView):
@@ -333,7 +466,7 @@ class PasswordResetRequestView(APIView):
         if result is not None:
             user, token = result
             _send_password_reset_email(user=user, raw_token=token.raw_token)
-        return Response({"status": "accepted"})
+        return Response({"status": "accepted", "email_delivery": account_email_delivery_state()})
 
 
 class PasswordResetConfirmView(APIView):
@@ -353,7 +486,7 @@ class PasswordResetConfirmView(APIView):
                 new_password=str(serializer.validated_data["new_password"]),
             )
         except AccountTokenError as error:
-            raise InvalidAccountToken() from error
+            raise _token_error(RESET_LINK_ERRORS, error) from error
         return Response({"status": "password_reset"})
 
 
@@ -792,12 +925,26 @@ class EmailChangeRequestView(APIView):
             )
         except AccountStateError as error:
             raise RequestRejected(str(error), code="email_unavailable") from error
+        # SMTP runs after the token has committed, never inside the
+        # transaction: a slow mail server must not hold the account's row lock
+        # (other requests give up after 3s) or outlive the idle-transaction
+        # limit and roll back a link that was already mailed. A send that
+        # fails revokes the link it would have carried instead.
         link = build_account_link(path="/confirm-email", raw_token=token.raw_token)
-        send_account_email(
-            recipient=str(serializer.validated_data["new_email"]),
-            subject="Confirm your new Lock-in email",
-            body=f"Confirm your new email using this single-use link:\n\n{link}",
-        )
+        try:
+            send_account_email(
+                recipient=str(serializer.validated_data["new_email"]),
+                subject="Confirm your new Lock-in email",
+                body=f"Confirm your new email using this single-use link:\n\n{link}",
+            )
+        # SMTP refusals and socket timeouts only: a database failure is not an
+        # email problem and keeps its own answer.
+        except (smtplib.SMTPException, OSError) as error:
+            OneTimeToken.objects.filter(
+                token_digest=_token_digest(token.raw_token), used_at__isnull=True
+            ).update(used_at=timezone.now())
+            _report_synchronous_email_failure("email_change", error)
+            raise EmailDeliveryUnavailable() from error
         return Response({"status": "confirmation_required"})
 
 
@@ -815,7 +962,7 @@ class EmailChangeConfirmView(APIView):
         try:
             confirm_email_change(raw_token=str(serializer.validated_data["token"]))
         except AccountTokenError as error:
-            raise InvalidAccountToken() from error
+            raise _token_error(EMAIL_LINK_ERRORS, error) from error
         except AccountStateError as error:
             raise RequestRejected(str(error), code="email_unavailable") from error
         return Response({"status": "email_changed"})
@@ -858,16 +1005,31 @@ class AccountDeletionView(APIView):
             deletion_request, token = request_account_deletion(user=user)
         except AccountStateError as error:
             raise RequestRejected(str(error), code="deletion_request_rejected") from error
+        # Sent after commit for the same reasons as an email change. A request
+        # whose confirmation could not be mailed is withdrawn, so it is never
+        # left waiting for a link that will not arrive.
         link = build_account_link(path="/settings", raw_token=token.raw_token)
-        send_account_email(
-            recipient=user.email,
-            subject="Confirm your Lock-in account deletion request",
-            body=(
-                "Confirm your account deletion request using this single-use link:\n\n"
-                f"{link}\n\n"
-                "The request will not be processed until you confirm it."
-            ),
-        )
+        try:
+            send_account_email(
+                recipient=user.email,
+                subject="Confirm your Lock-in account deletion request",
+                body=(
+                    "Confirm your account deletion request using this single-use link:\n\n"
+                    f"{link}\n\n"
+                    "The request will not be processed until you confirm it."
+                ),
+            )
+        except (smtplib.SMTPException, OSError) as error:
+            now = timezone.now()
+            AccountDeletionRequest.objects.filter(
+                id=deletion_request.id,
+                status=AccountDeletionRequest.Status.PENDING_CONFIRMATION,
+            ).update(status=AccountDeletionRequest.Status.CANCELLED, cancelled_at=now)
+            OneTimeToken.objects.filter(
+                id=deletion_request.confirmation_token_id, used_at__isnull=True
+            ).update(used_at=now)
+            _report_synchronous_email_failure("account_deletion", error)
+            raise EmailDeliveryUnavailable() from error
         return Response(_deletion_request_payload(deletion_request), status=status.HTTP_201_CREATED)
 
     def delete(self, request: Request) -> Response:

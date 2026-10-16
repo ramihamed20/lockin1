@@ -410,13 +410,37 @@ class PersonalSheet(models.Model):
         on_delete=models.PROTECT,
         related_name="personal_sheets",
     )
-    managed_file = models.OneToOneField(
+    # An uploaded sheet owns its file. A copy of someone's marks (see
+    # `source_document`) points at the catalog file instead, so the file is a
+    # plain foreign key and only an uploaded sheet may delete it.
+    managed_file = models.ForeignKey(
         ManagedFile,
         on_delete=models.PROTECT,
-        related_name="personal_sheet",
+        related_name="personal_sheets",
     )
     title = models.CharField(max_length=120)
     page_count = models.PositiveIntegerField(null=True, blank=True)
+    # Set when the sheet is a copy of a catalog sheet carrying another student's
+    # shared marks. `copy_author` is empty for an anonymous share.
+    source_document = models.ForeignKey(
+        "CatalogDocument",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="annotation_copies",
+    )
+    source_set = models.ForeignKey(
+        "SharedAnnotationSet",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="copies",
+    )
+    copy_author = models.CharField(max_length=80, blank=True)
+    # The shared marks a new copy starts from. The first device to open the copy
+    # writes them into its reader store and clears this, so a copy never depends
+    # on the browser that imported it staying open.
+    seed = models.JSONField(null=True, blank=True)
     active_study_status = models.CharField(
         max_length=24,
         choices=ActiveStudyStatus.choices,
@@ -596,3 +620,128 @@ class PracticeSlideProgress(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id}:{self.slide_id}"
+
+
+class SharedAnnotationSet(models.Model):
+    """One student's marks on a catalog sheet, published for the others to copy.
+
+    The snapshot is taken from the publisher's device when they upload, so it
+    holds everything the reader shows -- ink, text, pictures, stickers, notes and
+    added pages -- and stays as published until they update it.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    document = models.ForeignKey(
+        CatalogDocument, on_delete=models.CASCADE, related_name="shared_annotation_sets"
+    )
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="shared_annotation_sets",
+    )
+    display_name = models.CharField(max_length=80, blank=True)
+    is_anonymous = models.BooleanField(default=False)
+    note = models.CharField(max_length=500, blank=True)
+    snapshot = models.JSONField(default=dict)
+    size_bytes = models.PositiveIntegerField(default=0)
+    mark_count = models.PositiveIntegerField(default=0)
+    marked_pages = models.JSONField(default=list)
+    version = models.PositiveIntegerField(default=1)
+    like_count = models.PositiveIntegerField(default=0)
+    report_count = models.PositiveIntegerField(default=0)
+    is_hidden = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    based_on = models.ForeignKey(
+        "self", on_delete=models.SET_NULL, null=True, blank=True, related_name="derived_sets"
+    )
+    based_on_name = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("owner", "document"),
+                condition=Q(deleted_at__isnull=True),
+                name="content_annotation_share_owner_unique",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=("document", "-like_count", "-updated_at"),
+                name="content_annotation_share_idx",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.document_id}:{self.owner_id}:v{self.version}"
+
+
+class SharedAnnotationLike(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    shared_set = models.ForeignKey(
+        SharedAnnotationSet, on_delete=models.CASCADE, related_name="likes"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="annotation_likes"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("shared_set", "user"), name="content_annotation_like_unique"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.shared_set_id}:{self.user_id}:like"
+
+
+class SharedAnnotationReport(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    shared_set = models.ForeignKey(
+        SharedAnnotationSet, on_delete=models.CASCADE, related_name="reports"
+    )
+    reporter = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="annotation_reports"
+    )
+    reason = models.CharField(max_length=300, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("shared_set", "reporter"), name="content_annotation_report_unique"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.shared_set_id}:{self.reporter_id}:report"
+
+
+class SharedAnnotationImport(models.Model):
+    """Who copied which share, at which version, so they can be told about changes."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    shared_set = models.ForeignKey(
+        SharedAnnotationSet, on_delete=models.CASCADE, related_name="imports"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="annotation_imports"
+    )
+    imported_version = models.PositiveIntegerField()
+    dismissed_version = models.PositiveIntegerField(default=0)
+    dismissed_removal = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("shared_set", "user"), name="content_annotation_import_unique"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.shared_set_id}:{self.user_id}:v{self.imported_version}"

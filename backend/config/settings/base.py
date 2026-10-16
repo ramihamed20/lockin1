@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "apps.assessments.apps.AssessmentsConfig",
     "apps.progress.apps.ProgressConfig",
     "apps.review.apps.ReviewConfig",
+    "apps.knowledge.apps.KnowledgeConfig",
     "apps.study_plans.apps.StudyPlansConfig",
     "apps.class_schedule.apps.ClassScheduleConfig",
     "apps.biweekly.apps.BiweeklyConfig",
@@ -244,6 +245,8 @@ CONTENT_MAX_PDF_BYTES = env_int("CONTENT_MAX_PDF_BYTES", 50 * 1024 * 1024)
 CONTENT_MAX_AUDIO_BYTES = env_int("CONTENT_MAX_AUDIO_BYTES", 100 * 1024 * 1024)
 PERSONAL_SHEET_MAX_BYTES = env_int("PERSONAL_SHEET_MAX_BYTES", 20 * 1024 * 1024)
 PERSONAL_SHEETS_MAX_PER_ACCOUNT = env_int("PERSONAL_SHEETS_MAX_PER_ACCOUNT", 20)
+ANNOTATION_SHARE_MAX_BYTES = env_int("ANNOTATION_SHARE_MAX_BYTES", 25 * 1024 * 1024)
+ANNOTATION_COPIES_MAX_PER_ACCOUNT = env_int("ANNOTATION_COPIES_MAX_PER_ACCOUNT", 20)
 PRACTICE_IMAGE_MAX_BYTES = env_int("PRACTICE_IMAGE_MAX_BYTES", 8 * 1024 * 1024)
 PRACTICE_SLIDES_MAX_PER_SET = env_int("PRACTICE_SLIDES_MAX_PER_SET", 200)
 # Lo-Fi scenes are short clips the player loops on the client, so a few seconds
@@ -367,3 +370,9 @@ LOGGING = {
         "level": env("DJANGO_LOG_LEVEL", "INFO"),
     },
 }
+
+KNOWLEDGE_ENABLED = env_bool('KNOWLEDGE_ENABLED', False)
+KNOWLEDGE_AI_ENABLED = False
+
+# Optional behavioral starts remain off until device validation and owner activation.
+START_RESCUE_ENABLED = env_bool("START_RESCUE_ENABLED", False)

@@ -93,15 +93,18 @@ def visible_subject(*, user: User, material_slug: str) -> CatalogSubject | None:
 
 
 def owned_sheets(*, owner: User, subject: CatalogSubject) -> QuerySet[PersonalSheet]:
+    # A copy of another student's marks lives inside the catalog sheet it marks,
+    # not in this list.
     return (
-        PersonalSheet.objects.filter(owner=owner, subject=subject)
+        PersonalSheet.objects.filter(owner=owner, subject=subject, source_document__isnull=True)
         .select_related("managed_file")
         .order_by("-created_at", "-id")
     )
 
 
 def account_sheet_count(owner: User) -> int:
-    return PersonalSheet.objects.filter(owner=owner).count()
+    # Copies of shared marks have their own limit and no file of their own.
+    return PersonalSheet.objects.filter(owner=owner, source_document__isnull=True).count()
 
 
 def normalize_title(value: object) -> str:
@@ -286,7 +289,8 @@ def delete_personal_sheets(*, owner: User, sheet_ids: Iterable[UUID]) -> int:
         return 0
     from apps.focus.models import FocusAnnotationCollection
 
-    managed_files = [sheet.managed_file for sheet in sheets]
+    # A copy shares the catalog file, which is not the student's to delete.
+    managed_files = [sheet.managed_file for sheet in sheets if sheet.source_document_id is None]
     sheet_ids = [sheet.id for sheet in sheets]
     # The marks belong to the sheet; they go with it, superseded collections first.
     collections = FocusAnnotationCollection.objects.filter(user=owner, document_id__in=sheet_ids)

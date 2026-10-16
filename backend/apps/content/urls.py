@@ -15,10 +15,21 @@ from .admin_views import (
     AdminSubjectListView,
     AdminSubjectSheetListView,
 )
+from .annotation_share_views import (
+    AnnotationCopiesView,
+    AnnotationShareCollectionView,
+    AnnotationShareDetailView,
+    AnnotationShareDismissView,
+    AnnotationShareImportView,
+    AnnotationShareLikeView,
+    AnnotationShareNoticesView,
+    AnnotationShareReportView,
+)
 from .personal_sheet_views import (
     PersonalSheetCollectionView,
     PersonalSheetDeleteView,
     PersonalSheetDetailView,
+    PersonalSheetSeededView,
     PersonalSheetWorkspaceView,
 )
 from .practice_views import (
@@ -62,11 +73,56 @@ urlpatterns = [
     # are valid slugs, so the broader pattern would otherwise shadow workspace
     # GET/PATCH requests and return 404/405 before authorization is evaluated.
     path("catalog/documents/<uuid:document_id>/workspace", CatalogWorkspaceView.as_view()),
+    path(
+        "catalog/documents/<uuid:document_id>/annotation-shares",
+        AnnotationShareCollectionView.as_view(),
+        name="annotation-shares",
+    ),
+    path(
+        "catalog/documents/<uuid:document_id>/annotation-copies",
+        AnnotationCopiesView.as_view(),
+        name="annotation-copies",
+    ),
+    path(
+        "catalog/documents/<uuid:document_id>/annotation-shares/notices",
+        AnnotationShareNoticesView.as_view(),
+        name="annotation-share-notices",
+    ),
+    path(
+        "catalog/documents/<uuid:document_id>/annotation-shares/<uuid:share_id>",
+        AnnotationShareDetailView.as_view(),
+        name="annotation-share-detail",
+    ),
+    path(
+        "catalog/documents/<uuid:document_id>/annotation-shares/<uuid:share_id>/like",
+        AnnotationShareLikeView.as_view(),
+        name="annotation-share-like",
+    ),
+    path(
+        "catalog/documents/<uuid:document_id>/annotation-shares/<uuid:share_id>/report",
+        AnnotationShareReportView.as_view(),
+        name="annotation-share-report",
+    ),
+    path(
+        "catalog/documents/<uuid:document_id>/annotation-shares/<uuid:share_id>/import",
+        AnnotationShareImportView.as_view(),
+        name="annotation-share-import",
+    ),
+    path(
+        "catalog/documents/<uuid:document_id>/annotation-shares/<uuid:share_id>/dismiss",
+        AnnotationShareDismissView.as_view(),
+        name="annotation-share-dismiss",
+    ),
     path("catalog/materials", CatalogMaterialListView.as_view(), name="catalog-materials"),
     path(
         "catalog/materials/<slug:material_slug>/personal-sheets",
         PersonalSheetCollectionView.as_view(),
         name="personal-sheets",
+    ),
+    path(
+        "personal-sheets/<uuid:sheet_id>/seeded",
+        PersonalSheetSeededView.as_view(),
+        name="personal-sheet-seeded",
     ),
     path(
         "personal-sheets/delete",

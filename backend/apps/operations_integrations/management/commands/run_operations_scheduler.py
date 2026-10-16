@@ -40,19 +40,23 @@ def _yesterday_options() -> dict[str, str]:
     return {"date_from": value, "date_to": value}
 
 
+# Jobs run one after another in a single loop, so a job's position is a delay
+# for everything behind it. Account email goes first: a verification code is
+# only good for ten minutes and the reader is waiting on the screen for it,
+# while every other job here is background work that can start a little later.
 JOBS = (
-    JobSpec(
-        "biweekly_reports",
-        "close_biweekly_reports",
-        "BIWEEKLY_REPORT_INTERVAL_SECONDS",
-        3600,
-        _no_options,
-    ),
     JobSpec(
         "account_email_delivery",
         "dispatch_account_emails",
         "ACCOUNT_EMAIL_DELIVERY_INTERVAL_SECONDS",
         60,
+        _no_options,
+    ),
+    JobSpec(
+        "biweekly_reports",
+        "close_biweekly_reports",
+        "BIWEEKLY_REPORT_INTERVAL_SECONDS",
+        3600,
         _no_options,
     ),
     JobSpec(

@@ -702,3 +702,6 @@ class LofiScene(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+
+from .rescue_models import RescueMutationReceipt, RescueSession  # noqa: E402, F401
