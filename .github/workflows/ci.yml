@@ -262,6 +262,12 @@ jobs:
       - name: Production-bundle browser regression
         working-directory: frontend
         run: pnpm run build:e2e && pnpm run test:e2e --shard=${{ matrix.shard }}/3
+      # Ordinary builds define the fixture catalogue as null. Exercise this
+      # separately so the reader fixture build cannot hide production errors.
+      - name: Ordinary production bootstrap and catalog recovery
+        if: matrix.shard == 1
+        working-directory: frontend
+        run: pnpm run test:e2e:production
 
   containers:
     runs-on: ubuntu-latest
