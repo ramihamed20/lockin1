@@ -6,8 +6,8 @@
     "headline": "دراستك. بتناغم.",
     "english": "Everything in sync."
   },
-  "lastVerified": "2026-10-12",
-  "verificationScope": "Reviewed repository capabilities; live release and outbound email are not certified.",
+  "lastVerified": "2026-10-14",
+  "verificationScope": "Current repository behavior and tests reviewed; production durability, real devices and outbound email are not certified. See docs/PUBLIC_KNOWLEDGE_REVERIFICATION.md.",
   "features": [
     {
       "id": "product",
@@ -21,7 +21,7 @@
         "frontend/tests/materials-catalog.test.js",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -37,7 +37,7 @@
         "backend/apps/content/tests/test_catalog_workspace.py",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -54,7 +54,7 @@
         "frontend/e2e/focus-workspace-persistence.spec.js",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -70,7 +70,7 @@
         "backend/apps/focus/tests/test_managed_active_study.py",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -86,7 +86,7 @@
         "backend/apps/content/tests/test_catalog_questions.py",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -103,7 +103,7 @@
         "frontend/e2e/review-bank.spec.js",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -120,7 +120,7 @@
         "backend/apps/review/tests/test_review.py",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -135,7 +135,7 @@
         "frontend/src/api/motivation.js",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -151,7 +151,7 @@
         "backend/apps/biweekly/tests/test_biweekly.py",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -168,7 +168,7 @@
         "backend/apps/accounts/tests/test_api.py",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -184,7 +184,7 @@
         "backend/apps/feedback/tests/test_api.py",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -198,7 +198,7 @@
         "frontend/src/pages/Settings.jsx",
         "backend/apps/accounts/tests/test_security_regressions.py"
       ],
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": false
     },
@@ -212,7 +212,7 @@
         "frontend/src/components/auth/AuthPage.jsx",
         "backend/apps/accounts/tests/test_email_delivery.py"
       ],
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": false
     },
@@ -240,7 +240,7 @@
         "frontend/src/pages/Settings.jsx",
         "docs/ACCOUNT_DELETION_RETENTION.md"
       ],
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": false
     },
@@ -373,7 +373,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/what-is-lockin/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/App.jsx",
         "frontend/src/lib/materialCatalog.js",
@@ -395,7 +395,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/who-is-lockin-for/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/App.jsx",
         "frontend/src/lib/materialCatalog.js",
@@ -417,7 +417,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/supported-universities/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/App.jsx",
         "frontend/src/lib/materialCatalog.js",
@@ -439,7 +439,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/need-account/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/components/auth/AuthPage.jsx",
         "frontend/src/pages/Settings.jsx",
@@ -466,7 +466,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/open-materials/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Materials.jsx",
         "frontend/src/components/learning/CatalogSheetCard.jsx",
@@ -488,7 +488,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/cohort-content/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Materials.jsx",
         "frontend/src/components/learning/CatalogSheetCard.jsx",
@@ -510,7 +510,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/sheet-editions/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Materials.jsx",
         "frontend/src/components/learning/CatalogSheetCard.jsx",
@@ -532,7 +532,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/about-settings/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Settings.jsx",
         "frontend/src/pages/Feedback.jsx",
@@ -558,7 +558,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/open-pdf/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Materials.jsx",
         "frontend/src/components/learning/CatalogSheetCard.jsx",
@@ -581,7 +581,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/pdf-notes/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/annotation_services.py",
@@ -608,7 +608,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/pen-tool/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/annotation_services.py",
@@ -631,7 +631,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/highlight-tool/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/annotation_services.py",
@@ -654,7 +654,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/erase-marks/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/annotation_services.py",
@@ -677,7 +677,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/text-notes/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/annotation_services.py",
@@ -692,7 +692,7 @@
       "category": "account-security",
       "relatedFeature": "notes",
       "question": "هل يرى الطلاب الآخرون ملاحظاتي؟",
-      "shortAnswer": "ملاحظات مساحة العمل مرتبطة بالحساب والمستند، وتخضع لصلاحيات الوصول. الصفحات العامة لا تعرض ملاحظاتك أو إجاباتك أو ملفاتك.",
+      "shortAnswer": "ملاحظاتك الأصلية مرتبطة بحسابك والمستند. إذا اخترت مشاركة نسخة من علامات PDF، يراها الطلاب المسموح لهم بالوصول إلى الشيت. العلامات غير المشاركة تبقى خاصة، والصفحات العامة لا تعرض ملاحظاتك أو إجاباتك أو ملفاتك.",
       "detailedSteps": [],
       "keywords": [
         "إتاحة يرى الطلاب الآخرون ملاحظاتي؟",
@@ -700,7 +700,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/notes-private/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/annotation_services.py",
@@ -723,7 +723,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/pdf-original/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/annotation_services.py",
@@ -747,7 +747,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/active-study-what/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/managed_active_study.py",
@@ -774,7 +774,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/start-active-study/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/managed_active_study.py",
@@ -796,7 +796,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/active-availability/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/managed_active_study.py",
@@ -818,7 +818,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/active-difficulty/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/managed_active_study.py",
@@ -840,7 +840,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/active-parts/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/managed_active_study.py",
@@ -862,7 +862,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/active-final/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/managed_active_study.py",
@@ -884,7 +884,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/active-resume/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/managed_active_study.py",
@@ -906,7 +906,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/active-restart/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/managed_active_study.py",
@@ -928,7 +928,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/normal-or-active/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/managed_active_study.py",
@@ -954,7 +954,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/question-sources/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Questions.jsx",
         "frontend/src/components/learning/PracticeQuestions.jsx",
@@ -976,7 +976,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/practical-questions/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Questions.jsx",
         "frontend/src/components/learning/PracticeQuestions.jsx",
@@ -998,7 +998,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/mixed-questions/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Questions.jsx",
         "frontend/src/components/learning/PracticeQuestions.jsx",
@@ -1020,7 +1020,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/question-explanations/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Questions.jsx",
         "frontend/src/components/learning/PracticeQuestions.jsx",
@@ -1046,7 +1046,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/find-mistakes/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Review.jsx",
         "backend/apps/review/services.py",
@@ -1069,7 +1069,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/saved-mistakes/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Review.jsx",
         "backend/apps/review/services.py",
@@ -1092,7 +1092,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/repeat-mistake/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Review.jsx",
         "backend/apps/review/services.py",
@@ -1115,7 +1115,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/mastered-question/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Review.jsx",
         "backend/apps/review/services.py",
@@ -1138,7 +1138,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/empty-review/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Review.jsx",
         "backend/apps/review/services.py",
@@ -1161,7 +1161,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/weekly-recall/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Review.jsx",
         "backend/apps/review/policy.py",
@@ -1184,7 +1184,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/weekly-not-ready/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Review.jsx",
         "backend/apps/review/policy.py",
@@ -1207,7 +1207,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/start-weekly/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Review.jsx",
         "backend/apps/review/policy.py",
@@ -1230,7 +1230,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/weekly-errors/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Review.jsx",
         "backend/apps/review/policy.py",
@@ -1253,7 +1253,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/progress-page/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Progress.jsx",
         "frontend/src/api/motivation.js",
@@ -1274,7 +1274,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/periodic-reports/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Biweekly.jsx",
         "backend/apps/biweekly/services.py",
@@ -1296,7 +1296,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/private-and-public/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/App.jsx",
         "frontend/src/lib/materialCatalog.js",
@@ -1318,7 +1318,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/account-security/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/components/auth/AuthPage.jsx",
         "frontend/src/pages/Settings.jsx",
@@ -1341,7 +1341,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/supported-access/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Materials.jsx",
         "frontend/src/components/learning/CatalogSheetCard.jsx",
@@ -1363,7 +1363,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/missing-materials/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Materials.jsx",
         "frontend/src/components/learning/CatalogSheetCard.jsx",
@@ -1385,7 +1385,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/missing-questions/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Questions.jsx",
         "frontend/src/components/learning/PracticeQuestions.jsx",
@@ -1407,7 +1407,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/reader-unavailable/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Materials.jsx",
         "frontend/src/components/learning/CatalogSheetCard.jsx",
@@ -1429,7 +1429,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/notes-not-synced/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/annotation_services.py",
@@ -1452,7 +1452,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/active-start-error/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/managed_active_study.py",
@@ -1478,7 +1478,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/contact-support/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-12",
+      "lastVerified": "2026-10-14",
       "verificationEvidence": [
         "frontend/src/pages/Settings.jsx",
         "frontend/src/pages/Feedback.jsx",
@@ -1578,14 +1578,14 @@
     }
   ],
   "evidenceDigests": {
-    "frontend/src/App.jsx": "2ceef8adc84e628ff802354172cf7d5a026ca3170a668061b21d99f57ab953c3",
-    "frontend/src/lib/materialCatalog.js": "00f7e188923bd420fcba2bb206e9e21e6eed1de29409eadea495468f4c2a543d",
-    "frontend/tests/materials-catalog.test.js": "447ec50b1f9ca08b98cd2bb2c149dc52837c7687ddac175114b65d7e4db938c7",
-    "frontend/src/lib/i18n.js": "935b0992b161a1a37af1baaee3c4eda374394f50b74ceaa0209e2fb7cb13e1dd",
-    "frontend/src/pages/Materials.jsx": "f85aa3d87661f5f361d3233ea207d585cf05c83250e7ce65ea43af9fb7c333ec",
+    "frontend/src/App.jsx": "a5d2123fb8d559c868789da7d2116b10f3fc6f8a35c99b96e77aea63b1b4913a",
+    "frontend/src/lib/materialCatalog.js": "6f9c50e7402275182d8f9d0ab0faf34b6e1bb2e70bd95a44332e9a786b27b539",
+    "frontend/tests/materials-catalog.test.js": "0422da3b894546422ce0fee6b53b062cf5420be8b10066ada451f0c601353424",
+    "frontend/src/lib/i18n.js": "ac9e715924aa5b081aa60ba08d63ad7682d2aa7ff9889d47ba5840373a15a915",
+    "frontend/src/pages/Materials.jsx": "08385374476425932ec99aca0a87e46e76bdf27048972218101e7803d116398e",
     "frontend/src/components/learning/CatalogSheetCard.jsx": "0bce127fc2679e5599d10951b9bbeefa6aaec2827e5222877b36d4695240d713",
     "backend/apps/content/tests/test_catalog_workspace.py": "3fab31330499c8193155f4a29fc49f0e99d8b6038bab0763568f328e115cce7f",
-    "frontend/src/pages/CatalogFocusWorkspace.jsx": "d98ee3fc320e09a022da55a94173eed728b8b6db5eac591c4974c5e1d07b9e1b",
+    "frontend/src/pages/CatalogFocusWorkspace.jsx": "7d6acf0ce9613e962c71f6bb2efa0b50a1a3ab131018d9fb1ce1d8a83e1805f5",
     "backend/apps/focus/annotation_services.py": "f69372630ac361d91b813f3746df864e0977c77dc4f406d91b46fc852dc840e2",
     "backend/apps/focus/tests/test_annotation_document_scope.py": "f3e6728a5fc81fe587f22ad6f720c7ced9b8ceadbf4d50be8e8219bf5fca2939",
     "frontend/e2e/focus-workspace-persistence.spec.js": "a40d01b19ed3193f6b4b1ba214c0b9db4eb02ad2b4d975bce02872ec020c3979",
@@ -1594,7 +1594,7 @@
     "frontend/src/pages/Questions.jsx": "581a85fb9a7091f563e190fa88781f47789af1eea1225b0243f3be3d86227a99",
     "frontend/src/components/learning/PracticeQuestions.jsx": "cad5822698f4d5fae7359af90416e9377ebf7607e3dac7db324c1525de891b64",
     "backend/apps/content/tests/test_catalog_questions.py": "920c90319fa614dec0fbb78574e71d34202220e496b859bfa0dc7c552e32e920",
-    "frontend/src/pages/Review.jsx": "0f5d303c8f07ea16bdbb062b526fe34caa0d661e614c87d7f408ead8cf65bc68",
+    "frontend/src/pages/Review.jsx": "10e9bd0be4e9a2b9d1ca7171d6748768def07931e275c0d52b868d2181a874ba",
     "backend/apps/review/services.py": "f7464c76dc122366bd01a422eca72ebe095ffa3045cd9fdfa7259182c841baa4",
     "backend/apps/review/tests/test_api.py": "736f22eaa16b60e85e4714533a0025cadc29e62293f7031a48d143a078697417",
     "frontend/e2e/review-bank.spec.js": "829fe1c5a7a770c14db1bd96d23fc952857c0ed2e0a8a3a3bf9e879c44d1a572",
@@ -1602,14 +1602,14 @@
     "backend/apps/review/views.py": "d4c7b1a5e3f27c39f322654aca21701a4ae2ee445caa1adb7115f4c881dfcf91",
     "backend/apps/review/tests/test_review.py": "1c80e2817783ede2a7d3270b120f88e89c97cf8e19a40112e6e27faac0bd95cc",
     "frontend/src/pages/Progress.jsx": "a462e70ec487893d869703a1697facd871896a594ef0db162010021c6e25f391",
-    "frontend/src/api/motivation.js": "3c4e46a5c2e2ce13e52e3f62e7a9d402c2574c90d297f5915cd1c6bae733e176",
+    "frontend/src/api/motivation.js": "3681c4074c71a1b51c496e2d878b57e16441dfbb5b3c6c4d91e51534f747c224",
     "frontend/src/pages/Biweekly.jsx": "a3fa9547869885abdf21f28b8b06eb6604238c867591e1375bf8770ca80c8ec2",
     "backend/apps/biweekly/services.py": "2444650f428896e2cacd0a6f94d95a8656676bcd997d07595acd0d38fa693c32",
     "backend/apps/biweekly/tests/test_biweekly.py": "651eb7d595f48a0bdc9c92caa90aae3146e4b21fec3ea0a5088e5d52d48c879c",
-    "frontend/src/components/auth/AuthPage.jsx": "40dbe29061f67a7f404408b8355bd7d207eed61a2b59c718bbb9b6bf951c9e9f",
-    "frontend/src/pages/Settings.jsx": "8eb92ec53c75d791f8db22e1170319d925953f1b43778b2687049f9ebf078569",
+    "frontend/src/components/auth/AuthPage.jsx": "52fc1f369d81b64ef1d29070ace85ad28022d7633fd43fd38b353dd85745b5e8",
+    "frontend/src/pages/Settings.jsx": "85e34eca4b77f2ef29631f7cf22152ec81039af25d4256131c181109a2003aec",
     "frontend/src/api/accounts.js": "343c82d0ddb16095bea2574cabb1e8b592b3ec35a8cb6f5163f465ce6f26302a",
-    "backend/apps/accounts/tests/test_api.py": "f1db898373432b202439d7163d2799badd86aa75b9fd1f992d2949d5902a6cc6",
+    "backend/apps/accounts/tests/test_api.py": "d7e0571992881856b9dabe3728987070a693300de62b6ffe3b0ed77db96f3363",
     "frontend/src/pages/Feedback.jsx": "92204acf6852db18570eae60564de67c24ca68d118628fbdb1c8337087b4d4cb",
     "backend/apps/feedback/tests/test_api.py": "338bdb17ab192bbf1e43a0982cfaf86f273f51130ba46c574aad7526653c318e",
     "backend/apps/accounts/tests/test_security_regressions.py": "dbecaa675a618beb983edb6dbae59ec35393665dfe99899b42afbbffd10a16fa",
