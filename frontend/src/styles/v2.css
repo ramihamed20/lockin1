@@ -693,29 +693,8 @@ html.ix-hover .settings-v2-back:hover {
 
 /* --- Sign-in and registration --------------------------------------------- */
 
-/* The shared select rule (system layer) outranked the sign-in stylesheet
-   (app layer), so the college / specialty / year selects came out shorter
-   and on a different fill than the text fields beside them. */
-.auth-v2 select:not(.auth-v2-language select) {
-  min-height: 49px;
-  padding: 0 14px;
-  border: 1px solid var(--auth-border);
-  border-radius: 12px;
-  color: var(--auth-ink);
-  background-color: var(--auth-control);
-  font-size: 16px;
-}
-
-.auth-v2 select:not(.auth-v2-language select):disabled {
-  color: var(--auth-quiet);
-  background-color: var(--auth-surface);
-}
-
-@media (max-width: 639px) {
-  .auth-v2 select:not(.auth-v2-language select) {
-    min-height: 52px;
-  }
-}
+/* The college / specialty / year selects are styled in the system layer from
+   components/auth/auth.css, beside the text fields they have to match. */
 
 /* --- Catalogue ------------------------------------------------------------- */
 
@@ -871,11 +850,6 @@ html.ix-hover .dash-state:hover {
   .dash-state-value {
     font-size: 1.5rem;
   }
-}
-
-.dashboard-left .continue-card h2 {
-  font-weight: var(--weight-bold);
-  letter-spacing: -0.02em;
 }
 
 .dashboard-review-queue .review-queue-empty {
@@ -1333,11 +1307,6 @@ html.ix-hover .dash-state:hover {
 .skeleton-stat.is-wide { grid-column: span 2; }
 .skeleton-stat-value { width: 44px; height: 26px; }
 .skeleton-stat-label { width: min(110px, 70%); height: 12px; }
-
-.skeleton-page--dashboard .skeleton-dashboard-layout { margin: 0; }
-.skeleton-page--dashboard .skeleton-dashboard-layout > div:last-child { align-content: stretch; }
-.skeleton-page--dashboard .skeleton-visual-card { display: grid; min-height: 0; padding: 0; overflow: hidden; }
-.skeleton-page--dashboard .skeleton-visual { height: auto; min-height: 260px; border-radius: 0; }
 
 @keyframes v2-reveal {
   from { opacity: 0; transform: translateY(-4px); }

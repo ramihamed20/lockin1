@@ -18,7 +18,8 @@ const VIEW_URL_PATTERN = /^\/api\/v1\/files\/[0-9a-f-]+\/view$/i;
  *   createdAt: string,
  *   status: "ready" | "processing" | "unavailable",
  *   viewUrl: string,
- *   activeStudy: { status: string }
+ *   activeStudy: { status: string },
+ *   copy: { author: string, documentId: string, shareId: string } | null
  * }} PersonalSheet
  * @typedef {{ maxSheets: number, maxFileBytes: number, used: number, remaining: number }} PersonalSheetLimits
  */
@@ -36,7 +37,11 @@ export function parsePersonalSheet(value) {
     createdAt: String(value.created_at || ""),
     status: viewUrl ? status : status === "ready" ? "unavailable" : status,
     viewUrl,
-    activeStudy: { status: String(value.active_study?.status || "unavailable") }
+    activeStudy: { status: String(value.active_study?.status || "unavailable") },
+    // Set for a copy of another student's shared marks on a catalog sheet.
+    copy: value.copy && UUID_PATTERN.test(String(value.copy.document_id))
+      ? { author: String(value.copy.author || ""), documentId: String(value.copy.document_id), shareId: UUID_PATTERN.test(String(value.copy.share_id)) ? String(value.copy.share_id) : "" }
+      : null
   };
 }
 
@@ -139,7 +144,8 @@ export const personalSheetsApi = {
     const payload = await request(`/personal-sheets/${encodeURIComponent(sheetId)}`, { signal });
     const sheet = parsePersonalSheet(payload?.sheet);
     if (!sheet) throw new ApiError(404, payload, "Sheet not found.", "not_found");
-    return { sheet, subject: { slug: String(payload?.subject?.slug || ""), title: String(payload?.subject?.title || "") } };
+    const seed = payload?.sheet?.seed && typeof payload.sheet.seed === "object" ? payload.sheet.seed : null;
+    return { sheet, seed, subject: { slug: String(payload?.subject?.slug || ""), title: String(payload?.subject?.title || "") } };
   },
   /** @param {string[]} ids */
   async remove(ids) {

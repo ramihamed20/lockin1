@@ -34,6 +34,7 @@ import { isFeatureComingSoon } from "./lib/featureAvailability.js";
 import { synchronizeOffline } from "./offline/coordinator.js";
 import { forgetOfflineUser, rememberOfflineUser, restoreOfflineUser } from "./offline/profile.js";
 import OfflineIndicator from "./offline/OfflineIndicator.jsx";
+import "./pages/dashboard.css";
 import { WeeklyReadyToast } from "./components/biweekly/WeeklyReadyToast.jsx";
 import { WhatsNew } from "./components/WhatsNew.jsx";
 
@@ -492,7 +493,9 @@ function App() {
         if (oauthSessionBootRef.current) clearSubscriptionSnapshots();
         setUser(nextUser);
         setThemeSettings((current) => mergeRemoteThemeSettings(nextUser.themeSettings, current));
-        await loadOperationsSession();
+        // Study routes need the confirmed user; privileged routes separately
+        // wait for operationsSessionPending to settle before they can open.
+        void loadOperationsSession();
       })
       .catch(async (error) => {
         if (!active) return;
@@ -688,7 +691,8 @@ function App() {
   return (
     <SubscriptionSessionProvider key={user.id} user={user}>
       <>
-      <OfflineIndicator userId={user.id} />
+      {/* The dashboard shows offline status inline, in its own content flow. */}
+      {!["/", "/dashboard"].includes(location.pathname) && <OfflineIndicator userId={user.id} />}
       <WhatsNew user={user} suppressed={inFocusWorkspace} />
       <Shell user={user} operationsSession={operationsSession} theme={activeTheme} onThemeChange={setManualTheme} onLogout={requestLogout} notificationVersion={notificationVersion} onNotificationsChanged={() => setNotificationVersion((version) => version + 1)} storeCartCount={storeCartCount} lockBalance={lockBalance} storeCommerceEnabled={false}>
         <ErrorBoundary resetKey={location.pathname}>

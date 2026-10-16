@@ -7,6 +7,7 @@ import { PdfRenderQueue, pdfRenderGenerationIsCurrent } from "./pdfRenderQueue.j
 import { loadPdfLibrary } from "./pdfJsAdapter.js";
 import { catalogCanvasPixelBudget, deferDuringScroll } from "./renderBudget.js";
 import { visiblePdfPages } from "./visiblePdfPages.js";
+import { recordWorkspacePdfLoadTiming } from "./workspacePerformance.js";
 import { composeWorkspacePages } from "./virtualPages.js";
 
 export const A4_PAGE_WIDTH = 595;
@@ -78,6 +79,7 @@ async function measureEveryPage(documentProxy, isCancelled) {
 const A4PdfCanvas = memo(
 /** @param {{ documentProxy: any, pageNumber: number, pageAspectRatio: number, renderZoom: number, shouldRender: boolean, evictionDelayMs?: number, renderRevision: number, wakeToken?: number, renderController: { suspended: boolean, generation: number, scrolling: boolean, deferred: Set<() => void> }, priority: number, renderQueue: PdfRenderQueue, onPageGeometry?: (pageNumber: number, width: number, height: number) => void, onPageRendered?: (duration: number) => void, onPageOutcome?: (pageNumber: number, failed: boolean) => void }} props */
 function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, shouldRender, evictionDelayMs = CANVAS_EVICTION_MS, renderRevision, wakeToken = 0, renderController, priority, renderQueue, onPageGeometry, onPageRendered, onPageOutcome }) {
+  const paneActive = useWorkspacePaneActive();
   const canvasRefs = useRef([null, null]);
   const visibleCanvasRef = useRef(0);
   const renderedRef = useRef({ documentProxy: null, qualityScale: 0 });
@@ -92,6 +94,20 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
     if (evictionTimerRef.current) {
       window.clearTimeout(evictionTimerRef.current);
       evictionTimerRef.current = null;
+    }
+    // A kept tab needs its reader state, not its page-sized raster buffers.
+    // Cancel first: an old PDF.js continuation must never repaint a hidden pane.
+    if (!paneActive) {
+      renderQueue.cancel(queueKey);
+      if (retiredCanvasRafRef.current !== null) cancelAnimationFrame(retiredCanvasRafRef.current);
+      retiredCanvasRafRef.current = null;
+      for (const canvas of canvasRefs.current) {
+        if (!canvas) continue;
+        canvas.width = 0;
+        canvas.height = 0;
+      }
+      renderedRef.current = { documentProxy: null, qualityScale: 0 };
+      return undefined;
     }
     if (renderController.suspended) return undefined;
     if (!documentProxy || !shouldRender) {
@@ -243,7 +259,7 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
     });
 
     return cancelQueuedRender;
-  }, [documentProxy, evictionDelayMs, onPageGeometry, onPageOutcome, onPageRendered, pageNumber, priority, qualityScale, renderController, renderQueue, renderRevision, shouldRender, wakeToken]);
+  }, [documentProxy, evictionDelayMs, onPageGeometry, onPageOutcome, onPageRendered, pageNumber, paneActive, priority, qualityScale, renderController, renderQueue, renderRevision, shouldRender, wakeToken]);
 
   useEffect(() => () => {
     renderQueue.cancel(`page:${pageNumber}`);
@@ -336,7 +352,7 @@ export function ContinuousA4Pdf({
   const renderResumeRafRef = useRef(null);
   const scrollTimerRef = useRef(null);
   const scrollingRef = useRef(false);
-  const suspensionRef = useRef({ activity: false, pinch: false, scroll: false, zoom: false });
+  const suspensionRef = useRef({ activity: false, pinch: false, scroll: false, zoom: false, pane: false });
   const renderControllerRef = useRef({ suspended: false, generation: 0, scrolling: false, deferred: new Set() });
   const renderQueueRef = useRef(null);
   if (!renderQueueRef.current) renderQueueRef.current = new PdfRenderQueue({ concurrency: 1 });
@@ -488,6 +504,10 @@ export function ContinuousA4Pdf({
   }, [commitNearbyPages, flushPageGeometry]);
 
   useEffect(() => {
+    setRenderSuspension("pane", !paneActive);
+  }, [paneActive, setRenderSuspension]);
+
+  useEffect(() => {
     if (Math.abs(renderScaleRef.current - zoom) < .001) {
       setRenderSuspension("zoom", false);
       return undefined;
@@ -601,6 +621,8 @@ export function ContinuousA4Pdf({
     let cancelled = false;
     let loadingTask;
     async function load() {
+      const measureLoad = import.meta.env.VITE_WORKSPACE_BENCHMARK === "1";
+      const started = measureLoad ? window.performance.now() : 0;
       try {
         setStatus("Loading PDF…");
         setPdfError("");
@@ -609,9 +631,11 @@ export function ContinuousA4Pdf({
         setDefaultPageAspectRatio(A4_PAGE_RATIO);
         setPageAspectRatios(new Map());
         const [pdfjs, { pdfDocumentSource, downloadedPdfSource, isPdfNetworkFailure }] = await Promise.all([loadPdfLibrary(), import("../../offline/pdfSource.js")]);
+        const libraryReady = measureLoad ? window.performance.now() : 0;
         // A downloaded PDF arrives as its stored bytes, read for this open only.
         const source = await pdfDocumentSource(pdfUrl, assetPath);
         if (cancelled) return;
+        const sourceReady = measureLoad ? window.performance.now() : 0;
         loadingTask = pdfjs.getDocument(source);
         let nextDocument;
         try {
@@ -626,8 +650,16 @@ export function ContinuousA4Pdf({
           nextDocument = await loadingTask.promise;
         }
         if (cancelled) return;
+        const parsed = measureLoad ? window.performance.now() : 0;
         const geometry = await measureEveryPage(nextDocument, () => cancelled);
         if (cancelled) return;
+        if (measureLoad) recordWorkspacePdfLoadTiming({
+          pageCount: nextDocument.numPages,
+          libraryMs: libraryReady - started,
+          sourceMs: sourceReady - libraryReady,
+          parseMs: parsed - sourceReady,
+          geometryMs: window.performance.now() - parsed
+        });
         applyMeasuredGeometry(geometry);
         setDocumentProxy(nextDocument);
         onPageCount(nextDocument.numPages);
@@ -846,7 +878,10 @@ export function ContinuousA4Pdf({
             data-pdf-page={entry.kind === "pdf" ? entry.pdfPage : undefined}
             style={{
               width: `${A4_PAGE_WIDTH}px`,
-              height: `${A4_PAGE_WIDTH * (entry.kind === "virtual" ? A4_PAGE_RATIO : pageAspectRatios.get(entry.pdfPage) || defaultPageAspectRatio)}px`
+              height: `${A4_PAGE_WIDTH * (entry.kind === "virtual" ? A4_PAGE_RATIO : pageAspectRatios.get(entry.pdfPage) || defaultPageAspectRatio)}px`,
+              // WebKit can keep a formerly hidden auto-contained subtree skipped.
+              // Pages in the active raster window need laid-out ink and canvases.
+              contentVisibility: paneActive && (entry.kind === "virtual" || pagesToRender.has(entry.pdfPage)) ? "visible" : "auto"
             }}
             aria-label={entry.kind === "virtual" ? `${entry.background} workspace page after PDF page ${entry.pdfPage}` : `PDF page ${entry.pdfPage} of ${pageCount}`}
           >

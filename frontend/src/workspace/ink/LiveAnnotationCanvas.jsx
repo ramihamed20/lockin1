@@ -1,8 +1,12 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from "react";
 import { smoothStrokePoints, strokeRenderGeometry, strokeWidthAtPoint } from "./strokeModel.js";
+import { createPreviewStrokeCache } from "./previewStrokeCache.js";
+import { createSvgEraserPreview } from "./svgEraserPreview.js";
+import { createIsolatedInkPreview } from "./isolatedInkPreview.js";
 import { createLiveStrokeGeometry } from "./liveStrokeGeometry.js";
 import { inkCanvasOutputScale } from "../catalog/renderBudget.js";
 import { paintInkErasures } from "./inkErasures.js";
+import { useWorkspacePaneActive } from "../catalog/workspacePane.js";
 
 function drawDot(context, point, width, color, opacity) {
   context.globalAlpha = opacity;
@@ -12,10 +16,10 @@ function drawDot(context, point, width, color, opacity) {
   context.fill();
 }
 
-function paintGeometry(context, geometry, color) {
+function paintGeometry(context, geometry, color, preparedPath = null) {
   if (!geometry.path) return;
   if (typeof window.Path2D === "function") {
-    const path = new window.Path2D(geometry.path);
+    const path = preparedPath || new window.Path2D(geometry.path);
     if (geometry.kind === "outline") {
       context.fillStyle = color;
       context.fill(path);
@@ -54,11 +58,12 @@ function paintCenterlineFallback(context, geometry, color) {
   context.stroke();
 }
 
-function drawStroke(context, annotation, pageAspect = 1) {
+function drawStroke(context, annotation, pageAspect = 1, previewCache = null) {
   const points = annotation?.points || [];
   if (!points.length) return 0;
   const geometryStarted = window.performance.now();
-  const geometry = strokeRenderGeometry(annotation);
+  const prepared = previewCache?.get(annotation, window.Path2D);
+  const geometry = prepared?.geometry || strokeRenderGeometry(annotation);
   const geometryTime = window.performance.now() - geometryStarted;
   if (geometry.kind === "dot") {
     drawDot(context, geometry, geometry.radius * 2, annotation.color, geometry.opacity);
@@ -68,7 +73,7 @@ function drawStroke(context, annotation, pageAspect = 1) {
   context.save();
   context.globalAlpha = geometry.opacity;
   context.globalCompositeOperation = "source-over";
-  if (typeof window.Path2D === "function" && geometry.path) paintGeometry(context, geometry, annotation.color);
+  if (typeof window.Path2D === "function" && geometry.path) paintGeometry(context, geometry, annotation.color, prepared?.path);
   else {
     const smoothed = smoothStrokePoints(points);
     paintCenterlineFallback(context, {
@@ -137,7 +142,16 @@ function drawDiagnostics(context, diagnostics, cssScale) {
 export const LiveAnnotationCanvas = forwardRef(
 /** @param {{ pageNumber: number, pageAspect?: number }} props */
 function LiveAnnotationCanvas({ pageNumber, pageAspect = 1 }, ref) {
+  const paneActive = useWorkspacePaneActive();
+  const paneActiveRef = useRef(paneActive);
+  paneActiveRef.current = paneActive;
   const canvasRef = useRef(null);
+  const svgPreviewRef = useRef(null);
+  if (svgPreviewRef.current === null) svgPreviewRef.current = createSvgEraserPreview();
+  const isolatedPreviewRef = useRef(null);
+  if (isolatedPreviewRef.current === null) isolatedPreviewRef.current = createIsolatedInkPreview(() => document.createElement("canvas"));
+  const previewStrokeCacheRef = useRef(null);
+  if (previewStrokeCacheRef.current === null) previewStrokeCacheRef.current = createPreviewStrokeCache();
   const pageAspectRef = useRef(pageAspect);
   pageAspectRef.current = pageAspect;
   const sizeRef = useRef({ width: 0, height: 0, ratio: 1 });
@@ -148,7 +162,7 @@ function LiveAnnotationCanvas({ pageNumber, pageAspect = 1 }, ref) {
 
   const ensureSize = useCallback((observedBounds = null) => {
     const canvas = canvasRef.current;
-    if (!canvas) return null;
+    if (!canvas || !paneActiveRef.current) return null;
     const cached = sizeRef.current;
     // Layout size, not the zoom-transformed box: this is the size the
     // ResizeObserver reports, so a zoom change never reallocates mid-stroke.
@@ -191,6 +205,9 @@ function LiveAnnotationCanvas({ pageNumber, pageAspect = 1 }, ref) {
   }, []);
 
   const clear = useCallback(() => {
+    svgPreviewRef.current.release();
+    isolatedPreviewRef.current.release();
+    previewStrokeCacheRef.current.clear();
     liveGeometryRef.current.reset();
     frameRef.current = null;
     const canvas = canvasRef.current;
@@ -243,6 +260,22 @@ function LiveAnnotationCanvas({ pageNumber, pageAspect = 1 }, ref) {
   }, [ensureSize, resetSurface]);
 
   const paintFrame = useCallback((frame, { forceFull = false } = {}) => {
+    const svgWasActive = svgPreviewRef.current.active;
+    if (frame?.kind === "annotations" && frame.svgPreview && paneActiveRef.current
+      && svgPreviewRef.current.paint(canvasRef.current, frame.annotations, frame.hiddenIds, pageAspectRef.current)) {
+      isolatedPreviewRef.current.release();
+      return { geometryTime: 0, incremental: false };
+    }
+    svgPreviewRef.current.release();
+    if (frame?.kind === "annotations" && (svgWasActive || frame.svgPreview)) {
+      // A later touched mark can require raster fragmentation. Re-hide all
+      // originals when switching renderers, including marks restored by SVG.
+      const ids = new Set(frame.hiddenIds.map(String));
+      const layer = canvasRef.current?.parentElement?.querySelector(":scope > svg.workspace-v2-annotation-layer");
+      for (const mark of layer?.querySelectorAll("[data-annotation-id]") || []) {
+        if (ids.has(String(mark.getAttribute("data-annotation-id")))) mark.style.visibility = "hidden";
+      }
+    }
     const context = ensureSize();
     if (!context) return { geometryTime: 0, incremental: false };
     if (frame?.kind === "annotation") {
@@ -260,7 +293,10 @@ function LiveAnnotationCanvas({ pageNumber, pageAspect = 1 }, ref) {
     const cssScale = 1000 / Math.max(1, width);
     let geometryTime = 0;
     if (frame?.kind === "lasso") drawLasso(context, frame.points, cssScale);
-    else for (const annotation of annotations) geometryTime += drawStroke(context, annotation, pageAspectRef.current);
+    else for (const annotation of annotations) geometryTime += isolatedPreviewRef.current.paint(
+      context, annotation, sizeRef.current,
+      (target, mark) => drawStroke(target, mark, pageAspectRef.current, previewStrokeCacheRef.current)
+    );
     context.restore();
     return { geometryTime, incremental: false };
   }, [ensureSize, paintLiveStroke, resetSurface]);
@@ -271,8 +307,8 @@ function LiveAnnotationCanvas({ pageNumber, pageAspect = 1 }, ref) {
     return paintFrame(frame);
   }, [paintFrame]);
 
-  const drawAnnotations = useCallback((annotations) => {
-    const frame = { kind: "annotations", annotations: annotations || [] };
+  const drawAnnotations = useCallback((annotations, options = {}) => {
+    const frame = { kind: "annotations", annotations: annotations || [], svgPreview: options.svgPreview, hiddenIds: options.hiddenIds || [] };
     frameRef.current = frame;
     liveGeometryRef.current.reset();
     paintFrame(frame);
@@ -286,6 +322,31 @@ function LiveAnnotationCanvas({ pageNumber, pageAspect = 1 }, ref) {
   }, [paintFrame]);
 
   useImperativeHandle(ref, () => ({ clear, draw, drawAnnotations, drawLasso: drawLassoPreview, pageNumber }), [clear, draw, drawAnnotations, drawLassoPreview, pageNumber]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    if (!paneActive) {
+      svgPreviewRef.current.release();
+      isolatedPreviewRef.current.release();
+      previewStrokeCacheRef.current.clear();
+      // Keep the logical preview/handoff, but release its hidden bitmap.
+      // Background draws and resize callbacks cannot allocate while hidden.
+      canvas.width = 0;
+      canvas.height = 0;
+      contextRef.current = null;
+      liveGeometryRef.current.invalidate();
+      return;
+    }
+    // A committed handoff may already have cleared the frame while hidden.
+    // An interrupted live stroke or selection still needs its full preview.
+    if (frameRef.current) paintFrame(frameRef.current, { forceFull: true });
+  }, [paneActive, paintFrame]);
+
+  useEffect(() => () => {
+    svgPreviewRef.current.release();
+    isolatedPreviewRef.current.release();
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;

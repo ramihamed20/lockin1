@@ -199,9 +199,7 @@
   .ix-tablist [role="tab"] { border-radius: var(--radius-full); }
 
   /* Dashboard keeps its metric row, study stack and illustration. */
-  .dashboard-layout,
   .dashboard-main { gap: clamp(14px, 1.5vw, 20px); }
-  .dashboard-left { gap: 14px; }
   .dashboard-stats-grid { gap: clamp(9px, 1vw, 14px); }
   .dashboard-stats-grid .stat-card {
     border: 1px solid var(--polish-line);
@@ -216,12 +214,6 @@
   .dashboard-stats-grid .stat-icon { border-radius: var(--radius-md); }
   .dashboard-stats-grid .stat-card-value { font-weight: var(--weight-bold); }
   .dashboard-stats-grid .stat-card-chevron { color: var(--soft); }
-  .dashboard-left .continue-card {
-    padding: clamp(18px, 2vw, 24px);
-    border-radius: var(--radius-card);
-    background: var(--surface);
-  }
-  .dashboard-left .dashboard-recent-sheets { padding: clamp(16px, 1.7vw, 22px); border-radius: var(--radius-card); }
   .dashboard-review-item {
     min-height: 50px;
     padding: 10px 13px;
@@ -234,7 +226,6 @@
   .dashboard-recent-material:hover:where(html.ix-hover *) {
     background: var(--surface-3);
   }
-  .dashboard-right .scene-card { border-radius: var(--radius-card); }
   .review-queue-item { border-radius: var(--radius-md); }
 
   /* The remaining student destinations share the same quiet surface rhythm. */
@@ -392,10 +383,7 @@
     .dashboard-stats-grid .stat-card-static { min-height: 108px; }
   }
   @media (max-width: 639px), (max-height: 559px) {
-    .dashboard-layout,
     .dashboard-main { gap: 14px; }
-    .dashboard-left .continue-card,
-    .dashboard-left .dashboard-recent-sheets { padding: 18px; }
     .global-search-mobile-input { padding-inline: 15px; }
   }
   @media (max-width: 639px) {

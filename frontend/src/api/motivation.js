@@ -35,8 +35,9 @@ function notificationCursor(next) {
 
 /** Server-authoritative personal motivation, ranking, and notification APIs. */
 export const motivationApi = {
-  async xpSummary() {
-    return objectPayload(await request("/progression/xp"), "The XP summary response was incomplete.");
+  /** @param {{ signal?: AbortSignal }} [options] */
+  async xpSummary({ signal } = {}) {
+    return objectPayload(await request("/progression/xp", { signal }), "The XP summary response was incomplete.");
   },
 
   async xpLedger({ page = 1, pageSize = 25 } = {}) {

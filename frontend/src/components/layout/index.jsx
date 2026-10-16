@@ -8,7 +8,7 @@ import { isApiError } from "../../api/client.js";
 import { isKnownNotificationRoute, notificationFallbackRoute } from "../../lib/notificationRoutes.js";
 import { notificationPresentation } from "../../lib/notificationPresentation.js";
 import { PROGRESSION_UPDATED_EVENT } from "../../lib/progressionEvents.js";
-import { COMPACT_SHELL_QUERY, navItems, themeOptions } from "../../lib/constants.js";
+import { COMPACT_SHELL_QUERY, bottomNavPaths, hubForPath, hubMemberPaths, navItems, themeOptions } from "../../lib/constants.js";
 import { assetPath, cssVars } from "../../lib/utils.js";
 import { PRODUCT_ROLES } from "../../api/contracts.js";
 import { hasProductRole } from "../../lib/authz.js";
@@ -64,16 +64,21 @@ function roleNavigationItems(user, operationsSession) {
 // /dashboard with no highlighted nav item and no aria-current anywhere.
 const DASHBOARD_PATHS = new Set(["/", "/dashboard"]);
 
-function isNavigationItemActive(pathname, path) {
-  return path === "/" ? DASHBOARD_PATHS.has(pathname) : pathname.startsWith(path);
+function isNavigationItemActive(pathname, path, { hubs = true } = {}) {
+  if (path === "/") return DASHBOARD_PATHS.has(pathname);
+  if (!hubs) return pathname.startsWith(path);
+  // A hub's rail entry stays current on every one of its sections.
+  return [path, ...hubMemberPaths(path)].some((member) => pathname.startsWith(member));
 }
 
-export function NavList({ tabIndex = undefined, onNavigate = undefined, user, operationsSession }) {
+export function NavList({ tabIndex = undefined, onNavigate = undefined, user, operationsSession, rail = false }) {
   const location = useLocation();
   const { t } = useI18n();
   const scrollRef = useScrollOverflow();
   useGlide(scrollRef, "[aria-current='page']", location.pathname);
-  const visibleItems = [...navItems, ...roleNavigationItems(user, operationsSession)];
+  // The rail carries only the primary destinations; hub sections are tabs on
+  // their page and everything else is one tap away in the drawer.
+  const visibleItems = [...navItems.filter((item) => item.primary), ...roleNavigationItems(user, operationsSession)];
   let currentGroup = "";
   return (
     <nav className="nav-list" aria-label="Primary" ref={scrollRef}>
@@ -84,10 +89,14 @@ export function NavList({ tabIndex = undefined, onNavigate = undefined, user, op
         const feature = getFeatureForNavigationPath(item.path);
         const comingSoon = isFeatureComingSoon(feature);
         return (
-          <div className="nav-entry" key={item.path}>
+          <div className="nav-entry" key={item.path} data-group={item.group}>
             {showGroup && <span className="nav-section-label">{t(item.groupKey || `group.${item.group.toLowerCase()}`)}</span>}
-            <NavItem to={item.path} current={active} className={`nav-btn ${active ? "active" : ""} ${comingSoon ? "nav-btn--coming-soon" : ""}`.trim()} aria-label={comingSoon ? t("features.navigationLabel", { feature: t(item.labelKey || item.label) }) : t(item.labelKey || item.label)} title={comingSoon ? t("features.navigationLabel", { feature: t(item.labelKey || item.label) }) : t(item.labelKey || item.label)} tabIndex={tabIndex} onClick={onNavigate} data-feature-id={feature?.id} data-feature-status={comingSoon ? feature.status : undefined}>
-              {comingSoon ? <LockinIcon name="coming-soon" size={19} /> : <Icon name={item.icon} size={19} />}
+            <NavItem to={item.path} current={active} className={`nav-btn ${active ? "active" : ""} ${comingSoon ? "nav-btn--coming-soon" : ""}`.trim()} aria-label={comingSoon ? t("features.navigationLabel", { feature: t(item.labelKey || item.label) }) : t(item.labelKey || item.label)} title={rail ? undefined : comingSoon ? t("features.navigationLabel", { feature: t(item.labelKey || item.label) }) : t(item.labelKey || item.label)} tabIndex={tabIndex} onClick={onNavigate} data-feature-id={feature?.id} data-feature-status={comingSoon ? feature.status : undefined}>
+              {/* The refined rail has no room for words, so a coming-soon entry keeps
+                  its own icon (four identical placeholders were indistinguishable)
+                  and carries a small marker instead. */}
+              {comingSoon && !rail ? <LockinIcon name="coming-soon" size={19} /> : <Icon name={item.icon} size={19} />}
+              {comingSoon && rail && <i className="nav-soon-dot" aria-hidden="true" />}
               <span>{t(item.labelKey || item.label)}</span>
               {comingSoon && <small className="nav-coming-soon-label">{t("features.comingSoon")}</small>}
             </NavItem>
@@ -185,7 +194,9 @@ function DrawerNavGroup({ label, items, pathname, tabIndex, onNavigate, children
       <h3 className="nav-section-label" id={labelId}>{label}</h3>
       <div className="drawer-nav-items">
         {items.map((item) => {
-          const active = isNavigationItemActive(pathname, item.path);
+          // The drawer lists hub sections as entries of their own, so each
+          // entry matches only its own path here.
+          const active = isNavigationItemActive(pathname, item.path, { hubs: false });
           const feature = getFeatureForNavigationPath(item.path);
           const comingSoon = isFeatureComingSoon(feature);
           return (
@@ -215,10 +226,13 @@ function MobileDrawerNavigation({ user, operationsSession, pathname, tabIndex, o
       </nav>
     );
   }
-  const primaryPaths = new Set(["/", "/materials", "/questions", "/review"]);
-  const primaryItems = navItems.filter((item) => primaryPaths.has(item.path));
+  const primaryItems = navItems.filter((item) => item.primary);
+  const secondaryItems = navItems.filter((item) => !item.primary);
+  // Scheduled features sit together at the end rather than between pages a
+  // student can actually open.
+  const plannedItems = secondaryItems.filter((item) => isFeatureComingSoon(getFeatureForNavigationPath(item.path)));
   const exploreItems = [
-    ...navItems.filter((item) => !primaryPaths.has(item.path)),
+    ...secondaryItems.filter((item) => !plannedItems.includes(item)),
     { path: "/notifications", label: "Notifications", labelKey: "nav.notifications", icon: "bell" },
     { path: "/achievements", label: "Achievements", labelKey: "nav.achievements", icon: "award" },
     { path: "/settings", label: "Settings", labelKey: "nav.settings", icon: "settings" }
@@ -229,19 +243,19 @@ function MobileDrawerNavigation({ user, operationsSession, pathname, tabIndex, o
     <nav className="drawer-navigation" aria-label={t("shell.mobileDestinations")}>
       <DrawerNavGroup label={t("common.primary")} items={primaryItems} pathname={pathname} tabIndex={tabIndex} onNavigate={onNavigate} />
       {workspaceItems.length > 0 && <DrawerNavGroup label={t("common.workspace")} items={workspaceItems} pathname={pathname} tabIndex={tabIndex} onNavigate={onNavigate} />}
-      <DrawerNavGroup label={t("common.explore")} items={exploreItems} pathname={pathname} tabIndex={tabIndex} onNavigate={onNavigate}>
-        <button className="nav-btn drawer-logout" type="button" tabIndex={tabIndex} onClick={onLogout}>
-          <Icon name="logout" size={19} />
-          <span>{t("common.logout")}</span>
-        </button>
-      </DrawerNavGroup>
+      <DrawerNavGroup label={t("common.explore")} items={exploreItems} pathname={pathname} tabIndex={tabIndex} onNavigate={onNavigate} />
+      {plannedItems.length > 0 && <DrawerNavGroup label={t("shell.planned")} items={plannedItems} pathname={pathname} tabIndex={tabIndex} onNavigate={onNavigate} />}
+      <button className="nav-btn drawer-logout" type="button" tabIndex={tabIndex} onClick={onLogout}>
+        <Icon name="logout" size={19} />
+        <span>{t("common.logout")}</span>
+      </button>
     </nav>
   );
 }
 
 // --- StreakCard ---
 
-export function StreakCard({ user }) {
+export function StreakCard({ user, compact = false }) {
   const { t } = useI18n();
   const [state, setState] = useState({ loading: true, error: "", data: null });
   const userRef = useRef(user);
@@ -270,6 +284,14 @@ export function StreakCard({ user }) {
       document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, []);
+
+  if (compact) {
+    const days = state.data ? Number(state.data.current_days) || 0 : null;
+    const style = /** @type {import("react").CSSProperties & { "--streak-tier-color": string }} */ ({ "--streak-tier-color": getStreakTier(days || 0).color });
+    return <div className={`streak-mini${days ? " streak-mini--active" : ""}`} role="group" aria-label={days === null ? t(state.loading ? "streak.loading" : "streak.unavailable") : t("streak.daysLabel", { count: days })} aria-busy={state.loading || undefined} style={style}>
+      <Icon name="flame" size={18} /><strong aria-hidden="true">{days === null ? "—" : formatNumber(days)}</strong>
+    </div>;
+  }
 
   if (state.loading) {
     return <div className="streak-card streak-card--loading" aria-label={t("streak.loading")} aria-busy="true"><div className="streak-card-heading"><Skeleton className="streak-skeleton-icon" /><Skeleton className="streak-skeleton-heading" /></div><Skeleton className="streak-skeleton-value" /><SkeletonText className="streak-skeleton-copy" lines={1} /><Skeleton className="streak-skeleton-track" /></div>;
@@ -301,16 +323,43 @@ function FreezeRow() {
 
 // --- Sidebar ---
 
-export function Sidebar({ user, operationsSession, studio = false, inert = false }) {
+export function Sidebar({ user, operationsSession, studio = false, inert = false, onExpand, expanded = false }) {
+  const { t } = useI18n();
   const densityRef = useSidebarDensity();
+  // Every normal route uses the icon rail; Creator Studio keeps its labelled
+  // sidebar. Below the tablet boundary the sidebar is not shown at all.
+  const rail = !studio;
+  const [tip, setTip] = useState(null);
+  // Names for an icon-only rail: shown beside the hovered (mouse/pen) or
+  // keyboard-focused destination. Portalled to <body> because the sidebar
+  // clips its children; aria-hidden because every link already carries the
+  // same accessible name.
+  const showTip = (target) => {
+    const link = target instanceof window.Element ? target.closest(".nav-btn[aria-label]") : null;
+    const aside = link?.closest(".sidebar");
+    if (!link || !aside) return setTip(null);
+    const box = link.getBoundingClientRect();
+    const railBox = aside.getBoundingClientRect();
+    const rtl = window.getComputedStyle(aside).direction === "rtl";
+    setTip({ text: link.getAttribute("aria-label"), style: rtl ? { top: box.top + box.height / 2, right: window.innerWidth - railBox.left + 6 } : { top: box.top + box.height / 2, left: railBox.right + 6 } });
+  };
+  const railEvents = rail ? {
+    onPointerOver: (event) => { if (event.pointerType !== "touch") showTip(event.target); },
+    onPointerLeave: () => setTip(null),
+    onFocus: (event) => { if (event.target instanceof window.Element && event.target.matches(":focus-visible")) showTip(event.target); },
+    onBlur: () => setTip(null),
+    onScroll: () => setTip(null)
+  } : {};
   return (
-    <aside className={`sidebar ${studio ? "sidebar--studio" : ""}`.trim()} ref={densityRef} aria-label="Main navigation" inert={inert ? "" : undefined} aria-hidden={inert || undefined}>
+    <aside className={`sidebar ${studio ? "sidebar--studio" : ""} ${rail ? "sidebar--rail" : ""}`.trim()} ref={densityRef} aria-label="Main navigation" inert={inert ? "" : undefined} aria-hidden={inert || undefined} {...railEvents} onScrollCapture={railEvents.onScroll}>
       <div className="sidebar-brand-row">
         <Brand />
         {studio && <span className="studio-badge">Studio</span>}
+        {rail && <button className="icon-btn rail-expand" type="button" onClick={onExpand} aria-label={t("shell.expandNavigation")} aria-expanded={expanded} aria-controls="mobile-drawer"><Icon name="menu" size={20} /></button>}
       </div>
-      {studio ? <StudioNavList operationsSession={operationsSession} /> : <NavList user={user} operationsSession={operationsSession} />}
-      {!studio && <StreakCard user={user} />}
+      {studio ? <StudioNavList operationsSession={operationsSession} /> : <NavList user={user} operationsSession={operationsSession} rail={rail} />}
+      {rail && <StreakCard user={user} compact />}
+      {rail && tip && createPortal(<span className="rail-tooltip" aria-hidden="true" style={tip.style}>{tip.text}</span>, document.body)}
     </aside>
   );
 }
@@ -328,7 +377,7 @@ export function BottomNav({ onMore, menuOpen, inert = false, studio = false, ope
       .filter(Boolean)
       .map(([key, label, , icon]) => ({ path: `/operations/admin/${key}`, label, labelKey: label, icon }))
     : null;
-  const items = studioItems || navItems.filter((item) => ["/", "/materials", "/questions", "/review"].includes(item.path));
+  const items = studioItems || navItems.filter((item) => bottomNavPaths.includes(item.path));
   return (
     <nav className="bottom-nav" ref={navRef} aria-label={t("shell.mobileNavigation")} inert={inert ? "" : undefined} aria-hidden={inert || undefined}>
       {items.map((item) => {
@@ -344,6 +393,27 @@ export function BottomNav({ onMore, menuOpen, inert = false, studio = false, ope
         <Icon name="menu" size={20} />
         <span>{t("common.more")}</span>
       </button>
+    </nav>
+  );
+}
+
+// --- HubTabs ---
+
+/**
+ * The sections of one primary destination (Materials, Review, Progress) as a
+ * tab strip at the top of the page. They are links, not ARIA tabs: each one is
+ * its own route, so back/forward, deep links and reloads keep working.
+ */
+export function HubTabs({ pathname }) {
+  const { t } = useI18n();
+  const hub = hubForPath(pathname);
+  if (!hub) return null;
+  return (
+    <nav className="hub-tabs" aria-label={t("hub.sections")}>
+      {hub.sections.map((section) => {
+        const current = section.path === pathname;
+        return <Link key={section.path} to={section.path} className={`hub-tab${current ? " is-current" : ""}`} aria-current={current ? "page" : undefined}>{t(section.labelKey)}</Link>;
+      })}
     </nav>
   );
 }
@@ -1149,8 +1219,8 @@ export function Shell({ children, user, operationsSession, theme, onThemeChange,
   const studio = isStudioRoute(location.pathname);
 
   return (
-      <div className={`app-shell ${keyboardOpen ? "keyboard-open" : ""}`.trim()}>
-        <Sidebar user={user} operationsSession={operationsSession} studio={studio} inert={drawerOpen} />
+      <div className={`app-shell ${keyboardOpen ? "keyboard-open" : ""} ${studio ? "" : "app-shell--rail"}`.trim()}>
+        <Sidebar user={user} operationsSession={operationsSession} studio={studio} inert={drawerOpen} onExpand={openDrawer} expanded={drawerOpen} />
         <div className="content-frame" inert={drawerOpen ? "" : undefined} aria-hidden={drawerOpen || undefined}>
           <Topbar
             user={user}
@@ -1168,7 +1238,7 @@ export function Shell({ children, user, operationsSession, theme, onThemeChange,
             lockBalance={lockBalance}
             storeCommerceEnabled={storeCommerceEnabled}
           />
-          <main className="page-shell" id="main-content" tabIndex={-1} aria-label="Lock-in page content">{children}</main>
+          <main className="page-shell" id="main-content" tabIndex={-1} aria-label="Lock-in page content">{!studio && <HubTabs pathname={location.pathname} />}{children}</main>
         </div>
         <BottomNav onMore={openDrawer} menuOpen={drawerOpen} inert={drawerOpen} studio={studio} operationsSession={operationsSession} />
         <div className={`dropdown-backdrop ${dropdownActive ? "open" : ""}`} />

@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { STUDY_TOOLS_ENABLED } from "../workspace/knowledge/model.js";
+const KnowledgeShelf = lazy(() => import("../workspace/knowledge/KnowledgeShelf.jsx"));
 import { Link, useParams } from "react-router-dom";
 import { reviewApi } from "../api/review.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
@@ -101,6 +103,7 @@ export default function ReviewCenter({ user = null }) {
           <div className="recent-mistake-list">{queue.results.map((item) => <RecentMistake key={item.id} item={item} />)}</div>
         </section>}
 
+        {STUDY_TOOLS_ENABLED && user?.id && <Suspense fallback={null}><KnowledgeShelf key={user.id} userId={user.id} /></Suspense>}
         <BiweeklyHistory type="review" biweekly={biweekly} />
       </div>
     </Page>

@@ -49,7 +49,7 @@ export function parseCatalogDocument(payload) {
   ) {
     return null;
   }
-  return { id: document.id, versionId: document.document_version_id, viewUrl: document.view_url, checksum: String(document.checksum_sha256 || "") };
+  return { id: document.id, versionId: document.document_version_id, fileId: String(document.file_id || ""), offline: document.offline === true, viewUrl: document.view_url, checksum: String(document.checksum_sha256 || "") };
 }
 
 /**

@@ -9,7 +9,8 @@ import { useSubscriptionSession } from "../lib/SubscriptionSessionContext.jsx";
 import { appIconOptions, characterOptions, themeOptions } from "../lib/constants.js";
 import { assetPath, normalizeThemeSettings, normalizeReminderSettings } from "../lib/utils.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
-import { AccountFieldErrors, fieldErrorAttributes } from "../components/account/AccountFormErrors.jsx";
+import { AccountFieldErrors, AccountFormAlert, fieldErrorAttributes } from "../components/account/AccountFormErrors.jsx";
+import { normalizeAuthError } from "../lib/authValidation.js";
 import { useI18n } from "../components/I18nProvider.jsx";
 import { SessionList } from "../components/account/SessionList.jsx";
 import { SubscriptionStatus } from "../components/subscription/SubscriptionStatus.jsx";
@@ -414,7 +415,7 @@ function UsernameCard({ user, onUserUpdate }) {
       setUsername(updated.username || "");
       setMessage(t("settings.usernameUpdated"));
     } catch (requestError) {
-      setError(requestError);
+      setError(normalizeAuthError(requestError, { t, mode: "complete" }));
     } finally {
       setSaving(false);
     }
@@ -442,7 +443,7 @@ function UsernameCard({ user, onUserUpdate }) {
           <small>{t("settings.usernameHint")}</small>
           <AccountFieldErrors error={error} field="username" id="settings-username-error" />
         </label>
-        <AccountFieldErrors error={error} />
+        <AccountFormAlert error={error} />
         <div className="settings-v2-form-actions">
           <span role="status">{message}</span>
           <button className="btn btn-primary compact" type="submit" aria-busy={saving || undefined} disabled={saving || !username.trim() || unchanged}>
@@ -475,7 +476,7 @@ function PasswordCard({ id, headingId }) {
       setForm({ currentPassword: "", password: "", passwordConfirm: "" });
       setMessage(t("settings.passwordUpdated"));
     } catch (requestError) {
-      setError(requestError);
+      setError(normalizeAuthError(requestError, { t, mode: "password_change" }));
     } finally {
       setSaving(false);
     }
@@ -487,7 +488,7 @@ function PasswordCard({ id, headingId }) {
       <label className="field"><span>{t("settings.currentPassword")}</span><input type="password" autoComplete="current-password" value={form.currentPassword} onChange={(event) => setForm((current) => ({ ...current, currentPassword: event.target.value }))} required {...fieldErrorAttributes(error, "current_password", "settings-current-password-error")} /><AccountFieldErrors error={error} field="current_password" id="settings-current-password-error" /></label>
       <label className="field"><span>{t("settings.newPassword")}</span><input type="password" autoComplete="new-password" value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} required {...fieldErrorAttributes(error, "new_password", "settings-new-password-error")} /><AccountFieldErrors error={error} field="new_password" id="settings-new-password-error" /></label>
       <label className="field"><span>{t("settings.confirmNewPassword")}</span><input type="password" autoComplete="new-password" value={form.passwordConfirm} onChange={(event) => setForm((current) => ({ ...current, passwordConfirm: event.target.value }))} required {...fieldErrorAttributes(error, "new_password_confirm", "settings-confirm-password-error")} /><AccountFieldErrors error={error} field="new_password_confirm" id="settings-confirm-password-error" /></label>
-      <AccountFieldErrors error={error} />
+      <AccountFormAlert error={error} />
       <div className="settings-v2-form-actions">
         <span role="status">{message}</span>
         <button className="btn btn-primary compact" type="submit" aria-busy={saving || undefined} disabled={saving}>{saving ? t("settings.updatingPassword") : t("settings.updatePassword")}</button>
@@ -545,7 +546,7 @@ function AccountDeletionCard({ confirmationToken, onConfirmationHandled }) {
         ? t("settings.deletionCancelled")
         : t("settings.deletionCheckEmail"));
     } catch (requestError) {
-      setError(requestError);
+      setError(normalizeAuthError(requestError, { t, mode: "deletion" }));
     } finally {
       setBusy(false);
     }
@@ -577,7 +578,10 @@ function AccountDeletionCard({ confirmationToken, onConfirmationHandled }) {
         <p className="settings-v2-note">{t("settings.deletionDescription")}</p>
         {state.status === "confirmed" && !state.request?.policy_version && <p className="form-notice" role="alert">{t("settings.deletionPolicyPending")}</p>}
         <label className="field"><span>{t("settings.currentPassword")}</span><input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy || state.loading || state.status === "processing" || state.status === "completed"} /></label>
-        <AccountFieldErrors error={error} />
+        {/* The status load keeps its raw error (its effect must not re-run on a
+            language change -- it may spend a single-use link), so it is put
+            into words here. */}
+        <AccountFormAlert error={error instanceof Error ? normalizeAuthError(error, { t, mode: "deletion" }) : error} />
         {message && <p className="save-hint" role="status">{message}</p>}
         <div className="settings-v2-form-actions">
           <span />
@@ -609,7 +613,7 @@ function LanguageCard({ onUserUpdate }) {
       onUserUpdate?.(updated);
       setMessage(t("settings.languageSaved"));
     } catch (requestError) {
-      setError(requestError);
+      setError(normalizeAuthError(requestError, { t }));
     } finally {
       setSaving(false);
     }
@@ -628,7 +632,7 @@ function LanguageCard({ onUserUpdate }) {
       </div>
     </div>
     <AccountFieldErrors error={error} field="preferred_language" id="settings-language-error" />
-    <AccountFieldErrors error={error} />
+    <AccountFormAlert error={error} />
     {message && <p className="ui-group-footer" role="status">{message}</p>}
   </div>;
 }

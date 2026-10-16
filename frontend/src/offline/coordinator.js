@@ -5,6 +5,7 @@ import { saveVerifiedLease } from "./lease.js";
 import { flushPendingOperations, pendingOfflineOperations } from "./queue.js";
 // Registers the Focus and Review operation handlers with the shared queue.
 import "./focusSync.js";
+import "./rescueSync.js";
 import { refreshReviewSnapshot } from "./review.js";
 import { captureOfflineSession, currentOfflineUserId } from "./sessionScope.js";
 
@@ -148,7 +149,14 @@ export async function synchronizeOffline(userId, onState = () => {}, { force = t
       leaseError = error;
     }
     assertCurrent();
-    const hadPendingWork = (await pendingOfflineOperations(userId)).length > 0;
+    const pending = await pendingOfflineOperations(userId);
+    if (pending.some((operation) => operation.operation_type.startsWith("active_study_"))) {
+      // Cold replay needs the same ID/XP adoption handlers as an open reader.
+      // Register them before acknowledgements can remove the saved attempts.
+      await import("./activeStudy.js");
+    }
+    assertCurrent();
+    const hadPendingWork = pending.length > 0;
     if (hadPendingWork) publish("syncing");
     const flushed = await flushPendingOperations(userId, { force });
     assertCurrent();

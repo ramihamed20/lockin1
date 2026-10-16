@@ -249,6 +249,17 @@ export function applyAnnotationCommand(annotations, command, direction = "redo")
     const replacements = new Map((direction === "undo" ? command.before : command.after).map((item) => [item.id, item]));
     return current.map((item) => replacements.get(item.id) || item);
   }
+  if (command.type === "replace" && direction === "redo") {
+    // Mask-only erasure replaces the same IDs. Keep their original positions:
+    // regrouping them changes ink overlap and forces needless SVG node moves.
+    const removedIds = ids(command.before);
+    const existingIds = ids(current);
+    const inserted = new Map((command.after || []).map((item) => [item.id, item]));
+    if (removedIds.size === command.before?.length && inserted.size === command.after?.length
+      && removedIds.size === inserted.size && [...removedIds].every((id) => inserted.has(id) && existingIds.has(id))) {
+      return current.map((item) => inserted.get(item.id) || item);
+    }
+  }
   if (command.type === "replace" && direction === "undo" && command.beforePositions) {
     const removedIds = ids(command.after);
     const retained = current.filter((item) => !removedIds.has(item.id));

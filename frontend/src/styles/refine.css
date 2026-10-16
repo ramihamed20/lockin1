@@ -258,8 +258,6 @@ html.ix-hover .catalog-sheet-grid > .catalog-sheet-card:not(.is-unavailable):hov
   .dashboard-stats-grid { overflow-x: auto; overflow-y: hidden; }
 }
 
-.dashboard-left .continue-card h2 + .btn { margin-block-start: 14px; }
-
 /* A corner glyph on "Recent sheets" was decoration beside a plain heading. */
 .dashboard-recent-sheets .panel-title > span { display: none; }
 
@@ -268,11 +266,6 @@ html.ix-hover .catalog-sheet-grid > .catalog-sheet-card:not(.is-unavailable):hov
 .review-queue-title > span {
   color: var(--accent-text);
   background: var(--accent-soft);
-}
-
-.review-queue-header:has(.review-queue-count.has-items) .review-queue-title > span {
-  color: var(--danger);
-  background: var(--danger-soft);
 }
 
 /* --- Review --------------------------------------------------------------- */

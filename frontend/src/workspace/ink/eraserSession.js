@@ -36,6 +36,7 @@ export function createEraserSession({ idFactory = () => String(globalThis.crypto
   let revision = 0;
   let materializedRevision = -1;
   let candidateCount = 0;
+  let hitWidthCache = new WeakMap();
   const before = new Map();
   const working = new Map();
 
@@ -50,6 +51,7 @@ export function createEraserSession({ idFactory = () => String(globalThis.crypto
     revision = 0;
     materializedRevision = -1;
     candidateCount = 0;
+    hitWidthCache = new WeakMap();
     before.clear();
     working.clear();
   }
@@ -80,6 +82,9 @@ export function createEraserSession({ idFactory = () => String(globalThis.crypto
     append(point, { annotationPage = page, candidates = [], radius: nextRadius = 0, mode: nextMode = undefined, scale: nextScale = undefined } = {}) {
       if (!active || annotationPage !== page) begin(point, annotationPage);
       const previous = lastPoint || point;
+      const previousRadius = eraserRadius;
+      const previousMode = eraserMode;
+      const previousScale = eraserScale;
       const newlyChangedIds = [];
       eraserRadius = Math.max(0, Number(nextRadius) || 0);
       eraserMode = nextMode;
@@ -91,22 +96,27 @@ export function createEraserSession({ idFactory = () => String(globalThis.crypto
         const ink = ["pen", "pencil", "highlighter"].includes(original?.type);
         const shape = original?.type === "shape";
         if (!ink && !shape && eraserMode !== "object") continue;
-        const bounds = annotationBounds(original);
+        const bounds = eraserMode === "object" ? annotationBounds(original) : null;
         const hitsObject = eraserMode === "object" && bounds && [previous, point].some((sample) => sample.x >= bounds.x - eraserRadius && sample.x <= bounds.x + bounds.width + eraserRadius && sample.y >= bounds.y - eraserRadius && sample.y <= bounds.y + bounds.height + eraserRadius);
         // Every mode measures against the painted ink, including its width: a
         // tip that visibly covers the edge of a thick highlighter touches it.
-        const hitsInk = ink && strokeIntersectsEraserPath(original, previous, point, eraserRadius, true, eraserScale);
+        const hitsInk = ink && strokeIntersectsEraserPath(original, previous, point, eraserRadius, true, eraserScale, hitWidthCache);
         const hitsShape = shape && shapeIntersectsEraserPath(original, previous, point, eraserRadius, eraserScale);
         if (hitsObject || hitsInk || hitsShape) {
           before.set(original.id, cloneAnnotation(original));
           newlyChangedIds.push(original.id);
         }
       }
-      if (!lastPoint || Math.hypot(point.x - lastPoint.x, point.y - lastPoint.y) > .05) path.push(point);
+      const pathChanged = !lastPoint || Math.hypot(point.x - lastPoint.x, point.y - lastPoint.y) > .05;
+      if (pathChanged) path.push(point);
       lastPoint = point;
-      revision += 1;
+      const previewChanged = pathChanged || newlyChangedIds.length > 0
+        || previousRadius !== eraserRadius || previousMode !== eraserMode
+        || previousScale.x !== eraserScale.x || previousScale.y !== eraserScale.y;
+      if (previewChanged) revision += 1;
       return {
         changed: before.size > 0,
+        previewChanged,
         newlyChangedIds,
         hiddenIds: [...before.keys()],
         candidateCount

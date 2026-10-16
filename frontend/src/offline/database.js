@@ -55,6 +55,54 @@ export const offlineDatabase = {
     assertCurrent();
     return store.delete(key);
   }),
+  // Read/compare/write in one transaction, including browsers without Web Locks.
+  async updateScoped(userId, key, update, assertCurrent) {
+    const db = await open(userId);
+    try {
+      return await new Promise((resolve, reject) => {
+        let value, failure;
+        const transaction = db.transaction(STORE, "readwrite");
+        const store = transaction.objectStore(STORE);
+        const read = store.get(key);
+        read.onsuccess = () => {
+          try {
+            assertCurrent();
+            value = update(read.result);
+            if (value === undefined) store.delete(key);
+            else store.put(value, key);
+          } catch (error) { failure = error; transaction.abort(); }
+        };
+        transaction.oncomplete = () => resolve(value);
+        transaction.onerror = () => reject(failure || transaction.error);
+        transaction.onabort = () => reject(failure || transaction.error);
+      });
+    } finally { db.close(); }
+  },
+  /** Atomic record + durable sync intent, both fenced to the initiating login. */
+  async updateEntriesScoped(userId, key, update, assertCurrent) {
+    const db = await open(userId);
+    try {
+      return await new Promise((resolve, reject) => {
+        let value, failure;
+        const transaction = db.transaction(STORE, "readwrite");
+        const store = transaction.objectStore(STORE);
+        const read = store.get(key);
+        read.onsuccess = () => {
+          try {
+            assertCurrent();
+            const result = update(read.result);
+            value = result.value;
+            if (value === undefined) store.delete(key);
+            else store.put(value, key);
+            for (const [entryKey, entryValue] of result.entries) store.put(entryValue, entryKey);
+          } catch (error) { failure = error; transaction.abort(); }
+        };
+        transaction.oncomplete = () => resolve(value);
+        transaction.onerror = () => reject(failure || transaction.error);
+        transaction.onabort = () => reject(failure || transaction.error);
+      });
+    } finally { db.close(); }
+  },
   keys: (userId) => transact(userId, "readonly", (store) => store.getAllKeys()),
   clear: (userId) => transact(userId, "readwrite", (store) => store.clear())
 };

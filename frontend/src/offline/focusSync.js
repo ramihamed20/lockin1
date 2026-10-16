@@ -1,5 +1,4 @@
 import { enqueueOperation, listOperations, registerOperationHandler, removeOperation, saveOperation } from "./queue.js";
-import { focusApi } from "../api/focus.js";
 import { catalogWorkspaceApi } from "../api/catalogWorkspace.js";
 import { personalWorkspaceApi } from "../api/personalSheets.js";
 import { captureOfflineSession } from "./sessionScope.js";
@@ -72,10 +71,11 @@ let store = null;
 async function flushDocument(userId, operation, assertCurrent = captureOfflineSession(userId)) {
   const descriptor = operation.payload;
   if (openDocuments.has(operation.entity_id)) return "deferred";
-  const [{ createCatalogServerSync }, { createAnnotationStore }, { groupAnnotationsByPage }] = await Promise.all([
+  const [{ createCatalogServerSync }, { createAnnotationStore }, { groupAnnotationsByPage }, { focusApi }] = await Promise.all([
     import("../workspace/catalog/catalogServerSync.js"),
     import("../workspace/storage/annotationStore.js"),
-    import("../workspace/storage/workspaceSnapshot.js")
+    import("../workspace/storage/workspaceSnapshot.js"),
+    import("../api/focus.js")
   ]);
   store ||= createAnnotationStore();
   const local = await store.readDocument({ owner: descriptor.owner, materialSlug: descriptor.materialSlug, sheetSlug: descriptor.sheetSlug });

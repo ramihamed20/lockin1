@@ -12,24 +12,64 @@ export const assets = {
   mascot: "/assets/mascot-study-320.webp"
 };
 
+// Every student destination, in drawer order. Only `primary` entries sit in
+// the rail and the phone's bottom bar; an entry with a `hub` is reached as a
+// tab inside that primary destination (see navHubs), and the rest live in the
+// drawer, which still lists everything so nothing becomes undiscoverable.
 export const navItems = [
-  { path: "/", label: "Dashboard", labelKey: "nav.dashboard", icon: "home", group: "Study", groupKey: "group.study" },
+  { path: "/", label: "Dashboard", labelKey: "nav.dashboard", icon: "home", group: "Study", groupKey: "group.study", primary: true },
   { path: "/study-plan", label: "Study Plan", labelKey: "nav.studyPlan", icon: "calendar", group: "Study", groupKey: "group.study" },
-  { path: "/materials", label: "Materials", labelKey: "nav.materials", icon: "book-open", group: "Study", groupKey: "group.study" },
-  { path: "/paper-workspace", label: "Paper Workspace", labelKey: "nav.paperWorkspace", icon: "file", group: "Study", groupKey: "group.study" },
+  { path: "/materials", label: "Materials", labelKey: "nav.materials", icon: "book-open", group: "Study", groupKey: "group.study", primary: true },
+  { path: "/paper-workspace", label: "Paper Workspace", labelKey: "nav.paperWorkspace", icon: "file", group: "Study", groupKey: "group.study", hub: "/materials" },
   { path: "/lock-in", label: "Lock-in Mode", labelKey: "nav.lockInMode", icon: "clock", group: "Study", groupKey: "group.study" },
-  { path: "/questions", label: "Questions", labelKey: "nav.questions", icon: "help", group: "Study", groupKey: "group.study" },
-  { path: "/review", label: "Review", labelKey: "nav.review", icon: "target", group: "Review", groupKey: "group.review" },
-  { path: "/bookmarks", label: "Bookmarks", labelKey: "nav.bookmarks", icon: "bookmark", group: "Review", groupKey: "group.review" },
+  { path: "/questions", label: "Questions", labelKey: "nav.questions", icon: "help", group: "Study", groupKey: "group.study", primary: true },
+  { path: "/review", label: "Review", labelKey: "nav.review", icon: "target", group: "Review", groupKey: "group.review", primary: true },
+  { path: "/bookmarks", label: "Bookmarks", labelKey: "nav.bookmarks", icon: "bookmark", group: "Review", groupKey: "group.review", hub: "/review" },
   { path: "/store", label: "Store", labelKey: "nav.store", icon: "shopping-bag", group: "Personal", groupKey: "group.personal" },
   // Directly under Store: students looked for plans there and could not find
   // them, because the page was only reachable from the account menu and banners.
   { path: "/subscription", label: "Plans", labelKey: "nav.subscription", icon: "sparkles", group: "Personal", groupKey: "group.personal" },
-  { path: "/progress", label: "Progress", labelKey: "nav.progress", icon: "activity", group: "Personal", groupKey: "group.personal" },
-  { path: "/analysis", label: "Analysis", labelKey: "nav.analysis", icon: "analytics", group: "Personal", groupKey: "group.personal" },
+  { path: "/progress", label: "Progress", labelKey: "nav.progress", icon: "activity", group: "Personal", groupKey: "group.personal", primary: true },
+  { path: "/analysis", label: "Analysis", labelKey: "nav.analysis", icon: "analytics", group: "Personal", groupKey: "group.personal", hub: "/progress" },
   { path: "/community", label: "Community", labelKey: "nav.community", icon: "messages", group: "Social", groupKey: "group.social" },
   { path: "/ranked", label: "Ranked", labelKey: "nav.ranked", icon: "trophy", group: "Social", groupKey: "group.social" }
 ];
+
+// The phone's bottom bar keeps four destinations and "More"; Progress opens
+// the drawer's first group there instead.
+export const bottomNavPaths = ["/", "/materials", "/questions", "/review"];
+
+/**
+ * Sections that share one primary destination. Each hub shows its sections as
+ * a tab strip at the top of the page, on exactly these paths (deeper pages such
+ * as a subject's sheets have their own back link instead), and keeps its rail
+ * entry current on every one of them.
+ */
+export const navHubs = [
+  { path: "/materials", sections: [
+    { path: "/materials", labelKey: "hub.subjects" },
+    { path: "/paper-workspace", labelKey: "nav.paperWorkspace" }
+  ] },
+  { path: "/review", sections: [
+    { path: "/review", labelKey: "review.center" },
+    { path: "/bookmarks", labelKey: "nav.bookmarks" }
+  ] },
+  { path: "/progress", sections: [
+    { path: "/progress", labelKey: "hub.overview" },
+    { path: "/analysis", labelKey: "nav.analysis" },
+    { path: "/achievements", labelKey: "nav.achievements" }
+  ] }
+];
+
+export function hubForPath(pathname) {
+  return navHubs.find((hub) => hub.sections.some((section) => section.path === pathname)) || null;
+}
+
+/** Every path that keeps a primary destination current, beyond its own prefix. */
+export function hubMemberPaths(primaryPath) {
+  const hub = navHubs.find((item) => item.path === primaryPath);
+  return hub ? hub.sections.map((section) => section.path) : [];
+}
 
 export const quotes = [
   "Discipline today, a confident dentist tomorrow.",

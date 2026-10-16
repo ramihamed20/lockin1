@@ -94,8 +94,8 @@ export function CatalogSheetStudy({ user = null }) {
   const { sheet, edition, editions } = resolveSheetEdition(material, sheetSlug);
 
   useEffect(() => {
-    if (edition?.deliverable !== false) rememberLastOpenedCatalogSheet(materialSlug, sheetSlug);
-  }, [materialSlug, edition?.deliverable, sheetSlug]);
+    if (edition?.deliverable !== false) rememberLastOpenedCatalogSheet(materialSlug, sheetSlug, { material, sheet }, user?.id);
+  }, [materialSlug, edition?.deliverable, sheetSlug, material, sheet, user?.id]);
 
   useEffect(() => {
     if (!material || !editions.length) return;

@@ -5,10 +5,13 @@ import "csstype";
 
 declare global {
   interface ImportMetaEnv {
+  readonly VITE_KNOWLEDGE_ENABLED?: string;
+  readonly VITE_START_RESCUE_ENABLED?: string;
     readonly BASE_URL: string;
     readonly DEV: boolean;
     readonly PROD: boolean;
     readonly VITE_API_BASE_URL?: string;
+    readonly VITE_WORKSPACE_BENCHMARK?: "0" | "1";
     readonly VITE_BASE_PATH?: string;
     readonly VITE_LEGAL_ENTITY?: string;
     readonly VITE_LEGAL_ADDRESS?: string;
@@ -35,6 +38,8 @@ declare global {
     __lockInFocusGesture?: Record<string, unknown>;
     __lockInFocusElastic?: Record<string, unknown>;
     __lockInFocusPerformance?: Record<string, unknown>;
+    /** Bounded numeric phases, only in an explicitly instrumented local build. */
+    __lockInPdfLoadTimings?: Array<{ pageCount: number; libraryMs: number; sourceMs: number; parseMs: number; geometryMs: number }>;
     __lockInInkDiagnostics?: Record<string, unknown>;
   }
 }
