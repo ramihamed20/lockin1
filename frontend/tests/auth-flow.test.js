@@ -119,8 +119,9 @@ test("the Google button states the consent it sends, on login and on create-acco
   assert.match(source, /authApi\.register\(\{[^}]*acceptPolicies: form\.acceptPolicies/);
 
   // The notice is rendered with the button, is announced with it, and links to
-  // both policies it claims the reader is accepting.
-  assert.match(source, /aria-describedby="auth-social-consent"/);
+  // both policies it claims the reader is accepting. While Google is switched
+  // off the button is described by the sentence saying so instead.
+  assert.match(source, /aria-describedby=\{googleUnavailable \? "auth-social-unavailable" : "auth-social-consent"\}/);
   assert.match(source, /id="auth-social-consent"[\s\S]*?auth\.socialConsentPrefix/);
   assert.match(source, /auth\.socialConsentPrefix[\s\S]*?to="\/terms"[\s\S]*?to="\/privacy"/);
 

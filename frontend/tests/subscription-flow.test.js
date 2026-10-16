@@ -104,7 +104,7 @@ test("the admin console never offers an action the server would refuse", () => {
   assert.match(subscriptions, /effectiveAction/);
 });
 
-test("plans are one click from the sidebar, directly under Store", async () => {
+test("plans sit directly under Store in the navigation", async () => {
   const { navItems } = await import("../src/lib/constants.js");
   const paths = navItems.map((item) => item.path);
   assert.equal(paths[paths.indexOf("/store") + 1], "/subscription");

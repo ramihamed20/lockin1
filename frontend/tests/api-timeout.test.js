@@ -169,3 +169,29 @@ test("useAsyncData hands its loader a signal and aborts it on cleanup", () => {
   // A cancelled request must not be shown to the reader as a failure.
   assert.match(source, /error\?\.code === "aborted"/);
 });
+
+
+test("Dashboard read adapters accept cancellation without converting it into an offline fallback", async () => {
+  const [{ dashboardApi }, { progressApi }, { reviewApi }, { motivationApi }] = await Promise.all([
+    import("../src/api/learning.js"), import("../src/api/progress.js"), import("../src/api/review.js"), import("../src/api/motivation.js")
+  ]);
+  const calls = [];
+  globalThis.fetch = (url, options) => {
+    calls.push({ path: new URL(String(url), "http://lock-in.test").pathname, signal: options.signal });
+    return new Promise((_resolve, reject) => {
+      const abort = () => reject(Object.assign(new Error("cancelled"), { name: "AbortError" }));
+      if (options.signal?.aborted) abort();
+      else options.signal?.addEventListener("abort", abort, { once: true });
+    });
+  };
+  const controller = new AbortController();
+  try {
+    const options = { signal: controller.signal };
+    const reads = [dashboardApi.accountDashboard(options), progressApi.learningDashboard(options), reviewApi.getQueue("", options), reviewApi.getBank("", options), motivationApi.xpSummary(options)];
+    controller.abort();
+    const results = await Promise.allSettled(reads);
+    assert.equal(calls.length, 5);
+    assert.ok(calls.every((call) => call.signal?.aborted));
+    assert.deepEqual(results.map((result) => result.status === "rejected" ? result.reason.code : "fulfilled"), Array(5).fill("aborted"));
+  } finally { controller.abort(); restoreFetch(); }
+});

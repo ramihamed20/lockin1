@@ -69,9 +69,13 @@ test("a subject override applies alone and choosing the default removes it", () 
   assert.deepEqual(reverted.practicalOverrides, {});
 });
 
-test("the My Group card sits directly below the Review queue on the Dashboard", async () => {
+test("the My Group card follows the latest mistakes and recent sheets on the Dashboard", async () => {
   const source = await readFile(new URL("../src/pages/Dashboard.jsx", import.meta.url), "utf8");
-  assert.match(source, /<ReviewQueue items=\{reviewItems\} \/>\s*<MyGroupCard \/>/);
+  assert.match(source, /<ReviewQueue items=\{review\.data\?\.results \|\| \[\]\} loading=\{review\.loading\}/);
+  // Waits for the summary reads, preserving the timetable's request priority.
+  assert.match(source, /\{!summaryLoading && <MyGroupCard \/>\}/);
+  assert.ok(source.indexOf("<ReviewQueue") < source.indexOf("<MyGroupCard"));
+  assert.ok(source.indexOf("<RecentContent") < source.indexOf("<MyGroupCard"));
 });
 
 const SLOTS = [["08:00", "10:00"], ["10:00", "12:00"], ["12:00", "14:00"], ["14:00", "16:00"]].map(([start_time, end_time]) => ({ start_time, end_time }));

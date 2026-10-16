@@ -2,14 +2,14 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("Dashboard omits the mascot column rather than rendering an empty preview", async () => {
+test("Dashboard omits the mascot art rather than rendering an empty preview", async () => {
   const source = await readFile(new URL("../src/pages/Dashboard.jsx", import.meta.url), "utf8");
-  const styles = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../src/pages/dashboard.css", import.meta.url), "utf8");
 
-  assert.match(source, /const hasMascot = themeSettings\.character !== "none"/);
-  assert.match(source, /dashboard-main--no-mascot/);
-  assert.match(source, /\{hasMascot && <div className="dashboard-right">/);
-  assert.match(styles, /\.dashboard-main--no-mascot\s*\{\s*grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(source, /character=\{themeSettings\.character\}/);
+  assert.match(source, /\{character !== "none" && <div className="dashboard-art">/);
+  // Continue's text keeps the first column whether or not the art is there.
+  assert.match(styles, /\.dashboard \.continue-card > :not\(\.dashboard-art\) \{ grid-column: 1; \}/);
 });
 
 test("the dawn and sunset scenes are framed a little closer, and no other theme moves", async () => {
