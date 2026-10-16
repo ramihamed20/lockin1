@@ -21,6 +21,7 @@
  */
 
 import { mkdirSync, writeFileSync } from "node:fs";
+import { deflateSync } from "node:zlib";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -31,6 +32,9 @@ const PAGE_HEIGHT = 842;
 
 /** Files the E2E catalogue injects. Keep in sync with e2e/fixtures/catalog.js. */
 const FIXTURES = [
+  { name: "sheet-long.pdf", pages: 240 },
+  { name: "sheet-mixed.pdf", pages: 64, mixed: true },
+  { name: "sheet-scanned.pdf", pages: 24, scanned: true },
   { name: "sheet-41.pdf", pages: 41 },
   { name: "sheet-17.pdf", pages: 17 },
   { name: "sheet-33.pdf", pages: 33 },
@@ -46,11 +50,11 @@ function escapeText(value) {
   return value.replace(/[\\()]/g, (character) => `\\${character}`);
 }
 
-function contentStream(pageNumber, pageCount, padBytesPerPage = 0) {
+function contentStream(pageNumber, pageCount, padBytesPerPage = 0, width = PAGE_WIDTH, height = PAGE_HEIGHT) {
   const lines = [
-    { size: 34, y: PAGE_HEIGHT - 120, text: `Page ${pageNumber}` },
-    { size: 16, y: PAGE_HEIGHT - 170, text: `Lock-in reader test fixture (${pageCount} pages)` },
-    { size: 12, y: PAGE_HEIGHT - 200, text: "Not study material. Generated for automated tests." },
+    { size: 34, y: height - 120, text: `Page ${pageNumber}` },
+    { size: 16, y: height - 170, text: `Lock-in reader test fixture (${pageCount} pages)` },
+    { size: 12, y: height - 200, text: "Not study material. Generated for automated tests." },
     // A marker low on the page so a test can tell top from bottom when it
     // scrolls, without depending on any real document's content.
     { size: 12, y: 90, text: `end of page ${pageNumber}` }
@@ -59,7 +63,7 @@ function contentStream(pageNumber, pageCount, padBytesPerPage = 0) {
     .map(({ size, y, text }) => `BT /F1 ${size} Tf 60 ${y} Td (${escapeText(text)}) Tj ET`)
     .join("\n");
   // A hairline border gives the rasteriser non-blank pixels on every page.
-  const border = `0.6 w 20 20 ${PAGE_WIDTH - 40} ${PAGE_HEIGHT - 40} re S`;
+  const border = `0.6 w 20 20 ${width - 40} ${height - 40} re S`;
   // Padding as PDF comments: ignored by every parser, but real bytes on the
   // wire. pdf.js only switches to ranged reads once a document is meaningfully
   // larger than its 64 KiB range chunk, and below that it fetches the whole
@@ -72,7 +76,7 @@ function contentStream(pageNumber, pageCount, padBytesPerPage = 0) {
   return `${border}\n${body}\n${padding}`;
 }
 
-function buildPdf(pageCount, padBytesPerPage = 0) {
+function buildPdf(pageCount, padBytesPerPage = 0, { mixed = false, scanned = false } = {}) {
   // Object 1 catalog, 2 page tree, 3 font, then per page: page object + stream.
   const objects = [];
   const pageObjectNumbers = [];
@@ -89,11 +93,16 @@ function buildPdf(pageCount, padBytesPerPage = 0) {
   for (let index = 0; index < pageCount; index += 1) {
     const pageNumber = pageObjectNumbers[index];
     const streamNumber = pageNumber + 1;
-    const stream = contentStream(index + 1, pageCount, padBytesPerPage);
+    const [width, height, rotation] = mixed ? [[595, 1100, 0], [842, 595, 0], [595, 842, 90], [420, 595, 0], [1200, 700, 0]][index % 5] : [PAGE_WIDTH, PAGE_HEIGHT, 0];
+    const imageNumber = 4 + pageCount * 2 + index;
+    const image = scanned ? `/XObject << /Scan ${imageNumber} 0 R >> ` : "";
+    const stream = (scanned ? `q ${width} 0 0 ${height} 0 0 cm /Scan Do Q\n` : "") + contentStream(index + 1, pageCount, padBytesPerPage, width, height);
+    if (scanned) objects[imageNumber] = scannedImage(index + 1);
     objects[pageNumber] =
       "<< /Type /Page /Parent 2 0 R " +
-      `/MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] ` +
-      "/Resources << /Font << /F1 3 0 R >> >> " +
+      `/MediaBox [0 0 ${width} ${height}] ` +
+      (rotation ? `/Rotate ${rotation} ` : "") +
+      `/Resources << ${image}/Font << /F1 3 0 R >> >> ` +
       `/Contents ${streamNumber} 0 R >>`;
     objects[streamNumber] =
       `<< /Length ${Buffer.byteLength(stream, "latin1")} >>\nstream\n${stream}endstream`;
@@ -126,11 +135,28 @@ function buildPdf(pageCount, padBytesPerPage = 0) {
   return Buffer.from(chunks.join(""), "latin1");
 }
 
+
+// Synthetic grayscale scan: unique paper texture, bars and text-like lines on
+// every page. No private study content; repeatable image decode/raster workload.
+function scannedImage(seed) {
+  const width = 768, height = 1086;
+  const pixels = Buffer.alloc(width * height);
+  let random = seed;
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    random = (Math.imul(random, 1664525) + 1013904223) >>> 0;
+    const line = y > 70 && y < 990 && y % 28 < 5 && x > 55 && x < 700 && (Math.floor(x / 13) + Math.floor(y / 28) + seed) % 7 !== 0;
+    const diagram = y > 330 && y < 510 && x > 190 && x < 560;
+    pixels[y * width + x] = line || diagram ? 40 + (random >>> 28) : 240 + (random >>> 28);
+  }
+  const data = deflateSync(pixels);
+  return '<< /Type /XObject /Subtype /Image /Width ' + width + ' /Height ' + height + ' /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length ' + data.length + ' >>\nstream\n' + data.toString('latin1') + '\nendstream';
+}
+
 mkdirSync(OUTPUT_DIR, { recursive: true });
-for (const { name, pages, padBytesPerPage = 0 } of FIXTURES) {
+for (const { name, pages, padBytesPerPage = 0, mixed, scanned } of FIXTURES) {
   const target = resolve(OUTPUT_DIR, name);
   mkdirSync(dirname(target), { recursive: true });
-  const pdf = buildPdf(pages, padBytesPerPage);
+  const pdf = buildPdf(pages, padBytesPerPage, { mixed, scanned });
   writeFileSync(target, pdf);
   console.log(`${name}: ${pages} pages, ${pdf.length} bytes`);
 }

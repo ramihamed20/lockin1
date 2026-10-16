@@ -1,9 +1,13 @@
 import { readFileSync, createReadStream, existsSync, statSync } from "node:fs";
 import { createServer } from "node:http";
+import { createGzip } from "node:zlib";
+import { performanceApiResponse } from "./fixtures/performance-api.mjs";
 import { extname, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = resolve(fileURLToPath(new URL("../dist/", import.meta.url)));
+const root = process.env.LOCKIN_TEST_DIST
+  ? resolve(fileURLToPath(new URL("../", import.meta.url)), process.env.LOCKIN_TEST_DIST)
+  : resolve(fileURLToPath(new URL("../dist/", import.meta.url)));
 // Reader fixtures live outside dist/ on purpose: nothing that serves the
 // production bundle can reach them, and no build copies them in. Only this
 // test server maps a URL onto them. See e2e/fixtures/catalog.js.
@@ -113,6 +117,12 @@ function serveFixture(request, response, file) {
 const server = createServer((request, response) => {
   const pathname = decodeURIComponent(new URL(request.url || "/", `http://${host}`).pathname);
 
+  if (process.env.LOCKIN_PERFORMANCE_API === "1" && pathname.startsWith("/api/v1/")) {
+    const { status, body } = performanceApiResponse(pathname);
+    response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+    return response.end(JSON.stringify(body));
+  }
+
   if (pathname.startsWith(FIXTURE_PREFIX)) {
     const file = fixtureFile(pathname);
     if (!file) {
@@ -136,13 +146,20 @@ const server = createServer((request, response) => {
     return response.end("not found");
   }
   const file = existsSync(candidate) && extname(candidate) ? candidate : resolve(root, "index.html");
+  const compress = process.env.LOCKIN_PERFORMANCE_GZIP === "1"
+    && /\bgzip\b/.test(request.headers["accept-encoding"] || "")
+    && [".js", ".css", ".html", ".svg", ".json"].includes(extname(file));
+  const cache = process.env.LOCKIN_PERFORMANCE_GZIP === "1" && pathname.startsWith("/assets/") ? "public, max-age=31536000, immutable" : "no-store";
   response.writeHead(200, {
     "Content-Type": types[extname(file)] || "application/octet-stream",
-    "Cache-Control": "no-store",
-    "X-Robots-Tag": isPublicPage ? "index, follow, max-image-preview:large" : "noindex, nofollow, noarchive"
+    "Cache-Control": cache,
+    "X-Robots-Tag": isPublicPage ? "index, follow, max-image-preview:large" : "noindex, nofollow, noarchive",
+    ...(compress ? { "Content-Encoding": "gzip", Vary: "Accept-Encoding" } : {})
   });
   if (request.method === "HEAD") return response.end();
-  createReadStream(file).pipe(response);
+  const stream = createReadStream(file);
+  if (compress) stream.pipe(createGzip()).pipe(response);
+  else stream.pipe(response);
 });
 
 server.listen(port, host, () => {
