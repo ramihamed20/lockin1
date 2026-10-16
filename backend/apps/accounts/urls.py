@@ -1,5 +1,6 @@
 from django.urls import path
 
+from .policy_views import PersonalDataExportView, PolicyAcceptanceView, PolicyMetadataView
 from .views import (
     AccountDeletionConfirmView,
     AccountDeletionView,
@@ -34,6 +35,9 @@ from .views import (
 app_name = "accounts"
 
 urlpatterns = [
+    path("account/data-export", PersonalDataExportView.as_view(), name="data-export"),
+    path("policies", PolicyMetadataView.as_view(), name="policies"),
+    path("account/policies", PolicyAcceptanceView.as_view(), name="accept-policies"),
     path("auth/csrf", CsrfTokenView.as_view(), name="csrf"),
     path("auth/register", RegisterView.as_view(), name="register"),
     path("auth/cohorts", CohortListView.as_view(), name="cohorts"),

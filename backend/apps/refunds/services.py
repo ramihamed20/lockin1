@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from uuid import UUID
 
 from django.db import transaction
@@ -12,18 +12,13 @@ from platform_core.events import publish_after_commit
 
 from .events import RefundFailed, RefundRequested, RefundSucceeded
 from .models import Refund, RefundTransition
+from .policy import REFUND_WINDOW, activation_at, voluntary_rate
 from .validation import validate_refund_transition
-
-# Published refund policy: a subscription is refundable within its first 15
-# days and not after. For a term bought in installments the window runs from
-# the first installment, so a later installment does not reopen it.
-REFUND_WINDOW = timedelta(days=15)
 
 
 def refund_window_ends_at(payment: Payment) -> datetime:
-    agreement = payment.installment_agreement
-    start = agreement.anchor_at if agreement is not None else payment.created_at
-    return start + REFUND_WINDOW
+    start = activation_at(payment)
+    return (start or payment.created_at) + REFUND_WINDOW
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,7 +29,14 @@ class RefundTransitionResult:
 
 @transaction.atomic
 def request_refund(
-    *, payment_id: UUID, actor: User, amount_minor: int, reason: str, idempotency_key: str
+    *,
+    payment_id: UUID,
+    actor: User,
+    amount_minor: int,
+    reason: str,
+    idempotency_key: str,
+    reason_type: str = "voluntary",
+    received_at: datetime | None = None,
 ) -> tuple[Refund, bool]:
     if not idempotency_key:
         raise ValueError("An idempotency key is required.")
@@ -51,15 +53,24 @@ def request_refund(
         Payment.Status.PARTIALLY_REFUNDED,
     ):
         raise ValueError("Only a settled payment can be refunded.")
-    if timezone.now() > refund_window_ends_at(payment):
-        raise ValueError("The 15-day refund period for this subscription has ended.")
+    if reason_type not in {"voluntary", "platform_error", "payment_error"}:
+        raise ValueError("Choose a valid refund reason type.")
+    rate = voluntary_rate(payment, received_at=received_at or timezone.now())
+    if reason_type == "voluntary" and rate == 0:
+        raise ValueError(
+            "The 15-day refund period for voluntary cancellation has ended; "
+            "service and payment claims remain available."
+        )
     reserved = (
         payment.refunds.filter(
             status__in=(Refund.Status.REQUESTED, Refund.Status.PENDING, Refund.Status.SUCCEEDED)
         ).aggregate(total=Sum("amount_minor"))["total"]
         or 0
     )
-    if amount_minor <= 0 or amount_minor > payment.amount_minor - reserved:
+    limit = (
+        payment.amount_minor if reason_type != "voluntary" else payment.amount_minor * rate // 100
+    )
+    if amount_minor <= 0 or amount_minor > limit - reserved:
         raise ValueError("Refund amount exceeds the refundable payment balance.")
     now = timezone.now()
     refund = Refund.objects.create(

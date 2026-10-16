@@ -15577,3 +15577,10 @@ html {
 .workspace-pane.is-kept * {
   visibility: hidden !important;
 }
+
+.policy-notice { margin-block: 16px; padding: 18px; }
+.policy-notice form { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.policy-requests { padding: 20px; margin-block: 24px; overflow-wrap: anywhere; }
+.policy-requests form { display: grid; gap: 12px; margin-block: 16px; }
+.policy-requests input, .policy-requests select, .policy-requests textarea { max-inline-size: 100%; }
+.public-info-footer { flex-wrap: wrap; }

@@ -562,6 +562,16 @@ function AccountDeletionCard({ confirmationToken, onConfirmationHandled }) {
 
   return <div className="ui-group-block settings-v2-block account-deletion-card">
     <h3 className="ui-group-title">{t("settings.dataRights")}</h3>
+    <button className="btn btn-outline compact" type="button" disabled={busy} onClick={async () => {
+      setBusy(true); setError(null);
+      try {
+        const data = await accountsApi.exportPersonalData();
+        const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+        const link = document.createElement("a"); link.href = url; link.download = "lockin-personal-data.json"; link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (requestError) { setError(requestError); }
+      finally { setBusy(false); }
+    }}>تنزيل نسخة من بياناتك المحفوظة</button>
     <div className="ui-group">
       <button type="button" className="ui-row is-danger" aria-expanded={expanded} aria-controls="settings-deletion-form" onClick={() => setOpen((value) => !value)}>
         <span className="ui-row-body"><strong>{t("settings.deleteAccount")}</strong></span>
@@ -570,6 +580,8 @@ function AccountDeletionCard({ confirmationToken, onConfirmationHandled }) {
       </button>
       {expanded && <div className="settings-v2-form settings-v2-form--inset" id="settings-deletion-form">
         <p className="settings-v2-note">{t("settings.deletionDescription")}</p>
+        <p lang="ar" dir="rtl">نستهدف معالجة طلب الحذف خلال 30 يومًا. تأكيد البريد خطوة تحقق ولا يعني اكتمال الحذف. طلب الحذف لا يسقط استردادًا مستحقًا؛ نزّل نسخة من أعمالك وامسح بيانات الموقع من الأجهزة المشتركة.</p>
+        {state.request?.processing_note && <p className="form-notice" role="status">{state.request.processing_note}</p>}
         {state.status === "confirmed" && !state.request?.policy_version && <p className="form-notice" role="alert">{t("settings.deletionPolicyPending")}</p>}
         <label className="field"><span>{t("settings.currentPassword")}</span><input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy || state.loading || state.status === "processing" || state.status === "completed"} /></label>
         <AccountFieldErrors error={error} />

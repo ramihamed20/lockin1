@@ -135,9 +135,10 @@ test("trial welcome and provisional Libyana payment work on production viewports
   await continueToPayment(page);
   // The half-year placeholder was replaced by the dentistry term plans.
   await expect(page.getByRole("radio", { name: /Pre-midterm/ })).toBeVisible();
-  const code = page.locator("#libyana-payment input[required]");
+  const code = page.getByRole("textbox", { name: /^Recharge card code/ });
   await expect(code).toHaveAttribute("dir", "ltr");
   await code.fill("4567890123456");
+  await page.locator("#libyana-payment").getByRole("checkbox").check();
   await page.getByRole("button", { name: /^Pay / }).click();
   await expect(page.getByText("Payment being reviewed", { exact: true })).toBeVisible({
     timeout: 15_000
@@ -345,11 +346,13 @@ test("early renewal preserves paid days through pending, rejection, and approval
   await renewalPage.getByRole("radio", { name: /Monthly/ }).check();
   await continueToPayment(renewalPage);
   await renewalPage.getByRole("textbox", { name: /^Recharge card code/ }).fill("7000000000001");
+  await renewalPage.locator("#libyana-payment").getByRole("checkbox").check();
   const pendingResponse = renewalPage.waitForResponse((response) => response.url().includes("/payments/manual-libyana") && response.status() === 201);
   await renewalPage.getByRole("button", { name: /^Pay / }).click();
   const pendingPayload = await (await pendingResponse).json();
-  const provisionalEnd = pendingPayload.subscription.current_period_ends_at;
-  expect(new Date(provisionalEnd).getTime()).toBe(new Date(addDays(before.current_period_ends_at, 30)).getTime());
+  // Review preserves the earlier paid period; the renewal is not granted yet.
+  expect(pendingPayload.subscription.current_period_ends_at).toBe(before.current_period_ends_at);
+  const renewedEnd = addDays(before.current_period_ends_at, 30);
   await expect(renewalPage.getByText("Payment being reviewed", { exact: true })).toBeVisible();
   await expect(renewalPage.getByRole("heading", { name: "A payment is already under review" })).toBeVisible();
 
@@ -373,10 +376,11 @@ test("early renewal preserves paid days through pending, rejection, and approval
   await renewalPage.getByRole("radio", { name: /Monthly/ }).check();
   await continueToPayment(renewalPage);
   await renewalPage.getByRole("textbox", { name: /^Recharge card code/ }).fill("7000000000002");
+  await renewalPage.locator("#libyana-payment").getByRole("checkbox").check();
   const approvedPendingResponse = renewalPage.waitForResponse((response) => response.url().includes("/payments/manual-libyana") && response.status() === 201);
   await renewalPage.getByRole("button", { name: /^Pay / }).click();
   const approvedPendingPayload = await (await approvedPendingResponse).json();
-  expect(approvedPendingPayload.subscription.current_period_ends_at).toBe(provisionalEnd);
+  expect(approvedPendingPayload.subscription.current_period_ends_at).toBe(before.current_period_ends_at);
 
   const approveAdminContext = await browser.newContext();
   const approveAdminPage = await approveAdminContext.newPage();
@@ -392,7 +396,7 @@ test("early renewal preserves paid days through pending, rejection, and approval
 
   await renewalPage.reload();
   const afterApproval = (await currentSubscription(renewalPage)).subscription;
-  expect(afterApproval.current_period_ends_at).toBe(provisionalEnd);
+  expect(new Date(afterApproval.current_period_ends_at).getTime()).toBe(new Date(renewedEnd).getTime());
   await expect(renewalPage.getByRole("heading", { name: "A payment is already under review" })).toHaveCount(0);
   await renewalContext.close();
 });

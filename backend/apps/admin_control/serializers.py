@@ -51,6 +51,7 @@ class PaymentCorrectionReviewSerializer(StrictSerializer):
 
 
 class ManualPaymentReviewSerializer(StrictSerializer):
+    collected_amount_minor = serializers.IntegerField(min_value=0, required=False, default=0)
     decision = serializers.ChoiceField(choices=("approve", "reject"))
     reason = serializers.CharField(min_length=3, max_length=500, trim_whitespace=True)
 
