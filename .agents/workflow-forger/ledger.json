@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "workflows": [
+    {
+      "stable": true,
+      "first_seen": "2026-10-11",
+      "status": "validated",
+      "high_cost": false,
+      "signature": "performance/public-cache/frozen-index-sha-disconnected-bytes",
+      "count": 3,
+      "kind": "script",
+      "automation_path": "frontend/scripts/performance-public-cache.mjs",
+      "last_seen": "2026-10-11",
+      "summary": "Verify chosen ordinary artifact and deferred public modules with digest checks and a disconnected source.",
+      "deterministic": true
+    }
+  ]
+}
