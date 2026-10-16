@@ -21,6 +21,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.accounts.models import User
+from apps.accounts.policies import USER_POLICY_VERSION
 from apps.notifications.models import Notification
 from apps.notifications.services import create_notification
 from apps.product_catalog.dentistry_terms import (
@@ -125,7 +126,11 @@ def installment_snapshot(
     window_end = next_due + INSTALLMENT_PAYMENT_WINDOW if next_due else None
     submitted = pending.get(next_number) if open_schedule else None
     if next_due and window_end and next_due <= current:
-        if submitted is not None and submitted.created_at <= window_end:
+        if (
+            submitted is not None
+            and submitted.created_at <= window_end
+            and submitted.price_snapshot.get("policy_version") != USER_POLICY_VERSION
+        ):
             state = InstallmentState.IN_REVIEW
         elif submitted is None and current <= window_end:
             state = InstallmentState.OVERDUE
@@ -233,6 +238,14 @@ def enforce_installments(*, subscription: Subscription, now: datetime) -> Subscr
     """Converge the subscription's status to what its installments allow."""
 
     if subscription.status not in (Subscription.Status.ACTIVE, Subscription.Status.SUSPENDED):
+        return subscription
+    first_pending = Payment.objects.filter(
+        subscription=subscription,
+        installment_number=1,
+        status=Payment.Status.PENDING,
+        price_snapshot__policy_version=USER_POLICY_VERSION,
+    ).exists()
+    if first_pending:
         return subscription
     installment_suspended = is_installment_suspension(subscription)
     if (

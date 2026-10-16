@@ -6,7 +6,7 @@ from django.db.models import Count, Q, QuerySet, Sum
 from apps.accounts.models import User
 from apps.accounts.roles import get_user_roles
 from apps.achievements.models import AchievementDefinition
-from apps.analytics.catalog import Metric
+from apps.analytics.catalog import METRICS, Metric
 from apps.analytics.models import AnalyticsFact, DailyMetric
 from apps.assessments.models import Quiz
 from apps.content.models import LearningObject
@@ -125,6 +125,14 @@ def overview_dashboard(*, user: User, days: int) -> dict[str, Any]:
     freshness = (
         AnalyticsFact.objects.order_by("-recorded_at").values_list("recorded_at", flat=True).first()
     )
+    if not has_operational_capability(user, Capability.PAYMENTS_VIEW):
+        metric_totals = {
+            key: value
+            for key, value in metric_totals.items()
+            if key not in METRICS or not METRICS[key].finance_only
+        }
+        queue_counts.pop("failed_payments", None)
+        queue_counts.pop("pending_payment_reviews", None)
     return {
         "generated_at": datetime.now(UTC),
         "period": {"from": start, "to": today, "timezone": "UTC"},

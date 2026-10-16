@@ -23,6 +23,8 @@ export const PRODUCT_ROLES = Object.freeze({
  *   theme_settings: {character: string, theme: string, autoTheme: boolean},
  *   avatar: {source: string, default_id: string, url: string|null},
  *   roles: string[],
+ *   policy_version: string
+ *   policy_accepted_at: string|null
  *   date_joined: string|null
  * }} UserContract
  */
@@ -106,6 +108,8 @@ export function normalizeUser(payload) {
     avatar: normalizeAvatar(source.avatar),
     theme_settings: normalizeThemeSettings(source.theme_settings),
     roles: stringList(source.roles),
+    policy_version: stringOrEmpty(source.policy_version),
+    policy_accepted_at: typeof source.policy_accepted_at === "string" ? source.policy_accepted_at : null,
     date_joined: typeof source.date_joined === "string" ? source.date_joined : null
   };
 }

@@ -177,6 +177,8 @@ class UserSerializer(serializers.ModelSerializer[User]):
             "theme_settings",
             "roles",
             "date_joined",
+            "policy_version",
+            "policy_accepted_at",
         )
         read_only_fields = fields
 

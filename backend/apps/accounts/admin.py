@@ -1,7 +1,9 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from .models import AccountSecurityEvent, AccountSession, OneTimeToken, User
+from platform_core.admin import ReadOnlyAdmin
+
+from .models import AccountDeletionRequest, AccountSecurityEvent, AccountSession, OneTimeToken, User
 
 
 @admin.register(User)
@@ -94,3 +96,10 @@ class OneTimeTokenAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
 
     def has_add_permission(self, request):  # type: ignore[no-untyped-def]
         return False
+
+
+@admin.register(AccountDeletionRequest)
+class AccountDeletionRequestAdmin(ReadOnlyAdmin):
+    list_display = ("id", "user", "status", "requested_at", "confirmed_at", "completed_at")
+    list_filter = ("status",)
+    search_fields = ("user__email", "user__username")

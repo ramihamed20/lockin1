@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from datetime import timedelta
 from typing import cast
 from uuid import UUID
 
@@ -837,6 +838,8 @@ def _deletion_request_payload(
             "completed_at": deletion_request.completed_at,
             "cancelled_at": deletion_request.cancelled_at,
             "policy_version": deletion_request.policy_version,
+            "processing_note": deletion_request.processing_note,
+            "target_response_at": deletion_request.requested_at + timedelta(days=30),
         },
     }
 

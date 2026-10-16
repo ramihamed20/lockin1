@@ -58,13 +58,13 @@ class ManualPaymentTelegramMessage:
                 f"💳 طريقة الدفع: {self.payment_method}",
                 *((f"📅 Current expiry: {self.current_expiry}",) if self.current_expiry else ()),
                 *(
-                    f"🎫 Card {position}: {code}"
+                    f"🎫 Card {position}: •••• {code[-4:]}"
                     for position, code in enumerate(self.recharge_codes, start=1)
                 ),
                 *((f"🕐 وقت الإرسال: {self.submitted}",) if self.submitted else ()),
                 f"📄 Request: #{self.payment_id}",
                 *(
-                    ("🟡 الدفع: تحت التدقيق", "🟢 الاشتراك: مفعل")
+                    ("🟡 الدفع: تحت التدقيق", "🟡 الاشتراك: بانتظار اعتماد الدفع")
                     if self.event in (self.Event.NEW_SUBSCRIPTION, self.Event.EARLY_RENEWAL)
                     else ()
                 ),

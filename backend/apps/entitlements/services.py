@@ -83,6 +83,40 @@ def sync_subscription_entitlements(*, subscription_id: UUID) -> list[Entitlement
         end = subscription.grace_ends_at
     else:
         end = subscription.grace_ends_at or subscription.current_period_ends_at
+    rule_version_id = subscription.plan_version_id
+    # New purchases grant paid access only after the cards are approved. Keep
+    # any previously valid trial/paid access while the replacement is reviewed.
+    if subscription.provisional_payment_id:
+        from django.utils.dateparse import parse_datetime
+
+        from apps.accounts.policies import USER_POLICY_VERSION
+        from apps.payments.models import Payment
+
+        pending = (
+            Payment.objects.filter(id=subscription.provisional_payment_id)
+            .select_related("manual_submission")
+            .first()
+        )
+        if pending and pending.price_snapshot.get("policy_version") == USER_POLICY_VERSION:
+            previous = pending.manual_submission.previous_subscription_state
+            allowed = previous.get("status") in {
+                Subscription.Status.TRIALING,
+                Subscription.Status.ACTIVE,
+                Subscription.Status.GRACE,
+            }
+            rule_version_id = previous.get("plan_version_id") or rule_version_id
+            previous_end = (
+                previous.get("trial_ends_at")
+                if previous.get("status") == Subscription.Status.TRIALING
+                else (previous.get("grace_ends_at") or previous.get("current_period_ends_at"))
+            )
+            end = parse_datetime(str(previous_end)) if previous_end else None
+            allowed = bool(allowed and end and end > timezone.now())
+            previous_start = previous.get("current_period_started_at") or previous.get(
+                "trial_started_at"
+            )
+            if previous_start:
+                start = parse_datetime(str(previous_start)) or start
     existing = list(
         EntitlementGrant.objects.select_for_update().filter(
             user=user,
@@ -99,7 +133,7 @@ def sync_subscription_entitlements(*, subscription_id: UUID) -> list[Entitlement
                 )
         return existing
     rules = PlanEntitlementRule.objects.select_related("entitlement").filter(
-        plan_version=subscription.plan_version,
+        plan_version_id=rule_version_id,
         entitlement__is_active=True,
     )
     grants_by_entitlement = {grant.entitlement_id: grant for grant in existing}
@@ -200,6 +234,8 @@ def grant_manual_entitlement(
     ends_at: datetime | None,
     actor: User,
     reason_code: str,
+    quantity_limit: int | None = None,
+    configuration: dict[str, object] | None = None,
 ) -> tuple[EntitlementGrant, bool]:
     if ends_at is not None and ends_at <= starts_at:
         raise ValueError("An entitlement grant must end after it starts.")
@@ -215,6 +251,8 @@ def grant_manual_entitlement(
             "status": EntitlementGrant.Status.ACTIVE,
             "starts_at": starts_at,
             "ends_at": ends_at,
+            "quantity_limit": quantity_limit,
+            "configuration": configuration or {},
         },
     )
     if not created:

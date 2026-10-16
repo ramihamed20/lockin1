@@ -7,4 +7,4 @@ class AccountsConfig(AppConfig):
     label = "accounts"
 
     def ready(self) -> None:
-        from . import schema  # noqa: F401
+        from . import policy_checks, schema  # noqa: F401

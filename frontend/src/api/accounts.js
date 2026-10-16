@@ -45,6 +45,8 @@ export function toAppUser(user) {
     emailVerified: normalized.is_email_verified,
     status: normalized.status,
     dateJoined: normalized.date_joined,
+    policyVersion: normalized.policy_version,
+    policyAcceptedAt: normalized.policy_accepted_at,
     avatar: normalized.avatar,
     themeSettings: normalized.theme_settings
   };
@@ -58,6 +60,10 @@ function userFromPayload(payload, fallbackMessage) {
 }
 
 export const accountsApi = {
+  exportPersonalData: () => request("/account/data-export"),
+  async acceptPolicies(version) {
+    return userFromPayload(await request("/account/policies", { method: "POST", body: { version, accept_policies: true } }), "Policy acceptance could not be saved.");
+  },
   async currentSession() {
     let payload;
     try {
