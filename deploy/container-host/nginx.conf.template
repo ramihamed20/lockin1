@@ -68,12 +68,26 @@ server {
     location ~ ^/assets/.*\.mjs$ {
         default_type application/javascript;
         access_log off;
+        # Public hashed assets only; private API streams keep their byte ranges.
+        gzip on;
+        gzip_types text/css application/javascript image/svg+xml;
+        gzip_min_length 1024;
+        gzip_comp_level 5;
+        gzip_vary on;
+        gzip_proxied any;
         expires max;
         try_files $uri =404;
     }
 
     location /assets/ {
         access_log off;
+        # Public hashed assets only; private API streams keep their byte ranges.
+        gzip on;
+        gzip_types text/css application/javascript image/svg+xml;
+        gzip_min_length 1024;
+        gzip_comp_level 5;
+        gzip_vary on;
+        gzip_proxied any;
         expires max;
         try_files $uri =404;
     }
