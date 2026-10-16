@@ -1,9 +1,14 @@
 import { expect, test } from "@playwright/test";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
+import { withoutServiceWorker } from "./helpers/serviceWorker.js";
+import { keepRawInk } from "./helpers/workspaceSettings.js";
+
 
 const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 
 async function mockAuthenticatedWorkspace(page) {
+  // This suite mocks API responses across reloads; the real worker has its own coverage.
+  await withoutServiceWorker(page);
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     if (pathname === "/api/v1/auth/session") {
@@ -99,4 +104,144 @@ test("sheets and whiteboards open as tabs, each keeping its own state", async ({
   await page.getByRole("button", { name: "Close Whiteboard 1" }).click();
   await expect(page).toHaveURL(/\/sheets\/vitamin-2\/workspace$/);
   await expect(tabs(page)).toHaveText(["Vitamin -1", "Vitamin -2"]);
+});
+
+test("five kept PDF tabs release hidden raster buffers and repaint the same reader on return", async ({ page }) => {
+  test.setTimeout(120_000);
+  await mockAuthenticatedWorkspace(page);
+  await page.setViewportSize({ width: 834, height: 1194 });
+  await page.goto(ROUTE);
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  const pixels = (selector) => page.evaluate((selector) => [...document.querySelectorAll(selector)].reduce((total, canvas) => total + canvas.width * canvas.height, 0), selector);
+  const activeCanvases = ".workspace-pane.is-active .workspace-v2-a4-canvas";
+  await expect.poll(() => pixels(activeCanvases)).toBeGreaterThan(0);
+  await onScreen(page, ".workspace-v2").evaluate((element) => { element.dataset.memoryProbe = "original-reader"; });
+
+  for (const [slug, title] of [["vitamin-2", "Vitamin -2"], ["vitamin-3", "Vitamin -3"], ["range-probe", "Range probe"], ["long-probe", "Long probe"]]) {
+    await page.evaluate((slug) => { location.hash = `/materials/catalog/biochemistry-1/sheets/${slug}/workspace`; }, slug);
+    await expect(onScreen(page, ".workspace-v3-document-context strong")).toHaveText(title);
+    await page.getByRole("button", { name: /Normal Study/ }).click();
+    await expect.poll(() => pixels(activeCanvases)).toBeGreaterThan(0);
+    await expect.poll(() => pixels(".workspace-pane.is-kept .workspace-v2-a4-canvas")).toBe(0);
+  }
+  await expect(page.locator(".workspace-pane.is-kept")).toHaveCount(4);
+  // Native tab navigation preserves the component and its geometry/state.
+  await tabs(page).filter({ hasText: "Vitamin -1" }).click();
+  await expect(onScreen(page, ".workspace-v2[data-memory-probe='original-reader']")).toHaveCount(1);
+  await expect.poll(() => pixels(activeCanvases)).toBeGreaterThan(0);
+  await expect.poll(() => pixels(".workspace-pane.is-kept .workspace-v2-a4-canvas")).toBe(0);
+  await expect(page.getByRole("dialog", { name: /Choose study mode/i })).toHaveCount(0);
+  // Compact tab strips expose the close action only on the selected tab.
+  await tabs(page).filter({ hasText: "Long probe" }).click();
+  await expect.poll(() => pixels(activeCanvases)).toBeGreaterThan(0);
+  await page.getByRole("button", { name: "Close Long probe" }).click();
+  await expect(page.locator(".workspace-pane.is-kept")).toHaveCount(3);
+});
+
+
+test("five written tabs release hidden live buffers without losing ink, undo or durable state", async ({ page }) => {
+  test.setTimeout(120_000);
+  await mockAuthenticatedWorkspace(page);
+  await keepRawInk(page);
+  await page.addInitScript(() => localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now())));
+  await page.setViewportSize({ width: 834, height: 1194 });
+  const documents = [["vitamin-1", "Vitamin -1"], ["vitamin-2", "Vitamin -2"], ["vitamin-3", "Vitamin -3"], ["range-probe", "Range probe"], ["long-probe", "Long probe"]];
+  const saved = new Map();
+  const ink = () => onScreen(page, '[data-pdf-page="1"] [data-annotation-type="pen"]');
+  const hiddenPixels = () => page.evaluate(() => [...document.querySelectorAll(".workspace-pane.is-kept canvas")].reduce((sum, canvas) => sum + canvas.width * canvas.height, 0));
+  await page.goto(ROUTE);
+  for (const [index, [slug, title]] of documents.entries()) {
+    if (index) await page.evaluate((slug) => { location.hash = '/materials/catalog/biochemistry-1/sheets/' + slug + '/workspace'; }, slug);
+    await expect(onScreen(page, ".workspace-v3-document-context strong")).toHaveText(title);
+    await page.getByRole("button", { name: /Normal Study/ }).click();
+    await expect.poll(() => onScreen(page, ".workspace-v2-a4-canvas.is-visible").first().evaluate((canvas) => canvas.width)).toBeGreaterThan(0);
+    await page.getByRole("button", { name: "Pen", exact: true }).click();
+    await page.keyboard.press("Escape");
+    await page.evaluate(async (pointerId) => {
+      const stage = document.querySelector(".workspace-pane.is-active .workspace-v2-document-stage");
+      const bounds = document.querySelector('.workspace-pane.is-active [data-pdf-page="1"]').getBoundingClientRect();
+      const send = (type, step) => stage.dispatchEvent(new PointerEvent(type, { pointerId, pointerType: "pen", isPrimary: true, clientX: bounds.x + bounds.width * (.2 + step * .01), clientY: bounds.y + Math.min(bounds.height, 700) * .35 + Math.sin(step) * 8, buttons: type === "pointerup" ? 0 : 1, button: 0, pressure: .5, bubbles: true, cancelable: true }));
+      send("pointerdown", 0);
+      for (let step = 1; step <= 24; step++) { await new Promise(requestAnimationFrame); send("pointermove", step); }
+      send("pointerup", 24);
+    }, 300 + index);
+    await expect(ink()).toHaveCount(1);
+    saved.set(slug, await ink().evaluate((mark) => ({ id: mark.dataset.annotationId, path: mark.getAttribute("d") })));
+    if (index) await expect.poll(hiddenPixels).toBe(0);
+  }
+  await expect(page.locator(".workspace-pane.is-kept")).toHaveCount(4);
+  await page.setViewportSize({ width: 1194, height: 834 });
+  await expect.poll(hiddenPixels).toBe(0);
+  for (const [slug, title] of documents) {
+    await tabs(page).filter({ hasText: title }).click();
+    await expect(onScreen(page, ".workspace-v3-document-context strong")).toHaveText(title);
+    await expect(ink()).toHaveCount(1);
+    expect(await ink().evaluate((mark) => ({ id: mark.dataset.annotationId, path: mark.getAttribute("d") }))).toEqual(saved.get(slug));
+    await expect.poll(hiddenPixels).toBe(0);
+  }
+  await tabs(page).filter({ hasText: "Vitamin -1" }).click();
+  await expect(onScreen(page, ".workspace-v3-document-context strong")).toHaveText("Vitamin -1");
+  await page.getByRole("button", { name: "Undo (Ctrl+Z)" }).click();
+  await expect(ink()).toHaveCount(0);
+  await page.getByRole("button", { name: "Redo (Ctrl+Shift+Z)" }).click();
+  await expect(ink()).toHaveCount(1);
+  await expect.poll(() => page.evaluate(async () => {
+    const db = await new Promise((resolve, reject) => { const request = indexedDB.open("lock-in-workspace"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+    const rows = await new Promise((resolve, reject) => { const request = db.transaction("pages").objectStore("pages").getAll(); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+    db.close();
+    return rows.filter((row) => row.documentId.startsWith("user:tabs-student::") && row.page === 1 && row.annotations.length === 1).length;
+  })).toBe(5);
+  await page.reload();
+  await expect(ink()).toHaveCount(1, { timeout: 20_000 });
+  expect(await ink().evaluate((mark) => ({ id: mark.dataset.annotationId, path: mark.getAttribute("d") }))).toEqual(saved.get("vitamin-1"));
+});
+
+
+test("an unfinished live stroke repaints after a tab return and commits once", async ({ page }) => {
+  test.setTimeout(90_000);
+  await mockAuthenticatedWorkspace(page);
+  await keepRawInk(page);
+  await page.addInitScript(() => localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now())));
+  await page.setViewportSize({ width: 834, height: 1194 });
+  await page.goto(ROUTE);
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await expect(onScreen(page, ".workspace-v2-a4-canvas.is-visible").first()).toBeVisible();
+  await page.getByRole("button", { name: "Pen", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await page.evaluate(async () => {
+    const stage = document.querySelector(".workspace-pane.is-active .workspace-v2-document-stage");
+    const bounds = document.querySelector('.workspace-pane.is-active [data-pdf-page="1"]').getBoundingClientRect();
+    const x = bounds.x + bounds.width * .25, y = bounds.y + Math.min(bounds.height, 700) * .35;
+    window.__tabStroke = { x: x + 140, y: y + 10 };
+    for (const [type, dx] of [["pointerdown", 0], ["pointermove", 60], ["pointermove", 140]]) {
+      stage.dispatchEvent(new PointerEvent(type, { pointerId: 451, pointerType: "pen", isPrimary: true, clientX: x + dx, clientY: y + dx / 14, buttons: 1, button: 0, pressure: .5, bubbles: true, cancelable: true }));
+      await new Promise(requestAnimationFrame);
+    }
+  });
+  const livePaint = () => onScreen(page, ".workspace-v2-live-annotation-canvas").evaluate((canvas) => {
+    if (!canvas.width || !canvas.height) return 0;
+    const data = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
+    let alpha = 0;
+    for (let i = 3; i < data.length; i += 4) alpha += data[i];
+    return alpha;
+  });
+  await expect.poll(livePaint).toBeGreaterThan(0);
+  await page.evaluate(() => { location.hash = "/materials/catalog/biochemistry-1/sheets/vitamin-2/workspace"; });
+  await expect(onScreen(page, ".workspace-v3-document-context strong")).toHaveText("Vitamin -2");
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await expect.poll(() => page.locator(".workspace-pane.is-kept .workspace-v2-live-annotation-canvas").evaluate((canvas) => canvas.width * canvas.height)).toBe(0);
+  await tabs(page).filter({ hasText: "Vitamin -1" }).click();
+  await expect(onScreen(page, ".workspace-v3-document-context strong")).toHaveText("Vitamin -1");
+  await expect.poll(livePaint).toBeGreaterThan(0);
+  await page.evaluate(() => {
+    const point = window.__tabStroke;
+    document.querySelector(".workspace-pane.is-active .workspace-v2-document-stage").dispatchEvent(new PointerEvent("pointerup", { pointerId: 451, pointerType: "pen", isPrimary: true, clientX: point.x, clientY: point.y, buttons: 0, button: 0, pressure: 0, bubbles: true, cancelable: true }));
+  });
+  const ink = onScreen(page, '[data-pdf-page="1"] [data-annotation-type="pen"]');
+  await expect(ink).toHaveCount(1);
+  await expect.poll(livePaint).toBe(0);
+  await page.getByRole("button", { name: "Undo (Ctrl+Z)" }).click();
+  await expect(ink).toHaveCount(0);
+  await page.getByRole("button", { name: "Redo (Ctrl+Shift+Z)" }).click();
+  await expect(ink).toHaveCount(1);
 });

@@ -313,7 +313,8 @@ test("the iPad toolbar keeps direct tools, quick colors, and Active Study usable
   await expect.poll(() => page.getByRole("dialog", { name: "Workspace settings" }).evaluate((node) => getComputedStyle(node).opacity)).toBe("1");
   await page.screenshot({ path: testInfo.outputPath("ipad-settings-night.png") });
   await page.keyboard.press("Escape");
-  await toolbar.getByRole("button", { name: "Choose study mode" }).click();
+  await toolbar.getByRole("button", { name: "Study", exact: true }).click();
+  await page.getByRole("dialog", { name: "Study", exact: true }).getByRole("button", { name: /Normal Study/ }).click();
   await expect(page.getByRole("dialog", { name: /Choose study mode/i })).toBeVisible();
   await page.getByRole("button", { name: /Normal Study/ }).click();
 

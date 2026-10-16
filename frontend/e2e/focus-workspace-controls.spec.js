@@ -150,9 +150,11 @@ test("iPad downloads leave the workspace mounted for original PDF and page snaps
   });
   await openWorkspace(page, { width: 834, height: 1194 });
   const originalUrl = page.url();
-  for (const action of ["Download original", "Page snapshot"]) {
+  // Both downloads live in More > Export (the More menu no longer repeats them).
+  for (const action of ["Original PDF", "Image (PNG)"]) {
     await page.getByRole("button", { name: "More workspace actions" }).click();
-    await page.getByRole("dialog", { name: "More workspace actions" }).getByRole("button", { name: new RegExp(action, "i") }).click();
+    await page.getByRole("dialog", { name: "More workspace actions" }).getByRole("button", { name: "Export", exact: true }).click();
+    await page.getByRole("dialog", { name: "Export workspace" }).getByRole("button", { name: action, exact: true }).click();
     // iPadOS waits for the student's own tap to deliver the finished file.
     const sheet = page.locator(".workspace-v8-export-sheet");
     await expect(sheet).toHaveAttribute("data-export-status", "ready", { timeout: 30_000 });

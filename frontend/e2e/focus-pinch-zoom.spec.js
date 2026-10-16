@@ -132,12 +132,17 @@ async function expectHorizontalFocalOrPhysicalEdge(page, actualX, targetX, live 
       leftEdge: Math.abs(pdf.left - viewport.left),
       rightEdge: Math.abs(viewport.right - pdf.right),
       centerError: Math.abs((pdf.left + pdf.right) / 2 - (viewport.left + viewport.right) / 2),
-      fits: pdf.width <= viewport.width + 0.5
+      fits: pdf.width <= viewport.width + 0.5,
+      viewportWidth: viewport.width,
+      pdfWidth: pdf.width,
+      transform: document.querySelector(".workspace-v2-a4-live-layer").style.transform,
+      classes: document.querySelector(".workspace-v2-a4-live-layer").className
     };
   });
   const tolerance = live ? 29 : 1.5;
-  if (geometry.fits) expect(geometry.centerError).toBeLessThan(tolerance);
-  else expect(Math.min(geometry.leftEdge, geometry.rightEdge)).toBeLessThan(tolerance);
+  const diagnostic = JSON.stringify({ actualX, targetX, live, ...geometry });
+  if (geometry.fits) expect(geometry.centerError, diagnostic).toBeLessThan(tolerance);
+  else expect(Math.min(geometry.leftEdge, geometry.rightEdge), diagnostic).toBeLessThan(tolerance);
 }
 
 /**
@@ -265,7 +270,9 @@ test("continuous pinch preserves nine focal locations until a physical horizonta
         yRatio: (pageBounds.top + pageBounds.height * ratios.y - documentBounds.top) / documentBounds.height
       };
     }, { x: pageXRatio, y: pageYRatio });
-    await exactPinch(page, { xRatio, yRatio, targetScale, moveX: 28, moveY: 19 });
+    await test.step(`focal location ${pageXRatio}, ${pageYRatio}; target scale ${targetScale}`, async () => {
+      await exactPinch(page, { xRatio, yRatio, targetScale, moveX: 28, moveY: 19 });
+    });
   }
 });
 
@@ -749,6 +756,37 @@ test("circle erase removes enclosed ink once and remains undoable", async ({ pag
   await page.waitForTimeout(650);
   await expect(page.locator('[data-annotation-type="pen"]')).toHaveCount(0);
   await dispatchPointer(stage, "pointerup", 131, circle.at(-1).x, circle.at(-1).y, "pen", 2);
+  await expect(page.locator('[data-annotation-type="pen"]')).toHaveCount(0);
+  await page.getByRole("button", { name: /Undo/ }).click();
+  await expect(page.locator('[data-annotation-type="pen"]')).toHaveCount(1);
+  await page.getByRole("button", { name: /Redo/ }).click();
+  await expect(page.locator('[data-annotation-type="pen"]')).toHaveCount(0);
+});
+
+test("circle erase can finish after a pause during its incomplete loop", async ({ page }) => {
+  test.setTimeout(60_000);
+  await mockAuthenticatedWorkspace(page);
+  await openWorkspace(page, { width: 834, height: 1194 });
+  await page.getByRole("button", { name: "Pen", exact: true }).click();
+  await page.getByText("Presets & pen gestures").click();
+  await page.getByRole("switch", { name: /Circle erase/ }).click();
+  const stage = page.locator(".workspace-v2-document-stage");
+  const bounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
+  const center = { x: bounds.x + bounds.width * .5, y: bounds.y + bounds.height * .34 };
+  await drawPointerPath(stage, 230, [{ x: center.x - 45, y: center.y }, { x: center.x, y: center.y + 20 }, { x: center.x + 45, y: center.y }]);
+  await expect(page.locator('[data-annotation-type="pen"]')).toHaveCount(1);
+  const circle = Array.from({ length: 33 }, (_, index) => ({ x: center.x + Math.cos(index / 32 * Math.PI * 2) * 92, y: center.y + Math.sin(index / 32 * Math.PI * 2) * 62 }));
+  const sendPoints = async (start, end) => page.evaluate(({ points, start, end }) => {
+    const stage = document.querySelector(".workspace-v2-document-stage");
+    for (let index = start; index <= end; index++) stage.dispatchEvent(new PointerEvent(index === 0 ? "pointerdown" : "pointermove", { pointerId: 231, pointerType: "pen", isPrimary: true, clientX: points[index].x, clientY: points[index].y, button: 0, buttons: 1, pressure: .5, width: 2, height: 2, bubbles: true, cancelable: true }));
+  }, { points: circle, start, end });
+  await sendPoints(0, 15);
+  // Let the actual page's hold callback evaluate the still-open half-circle.
+  await page.evaluate(() => new Promise((resolve) => window.setTimeout(resolve, 600)));
+  await expect(page.locator('[data-annotation-type="pen"]')).toHaveCount(1);
+  await sendPoints(16, 32);
+  await expect(page.locator('[data-annotation-type="pen"]')).toHaveCount(0);
+  await dispatchPointer(stage, "pointerup", 231, circle[32].x, circle[32].y, "pen", 2);
   await expect(page.locator('[data-annotation-type="pen"]')).toHaveCount(0);
   await page.getByRole("button", { name: /Undo/ }).click();
   await expect(page.locator('[data-annotation-type="pen"]')).toHaveCount(1);

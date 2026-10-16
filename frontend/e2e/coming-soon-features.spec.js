@@ -34,13 +34,17 @@ async function expectComingSoon(page, feature) {
   await expect(surface.locator(".feature-coming-soon-icon svg")).toBeVisible();
 }
 
+// The rail carries only the primary destinations; scheduled features are
+// listed in the expanded navigation it opens.
 test("desktop navigation routes scheduled features to the coming-soon surface", async ({ page }) => {
   await mockStudent(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/#/");
+  await expect(page.locator(".sidebar a[data-feature-status='coming-soon']")).toHaveCount(0);
 
   for (const feature of features) {
-    const navItem = page.locator(`.sidebar a[data-feature-id="${feature.id}"]`);
+    await page.locator(".sidebar .rail-expand").click();
+    const navItem = page.locator(`.mobile-drawer.open a[data-feature-id="${feature.id}"]`);
     await expect(navItem).toHaveAttribute("data-feature-status", "coming-soon");
     await expect(navItem).toContainText("Coming soon");
     await navItem.click();

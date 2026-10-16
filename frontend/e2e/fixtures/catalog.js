@@ -45,7 +45,10 @@ export const E2E_CATALOG_MATERIALS = {
       title: "Range probe",
       file: "sheet-range.pdf",
       pageCount: 24
-    }
+    },
+    { slug: "long-probe", number: 5, title: "Long probe", file: "sheet-long.pdf", pageCount: 240 },
+    { slug: "mixed-probe", number: 6, title: "Mixed probe", file: "sheet-mixed.pdf", pageCount: 64 },
+    { slug: "scanned-probe", number: 7, title: "Scanned probe", file: "sheet-scanned.pdf", pageCount: 24 },
   ]
 };
 

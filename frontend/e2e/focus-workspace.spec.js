@@ -456,15 +456,22 @@ test("a sheet opens in Normal Study, reopens where Active Study was saved, and D
     await expect(page.locator(".workspace-v2")).toBeVisible();
   };
   const studyButton = page.locator(".workspace-v2-study-mode-button");
+  const studyMenu = page.getByRole("dialog", { name: "Study", exact: true });
+  // The study mode is one entry of the toolbar Study launcher.
+  const openStudyMode = async () => {
+    await studyButton.click();
+    await studyMenu.locator("[data-study-action=\"mode\"]").click();
+    await expect(studyMenu).toBeHidden();
+  };
   const modeDialog = page.getByRole("dialog", { name: "Choose study mode" });
   const exit = page.getByRole("alertdialog", { name: "Save your progress?" });
   const indicator = page.locator(".workspace-v2-page-number");
 
-  // First visit: Normal Study, no chooser. Active Study is picked from the Study button.
+  // First visit: Normal Study, no chooser. Active Study is picked from the Study launcher.
   await openFromSheet();
   await expect(modeDialog).toBeHidden();
   await expect(studyButton).toHaveClass(/is-normal/);
-  await studyButton.click();
+  await openStudyMode();
   await modeDialog.getByRole("button", { name: /Start Active Study/ }).click();
   await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
   await expect(indicator).toHaveAttribute("aria-label", "PDF page 15 of 20");
@@ -487,7 +494,7 @@ test("a sheet opens in Normal Study, reopens where Active Study was saved, and D
   expect(starts).toEqual(["medium", "medium"]);
 
   // Switching to Normal there makes the sheet open in Normal next time.
-  await studyButton.click();
+  await openStudyMode();
   await modeDialog.getByRole("button", { name: /Normal Study/ }).click();
   await expect(studyButton).toHaveClass(/is-normal/);
   await page.getByRole("button", { name: "Exit workspace" }).click();
@@ -497,7 +504,7 @@ test("a sheet opens in Normal Study, reopens where Active Study was saved, and D
   expect(starts).toHaveLength(2);
 
   // Don't Save restarts the run from Part 1 and the sheet opens in Normal again.
-  await studyButton.click();
+  await openStudyMode();
   await modeDialog.getByRole("button", { name: /Start Active Study/ }).click();
   await page.getByRole("button", { name: "Exit workspace" }).click();
   await exit.getByRole("button", { name: "Don't Save" }).click();
