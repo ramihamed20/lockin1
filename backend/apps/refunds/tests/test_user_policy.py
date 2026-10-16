@@ -407,3 +407,140 @@ def test_finance_queue_keeps_open_requests_visible_after_closed_history():
     assert history.json()["count"] == 31 and history.json()["next"]
     personal = client.get("/api/v1/refund-requests")
     assert personal.json()["results"][0]["id"] == str(claim.id)
+
+
+def test_delayed_card_approval_preserves_the_agreed_installment_dates():
+    from unittest.mock import patch
+
+    from apps.payments.installments import installment_snapshot
+    from apps.payments.manual_services import submit_manual_recharge
+    from apps.product_catalog.models import Price
+
+    user, _ = _trial_user(email="agreed-schedule@example.com")
+    user.policy_version = USER_POLICY_VERSION
+    user.policy_accepted_at = timezone.now()
+    user.save()
+    price = Price.objects.select_related("plan_version").get(code="dentistry_pre_midterm_30_lyd")
+    purchase = submit_manual_recharge(
+        user=user,
+        price=price,
+        recharge_codes=["1234567890123"],
+        idempotency_key=uuid4().hex,
+        pay_in_installments=True,
+    )
+    agreement = InstallmentAgreement.objects.get(id=purchase.payment.installment_agreement_id)
+    agreed_anchor = agreement.anchor_at
+    assert installment_snapshot(agreement).state == "in_review"
+    second_due = installment_snapshot(agreement).items[1]["due_at"]
+    admin = create_user(email="schedule-finance@example.com", is_superuser=True)
+    with patch("django.utils.timezone.now", return_value=timezone.now() + timedelta(days=2)):
+        review_manual_recharge(
+            payment_id=purchase.payment.id,
+            actor=admin,
+            decision="approve",
+            reason="Full card value verified after review",
+            idempotency_key=uuid4().hex,
+        )
+    agreement.refresh_from_db()
+    assert agreement.anchor_at == agreed_anchor
+    assert installment_snapshot(agreement).items[1]["due_at"] == second_due
+
+
+def test_agreed_alternative_refund_requires_recorded_user_agreement():
+    user, _, payment, admin, _ = _paid()
+    claim = _claim(user, payment)
+    claim = review_claim(
+        claim_id=claim.id,
+        actor=admin,
+        action="approve",
+        reason="Refund amount reviewed and approved",
+    )
+    with pytest.raises(ValueError, match="agreement"):
+        review_claim(
+            claim_id=claim.id,
+            actor=admin,
+            action="complete",
+            reason="Airtime transfer unavailable",
+            agreed_alternative=True,
+            transferred_to="agreed-beneficiary-reference",
+            transferred_amount_minor=claim.approved_amount_minor,
+            transfer_reference="actual-transfer-123",
+        )
+    result = review_claim(
+        claim_id=claim.id,
+        actor=admin,
+        action="complete",
+        reason="Refund sent by agreed alternative",
+        agreed_alternative=True,
+        alternative_agreement_reference="support-thread-user-agreement-123",
+        transferred_to="agreed-beneficiary-reference",
+        transferred_amount_minor=claim.approved_amount_minor,
+        transfer_reference="actual-transfer-123",
+    )
+    assert result.status == "completed"
+    assert result.transfer_details["channel"] == "agreed_alternative"
+    assert result.transfer_details["net_amount_minor"] == claim.approved_amount_minor
+
+
+def test_partial_rejected_installment_does_not_count_as_paid_or_refund_prior_installments():
+    from apps.payments.installments import installment_snapshot
+    from apps.payments.manual_services import ManualPaymentError, submit_installment_payment
+
+    user, sub, first, admin, _ = _paid(days=35, installments=True)
+    agreement = first.installment_agreement
+    second = submit_installment_payment(
+        user=user,
+        agreement_id=agreement.id,
+        recharge_codes=["3333444455556"],
+        idempotency_key=uuid4().hex,
+    ).payment
+    review_manual_recharge(
+        payment_id=second.id,
+        actor=admin,
+        decision="reject",
+        reason="Only partial card value collected",
+        idempotency_key=uuid4().hex,
+        collected_amount_minor=second.amount_minor // 2,
+    )
+    sub.refresh_from_db()
+    second.refresh_from_db()
+    snapshot = installment_snapshot(agreement)
+    assert snapshot.next_number == 2
+    assert snapshot.paid_minor == first.amount_minor
+    assert sub.status == "suspended"
+    with pytest.raises(ManualPaymentError, match="partially collected"):
+        submit_installment_payment(
+            user=user,
+            agreement_id=agreement.id,
+            recharge_codes=["3333444455557"],
+            idempotency_key=uuid4().hex,
+        )
+    claim = _claim(user, second, kind="payment_error", phone="0912345678")
+    assert claim.payment_id == second.id
+    claim = review_claim(
+        claim_id=claim.id,
+        actor=admin,
+        action="approve",
+        reason="Refund only this failed installment collection",
+    )
+    assert claim.approved_amount_minor == second.amount_minor
+    agreement.refresh_from_db()
+    assert agreement.status == "active"
+    review_claim(
+        claim_id=claim.id,
+        actor=admin,
+        action="complete",
+        reason="Actual net value sent back to student",
+        transfer_reference="partial-installment-airtime-123",
+        transferred_to=claim.receiver_phone,
+        transferred_amount_minor=claim.approved_amount_minor,
+    )
+    first.refresh_from_db()
+    assert first.refunded_amount_minor == 0
+    retry = submit_installment_payment(
+        user=user,
+        agreement_id=agreement.id,
+        recharge_codes=["3333444455558"],
+        idempotency_key=uuid4().hex,
+    ).payment
+    assert retry.installment_number == 2

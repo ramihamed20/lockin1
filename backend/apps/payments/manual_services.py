@@ -624,6 +624,14 @@ def submit_installment_payment(
     )
     if agreement is None:
         raise ManualPaymentError("There is no installment plan to pay.")
+    if agreement.payments.filter(
+        manual_submission__status=ManualRechargeSubmission.Status.REJECTED,
+        status__in=(Payment.Status.SUCCEEDED, Payment.Status.PARTIALLY_REFUNDED),
+    ).exists():
+        raise ManualPaymentError(
+            "A partially collected card needs support reconciliation or refund "
+            "before another payment."
+        )
     subscription = Subscription.objects.select_for_update().get(id=agreement.subscription_id)
     now = timezone.now()
     subscription = refresh_subscription(subscription=subscription, now=now)
@@ -833,10 +841,7 @@ def review_manual_recharge(
             )
             submission.subscription_period_started_at = approved_start
             submission.subscription_period_ends_at = approved_end
-            if payment.installment_agreement_id and payment.installment_number == 1:
-                InstallmentAgreement.objects.filter(id=payment.installment_agreement_id).update(
-                    anchor_at=max(now, approved_start)
-                )
+            # The agreed installment dates stay fixed; refund activation is separate.
         if owns_subscription_state:
             subscription.payment_verification = Subscription.PaymentVerification.VERIFIED
             subscription.provisional_payment_id = None

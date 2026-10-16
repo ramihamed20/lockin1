@@ -74,6 +74,8 @@ function Claim({ item, finance, onChanged }) {
   const effectiveAction = actions.includes(action) ? action : actions[0];
   const [reason, setReason] = useState("");
   const [reference, setReference] = useState("");
+  const [alternative, setAlternative] = useState(false);
+  const [agreementReference, setAgreementReference] = useState("");
   const [transferredTo, setTransferredTo] = useState(item.receiver_phone || "");
   const [transferredAmount, setTransferredAmount] = useState(String(Number(item.approved_amount_minor || 0) / (10 ** Number(item.currency_exponent))));
   const [phone, setPhone] = useState(item.receiver_phone || "");
@@ -83,7 +85,7 @@ function Claim({ item, finance, onChanged }) {
     event.preventDefault(); if (pending) return;
     setPending(true); setError("");
     try {
-      if (finance) await refundClaimsApi.review(item.id, { action: effectiveAction, reason, transfer_reference: reference, ...(effectiveAction === "complete" ? { transferred_to: transferredTo, transferred_amount_minor: Math.round(Number(transferredAmount) * (10 ** Number(item.currency_exponent))) } : {}) });
+      if (finance) await refundClaimsApi.review(item.id, { action: effectiveAction, reason, transfer_reference: reference, ...(effectiveAction === "complete" ? { transferred_to: transferredTo, transferred_amount_minor: Math.round(Number(transferredAmount) * (10 ** Number(item.currency_exponent))), agreed_alternative: alternative, alternative_agreement_reference: agreementReference } : {}) });
       else await refundClaimsApi.contact(item.id, phone);
       onChanged();
     } catch (e) { setError(e.message || "تعذر تحديث الطلب."); }
@@ -94,12 +96,13 @@ function Claim({ item, finance, onChanged }) {
     <p>مرجع الطلب: <bdi>{item.id}</bdi></p><p>الاستلام: {formatDateTime(item.received_at)} · المهلة: {formatDateTime(item.due_at)}</p>
     {item.remedy === "extension" ? <p>اختيار المستخدم: وصول تعويضي حتى عودة الخدمة.</p> : <p>{item.approved_amount_minor == null ? "التقدير قبل المراجعة" : "المبلغ الصافي المعتمد"}: {amount(item)}</p>}
     <p>رقم استقبال الرصيد: <bdi>{item.receiver_phone || "لم يستكمل بعد"}</bdi></p>
+    {item.transfer_details?.channel === "agreed_alternative" && <p>أُنجز الرد بوسيلة بديلة متفق عليها معك.</p>}
     <p>{item.reason}</p>{item.decision_reason && <p>{item.decision_reason}</p>}
     {((finance && actions.length > 0) || (!finance && ["requested", "needs_info", "approved"].includes(item.status))) && <form className="ops-form" onSubmit={save}>
       {finance ? <>
         <label className="field"><span>الإجراء</span><select value={effectiveAction} onChange={(e) => setAction(e.target.value)}>{actions.map((value) => <option value={value} key={value}>{{ needs_info: "طلب معلومات مع حفظ وقت الاستلام", approve: "اعتماد الاسترداد أو إنهاء الأقساط", complete: "توثيق التحويل المنفذ بالفعل", compensate: "بدء التعويض الذي اختاره المستخدم", restore: "تأكيد عودة الخدمة وإنهاء التعويض", reject: "رفض مسبب مع إتاحة المراجعة" }[value]}</option>)}</select></label>
         <label className="field"><span>سبب واضح للمستخدم</span><textarea value={reason} onChange={(e) => setReason(e.target.value)} minLength={8} maxLength={1000} required /></label>
-        {effectiveAction === "complete" && <><label className="field"><span>رقم الاستقبال الذي حُول إليه فعليًا</span><input dir="ltr" type="tel" value={transferredTo} onChange={(e) => setTransferredTo(e.target.value)} required /></label><label className="field"><span>المبلغ الصافي المحول فعليًا (LYD)</span><input type="number" min="0.001" step="0.001" value={transferredAmount} onChange={(e) => setTransferredAmount(e.target.value)} required /></label><label className="field"><span>مرجع التحويل الفعلي للمبلغ الصافي كاملًا</span><input value={reference} onChange={(e) => setReference(e.target.value)} required maxLength={160} /></label><label><input type="checkbox" required /> أؤكد تنفيذ التحويل بالفعل دون خصم رسوم من المستخدم.</label></>}
+        {effectiveAction === "complete" && <><label className="field"><span>جهة الاستقبال التي حُول إليها فعليًا</span><input dir="ltr" type="text" maxLength={160} value={transferredTo} onChange={(e) => setTransferredTo(e.target.value)} required /></label><label className="field"><span>المبلغ الصافي المحول فعليًا ({item.currency})</span><input type="number" min="0.001" step="0.001" value={transferredAmount} onChange={(e) => setTransferredAmount(e.target.value)} required /></label><label><input type="checkbox" checked={alternative} onChange={(e) => setAlternative(e.target.checked)} /> تعذر تحويل الرصيد واتفق المستخدم معنا على وسيلة بديلة.</label>{alternative && <label className="field"><span>مرجع موافقة المستخدم على الوسيلة البديلة</span><input value={agreementReference} onChange={(e) => setAgreementReference(e.target.value)} minLength={8} maxLength={160} required /></label>}<label className="field"><span>مرجع التحويل الفعلي للمبلغ الصافي كاملًا</span><input value={reference} onChange={(e) => setReference(e.target.value)} required maxLength={160} /></label><label><input type="checkbox" required /> أؤكد تنفيذ التحويل بالفعل دون خصم رسوم من المستخدم.</label></>}
       </> : <label className="field"><span>استكمال رقم الاستقبال</span><input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} required dir="ltr" /></label>}
       <button className="btn btn-outline" disabled={pending} type="submit">{pending ? "جارٍ الحفظ…" : "حفظ"}</button>
       {error && <p role="alert">{error}</p>}

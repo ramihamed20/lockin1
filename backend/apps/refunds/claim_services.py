@@ -36,9 +36,9 @@ OPEN = (
 )
 
 
-def purchase_payments(payment: Payment):  # type: ignore[no-untyped-def]
+def purchase_payments(payment: Payment, *, whole_purchase: bool = True):  # type: ignore[no-untyped-def]
     query = Payment.objects.filter(id=payment.id)
-    if payment.installment_agreement_id:
+    if whole_purchase and payment.installment_agreement_id:
         query = Payment.objects.filter(installment_agreement_id=payment.installment_agreement_id)
     return query.select_related("manual_submission", "installment_agreement").order_by(
         "created_at", "id"
@@ -52,7 +52,7 @@ def allocation_quote(payment: Payment, *, kind: str, received_at: datetime) -> l
         if kind in {RefundClaim.Kind.VOLUNTARY, RefundClaim.Kind.TERMINATION}
         else 100
     )
-    for item in purchase_payments(payment):
+    for item in purchase_payments(payment, whole_purchase=kind != RefundClaim.Kind.PAYMENT_ERROR):
         if item.status not in {Payment.Status.SUCCEEDED, Payment.Status.PARTIALLY_REFUNDED}:
             continue
         reserved = (
@@ -104,7 +104,7 @@ def create_claim(
     payment = Payment.objects.select_related("account", "installment_agreement").get(
         id=payment_id, account__primary_user=user
     )
-    if payment.installment_agreement is not None:
+    if payment.installment_agreement is not None and kind != RefundClaim.Kind.PAYMENT_ERROR:
         payment = payment.installment_agreement.payments.get(installment_number=1)
     existing = RefundClaim.objects.filter(user=user, idempotency_key=idempotency_key).first()
     if existing is not None:
@@ -257,6 +257,8 @@ def review_claim(
     transfer_reference: str = "",
     transferred_to: str = "",
     transferred_amount_minor: int | None = None,
+    agreed_alternative: bool = False,
+    alternative_agreement_reference: str = "",
 ) -> RefundClaim:
     stub = RefundClaim.objects.select_related("payment").get(id=claim_id)
     # Consistent account -> subscription -> claim -> payment order.
@@ -315,16 +317,22 @@ def review_claim(
     elif action == "complete":
         if before != RefundClaim.Status.APPROVED or not transfer_reference.strip():
             raise ValueError("Approve the request and supply the actual transfer reference first.")
-        if not claim.receiver_phone:
-            raise ValueError("Record the agreed recipient details before confirming the transfer.")
-        if (
-            transferred_to != claim.receiver_phone
-            or transferred_amount_minor != claim.approved_amount_minor
-        ):
-            raise ValueError(
-                "Confirm the actual recipient and the entire approved net amount. "
-                "Reload if the recipient changed."
-            )
+        if agreed_alternative:
+            if len(alternative_agreement_reference.strip()) < 8 or not transferred_to.strip():
+                raise ValueError(
+                    "Record the user's agreement to the alternative method "
+                    "and its actual recipient."
+                )
+        elif not claim.receiver_phone or transferred_to != claim.receiver_phone:
+            raise ValueError("Confirm the actual recipient. Reload if the recipient changed.")
+        if transferred_amount_minor != claim.approved_amount_minor:
+            raise ValueError("Confirm the entire approved net amount without deducting fees.")
+        claim.transfer_details = {
+            "channel": "agreed_alternative" if agreed_alternative else "libyana_airtime",
+            "recipient": transferred_to,
+            "net_amount_minor": transferred_amount_minor,
+            "agreement_reference": alternative_agreement_reference if agreed_alternative else "",
+        }
         for row in claim.allocations:
             refund = Refund.objects.select_for_update().get(
                 payment_id=row["payment_id"],

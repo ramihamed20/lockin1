@@ -137,6 +137,7 @@ class RefundClaim(models.Model):
     allocations = models.JSONField(default=list)
     decision_reason = models.CharField(max_length=1000, blank=True)
     transfer_reference = models.CharField(max_length=160, blank=True)
+    transfer_details = models.JSONField(default=dict, blank=True)
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,

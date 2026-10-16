@@ -39,6 +39,9 @@ RISK: High. New migrations and money/access/privacy transitions need PostgreSQL 
   a refund right. A rejected order does not erase valid pre-existing access. Completing that purchase
   with remaining valid cards is handled through support/manual review; do not collect its full
   value again without accounting for the earlier collection.
+  A partially collected rejected later installment is not a completed installment. Its payment-error
+  refund returns only that collection and preserves earlier approved installments and their access.
+  The advertised installment dates remain fixed when approval is delayed.
 - Compensation is available only when the user chose it for a platform error. Finance starts the
   free entitlement and ends it when service returns. It is never forced in place of money.
 - Telegram payment messages mask each PIN. Full codes remain restricted to financial review in
@@ -58,7 +61,9 @@ opening the new request UI.
 The new financial queue appears in Payments for users holding `payments.manage`.
 Review each received request promptly, including requests needing further details. The 48-hour
 clock includes holidays. Select `complete` only after the whole approved net amount has actually
-been transferred; record the real reference. The app records transfers; it does not initiate them.
+been transferred; record the real reference. If airtime cannot be transferred, finance may record an alternative
+method only with a reference to the user's agreement, the actual recipient and the full approved
+net amount. The app records transfers; it does not initiate them.
 For an outage, record when the service was restored and close each compensation grant.
 
 A purchase followed by another purchase on the same subscription cannot have its newer rights
@@ -112,7 +117,7 @@ transfers, microphone audio, or actual user deletions are used by these tests.
 
 Executed locally:
 
-- Backend account/payment/subscription/entitlement/refund/admin family: 343 passed,
+- Backend account/payment/subscription/entitlement/refund/admin family: 348 passed,
   15 PostgreSQL-only cases skipped on SQLite.
 - Production/account-policy targeted family: 41 passed; final privacy/export/erasure
   regression family after export filtering: 9 passed.
@@ -121,6 +126,8 @@ Executed locally:
 - Full backend Ruff and formatting, mypy (525 sources), Django check and migration drift passed.
 - Exact PDF SHA-256 matched the owner-supplied source.
 
-Local browser installation was blocked by a truncated browser download; the public-information
-Playwright regressions are included for CI. A local PostgreSQL process was unavailable in this
-container. Required PostgreSQL and browser CI checks remain a release prerequisite.
+The normal local browser download was truncated. Using a separate scratch Chromium runtime,
+the public-information tests (2), guided checkout at four viewports (4), and the reported reader
+selection case passed. No browser dependency or runtime override is added to the repository.
+The full PostgreSQL CI suite passed on the initial implementation; the final branch must pass
+all required CI gates again. A local PostgreSQL process was unavailable in this container.

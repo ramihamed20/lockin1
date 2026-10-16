@@ -41,6 +41,7 @@ class ClaimSerializer(serializers.ModelSerializer[RefundClaim]):
             "quoted_amount_minor",
             "approved_amount_minor",
             "decision_reason",
+            "transfer_details",
             "completed_at",
             "currency",
             "currency_exponent",
@@ -64,7 +65,11 @@ class ExternalClaimSerializer(ClaimRequestSerializer):
 
 
 class ClaimReviewSerializer(StrictSerializer):
-    transferred_to = serializers.CharField(max_length=20, default="", allow_blank=True)
+    transferred_to = serializers.CharField(max_length=160, default="", allow_blank=True)
+    agreed_alternative = serializers.BooleanField(default=False)
+    alternative_agreement_reference = serializers.CharField(
+        max_length=160, default="", allow_blank=True
+    )
     transferred_amount_minor = serializers.IntegerField(min_value=1, required=False)
     action = serializers.ChoiceField(
         choices=("approve", "complete", "compensate", "restore", "needs_info", "reject")
