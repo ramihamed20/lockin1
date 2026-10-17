@@ -24,7 +24,7 @@ const FEATURE_REGISTRY = Object.freeze([
     primaryPath: "/study-plan",
     routes: ["/study-plan"],
     labelKey: "nav.studyPlan",
-    status: FEATURE_AVAILABILITY.COMING_SOON
+    status: FEATURE_AVAILABILITY.AVAILABLE
   }),
   Object.freeze({
     id: "rank",

@@ -1,3 +1,4 @@
+from typing import Any
 from uuid import UUID
 
 from drf_spectacular.types import OpenApiTypes
@@ -15,7 +16,7 @@ from . import rescue
 from .rescue_models import RescueSession
 
 
-class RescueWriteSerializer(serializers.Serializer):
+class RescueWriteSerializer(serializers.Serializer[Any]):
     account_id = serializers.UUIDField()
     device_mutation_id = serializers.UUIDField()
     expected_revision = serializers.IntegerField(min_value=0)
@@ -49,7 +50,7 @@ class RescueWriteSerializer(serializers.Serializer):
     # Continuation in V1 leaves the same reader open; it does not invent a timed session.
     continued_into_study_session_id = serializers.UUIDField(allow_null=True)
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         start, end, status = attrs["started_at"], attrs["ended_at"], attrs["status"]
         if attrs["page_end"] < attrs["page_start"]:
             raise serializers.ValidationError("The source range is invalid.")
@@ -76,7 +77,7 @@ class RescueWriteSerializer(serializers.Serializer):
         return attrs
 
 
-class RescueQuerySerializer(serializers.Serializer):
+class RescueQuerySerializer(serializers.Serializer[Any]):
     document_id = serializers.UUIDField(required=False)
     page = serializers.IntegerField(min_value=1, max_value=10000, required=False)
 

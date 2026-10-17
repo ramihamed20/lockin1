@@ -7,6 +7,7 @@ const SHARED_TEST_SHEET_ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vita
 const SCREENSHOT_DIR = "output/playwright";
 
 async function mockAuthenticatedWorkspace(page) {
+  await page.addInitScript(() => localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now())));
   let catalogBookmarked = false;
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());

@@ -39,6 +39,7 @@ import { WeeklyReadyToast } from "./components/biweekly/WeeklyReadyToast.jsx";
 import { WhatsNew } from "./components/WhatsNew.jsx";
 
 // --- Lazy-loaded pages ---
+const StudyPlan = lazyWithRecovery(() => import("./pages/StudyPlan.jsx"));
 const Dashboard = lazyWithRecovery(() => import("./pages/Dashboard.jsx"));
 const loadMaterialsPage = () => import("./pages/Materials.jsx");
 const Materials = lazyWithRecovery(loadMaterialsPage);
@@ -706,7 +707,7 @@ function App() {
                 <Route path="/" element={<Dashboard user={user} themeSettings={themeSettings} activeTheme={activeTheme} />} />
                 <Route path="/dashboard" element={<Dashboard user={user} themeSettings={themeSettings} activeTheme={activeTheme} />} />
                 <Route path="/my-group" element={<MyGroup />} />
-                <Route path="/study-plan/*" element={<FeatureComingSoon featureId="study-plan" />} />
+                <Route path="/study-plan" element={<StudyPlan />} />
                 <Route path="/materials" element={<Materials user={user} />} />
                 <Route path="/materials/catalog" element={<NotFoundPage variant="material-catalog" />} />
                 <Route path="/materials/catalog/:materialSlug" element={<CatalogMaterialSheets user={user} />} />

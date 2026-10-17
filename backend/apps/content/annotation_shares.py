@@ -14,7 +14,7 @@ import json
 import re
 import uuid
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
@@ -106,7 +106,7 @@ def clean_snapshot(raw: object) -> dict[str, Any]:
         page_id, after = item.get("id"), item.get("afterPage")
         if not _is_virtual(page_id) or not _is_pdf_page(after) or page_id in virtual_ids:
             continue
-        virtual_ids.add(page_id)
+        virtual_ids.add(cast(int, page_id))
         background = item.get("background")
         virtual_pages.append(
             {

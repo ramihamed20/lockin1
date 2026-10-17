@@ -1,3 +1,4 @@
+import { studyPlanMessages } from "./studyPlanMessages.js";
 import { allQuestionsMessages } from "./allQuestionsMessages.js";
 import { pomodoroMessages } from "./pomodoroMessages.js";
 import { rescueMessages } from "./rescueMessages.js";
@@ -11,6 +12,7 @@ const messages = {
     ...pomodoroMessages.en,
     ...knowledgeMessages.en,
     ...rescueMessages.en,
+    ...studyPlanMessages.en,
     "app.name": "Lock-in",
     "common.loading": "Loading content…",
     "common.tryAgain": "Try again",
@@ -2920,6 +2922,7 @@ const messages = {
     ...pomodoroMessages.ar,
     ...knowledgeMessages.ar,
     ...rescueMessages.ar,
+    ...studyPlanMessages.ar,
     "app.name": "Lock-in",
     "common.loading": "جارٍ تحميل المحتوى…",
     "common.tryAgain": "حاول مجددًا",
