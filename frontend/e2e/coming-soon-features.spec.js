@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
 async function mockStudent(page) {
+  await page.addInitScript(() => localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now())));
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     if (await fulfillAccessContract(route, pathname)) return;
@@ -22,7 +23,6 @@ async function mockStudent(page) {
 }
 
 const features = [
-  { id: "study-plan", route: "/study-plan" },
   { id: "rank", route: "/ranked" },
   { id: "community", route: "/community" }
 ];

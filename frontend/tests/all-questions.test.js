@@ -167,8 +167,8 @@ test("All Questions opens as its own sheet tab and keeps every existing tool", (
 test("All Questions talks to the backend orchestration endpoints with the chosen edition", () => {
   assert.match(api, /allQuestionsContext\(sheetId, edition = "", exclusions = \{\}\)/);
   assert.match(api, /\/all-questions` \+ buildQueryString\(\{ edition, excluded_start_pages: exclusions\.excluded_start_pages, excluded_end_pages: exclusions\.excluded_end_pages \}\)/);
-  assert.match(api, /\/all-questions\/validate` \+ buildQueryString\(\{ edition \}\), \{ method: "POST", body, timeoutMs: 120_000 \}/);
-  assert.match(api, /\/all-questions` \+ buildQueryString\(\{ edition \}\), \{ method: "PUT", body, timeoutMs: 180_000 \}/);
+  assert.match(api, /\/all-questions\/validate` \+ buildQueryString\(\{ edition \}\), \{ method: "POST", body: allQuestionsRequestBody\(body\), timeoutMs: 120_000 \}/);
+  assert.match(api, /\/all-questions` \+ buildQueryString\(\{ edition \}\), \{ method: "PUT", body: allQuestionsRequestBody\(body\), timeoutMs: 180_000 \}/);
   assert.match(panel, /adminControlApi\.allQuestionsContext\(sheet\.id, edition, \{ excluded_start_pages: start, excluded_end_pages: end \}\)/);
   assert.match(panel, /adminControlApi\.validateAllQuestions\(sheet\.id, \{ payload, sheet_question_count: normal, \.\.\.boundaries\(\) \}, edition\)/);
 });
@@ -187,18 +187,18 @@ test("exclusion controls reuse the Active Study field and drive the backend plan
   assert.match(panel, /Effective pages \{ctx\.effective_start_page\}–\{ctx\.effective_end_page\}/);
   assert.match(panel, /ctx\.exclusions_changed &&/);
   // Copy and Validate wait until the plan on screen matches what was typed.
-  assert.match(panel, /const settled = Boolean\(ctx\) && requested === typed && !context\.loading && !context\.refreshing;/);
+  assert.match(panel, /const settled = Boolean\(ctx\) && requested === typed && !context\.loading && !context\.refreshing && !context\.error;/);
   assert.match(panel, /disabled=\{!settled \|\| !prompt\} onClick=\{copy\}>.*Copy All Questions Prompt/);
 });
 
 test("the JSON box stays uncontrolled so a large paste does not re-render per keystroke", () => {
-  assert.match(panel, /<textarea ref=\{textRef\} spellCheck="false"[^>]*defaultValue=""/);
+  assert.match(panel, /<textarea ref=\{textRef\}[^>]*spellCheck="false"[^>]*defaultValue=""/);
   assert.doesNotMatch(panel, /<textarea ref=\{textRef\}[^>]*\svalue=\{/);
   assert.match(panel, /parseAllQuestionsJson\(textRef\.current\?\.value\)/);
 });
 
 test("validation shows per-part counts, a total, and each error with its location and JSON path", () => {
-  assert.match(panel, /Part \{part\.part\} — \{part\.received\}\/\{part\.expected\}/);
+  assert.match(panel, /\{row\.question_format === "pages" \? "Page" : "Part"\} \{part\.part\} — \{part\.received\}\/\{part\.expected\}/);
   assert.match(panel, /Final Exam — \{row\.final_exam\.received\}\/\{row\.final_exam\.expected\}/);
   assert.match(panel, /Total: \{summary\.total_received\} \/ \{summary\.total_expected\} Questions/);
   assert.match(panel, /<strong>\{item\.section\}<\/strong><span>\{item\.message\}<\/span><code>\{item\.path\}<\/code>/);
@@ -208,7 +208,7 @@ test("validation shows per-part counts, a total, and each error with its locatio
 });
 
 test("Save is only offered for the exact JSON and choices that validated, after the replacement warning", () => {
-  assert.match(panel, /const token = ctx \? \[textVersion, edition, ctx\.excluded_start_pages, ctx\.excluded_end_pages, normal\]\.join\("\|"\) : "";/);
+  assert.match(panel, /const token = allQuestionsValidationToken\(ctx, textVersion, normal\);/);
   assert.match(panel, /\{body\.valid && !stale && <>/);
   assert.match(panel, /Existing question sets found:/);
   assert.match(panel, /Saving will replace these question sets\./);

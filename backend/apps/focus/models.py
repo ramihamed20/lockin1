@@ -335,6 +335,11 @@ class ActiveStudyRun(models.Model):
     # is still earned once however many editions a student opens.
     edition = models.CharField(max_length=16, default="university")
     difficulty = models.CharField(max_length=12, choices=Difficulty.choices)
+    study_mode = models.CharField(
+        max_length=12,
+        default="standard",
+        choices=(("standard", "Standard"), ("custom", "Custom"), ("pomodoro", "Pomodoro")),
+    )
     page_count = models.PositiveIntegerField()
     unlocked_pages = models.PositiveIntegerField(default=3)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE)
@@ -382,7 +387,7 @@ class ActiveStudyRun(models.Model):
             # Legacy catalogue runs carry ``sheet=NULL`` and PostgreSQL treats
             # NULLs as distinct, so they are untouched by this.
             models.UniqueConstraint(
-                fields=("user", "sheet", "difficulty", "edition"),
+                fields=("user", "sheet", "difficulty", "edition", "study_mode"),
                 condition=Q(status="active"),
                 name="active_study_one_active_run_per_sheet",
             ),

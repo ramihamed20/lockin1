@@ -13,7 +13,8 @@ from uuid import UUID
 from apps.content.models import ActiveStudyQuestionContent, ActiveStudySettings
 from apps.focus.managed_active_study import CHECKPOINT_PASS, FINAL_EXAM_PASS
 
-ACTIVE_STUDY_BUNDLE_SCHEMA = 1
+# v3 carries Pomodoro capability/progress alongside the unchanged page bank.
+ACTIVE_STUDY_BUNDLE_SCHEMA = 3
 
 
 def _digest(evidence: object) -> str:

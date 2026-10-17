@@ -107,3 +107,32 @@ def test_resumed_result_resolves_its_owned_submitted_attempt(setup, mistake):
     run.stage = "reading"
     run.save(update_fields=["stage"])
     assert client_for(user).get(path).status_code == 404
+
+
+@override_settings(KNOWLEDGE_ENABLED=True)
+def test_page_customization_uses_question_identity_instead_of_legacy_part_position(setup, mistake):
+    document, user, _, _, concept, question = setup
+    bank, attempt = mistake
+    bank.payload = {"pages": [{"page": 2, "questions": [{"question": f"Q{i}"} for i in range(20)]}]}
+    bank.plan_signature = {"page_ranges": [{"part": 1, "start_page": 2, "end_page": 2}]}
+    bank.save(update_fields=("payload", "plan_signature"))
+    run = attempt.run
+    run.study_mode = "custom"
+    run.plan_signature = {
+        "page_ranges": [{"part": 1, "start_page": 2, "end_page": 2}],
+        "content_revision": bank.revision,
+        "source_page_offset": 0,
+        "questions_per_checkpoint": 2,
+    }
+    run.save(update_fields=("study_mode", "plan_signature"))
+    path = f"{base(document)}/mcq-attempts/{attempt.id}/explain-links"
+    assert client_for(user).get(path).json()["links"] == [], (
+        "Old part-position links must not match a custom question."
+    )
+    McqConceptLink.objects.create(
+        concept=concept,
+        bank_revision=bank.revision,
+        canonical_key=f"active-study:{run.sheet_id}:easy:bank:{bank.revision}:page:2:question:1",
+    )
+    response = client_for(user).get(path)
+    assert response.json()["links"][0]["question_id"] == str(question.id)

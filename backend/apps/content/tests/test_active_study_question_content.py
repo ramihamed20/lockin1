@@ -18,7 +18,7 @@ pytestmark = pytest.mark.django_db
 
 
 def _sheet(*, admin: Any, subject: Any):
-    return create_sheet(
+    sheet = create_sheet(
         actor=admin,
         subject=subject,
         managed_file=create_managed_file(
@@ -31,6 +31,11 @@ def _sheet(*, admin: Any, subject: Any):
         notify_students=False,
         allow_download=False,
     )
+
+    # Preserve the legacy-bank fixture; new-sheet behavior is tested separately.
+    sheet.active_study_page_bank_enabled = False
+    sheet.save(update_fields=("active_study_page_bank_enabled",))
+    return sheet
 
 
 def _question(label: str) -> dict[str, object]:

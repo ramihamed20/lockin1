@@ -14,6 +14,7 @@ from apps.accounts.models import User
 from apps.content.models import ActiveStudyQuestionContent, CatalogDocument
 from apps.content.views import _catalog_document_by_id
 from apps.focus.models import ActiveStudyAnswer
+from apps.focus.question_identity import canonical_keys_for_attempt
 from apps.review.models import ReviewAnswerLog
 
 from .models import (
@@ -317,7 +318,7 @@ def knowledge_projection(user: User, document: CatalogDocument) -> list[dict[str
     current_links: dict[str, list[tuple[UUID, datetime]]] = {}
     for link in links:
         parts = link.canonical_key.split(":")
-        bank = banks.get(parts[2]) if len(parts) == 6 else None
+        bank = banks.get(parts[2]) if len(parts) >= 6 and parts[0] == "active-study" else None
         if bank and bank.revision == link.bank_revision:
             current_links.setdefault(link.canonical_key, []).append(
                 (link.concept_id, bank.updated_at)
@@ -333,12 +334,15 @@ def knowledge_projection(user: User, document: CatalogDocument) -> list[dict[str
             .select_related("attempt__run")
             .order_by("-answered_at")[:2000]
         )
+        keys_by_attempt: dict[UUID, dict[int, str]] = {}
         for answer in answers:
             attempt, run = answer.attempt, answer.attempt.run
-            key = (
-                f"active-study:{run.sheet_id}:{run.difficulty}:{attempt.kind}:"
-                f"{attempt.part_number}:{answer.question_position}"
-            )
+            if attempt.id not in keys_by_attempt:
+                bank = banks.get(run.difficulty)
+                keys_by_attempt[attempt.id] = (
+                    canonical_keys_for_attempt(attempt, bank) if bank else {}
+                )
+            key = keys_by_attempt[attempt.id].get(answer.question_position, "")
             for matched in current_links.get(key, []):
                 if answer.answered_at >= matched[1]:
                     events[matched[0]].append((answer.answered_at, answer.was_correct))

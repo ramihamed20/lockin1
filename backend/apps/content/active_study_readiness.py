@@ -221,6 +221,7 @@ def edition_plan(
     try:
         return (
             plan_payload(
+                page_question_bank=sheet.active_study_page_bank_enabled,
                 total_pdf_pages=total_pages,
                 excluded_start_pages=effective.excluded_start_pages,
                 excluded_end_pages=effective.excluded_end_pages,
@@ -430,6 +431,8 @@ def readiness_payload(*, sheet: LearningObject, edition: str = UNIVERSITY) -> di
                         final_exam_questions=cast(int, row["final_exam_questions"]),
                     ),
                     number_of_parts=cast(int, plan_item["number_of_parts"]),
+                    page_ranges=cast(list[dict[str, int]], imported_plan["page_ranges"]),
+                    question_format=str(imported_plan.get("question_format", "parts")),
                 )
                 status, reason = "ready", "Ready."
             except ActiveStudyQuestionValidationError as error:

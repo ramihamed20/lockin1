@@ -7,6 +7,7 @@ from .paper_workspace_views import (
     LofiScenesView,
     PaperWorkspaceYouTubeSearchView,
 )
+from .rescue_views import RescueSessionView, RescueSuggestionsView
 from .views import (
     ActiveStudyContinueView,
     ActiveStudyQuizView,
@@ -35,8 +36,6 @@ from .views import (
     ManagedActiveStudyStartView,
     ManagedActiveStudySubmitView,
 )
-
-from .rescue_views import RescueSessionView, RescueSuggestionsView
 
 app_name = "focus"
 

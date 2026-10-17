@@ -168,6 +168,7 @@ class LearningObject(models.Model):
     revision = models.PositiveBigIntegerField(default=1)
     published_at = models.DateTimeField(null=True, blank=True)
     archived_at = models.DateTimeField(null=True, blank=True)
+    active_study_page_bank_enabled = models.BooleanField(default=False, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

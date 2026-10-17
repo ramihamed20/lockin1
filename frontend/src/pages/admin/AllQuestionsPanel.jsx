@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { adminControlApi } from "../../api/adminControl.js";
+import { useI18n } from "../../components/I18nProvider.jsx";
+import { allQuestionsValidationToken, downloadAllQuestionsPrompt, readAllQuestionsFile } from "../../lib/allQuestionsImport.js";
+import { AllQuestionsPreview } from "./AllQuestionsPreview.jsx";
 import { LoadingPanel } from "../../components/ui/index.jsx";
 import { useAsyncData, useDebouncedValue } from "../../hooks/useAsyncData.js";
 import { allQuestionsTotals, buildAllQuestionsPrompt, existingQuestionSets, normalizeSheetQuestionCount, parseAllQuestionsJson } from "../../lib/allQuestionsPrompt.js";
@@ -28,17 +31,18 @@ function Mark({ ok }) {
 }
 
 function ValidationSummary({ body }) {
+  const { t } = useI18n();
   const summary = body.summary;
   const hidden = Math.max(0, (body.error_count || 0) - SHOWN_ERRORS);
   return <>
     <div className="admin-all-questions-summary">
       {summary.difficulties.map((row) => <div key={row.difficulty} className={row.ok ? "is-ok" : "is-error"}>
         <h5><Mark ok={row.ok} />{row.label}</h5>
-        <ul>
-          {row.parts.map((part) => <li key={part.part} className={part.ok ? "is-ok" : "is-error"}><Mark ok={part.ok} />Part {part.part} — {part.received}/{part.expected}<small>Pages {part.start_page}–{part.end_page}</small></li>)}
+        <details open={!row.ok}><summary>{t("allQuestions.readyGroups")}</summary><ul>
+          {row.parts.map((part) => <li key={part.part} className={part.ok ? "is-ok" : "is-error"}><Mark ok={part.ok} />{row.question_format === "pages" ? "Page" : "Part"} {part.part} — {part.received}/{part.expected}<small>Pages {part.start_page}–{part.end_page}</small></li>)}
           <li className={row.final_exam.ok ? "is-ok" : "is-error"}><Mark ok={row.final_exam.ok} />Final Exam — {row.final_exam.received}/{row.final_exam.expected}</li>
-        </ul>
-        <p>Parts: {row.part_questions_received} Questions · Final: {row.final_exam.received} Questions</p>
+        </ul></details>
+        <p>{row.question_format === "pages" ? "Pages" : "Parts"}: {row.part_questions_received} Questions · Final: {row.final_exam.received} Questions</p>
       </div>)}
       <div className={summary.sheet_questions.ok ? "is-ok" : "is-error"}>
         <h5><Mark ok={summary.sheet_questions.ok} />Normal Questions</h5>
@@ -63,6 +67,11 @@ function ValidationSummary({ body }) {
  * hundred questions is not re-rendered on every keystroke.
  */
 export function AllQuestionsPanel({ sheet, canManageQuestions = true, onSaved = () => {} }) {
+  const { t } = useI18n();
+  const [examStyle, setExamStyle] = useState("");
+  const [loadedFile, setLoadedFile] = useState("");
+  const fileRead = useRef(0);
+  useEffect(() => () => { fileRead.current += 1; }, [sheet.id]);
   const editionRows = Array.isArray(sheet.editions) ? sheet.editions : [];
   const [edition, setEdition] = useState("university");
   // null until the edition's saved exclusions load; then what the admin types.
@@ -86,7 +95,7 @@ export function AllQuestionsPanel({ sheet, canManageQuestions = true, onSaved = 
   }, [sheet.id, edition, requested], { keepPreviousData: true });
   // Never show one edition's plan under the other's name while it reloads.
   const ctx = context.data?.edition === edition ? context.data : null;
-  const settled = Boolean(ctx) && requested === typed && !context.loading && !context.refreshing;
+  const settled = Boolean(ctx) && requested === typed && !context.loading && !context.refreshing && !context.error;
 
   useEffect(() => {
     if (ctx && exclusions === null) setExclusions({ start: ctx.excluded_start_pages, end: ctx.excluded_end_pages });
@@ -98,9 +107,10 @@ export function AllQuestionsPanel({ sheet, canManageQuestions = true, onSaved = 
   const totals = ctx ? allQuestionsTotals(ctx, normal) : null;
   const existing = ctx ? existingQuestionSets(ctx) : { replaced: [], normalExisting: 0, normalAllQuestions: 0, normalOther: 0 };
   let prompt = ""; let promptError = "";
-  if (ctx) { try { prompt = buildAllQuestionsPrompt(ctx, normal); } catch (buildError) { promptError = buildError instanceof Error ? buildError.message : "The All Questions plan is invalid."; } }
+  if (ctx) { try { prompt = buildAllQuestionsPrompt(ctx, normal, { examStyle }); } catch (buildError) { promptError = buildError instanceof Error ? buildError.message : "The All Questions plan is invalid."; } }
   // Everything a validation result depends on; any change requires validating again.
-  const token = ctx ? [textVersion, edition, ctx.excluded_start_pages, ctx.excluded_end_pages, normal].join("|") : "";
+  const token = allQuestionsValidationToken(ctx, textVersion, normal);
+  const pageBank = Boolean(ctx?.difficulties?.every((row) => row.question_format === "pages"));
   const body = result?.body || null;
   const stale = Boolean(result) && result.token !== token;
 
@@ -116,6 +126,26 @@ export function AllQuestionsPanel({ sheet, canManageQuestions = true, onSaved = 
     setError(null);
     setMessage(copied ? "All Questions prompt copied. Send it to the AI together with the sheet PDF." : "Your browser blocked the clipboard. The prompt is selected below — press Ctrl+C.");
     if (!copied) setShowPrompt(true);
+  }
+
+
+  async function uploadFile(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    const currentRead = ++fileRead.current;
+    setPending("file"); setError(null); setMessage("");
+    try {
+      const text = await readAllQuestionsFile(file);
+      parseAllQuestionsJson(text);
+      if (currentRead !== fileRead.current) return;
+      if (textRef.current) textRef.current.value = text;
+      setTextVersion((value) => value + 1);
+      setResult(null); setLoadedFile(file.name);
+      setMessage(t("allQuestions.loaded", { name: file.name }));
+    } catch (error) {
+      if (currentRead === fileRead.current) setError(error instanceof Error ? error : new Error(t("allQuestions.fileError")));
+    } finally { if (currentRead === fileRead.current) setPending(""); }
   }
 
   async function validate() {
@@ -134,7 +164,7 @@ export function AllQuestionsPanel({ sheet, canManageQuestions = true, onSaved = 
   }
 
   async function save() {
-    if (!ctx || !body?.valid || stale || !result.payload) return;
+    if (!ctx || !settled || !body?.valid || stale || !result.payload) return;
     setPending("save"); setError(null); setMessage("");
     try {
       const saved = await adminControlApi.saveAllQuestions(sheet.id, {
@@ -157,12 +187,13 @@ export function AllQuestionsPanel({ sheet, canManageQuestions = true, onSaved = 
   }
 
   return <section className="admin-all-questions" aria-labelledby={`all-questions-${sheet.id}`}>
-    <div className="admin-form-heading"><div><h3 id={`all-questions-${sheet.id}`}>All Questions</h3><p>One prompt and one JSON for every Active Study part, each difficulty&apos;s own Final Exam, and Normal Sheet Questions. The individual prompts and imports keep working.</p></div></div>
+    <div className="admin-form-heading"><div><h3 id={`all-questions-${sheet.id}`}>All Questions</h3><p>One prompt and one JSON for all three difficulties, their final exams and Normal Questions.</p></div></div>
 
+    <ol className="admin-all-questions-workflow" aria-label={t("allQuestions.workflow")}>{["stepPrompt", "stepImport", "stepSave"].map((step, index) => <li key={step} aria-current={(body ? 2 : textVersion ? 1 : 0) === index ? "step" : undefined}><b aria-hidden="true">{index + 1}</b><span>{t(`allQuestions.${step}`)}</span></li>)}</ol>
     <div className="admin-form-grid">
-      <label className="field"><span>Edition</span><select value={edition} onChange={(event) => changeEdition(event.target.value)}>{EDITIONS.map(([key, label]) => {
-        const available = key === "university" || Boolean(editionRows.find((row) => row.edition === key)?.available);
-        return <option key={key} value={key} disabled={!available}>{available ? label : `${label} (not added)`}</option>;
+      <label className="field"><span>Edition</span><select value={edition} disabled={Boolean(pending) || context.loading} onChange={(event) => changeEdition(event.target.value)}>{EDITIONS.map(([key, label]) => {
+        const available = key === "university" || (!pageBank && Boolean(editionRows.find((row) => row.edition === key)?.available));
+        return <option key={key} value={key} disabled={!available}>{available ? label : `${label} (${key === "lockin" && pageBank ? "shared questions" : "not added"})`}</option>;
       })}</select></label>
       {exclusions && <>
         <ExclusionField key={`${edition}-start`} label="First pages to exclude" value={exclusions.start} onChange={(value) => changeExclusion("start", value)} />
@@ -178,8 +209,9 @@ export function AllQuestionsPanel({ sheet, canManageQuestions = true, onSaved = 
       {ctx.shared_question_bank && <p className="form-alert">The prompt uses the Lockin Sheet&apos;s page ranges. Active Study questions are one bank shared with the University Sheet, so saving here replaces them for both editions.</p>}
       {!ctx.active_study_enabled && <p className="form-alert">Active Study is off for this edition. Questions are saved, but students see them only once Active Study is enabled.</p>}
 
+      {pageBank && <p className="form-alert">{t("allQuestions.pageBankHint")} {t("allQuestions.sharedHint")}</p>}
       <h4 className="admin-all-questions-heading">Active Study</h4>
-      <ul className="admin-all-questions-plan">{totals.difficulties.map((row) => <li key={row.difficulty}><strong>{row.label}</strong><span>{row.parts} Part{row.parts === 1 ? "" : "s"} · {row.partQuestions} part questions</span><span>Final Exam: {row.finalExam}</span></li>)}</ul>
+      <ul className="admin-all-questions-plan">{totals.difficulties.map((row) => <li key={row.difficulty}><strong>{row.label}</strong><span>{row.parts} {row.questionFormat === "pages" ? "pages" : "parts"} · {row.partQuestions} questions</span><span>Final Exam: {row.finalExam}</span></li>)}</ul>
 
       <h4 className="admin-all-questions-heading">Normal Questions</h4>
       <div className="admin-manage-row">
@@ -188,9 +220,11 @@ export function AllQuestionsPanel({ sheet, canManageQuestions = true, onSaved = 
       </div>
       {!canManageQuestions && <small className="admin-active-study-copy-status">Adding Normal Questions requires the Manage assessments permission.</small>}
 
+      <details className="admin-all-questions-style"><summary>{t("allQuestions.style")}</summary><label className="field"><span>{t("allQuestions.styleHint")}</span><textarea maxLength={6000} rows={4} value={examStyle} onChange={(event) => setExamStyle(event.target.value)} /></label></details>
       <p className="admin-all-questions-total"><strong>Total: {totals.total} Questions</strong></p>
       <div className="admin-active-study-content-actions">
         <button className="btn btn-primary compact" type="button" disabled={!settled || !prompt} onClick={copy}><Icon name="sparkles" size={16} />Copy All Questions Prompt</button>
+        <button className="btn btn-soft compact" type="button" disabled={!settled || !prompt} onClick={() => downloadAllQuestionsPrompt(prompt, sheet.id)}>{t("allQuestions.download")}</button>
         {Boolean(prompt) && <button className="btn btn-soft compact" type="button" onClick={() => setShowPrompt((value) => !value)}>{showPrompt ? "Hide prompt" : "Show prompt"}</button>}
       </div>
       {promptError && <small className="form-alert error">{promptError}</small>}
@@ -198,7 +232,8 @@ export function AllQuestionsPanel({ sheet, canManageQuestions = true, onSaved = 
     </>}
 
     <div className="admin-all-questions-paste">
-      <label className="field admin-json-field"><span>Paste All Questions JSON</span><textarea ref={textRef} spellCheck="false" autoComplete="off" autoCapitalize="off" autoCorrect="off" defaultValue="" placeholder='{ "active_study": { "easy": …, "medium": …, "hard": … }, "sheet_questions": { "questions": [] } }' onInput={() => setTextVersion((value) => value + 1)} /></label>
+      <label className="field admin-all-questions-file"><span>{t(pending === "file" ? "allQuestions.reading" : "allQuestions.upload")}</span><input type="file" accept=".json,.txt,application/json,text/plain" disabled={Boolean(pending)} onChange={uploadFile} /><small>{t("allQuestions.uploadHint")}</small>{loadedFile && <small dir="auto">{loadedFile}</small>}</label>
+      <label className="field admin-json-field"><span>Paste All Questions JSON</span><textarea ref={textRef} readOnly={Boolean(pending)} spellCheck="false" autoComplete="off" autoCapitalize="off" autoCorrect="off" defaultValue="" placeholder='{ "active_study": { "easy": …, "medium": …, "hard": … }, "sheet_questions": { "questions": [] } }' onInput={() => { setTextVersion((value) => value + 1); setLoadedFile(""); }} /></label>
       <div className="admin-active-study-content-actions"><button className="btn btn-primary compact" type="button" disabled={!settled || Boolean(pending)} onClick={validate}>{pending === "validate" ? "Validating…" : "Validate"}</button></div>
     </div>
 
@@ -210,13 +245,14 @@ export function AllQuestionsPanel({ sheet, canManageQuestions = true, onSaved = 
       <ValidationSummary body={body} />
       {stale && <p className="form-alert">The JSON or the choices above changed. Validate again before saving.</p>}
       {body.valid && !stale && <>
+        <AllQuestionsPreview key={token} payload={result.payload} />
         {existing.replaced.length > 0 && <div className="form-alert" role="note"><strong>Existing question sets found:</strong><ul>{existing.replaced.map((item) => <li key={item.key}>{item.label} — {item.count} questions</li>)}</ul><span>Saving will replace these question sets.</span></div>}
         {normal > 0 && (existing.normalAllQuestions > 0 || existing.normalOther > 0) && <div className="form-alert" role="note"><strong>Normal Questions</strong><ul>
           {existing.normalAllQuestions > 0 && <li>Existing All Questions batch: {existing.normalAllQuestions} questions</li>}
           <li>Will be replaced with: {normal} questions</li>
           {existing.normalOther > 0 && <li>{existing.normalOther} other Normal Questions (manual imports) stay unchanged</li>}
         </ul>{existing.normalAllQuestions > 0 && <span>The replaced questions are archived, as Archive selected does; past attempts keep them.</span>}</div>}
-        <button className="btn btn-primary" type="button" disabled={Boolean(pending)} onClick={save}>{pending === "save" ? "Saving…" : "Save All Questions"}</button>
+        <button className="btn btn-primary" type="button" disabled={!settled || Boolean(pending)} onClick={save}>{pending === "save" ? "Saving…" : "Save All Questions"}</button>
       </>}
     </section>}
   </section>;

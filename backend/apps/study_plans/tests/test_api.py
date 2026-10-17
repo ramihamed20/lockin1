@@ -19,7 +19,7 @@ def authenticated_client(user):
 def test_study_plan_create_list_complete_and_delete() -> None:
     user = create_user(with_trial=True)
     client = authenticated_client(user)
-    scheduled = date.today() + timedelta(days=1)
+    scheduled = date.today()
     created = client.post(
         "/api/v1/study-plan/items",
         {

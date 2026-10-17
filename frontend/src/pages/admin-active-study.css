@@ -333,3 +333,16 @@
 .admin-all-questions-errors code { color: var(--muted); font-size: var(--text-xs); }
 .admin-all-questions-more { margin: 0; color: var(--muted); font-size: var(--text-sm); }
 .admin-all-questions .form-alert ul { margin: 6px 0; padding-inline-start: 20px; }
+
+.admin-all-questions-workflow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 0; margin: 0; list-style: none; }
+.admin-all-questions-workflow li { display: flex; align-items: center; gap: 8px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--text-sm); min-width: 0; }
+.admin-all-questions-workflow b { display: grid; place-items: center; flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--surface); }
+.admin-all-questions-workflow [aria-current="step"] { border-color: var(--primary); }
+.admin-all-questions-preview, .admin-all-questions-style { min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; }
+.admin-all-questions-preview > summary, .admin-all-questions-style > summary, .admin-all-questions-summary details > summary { cursor: pointer; padding-block: 6px; min-height: 44px; }
+.admin-all-questions-preview > .admin-form-grid { margin-top: 12px; }
+.admin-all-questions-preview-card { border-block-start: 1px solid var(--border); padding-top: 12px; overflow-wrap: anywhere; }
+.admin-all-questions-preview-card .is-correct { color: var(--success); font-weight: 650; }
+.admin-all-questions-file input { max-width: 100%; min-height: 44px; }
+.admin-all-questions-style textarea { resize: vertical; width: 100%; min-width: 0; }
+@media (max-width: 560px) { .admin-all-questions-workflow { grid-template-columns: minmax(0, 1fr); } }

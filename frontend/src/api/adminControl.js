@@ -1,3 +1,4 @@
+import { allQuestionsRequestBody } from "../lib/allQuestionsImport.js";
 import { ApiError, request } from "./client.js";
 import { buildQueryString, generateIdempotencyKey } from "./pagination.js";
 
@@ -128,10 +129,10 @@ export const adminControlApi = {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/all-questions` + buildQueryString({ edition, excluded_start_pages: exclusions.excluded_start_pages, excluded_end_pages: exclusions.excluded_end_pages }));
   },
   validateAllQuestions(sheetId, body, edition = "") {
-    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/all-questions/validate` + buildQueryString({ edition }), { method: "POST", body, timeoutMs: 120_000 });
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/all-questions/validate` + buildQueryString({ edition }), { method: "POST", body: allQuestionsRequestBody(body), timeoutMs: 120_000 });
   },
   saveAllQuestions(sheetId, body, edition = "") {
-    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/all-questions` + buildQueryString({ edition }), { method: "PUT", body, timeoutMs: 180_000 });
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/all-questions` + buildQueryString({ edition }), { method: "PUT", body: allQuestionsRequestBody(body), timeoutMs: 180_000 });
   },
   deleteActiveStudyQuestions(sheetId, difficulty, expectedRevision, edition = "") {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study/questions/${difficulty}` + buildQueryString({ edition }), { method: "DELETE", body: { expected_revision: Number(expectedRevision) } });

@@ -2,7 +2,7 @@
 
 import hashlib
 import json
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from django.conf import settings
@@ -62,7 +62,7 @@ def page_limit(user: User, document: CatalogDocument) -> int:
         for run in runs
         if (payload := run_payload(run)) and payload["current_page_range"]
     ]
-    return min([count, *limits])
+    return cast(int, min([count, *limits]))
 
 
 def source_payload(document: CatalogDocument, page: int) -> dict[str, Any]:
@@ -82,6 +82,7 @@ def source_payload(document: CatalogDocument, page: int) -> dict[str, Any]:
 
 def suggestions(user: User, document_id: UUID | None, page: int | None) -> list[dict[str, Any]]:
     require_enabled()
+    document: CatalogDocument | None
     if document_id:
         document = permitted_document(user, document_id)
     else:
@@ -107,8 +108,8 @@ def suggestions(user: User, document_id: UUID | None, page: int | None) -> list[
                 break
             except (PermissionDenied, NotFound):
                 continue
-        if document is None:
-            return []
+    if document is None:
+        return []
     limit = page_limit(user, document)
     if page is None:
         snapshot = CatalogWorkspaceSnapshot.objects.filter(user=user, document=document).first()
@@ -195,7 +196,7 @@ def save_session(user: User, identifier: UUID, data: dict[str, Any]) -> dict[str
     if receipt:
         if receipt.digest != digest:
             raise RescueConflict("This mutation identifier already describes different activity.")
-        return receipt.response
+        return cast(dict[str, Any], receipt.response)
     item = RescueSession.objects.filter(pk=identifier).first()
     if item and item.account_id != user.id:
         raise NotFound()

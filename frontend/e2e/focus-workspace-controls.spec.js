@@ -6,6 +6,7 @@ import { fulfillAccessContract } from "./fixtures/productionApi.js";
 const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 
 async function mockAuthenticatedWorkspace(page) {
+  await page.addInitScript(() => localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now())));
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     if (pathname === "/api/v1/auth/session") {

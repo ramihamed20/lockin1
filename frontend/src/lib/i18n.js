@@ -1,3 +1,6 @@
+import { studyPlanMessages } from "./studyPlanMessages.js";
+import { allQuestionsMessages } from "./allQuestionsMessages.js";
+import { pomodoroMessages } from "./pomodoroMessages.js";
 import { rescueMessages } from "./rescueMessages.js";
 import { knowledgeMessages } from "./knowledgeMessages.js";
 
@@ -5,8 +8,11 @@ export const SUPPORTED_LOCALES = ["en", "ar"];
 
 const messages = {
   en: {
+    ...allQuestionsMessages.en,
+    ...pomodoroMessages.en,
     ...knowledgeMessages.en,
     ...rescueMessages.en,
+    ...studyPlanMessages.en,
     "app.name": "Lock-in",
     "common.loading": "Loading content…",
     "common.tryAgain": "Try again",
@@ -1435,6 +1441,14 @@ const messages = {
     "activeStudy.checkpoint": "Checkpoint",
     "activeStudy.reachPage": "Reach page {page}",
     "activeStudy.partOf": "Part {part} of {total}",
+    "activeStudy.pagesDescription": "Read pages, then test your understanding.",
+    "activeStudy.customize": "Customize",
+    "activeStudy.standardStyle": "Use standard style",
+    "activeStudy.pagesPerTest": "Pages per test",
+    "activeStudy.questionsPerTest": "Questions (up to 20)",
+    "activeStudy.customHint": "Choose your pace. The final exam stays the same.",
+    "activeStudy.replaceCustom": "Start a new custom session with these settings? Your current custom progress will be archived.",
+    "activeStudy.newCustom": "Start new session",
     "focus.thisSheetWasUpdatedYour": "This sheet was updated. Your marks are preserved while the new PDF loads.",
     "focus.selectALargerAreaFor": "Select a larger area for the study clip.",
     "focus.thisWorkspaceHasReachedIts": "This workspace has reached its blank page limit.",
@@ -2937,8 +2951,11 @@ const messages = {
     "ranked.pts": "pts"
   },
   ar: {
+    ...allQuestionsMessages.ar,
+    ...pomodoroMessages.ar,
     ...knowledgeMessages.ar,
     ...rescueMessages.ar,
+    ...studyPlanMessages.ar,
     "app.name": "Lock-in",
     "common.loading": "جارٍ تحميل المحتوى…",
     "common.tryAgain": "حاول مجددًا",
@@ -4411,6 +4428,14 @@ const messages = {
     "activeStudy.checkpoint": "نقطة التحقق",
     "activeStudy.reachPage": "تابع حتى الصفحة {page}",
     "activeStudy.partOf": "الجزء {part} من {total}",
+    "activeStudy.pagesDescription": "اقرأ الصفحات، ثم اختبر فهمك.",
+    "activeStudy.customize": "تخصيص",
+    "activeStudy.standardStyle": "استخدام الأسلوب العادي",
+    "activeStudy.pagesPerTest": "صفحات لكل اختبار",
+    "activeStudy.questionsPerTest": "الأسئلة (حتى 20)",
+    "activeStudy.customHint": "اختَر وتيرتك. الاختبار النهائي يبقى كما هو.",
+    "activeStudy.replaceCustom": "تبدأ جلسة مخصصة جديدة بهذه الإعدادات؟ سيُحفظ تقدم الجلسة الحالية في الأرشيف.",
+    "activeStudy.newCustom": "بدء جلسة جديدة",
     "focus.thisSheetWasUpdatedYour": "تم تحديث هذا الشيت. علاماتك محفوظة أثناء تحميل ملف PDF الجديد.",
     "focus.selectALargerAreaFor": "حدّد مساحة أكبر لمقتطف الدراسة.",
     "focus.thisWorkspaceHasReachedIts": "وصلت مساحة العمل إلى الحد الأقصى للصفحات الفارغة.",
