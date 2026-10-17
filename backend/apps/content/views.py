@@ -35,6 +35,12 @@ from apps.questions.models import Question, QuestionAnswer, QuestionVersion
 from apps.xp.models import XpBalance
 
 from .active_study_readiness import readiness_payload
+from .added_subjects import (
+    AddedSubjectError,
+    add_subject,
+    added_subject_payload,
+    student_subjects,
+)
 from .admin_services import archive_catalog_learning_object, publish_catalog_learning_object
 from .edition_documents import edition_asset
 from .editions import (
@@ -342,18 +348,16 @@ class CatalogMaterialListView(APIView):
 
     def get(self, request: Request) -> Response:
         user = _user(request)
-        subjects = CatalogSubject.objects.filter(is_active=True).select_related(
-            "cohort__program", "source_node"
-        )
-        if not is_content_administrator(user):
-            cohort = user.cohort
-            if cohort is None or not cohort.is_active:
-                return Response({"count": 0, "results": []})
-            subjects = subjects.filter(cohort_id=cohort.id)
+        subjects = student_subjects(user).select_related("cohort__program", "source_node")
+        own_cohort_id = None if is_content_administrator(user) else user.cohort_id
         branches = list(
             subjects.order_by(
                 "cohort__program__position", "cohort__position", "position", "title", "id"
             )
+        )
+        # Added First Year subjects follow the student's own, beside the "+".
+        branches.sort(
+            key=lambda item: own_cohort_id is not None and item.cohort_id != own_cohort_id
         )
         documents_by_subject = _published_documents_by_subject(branches)
         results = []
@@ -410,9 +414,29 @@ class CatalogMaterialListView(APIView):
                         "cohort_code": subject.cohort.code,
                         "name": subject.cohort.name_en,
                     },
+                    # A First Year subject the student added to their own list.
+                    "added": own_cohort_id is not None and subject.cohort_id != own_cohort_id,
                 }
             )
         return Response({"count": len(results), "results": results})
+
+
+class CatalogAddedSubjectCollectionView(APIView):
+    """The First Year subjects a Second Year student can add, and has added."""
+
+    def get(self, request: Request) -> Response:
+        return Response(added_subject_payload(_user(request)))
+
+    def post(self, request: Request) -> Response:
+        user = _user(request)
+        material_slug = str(request.data.get("material_slug", "")).strip()
+        if not material_slug:
+            raise ValidationError({"material_slug": "Choose a subject."})
+        try:
+            add_subject(user=user, material_slug=material_slug)
+        except AddedSubjectError as error:
+            raise ContentRejected(str(error), code=error.code) from error
+        return Response(added_subject_payload(user), status=status.HTTP_201_CREATED)
 
 
 def _catalog_subjects_for(user: User) -> list[CatalogSubject]:
@@ -424,19 +448,15 @@ def _catalog_subjects_for(user: User) -> list[CatalogSubject]:
     under, so there is never a separate question sheet to keep in step.
     """
 
-    subjects = CatalogSubject.objects.filter(is_active=True).select_related(
-        "cohort__program", "source_node"
-    )
-    if not is_content_administrator(user):
-        cohort = user.cohort
-        if cohort is None or not cohort.is_active:
-            return []
-        subjects = subjects.filter(cohort_id=cohort.id)
-    return list(
+    subjects = student_subjects(user).select_related("cohort__program", "source_node")
+    branches = list(
         subjects.exclude(source_node__isnull=True).order_by(
             "cohort__program__position", "cohort__position", "position", "title", "id"
         )
     )
+    if not is_content_administrator(user):
+        branches.sort(key=lambda item: item.cohort_id != user.cohort_id)
+    return branches
 
 
 def _subject_for_path(subjects: list[CatalogSubject], path: str) -> CatalogSubject | None:

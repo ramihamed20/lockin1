@@ -46,7 +46,7 @@ function sourceForCategory(categoryId) { return categoryId === "years" ? "exam" 
 
 function useQuestionMaterials(user, categoryId) {
   const key = [user?.id || "", user?.cohort?.id || "", categoryId].join("|");
-  const data = useAsyncData(() => catalogWorkspaceApi.questionMaterials(sourceForCategory(categoryId), user?.id), [key]);
+  const data = useAsyncData(() => catalogWorkspaceApi.questionMaterials(sourceForCategory(categoryId), user?.id), [key], { cacheKey: `questions:${key}` });
   const materials = useMemo(() => (Array.isArray(data.data?.results) ? data.data.results : []), [data.data]);
   return { ...data, materials };
 }

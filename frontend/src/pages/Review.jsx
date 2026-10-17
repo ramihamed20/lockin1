@@ -41,7 +41,7 @@ async function loadReviewCenter(userId) {
 
 export default function ReviewCenter({ user = null }) {
   const { t } = useI18n();
-  const review = useAsyncData(() => loadReviewCenter(user?.id || ""), [user?.id]);
+  const review = useAsyncData(() => loadReviewCenter(user?.id || ""), [user?.id], { cacheKey: `review-center:${user?.id || ""}` });
   const biweekly = useBiweekly("review");
   if (review.loading) return <ReviewCenterSkeleton />;
   if (review.error) return <Page width="reading" title={t("review.center")} showHeading><ErrorPanel message={review.error} onRetry={review.reload} /></Page>;
@@ -133,7 +133,7 @@ function RecentMistake({ item }) {
 
 export function ReviewBank({ user = null }) {
   const { t } = useI18n();
-  const bank = useAsyncData(() => reviewApi.getBank(user?.id || ""), [user?.id]);
+  const bank = useAsyncData(() => reviewApi.getBank(user?.id || ""), [user?.id], { cacheKey: `review-bank:${user?.id || ""}` });
   if (bank.loading) return <Page width="reading" title={t("review.bank")}><LoadingPanel variant="list" /></Page>;
   if (bank.error) return <Page width="reading" title={t("review.bank")}><ErrorPanel message={bank.error} onRetry={bank.reload} /></Page>;
   return (
@@ -175,7 +175,7 @@ function ReviewQuestionCard({ item, selectedIds = [], onSelect, outcome, busy, e
 export function SubjectReviewSession({ user = null }) {
   const { t } = useI18n();
   const { subjectKey = "" } = useParams();
-  const detail = useAsyncData(() => reviewApi.getSubject(subjectKey, user?.id || ""), [subjectKey, user?.id]);
+  const detail = useAsyncData(() => reviewApi.getSubject(subjectKey, user?.id || ""), [subjectKey, user?.id], { cacheKey: `review-subject:${user?.id || ""}:${subjectKey}` });
   const [items, setItems] = useState([]);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState({});

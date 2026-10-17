@@ -7,6 +7,22 @@
       "runtimeArgs": ["run", "dev"],
       "cwd": "frontend",
       "port": 5050
+    },
+    {
+      "name": "frontend-qa",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "frontend",
+      "port": 5050,
+      "env": { "VITE_DJANGO_PROXY_TARGET": "http://127.0.0.1:8011" }
+    },
+    {
+      "name": "frontend-plans-qa",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--port", "5090", "--strictPort"],
+      "cwd": "frontend",
+      "port": 5090,
+      "env": { "VITE_DJANGO_PROXY_TARGET": "http://127.0.0.1:8041" }
     }
   ]
 }

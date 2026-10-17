@@ -53,3 +53,17 @@ export function youTubeEmbedUrl(videoId, origin = "") {
   if (origin) params.set("origin", origin);
   return `${YOUTUBE_EMBED_ORIGIN}/embed/${videoId}?${params}`;
 }
+
+/**
+ * The Focus workspace's floating player: YouTube's own controls (seek, speed,
+ * captions) stay, and `enablejsapi` lets a tap on the picture play or pause
+ * through postMessage, since the page lays its drag surface over the video.
+ * @param {string} videoId
+ * @param {string} [origin] the embedding page's origin, which the API requires
+ */
+export function youTubePlayerUrl(videoId, origin = "") {
+  if (!VIDEO_ID.test(videoId)) return "";
+  const params = new URLSearchParams({ autoplay: "1", rel: "0", modestbranding: "1", playsinline: "1", iv_load_policy: "3", enablejsapi: "1" });
+  if (origin) params.set("origin", origin);
+  return `${YOUTUBE_EMBED_ORIGIN}/embed/${videoId}?${params}`;
+}

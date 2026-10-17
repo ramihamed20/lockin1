@@ -20,6 +20,7 @@ import { ResponsiveThemePreview } from "../components/shared/ResponsiveThemePrev
 import OfflineSettings from "../offline/OfflineSettings.jsx";
 import AppUpdateSettings from "../pwa/AppUpdateSettings.jsx";
 import FeedbackSettings from "./Feedback.jsx";
+import AddedSubjectsSettings, { canAddSubjects } from "../components/learning/AddedSubjectsSettings.jsx";
 import PublicKnowledgeSettings from "./PublicKnowledgeSettings.jsx";
 import { BUILD_INFO } from "../pwa/buildInfo.js";
 import { UPDATE_STATUS } from "../pwa/updateManager.js";
@@ -39,6 +40,8 @@ const SECTIONS = [
   { id: "appearance", labelKey: "common.appearance", icon: "palette" },
   { id: "notifications", labelKey: "settings.notifications", icon: "bell" },
   { id: "offline", labelKey: "offline.title", icon: "package" },
+  // Second Year Dentistry only: requests to change added First Year subjects.
+  { id: "subjects", labelKey: "subjects.section", icon: "book-open", visible: canAddSubjects },
   { id: "suggest", labelKey: "settings.suggest.section", icon: "messages" },
   { id: "updates", labelKey: "settings.updates.section", icon: "sparkles" },
   { id: "about", labelKey: "settings.public.about", icon: "globe" },
@@ -205,7 +208,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
 
         <nav className="settings-v2-nav" aria-label={t("settings.sectionsLabel")}>
           <ul className="ui-group">
-            {SECTIONS.map((section) => {
+            {SECTIONS.filter((section) => !section.visible || section.visible(user)).map((section) => {
               const current = activeSection === section.id;
               return <li key={section.id}>
                 <button
@@ -347,6 +350,8 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
           </section>}
 
           {activeSection === "offline" && user?.id && <OfflineSettings userId={user.id} />}
+
+          {activeSection === "subjects" && canAddSubjects(user) && <AddedSubjectsSettings />}
 
           {activeSection === "suggest" && <FeedbackSettings />}
 

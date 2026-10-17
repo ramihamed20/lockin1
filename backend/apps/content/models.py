@@ -50,6 +50,86 @@ class CatalogSubject(models.Model):
         return f"{self.cohort}: {self.title}"
 
 
+class AddedCatalogSubject(models.Model):
+    """A subject from an earlier year a student chose to add to their own list.
+
+    Eligibility is decided by ``apps.content.added_subjects`` every time it is
+    read, so a row left behind by a cohort change grants nothing.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="added_catalog_subjects",
+    )
+    subject = models.ForeignKey(
+        CatalogSubject,
+        on_delete=models.CASCADE,
+        related_name="student_additions",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("created_at", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("user", "subject"),
+                name="catalog_added_subject_unique",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}: {self.subject_id}"
+
+
+class AddedSubjectChangeRequest(models.Model):
+    """A student's request to swap one added subject for another.
+
+    Added subjects are final once chosen; a change goes through an operator,
+    who approves (the swap is applied then) or declines it.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        DECLINED = "declined", "Declined"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="added_subject_change_requests",
+    )
+    remove_subject = models.ForeignKey(CatalogSubject, on_delete=models.CASCADE, related_name="+")
+    add_subject = models.ForeignKey(CatalogSubject, on_delete=models.CASCADE, related_name="+")
+    note = models.CharField(max_length=500, blank=True)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING)
+    admin_note = models.CharField(max_length=500, blank=True)
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("user",),
+                condition=Q(status="pending"),
+                name="catalog_one_pending_subject_change",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}: {self.remove_subject_id} -> {self.add_subject_id}"
+
+
 class LearningObject(models.Model):
     class WorkflowStatus(models.TextChoices):
         DRAFT = "draft", "Draft"

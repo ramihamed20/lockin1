@@ -7,6 +7,26 @@ export const catalogWorkspaceApi = {
   materials() {
     return request("/catalog/materials");
   },
+  /** First Year subjects a Second Year student can add to their own list. */
+  addedSubjects() {
+    return request("/catalog/added-subjects");
+  },
+  addSubject(materialSlug) {
+    return request("/catalog/added-subjects", { method: "POST", body: { material_slug: materialSlug } });
+  },
+  /** Ask an operator to swap one added subject for another. */
+  requestSubjectChange({ remove, add, note = "" }) {
+    return request("/catalog/added-subjects/change-requests", { method: "POST", body: { remove, add, note } });
+  },
+  subjectChangeRequests() {
+    return request("/catalog/added-subjects/change-requests");
+  },
+  adminSubjectRequests({ status = "" } = {}) {
+    return request(`/operations/admin/subject-requests${status ? `?status=${encodeURIComponent(status)}` : ""}`);
+  },
+  decideSubjectRequest(id, { decision, adminNote = "" }) {
+    return request(`/operations/admin/subject-requests/${encodeURIComponent(id)}`, { method: "POST", body: { decision, admin_note: adminNote } });
+  },
   /**
    * The Questions directory. Same subjects and same sheet names as
    * `materials()`, narrowed to the sheets that carry published questions.

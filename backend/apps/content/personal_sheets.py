@@ -23,7 +23,6 @@ from django.db import IntegrityError, transaction
 from django.db.models import QuerySet
 
 from apps.accounts.models import User
-from apps.education.policies import is_content_administrator
 from apps.files.models import ManagedFile
 from apps.files.services import (
     FileValidationError,
@@ -31,6 +30,7 @@ from apps.files.services import (
     managed_file_delivery_ready,
 )
 
+from .added_subjects import student_subjects
 from .models import (
     CatalogSubject,
     PersonalSheet,
@@ -81,15 +81,9 @@ def max_sheet_bytes() -> int:
 
 
 def visible_subject(*, user: User, material_slug: str) -> CatalogSubject | None:
-    """The subject this account may file sheets under: one its cohort owns."""
+    """The subject this account may file sheets under: one it may study."""
 
-    subjects = CatalogSubject.objects.filter(is_active=True, material_slug=material_slug)
-    if not is_content_administrator(user):
-        cohort = user.cohort
-        if cohort is None or not cohort.is_active:
-            return None
-        subjects = subjects.filter(cohort_id=cohort.id)
-    return subjects.first()
+    return student_subjects(user).filter(material_slug=material_slug).first()
 
 
 def owned_sheets(*, owner: User, subject: CatalogSubject) -> QuerySet[PersonalSheet]:

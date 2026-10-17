@@ -30,6 +30,7 @@ from apps.files.models import ManagedFile
 from apps.files.services import FileValidationError, create_managed_file
 from apps.xp.services import award_xp
 
+from .added_subjects import student_subjects
 from .models import CatalogSubject, PracticeSet, PracticeSlide, PracticeSlideProgress
 
 logger = logging.getLogger("lockin.catalog")
@@ -150,13 +151,7 @@ def first_letter(answer: str) -> str:
 
 
 def cohort_subjects(user: User) -> QuerySet[CatalogSubject]:
-    subjects = CatalogSubject.objects.filter(is_active=True)
-    if is_content_administrator(user):
-        return subjects
-    cohort = user.cohort
-    if cohort is None or not cohort.is_active:
-        return subjects.none()
-    return subjects.filter(cohort_id=cohort.id)
+    return student_subjects(user)
 
 
 def published_sets(user: User) -> QuerySet[PracticeSet]:

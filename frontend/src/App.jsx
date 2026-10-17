@@ -201,6 +201,9 @@ function App() {
     setSessionMarker(false);
     writeSessionUserSnapshot(null);
     clearSubscriptionSnapshots();
+    // Screens remembered for quick return belong to this account only.
+    void import("./hooks/useAsyncData.js").then((module) => module.clearAsyncDataCache()).catch(() => undefined);
+    void import("./hooks/useCatalogMaterials.js").then((module) => module.clearCatalogMaterialsCache()).catch(() => undefined);
     setUser(null);
     clearOperationsSession();
   }, [clearOperationsSession]);
@@ -208,6 +211,17 @@ function App() {
   useEffect(() => {
     writeSessionUserSnapshot(user);
   }, [user]);
+
+  // Remembered screens show instantly on return; they must never outlive the
+  // account they were loaded for, whatever way the account changed.
+  const rememberedAccount = useRef(user?.id || "");
+  useEffect(() => {
+    const accountId = user?.id || "";
+    if (rememberedAccount.current && rememberedAccount.current !== accountId) {
+      void import("./hooks/useAsyncData.js").then((module) => module.clearAsyncDataCache()).catch(() => undefined);
+    }
+    rememberedAccount.current = accountId;
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user?.id || user.onboardingRequired || user.welcomeRequired) return undefined;
@@ -252,6 +266,39 @@ function App() {
       .then(({ preloadCatalogMaterials }) => preloadCatalogMaterials(user))
       .catch(() => undefined);
   }, [user]);
+
+  // Every other sidebar destination is warmed too, one at a time while the
+  // device is idle, so the first tap on each is not spent downloading its code.
+  useEffect(() => {
+    if (!user?.id || user.onboardingRequired || user.welcomeRequired) return undefined;
+    const pages = [
+      () => import("./pages/Dashboard.jsx"),
+      () => import("./pages/Questions.jsx"),
+      () => import("./pages/Review.jsx"),
+      () => import("./pages/Progress.jsx"),
+      () => import("./pages/Notifications.jsx"),
+      () => import("./pages/Settings.jsx"),
+      () => import("./pages/Subscription.jsx"),
+      () => import("./pages/Store.jsx")
+    ];
+    let cancelled = false;
+    let handle = 0;
+    const idle = (callback) => (typeof window.requestIdleCallback === "function"
+      ? window.requestIdleCallback(callback, { timeout: 3000 })
+      : window.setTimeout(callback, 400));
+    const cancelIdle = (id) => (typeof window.cancelIdleCallback === "function" ? window.cancelIdleCallback(id) : window.clearTimeout(id));
+    const next = (index) => {
+      if (cancelled || index >= pages.length) return;
+      handle = idle(() => {
+        pages[index]().catch(() => undefined).finally(() => next(index + 1));
+      });
+    };
+    next(0);
+    return () => {
+      cancelled = true;
+      cancelIdle(handle);
+    };
+  }, [user?.id, user?.onboardingRequired, user?.welcomeRequired]);
 
   const refreshActiveAccount = useCallback(async () => {
     try {

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight, FileText, Folder, NotebookPen, Plus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, Folder, NotebookPen, Plus, X, Youtube } from "lucide-react";
 import { personalSheetsApi } from "../../api/personalSheets.js";
 import { useI18n } from "../../components/I18nProvider.jsx";
+import { requestFocusVideo } from "./focusVideo.js";
 import { personalTabId, sheetTabId } from "./workspaceTabs.js";
 
 function tabLabel(tab, t) {
@@ -164,6 +165,7 @@ export default function WorkspaceTabBar({ tabs, activeId, materials, portalRef, 
   const menu = menuOpen && <div ref={menuRef} className="workspace-tabs-menu" role="menu" aria-label={t("workspaceTabs.newTab")} style={menuPosition ? { top: menuPosition.top, insetInlineStart: document.documentElement.dir === "rtl" ? menuPosition.right : menuPosition.left } : undefined}>
     <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onNewWhiteboard(); }}><NotebookPen size={18} /><span><strong>{t("workspaceTabs.whiteboard")}</strong><small>{t("workspaceTabs.whiteboardHint")}</small></span></button>
     <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setPickerOpen(true); }}><FileText size={18} /><span><strong>{t("workspaceTabs.openSheet")}</strong><small>{t("workspaceTabs.openSheetHint")}</small></span></button>
+    <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); requestFocusVideo(); }}><Youtube size={18} /><span><strong>{t("focusVideo.menu")}</strong><small>{t("focusVideo.menuHint")}</small></span></button>
   </div>;
 
   return <div className="workspace-tabs" role="tablist" aria-label={t("workspaceTabs.label")}>

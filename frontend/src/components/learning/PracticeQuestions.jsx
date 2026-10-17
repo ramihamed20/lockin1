@@ -22,7 +22,7 @@ import "./practice-questions.css";
  */
 
 function usePracticeDirectory(userId) {
-  const data = useAsyncData((signal) => practiceApi.directory({ signal }), [userId || ""]);
+  const data = useAsyncData((signal) => practiceApi.directory({ signal }), [userId || ""], { cacheKey: `practice-directory:${userId || ""}` });
   const subjects = useMemo(() => (Array.isArray(data.data) ? data.data : []), [data.data]);
   return { ...data, subjects };
 }

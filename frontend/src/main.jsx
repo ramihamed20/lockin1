@@ -45,7 +45,11 @@ window.__LOCKIN_BUILD__ = BUILD_INFO;
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <HashRouter>
+    {/* Navigation commits at once. In a transition (the router's default) a
+        tap on a page whose code was still arriving kept the previous page and
+        its highlight on screen, so the sidebar seemed not to respond. A page
+        not loaded yet now shows its own skeleton instead. */}
+    <HashRouter useTransitions={false}>
       <I18nProvider>
         <PwaLifecycleProvider>
           <RouteMetadataSync />

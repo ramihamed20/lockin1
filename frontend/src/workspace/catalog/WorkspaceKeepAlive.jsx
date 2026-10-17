@@ -1,6 +1,7 @@
 import { useMemo, useRef } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import { ownerStorageKey } from "../storage/workspaceSnapshot.js";
+import { FocusVideoPlayer } from "./FocusVideoPlayer.jsx";
 import { WorkspacePaneActiveContext } from "./workspacePane.js";
 import { personalTabId, sheetTabId, useWorkspaceTabs, whiteboardTabId } from "./workspaceTabs.js";
 
@@ -60,7 +61,7 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
   const hidden = [...panes.entries()].filter(([path]) => path !== location.pathname).sort((a, b) => b[1].seen - a[1].seen);
   hidden.slice(KEPT_WORKSPACE_PANES).forEach(([path]) => panes.delete(path));
 
-  return [...panes.entries()].map(([path, pane]) => {
+  const readers = [...panes.entries()].map(([path, pane]) => {
     const active = path === location.pathname;
     return (
       <div
@@ -81,4 +82,7 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
       </div>
     );
   });
+  // One player for every tab, outside the panes, so it keeps playing (and is
+  // never made inert) while the student moves between documents.
+  return <>{readers}<FocusVideoPlayer /></>;
 }

@@ -184,6 +184,7 @@ def test_catalog_materials_are_cohort_scoped_and_published_from_content_studio()
                 }
             ],
             "cohort": {"program_code": "catalog-materials", "cohort_code": "own", "name": "Own"},
+            "added": False,
         }
     ]
     assert other_directory.status_code == 200

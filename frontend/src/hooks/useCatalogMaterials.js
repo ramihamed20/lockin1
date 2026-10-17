@@ -139,10 +139,22 @@ export function useCatalogMaterials(user) {
     run(key);
   }, [key, run]);
 
+  // Re-read the directory after the student changed it (an added subject),
+  // keeping the current list on screen until the new one arrives.
+  const refresh = useCallback(() => {
+    cache.delete(key);
+    load(key, user?.id).promise
+      .then((materials) => {
+        if (activeKey.current === key) setState({ key, loading: false, error: "", materials });
+      })
+      .catch(() => undefined);
+  }, [key, user?.id]);
+
   return {
     materials: current.materials,
     loading: current.loading,
     error: E2E_FIXTURE_BUILD ? "" : current.error,
-    reload
+    reload,
+    refresh
   };
 }

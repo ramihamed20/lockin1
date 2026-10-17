@@ -505,7 +505,7 @@ function AddView({ t, documentId, getSnapshot, defaultName, basedOnId, mine, max
 
   return (
     <form className="marks-form" onSubmit={publish} noValidate aria-label={mine ? t("marks.tabUpdate") : t("marks.tabAdd")}>
-      <p className="marks-note">{mine ? t("marks.updateIntro", { version: formatNumber(mine.version) }) : t("marks.addIntro")}</p>
+      {!mine && <p className="marks-note">{t("marks.addIntro")}</p>}
       <label className="field personal-add__field" htmlFor={nameId}>
         <span>{t("marks.nameLabel")}</span>
         <input id={nameId} value={name} maxLength={NAME_MAX_LENGTH} autoComplete="off" dir="auto" disabled={anonymous || busy} placeholder={t("marks.namePlaceholder")} onChange={(event) => setName(event.target.value)} />

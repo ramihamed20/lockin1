@@ -1,0 +1,232 @@
+/* Focus workspace — floating YouTube player.
+   Mounted beside the readers, not inside one, so it carries the reader's dark
+   glass material itself. Touch layouts keep 44px controls; only a wide screen
+   with a fine pointer uses 40px, as in the reader's toolbar. */
+
+.focus-video {
+  --fv-text: #f5f6f8;
+  --fv-text-3: rgb(235 238 245 / .55);
+  --fv-edge: rgb(255 255 255 / .12);
+  --fv-fill: rgb(255 255 255 / .07);
+  --fv-fill-strong: rgb(255 255 255 / .13);
+  --fv-control: 44px;
+  --fv-handle: 14px;
+  position: fixed;
+  inset: auto;
+  z-index: 2147483000;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--fv-edge);
+  border-radius: 16px;
+  color: var(--fv-text);
+  background: rgb(22 24 29 / .94);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .1), 0 18px 48px -12px rgb(0 0 0 / .6), 0 2px 6px rgb(0 0 0 / .3);
+  backdrop-filter: blur(28px) saturate(1.6);
+  -webkit-backdrop-filter: blur(28px) saturate(1.6);
+  font: inherit;
+  font-size: .875rem;
+}
+.focus-video:not(:popover-open)[popover] { display: none; }
+@supports not selector(:popover-open) {
+  .focus-video:not(:popover-open)[popover] { display: flex; }
+}
+.focus-video::backdrop { display: none; }
+
+@media (min-width: 1200px) and (pointer: fine) {
+  .focus-video { --fv-control: 40px; --fv-handle: 10px; }
+}
+
+/* While a video plays the panel is only the video: a hairline edge, no
+   padding, and a title bar laid over the top of the picture. */
+.focus-video[data-mode="video"] {
+  border-color: rgb(255 255 255 / .08);
+  border-radius: 12px;
+  background: #000;
+}
+
+.focus-video-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: var(--fv-control);
+  padding-inline: 12px 2px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.focus-video[data-mode="video"] .focus-video-bar {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 3;
+  /* Clear of the top corner grips. */
+  padding-inline: var(--fv-handle);
+  background: linear-gradient(rgb(0 0 0 / .62), rgb(0 0 0 / 0));
+  transition: opacity .25s ease;
+}
+.focus-video[data-mode="video"][data-chrome="hidden"]:not(:focus-within) .focus-video-bar { opacity: 0; }
+@media (hover: hover) {
+  .focus-video[data-mode="video"]:hover .focus-video-bar { opacity: 1; }
+}
+.focus-video:is(.is-dragging, .is-resizing),
+.focus-video.is-dragging .focus-video-bar { cursor: grabbing; }
+.focus-video-bar strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: .8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.focus-video-bar button {
+  display: grid;
+  place-items: center;
+  width: var(--fv-control);
+  height: var(--fv-control);
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  color: var(--fv-text);
+  background: transparent;
+  cursor: pointer;
+}
+.focus-video-bar button:hover,
+.focus-video-bar button:focus-visible { background: var(--fv-fill-strong); outline: none; }
+
+.focus-video-frame {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+.focus-video-frame[hidden] { display: none; }
+.focus-video-frame iframe { display: block; width: 100%; height: 100%; border: 0; }
+/* Nothing in the embed may catch the pointer while the player moves or grows. */
+.focus-video:is(.is-dragging, .is-resizing) iframe { pointer-events: none; }
+
+/* The drag surface over the picture. YouTube's control strip along the bottom
+   stays reachable. */
+.focus-video-hit {
+  position: absolute;
+  inset: 0 0 52px;
+  z-index: 2;
+  cursor: grab;
+  touch-action: none;
+}
+.focus-video-hit.is-passthrough { pointer-events: none; }
+
+/* Edge and corner grips: invisible strips just inside the border. The top
+   edge is the title bar, which moves the player; its corners still resize. */
+.focus-video-handle {
+  position: absolute;
+  z-index: 4;
+  touch-action: none;
+}
+.focus-video-handle[data-edge="s"] { bottom: 0; inset-inline: var(--fv-handle); height: var(--fv-handle); cursor: ns-resize; }
+.focus-video-handle[data-edge="e"],
+.focus-video-handle[data-edge="w"] { top: var(--fv-control); bottom: var(--fv-handle); width: var(--fv-handle); cursor: ew-resize; }
+.focus-video-handle[data-edge="e"] { right: 0; }
+.focus-video-handle[data-edge="w"] { left: 0; }
+.focus-video-handle:is([data-edge="ne"], [data-edge="nw"]) { top: 0; width: var(--fv-handle); height: var(--fv-handle); }
+.focus-video-handle:is([data-edge="se"], [data-edge="sw"]) { bottom: 0; width: calc(var(--fv-handle) * 1.8); height: calc(var(--fv-handle) * 1.8); }
+.focus-video-handle:is([data-edge="ne"], [data-edge="se"]) { right: 0; }
+.focus-video-handle:is([data-edge="nw"], [data-edge="sw"]) { left: 0; }
+.focus-video-handle:is([data-edge="ne"], [data-edge="sw"]) { cursor: nesw-resize; }
+.focus-video-handle:is([data-edge="nw"], [data-edge="se"]) { cursor: nwse-resize; }
+
+.focus-video-search {
+  display: grid;
+  gap: 6px;
+  min-height: 0;
+  padding: 0 8px 8px;
+}
+.focus-video-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--fv-control);
+  padding-inline: 12px;
+  border: 1px solid var(--fv-edge);
+  border-radius: 12px;
+  color: var(--fv-text-3);
+  background: var(--fv-fill);
+}
+.focus-video-search-box:focus-within { border-color: rgb(61 155 255 / .7); }
+.focus-video-search-box input {
+  flex: 1;
+  min-width: 0;
+  height: calc(var(--fv-control) - 2px);
+  padding: 0;
+  border: 0;
+  outline: none;
+  color: var(--fv-text);
+  background: transparent;
+  font: inherit;
+  /* 16px keeps iPhone Safari from zooming into the field. */
+  font-size: max(16px, .875rem);
+}
+.focus-video-results {
+  display: grid;
+  max-height: min(320px, 50dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.focus-video-results ul { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.focus-video-result {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 10px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  text-align: start;
+  font: inherit;
+}
+.focus-video-result:hover,
+.focus-video-result:focus-visible { background: var(--fv-fill-strong); outline: none; }
+.focus-video-result > span:last-child { display: grid; gap: 2px; min-width: 0; }
+.focus-video-result strong {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: .8rem;
+  font-weight: 600;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.focus-video-result small { overflow: hidden; color: var(--fv-text-3); font-size: .7rem; white-space: nowrap; text-overflow: ellipsis; }
+.focus-video-result-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--fv-fill-strong);
+}
+.focus-video-result.is-video img {
+  width: 96px;
+  aspect-ratio: 16 / 9;
+  border-radius: 7px;
+  object-fit: cover;
+  background: var(--fv-fill);
+}
+.focus-video-message { margin: 0; padding: 10px 8px; color: var(--fv-text-3); font-size: .78rem; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .focus-video[popover]:popover-open { animation: focus-video-in .22s cubic-bezier(.32, .72, 0, 1); }
+}
+@keyframes focus-video-in {
+  from { opacity: 0; transform: translateY(8px) scale(.98); }
+}

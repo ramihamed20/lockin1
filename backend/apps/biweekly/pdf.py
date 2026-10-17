@@ -150,14 +150,27 @@ def _review_context(report: BiweeklySnapshot) -> dict[str, Any]:
     return {"pages": pages, "mistake_count": report.data.get("mistake_count", 0)}
 
 
-def render_pdf(report: BiweeklySnapshot) -> bytes:
-    from weasyprint import HTML, default_url_fetcher
+def _report_fetcher() -> Any:
+    """A WeasyPrint fetcher that resolves only the embedded logo.
 
-    def safe_fetch(url: str) -> dict[str, Any]:
-        if url.startswith("data:image/png;base64,"):
-            fetched: dict[str, Any] = default_url_fetcher(url)
-            return fetched
-        raise ValueError("External resources are not permitted in a study report.")
+    The pinned WeasyPrint (70.0) no longer has ``default_url_fetcher``; a
+    fetcher is now a ``URLFetcher`` whose ``fetch`` may refuse. Importing the old
+    name raised on every PDF, so each report download answered 500.
+    """
+
+    from weasyprint.urls import URLFetcher
+
+    class ReportFetcher(URLFetcher):  # type: ignore[misc]
+        def fetch(self, url: str, headers: Any = None) -> Any:
+            if url.startswith("data:image/png;base64,"):
+                return super().fetch(url, headers)
+            raise ValueError("External resources are not permitted in a study report.")
+
+    return ReportFetcher(allowed_protocols={"data"})
+
+
+def render_pdf(report: BiweeklySnapshot) -> bytes:
+    from weasyprint import HTML
 
     context = {
         "report": report,
@@ -173,7 +186,7 @@ def render_pdf(report: BiweeklySnapshot) -> bytes:
         context.update(_review_context(report))
         template = "biweekly/review.html"
     html = render_to_string(template, context)
-    document = HTML(string=html, base_url=str(settings.BASE_DIR), url_fetcher=safe_fetch)
+    document = HTML(string=html, base_url=str(settings.BASE_DIR), url_fetcher=_report_fetcher())
     rendered: bytes = document.write_pdf()
     return rendered
 

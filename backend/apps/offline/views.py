@@ -13,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import User
+from apps.content.added_subjects import student_subjects
 from apps.content.editions import (
     SUMMARY,
     UNIVERSITY,
@@ -24,7 +25,6 @@ from apps.content.editions import (
 )
 from apps.content.models import CatalogDocument, CatalogSubject, LearningObject, LearningObjectAsset
 from apps.content.views import _owned_question_sheet, _sheet_questions, _student_question
-from apps.education.policies import is_content_administrator
 from apps.entitlements.access_permissions import require_subscription_access
 from apps.entitlements.offline_lease import issue_offline_lease, verify_offline_lease
 from apps.entitlements.services import require_entitlement
@@ -191,13 +191,7 @@ class OfflineManifestView(APIView):
     def get(self, request: Request) -> Response:
         user = _user(request)
         require_subscription_access(user=user, entitlement_code="content.premium")
-        subjects = CatalogSubject.objects.filter(is_active=True).select_related(
-            "cohort__program", "source_node"
-        )
-        if not is_content_administrator(user):
-            if user.cohort is None or not user.cohort.is_active:
-                return Response({"version": 1, "subjects": [], "items": []})
-            subjects = subjects.filter(cohort_id=user.cohort_id)
+        subjects = student_subjects(user).select_related("cohort__program", "source_node")
         subject_list = list(subjects.order_by("cohort__position", "position", "id"))
         slugs = [subject.material_slug for subject in subject_list]
         documents = list(

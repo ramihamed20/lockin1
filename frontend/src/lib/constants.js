@@ -35,6 +35,16 @@ export const navItems = [
   { path: "/ranked", label: "Ranked", labelKey: "nav.ranked", icon: "trophy", group: "Social", groupKey: "group.social" }
 ];
 
+// The rail has room for more than the five primary destinations. These follow
+// them under a divider; each is its own page rather than a hub section, so no
+// two rail entries are ever current together. Everything else stays in "More".
+export const railExtraItems = [
+  { path: "/store", label: "Store", labelKey: "nav.store", icon: "shopping-bag", group: "More", groupKey: "common.more" },
+  { path: "/subscription", label: "Plans", labelKey: "nav.subscription", icon: "sparkles", group: "More", groupKey: "common.more" },
+  { path: "/notifications", label: "Notifications", labelKey: "nav.notifications", icon: "bell", group: "More", groupKey: "common.more" },
+  { path: "/settings", label: "Settings", labelKey: "nav.settings", icon: "settings", group: "More", groupKey: "common.more" }
+];
+
 // The phone's bottom bar keeps four destinations and "More"; Progress opens
 // the drawer's first group there instead.
 export const bottomNavPaths = ["/", "/materials", "/questions", "/review"];

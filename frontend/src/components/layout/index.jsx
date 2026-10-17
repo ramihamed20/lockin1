@@ -8,7 +8,7 @@ import { isApiError } from "../../api/client.js";
 import { isKnownNotificationRoute, notificationFallbackRoute } from "../../lib/notificationRoutes.js";
 import { notificationPresentation } from "../../lib/notificationPresentation.js";
 import { PROGRESSION_UPDATED_EVENT } from "../../lib/progressionEvents.js";
-import { COMPACT_SHELL_QUERY, bottomNavPaths, hubForPath, hubMemberPaths, navItems, themeOptions } from "../../lib/constants.js";
+import { COMPACT_SHELL_QUERY, bottomNavPaths, hubForPath, hubMemberPaths, navItems, railExtraItems, themeOptions } from "../../lib/constants.js";
 import { assetPath, cssVars } from "../../lib/utils.js";
 import { PRODUCT_ROLES } from "../../api/contracts.js";
 import { hasProductRole } from "../../lib/authz.js";
@@ -76,9 +76,9 @@ export function NavList({ tabIndex = undefined, onNavigate = undefined, user, op
   const { t } = useI18n();
   const scrollRef = useScrollOverflow();
   useGlide(scrollRef, "[aria-current='page']", location.pathname);
-  // The rail carries only the primary destinations; hub sections are tabs on
-  // their page and everything else is one tap away in the drawer.
-  const visibleItems = [...navItems.filter((item) => item.primary), ...roleNavigationItems(user, operationsSession)];
+  // The rail carries the primary destinations and a few standalone pages; hub
+  // sections are tabs on their page and everything else is one tap away in More.
+  const visibleItems = [...navItems.filter((item) => item.primary), ...(rail ? railExtraItems : []), ...roleNavigationItems(user, operationsSession)];
   let currentGroup = "";
   return (
     <nav className="nav-list" aria-label="Primary" ref={scrollRef}>
@@ -355,7 +355,7 @@ export function Sidebar({ user, operationsSession, studio = false, inert = false
       <div className="sidebar-brand-row">
         <Brand />
         {studio && <span className="studio-badge">Studio</span>}
-        {rail && <button className="icon-btn rail-expand" type="button" onClick={onExpand} aria-label={t("shell.expandNavigation")} aria-expanded={expanded} aria-controls="mobile-drawer"><Icon name="menu" size={20} /></button>}
+        {rail && <button className="icon-btn rail-expand" type="button" onClick={onExpand} aria-label={t("shell.expandNavigation")} aria-expanded={expanded} aria-controls="mobile-drawer"><Icon name="menu" size={20} /><span aria-hidden="true">{t("common.more")}</span></button>}
       </div>
       {studio ? <StudioNavList operationsSession={operationsSession} /> : <NavList user={user} operationsSession={operationsSession} rail={rail} />}
       {rail && <StreakCard user={user} compact />}

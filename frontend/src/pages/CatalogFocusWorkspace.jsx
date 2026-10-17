@@ -1950,6 +1950,50 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       document.removeEventListener("visibilitychange", resetInterruptedInteraction);
     };
   }, []);
+  // The notes drawer is fixed to the layout viewport, but in an iPad split view the
+  // part of the page on screen can be narrower than that, leaving the drawer's
+  // edge (and its slide) cut off by the window. Measure how far the visible area
+  // stops short of each layout edge so the drawer can rest against what is seen.
+  useEffect(() => {
+    const root = rootRef.current;
+    const viewport = window.visualViewport;
+    if (!root || !viewport) return undefined;
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const leftGap = Math.max(0, Math.round(viewport.offsetLeft));
+      const rightGap = Math.max(0, Math.round(document.documentElement.clientWidth - viewport.offsetLeft - viewport.width));
+      const rtl = window.getComputedStyle(root).direction === "rtl";
+      root.style.setProperty("--workspace-visible-start-gap", `${rtl ? rightGap : leftGap}px`);
+      root.style.setProperty("--workspace-visible-end-gap", `${rtl ? leftGap : rightGap}px`);
+    };
+    const schedule = () => { if (!frame) frame = window.requestAnimationFrame(measure); };
+    measure();
+    viewport.addEventListener("resize", schedule, { passive: true });
+    viewport.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule, { passive: true });
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      viewport.removeEventListener("resize", schedule);
+      viewport.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+    };
+  }, [workspaceReady]);
+  // Entering or leaving a split view changes the window width. The notes drawer
+  // is positioned against the layout viewport, so across a width change it can
+  // end up half outside the window with its close button out of reach. Close it
+  // instead; the Notes button reopens it at the new size.
+  useEffect(() => {
+    if (!sideOpen) return undefined;
+    let width = window.innerWidth;
+    const closeOnWidthChange = () => {
+      if (window.innerWidth === width) return;
+      width = window.innerWidth;
+      setOpenSurface((current) => current === "notes" ? null : current);
+    };
+    window.addEventListener("resize", closeOnWidthChange);
+    return () => window.removeEventListener("resize", closeOnWidthChange);
+  }, [sideOpen]);
   useEffect(() => {
     if (!openSurface || openSurface === "notes") return undefined;
     const dismissPopover = (event) => {

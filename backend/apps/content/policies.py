@@ -37,13 +37,15 @@ def can_view_learning_object(*, user: User, learning_object: LearningObject) -> 
     if is_content_administrator(user):
         return True
     cohort = user.cohort
-    return bool(
-        cohort is not None
-        and cohort.is_active
-        and cohort.content_nodes.filter(
-            path__in=ancestor_paths(version.academic_node.path)
-        ).exists()
-    )
+    if cohort is None or not cohort.is_active:
+        return False
+    paths = ancestor_paths(version.academic_node.path)
+    if cohort.content_nodes.filter(path__in=paths).exists():
+        return True
+    # A First Year subject a Second Year student added to their own list.
+    from .added_subjects import added_subjects
+
+    return added_subjects(user).filter(source_node__path__in=paths).exists()
 
 
 def can_edit_learning_object(*, user: User, learning_object: LearningObject) -> bool:

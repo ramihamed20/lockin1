@@ -22,11 +22,11 @@ import { MyGroupCard } from "../components/myGroup/MyGroupCard.jsx";
  */
 export default function Dashboard({ user, themeSettings, activeTheme }) {
   const { t } = useI18n();
-  const learning = useAsyncData(signal => progressApi.learningDashboard({ signal }), [user?.id]);
-  const bank = useAsyncData(signal => reviewApi.getBank("", { signal }), [user?.id]);
-  const xp = useAsyncData(signal => motivationApi.xpSummary({ signal }), [user?.id]);
-  const streak = useAsyncData(() => motivationApi.streakSummary({ scope: user }), [user?.id]);
-  const review = useAsyncData(signal => reviewApi.getQueue("", { signal }), [user?.id]);
+  const learning = useAsyncData(signal => progressApi.learningDashboard({ signal }), [user?.id], { cacheKey: `dashboard-learning:${user?.id || ""}` });
+  const bank = useAsyncData(signal => reviewApi.getBank("", { signal }), [user?.id], { cacheKey: `dashboard-bank:${user?.id || ""}` });
+  const xp = useAsyncData(signal => motivationApi.xpSummary({ signal }), [user?.id], { cacheKey: `dashboard-xp:${user?.id || ""}` });
+  const streak = useAsyncData(() => motivationApi.streakSummary({ scope: user }), [user?.id], { cacheKey: `dashboard-streak:${user?.id || ""}` });
+  const review = useAsyncData(signal => reviewApi.getQueue("", { signal }), [user?.id], { cacheKey: `dashboard-queue:${user?.id || ""}` });
   const summaries = [learning, bank, xp, streak];
   const summaryLoading = summaries.some(section => section.loading);
   const failedSummaries = summaries.filter(section => section.error);

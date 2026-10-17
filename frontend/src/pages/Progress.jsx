@@ -142,7 +142,7 @@ export default function Progress() {
   const [progressSection, setProgressSection] = useState("summary");
   // Paging the history refines the same screen, so the page stays up while the
   // next page of awards arrives instead of collapsing to a skeleton.
-  const progression = useAsyncData(() => loadProgression(page), [page], { keepPreviousData: true });
+  const progression = useAsyncData(() => loadProgression(page), [page], { keepPreviousData: true, cacheKey: `progress:${page}` });
   if (progression.loading) return <Page title={t("progress.title")} showHeading><LoadingPanel variant="progress" /></Page>;
   if (progression.error) return <Page title={t("progress.title")} showHeading><ErrorPanel message={progression.error} onRetry={progression.reload} /></Page>;
 

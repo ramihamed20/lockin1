@@ -13,7 +13,7 @@ import "./biweekly.css";
  * place the current period and the archive in different places.
  */
 export function useBiweekly(type) {
-  const state = useAsyncData(() => biweeklyApi.history(type), [type]);
+  const state = useAsyncData(() => biweeklyApi.history(type), [type], { cacheKey: `biweekly:${type}` });
   const [clock, setClock] = useState(() => Date.now());
   const currentEnd = state.data?.current_period?.period_end;
   const reload = state.reload;

@@ -386,3 +386,56 @@ def test_frozen_review_test_preserves_exact_set_grading(kind, selected, correct)
         client.post(url, {"answers": {row["review_item_id"]: ["b"]}}, format="json").json()
         == response.json()
     )
+
+
+def _weasyprint_loads() -> bool:
+    """True where WeasyPrint's system libraries (Pango) are installed.
+
+    Only a missing native library may skip: an API this code calls that the
+    pinned WeasyPrint lacks raises ImportError/AttributeError and must fail.
+    """
+
+    try:
+        import weasyprint  # noqa: F401
+    except OSError:
+        return False
+    return True
+
+
+@pytest.mark.skipif(not _weasyprint_loads(), reason="WeasyPrint system libraries are not installed")
+@pytest.mark.parametrize("report_type", ["review", "analysis"])
+def test_report_pdf_renders_for_real(report_type, tmp_path, settings):
+    # Every other PDF test serves a pre-made file, which is how a WeasyPrint
+    # upgrade that removed `default_url_fetcher` shipped with every report
+    # download answering 500.
+    settings.MEDIA_ROOT = tmp_path
+    user = create_user(with_trial=True)
+    start, end = closed_period(user)
+    if report_type == "review":
+        report = BiweeklySnapshot.objects.create(
+            user=user,
+            report_type="review",
+            period_start=start,
+            period_end=end,
+            data={"questions": [question(index) for index in range(4)], "mistake_count": 4},
+        )
+    else:
+        report = create_snapshot(user=user, report_type="analysis", start=start, end=end)
+    client = APIClient()
+    client.force_authenticate(user)
+
+    response = client.get(f"/api/v1/biweekly/{report_type}/{report.id}/pdf?preview=1")
+
+    assert response.status_code == 200
+    assert b"".join(response.streaming_content).startswith(b"%PDF")
+
+
+@pytest.mark.skipif(not _weasyprint_loads(), reason="WeasyPrint system libraries are not installed")
+def test_report_fetcher_refuses_external_resources():
+    from ..pdf import _report_fetcher
+
+    fetcher = _report_fetcher()
+    with pytest.raises(ValueError):
+        fetcher.fetch("https://example.com/tracker.png")
+    with pytest.raises(ValueError):
+        fetcher.fetch("file:///etc/passwd")

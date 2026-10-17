@@ -260,7 +260,7 @@ function paymentStatus(value, t) {
 export default function Subscription() {
   const { locale, direction, t } = useI18n();
   const subscriptionSession = useSubscriptionSession();
-  const details = useAsyncData(() => billingApi.details(), []);
+  const details = useAsyncData(() => billingApi.details(), [], { cacheKey: "subscription-details" });
   const [selectedPlan, setSelectedPlan] = useState("");
   const [codes, setCodes] = useState([""]);
   const [payInInstallments, setPayInInstallments] = useState(false);

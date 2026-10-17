@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { catalogWorkspaceApi } from "../api/catalogWorkspace.js";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { Icon } from "../lib/icons.jsx";
 import { rememberLastOpenedCatalogSheet, resolveSheetEdition } from "../lib/materialCatalog.js";
@@ -10,12 +11,13 @@ import { CatalogTile } from "../components/learning/CatalogTile.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
 import OfflineSheetAction from "../offline/OfflineSheetAction.jsx";
 import { PersonalSheetsBranch } from "../components/learning/PersonalSheets.jsx";
+import { canAddSubjects } from "../components/learning/AddedSubjectsSettings.jsx";
 
 export { PersonalSheetsPage } from "../components/learning/PersonalSheets.jsx";
 
 export default function Materials({ user = null }) {
   const { t } = useI18n();
-  const { materials, loading, error, reload } = useCatalogMaterials(user);
+  const { materials, loading, error, reload, refresh } = useCatalogMaterials(user);
 
   // A directory that has not arrived is not a directory that is empty. Telling a
   // student "you have no subjects" while the request is still in flight -- or
@@ -34,6 +36,7 @@ export default function Materials({ user = null }) {
               {materials.map((material) => <CatalogMaterialCard key={material.slug} material={material} />)}
             </section>
           )}
+        {canAddSubjects(user) && <AddFirstYearSubject onChange={refresh} />}
       </section>
     </Page>
   );
@@ -41,7 +44,95 @@ export default function Materials({ user = null }) {
 
 function CatalogMaterialCard({ material }) {
   const { t } = useI18n();
-  return <CatalogTile title={material.title} meta={t("materials.sheetCount", { count: material.sheets.length })} icon="book-open" to={`/materials/catalog/${material.slug}`} />;
+  const count = t("materials.sheetCount", { count: material.sheets.length });
+  const meta = material.added ? `${t("materials.addedFromFirstYear")} · ${count}` : count;
+  return <CatalogTile title={material.title} meta={meta} icon="book-open" to={`/materials/catalog/${material.slug}`} />;
+}
+
+/** The "+" under a Second Year student's subjects: add up to two First Year subjects. */
+function AddFirstYearSubject({ onChange }) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const [state, setState] = useState(null);
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    catalogWorkspaceApi.addedSubjects()
+      .then((payload) => { if (active) setState(payload); })
+      .catch(() => { if (active) setState(null); });
+    return () => { active = false; };
+  }, []);
+
+  const [confirming, setConfirming] = useState("");
+
+  // Choices are final, so once both are chosen the "+" goes away. A change is
+  // a request from Settings.
+  if (!state?.eligible || !state.available?.length || state.added.length >= state.limit) return null;
+
+  const addedCount = state.added.length;
+
+  async function add(subject) {
+    // The first tap asks; the second commits, since a choice cannot be undone here.
+    if (confirming !== subject.slug) {
+      setConfirming(subject.slug);
+      return;
+    }
+    setBusy(subject.slug);
+    setError("");
+    try {
+      setState(await catalogWorkspaceApi.addSubject(subject.slug));
+      setConfirming("");
+      onChange();
+    } catch {
+      setError(t("materials.addSubjectFailed"));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  return (
+    <section className="catalog-add-subject" aria-label={t("materials.addSubject")}>
+      <button type="button" className="catalog-add-subject__toggle" aria-expanded={open} aria-controls="catalog-add-subject-panel" onClick={() => setOpen((value) => !value)}>
+        <span className="catalog-add-subject__icon" aria-hidden="true"><Icon name={open ? "x" : "plus"} size={20} /></span>
+        <span className="catalog-add-subject__copy">
+          <strong dir="auto">{t("materials.addSubject")}</strong>
+          <small dir="auto">{t("materials.addSubjectCount", { count: addedCount, limit: state.limit })}</small>
+        </span>
+      </button>
+      {open && (
+        <div id="catalog-add-subject-panel" className="catalog-add-subject__panel">
+          <p dir="auto" className="catalog-add-subject__hint">{t("materials.addSubjectHint", { limit: state.limit })}</p>
+          <ul className="catalog-add-subject__list">
+            {state.available.map((subject) => {
+              if (subject.added) {
+                return (
+                  <li key={subject.slug} className="is-added">
+                    <span dir="auto">{subject.title}</span>
+                    <span className="catalog-add-subject__added"><Icon name="check" size={16} aria-hidden="true" />{t("materials.addedSubject")}</span>
+                  </li>
+                );
+              }
+              const asking = confirming === subject.slug;
+              const label = asking ? t("materials.confirmAddSubject") : t("materials.addSubjectAction");
+              return (
+                <li key={subject.slug}>
+                  <span dir="auto">{subject.title}</span>
+                  <button type="button" className={asking ? "btn btn-primary compact" : "btn btn-soft compact"} disabled={Boolean(busy)} aria-busy={busy === subject.slug} aria-label={`${label} ${subject.title}`} onClick={() => add(subject)}>
+                    <Icon name={asking ? "check" : "plus"} size={16} aria-hidden="true" />
+                    <span>{label}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <p dir="auto" className="catalog-add-subject__hint">{t("materials.addSubjectFinal")} <Link to="/settings?section=subjects">{t("materials.changeSubjectsLink")}</Link></p>
+          {error && <p role="alert" className="catalog-add-subject__error" dir="auto">{error}</p>}
+        </div>
+      )}
+    </section>
+  );
 }
 
 function CatalogDirectoryHeader({ id, title, subtitle = "", backTo = "", backLabel = "", breadcrumb = null }) {

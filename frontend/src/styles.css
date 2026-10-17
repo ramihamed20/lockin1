@@ -1609,10 +1609,13 @@ h3 {
   transform: translateY(-1px);
 }
 
+/* The chosen theme is a selected radio, which the interaction layer paints as
+   accent text on an accent tint. A gold gradient under it hid that text (and
+   the Night dot) on tablet and desktop, so this only supplies the same tint. */
 .drawer-theme-options button.active {
-  color: var(--button-text);
-  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-  box-shadow: var(--shadow-sm);
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 14%, var(--surface-2));
+  box-shadow: none;
 }
 
 .drawer-theme-options span {

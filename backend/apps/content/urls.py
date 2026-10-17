@@ -1,5 +1,10 @@
 from django.urls import path
 
+from .added_subject_views import (
+    AddedSubjectChangeRequestCollectionView,
+    AdminAddedSubjectRequestDecisionView,
+    AdminAddedSubjectRequestListView,
+)
 from .admin_views import (
     AdminSheetActionView,
     AdminSheetActiveStudyPreviewView,
@@ -49,6 +54,7 @@ from .practice_views import (
 )
 from .views import (
     ArchiveLearningObjectView,
+    CatalogAddedSubjectCollectionView,
     CatalogDocumentResolveView,
     CatalogMaterialListView,
     CatalogQuestionMaterialListView,
@@ -114,6 +120,26 @@ urlpatterns = [
         name="annotation-share-dismiss",
     ),
     path("catalog/materials", CatalogMaterialListView.as_view(), name="catalog-materials"),
+    path(
+        "catalog/added-subjects",
+        CatalogAddedSubjectCollectionView.as_view(),
+        name="catalog-added-subjects",
+    ),
+    path(
+        "catalog/added-subjects/change-requests",
+        AddedSubjectChangeRequestCollectionView.as_view(),
+        name="catalog-added-subject-change-requests",
+    ),
+    path(
+        "operations/admin/subject-requests",
+        AdminAddedSubjectRequestListView.as_view(),
+        name="admin-added-subject-requests",
+    ),
+    path(
+        "operations/admin/subject-requests/<uuid:request_id>",
+        AdminAddedSubjectRequestDecisionView.as_view(),
+        name="admin-added-subject-request-decision",
+    ),
     path(
         "catalog/materials/<slug:material_slug>/personal-sheets",
         PersonalSheetCollectionView.as_view(),
