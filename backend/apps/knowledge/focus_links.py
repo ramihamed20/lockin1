@@ -8,6 +8,7 @@ from rest_framework.exceptions import NotFound
 from apps.accounts.models import User
 from apps.content.models import ActiveStudyQuestionContent, CatalogDocument
 from apps.focus.models import ActiveStudyAttempt
+from apps.focus.question_identity import canonical_keys_for_attempt
 
 from .models import ExplainQuestion, McqConceptLink
 from .services import question_payload, require_enabled, sources_for, tool_flags
@@ -42,15 +43,12 @@ def explain_links(user: User, document: CatalogDocument, attempt_id: UUID) -> di
         return {"links": [], "availability": "no_mistakes"}
     sources = list(sources_for(document))
     concept_ids = {source.concept_id for source in sources}
-    prefix = (
-        f"active-study:{attempt.run.sheet_id}:{attempt.run.difficulty}:"
-        f"{attempt.kind}:{attempt.part_number}:"
-    )
+    keys = canonical_keys_for_attempt(attempt, bank)
     mappings: dict[str, list[str]] = {}
     for link in McqConceptLink.objects.filter(
         concept_id__in=concept_ids,
         bank_revision=bank.revision,
-        canonical_key__startswith=prefix,
+        canonical_key__in=keys.values(),
     ):
         mappings.setdefault(link.canonical_key, []).append(str(link.concept_id))
     questions = list(
@@ -64,7 +62,7 @@ def explain_links(user: User, document: CatalogDocument, attempt_id: UUID) -> di
     for answer in attempt.answers.all():
         if answer.was_correct or answer.answered_at < bank.updated_at:
             continue
-        ids = mappings.get(f"{prefix}{answer.question_position}", [])
+        ids = mappings.get(keys.get(answer.question_position, ""), [])
         matching = [question for question in prepared if set(ids) & set(question["concept_ids"])]
         matching.sort(key=lambda question: question["difficulty"] != attempt.run.difficulty)
         if matching:

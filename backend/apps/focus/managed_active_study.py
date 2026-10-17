@@ -29,6 +29,7 @@ from apps.content.active_study_readiness import (
 )
 from apps.content.editions import UNIVERSITY, normalize_edition
 from apps.content.models import ActiveStudyQuestionContent, LearningObject
+from apps.content.page_question_bank import custom_page_ranges, select_page_questions
 from apps.content.policies import can_view_learning_object
 from apps.review.contracts import QuestionAttemptEvent
 from apps.review.models import ReviewItem
@@ -39,6 +40,7 @@ from platform_core.events import publish_after_commit
 from .active_study import XP_BY_DIFFICULTY
 from .events import ActiveStudyExamPassed
 from .models import ActiveStudyAnswer, ActiveStudyAttempt, ActiveStudyRun
+from .question_identity import question_key
 
 
 class ManagedActiveStudyRuleError(ValueError):
@@ -148,7 +150,7 @@ def _synchronize_run_to_plan(
             "This Active Study session cannot be mapped to the current page plan. "
             "Review the saved progress before resuming."
         )
-    signature = _signature(plan)
+    signature = {**run.plan_signature, **_signature(plan)}
     updates: list[str] = []
     if run.plan_signature != signature:
         run.plan_signature = signature
@@ -221,10 +223,61 @@ def _content(
             content.payload,
             difficulty=difficulty_rule,
             number_of_parts=cast(int, plan["number_of_parts"]),
+            page_ranges=cast(list[dict[str, int]], imported_plan["page_ranges"]),
+            question_format=str(imported_plan.get("question_format", "parts")),
         )
     except ActiveStudyQuestionValidationError as error:
         raise ManagedActiveStudyRuleError("Active Study questions are incomplete.") from error
     return content, plan
+
+
+def _runtime_plan(
+    *,
+    sheet: LearningObject,
+    content: ActiveStudyQuestionContent,
+    plan: dict[str, Any],
+    study_mode: str,
+    pages_per_checkpoint: int | None,
+    questions_per_checkpoint: int | None,
+    edition: str,
+) -> dict[str, Any]:
+    if study_mode not in {"standard", "custom"}:
+        raise ManagedActiveStudyRuleError("Choose standard or custom Active Study.")
+    if study_mode == "standard":
+        if pages_per_checkpoint is not None or questions_per_checkpoint is not None:
+            raise ManagedActiveStudyRuleError("Custom settings require custom Active Study.")
+        return plan
+    if not sheet.active_study_page_bank_enabled or "pages" not in content.payload:
+        raise ManagedActiveStudyRuleError(
+            "Customization is available only for new page-based sheets."
+        )
+    if (
+        isinstance(questions_per_checkpoint, bool)
+        or not isinstance(questions_per_checkpoint, int)
+        or not 1 <= questions_per_checkpoint <= 20
+    ):
+        raise ManagedActiveStudyRuleError("Choose between 1 and 20 questions.")
+    ranges = plan["page_ranges"]
+    source_ranges = content.plan_signature["page_ranges"]
+    start, end = ranges[0]["start_page"], ranges[-1]["end_page"]
+    if end - start != source_ranges[-1]["end_page"] - source_ranges[0]["start_page"]:
+        raise ManagedActiveStudyRuleError(
+            "This edition needs matching study pages before customization can be used."
+        )
+    if pages_per_checkpoint is None:
+        raise ManagedActiveStudyRuleError("Choose a page count for custom Active Study.")
+    try:
+        ranges = custom_page_ranges(start, end, pages_per_checkpoint)
+    except ValueError as error:
+        raise ManagedActiveStudyRuleError(str(error)) from error
+    return {
+        **plan,
+        "page_ranges": ranges,
+        "number_of_parts": len(ranges),
+        "pages_per_checkpoint": pages_per_checkpoint,
+        "questions_per_checkpoint": questions_per_checkpoint,
+        "source_page_offset": source_ranges[0]["start_page"] - start,
+    }
 
 
 def availability(*, user: User, sheet_id: UUID, edition: str = UNIVERSITY) -> dict[str, Any]:
@@ -241,6 +294,7 @@ def availability(*, user: User, sheet_id: UUID, edition: str = UNIVERSITY) -> di
                 difficulty=item["difficulty"],
                 edition=edition,
                 status=ActiveStudyRun.Status.ACTIVE,
+                study_mode="standard",
             )
             .order_by("-updated_at")
             .first()
@@ -251,7 +305,21 @@ def availability(*, user: User, sheet_id: UUID, edition: str = UNIVERSITY) -> di
             difficulty=item["difficulty"],
             edition=edition,
             status=ActiveStudyRun.Status.COMPLETED,
+            study_mode="standard",
         ).exists()
+        custom = ActiveStudyRun.objects.filter(
+            user=user,
+            sheet=sheet,
+            difficulty=item["difficulty"],
+            edition=edition,
+            study_mode="custom",
+            status="active",
+        ).first()
+        custom_supported = bool(
+            sheet.active_study_page_bank_enabled
+            and status == "ready"
+            and (edition == UNIVERSITY or readiness["study_pages_match_university"])
+        )
         rows.append(
             {
                 "difficulty": item["difficulty"],
@@ -259,6 +327,10 @@ def availability(*, user: User, sheet_id: UUID, edition: str = UNIVERSITY) -> di
                 "number_of_parts": item["number_of_parts"],
                 "page_ranges": item["page_ranges"],
                 "progress": run_payload(active) if active else None,
+                "custom_progress": run_payload(custom),
+                "customization_available": custom_supported,
+                "max_questions": 20,
+                "eligible_study_pages": readiness["eligible_study_pages"],
                 "completed": completed,
             }
         )
@@ -278,6 +350,11 @@ def run_payload(run: ActiveStudyRun | None) -> dict[str, Any] | None:
         "id": str(run.id),
         "sheet_id": str(run.sheet_id) if run.sheet_id else None,
         "difficulty": run.difficulty,
+        "study_mode": run.study_mode,
+        "pages_per_checkpoint": run.plan_signature.get("pages_per_checkpoint"),
+        "questions_per_checkpoint": run.plan_signature.get("questions_per_checkpoint", 15),
+        "page_ranges": ranges,
+        "content_revision": run.plan_signature.get("content_revision"),
         "status": run.status,
         "stage": run.stage,
         "current_part": run.current_part,
@@ -293,7 +370,12 @@ def run_payload(run: ActiveStudyRun | None) -> dict[str, Any] | None:
 
 
 def _active_run(
-    *, user: User, sheet: LearningObject, difficulty: str, edition: str = UNIVERSITY
+    *,
+    user: User,
+    sheet: LearningObject,
+    difficulty: str,
+    edition: str = UNIVERSITY,
+    study_mode: str = "standard",
 ) -> ActiveStudyRun | None:
     return (
         ActiveStudyRun.objects.select_for_update()
@@ -302,6 +384,7 @@ def _active_run(
             sheet=sheet,
             difficulty=difficulty,
             edition=edition,
+            study_mode=study_mode,
             status=ActiveStudyRun.Status.ACTIVE,
         )
         .order_by("-updated_at")
@@ -311,12 +394,29 @@ def _active_run(
 
 @transaction.atomic
 def start(
-    *, user: User, sheet_id: UUID, difficulty: str, edition: str = UNIVERSITY
+    *,
+    user: User,
+    sheet_id: UUID,
+    difficulty: str,
+    edition: str = UNIVERSITY,
+    study_mode: str = "standard",
+    pages_per_checkpoint: int | None = None,
+    questions_per_checkpoint: int | None = None,
+    replace_existing: bool = False,
 ) -> tuple[ActiveStudyRun, bool]:
     edition = normalize_edition(edition)
     sheet = _sheet_for_user(user=user, sheet_id=sheet_id)
     _difficulty(difficulty)
-    _, plan = _content(sheet=sheet, difficulty=difficulty, edition=edition)
+    content, plan = _content(sheet=sheet, difficulty=difficulty, edition=edition)
+    plan = _runtime_plan(
+        sheet=sheet,
+        content=content,
+        plan=plan,
+        study_mode=study_mode,
+        pages_per_checkpoint=pages_per_checkpoint,
+        questions_per_checkpoint=questions_per_checkpoint,
+        edition=edition,
+    )
     # The edition's own configured count, or its PDF's count when a Lock-in
     # edition is following the University Sheet's settings.
     plan_total_pages, _ = resolve_total_pdf_pages(
@@ -326,8 +426,33 @@ def start(
     )
     if plan_total_pages is None:
         raise ManagedActiveStudyRuleError("Active Study is not configured for this sheet.")
-    existing = _active_run(user=user, sheet=sheet, difficulty=difficulty, edition=edition)
+    existing = _active_run(
+        user=user, sheet=sheet, difficulty=difficulty, edition=edition, study_mode=study_mode
+    )
+    if existing is not None and replace_existing and study_mode == "custom":
+        abandon(user=user, run_id=existing.id)
+        existing = None
     if existing is not None:
+        if study_mode == "custom" and any(
+            existing.plan_signature.get(key) != plan.get(key)
+            for key in ("pages_per_checkpoint", "questions_per_checkpoint")
+        ):
+            raise ManagedActiveStudyRuleError(
+                "Resume or restart your saved custom session before changing its settings."
+            )
+        if (
+            "pages" in content.payload
+            and existing.plan_signature.get("content_revision") != content.revision
+        ):
+            raise ManagedActiveStudyRuleError(
+                "Questions changed. Restart this session to use the updated bank."
+            )
+        if study_mode == "custom":
+            if existing.plan_signature["page_ranges"] != plan["page_ranges"]:
+                raise ManagedActiveStudyRuleError(
+                    "Study pages changed. Restart this custom session."
+                )
+            return existing, False
         return _synchronize_run_to_plan(
             run=existing, plan=plan, total_pdf_pages=plan_total_pages
         ), False
@@ -350,15 +475,47 @@ def start(
                 # the sheet settings.
                 page_count=plan_total_pages,
                 unlocked_pages=ranges[0]["end_page"],
-                plan_signature=_signature(plan),
+                study_mode=study_mode,
+                plan_signature={
+                    **_signature(plan),
+                    **(
+                        {
+                            "content_revision": content.revision,
+                            "questions_per_checkpoint": plan["questions_per_checkpoint"],
+                        }
+                        if "pages" in content.payload
+                        else {}
+                    ),
+                    **(
+                        {
+                            key: plan[key]
+                            for key in (
+                                "pages_per_checkpoint",
+                                "questions_per_checkpoint",
+                                "source_page_offset",
+                            )
+                        }
+                        if study_mode == "custom"
+                        else {}
+                    ),
+                },
             )
     except IntegrityError:
         # Another request created the run between the read and the insert. Its
         # run is the one that exists, so this caller resumes it rather than
         # reporting a failure the reader did nothing to cause.
-        concurrent = _active_run(user=user, sheet=sheet, difficulty=difficulty, edition=edition)
+        concurrent = _active_run(
+            user=user, sheet=sheet, difficulty=difficulty, edition=edition, study_mode=study_mode
+        )
         if concurrent is None:
             raise
+        if study_mode == "custom" and any(
+            concurrent.plan_signature.get(key) != plan.get(key)
+            for key in ("pages_per_checkpoint", "questions_per_checkpoint")
+        ):
+            raise ManagedActiveStudyRuleError(
+                "Another custom session started with different settings. Reload and resume it."
+            ) from None
         return concurrent, False
     return run, True
 
@@ -388,10 +545,35 @@ def _locked_run(*, user: User, run_id: UUID) -> ActiveStudyRun:
 def _questions_for(run: ActiveStudyRun, *, kind: str, part: int | None) -> list[dict[str, Any]]:
     if run.sheet is None:
         raise ManagedActiveStudyRuleError("Active Study session is not linked to a sheet.")
-    content, _ = _content(sheet=run.sheet, difficulty=run.difficulty, edition=run.edition)
+    content, plan = _content(sheet=run.sheet, difficulty=run.difficulty, edition=run.edition)
+    if (
+        "pages" in content.payload
+        and run.plan_signature.get("content_revision") != content.revision
+    ):
+        raise ManagedActiveStudyRuleError("Questions changed. Restart this session before testing.")
     payload = cast(dict[str, Any], content.payload)
     if kind == ActiveStudyAttempt.Kind.FINAL:
         return cast(list[dict[str, Any]], payload["final_exam"]["questions"])
+    if "pages" in payload:
+        if part is None or not 1 <= part <= len(run.plan_signature["page_ranges"]):
+            raise ManagedActiveStudyRuleError("Checkpoint page group is invalid.")
+        if run.study_mode == "custom":
+            source_range = run.plan_signature["page_ranges"][part - 1]
+            offset = run.plan_signature["source_page_offset"]
+        else:
+            source_range = content.plan_signature["page_ranges"][part - 1]
+            offset = 0
+        try:
+            return select_page_questions(
+                payload,
+                source_range["start_page"] + offset,
+                source_range["end_page"] + offset,
+                run.plan_signature.get(
+                    "questions_per_checkpoint", plan["questions_per_checkpoint"]
+                ),
+            )
+        except ValueError as error:
+            raise ManagedActiveStudyRuleError(str(error)) from error
     selected = next(
         item for item in cast(list[dict[str, Any]], payload["parts"]) if item["part"] == part
     )
@@ -489,7 +671,9 @@ def _question_event(
     return QuestionAttemptEvent(
         user=run.user,
         event_key=f"active-study:{attempt.id}:question:{position}",
-        canonical_key=f"active-study:{run.sheet_id}:{run.difficulty}:{attempt.kind}:{attempt.part_number}:{position}",
+        canonical_key=question_key(
+            run, attempt.kind, attempt.part_number, position, question.get("source_key")
+        ),
         subject_key=f"content:{node.id}",
         subject_label=node.title,
         source_type=ReviewItem.SourceType.ACTIVE_STUDY,
@@ -832,7 +1016,21 @@ def restart(*, user: User, run_id: UUID) -> ActiveStudyRun:
     difficulty = current.difficulty
     edition = current.edition
     abandon(user=user, run_id=run_id)
-    fresh, created = start(user=user, sheet_id=sheet_id, difficulty=difficulty, edition=edition)
+    fresh, created = start(
+        user=user,
+        sheet_id=sheet_id,
+        difficulty=difficulty,
+        edition=edition,
+        study_mode=current.study_mode,
+        **(
+            {
+                key: current.plan_signature[key]
+                for key in ("pages_per_checkpoint", "questions_per_checkpoint")
+            }
+            if current.study_mode == "custom"
+            else {}
+        ),
+    )
     if not created:
         raise ManagedActiveStudyRuleError("Active Study could not be restarted. Try again.")
     return fresh
@@ -892,6 +1090,10 @@ def offline_bundle(*, user: User, sheet_id: UUID, edition: str = UNIVERSITY) -> 
         difficulties[row["difficulty"]] = {
             "number_of_parts": plan["number_of_parts"],
             "page_ranges": plan["page_ranges"],
+            "content_revision": content.revision,
+            "questions_per_checkpoint": plan["questions_per_checkpoint"],
+            "source_page_ranges": content.plan_signature["page_ranges"],
+            **({"pages": payload["pages"]} if "pages" in payload else {}),
             "rules": {
                 "checkpoint_pass": ceil(cast(int, plan["questions_per_checkpoint"]) * 2 / 3),
                 "final_pass": ceil(cast(int, plan["final_exam_questions"]) * 7 / 10),
@@ -901,7 +1103,22 @@ def offline_bundle(*, user: User, sheet_id: UUID, edition: str = UNIVERSITY) -> 
                     "part": part["part"],
                     "questions": [_offline_question(item) for item in part["questions"]],
                 }
-                for part in cast(list[dict[str, Any]], payload["parts"])
+                for part in (
+                    cast(list[dict[str, Any]], payload["parts"])
+                    if "parts" in payload
+                    else [
+                        {
+                            "part": r["part"],
+                            "questions": select_page_questions(
+                                payload,
+                                r["start_page"],
+                                r["end_page"],
+                                plan["questions_per_checkpoint"],
+                            ),
+                        }
+                        for r in content.plan_signature["page_ranges"]
+                    ]
+                )
             ],
             "final_exam": {
                 "questions": [
@@ -936,7 +1153,12 @@ def _offline_outcome(status: str, run: ActiveStudyRun | None, **extra: Any) -> d
 
 
 def _completed_run_exists(
-    *, user: User, sheet: LearningObject, difficulty: str, edition: str
+    *,
+    user: User,
+    sheet: LearningObject,
+    difficulty: str,
+    edition: str,
+    study_mode: str = "standard",
 ) -> bool:
     return ActiveStudyRun.objects.filter(
         user=user,
@@ -944,6 +1166,7 @@ def _completed_run_exists(
         difficulty=difficulty,
         edition=edition,
         status=ActiveStudyRun.Status.COMPLETED,
+        study_mode=study_mode,
     ).exists()
 
 
@@ -980,6 +1203,10 @@ def replay_offline_attempt(
     part: int | None,
     attempt_id: UUID,
     answers: object,
+    study_mode: str = "standard",
+    pages_per_checkpoint: int | None = None,
+    questions_per_checkpoint: int | None = None,
+    bank_revision: int | None = None,
 ) -> dict[str, Any]:
     """Replay one checkpoint or final exam the device completed offline.
 
@@ -1010,6 +1237,7 @@ def replay_offline_attempt(
             or existing.run.sheet_id != sheet.id
             or existing.run.difficulty != difficulty
             or existing.run.edition != edition
+            or existing.run.study_mode != study_mode
             or existing.kind != kind
             or existing.part_number != part
         ):
@@ -1019,16 +1247,45 @@ def replay_offline_attempt(
                 OFFLINE_DUPLICATE, existing.run, result=_attempt_result(existing)
             )
 
-    active = _active_run(user=user, sheet=sheet, difficulty=difficulty, edition=edition)
+    active = _active_run(
+        user=user, sheet=sheet, difficulty=difficulty, edition=edition, study_mode=study_mode
+    )
     if active is None:
         if kind == ActiveStudyAttempt.Kind.FINAL or part != 1:
             if _completed_run_exists(
-                user=user, sheet=sheet, difficulty=difficulty, edition=edition
+                user=user,
+                sheet=sheet,
+                difficulty=difficulty,
+                edition=edition,
+                study_mode=study_mode,
             ):
                 return _offline_outcome(OFFLINE_SUPERSEDED, None)
             raise OfflineReplayOutOfOrder("This Active Study session is no longer active.")
-        active, _ = start(user=user, sheet_id=sheet.id, difficulty=difficulty, edition=edition)
+        active, _ = start(
+            user=user,
+            sheet_id=sheet.id,
+            difficulty=difficulty,
+            edition=edition,
+            study_mode=study_mode,
+            pages_per_checkpoint=pages_per_checkpoint,
+            questions_per_checkpoint=questions_per_checkpoint,
+        )
     run = _locked_run(user=user, run_id=active.id)
+    if study_mode == "custom" and any(
+        run.plan_signature.get(k) != v
+        for k, v in (
+            ("pages_per_checkpoint", pages_per_checkpoint),
+            ("questions_per_checkpoint", questions_per_checkpoint),
+        )
+    ):
+        raise ManagedActiveStudyRuleError("Offline settings do not match this custom session.")
+    if (
+        run.plan_signature.get("content_revision") is not None
+        and bank_revision != run.plan_signature["content_revision"]
+    ):
+        raise ManagedActiveStudyRuleError(
+            "Downloaded questions changed; refresh the sheet before syncing this attempt."
+        )
 
     if kind == ActiveStudyAttempt.Kind.CHECKPOINT:
         if part in cast(list[int], run.completed_parts) or cast(int, part) < run.current_part:
@@ -1071,18 +1328,37 @@ def replay_offline_attempt(
 
 @transaction.atomic
 def replay_offline_continue(
-    *, user: User, sheet_id: UUID, edition: str, difficulty: str, part: int
+    *,
+    user: User,
+    sheet_id: UUID,
+    edition: str,
+    difficulty: str,
+    part: int,
+    study_mode: str = "standard",
+    pages_per_checkpoint: int | None = None,
+    questions_per_checkpoint: int | None = None,
+    bank_revision: int | None = None,
 ) -> dict[str, Any]:
     """Replay "continue anyway" after a checkpoint failed offline."""
 
     edition = normalize_edition(edition)
     _difficulty(difficulty)
     sheet = _sheet_for_user(user=user, sheet_id=sheet_id)
-    active = _active_run(user=user, sheet=sheet, difficulty=difficulty, edition=edition)
+    active = _active_run(
+        user=user, sheet=sheet, difficulty=difficulty, edition=edition, study_mode=study_mode
+    )
     if active is None:
-        if _completed_run_exists(user=user, sheet=sheet, difficulty=difficulty, edition=edition):
+        if _completed_run_exists(
+            user=user, sheet=sheet, difficulty=difficulty, edition=edition, study_mode=study_mode
+        ):
             return _offline_outcome(OFFLINE_SUPERSEDED, None)
         raise OfflineReplayOutOfOrder("This Active Study session is no longer active.")
+    if study_mode == "custom" and (
+        active.plan_signature.get("pages_per_checkpoint") != pages_per_checkpoint
+        or active.plan_signature.get("questions_per_checkpoint") != questions_per_checkpoint
+        or active.plan_signature.get("content_revision") != bank_revision
+    ):
+        raise ManagedActiveStudyRuleError("Offline settings do not match this custom session.")
     if part in cast(list[int], active.completed_parts) or part < active.current_part:
         return _offline_outcome(OFFLINE_SUPERSEDED, active)
     if part > active.current_part or active.stage != ActiveStudyRun.Stage.CHECKPOINT_RESULT:
@@ -1092,15 +1368,38 @@ def replay_offline_continue(
 
 @transaction.atomic
 def replay_offline_restart(
-    *, user: User, sheet_id: UUID, edition: str, difficulty: str
+    *,
+    user: User,
+    sheet_id: UUID,
+    edition: str,
+    difficulty: str,
+    study_mode: str = "standard",
+    pages_per_checkpoint: int | None = None,
+    questions_per_checkpoint: int | None = None,
+    bank_revision: int | None = None,
 ) -> dict[str, Any]:
     """Replay Restart: abandon the active run, if any, and begin again at Part 1."""
 
     edition = normalize_edition(edition)
     _difficulty(difficulty)
     sheet = _sheet_for_user(user=user, sheet_id=sheet_id)
-    active = _active_run(user=user, sheet=sheet, difficulty=difficulty, edition=edition)
+    active = _active_run(
+        user=user, sheet=sheet, difficulty=difficulty, edition=edition, study_mode=study_mode
+    )
     if active is not None:
-        return _offline_outcome(OFFLINE_APPLIED, restart(user=user, run_id=active.id))
-    run, _ = start(user=user, sheet_id=sheet.id, difficulty=difficulty, edition=edition)
+        if study_mode != "custom" or (
+            active.plan_signature.get("pages_per_checkpoint") == pages_per_checkpoint
+            and active.plan_signature.get("questions_per_checkpoint") == questions_per_checkpoint
+        ):
+            return _offline_outcome(OFFLINE_APPLIED, restart(user=user, run_id=active.id))
+        abandon(user=user, run_id=active.id)
+    run, _ = start(
+        user=user,
+        sheet_id=sheet.id,
+        difficulty=difficulty,
+        edition=edition,
+        study_mode=study_mode,
+        pages_per_checkpoint=pages_per_checkpoint,
+        questions_per_checkpoint=questions_per_checkpoint,
+    )
     return _offline_outcome(OFFLINE_APPLIED, run)

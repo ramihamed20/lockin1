@@ -1,3 +1,5 @@
+import { bankPageNumbers } from "./activeStudyPages.js";
+
 const DIFFICULTIES = new Set(["easy", "medium", "hard"]);
 
 function requirePositiveInteger(value, label) {
@@ -25,6 +27,7 @@ function partSkeleton(numberOfParts) {
 /** Builds, but never persists, the manual external-AI JSON prompt. */
 export function buildActiveStudyJsonPrompt(plan) {
   assertPlan(plan);
+  if (plan.questionFormat === "pages") return buildPageStudyPrompt(plan);
   const { difficulty, numberOfParts, pageRanges, questionsPerPart, finalExamQuestions } = plan;
   const ranges = pageRanges.map((range) => `Part ${range.part} → Pages ${range.start_page}–${range.end_page}`).join("\n");
   return `You are filling question content for Lock-in Active Study.
@@ -116,4 +119,26 @@ Before returning the final JSON verify:
 8. JSON syntax is valid, has no comments or trailing commas, and contains no extra fields.
 
 Wait for me to provide the study material/questions before generating the final JSON.`;
+}
+
+
+function buildPageStudyPrompt({ difficulty, pageRanges, finalExamQuestions }) {
+  const pages = bankPageNumbers(pageRanges);
+  return `Generate a page-based question bank for Lock-in Active Study.
+Return valid JSON only, with no Markdown or extra fields.
+Difficulty: ${difficulty}.
+Eligible PDF pages: ${pages[0]}–${pages.at(-1)}. Use the physical PDF page numbers, not printed numbering.
+Use only the supplied sheet. Wait for the sheet if it has not been provided.
+Create exactly 20 distinct questions for EACH eligible page, using only that page's content.
+Questions must remain grouped by page; do not use parts or checkpoint groups.
+This bank supports student-selected page groups and 1–20 questions per checkpoint, as well as the standard style.
+Create exactly ${finalExamQuestions} separate final-exam questions covering all eligible pages.
+Use only MCQ and True/False. MCQ: type "mcq", question, four distinct options A/B/C/D, correct_answer letter, explanation.
+True/False: type "true_false", question, boolean correct_answer, explanation; no options.
+Use exam-style wording, balanced correct MCQ letters, plausible distractors and concise explanations.
+Do not say "according to the sheet", refer to images, introduce outside facts, repeat questions, or add metadata inside questions.
+If a page cannot support 20 valid questions, report that limitation instead of inventing content; do not return a supposedly complete bank.
+Required JSON structure (fill every questions array; preserve page numbers):
+${JSON.stringify({ pages: pages.map((page) => ({ page, questions: [] })), final_exam: { questions: [] } }, null, 2)}
+Verify every eligible page appears once, every page has exactly 20 questions, the final has exactly ${finalExamQuestions}, and there are no duplicates.`;
 }

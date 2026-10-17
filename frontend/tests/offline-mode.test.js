@@ -754,3 +754,37 @@ test("the workspace, service worker and route guard keep their offline contracts
   assert.match(guard, /return !navigator\.onLine \|\| getConnectionSnapshot\(\)\.status === "offline";/);
   assert.doesNotMatch(guard, /status === "connected"/);
 });
+
+test("custom page study stays separate, resumes offline and queues its exact settings for replay", async () => {
+  const userId = await freshUser();
+  const pageBundle = bundle("pages-v1");
+  const content = pageBundle.difficulties.medium;
+  content.pages = Array.from({ length: 21 }, (_, index) => ({ page: index + 2, questions: Array.from({ length: 20 }, (_, q) => question(`page-${index + 2}-${q}`)) }));
+  content.source_page_ranges = RANGES;
+  content.questions_per_checkpoint = 15;
+  content.content_revision = 3;
+  Object.assign(pageBundle.availability.difficulties[1], { customization_available: true, eligible_study_pages: 21, custom_progress: null });
+  serveContent({ asVersion: "pages-v1", bundleBody: pageBundle });
+  const current = await downloads.fetchOfflineManifest(userId);
+  await downloads.downloadOfflineItem(userId, current.items.find((item) => item.type === "active_study"), () => {}, { manual: true, manifest: current });
+  offline();
+  const standard = await focusApi.startManagedActiveStudy({ sheetId: SHEET, difficulty: "medium" });
+  const options = { sheetId: SHEET, difficulty: "medium", studyMode: "custom", pagesPerCheckpoint: 3, questionsPerCheckpoint: 5 };
+  const custom = await focusApi.startManagedActiveStudy(options);
+  assert.notEqual(standard.run.id, custom.run.id);
+  assert.deepEqual(custom.run.current_page_range, { part: 1, start_page: 2, end_page: 4 });
+  await focusApi.managedActiveStudyAction(custom.run.id, "complete-reading");
+  const { quiz, submitted } = await completeQuiz(custom.run.id, 4);
+  assert.equal(quiz.questions.length, 5);
+  assert.equal(submitted.result.passed, true, "five-question checkpoint needs four correct answers");
+  assert.equal(submitted.run.current_page_range.start_page, 5);
+  assert.equal((await focusApi.startManagedActiveStudy(options)).run.id, custom.run.id);
+  assert.equal((await focusApi.startManagedActiveStudy({ sheetId: SHEET, difficulty: "medium" })).run.current_part, 1);
+  const pending = await queue.pendingOfflineOperations(userId);
+  const event = pending.find((item) => item.operation_type === "active_study_attempt");
+  assert.equal(event.payload.study_mode, "custom");
+  assert.equal(event.payload.pages_per_checkpoint, 3);
+  assert.equal(event.payload.questions_per_checkpoint, 5);
+  assert.equal(event.payload.bank_revision, 3);
+  await assert.rejects(focusApi.startManagedActiveStudy({ ...options, questionsPerCheckpoint: 21 }), /between 1 and 20/);
+});

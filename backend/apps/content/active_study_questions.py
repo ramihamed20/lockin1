@@ -136,6 +136,8 @@ def validate_active_study_questions(
     *,
     difficulty: ActiveStudyDifficulty,
     number_of_parts: int,
+    page_ranges: list[dict[str, int]] | None = None,
+    question_format: str = "parts",
 ) -> ActiveStudyQuestionValidationResult:
     """Validate and normalize one difficulty's complete JSON document."""
     errors: list[dict[str, str]] = []
@@ -143,6 +145,8 @@ def validate_active_study_questions(
         raise ActiveStudyQuestionValidationError(
             [{"path": "payload", "message": "The import must be a JSON object."}]
         )
+    if question_format == "pages":
+        return _validate_page_bank(payload, difficulty=difficulty, page_ranges=page_ranges or [])
     allowed_root = {"parts", "final_exam", "difficulty"}
     for key in sorted(set(payload) - allowed_root):
         _error(errors, key, "Unsupported root field.")
@@ -260,4 +264,73 @@ def validate_active_study_questions(
         payload=normalized_payload,
         checkpoint_question_count=number_of_parts * difficulty.questions_per_checkpoint,
         final_exam_question_count=len(final_questions),
+    )
+
+
+def _validate_page_bank(
+    payload: dict[str, Any], *, difficulty: ActiveStudyDifficulty, page_ranges: list[dict[str, int]]
+) -> ActiveStudyQuestionValidationResult:
+    """Reuse all question/final/duplicate checks through a temporary page-as-part projection."""
+    errors: list[dict[str, str]] = []
+    for key in sorted(set(payload) - {"pages", "final_exam", "difficulty"}):
+        _error(errors, key, "Unsupported root field; this new sheet requires pages.")
+    expected = [
+        page for item in page_ranges for page in range(item["start_page"], item["end_page"] + 1)
+    ]
+    raw = payload.get("pages")
+    if not isinstance(raw, list) or not expected:
+        _error(errors, "pages", "pages must contain every eligible PDF page.")
+        raw = []
+    numbers = [item.get("page") if isinstance(item, dict) else None for item in raw]
+    if (
+        any(isinstance(n, bool) or not isinstance(n, int) for n in numbers)
+        or sorted(n for n in numbers if isinstance(n, int)) != expected
+    ):
+        _error(errors, "pages", "Page numbers must match every eligible PDF page exactly once.")
+    parts = []
+    for index, item in enumerate(raw):
+        if not isinstance(item, dict):
+            _error(errors, f"pages[{index}]", "Each page must be an object.")
+            continue
+        for key in sorted(set(item) - {"page", "questions"}):
+            _error(errors, f"pages[{index}].{key}", "Unsupported page field.")
+        parts.append({"part": index + 1, "questions": item.get("questions")})
+    if errors:
+        raise ActiveStudyQuestionValidationError(errors)
+    from dataclasses import replace
+
+    try:
+        checked = validate_active_study_questions(
+            {
+                "parts": parts,
+                "final_exam": payload.get("final_exam"),
+                **({"difficulty": payload["difficulty"]} if "difficulty" in payload else {}),
+            },
+            difficulty=replace(difficulty, questions_per_checkpoint=20),
+            number_of_parts=len(expected),
+        )
+    except ActiveStudyQuestionValidationError as error:
+        raise ActiveStudyQuestionValidationError(
+            [
+                {
+                    "path": item["path"].replace("parts", "pages").replace(".part", ".page"),
+                    "message": item["message"].replace("Part", "Page"),
+                }
+                for item in error.errors
+            ]
+        ) from error
+    normalized = cast(list[dict[str, Any]], checked.payload["parts"])
+    return ActiveStudyQuestionValidationResult(
+        payload={
+            "pages": sorted(
+                [
+                    {"page": numbers[i], "questions": part["questions"]}
+                    for i, part in enumerate(normalized)
+                ],
+                key=lambda p: p["page"],
+            ),
+            "final_exam": checked.payload["final_exam"],
+        },
+        checkpoint_question_count=len(expected) * 20,
+        final_exam_question_count=checked.final_exam_question_count,
     )

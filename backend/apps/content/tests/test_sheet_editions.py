@@ -61,7 +61,7 @@ def test_an_edition_splits_its_own_pages_into_the_sheets_part_count(
 
 
 def _sheet(*, admin: Any, subject: Any, pages: int = 22):
-    return create_sheet(
+    sheet = create_sheet(
         actor=admin,
         subject=subject,
         managed_file=create_managed_file(
@@ -74,6 +74,11 @@ def _sheet(*, admin: Any, subject: Any, pages: int = 22):
         notify_students=False,
         allow_download=False,
     )
+
+    # Preserve the legacy-bank fixture; new-sheet behavior is tested separately.
+    sheet.active_study_page_bank_enabled = False
+    sheet.save(update_fields=("active_study_page_bank_enabled",))
+    return sheet
 
 
 def test_both_editions_plan_the_same_parts_from_one_question_bank() -> None:

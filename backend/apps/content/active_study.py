@@ -250,6 +250,7 @@ def plan_payload(
     sizes_by_difficulty: dict[str, tuple[int, ...]] | None = None,
     questions_per_checkpoint: int = 15,
     final_exam_questions: int = 50,
+    page_question_bank: bool = False,
 ) -> dict[str, object]:
     """Plan every difficulty for one edition.
 
@@ -291,14 +292,19 @@ def plan_payload(
         "eligible_study_pages": eligible,
         "plan_error": None,
         "difficulties": [
-            difficulty_plan(
-                difficulty=difficulty,
-                total_pdf_pages=total_pdf_pages,
-                excluded_start_pages=excluded_start_pages,
-                excluded_end_pages=excluded_end_pages,
-                number_of_parts=(parts_by_difficulty or {}).get(difficulty.key),
-                mirrored_sizes=(sizes_by_difficulty or {}).get(difficulty.key),
-            )
+            {
+                **difficulty_plan(
+                    difficulty=difficulty,
+                    total_pdf_pages=total_pdf_pages,
+                    excluded_start_pages=excluded_start_pages,
+                    excluded_end_pages=excluded_end_pages,
+                    number_of_parts=(parts_by_difficulty or {}).get(difficulty.key),
+                    mirrored_sizes=(sizes_by_difficulty or {}).get(difficulty.key),
+                ),
+                "question_format": "pages" if page_question_bank else "parts",
+                "questions_per_page": 20 if page_question_bank else None,
+                **({"prompt_template_supported": True} if page_question_bank else {}),
+            }
             for difficulty in difficulties
         ],
     }

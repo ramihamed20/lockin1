@@ -1,3 +1,4 @@
+import { customPageRanges, selectPageQuestions } from "../lib/activeStudyPages.js";
 import { offlineDatabase } from "./database.js";
 import { captureOfflineSession } from "./sessionScope.js";
 import { getOfflineActiveStudy, readDownloadMetadata } from "./downloads.js";
@@ -35,7 +36,9 @@ function correctAnswer(question) {
   return question.type === "true_false" ? (question.correct_answer ? "T" : "F") : question.correct_answer;
 }
 
-export const runKey = (sheetId, edition, difficulty) => `${sheetId}:${edition || "university"}:${difficulty}`;
+export const runKey = (sheetId, edition, difficulty, studyMode = "standard") => `${sheetId}:${edition || "university"}:${difficulty}${studyMode === "custom" ? ":custom" : ""}`;
+const studyOptions = (run) => ({ study_mode: run.study_mode || "standard", ...(run.study_mode === "custom" ? { pages_per_checkpoint: run.pages_per_checkpoint, questions_per_checkpoint: run.questions_per_checkpoint } : {}), ...(run.content_revision ? { bank_revision: run.content_revision } : {}) });
+function modeRows(rows) { return rows.flatMap((row) => [row, { ...row, progress: row.custom_progress, completed: false, study_mode: "custom" }]); }
 export const orderingKey = (key) => `active_study:${key}`;
 
 function queued() {
@@ -73,6 +76,10 @@ export function runPayload(run) {
     id: run.id,
     sheet_id: run.sheet_id,
     difficulty: run.difficulty,
+    study_mode: run.study_mode || "standard",
+    pages_per_checkpoint: run.pages_per_checkpoint,
+    questions_per_checkpoint: run.questions_per_checkpoint,
+    page_ranges: ranges,
     status: run.status,
     stage: run.stage,
     current_part: run.current_part,
@@ -98,6 +105,10 @@ function fromServer(payload, { key, sheetId, edition, pageRanges, previous = nul
     sheet_id: sheetId,
     edition,
     difficulty: payload.difficulty,
+    study_mode: payload.study_mode || "standard",
+    pages_per_checkpoint: payload.pages_per_checkpoint,
+    questions_per_checkpoint: payload.questions_per_checkpoint,
+    content_revision: payload.content_revision ?? previous?.content_revision,
     status: payload.status,
     stage: payload.stage,
     current_part: payload.current_part,
@@ -107,7 +118,7 @@ function fromServer(payload, { key, sheetId, edition, pageRanges, previous = nul
     last_score: payload.last_score ?? null,
     last_outcome: payload.last_outcome || "",
     xp_awarded: payload.xp_awarded || 0,
-    page_ranges: pageRanges || previous?.page_ranges || [],
+    page_ranges: payload.page_ranges || pageRanges || previous?.page_ranges || [],
     open_attempt: previous && previous.server_id === payload.id && previous.stage === payload.stage ? previous.open_attempt : null
   };
 }
@@ -118,8 +129,8 @@ function fromServer(payload, { key, sheetId, edition, pageRanges, previous = nul
  */
 export async function seedActiveStudyRuns(userId, bundle) {
   if (!bundle?.availability?.difficulties) return;
-  for (const row of bundle.availability.difficulties) {
-    const key = runKey(bundle.sheet_id, bundle.edition, row.difficulty);
+  for (const row of modeRows(bundle.availability.difficulties)) {
+    const key = runKey(bundle.sheet_id, bundle.edition, row.difficulty, row.study_mode);
     if (await hasPendingFor(userId, orderingKey(key))) continue;
     const previous = await readRun(userId, key);
     if (previous?.dirty) continue;
@@ -157,11 +168,18 @@ async function requireRun(userId, runId) {
   if (!run || (run.id !== runId && run.server_id !== runId)) throw new ActiveStudyRuleError("Active Study session not found.");
   const bundle = await requireBundle(userId, run.sheet_id, run.edition, run.difficulty);
   const content = bundle.difficulties[run.difficulty];
+  if (content.pages && run.content_revision && run.content_revision !== content.content_revision) throw new ActiveStudyRuleError("Questions changed. Refresh and restart this session.");
+  if (run.study_mode === "custom") run.source_page_offset = content.source_page_ranges[0].start_page - run.page_ranges[0].start_page;
   return { run, content, rules: content.rules || bundle.rules };
 }
 
-function questionsFor(content, kind, part) {
+function questionsFor(content, kind, part, run) {
   if (kind === "final") return content.final_exam.questions;
+  if (content.pages) {
+    const range = (run.study_mode === "custom" ? run.page_ranges : content.source_page_ranges).find((item) => item.part === part);
+    const offset = run.study_mode === "custom" ? run.source_page_offset : 0;
+    return selectPageQuestions(content, range.start_page + offset, range.end_page + offset, run.questions_per_checkpoint || content.questions_per_checkpoint);
+  }
   return content.parts.find((item) => item.part === part)?.questions || [];
 }
 
@@ -175,10 +193,13 @@ const local = {
   async availability(userId, sheetId, edition) {
     const bundle = await requireBundle(userId, sheetId, edition);
     const rows = await Promise.all(bundle.availability.difficulties.map(async (row) => {
-      const key = runKey(sheetId, edition, row.difficulty);
+      const key = runKey(sheetId, edition, row.difficulty, row.study_mode);
       const run = await readRun(userId, key);
       const content = bundle.difficulties[row.difficulty];
+      const custom = await readRun(userId, runKey(sheetId, edition, row.difficulty, "custom"));
       return {
+        ...row,
+        custom_progress: custom?.status === "active" ? runPayload(custom) : null,
         difficulty: row.difficulty,
         status: content ? "ready" : row.status === "ready" ? "unavailable" : row.status,
         number_of_parts: content?.number_of_parts ?? row.number_of_parts,
@@ -190,20 +211,34 @@ const local = {
     return { sheet_id: sheetId, enabled: bundle.availability.enabled, difficulties: rows, offline: true };
   },
 
-  async start(userId, { sheetId, difficulty, edition }) {
+  async start(userId, { sheetId, difficulty, edition, studyMode = "standard", pagesPerCheckpoint, questionsPerCheckpoint, replaceExisting = false }) {
     if (!(await offlineAccessStatus(userId)).available) throw offlineUnavailableError();
     const bundle = await requireBundle(userId, sheetId, edition, difficulty);
-    const key = runKey(sheetId, edition, difficulty);
+    const content = bundle.difficulties[difficulty];
+    const row = bundle.availability.difficulties.find((item) => item.difficulty === difficulty);
+    let ranges = content.page_ranges;
+    if (studyMode === "custom") {
+      if (!row?.customization_available || !content.pages) throw new ActiveStudyRuleError("Customization is available only for new page-based sheets.");
+      if (!Number.isInteger(questionsPerCheckpoint) || questionsPerCheckpoint < 1 || questionsPerCheckpoint > 20) throw new ActiveStudyRuleError("Choose between 1 and 20 questions.");
+      ranges = customPageRanges(ranges[0].start_page, ranges.at(-1).end_page, pagesPerCheckpoint);
+    }
+    const key = runKey(sheetId, edition, difficulty, studyMode);
     const existing = await readRun(userId, key);
-    if (existing?.status === "active") return { run: runPayload(existing), resumed: true };
+    if (existing?.status === "active" && !replaceExisting) {
+      if (studyMode === "custom" && (existing.pages_per_checkpoint !== pagesPerCheckpoint || existing.questions_per_checkpoint !== questionsPerCheckpoint)) throw new ActiveStudyRuleError("Resume or restart your saved custom session before changing its settings.");
+      return { run: runPayload(existing), resumed: true };
+    }
     // The server starts the same run itself when the first checkpoint syncs.
     const run = {
       key, id: globalThis.crypto.randomUUID(), server_id: null, origin: "local", dirty: true,
       sheet_id: sheetId, edition, difficulty, status: "active", stage: "reading", current_part: 1,
       completed_parts: [], checkpoint_attempts: 0, final_attempts: 0, last_score: null, last_outcome: "",
-      xp_awarded: 0, page_ranges: bundle.difficulties[difficulty].page_ranges, open_attempt: null
+      xp_awarded: 0, page_ranges: ranges, open_attempt: null, study_mode: studyMode, pages_per_checkpoint: pagesPerCheckpoint, questions_per_checkpoint: studyMode === "custom" ? questionsPerCheckpoint : content.questions_per_checkpoint, content_revision: content.content_revision, source_page_offset: content.source_page_ranges?.[0]?.start_page - ranges[0].start_page
     };
-    await saveRun(userId, run);
+    if (existing?.status === "active" && replaceExisting) {
+      await enqueueOperation(userId, { type: "active_study_restart", entityType: "active_study_run", entityId: run.key, orderingKey: orderingKey(run.key), payload: { ...studyOptions(run), sheet_id: sheetId, edition, difficulty } }, runRecords(run));
+      queued();
+    } else await saveRun(userId, run);
     return { run: runPayload(run), resumed: false };
   },
 
@@ -238,7 +273,7 @@ const local = {
       const next = { ...advanceAfterPart(run), last_outcome: "continued_anyway", dirty: true };
       await enqueueOperation(userId, {
         type: "active_study_continue", entityType: "active_study_run", entityId: run.key, orderingKey: orderingKey(run.key),
-        payload: { sheet_id: run.sheet_id, edition: run.edition, difficulty: run.difficulty, part: run.current_part }
+        payload: { ...studyOptions(run), sheet_id: run.sheet_id, edition: run.edition, difficulty: run.difficulty, part: run.current_part }
       }, runRecords({ ...next, updated_at: new Date().toISOString() }));
       queued();
       return { run: runPayload(next) };
@@ -252,7 +287,7 @@ const local = {
       };
       await enqueueOperation(userId, {
         type: "active_study_restart", entityType: "active_study_run", entityId: run.key, orderingKey: orderingKey(run.key),
-        payload: { sheet_id: run.sheet_id, edition: run.edition, difficulty: run.difficulty }
+        payload: { ...studyOptions(run), sheet_id: run.sheet_id, edition: run.edition, difficulty: run.difficulty }
       }, runRecords({ ...fresh, updated_at: new Date().toISOString() }));
       queued();
       return { run: runPayload(fresh) };
@@ -265,7 +300,7 @@ const local = {
     if (run.status !== "active" || !["checkpoint", "final"].includes(run.stage)) throw new ActiveStudyRuleError("Questions are not available at this stage.");
     const kind = run.stage === "final" ? "final" : "checkpoint";
     const part = kind === "final" ? null : run.current_part;
-    const source = questionsFor(content, kind, part);
+    const source = questionsFor(content, kind, part, run);
     const attempt = run.open_attempt?.kind === kind && run.open_attempt.part === part
       ? run.open_attempt
       : { id: globalThis.crypto.randomUUID(), kind, part, answers: {} };
@@ -293,7 +328,7 @@ const local = {
     if (attempt.kind !== kind || attempt.part !== (kind === "final" ? null : run.current_part)) {
       throw new ActiveStudyRuleError("This question does not belong to the current Active Study stage.");
     }
-    const source = questionsFor(content, kind, attempt.part);
+    const source = questionsFor(content, kind, attempt.part, run);
     if (!Number.isInteger(position) || position < 1 || position > source.length) throw new ActiveStudyRuleError("Question position is invalid.");
     const question = source[position - 1];
     if (!Object.hasOwn(displayOptions(question), selectedAnswer)) throw new ActiveStudyRuleError("Choose an answer for this question.");
@@ -318,10 +353,10 @@ const local = {
     if (run.stage !== expected || (attempt.kind === "checkpoint" && attempt.part !== run.current_part)) {
       throw new ActiveStudyRuleError("This attempt cannot be submitted now.");
     }
-    const source = questionsFor(content, attempt.kind, attempt.part);
+    const source = questionsFor(content, attempt.kind, attempt.part, run);
     if (Object.keys(attempt.answers).length !== source.length) throw new ActiveStudyRuleError("Answer every question before submitting.");
     const score = source.filter((question, index) => attempt.answers[String(index + 1)] === correctAnswer(question)).length;
-    const passed = score >= (attempt.kind === "final" ? rules.final_pass : rules.checkpoint_pass);
+    const passed = score >= (attempt.kind === "final" ? rules.final_pass : Math.ceil(source.length * 2 / 3));
     let next = { ...run, open_attempt: null, last_score: score, last_outcome: passed ? "passed" : "failed", dirty: true };
     if (attempt.kind === "checkpoint") {
       next.checkpoint_attempts += 1;
@@ -336,6 +371,7 @@ const local = {
     await enqueueOperation(userId, {
       type: "active_study_attempt", entityType: "active_study_run", entityId: run.key, orderingKey: orderingKey(run.key),
       payload: {
+        ...studyOptions(run),
         sheet_id: run.sheet_id,
         edition: run.edition,
         difficulty: run.difficulty,
@@ -436,15 +472,15 @@ export const activeStudyClient = {
     return payload;
   },
 
-  async start({ sheetId, difficulty, edition }, online) {
+  async start({ sheetId, difficulty, edition, studyMode = "standard", pagesPerCheckpoint, questionsPerCheckpoint, replaceExisting = false }, online) {
     const userId = currentOfflineUserId();
-    const key = runKey(sheetId, edition || "university", difficulty);
+    const key = runKey(sheetId, edition || "university", difficulty, studyMode);
     return route(userId, key, async (requestOptions) => {
       const payload = await online(requestOptions);
       if (userId && await hasBundle(userId, sheetId, edition)) await mirrorRun(userId, key, payload.run).catch(() => undefined);
       else if (userId && payload?.run?.id) await offlineDatabase.put(userId, `${RUN_ID_PREFIX}${payload.run.id}`, key).catch(() => undefined);
       return payload;
-    }, () => local.start(userId, { sheetId, difficulty, edition: edition || "university" }));
+    }, () => local.start(userId, { sheetId, difficulty, edition: edition || "university", studyMode, pagesPerCheckpoint, questionsPerCheckpoint, replaceExisting }));
   },
 
   async action(runId, action, online) {
@@ -534,8 +570,8 @@ export async function reconcileActiveStudyRuns(userId, keys, fetchAvailability, 
     assertCurrent();
     const availability = await fetchAvailability(sheetId, edition);
     assertCurrent();
-    for (const row of availability?.difficulties || []) {
-      const key = runKey(sheetId, edition, row.difficulty);
+    for (const row of modeRows(availability?.difficulties || [])) {
+      const key = runKey(sheetId, edition, row.difficulty, row.study_mode);
       const previous = await readRun(userId, key);
       if (row.progress) {
         await saveRun(userId, fromServer(row.progress, { key, sheetId, edition, pageRanges: previous?.page_ranges || row.page_ranges, previous }), assertCurrent);

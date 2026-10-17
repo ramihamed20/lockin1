@@ -279,6 +279,10 @@ class ManagedActiveStudyStartView(APIView):
                 user=_authorize(request),
                 sheet_id=serializer.validated_data["sheet_id"],
                 difficulty=str(serializer.validated_data["difficulty"]),
+                replace_existing=serializer.validated_data["replace_existing"],
+                study_mode=serializer.validated_data["study_mode"],
+                pages_per_checkpoint=serializer.validated_data.get("pages_per_checkpoint"),
+                questions_per_checkpoint=serializer.validated_data.get("questions_per_checkpoint"),
                 edition=str(serializer.validated_data.get("edition") or UNIVERSITY),
             )
         except ManagedActiveStudyRuleError as error:

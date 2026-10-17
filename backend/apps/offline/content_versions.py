@@ -13,7 +13,7 @@ from uuid import UUID
 from apps.content.models import ActiveStudyQuestionContent, ActiveStudySettings
 from apps.focus.managed_active_study import CHECKPOINT_PASS, FINAL_EXAM_PASS
 
-ACTIVE_STUDY_BUNDLE_SCHEMA = 1
+ACTIVE_STUDY_BUNDLE_SCHEMA = 2
 
 
 def _digest(evidence: object) -> str:

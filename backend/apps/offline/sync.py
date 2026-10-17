@@ -10,7 +10,7 @@ import hashlib
 import json
 import logging
 from collections.abc import Callable
-from typing import NamedTuple
+from typing import Any, NamedTuple
 from uuid import UUID
 
 from django.db import transaction
@@ -82,12 +82,37 @@ def _active_study_scope(payload: dict[str, object]) -> _ActiveStudyScope:
     )
 
 
+def _study_options(payload: dict[str, object]) -> dict[str, Any]:
+    mode = payload.get("study_mode", "standard")
+    if not isinstance(mode, str) or mode not in {"standard", "custom"}:
+        raise ValidationError({"study_mode": ["Choose standard or custom."]})
+    options: dict[str, Any] = {"study_mode": mode}
+    for key, maximum in (
+        ("pages_per_checkpoint", 10000),
+        ("questions_per_checkpoint", 20),
+        ("bank_revision", None),
+    ):
+        if key not in payload:
+            continue
+        value = payload[key]
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, int)
+            or value < 1
+            or (maximum is not None and value > maximum)
+        ):
+            raise ValidationError({key: ["Choose a valid positive whole number."]})
+        options[key] = value
+    return options
+
+
 def _active_study_attempt(user: User, payload: dict[str, object]) -> dict[str, object]:
     scope = _active_study_scope(payload)
     part = payload.get("part")
     return replay_offline_attempt(
         user=user,
         sheet_id=scope.sheet_id,
+        **_study_options(payload),
         edition=scope.edition,
         difficulty=scope.difficulty,
         kind=str(payload.get("kind") or ""),
@@ -105,6 +130,7 @@ def _active_study_continue(user: User, payload: dict[str, object]) -> dict[str, 
     return replay_offline_continue(
         user=user,
         sheet_id=scope.sheet_id,
+        **_study_options(payload),
         edition=scope.edition,
         difficulty=scope.difficulty,
         part=part,
@@ -114,7 +140,11 @@ def _active_study_continue(user: User, payload: dict[str, object]) -> dict[str, 
 def _active_study_restart(user: User, payload: dict[str, object]) -> dict[str, object]:
     scope = _active_study_scope(payload)
     return replay_offline_restart(
-        user=user, sheet_id=scope.sheet_id, edition=scope.edition, difficulty=scope.difficulty
+        user=user,
+        sheet_id=scope.sheet_id,
+        edition=scope.edition,
+        difficulty=scope.difficulty,
+        **_study_options(payload),
     )
 
 
