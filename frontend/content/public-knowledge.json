@@ -63,7 +63,7 @@
       "name": "Active Study",
       "status": "conditional",
       "entry": "/#/materials",
-      "requirements": "شيت جاهز بأسئلة منشورة للمستوى المختار؛ التخصيص متاح للشيتات الجديدة المجهزة ببنك أسئلة حسب الصفحة فقط.",
+      "requirements": "شيت جاهز بأسئلة منشورة للمستوى المختار؛ التخصيص وPomodoro style متاحان في قارئ Focus للشيتات الجديدة المجهزة ببنك أسئلة حسب الصفحة فقط.",
       "evidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/managed_active_study.py",
@@ -71,7 +71,12 @@
         "frontend/src/lib/i18n.js",
         "backend/apps/focus/tests/test_page_active_study.py",
         "frontend/src/components/shared/ActiveStudyCustomization.jsx",
-        "frontend/e2e/focus-active-study-customization.spec.js"
+        "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/focus/pomodoro.py",
+        "backend/apps/focus/tests/test_pomodoro_study.py",
+        "frontend/src/components/shared/PomodoroStudy.jsx",
+        "frontend/src/lib/pomodoroStudy.js",
+        "frontend/e2e/focus-pomodoro.spec.js"
       ],
       "lastVerified": "2026-10-17",
       "verificationScope": "repository_and_existing_tests",
@@ -316,9 +321,15 @@
       "name": "Pomodoro",
       "status": "needs_verification",
       "entry": null,
-      "requirements": "لم يُعثر على تدفق طالب مستقل مثبت؛ مؤقت التركيز ليس إثباتًا لهذه الميزة.",
-      "evidence": [],
-      "lastVerified": "2026-10-12",
+      "requirements": "أسلوب Pomodoro المدمج في Active Study للشيتات الجديدة موثق ضمن دليل الدراسة النشطة؛ لا يوجد تدفق مؤقت مستقل عام موثق.",
+      "evidence": [
+        "backend/apps/focus/pomodoro.py",
+        "backend/apps/focus/tests/test_pomodoro_study.py",
+        "frontend/src/components/shared/PomodoroStudy.jsx",
+        "frontend/src/lib/pomodoroStudy.js",
+        "frontend/e2e/focus-pomodoro.spec.js"
+      ],
+      "lastVerified": "2026-10-17",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": false
     },
@@ -741,7 +752,7 @@
       "category": "studying",
       "relatedFeature": "active-study",
       "question": "ما هو Active Study؟",
-      "shortAnswer": "هو وضع دراسة يربط صفحات الشيت باختبارات أثناء التقدم، ثم اختبار نهائي. في الشيتات الجديدة المجهزة للتخصيص يمكنك اختيار عدد الصفحات والأسئلة، أو استخدام الأسلوب المعتاد.",
+      "shortAnswer": "هو وضع دراسة يربط صفحات الشيت باختبارات أثناء التقدم، ثم اختبار نهائي. في الشيتات الجديدة الجاهزة يمكنك اختيار الصفحات والأسئلة، أو Pomodoro style الذي يختبر الصفحات المقروءة بعد 25 دقيقة، مع بقاء الأسلوب المعتاد متاحًا.",
       "detailedSteps": [],
       "keywords": [
         "الدراسة التفاعلية",
@@ -758,7 +769,12 @@
         "frontend/src/lib/i18n.js",
         "backend/apps/focus/tests/test_page_active_study.py",
         "frontend/src/components/shared/ActiveStudyCustomization.jsx",
-        "frontend/e2e/focus-active-study-customization.spec.js"
+        "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/focus/pomodoro.py",
+        "backend/apps/focus/tests/test_pomodoro_study.py",
+        "frontend/src/components/shared/PomodoroStudy.jsx",
+        "frontend/src/lib/pomodoroStudy.js",
+        "frontend/e2e/focus-pomodoro.spec.js"
       ],
       "status": "published"
     },
@@ -772,6 +788,7 @@
         "افتح المادة والشيت والنسخة المتاحة.",
         "اختر Active Study ومستوى الصعوبة.",
         "إذا ظهر «تخصيص»، يمكنك تحديد الصفحات لكل اختبار وعدد الأسئلة حتى 20، أو الإبقاء على الأسلوب المعتاد.",
+        "إذا ظهر Pomodoro style في قارئ Focus، يمكنك اختياره لجلسة 25 دقيقة ثم تحديد حتى 40 سؤالًا للصفحات المقروءة، بحسب عدد الأسئلة المتاحة. بعد الاختبار توجد راحة 5 دقائق.",
         "اضغط «ابدأ الدراسة النشطة». إذا لم تتوفر الأسئلة، اختر الدراسة العادية أو شيتًا جاهزًا آخر."
       ],
       "keywords": [
@@ -788,7 +805,12 @@
         "frontend/src/lib/i18n.js",
         "backend/apps/focus/tests/test_page_active_study.py",
         "frontend/src/components/shared/ActiveStudyCustomization.jsx",
-        "frontend/e2e/focus-active-study-customization.spec.js"
+        "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/focus/pomodoro.py",
+        "backend/apps/focus/tests/test_pomodoro_study.py",
+        "frontend/src/components/shared/PomodoroStudy.jsx",
+        "frontend/src/lib/pomodoroStudy.js",
+        "frontend/e2e/focus-pomodoro.spec.js"
       ],
       "status": "published"
     },
@@ -813,7 +835,12 @@
         "frontend/src/lib/i18n.js",
         "backend/apps/focus/tests/test_page_active_study.py",
         "frontend/src/components/shared/ActiveStudyCustomization.jsx",
-        "frontend/e2e/focus-active-study-customization.spec.js"
+        "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/focus/pomodoro.py",
+        "backend/apps/focus/tests/test_pomodoro_study.py",
+        "frontend/src/components/shared/PomodoroStudy.jsx",
+        "frontend/src/lib/pomodoroStudy.js",
+        "frontend/e2e/focus-pomodoro.spec.js"
       ],
       "status": "published"
     },
@@ -822,7 +849,7 @@
       "category": "studying",
       "relatedFeature": "active-study",
       "question": "هل أستطيع اختيار صعوبة Active Study؟",
-      "shortAnswer": "نعم. اختر سهلًا أو متوسطًا أو صعبًا. وفي الشيتات الجديدة التي يظهر فيها زر «تخصيص»، اختر عدد الصفحات لكل اختبار وعدد الأسئلة من 1 إلى 20. يبقى الأسلوب المعتاد متاحًا والتقدم محفوظًا لكل أسلوب.",
+      "shortAnswer": "نعم. اختر سهلًا أو متوسطًا أو صعبًا. للشيتات الجديدة الجاهزة يمكنك تخصيص الصفحات وعدد الأسئلة من 1 إلى 20، أو اختيار Pomodoro style واختبار الصفحات المقروءة بعد 25 دقيقة بعدد يصل إلى 40 بحسب المتاح. يبقى التقدم مستقلًا لكل أسلوب.",
       "detailedSteps": [],
       "keywords": [
         "إتاحة أستطيع اختيار صعوبة Active Study؟",
@@ -838,7 +865,12 @@
         "frontend/src/lib/i18n.js",
         "backend/apps/focus/tests/test_page_active_study.py",
         "frontend/src/components/shared/ActiveStudyCustomization.jsx",
-        "frontend/e2e/focus-active-study-customization.spec.js"
+        "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/focus/pomodoro.py",
+        "backend/apps/focus/tests/test_pomodoro_study.py",
+        "frontend/src/components/shared/PomodoroStudy.jsx",
+        "frontend/src/lib/pomodoroStudy.js",
+        "frontend/e2e/focus-pomodoro.spec.js"
       ],
       "status": "published"
     },
@@ -848,7 +880,11 @@
       "relatedFeature": "active-study",
       "question": "ماذا يحدث بعد قراءة صفحات الشيت؟",
       "shortAnswer": "بعد قراءة الصفحات المتاحة، افتح اختبار المرحلة. يفتح نجاحك الصفحات التالية، وتظل الصفحات السابقة قابلة للقراءة. الاختبار مرتبط بالصفحات المحددة في جلسة الدراسة.",
-      "detailedSteps": [],
+      "detailedSteps": [
+        "في الأسلوب المعتاد أو المخصص، افتح الاختبار عند نهاية نطاق الصفحات المحدد.",
+        "في Pomodoro style تظهر شاشة اختيار عدد الأسئلة بعد انتهاء 25 دقيقة، ويثبت الاختبار على الصفحات الجديدة التي وصلت إليها في تلك الجلسة.",
+        "توزّع الأسئلة بالتساوي قدر الإمكان بين الصفحات. صفحة واحدة توفر حتى 20 سؤالًا، وحد Pomodoro الإجمالي 40؛ وإذا قل عدد الأسئلة عن الصفحات، تُختار صفحات متباعدة من النطاق."
+      ],
       "keywords": [
         "ماذا يحدث بعد قراءة جزء من الشيت؟",
         "Active Study"
@@ -863,7 +899,12 @@
         "frontend/src/lib/i18n.js",
         "backend/apps/focus/tests/test_page_active_study.py",
         "frontend/src/components/shared/ActiveStudyCustomization.jsx",
-        "frontend/e2e/focus-active-study-customization.spec.js"
+        "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/focus/pomodoro.py",
+        "backend/apps/focus/tests/test_pomodoro_study.py",
+        "frontend/src/components/shared/PomodoroStudy.jsx",
+        "frontend/src/lib/pomodoroStudy.js",
+        "frontend/e2e/focus-pomodoro.spec.js"
       ],
       "status": "published"
     },
@@ -888,7 +929,12 @@
         "frontend/src/lib/i18n.js",
         "backend/apps/focus/tests/test_page_active_study.py",
         "frontend/src/components/shared/ActiveStudyCustomization.jsx",
-        "frontend/e2e/focus-active-study-customization.spec.js"
+        "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/focus/pomodoro.py",
+        "backend/apps/focus/tests/test_pomodoro_study.py",
+        "frontend/src/components/shared/PomodoroStudy.jsx",
+        "frontend/src/lib/pomodoroStudy.js",
+        "frontend/e2e/focus-pomodoro.spec.js"
       ],
       "status": "published"
     },
@@ -913,7 +959,12 @@
         "frontend/src/lib/i18n.js",
         "backend/apps/focus/tests/test_page_active_study.py",
         "frontend/src/components/shared/ActiveStudyCustomization.jsx",
-        "frontend/e2e/focus-active-study-customization.spec.js"
+        "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/focus/pomodoro.py",
+        "backend/apps/focus/tests/test_pomodoro_study.py",
+        "frontend/src/components/shared/PomodoroStudy.jsx",
+        "frontend/src/lib/pomodoroStudy.js",
+        "frontend/e2e/focus-pomodoro.spec.js"
       ],
       "status": "published"
     },
@@ -938,7 +989,12 @@
         "frontend/src/lib/i18n.js",
         "backend/apps/focus/tests/test_page_active_study.py",
         "frontend/src/components/shared/ActiveStudyCustomization.jsx",
-        "frontend/e2e/focus-active-study-customization.spec.js"
+        "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/focus/pomodoro.py",
+        "backend/apps/focus/tests/test_pomodoro_study.py",
+        "frontend/src/components/shared/PomodoroStudy.jsx",
+        "frontend/src/lib/pomodoroStudy.js",
+        "frontend/e2e/focus-pomodoro.spec.js"
       ],
       "status": "published"
     },
@@ -963,7 +1019,12 @@
         "frontend/src/lib/i18n.js",
         "backend/apps/focus/tests/test_page_active_study.py",
         "frontend/src/components/shared/ActiveStudyCustomization.jsx",
-        "frontend/e2e/focus-active-study-customization.spec.js"
+        "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/focus/pomodoro.py",
+        "backend/apps/focus/tests/test_pomodoro_study.py",
+        "frontend/src/components/shared/PomodoroStudy.jsx",
+        "frontend/src/lib/pomodoroStudy.js",
+        "frontend/e2e/focus-pomodoro.spec.js"
       ],
       "status": "published"
     },
@@ -1490,7 +1551,12 @@
         "frontend/src/lib/i18n.js",
         "backend/apps/focus/tests/test_page_active_study.py",
         "frontend/src/components/shared/ActiveStudyCustomization.jsx",
-        "frontend/e2e/focus-active-study-customization.spec.js"
+        "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/focus/pomodoro.py",
+        "backend/apps/focus/tests/test_pomodoro_study.py",
+        "frontend/src/components/shared/PomodoroStudy.jsx",
+        "frontend/src/lib/pomodoroStudy.js",
+        "frontend/e2e/focus-pomodoro.spec.js"
       ],
       "status": "published"
     },
@@ -1584,9 +1650,15 @@
       "relatedFeature": "pomodoro",
       "question": "هل تتوفر Pomodoro؟",
       "status": "needs_verification",
-      "reason": "لم يُعثر على تدفق طالب مستقل مثبت؛ مؤقت التركيز ليس إثباتًا لهذه الميزة.",
-      "lastVerified": "2026-10-12",
-      "verificationEvidence": []
+      "reason": "أسلوب Pomodoro المدمج في Active Study للشيتات الجديدة موثق ضمن دليل الدراسة النشطة؛ يبقى تدفق المؤقت العام المستقل خارج هذا الدليل.",
+      "lastVerified": "2026-10-17",
+      "verificationEvidence": [
+        "backend/apps/focus/pomodoro.py",
+        "backend/apps/focus/tests/test_pomodoro_study.py",
+        "frontend/src/components/shared/PomodoroStudy.jsx",
+        "frontend/src/lib/pomodoroStudy.js",
+        "frontend/e2e/focus-pomodoro.spec.js"
+      ]
     },
     {
       "id": "oral-exams",
@@ -1614,15 +1686,15 @@
     "frontend/src/App.jsx": "a5d2123fb8d559c868789da7d2116b10f3fc6f8a35c99b96e77aea63b1b4913a",
     "frontend/src/lib/materialCatalog.js": "6f9c50e7402275182d8f9d0ab0faf34b6e1bb2e70bd95a44332e9a786b27b539",
     "frontend/tests/materials-catalog.test.js": "0422da3b894546422ce0fee6b53b062cf5420be8b10066ada451f0c601353424",
-    "frontend/src/lib/i18n.js": "4513971df9c66d88c4cdd3cfd49362f56ba0665045cb199fbe53d90c075349b3",
+    "frontend/src/lib/i18n.js": "7cf0fa086e0b8f587c3c0112804a1701ac2f237e31c2fe999cfd34c97feb0d63",
     "frontend/src/pages/Materials.jsx": "08385374476425932ec99aca0a87e46e76bdf27048972218101e7803d116398e",
     "frontend/src/components/learning/CatalogSheetCard.jsx": "0bce127fc2679e5599d10951b9bbeefa6aaec2827e5222877b36d4695240d713",
     "backend/apps/content/tests/test_catalog_workspace.py": "3fab31330499c8193155f4a29fc49f0e99d8b6038bab0763568f328e115cce7f",
-    "frontend/src/pages/CatalogFocusWorkspace.jsx": "60f5d0fbc7a47abf6c8005c7008f616e0d86d8a9110b2430a428cdefaa5506e6",
+    "frontend/src/pages/CatalogFocusWorkspace.jsx": "8f891a9aae4c5811a4de4c2e4d94790f6ecaac68399b7908d5dc331c2ca8fe60",
     "backend/apps/focus/annotation_services.py": "f69372630ac361d91b813f3746df864e0977c77dc4f406d91b46fc852dc840e2",
     "backend/apps/focus/tests/test_annotation_document_scope.py": "f3e6728a5fc81fe587f22ad6f720c7ced9b8ceadbf4d50be8e8219bf5fca2939",
     "frontend/e2e/focus-workspace-persistence.spec.js": "a40d01b19ed3193f6b4b1ba214c0b9db4eb02ad2b4d975bce02872ec020c3979",
-    "backend/apps/focus/managed_active_study.py": "88901639d03abccba6142aa469daeff9521f3d9af90b828c87e7faa6f6229ba7",
+    "backend/apps/focus/managed_active_study.py": "f92ed6e961d5d4aabe219cd7e15e9c0888201d9ac7e04a4d48f2b2cc8ed6e0a7",
     "backend/apps/focus/tests/test_managed_active_study.py": "568a04a1b382ff9e9797c262ad59bbfd6bccca5f13d4e2b150c027ebd659546c",
     "frontend/src/pages/Questions.jsx": "581a85fb9a7091f563e190fa88781f47789af1eea1225b0243f3be3d86227a99",
     "frontend/src/components/learning/PracticeQuestions.jsx": "cad5822698f4d5fae7359af90416e9377ebf7607e3dac7db324c1525de891b64",
@@ -1652,7 +1724,12 @@
     "frontend/src/lib/featureAvailability.js": "4b064b64bd851d433fce1990f720f689bf773848d4fbee69e5f76cbe3629d394",
     "frontend/src/pages/MyGroup.jsx": "8bb12fa42170deb4d4bd3f9e7e8edf0b9914cec68f0e4e1878cf459fd40fdf4d",
     "backend/apps/focus/tests/test_page_active_study.py": "d047f98f3e85f6c3feee811f953acc3ec129862b8b88090c55e7d350afbbfd16",
-    "frontend/src/components/shared/ActiveStudyCustomization.jsx": "9ad56232c1629ca5a550c03be716366a2950c36f8fe0aabc72326d658c8a7413",
-    "frontend/e2e/focus-active-study-customization.spec.js": "c280b3f4abd73a61c6a3e0e897372394287d30b00ce0036c46961aba1ce5ae2d"
+    "frontend/src/components/shared/ActiveStudyCustomization.jsx": "6932a8532c29c79775bc19bc0afab58944364a20784d012876a890c2850a6897",
+    "frontend/e2e/focus-active-study-customization.spec.js": "c280b3f4abd73a61c6a3e0e897372394287d30b00ce0036c46961aba1ce5ae2d",
+    "backend/apps/focus/pomodoro.py": "9ad2ece170d0838a08a3472eb04e5b92de90ba56f02aded40f4b0c10c208af16",
+    "backend/apps/focus/tests/test_pomodoro_study.py": "ba1c634acf024a4bda8ae4929555c805ff3c9097ac182ab1a3878988804c1b40",
+    "frontend/src/components/shared/PomodoroStudy.jsx": "ebcd982a6e7947b376e2db70f815aefa6b3ae47a894079546a56a7e46509c8ca",
+    "frontend/src/lib/pomodoroStudy.js": "87b07ccf5ecdc0fcb33e1e0442eca00232572fdddfdb525be5020a3c7ecd75d8",
+    "frontend/e2e/focus-pomodoro.spec.js": "5df8455e8f15e2ad6fb6de6b3b60327cb2338ea39b8348aec394d6bd77a4c915"
   }
 }

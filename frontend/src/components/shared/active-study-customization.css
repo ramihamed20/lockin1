@@ -1,5 +1,8 @@
 .active-study-customization { display: grid; gap: 12px; width: 100%; }
 .active-study-customization > button { justify-self: end; min-height: 44px; }
+.active-study-style-actions { display: flex; justify-content: end; flex-wrap: wrap; gap: 8px; }
+.active-study-style-actions button { min-height: 44px; }
+.active-study-customization > small { font-size: .85rem; line-height: 1.5; }
 .active-study-custom-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 12px; border: 1px solid var(--border-color, #7774); border-radius: 14px; }
 .active-study-custom-fields label { display: grid; gap: 6px; min-width: 0; font-size: .85rem; }
 .active-study-custom-fields input { width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; border: 1px solid var(--border-color, #7776); border-radius: 9px; color: inherit; background: transparent; font: inherit; }

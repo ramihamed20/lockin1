@@ -20,6 +20,8 @@ import { isNetworkFailure, offlineUnavailableError } from "./resolver.js";
  * queued attempt; the server replays it, grades it again and alone awards XP.
  */
 
+import { closePomodoroRange, initialPomodoroRanges } from "../lib/pomodoroStudy.js";
+
 const RUN_PREFIX = "as-run:";
 // How long an Active Study request waits for a server that does not answer
 // before a downloaded run continues on the device. A request that hangs (a
@@ -36,9 +38,9 @@ function correctAnswer(question) {
   return question.type === "true_false" ? (question.correct_answer ? "T" : "F") : question.correct_answer;
 }
 
-export const runKey = (sheetId, edition, difficulty, studyMode = "standard") => `${sheetId}:${edition || "university"}:${difficulty}${studyMode === "custom" ? ":custom" : ""}`;
+export const runKey = (sheetId, edition, difficulty, studyMode = "standard") => `${sheetId}:${edition || "university"}:${difficulty}${studyMode === "standard" ? "" : `:${studyMode}`}`;
 const studyOptions = (run) => ({ study_mode: run.study_mode || "standard", ...(run.study_mode === "custom" ? { pages_per_checkpoint: run.pages_per_checkpoint, questions_per_checkpoint: run.questions_per_checkpoint } : {}), ...(run.content_revision ? { bank_revision: run.content_revision } : {}) });
-function modeRows(rows) { return rows.flatMap((row) => [row, { ...row, progress: row.custom_progress, completed: false, study_mode: "custom" }]); }
+function modeRows(rows) { return rows.flatMap((row) => [row, ...["custom", "pomodoro"].map((mode) => ({ ...row, progress: row[`${mode}_progress`], completed: false, study_mode: mode }))]); }
 export const orderingKey = (key) => `active_study:${key}`;
 
 function queued() {
@@ -169,16 +171,17 @@ async function requireRun(userId, runId) {
   const bundle = await requireBundle(userId, run.sheet_id, run.edition, run.difficulty);
   const content = bundle.difficulties[run.difficulty];
   if (content.pages && run.content_revision && run.content_revision !== content.content_revision) throw new ActiveStudyRuleError("Questions changed. Refresh and restart this session.");
-  if (run.study_mode === "custom") run.source_page_offset = content.source_page_ranges[0].start_page - run.page_ranges[0].start_page;
+  if (["custom", "pomodoro"].includes(run.study_mode)) run.source_page_offset = content.source_page_ranges[0].start_page - run.page_ranges[0].start_page;
   return { run, content, rules: content.rules || bundle.rules };
 }
 
 function questionsFor(content, kind, part, run) {
   if (kind === "final") return content.final_exam.questions;
   if (content.pages) {
-    const range = (run.study_mode === "custom" ? run.page_ranges : content.source_page_ranges).find((item) => item.part === part);
-    const offset = run.study_mode === "custom" ? run.source_page_offset : 0;
-    return selectPageQuestions(content, range.start_page + offset, range.end_page + offset, run.questions_per_checkpoint || content.questions_per_checkpoint);
+    const regrouped = ["custom", "pomodoro"].includes(run.study_mode);
+    const range = (regrouped ? run.page_ranges : content.source_page_ranges).find((item) => item.part === part);
+    const offset = regrouped ? run.source_page_offset : 0;
+    return selectPageQuestions(content, range.start_page + offset, range.end_page + offset, range.question_count ?? run.questions_per_checkpoint ?? content.questions_per_checkpoint);
   }
   return content.parts.find((item) => item.part === part)?.questions || [];
 }
@@ -197,9 +200,11 @@ const local = {
       const run = await readRun(userId, key);
       const content = bundle.difficulties[row.difficulty];
       const custom = await readRun(userId, runKey(sheetId, edition, row.difficulty, "custom"));
+      const pomodoro = await readRun(userId, runKey(sheetId, edition, row.difficulty, "pomodoro"));
       return {
         ...row,
         custom_progress: custom?.status === "active" ? runPayload(custom) : null,
+        pomodoro_progress: pomodoro?.status === "active" ? runPayload(pomodoro) : null,
         difficulty: row.difficulty,
         status: content ? "ready" : row.status === "ready" ? "unavailable" : row.status,
         number_of_parts: content?.number_of_parts ?? row.number_of_parts,
@@ -217,6 +222,11 @@ const local = {
     const content = bundle.difficulties[difficulty];
     const row = bundle.availability.difficulties.find((item) => item.difficulty === difficulty);
     let ranges = content.page_ranges;
+    if (!["standard", "custom", "pomodoro"].includes(studyMode)) throw new ActiveStudyRuleError("Choose a valid Active Study style.");
+    if (studyMode === "pomodoro") {
+      if (!row?.pomodoro_available || !content.pages) throw new ActiveStudyRuleError("Pomodoro style is available only for new page-based sheets.");
+      ranges = initialPomodoroRanges(ranges);
+    }
     if (studyMode === "custom") {
       if (!row?.customization_available || !content.pages) throw new ActiveStudyRuleError("Customization is available only for new page-based sheets.");
       if (!Number.isInteger(questionsPerCheckpoint) || questionsPerCheckpoint < 1 || questionsPerCheckpoint > 20) throw new ActiveStudyRuleError("Choose between 1 and 20 questions.");
@@ -242,11 +252,15 @@ const local = {
     return { run: runPayload(run), resumed: false };
   },
 
-  async action(userId, runId, action) {
+  async action(userId, runId, action, body = {}) {
     const { run } = await requireRun(userId, runId);
     if (action === "complete-reading") {
-      if (run.status !== "active" || run.stage !== "reading") throw new ActiveStudyRuleError("This part is not ready for its checkpoint.");
-      const next = { ...run, stage: "checkpoint" };
+      let ranges = run.page_ranges;
+      if (run.study_mode === "pomodoro") {
+        if (run.status !== "active" || !["reading", "checkpoint"].includes(run.stage) || body.part !== run.current_part) throw new ActiveStudyRuleError("This Pomodoro cycle is no longer current.");
+        ranges = closePomodoroRange(ranges, body);
+      } else if (run.status !== "active" || run.stage !== "reading") throw new ActiveStudyRuleError("This part is not ready for its checkpoint.");
+      const next = { ...run, page_ranges: ranges, stage: "checkpoint" };
       await saveRun(userId, next);
       return { run: runPayload(next) };
     }
@@ -285,6 +299,7 @@ const local = {
         status: "active", stage: "reading", current_part: 1, completed_parts: [], checkpoint_attempts: 0,
         final_attempts: 0, last_score: null, last_outcome: "", xp_awarded: 0, open_attempt: null
       };
+      if (run.study_mode === "pomodoro") fresh.page_ranges = initialPomodoroRanges(run.page_ranges);
       await enqueueOperation(userId, {
         type: "active_study_restart", entityType: "active_study_run", entityId: run.key, orderingKey: orderingKey(run.key),
         payload: { ...studyOptions(run), sheet_id: run.sheet_id, edition: run.edition, difficulty: run.difficulty }
@@ -378,6 +393,10 @@ const local = {
         kind: attempt.kind,
         part: attempt.kind === "final" ? null : attempt.part,
         attempt_id: attempt.id,
+        ...(run.study_mode === "pomodoro" && attempt.kind === "checkpoint" ? { pomodoro_checkpoint: {
+          end_page: run.page_ranges[run.current_part - 1].end_page,
+          question_count: run.page_ranges[run.current_part - 1].question_count
+        } } : {}),
         answers: source.map((_, index) => ({ position: index + 1, selected_answer: attempt.answers[String(index + 1)] }))
       }
     }, runRecords({ ...next, updated_at: new Date().toISOString() }));
@@ -483,7 +502,7 @@ export const activeStudyClient = {
     }, () => local.start(userId, { sheetId, difficulty, edition: edition || "university", studyMode, pagesPerCheckpoint, questionsPerCheckpoint, replaceExisting }));
   },
 
-  async action(runId, action, online) {
+  async action(runId, action, online, body = {}) {
     const userId = currentOfflineUserId();
     const { key, run } = userId ? await localRunFor(userId, runId) : { key: null, run: null };
     return route(userId, key, async (requestOptions) => {
@@ -493,7 +512,7 @@ export const activeStudyClient = {
         await mirrorRun(userId, key, payload.run, ["complete-reading", "discard-attempt", "retry-final", "restart"].includes(action) ? { openAttempt: null } : {}).catch(() => undefined);
       }
       return payload;
-    }, () => local.action(userId, run?.id || runId, action));
+    }, () => local.action(userId, run?.id || runId, action, body));
   },
 
   async questions(runId, online) {

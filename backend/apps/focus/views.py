@@ -122,6 +122,7 @@ from .serializers import (
     LockInTeamSerializer,
     LockInTeamUpdateSerializer,
     ManagedActiveStudyAnswerSerializer,
+    ManagedActiveStudyReadingSerializer,
     ManagedActiveStudyStartSerializer,
     ManagedActiveStudySubmitSerializer,
     WorkspaceStateSerializer,
@@ -294,11 +295,20 @@ class ManagedActiveStudyStartView(APIView):
 
 
 class ManagedActiveStudyRunView(APIView):
+    @extend_schema(
+        request=ManagedActiveStudyReadingSerializer,
+        description=(
+            "Only complete-reading in Pomodoro style requires part, end_page and question_count. "
+            "Other actions keep an empty body."
+        ),
+    )
     def post(self, request: Request, run_id: UUID, action: str) -> Response:
         user = _authorize(request)
         try:
             if action == "complete-reading":
-                run = complete_part_reading(user=user, run_id=run_id)
+                serializer = ManagedActiveStudyReadingSerializer(data=request.data)
+                serializer.is_valid(raise_exception=True)
+                run = complete_part_reading(user=user, run_id=run_id, **serializer.validated_data)
                 return Response({"run": managed_active_study_run_payload(run)})
             if action == "continue":
                 run = continue_managed_active_study(user=user, run_id=run_id)

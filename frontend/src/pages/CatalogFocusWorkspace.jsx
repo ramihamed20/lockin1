@@ -231,7 +231,8 @@ import {
 } from "../workspace/storage/workspaceSnapshot.js";
 import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
-import { ActiveStudyCustomization, validStudyCustomization, changesSavedCustomization } from "../components/shared/ActiveStudyCustomization.jsx";
+import { ActiveStudyCustomization, validStudyCustomization, changesSavedCustomization, savedStudyProgress } from "../components/shared/ActiveStudyCustomization.jsx";
+import { PomodoroStudy } from "../components/shared/PomodoroStudy.jsx";
 import { ActiveStudyExitDialog, CheckpointExitDialog, CheckpointRestartDialog } from "../components/shared/CheckpointExitDialog.jsx";
 import { QuestionExplanation } from "../components/shared/QuestionExplanation.jsx";
 import { useExitGuard } from "../hooks/useExitGuard.js";
@@ -697,7 +698,7 @@ function StudyModeDialog({ customization, setCustomization, availability, diffic
   const [confirmCustom, setConfirmCustom] = useState(false);
   return (
     <div className="workspace-v2-mode-backdrop">
-      <section ref={dialogRef} className={`workspace-v2-mode-dialog${customization.studyMode === "custom" ? " has-customization" : ""}`} role="dialog" aria-modal="true" aria-labelledby="study-mode-title" aria-describedby="study-mode-hint" tabIndex={-1}>
+      <section ref={dialogRef} className={`workspace-v2-mode-dialog${customization.studyMode !== "standard" ? " has-customization" : ""}`} role="dialog" aria-modal="true" aria-labelledby="study-mode-title" aria-describedby="study-mode-hint" tabIndex={-1}>
         <h1 id="study-mode-title">{t(activeOnly ? "materials.startActiveStudy" : "materials.chooseStudyMode")}</h1>
         <p id="study-mode-hint" dir="auto">{t(activeOnly ? "materials.chooseDifficulty" : "materials.switchModesLater")}</p>
         <div className="workspace-v2-mode-grid">
@@ -714,7 +715,7 @@ function StudyModeDialog({ customization, setCustomization, availability, diffic
             <div className="workspace-v2-difficulty" role="radiogroup" aria-label={t("materials.activeDifficultyGroup")}>
               {ACTIVE_DIFFICULTIES.map(([id, labelKey, detailKey]) => { const done = completed.includes(id); return <button key={id} type="button" role="radio" aria-label={`${t(labelKey)}: ${t(detailKey)}${done ? ` · ${t("materials.activeDifficultyDone")}` : ""}`} title={t(detailKey)} aria-checked={difficulty === id} className={difficulty === id ? "is-selected" : ""} onClick={() => { setDifficulty(id); setConfirmRestart(false); }}>{t(labelKey)}{done && <Check className="workspace-v2-difficulty-done" size={13} strokeWidth={2.6} aria-hidden="true" />}</button>; })}
             </div>
-            <ActiveStudyCustomization availability={availability} value={customization} onChange={(value) => { setCustomization(value); setConfirmCustom(false); }} disabled={busy} />
+            <ActiveStudyCustomization availability={availability} value={customization} onChange={(value) => { setCustomization(value); setConfirmCustom(false); }} disabled={busy} allowPomodoro />
             {confirmCustom && <div className="workspace-v2-study-restart"><p>{t("activeStudy.replaceCustom")}</p><button type="button" onClick={() => setConfirmCustom(false)}>{t("common.cancel")}</button><button type="button" onClick={() => onActive(true)} disabled={busy}>{t("activeStudy.newCustom")}</button></div>}
             <button type="button" className="workspace-v2-active-start" onClick={() => changesSavedCustomization(customization, availability) ? setConfirmCustom(true) : onActive(false)} disabled={busy || !activeAvailable || !validStudyCustomization(customization, availability)}>{t(checking ? "materials.activeStudyChecking" : busy ? "materials.activeStudyStarting" : activeAvailable ? "materials.startActiveStudy" : "materials.activeStudyUnavailable")}<ChevronRight size={16} /></button>
             {restartProgress && <div className="workspace-v2-study-restart">
@@ -1541,7 +1542,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         if (activeEntryCheckedRef.current !== entryKey) return;
         setActiveStudyAvailability(payload);
         const item = (/** @type {any[]} */ (payload?.difficulties) || []).find((entry) => entry.difficulty === difficulty);
-        if (item?.status !== "ready" || (saved.studyMode === "custom" ? item.custom_progress : item.progress)?.status !== "active") {
+        if (item?.status !== "ready" || savedStudyProgress(saved, item)?.status !== "active") {
           clearActiveStudyEntry(entryKey);
           return;
         }
@@ -5622,6 +5623,20 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     }
   }
 
+  async function openPomodoroQuiz(choices) {
+    if (!activeStudy || activeStudyBusy || activeStudy.study_mode !== "pomodoro") return;
+    quizReaderAnchorRef.current = captureReaderAnchor();
+    setActiveStudyBusy(true);
+    setActiveStudyError("");
+    try {
+      const payload = await focusApi.managedActiveStudyAction(activeStudy.id, "complete-reading", choices);
+      const run = /** @type {any} */ (payload.run);
+      // Keep the frozen boundary even if loading the questions then loses the connection.
+      setActiveStudy(run);
+      await loadManagedQuestions(run);
+    } finally { setActiveStudyBusy(false); }
+  }
+
   const mcqExplain = useMcqExplainLinks(user?.id, shareDocumentId, activeQuiz?.attempt_id, Boolean(STUDY_TOOLS_ENABLED && activeResult && !activeResult.pending_sync));
   function openMistakeExplain(link) {
     if (!link || link.page_end > accessiblePageCount) { setFocusMessage(t("knowledge.lockedSource")); return; }
@@ -5993,7 +6008,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   }
 
   async function restartActiveStudy() {
-    const progress = activeCustomization.studyMode === "custom" ? selectedActiveStudyAvailability?.custom_progress : selectedActiveStudyAvailability?.progress;
+    const progress = savedStudyProgress(activeCustomization, selectedActiveStudyAvailability);
     if (!progress?.id || activeStudyBusy || !activeStudyReady) return;
     setActiveStudyBusy(true);
     setActiveStudyError("");
@@ -6002,7 +6017,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       const run = /** @type {any} */ (payload.run);
       setActiveStudyAvailability((current) => current ? {
         ...current,
-        difficulties: current.difficulties.map((item) => item.difficulty === run.difficulty ? { ...item, progress: run } : item)
+        difficulties: current.difficulties.map((item) => item.difficulty === run.difficulty ? { ...item, [run.study_mode && run.study_mode !== "standard" ? `${run.study_mode}_progress` : "progress"]: run } : item)
       } : current);
       setActiveStudy(run);
       setActiveQuiz(null);
@@ -6787,11 +6802,12 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         </aside>
       </div>
       <span className="workspace-v2-visually-hidden" role="status" aria-live="polite">{saveLabel}{focusMessage ? ` · ${focusMessage}` : ""}</span>
-      {studyMode === "active" && activeStudy?.status === "active" && (["reading", "checkpoint", "final"].includes(activeStudy.stage) || ACTIVE_RESULT_STAGES.has(activeStudy.stage)) && <div className="workspace-v2-checkpoint-dock" role="status" aria-live="polite">
+      {studyMode === "active" && activeStudy?.study_mode !== "pomodoro" && activeStudy?.status === "active" && (["reading", "checkpoint", "final"].includes(activeStudy.stage) || ACTIVE_RESULT_STAGES.has(activeStudy.stage)) && <div className="workspace-v2-checkpoint-dock" role="status" aria-live="polite">
         <button type="button" className={`workspace-v2-checkpoint-button${activeStudyButtonReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeStudyButtonReady} aria-label={activeStudyButtonReady ? t(activeStudy.stage.startsWith("final") ? "activeStudy.openFinal" : "activeStudy.openCheckpoint") : t("activeStudy.reachToUnlock", { page: accessiblePageCount })}>{!activeStudy.stage.startsWith("final") && activeStudy.number_of_parts > 1 && <span className="workspace-v9-step-part" aria-hidden="true">{t("activeStudy.pageRange", { start: activeStudy.current_page_range?.start_page, end: activeStudy.current_page_range?.end_page })}</span>}{activeStudyButtonReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t(activeStudy.stage.startsWith("final") ? "activeStudy.finalExam" : "activeStudy.checkpoint")}</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t("activeStudy.reachPage", { page: accessiblePageCount })}</span></>}</button>
       </div>}
       {knowledgeVisited && shareDocumentId && user?.id && <Suspense fallback={null}><KnowledgeWorkspace key={`${user.id}/${shareDocumentId}`} userId={user.id} documentId={shareDocumentId} title={sheet.title} page={page} pageLimit={accessiblePageCount} onSaveState={setKnowledgeSaveStatus} navigation={knowledgeNavigation} visible={knowledgeOpen && paneActive} onClose={() => setKnowledgeOpen(false)} onRead={(target) => { if (target >= accessiblePageStart && target <= accessiblePageCount) jumpToPagePosition(target); }} /></Suspense>}
-      {modeDialogOpen && <StudyModeDialog customization={activeCustomization} setCustomization={setActiveCustomization} availability={selectedActiveStudyAvailability} difficulty={activeDifficulty} setDifficulty={(key) => { setActiveDifficulty(key); setActiveCustomization((current) => ({ ...current, studyMode: "standard" })); }} activeAvailable={activeStudyReady} restartProgress={activeCustomization.studyMode === "custom" ? selectedActiveStudyAvailability?.custom_progress : selectedActiveStudyAvailability?.progress} completed={(activeStudyAvailability?.difficulties || []).filter((item) => item.completed).map((item) => item.difficulty)} busy={activeStudyBusy || activeStudyAvailabilityLoading} checking={activeStudyAvailabilityLoading && !activeStudyBusy} error={activeStudyError} onNormal={chooseNormalStudy} onActive={(replaceExisting) => chooseActiveStudy(activeDifficulty, { replaceExisting })} onRestart={restartActiveStudy} activeOnly={entryModePreference === "active"} />}
+      {studyMode === "active" && activeStudy?.study_mode === "pomodoro" && activeStudy?.status === "active" && <PomodoroStudy key={`${user?.id}:${activeStudy.id}`} userId={user?.id || ownerKey} run={activeStudy} page={page} virtualPage={activeVirtualPageId !== null} active={paneActive && workspaceReady && !modeDialogOpen && !activeExitOpen} blocked={Boolean(activeQuiz)} deferSetup={knowledgeOpen || marksOpen || sideOpen} busy={activeStudyBusy} onStartTest={openPomodoroQuiz} onOpenTest={openActiveQuiz} />}
+      {modeDialogOpen && <StudyModeDialog customization={activeCustomization} setCustomization={setActiveCustomization} availability={selectedActiveStudyAvailability} difficulty={activeDifficulty} setDifficulty={(key) => { setActiveDifficulty(key); setActiveCustomization((current) => ({ ...current, studyMode: "standard" })); }} activeAvailable={activeStudyReady} restartProgress={savedStudyProgress(activeCustomization, selectedActiveStudyAvailability)} completed={(activeStudyAvailability?.difficulties || []).filter((item) => item.completed).map((item) => item.difficulty)} busy={activeStudyBusy || activeStudyAvailabilityLoading} checking={activeStudyAvailabilityLoading && !activeStudyBusy} error={activeStudyError} onNormal={chooseNormalStudy} onActive={(replaceExisting) => chooseActiveStudy(activeDifficulty, { replaceExisting })} onRestart={restartActiveStudy} activeOnly={entryModePreference === "active"} />}
       {shareDocumentId && <AnnotationSharePanel
         open={marksOpen}
         onClose={() => setMarksOpen(false)}

@@ -25,7 +25,7 @@ def canonical_keys_for_attempt(attempt: Any, bank: Any) -> dict[int, str]:
     if run.plan_signature.get("content_revision") != bank.revision:
         return {}
     try:
-        if run.study_mode == "custom":
+        if run.study_mode in {"custom", "pomodoro"}:
             source_range = run.plan_signature["page_ranges"][attempt.part_number - 1]
             offset = run.plan_signature["source_page_offset"]
         else:
@@ -35,7 +35,7 @@ def canonical_keys_for_attempt(attempt: Any, bank: Any) -> dict[int, str]:
             bank.payload,
             source_range["start_page"] + offset,
             source_range["end_page"] + offset,
-            run.plan_signature["questions_per_checkpoint"],
+            source_range.get("question_count", run.plan_signature["questions_per_checkpoint"]),
         )
     except (KeyError, IndexError, TypeError, ValueError):
         return {}

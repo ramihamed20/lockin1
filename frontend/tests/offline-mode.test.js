@@ -788,3 +788,36 @@ test("custom page study stays separate, resumes offline and queues its exact set
   assert.equal(event.payload.bank_revision, 3);
   await assert.rejects(focusApi.startManagedActiveStudy({ ...options, questionsPerCheckpoint: 21 }), /between 1 and 20/);
 });
+
+test("Pomodoro freezes timed pages offline, keeps forty balanced questions and replays exact boundaries", async () => {
+  const userId = await freshUser();
+  const pageBundle = bundle("pomodoro-v1");
+  const content = pageBundle.difficulties.medium;
+  content.pages = Array.from({ length: 21 }, (_, index) => ({ page: index + 2, questions: Array.from({ length: 20 }, (_, q) => question(`page-${index + 2}-${q}`)) }));
+  content.source_page_ranges = RANGES;
+  content.questions_per_checkpoint = 15;
+  content.content_revision = 4;
+  Object.assign(pageBundle.availability.difficulties[1], { customization_available: true, pomodoro_available: true, eligible_study_pages: 21 });
+  serveContent({ asVersion: "pomodoro-v1", bundleBody: pageBundle });
+  const current = await downloads.fetchOfflineManifest(userId);
+  await downloads.downloadOfflineItem(userId, current.items.find((item) => item.type === "active_study"), () => {}, { manual: true, manifest: current });
+  offline();
+  const options = { sheetId: SHEET, difficulty: "medium", studyMode: "pomodoro" };
+  const started = await focusApi.startManagedActiveStudy(options);
+  assert.deepEqual(started.run.current_page_range, { part: 1, start_page: 2, end_page: 22 });
+  await assert.rejects(focusApi.managedActiveStudyAction(started.run.id, "complete-reading", { part: 1, end_page: 2, question_count: 40 }), /between 1 and 20/);
+  await focusApi.managedActiveStudyAction(started.run.id, "complete-reading", { part: 1, end_page: 7, question_count: 40 });
+  const { quiz, submitted } = await completeQuiz(started.run.id, 40);
+  assert.equal(quiz.questions.length, 40);
+  assert.equal(submitted.result.passed, true);
+  assert.equal(submitted.run.current_page_range.start_page, 8);
+  assert.equal((await focusApi.startManagedActiveStudy(options)).run.id, started.run.id);
+  const pending = await queue.pendingOfflineOperations(userId);
+  const event = pending.find((item) => item.operation_type === "active_study_attempt");
+  assert.equal(event.payload.study_mode, "pomodoro");
+  assert.equal(event.payload.bank_revision, 4);
+  assert.deepEqual(event.payload.pomodoro_checkpoint, { end_page: 7, question_count: 40 });
+  const fresh = await focusApi.managedActiveStudyAction(started.run.id, "restart");
+  assert.notEqual(fresh.run.id, started.run.id);
+  assert.deepEqual(fresh.run.page_ranges, [{ part: 1, start_page: 2, end_page: 22 }]);
+});

@@ -84,8 +84,8 @@ def _active_study_scope(payload: dict[str, object]) -> _ActiveStudyScope:
 
 def _study_options(payload: dict[str, object]) -> dict[str, Any]:
     mode = payload.get("study_mode", "standard")
-    if not isinstance(mode, str) or mode not in {"standard", "custom"}:
-        raise ValidationError({"study_mode": ["Choose standard or custom."]})
+    if not isinstance(mode, str) or mode not in {"standard", "custom", "pomodoro"}:
+        raise ValidationError({"study_mode": ["Choose standard, custom or Pomodoro."]})
     options: dict[str, Any] = {"study_mode": mode}
     for key, maximum in (
         ("pages_per_checkpoint", 10000),
@@ -109,6 +109,23 @@ def _study_options(payload: dict[str, object]) -> dict[str, Any]:
 def _active_study_attempt(user: User, payload: dict[str, object]) -> dict[str, object]:
     scope = _active_study_scope(payload)
     part = payload.get("part")
+    checkpoint: dict[str, Any] = {}
+    details = payload.get("pomodoro_checkpoint")
+    if payload.get("study_mode") == "pomodoro" and payload.get("kind") == "checkpoint":
+        if not isinstance(details, dict) or set(details) != {"end_page", "question_count"}:
+            raise ValidationError({"pomodoro_checkpoint": ["Supply the page and question count."]})
+        for key, maximum in (("end_page", 10000), ("question_count", 40)):
+            value = details.get(key)
+            if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= maximum:
+                raise ValidationError({"pomodoro_checkpoint": ["Invalid page or question count."]})
+        checkpoint = {
+            "checkpoint_end_page": details["end_page"],
+            "checkpoint_question_count": details["question_count"],
+        }
+    elif details is not None:
+        raise ValidationError(
+            {"pomodoro_checkpoint": ["Only Pomodoro checkpoints use page choices."]}
+        )
     return replay_offline_attempt(
         user=user,
         sheet_id=scope.sheet_id,
@@ -119,6 +136,7 @@ def _active_study_attempt(user: User, payload: dict[str, object]) -> dict[str, o
         part=part if isinstance(part, int) else None,
         attempt_id=_uuid(payload.get("attempt_id"), "attempt_id"),
         answers=payload.get("answers"),
+        **checkpoint,
     )
 
 

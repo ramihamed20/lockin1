@@ -1,4 +1,5 @@
 import { allQuestionsMessages } from "./allQuestionsMessages.js";
+import { pomodoroMessages } from "./pomodoroMessages.js";
 import { rescueMessages } from "./rescueMessages.js";
 import { knowledgeMessages } from "./knowledgeMessages.js";
 
@@ -7,6 +8,7 @@ export const SUPPORTED_LOCALES = ["en", "ar"];
 const messages = {
   en: {
     ...allQuestionsMessages.en,
+    ...pomodoroMessages.en,
     ...knowledgeMessages.en,
     ...rescueMessages.en,
     "app.name": "Lock-in",
@@ -2915,6 +2917,7 @@ const messages = {
   },
   ar: {
     ...allQuestionsMessages.ar,
+    ...pomodoroMessages.ar,
     ...knowledgeMessages.ar,
     ...rescueMessages.ar,
     "app.name": "Lock-in",

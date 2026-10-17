@@ -241,7 +241,7 @@ class ActiveStudySubmitSerializer(StrictSerializer):
 class ManagedActiveStudyStartSerializer(StrictSerializer):
     replace_existing = serializers.BooleanField(required=False, default=False)
     study_mode = serializers.ChoiceField(
-        choices=("standard", "custom"), required=False, default="standard"
+        choices=("standard", "custom", "pomodoro"), required=False, default="standard"
     )
     pages_per_checkpoint = serializers.IntegerField(min_value=1, max_value=10000, required=False)
     questions_per_checkpoint = serializers.IntegerField(min_value=1, max_value=20, required=False)
@@ -252,6 +252,13 @@ class ManagedActiveStudyStartSerializer(StrictSerializer):
     edition = serializers.ChoiceField(
         choices=("university", "lockin"), required=False, allow_null=True
     )
+
+
+class ManagedActiveStudyReadingSerializer(StrictSerializer):
+    # Pomodoro closes the pages read in this one cycle; legacy requests stay empty.
+    part = serializers.IntegerField(min_value=1, max_value=10000, required=False)
+    end_page = serializers.IntegerField(min_value=1, max_value=10000, required=False)
+    question_count = serializers.IntegerField(min_value=1, max_value=40, required=False)
 
 
 class ManagedActiveStudyAnswerSerializer(StrictSerializer):

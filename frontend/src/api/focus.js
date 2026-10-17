@@ -60,9 +60,9 @@ export const focusApi = {
     ), "Active Study could not be started.");
   },
 
-  async managedActiveStudyAction(runId, action) {
+  async managedActiveStudyAction(runId, action, body = {}) {
     return objectPayload(await activeStudyClient.action(runId, action,
-      (serverRunId, options = {}) => request(`/focus/managed-active-study/${serverRunId}/${action}`, { ...options, method: "POST", body: {} })
+      (serverRunId, options = {}) => request(`/focus/managed-active-study/${serverRunId}/${action}`, { ...options, method: "POST", body }), body
     ), "Active Study could not be updated.");
   },
 

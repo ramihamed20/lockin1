@@ -40,6 +40,8 @@ from platform_core.events import publish_after_commit
 from .active_study import XP_BY_DIFFICULTY
 from .events import ActiveStudyExamPassed
 from .models import ActiveStudyAnswer, ActiveStudyAttempt, ActiveStudyRun
+from .pomodoro import close_range as close_pomodoro_range
+from .pomodoro import initial_ranges as pomodoro_initial_ranges
 from .question_identity import question_key
 
 
@@ -241,8 +243,8 @@ def _runtime_plan(
     questions_per_checkpoint: int | None,
     edition: str,
 ) -> dict[str, Any]:
-    if study_mode not in {"standard", "custom"}:
-        raise ManagedActiveStudyRuleError("Choose standard or custom Active Study.")
+    if study_mode not in {"standard", "custom", "pomodoro"}:
+        raise ManagedActiveStudyRuleError("Choose standard, custom or Pomodoro Active Study.")
     if study_mode == "standard":
         if pages_per_checkpoint is not None or questions_per_checkpoint is not None:
             raise ManagedActiveStudyRuleError("Custom settings require custom Active Study.")
@@ -251,7 +253,7 @@ def _runtime_plan(
         raise ManagedActiveStudyRuleError(
             "Customization is available only for new page-based sheets."
         )
-    if (
+    if study_mode == "custom" and (
         isinstance(questions_per_checkpoint, bool)
         or not isinstance(questions_per_checkpoint, int)
         or not 1 <= questions_per_checkpoint <= 20
@@ -264,6 +266,15 @@ def _runtime_plan(
         raise ManagedActiveStudyRuleError(
             "This edition needs matching study pages before customization can be used."
         )
+    if study_mode == "pomodoro":
+        if pages_per_checkpoint is not None or questions_per_checkpoint is not None:
+            raise ManagedActiveStudyRuleError("Choose Pomodoro questions when the timer finishes.")
+        return {
+            **plan,
+            "page_ranges": pomodoro_initial_ranges(ranges),
+            "number_of_parts": 1,
+            "source_page_offset": source_ranges[0]["start_page"] - start,
+        }
     if pages_per_checkpoint is None:
         raise ManagedActiveStudyRuleError("Choose a page count for custom Active Study.")
     try:
@@ -315,6 +326,14 @@ def availability(*, user: User, sheet_id: UUID, edition: str = UNIVERSITY) -> di
             study_mode="custom",
             status="active",
         ).first()
+        pomodoro = ActiveStudyRun.objects.filter(
+            user=user,
+            sheet=sheet,
+            difficulty=item["difficulty"],
+            edition=edition,
+            study_mode="pomodoro",
+            status="active",
+        ).first()
         custom_supported = bool(
             sheet.active_study_page_bank_enabled
             and status == "ready"
@@ -328,6 +347,9 @@ def availability(*, user: User, sheet_id: UUID, edition: str = UNIVERSITY) -> di
                 "page_ranges": item["page_ranges"],
                 "progress": run_payload(active) if active else None,
                 "custom_progress": run_payload(custom),
+                "pomodoro_progress": run_payload(pomodoro),
+                "pomodoro_available": custom_supported,
+                "pomodoro_max_questions": 40,
                 "customization_available": custom_supported,
                 "max_questions": 20,
                 "eligible_study_pages": readiness["eligible_study_pages"],
@@ -429,7 +451,7 @@ def start(
     existing = _active_run(
         user=user, sheet=sheet, difficulty=difficulty, edition=edition, study_mode=study_mode
     )
-    if existing is not None and replace_existing and study_mode == "custom":
+    if existing is not None and replace_existing and study_mode in {"custom", "pomodoro"}:
         abandon(user=user, run_id=existing.id)
         existing = None
     if existing is not None:
@@ -451,6 +473,16 @@ def start(
             if existing.plan_signature["page_ranges"] != plan["page_ranges"]:
                 raise ManagedActiveStudyRuleError(
                     "Study pages changed. Restart this custom session."
+                )
+            return existing, False
+        if study_mode == "pomodoro":
+            saved_ranges = existing.plan_signature["page_ranges"]
+            if (saved_ranges[0]["start_page"], saved_ranges[-1]["end_page"]) != (
+                plan["page_ranges"][0]["start_page"],
+                plan["page_ranges"][-1]["end_page"],
+            ):
+                raise ManagedActiveStudyRuleError(
+                    "Study pages changed. Restart this Pomodoro session."
                 )
             return existing, False
         return _synchronize_run_to_plan(
@@ -496,6 +528,11 @@ def start(
                             )
                         }
                         if study_mode == "custom"
+                        else {}
+                    ),
+                    **(
+                        {"source_page_offset": plan["source_page_offset"]}
+                        if study_mode == "pomodoro"
                         else {}
                     ),
                 },
@@ -557,7 +594,7 @@ def _questions_for(run: ActiveStudyRun, *, kind: str, part: int | None) -> list[
     if "pages" in payload:
         if part is None or not 1 <= part <= len(run.plan_signature["page_ranges"]):
             raise ManagedActiveStudyRuleError("Checkpoint page group is invalid.")
-        if run.study_mode == "custom":
+        if run.study_mode in {"custom", "pomodoro"}:
             source_range = run.plan_signature["page_ranges"][part - 1]
             offset = run.plan_signature["source_page_offset"]
         else:
@@ -568,8 +605,11 @@ def _questions_for(run: ActiveStudyRun, *, kind: str, part: int | None) -> list[
                 payload,
                 source_range["start_page"] + offset,
                 source_range["end_page"] + offset,
-                run.plan_signature.get(
-                    "questions_per_checkpoint", plan["questions_per_checkpoint"]
+                source_range.get(
+                    "question_count",
+                    run.plan_signature.get(
+                        "questions_per_checkpoint", plan["questions_per_checkpoint"]
+                    ),
                 ),
             )
         except ValueError as error:
@@ -593,8 +633,57 @@ def _active_attempt(
 
 
 @transaction.atomic
-def complete_part_reading(*, user: User, run_id: UUID) -> ActiveStudyRun:
+def complete_part_reading(
+    *,
+    user: User,
+    run_id: UUID,
+    part: int | None = None,
+    end_page: int | None = None,
+    question_count: int | None = None,
+) -> ActiveStudyRun:
     run = _locked_run(user=user, run_id=run_id)
+    if run.study_mode == "pomodoro":
+        if (
+            run.status != ActiveStudyRun.Status.ACTIVE
+            or run.stage
+            not in {
+                ActiveStudyRun.Stage.READING,
+                ActiveStudyRun.Stage.CHECKPOINT,
+            }
+            or isinstance(part, bool)
+            or part != run.current_part
+        ):
+            raise ManagedActiveStudyRuleError("This Pomodoro cycle is no longer current.")
+        if end_page is None or question_count is None:
+            raise ManagedActiveStudyRuleError("Choose the Pomodoro page and question count.")
+        # Enforce the pinned bank revision before committing a new reading boundary.
+        content, _ = _content(
+            sheet=cast(LearningObject, run.sheet), difficulty=run.difficulty, edition=run.edition
+        )
+        if content.revision != run.plan_signature.get("content_revision"):
+            raise ManagedActiveStudyRuleError(
+                "Questions changed. Restart this session before testing."
+            )
+        try:
+            ranges = close_pomodoro_range(
+                run.plan_signature["page_ranges"],
+                part=run.current_part,
+                end_page=end_page,
+                question_count=question_count,
+            )
+        except ValueError as error:
+            raise ManagedActiveStudyRuleError(str(error)) from error
+        run.plan_signature = {
+            **run.plan_signature,
+            "page_ranges": ranges,
+            "number_of_parts": len(ranges),
+        }
+        run.unlocked_pages = end_page
+        run.stage = ActiveStudyRun.Stage.CHECKPOINT
+        run.save(update_fields=("plan_signature", "unlocked_pages", "stage", "updated_at"))
+        return run
+    if part is not None or end_page is not None or question_count is not None:
+        raise ManagedActiveStudyRuleError("Page choices are available only in Pomodoro style.")
     if run.status != ActiveStudyRun.Status.ACTIVE or run.stage != ActiveStudyRun.Stage.READING:
         raise ManagedActiveStudyRuleError("This part is not ready for its checkpoint.")
     run.stage = ActiveStudyRun.Stage.CHECKPOINT
@@ -1207,6 +1296,8 @@ def replay_offline_attempt(
     pages_per_checkpoint: int | None = None,
     questions_per_checkpoint: int | None = None,
     bank_revision: int | None = None,
+    checkpoint_end_page: int | None = None,
+    checkpoint_question_count: int | None = None,
 ) -> dict[str, Any]:
     """Replay one checkpoint or final exam the device completed offline.
 
@@ -1294,7 +1385,15 @@ def replay_offline_attempt(
             raise OfflineReplayOutOfOrder("An earlier part has not been completed yet.")
         if run.stage == ActiveStudyRun.Stage.CHECKPOINT_RESULT:
             study_again(user=user, run_id=run.id)
-        if _locked_run(user=user, run_id=run.id).stage == ActiveStudyRun.Stage.READING:
+        if study_mode == "pomodoro":
+            complete_part_reading(
+                user=user,
+                run_id=run.id,
+                part=part,
+                end_page=checkpoint_end_page,
+                question_count=checkpoint_question_count,
+            )
+        elif _locked_run(user=user, run_id=run.id).stage == ActiveStudyRun.Stage.READING:
             complete_part_reading(user=user, run_id=run.id)
     elif run.stage == ActiveStudyRun.Stage.FINAL_RESULT:
         retry_final(user=user, run_id=run.id)
@@ -1359,6 +1458,10 @@ def replay_offline_continue(
         or active.plan_signature.get("content_revision") != bank_revision
     ):
         raise ManagedActiveStudyRuleError("Offline settings do not match this custom session.")
+    if study_mode == "pomodoro" and active.plan_signature.get("content_revision") != bank_revision:
+        raise ManagedActiveStudyRuleError(
+            "Downloaded questions changed; refresh this Pomodoro session."
+        )
     if part in cast(list[int], active.completed_parts) or part < active.current_part:
         return _offline_outcome(OFFLINE_SUPERSEDED, active)
     if part > active.current_part or active.stage != ActiveStudyRun.Stage.CHECKPOINT_RESULT:

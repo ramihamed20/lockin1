@@ -336,7 +336,9 @@ class ActiveStudyRun(models.Model):
     edition = models.CharField(max_length=16, default="university")
     difficulty = models.CharField(max_length=12, choices=Difficulty.choices)
     study_mode = models.CharField(
-        max_length=12, default="standard", choices=(("standard", "Standard"), ("custom", "Custom"))
+        max_length=12,
+        default="standard",
+        choices=(("standard", "Standard"), ("custom", "Custom"), ("pomodoro", "Pomodoro")),
     )
     page_count = models.PositiveIntegerField()
     unlocked_pages = models.PositiveIntegerField(default=3)

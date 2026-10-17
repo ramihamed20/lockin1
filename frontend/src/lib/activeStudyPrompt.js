@@ -132,6 +132,7 @@ Use only the supplied sheet. Wait for the sheet if it has not been provided.
 Create exactly 20 distinct questions for EACH eligible page, using only that page's content.
 Questions must remain grouped by page; do not use parts or checkpoint groups.
 This bank supports student-selected page groups and 1–20 questions per checkpoint, as well as the standard style.
+Pomodoro style draws up to 40 questions across the pages read in a timed session from this same bank. A single page still supplies at most 20; do not change the page counts below.
 Create exactly ${finalExamQuestions} separate final-exam questions covering all eligible pages.
 Use only MCQ and True/False. MCQ: type "mcq", question, four distinct options A/B/C/D, correct_answer letter, explanation.
 True/False: type "true_false", question, boolean correct_answer, explanation; no options.
