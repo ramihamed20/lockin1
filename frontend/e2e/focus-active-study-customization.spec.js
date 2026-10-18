@@ -65,6 +65,7 @@ test("sparse page inventory limits every checkpoint, including the last", async 
   await dialog.getByLabel("Pages per test (up to 10)", { exact: true }).fill("3");
   await expect(dialog.getByLabel("Questions (up to 4)", { exact: true })).toHaveValue("4");
   await dialog.getByRole("button", { name: "Start Active Study", exact: true }).click();
+  await expect.poll(() => calls.length).toBe(1);
   expect(calls[0]).toMatchObject({ study_mode: "custom", pages_per_checkpoint: 3, questions_per_checkpoint: 4 });
 });
 
