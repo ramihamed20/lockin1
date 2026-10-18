@@ -21,6 +21,31 @@ def custom_page_ranges(start: int, end: int, size: int) -> list[dict[str, int]]:
     ]
 
 
+def page_question_counts(payload: dict[str, Any]) -> list[int]:
+    """Count usable questions per physical page in ascending page order."""
+    return [
+        min(QUESTIONS_PER_PAGE, len(page["questions"]))
+        for page in sorted(payload["pages"], key=lambda item: item["page"])
+    ]
+
+
+def max_available_custom_questions(
+    payload: dict[str, Any], start: int, end: int, pages_per_checkpoint: int
+) -> int:
+    """The guaranteed question count across ALL groups, including the short final one."""
+    counts = {
+        page["page"]: min(QUESTIONS_PER_PAGE, len(page["questions"]))
+        for page in payload["pages"]
+    }
+    return min(
+        MAX_CUSTOM_QUESTIONS,
+        *(
+            sum(counts.get(page, 0) for page in range(group["start_page"], group["end_page"] + 1))
+            for group in custom_page_ranges(start, end, pages_per_checkpoint)
+        ),
+    )
+
+
 def select_page_questions(
     payload: dict[str, Any], start: int, end: int, count: int
 ) -> list[dict[str, Any]]:
