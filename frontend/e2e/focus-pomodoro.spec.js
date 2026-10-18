@@ -72,6 +72,14 @@ async function jump(page, number) {
   // Jumping closes this surface automatically on phones; tablets keep it open.
   if (page.viewportSize().width > 820) await page.locator(".workspace-v2-page-number").click();
   await expect(page.locator(".workspace-v2-page-navigator")).not.toBeVisible();
+  // The page counter updates optimistically. Let native smooth scrolling
+  // actually arrive before the fake clock can finish the Pomodoro session.
+  await expect.poll(() => page.locator(".workspace-v2-document-stage").evaluate((stage, targetPage) => {
+    const target = stage.querySelector(`[data-pdf-page="${targetPage}"]`);
+    if (!target) return Infinity;
+    const padding = Number.parseFloat(getComputedStyle(stage).paddingTop) || 0;
+    return Math.abs(target.getBoundingClientRect().top - stage.getBoundingClientRect().top - padding);
+  }, number), { message: "PDF navigation must finish before advancing the timer" }).toBeLessThan(2);
   await expect(page.locator(".workspace-v2-page-number strong")).toHaveText(String(number));
 }
 

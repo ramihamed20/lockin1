@@ -1863,7 +1863,7 @@
     "backend/apps/focus/tests/test_pomodoro_study.py": "4cbdc79b3e33eb0140665433681c0f37ab2a4972121d9214368c628b707a603a",
     "frontend/src/components/shared/PomodoroStudy.jsx": "c3252cc3f22f24b95646230048d8d247b4866f2666b0acb19bb3b0d85450a35e",
     "frontend/src/lib/pomodoroStudy.js": "eb8d8a34b0a66843f98044b69a865cb065c5133d7ad60de4d8052996310f73f3",
-    "frontend/e2e/focus-pomodoro.spec.js": "7a896643ac1cf859d6c7948d14ec1830907c95b25ee35b965b7fb1c59a04cf5c",
+    "frontend/e2e/focus-pomodoro.spec.js": "9c22b03f003c56bb6da6086325856946a85381e5bf2fe3fa81b15d33fa5c7247",
     "backend/apps/content/page_question_bank.py": "9604e0c7df0665667e76c43344c9fc7e067a3fd19d6fccf9dfabc0c9b0a0a546",
     "frontend/src/lib/pomodoroMessages.js": "db77d2c18de74c964e727a8a746a85ff1b56aac11eea8be03817b67663caa449",
     "backend/apps/content/added_subjects.py": "4cafeb9662938e23efa6e048d40c0ae4e9fd059c02de4bfbe6162a8f34e181da",
