@@ -258,7 +258,12 @@ def test_sparse_page_banks_are_ready_and_use_available_questions_online_and_offl
         question_format="pages",
     )
     assert checked.checkpoint_question_count == 143
-    assert next(row for row in availability(user=user, sheet_id=sheet.id)["difficulties"] if row["difficulty"] == "medium")["status"] == "ready"
+    ready = next(
+        row
+        for row in availability(user=user, sheet_id=sheet.id)["difficulties"]
+        if row["difficulty"] == "medium"
+    )
+    assert ready["status"] == "ready"
     custom, _ = custom_start(user, sheet, pages=1, count=15)
     complete_part_reading(user=user, run_id=custom.id)
     assert len(questions(user=user, run_id=custom.id)["questions"]) == 3
