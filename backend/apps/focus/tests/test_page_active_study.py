@@ -277,6 +277,25 @@ def test_sparse_page_banks_are_ready_and_use_available_questions_online_and_offl
     assert len(bundle["difficulties"]["medium"]["pages"][0]["questions"]) == 3
 
 
+def test_existing_sparse_custom_run_can_resume_but_replacement_checks_actual_inventory():
+    user, sheet, content = page_world()
+    for page in content.payload["pages"]:
+        page["questions"] = page["questions"][:3]
+    content.checkpoint_question_count = 63
+    content.save(update_fields=("payload", "checkpoint_question_count"))
+    run, _ = custom_start(user, sheet, pages=1, count=3)
+    signature = dict(run.plan_signature)
+    signature["questions_per_checkpoint"] = 15  # Valid before the inventory-based cap.
+    run.plan_signature = signature
+    run.save(update_fields=("plan_signature",))
+    resumed, created = custom_start(user, sheet, pages=1, count=15)
+    assert not created and resumed.id == run.id
+    with pytest.raises(ManagedActiveStudyRuleError, match="at most 3 available"):
+        custom_start(user, sheet, pages=1, count=15, replace_existing=True)
+    run.refresh_from_db()
+    assert run.status == "active", "invalid replacement must not abandon the old run"
+
+
 def test_custom_limit_uses_lowest_real_group_even_when_total_inventory_is_large():
     user, sheet, content = page_world()
     # Twenty-one pages grouped by two ends with a single-page checkpoint.
