@@ -209,6 +209,9 @@ const local = {
         status: content ? "ready" : row.status === "ready" ? "unavailable" : row.status,
         number_of_parts: content?.number_of_parts ?? row.number_of_parts,
         page_ranges: content?.page_ranges ?? row.page_ranges,
+        page_question_counts: content?.pages
+          ? [...content.pages].sort((a, b) => a.page - b.page).map((page) => Math.min(QUESTIONS_PER_PAGE, page.questions.length))
+          : row.page_question_counts ?? null,
         progress: run?.status === "active" ? runPayload(run) : null,
         completed: Boolean(row.completed || run?.status === "completed" || await offlineDatabase.get(userId, `as-completed:${key}`))
       };
@@ -231,8 +234,16 @@ const local = {
       if (!row?.customization_available || !content.pages) throw new ActiveStudyRuleError("Customization is available only for new page-based sheets.");
       if (!Number.isInteger(questionsPerCheckpoint) || questionsPerCheckpoint < 1 || questionsPerCheckpoint > MAX_CUSTOM_QUESTIONS) throw new ActiveStudyRuleError(`Choose between 1 and ${MAX_CUSTOM_QUESTIONS} questions.`);
       ranges = customPageRanges(ranges[0].start_page, ranges.at(-1).end_page, pagesPerCheckpoint);
-      const shortest = Math.min(...ranges.map((item) => item.end_page - item.start_page + 1));
-      if (questionsPerCheckpoint > shortest * QUESTIONS_PER_PAGE) throw new ActiveStudyRuleError(`Choose at most ${shortest * QUESTIONS_PER_PAGE} questions for this page count.`);
+      const counts = [...content.pages].sort((a, b) => a.page - b.page).map((page) => Math.min(QUESTIONS_PER_PAGE, page.questions.length));
+      const available = Math.min(MAX_CUSTOM_QUESTIONS, ...ranges.map((range) => {
+        const sourceStart = content.source_page_ranges[0].start_page;
+        const groupStart = range.start_page - content.page_ranges[0].start_page;
+        const length = range.end_page - range.start_page + 1;
+        // The source bank and the current edition have the same count of study pages.
+        void sourceStart;
+        return counts.slice(groupStart, groupStart + length).reduce((total, count) => total + count, 0);
+      }));
+      if (questionsPerCheckpoint > available) throw new ActiveStudyRuleError(`Choose at most ${available} available questions for this page count.`);
     }
     const key = runKey(sheetId, edition, difficulty, studyMode);
     const existing = await readRun(userId, key);
