@@ -264,7 +264,10 @@ def test_sparse_page_banks_are_ready_and_use_available_questions_online_and_offl
         if row["difficulty"] == "medium"
     )
     assert ready["status"] == "ready"
-    custom, _ = custom_start(user, sheet, pages=1, count=15)
+    assert ready["page_question_counts"] == [3] + [7] * 20
+    with pytest.raises(ManagedActiveStudyRuleError, match="at most 3 available"):
+        custom_start(user, sheet, pages=1, count=15)
+    custom, _ = custom_start(user, sheet, pages=1, count=3)
     complete_part_reading(user=user, run_id=custom.id)
     assert len(questions(user=user, run_id=custom.id)["questions"]) == 3
     standard, _ = start(user=user, sheet_id=sheet.id, difficulty="medium")
@@ -272,6 +275,25 @@ def test_sparse_page_banks_are_ready_and_use_available_questions_online_and_offl
     assert 1 <= len(questions(user=user, run_id=standard.id)["questions"]) <= 15
     bundle = offline_bundle(user=user, sheet_id=sheet.id)
     assert len(bundle["difficulties"]["medium"]["pages"][0]["questions"]) == 3
+
+
+def test_custom_limit_uses_lowest_real_group_even_when_total_inventory_is_large():
+    user, sheet, content = page_world()
+    # Twenty-one pages grouped by two ends with a single-page checkpoint.
+    for page in content.payload["pages"]:
+        page["questions"] = page["questions"][: (2 if page["page"] == 22 else 9)]
+    content.checkpoint_question_count = 182
+    content.save(update_fields=("payload", "checkpoint_question_count"))
+    ready = next(
+        row for row in availability(user=user, sheet_id=sheet.id)["difficulties"]
+        if row["difficulty"] == "medium"
+    )
+    assert ready["page_question_counts"] == [9] * 20 + [2]
+    with pytest.raises(ManagedActiveStudyRuleError, match="at most 2 available"):
+        custom_start(user, sheet, pages=2, count=3)
+    run, _ = custom_start(user, sheet, pages=2, count=2)
+    complete_part_reading(user=user, run_id=run.id)
+    assert len(questions(user=user, run_id=run.id)["questions"]) == 2
 
 
 def test_a_bank_of_twenty_per_page_written_before_the_fifteen_rule_stays_ready():
