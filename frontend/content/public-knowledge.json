@@ -1827,7 +1827,7 @@
     "backend/apps/focus/annotation_services.py": "f69372630ac361d91b813f3746df864e0977c77dc4f406d91b46fc852dc840e2",
     "backend/apps/focus/tests/test_annotation_document_scope.py": "f3e6728a5fc81fe587f22ad6f720c7ced9b8ceadbf4d50be8e8219bf5fca2939",
     "frontend/e2e/focus-workspace-persistence.spec.js": "a40d01b19ed3193f6b4b1ba214c0b9db4eb02ad2b4d975bce02872ec020c3979",
-    "backend/apps/focus/managed_active_study.py": "9f6af917f56414c7d35a693c5f86edb9313e7de9fc445b2e0961092686bcc3e1",
+    "backend/apps/focus/managed_active_study.py": "bbd738150b3ae80440f922fbbc3224eaf3292710318d821edc97f972705a1289",
     "backend/apps/focus/tests/test_managed_active_study.py": "568a04a1b382ff9e9797c262ad59bbfd6bccca5f13d4e2b150c027ebd659546c",
     "frontend/src/pages/Questions.jsx": "af5234785c004ceea34b2a30777921907d9190720512b2b7d03d1629b255d542",
     "frontend/src/components/learning/PracticeQuestions.jsx": "bab4222631887165568ae7cc944bcdf8c4d6e8f55a93ae48981ccdee2f411868",
