@@ -202,14 +202,14 @@ export const adminControlApi = {
 
   purchases: (options = {}) => request(pagePath("/operations/admin/purchases", options), { signal: options.signal }).then((data) => page(data, "The purchase list response was incomplete.")),
   purchase: (paymentId) => request(`/operations/admin/purchases/${id(paymentId, "purchase identifier")}`),
-  reviewManualPayment(paymentId, decision, reviewReason) {
+  reviewManualPayment(paymentId, decision, reviewReason, collectedAmountMinor = 0) {
     const cleanReason = typeof reviewReason === "string" ? reviewReason.trim() : "";
     if (!['approve', 'reject'].includes(decision) || cleanReason.length < 3) {
       throw new ApiError(0, null, "A valid review decision and reason are required.", "invalid_request");
     }
     return request(`/operations/admin/purchases/${id(paymentId, "purchase identifier")}/manual-review`, {
       method: "POST",
-      body: { decision, reason: cleanReason },
+      body: { decision, reason: cleanReason, collected_amount_minor: collectedAmountMinor },
       idempotencyKey: generateIdempotencyKey()
     });
   },

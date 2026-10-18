@@ -74,7 +74,8 @@ def test_telegram_adapter_is_optional_successful_and_best_effort(settings) -> No
     assert "Password" not in rendered
     assert "user-1" in rendered
     assert "student_one" in rendered
-    assert "1234567890123" in rendered
+    assert "1234567890123" not in rendered
+    assert "•••• 0123" in rendered
     assert notify_manual_payment(message) is False
 
     settings.TELEGRAM_BOT_TOKEN = "token"
@@ -159,7 +160,8 @@ def test_telegram_submission_failure_never_rolls_back_payment(
     rendered = message.render()
     assert user.email not in rendered
     assert str(user.id) in rendered
-    assert "6666555544443" in rendered
+    assert "6666555544443" not in rendered
+    assert "•••• 4443" in rendered
 
 
 @pytest.mark.parametrize(

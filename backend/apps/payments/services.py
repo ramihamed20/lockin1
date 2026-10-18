@@ -23,6 +23,7 @@ class PaymentTransitionResult:
 def _price_snapshot(price: Price) -> dict[str, object]:
     version = price.plan_version
     return {
+        "policy_version": "",
         "product_code": version.plan.product.code,
         "plan_code": version.plan.code,
         "plan_version": version.version,
@@ -59,6 +60,9 @@ def create_payment(
     if existing is not None:
         return existing, False
     now = timezone.now()
+    snapshot = _price_snapshot(price)
+    if account.primary_user is not None:
+        snapshot["policy_version"] = account.primary_user.policy_version
     payment = Payment.objects.create(
         account=account,
         subscription=subscription,
@@ -68,7 +72,7 @@ def create_payment(
         currency_exponent=price.currency_exponent,
         status=Payment.Status.INITIATED,
         idempotency_key=idempotency_key,
-        price_snapshot=_price_snapshot(price),
+        price_snapshot=snapshot,
         initiated_at=now,
     )
     PaymentTransition.objects.create(

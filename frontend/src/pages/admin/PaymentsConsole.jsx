@@ -1,3 +1,4 @@
+import { RefundRequests } from "../../components/subscription/RefundRequests.jsx";
 /**
  * The payments review console.
  *
@@ -230,6 +231,7 @@ function ReviewActions({ payment, canManage, onReviewed }) {
   const submission = payment.manual_submission;
   const [reason, setReason] = useState("");
   const [decision, setDecision] = useState(null);
+  const [collected, setCollected] = useState("0");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(null);
 
@@ -238,7 +240,7 @@ function ReviewActions({ payment, canManage, onReviewed }) {
     setPending(true);
     setError(null);
     try {
-      await adminControlApi.reviewManualPayment(payment.id, decision, reason);
+      await adminControlApi.reviewManualPayment(payment.id, decision, reason, decision === "reject" ? Math.round(Number(collected) * (10 ** Number(payment.currency_exponent))) : 0);
       setDecision(null);
       setReason("");
       onReviewed(decision === "approve"
@@ -316,6 +318,7 @@ function ReviewActions({ payment, canManage, onReviewed }) {
             />
             <small id="ops-review-reason-hint">At least 3 characters. Shown to the reader when a card is rejected.</small>
           </label>
+          <label className="field"><span>عند الرفض: القيمة المحصلة فعليًا من البطاقات الصالحة (LYD)</span><input type="number" min="0" step="0.001" value={collected} onChange={(event) => setCollected(event.target.value)} /><small>تُسجل القيمة المحصلة كمال مستلم قابل للاسترداد.</small></label>
           <div className="ops-actions">
             <button
               type="button"
@@ -344,8 +347,8 @@ function ReviewActions({ payment, canManage, onReviewed }) {
         busy={pending}
         title={decision === "approve" ? "Approve this payment?" : "Reject this payment?"}
         message={decision === "approve"
-          ? "The payment is marked succeeded, the subscription is verified for the period already reserved at submission, and the reader keeps access. The period is not extended a second time if this is repeated."
-          : "The payment is marked failed, the provisional access granted at submission is removed, and the reader is told why and invited to submit another card."}
+          ? "Confirm the complete agreed value was received. Paid access starts after approval under the accepted policy; a fixed term keeps its advertised end. Repeating this review does not charge or grant twice."
+          : "The order is rejected and its reserved access is rolled back. Any value entered as actually collected stays recorded and refundable. The student is told why and may contact support to complete the value or receive it back."}
         confirmLabel={pending ? "Working…" : decision === "approve" ? "Approve payment" : "Reject payment"}
         onCancel={() => setDecision(null)}
         onConfirm={review}
@@ -615,6 +618,7 @@ export default function PaymentsConsole({ canManage }) {
 
   return (
     <section className="operations-workspace">
+      {canManage && <RefundRequests finance onChanged={reload} />}
       <section className="ops-metrics" aria-label="Payment summary">
         <Metric
           label="Awaiting review"

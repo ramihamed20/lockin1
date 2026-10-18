@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { studentSession } from "./fixtures/productionApi.js";
+import { POLICY_VERSION } from "../src/lib/policyContent.js";
 
 /**
  * Students could not find the plans or tell how to subscribe. The sidebar now
@@ -29,15 +30,21 @@ function plan(id, code, amount) {
 }
 
 let submitted = null;
+let acceptedPolicy = null;
 
 async function mockStudent(page) {
   submitted = null;
+  acceptedPolicy = null;
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
     const json = (body, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
     if (pathname === "/api/v1/auth/session") return json({ user: studentSession() });
     if (pathname === "/api/v1/auth/csrf") return json({ csrf_token: "e2e-csrf-token" });
+    if (pathname === "/api/v1/account/policies" && request.method() === "POST") {
+      acceptedPolicy = request.postDataJSON();
+      return json({ user: studentSession({ policy_version: POLICY_VERSION, policy_accepted_at: "2026-10-16T12:00:00Z" }) });
+    }
     if (pathname === "/api/v1/operations/session") return json({ error: { code: "permission_denied", message: "Student" } }, 403);
     if (pathname === "/api/v1/subscriptions/current") return json({ subscription: EXPIRED });
     if (pathname === "/api/v1/entitlements/me") return json({ results: [] });
@@ -101,8 +108,13 @@ for (const viewport of VIEWPORTS) {
     expect(overflow).toBeLessThanOrEqual(1);
     await page.screenshot({ path: testInfo.outputPath(`subscription-${viewport.name}.png`), fullPage: true });
 
-    await page.getByRole("button", { name: /^Pay / }).click();
+    const pay = page.getByRole("button", { name: /^Pay / });
+    await expect(pay).toBeDisabled();
+    await page.locator("#libyana-payment").getByRole("checkbox").check();
+    await expect(pay).toBeEnabled();
+    await pay.click();
     await expect.poll(() => submitted).not.toBeNull();
+    expect(acceptedPolicy).toEqual({ version: POLICY_VERSION, accept_policies: true });
     expect(submitted.plan_id).toBe("plan-two");
     expect(submitted.recharge_codes).toEqual(["1234567890123"]);
   });

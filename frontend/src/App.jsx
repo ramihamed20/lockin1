@@ -1,3 +1,4 @@
+import { PolicyNotice } from "./components/PolicyNotice.jsx";
 import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { authApi, isApiError, onUnauthorized } from "./lib/api.js";
@@ -679,7 +680,7 @@ function App() {
     />
   );
 
-  if (["/terms", "/privacy", "/support"].includes(location.pathname)) {
+  if (["/terms", "/privacy", "/refunds", "/support"].includes(location.pathname)) {
     return <PublicInfoPage page={location.pathname.slice(1)} />;
   }
 
@@ -744,6 +745,7 @@ function App() {
       {!["/", "/dashboard"].includes(location.pathname) && <OfflineIndicator userId={user.id} />}
       <WhatsNew user={user} suppressed={inFocusWorkspace} />
       <Shell user={user} operationsSession={operationsSession} theme={activeTheme} onThemeChange={setManualTheme} onLogout={requestLogout} notificationVersion={notificationVersion} onNotificationsChanged={() => setNotificationVersion((version) => version + 1)} storeCartCount={storeCartCount} lockBalance={lockBalance} storeCommerceEnabled={false}>
+        {!inFocusWorkspace && <PolicyNotice user={user} onAccepted={setUser} />}
         <ErrorBoundary resetKey={location.pathname}>
         {/* Returning from background must keep the shell stable: navigations
             are transitions, so a route chunk resolves in place and the screen
@@ -806,7 +808,7 @@ function App() {
                 <Route path="/store" element={<Store commerceEnabled={false} onLockBalanceChange={setLockBalance} onCartCountChange={setStoreCartCount} />} />
                 <Route path="/profile" element={<Profile user={user} onUserUpdate={setUser} />} />
                 <Route path="/security" element={<Navigate to="/settings" replace />} />
-                <Route path="/subscription" element={<Subscription />} />
+                <Route path="/subscription" element={<Subscription onPoliciesAccepted={setUser} />} />
                 <Route path="/settings" element={<Settings user={user} onUserUpdate={setUser} settings={themeSettings} activeTheme={activeTheme} reminderSettings={reminderSettings} onReminderSettingsChange={setReminderSettings} onSettingsChange={updateThemeSettings} onSignedOut={clearAuthenticatedUi} />} />
                 <Route path="/admin/*" element={<OperationsAdmin operationsSession={operationsSession} />} />
                 {/* Same content.view gate as /creator; /admin/* also requires the administrator role. */}

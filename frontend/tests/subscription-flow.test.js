@@ -125,15 +125,12 @@ test("subscribing is one screen: pick a plan, then pay, with the terms one link 
   assert.match(page, /href="#\/terms"/);
 });
 
-test("the public terms page states the account-sharing rule and the 15-day refund window", () => {
-  const page = source("../src/components/PublicInfoPage.jsx");
-  const terms = source("../src/lib/termsContent.js");
-  assert.match(page, /TERMS\[locale\]/);
-  assert.match(terms, /أول 15 يوماً/);
-  assert.match(terms, /first 15 days/);
-  assert.match(terms, /مشاركة الحساب/);
-  // The owner removed the content-copying clause.
-  assert.doesNotMatch(terms, /id: "content"/);
-  assert.match(page, /t\.me\/\$\{SUPPORT_TELEGRAM\}/);
-  assert.match(page, /SUPPORT_TELEGRAM = "LockinTeam"/);
+test("the approved policy preserves statutory claims after the voluntary guarantee", async () => {
+  const { POLICY_SECTIONS, POLICY_VERSION } = await import("../src/lib/policyContent.js");
+  assert.equal(POLICY_VERSION, "2026.10");
+  const refunds = POLICY_SECTIONS.filter((section) => section.group === "refunds").flatMap((section) => section.items).join(" ");
+  assert.match(refunds, /100%/);
+  assert.match(refunds, /50%/);
+  assert.match(refunds, /48 ساعة/);
+  assert.match(refunds, /بقاء حقوق/);
 });

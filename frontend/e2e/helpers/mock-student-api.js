@@ -1,7 +1,9 @@
+import { POLICY_VERSION } from "../../src/lib/policyContent.js";
+
 // A signed-in student with no content. Viewport specs need the real shell —
 // top bar, sidebar or bottom bar, and a page that is shorter than the screen —
 // without depending on fixture data that changes shape over time.
-export async function mockStudentApi(page) {
+export async function mockStudentApi(page, { policyVersion = POLICY_VERSION } = {}) {
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     const normalizedPath = pathname.replace(/\/$/, "");
@@ -17,6 +19,10 @@ export async function mockStudentApi(page) {
             preferred_language: "en",
             status: "active",
             is_email_verified: true,
+            // A settled account keeps short-page geometry tests independent
+            // of the announcement. The announcement has its own browser case.
+            policy_version: policyVersion,
+            policy_accepted_at: "2026-10-16T12:00:00Z",
             roles: ["student"],
             date_joined: "2026-01-01T00:00:00Z"
           }

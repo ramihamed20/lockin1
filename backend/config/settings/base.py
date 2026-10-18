@@ -129,7 +129,8 @@ DATABASES = {
 
 AUTH_USER_MODEL = "accounts.User"
 
-ACCOUNT_POLICY_VERSION = env("ACCOUNT_POLICY_VERSION", "phase3-development")
+ACCOUNT_POLICY_VERSION = env("ACCOUNT_POLICY_VERSION", "2026.10")
+USER_POLICY_EFFECTIVE_AT = env("USER_POLICY_EFFECTIVE_AT")
 # A six-digit code, not a link: short-lived on purpose, because a million
 # possibilities only stay safe while the window to guess them is small.
 ACCOUNT_EMAIL_VERIFICATION_TTL_SECONDS = env_int("ACCOUNT_EMAIL_VERIFICATION_TTL_SECONDS", 600)

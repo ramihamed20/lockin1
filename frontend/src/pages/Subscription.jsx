@@ -1,3 +1,6 @@
+import { RefundRequests } from "../components/subscription/RefundRequests.jsx";
+import { accountsApi } from "../api/accounts.js";
+import { POLICY_VERSION } from "../lib/policyContent.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { billingApi } from "../api/billing.js";
 import { generateIdempotencyKey } from "../api/pagination.js";
@@ -257,13 +260,14 @@ function paymentStatus(value, t) {
   return labels[value] || "—";
 }
 
-export default function Subscription() {
+export default function Subscription({ onPoliciesAccepted }) {
   const { locale, direction, t } = useI18n();
   const subscriptionSession = useSubscriptionSession();
   const details = useAsyncData(() => billingApi.details(), [], { cacheKey: "subscription-details" });
   const [selectedPlan, setSelectedPlan] = useState("");
   const [codes, setCodes] = useState([""]);
   const [payInInstallments, setPayInInstallments] = useState(false);
+  const [accepted, setAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -337,13 +341,14 @@ export default function Subscription() {
           <div><h2>{heading}</h2><p>{body}</p></div>
         </section>
         <ComingSoonPlans offers={comingSoon} t={t} />
+        <RefundRequests payments={payments} onChanged={() => { details.reload(); void subscriptionSession.refresh(); }} />
       </Page>
     );
   }
 
   async function submitPayment(event) {
     event.preventDefault();
-    if (!effectivePlan || submitting) return;
+    if (!effectivePlan || submitting || !accepted) return;
     setSubmitting(true);
     setError("");
     setNotice("");
@@ -355,6 +360,8 @@ export default function Subscription() {
     // next submission become a new attempt with a new key.
     if (!paymentAttemptKey.current) paymentAttemptKey.current = generateIdempotencyKey();
     try {
+      const acceptedUser = await accountsApi.acceptPolicies(POLICY_VERSION);
+      onPoliciesAccepted?.(acceptedUser);
       const result = await billingApi.submitLibyana(
         effectivePlan,
         submittedCodes(codes, oneCardOnly),
@@ -485,10 +492,12 @@ export default function Subscription() {
                     {installmentAmounts.map((value, index) => <li key={index}><b>{money(value, selectedOffer.price.currency, selectedOffer.price.currency_exponent, locale)}</b><small>{index === 0 ? t("subscription.installmentNow") : formatDate(addMonths(new Date(), index), { dateStyle: "medium" })}</small></li>)}
                   </ol>
                 )}
+                <p lang="ar" dir="rtl">بداية الوصول بعد اعتماد الدفع. {selectedOffer.version.fixed_period_ends_at ? `تنتهي الخطة في ${formatDate(selectedOffer.version.fixed_period_ends_at, { dateStyle: "long" })}.` : "تسري المدة المبينة للخطة بعد اعتماد الدفع."} لا يوجد تجديد تلقائي. أعمالك تبقى محفوظة بعد الانتهاء مع توقف الوصول المدفوع إليها.</p>
+                <label lang="ar" dir="rtl"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} required /> قرأت <a href="#/terms">الشروط</a> و<a href="#/privacy">الخصوصية</a> و<a href="#/refunds">الاسترداد</a> وأوافق عليها، وتتوفر الأهلية أو موافقة الممثل القانوني حيث يلزم.</label>
                 <RechargeCodeFields codes={codes} setCodes={setCodes} oneCardOnly={oneCardOnly} idPrefix="libyana-code" t={t} />
                 {error && <p className="form-alert error" role="alert">{error}</p>}
                 {notice && <p className="form-alert success" role="status">{notice}</p>}
-                <button className="btn btn-primary libyana-submit" type="submit" disabled={submitting || !codesReady(codes, oneCardOnly)}>
+                <button className="btn btn-primary libyana-submit" type="submit" disabled={submitting || !accepted || !codesReady(codes, oneCardOnly)}>
                   {submitting ? t("subscription.submitting") : t("subscription.payAmount", { amount: money(dueNowMinor, selectedOffer.price.currency, selectedOffer.price.currency_exponent, locale) })}
                 </button>
                 <p className="subscription-terms-note">
@@ -501,6 +510,7 @@ export default function Subscription() {
 
         <ComingSoonPlans offers={comingSoon} t={t} />
 
+        <RefundRequests payments={payments} onChanged={() => { details.reload(); void subscriptionSession.refresh(); }} />
         <p className="subscription-terms-footer"><a href="#/terms">{t("subscription.termsFooter")}</a></p>
 
         <div className="subscription-secondary-sections">

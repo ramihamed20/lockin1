@@ -7,6 +7,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.accounts.models import User
+from apps.accounts.policies import USER_POLICY_VERSION, policy_effective_at
 from apps.audit.services import record_audit
 from apps.entitlements.free_access import free_access_ends_at
 from apps.entitlements.services import sync_subscription_entitlements
@@ -34,6 +35,7 @@ from .installments import (
     is_installment_suspension,
 )
 from .models import (
+    PARTIAL_COLLECTION_FAILURE_CODE,
     InstallmentAgreement,
     ManualRechargeCode,
     ManualRechargeSubmission,
@@ -173,10 +175,14 @@ def _first_subscription_offer_available(*, user: User) -> bool:
     database rule, so any completed successful paid subscription makes this
     first-subscription offer unavailable later.
     """
-    return not Payment.objects.filter(
-        account__primary_user=user,
-        status=Payment.Status.SUCCEEDED,
-    ).exists()
+    return not (
+        Payment.objects.filter(
+            account__primary_user=user,
+            status=Payment.Status.SUCCEEDED,
+        )
+        .exclude(failure_code=PARTIAL_COLLECTION_FAILURE_CODE)
+        .exists()
+    )
 
 
 def _early_renewal_allowed(*, subscription: Subscription, now: datetime) -> bool:
@@ -333,6 +339,20 @@ def submit_manual_recharge(
 ) -> ManualPaymentResult:
     if len(idempotency_key.strip()) < 12:
         raise ManualPaymentError("A stable idempotency key is required.")
+    from django.conf import settings
+
+    if user.policy_version == USER_POLICY_VERSION:
+        effective = policy_effective_at()
+        if effective is None or effective > timezone.now():
+            raise ManualPaymentError(
+                "The policy launch time has not been announced or reached yet."
+            )
+    if settings.ACCOUNT_POLICY_VERSION == USER_POLICY_VERSION and (
+        user.policy_version != USER_POLICY_VERSION or user.policy_accepted_at is None
+    ):
+        raise ManualPaymentError(
+            "Read and accept the current policies before submitting a new purchase."
+        )
     if price.currency != "LYD" or price.status != Price.Status.ACTIVE:
         raise ManualPaymentError("This plan is not available for Libyana payment.")
     if price.first_subscription_only and not _first_subscription_offer_available(user=user):
@@ -523,6 +543,8 @@ def submit_manual_recharge(
         is_early_renewal=is_early_renewal,
         previous_subscription_end_at=previous_subscription_end_at,
     )
+    # The provisional marker and its prior-state snapshot now exist.
+    sync_subscription_entitlements(subscription_id=subscription.id)
     record_audit(
         actor=user,
         action="payment_submitted",
@@ -607,6 +629,14 @@ def submit_installment_payment(
     )
     if agreement is None:
         raise ManualPaymentError("There is no installment plan to pay.")
+    if agreement.payments.filter(
+        manual_submission__status=ManualRechargeSubmission.Status.REJECTED,
+        status__in=(Payment.Status.SUCCEEDED, Payment.Status.PARTIALLY_REFUNDED),
+    ).exists():
+        raise ManualPaymentError(
+            "A partially collected card needs support reconciliation or refund "
+            "before another payment."
+        )
     subscription = Subscription.objects.select_for_update().get(id=agreement.subscription_id)
     now = timezone.now()
     subscription = refresh_subscription(subscription=subscription, now=now)
@@ -705,6 +735,7 @@ def review_manual_recharge(
     idempotency_key: str,
     send_notification: bool = True,
     source: str = "admin_control.api",
+    collected_amount_minor: int = 0,
 ) -> tuple[ManualRechargeSubmission, bool]:
     """Approve or reject a manual payment. The only path that may do so.
 
@@ -721,12 +752,24 @@ def review_manual_recharge(
     console still announce themselves in Telegram exactly as before.
     """
 
+    if collected_amount_minor < 0:
+        raise ManualPaymentError("Collected value cannot be negative.")
     if decision not in {"approve", "reject"}:
         raise ManualPaymentError("Choose approve or reject.")
     if len(reason.strip()) < 3:
         raise ManualPaymentError("A review reason is required.")
     if len(idempotency_key.strip()) < 12:
         raise ManualPaymentError("A stable idempotency key is required.")
+    # Payment submission and refund decisions use this same lock order.
+    from apps.subscriptions.models import SubscriptionAccount
+
+    try:
+        identity = Payment.objects.only("account_id", "subscription_id").get(id=payment_id)
+    except Payment.DoesNotExist as error:
+        raise ManualPaymentError("This request is no longer available.") from error
+    SubscriptionAccount.objects.select_for_update().get(id=identity.account_id)
+    Subscription.objects.select_for_update().get(id=identity.subscription_id)
+    Payment.objects.select_for_update().get(id=payment_id)
     submission = (
         ManualRechargeSubmission.objects.select_for_update()
         .select_related("payment__subscription__plan_version", "user")
@@ -746,6 +789,10 @@ def review_manual_recharge(
         if submission.status == target:
             return submission, False
         raise ManualPaymentError("This payment has already been reviewed.")
+    if collected_amount_minor and decision == "approve":
+        raise ManualPaymentError("A partial collection is recorded only when rejecting.")
+    if collected_amount_minor > payment.amount_minor:
+        raise ManualPaymentError("The collected value cannot exceed the payment amount.")
 
     now = timezone.now()
     from_payment_status = payment.status
@@ -770,6 +817,40 @@ def review_manual_recharge(
         payment.status = Payment.Status.SUCCEEDED
         payment.succeeded_at = now
         payment.failure_code = ""
+        if (
+            owns_subscription_state
+            and payment.price_snapshot.get("policy_version") == USER_POLICY_VERSION
+        ):
+            # Reserve at submission, but start the paid duration at approval.
+            # Fixed term plans retain their advertised end; a delay never silently
+            # consumes days from a new rolling-duration purchase.
+            prior = submission.previous_subscription_state
+            for field in (
+                "status",
+                "current_period_started_at",
+                "current_period_ends_at",
+                "trial_ends_at",
+                "grace_ends_at",
+            ):
+                setattr(subscription, field, _snapshot_value(field, prior.get(field)))
+            try:
+                approved_start, approved_end = paid_period_window(
+                    subscription=subscription, price=payment.price, effective_at=now
+                )
+            except ValueError as error:
+                raise ManualPaymentError(
+                    "This paid term can no longer be activated. Record any actual collection "
+                    "on rejection so the student can receive it back."
+                ) from error
+            subscription.status = previous_subscription_status
+            subscription.current_period_started_at = approved_start
+            subscription.current_period_ends_at = approved_end
+            subscription.grace_ends_at = approved_end + timedelta(
+                days=subscription.plan_version.grace_days
+            )
+            submission.subscription_period_started_at = approved_start
+            submission.subscription_period_ends_at = approved_end
+            # The agreed installment dates stay fixed; refund activation is separate.
         if owns_subscription_state:
             subscription.payment_verification = Subscription.PaymentVerification.VERIFIED
             subscription.provisional_payment_id = None
@@ -812,6 +893,12 @@ def review_manual_recharge(
         payment.status = Payment.Status.FAILED
         payment.failed_at = now
         payment.failure_code = "manual_rejected"
+        if collected_amount_minor:
+            # A rejected order can still contain money actually collected.
+            payment.amount_minor = collected_amount_minor
+            payment.status = Payment.Status.SUCCEEDED
+            payment.succeeded_at = now
+            payment.failure_code = PARTIAL_COLLECTION_FAILURE_CODE
         previous_status = subscription.status
         previous = submission.previous_subscription_state
         # When ``owns_subscription_state`` is false, someone else has already
@@ -871,7 +958,8 @@ def review_manual_recharge(
             sync_subscription_entitlements(subscription_id=subscription.id)
         notification_title = "تم رفض الدفع" if arabic else "Payment rejected"
         notification_body = (
-            f"لم يتم قبول دفعة ليبيانا. {reason.strip()[:220]}"
+            "توجد مشكلة في الدفع. تواصل لاستكماله أو لاسترداد القيمة المحصلة فعليًا. "
+            f"{reason.strip()[:220]}"
             if arabic
             else f"Your Libyana payment was not approved. {reason.strip()[:220]}"
         )
@@ -915,7 +1003,7 @@ def review_manual_recharge(
             ),
             now=now,
         )
-    if decision == "approve":
+    if decision == "approve" or collected_amount_minor:
         issue_paid_invoice(payment_id=payment.id)
     create_notification(
         recipient_id=submission.user_id,
