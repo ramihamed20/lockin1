@@ -16,6 +16,20 @@
 
 /* --- Settings -------------------------------------------------------------- */
 
+/* About and Support follow the existing Settings grouped-list composition. */
+.settings-public-intro { display: grid; gap: var(--space-2); padding-inline: var(--space-4); }
+.settings-public-intro h3 { margin: 0; color: var(--text); font-size: var(--text-2xl); font-weight: var(--weight-semibold); line-height: 1.5; }
+.settings-public-intro p { margin: 0; max-inline-size: 56ch; color: var(--muted); font-size: var(--text-base); line-height: 1.65; }
+.settings-public-intro .settings-public-eyebrow,
+.settings-public-intro .settings-public-brandline { color: var(--soft); font-size: var(--text-sm); }
+.settings-public-brandline { text-align: -webkit-match-parent; }
+.settings-public .ui-row-body > span:first-child { white-space: normal; overflow: visible; }
+.settings-public-icon { background: var(--surface-2); color: var(--muted); }
+.settings-public-primary .ui-row { padding-block: var(--space-4); }
+.settings-public-primary .ui-row-body > span:first-child { color: var(--accent-text); }
+.settings-v2-icon--about, .settings-v2-icon--support { color: var(--info); background: var(--info-soft); }
+
+
 /* One column on phones and tablets: the section list is a screen of its own
    and a section opens in its place (with a way back). From 1100px the list
    stays beside the open section, the way desktop settings apps work. */
@@ -679,29 +693,8 @@ html.ix-hover .settings-v2-back:hover {
 
 /* --- Sign-in and registration --------------------------------------------- */
 
-/* The shared select rule (system layer) outranked the sign-in stylesheet
-   (app layer), so the college / specialty / year selects came out shorter
-   and on a different fill than the text fields beside them. */
-.auth-v2 select:not(.auth-v2-language select) {
-  min-height: 49px;
-  padding: 0 14px;
-  border: 1px solid var(--auth-border);
-  border-radius: 12px;
-  color: var(--auth-ink);
-  background-color: var(--auth-control);
-  font-size: 16px;
-}
-
-.auth-v2 select:not(.auth-v2-language select):disabled {
-  color: var(--auth-quiet);
-  background-color: var(--auth-surface);
-}
-
-@media (max-width: 639px) {
-  .auth-v2 select:not(.auth-v2-language select) {
-    min-height: 52px;
-  }
-}
+/* The college / specialty / year selects are styled in the system layer from
+   components/auth/auth.css, beside the text fields they have to match. */
 
 /* --- Catalogue ------------------------------------------------------------- */
 
@@ -857,11 +850,6 @@ html.ix-hover .dash-state:hover {
   .dash-state-value {
     font-size: 1.5rem;
   }
-}
-
-.dashboard-left .continue-card h2 {
-  font-weight: var(--weight-bold);
-  letter-spacing: -0.02em;
 }
 
 .dashboard-review-queue .review-queue-empty {
@@ -1319,11 +1307,6 @@ html.ix-hover .dash-state:hover {
 .skeleton-stat.is-wide { grid-column: span 2; }
 .skeleton-stat-value { width: 44px; height: 26px; }
 .skeleton-stat-label { width: min(110px, 70%); height: 12px; }
-
-.skeleton-page--dashboard .skeleton-dashboard-layout { margin: 0; }
-.skeleton-page--dashboard .skeleton-dashboard-layout > div:last-child { align-content: stretch; }
-.skeleton-page--dashboard .skeleton-visual-card { display: grid; min-height: 0; padding: 0; overflow: hidden; }
-.skeleton-page--dashboard .skeleton-visual { height: auto; min-height: 260px; border-radius: 0; }
 
 @keyframes v2-reveal {
   from { opacity: 0; transform: translateY(-4px); }
@@ -1855,4 +1838,112 @@ html.ix-hover .question-player-card .choices button:not(:disabled):hover { borde
     --ix-press-scale: 0.97;
     filter: none;
   }
+}
+
+/* Study Plan V2: one next action, account-owned planning, progressively disclosed controls. */
+@layer system {
+.study-plan-v2 { max-inline-size: 1080px; inline-size: 100%; margin-inline: auto; display: grid; gap: 24px; min-inline-size: 0; }
+.study-plan-v2 :is(h1,h2,p) { margin-block: 0; }
+.plan-heading, .plan-week-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.plan-heading h1 { font-size: var(--title-large); letter-spacing: var(--tracking-title); }
+.study-plan-v2 p, .plan-heading p { line-height: 1.6; color: var(--muted); }
+.study-plan-v2 h2 { font-size: 1.2rem; }
+.plan-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.plan-heading p { margin-block-start: 6px; }
+.plan-settings, .plan-editor, .plan-preview { padding: 24px; border-radius: var(--radius-card); background: var(--surface); border: 1px solid var(--card-edge); }
+.plan-settings form, .plan-editor form { display: grid; gap: 20px; margin-block-start: 20px; }
+.study-plan-v2 fieldset { min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+.plan-settings-fields, .plan-editor-fields { display: grid; gap: 18px; }
+.study-plan-v2 label { display: grid; gap: 8px; font-size: var(--text-sm); font-weight: 600; min-inline-size: 0; }
+.study-plan-v2 :is(input:not([type=radio]):not([type=checkbox]),select) { inline-size: 100%; min-inline-size: 0; min-block-size: 46px; border-radius: var(--radius-md); padding: 10px 12px; background: var(--surface-2); color: var(--text); border: 1px solid var(--border-strong); font: inherit; font-size: 16px; }
+.study-plan-v2 :is(button,input,summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.study-plan-v2 :is(input[type=radio],input[type=checkbox]) { accent-color: var(--accent); inline-size: 18px; block-size: 18px; }
+.study-plan-v2 small { color: var(--muted); font-weight: 400; line-height: 1.5; overflow-wrap: anywhere; }
+.plan-modes { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
+.plan-modes label { grid-template-columns: auto 1fr; align-items: start; padding: 18px; border: 1px solid var(--card-edge); border-radius: var(--radius-lg); background: var(--surface-2); cursor: pointer; }
+.plan-modes label.is-selected { border-color: var(--accent); background: var(--accent-soft); }
+.plan-modes label > span { display: grid; gap: 6px; }
+.plan-modes strong { font-size: 1rem; }
+.plan-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.plan-weekdays { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 8px; }
+.plan-weekdays legend { margin-block-end: 10px; font-size: var(--text-sm); font-weight: 600; }
+.plan-weekdays label { min-block-size: 58px; justify-items: center; align-content: center; padding: 8px 4px; border-radius: var(--radius-md); background: var(--surface-2); cursor: pointer; }
+.plan-note { font-size: var(--text-sm); }
+.plan-error { color: var(--danger) !important; }
+.plan-notice { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; color: var(--success); }
+.plan-advanced > summary, .plan-overdue > summary { cursor: pointer; min-block-size: 44px; align-content: center; }
+.plan-advanced label { margin-block-start: 12px; }
+.plan-hero { padding: 28px; display: grid; gap: 24px; background: var(--surface); border: 1px solid var(--card-edge); border-radius: var(--radius-card); }
+.plan-hero h2 { font-size: clamp(1.5rem,3vw,2rem); line-height: 1.25; overflow-wrap: anywhere; margin-block: 6px 12px; }
+.plan-mode-label { display: inline-block; color: var(--accent-text); background: var(--accent-soft); border-radius: var(--radius-full); padding: 4px 12px; font-size: var(--text-sm); }
+.plan-hero .plan-eyebrow { margin-block-start: 20px; font-size: var(--text-sm); }
+.plan-stats { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; padding-block: 2px 12px; border-block-end: 1px solid var(--separator); }
+.plan-stats div { display: grid; gap: 8px; min-inline-size: 0; }
+.plan-stats span { color: var(--muted); font-size: var(--text-sm); }
+.plan-stats strong { font-size: 1.2rem; overflow-wrap: anywhere; }
+.plan-week { min-inline-size: 0; display: grid; gap: 18px; }
+.plan-icon-button, .plan-check, .plan-edit { display: grid; place-items: center; inline-size: 44px; block-size: 44px; padding: 0; border: 0; border-radius: var(--radius-full); background: var(--surface-2); color: var(--text); cursor: pointer; }
+:dir(rtl) .plan-icon-button svg { transform: scaleX(-1); }
+.plan-day-strip { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 6px; }
+.plan-day-strip button { min-inline-size: 0; display: grid; justify-items: center; gap: 4px; padding: 12px 2px 4px; border: 1px solid transparent; border-radius: var(--radius-lg); background: var(--surface); color: var(--text); cursor: pointer; }
+.plan-day-strip button[aria-pressed=true] { background: var(--accent-soft); border-color: var(--accent); }
+.plan-day-strip small { font-size: 12px; }
+.plan-day-strip strong { font-size: 1.1rem; }
+.plan-day-strip span { line-height: 10px; color: var(--accent-text); }
+.plan-task-list { list-style: none; margin: 0; padding: 0; }
+.plan-task-list li { display: grid; grid-template-columns: 44px minmax(0,1fr) 44px; gap: 12px; align-items: center; padding-block: 14px; border-block-end: 1px solid var(--separator); }
+.plan-task-list li > div { display: grid; gap: 5px; min-inline-size: 0; }
+.plan-task-list strong { overflow-wrap: anywhere; }
+.plan-check { background: transparent; }
+.plan-check[aria-pressed=true] { color: var(--success); }
+.plan-task-list .is-complete strong { text-decoration: line-through; color: var(--muted); }
+.plan-empty-day { padding-block: 24px; }
+.plan-preview ul { list-style: none; padding: 0; margin-block: 12px 20px; }
+.plan-preview li { display: grid; gap: 6px; padding-block: 12px; border-block-end: 1px solid var(--separator); }
+.plan-preview li span { color: var(--muted); overflow-wrap: anywhere; line-height: 1.6; }
+.plan-text-button, .plan-delete { min-block-size: 44px; background: transparent; border: 0; color: var(--accent-text); cursor: pointer; padding: 8px; font: inherit; }
+.plan-delete { color: var(--danger); }
+.study-plan-v2 button:disabled { opacity: .5; cursor: default; }
+.plan-subjects { display: grid; gap: 12px; }
+.plan-subjects-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; font-size: var(--text-sm); }
+.plan-chips { display: flex; flex-wrap: wrap; gap: 8px; min-inline-size: 0; }
+.plan-chip { display: inline-flex; align-items: center; gap: 6px; min-block-size: 40px; max-inline-size: 100%; padding: 8px 14px; border: 1px solid var(--border-strong); border-radius: var(--radius-full); background: var(--surface-2); color: var(--text); font: inherit; font-size: var(--text-sm); cursor: pointer; text-align: start; }
+.plan-chip span { overflow-wrap: anywhere; }
+.plan-chip[aria-pressed=true] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-text); }
+.plan-chip svg { flex: none; }
+.plan-subject-add { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: end; gap: 10px; }
+.plan-subject-add .btn { min-block-size: 46px; }
+.plan-minutes-field { display: grid; gap: 10px; min-inline-size: 0; }
+.plan-editor .plan-field-grid { align-items: start; }
+.plan-move { justify-self: start; min-block-size: 40px; padding-inline: 0; font-weight: 600; }
+.plan-progress { grid-column: 1 / -1; display: grid; gap: 8px; }
+.plan-progress progress { inline-size: 100%; block-size: 8px; border: 0; border-radius: var(--radius-full); overflow: hidden; background: var(--surface-2); appearance: none; }
+.plan-progress progress::-webkit-progress-bar { background: var(--surface-2); }
+.plan-progress progress::-webkit-progress-value { background: var(--success); border-radius: var(--radius-full); }
+.plan-progress progress::-moz-progress-bar { background: var(--success); border-radius: var(--radius-full); }
+.plan-day-strip button[data-state=done] span { color: var(--success); font-weight: 700; }
+@media(min-width:1100px) {
+  .study-plan-v2 { grid-template-columns: minmax(0,1.2fr) minmax(0,1fr); align-items: start; }
+  .plan-heading, .plan-settings, .plan-notice, .study-plan-v2 > .plan-note, .plan-overdue, .study-plan-v2 > .error-panel { grid-column: 1 / -1; }
+  .plan-hero { grid-column: 1; grid-row: span 2; }
+  .plan-stats, .plan-week { grid-column: 2; }
+  .plan-preview { grid-column: 1 / -1; }
+}
+@media(max-width:600px) {
+  .study-plan-v2 { gap: 20px; }
+  .plan-heading { align-items: flex-start; flex-wrap: wrap; }
+  .plan-settings, .plan-editor, .plan-preview, .plan-hero { padding: 18px; }
+  .plan-modes { grid-template-columns: 1fr; }
+  .plan-modes label { padding: 14px; }
+  .plan-weekdays { gap: 4px; }
+  .plan-weekdays label { font-size: 11px; }
+  .plan-field-grid { grid-template-columns: 1fr; gap: 16px; }
+  .plan-week-heading { flex-wrap: wrap; }
+  .plan-stats strong { font-size: 1rem; }
+  .plan-actions .btn { min-block-size: 44px; }
+  .plan-chip { min-block-size: 44px; }
+  .plan-weekdays label span, .plan-day-strip small { font-size: 10px; white-space: nowrap; text-align: center; }
+  .plan-day-strip button, .plan-weekdays label { overflow: hidden; }
+}
+@media(prefers-reduced-motion:reduce) { .study-plan-v2 * { scroll-behavior: auto; transition: none; animation: none; } }
 }

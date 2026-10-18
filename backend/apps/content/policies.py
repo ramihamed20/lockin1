@@ -37,13 +37,15 @@ def can_view_learning_object(*, user: User, learning_object: LearningObject) -> 
     if is_content_administrator(user):
         return True
     cohort = user.cohort
-    return bool(
-        cohort is not None
-        and cohort.is_active
-        and cohort.content_nodes.filter(
-            path__in=ancestor_paths(version.academic_node.path)
-        ).exists()
-    )
+    if cohort is None or not cohort.is_active:
+        return False
+    paths = ancestor_paths(version.academic_node.path)
+    if cohort.content_nodes.filter(path__in=paths).exists():
+        return True
+    # A First Year subject a Second Year student added to their own list.
+    from .added_subjects import added_subjects
+
+    return added_subjects(user).filter(source_node__path__in=paths).exists()
 
 
 def can_edit_learning_object(*, user: User, learning_object: LearningObject) -> bool:
@@ -78,6 +80,10 @@ def can_access_managed_file(*, user: User, managed_file: ManagedFile, download: 
             user=user, managed_file_id=managed_file.id
         )
     if is_content_administrator(user) or managed_file.owner_id == user.id:
+        return True
+    if not download and managed_file.personal_sheets.filter(owner=user).exists():
+        # A copy of another student's marks points at the catalog file; its owner
+        # keeps reading it after the catalog publishes a newer edition.
         return True
     assets = LearningObjectAsset.objects.filter(
         managed_file=managed_file,

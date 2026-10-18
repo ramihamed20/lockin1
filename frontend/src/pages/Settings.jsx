@@ -9,7 +9,8 @@ import { useSubscriptionSession } from "../lib/SubscriptionSessionContext.jsx";
 import { appIconOptions, characterOptions, themeOptions } from "../lib/constants.js";
 import { assetPath, normalizeThemeSettings, normalizeReminderSettings } from "../lib/utils.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
-import { AccountFieldErrors, fieldErrorAttributes } from "../components/account/AccountFormErrors.jsx";
+import { AccountFieldErrors, AccountFormAlert, fieldErrorAttributes } from "../components/account/AccountFormErrors.jsx";
+import { normalizeAuthError } from "../lib/authValidation.js";
 import { useI18n } from "../components/I18nProvider.jsx";
 import { SessionList } from "../components/account/SessionList.jsx";
 import { SubscriptionStatus } from "../components/subscription/SubscriptionStatus.jsx";
@@ -19,6 +20,8 @@ import { ResponsiveThemePreview } from "../components/shared/ResponsiveThemePrev
 import OfflineSettings from "../offline/OfflineSettings.jsx";
 import AppUpdateSettings from "../pwa/AppUpdateSettings.jsx";
 import FeedbackSettings from "./Feedback.jsx";
+import AddedSubjectsSettings, { canAddSubjects } from "../components/learning/AddedSubjectsSettings.jsx";
+import PublicKnowledgeSettings from "./PublicKnowledgeSettings.jsx";
 import { BUILD_INFO } from "../pwa/buildInfo.js";
 import { UPDATE_STATUS } from "../pwa/updateManager.js";
 import { usePwaUpdates } from "../pwa/usePwaUpdates.js";
@@ -37,8 +40,12 @@ const SECTIONS = [
   { id: "appearance", labelKey: "common.appearance", icon: "palette" },
   { id: "notifications", labelKey: "settings.notifications", icon: "bell" },
   { id: "offline", labelKey: "offline.title", icon: "package" },
+  // Second Year Dentistry only: requests to change added First Year subjects.
+  { id: "subjects", labelKey: "subjects.section", icon: "book-open", visible: canAddSubjects },
   { id: "suggest", labelKey: "settings.suggest.section", icon: "messages" },
-  { id: "updates", labelKey: "settings.updates.section", icon: "sparkles" }
+  { id: "updates", labelKey: "settings.updates.section", icon: "sparkles" },
+  { id: "about", labelKey: "settings.public.about", icon: "globe" },
+  { id: "support", labelKey: "settings.public.support", icon: "help" }
 ];
 
 const LEGACY_SECTIONS = {
@@ -201,7 +208,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
 
         <nav className="settings-v2-nav" aria-label={t("settings.sectionsLabel")}>
           <ul className="ui-group">
-            {SECTIONS.map((section) => {
+            {SECTIONS.filter((section) => !section.visible || section.visible(user)).map((section) => {
               const current = activeSection === section.id;
               return <li key={section.id}>
                 <button
@@ -344,9 +351,13 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
 
           {activeSection === "offline" && user?.id && <OfflineSettings userId={user.id} />}
 
+          {activeSection === "subjects" && canAddSubjects(user) && <AddedSubjectsSettings />}
+
           {activeSection === "suggest" && <FeedbackSettings />}
 
           {activeSection === "updates" && <AppUpdateSettings user={user} />}
+
+          {["about", "support"].includes(activeSection) && <PublicKnowledgeSettings section={activeSection} />}
 
           {saving && <p className="save-hint settings-v2-saving" role="status">{t("settings.saving")}</p>}
         </div>
@@ -409,7 +420,7 @@ function UsernameCard({ user, onUserUpdate }) {
       setUsername(updated.username || "");
       setMessage(t("settings.usernameUpdated"));
     } catch (requestError) {
-      setError(requestError);
+      setError(normalizeAuthError(requestError, { t, mode: "complete" }));
     } finally {
       setSaving(false);
     }
@@ -437,7 +448,7 @@ function UsernameCard({ user, onUserUpdate }) {
           <small>{t("settings.usernameHint")}</small>
           <AccountFieldErrors error={error} field="username" id="settings-username-error" />
         </label>
-        <AccountFieldErrors error={error} />
+        <AccountFormAlert error={error} />
         <div className="settings-v2-form-actions">
           <span role="status">{message}</span>
           <button className="btn btn-primary compact" type="submit" aria-busy={saving || undefined} disabled={saving || !username.trim() || unchanged}>
@@ -470,7 +481,7 @@ function PasswordCard({ id, headingId }) {
       setForm({ currentPassword: "", password: "", passwordConfirm: "" });
       setMessage(t("settings.passwordUpdated"));
     } catch (requestError) {
-      setError(requestError);
+      setError(normalizeAuthError(requestError, { t, mode: "password_change" }));
     } finally {
       setSaving(false);
     }
@@ -482,7 +493,7 @@ function PasswordCard({ id, headingId }) {
       <label className="field"><span>{t("settings.currentPassword")}</span><input type="password" autoComplete="current-password" value={form.currentPassword} onChange={(event) => setForm((current) => ({ ...current, currentPassword: event.target.value }))} required {...fieldErrorAttributes(error, "current_password", "settings-current-password-error")} /><AccountFieldErrors error={error} field="current_password" id="settings-current-password-error" /></label>
       <label className="field"><span>{t("settings.newPassword")}</span><input type="password" autoComplete="new-password" value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} required {...fieldErrorAttributes(error, "new_password", "settings-new-password-error")} /><AccountFieldErrors error={error} field="new_password" id="settings-new-password-error" /></label>
       <label className="field"><span>{t("settings.confirmNewPassword")}</span><input type="password" autoComplete="new-password" value={form.passwordConfirm} onChange={(event) => setForm((current) => ({ ...current, passwordConfirm: event.target.value }))} required {...fieldErrorAttributes(error, "new_password_confirm", "settings-confirm-password-error")} /><AccountFieldErrors error={error} field="new_password_confirm" id="settings-confirm-password-error" /></label>
-      <AccountFieldErrors error={error} />
+      <AccountFormAlert error={error} />
       <div className="settings-v2-form-actions">
         <span role="status">{message}</span>
         <button className="btn btn-primary compact" type="submit" aria-busy={saving || undefined} disabled={saving}>{saving ? t("settings.updatingPassword") : t("settings.updatePassword")}</button>
@@ -540,7 +551,7 @@ function AccountDeletionCard({ confirmationToken, onConfirmationHandled }) {
         ? t("settings.deletionCancelled")
         : t("settings.deletionCheckEmail"));
     } catch (requestError) {
-      setError(requestError);
+      setError(normalizeAuthError(requestError, { t, mode: "deletion" }));
     } finally {
       setBusy(false);
     }
@@ -562,6 +573,16 @@ function AccountDeletionCard({ confirmationToken, onConfirmationHandled }) {
 
   return <div className="ui-group-block settings-v2-block account-deletion-card">
     <h3 className="ui-group-title">{t("settings.dataRights")}</h3>
+    <button className="btn btn-outline compact" type="button" disabled={busy} onClick={async () => {
+      setBusy(true); setError(null);
+      try {
+        const data = await accountsApi.exportPersonalData();
+        const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+        const link = document.createElement("a"); link.href = url; link.download = "lockin-personal-data.json"; link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (requestError) { setError(requestError); }
+      finally { setBusy(false); }
+    }}>تنزيل نسخة من بياناتك المحفوظة</button>
     <div className="ui-group">
       <button type="button" className="ui-row is-danger" aria-expanded={expanded} aria-controls="settings-deletion-form" onClick={() => setOpen((value) => !value)}>
         <span className="ui-row-body"><strong>{t("settings.deleteAccount")}</strong></span>
@@ -570,9 +591,14 @@ function AccountDeletionCard({ confirmationToken, onConfirmationHandled }) {
       </button>
       {expanded && <div className="settings-v2-form settings-v2-form--inset" id="settings-deletion-form">
         <p className="settings-v2-note">{t("settings.deletionDescription")}</p>
+        <p lang="ar" dir="rtl">نستهدف معالجة طلب الحذف خلال 30 يومًا. تأكيد البريد خطوة تحقق ولا يعني اكتمال الحذف. طلب الحذف لا يسقط استردادًا مستحقًا؛ نزّل نسخة من أعمالك وامسح بيانات الموقع من الأجهزة المشتركة.</p>
+        {state.request?.processing_note && <p className="form-notice" role="status">{state.request.processing_note}</p>}
         {state.status === "confirmed" && !state.request?.policy_version && <p className="form-notice" role="alert">{t("settings.deletionPolicyPending")}</p>}
         <label className="field"><span>{t("settings.currentPassword")}</span><input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy || state.loading || state.status === "processing" || state.status === "completed"} /></label>
-        <AccountFieldErrors error={error} />
+        {/* The status load keeps its raw error (its effect must not re-run on a
+            language change -- it may spend a single-use link), so it is put
+            into words here. */}
+        <AccountFormAlert error={error instanceof Error ? normalizeAuthError(error, { t, mode: "deletion" }) : error} />
         {message && <p className="save-hint" role="status">{message}</p>}
         <div className="settings-v2-form-actions">
           <span />
@@ -604,7 +630,7 @@ function LanguageCard({ onUserUpdate }) {
       onUserUpdate?.(updated);
       setMessage(t("settings.languageSaved"));
     } catch (requestError) {
-      setError(requestError);
+      setError(normalizeAuthError(requestError, { t }));
     } finally {
       setSaving(false);
     }
@@ -623,7 +649,7 @@ function LanguageCard({ onUserUpdate }) {
       </div>
     </div>
     <AccountFieldErrors error={error} field="preferred_language" id="settings-language-error" />
-    <AccountFieldErrors error={error} />
+    <AccountFormAlert error={error} />
     {message && <p className="ui-group-footer" role="status">{message}</p>}
   </div>;
 }

@@ -28,18 +28,46 @@ export const AUTH_FIELD_ORDER = Object.freeze({
   login: ["email", "password"],
   signup: [
     "full_name",
-    "college",
-    "specialty",
-    "cohort_id",
     "email",
     "password",
     "password_confirm",
+    "college",
+    "specialty",
+    "cohort_id",
     "accept_policies"
   ],
   forgot: ["email"],
   verify: ["code"],
-  complete: ["username", "full_name", "college", "specialty", "cohort_id"]
+  complete: ["username", "full_name", "college", "specialty", "cohort_id"],
+  reset: ["new_password", "new_password_confirm"],
+  password_change: ["current_password", "new_password", "new_password_confirm"]
 });
+
+/**
+ * Creating an account is asked in two screens: the account itself, then the
+ * study path it belongs to. Nothing is sent until the second one is submitted,
+ * so these only decide which screen a message -- ours or the server's -- is
+ * shown on. A field the server names that is not listed here (one the form
+ * never asks for) stays on the screen that sent the request.
+ */
+export const SIGNUP_STEP_FIELDS = Object.freeze({
+  1: Object.freeze(["full_name", "email", "password", "password_confirm"]),
+  2: Object.freeze(["college", "specialty", "cohort_id", "accept_policies"])
+});
+
+/** @returns {1 | 2} the create-account screen that shows this field */
+export function signupStepForField(field) {
+  return SIGNUP_STEP_FIELDS[1].includes(field) ? 1 : 2;
+}
+
+/**
+ * Only the messages that belong to one create-account screen.
+ * @param {Record<string, string[]>} fields
+ * @param {1 | 2} step
+ */
+export function fieldsForSignupStep(fields, step) {
+  return Object.fromEntries(Object.entries(fields || {}).filter(([field]) => signupStepForField(field) === step));
+}
 
 /** The DOM id that holds each field's focus target. */
 export const AUTH_FIELD_INPUT_IDS = Object.freeze({
@@ -75,6 +103,9 @@ const BACKEND_MESSAGE_KEYS = [
   [/entirely numeric/i, "auth.errorPasswordNumeric"],
   [/too similar to/i, "auth.errorPasswordSimilar"],
   [/username is unavailable/i, "auth.errorUsernameTaken"],
+  [/current password is incorrect/i, "auth.errorCurrentPassword"],
+  [/different from your current one/i, "auth.errorPasswordSame"],
+  [/different from the current one/i, "auth.errorEmailSame"],
   [/email or password is incorrect/i, "auth.errorInvalidCredentials"],
   [/code is invalid or has expired|link is invalid or has expired/i, "auth.codeInvalid"],
   [/policy acceptance is required/i, "auth.acceptRequired"],
@@ -89,14 +120,49 @@ const ERROR_CODE_KEYS = {
   registration_unavailable: "auth.errorRegistrationClosed",
   offline: "auth.errorOffline",
   network_error: "auth.errorNetwork",
-  timeout: "auth.errorTimeout"
+  timeout: "auth.errorTimeout",
+  // Verification codes. The server names a reason other than "incorrect"
+  // only to someone who submitted the very code it mailed.
+  invalid_verification_code: "auth.codeIncorrect",
+  verification_code_expired: "auth.codeExpired",
+  verification_code_replaced: "auth.codeReplaced",
+  verification_attempts_exceeded: "auth.codeAttemptsExceeded",
+  email_already_verified: "auth.emailAlreadyVerified",
+  // Links. Holding the link is the proof, so each state can be named.
+  invalid_reset_token: "auth.resetLinkInvalid",
+  reset_link_expired: "auth.resetLinkExpired",
+  reset_link_used: "auth.resetLinkUsed",
+  email_link_expired: "auth.emailLinkExpired",
+  email_link_used: "auth.emailLinkUsed",
+  // The service itself.
+  email_delivery_unavailable: "auth.errorEmailDelivery",
+  service_unavailable: "auth.errorServiceUnavailable"
 };
+
+/** Codes whose wording depends on the screen: a link page is not a code box. */
+const LINK_MODES = new Set(["reset", "confirm-email"]);
 
 /** Which field a whole-request failure belongs beside. */
 const ERROR_CODE_FIELDS = {
   invalid_credentials: "password",
-  invalid_or_expired_token: "code"
+  invalid_or_expired_token: "code",
+  invalid_verification_code: "code",
+  verification_code_expired: "code",
+  verification_code_replaced: "code",
+  verification_attempts_exceeded: "code"
 };
+
+/**
+ * A failure with no code we know, read from its HTTP status. A proxy's 502
+ * page or a crashed worker arrives with no JSON at all, and its only message
+ * is "Request failed (502)." -- English, and no help to anyone.
+ */
+function keyForStatus(status) {
+  if (status === 429) return "auth.errorTooManyAttempts";
+  if (status === 502 || status === 503 || status === 504) return "auth.errorServiceUnavailable";
+  if (status >= 500) return "auth.errorGeneric";
+  return "";
+}
 
 function translateBackendMessage(message, t) {
   const text = typeof message === "string" ? message.trim() : "";
@@ -215,7 +281,7 @@ export function focusAuthField(field) {
  * something failed, so it is replaced by the first field message; when every
  * message already sits beside a field, the form shows no banner at all.
  *
- * @param {{code?: unknown, message?: unknown, fields?: unknown} | null | undefined} error
+ * @param {{code?: unknown, message?: unknown, fields?: unknown, status?: unknown} | null | undefined} error
  * @param {{t: (key: string) => string, mode?: string}} options
  * @returns {{message: string, fields: Record<string, string[]>, code: string}}
  */
@@ -233,7 +299,10 @@ export function normalizeAuthError(error, { t, mode = "login" }) {
     if (messages.length) fields[key] = messages;
   }
 
-  const codeKey = ERROR_CODE_KEYS[code];
+  const status = typeof error.status === "number" ? error.status : 0;
+  const codeKey = code === "invalid_or_expired_token" && LINK_MODES.has(mode)
+    ? "auth.linkInvalid"
+    : ERROR_CODE_KEYS[code] || keyForStatus(status);
   const fallback = messageList(rawFields.non_field_errors, t);
   let message = codeKey ? t(codeKey) : "";
   if (!message && fallback.length) message = fallback.join(" ");

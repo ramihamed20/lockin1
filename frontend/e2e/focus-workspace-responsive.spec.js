@@ -247,8 +247,8 @@ test("the iPad toolbar keeps direct tools, quick colors, and Active Study usable
   await expect.poll(() => page.locator("#workspace-pen-options").evaluate((node) => node.scrollTop)).toBe(0);
   await expect.poll(() => page.locator("#workspace-pen-options").evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
   await page.screenshot({ path: testInfo.outputPath("ipad-pen-options-night.png") });
-  // Ball, Fountain, Brush, and the temporary Pointer and Neon pens.
-  await expect(page.getByRole("group", { name: "Pen type" }).getByRole("button")).toHaveCount(5);
+  // Ball, Fountain, Brush, and the temporary glowing Pointer pen.
+  await expect(page.getByRole("group", { name: "Pen type" }).getByRole("button")).toHaveCount(4);
   await page.getByRole("button", { name: "Set thickness to 8" }).click();
   await expect(page.getByRole("slider", { name: "Thickness" })).toHaveValue("8");
   await page.getByText("Presets & pen gestures").click();
@@ -313,7 +313,8 @@ test("the iPad toolbar keeps direct tools, quick colors, and Active Study usable
   await expect.poll(() => page.getByRole("dialog", { name: "Workspace settings" }).evaluate((node) => getComputedStyle(node).opacity)).toBe("1");
   await page.screenshot({ path: testInfo.outputPath("ipad-settings-night.png") });
   await page.keyboard.press("Escape");
-  await toolbar.getByRole("button", { name: "Choose study mode" }).click();
+  await toolbar.getByRole("button", { name: "Study", exact: true }).click();
+  await page.getByRole("dialog", { name: "Study", exact: true }).getByRole("button", { name: /Normal Study/ }).click();
   await expect(page.getByRole("dialog", { name: /Choose study mode/i })).toBeVisible();
   await page.getByRole("button", { name: /Normal Study/ }).click();
 

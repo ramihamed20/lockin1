@@ -1,6 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { mockStudentApi } from "./helpers/mock-student-api.js";
 
+// This checks native annotation connection cleanup. WebKit routing stops
+// intercepting API fetches after navigation under a controlling test SW;
+// dedicated PWA specs exercise service-worker behavior separately.
+test.use({ serviceWorkers: "block" });
+
 test("leaving the reader releases annotation databases across repeated mounts", async ({ page }) => {
   test.setTimeout(60_000);
   await mockStudentApi(page);
@@ -27,7 +32,7 @@ test("leaving the reader releases annotation databases across repeated mounts", 
     await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible();
     await expect.poll(() => page.evaluate(() => window.auditWorkspaceConnections())).toBe(1);
     await page.goto("/#/");
-    await expect(page.locator(".dashboard-layout")).toBeVisible();
+    await expect(page.locator(".dashboard")).toBeVisible();
     await expect.poll(() => page.evaluate(() => window.auditWorkspaceConnections())).toBe(0);
   }
 });

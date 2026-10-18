@@ -1,3 +1,4 @@
+import { allQuestionsRequestBody } from "../lib/allQuestionsImport.js";
 import { ApiError, request } from "./client.js";
 import { buildQueryString, generateIdempotencyKey } from "./pagination.js";
 
@@ -128,10 +129,10 @@ export const adminControlApi = {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/all-questions` + buildQueryString({ edition, excluded_start_pages: exclusions.excluded_start_pages, excluded_end_pages: exclusions.excluded_end_pages }));
   },
   validateAllQuestions(sheetId, body, edition = "") {
-    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/all-questions/validate` + buildQueryString({ edition }), { method: "POST", body, timeoutMs: 120_000 });
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/all-questions/validate` + buildQueryString({ edition }), { method: "POST", body: allQuestionsRequestBody(body), timeoutMs: 120_000 });
   },
   saveAllQuestions(sheetId, body, edition = "") {
-    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/all-questions` + buildQueryString({ edition }), { method: "PUT", body, timeoutMs: 180_000 });
+    return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/all-questions` + buildQueryString({ edition }), { method: "PUT", body: allQuestionsRequestBody(body), timeoutMs: 180_000 });
   },
   deleteActiveStudyQuestions(sheetId, difficulty, expectedRevision, edition = "") {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}/active-study/questions/${difficulty}` + buildQueryString({ edition }), { method: "DELETE", body: { expected_revision: Number(expectedRevision) } });
@@ -201,14 +202,14 @@ export const adminControlApi = {
 
   purchases: (options = {}) => request(pagePath("/operations/admin/purchases", options), { signal: options.signal }).then((data) => page(data, "The purchase list response was incomplete.")),
   purchase: (paymentId) => request(`/operations/admin/purchases/${id(paymentId, "purchase identifier")}`),
-  reviewManualPayment(paymentId, decision, reviewReason) {
+  reviewManualPayment(paymentId, decision, reviewReason, collectedAmountMinor = 0) {
     const cleanReason = typeof reviewReason === "string" ? reviewReason.trim() : "";
     if (!['approve', 'reject'].includes(decision) || cleanReason.length < 3) {
       throw new ApiError(0, null, "A valid review decision and reason are required.", "invalid_request");
     }
     return request(`/operations/admin/purchases/${id(paymentId, "purchase identifier")}/manual-review`, {
       method: "POST",
-      body: { decision, reason: cleanReason },
+      body: { decision, reason: cleanReason, collected_amount_minor: collectedAmountMinor },
       idempotencyKey: generateIdempotencyKey()
     });
   },

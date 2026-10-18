@@ -7,6 +7,7 @@ from .paper_workspace_views import (
     LofiScenesView,
     PaperWorkspaceYouTubeSearchView,
 )
+from .rescue_views import RescueSessionView, RescueSuggestionsView
 from .views import (
     ActiveStudyContinueView,
     ActiveStudyQuizView,
@@ -39,6 +40,8 @@ from .views import (
 app_name = "focus"
 
 urlpatterns = [
+    path("focus/rescue/suggestions", RescueSuggestionsView.as_view()),
+    path("focus/rescue/sessions/<uuid:session_id>", RescueSessionView.as_view()),
     path("focus/active-study/start", ActiveStudyStartView.as_view()),
     path("focus/active-study/<uuid:run_id>/quiz", ActiveStudyQuizView.as_view()),
     path("focus/active-study/<uuid:run_id>/continue", ActiveStudyContinueView.as_view()),

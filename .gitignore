@@ -50,3 +50,6 @@ Thumbs.db
 # Runtime logs and local demo databases.
 backend/.local-logs/
 *.sqlite3
+
+# Large synthetic image PDF is reproduced by fixtures:pdf, not stored in Git.
+/frontend/e2e/fixtures/pdf/sheet-scanned.pdf

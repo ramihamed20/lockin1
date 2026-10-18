@@ -292,8 +292,8 @@ test("the notes drawer rides above the keyboard on a phone", async ({ page }) =>
   const editor = page.locator(".workspace-v2-note-editor textarea");
   await expect(editor).toBeVisible();
 
+  await expect.poll(async () => (await readerState(page)).drawerBottom).toBe(0);
   const resting = await readerState(page);
-  expect(resting.drawerBottom).toBe(0);
 
   await editor.click();
   const inset = 354;
@@ -312,7 +312,7 @@ test("the notes drawer rides above the keyboard on a phone", async ({ page }) =>
   await setKeyboardInset(page, { width: 390, height: 844 }, 0, "visual");
   await page.evaluate(() => document.activeElement?.blur());
   await setKeyboardInset(page, { width: 390, height: 844 }, 0, "visual");
-  expect((await readerState(page)).drawerBottom).toBe(0);
+  await expect.poll(async () => (await readerState(page)).drawerBottom).toBe(0);
 });
 
 // Touch emulation is where the 16px floor actually matters, and where the

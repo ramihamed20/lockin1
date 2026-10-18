@@ -176,7 +176,7 @@ test("Active Study downloads, runs a checkpoint with the server unreachable and 
   await page.getByRole("dialog", { name: "1 / 1" }).getByRole("button", { name: "Continue studying" }).click();
 
   // 12-13. Part 2 unlocks below; earlier pages stay; the reader does not return to page one.
-  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pages 11–20" })).toBeVisible();
   await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]")).toHaveCount(20);
   await expect(page.locator('.workspace-v2-a4-page[data-pdf-page="1"]')).toHaveCount(1);
   await expect(page.locator('.workspace-v2-a4-page[data-pdf-page="21"]')).toHaveCount(0);
@@ -196,7 +196,7 @@ test("Active Study downloads, runs a checkpoint with the server unreachable and 
   await page.waitForTimeout(1_500);
   expect(state.synced).toHaveLength(1);
   // The reader is still on Part 2 after the authoritative run is adopted.
-  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pages 11–20" })).toBeVisible();
 });
 
 /** Online: verify access and download the University Sheet with its Active Study bundle. */
@@ -292,7 +292,7 @@ test("a passed checkpoint keeps the next part through a reload and syncs by itse
   // A passed student is offered only to continue: never "Study this part again".
   await expect(result.getByRole("button", { name: "Study this part again" })).toHaveCount(0);
   await result.getByRole("button", { name: "Continue studying" }).click();
-  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pages 11–20" })).toBeVisible();
   await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]")).toHaveCount(20);
 
   // Closing and reopening the sheet keeps Part 2 unlocked, with Part 1 still
@@ -301,7 +301,7 @@ test("a passed checkpoint keeps the next part through a reload and syncs by itse
   const reopened = page.getByRole("dialog", { name: "Choose study mode" });
   await expect(reopened).toBeVisible({ timeout: 20_000 });
   await reopened.getByRole("button", { name: /Active Study/ }).first().click();
-  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("button", { name: "Pages 11–20" })).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]")).toHaveCount(20);
   await expect(page.locator('.workspace-v2-a4-page[data-pdf-page="1"]')).toHaveCount(1);
   await expect(page.getByRole("dialog", { name: /Which vitamin/ })).toHaveCount(0);
@@ -329,7 +329,7 @@ test("a passed checkpoint keeps the next part through a reload and syncs by itse
   await page.clock.fastForward(await page.evaluate(() => window.__offlineRetryDelay) + 1);
   await expect.poll(() => state.synced.length, { timeout: 30_000 }).toBe(1);
   expect(state.synced[0]).toMatchObject({ operation_type: "active_study_attempt", payload: { kind: "checkpoint", part: 1 } });
-  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pages 11–20" })).toBeVisible();
 });
 
 test("a cold start whose requests hang opens downloaded work instead of waiting for the server", async ({ page }) => {

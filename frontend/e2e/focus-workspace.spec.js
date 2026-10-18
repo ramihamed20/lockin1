@@ -7,6 +7,7 @@ const SHARED_TEST_SHEET_ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vita
 const SCREENSHOT_DIR = "output/playwright";
 
 async function mockAuthenticatedWorkspace(page) {
+  await page.addInitScript(() => localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now())));
   let catalogBookmarked = false;
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
@@ -249,7 +250,7 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   const highlighterOptions = page.locator("#workspace-highlighter-options");
   await expect(highlighterOptions).toBeVisible();
   await expectBoundsInViewport(highlighterOptions, 834, 1194);
-  await expect(highlighterOptions.getByRole("button", { name: "Use #8b5cf6" })).toHaveCSS("width", "44px");
+  await expect(highlighterOptions.getByRole("button", { name: "Use #7c3aed" })).toHaveCSS("width", "44px");
   await expect(highlighterOptions.getByRole("slider", { name: "Thickness" })).toBeVisible();
   await expect(highlighterOptions.getByRole("slider", { name: "Opacity" })).toBeVisible();
   await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-ipad-portrait-834x1194.png`, fullPage: false });
@@ -314,7 +315,7 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await penOptions.getByRole("button", { name: "Delete #123456" }).click();
   await expect(penOptions.getByRole("button", { name: "Use #123456" })).toHaveCount(0);
   await expect(penOptions.getByRole("button", { name: "Add Color" })).toBeVisible();
-  await expect(penOptions.getByRole("button", { name: "Use #2196f3" })).toHaveAttribute("aria-pressed", "true");
+  await expect(penOptions.getByRole("button", { name: "Use #2563eb" })).toHaveAttribute("aria-pressed", "true");
   await penOptions.getByRole("button", { name: "Add Color" }).click();
   await penOptions.locator('input[aria-label="Choose custom color"]').fill("#6789ab");
   await penOptions.getByRole("button", { name: "Save custom color" }).click();
@@ -358,7 +359,7 @@ test("Active Study reading chrome and checkpoint remain unobstructed @chromium-o
   const dialog = page.getByRole("dialog", { name: "Choose study mode" });
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: /Start Active Study/ }).click();
-  await expect(page.getByRole("button", { name: "Active Study: part 1 of 4" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pages 1–10" })).toBeVisible();
   const checkpoint = page.locator(".workspace-v2-checkpoint-dock");
   await expect(checkpoint).toBeVisible();
   await expect(page.getByRole("button", { name: "Reach page 10 to unlock the checkpoint" })).toBeVisible();
@@ -413,7 +414,7 @@ test("Active Study can restart saved progress from Part 1 without changing the P
   await dialog.getByRole("button", { name: "Restart Medium from the beginning" }).click();
   await expect(dialog.getByText(/Your PDF notes and annotations stay/)).toBeVisible();
   await dialog.getByRole("button", { name: "Restart from Part 1" }).click();
-  await expect(page.getByRole("button", { name: "Active Study: part 1 of 4" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pages 1–10" })).toBeVisible();
   await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]").first()).toBeVisible();
   expect(restartRequests).toBe(1);
 });
@@ -456,17 +457,24 @@ test("a sheet opens in Normal Study, reopens where Active Study was saved, and D
     await expect(page.locator(".workspace-v2")).toBeVisible();
   };
   const studyButton = page.locator(".workspace-v2-study-mode-button");
+  const studyMenu = page.getByRole("dialog", { name: "Study", exact: true });
+  // The study mode is one entry of the toolbar Study launcher.
+  const openStudyMode = async () => {
+    await studyButton.click();
+    await studyMenu.locator("[data-study-action=\"mode\"]").click();
+    await expect(studyMenu).toBeHidden();
+  };
   const modeDialog = page.getByRole("dialog", { name: "Choose study mode" });
   const exit = page.getByRole("alertdialog", { name: "Save your progress?" });
   const indicator = page.locator(".workspace-v2-page-number");
 
-  // First visit: Normal Study, no chooser. Active Study is picked from the Study button.
+  // First visit: Normal Study, no chooser. Active Study is picked from the Study launcher.
   await openFromSheet();
   await expect(modeDialog).toBeHidden();
   await expect(studyButton).toHaveClass(/is-normal/);
-  await studyButton.click();
+  await openStudyMode();
   await modeDialog.getByRole("button", { name: /Start Active Study/ }).click();
-  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pages 11–20" })).toBeVisible();
   await expect(indicator).toHaveAttribute("aria-label", "PDF page 15 of 20");
 
   // Leaving asks; Cancel stays, Save leaves.
@@ -481,13 +489,13 @@ test("a sheet opens in Normal Study, reopens where Active Study was saved, and D
 
   // Coming back resumes the saved run at its page, without the chooser.
   await openFromSheet();
-  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pages 11–20" })).toBeVisible();
   await expect(indicator).toHaveAttribute("aria-label", "PDF page 15 of 20");
   await expect(modeDialog).toBeHidden();
   expect(starts).toEqual(["medium", "medium"]);
 
   // Switching to Normal there makes the sheet open in Normal next time.
-  await studyButton.click();
+  await openStudyMode();
   await modeDialog.getByRole("button", { name: /Normal Study/ }).click();
   await expect(studyButton).toHaveClass(/is-normal/);
   await page.getByRole("button", { name: "Exit workspace" }).click();
@@ -497,7 +505,7 @@ test("a sheet opens in Normal Study, reopens where Active Study was saved, and D
   expect(starts).toHaveLength(2);
 
   // Don't Save restarts the run from Part 1 and the sheet opens in Normal again.
-  await studyButton.click();
+  await openStudyMode();
   await modeDialog.getByRole("button", { name: /Start Active Study/ }).click();
   await page.getByRole("button", { name: "Exit workspace" }).click();
   await exit.getByRole("button", { name: "Don't Save" }).click();
@@ -722,7 +730,7 @@ test("an Active Study checkpoint asks before closing, saves or discards only the
   await exit.getByRole("button", { name: "Exit Without Saving" }).click();
   await expect(quiz).toHaveCount(0);
   expect(calls.filter((call) => call === "discard-attempt")).toHaveLength(2);
-  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pages 11–20" })).toBeVisible();
   await openCheckpoint();
   await expect(quiz.getByText("0 of 2 answered")).toBeVisible();
 
@@ -797,7 +805,7 @@ test("passing a checkpoint unlocks the next part below the reader instead of ret
   await page.getByRole("dialog", { name: "1 / 1" }).getByRole("button", { name: "Continue studying" }).click();
 
   // Part 2 is appended; Part 1 stays mounted and the reader has not moved.
-  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pages 11–20" })).toBeVisible();
   await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]")).toHaveCount(20);
   await expect(page.locator('.workspace-v2-a4-page[data-pdf-page="1"]')).toHaveCount(1);
   await expect(page.locator('.workspace-v2-a4-page[data-pdf-page="21"]')).toHaveCount(0);
@@ -883,7 +891,7 @@ test("an online True/False checkpoint is answered and submitted through the serv
   await third.getByRole("button", { name: "Submit test" }).click();
 
   await page.getByRole("dialog", { name: "3 / 3" }).getByRole("button", { name: "Continue studying" }).click();
-  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pages 11–20" })).toBeVisible();
   expect(posted).toEqual(["T", "F", "B"]);
   await expect(page.getByText("The request could not be completed.")).toHaveCount(0);
   expect(offlineSyncs).toEqual([]);
@@ -891,5 +899,5 @@ test("an online True/False checkpoint is answered and submitted through the serv
   // The server's run is what a reload restores.
   await page.reload();
   await page.getByRole("dialog", { name: "Choose study mode" }).getByRole("button", { name: /Active Study/ }).first().click();
-  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("button", { name: "Pages 11–20" })).toBeVisible({ timeout: 20_000 });
 });

@@ -104,6 +104,7 @@ html.ix-hover .workspace-v2-toolbar .workspace-v2-icon-button:hover:not(:disable
 
 /* An open menu is disclosure, not a chosen tool: neutral glass, no accent. */
 .workspace-v2-toolbar .workspace-v3-utility-button.is-active { color: #fff; background: rgb(255 255 255 / .14); box-shadow: inset 0 0 0 1px rgb(255 255 255 / .1); }
+.workspace-v2-toolbar .workspace-v2-study-mode-button[aria-expanded="true"] { color: #fff; background: rgb(255 255 255 / .14); box-shadow: inset 0 0 0 1px rgb(255 255 255 / .1); }
 
 .workspace-v3-quick-color > span {
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / .18), inset 0 1px 1px rgb(255 255 255 / .35);
@@ -203,8 +204,8 @@ html.ix-hover .workspace-v2-toolbar .workspace-v2-icon-button:hover:not(:disable
   background: transparent;
 }
 .workspace-v2 .workspace-v7-panel-body .workspace-v2-icon-choices[aria-label="Shape type"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-/* Five pen types (three inks, Pointer, Neon) share one row. */
-.workspace-v2 .workspace-v7-panel-body .workspace-v4-pen-profiles { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+/* Four pen types (three inks and Pointer) share one row. */
+.workspace-v2 .workspace-v7-panel-body .workspace-v4-pen-profiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .workspace-v2 .workspace-v7-panel-body :is(.workspace-v2-icon-choices, .workspace-v4-pen-profiles) button {
   display: grid;
   min-width: 0;
@@ -2085,4 +2086,12 @@ html.ix-hover .workspace-tab:not(.is-active):hover { color: var(--fx-text-2); ba
 @media (pointer: coarse) {
   .workspace-whiteboard-footer { height: 160px; }
   .workspace-whiteboard-footer button { min-height: 56px; margin-top: 8px; padding: 0 26px; font-size: .95rem; }
+}
+
+/* The Study launcher carries its name where the toolbar has room, so a student
+   does not have to guess what the icon opens. Narrower toolbars keep the icon. */
+.workspace-v2-study-mode-label { display: none; }
+@media (min-width: 1180px) and (min-height: 600px) and (pointer: fine) {
+  .workspace-v2.workspace-v2 .workspace-v2-toolbar .workspace-v2-study-mode-button:not(.has-progress) { display: inline-flex; width: auto; gap: 6px; padding-inline: 10px; }
+  .workspace-v2-study-mode-label { display: inline; font-size: .8rem; font-weight: 700; }
 }

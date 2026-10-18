@@ -193,6 +193,7 @@ class AdminManualPaymentReviewView(APIView):
                 decision=str(serializer.validated_data["decision"]),
                 reason=str(serializer.validated_data["reason"]),
                 idempotency_key=_idempotency_key(request),
+                collected_amount_minor=int(serializer.validated_data["collected_amount_minor"]),
             )
             payment = admin_purchases().get(id=payment_id)
         except (ManualPaymentError, Payment.DoesNotExist) as error:
@@ -411,7 +412,10 @@ class AdminUserDetailView(APIView):
             ).get(id=user_id)
         except User.DoesNotExist as error:
             raise NotFound("User not found.") from error
-        data = serialize_user_detail(target)
+        data = serialize_user_detail(
+            target,
+            include_financial=has_operational_capability(_user(request), Capability.PAYMENTS_VIEW),
+        )
         data["notes"] = AdminInternalNoteSerializer(data["notes"], many=True).data
         return Response(data)
 

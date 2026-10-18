@@ -1,9 +1,12 @@
 import { gzipSync } from "node:zlib";
 import { readdir, readFile } from "node:fs/promises";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join, resolve, sep } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-const dist = new URL("../dist/", import.meta.url);
+// Explicit artifact selection keeps frozen production comparisons verifiable.
+// The normal CI invocation retains its existing dist/ and unchanged budgets.
+const distArgument = process.argv.slice(2).find((argument) => argument.startsWith("--dist="))?.slice(7);
+const dist = distArgument ? pathToFileURL(resolve(distArgument) + sep) : new URL("../dist/", import.meta.url);
 const assets = new URL("assets/", dist);
 const assetDirectory = fileURLToPath(assets);
 const names = await readdir(assetDirectory);

@@ -97,3 +97,69 @@ class RefundTransition(models.Model):
 
     def __str__(self) -> str:
         return f"{self.refund_id}:{self.from_status}->{self.to_status}"
+
+
+class RefundClaim(models.Model):
+    """One user request and its original receipt clock, independent of payout."""
+
+    class Status(models.TextChoices):
+        REQUESTED = "requested", "Awaiting review"
+        NEEDS_INFO = "needs_info", "More information needed"
+        APPROVED = "approved", "Approved for transfer"
+        COMPLETED = "completed", "Transfer recorded"
+        REJECTED = "rejected", "Rejected with reason"
+        COMPENSATING = "compensating", "Free access until restoration"
+        RESOLVED = "resolved", "Service restored"
+
+    class Kind(models.TextChoices):
+        VOLUNTARY = "voluntary", "Change of mind"
+        PLATFORM_ERROR = "platform_error", "Platform error or unavailable service"
+        PAYMENT_ERROR = "payment_error", "Invalid, partial or duplicate payment"
+        TERMINATION = "termination", "End installment agreement"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="refund_claims"
+    )
+    payment = models.ForeignKey(Payment, on_delete=models.PROTECT, related_name="claims")
+    kind = models.CharField(max_length=24, choices=Kind.choices)
+    remedy = models.CharField(max_length=12, default="refund")
+    reason = models.CharField(max_length=1000)
+    receiver_phone = models.CharField(max_length=20, blank=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.REQUESTED)
+    received_at = models.DateTimeField()
+    due_at = models.DateTimeField(db_index=True)
+    channel = models.CharField(max_length=12, default="website")
+    idempotency_key = models.CharField(max_length=180)
+    policy_version = models.CharField(max_length=64, blank=True)
+    quoted_amount_minor = models.PositiveBigIntegerField(default=0)
+    approved_amount_minor = models.PositiveBigIntegerField(null=True, blank=True)
+    allocations = models.JSONField(default=list)
+    decision_reason = models.CharField(max_length=1000, blank=True)
+    transfer_reference = models.CharField(max_length=160, blank=True)
+    transfer_details = models.JSONField(default=dict, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="reviewed_refund_claims",
+        null=True,
+        blank=True,
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("received_at", "id")
+        constraints = [
+            models.UniqueConstraint(fields=("user", "idempotency_key"), name="refund_claim_retry"),
+            models.UniqueConstraint(
+                fields=("payment",),
+                condition=Q(status__in=("requested", "needs_info", "approved", "compensating")),
+                name="refund_claim_one_open",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.id}:{self.status}"

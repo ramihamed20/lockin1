@@ -18,3 +18,14 @@ test("public legal and support pages are reachable without an account", async ({
   await expect(page).toHaveURL(/#\/support$/);
   await expect(page.getByRole("heading", { name: "Support", exact: true })).toBeVisible();
 });
+
+
+test("refund rights and the approved document are accessible on a narrow Arabic page", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/#/refunds");
+  await expect(page.getByText(/50% من مجموع/)).toBeVisible();
+  await expect(page.getByText(/48 ساعة من وصول الطلب/)).toBeVisible();
+  await expect(page.getByRole("link", { name: /Download the complete Arabic/ })).toHaveAttribute("href", "/policies/Lockin_User_Policies_2026.pdf");
+  await expect(page.locator("[lang=ar][dir=rtl]")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});

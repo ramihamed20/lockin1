@@ -23,9 +23,14 @@ import { E2E_OFFLINE_LEASE_PUBLIC_KEY } from "../e2e/fixtures/offlineLease.js";
 const frontendRoot = resolve(fileURLToPath(new URL("../", import.meta.url)));
 const fixtures = resolve(frontendRoot, "e2e/fixtures/pdf");
 
-if (!existsSync(fixtures)) {
-  console.error("Reader fixtures are missing. Run: npm run fixtures:pdf");
-  process.exit(1);
+// The large scanned fixture is intentionally excluded from Git. A clean CI
+// checkout must generate it before the geometry regression can request it.
+if (!existsSync(fixtures) || !existsSync(resolve(fixtures, "sheet-scanned.pdf"))) {
+  const generated = spawnSync(process.execPath, ["scripts/make-e2e-pdf.mjs"], {
+    cwd: frontendRoot,
+    stdio: "inherit"
+  });
+  if (generated.status !== 0) process.exit(generated.status ?? 1);
 }
 
 const result = spawnSync("npx", ["vite", "build"], {

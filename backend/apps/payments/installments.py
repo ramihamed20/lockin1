@@ -21,6 +21,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.accounts.models import User
+from apps.accounts.policies import USER_POLICY_VERSION
 from apps.notifications.models import Notification
 from apps.notifications.services import create_notification
 from apps.product_catalog.dentistry_terms import (
@@ -31,7 +32,7 @@ from apps.product_catalog.models import Price, fixed_period_end
 from apps.subscriptions.models import Subscription, SubscriptionTransition
 from apps.subscriptions.services import advance_billing_period, transition_subscription
 
-from .models import InstallmentAgreement, Payment
+from .models import InstallmentAgreement, ManualRechargeSubmission, Payment
 
 INSTALLMENT_REASON_PREFIX = "installment_"
 
@@ -89,11 +90,22 @@ def installment_snapshot(
     current = now or timezone.now()
     amounts = [int(value) for value in agreement.installment_amounts_minor]
     payments = list(
-        agreement.payments.filter(
-            status__in=(Payment.Status.PENDING, Payment.Status.SUCCEEDED)
-        ).order_by("installment_number", "created_at")
+        agreement.payments.filter(status__in=(Payment.Status.PENDING, Payment.Status.SUCCEEDED))
+        .select_related("manual_submission")
+        .order_by("installment_number", "created_at")
     )
-    settled = {p.installment_number for p in payments if p.status == Payment.Status.SUCCEEDED}
+    settled = {
+        p.installment_number
+        for p in payments
+        if p.status == Payment.Status.SUCCEEDED
+        and p.installment_number
+        and 1 <= p.installment_number <= len(amounts)
+        and p.amount_minor >= amounts[p.installment_number - 1]
+        and (
+            getattr(p, "manual_submission", None) is None
+            or p.manual_submission.status == ManualRechargeSubmission.Status.APPROVED
+        )
+    }
     pending = {p.installment_number: p for p in payments if p.status == Payment.Status.PENDING}
     paid_minor = sum(amounts[n - 1] for n in settled if n and 1 <= n <= len(amounts))
     next_number = next((n for n in range(1, len(amounts) + 1) if n not in settled), None)
@@ -125,7 +137,12 @@ def installment_snapshot(
     window_end = next_due + INSTALLMENT_PAYMENT_WINDOW if next_due else None
     submitted = pending.get(next_number) if open_schedule else None
     if next_due and window_end and next_due <= current:
-        if submitted is not None and submitted.created_at <= window_end:
+        # A card sent before the window closed keeps access while it is
+        # reviewed, under every policy version: the delay is the review's, not
+        # the student's. Only a card sent after the window counts as a default.
+        if submitted is not None and (
+            submitted.installment_number == 1 or submitted.created_at <= window_end
+        ):
             state = InstallmentState.IN_REVIEW
         elif submitted is None and current <= window_end:
             state = InstallmentState.OVERDUE
@@ -233,6 +250,14 @@ def enforce_installments(*, subscription: Subscription, now: datetime) -> Subscr
     """Converge the subscription's status to what its installments allow."""
 
     if subscription.status not in (Subscription.Status.ACTIVE, Subscription.Status.SUSPENDED):
+        return subscription
+    first_pending = Payment.objects.filter(
+        subscription=subscription,
+        installment_number=1,
+        status=Payment.Status.PENDING,
+        price_snapshot__policy_version=USER_POLICY_VERSION,
+    ).exists()
+    if first_pending:
         return subscription
     installment_suspended = is_installment_suspension(subscription)
     if (

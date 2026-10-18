@@ -1,8 +1,10 @@
+from datetime import timedelta
 from typing import Any
 
 import pytest
 from django.contrib import auth
 from django.contrib.auth.models import Group
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.models import (
@@ -132,8 +134,16 @@ def test_duplicate_registration_does_not_reveal_account_existence() -> None:
     )
 
     assert first.status_code == repeated.status_code == 201
-    assert first.json() == repeated.json() == {"status": "verification_required"}
+    assert (
+        first.json()
+        == repeated.json()
+        == {
+            "status": "verification_required",
+            "email_delivery": "queued",
+        }
+    )
     assert User.objects.count() == 1
+    # The repeat falls inside the resend cooldown, so no second code is issued.
     assert OneTimeToken.objects.filter(kind=OneTimeToken.Kind.EMAIL_VERIFICATION).count() == 1
 
 
@@ -184,7 +194,9 @@ def test_email_verification_code_is_single_use() -> None:
     )
 
     assert first.status_code == 200
-    assert second.status_code == 400
+    # Only the holder of the spent code is told the address is already verified.
+    assert second.status_code == 409
+    assert second.json()["error"]["code"] == "email_already_verified"
     assert User.objects.get().is_email_verified
 
 
@@ -206,7 +218,8 @@ def test_resend_and_reset_requests_do_not_disclose_account_existence() -> None:
     )
 
     assert missing.status_code == existing.status_code == 200
-    assert missing.json() == existing.json() == {"status": "accepted"}
+    assert missing.json() == existing.json()
+    assert missing.json()["status"] == "accepted"
 
 
 def test_login_requires_verification_and_uses_generic_error() -> None:
@@ -837,15 +850,19 @@ def test_verify_email_rejects_an_unknown_code_without_touching_any_account() -> 
     )
 
     assert response.status_code == 400
-    assert response.json()["error"]["code"] == "invalid_or_expired_token"
+    assert response.json()["error"]["code"] == "invalid_verification_code"
     assert not User.objects.get().is_email_verified
 
 
 def test_verify_email_rejects_an_expired_code(settings: Any) -> None:
-    settings.ACCOUNT_EMAIL_VERIFICATION_TTL_SECONDS = 0
     client, csrf = csrf_client()
     client.post("/api/v1/auth/register", REGISTRATION, format="json", HTTP_X_CSRFTOKEN=csrf)
     code = code_from_latest_email()
+    # Expire it after delivery: the worker never mails a code that is already
+    # dead, so the expiry has to happen while it sits in the reader's inbox.
+    OneTimeToken.objects.filter(kind=OneTimeToken.Kind.EMAIL_VERIFICATION).update(
+        expires_at=timezone.now() - timedelta(seconds=1)
+    )
 
     response = client.post(
         "/api/v1/auth/verify-email",
@@ -855,7 +872,7 @@ def test_verify_email_rejects_an_expired_code(settings: Any) -> None:
     )
 
     assert response.status_code == 400
-    assert response.json()["error"]["code"] == "invalid_or_expired_token"
+    assert response.json()["error"]["code"] == "verification_code_expired"
     assert not User.objects.get().is_email_verified
 
 
@@ -1054,8 +1071,8 @@ def test_a_spent_verification_code_cannot_be_replayed_into_a_session() -> None:
         HTTP_X_CSRFTOKEN=replay_csrf,
     )
 
-    assert replayed.status_code == 400
-    assert replayed.json()["error"]["code"] == "invalid_or_expired_token"
+    assert replayed.status_code == 409
+    assert replayed.json()["error"]["code"] == "email_already_verified"
     assert not auth.get_user(replay_client).is_authenticated
     assert AccountSession.objects.count() == 1
 

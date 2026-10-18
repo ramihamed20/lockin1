@@ -8,6 +8,11 @@ from django.utils import timezone
 from apps.product_catalog.models import Price
 from apps.subscriptions.models import Subscription, SubscriptionAccount
 
+# A rejected card order that still collected money. The collection stays a
+# SUCCEEDED payment so it carries an invoice and a refund right, but it bought
+# nothing: it is not a purchase, an installment or a used introductory offer.
+PARTIAL_COLLECTION_FAILURE_CODE = "manual_rejected_partial_collection"
+
 
 class Payment(models.Model):
     class Method(models.TextChoices):

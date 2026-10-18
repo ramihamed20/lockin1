@@ -1,0 +1,76 @@
+/*
+ * Floating glass pill: time on one side, a ring that fills as the phase runs
+ * around the play/pause button. Starts at the physical bottom right in both
+ * languages (clear of the page/zoom row); the student can drag it anywhere.
+ */
+.pomodoro-study-clock { --pomodoro-tone: var(--fx-accent, #3d9bff); position: fixed; z-index: calc(var(--z-immersive) + 4); right: max(12px, env(safe-area-inset-right)); bottom: calc(68px + env(safe-area-inset-bottom)); display: grid; grid-template-columns: minmax(0, 1fr) 40px; align-items: center; gap: 8px; min-width: 118px; padding: 4px 4px 4px 12px; border: 1px solid color-mix(in srgb, var(--pomodoro-tone) 26%, var(--fx-edge, rgb(255 255 255 / .12))); border-radius: 999px; color: var(--fx-text); background: linear-gradient(135deg, color-mix(in srgb, var(--pomodoro-tone) 14%, var(--fx-glass, rgb(18 20 26 / .78))) 0%, color-mix(in srgb, var(--fx-glass, rgb(18 20 26 / .78)) 92%, transparent) 100%); -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4); box-shadow: 0 10px 30px rgb(0 0 0 / .28), inset 0 1px 0 rgb(255 255 255 / .08); cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; transition: opacity .45s ease, transform .2s ease, box-shadow .2s ease, border-color .3s ease; }
+.pomodoro-study-clock[data-dragging] { cursor: grabbing; transform: scale(1.04); box-shadow: 0 18px 44px rgb(0 0 0 / .38), inset 0 1px 0 rgb(255 255 255 / .1); transition: transform .2s ease, box-shadow .2s ease; }
+.pomodoro-study-clock[data-idle] { opacity: .42; }
+.pomodoro-study-clock[data-idle]:has(:focus-visible) { opacity: 1; }
+/* A finger leaves :hover stuck on after a tap, so only a real pointer wakes it by hovering. */
+@media (hover: hover) { .pomodoro-study-clock[data-idle]:hover { opacity: 1; } }
+.pomodoro-study-text { display: grid; gap: 1px; min-width: 0; }
+.pomodoro-study-time { font-size: 1.05rem; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1.1; }
+.pomodoro-study-clock small { color: var(--fx-text-2); font-size: .6rem; font-weight: 500; line-height: 1.3; overflow-wrap: anywhere; }
+.pomodoro-study-clock button { position: relative; display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; color: inherit; background: none; cursor: pointer; }
+.pomodoro-study-clock button::before { content: ""; position: absolute; inset: 6px; border-radius: 50%; background: color-mix(in srgb, var(--pomodoro-tone) 20%, var(--fx-fill, rgb(255 255 255 / .08))); transition: background .3s ease, transform .15s ease; }
+.pomodoro-study-clock button:active::before { transform: scale(.92); }
+.pomodoro-study-clock button > :not(svg) { position: relative; }
+.pomodoro-study-clock button:focus-visible { outline: 2px solid var(--fx-text); outline-offset: 1px; }
+.pomodoro-study-ring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+.pomodoro-study-ring circle { fill: none; stroke-width: 4; }
+.pomodoro-study-ring .is-track { stroke: color-mix(in srgb, var(--pomodoro-tone) 18%, transparent); }
+.pomodoro-study-ring .is-value { stroke: var(--pomodoro-tone); stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: calc(100 - var(--pomodoro-progress, 0) * 100); transition: stroke-dashoffset .95s linear, stroke .3s ease; }
+.pomodoro-study-cycles { display: flex; gap: 4px; margin-top: 2px; }
+.pomodoro-study-cycles i { width: 5px; height: 5px; border-radius: 50%; background: var(--fx-fill-strong, rgb(255 255 255 / .15)); transition: background .3s ease, transform .3s ease; }
+.pomodoro-study-cycles i.is-done { background: var(--pomodoro-tone); transform: scale(1.15); }
+.pomodoro-test-dialog { width: min(440px, calc(100vw - 28px)); max-height: min(85dvh, 680px); margin: auto; overflow: auto; padding: 24px; border: 1px solid var(--border); border-radius: 22px; color: var(--text); background: var(--surface); }
+.pomodoro-test-dialog::backdrop { background: color-mix(in srgb, var(--bg) 55%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.pomodoro-test-dialog form { display: grid; gap: 14px; }
+.pomodoro-test-dialog h2, .pomodoro-test-dialog p { margin: 0; }
+.pomodoro-test-dialog h2 { font-size: 1.3rem; }
+.pomodoro-test-dialog p { font-size: .9rem; line-height: 1.6; }
+.pomodoro-test-dialog input { min-height: 44px; }
+.pomodoro-test-actions { display: flex; flex-wrap: wrap; justify-content: end; gap: 8px; }
+.pomodoro-test-actions button { min-height: 44px; }
+@media (min-width: 768px) { .pomodoro-study-clock { min-width: 140px; gap: 10px; padding: 5px 5px 5px 14px; grid-template-columns: minmax(0, 1fr) 44px; } .pomodoro-study-clock button { width: 44px; height: 44px; } .pomodoro-study-time { font-size: 1.25rem; } .pomodoro-study-clock small { font-size: .66rem; } }
+@media (max-height: 500px) { .pomodoro-study-clock { bottom: calc(58px + env(safe-area-inset-bottom)); } .pomodoro-test-dialog { max-height: calc(100dvh - 16px); padding: 16px; } }
+
+/* Phase tone: blue while reading, green on a break, amber when the test is due. */
+.pomodoro-study-clock:is([data-phase="break"], [data-phase="waiting"]) { --pomodoro-tone: #5fdcb4; }
+.pomodoro-study-clock:is([data-phase="ready"], [data-phase="quiz"]) { --pomodoro-tone: #f1c24b; }
+.pomodoro-study-clock[data-phase="paused"] { --pomodoro-tone: var(--fx-text-3, #8b8f98); }
+.pomodoro-study-clock[data-phase="paused"] .pomodoro-study-time { opacity: .6; }
+.pomodoro-study-clock:is([data-phase="ready"], [data-phase="waiting"], [data-phase="quiz"]) button { color: #111; }
+.pomodoro-study-clock:is([data-phase="ready"], [data-phase="waiting"], [data-phase="quiz"]) button::before { inset: 5px; background: var(--pomodoro-tone); }
+@media (prefers-reduced-motion: no-preference) {
+  /* A running phase breathes softly; a due test pulses until it is opened. */
+  .pomodoro-study-clock[data-running] .pomodoro-study-ring .is-value { animation: pomodoro-breathe 3.2s ease-in-out infinite; }
+  .pomodoro-study-clock[data-phase="ready"] { animation: pomodoro-due 2.4s ease-in-out infinite; }
+  @media (hover: hover) { .pomodoro-study-clock:not([data-dragging]):hover { transform: translateY(-2px); } }
+  @keyframes pomodoro-breathe { 50% { filter: drop-shadow(0 0 5px var(--pomodoro-tone)); } }
+  @keyframes pomodoro-due { 50% { box-shadow: 0 10px 30px rgb(0 0 0 / .28), 0 0 0 5px color-mix(in srgb, var(--pomodoro-tone) 32%, transparent); } }
+}
+@media (prefers-reduced-motion: reduce) { .pomodoro-study-ring .is-value, .pomodoro-study-clock { transition: none; } }
+.pomodoro-result { display: grid; gap: 10px; width: 100%; text-align: start; }
+.pomodoro-result h3 { margin: 0; font-size: .95rem; }
+.pomodoro-result p { margin: 0; color: var(--text-muted, var(--text)); font-size: .88rem; }
+.pomodoro-page-scores { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.pomodoro-page-scores li { display: inline-flex; gap: 8px; align-items: center; min-height: 32px; padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; font-size: .85rem; }
+.pomodoro-page-scores li.is-weak { border-color: var(--danger, #e5484d); color: var(--danger, #e5484d); }
+.pomodoro-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin: 0; }
+.pomodoro-summary div { padding: 10px 12px; border: 1px solid var(--border); border-radius: 14px; }
+.pomodoro-summary dt { font-size: .78rem; opacity: .75; }
+.pomodoro-summary dd { margin: 2px 0 0; font-size: 1.15rem; font-weight: 700; }
+
+.pomodoro-result { margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--border); text-align: center; }
+.pomodoro-page-scores { justify-content: center; }
+.pomodoro-page-scores li { position: relative; overflow: hidden; isolation: isolate; }
+.pomodoro-page-scores li::before { content: ""; position: absolute; inset: 0; z-index: -1; width: var(--page-score, 0%); background: color-mix(in srgb, currentColor 14%, transparent); }
+.pomodoro-page-scores li:not(.is-weak) { border-color: color-mix(in srgb, #5fdcb4 50%, var(--border)); }
+.pomodoro-summary { text-align: start; }
+.pomodoro-page-scores li > button { display: inline-flex; gap: 8px; align-items: center; min-height: 32px; margin: -4px -12px; padding: 4px 12px; border: 0; color: inherit; background: none; font: inherit; cursor: pointer; }
+.pomodoro-page-scores li > button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 999px; }
+@media (pointer: coarse) { .pomodoro-page-scores li, .pomodoro-page-scores li > button { min-height: 44px; } }
+/* Touch keeps the 44px target even in the smaller clock. */
+@media (pointer: coarse) { .pomodoro-study-clock { grid-template-columns: minmax(0, 1fr) 44px; } .pomodoro-study-clock button { width: 44px; height: 44px; } }

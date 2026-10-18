@@ -19,3 +19,7 @@ PUBLIC_APP_URL = env("PUBLIC_APP_URL", PUBLIC_APP_URL)  # noqa: F405
 # This configuration is only used by the local demo server.  Keep repeated
 # phone-testing attempts from locking the shared demo account.
 ACCOUNT_LOGIN_ATTEMPT_LIMIT = 100
+
+# A launched policy is necessary to exercise real checkout in this isolated
+# demo. Production must announce its own actual activation time separately.
+USER_POLICY_EFFECTIVE_AT = "2026-01-01T00:00:00Z"

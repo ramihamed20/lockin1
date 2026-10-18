@@ -1,0 +1,463 @@
+/* ==========================================================================
+   Marks panel: look through what other students shared on a sheet, copy it,
+   or share your own. Borrows the shared confirm-dialog shell and the My sheets
+   form fields; touch targets stay at 44px.
+   ========================================================================== */
+
+@layer system {
+
+.marks-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(100%, 560px);
+  max-height: min(86dvh, 720px);
+  text-align: start;
+}
+
+.marks-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.marks-panel__head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.marks-icon-button {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md, 12px);
+  color: var(--text-muted, inherit);
+  background: transparent;
+  cursor: pointer;
+}
+
+.marks-icon-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--text);
+}
+
+.marks-icon-button.is-danger:hover:not(:disabled) {
+  color: var(--danger, #c0392b);
+}
+
+.marks-icon-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.marks-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+}
+
+.marks-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding-inline: 6px;
+  font-size: 0.9rem;
+  min-block-size: 44px;
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  color: var(--text-muted, inherit);
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.marks-tabs button.is-active {
+  color: var(--text);
+  background: var(--surface-raised, var(--surface));
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--text) 14%, transparent);
+}
+
+.marks-viewing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  font-size: 0.9rem;
+}
+
+.marks-current {
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.marks-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-inline-end: 2px;
+}
+
+.marks-note,
+.marks-footnote,
+.marks-card__meta,
+.marks-card__moderator {
+  margin: 0;
+  color: var(--text-muted, inherit);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.marks-footnote.is-over {
+  color: var(--danger, #c0392b);
+}
+
+.marks-error {
+  margin: 0;
+  color: var(--danger, #c0392b);
+  font-size: 0.9rem;
+}
+
+.marks-empty {
+  margin: 8px 0;
+  text-align: center;
+  color: var(--text-muted, inherit);
+}
+
+.marks-subtitle {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.marks-back {
+  align-self: flex-start;
+}
+
+.marks-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-block-size: 44px;
+  padding-inline: 12px;
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.marks-search input {
+  flex: 1;
+  min-inline-size: 0;
+  border: 0;
+  outline: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+}
+
+.marks-search:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.marks-notices {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.marks-notices li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 12px;
+  padding-inline: 12px 4px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--card-edge));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  font-size: 0.9rem;
+}
+
+.marks-notices li > span {
+  flex: 1 1 12rem;
+}
+
+.marks-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.marks-card {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.marks-card.is-mine {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--card-edge));
+}
+
+.marks-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.marks-card__note {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.marks-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.marks-card__actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-block-size: 44px;
+}
+
+.marks-like {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  padding-inline: 10px;
+  border: 1px solid var(--card-edge);
+  border-radius: 999px;
+  color: var(--text-muted, inherit);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.marks-like.is-liked {
+  color: var(--danger, #d6336c);
+  border-color: currentColor;
+}
+
+.marks-form {
+  display: grid;
+  gap: 12px;
+}
+
+.marks-chips-wrap {
+  display: grid;
+  gap: 8px;
+}
+
+.marks-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.marks-chip {
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  padding-inline: 10px;
+  border: 1px solid var(--card-edge);
+  border-radius: 999px;
+  color: var(--text-muted, inherit);
+  background: transparent;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.marks-chip.is-on {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--card-edge));
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  font-weight: 600;
+}
+
+.marks-link {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+  padding-inline: 6px;
+  border: 0;
+  color: var(--accent);
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.marks-link.is-danger {
+  color: var(--danger, #c0392b);
+}
+
+.marks-link:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.marks-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.marks-summary p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.marks-summary p.is-over {
+  color: var(--danger, #c0392b);
+}
+
+.marks-copies {
+  display: grid;
+  gap: 6px;
+}
+
+.marks-copies ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.marks-copies li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 12px;
+  padding-inline: 12px 4px;
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.marks-copies li > span:first-child {
+  flex: 1;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.marks-card__menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.marks-card__more {
+  margin-inline-start: auto;
+}
+
+.marks-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-block-size: 44px;
+}
+
+.marks-check input {
+  inline-size: 20px;
+  block-size: 20px;
+  accent-color: var(--accent);
+}
+
+.marks-progress {
+  position: relative;
+  display: block;
+  block-size: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.marks-progress > span {
+  display: block;
+  block-size: 100%;
+  transform-origin: left;
+  background: var(--accent);
+  transition: transform 0.2s ease;
+}
+
+[dir="rtl"] .marks-progress > span {
+  transform-origin: right;
+}
+
+/* Shown over the reader while a copy of another student's marks is open. */
+.workspace-marks-chip {
+  position: fixed;
+  inset-block-start: 58px;
+  inset-inline-start: 12px;
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-inline-size: calc(100vw - 24px);
+  min-block-size: 32px;
+  padding-inline: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--card-edge));
+  border-radius: 999px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.workspace-marks-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .marks-panel {
+    max-height: 92dvh;
+  }
+}
+
+}

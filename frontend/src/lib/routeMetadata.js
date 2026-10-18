@@ -8,6 +8,7 @@ const routeDefinitions = [
   { match: (path) => path.startsWith("/whiteboards/") && path.endsWith("/workspace"), key: "route.focus" },
   { match: (path) => path.startsWith("/materials/catalog/"), key: "route.material" },
   { match: (path) => path === "/paper-workspace", key: "route.paperWorkspace" },
+  { match: (path) => path === "/materials/summaries", key: "summary.mine" },
   { match: (path) => path === "/lock-in" || path.startsWith("/lock-in/"), key: "route.lockIn" },
   { match: (path) => path.startsWith("/search"), key: "route.search" },
   { match: (path) => path.startsWith("/questions/results"), key: "route.assessmentResult" },

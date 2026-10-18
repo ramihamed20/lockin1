@@ -27,6 +27,12 @@ export async function restoreOfflineUser() {
 // other account ever opens. It syncs the next time this account signs in.
 const RETAINED_PREFIXES = ["operation:", "queue:", "as-run:", "as-runid:", "as-completed:", "answer:", "review-answer:"];
 
+export function isRetainedOfflineWork(key) {
+  const value = String(key);
+  return RETAINED_PREFIXES.some((prefix) => value.startsWith(prefix))
+    || /^knowledge:[^:]+:(?:ui$|(?:artifact|attempt|recovery):[^:]+)/.test(value);
+}
+
 /**
  * Locks an account's offline data: its lease, profile, manifest, directories
  * and every protected download are removed at once. Pending work is kept.
@@ -38,6 +44,6 @@ export async function forgetOfflineUser(userId) {
   await offlineDatabase.delete(userId, "lease");
   await clearOfflineDownloads(userId);
   for (const key of await offlineDatabase.keys(userId)) {
-    if (!RETAINED_PREFIXES.some((prefix) => String(key).startsWith(prefix))) await offlineDatabase.delete(userId, key);
+    if (!isRetainedOfflineWork(key)) await offlineDatabase.delete(userId, key);
   }
 }

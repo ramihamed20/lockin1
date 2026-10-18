@@ -113,16 +113,13 @@ function CardGridSkeleton({ count = 6, card = "standard" }) {
 }
 
 function DashboardSkeleton() {
-  // Same order as the screen it stands in for: the state row (Level twice as
-  // wide), then Continue and Recent beside the scene, so nothing reflows when
-  // the numbers arrive.
+  // Same order as the screen it stands in for: Continue, the state row (Level
+  // twice as wide), then the latest mistakes, so nothing reflows on arrival.
   const rows = Array.from({ length: 3 }, (_, index) => <div className="skeleton-list-row" key={index}><SkeletonAvatar /><SkeletonText lines={2} /></div>);
   return <div className="skeleton-page skeleton-page--dashboard">
+    <SkeletonCard className="skeleton-continue-card"><SkeletonText lines={2} /><SkeletonButton /></SkeletonCard>
     <section className="skeleton-dashboard-stats">{Array.from({ length: 5 }, (_, index) => <SkeletonCard key={index} className={index === 0 ? "skeleton-stat is-wide" : "skeleton-stat"}><Skeleton className="skeleton-stat-value" /><Skeleton className="skeleton-stat-label" /></SkeletonCard>)}</section>
-    <section className="skeleton-dashboard-layout">
-      <div><SkeletonCard className="skeleton-continue-card"><SkeletonText lines={2} /><SkeletonButton /></SkeletonCard><SkeletonCard className="skeleton-list-card"><SkeletonText lines={1} />{rows}</SkeletonCard></div>
-      <div><SkeletonCard className="skeleton-visual-card"><Skeleton className="skeleton-visual" /></SkeletonCard></div>
-    </section>
+    <SkeletonCard className="skeleton-list-card"><SkeletonText lines={1} />{rows}</SkeletonCard>
   </div>;
 }
 

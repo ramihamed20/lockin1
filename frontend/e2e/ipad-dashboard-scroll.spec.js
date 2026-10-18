@@ -73,25 +73,24 @@ for (const device of [
     await mockDashboard(page, "none");
     await page.setViewportSize({ width: device.width, height: device.height });
     await page.goto("/#/");
-    await expect(page.locator(".dashboard-main")).toHaveClass(/dashboard-main--no-mascot/);
-    await expect(page.locator(".dashboard-right")).toHaveCount(0);
+    await expect(page.locator(".continue-card")).toBeVisible();
+    await expect(page.locator(".dashboard-art")).toHaveCount(0);
     await expect(page.locator(".scene-card")).toHaveCount(0);
-    await expect(page.locator(".dashboard-left")).toBeVisible();
-    const layout = await page.locator(".dashboard-main").evaluate((element) => ({
-      columns: getComputedStyle(element).gridTemplateColumns,
+    const layout = await page.locator(".dashboard").evaluate((element) => ({
       width: element.getBoundingClientRect().width,
-      childWidth: element.querySelector(".dashboard-left")?.getBoundingClientRect().width || 0
+      continueWidth: element.querySelector(".continue-card").getBoundingClientRect().width
     }));
-    expect(layout.columns.split(" ")).toHaveLength(1);
-    expect(Math.abs(layout.width - layout.childWidth)).toBeLessThanOrEqual(1);
+    expect(Math.abs(layout.width - layout.continueWidth)).toBeLessThanOrEqual(1);
   });
 }
 
+// The cat sits inside Continue and is the same small size for both cats, so
+// the study cards never change width with the mascot choice.
 for (const device of [
   { name: "iPad landscape", width: 1112, height: 834 },
   { name: "desktop", width: 1440, height: 960 }
 ]) {
-  test(`None mascot reallocates Dashboard card width beyond both mascot layouts (${device.name})`, async ({ browser }) => {
+  test(`mascot choice never changes Dashboard card widths (${device.name})`, async ({ browser }) => {
     const blackContext = await browser.newContext({ viewport: { width: device.width, height: device.height } });
     const whiteContext = await browser.newContext({ viewport: { width: device.width, height: device.height } });
     const noneContext = await browser.newContext({ viewport: { width: device.width, height: device.height } });
@@ -111,21 +110,21 @@ for (const device of [
       expect(nonePage.locator(".scene-card")).toHaveCount(0)
     ]);
     const width = async (page, selector) => page.locator(selector).evaluate((element) => element.getBoundingClientRect().width);
-    const [blackContinue, whiteContinue, noneContinue, blackRecent, whiteRecent, noneRecent] = await Promise.all([
+    const [blackContinue, whiteContinue, noneContinue, blackQueue, whiteQueue, noneQueue] = await Promise.all([
       width(blackPage, ".continue-card"),
       width(whitePage, ".continue-card"),
       width(nonePage, ".continue-card"),
-      width(blackPage, ".dashboard-recent-sheets"),
-      width(whitePage, ".dashboard-recent-sheets"),
-      width(nonePage, ".dashboard-recent-sheets")
+      width(blackPage, ".dashboard-review-queue"),
+      width(whitePage, ".dashboard-review-queue"),
+      width(nonePage, ".dashboard-review-queue")
     ]);
-    expect(noneContinue).toBeGreaterThan(blackContinue);
-    expect(noneContinue).toBeGreaterThan(whiteContinue);
-    expect(noneRecent).toBeGreaterThan(blackRecent);
-    expect(noneRecent).toBeGreaterThan(whiteRecent);
-    expect(Math.abs(noneContinue - noneRecent)).toBeLessThanOrEqual(1);
-    expect(Math.abs(blackContinue - whiteContinue)).toBeLessThanOrEqual(1);
-    expect(Math.abs(blackRecent - whiteRecent)).toBeLessThanOrEqual(1);
+    expect(Math.abs(noneContinue - blackContinue)).toBeLessThanOrEqual(1);
+    expect(Math.abs(noneContinue - whiteContinue)).toBeLessThanOrEqual(1);
+    expect(Math.abs(noneQueue - blackQueue)).toBeLessThanOrEqual(1);
+    expect(Math.abs(noneQueue - whiteQueue)).toBeLessThanOrEqual(1);
+    const [blackArt, whiteArt] = await Promise.all([width(blackPage, ".dashboard-art"), width(whitePage, ".dashboard-art")]);
+    expect(blackArt).toBeLessThanOrEqual(144);
+    expect(Math.abs(blackArt - whiteArt)).toBeLessThanOrEqual(1);
     await Promise.all([blackContext.close(), whiteContext.close(), noneContext.close()]);
   });
 }
@@ -136,13 +135,13 @@ test("None mascot keeps iPad portrait study cards full-width", async ({ browser 
   await mockDashboard(page, "none");
   await page.goto("/#/");
 
-  const [mainWidth, continueWidth, recentWidth] = await Promise.all([
-    page.locator(".dashboard-main").evaluate((element) => element.getBoundingClientRect().width),
+  const [mainWidth, continueWidth, queueWidth] = await Promise.all([
+    page.locator(".dashboard").evaluate((element) => element.getBoundingClientRect().width),
     page.locator(".continue-card").evaluate((element) => element.getBoundingClientRect().width),
-    page.locator(".dashboard-recent-sheets").evaluate((element) => element.getBoundingClientRect().width)
+    page.locator(".dashboard-review-queue").evaluate((element) => element.getBoundingClientRect().width)
   ]);
   expect(Math.abs(mainWidth - continueWidth)).toBeLessThanOrEqual(1);
-  expect(Math.abs(mainWidth - recentWidth)).toBeLessThanOrEqual(1);
+  expect(Math.abs(mainWidth - queueWidth)).toBeLessThanOrEqual(1);
   await context.close();
 });
 
@@ -186,7 +185,7 @@ for (const device of IPADS) {
     await page.setViewportSize({ width: device.width, height: device.height });
     await page.goto("/#/");
     await expect(page.locator(".sidebar")).toBeVisible();
-    await page.waitForFunction(() => !document.querySelector(".sidebar .streak-card--loading"));
+    await page.waitForFunction(() => !document.querySelector(".sidebar .streak-mini[aria-busy]"));
 
     const before = await page.evaluate(structure);
     await retractChrome(page, CHROME);
@@ -256,8 +255,9 @@ test("a real orientation change still re-measures the shell", async ({ page }) =
 
 // Reported from an iPad in portrait: the sidebar could not be scrolled to its
 // last entries, and the four dashboard cards split across two rows that pushed
-// the study surfaces below the fold.
-test("the sidebar scrolls to its last entry in portrait, streak card and all", async ({ page }) => {
+// the study surfaces below the fold. A rail this short leaves out the streak
+// reading by design (it returns on tall rails), so only its placement is held.
+test("the rail scrolls to its last entry in portrait, streak reading and all", async ({ page }) => {
   await mockDashboard(page);
   // 744 is an iPad mini in portrait, and any iPad in Split View. Below 768 the
   // rail is a flex column, which is where the list used to be cut off.
@@ -278,12 +278,12 @@ test("the sidebar scrolls to its last entry in portrait, streak card and all", a
     await new Promise((resolve) => setTimeout(resolve, 100));
     const rail = document.querySelector(".sidebar").getBoundingClientRect();
     const last = list.lastElementChild.getBoundingClientRect();
-    const streak = document.querySelector(".sidebar .streak-card")?.getBoundingClientRect();
+    const streak = document.querySelector(".sidebar .streak-mini")?.getBoundingClientRect();
     return {
       scrolls: list.scrollHeight > list.clientHeight + 1,
       scrolled: list.scrollTop > 0,
       lastEntryInside: last.bottom <= rail.bottom + 1 && last.top >= rail.top - 1,
-      streakInside: Boolean(streak) && streak.bottom <= rail.bottom + 1
+      streakInside: Boolean(streak) && (streak.height === 0 || streak.bottom <= rail.bottom + 1)
     };
   });
 

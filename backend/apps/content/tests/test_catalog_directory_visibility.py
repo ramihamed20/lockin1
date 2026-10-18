@@ -52,7 +52,7 @@ def _subject_node(*, admin: Any, institution: EducationNode, title: str) -> Educ
 def _publish(
     *, admin: Any, subject: EducationNode, title: str, position: int = 0
 ) -> LearningObject:
-    return create_sheet(
+    sheet = create_sheet(
         actor=admin,
         subject=subject,
         managed_file=create_managed_file(owner=admin, upload=_pdf(22, "sheet.pdf"), kind="pdf"),
@@ -63,6 +63,10 @@ def _publish(
         notify_students=False,
         allow_download=False,
     )
+    # These fixtures upload part-based question banks, like existing sheets.
+    sheet.active_study_page_bank_enabled = False
+    sheet.save(update_fields=("active_study_page_bank_enabled",))
+    return sheet
 
 
 def _make_ready(*, admin_client: APIClient, sheet: LearningObject) -> None:

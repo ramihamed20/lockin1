@@ -70,7 +70,15 @@ function clamp(value, minimum, maximum) {
 }
 
 function format(value) {
-  return Number(finite(value).toFixed(2));
+  const number = finite(value);
+  const absolute = Math.abs(number);
+  if (absolute >= 1e6) return Number(number.toFixed(2));
+  const scaled = absolute * 100;
+  const fraction = scaled - Math.floor(scaled);
+  // Multiplication may cross a rounding midpoint: retain toFixed there.
+  if (Math.abs(fraction - .5) <= Number.EPSILON * Math.max(1, scaled) * 2) return Number(number.toFixed(2));
+  const rounded = Math.round(scaled) / 100;
+  return number < 0 ? -rounded : rounded;
 }
 
 /**
@@ -464,15 +472,29 @@ export function distanceBetweenSegments(firstStart, firstEnd, secondStart, secon
   );
 }
 
-export function strokeIntersectsEraserPath(annotation, eraserStart, eraserEnd, radius, includeStrokeWidth = true, scale = IDENTITY_SCALE) {
+// The caller owns this cache for one eraser drag over committed, immutable
+// strokes. Public hit testing without a cache keeps its existing behavior.
+function eraserHitWidths(annotation, points, cache) {
+  const cached = cache.get(annotation);
+  if (cached && cached.points === points && cached.length === points.length
+    && cached.width === annotation.width && cached.profile === annotation.profile
+    && cached.type === annotation.type && cached.sensitivity === annotation.pressureSensitivity) return cached.widths;
+  const widths = points.map((point) => strokeWidthAtPoint(annotation, point));
+  cache.set(annotation, { points, length: points.length, width: annotation.width,
+    profile: annotation.profile, type: annotation.type, sensitivity: annotation.pressureSensitivity, widths });
+  return widths;
+}
+
+export function strokeIntersectsEraserPath(annotation, eraserStart, eraserEnd, radius, includeStrokeWidth = true, scale = IDENTITY_SCALE, widthCache = null) {
   if (!isIdentityScale(scale)) {
-    return strokeIntersectsEraserPath(strokeInEraserSpace(annotation, scale), scalePoint(eraserStart, scale), scalePoint(eraserEnd, scale), radius, includeStrokeWidth);
+    return strokeIntersectsEraserPath(strokeInEraserSpace(annotation, scale), scalePoint(eraserStart, scale), scalePoint(eraserEnd, scale), radius, includeStrokeWidth, IDENTITY_SCALE, widthCache);
   }
   const points = annotation?.points || [];
   if (!points.length) return false;
-  if (points.length === 1) return distancePointToSegment(points[0], eraserStart, eraserEnd) <= radius + (includeStrokeWidth ? strokeWidthAtPoint(annotation, points[0]) / 2 : 0);
+  const widths = includeStrokeWidth && widthCache ? eraserHitWidths(annotation, points, widthCache) : null;
+  if (points.length === 1) return distancePointToSegment(points[0], eraserStart, eraserEnd) <= radius + (includeStrokeWidth ? (widths ? widths[0] : strokeWidthAtPoint(annotation, points[0])) / 2 : 0);
   for (let index = 1; index < points.length; index += 1) {
-    const strokeRadius = includeStrokeWidth ? Math.max(strokeWidthAtPoint(annotation, points[index - 1]), strokeWidthAtPoint(annotation, points[index])) / 2 : 0;
+    const strokeRadius = includeStrokeWidth ? Math.max(widths ? widths[index - 1] : strokeWidthAtPoint(annotation, points[index - 1]), widths ? widths[index] : strokeWidthAtPoint(annotation, points[index])) / 2 : 0;
     if (distanceBetweenSegments(points[index - 1], points[index], eraserStart, eraserEnd) <= radius + strokeRadius) return true;
   }
   return false;

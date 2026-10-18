@@ -78,6 +78,94 @@
 
 .catalog-sheet-grid > .catalog-sheet-card > :is(.catalog-sheet-icon, .catalog-sheet-end) { margin-block-start: 0; }
 
+/* The "+" under a Second Year student's subjects. Dashed, so it reads as an
+   action beside the list rather than another subject in it. */
+.catalog-add-subject {
+  width: min(100%, 760px);
+  margin-block-start: var(--catalog-item-gap);
+  border: 1px dashed var(--polish-line);
+  border-radius: var(--catalog-item-radius);
+}
+
+.catalog-add-subject__toggle {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.catalog-add-subject__toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.catalog-add-subject__icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md, 10px);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+
+.catalog-add-subject__copy { display: grid; gap: 2px; min-width: 0; }
+.catalog-add-subject__copy small { color: var(--soft); }
+
+.catalog-add-subject__panel {
+  display: grid;
+  gap: 10px;
+  padding: 0 14px 14px;
+}
+
+.catalog-add-subject__hint,
+.catalog-add-subject__error { margin: 0; font-size: 0.875rem; color: var(--soft); }
+.catalog-add-subject__error { color: var(--danger, #c0392b); }
+
+.catalog-add-subject__list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.catalog-add-subject__list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding-inline: 12px 6px;
+  border: 1px solid var(--polish-line);
+  border-radius: var(--catalog-item-radius);
+  background: var(--catalog-item-surface);
+}
+
+.catalog-add-subject__list li > span { min-width: 0; overflow-wrap: anywhere; }
+.catalog-add-subject__list li.is-added { border-color: color-mix(in srgb, var(--accent) 45%, var(--polish-line)); }
+.catalog-add-subject__list .btn { min-height: 44px; flex-shrink: 0; }
+
+.catalog-add-subject__added {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding-inline: 10px;
+  color: var(--accent);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.catalog-add-subject__hint a { color: var(--accent); }
+
 html.ix-hover :is(.catalog-material-grid, .questions-category-grid) > .catalog-tile.is-actionable:hover,
 html.ix-hover .catalog-sheet-grid > .catalog-sheet-card:not(.is-unavailable):hover {
   border-color: color-mix(in srgb, var(--accent) 28%, var(--polish-line));
@@ -258,8 +346,6 @@ html.ix-hover .catalog-sheet-grid > .catalog-sheet-card:not(.is-unavailable):hov
   .dashboard-stats-grid { overflow-x: auto; overflow-y: hidden; }
 }
 
-.dashboard-left .continue-card h2 + .btn { margin-block-start: 14px; }
-
 /* A corner glyph on "Recent sheets" was decoration beside a plain heading. */
 .dashboard-recent-sheets .panel-title > span { display: none; }
 
@@ -268,11 +354,6 @@ html.ix-hover .catalog-sheet-grid > .catalog-sheet-card:not(.is-unavailable):hov
 .review-queue-title > span {
   color: var(--accent-text);
   background: var(--accent-soft);
-}
-
-.review-queue-header:has(.review-queue-count.has-items) .review-queue-title > span {
-  color: var(--danger);
-  background: var(--danger-soft);
 }
 
 /* --- Review --------------------------------------------------------------- */

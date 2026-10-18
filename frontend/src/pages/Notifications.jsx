@@ -28,7 +28,7 @@ export default function Notifications({ onNotificationsChanged }) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [unreadOnly, setUnreadOnly] = useState(false);
-  const feed = useAsyncData(() => loadNotifications(unreadOnly), [unreadOnly]);
+  const feed = useAsyncData(() => loadNotifications(unreadOnly), [unreadOnly], { cacheKey: `notifications:${unreadOnly}` });
   const [notifications, setNotifications] = useState([]);
   const [nextCursor, setNextCursor] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);

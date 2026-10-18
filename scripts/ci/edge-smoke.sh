@@ -250,6 +250,15 @@ else
     esac
 fi
 
+# Exercise negotiated compression in the real image, including the worker MIME.
+if [ -n "$worker_path" ] && python3 scripts/ci/static_delivery_probe.py \
+    --url "https://127.0.0.1:$https_port" --host "$public_host" \
+    --worker "$worker_url" --insecure-local-tls; then
+    pass "hashed JS/CSS/PDF worker compression preserves decoded bytes and cache policy"
+else
+    fail "hashed asset compression contract failed"
+fi
+
 if [ "$(status_of --insecure "https://127.0.0.1:$https_port/admin/")" = "404" ]; then
     pass "Django admin stays closed at the edge"
 else
@@ -262,6 +271,12 @@ case "$headers" in
     *"Content-Security-Policy"*) pass "security headers are applied" ;;
     *) fail "security headers are missing" ;;
 esac
+
+if LOCKIN_SEARCH_INSECURE=1 scripts/ci/public-search-smoke.sh "https://127.0.0.1:$https_port" "$public_host"; then
+    pass "public search pages and private indexing boundary verified"
+else
+    fail "public search pages or private indexing boundary failed"
+fi
 
 log "result"
 if [ "$failures" -ne 0 ]; then

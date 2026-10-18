@@ -38,7 +38,17 @@ from .models import (
 
 
 class AccountTokenError(ValueError):
-    pass
+    """A code or link that cannot be used, and -- where it is safe to say -- why.
+
+    ``reason`` is "invalid" unless the caller has proved possession of the
+    secret itself: only someone holding the exact code or link can learn that
+    it expired, was replaced, or was burned by wrong guesses. A wrong guess
+    reads "invalid" whether or not the account exists.
+    """
+
+    def __init__(self, message: str, *, reason: str = "invalid") -> None:
+        super().__init__(message)
+        self.reason = reason
 
 
 class AccountStateError(ValueError):
@@ -226,7 +236,12 @@ def _get_usable_token(*, raw_token: str, kind: str) -> OneTimeToken:
     except (OneTimeToken.DoesNotExist, User.DoesNotExist) as error:
         raise AccountTokenError("This link is invalid or has expired.") from error
     if not token.is_usable:
-        raise AccountTokenError("This link is invalid or has expired.")
+        # The caller holds the link itself, so naming why it stopped working
+        # tells them nothing about anyone else's account.
+        raise AccountTokenError(
+            "This link is invalid or has expired.",
+            reason="used" if token.used_at is not None else "expired",
+        )
     return token
 
 
@@ -330,8 +345,40 @@ def verify_email_code(*, user: User, code: str) -> User:
             )
             publish_after_commit(UserEmailVerified(user_id=verified.id, actor_id=verified.id))
     if verified is None:
-        raise AccountTokenError("This code is invalid or has expired.")
+        raise AccountTokenError(
+            "This code is invalid or has expired.",
+            reason=verification_code_failure_reason(user=user, code=code),
+        )
     return verified
+
+
+def verification_code_failure_reason(*, user: User, code: str) -> str:
+    """Why a submitted code failed, said only to someone who holds that code.
+
+    A code that matches one actually issued to this account proves the reader
+    received it, so its fate (expired, replaced by a newer one, burned after
+    too many wrong tries) is theirs to know. Anything else is "invalid" -- the
+    same answer an address with no account at all receives.
+    """
+
+    issued = (
+        OneTimeToken.objects.filter(
+            user=user,
+            kind=OneTimeToken.Kind.EMAIL_VERIFICATION,
+            token_digest=_token_digest(code.strip(), scope=str(user.id)),
+        )
+        .order_by("-created_at")
+        .first()
+    )
+    if issued is None:
+        return "invalid"
+    if issued.used_at is not None:
+        if int(issued.payload.get("attempts", 0)) >= VERIFICATION_CODE_ATTEMPT_LIMIT:
+            return "attempts_exceeded"
+        return "used"
+    if issued.expires_at <= timezone.now():
+        return "expired"
+    return "invalid"
 
 
 @transaction.atomic

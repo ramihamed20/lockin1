@@ -131,3 +131,28 @@ test("old-session JSON cleanup cannot remove a bundle downloaded in the next ses
     assert.deepEqual(await offlineDatabase.get(userId, newKey), newBundle);
   } finally { offlineDatabase.keys = readKeys; }
 });
+
+test("logout retains Knowledge work for its owner and clears prepared-content caches", async () => {
+  const { rememberOfflineUser } = await import("../src/offline/profile.js");
+  const userId = "retained-knowledge-owner";
+  const secondId = "retained-knowledge-other";
+  localStorage.setItem("lock-in.offline-current-user-id", userId);
+  const own = [
+    "knowledge:sheet:artifact:note", "knowledge:sheet:attempt:answer",
+    "knowledge:sheet:recovery:note:copy", "knowledge:sheet:ui",
+  ];
+  const protectedKeys = [
+    "knowledge:sheet:bootstrap", "knowledge:sheet:detail:note:2",
+    "knowledge:sheet:ui:prepared", "knowledge:sheet:questions:bank",
+    "profile", "lease",
+  ];
+  for (const key of [...own, ...protectedKeys]) await offlineDatabase.put(userId, key, { value: key });
+  await rememberOfflineUser({ id: secondId });
+  for (const key of own) {
+    assert.deepEqual(await offlineDatabase.get(userId, key), { value: key });
+    assert.equal(await offlineDatabase.get(secondId, key), undefined);
+  }
+  for (const key of protectedKeys) assert.equal(await offlineDatabase.get(userId, key), undefined);
+  await rememberOfflineUser({ id: userId });
+  for (const key of own) assert.deepEqual(await offlineDatabase.get(userId, key), { value: key });
+});

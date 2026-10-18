@@ -11,7 +11,7 @@ import { useI18n } from "../components/I18nProvider.jsx";
 export default function Bookmarks() {
   const { t } = useI18n();
   const [page, setPage] = useState(1);
-  const bookmarks = useAsyncData(() => progressApi.listBookmarks({ page }), [page]);
+  const bookmarks = useAsyncData(() => progressApi.listBookmarks({ page }), [page], { cacheKey: `bookmarks:${page}` });
   const [confirmItem, setConfirmItem] = useState(null);
   const [mutationError, setMutationError] = useState(null);
   const [removing, setRemoving] = useState(false);

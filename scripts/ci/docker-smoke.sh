@@ -246,11 +246,27 @@ case "$media_type" in
         ;;
 esac
 
+# Keep the managed-host delivery shape aligned with the standalone edge.
+worker_path="$(docker exec "$app_container" sh -c 'find /srv/lockin/app/assets -maxdepth 1 -name "pdf.worker.min-*.mjs" -print -quit')"
+if [ -n "$worker_path" ] && python3 scripts/ci/static_delivery_probe.py \
+    --url "http://127.0.0.1:$published_port" --host "$public_host" \
+    --worker "/assets/$(basename "$worker_path")"; then
+    pass "hashed JS/CSS/PDF worker compression preserves decoded bytes and cache policy"
+else
+    fail "hashed asset compression contract failed"
+fi
+
 # Exercises the generic S3 backend end to end inside the running container.
 if docker exec "$app_container" python manage.py validate_object_storage --skip-anonymous-check; then
     pass "object storage round trip verified from the running container"
 else
     fail "object storage validation failed"
+fi
+
+if scripts/ci/public-search-smoke.sh "http://127.0.0.1:$published_port" "$public_host"; then
+    pass "public search pages and private indexing boundary verified"
+else
+    fail "public search pages or private indexing boundary failed"
 fi
 
 log "result"

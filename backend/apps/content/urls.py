@@ -1,5 +1,10 @@
 from django.urls import path
 
+from .added_subject_views import (
+    AddedSubjectChangeRequestCollectionView,
+    AdminAddedSubjectRequestDecisionView,
+    AdminAddedSubjectRequestListView,
+)
 from .admin_views import (
     AdminSheetActionView,
     AdminSheetActiveStudyPreviewView,
@@ -15,10 +20,21 @@ from .admin_views import (
     AdminSubjectListView,
     AdminSubjectSheetListView,
 )
+from .annotation_share_views import (
+    AnnotationCopiesView,
+    AnnotationShareCollectionView,
+    AnnotationShareDetailView,
+    AnnotationShareDismissView,
+    AnnotationShareImportView,
+    AnnotationShareLikeView,
+    AnnotationShareNoticesView,
+    AnnotationShareReportView,
+)
 from .personal_sheet_views import (
     PersonalSheetCollectionView,
     PersonalSheetDeleteView,
     PersonalSheetDetailView,
+    PersonalSheetSeededView,
     PersonalSheetWorkspaceView,
 )
 from .practice_views import (
@@ -36,8 +52,14 @@ from .practice_views import (
     PracticeHintView,
     PracticeSetView,
 )
+from .sheet_summary_views import (
+    DocumentSummaryCollectionView,
+    SheetSummaryCollectionView,
+    SheetSummaryDetailView,
+)
 from .views import (
     ArchiveLearningObjectView,
+    CatalogAddedSubjectCollectionView,
     CatalogDocumentResolveView,
     CatalogMaterialListView,
     CatalogQuestionMaterialListView,
@@ -62,11 +84,87 @@ urlpatterns = [
     # are valid slugs, so the broader pattern would otherwise shadow workspace
     # GET/PATCH requests and return 404/405 before authorization is evaluated.
     path("catalog/documents/<uuid:document_id>/workspace", CatalogWorkspaceView.as_view()),
+    path(
+        "catalog/documents/<uuid:document_id>/summaries",
+        DocumentSummaryCollectionView.as_view(),
+        name="document-summaries",
+    ),
+    path("catalog/summaries", SheetSummaryCollectionView.as_view(), name="sheet-summaries"),
+    path(
+        "catalog/summaries/<uuid:summary_id>",
+        SheetSummaryDetailView.as_view(),
+        name="sheet-summary-detail",
+    ),
+    path(
+        "catalog/documents/<uuid:document_id>/annotation-shares",
+        AnnotationShareCollectionView.as_view(),
+        name="annotation-shares",
+    ),
+    path(
+        "catalog/documents/<uuid:document_id>/annotation-copies",
+        AnnotationCopiesView.as_view(),
+        name="annotation-copies",
+    ),
+    path(
+        "catalog/documents/<uuid:document_id>/annotation-shares/notices",
+        AnnotationShareNoticesView.as_view(),
+        name="annotation-share-notices",
+    ),
+    path(
+        "catalog/documents/<uuid:document_id>/annotation-shares/<uuid:share_id>",
+        AnnotationShareDetailView.as_view(),
+        name="annotation-share-detail",
+    ),
+    path(
+        "catalog/documents/<uuid:document_id>/annotation-shares/<uuid:share_id>/like",
+        AnnotationShareLikeView.as_view(),
+        name="annotation-share-like",
+    ),
+    path(
+        "catalog/documents/<uuid:document_id>/annotation-shares/<uuid:share_id>/report",
+        AnnotationShareReportView.as_view(),
+        name="annotation-share-report",
+    ),
+    path(
+        "catalog/documents/<uuid:document_id>/annotation-shares/<uuid:share_id>/import",
+        AnnotationShareImportView.as_view(),
+        name="annotation-share-import",
+    ),
+    path(
+        "catalog/documents/<uuid:document_id>/annotation-shares/<uuid:share_id>/dismiss",
+        AnnotationShareDismissView.as_view(),
+        name="annotation-share-dismiss",
+    ),
     path("catalog/materials", CatalogMaterialListView.as_view(), name="catalog-materials"),
+    path(
+        "catalog/added-subjects",
+        CatalogAddedSubjectCollectionView.as_view(),
+        name="catalog-added-subjects",
+    ),
+    path(
+        "catalog/added-subjects/change-requests",
+        AddedSubjectChangeRequestCollectionView.as_view(),
+        name="catalog-added-subject-change-requests",
+    ),
+    path(
+        "operations/admin/subject-requests",
+        AdminAddedSubjectRequestListView.as_view(),
+        name="admin-added-subject-requests",
+    ),
+    path(
+        "operations/admin/subject-requests/<uuid:request_id>",
+        AdminAddedSubjectRequestDecisionView.as_view(),
+        name="admin-added-subject-request-decision",
+    ),
     path(
         "catalog/materials/<slug:material_slug>/personal-sheets",
         PersonalSheetCollectionView.as_view(),
         name="personal-sheets",
+    ),
+    path(
+        "personal-sheets/<uuid:sheet_id>/seeded",
+        PersonalSheetSeededView.as_view(),
+        name="personal-sheet-seeded",
     ),
     path(
         "personal-sheets/delete",

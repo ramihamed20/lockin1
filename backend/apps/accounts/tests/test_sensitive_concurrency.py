@@ -55,7 +55,11 @@ def test_parallel_verification_resends_enqueue_one_message() -> None:
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         responses = list(pool.map(resend, range(2)))
-    assert responses == [(200, {"status": "accepted", "retry_after_seconds": 60})] * 2
+    assert (
+        responses
+        == [(200, {"status": "accepted", "retry_after_seconds": 60, "email_delivery": "queued"})]
+        * 2
+    )
     assert OneTimeToken.objects.filter(user=user).count() == 1
     assert AccountEmailDelivery.objects.filter(token__user=user).count() == 1
 

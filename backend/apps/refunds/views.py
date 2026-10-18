@@ -53,6 +53,7 @@ class AdminRefundRequestView(APIView):
                     actor=actor,
                     amount_minor=serializer.validated_data["amount_minor"],
                     reason=serializer.validated_data["reason"],
+                    reason_type=serializer.validated_data["reason_type"],
                     idempotency_key=key,
                 )
                 if created:

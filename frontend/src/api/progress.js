@@ -4,9 +4,10 @@ import { buildQueryString } from "./pagination.js";
 
 /** Server-authoritative bookmarks and learning progress. */
 export const progressApi = {
-  async learningDashboard() {
+  /** @param {{ signal?: AbortSignal }} [options] */
+  async learningDashboard({ signal } = {}) {
     return objectPayload(
-      await request("/learning/dashboard"),
+      await request("/learning/dashboard", { signal }),
       "The learning dashboard response was incomplete."
     );
   },

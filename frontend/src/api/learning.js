@@ -69,9 +69,10 @@ export const discoveryApi = {
 
 /** Account-scoped dashboard metadata. Learning activity lives in progressApi. */
 export const dashboardApi = {
-  async accountDashboard() {
+  /** @param {{ signal?: AbortSignal }} [options] */
+  async accountDashboard({ signal } = {}) {
     return objectPayload(
-      await request("/dashboard"),
+      await request("/dashboard", { signal }),
       "The account dashboard response was incomplete."
     );
   }

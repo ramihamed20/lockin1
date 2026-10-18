@@ -59,6 +59,7 @@ from .models import (
     LearningObjectAsset,
     LearningObjectVersion,
 )
+from .page_question_bank import QUESTIONS_PER_PAGE
 from .services import (
     ContentConflictError,
     ContentFieldError,
@@ -405,6 +406,8 @@ def create_sheet(
             allow_download=allow_download,
         ),
     )
+    sheet.active_study_page_bank_enabled = True
+    sheet.save(update_fields=("active_study_page_bank_enabled",))
     if publish:
         sheet = _publish_current(actor=actor, sheet=sheet)
         visible = _sync_catalog_document(sheet)
@@ -915,6 +918,14 @@ def active_study_payload(*, sheet: LearningObject, edition: str = UNIVERSITY) ->
         expected_checkpoint = cast(int, difficulty_plan["number_of_parts"]) * cast(
             int, difficulty_plan["questions_per_checkpoint"]
         )
+        if difficulty_plan.get("question_format") == "pages":
+            expected_checkpoint = (
+                sum(
+                    int(r["end_page"]) - int(r["start_page"]) + 1
+                    for r in cast(list[dict[str, int]], difficulty_plan["page_ranges"])
+                )
+                * QUESTIONS_PER_PAGE
+            )
         expected_final = cast(int, difficulty_plan["final_exam_questions"])
         status = cast(dict[str, str], difficulty_plan["readiness"])["status"]
         difficulty_plan["content"] = {
@@ -991,6 +1002,15 @@ def _question_counts(
     ):
         raise ContentFieldError(
             "Question counts are shared with the University Sheet.",
+            field="questions_per_checkpoint",
+        )
+    if (
+        sheet.active_study_page_bank_enabled
+        and questions_per_checkpoint is not None
+        and not 1 <= questions_per_checkpoint <= QUESTIONS_PER_PAGE
+    ):
+        raise ContentFieldError(
+            f"Page-based sheets support 1 to {QUESTIONS_PER_PAGE} checkpoint questions.",
             field="questions_per_checkpoint",
         )
     return {
@@ -1157,6 +1177,7 @@ def active_study_plan_preview(
     )
     try:
         plan = plan_payload(
+            page_question_bank=sheet.active_study_page_bank_enabled,
             total_pdf_pages=resolved.total_pdf_pages,
             excluded_start_pages=resolved.excluded_start_pages,
             excluded_end_pages=resolved.excluded_end_pages,
@@ -1177,6 +1198,7 @@ def active_study_plan_preview(
     if saved_total is not None:
         try:
             saved_plan = plan_payload(
+                page_question_bank=sheet.active_study_page_bank_enabled,
                 total_pdf_pages=saved_total,
                 excluded_start_pages=(
                     resolved.settings.excluded_start_pages if resolved.settings is not None else 0
@@ -1261,6 +1283,8 @@ def validate_active_study_question_content(
         payload,
         difficulty=difficulty,
         number_of_parts=cast(int, difficulty_plan["number_of_parts"]),
+        page_ranges=cast(list[dict[str, int]], difficulty_plan["page_ranges"]),
+        question_format=str(difficulty_plan.get("question_format", "parts")),
     )
 
 
@@ -1301,8 +1325,16 @@ def active_study_question_content_payload(
             "checkpoint_question_count": (
                 content.checkpoint_question_count if content is not None else 0
             ),
-            "checkpoint_question_target": cast(int, difficulty_plan["number_of_parts"])
-            * difficulty.questions_per_checkpoint,
+            "checkpoint_question_target": (
+                sum(
+                    r["end_page"] - r["start_page"] + 1
+                    for r in cast(list[dict[str, int]], difficulty_plan["page_ranges"])
+                )
+                * QUESTIONS_PER_PAGE
+                if difficulty_plan.get("question_format") == "pages"
+                else cast(int, difficulty_plan["number_of_parts"])
+                * difficulty.questions_per_checkpoint
+            ),
             "final_exam_question_count": (
                 content.final_exam_question_count if content is not None else 0
             ),
@@ -1504,6 +1536,7 @@ def update_active_study_settings(
         # matches the previewed part counts and page ranges.
         try:
             plan_payload(
+                page_question_bank=sheet.active_study_page_bank_enabled,
                 total_pdf_pages=resolved_total,
                 excluded_start_pages=resolved_start,
                 excluded_end_pages=resolved_end,
@@ -1519,6 +1552,7 @@ def update_active_study_settings(
     proposed_plan: dict[str, object] | None = None
     if resolved_total is not None:
         proposed_plan = plan_payload(
+            page_question_bank=sheet.active_study_page_bank_enabled,
             total_pdf_pages=resolved_total,
             excluded_start_pages=resolved_start,
             excluded_end_pages=resolved_end,
@@ -1538,6 +1572,7 @@ def update_active_study_settings(
     if current_total is not None:
         try:
             current_plan = plan_payload(
+                page_question_bank=sheet.active_study_page_bank_enabled,
                 total_pdf_pages=current_total,
                 excluded_start_pages=settings.excluded_start_pages,
                 excluded_end_pages=settings.excluded_end_pages,

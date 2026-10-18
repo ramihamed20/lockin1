@@ -76,3 +76,14 @@ export function createWorkspacePerformanceMonitor() {
     }
   };
 }
+
+/**
+ * Numeric load phases in an explicitly instrumented local production build.
+ * @param {{ pageCount: number, libraryMs: number, sourceMs: number, parseMs: number, geometryMs: number }} sample
+ */
+export function recordWorkspacePdfLoadTiming(sample) {
+  if (import.meta.env.VITE_WORKSPACE_BENCHMARK !== "1" || typeof window === "undefined") return;
+  // No document URL, account identity, content or persistent telemetry.
+  const samples = window.__lockInPdfLoadTimings || [];
+  window.__lockInPdfLoadTimings = [...samples.slice(-19), sample];
+}

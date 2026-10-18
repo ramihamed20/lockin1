@@ -211,11 +211,13 @@ test("dashboard state cards are full-card links to their real destinations", asy
     source("../src/lib/i18n.js")
   ]);
 
-  assert.match(dashboard, /<StudyStates learning=\{learning\} bank=\{bank\} xp=\{xp\} streak=\{streak\} \/>/);
+  assert.match(dashboard, /<StudyStates learning=\{learning\.data\} bank=\{bank\.data\} xp=\{xp\.data\} streak=\{streak\.data\} loading=\{summaryLoading\} \/>/);
   for (const destination of ["/progress", "/review", "/materials", "/bookmarks"]) {
     assert.match(dashboard, new RegExp(String.raw`<Link className=[\s\S]{0,90}?dash-state[\s\S]{0,90}? to="${destination}">`));
   }
-  assert.ok(dashboard.indexOf("<StudyStates") < dashboard.indexOf('className={`dashboard-main'), "compact summaries should precede the study composition");
+  // Next action first: Continue, then the summary, then the latest mistakes.
+  assert.ok(dashboard.indexOf("<ContinueCard") < dashboard.indexOf("<StudyStates"), "Continue should precede the summaries");
+  assert.ok(dashboard.indexOf("<StudyStates") < dashboard.indexOf("<ReviewQueue"), "summaries should precede the latest mistakes");
   assert.doesNotMatch(dashboard, /dashboard-progress-section|dashboard\.yourProgress|dashboard\.progressOverview|dashboard\.openProgress/);
   assert.doesNotMatch(translations, /"dashboard\.(?:yourProgress|progressOverview|openProgress)"/);
   // One value, one label, at most one note: no badges, icons or chevrons.
@@ -253,8 +255,11 @@ test("dashboard continue and recent sheets share actual opened-sheet history", a
     source("../src/lib/i18n.js")
   ]);
 
-  assert.match(dashboard, /const recentOpenedSheets = getRecentOpenedCatalogSheets\(\)/);
-  assert.match(dashboard, /<ContinueCard sheetEntry=\{recentOpenedSheets\[0\] \|\| null\}/);
+  assert.match(dashboard, /const recent = getRecentOpenedCatalogSheets\(user\?\.id\)/);
+  assert.match(dashboard, /<ContinueCard sheetEntry=\{recent\[0\] \|\| null\}/);
+  // The sheet Continue offers is not repeated in the list beneath it.
+  assert.match(dashboard, /const otherRecent = recent\.slice\(1\)/);
+  assert.match(dashboard, /<RecentContent sheetEntries=\{otherRecent\} \/>/);
   assert.match(dashboard, /const visibleSheets = sheetEntries\.slice\(0, 4\)/);
   assert.match(dashboard, /to=\{sheetEntry\.path\}/);
   assert.match(dashboard, /to=\{path\}/);
@@ -280,32 +285,22 @@ test("sidebar omits Account while profile remains available from account surface
   assert.match(layout, /<Link to="\/profile" role=\{isPhone/);
 });
 
-test("the dashboard uses compact responsive cards and a contained cat illustration", async () => {
-  const styles = await source("../src/styles.css");
+test("the dashboard fills its column, keeps the cat small, and lifts mistakes on phones", async () => {
+  const [styles, base] = await Promise.all([source("../src/pages/dashboard.css"), source("../src/styles.css")]);
 
-  assert.match(styles, /\.dashboard-main\s*\{[\s\S]*grid-template-columns: minmax\(280px, 0\.82fr\) minmax\(360px, 1\.3fr\)/);
-  assert.match(styles, /\.dashboard-left \.continue-card\s*\{[\s\S]*min-height: 184px;[\s\S]*padding: 16px 18px;/);
-  assert.match(styles, /\.dashboard-left \.dashboard-recent-sheets\s*\{[\s\S]*height: auto;[\s\S]*flex: 1 1 auto;/);
-  assert.match(styles, /\.dashboard-recent-sheets \.dashboard-review-item\s*\{[\s\S]*min-height: 44px;/);
-  // The card fills its column: it is the only thing in it, so any cap below
-  // 100% just leaves a gap down both sides (measured at 103px on a 1536px
-  // screen). aspect-ratio keeps the square artwork undistorted.
-  assert.match(styles, /\.dashboard-right \.scene-card\s*\{[\s\S]*width: 100%;[\s\S]*aspect-ratio: 1;/);
-  assert.match(styles, /\.scene-card > picture\s*\{[\s\S]*inline-size: 100%;[\s\S]*block-size: 100%;/);
-  assert.match(styles, /\.dashboard-right \.scene-card \.scene-theme\s*\{\s*object-fit: contain;/);
-  assert.match(styles, /@media \(max-width: 639px\)[\s\S]*\.dashboard-right \.scene-card\s*\{[\s\S]*width: 100%/);
-  assert.match(styles, /@media \(max-width: 639px\)[\s\S]*\.dashboard-left \.continue-card\s*\{[\s\S]*min-height: 164px/);
-  assert.match(styles, /@media \(min-width: 640px\) and \(max-width: 900px\)[\s\S]*\.dashboard-right \.scene-card\s*\{[\s\S]*width: 100%/);
-  // The old 460px cap here is gone: on an iPad in landscape it held the card
-  // 16px inside its own 476px column, so the illustration sat in a visible
-  // band of empty space instead of lining up with the cards above it. The
-  // two-column rule below now governs every width from 901px up.
-  assert.doesNotMatch(styles, /width: min\(100%, 460px\)/);
-  assert.match(styles, /@media \(min-width: 901px\)[\s\S]*\.dashboard-right \.scene-card\s*\{[\s\S]*width: calc\(100% \+ 8px\);[\s\S]*margin-inline-start: -8px;/);
-  // The column must not impose the row's height on the square card, which is
-  // what capped it below its own column width.
-  assert.match(styles, /@media \(min-width: 901px\)[\s\S]*\.dashboard-right\s*\{[\s\S]*height: auto;/);
-  assert.match(styles, /@media \(max-height: 559px\)[\s\S]*width: min\(46vw, 300px\)/);
+  // Width never depends on the length of a student's titles.
+  assert.match(styles, /\.dashboard \{[\s\S]*?width: 100%;[\s\S]*?max-width: 1440px;/);
+  // The cat supports Continue: 112-144px beside it, 64px on phones, absent below 375px.
+  assert.match(styles, /\.dashboard-art \{[\s\S]*?width: clamp\(112px, 14vw, 144px\);/);
+  assert.match(styles, /@media \(max-width: 639px\)[\s\S]*\.dashboard-art \{ width: 64px;/);
+  assert.match(styles, /@media \(max-width: 374px\)[\s\S]*\.dashboard-art \{ display: none; \}/);
+  assert.match(styles, /\.dashboard-art \.scene-card \{[\s\S]*?aspect-ratio: 1;/);
+  assert.match(base, /\.scene-card > picture\s*\{[\s\S]*inline-size: 100%;[\s\S]*block-size: 100%;/);
+  // Phones put the four counts in one row and show two mistakes.
+  assert.match(styles, /@container dash-states \(min-width: 320px\) and \(max-width: 479px\)[\s\S]*repeat\(4, minmax\(0, 1fr\)\)/);
+  assert.match(styles, /\.dashboard \.review-queue-item:nth-child\(n\+3\) \{ display: none; \}/);
+  // Wide: mistakes take the larger, leading column.
+  assert.match(styles, /@media \(min-width: 900px\)[\s\S]*\.dashboard-secondary \{ grid-template-columns: minmax\(0, 1\.3fr\) minmax\(0, 1fr\); \}/);
 });
 
 test("coarse-pointer scrolling avoids live glass sampling and paint-bound pulse effects", async () => {

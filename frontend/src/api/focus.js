@@ -52,18 +52,23 @@ export const focusApi = {
     ), "Active Study availability could not be loaded.");
   },
 
-  async startManagedActiveStudy({ sheetId, difficulty, edition = "" }) {
+  async startManagedActiveStudy({ sheetId, difficulty, edition = "", studyMode = "standard", pagesPerCheckpoint = undefined, questionsPerCheckpoint = undefined, replaceExisting = false }) {
     // An omitted edition means the University Sheet, which is what this
     // endpoint always meant.
-    return objectPayload(await activeStudyClient.start({ sheetId, difficulty, edition },
-      (options = {}) => request("/focus/managed-active-study/start", { ...options, method: "POST", body: { sheet_id: sheetId, difficulty, ...(edition ? { edition } : {}) } })
+    return objectPayload(await activeStudyClient.start({ sheetId, difficulty, edition, studyMode, pagesPerCheckpoint, questionsPerCheckpoint, replaceExisting },
+      (options = {}) => request("/focus/managed-active-study/start", { ...options, method: "POST", body: { sheet_id: sheetId, difficulty, study_mode: studyMode, replace_existing: replaceExisting, ...(edition ? { edition } : {}), ...(studyMode === "custom" ? { pages_per_checkpoint: pagesPerCheckpoint, questions_per_checkpoint: questionsPerCheckpoint } : {}) } })
     ), "Active Study could not be started.");
   },
 
-  async managedActiveStudyAction(runId, action) {
+  async managedActiveStudyAction(runId, action, body = {}) {
     return objectPayload(await activeStudyClient.action(runId, action,
-      (serverRunId, options = {}) => request(`/focus/managed-active-study/${serverRunId}/${action}`, { ...options, method: "POST", body: {} })
+      (serverRunId, options = {}) => request(`/focus/managed-active-study/${serverRunId}/${action}`, { ...options, method: "POST", body }), body
     ), "Active Study could not be updated.");
+  },
+
+  /** Online only: the countdown is a convenience, so a device offline keeps its own copy. */
+  async savePomodoroClock(runId, clock) {
+    return objectPayload(await request(`/focus/managed-active-study/${runId}/pomodoro-clock`, { method: "POST", body: { clock } }), "The Pomodoro timer could not be saved.");
   },
 
   async getManagedActiveStudyQuestions(runId) {

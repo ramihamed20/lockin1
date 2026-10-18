@@ -1,3 +1,5 @@
+import json
+
 from rest_framework import serializers
 
 from apps.questions.importing import MAX_IMPORT_QUESTIONS
@@ -115,7 +117,8 @@ class AdminActiveStudyQuestionDeleteSerializer(StrictSerializer):
 class AdminAllQuestionsValidateSerializer(StrictSerializer):
     """One All Questions document plus the choices the prompt was built from."""
 
-    payload = serializers.JSONField()
+    payload = serializers.JSONField(required=False)
+    payload_file = serializers.FileField(required=False, write_only=True)
     sheet_question_count = serializers.IntegerField(min_value=0, max_value=MAX_IMPORT_QUESTIONS)
     # Omitted keeps the edition's saved exclusions, as the Active Study preview does.
     excluded_start_pages = serializers.IntegerField(
@@ -124,6 +127,38 @@ class AdminAllQuestionsValidateSerializer(StrictSerializer):
     excluded_end_pages = serializers.IntegerField(
         min_value=0, max_value=9_999, allow_null=True, required=False
     )
+
+    def to_internal_value(self, data):  # type: ignore[no-untyped-def]
+        if hasattr(data, "getlist"):
+            data = {key: data.get(key) for key in data}
+            for key in ("payload", "expected_revisions"):
+                if key in data:
+                    try:
+                        data[key] = json.loads(data[key])
+                    except (ValueError, TypeError, RecursionError) as error:
+                        raise serializers.ValidationError({key: "Expected valid JSON."}) from error
+        return super().to_internal_value(data)
+
+    def validate(self, attrs):  # type: ignore[no-untyped-def]
+        has_payload = "payload" in attrs
+        upload = attrs.pop("payload_file", None)
+        if has_payload == (upload is not None):
+            raise serializers.ValidationError(
+                "Supply exactly one question document: payload or payload_file."
+            )
+        if upload is not None:
+            maximum = 16 * 1024 * 1024
+            if upload.size > maximum:
+                raise serializers.ValidationError(
+                    {"payload_file": "The JSON file must be at most 16 MB."}
+                )
+            try:
+                attrs["payload"] = json.loads(upload.read(maximum + 1).decode("utf-8-sig"))
+            except (ValueError, UnicodeError, RecursionError) as error:
+                raise serializers.ValidationError(
+                    {"payload_file": "Upload one valid UTF-8 JSON document."}
+                ) from error
+        return attrs
 
 
 class AdminAllQuestionsSaveSerializer(AdminAllQuestionsValidateSerializer):

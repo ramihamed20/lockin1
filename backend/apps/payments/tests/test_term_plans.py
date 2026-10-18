@@ -483,10 +483,14 @@ def test_a_subscription_is_refundable_for_fifteen_days_and_not_after() -> None:
         _review(early_payment, "approve")
         _review(late_payment, "approve")
 
-    refund, created = _refund(early_payment, START + timedelta(days=14, hours=23))
+    from apps.refunds.services import refund_window_ends_at
+
+    early_end = refund_window_ends_at(Payment.objects.get(id=early_payment.id))
+    late_end = refund_window_ends_at(Payment.objects.get(id=late_payment.id))
+    refund, created = _refund(early_payment, early_end - timedelta(minutes=1))
     assert created is True
     with pytest.raises(ValueError, match="15-day refund period"):
-        _refund(late_payment, START + timedelta(days=15, minutes=1))
+        _refund(late_payment, late_end + timedelta(minutes=1))
 
 
 def test_a_later_installment_does_not_reopen_the_refund_period() -> None:
@@ -494,5 +498,10 @@ def test_a_later_installment_does_not_reopen_the_refund_period() -> None:
     second = _pay_next(user, agreement, START + timedelta(days=20)).payment
     with at(START + timedelta(days=20)):
         _review(second, "approve")
+    from apps.refunds.services import refund_window_ends_at
+
+    first = agreement.payments.get(installment_number=1)
+    first_end = refund_window_ends_at(Payment.objects.get(id=first.id))
+    assert refund_window_ends_at(Payment.objects.get(id=second.id)) == first_end
     with pytest.raises(ValueError, match="15-day refund period"):
-        _refund(second, START + timedelta(days=21))
+        _refund(second, first_end + timedelta(minutes=1))

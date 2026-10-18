@@ -1,0 +1,147 @@
+# Lockin
+
+> بيئة دراسية مترابطة لطلبة الطب البشري وطب الأسنان في ليبيا، ضمن المسارات والمحتوى المدعومين.
+> A connected study environment for medicine and dentistry students in Libya, within the supported study paths and content.
+
+Telegram: https://t.me/lock_in_official
+
+## المصادر الرسمية
+
+- [عن Lockin](https://lockin.ly/about/)
+- [أدوات الملاحظات](https://lockin.ly/features/notes/)
+- [Active Study](https://lockin.ly/features/active-study/)
+- [المراجعة](https://lockin.ly/features/review/)
+- [الأسئلة](https://lockin.ly/features/questions/)
+- [مركز المساعدة](https://lockin.ly/help/)
+- [البداية](https://lockin.ly/help/topics/getting-started/)
+- [الدراسة](https://lockin.ly/help/topics/studying/)
+- [المراجعة والتقدم](https://lockin.ly/help/topics/review-progress/)
+- [الحساب والخصوصية](https://lockin.ly/help/topics/account-security/)
+- [حل المشكلات](https://lockin.ly/help/topics/troubleshooting/)
+
+## أسئلة وأجوبة
+
+- [ما هي Lockin؟](https://lockin.ly/help/what-is-lockin/): Lockin بيئة دراسية مترابطة تجمع الشيتات والأسئلة والملاحظات والمراجعة في تجربة واحدة. وهي موجهة حاليًا لطلبة الطب البشري وطب الأسنان في ليبيا.
+- [لمن تتوفر Lockin حاليًا؟](https://lockin.ly/help/who-is-lockin-for/): لطلبة الطب البشري في طرابلس، وطلبة طب الأسنان في السنة الأولى والثانية في طرابلس وبنغازي والزاوية. المواد والأسئلة التي تظهر لكل طالب مرتبطة بمساره وبالمحتوى المنشور له.
+- [هل تشمل Lockin كل الجامعات والسنوات؟](https://lockin.ly/help/supported-universities/): ليس بعد. المسارات التي يمكن اختيارها حاليًا: طب الأسنان (سنة أولى وثانية) في طرابلس وبنغازي والزاوية، والطب البشري في طرابلس (دفعة 60 و61). المحتوى المنشور يختلف بين المسارات، وبقية الجامعات والسنوات غير مدعومة بعد.
+- [هل أحتاج حسابًا للدراسة؟](https://lockin.ly/help/need-account/): نعم. الصفحات التعريفية ومركز المساعدة عامة، بينما مواد الدراسة والتقدم والملاحظات داخل حسابك وتخضع للصلاحيات.
+- [كيف أصل إلى شيتاتي؟](https://lockin.ly/help/open-materials/): ابدأ من قسم المواد في حسابك، ثم اختر المادة والشيت المتاح.
+- [لماذا تختلف موادي عن مواد زميل آخر؟](https://lockin.ly/help/cohort-content/): قائمة المواد مرتبطة بالمسار والسنة أو الدفعة المسجلة للحساب، وبالمحتوى المنشور. اختلاف المسار قد يعني اختلاف المواد والأسئلة. وفي سنة ثانية طب أسنان قد يضيف الطالب حتى مادتين من سنة أولى، فتظهر عنده دون زملائه.
+- [ما الفرق بين نسخ الشيت الظاهرة؟](https://lockin.ly/help/sheet-editions/): قد يعرض الشيت نسخة الجامعة ونسخة Lockin عندما تكونان متاحتين. تظهر النسخ المنشورة والقابلة للفتح فقط؛ لا يلزم وجود النسختين لكل شيت.
+- [أين أجد معلومات Lockin داخل التطبيق؟](https://lockin.ly/help/about-settings/): افتح الإعدادات ثم «عن Lockin» للتعريف والميزات، أو «الدعم» للوصول إلى مركز المساعدة وأدلته.
+- [كيف أفتح الشيت للقراءة؟](https://lockin.ly/help/open-pdf/): اختر مادة ثم شيتًا ونسخة متاحة. افتح مساحة الدراسة واستخدم الدراسة العادية للقراءة والملاحظات.
+- [هل يمكنني كتابة ملاحظات على PDF؟](https://lockin.ly/help/pdf-notes/): نعم، توجد أدوات قلم وتحديد ونص داخل مساحة دراسة الشيت. الملاحظات مرتبطة بمساحة العمل الخاصة بالحساب.
+- [كيف أكتب على صفحات الشيت؟](https://lockin.ly/help/pen-tool/): افتح الشيت في مساحة الدراسة واختر أداة القلم من شريط الأدوات، ثم اكتب أو ارسم على الصفحة.
+- [كيف أحدد الأجزاء المهمة؟](https://lockin.ly/help/highlight-tool/): استخدم أداة التحديد في مساحة الدراسة لتمييز مواضع مهمة على الصفحة. التحديد جزء من ملاحظات مساحة العمل وليس تعديلًا على الملف الأصلي.
+- [كيف أمسح الكتابة التي أضفتها؟](https://lockin.ly/help/erase-marks/): اختر الممحاة لإزالة العلامات التي أنشأتها داخل مساحة العمل. الممحاة لا تحذف نص PDF الأصلي.
+- [هل أستطيع إضافة نص مكتوب؟](https://lockin.ly/help/text-notes/): توجد أداة نص إلى جانب أدوات الرسم في مساحة الدراسة. تستخدم لإضافة ملاحظات نصية قريبة من الصفحة التي تراجعها.
+- [هل يرى الطلاب الآخرون ملاحظاتي؟](https://lockin.ly/help/notes-private/): ملاحظاتك الأصلية مرتبطة بحسابك والمستند. إذا اخترت مشاركة نسخة من علامات PDF، يراها الطلاب المسموح لهم بالوصول إلى الشيت. العلامات غير المشاركة تبقى خاصة، والصفحات العامة لا تعرض ملاحظاتك أو إجاباتك أو ملفاتك.
+- [هل الكتابة تغير الشيت الأصلي؟](https://lockin.ly/help/pdf-original/): العلامات والملاحظات تحفظ في مساحة العمل المرتبطة بالشيت. استخدامها لا يعني تعديل محتوى الملف الأصلي المنشور.
+- [ما هو Active Study؟](https://lockin.ly/help/active-study-what/): هو وضع دراسة يقسم الشيت إلى أجزاء، بعد كل جزء اختبار قصير، ثم اختبار نهائي. في الشيتات الجديدة الجاهزة تقدر تختار عدد الصفحات والأسئلة لكل اختبار، أو تستخدم أسلوب Pomodoro (بومودورو): مؤقت تركيز ثم اختبار للصفحات التي قرأتها. الأسلوب المعتاد يبقى متاحًا.
+- [كيف أبدأ Active Study؟](https://lockin.ly/help/start-active-study/): افتح مساحة الشيت، واختر Active Study ومستوى الصعوبة، ثم اضغط «ابدأ الدراسة النشطة» عندما يكون الخيار متاحًا.
+- [هل Active Study متاحة لكل شيت؟](https://lockin.ly/help/active-availability/): لا. إتاحتها تتطلب تجهيز الشيت والأسئلة المناسبة للمستوى المختار. وجود PDF وحده لا يعني جاهزية الدراسة النشطة.
+- [هل أستطيع اختيار صعوبة Active Study؟](https://lockin.ly/help/active-difficulty/): نعم. اختر سهلًا أو متوسطًا أو صعبًا. في الشيتات الجديدة الجاهزة تقدر تخصص حتى 10 صفحات و30 سؤالًا لكل اختبار، أو تختار أسلوب Pomodoro الذي يختبر الصفحات المقروءة بعد انتهاء مؤقت التركيز بعدد يصل إلى 40 سؤالًا بحسب المتاح. يبقى التقدم مستقلًا لكل أسلوب.
+- [ماذا يحدث بعد قراءة صفحات الشيت؟](https://lockin.ly/help/active-parts/): بعد قراءة الصفحات المتاحة، افتح اختبار المرحلة. يفتح نجاحك الصفحات التالية، وتظل الصفحات السابقة قابلة للقراءة. الاختبار مرتبط بالصفحات المحددة في جلسة الدراسة.
+- [هل يوجد اختبار في نهاية Active Study؟](https://lockin.ly/help/active-final/): نعم، بعد الأجزاء يوجد اختبار نهائي يجمع ما درسته. عدد أسئلته يعتمد على إعداد الشيت، وليس رقمًا موحدًا لكل المواد.
+- [كيف أرجع إلى دراسة نشطة سابقة؟](https://lockin.ly/help/active-resume/): استخدم الخروج مع الحفظ، ثم افتح الشيت نفسه والمستوى والأسلوب نفسيهما لاستئناف التقدم. إعدادات الجلسة المخصصة تبقى محفوظة، ولا تُحتسب نتائج الأوفلاين نهائيًا حتى يؤكدها الخادم.
+- [ماذا يحدث إذا أعدت Active Study من البداية؟](https://lockin.ly/help/active-restart/): إعادة البدء تعيد جلسة المستوى والأسلوب المختارين إلى الصفحات الأولى بعد تأكيدك. تغيير إعدادات جلسة مخصصة بدأتها يتطلب تأكيد بدء جلسة جديدة؛ تبقى الجلسة السابقة في الأرشيف وملاحظات PDF مستقلة.
+- [ما الفرق بين الدراسة العادية وActive Study؟](https://lockin.ly/help/normal-or-active/): الدراسة العادية للقراءة والعمل على الشيت؛ الدراسة النشطة تضيف مراحل وأسئلة واختبارًا نهائيًا للشيتات الجاهزة. أدوات PDF تبقى ضمن مساحة الدراسة.
+- [من أين أصل إلى الأسئلة؟](https://lockin.ly/help/question-sources/): افتح قسم الأسئلة في حسابك ثم المصدر والمادة المتاحين لمسارك. تختلف الأسئلة المنشورة حسب المادة والمسار.
+- [هل تدعم Lockin أسئلة طب الأسنان العملية؟](https://lockin.ly/help/practical-questions/): تدعم بعض مصادر التدريب أسئلة تعتمد على الشرائح والصور أو تحديد موضع. إتاحتها مرتبطة بالمادة والمحتوى المنشور؛ لا تشمل بالضرورة كل مادة أو كل طالب.
+- [لماذا لا أستطيع فتح Mix؟](https://lockin.ly/help/mixed-questions/): مصدر Mix غير متاح حاليًا. استخدم أحد مصادر الأسئلة المتاحة لمسارك في قسم الأسئلة.
+- [هل توجد توضيحات للإجابات؟](https://lockin.ly/help/question-explanations/): يظهر توضيح الإجابة في شاشات الأسئلة والمراجعة عندما يكون متوفرًا للسؤال. ليس لكل سؤال توضيح منشور.
+- [كيف أراجع أخطائي؟](https://lockin.ly/help/find-mistakes/): افتح مركز المراجعة ثم بنك المراجعة أو «ابدأ المراجعة» عند وجود أسئلة نشطة. أخطاء المصادر المدعومة هي التي تدخل هذا النظام.
+- [هل تحفظ كل إجابة خاطئة في بنك المراجعة؟](https://lockin.ly/help/saved-mistakes/): تُحفظ أخطاؤك في الأسئلة التي تدعم المراجعة. الأخطاء في نشاط آخر، أو المحاولات التي لم تصل إلى الخادم، لا تدخل بنك المراجعة.
+- [ماذا يحدث إذا أخطأت في السؤال نفسه مرة أخرى؟](https://lockin.ly/help/repeat-mistake/): يحتفظ بنك المراجعة بالسؤال وسجل تكرار الخطأ بدل اعتباره سؤالًا مختلفًا في كل مرة، ليساعدك على العودة للنقطة التي تحتاج اهتمامًا.
+- [أين يذهب السؤال بعد الإجابة الصحيحة في المراجعة؟](https://lockin.ly/help/mastered-question/): يخرج من قائمة المراجعة النشطة ويصبح مؤهلًا لاسترجاع لاحق وفق سياسة المراجعة. اختفاؤه من القائمة النشطة لا يعني حذف سجله.
+- [ماذا يعني أن بنك المراجعة فارغ؟](https://lockin.ly/help/empty-review/): لا توجد أسئلة نشطة تحتاج مراجعة في الوقت الحالي. قد يبقى سجل الأسئلة المتقنة محفوظًا، ولا يعني ذلك فقدان بياناتك.
+- [ما هو Weekly Recall؟](https://lockin.ly/help/weekly-recall/): اختبار ذاكرة دوري يستخدم أسئلة مؤهلة سبق أن صححتها في بنك المراجعة. يظهر عندما تتوفر أسئلة مناسبة لحسابك.
+- [لماذا يظهر Weekly Recall غير جاهز؟](https://lockin.ly/help/weekly-not-ready/): قد لا توجد أسئلة متقنة مؤهلة بعد. ابدأ بتصحيح أسئلة في بنك المراجعة؛ لا ينشئ النظام اختبارًا فارغًا لمجرد مرور أسبوع.
+- [كيف أبدأ اختبار الذاكرة؟](https://lockin.ly/help/start-weekly/): من مركز المراجعة، استخدم زر بدء أو استكمال اختبار الذاكرة عندما يظهر. إن لم يكن متاحًا، تابع بنك المراجعة أولًا.
+- [ماذا يحدث للأخطاء في اختبار الذاكرة؟](https://lockin.ly/help/weekly-errors/): الأسئلة التي تجيب عنها خطأ في Weekly Recall تعود إلى بنك المراجعة النشط وفق نتيجة الاختبار.
+- [كيف أتابع تقدمي؟](https://lockin.ly/help/progress-page/): افتح قسم التقدم للاطلاع على النشاط المسجل ونقاط التقدم وسجلها وأيام الاستمرارية. هذه مؤشرات استخدام، وليست ضمانًا لدرجة امتحان أو مقارنة أكاديمية.
+- [أين أجد ملخصي الأسبوعي؟](https://lockin.ly/help/periodic-reports/): عندما يجهز ملخصك الأسبوعي يظهر لك إشعار «ملخصك للأسبوع جاهز» في التطبيق، اضغط «فتح» لقراءته. قد لا يظهر ملخص إذا لم يكن لديك نشاط كافٍ.
+- [ما الذي يظهر للبحث وما الذي يبقى خاصًا؟](https://lockin.ly/help/private-and-public/): صفحات التعريف والميزات والأدلة فقط عامة. مواد الدراسة وبيانات الحساب والملاحظات والإجابات خلف صلاحيات التطبيق، ولا تدخل خريطة الموقع العامة.
+- [كيف أحمي بيانات حسابي؟](https://lockin.ly/help/account-security/): لا تشارك كلمة المرور أو رموز التحقق أو روابط الاستعادة مع الآخرين. استخدم الحساب الخاص بك للوصول إلى بيانات الدراسة المرتبطة به.
+- [هل الصفحة التعريفية تمنحني صلاحية كل الشيتات؟](https://lockin.ly/help/supported-access/): لا. الصفحة تشرح طريقة العمل فقط. الوصول إلى الشيت أو الأسئلة يعتمد على المسار والمحتوى المنشور وصلاحيات الحساب أو الاشتراك.
+- [لماذا لا تظهر مادة أو شيت؟](https://lockin.ly/help/missing-materials/): قد يكون المسار غير مدعوم أو لم ينشر له محتوى بعد، أو لم يكن الشيت قابلًا للفتح. تحقق من مسارك في الحساب ولا تغيّره لمجرد التجربة؛ تغيير المسار قد يؤثر في تقدمك.
+- [لماذا تظهر رسالة عدم وجود أسئلة؟](https://lockin.ly/help/missing-questions/): نشر الشيت ونشر الأسئلة عمليتان منفصلتان. قد يتوفر ملف للقراءة قبل توفر أسئلة للمادة أو المصدر المختار.
+- [ماذا أفعل إذا تعذر فتح الشيت؟](https://lockin.ly/help/reader-unavailable/): تحقق من الاتصال ومن توفر الشيت وصلاحية حسابك، ثم استخدم إعادة المحاولة إن ظهرت. إذا استمرت المشكلة، أرسل وصفًا لها من الإعدادات دون مشاركة ملف محمي أو بيانات حساب حساسة.
+- [ماذا أفعل إذا لم تتزامن ملاحظاتي؟](https://lockin.ly/help/notes-not-synced/): انتظر حالة الحفظ أو المزامنة الظاهرة وتحقق من الاتصال. لا تمسح بيانات المتصفح ولا تسجل الخروج كخطوة أولى قبل التأكد من حفظ العمل.
+- [ماذا أفعل إذا تعذر بدء Active Study؟](https://lockin.ly/help/active-start-error/): تحقق من جاهزية الشيت والمستوى ومن الاتصال، واستخدم إعادة المحاولة إذا ظهرت. تستطيع مواصلة الدراسة العادية عندما تكون متاحة؛ لا نفترض جاهزية أسئلة الشيت.
+- [كيف أصل إلى الدعم؟](https://lockin.ly/help/contact-support/): افتح الإعدادات ثم «الدعم» للوصول إلى مركز المساعدة. للإبلاغ عن مشكلة من حسابك، استخدم قسم الاقتراحات واختر تصنيف المشكلة وأرسل وصفًا مختصرًا.
+- [كيف أذاكر بطريقة بومودورو (Pomodoro) في Lockin؟](https://lockin.ly/help/pomodoro-study/): اختر Pomodoro style في Active Study داخل قارئ Focus. تقرأ مع مؤقت تركيز، وبعد انتهائه تختبر الصفحات التي وصلت إليها، ثم تأخذ راحة. بعد كل أربعة اختبارات تحصل على راحة طويلة.
+- [كيف أحدد عدد الصفحات والأسئلة في Active Study؟](https://lockin.ly/help/custom-active-study/): في الشيتات الجديدة الجاهزة اضغط «تخصيص» قبل البدء، ثم حدد حتى 10 صفحات لكل اختبار وحتى 30 سؤالًا. الاختبار النهائي يبقى كما هو، وتقدر ترجع للأسلوب العادي في أي وقت.
+- [هل أستطيع إضافة مواد سنة أولى وأنا في سنة ثانية طب أسنان؟](https://lockin.ly/help/first-year-subjects/): نعم. طلبة سنة ثانية طب أسنان يقدرون يضيفون حتى مادتين من مواد سنة أولى يدرسونها هذه السنة، من زر «إضافة مادة من سنة أولى» في قسم المواد.
+
+## Official sources
+
+- [About Lockin](https://lockin.ly/en/about/)
+- [Note tools](https://lockin.ly/en/features/notes/)
+- [Active Study](https://lockin.ly/en/features/active-study/)
+- [Review](https://lockin.ly/en/features/review/)
+- [Questions](https://lockin.ly/en/features/questions/)
+- [Help center](https://lockin.ly/en/help/)
+- [Getting started](https://lockin.ly/en/help/topics/getting-started/)
+- [Studying](https://lockin.ly/en/help/topics/studying/)
+- [Review and progress](https://lockin.ly/en/help/topics/review-progress/)
+- [Account and privacy](https://lockin.ly/en/help/topics/account-security/)
+- [Troubleshooting](https://lockin.ly/en/help/topics/troubleshooting/)
+
+## Questions and answers
+
+- [What is Lockin?](https://lockin.ly/en/help/what-is-lockin/): Lockin is a connected study environment that brings sheets, questions, notes and review together in one experience. It currently serves medicine and dentistry students in Libya.
+- [Who is Lockin available for?](https://lockin.ly/en/help/who-is-lockin-for/): Medicine students in Tripoli, and First and Second Year dentistry students in Tripoli, Benghazi and Zawiya. The subjects and questions each student sees depend on their study path and the content published for it.
+- [Does Lockin cover every university and year?](https://lockin.ly/en/help/supported-universities/): Not yet. The study paths you can choose now are dentistry (First and Second Year) in Tripoli, Benghazi and Zawiya, and medicine in Tripoli (Batch 60 and 61). Published content differs between paths, and other universities and years are not supported yet.
+- [Do I need an account to study?](https://lockin.ly/en/help/need-account/): Yes. The introduction pages and the help center are public, while study materials, progress and notes live inside your account and follow its access.
+- [How do I reach my sheets?](https://lockin.ly/en/help/open-materials/): Start from Materials in your account, then choose the subject and an available sheet.
+- [Why are my subjects different from a classmate’s?](https://lockin.ly/en/help/cohort-content/): Your subject list depends on the study path and the year or cohort registered on your account, and on the published content. A different path can mean different subjects and questions. In Second Year Dentistry, a student may also add up to two First Year subjects, which then appear for them only.
+- [What is the difference between the sheet editions shown?](https://lockin.ly/en/help/sheet-editions/): A sheet may show a University edition and a Lockin edition when both are available. Only published editions that can be opened appear; not every sheet has both.
+- [Where do I find information about Lockin inside the app?](https://lockin.ly/en/help/about-settings/): Open Settings, then «About Lockin» for the introduction and features, or «Support» for the help center and its guides.
+- [How do I open a sheet to read it?](https://lockin.ly/en/help/open-pdf/): Choose a subject, then a sheet and an available edition. Open the study workspace and use Normal Study for reading and notes.
+- [Can I write notes on the PDF?](https://lockin.ly/en/help/pdf-notes/): Yes. The sheet’s study workspace has pen, highlighter and text tools. Your notes belong to your account’s workspace.
+- [How do I write on the sheet’s pages?](https://lockin.ly/en/help/pen-tool/): Open the sheet in the study workspace, choose the pen from the toolbar, then write or draw on the page.
+- [How do I highlight the important parts?](https://lockin.ly/en/help/highlight-tool/): Use the highlighter in the study workspace to mark important places on the page. Highlights are part of your workspace notes, not an edit to the original file.
+- [How do I erase what I wrote?](https://lockin.ly/en/help/erase-marks/): Choose the eraser to remove marks you made in the workspace. The eraser never removes the original PDF text.
+- [Can I add typed text?](https://lockin.ly/en/help/text-notes/): Yes. A text tool sits next to the drawing tools in the study workspace, for typed notes close to the page you are reviewing.
+- [Can other students see my notes?](https://lockin.ly/en/help/notes-private/): Your own notes belong to your account and the document. If you choose to share a copy of your PDF marks, students with access to that sheet can see it. Marks you don’t share stay private, and the public pages never show your notes, answers or files.
+- [Does writing change the original sheet?](https://lockin.ly/en/help/pdf-original/): Marks and notes are saved in the workspace linked to the sheet. Using them does not edit the content of the original published file.
+- [What is Active Study?](https://lockin.ly/en/help/active-study-what/): A study mode that splits the sheet into parts, with a short test after each part and a final test at the end. On new prepared sheets you can choose the pages and questions per test, or use the Pomodoro style: a focus timer, then a test on the pages you read. The standard style stays available.
+- [How do I start Active Study?](https://lockin.ly/en/help/start-active-study/): Open the sheet’s workspace, choose Active Study and a difficulty, then press «Start Active Study» when the option is available.
+- [Is Active Study available for every sheet?](https://lockin.ly/en/help/active-availability/): No. It needs the sheet and suitable questions for the chosen difficulty to be prepared. Having a PDF alone does not make a sheet ready for Active Study.
+- [Can I choose the difficulty of Active Study?](https://lockin.ly/en/help/active-difficulty/): Yes. Choose easy, medium or hard. On new prepared sheets you can customize up to 10 pages and 30 questions per test, or choose the Pomodoro style, which tests the pages you read once the focus timer ends with up to 40 questions, depending on what’s available. Progress is kept separately for each style.
+- [What happens after I read the sheet’s pages?](https://lockin.ly/en/help/active-parts/): After reading the available pages, open the part’s test. Passing it unlocks the next pages, and earlier pages stay readable. The test is tied to the pages set for that study session.
+- [Is there a test at the end of Active Study?](https://lockin.ly/en/help/active-final/): Yes. After the parts there is a final test that brings together what you studied. Its number of questions depends on the sheet’s setup, not one number for every subject.
+- [How do I return to an earlier Active Study session?](https://lockin.ly/en/help/active-resume/): Use exit with save, then open the same sheet with the same difficulty and style to resume. Custom session settings stay saved, and offline results only count once the server confirms them.
+- [What happens if I restart Active Study from the beginning?](https://lockin.ly/en/help/active-restart/): After you confirm, restarting returns the session for the chosen difficulty and style to the first pages. Changing the settings of a custom session you started asks you to confirm a new session; the earlier session stays in the archive and your PDF notes are unaffected.
+- [What is the difference between Normal Study and Active Study?](https://lockin.ly/en/help/normal-or-active/): Normal Study is for reading and working on the sheet; Active Study adds parts, questions and a final test on prepared sheets. The PDF tools stay part of the study workspace.
+- [Where do I find the questions?](https://lockin.ly/en/help/question-sources/): Open Questions in your account, then the source and subject available for your study path. Published questions differ by subject and study path.
+- [Does Lockin support practical dentistry questions?](https://lockin.ly/en/help/practical-questions/): Some practice sources include questions based on slides and images, or on locating a spot. Their availability depends on the subject and published content; they don’t necessarily cover every subject or every student.
+- [Why can’t I open Mix?](https://lockin.ly/en/help/mixed-questions/): The Mix source isn’t available right now. Use one of the question sources available for your study path in Questions.
+- [Are there explanations for the answers?](https://lockin.ly/en/help/question-explanations/): An answer explanation appears on the question and review screens when one is available. Not every question has a published explanation.
+- [How do I review my mistakes?](https://lockin.ly/en/help/find-mistakes/): Open the Review Center, then the review bank or «Start review» when there are active questions. Mistakes from supported sources are the ones that enter this system.
+- [Is every wrong answer saved in the review bank?](https://lockin.ly/en/help/saved-mistakes/): Your mistakes in questions that support review are saved. Mistakes from other activity, or attempts that never reached the server, don’t enter the review bank.
+- [What happens if I get the same question wrong again?](https://lockin.ly/en/help/repeat-mistake/): The review bank keeps the question and a record of the repeated mistake, instead of treating it as a new question each time, so you can return to the point that needs attention.
+- [Where does a question go after I answer it correctly in review?](https://lockin.ly/en/help/mastered-question/): It leaves the active review list and becomes eligible for later recall under the review policy. Leaving the active list does not delete its record.
+- [What does an empty review bank mean?](https://lockin.ly/en/help/empty-review/): There are no active questions that need review right now. The record of mastered questions may still be kept, and it doesn’t mean your data was lost.
+- [What is Weekly Recall?](https://lockin.ly/en/help/weekly-recall/): A periodic memory test using eligible questions you have already corrected in the review bank. It appears when suitable questions are available for your account.
+- [Why does Weekly Recall show as not ready?](https://lockin.ly/en/help/weekly-not-ready/): There may be no eligible mastered questions yet. Start by correcting questions in the review bank; the system won’t create an empty test just because a week has passed.
+- [How do I start the memory test?](https://lockin.ly/en/help/start-weekly/): From the Review Center, use the button to start or continue the memory test when it appears. If it isn’t available, work through the review bank first.
+- [What happens to mistakes in the memory test?](https://lockin.ly/en/help/weekly-errors/): Questions you answer wrongly in Weekly Recall return to the active review bank, based on the test result.
+- [How do I follow my progress?](https://lockin.ly/en/help/progress-page/): Open Progress to see your recorded activity, progress points and their history, and your streak days. These are usage indicators, not a guarantee of an exam grade or an academic comparison.
+- [Where do I find my weekly summary?](https://lockin.ly/en/help/periodic-reports/): When your weekly summary is ready, the app shows «Your summary for the week is ready»; press «Open» to read it. A summary may not appear without enough activity.
+- [What appears in search and what stays private?](https://lockin.ly/en/help/private-and-public/): Only the introduction, feature and guide pages are public. Study materials, account data, notes and answers stay behind the app’s access controls and are not in the public sitemap.
+- [How do I protect my account data?](https://lockin.ly/en/help/account-security/): Don’t share your password, verification codes or recovery links with anyone. Use your own account to reach the study data linked to it.
+- [Does the introduction page give me access to every sheet?](https://lockin.ly/en/help/supported-access/): No. The page only explains how Lockin works. Access to a sheet or questions depends on your study path, the published content and your account or subscription access.
+- [Why is a subject or sheet missing?](https://lockin.ly/en/help/missing-materials/): Your study path may not be supported or have published content yet, or the sheet may not be openable. Check the study path on your account, and don’t change it just to try: changing it can affect your progress.
+- [Why do I see a message that there are no questions?](https://lockin.ly/en/help/missing-questions/): Publishing a sheet and publishing its questions are separate. A file can be available for reading before questions are available for the chosen subject or source.
+- [What should I do if a sheet won’t open?](https://lockin.ly/en/help/reader-unavailable/): Check your connection, that the sheet is available and your account’s access, then use retry if it appears. If the problem continues, describe it from Settings without sharing a protected file or sensitive account details.
+- [What should I do if my notes didn’t sync?](https://lockin.ly/en/help/notes-not-synced/): Wait for the save or sync status shown and check your connection. Don’t clear browser data or sign out as a first step before you are sure your work is saved.
+- [What should I do if Active Study won’t start?](https://lockin.ly/en/help/active-start-error/): Check that the sheet and difficulty are ready and your connection, and use retry if it appears. You can continue with Normal Study when it’s available; we don’t assume the sheet’s questions are ready.
+- [How do I reach support?](https://lockin.ly/en/help/contact-support/): Open Settings, then «Support», for the help center. To report a problem from your account, use «Suggest» in Settings, choose the problem category and send a short description.
+- [How do I study with the Pomodoro technique in Lockin?](https://lockin.ly/en/help/pomodoro-study/): Choose Pomodoro style in Active Study inside the Focus reader. You read with a focus timer, test yourself on the pages you reached when it ends, then take a break. Every four tests earn a long break.
+- [How do I set the number of pages and questions in Active Study?](https://lockin.ly/en/help/custom-active-study/): On new prepared sheets, press «Customize» before you start, then set up to 10 pages per test and up to 30 questions. The final test stays the same, and you can go back to the standard style at any time.
+- [Can I add First Year subjects as a Second Year dentistry student?](https://lockin.ly/en/help/first-year-subjects/): Yes. Second Year Dentistry students can add up to two First Year subjects they are studying this year, from the «Add a First Year subject» button in Materials.
+
+الفهرس مساعد اختياري. صفحات HTML هي المصدر؛ لا يشمل ملفات الطلاب أو حساباتهم. لا يثبت الفهرس ترتيبًا أو توصية من أي محرك بحث.
+This index is an optional aid. The HTML pages are the source; it does not include student files or accounts, and it implies no ranking or endorsement by any search engine.

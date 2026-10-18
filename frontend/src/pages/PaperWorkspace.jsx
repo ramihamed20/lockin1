@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { focusApi } from "../api/focus.js";
 import { useCatalogMaterials } from "../hooks/useCatalogMaterials.js";
 import { useI18n } from "../components/I18nProvider.jsx";
+import { ActiveStudyCustomization, validStudyCustomization, changesSavedCustomization } from "../components/shared/ActiveStudyCustomization.jsx";
 import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
 import { CheckpointExitDialog, CheckpointRestartDialog } from "../components/shared/CheckpointExitDialog.jsx";
@@ -99,6 +100,8 @@ function PaperSetup({ groups, onStart }) {
   const [availability, setAvailability] = useState(/** @type {any} */ ("loading"));
   const [busy, setBusy] = useState(false);
   const [startError, setStartError] = useState("");
+  const [customization, setCustomization] = useState({ studyMode: "standard", pagesPerCheckpoint: 3, questionsPerCheckpoint: 5 });
+  const [confirmCustom, setConfirmCustom] = useState(false);
   const sheet = subject?.sheets.find((item) => item.learningObjectId === sheetId) || null;
 
   function chooseSubject(slug) {
@@ -130,13 +133,16 @@ function PaperSetup({ groups, onStart }) {
   const unavailable = Boolean(sheet) && (availability === "failed" || (checked && !DIFFICULTIES.some(isReady)));
   const difficultyIndex = DIFFICULTIES.indexOf(difficulty);
 
-  async function start() {
+  const selectedAvailability = checked ? availability.difficulties?.find((row) => row.difficulty === difficulty) : null;
+  async function start(replaceExisting = false) {
+    if (!validStudyCustomization(customization, selectedAvailability)) return;
+    if (changesSavedCustomization(customization, selectedAvailability) && !replaceExisting) { setConfirmCustom(true); return; }
     if (!sheet || !subject || busy) return;
     setBusy(true);
     setStartError("");
     try {
       const edition = editionFor(sheet);
-      const payload = await focusApi.startManagedActiveStudy({ sheetId: sheet.learningObjectId, difficulty, edition });
+      const payload = await focusApi.startManagedActiveStudy({ sheetId: sheet.learningObjectId, difficulty, edition, ...customization, replaceExisting });
       writeStorage(SETUP_KEY, JSON.stringify({ subjectSlug: subject.slug, sheetId: sheet.learningObjectId, difficulty, minutes }));
       onStart({ sheet, material: subject, edition, difficulty, focusMinutes: minutes, run: payload.run });
     } catch (requestError) {
@@ -217,7 +223,7 @@ function PaperSetup({ groups, onStart }) {
             <div className="paper-segmented" role="radiogroup" aria-labelledby="paper-difficulty-label" style={cssVars({ "--paper-segment": difficultyIndex })}>
               <span className="paper-segmented-thumb" aria-hidden="true" />
               {DIFFICULTIES.map((key) => (
-                <button key={key} type="button" role="radio" aria-checked={difficulty === key} disabled={!isSelectable(key)} title={isSelectable(key) ? undefined : t("paper.difficultyUnavailable")} onClick={() => setDifficulty(key)}>
+                <button key={key} type="button" role="radio" aria-checked={difficulty === key} disabled={!isSelectable(key)} title={isSelectable(key) ? undefined : t("paper.difficultyUnavailable")} onClick={() => { setDifficulty(key); setCustomization((value) => ({ ...value, studyMode: "standard" })); setConfirmCustom(false); }}>
                   {t(`paper.difficulty.${key}`)}
                 </button>
               ))}
@@ -236,9 +242,11 @@ function PaperSetup({ groups, onStart }) {
             </div>
           </section>
 
+          <ActiveStudyCustomization availability={selectedAvailability} value={customization} onChange={(value) => { setCustomization(value); setConfirmCustom(false); }} disabled={busy} />
+          {confirmCustom && <div className="paper-panel"><p>{t("activeStudy.replaceCustom")}</p><button type="button" onClick={() => setConfirmCustom(false)}>{t("common.cancel")}</button><button type="button" onClick={() => start(true)}>{t("activeStudy.newCustom")}</button></div>}
           {unavailable && <p className="paper-error" role="alert" dir="auto">{t("paper.sheetUnavailable")}</p>}
           {startError && <p className="paper-error" role="alert" dir="auto">{startError}</p>}
-          <button type="button" className="paper-primary" onClick={start} disabled={busy || !isReady(difficulty)}>
+          <button type="button" className="paper-primary" onClick={() => start(false)} disabled={busy || !isReady(difficulty) || !validStudyCustomization(customization, selectedAvailability)}>
             {busy ? t("paper.starting") : availability === "loading" ? t("paper.checking") : t("paper.start")}
             <Icon name="chevron-right" size={19} />
           </button>
@@ -733,10 +741,11 @@ function stepStates(run) {
   const inFinal = run?.stage === "final" || run?.stage === "final_result";
   const parts = Array.from({ length: total }, (_, index) => {
     const part = index + 1;
+    const range = run?.page_ranges?.find((item) => item.part === part);
     const state = finished || completed.has(part) ? "done" : !inFinal && run?.current_part === part ? "current" : "pending";
-    return { key: `part-${part}`, part, final: false, state };
+    return { key: `part-${part}`, part, range, final: false, state };
   });
-  return [...parts, { key: "final", part: 0, final: true, state: finished ? "done" : inFinal ? "current" : "pending" }];
+  return [...(total > 30 ? parts.filter((item) => item.part === 1 || item.part === total || Math.abs(item.part - (run?.current_part || 1)) <= 2) : parts), { key: "final", part: 0, range: null, final: true, state: finished ? "done" : inFinal ? "current" : "pending" }];
 }
 
 function PaperStatus({ session, focusedMinutes, onCheckpoint, onChangeSheet }) {
@@ -767,8 +776,8 @@ function PaperStatus({ session, focusedMinutes, onCheckpoint, onChangeSheet }) {
       </div>
       <dl className="paper-facts">
         <div className="is-wide">
-          <dt>{t("paper.currentPart")}</dt>
-          <dd>{finished ? t("paper.completedHint") : inFinal ? t("paper.final") : t("paper.partOf", { part: run?.current_part || 1, total: run?.number_of_parts || 1 })}</dd>
+          <dt>{t("paper.pages")}</dt>
+          <dd>{finished ? t("paper.completedHint") : inFinal ? t("paper.final") : t("activeStudy.pageRange", { start: range?.start_page, end: range?.end_page })}</dd>
         </div>
         <div>
           <dt>{t("paper.pages")}</dt>
@@ -783,7 +792,7 @@ function PaperStatus({ session, focusedMinutes, onCheckpoint, onChangeSheet }) {
         {stepStates(run).map((step) => (
           <li key={step.key} className={`paper-step is-${step.state}`}>
             <span className="paper-step-node">{step.state === "done" && <Icon name="check" size={14} strokeWidth={2.8} />}</span>
-            <span className="paper-step-label">{step.final ? t("paper.final") : t("paper.part", { part: step.part })}</span>
+            <span className="paper-step-label">{step.final ? t("paper.final") : step.range ? t("activeStudy.pageRange", { start: step.range.start_page, end: step.range.end_page }) : t("paper.part", { part: step.part })}</span>
             <small>{t(`paper.step.${step.state}`)}</small>
           </li>
         ))}
@@ -984,7 +993,7 @@ function ActiveStudyDialog({ run, difficulty, onRunChange, onNotice, onClose }) 
               {view.questions.map((item, index) => <i key={item.position} className={index === view.index ? "is-current" : item.answered ? "is-answered" : ""} />)}
             </div>
             <p className="paper-quiz-count">
-              {view.quizKind === "final" ? t("paper.final") : t("paper.part", { part: run.current_part })}
+              {view.quizKind === "final" ? t("paper.final") : t("activeStudy.pageRange", { start: run.current_page_range?.start_page, end: run.current_page_range?.end_page })}
               {" · "}
               {t("paper.questionCount", { current: view.index + 1, total: view.questions.length })}
             </p>

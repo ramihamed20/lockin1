@@ -4,7 +4,10 @@ import { fulfillAccessContract } from "./fixtures/productionApi.js";
 const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 
 async function mockAuthenticatedWorkspace(page) {
-  await page.addInitScript(() => { Object.defineProperty(globalThis, "indexedDB", { configurable: true, value: undefined }); });
+  await page.addInitScript(() => {
+    localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now()));
+    Object.defineProperty(globalThis, "indexedDB", { configurable: true, value: undefined });
+  });
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     if (pathname === "/api/v1/auth/session") {
@@ -77,7 +80,7 @@ async function choosePen(page, name) {
   await expect(options).toBeHidden();
 }
 
-test("Neon and Pointer glow while drawing, stay three seconds after the lift, then clear; neither is saved", async ({ page }) => {
+test("Pointer glows while drawing, stays a moment after the lift, then clears; it is never saved", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.addInitScript(() => localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now())));
@@ -89,30 +92,23 @@ test("Neon and Pointer glow while drawing, stay three seconds after the lift, th
   const x = bounds.x + bounds.width * .2;
   const y = bounds.y + Math.min(bounds.height, 700) * .4;
 
-  // Neon: holds for the whole gesture, glows in its default red, stays three
-  // seconds after the lift, then clears.
-  await choosePen(page, /Neon Pen/);
+  await choosePen(page, /Pointer Pen/);
   await dispatchPointer(stage, "pointerdown", x, y);
   for (let step = 1; step <= 12; step += 1) await dispatchPointer(stage, "pointermove", x + step * 18, y + (step % 2) * 10);
+  // Painting happens on the next animation frame, not in the pointer event.
+  await expect.poll(async () => (await transientInk(page)).painted, { intervals: [16, 32, 50] }).toBeGreaterThan(200);
+  // Held for the whole gesture, glowing in its default red.
   await page.waitForTimeout(600);
   const held = await transientInk(page);
   expect(held.painted).toBeGreaterThan(200);
   expect(held.red).toBe(true);
+  // The canvas follows the reader's zoom, so its bitmap matches the screen.
+  const sharpness = await page.locator("canvas.workspace-v2-transient-ink-canvas").first().evaluate((canvas) => canvas.width / (canvas.getBoundingClientRect().width * devicePixelRatio));
+  expect(sharpness).toBeGreaterThan(.95);
   await dispatchPointer(stage, "pointerup", x + 216, y);
-  await page.waitForTimeout(1_500);
+  await page.waitForTimeout(500);
   expect((await transientInk(page)).painted).toBeGreaterThan(200);
-  await expect.poll(async () => (await transientInk(page)).painted, { timeout: 6_000 }).toBe(0);
-
-  // Pointer: the same hold and fade as Neon.
-  await choosePen(page, /Pointer Pen/);
-  await dispatchPointer(stage, "pointerdown", x, y + 80);
-  for (let step = 1; step <= 12; step += 1) await dispatchPointer(stage, "pointermove", x + step * 18, y + 80);
-  // Painting happens on the next animation frame, not in the pointer event.
-  await expect.poll(async () => (await transientInk(page)).painted, { intervals: [16, 32, 50] }).toBeGreaterThan(200);
-  await dispatchPointer(stage, "pointerup", x + 216, y + 80);
-  await page.waitForTimeout(1_500);
-  expect((await transientInk(page)).painted).toBeGreaterThan(200);
-  await expect.poll(async () => (await transientInk(page)).painted, { timeout: 6_000 }).toBe(0);
+  await expect.poll(async () => (await transientInk(page)).painted, { timeout: 4_000 }).toBe(0);
 
   // Nothing reached the sheet, the history or the saved workspace.
   await page.waitForTimeout(1_200);

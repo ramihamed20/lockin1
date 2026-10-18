@@ -10,7 +10,7 @@ import { offlineAccessStatus } from "../offline/lease.js";
 // Focus specs mock only the protected document endpoint and provide sheets at
 // build time, so a deliberately unused /catalog/materials request must not
 // hide those fixtures behind a production error screen.
-const E2E_FIXTURE_BUILD = typeof __E2E_CATALOG_MATERIALS__ === "object";
+const E2E_FIXTURE_BUILD = typeof __E2E_CATALOG_MATERIALS__ !== "undefined" && __E2E_CATALOG_MATERIALS__ !== null;
 
 /**
  * One directory, shared by every screen that needs it.
@@ -83,36 +83,42 @@ export function preloadCatalogMaterials(user) {
   return load(cacheKey(user), user?.id).promise.catch(() => undefined);
 }
 
+function scopeState(key, entry) {
+  return entry?.data
+    ? { key, loading: false, error: "", materials: entry.data }
+    : { key, loading: true, error: "", materials: [] };
+}
+
 export function useCatalogMaterials(user) {
   const key = cacheKey(user);
   const cached = cache.get(key);
   // A resolved entry is applied on the first render, so a navigation between
   // catalogue screens has no loading frame at all.
-  const [state, setState] = useState(() => (
-    cached?.data
-      ? { loading: false, error: "", materials: cached.data }
-      : { loading: true, error: "", materials: [] }
-  ));
+  const [state, setState] = useState(() => scopeState(key, cached));
+  // Props can change before passive effects run. Never expose another scope's
+  // resolved list; a warmed current scope remains immediately usable.
+  const current = state.key === key ? state : scopeState(key, cached);
   const activeKey = useRef(key);
 
   const run = useCallback((requestedKey) => {
     activeKey.current = requestedKey;
     const entry = load(requestedKey, user?.id);
     if (entry.data) {
-      setState({ loading: false, error: "", materials: entry.data });
+      setState({ key: requestedKey, loading: false, error: "", materials: entry.data });
       return;
     }
-    setState((current) => ({ ...current, loading: true, error: "" }));
+    setState((previous) => ({ key: requestedKey, loading: true, error: "", materials: previous.key === requestedKey ? previous.materials : [] }));
     entry.promise
       .then((materials) => {
         if (activeKey.current !== requestedKey) return;
-        setState({ loading: false, error: "", materials });
+        setState({ key: requestedKey, loading: false, error: "", materials });
       })
       .catch(() => {
         if (activeKey.current !== requestedKey) return;
         // The e2e build's reader specs publish nothing from their mocked server,
         // so its fixture sheets have to survive the failed list they never used.
         setState({
+          key: requestedKey,
           loading: false,
           error: entry.error,
           materials: E2E_FIXTURE_BUILD ? withE2eFixtureSheets([]) : []
@@ -133,10 +139,22 @@ export function useCatalogMaterials(user) {
     run(key);
   }, [key, run]);
 
+  // Re-read the directory after the student changed it (an added subject),
+  // keeping the current list on screen until the new one arrives.
+  const refresh = useCallback(() => {
+    cache.delete(key);
+    load(key, user?.id).promise
+      .then((materials) => {
+        if (activeKey.current === key) setState({ key, loading: false, error: "", materials });
+      })
+      .catch(() => undefined);
+  }, [key, user?.id]);
+
   return {
-    materials: state.materials,
-    loading: state.loading,
-    error: E2E_FIXTURE_BUILD ? "" : state.error,
-    reload
+    materials: current.materials,
+    loading: current.loading,
+    error: E2E_FIXTURE_BUILD ? "" : current.error,
+    reload,
+    refresh
   };
 }

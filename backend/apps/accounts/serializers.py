@@ -177,6 +177,8 @@ class UserSerializer(serializers.ModelSerializer[User]):
             "theme_settings",
             "roles",
             "date_joined",
+            "policy_version",
+            "policy_accepted_at",
         )
         read_only_fields = fields
 
@@ -287,6 +289,11 @@ class PasswordChangeSerializer(StrictSerializer):
             )
         if attrs["new_password"] != attrs["new_password_confirm"]:
             raise serializers.ValidationError({"new_password_confirm": ["Passwords do not match."]})
+        # Proven by the current password above, so this says nothing new.
+        if user.check_password(str(attrs["new_password"])):
+            raise serializers.ValidationError(
+                {"new_password": ["Choose a new password that is different from your current one."]}
+            )
         attrs["new_password"] = _validate_new_password(
             str(attrs["new_password"]), user=user, field="new_password"
         )

@@ -60,7 +60,7 @@ def test_active_study_rejects_invalid_exclusions(total: int, start: int, end: in
 
 
 def _sheet(*, admin: Any, subject: Any, title: str, position: int):
-    return create_sheet(
+    sheet = create_sheet(
         actor=admin,
         subject=subject,
         managed_file=create_managed_file(
@@ -73,6 +73,11 @@ def _sheet(*, admin: Any, subject: Any, title: str, position: int):
         notify_students=False,
         allow_download=False,
     )
+
+    # Preserve the legacy-bank fixture; new-sheet behavior is tested separately.
+    sheet.active_study_page_bank_enabled = False
+    sheet.save(update_fields=("active_study_page_bank_enabled",))
+    return sheet
 
 
 def test_admin_active_study_settings_are_persisted_recalculated_and_can_be_disabled() -> None:

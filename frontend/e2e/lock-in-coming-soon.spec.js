@@ -18,11 +18,12 @@ async function connect(page) {
   return () => lockInRequests;
 }
 
-test("Lockin Mode is marked Coming Soon in the sidebar", async ({ page }) => {
+test("Lockin Mode is marked Coming Soon in the expanded navigation", async ({ page }) => {
   await connect(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/#/dashboard");
-  const link = page.locator('.sidebar [data-feature-id="lock-in"]');
+  await page.locator(".sidebar .rail-expand").click();
+  const link = page.locator('.mobile-drawer.open [data-feature-id="lock-in"]');
   await expect(link).toHaveAttribute("data-feature-status", "coming-soon");
   await expect(link).toContainText("Coming soon");
 });

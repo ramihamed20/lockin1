@@ -34,14 +34,31 @@
   --auth-base: #080a10;
   --auth-surface: #10141c;
   --auth-raised: #171b26;
-  --auth-control: #171b26;
-  --auth-control-hover: #1f2431;
-  --auth-border: #2d3446;
-  --auth-border-strong: #4a5468;
+  --auth-control: #141822;
+  --auth-control-hover: #1a1f2b;
+  --auth-border: #2a3142;
+  --auth-border-strong: #475166;
   --auth-ink: #eef1f7;
   --auth-muted: #a8b0c0;
-  --auth-quiet: #858ea0;
+  --auth-quiet: #8a93a5;
   --auth-gold: #f1c04f;
+  --auth-gold-hover: #f6cd6c;
+  --auth-gold-ink: #1b1506;
+  --auth-link: #d4ad5c;
+  --auth-danger: #e06a63;
+  --auth-danger-ink: #ffb1aa;
+  --auth-focus-ring: 0 0 0 4px rgba(241, 192, 79, .16);
+
+  /* One set of measures for every control on these screens, so a text field,
+     a select and a button line up to the pixel wherever they sit together. */
+  --auth-control-height: 52px;
+  --auth-button-height: 54px;
+  --auth-control-radius: 14px;
+  --auth-field-gap: 8px;
+  --auth-stack-gap: 16px;
+  --auth-ease: cubic-bezier(.2, 0, 0, 1);
+  --auth-duration: 200ms;
+  --auth-gutter: 20px;
   /* Sign-in sizes to the viewport the reader can actually see: see the height
      note above for why it does not take the shell's large-viewport authority.
      100vh is the fallback for browsers without svh. */
@@ -56,41 +73,48 @@
   overflow: clip visible;
   color: var(--auth-ink);
   background: var(--auth-base);
-  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  padding:
+    max(16px, env(safe-area-inset-top))
+    max(var(--auth-gutter), env(safe-area-inset-right))
+    max(24px, env(safe-area-inset-bottom))
+    max(var(--auth-gutter), env(safe-area-inset-left));
 }
 .auth-v2, .auth-v2 * { box-sizing: border-box; }
 .auth-v2-topbar {
   direction: ltr;
   width: min(1120px, 100%);
   min-height: 52px;
-  margin: 0 auto 18px;
+  margin: 0 auto 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 16px;
 }
 .auth-v2-brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
-.auth-v2-brand img { flex: 0 0 auto; border-radius: 11px; box-shadow: 0 5px 16px rgba(0, 0, 0, .32); }
+.auth-v2-brand img { flex: 0 0 auto; border-radius: 11px; box-shadow: 0 4px 12px rgba(0, 0, 0, .28); }
 .auth-v2-brand div { display: grid; line-height: 1.05; }
 .auth-v2-brand strong { font-size: 17px; letter-spacing: -.02em; color: var(--auth-ink); }
 .auth-v2-brand span { margin-top: 5px; color: var(--auth-muted); font-size: 11px; }
 /* A globe and the language's own name: the word "Language" stays as the
-   control's accessible name but is not printed beside it. */
+   control's accessible name but is not printed beside it. Sized like a small
+   capsule rather than a field, so it never competes with the form. */
 .auth-v2-language {
   direction: ltr;
-  min-height: 44px;
+  min-height: 40px;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding-inline: 14px 8px;
-  border: 1px solid transparent;
+  gap: 6px;
+  padding-inline: 12px 6px;
+  border: 1px solid var(--auth-border);
   border-radius: 999px;
-  background: var(--auth-raised);
+  background: var(--auth-surface);
   color: var(--auth-muted);
+  transition: border-color var(--auth-duration) var(--auth-ease), background-color var(--auth-duration) var(--auth-ease);
 }
+.auth-v2-language:hover:where(html.ix-hover *) { border-color: var(--auth-border-strong); background: var(--auth-raised); }
 .auth-v2-language-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
-.auth-v2-language:focus-within { border-color: var(--auth-gold); box-shadow: 0 0 0 3px rgba(240, 190, 60, .18); }
-.auth-v2-language select { min-height: 38px; border: 0; outline: 0; background: transparent; color: var(--auth-ink); font: 600 13px/1 var(--font-body); cursor: pointer; }
+.auth-v2-language:focus-within { border-color: var(--auth-gold); box-shadow: var(--auth-focus-ring); }
+.auth-v2-language select { min-height: 36px; border: 0; outline: 0; background: transparent; color: var(--auth-ink); font: 600 14px/1 var(--font-body); cursor: pointer; }
 .auth-v2-stage {
   width: min(1120px, 100%);
   min-height: min(720px, calc(var(--app-viewport-height, 100dvh) - 110px));
@@ -100,166 +124,170 @@
   overflow: visible;
   background: transparent;
 }
-.auth-v2-story {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: clamp(32px, 4.2vw, 58px);
-  color: #fff;
-  background: #0b1020;
-}
-.auth-v2-story::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: #10182b;
-  opacity: .45;
-  clip-path: polygon(0 0, 100% 0, 100% 34%, 0 61%);
-}
-.auth-v2-story::after {
-  content: "";
-  position: absolute;
-  width: 270px;
-  aspect-ratio: 1;
-  inset-inline-end: -125px;
-  top: 19%;
-  z-index: -1;
-  border: 1px solid rgba(240, 190, 60, .42);
-  border-radius: 50%;
-  box-shadow: 0 0 0 42px rgba(240, 190, 60, .035), 0 0 0 84px rgba(240, 190, 60, .025);
-}
-.auth-v2-story-mark {
-  width: 48px;
-  height: 48px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(255,255,255,.16);
-  border-radius: 15px;
-  color: var(--auth-gold);
-  background: rgba(255,255,255,.06);
-  font: 700 21px/1 ui-serif, Georgia, serif;
-}
-.auth-v2-story-copy { max-width: 350px; }
-.auth-v2-story h2 { margin: 0; color: #f7f8fb; font-size: clamp(25px, 3vw, 38px); font-weight: 560; line-height: 1.24; letter-spacing: -.035em; }
-.auth-v2-story-meta { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 28px; color: #bac5d8; font-size: 12px; }
-.auth-v2-story-meta span { display: inline-flex; align-items: center; gap: 7px; }
-.auth-v2-story-meta svg { color: var(--auth-gold); }
-.auth-v2-card { display: grid; place-items: center; padding: clamp(34px, 6vw, 72px) clamp(28px, 7vw, 88px); background: transparent; }
-.auth-v2-card-inner { width: min(420px, 100%); }
-.auth-v2-heading { margin-bottom: 27px; text-align: start; }
-.auth-v2-heading h1 { margin: 0; color: var(--auth-ink); font-size: clamp(27px, 3vw, 34px); font-weight: 650; line-height: 1.15; letter-spacing: -.035em; }
-.auth-v2-heading p { margin: 9px 0 0; color: var(--auth-muted); font-size: 14px; line-height: 1.55; }
+.auth-v2-card { display: grid; place-items: center; padding: clamp(32px, 6vw, 64px) clamp(0px, 6vw, 80px); background: transparent; }
+.auth-v2-card-inner { width: min(440px, 100%); }
+
+/* --- Heading and step progress ------------------------------------------- */
+.auth-v2-heading { margin-bottom: 28px; text-align: start; }
+.auth-v2-heading h1 { margin: 0; color: var(--auth-ink); font-size: clamp(28px, 3vw, 32px); font-weight: 650; line-height: 1.15; letter-spacing: -.03em; }
+.auth-v2-heading p { margin: 10px 0 0; color: var(--auth-muted); font-size: 15px; line-height: 1.5; }
+/* Negative tracking tightens Latin display type; Arabic is a joined script and
+   is spaced by its own shaping, so it keeps its natural spacing. */
+.auth-v2[dir="rtl"] .auth-v2-heading h1 { letter-spacing: 0; line-height: 1.3; }
+.auth-v2-progress { display: grid; gap: 10px; margin-bottom: 20px; }
+.auth-v2-progress-label { margin: 0; color: var(--auth-muted); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.auth-v2-progress-track { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.auth-v2-progress-track span { height: 4px; border-radius: 999px; background: var(--auth-border); transition: background-color 240ms var(--auth-ease); }
+.auth-v2-progress-track span.is-reached { background: var(--auth-gold); }
+
+/* --- Google ---------------------------------------------------------------- */
 .auth-v2-social { display: grid; gap: 10px; }
 .auth-v2-social-button {
   width: 100%;
-  min-height: 49px;
+  min-height: var(--auth-control-height);
   display: grid;
   grid-template-columns: 24px 1fr 24px;
   align-items: center;
   gap: 10px;
   padding: 0 16px;
   border: 1px solid var(--auth-border);
-  border-radius: 12px;
+  border-radius: var(--auth-control-radius);
   background: var(--auth-control);
   color: var(--auth-ink);
-  font: 600 14px/1 var(--font-body);
+  font: 600 15px/1.2 var(--font-body);
   cursor: pointer;
-  transition: border-color .16s ease, background-color .16s ease;
 }
 .auth-v2-social-button > :first-child { grid-column: 1; }
 .auth-v2-social-button > span:last-child { grid-column: 2; }
 .auth-v2-social-button:hover:where(html.ix-hover *):not(:disabled) { border-color: var(--auth-border-strong); background: var(--auth-control-hover); }
-.auth-v2-social-button:disabled { cursor: not-allowed; opacity: .54; background: var(--auth-surface); }
-.auth-v2-social-consent { margin: 0; text-align: start; color: var(--auth-quiet); font-size: 12px; line-height: 1.55; }
-.auth-v2-social-consent a { color: #c5a053; font-weight: 650; }
-.auth-v2-divider { display: flex; align-items: center; gap: 12px; margin: 9px 0 2px; color: var(--auth-quiet); font-size: 12px; font-weight: 500; }
+/* Unavailable reads as unavailable -- a flat, quiet surface with a greyed
+   mark -- while the label stays legible beside the sentence that explains it. */
+.auth-v2-social-button:disabled { cursor: not-allowed; border-style: dashed; color: var(--auth-muted); background: transparent; }
+.auth-v2-social-button:disabled svg { filter: grayscale(1); opacity: .5; }
+/* Small print is still read before agreeing to it: 13px in the muted ink, not
+   12px in the quiet one, and the policy names are underlined so they read as
+   links without relying on colour alone. */
+.auth-v2-social-consent { margin: 0; text-align: start; color: var(--auth-muted); font-size: 13px; line-height: 1.55; }
+.auth-v2-social-consent a, .auth-v2-policy a { color: var(--auth-link); font-weight: 650; text-decoration: underline; text-decoration-color: rgba(212, 173, 92, .45); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.auth-v2-social-consent a:hover:where(html.ix-hover *), .auth-v2-policy a:hover:where(html.ix-hover *) { color: var(--auth-gold); text-decoration-color: currentColor; }
+.auth-v2-social-unavailable { color: var(--auth-muted); }
+.auth-v2-divider { display: flex; align-items: center; gap: 12px; margin: 8px 0 4px; color: var(--auth-quiet); font-size: 13px; font-weight: 500; }
 .auth-v2-divider::before, .auth-v2-divider::after { content: ""; height: 1px; flex: 1; background: var(--auth-border); }
-.auth-v2-form { display: grid; gap: 17px; }
-.auth-v2-field { display: grid; gap: 7px; text-align: start; }
-.auth-v2-field > label { color: var(--auth-ink); font-size: 13px; font-weight: 600; }
-.auth-v2 input:not([type="checkbox"]), .auth-v2 select:not(.auth-v2-language select) {
+
+/* --- Fields ---------------------------------------------------------------- */
+.auth-v2-form { display: grid; gap: var(--auth-stack-gap); }
+.auth-v2-step { display: grid; gap: var(--auth-stack-gap); }
+.auth-v2-step[hidden] { display: none; }
+.auth-v2-field { display: grid; gap: var(--auth-field-gap); text-align: start; }
+.auth-v2-field > label { color: var(--auth-ink); font-size: 14px; font-weight: 600; line-height: 1.3; }
+.auth-v2 input:not([type="checkbox"]) {
   width: 100%;
-  min-height: 49px;
+  min-height: var(--auth-control-height);
   border: 1px solid var(--auth-border);
-  border-radius: 12px;
+  border-radius: var(--auth-control-radius);
   outline: 0;
-  padding: 0 14px;
+  padding: 0 16px;
   color: var(--auth-ink);
+  caret-color: var(--auth-gold);
   background: var(--auth-control);
+  /* 16px keeps iOS from zooming the page when a field takes focus. */
   font: 500 16px/1.3 var(--font-body);
-  transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+  transition: border-color var(--auth-duration) var(--auth-ease), box-shadow var(--auth-duration) var(--auth-ease), background-color var(--auth-duration) var(--auth-ease);
 }
-.auth-v2 select:not(.auth-v2-language select) option { color: var(--auth-ink); background: var(--auth-control); }
 .auth-v2 input::placeholder { color: var(--auth-quiet); opacity: 1; }
-.auth-v2 input:not([type="checkbox"]):hover:where(html.ix-hover *), .auth-v2 select:hover:where(html.ix-hover *) { border-color: var(--auth-border-strong); }
-.auth-v2 input:not([type="checkbox"]):focus, .auth-v2 select:focus { border-color: var(--auth-gold); box-shadow: 0 0 0 3px rgba(240, 190, 60, .18); }
-.auth-v2 input:disabled, .auth-v2 select:disabled { cursor: not-allowed; color: var(--auth-quiet); background: var(--auth-surface); }
+.auth-v2 input:not([type="checkbox"]):hover:where(html.ix-hover *):not(:focus):not(:disabled) { border-color: var(--auth-border-strong); }
+.auth-v2 input:not([type="checkbox"]):focus { border-color: var(--auth-gold); box-shadow: var(--auth-focus-ring); }
+.auth-v2 input:disabled { cursor: not-allowed; color: var(--auth-quiet); background: var(--auth-surface); }
+/* A filled-in address or password keeps the dark field instead of the
+   browser's pale autofill wash; the inset shadow is the only paint autofill
+   lets a page override, so the focus ring is drawn alongside it. */
+.auth-v2 input:-webkit-autofill,
+.auth-v2 input:-webkit-autofill:hover {
+  -webkit-text-fill-color: var(--auth-ink);
+  box-shadow: inset 0 0 0 1000px var(--auth-control);
+  transition: background-color 600000s 0s, color 600000s 0s;
+}
+.auth-v2 input:-webkit-autofill:focus { box-shadow: inset 0 0 0 1000px var(--auth-control), var(--auth-focus-ring); }
 .auth-v2-email { direction: ltr; text-align: left; }
 .auth-v2-input-shell { position: relative; }
-.auth-v2-password-shell input { padding-inline-end: 48px !important; }
-.auth-v2-password-toggle { position: absolute; inset-block: 3px; inset-inline-end: 3px; width: 43px; display: grid; place-items: center; border: 0; border-radius: 9px; color: var(--auth-muted); background: transparent; cursor: pointer; }
+.auth-v2-password-shell input { padding-inline-end: 52px !important; }
+.auth-v2-password-toggle { position: absolute; inset-block: 4px; inset-inline-end: 4px; width: 44px; display: grid; place-items: center; border: 0; border-radius: 10px; color: var(--auth-muted); background: transparent; cursor: pointer; }
 .auth-v2-password-toggle:hover:where(html.ix-hover *) { color: var(--auth-ink); background: var(--auth-control-hover); }
-.auth-v2-options { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 30px; }
-.auth-v2-options > button, .auth-v2-text-action, .auth-v2-switch button { min-height: 40px; padding: 4px; border: 0; color: #c5a053; background: transparent; font: 650 13px/1.2 var(--font-body); cursor: pointer; }
+.auth-v2-options { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 30px; }
+.auth-v2-options > button, .auth-v2-text-action, .auth-v2-switch button { min-height: 44px; padding: 4px; border: 0; color: var(--auth-link); background: transparent; font: 650 14px/1.2 var(--font-body); cursor: pointer; }
 .auth-v2-options > button:hover:where(html.ix-hover *), .auth-v2-text-action:hover:where(html.ix-hover *), .auth-v2-switch button:hover:where(html.ix-hover *) { color: var(--auth-gold); text-decoration: underline; text-underline-offset: 3px; }
-.auth-v2-check { min-height: 40px; display: flex; align-items: center; gap: 9px; color: var(--auth-muted); font-size: 13px; cursor: pointer; }
-.auth-v2-check input { width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--auth-gold); }
-.auth-v2-policy { align-items: flex-start; line-height: 1.55; }
+.auth-v2-check { min-height: 44px; display: flex; align-items: center; gap: 10px; color: var(--auth-muted); font-size: 14px; cursor: pointer; }
+.auth-v2-check input { width: 20px; height: 20px; flex: 0 0 auto; margin: 0; accent-color: var(--auth-gold); cursor: pointer; }
+.auth-v2-policy { align-items: flex-start; padding-block: 10px; color: #c3c9d5; line-height: 1.5; }
 .auth-v2-policy input { margin-top: 1px; }
-.auth-v2-policy a { color: #c5a053; font-weight: 650; }
-.auth-v2-primary {
-  width: 100%;
-  min-height: 50px;
+
+/* --- Buttons --------------------------------------------------------------- */
+.auth-v2-primary,
+.auth-v2-secondary {
+  min-height: var(--auth-button-height);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 9px;
-  border: 1px solid var(--auth-gold);
+  gap: 8px;
   border-radius: 999px;
-  color: #1b1506;
-  background: var(--auth-gold);
-  font: 600 15px/1 var(--font-body);
+  font: 600 16px/1 var(--font-body);
   cursor: pointer;
-  transition: background-color .16s ease;
+}
+.auth-v2-primary {
+  width: 100%;
+  margin-top: 4px;
+  border: 1px solid var(--auth-gold);
+  color: var(--auth-gold-ink);
+  background: var(--auth-gold);
 }
 /* Answers the pointer with colour, never a jump; the press is the interaction
    layer's small scale. */
-.auth-v2-primary:hover:where(html.ix-hover *):not(:disabled) { background: #f6cd6c; }
-.auth-v2-primary:disabled { cursor: not-allowed; opacity: .58; box-shadow: none; }
-.auth-v2-spinner { width: 18px; height: 18px; border: 2px solid #56637b; border-top-color: var(--auth-gold); border-radius: 50%; animation: auth-v2-spin .7s linear infinite; }
-.auth-v2-spinner-light { border-color: rgba(17,24,39,.32); border-top-color: #111827; }
+.auth-v2-primary:hover:where(html.ix-hover *):not(:disabled) { border-color: var(--auth-gold-hover); background: var(--auth-gold-hover); }
+/* Disabled opacity is set in the interaction block at the end of this file:
+   a request in flight keeps the button's full colour, because it is working,
+   not unavailable. */
+.auth-v2-primary:disabled { cursor: not-allowed; box-shadow: none; }
+.auth-v2-secondary {
+  padding-inline: 18px 22px;
+  border: 1px solid var(--auth-border-strong);
+  color: var(--auth-ink);
+  background: transparent;
+}
+.auth-v2-secondary:hover:where(html.ix-hover *):not(:disabled) { background: var(--auth-raised); }
+.auth-v2-secondary:disabled { cursor: not-allowed; }
+/* Back sits beside the primary action and takes only the room it needs, so
+   "Create account" stays the obvious next step in either direction. */
+.auth-v2-actions { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: stretch; gap: 12px; margin-top: 4px; }
+.auth-v2-actions .auth-v2-primary { margin-top: 0; }
+.auth-v2-slow-note { margin: -4px 0 0; color: var(--auth-muted); font-size: 13px; line-height: 1.5; text-align: center; animation: auth-v2-message-in 180ms var(--auth-ease) both; }
+.auth-v2-spinner { width: 18px; height: 18px; flex: 0 0 auto; border: 2px solid #56637b; border-top-color: var(--auth-gold); border-radius: 50%; animation: auth-v2-spin .7s linear infinite; }
+.auth-v2-spinner-light { border-color: rgba(17,24,39,.28); border-top-color: #111827; }
 @keyframes auth-v2-spin { to { transform: rotate(360deg); } }
-.auth-v2 .form-hint { margin: 0; font-size: 12px; line-height: 1.4; }
-.auth-v2 .form-hint.danger { color: #ff9c94; }
-.auth-v2-field-hint { margin: 0; color: var(--auth-quiet); font-size: 12px; line-height: 1.4; }
+
+/* --- Messages -------------------------------------------------------------- */
+.auth-v2 .form-hint { margin: 0; font-size: 13px; line-height: 1.45; }
+.auth-v2 .form-hint.danger { color: var(--auth-danger-ink); animation: auth-v2-message-in 180ms var(--auth-ease) both; }
+.auth-v2-field-hint { margin: 0; color: var(--auth-quiet); font-size: 13px; line-height: 1.4; }
 
 /* A field the reader must change is marked by more than the sentence under it:
    the box itself carries the colour, so the problem is visible at a glance on a
    phone screen where only part of the form is in view. */
-.auth-v2 input[aria-invalid="true"]:not([type="checkbox"]),
-.auth-v2 select[aria-invalid="true"] { border-color: #e06a63; background: #2a1a1c; }
-.auth-v2 input[aria-invalid="true"]:not([type="checkbox"]):focus,
-.auth-v2 select[aria-invalid="true"]:focus { border-color: #ff9c94; box-shadow: 0 0 0 3px rgba(224, 106, 99, .22); }
-.auth-v2 input[type="checkbox"][aria-invalid="true"] { outline: 2px solid #e06a63; outline-offset: 3px; }
+.auth-v2 input[aria-invalid="true"]:not([type="checkbox"]) { border-color: var(--auth-danger); background: #241619; }
+.auth-v2 input[aria-invalid="true"]:not([type="checkbox"]):focus { border-color: #ff9c94; box-shadow: 0 0 0 4px rgba(224, 106, 99, .2); }
+.auth-v2 input[type="checkbox"][aria-invalid="true"] { outline: 2px solid var(--auth-danger); outline-offset: 3px; }
 .auth-v2 .form-hint.danger::before { content: "!"; display: inline-grid; place-items: center; width: 14px; height: 14px; margin-inline-end: 6px; border-radius: 50%; color: #2b1820; background: #ff9c94; font-size: 10px; font-weight: 700; vertical-align: -2px; }
 
-.auth-v2-inline-hint { margin: -4px 0 0; color: var(--auth-muted); font-size: 12px; line-height: 1.5; }
-.auth-v2-inline-hint button { min-height: 32px; padding: 0 2px; border: 0; color: var(--auth-gold); background: transparent; font: 650 12px/1.4 var(--font-body); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.auth-v2-inline-hint { margin: -4px 0 0; color: var(--auth-muted); font-size: 13px; line-height: 1.5; }
+.auth-v2-inline-hint button { min-height: 32px; padding: 0 2px; border: 0; color: var(--auth-gold); background: transparent; font: 650 13px/1.4 var(--font-body); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 
-/* The create-account screen after the account exists: one thing said clearly,
-   and the two things the reader may still need to do. */
 /* The code screen: one field, centred, with nothing competing for the eye --
    on a phone it is the whole screen above the keyboard. */
 .auth-v2-code { display: grid; justify-items: center; gap: 10px; padding: 6px 0 2px; text-align: center; }
-.auth-v2-code h2 { margin: 0; color: var(--auth-ink); font-size: 18px; font-weight: 700; }
-.auth-v2-code > p { margin: 0; max-width: 34ch; color: var(--auth-muted); font-size: 13px; line-height: 1.55; }
+.auth-v2-code h2 { margin: 0; color: var(--auth-ink); font-size: 19px; font-weight: 700; }
+.auth-v2-code > p { margin: 0; max-width: 34ch; color: var(--auth-muted); font-size: 14px; line-height: 1.55; }
 .auth-v2-code-form { display: grid; justify-items: center; gap: 8px; width: 100%; margin-top: 6px; }
 .auth-v2-code-form .auth-v2-field { width: 100%; justify-items: center; }
-.auth-v2-code-label { color: var(--auth-ink); font-size: 13px; font-weight: 600; }
+.auth-v2-code-label { color: var(--auth-ink); font-size: 14px; font-weight: 600; }
 .auth-v2 input.auth-v2-code-input {
   width: 100%;
   max-width: 260px;
@@ -275,7 +303,7 @@
   text-indent: 0.32em;
 }
 .auth-v2 input.auth-v2-code-input::placeholder { color: #55617a; letter-spacing: 0.32em; }
-.auth-v2-code-status { margin: 0; color: var(--auth-muted); font-size: 12px; }
+.auth-v2-code-status { margin: 0; color: var(--auth-muted); font-size: 13px; }
 .auth-v2-code .form-alert, .auth-v2-code .form-hint { width: 100%; text-align: start; }
 
 .auth-v2-sent { display: grid; justify-items: center; gap: 10px; padding: 6px 0 2px; text-align: center; }
@@ -286,59 +314,77 @@
 .auth-v2-sent-note { color: var(--auth-quiet) !important; font-size: 12px !important; }
 .auth-v2-sent-actions { display: grid; gap: 6px; width: 100%; margin-top: 6px; }
 .auth-v2-sent .form-alert { width: 100%; }
-.auth-v2-session-notice { margin-bottom: 14px; }
-.auth-v2 .form-alert { margin: 0; padding: 11px 12px; border-radius: 10px; font-size: 12px; line-height: 1.45; }
-.auth-v2 .form-alert.error { border: 1px solid #7f3a41; color: #ffb1aa; background: #2b1820; }
+/* Scoped like `.auth-v2 .form-alert` below, whose margin reset otherwise wins. */
+.auth-v2 .auth-v2-session-notice { margin-bottom: 16px; }
+.auth-v2 .form-alert { margin: 0; padding: 12px 14px; border-radius: 12px; font-size: 13px; line-height: 1.45; animation: auth-v2-message-in 180ms var(--auth-ease) both; }
+.auth-v2 .form-alert.error { border: 1px solid #7f3a41; color: var(--auth-danger-ink); background: #2b1820; }
 .auth-v2 .form-alert.success { border: 1px solid #2f7759; color: #9ee7bc; background: #10281f; }
-.auth-v2-cohort-status { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 1px 0 0; color: var(--auth-muted); font-size: 12px; line-height: 1.45; }
-.auth-v2-cohort-error { color: #ffb1aa; }
-.auth-v2-cohort-status button { min-height: 36px; flex: 0 0 auto; padding: 4px; border: 0; color: var(--auth-gold); background: transparent; font: 650 12px/1.2 var(--font-body); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-.auth-v2-switch { min-height: 44px; display: flex; align-items: center; justify-content: center; margin-top: 17px; color: var(--auth-muted); text-align: center; font-size: 13px; }
+/* Not an error and not a success: the request worked, the mail is slow. */
+.auth-v2 .form-alert.warning { border: 1px solid #6b5627; color: #f3d48a; background: #241d0e; }
+.auth-v2-code .auth-v2-delivery-note { width: 100%; text-align: start; }
+.auth-v2-cohort-status { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 1px 0 0; color: var(--auth-muted); font-size: 13px; line-height: 1.45; }
+.auth-v2-cohort-error { color: var(--auth-danger-ink); }
+.auth-v2-cohort-status button { min-height: 36px; flex: 0 0 auto; padding: 4px; border: 0; color: var(--auth-gold); background: transparent; font: 650 13px/1.2 var(--font-body); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.auth-v2-switch { min-height: 44px; display: flex; align-items: center; justify-content: center; margin-top: 20px; color: var(--auth-muted); text-align: center; font-size: 14px; }
 .auth-v2-switch p { margin: 0; }
 .auth-v2-switch button { display: inline-flex; align-items: center; gap: 3px; }
-.auth-v2-switch a { min-height: 44px; display: inline-flex; align-items: center; gap: 3px; padding: 4px; color: #c5a053; font-weight: 650; text-decoration: none; }
+.auth-v2-switch a { min-height: 44px; display: inline-flex; align-items: center; gap: 3px; padding: 4px; color: var(--auth-link); font-weight: 650; text-decoration: none; }
 .auth-v2-switch a:hover:where(html.ix-hover *) { color: var(--auth-gold); text-decoration: underline; text-underline-offset: 3px; }
-.auth-v2 button:focus-visible, .auth-v2 a:focus-visible, .auth-v2 select:focus-visible, .auth-v2 input:focus-visible { outline: 3px solid rgba(240, 190, 60, .5); outline-offset: 2px; }
-@media (max-width: 1100px) and (min-width: 700px) {
-  .auth-v2-stage { min-height: min(680px, calc(var(--app-viewport-height, 100dvh) - 102px)); grid-template-columns: minmax(0, 1fr); }
-  .auth-v2-story { padding: 30px 26px; }
-  .auth-v2-story-mark { width: 44px; height: 44px; border-radius: 13px; }
-  .auth-v2-story-copy { max-width: 290px; }
-  .auth-v2-story h2 { font-size: clamp(24px, 3.4vw, 32px); line-height: 1.22; }
-  .auth-v2-story-meta { gap: 10px; margin-top: 22px; }
-  .auth-v2-card { padding: 44px clamp(28px, 5vw, 54px); }
+
+/* --- Motion ---------------------------------------------------------------- */
+/* A step slides a short way in from the side the reader is moving towards and
+   fades up; it never blocks input and never moves anything around it. */
+.auth-v2 { --auth-step-shift: 14px; }
+.auth-v2[dir="rtl"] { --auth-step-shift: -14px; }
+.auth-v2-step[data-motion="forward"], .auth-v2-heading[data-motion="forward"] { animation: auth-v2-step-in var(--auth-duration) var(--auth-ease) both; }
+.auth-v2-step[data-motion="back"], .auth-v2-heading[data-motion="back"] { --auth-step-direction: -1; animation: auth-v2-step-in var(--auth-duration) var(--auth-ease) both; }
+@keyframes auth-v2-step-in {
+  from { opacity: 0; transform: translateX(calc(var(--auth-step-shift) * var(--auth-step-direction, 1))); }
 }
+@keyframes auth-v2-message-in {
+  from { opacity: 0; transform: translateY(-3px); }
+}
+
+/* --- Layout by space available --------------------------------------------- */
+/* Tablets get a measured column, not a stretched phone form. */
+@media (min-width: 700px) {
+  .auth-v2-card-inner { width: min(460px, 100%); }
+}
+/* Phones: the same rhythm, tightened where it was air rather than grouping --
+   above the title and between the header blocks -- so the first fields and
+   the main action sit higher. Field-to-field spacing is untouched: that is
+   what keeps a label with its own box. */
 @media (max-width: 699px) {
-  .auth-v2 { padding-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right)); background: var(--auth-base); }
-  .auth-v2-topbar { min-height: 48px; margin-bottom: 14px; }
+  .auth-v2-topbar { min-height: 48px; margin-bottom: 8px; }
   .auth-v2-brand span { display: none; }
-  .auth-v2-language { min-width: 144px; }
-  .auth-v2-stage { min-height: 0; display: block; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
-  .auth-v2-story { display: none; }
-  .auth-v2-card { display: block; padding: 18px 0 max(36px, env(safe-area-inset-bottom)); background: transparent; }
+  .auth-v2-stage { min-height: 0; display: block; }
+  .auth-v2-card { display: block; padding: 12px 0 max(32px, env(safe-area-inset-bottom)); }
   .auth-v2-card-inner { width: min(480px, 100%); margin: 0 auto; }
-  .auth-v2-heading { margin-bottom: 23px; }
-  .auth-v2-heading h1 { font-size: 30px; }
-  .auth-v2-social-button, .auth-v2 input:not([type="checkbox"]), .auth-v2 select:not(.auth-v2-language select), .auth-v2-primary { min-height: 52px; }
-  .auth-v2-options { gap: 8px; }
-  .auth-v2-switch { margin-top: 14px; }
+  .auth-v2-progress { gap: 8px; margin-bottom: 16px; }
+  .auth-v2-heading { margin-bottom: 20px; }
+  .auth-v2-heading h1 { font-size: 28px; }
+  .auth-v2-heading p { margin-top: 8px; }
+  .auth-v2-social { gap: 8px; }
+  .auth-v2-switch { margin-top: 16px; }
 }
 @media (max-width: 350px) {
-  .auth-v2 { padding-inline: max(10px, env(safe-area-inset-left)) max(10px, env(safe-area-inset-right)); }
+  .auth-v2 { --auth-gutter: 16px; --auth-control-height: 50px; --auth-button-height: 52px; }
   .auth-v2-brand { gap: 8px; }
   .auth-v2-brand img { width: 34px; height: 34px; }
-  .auth-v2-language { min-width: 132px; padding-inline: 8px 4px; }
-  .auth-v2-language-label { font-size: 12px; }
-  .auth-v2-card { padding-top: 18px; }
+  .auth-v2-language { padding-inline: 10px 4px; }
+  .auth-v2-card { padding-top: 14px; }
   .auth-v2-heading h1 { font-size: 25px; }
+  .auth-v2-heading p { font-size: 14px; }
+  .auth-v2-secondary { padding-inline: 14px 16px; }
 }
 @media (max-height: 560px) and (orientation: landscape) {
-  .auth-v2-story { display: none; }
-  .auth-v2-stage { grid-template-columns: 1fr; min-height: auto; border: 0; background: transparent; }
-  .auth-v2-card { padding-block: 24px 36px; background: transparent; }
-  .auth-v2-card-inner { width: min(560px, 100%); }
+  .auth-v2-stage { min-height: auto; }
+  .auth-v2-card { padding-block: 16px 32px; }
+  .auth-v2-card-inner { width: min(520px, 100%); }
+  .auth-v2-heading { margin-bottom: 20px; }
 }
 @media (pointer: coarse) {
+  .auth-v2-language { min-height: 44px; }
   .auth-v2-password-toggle { min-width: 44px; }
   .auth-v2-cohort-status button { min-height: 44px; }
 }
@@ -346,4 +392,81 @@
   .auth-v2 *, .auth-v2 *::before, .auth-v2 *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
 
+}
+
+/* The selects share the system layer's generic `select` family, which sits
+   above `app`; these rules are written in that layer so the college, specialty
+   and year boxes match the text fields beside them exactly -- height, fill,
+   edge, focus, invalid and disabled -- instead of the app-wide select look. */
+@layer system {
+  .auth-v2 select:not(.auth-v2-language select) {
+    width: 100%;
+    min-height: var(--auth-control-height);
+    padding-block: 0;
+    padding-inline: 16px 44px;
+    border: 1px solid var(--auth-border);
+    border-radius: var(--auth-control-radius);
+    color: var(--auth-ink);
+    background-color: var(--auth-control);
+    /* A drawn chevron instead of each platform's own, so the closed select
+       reads the same on iOS, Android and desktop, and sits on the trailing
+       edge in either direction. */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5l5-5' fill='none' stroke='%23a8b0c0' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 16px center;
+    background-size: 12px 8px;
+    appearance: none;
+    -webkit-appearance: none;
+    font: 500 16px/1.3 var(--font-body);
+    text-overflow: ellipsis;
+    cursor: pointer;
+    transition: border-color var(--auth-duration) var(--auth-ease), box-shadow var(--auth-duration) var(--auth-ease), background-color var(--auth-duration) var(--auth-ease);
+  }
+  .auth-v2[dir="rtl"] select:not(.auth-v2-language select) { background-position: left 16px center; }
+  /* An unanswered select shows its prompt in the placeholder colour, so a
+     chosen value and an empty box never look the same. */
+  .auth-v2 select:not(.auth-v2-language select):has(option[value=""]:checked) { color: var(--auth-quiet); }
+  .auth-v2 select:not(.auth-v2-language select) option { color: var(--auth-ink); background: var(--auth-control); }
+  .auth-v2 select:not(.auth-v2-language select):hover:where(html.ix-hover *):not(:focus):not(:disabled) { border-color: var(--auth-border-strong); }
+  .auth-v2 select:not(.auth-v2-language select):focus { border-color: var(--auth-gold); box-shadow: var(--auth-focus-ring); }
+  /* Waiting for the choice above it: dashed and quiet, with its placeholder
+     saying what opens it, so it reads as "not yet" rather than broken. */
+  .auth-v2 select:not(.auth-v2-language select):disabled {
+    cursor: not-allowed;
+    opacity: 1;
+    border-style: dashed;
+    color: var(--auth-quiet);
+    background-color: transparent;
+  }
+  .auth-v2 select:not(.auth-v2-language select)[aria-invalid="true"] { border-color: var(--auth-danger); background-color: #241619; }
+  .auth-v2 select:not(.auth-v2-language select)[aria-invalid="true"]:focus { border-color: #ff9c94; box-shadow: 0 0 0 4px rgba(224, 106, 99, .2); }
+  @media (max-width: 350px) {
+    .auth-v2 select:not(.auth-v2-language select) { padding-inline: 14px 40px; background-position: right 14px center; }
+    .auth-v2[dir="rtl"] select:not(.auth-v2-language select) { background-position: left 14px center; }
+  }
+}
+
+/* Fields show focus with their own gold edge and soft ring; the interaction
+   layer's generic outline would draw a second ring around it. A heading that
+   takes focus only so a screen reader announces a new step shows none. */
+@layer interaction {
+  .auth-v2 :is(input:not([type="checkbox"]), select:not(.auth-v2-language select)):focus-visible { outline: none; }
+  .auth-v2 .auth-v2-language select:focus-visible { outline: none; }
+  .auth-v2-heading h1:focus, .auth-v2-heading h1:focus-visible { outline: none; }
+
+  /* The app-wide disabled fade (.45) is right for a toolbar icon but leaves
+     these screens' waiting selects and the switched-off Google button too
+     faint to read. They carry their own quieter treatment above instead, and
+     a button that is working keeps its full colour. */
+  .auth-v2 select:not(.auth-v2-language select):disabled,
+  .auth-v2 .auth-v2-social-button:disabled { opacity: 1; }
+  .auth-v2 .auth-v2-primary:disabled { opacity: .6; }
+  .auth-v2 .auth-v2-primary[aria-busy="true"]:disabled { opacity: 1; cursor: progress; }
+  .auth-v2 .auth-v2-secondary:disabled { opacity: .5; }
+  /* The app-wide rule resets a disabled control's fill to its parent's while
+     the pointer rests on it -- and right after a click the pointer always
+     does, so "Create account" went transparent exactly while it was working. */
+  .auth-v2 .auth-v2-primary:disabled:hover { color: var(--auth-gold-ink); background-color: var(--auth-gold); }
+  .auth-v2 .auth-v2-secondary:disabled:hover { color: var(--auth-ink); background-color: transparent; }
+  .auth-v2 .auth-v2-social-button:disabled:hover { color: var(--auth-muted); background-color: transparent; }
 }

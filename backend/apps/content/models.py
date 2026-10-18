@@ -50,6 +50,86 @@ class CatalogSubject(models.Model):
         return f"{self.cohort}: {self.title}"
 
 
+class AddedCatalogSubject(models.Model):
+    """A subject from an earlier year a student chose to add to their own list.
+
+    Eligibility is decided by ``apps.content.added_subjects`` every time it is
+    read, so a row left behind by a cohort change grants nothing.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="added_catalog_subjects",
+    )
+    subject = models.ForeignKey(
+        CatalogSubject,
+        on_delete=models.CASCADE,
+        related_name="student_additions",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("created_at", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("user", "subject"),
+                name="catalog_added_subject_unique",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}: {self.subject_id}"
+
+
+class AddedSubjectChangeRequest(models.Model):
+    """A student's request to swap one added subject for another.
+
+    Added subjects are final once chosen; a change goes through an operator,
+    who approves (the swap is applied then) or declines it.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        DECLINED = "declined", "Declined"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="added_subject_change_requests",
+    )
+    remove_subject = models.ForeignKey(CatalogSubject, on_delete=models.CASCADE, related_name="+")
+    add_subject = models.ForeignKey(CatalogSubject, on_delete=models.CASCADE, related_name="+")
+    note = models.CharField(max_length=500, blank=True)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING)
+    admin_note = models.CharField(max_length=500, blank=True)
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("user",),
+                condition=Q(status="pending"),
+                name="catalog_one_pending_subject_change",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}: {self.remove_subject_id} -> {self.add_subject_id}"
+
+
 class LearningObject(models.Model):
     class WorkflowStatus(models.TextChoices):
         DRAFT = "draft", "Draft"
@@ -88,6 +168,7 @@ class LearningObject(models.Model):
     revision = models.PositiveBigIntegerField(default=1)
     published_at = models.DateTimeField(null=True, blank=True)
     archived_at = models.DateTimeField(null=True, blank=True)
+    active_study_page_bank_enabled = models.BooleanField(default=False, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -294,6 +375,49 @@ class CatalogWorkspaceReceipt(models.Model):
         return f"{self.workspace_id}:{self.idempotency_key}"
 
 
+class SheetSummary(models.Model):
+    """A student's own summary of one catalog sheet, written beside its pages.
+
+    Pen summaries keep their ink on blank pages in the sheet's workspace state
+    (the same storage as any page the student adds); this row names them.
+    Keyboard summaries keep their text here, one entry per sheet page.
+    """
+
+    class Mode(models.TextChoices):
+        PEN = "pen", "Pen"
+        KEYBOARD = "keyboard", "Keyboard"
+
+    class Status(models.TextChoices):
+        WRITING = "writing", "Writing"
+        FINISHED = "finished", "Finished"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="sheet_summaries"
+    )
+    document = models.ForeignKey(
+        CatalogDocument, on_delete=models.CASCADE, related_name="sheet_summaries"
+    )
+    title = models.CharField(max_length=120)
+    mode = models.CharField(max_length=16, choices=Mode.choices)
+    color = models.CharField(max_length=16, default="blue")
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.WRITING)
+    # Shown inside the sheet while reading; hiding keeps everything.
+    visible = models.BooleanField(default=True)
+    pages = models.JSONField(default=dict, blank=True)
+    revision = models.PositiveBigIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-updated_at",)
+        indexes = [models.Index(fields=("user", "document"), name="content_summary_owner_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.document_id}:{self.title}"
+
+
 class ActiveStudySettings(models.Model):
     """Durable configuration for future Active Study question/template content."""
 
@@ -410,13 +534,37 @@ class PersonalSheet(models.Model):
         on_delete=models.PROTECT,
         related_name="personal_sheets",
     )
-    managed_file = models.OneToOneField(
+    # An uploaded sheet owns its file. A copy of someone's marks (see
+    # `source_document`) points at the catalog file instead, so the file is a
+    # plain foreign key and only an uploaded sheet may delete it.
+    managed_file = models.ForeignKey(
         ManagedFile,
         on_delete=models.PROTECT,
-        related_name="personal_sheet",
+        related_name="personal_sheets",
     )
     title = models.CharField(max_length=120)
     page_count = models.PositiveIntegerField(null=True, blank=True)
+    # Set when the sheet is a copy of a catalog sheet carrying another student's
+    # shared marks. `copy_author` is empty for an anonymous share.
+    source_document = models.ForeignKey(
+        "CatalogDocument",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="annotation_copies",
+    )
+    source_set = models.ForeignKey(
+        "SharedAnnotationSet",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="copies",
+    )
+    copy_author = models.CharField(max_length=80, blank=True)
+    # The shared marks a new copy starts from. The first device to open the copy
+    # writes them into its reader store and clears this, so a copy never depends
+    # on the browser that imported it staying open.
+    seed = models.JSONField(null=True, blank=True)
     active_study_status = models.CharField(
         max_length=24,
         choices=ActiveStudyStatus.choices,
@@ -596,3 +744,128 @@ class PracticeSlideProgress(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id}:{self.slide_id}"
+
+
+class SharedAnnotationSet(models.Model):
+    """One student's marks on a catalog sheet, published for the others to copy.
+
+    The snapshot is taken from the publisher's device when they upload, so it
+    holds everything the reader shows -- ink, text, pictures, stickers, notes and
+    added pages -- and stays as published until they update it.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    document = models.ForeignKey(
+        CatalogDocument, on_delete=models.CASCADE, related_name="shared_annotation_sets"
+    )
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="shared_annotation_sets",
+    )
+    display_name = models.CharField(max_length=80, blank=True)
+    is_anonymous = models.BooleanField(default=False)
+    note = models.CharField(max_length=500, blank=True)
+    snapshot = models.JSONField(default=dict)
+    size_bytes = models.PositiveIntegerField(default=0)
+    mark_count = models.PositiveIntegerField(default=0)
+    marked_pages = models.JSONField(default=list)
+    version = models.PositiveIntegerField(default=1)
+    like_count = models.PositiveIntegerField(default=0)
+    report_count = models.PositiveIntegerField(default=0)
+    is_hidden = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    based_on = models.ForeignKey(
+        "self", on_delete=models.SET_NULL, null=True, blank=True, related_name="derived_sets"
+    )
+    based_on_name = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("owner", "document"),
+                condition=Q(deleted_at__isnull=True),
+                name="content_annotation_share_owner_unique",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=("document", "-like_count", "-updated_at"),
+                name="content_annotation_share_idx",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.document_id}:{self.owner_id}:v{self.version}"
+
+
+class SharedAnnotationLike(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    shared_set = models.ForeignKey(
+        SharedAnnotationSet, on_delete=models.CASCADE, related_name="likes"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="annotation_likes"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("shared_set", "user"), name="content_annotation_like_unique"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.shared_set_id}:{self.user_id}:like"
+
+
+class SharedAnnotationReport(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    shared_set = models.ForeignKey(
+        SharedAnnotationSet, on_delete=models.CASCADE, related_name="reports"
+    )
+    reporter = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="annotation_reports"
+    )
+    reason = models.CharField(max_length=300, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("shared_set", "reporter"), name="content_annotation_report_unique"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.shared_set_id}:{self.reporter_id}:report"
+
+
+class SharedAnnotationImport(models.Model):
+    """Who copied which share, at which version, so they can be told about changes."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    shared_set = models.ForeignKey(
+        SharedAnnotationSet, on_delete=models.CASCADE, related_name="imports"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="annotation_imports"
+    )
+    imported_version = models.PositiveIntegerField()
+    dismissed_version = models.PositiveIntegerField(default=0)
+    dismissed_removal = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("shared_set", "user"), name="content_annotation_import_unique"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.shared_set_id}:{self.user_id}:v{self.imported_version}"

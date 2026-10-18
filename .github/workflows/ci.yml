@@ -262,6 +262,12 @@ jobs:
       - name: Production-bundle browser regression
         working-directory: frontend
         run: pnpm run build:e2e && pnpm run test:e2e --shard=${{ matrix.shard }}/3
+      # Ordinary builds define the fixture catalogue as null. Exercise this
+      # separately so the reader fixture build cannot hide production errors.
+      - name: Ordinary production bootstrap and catalog recovery
+        if: matrix.shard == 1
+        working-directory: frontend
+        run: pnpm run test:e2e:production
 
   containers:
     runs-on: ubuntu-latest
@@ -279,7 +285,7 @@ jobs:
             --build-arg VITE_LEGAL_JURISDICTION="CI test jurisdiction" \
             --build-arg VITE_POLICY_VERSION=ci-policy-v1 \
             --build-arg VITE_OFFLINE_LEASE_PUBLIC_KEY=O2onvM62pC1io6jQKm8Nc2UyFXcd4kOmOsBIoYtZ2ik= \
-            --tag lockin-edge:ci frontend
+            --file frontend/Dockerfile --tag lockin-edge:ci .
           docker build --tag lockin-clamav:ci deploy/clamav
       - name: Validate Nginx production configuration
         run: |
@@ -369,7 +375,7 @@ jobs:
             --build-arg VITE_LEGAL_JURISDICTION="CI test jurisdiction" \
             --build-arg VITE_POLICY_VERSION=ci-policy-v1 \
             --build-arg VITE_OFFLINE_LEASE_PUBLIC_KEY=O2onvM62pC1io6jQKm8Nc2UyFXcd4kOmOsBIoYtZ2ik= \
-            --tag lockin-edge:ci frontend
+            --file frontend/Dockerfile --tag lockin-edge:ci .
       - name: Start the edge under the production security settings
         run: scripts/ci/edge-smoke.sh lockin-edge:ci
 
@@ -470,7 +476,8 @@ jobs:
         id: edge
         uses: docker/build-push-action@v6
         with:
-          context: frontend
+          context: .
+          file: frontend/Dockerfile
           platforms: linux/amd64
           provenance: false
           sbom: false

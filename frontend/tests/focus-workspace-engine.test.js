@@ -55,6 +55,7 @@ import {
 } from "../src/workspace/ink/inkGestureRecognition.js";
 import { PdfRenderQueue, pdfRenderGenerationIsCurrent } from "../src/workspace/catalog/pdfRenderQueue.js";
 import { catalogCanvasPixelBudget, inkCanvasOutputScale } from "../src/workspace/catalog/renderBudget.js";
+import { WORKSPACE_RENDER } from "../src/workspace/config.js";
 import {
   advanceMomentumFrame,
   appendRecentPointerSamples,
@@ -82,6 +83,7 @@ import {
   rotateAnnotation,
   selectionBounds,
   serializeCatalogWorkspace,
+  sanitizeCatalogAnnotation,
   translateAnnotation
 } from "../src/workspace/catalog/catalogWorkspaceState.js";
 import { createInkInputController } from "../src/workspace/ink/inkInputController.js";
@@ -282,7 +284,7 @@ test("touch devices use bounded PDF raster budgets while desktop keeps full qual
 
 test("high-DPR handwriting canvases stay inside the shared GPU memory budget", () => {
   const tabletScale = inkCanvasOutputScale(834, 1180, 3);
-  assert.ok(834 * 1180 * tabletScale ** 2 <= 3_500_000 + 1);
+  assert.ok(834 * 1180 * tabletScale ** 2 <= WORKSPACE_RENDER.maximumInkCanvasPixels + 1);
   assert.ok(tabletScale < 3);
   assert.equal(inkCanvasOutputScale(390, 560, 2.75), 2.75);
 });
@@ -1108,4 +1110,19 @@ test("the reader's Settings panel stays one column at every width", async () => 
   assert.match(panel, /grid-template-columns: minmax\(0, 1fr\);/);
   assert.ok(css.indexOf(".workspace-v2 .workspace-v8-settings .workspace-v8-settings-panel {") > css.indexOf("grid-template-columns: repeat(2, minmax(0, 1fr));"), "the one-column rule must follow the sheet's two-column rule");
   assert.match(css, /\.workspace-v2 \.workspace-v8-settings \{[^}]*width: min\(392px, calc\(100% - 24px\)\);/);
+});
+
+
+test("missing stylus angles remain null through storage and input normalization", () => {
+  for (const value of [null, undefined, 0, .75]) {
+    const event = { ...inkPointer({ x: 10, y: 20, time: 1 }), altitudeAngle: value, azimuthAngle: value, twist: value, tangentialPressure: value };
+    const controller = createInkInputController();
+    const draft = controller.begin(event, { page: 1, pageUnitsPerCssPixel: 1, mapClientPoint: (x, y) => ({ x, y }) });
+    const point = { x: 10, y: 20, p: .5, t: 1, altitudeAngle: value, azimuthAngle: value, twist: value, tangentialPressure: value };
+    const stored = sanitizeCatalogAnnotation({ id: "null-angle", type: "pen", page: 1, points: [point, { ...point, x: 11 }] });
+    for (const key of ["altitudeAngle", "azimuthAngle", "twist", "tangentialPressure"]) {
+      assert.equal(draft.points[0][key], value ?? null);
+      assert.equal(stored.points[0][key], value ?? null);
+    }
+  }
 });

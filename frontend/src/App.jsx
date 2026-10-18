@@ -1,3 +1,5 @@
+/* global __E2E_CATALOG_MATERIALS__ */
+import { PolicyNotice } from "./components/PolicyNotice.jsx";
 import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { authApi, isApiError, onUnauthorized } from "./lib/api.js";
@@ -34,10 +36,12 @@ import { isFeatureComingSoon } from "./lib/featureAvailability.js";
 import { synchronizeOffline } from "./offline/coordinator.js";
 import { forgetOfflineUser, rememberOfflineUser, restoreOfflineUser } from "./offline/profile.js";
 import OfflineIndicator from "./offline/OfflineIndicator.jsx";
+import "./pages/dashboard.css";
 import { WeeklyReadyToast } from "./components/biweekly/WeeklyReadyToast.jsx";
 import { WhatsNew } from "./components/WhatsNew.jsx";
 
 // --- Lazy-loaded pages ---
+const StudyPlan = lazyWithRecovery(() => import("./pages/StudyPlan.jsx"));
 const Dashboard = lazyWithRecovery(() => import("./pages/Dashboard.jsx"));
 const loadMaterialsPage = () => import("./pages/Materials.jsx");
 const Materials = lazyWithRecovery(loadMaterialsPage);
@@ -48,6 +52,7 @@ const CatalogFocusWorkspace = lazyWithRecovery(() => import("./pages/CatalogFocu
 const WorkspaceKeepAlive = lazyWithRecovery(() => import("./workspace/catalog/WorkspaceKeepAlive.jsx").then((module) => ({ default: module.WorkspaceKeepAlive })));
 const LockInMode = lazyWithRecovery(() => import("./pages/LockInMode.jsx"));
 const PaperWorkspace = lazyWithRecovery(() => import("./pages/PaperWorkspace.jsx"));
+const MySummariesPage = lazyWithRecovery(() => import("./pages/MySummaries.jsx"));
 const MyGroup = lazyWithRecovery(() => import("./pages/MyGroup.jsx"));
 const Search = lazyWithRecovery(() => import("./pages/Search.jsx"));
 const Questions = lazyWithRecovery(() => import("./pages/Questions.jsx"));
@@ -121,6 +126,9 @@ function mergeRemoteThemeSettings(remoteSettings, currentSettings) {
 
 function App() {
   const location = useLocation();
+  // Keep planner tests on the real authenticated/subscription-protected route.
+  // Ordinary builds compile this fixture-only opt-in to false.
+  const fixturePlanner = typeof __E2E_CATALOG_MATERIALS__ !== "undefined" && __E2E_CATALOG_MATERIALS__ !== null && location.search === "?fixture=study-plan";
   const navigate = useNavigate();
   const { setLocale, t } = useI18n();
   const [themeSettings, setThemeSettings] = useState(readLocalThemeSettings);
@@ -200,6 +208,9 @@ function App() {
     setSessionMarker(false);
     writeSessionUserSnapshot(null);
     clearSubscriptionSnapshots();
+    // Screens remembered for quick return belong to this account only.
+    void import("./hooks/useAsyncData.js").then((module) => module.clearAsyncDataCache()).catch(() => undefined);
+    void import("./hooks/useCatalogMaterials.js").then((module) => module.clearCatalogMaterialsCache()).catch(() => undefined);
     setUser(null);
     clearOperationsSession();
   }, [clearOperationsSession]);
@@ -207,6 +218,17 @@ function App() {
   useEffect(() => {
     writeSessionUserSnapshot(user);
   }, [user]);
+
+  // Remembered screens show instantly on return; they must never outlive the
+  // account they were loaded for, whatever way the account changed.
+  const rememberedAccount = useRef(user?.id || "");
+  useEffect(() => {
+    const accountId = user?.id || "";
+    if (rememberedAccount.current && rememberedAccount.current !== accountId) {
+      void import("./hooks/useAsyncData.js").then((module) => module.clearAsyncDataCache()).catch(() => undefined);
+    }
+    rememberedAccount.current = accountId;
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user?.id || user.onboardingRequired || user.welcomeRequired) return undefined;
@@ -251,6 +273,39 @@ function App() {
       .then(({ preloadCatalogMaterials }) => preloadCatalogMaterials(user))
       .catch(() => undefined);
   }, [user]);
+
+  // Every other sidebar destination is warmed too, one at a time while the
+  // device is idle, so the first tap on each is not spent downloading its code.
+  useEffect(() => {
+    if (!user?.id || user.onboardingRequired || user.welcomeRequired) return undefined;
+    const pages = [
+      () => import("./pages/Dashboard.jsx"),
+      () => import("./pages/Questions.jsx"),
+      () => import("./pages/Review.jsx"),
+      () => import("./pages/Progress.jsx"),
+      () => import("./pages/Notifications.jsx"),
+      () => import("./pages/Settings.jsx"),
+      () => import("./pages/Subscription.jsx"),
+      () => import("./pages/Store.jsx")
+    ];
+    let cancelled = false;
+    let handle = 0;
+    const idle = (callback) => (typeof window.requestIdleCallback === "function"
+      ? window.requestIdleCallback(callback, { timeout: 3000 })
+      : window.setTimeout(callback, 400));
+    const cancelIdle = (id) => (typeof window.cancelIdleCallback === "function" ? window.cancelIdleCallback(id) : window.clearTimeout(id));
+    const next = (index) => {
+      if (cancelled || index >= pages.length) return;
+      handle = idle(() => {
+        pages[index]().catch(() => undefined).finally(() => next(index + 1));
+      });
+    };
+    next(0);
+    return () => {
+      cancelled = true;
+      cancelIdle(handle);
+    };
+  }, [user?.id, user?.onboardingRequired, user?.welcomeRequired]);
 
   const refreshActiveAccount = useCallback(async () => {
     try {
@@ -492,7 +547,9 @@ function App() {
         if (oauthSessionBootRef.current) clearSubscriptionSnapshots();
         setUser(nextUser);
         setThemeSettings((current) => mergeRemoteThemeSettings(nextUser.themeSettings, current));
-        await loadOperationsSession();
+        // Study routes need the confirmed user; privileged routes separately
+        // wait for operationsSessionPending to settle before they can open.
+        void loadOperationsSession();
       })
       .catch(async (error) => {
         if (!active) return;
@@ -627,7 +684,7 @@ function App() {
     />
   );
 
-  if (["/terms", "/privacy", "/support"].includes(location.pathname)) {
+  if (["/terms", "/privacy", "/refunds", "/support"].includes(location.pathname)) {
     return <PublicInfoPage page={location.pathname.slice(1)} />;
   }
 
@@ -688,9 +745,11 @@ function App() {
   return (
     <SubscriptionSessionProvider key={user.id} user={user}>
       <>
-      <OfflineIndicator userId={user.id} />
+      {/* The dashboard shows offline status inline, in its own content flow. */}
+      {!["/", "/dashboard"].includes(location.pathname) && <OfflineIndicator userId={user.id} />}
       <WhatsNew user={user} suppressed={inFocusWorkspace} />
       <Shell user={user} operationsSession={operationsSession} theme={activeTheme} onThemeChange={setManualTheme} onLogout={requestLogout} notificationVersion={notificationVersion} onNotificationsChanged={() => setNotificationVersion((version) => version + 1)} storeCartCount={storeCartCount} lockBalance={lockBalance} storeCommerceEnabled={false}>
+        {!inFocusWorkspace && <PolicyNotice user={user} onAccepted={setUser} />}
         <ErrorBoundary resetKey={location.pathname}>
         {/* Returning from background must keep the shell stable: navigations
             are transitions, so a route chunk resolves in place and the screen
@@ -702,8 +761,11 @@ function App() {
                 <Route path="/" element={<Dashboard user={user} themeSettings={themeSettings} activeTheme={activeTheme} />} />
                 <Route path="/dashboard" element={<Dashboard user={user} themeSettings={themeSettings} activeTheme={activeTheme} />} />
                 <Route path="/my-group" element={<MyGroup />} />
-                <Route path="/study-plan/*" element={<FeatureComingSoon featureId="study-plan" />} />
+                {isFeatureComingSoon("study-plan") && !fixturePlanner
+                  ? <Route path="/study-plan/*" element={<FeatureComingSoon featureId="study-plan" />} />
+                  : <Route path="/study-plan" element={<StudyPlan user={user} />} />}
                 <Route path="/materials" element={<Materials user={user} />} />
+                <Route path="/materials/summaries" element={<MySummariesPage />} />
                 <Route path="/materials/catalog" element={<NotFoundPage variant="material-catalog" />} />
                 <Route path="/materials/catalog/:materialSlug" element={<CatalogMaterialSheets user={user} />} />
                 <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug" element={<CatalogSheetStudy user={user} />} />
@@ -750,7 +812,7 @@ function App() {
                 <Route path="/store" element={<Store commerceEnabled={false} onLockBalanceChange={setLockBalance} onCartCountChange={setStoreCartCount} />} />
                 <Route path="/profile" element={<Profile user={user} onUserUpdate={setUser} />} />
                 <Route path="/security" element={<Navigate to="/settings" replace />} />
-                <Route path="/subscription" element={<Subscription />} />
+                <Route path="/subscription" element={<Subscription onPoliciesAccepted={setUser} />} />
                 <Route path="/settings" element={<Settings user={user} onUserUpdate={setUser} settings={themeSettings} activeTheme={activeTheme} reminderSettings={reminderSettings} onReminderSettingsChange={setReminderSettings} onSettingsChange={updateThemeSettings} onSignedOut={clearAuthenticatedUi} />} />
                 <Route path="/admin/*" element={<OperationsAdmin operationsSession={operationsSession} />} />
                 {/* Same content.view gate as /creator; /admin/* also requires the administrator role. */}

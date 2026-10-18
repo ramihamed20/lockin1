@@ -7,45 +7,76 @@
  * already start on this version, so they are not shown the after-update panel.
  */
 export const WHATS_NEW = {
-  id: "0.1.2",
-  version: "0.1.2",
-  date: "2026-10-09",
+  id: "0.1.3",
+  version: "0.1.3",
+  date: "2026-10-18",
   summary: {
-    en: "Subscription improvements, a weekly summary, and smoother tabs and whiteboards in Focus.",
-    ar: "تحسينات في الاشتراكات، وملخص أسبوعي، وتبويبات وسبورات أسلس في التركيز."
+    en: "A more flexible study experience, with tools closer to the way you study.",
+    ar: "تجربة دراسية أكثر مرونة، وأدوات أقرب لطريقتك."
   },
   items: [
     {
-      icon: "coins",
-      audience: "dentistry",
-      title: { en: "Subscription improvements", ar: "تحسينات في الاشتراكات" },
+      icon: "brain",
+      title: { en: "Active Study, your way", ar: "الدراسة النشطة بطريقتك" },
       body: {
-        en: "Pre-midterm is now 30 LYD and the full year 80 LYD. If you joined with the 5 LYD offer, it is 25 and 70. Four-month subscribers can continue after the midterm for 20 LYD, or take the full year for 20 LYD. Post-midterm stays 50 LYD.",
-        ar: "قبل النصفي صار 30 د.ل والعام الكامل 80 د.ل. وإن اشتركت بعرض 5 دنانير فهما 25 و70. ومشتركو الأربعة أشهر يكملون بعد النصفي بـ20 د.ل، أو يأخذون العام الكامل بـ20 د.ل. وبعد النصفي يبقى 50 د.ل."
+        en: "Choose how many pages and questions fit your session.",
+        ar: "خصص عدد الصفحات والأسئلة بما يناسب جلستك."
       }
     },
     {
-      icon: "calendar",
-      title: { en: "Your weekly summary", ar: "ملخصك الأسبوعي" },
+      icon: "clock",
+      title: { en: "Pomodoro style", ar: "أسلوب بومودورو" },
       body: {
-        en: "Each week closes with a summary of your study and a quiz on your mistakes. When it is ready you get a card to open it, and each part has its own PDF.",
-        ar: "ينتهي كل أسبوع بملخص لدراستك واختبار على أخطائك. عندما يجهز تصلك بطاقة لفتحه، ولكل جزء ملف PDF خاص به."
+        en: "Study in intervals, then test your understanding of the pages you read when the timer ends.",
+        ar: "ادرس على فترات، واختبر فهمك للصفحات التي قرأتها عند انتهاء المؤقت."
       }
     },
     {
-      icon: "layers",
-      title: { en: "Smoother tabs and whiteboards", ar: "تبويبات وسبورات أسلس" },
+      icon: "file",
+      title: { en: "My summaries", ar: "ملخصاتي" },
       body: {
-        en: "Switching between open tabs no longer leaves a blank page, the Add page button on whiteboards is easier to tap, and Neon and Pointer ink fades faster.",
-        ar: "التنقل بين التبويبات لم يعد يترك صفحة بيضاء، وزر إضافة صفحة في السبورة أسهل في الضغط، وحبر النيون والمؤشر يختفي أسرع."
+        en: "Write your own summary in your own words, and come back to one you trust.",
+        ar: "أنشئ ملخصك الخاص، بكلماتك وفهمك، وارجع إلى ملخص تثق فيه."
       }
     },
     {
-      icon: "folder",
-      title: { en: "My sheets", ar: "شيتاتي" },
+      icon: "highlighter",
+      title: { en: "Share your marks", ar: "مشاركة التأشير" },
       body: {
-        en: "Add your own PDFs inside any subject. Only you can see them, and what you write on them follows you to every device.",
-        ar: "أضف ملفات PDF خاصة بك داخل أي مادة. لا يراها غيرك، وتظهر كتابتك عليها على كل أجهزتك."
+        en: "Share your notes and marks, and download other students' marks to learn from them.",
+        ar: "شارك ملاحظاتك وتأشيرك، وحمّل تأشير غيرك للاستفادة منه."
+      }
+    },
+    {
+      icon: "play",
+      title: { en: "YouTube inside the sheet", ar: "يوتيوب داخل الشيت" },
+      body: {
+        en: "Open YouTube videos inside the PDF reader and follow the explanation while you study.",
+        ar: "افتح فيديوهات يوتيوب داخل قارئ PDF وتابع الشرح أثناء الدراسة."
+      }
+    },
+    {
+      icon: "pencil",
+      title: { en: "Clearer, smoother writing", ar: "كتابة أوضح وأكثر سلاسة" },
+      body: {
+        en: "Improvements to the pens and to line quality while you write and after.",
+        ar: "تحسينات في الأقلام وجودة الخط أثناء الكتابة وبعدها."
+      }
+    },
+    {
+      icon: "sparkles",
+      title: { en: "An easier experience", ar: "تجربة استخدام أسهل" },
+      body: {
+        en: "Improvements to the look and navigation, with better support for split-screen mode.",
+        ar: "تحسينات في الشكل العام والتنقل، ودعم أفضل لوضع انقسام الشاشة."
+      }
+    },
+    {
+      icon: "lock",
+      title: { en: "Updated privacy policy", ar: "سياسة خصوصية محدّثة" },
+      body: {
+        en: "Clearer explanations of your data and how it is used and protected.",
+        ar: "توضيحات حول بياناتك وكيفية استخدامها وحمايتها."
       }
     },
   ],

@@ -1,0 +1,335 @@
+/* Navigation rail (tablet and desktop, every normal route).
+   The established width/height boundary still chooses phone navigation. The
+   rail keeps every destination in the same order with its accessible name;
+   groups read as dividers, coming-soon entries keep their own icon with a
+   marker, and the existing modal drawer reveals every name on demand.
+   Creator Studio keeps its labelled sidebar (no .app-shell--rail there). */
+@layer system {
+@media (min-width: 640px) and (min-height: 560px) {
+  .app-shell--rail { --shell-sidebar-width: 72px; grid-template-columns: 72px minmax(0, 1fr); }
+  .app-shell--rail .sidebar {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: var(--app-viewport-height);
+    padding: calc(12px + var(--safe-top)) 10px calc(12px + var(--safe-bottom));
+    overflow: hidden;
+  }
+  .app-shell--rail .sidebar-brand-row { display: grid; justify-items: center; gap: 8px; }
+  .app-shell--rail .sidebar .brand { width: auto; padding: 0; margin: 0; }
+  .app-shell--rail .sidebar .brand-mark { width: 32px; height: 32px; }
+  .app-shell--rail .sidebar .brand > strong,
+  .app-shell--rail .sidebar .nav-btn > span,
+  .app-shell--rail .sidebar .nav-coming-soon-label { display: none; }
+  .app-shell--rail .sidebar .nav-list {
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    margin-block-start: 12px;
+    padding: 2px;
+    gap: 2px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+  }
+  .app-shell--rail .sidebar .nav-list::-webkit-scrollbar { display: none; }
+  .app-shell--rail .sidebar .nav-btn { position: relative; width: 100%; min-height: 44px; padding: 0; justify-content: center; flex-direction: row; }
+  .app-shell--rail .sidebar .nav-btn > svg { flex: 0 0 auto; width: 20px; height: 20px; }
+  .app-shell--rail .sidebar .nav-entry .nav-section-label,
+  .app-shell--rail .sidebar .nav-entry:not(:first-child) .nav-section-label {
+    display: block;
+    height: 1px;
+    margin: 2px 14px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    font-size: 0;
+    background: var(--separator);
+  }
+  .app-shell--rail .sidebar .nav-entry:first-child .nav-section-label { display: none; }
+  /* Five primary destinations read as one list; only the staff workspace
+     tools are set apart. The labels stay in the DOM for the drawer's order. */
+  .app-shell--rail .sidebar .nav-entry:not([data-group="Workspace"]) .nav-section-label { display: none; }
+  .app-shell--rail .sidebar .nav-btn--coming-soon { color: var(--muted); }
+  .app-shell--rail .sidebar .nav-btn--coming-soon > svg { opacity: 0.72; }
+  .app-shell--rail .nav-soon-dot {
+    position: absolute;
+    inset-block-start: 9px;
+    inset-inline-end: 12px;
+    width: 7px;
+    height: 7px;
+    border: 1.5px solid var(--surface);
+    border-radius: 50%;
+    background: var(--muted);
+  }
+  .app-shell--rail .rail-expand { width: 44px; height: 44px; }
+  /* The streak returns as a small reading at the rail's foot once there is
+     room for it (tall layouts below); short rails keep every destination. */
+  .app-shell--rail .streak-mini {
+    display: none;
+    flex: 0 0 auto;
+    justify-items: center;
+    gap: 2px;
+    margin-block-start: 8px;
+    padding: 8px 0 4px;
+    border-block-start: 1px solid var(--separator);
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .app-shell--rail .streak-mini--active { color: var(--streak-tier-color, var(--accent-text)); }
+  .app-shell--rail .streak-mini strong { color: var(--text); font-size: var(--text-md); line-height: 1.1; }
+  /* Portalled to <body>, so it is not scoped under the shell. */
+  .rail-tooltip {
+    position: fixed;
+    z-index: var(--z-drawer, 60);
+    max-width: 220px;
+    padding: 6px 10px;
+    border-radius: var(--radius-md);
+    color: var(--text);
+    background: var(--surface-3);
+    box-shadow: var(--card-shadow);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    white-space: nowrap;
+    pointer-events: none;
+    transform: translateY(-50%);
+  }
+  /* Expanded navigation: the existing drawer, opened from the rail. */
+  .app-shell--rail .mobile-drawer {
+    --drawer-hidden-translate: -102%;
+    --drawer-drag-translate: 0px;
+    position: fixed;
+    inset-block: 0;
+    inset-inline-start: 0;
+    inset-inline-end: auto;
+    z-index: var(--z-drawer);
+    display: flex;
+    flex-direction: column;
+    width: min(360px, calc(100vw - 32px));
+    height: var(--app-viewport-height);
+    padding: 0;
+    overflow: hidden;
+    visibility: hidden;
+    pointer-events: none;
+    touch-action: pan-y;
+    transform: translate3d(var(--drawer-hidden-translate), 0, 0);
+    transition: transform var(--motion-panel-duration) var(--motion-enter-ease), visibility 0s linear var(--motion-panel-duration);
+  }
+  [dir="rtl"] .app-shell--rail .mobile-drawer { --drawer-hidden-translate: 102%; }
+  .app-shell--rail .mobile-drawer.open { visibility: visible; pointer-events: auto; transform: translate3d(var(--drawer-drag-translate), 0, 0); transition-delay: 0s; }
+  .app-shell--rail .drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-backdrop);
+    display: block;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .app-shell--rail .drawer-backdrop.open { visibility: visible; opacity: var(--drawer-backdrop-progress, 1); pointer-events: auto; }
+  .app-shell--rail .mobile-drawer.is-dragging,
+  .app-shell--rail .drawer-backdrop.is-dragging { transition: none; }
+  .app-shell--rail .drawer-scroll { flex: 1; overflow-y: auto; min-height: 0; }
+
+  /* The drawer's inner layout lives in the phone-only block of responsive.css,
+     so opened from the rail it had none: the brand, the close button and every
+     row sat flush against the edge. The same structure, for tablet and up. */
+  .app-shell--rail .drawer-head {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: calc(64px + var(--safe-top));
+    /* styles.css pulls the head out by -18px for a padded drawer this is not. */
+    margin: 0;
+    padding: calc(10px + var(--safe-top)) 14px 10px max(16px, var(--safe-left));
+    border-block-end: 1px solid color-mix(in srgb, var(--border) 66%, transparent);
+  }
+  .app-shell--rail .mobile-drawer .brand {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    min-height: 44px;
+    margin: 0;
+    padding: 0;
+  }
+  .app-shell--rail .mobile-drawer .brand-mark { width: 36px; height: 36px; flex: 0 0 auto; border-radius: 10px; }
+  .app-shell--rail .mobile-drawer .brand strong { overflow: hidden; font-size: 1rem; text-overflow: ellipsis; white-space: nowrap; }
+  .app-shell--rail .drawer-close { flex: 0 0 auto; width: 44px; height: 44px; margin: 0; border-radius: 12px; }
+  .app-shell--rail .drawer-scroll {
+    padding: 0 12px max(18px, calc(12px + var(--safe-bottom))) max(12px, var(--safe-left));
+    overflow-x: clip;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--muted) 35%, transparent) transparent;
+  }
+  .app-shell--rail .drawer-scroll::-webkit-scrollbar { width: 6px; }
+  .app-shell--rail .drawer-scroll::-webkit-scrollbar-button { display: none; }
+  .app-shell--rail .drawer-scroll::-webkit-scrollbar-thumb { border-radius: 3px; background: color-mix(in srgb, var(--muted) 35%, transparent); }
+  .app-shell--rail .drawer-navigation { display: grid; gap: 18px; padding-block-start: 14px; }
+  .app-shell--rail .drawer-nav-group { display: grid; gap: 4px; }
+  .app-shell--rail .drawer-nav-group .nav-section-label {
+    margin: 0 10px 2px;
+    color: var(--soft);
+    font-size: 0.75rem;
+    font-weight: 650;
+    text-transform: none;
+  }
+  .app-shell--rail .drawer-nav-items { display: grid; gap: 2px; }
+  .app-shell--rail .drawer-navigation .nav-btn {
+    position: relative;
+    min-height: 44px;
+    gap: 12px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 10px;
+    box-shadow: none;
+    font-size: 0.9375rem;
+  }
+  .app-shell--rail .drawer-navigation .nav-btn > svg { width: 20px; flex: 0 0 20px; }
+  .app-shell--rail .drawer-navigation .nav-btn > span:not(.drawer-active-dot) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .app-shell--rail .drawer-navigation .nav-coming-soon-label { display: inline; margin-inline-start: auto; font-size: 0.6875rem; }
+}
+/* The rail carries only the primary destinations (lib/constants.js), so every
+   rail layout has room for a name under each icon: it reads without hovering
+   or opening the drawer. */
+@media (min-width: 640px) and (min-height: 560px) {
+  .app-shell--rail { --shell-sidebar-width: 88px; grid-template-columns: 88px minmax(0, 1fr); }
+  .app-shell--rail .sidebar { padding-inline: 6px; }
+  /* One full-width column, so the brand and the menu button share the icons'
+     centre line; an auto column sat at the row's start, 13px off it. */
+  .app-shell--rail .sidebar-brand-row { grid-template-columns: minmax(0, 1fr); width: 100%; gap: 10px; }
+  .app-shell--rail .sidebar .nav-list { margin-block-start: 12px; gap: 4px; }
+  .app-shell--rail .sidebar .nav-btn {
+    flex-direction: column;
+    gap: 4px;
+    min-height: 56px;
+    padding: 7px 4px;
+  }
+  /* The menu button opens every other destination, so it is named like one. */
+  .app-shell--rail .rail-expand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 100%;
+    height: auto;
+    min-height: 52px;
+    padding: 6px 4px;
+    border-radius: var(--radius-md);
+    color: var(--muted);
+  }
+  .app-shell--rail .rail-expand > span {
+    font-size: 0.65625rem;
+    font-weight: var(--weight-medium);
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+  .app-shell--rail .rail-expand:hover { color: var(--text); }
+  /* Store, Plans and Settings sit under a divider after the primary five. */
+  .app-shell--rail .sidebar .nav-entry[data-group="More"] .nav-section-label { display: block; margin-block: 6px; }
+  .app-shell--rail .sidebar .nav-btn > span {
+    display: block;
+    max-width: 100%;
+    font-size: 0.65625rem;
+    font-weight: var(--weight-medium);
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    text-align: center;
+    white-space: normal;
+    text-overflow: clip;
+    overflow: visible;
+    overflow-wrap: break-word;
+  }
+  .app-shell--rail .sidebar .nav-entry:not(:first-child) .nav-section-label { margin-block: 5px; }
+  .app-shell--rail .nav-soon-dot { inset-block-start: 6px; inset-inline-end: 18px; }
+  .app-shell--rail .streak-mini { display: grid; }
+  .rail-tooltip { display: none; }
+}
+/* A tablet held upright has far more height than the destinations need, so
+   they spread down the whole rail instead of leaving its lower half empty.
+   Landscape keeps them stacked at the top. */
+@media (min-width: 640px) and (min-height: 560px) and (orientation: portrait) {
+  .app-shell--rail .sidebar .nav-list { align-content: space-evenly; }
+}
+/* Hub sections: Materials, Review and Progress show their sections as one
+   segmented control at the top of the page. Links, each its own route. */
+.hub-tabs {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto 16px;
+  padding: 3px;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--separator);
+}
+.hub-tabs::-webkit-scrollbar { display: none; }
+.hub-tab {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: var(--radius-full);
+  color: var(--muted);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background-color var(--motion-fast), color var(--motion-fast);
+}
+.hub-tab:hover { color: var(--text); }
+.hub-tab.is-current {
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12), 0 0 0 1px var(--separator);
+}
+.hub-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (min-width: 1200px) and (pointer: fine) {
+  .hub-tab { min-height: 36px; }
+}
+@media (max-width: 374px) {
+  .hub-tab { padding-inline: 12px; }
+}
+/* The search sits in the middle of the header bar, whatever the length of the
+   page title or the number of actions. It is lifted out of the row and centred
+   on the bar; the title is capped short of it (ellipsis), and the actions keep
+   to the far edge. Only where the box is shown (responsive.css): a touch
+   tablet under 900px has the search button instead, and keeps its full title. */
+@media (min-width: 900px), (min-width: 768px) and (hover: hover) and (pointer: fine) {
+  .app-shell--rail .topbar { --topbar-search-width: clamp(180px, 32vw, 420px); }
+  .app-shell--rail .topbar .global-search-desktop-input {
+    position: absolute;
+    top: calc(50% + var(--safe-top, 0px) / 2);
+    inset-inline-start: 50%;
+    width: var(--topbar-search-width);
+    min-width: 0;
+    flex: none;
+    margin: 0;
+    translate: -50% -50%;
+  }
+  [dir="rtl"] .app-shell--rail .topbar .global-search-desktop-input { translate: 50% -50%; }
+  .app-shell--rail .topbar .page-title {
+    min-width: 0;
+    /* An older `margin-right: auto` would push the capped title toward the
+       search in Arabic; the actions' own margin does the spacing now. */
+    margin-inline: 0;
+    max-width: calc(50% - var(--topbar-search-width) / 2 - 28px);
+  }
+  .app-shell--rail .topbar .global-search + * { margin-inline-start: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell--rail .sidebar * { animation: none; scroll-behavior: auto; }
+  .hub-tab { transition: none; }
+}
+}

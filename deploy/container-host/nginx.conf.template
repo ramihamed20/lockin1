@@ -17,7 +17,8 @@ server {
     add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; frame-src 'self' https://www.youtube-nocookie.com; img-src 'self' blob: https://i.ytimg.com; manifest-src 'self'; media-src 'self' blob:; object-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; style-src-elem 'self'; worker-src 'self' blob:" always;
     add_header Permissions-Policy "camera=(), geolocation=(), microphone=(), payment=(), usb=()" always;
     add_header Referrer-Policy "no-referrer" always;
-    add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+    set $lockin_robots "noindex, nofollow, noarchive";
+    add_header X-Robots-Tag $lockin_robots always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "DENY" always;
     add_header Cross-Origin-Opener-Policy "same-origin" always;
@@ -67,12 +68,26 @@ server {
     location ~ ^/assets/.*\.mjs$ {
         default_type application/javascript;
         access_log off;
+        # Public hashed assets only; private API streams keep their byte ranges.
+        gzip on;
+        gzip_types text/css application/javascript image/svg+xml;
+        gzip_min_length 1024;
+        gzip_comp_level 5;
+        gzip_vary on;
+        gzip_proxied any;
         expires max;
         try_files $uri =404;
     }
 
     location /assets/ {
         access_log off;
+        # Public hashed assets only; private API streams keep their byte ranges.
+        gzip on;
+        gzip_types text/css application/javascript image/svg+xml;
+        gzip_min_length 1024;
+        gzip_comp_level 5;
+        gzip_vary on;
+        gzip_proxied any;
         expires max;
         try_files $uri =404;
     }
@@ -85,6 +100,28 @@ server {
 
     location = /manifest.webmanifest {
         default_type application/manifest+json;
+        expires -1;
+        try_files $uri =404;
+    }
+
+    # BEGIN GENERATED PUBLIC KNOWLEDGE
+    # Exact published routes only; no prefix grant to private/help/API paths.
+    location ~ ^/(about|medicine|dentistry|features|features/notes|features/active-study|features/review|features/questions|help|help/topics/getting-started|help/topics/studying|help/topics/review-progress|help/topics/account-security|help/topics/troubleshooting|help/what-is-lockin|help/who-is-lockin-for|help/supported-universities|help/need-account|help/open-materials|help/cohort-content|help/sheet-editions|help/about-settings|help/open-pdf|help/pdf-notes|help/pen-tool|help/highlight-tool|help/erase-marks|help/text-notes|help/notes-private|help/pdf-original|help/active-study-what|help/start-active-study|help/active-availability|help/active-difficulty|help/active-parts|help/active-final|help/active-resume|help/active-restart|help/normal-or-active|help/question-sources|help/practical-questions|help/mixed-questions|help/question-explanations|help/find-mistakes|help/saved-mistakes|help/repeat-mistake|help/mastered-question|help/empty-review|help/weekly-recall|help/weekly-not-ready|help/start-weekly|help/weekly-errors|help/progress-page|help/periodic-reports|help/private-and-public|help/account-security|help/supported-access|help/missing-materials|help/missing-questions|help/reader-unavailable|help/notes-not-synced|help/active-start-error|help/contact-support|help/pomodoro-study|help/custom-active-study|help/first-year-subjects|en/about|en/medicine|en/dentistry|en/features|en/features/notes|en/features/active-study|en/features/review|en/features/questions|en/help|en/help/topics/getting-started|en/help/topics/studying|en/help/topics/review-progress|en/help/topics/account-security|en/help/topics/troubleshooting|en/help/what-is-lockin|en/help/who-is-lockin-for|en/help/supported-universities|en/help/need-account|en/help/open-materials|en/help/cohort-content|en/help/sheet-editions|en/help/about-settings|en/help/open-pdf|en/help/pdf-notes|en/help/pen-tool|en/help/highlight-tool|en/help/erase-marks|en/help/text-notes|en/help/notes-private|en/help/pdf-original|en/help/active-study-what|en/help/start-active-study|en/help/active-availability|en/help/active-difficulty|en/help/active-parts|en/help/active-final|en/help/active-resume|en/help/active-restart|en/help/normal-or-active|en/help/question-sources|en/help/practical-questions|en/help/mixed-questions|en/help/question-explanations|en/help/find-mistakes|en/help/saved-mistakes|en/help/repeat-mistake|en/help/mastered-question|en/help/empty-review|en/help/weekly-recall|en/help/weekly-not-ready|en/help/start-weekly|en/help/weekly-errors|en/help/progress-page|en/help/periodic-reports|en/help/private-and-public|en/help/account-security|en/help/supported-access|en/help/missing-materials|en/help/missing-questions|en/help/reader-unavailable|en/help/notes-not-synced|en/help/active-start-error|en/help/contact-support|en/help/pomodoro-study|en/help/custom-active-study|en/help/first-year-subjects)/$ {
+        set $lockin_robots "index, follow, max-image-preview:large";
+        try_files ${uri}index.html =404;
+    }
+    location ~ ^/(about|medicine|dentistry|features|features/notes|features/active-study|features/review|features/questions|help|help/topics/getting-started|help/topics/studying|help/topics/review-progress|help/topics/account-security|help/topics/troubleshooting|help/what-is-lockin|help/who-is-lockin-for|help/supported-universities|help/need-account|help/open-materials|help/cohort-content|help/sheet-editions|help/about-settings|help/open-pdf|help/pdf-notes|help/pen-tool|help/highlight-tool|help/erase-marks|help/text-notes|help/notes-private|help/pdf-original|help/active-study-what|help/start-active-study|help/active-availability|help/active-difficulty|help/active-parts|help/active-final|help/active-resume|help/active-restart|help/normal-or-active|help/question-sources|help/practical-questions|help/mixed-questions|help/question-explanations|help/find-mistakes|help/saved-mistakes|help/repeat-mistake|help/mastered-question|help/empty-review|help/weekly-recall|help/weekly-not-ready|help/start-weekly|help/weekly-errors|help/progress-page|help/periodic-reports|help/private-and-public|help/account-security|help/supported-access|help/missing-materials|help/missing-questions|help/reader-unavailable|help/notes-not-synced|help/active-start-error|help/contact-support|help/pomodoro-study|help/custom-active-study|help/first-year-subjects|en/about|en/medicine|en/dentistry|en/features|en/features/notes|en/features/active-study|en/features/review|en/features/questions|en/help|en/help/topics/getting-started|en/help/topics/studying|en/help/topics/review-progress|en/help/topics/account-security|en/help/topics/troubleshooting|en/help/what-is-lockin|en/help/who-is-lockin-for|en/help/supported-universities|en/help/need-account|en/help/open-materials|en/help/cohort-content|en/help/sheet-editions|en/help/about-settings|en/help/open-pdf|en/help/pdf-notes|en/help/pen-tool|en/help/highlight-tool|en/help/erase-marks|en/help/text-notes|en/help/notes-private|en/help/pdf-original|en/help/active-study-what|en/help/start-active-study|en/help/active-availability|en/help/active-difficulty|en/help/active-parts|en/help/active-final|en/help/active-resume|en/help/active-restart|en/help/normal-or-active|en/help/question-sources|en/help/practical-questions|en/help/mixed-questions|en/help/question-explanations|en/help/find-mistakes|en/help/saved-mistakes|en/help/repeat-mistake|en/help/mastered-question|en/help/empty-review|en/help/weekly-recall|en/help/weekly-not-ready|en/help/start-weekly|en/help/weekly-errors|en/help/progress-page|en/help/periodic-reports|en/help/private-and-public|en/help/account-security|en/help/supported-access|en/help/missing-materials|en/help/missing-questions|en/help/reader-unavailable|en/help/notes-not-synced|en/help/active-start-error|en/help/contact-support|en/help/pomodoro-study|en/help/custom-active-study|en/help/first-year-subjects)(?:/index\.html)?$ {
+        return 308 /$1/;
+    }
+    location = /llms.txt {
+        default_type text/plain;
+        try_files $uri =404;
+    }
+    # END GENERATED PUBLIC KNOWLEDGE
+
+    location = /sitemap.xml {
+        types { application/xml xml; }
+        default_type application/xml;
         expires -1;
         try_files $uri =404;
     }

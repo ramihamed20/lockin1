@@ -12,7 +12,7 @@ export async function resolveOfflineDocument(userId, { materialSlug, sheetSlug, 
   const item = manifest?.items?.find((entry) => entry.available && entry.material_slug === materialSlug && entry.sheet_slug === sheetSlug && entry.type === type);
   if (!item || !(await hasStoredOfflineFile(userId, item.id).catch(() => false))) return null;
   return { document: {
-    id: item.document_id, document_version_id: item.document_version_id,
+    id: item.document_id, document_version_id: item.document_version_id, file_id: item.file_id || /^\/api\/v1\/files\/([0-9a-f-]+)\/view$/i.exec(String(item.download_url))?.[1],
     view_url: offlinePdfUrl(item.id), offline: true
   } };
 }

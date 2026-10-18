@@ -50,9 +50,10 @@ from .admin_services import (
     save_active_study_question_content,
     update_active_study_settings,
 )
-from .editions import LOCKIN, edition_label, normalize_edition
+from .editions import LOCKIN, UNIVERSITY, edition_label, normalize_edition
 from .models import ActiveStudyQuestionContent, LearningObject
-from .services import ContentConflictError
+from .page_question_bank import QUESTIONS_PER_PAGE
+from .services import ContentConflictError, ContentRuleError
 
 # A fully broken paste of several hundred questions can produce thousands of
 # errors; the first ones are what an administrator can act on.
@@ -144,6 +145,11 @@ def all_questions_context(
     """
 
     edition = normalize_edition(edition)
+    if sheet.active_study_page_bank_enabled and edition != UNIVERSITY:
+        raise ContentRuleError(
+            "Import page-based questions on the University Sheet tab; "
+            "both editions share this bank."
+        )
     plan = active_study_plan_preview(
         sheet=sheet,
         excluded_start_pages=excluded_start_pages,
@@ -162,17 +168,27 @@ def all_questions_context(
         per_part = cast(int, row["questions_per_checkpoint"])
         final = cast(int, row["final_exam_questions"])
         content = contents.get(key)
+        page_bank = row.get("question_format") == "pages"
+        pages = [
+            page
+            for r in cast(list[dict[str, int]], row["page_ranges"])
+            for page in range(r["start_page"], r["end_page"] + 1)
+        ]
+        bank_total = len(pages) * QUESTIONS_PER_PAGE if page_bank else parts * per_part
         difficulties.append(
             {
                 "difficulty": key,
+                "question_format": row.get("question_format", "parts"),
+                "page_numbers": pages,
+                "questions_per_page": QUESTIONS_PER_PAGE,
                 "label": DIFFICULTY_LABELS[key],
                 "number_of_parts": parts,
                 "page_ranges": row["page_ranges"],
                 "questions_per_checkpoint": per_part,
                 "final_exam_questions": final,
                 "prompt_template_supported": row["prompt_template_supported"],
-                "part_question_total": parts * per_part,
-                "total": parts * per_part + final,
+                "part_question_total": bank_total,
+                "total": bank_total + final,
                 "existing": {
                     "revision": content.revision if content is not None else 0,
                     "checkpoint_question_count": (
@@ -216,7 +232,7 @@ def all_questions_context(
     }
 
 
-def _section(path: str) -> str:
+def _section(path: str, payload: Any = None) -> str:
     """``active_study.hard.parts[2].questions[7]`` -> ``Hard → Part 3 → Question 8``."""
 
     labels: list[str] = []
@@ -229,6 +245,12 @@ def _section(path: str) -> str:
         if part:
             labels.append(f"Part {int(part.group(1)) + 1}")
             rest = rest[part.end() :]
+        elif page := re.match(r"^\.pages\[(\d+)\]", rest):
+            actual = _value_at(
+                payload, f"active_study.{match.group(1)}.pages[{page.group(1)}].page"
+            )
+            labels.append(f"Page {actual if isinstance(actual, int) else int(page.group(1)) + 1}")
+            rest = rest[page.end() :]
         elif rest.startswith(".final_exam"):
             labels.append("Final Exam")
             rest = rest[len(".final_exam") :]
@@ -269,7 +291,7 @@ def _finish_errors(errors: list[dict[str, str]], payload: Any) -> list[dict[str,
             if received is not None:
                 message = f"Invalid correct_answer: {received!r}. {message}"
         finished.append(
-            {"path": item["path"], "section": _section(item["path"]), "message": message}
+            {"path": item["path"], "section": _section(item["path"], payload), "message": message}
         )
     return finished
 
@@ -367,6 +389,8 @@ def _validate_difficulty(
                 final_exam_questions=cast(int, row["final_exam_questions"]),
             ),
             number_of_parts=cast(int, row["number_of_parts"]),
+            page_ranges=cast(list[dict[str, int]], row["page_ranges"]),
+            question_format=str(row.get("question_format", "parts")),
         )
     except ActiveStudyQuestionValidationError as error:
         for item in error.errors:
@@ -494,10 +518,28 @@ def _summary(
         prefix = f"active_study.{key}"
         raw = active.get(key)
         raw = raw if isinstance(raw, dict) else {}
-        raw_parts = raw.get("parts")
-        per_part = cast(int, row["questions_per_checkpoint"])
+        page_bank = row.get("question_format") == "pages"
+        raw_parts = (
+            [
+                {"part": item.get("page"), "questions": item.get("questions")}
+                if isinstance(item, dict)
+                else item
+                for item in raw.get("pages", [])
+            ]
+            if page_bank and isinstance(raw.get("pages"), list)
+            else raw.get("parts")
+        )
+        per_part = QUESTIONS_PER_PAGE if page_bank else cast(int, row["questions_per_checkpoint"])
         parts: list[dict[str, object]] = []
-        for planned in cast(list[dict[str, int]], row["page_ranges"]):
+        planned_rows = (
+            [
+                {"part": page, "start_page": page, "end_page": page}
+                for page in cast(list[int], row["page_numbers"])
+            ]
+            if page_bank
+            else cast(list[dict[str, int]], row["page_ranges"])
+        )
+        for planned in planned_rows:
             index = _raw_part_index(raw_parts, planned["part"])
             raw_part = cast(list[Any], raw_parts)[index] if index is not None else None
             received = _count(raw_part.get("questions")) if isinstance(raw_part, dict) else 0
@@ -510,7 +552,9 @@ def _summary(
                     "received": received,
                     "ok": received == per_part
                     and index is not None
-                    and not _has_error(errors, f"{prefix}.parts[{index}]"),
+                    and not _has_error(
+                        errors, f"{prefix}.{'pages' if page_bank else 'parts'}[{index}]"
+                    ),
                 }
             )
         final_raw = raw.get("final_exam")
@@ -523,6 +567,7 @@ def _summary(
                 "difficulty": key,
                 "label": row["label"],
                 "number_of_parts": row["number_of_parts"],
+                "question_format": row.get("question_format", "parts"),
                 "parts": parts,
                 "final_exam": {
                     "expected": final_expected,

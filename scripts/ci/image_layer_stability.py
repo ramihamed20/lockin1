@@ -269,14 +269,41 @@ def equivalent_backend(old: str, new: str) -> None:
     summary_notes.append(f"Old vs new backend: {len(requested)} dist-info/REQUESTED markers (and their RECORD entries) differ; every other file is identical")
 
 
+def edge_context(context: Path) -> None:
+    """Copy the frontend and explicit public evidence, never a whole local checkout."""
+    shutil.copytree(ROOT / "frontend", context / "frontend", ignore=shutil.ignore_patterns("node_modules", "dist", "dev-dist", "test-results", "playwright-report", "output", ".env", ".env.*"))
+    knowledge = json.loads((ROOT / "frontend/content/public-knowledge.json").read_text(encoding="utf-8-sig"))
+    paths = [*knowledge["evidenceDigests"], ".dockerignore", "deploy/container-host/nginx.conf.template"]
+    for relative in paths:
+        source = (ROOT / relative).resolve()
+        if not source.is_relative_to(ROOT) or source.suffix not in {".js", ".jsx", ".py", ".md", ".template", ""}:
+            raise SystemExit(f"unsafe public evidence path: {relative}")
+        destination = context / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, destination)
+
+
+def edge_reference_context(source: str) -> str:
+    """Give historical images the same build-only evidence prerequisite."""
+    if "COPY frontend/package.json" in source:
+        return source
+    return (source.replace("COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./",
+                           "COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./")
+            .replace("COPY . .", "COPY frontend .")
+            .replace("COPY nginx/", "COPY frontend/nginx/")
+            .replace("RUN pnpm build", "RUN --mount=type=bind,target=/lockin-source "
+                     "LOCKIN_PUBLIC_EVIDENCE_ROOT=/lockin-source pnpm build"))
+
+
 def edge(work: Path, reference: str | None) -> None:
-    context = work / "frontend"
-    shutil.copytree(ROOT / "frontend", context, ignore=shutil.ignore_patterns("node_modules", "dist", "dev-dist", "test-results", "playwright-report", "output"))
-    build(context, "layers/edge:a", args=EDGE_BUILD_ARGS)
+    context = work / "edge"
+    edge_context(context)
+    dockerfile = context / "frontend" / "Dockerfile"
+    build(context, "layers/edge:a", dockerfile=dockerfile, args=EDGE_BUILD_ARGS)
     a = layers("layers/edge:a")
 
-    mutate(context / "src" / "main.jsx", EDGE_SOURCE_PROBE)
-    log_b = build(context, "layers/edge:b", args=EDGE_BUILD_ARGS)
+    mutate(context / "frontend" / "src" / "main.jsx", EDGE_SOURCE_PROBE)
+    log_b = build(context, "layers/edge:b", dockerfile=dockerfile, args=EDGE_BUILD_ARGS)
     b = layers("layers/edge:b")
     table("edge B (source only) vs A", a, b)
     check(step_cached(log_b, "pnpm install --frozen-lockfile"), "edge B: BuildKit reported the dependency install CACHED")
@@ -285,8 +312,8 @@ def edge(work: Path, reference: str | None) -> None:
     check(ids(a[: row(a, EDGE_PUBLIC_COPY) + 1]) == ids(b[: row(b, EDGE_PUBLIC_COPY) + 1]), "edge B: every layer through the public assets is identical to A")
     source_only, source_only_layers = new_bytes(a, b)
 
-    mutate(context / "pnpm-lock.yaml", "\n# layer-stability probe: dependency definition\n")
-    log_c = build(context, "layers/edge:c", args=EDGE_BUILD_ARGS)
+    mutate(context / "frontend" / "pnpm-lock.yaml", "\n# layer-stability probe: dependency definition\n")
+    log_c = build(context, "layers/edge:c", dockerfile=dockerfile, args=EDGE_BUILD_ARGS)
     check(not step_cached(log_c, "pnpm install --frozen-lockfile"), "edge C: a lockfile change reruns the dependency install")
 
     inspect = json.loads(subprocess.run(["docker", "image", "inspect", "layers/edge:a"], check=True, text=True, capture_output=True).stdout)[0]["Config"]
@@ -296,12 +323,13 @@ def edge(work: Path, reference: str | None) -> None:
 
     if reference:
         old_dockerfile = work / "frontend.reference.Dockerfile"
-        old_dockerfile.write_text(subprocess.run(["git", "-C", str(ROOT), "show", f"{reference}:frontend/Dockerfile"], check=True, text=True, capture_output=True).stdout, encoding="utf-8")
+        old_source = subprocess.run(["git", "-C", str(ROOT), "show", f"{reference}:frontend/Dockerfile"], check=True, text=True, capture_output=True).stdout
+        old_dockerfile.write_text(edge_reference_context(old_source), encoding="utf-8")
         pristine = work / "frontend-reference"
-        shutil.copytree(ROOT / "frontend", pristine, ignore=shutil.ignore_patterns("node_modules", "dist", "dev-dist", "test-results", "playwright-report", "output"))
+        edge_context(pristine)
         build(pristine, "layers/edge-old:a", dockerfile=old_dockerfile, args=EDGE_BUILD_ARGS)
         old_a = layers("layers/edge-old:a")
-        mutate(pristine / "src" / "main.jsx", EDGE_SOURCE_PROBE)
+        mutate(pristine / "frontend" / "src" / "main.jsx", EDGE_SOURCE_PROBE)
         build(pristine, "layers/edge-old:b", dockerfile=old_dockerfile, args=EDGE_BUILD_ARGS)
         old_b = layers("layers/edge-old:b")
         table(f"edge B vs A under the Dockerfile at {reference}", old_a, old_b)

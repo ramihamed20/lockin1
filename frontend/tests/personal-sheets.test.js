@@ -112,8 +112,9 @@ test("an own sheet's marks and reader state sync through its own routes", async 
   // The reader treats the sheet as its synced document, keyed by its own id.
   assert.match(workspace, /\{ id: sheet\.id, versionId: sheet\.id, viewUrl: sheet\.viewUrl, checksum: "" \}/);
   assert.match(workspace, /catalogDocument={syncedDocument} documentScope={PERSONAL_SCOPE}/);
-  assert.match(workspace, /\.\.\.\(personal \? \{ catalog: personalWorkspaceApi \} : \{\}\)/);
-  assert.match(workspace, /kind: personal \? "personal" : "catalog"/);
+  // Copied marks on a catalog sheet sync through the same routes.
+  assert.match(workspace, /\.\.\.\(personal \|\| copyMarksId \? \{ catalog: personalWorkspaceApi \} : \{\}\)/);
+  assert.match(workspace, /kind: personal \|\| copyMarksId \? "personal" : "catalog"/);
   // Reading credit stays off even though a document is now synced.
   assert.match(workspace, /enabled: !summaryMode && !whiteboard && !personal/);
   assert.match(api, /`\/personal-sheets\/\$\{encodeURIComponent\(sheetId\)\}\/workspace\?probe=1`/);

@@ -1,0 +1,82 @@
+/* My Summary: settings dialog, keyboard side panel and the end-of-sheet card. */
+.summary-dialog { width: min(560px, calc(100vw - 24px)); max-height: min(88dvh, 760px); margin: auto; padding: 0; overflow: auto; border: 1px solid var(--border); border-radius: 22px; color: var(--text); background: var(--surface); }
+.summary-dialog::backdrop { background: color-mix(in srgb, var(--bg) 55%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.summary-dialog > header { position: sticky; top: 0; z-index: 1; display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; padding: 20px 20px 12px; background: var(--surface); }
+.summary-dialog h2 { margin: 0; font-size: 1.3rem; }
+.summary-dialog header p { margin: 4px 0 0; color: var(--text-muted, var(--text)); font-size: .88rem; line-height: 1.5; }
+.summary-dialog__close { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border: 0; border-radius: 50%; color: inherit; background: var(--surface-2, rgb(127 127 127 / .12)); cursor: pointer; }
+.summary-list { display: grid; gap: 12px; margin: 0; padding: 0 20px 4px; list-style: none; }
+.summary-card { display: grid; gap: 12px; padding: 14px; border: 1px solid color-mix(in srgb, var(--summary-accent) 35%, var(--border)); border-inline-start: 4px solid var(--summary-accent); border-radius: 16px; background: color-mix(in srgb, var(--summary-accent) 6%, var(--surface)); }
+.summary-card__head { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.summary-card__icon { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 12px; color: #fff; background: var(--summary-accent); }
+.summary-card__title { display: grid; gap: 2px; min-width: 0; }
+.summary-card__title strong { overflow-wrap: anywhere; }
+.summary-card__title small { color: var(--text-muted, var(--text)); font-size: .8rem; line-height: 1.4; }
+.summary-card__rename { display: flex; flex: 1; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.summary-card__rename input { flex: 1 1 160px; min-width: 0; min-height: 40px; }
+.summary-card__actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.summary-card__actions .btn { display: inline-flex; gap: 6px; align-items: center; min-height: 40px; }
+.summary-card__delete { margin-inline-start: auto; color: var(--danger, #e5484d); }
+.summary-card__confirm { display: grid; gap: 10px; padding: 12px; border-radius: 12px; background: color-mix(in srgb, var(--danger, #e5484d) 10%, var(--surface)); }
+.summary-card__confirm p { margin: 0; font-size: .88rem; line-height: 1.5; }
+.summary-card__confirm div { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.summary-new { display: grid; gap: 14px; margin: 12px 20px 20px; padding: 16px; border: 1px dashed var(--border); border-radius: 16px; }
+.summary-new h3 { margin: 0; font-size: 1rem; }
+.summary-new input { min-height: 44px; }
+.summary-modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; margin: 0; padding: 0; border: 0; }
+.summary-modes legend { margin-bottom: 6px; font-size: .85rem; font-weight: 600; }
+.summary-modes label { position: relative; display: flex; gap: 10px; align-items: center; min-height: 64px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 14px; cursor: pointer; }
+.summary-modes label.is-selected { border-color: var(--accent, #3d9bff); background: color-mix(in srgb, var(--accent, #3d9bff) 10%, transparent); }
+.summary-modes input { position: absolute; opacity: 0; pointer-events: none; }
+.summary-modes label:has(input:focus-visible) { outline: 2px solid var(--accent, #3d9bff); outline-offset: 2px; }
+.summary-modes span { display: grid; gap: 2px; }
+.summary-modes small { color: var(--text-muted, var(--text)); font-size: .78rem; }
+.summary-color-row { display: flex; gap: 12px; align-items: center; font-size: .85rem; font-weight: 600; }
+.summary-colors { display: inline-flex; gap: 6px; }
+.summary-colors label { position: relative; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; }
+.summary-colors input { position: absolute; opacity: 0; pointer-events: none; }
+.summary-colors span[aria-hidden] { width: 22px; height: 22px; border-radius: 50%; background: var(--summary-accent); box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px transparent; transition: box-shadow .15s ease; }
+.summary-colors label.is-selected span[aria-hidden] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--summary-accent); }
+.summary-colors label:has(input:focus-visible) span[aria-hidden] { outline: 2px solid var(--text); outline-offset: 4px; }
+.summary-new > .btn { min-height: 44px; justify-self: start; padding-inline: 22px; }
+.summary-note { margin: 12px 20px 20px; color: var(--text-muted, var(--text)); font-size: .88rem; }
+.summary-dialog .form-alert { margin: 0 20px 20px; }
+
+/* Keyboard side panel, on the physical right edge with a tab to fold it away. */
+.summary-panel { position: fixed; z-index: calc(var(--z-immersive, 50) + 3); top: calc(64px + env(safe-area-inset-top)); right: 0; bottom: calc(64px + env(safe-area-inset-bottom)); display: flex; align-items: flex-start; pointer-events: none; }
+.summary-panel > * { pointer-events: auto; }
+.summary-panel__tab { display: grid; place-items: center; width: 32px; height: 64px; margin-top: 24px; border: 1px solid var(--fx-edge, var(--border)); border-inline-end: 0; border-radius: 14px 0 0 14px; color: #fff; background: var(--summary-accent); box-shadow: 0 6px 18px rgb(0 0 0 / .2); cursor: pointer; }
+.summary-panel__body { display: grid; grid-template-rows: auto 1fr auto; gap: 10px; width: min(340px, calc(100vw - 48px)); height: 100%; padding: 14px; border: 1px solid var(--fx-edge, var(--border)); border-right: 0; border-top: 4px solid var(--summary-accent); border-radius: 16px 0 0 16px; color: var(--fx-text, var(--text)); background: color-mix(in srgb, var(--fx-glass, var(--surface)) 96%, transparent); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: -10px 0 30px rgb(0 0 0 / .18); }
+.summary-panel__body header { display: flex; gap: 8px; align-items: center; justify-content: space-between; min-width: 0; }
+.summary-panel__body header strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.summary-panel__which select { max-width: 200px; min-height: 36px; }
+.summary-panel__state { flex: none; padding: 3px 10px; border-radius: 999px; font-size: .72rem; background: var(--fx-fill, rgb(127 127 127 / .14)); }
+.summary-panel__state.is-failed, .summary-panel__state.is-offline { color: #111; background: #f1c24b; }
+.summary-panel__page { display: grid; grid-template-rows: auto 1fr; gap: 6px; min-height: 0; }
+.summary-panel__page span { justify-self: start; padding: 3px 10px; border-radius: 999px; color: #fff; font-size: .78rem; font-weight: 700; background: var(--summary-accent); }
+.summary-panel__page textarea { width: 100%; height: 100%; min-height: 160px; resize: none; padding: 12px; border: 1px solid var(--fx-edge, var(--border)); border-radius: 12px; color: inherit; background: var(--fx-fill, var(--surface-2)); font: inherit; font-size: .95rem; line-height: 1.6; }
+.summary-panel__page textarea:focus-visible { outline: 2px solid var(--summary-accent); outline-offset: 1px; }
+.summary-panel__count { justify-self: end; opacity: .6; font-size: .72rem; }
+@media (max-width: 600px) { .summary-panel { top: auto; height: min(52dvh, 420px); } }
+
+/* End of sheet: a card above the page counter. */
+.summary-receive { position: fixed; z-index: calc(var(--z-immersive, 50) + 4); left: 50%; bottom: calc(76px + env(safe-area-inset-bottom)); display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; max-width: calc(100vw - 24px); padding: 8px 8px 8px 16px; border: 1px solid var(--fx-edge, var(--border)); border-radius: 999px; color: var(--fx-text, var(--text)); background: color-mix(in srgb, var(--fx-glass, var(--surface)) 96%, transparent); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); box-shadow: 0 10px 30px rgb(0 0 0 / .25); transform: translateX(-50%); font-size: .88rem; }
+.summary-receive .btn { display: inline-flex; gap: 6px; align-items: center; min-height: 40px; }
+.summary-receive__close { display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 50%; color: inherit; background: none; cursor: pointer; }
+@media (pointer: coarse) { .summary-receive .btn, .summary-receive__close, .summary-card__actions .btn { min-height: 44px; } .summary-receive__close { width: 44px; height: 44px; } }
+
+/* Jump between a sheet page and its summary page. */
+.summary-jump { position: fixed; z-index: calc(var(--z-immersive, 50) + 2); left: max(12px, env(safe-area-inset-left)); bottom: calc(68px + env(safe-area-inset-bottom)); display: inline-flex; gap: 6px; align-items: center; min-height: 40px; padding: 0 14px; border: 1px solid var(--fx-edge, var(--border)); border-radius: 999px; color: #fff; background: var(--summary-accent, #2f6fdb); box-shadow: 0 6px 18px rgb(0 0 0 / .22); font-size: .8rem; font-weight: 600; cursor: pointer; }
+@media (pointer: coarse) { .summary-jump { min-height: 44px; } }
+
+/* Materials -> My summaries */
+.summary-rows { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.summary-row { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 14px; border: 1px solid var(--border); border-inline-start: 4px solid var(--summary-accent); border-radius: 16px; background: color-mix(in srgb, var(--summary-accent) 5%, var(--surface)); }
+.summary-row__text { display: grid; gap: 2px; min-width: 0; }
+.summary-row__text strong { overflow-wrap: anywhere; }
+.summary-row__text small { color: var(--text-muted, var(--text)); font-size: .8rem; overflow-wrap: anywhere; }
+.summary-row__error { color: var(--danger, #e5484d) !important; }
+.summary-row__actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.summary-row__actions .btn { display: inline-flex; gap: 6px; align-items: center; min-height: 40px; }
+@media (max-width: 560px) { .summary-row { grid-template-columns: 40px minmax(0, 1fr); } .summary-row__actions { grid-column: 1 / -1; justify-content: flex-start; } }
+@media (pointer: coarse) { .summary-row__actions .btn { min-height: 44px; } }

@@ -61,7 +61,7 @@ async function openShell(page, viewport, account) {
   await page.goto("/#/");
   await expect(page.locator(".sidebar")).toBeVisible();
   await expect(page.locator(".sidebar[data-density]")).toHaveCount(1);
-  await page.waitForFunction(() => !document.querySelector(".sidebar .streak-card--loading"));
+  await page.waitForFunction(() => !document.querySelector(".sidebar .streak-mini[aria-busy]"));
 }
 
 function readSidebar() {
@@ -83,8 +83,9 @@ for (const viewport of DESKTOP_VIEWPORTS) {
     await openShell(page, viewport, OPERATIONS_ACCOUNT);
     const sidebar = await page.evaluate(readSidebar);
 
-    // The account carries the student destinations plus its workspace ones.
-    expect(sidebar.destinations).toBeGreaterThan(10);
+    // Five primary destinations, four standalone rail entries, and the two
+    // operations workspaces must all remain reachable.
+    expect(sidebar.destinations).toBe(11);
     // The whole rail owns scrolling on tablets, while wider layouts can keep
     // the list as their scroller. In either case the behavior that matters is
     // that the final destination remains reachable.
@@ -124,71 +125,39 @@ test("a laptop hides no destinations from an operations account", async ({ page 
   }
 });
 
-/** The streak card's rendered shape, for comparison across viewports. */
+/** Whether the rail's streak reading is on screen, and what it announces. */
 function readStreak() {
-  const card = document.querySelector(".sidebar .streak-card");
-  if (!card) return { present: false };
-  const style = window.getComputedStyle(card);
+  const reading = document.querySelector(".sidebar .streak-mini");
+  if (!reading) return { present: false };
   return {
     present: true,
-    height: Math.round(card.getBoundingClientRect().height),
-    padding: style.padding,
-    parts: [...card.children]
-      .filter((child) => window.getComputedStyle(child).display !== "none")
-      .map((child) => child.className)
-      .join("+"),
-    label: card.querySelector(".streak-card-heading span")?.textContent || ""
+    shown: window.getComputedStyle(reading).display !== "none",
+    label: reading.getAttribute("aria-label") || ""
   };
 }
 
-// Tablet has enough width for the complete utility card, while desktop keeps
-// its existing compact footer. Each context must stay internally consistent:
-// in particular, rotating an iPad must not drop status content.
-test("the study streak stays complete and consistent across tablet orientations", async ({ page }) => {
-  const shapes = [];
+// The rail holds only the primary destinations, so its streak reading fits at
+// every tablet and desktop size, and the full streak card always stays one
+// tap away in the expanded navigation.
+test("the study streak stays reachable at every tablet and desktop size", async ({ page }) => {
   for (const viewport of [
-    { width: 1920, height: 1080, name: "desktop" },
-    { width: 1440, height: 900, name: "laptop" },
-    { width: 1280, height: 800, name: "small laptop" },
-    { width: 1112, height: 834, name: "iPad landscape" },
-    { width: 1024, height: 1366, name: "iPad portrait" }
+    { width: 1920, height: 1080, name: "desktop", shown: true },
+    { width: 1366, height: 1024, name: "iPad Pro landscape", shown: true },
+    { width: 1024, height: 1366, name: "iPad Pro portrait", shown: true },
+    { width: 834, height: 1112, name: "iPad portrait", shown: true },
+    { width: 1440, height: 900, name: "laptop", shown: true },
+    { width: 1112, height: 834, name: "iPad landscape", shown: true },
+    { width: 1024, height: 600, name: "short landscape", shown: true }
   ]) {
     await openShell(page, viewport, STUDENT_ACCOUNT);
-    shapes.push({ name: viewport.name, ...(await page.evaluate(readStreak)) });
-  }
+    const reading = await page.evaluate(readStreak);
+    expect(reading.present, `${viewport.name} has no streak reading`).toBe(true);
+    expect(reading.shown, `${viewport.name} streak visibility`).toBe(viewport.shown);
+    expect(reading.label, `${viewport.name} drops the accessible label`).toMatch(/day study streak/);
 
-  for (const shape of shapes) {
-    expect(shape.present, `${shape.name} hides the streak card`).toBe(true);
-    // The label is kept everywhere; one width band used to drop it entirely.
-    expect(shape.label, `${shape.name} drops the label`).toBe("Study streak");
+    await page.locator(".sidebar .rail-expand").click();
+    await expect(page.locator(".mobile-drawer.open .streak-card")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".mobile-drawer.open")).toHaveCount(0);
   }
-  const desktopReference = shapes[0];
-  for (const shape of shapes.slice(1, 3)) {
-    expect({ n: shape.name, parts: shape.parts, padding: shape.padding })
-      .toEqual({ n: shape.name, parts: desktopReference.parts, padding: desktopReference.padding });
-    expect(Math.abs(shape.height - desktopReference.height), `${shape.name} desktop height differs`).toBeLessThanOrEqual(2);
-  }
-
-  const tabletReference = shapes[3];
-  expect(tabletReference.parts).toContain("streak-freeze");
-  expect(tabletReference.parts).toContain("streak-card-track");
-  expect(tabletReference.height).toBeGreaterThan(desktopReference.height);
-  for (const shape of shapes.slice(4)) {
-    expect({ n: shape.name, parts: shape.parts, padding: shape.padding })
-      .toEqual({ n: shape.name, parts: tabletReference.parts, padding: tabletReference.padding });
-    expect(Math.abs(shape.height - tabletReference.height), `${shape.name} tablet height differs`).toBeLessThanOrEqual(2);
-  }
-});
-
-// Rotation is the case that made this obvious to read.
-test("rotating an iPad does not reshape the streak card", async ({ page }) => {
-  await openShell(page, { width: 834, height: 1112 }, STUDENT_ACCOUNT);
-  const portrait = await page.evaluate(readStreak);
-  await page.setViewportSize({ width: 1112, height: 834 });
-  await page.waitForTimeout(250);
-  const landscape = await page.evaluate(readStreak);
-
-  expect(landscape.parts).toBe(portrait.parts);
-  expect(landscape.padding).toBe(portrait.padding);
-  expect(Math.abs(landscape.height - portrait.height)).toBeLessThanOrEqual(2);
 });

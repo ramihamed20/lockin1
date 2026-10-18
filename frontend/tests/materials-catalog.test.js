@@ -81,7 +81,7 @@ test("Active Study stays closed until a sheet has questions, and Quizzes is not 
   assert.match(workspace, /getManagedActiveStudyAvailability\(sheet\.learningObjectId, sheetEdition\?\.edition\)/);
   // Only resuming a run the availability check found ready skips the gate.
   assert.match(workspace, /if \(activeStudyBusy \|\| \(!resuming && !activeStudyReady\)\) return;/);
-  assert.match(workspace, /item\?\.status !== "ready" \|\| item\.progress\?\.status !== "active"/);
+  assert.match(workspace, /item\?\.status !== "ready" \|\| savedStudyProgress\(saved, item\)\?\.status !== "active"/);
   assert.match(workspace, /"materials\.activeStudyUnavailable"/);
   assert.doesNotMatch(workspace, /isTestSheet/);
 
@@ -112,7 +112,7 @@ test("Catalog sheet prioritizes Focus Workspace and keeps only the page count", 
   assert.match(sheetCard, /data-unavailable="true"/);
   assert.match(materials, /sheets\/\$\{item\.slug\}\/workspace/);
   assert.match(materials, /returnTo: location\.pathname/);
-  assert.match(materials, /rememberLastOpenedCatalogSheet\(materialSlug, sheetSlug\)/);
+  assert.match(materials, /rememberLastOpenedCatalogSheet\(materialSlug, sheetSlug, \{ material, sheet \}, user\?\.id\)/);
 });
 
 test("Catalog sheet exposes a Normal Mode summary, opened in the study reader", async () => {
@@ -142,41 +142,44 @@ test("Catalog sheet exposes a Normal Mode summary, opened in the study reader", 
 test("opened-sheet history ignores sheets that were not published by the Catalog", () => {
   const previousStorage = globalThis.localStorage;
   const data = new Map();
+  const userId = "catalog-test-owner";
+  const recentKey = `lock-in.materials.recent-opened-sheets.${userId}`;
+  const lastKey = `lock-in.materials.last-opened-sheet.${userId}`;
   globalThis.localStorage = {
     getItem: (key) => data.get(key) || null,
     setItem: (key, value) => data.set(key, value)
   };
 
   try {
-    assert.equal(getLastOpenedCatalogSheet(), null);
-    assert.deepEqual(getRecentOpenedCatalogSheets(), []);
+    assert.equal(getLastOpenedCatalogSheet(userId), null);
+    assert.deepEqual(getRecentOpenedCatalogSheets(userId), []);
 
     // A sheet without a trusted catalogue record or runtime snapshot is not
     // remembered, so Continue study cannot offer an unresolved link.
-    rememberLastOpenedCatalogSheet("microbiology", "sheet-1");
-    assert.equal(data.get("lock-in.materials.recent-opened-sheets"), undefined);
+    rememberLastOpenedCatalogSheet("microbiology", "sheet-1", null, userId);
+    assert.equal(data.get(recentKey), undefined);
 
     // Server-published sheets carry their resolved runtime snapshot and open
     // directly in the real study workspace.
     rememberLastOpenedCatalogSheet("microbiology", "server-sheet", {
       material: { slug: "microbiology", title: "Microbiology" },
       sheet: { slug: "server-sheet", title: "Bacteria", number: 7 }
-    });
-    assert.equal(getLastOpenedCatalogSheet()?.path, "/materials/catalog/microbiology/sheets/server-sheet/workspace");
-    data.delete("lock-in.materials.recent-opened-sheets");
-    data.delete("lock-in.materials.last-opened-sheet");
+    }, userId);
+    assert.equal(getLastOpenedCatalogSheet(userId)?.path, "/materials/catalog/microbiology/sheets/server-sheet/workspace");
+    data.delete(recentKey);
+    data.delete(lastKey);
 
-    rememberLastOpenedCatalogSheet("human-medicine-60-biochemistry-1", "vitamin-1");
-    assert.deepEqual(getRecentOpenedCatalogSheets(), []);
-    assert.equal(getLastOpenedCatalogSheet(), null);
+    rememberLastOpenedCatalogSheet("human-medicine-60-biochemistry-1", "vitamin-1", null, userId);
+    assert.deepEqual(getRecentOpenedCatalogSheets(userId), []);
+    assert.equal(getLastOpenedCatalogSheet(userId), null);
 
     // Entries left over from an earlier catalogue are dropped on read.
-    data.set("lock-in.materials.recent-opened-sheets", JSON.stringify([
+    data.set(recentKey, JSON.stringify([
       { materialSlug: "conservative", sheetSlug: "sheet-2" },
       { materialSlug: null, sheetSlug: "sheet-1" },
       { materialSlug: "human-medicine-60-biochemistry-1", sheetSlug: "vitamin-2" }
     ]));
-    assert.deepEqual(getRecentOpenedCatalogSheets(), []);
+    assert.deepEqual(getRecentOpenedCatalogSheets(userId), []);
   } finally {
     globalThis.localStorage = previousStorage;
   }
@@ -343,7 +346,7 @@ test("Catalog Focus Workspace uses a compact contextual toolbar and persistent c
   assert.match(workspace, /gesture\.mode === INTERACTION_STATE\.PINCHING && gesture\.pinch\?\.active/);
   assert.match(workspace, /ERASER_MODE\.PRECISION/);
   assert.match(workspace, /createEraserSession/);
-  assert.match(eraserSession, /eraseStrokeWithPolyline/);
+  assert.match(eraserSession, /eraseStrokeWithPolyline\(original, path, eraserRadius, eraserMode, idFactory, eraserScale\)/);
   assert.match(eraserSession, /type: "replace"/);
   assert.match(workspace, /predictedStrokePoints/);
   assert.match(workspace, /stage\.scrollLeft = left\.legal/);

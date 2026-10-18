@@ -1,8 +1,8 @@
 import { ApiError, request } from "./client.js";
 import { resolveReviewData, resolveContent } from "../offline/resolver.js";
 
-function reviewRead(path, userId, key) {
-  return resolveReviewData(userId, key, () => request(path));
+function reviewRead(path, userId, key, options = {}) {
+  return resolveReviewData(userId, key, () => request(path, options));
 }
 
 /**
@@ -29,9 +29,10 @@ async function offlineReview(userId) {
 
 /** Central Review Bank, mistake events, and Weekly Recall API. */
 export const reviewApi = {
-  async getQueue(userId = "") {
+  /** @param {string} [userId] @param {{ signal?: AbortSignal }} [options] */
+  async getQueue(userId = "", { signal } = {}) {
     const payload = objectPayload(
-      await reviewRead("/review-queue", userId, "queue"),
+      await reviewRead("/review-queue", userId, "queue", { signal }),
       "The recent-mistakes response was incomplete."
     );
     if (!Array.isArray(payload.results) || typeof payload.count !== "number") {
@@ -40,9 +41,10 @@ export const reviewApi = {
     return payload;
   },
 
-  async getBank(userId = "") {
+  /** @param {string} [userId] @param {{ signal?: AbortSignal }} [options] */
+  async getBank(userId = "", { signal } = {}) {
     const payload = objectPayload(
-      await reviewRead("/review-bank", userId, "bank"),
+      await reviewRead("/review-bank", userId, "bank", { signal }),
       "The Review Bank response was incomplete."
     );
     if (!Array.isArray(payload.subjects) || typeof payload.active_count !== "number") {

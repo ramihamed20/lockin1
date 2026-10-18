@@ -4,6 +4,7 @@ from typing import Any
 from rest_framework import serializers
 
 from apps.accounts.avatars import AvatarPayload, avatar_payload
+from apps.content.page_question_bank import MAX_CUSTOM_QUESTIONS
 from platform_core.api.serializers import StrictSerializer
 
 from .managed_active_study import ANSWER_KEYS
@@ -239,6 +240,14 @@ class ActiveStudySubmitSerializer(StrictSerializer):
 
 
 class ManagedActiveStudyStartSerializer(StrictSerializer):
+    replace_existing = serializers.BooleanField(required=False, default=False)
+    study_mode = serializers.ChoiceField(
+        choices=("standard", "custom", "pomodoro"), required=False, default="standard"
+    )
+    pages_per_checkpoint = serializers.IntegerField(min_value=1, max_value=10000, required=False)
+    questions_per_checkpoint = serializers.IntegerField(
+        min_value=1, max_value=MAX_CUSTOM_QUESTIONS, required=False
+    )
     sheet_id = serializers.UUIDField()
     difficulty = serializers.ChoiceField(choices=("easy", "medium", "hard"))
     # Which PDF the student is reading. Omitted means the university edition,
@@ -246,6 +255,18 @@ class ManagedActiveStudyStartSerializer(StrictSerializer):
     edition = serializers.ChoiceField(
         choices=("university", "lockin"), required=False, allow_null=True
     )
+
+
+class ManagedActiveStudyReadingSerializer(StrictSerializer):
+    # Pomodoro closes the pages read in this one cycle; legacy requests stay empty.
+    part = serializers.IntegerField(min_value=1, max_value=10000, required=False)
+    end_page = serializers.IntegerField(min_value=1, max_value=10000, required=False)
+    question_count = serializers.IntegerField(min_value=1, max_value=40, required=False)
+
+
+class ManagedActiveStudyPomodoroClockSerializer(StrictSerializer):
+    # The shape is checked by focus.pomodoro.validate_clock.
+    clock = serializers.JSONField()
 
 
 class ManagedActiveStudyAnswerSerializer(StrictSerializer):

@@ -5,6 +5,7 @@ import { authApi } from "../../lib/api.js";
 import { assetPath } from "../../lib/utils.js";
 import { AccountFieldErrors, AccountFormAlert, fieldErrorAttributes } from "../account/AccountFormErrors.jsx";
 import { useI18n } from "../I18nProvider.jsx";
+import { normalizeAuthError } from "../../lib/authValidation.js";
 
 // Email verification left this page when it became a code typed in the app.
 // What remains are the two flows that are still links.
@@ -101,7 +102,10 @@ export function TokenActionPage({ type, onAccountChanged }) {
         state: { accountActionMessage: isReset ? t("token.resetSuccess") : t(flow.successKey) }
       });
     } catch (requestError) {
-      setError(requestError);
+      // In the reader's language, and naming what happened to the link --
+      // expired, already used, or not a link we issued -- rather than the
+      // server's English sentence.
+      setError(normalizeAuthError(requestError, { t, mode: isReset ? "reset" : type }));
     } finally {
       setLoading(false);
     }

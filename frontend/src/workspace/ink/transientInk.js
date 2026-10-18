@@ -1,27 +1,37 @@
 /**
- * Ink that is never saved. Two pens draw it, Pointer and Neon. A stroke stays
- * fully visible while the pen is down and for TRANSIENT_HOLD_MS after the last
- * lift, then fades out over TRANSIENT_FADE_MS. Writing again inside the hold
- * restarts it for everything still on screen, so a word or a sentence vanishes
- * together once the student stops.
+ * Ink that is never saved, drawn by the Pointer pen as a glowing line. A stroke
+ * stays fully visible while the pen is down and for TRANSIENT_HOLD_MS after the
+ * last lift, then fades out over TRANSIENT_FADE_MS. Writing again inside the
+ * hold restarts it for everything still on screen, so a word or a sentence
+ * vanishes together once the student stops.
  *
- * Neither becomes an annotation, an undo step or a sync write. The store is a
+ * It never becomes an annotation, an undo step or a sync write. The store is a
  * plain object so the workspace can feed it from pointer events without React
  * renders; TransientInkCanvas subscribes to it and paints.
  */
 
-export const TRANSIENT_INK_KIND = Object.freeze({ POINTER: "pointer", NEON: "neon" });
+export const TRANSIENT_INK_KIND = Object.freeze({ POINTER: "pointer" });
 export const TRANSIENT_PEN_PROFILES = new Set(Object.values(TRANSIENT_INK_KIND));
 
+/**
+ * Pen profiles that were retired, mapped to the pen that replaced them. The
+ * glowing Neon pen became Pointer, so a remembered Neon choice opens Pointer.
+ */
+const RETIRED_PEN_PROFILES = Object.freeze({ neon: TRANSIENT_INK_KIND.POINTER });
+
+/** The current name of a remembered pen profile. */
+export function currentPenProfile(profile) {
+  return RETIRED_PEN_PROFILES[profile] || profile;
+}
+
 /** How long ink stays fully visible after the pen stops. */
-export const TRANSIENT_HOLD_MS = 1500;
+export const TRANSIENT_HOLD_MS = 1100;
 /** How long the fade-out takes once the hold is over. */
-export const TRANSIENT_FADE_MS = 800;
+export const TRANSIENT_FADE_MS = 550;
 
 /** The colour each pen starts with before the student picks one. */
 export const TRANSIENT_DEFAULT_COLOR = Object.freeze({
-  [TRANSIENT_INK_KIND.POINTER]: "#ff3b30",
-  [TRANSIENT_INK_KIND.NEON]: "#ff2d55"
+  [TRANSIENT_INK_KIND.POINTER]: "#ff2d55"
 });
 
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
@@ -39,7 +49,7 @@ export function transientStrokeExpired(stroke, now) {
 const now = () => (typeof window !== "undefined" && window.performance ? window.performance.now() : Date.now());
 
 export function createTransientInk({ clock = now } = {}) {
-  /** @type {Array<{ kind: string, page: any, color: string, width: number, points: Array<{ x: number, y: number, t: number }>, fadeAt: number | null }>} */
+  /** @type {Array<{ kind: string, page: any, color: string, width: number, points: Array<{ x: number, y: number, t: number }>, fadeAt: number | null, live: boolean }>} */
   let strokes = [];
   let active = null;
   const listeners = new Set();
@@ -58,7 +68,8 @@ export function createTransientInk({ clock = now } = {}) {
     begin({ kind, page, color, width, point }) {
       const time = clock();
       holdPending(time);
-      active = { kind, page, color, width, points: [], fadeAt: null };
+      // `live` marks the one stroke under the pen; held strokes are not live.
+      active = { kind, page, color, width, points: [], fadeAt: null, live: true };
       strokes.push(active);
       if (point) active.points.push({ x: point.x, y: point.y, t: time });
       notify();
@@ -71,6 +82,7 @@ export function createTransientInk({ clock = now } = {}) {
     },
     end() {
       if (!active) return;
+      active.live = false;
       active = null;
       scheduleFade(clock());
       notify();

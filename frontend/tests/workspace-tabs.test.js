@@ -94,11 +94,12 @@ test("the workspace hosts the tab strip, whiteboards, and keeps Active Study per
   assert.match(authz, /\\\/whiteboards\\\/\[\^\/\]\+\\\/workspace\$/);
   assert.match(workspace, /<WorkspaceTabBar /);
   // Each sheet is its own reader, so no study mode or run leaks between tabs.
-  assert.match(workspace, /<CatalogFocusWorkspaceView key={`\$\{materialSlug\}\/\$\{sheetSlug\}\/\$\{documentScope\.view\}`}/);
+  // The copied-marks choice is part of the reader's identity, so switching it remounts the reader.
+  assert.match(workspace, /<CatalogFocusWorkspaceView key={`\$\{materialSlug\}\/\$\{sheetSlug\}\/\$\{documentScope\.view\}\/\$\{marks\.marksSet\?\.id \|\| "own"\}`}/);
   // Leaving a tab mid Active Study keeps the run's place, like "Save" on exit.
   const hold = workspace.slice(workspace.indexOf("function holdActiveStudyPlace"), workspace.indexOf("function goToWorkspaceTab"));
   assert.match(hold, /writeActiveStudyResume\(activeStudy\.id, pageRef\.current\)/);
-  assert.match(hold, /writeActiveStudyEntry\(activeEntryKey, activeStudy\.difficulty\)/);
+  assert.match(hold, /writeActiveStudyEntry\(activeEntryKey, activeStudy\)/);
   // A whiteboard grows with lined pages at its end and has no study mode.
   assert.match(workspace, /insertVirtualPage\(before, 1, id, before\.length \? before\[before\.length - 1\]\.id : null, "lined"\)/);
   // A student's own sheet has no study mode either.
@@ -115,7 +116,7 @@ test("a tab kept open behind the visible one stays mounted but inert", async () 
   assert.match(hostSource, /<Routes location=\{active \? location : pane\.location\}>/);
   assert.match(hostSource, /inert=\{active \? undefined : ""\}/);
   // Only the reader on screen takes shortcuts, claims the tab, names the page and counts reading.
-  assert.match(workspace, /if \(!paneActive\) return undefined;\r?\n    window\.addEventListener\("keydown"/);
+  assert.match(workspace, /if \(!paneActive \|\| !workspaceReady\) return undefined;\r?\n    window\.addEventListener\("keydown"/);
   assert.match(workspace, /if \(!showWorkspaceTabs \|\| !paneActive\) return;/);
   assert.match(title, /if \(!active\) return;/);
   assert.match(reading, /const enabled = requested && paneActive;/);

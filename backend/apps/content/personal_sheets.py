@@ -23,7 +23,6 @@ from django.db import IntegrityError, transaction
 from django.db.models import QuerySet
 
 from apps.accounts.models import User
-from apps.education.policies import is_content_administrator
 from apps.files.models import ManagedFile
 from apps.files.services import (
     FileValidationError,
@@ -31,6 +30,7 @@ from apps.files.services import (
     managed_file_delivery_ready,
 )
 
+from .added_subjects import student_subjects
 from .models import (
     CatalogSubject,
     PersonalSheet,
@@ -81,27 +81,24 @@ def max_sheet_bytes() -> int:
 
 
 def visible_subject(*, user: User, material_slug: str) -> CatalogSubject | None:
-    """The subject this account may file sheets under: one its cohort owns."""
+    """The subject this account may file sheets under: one it may study."""
 
-    subjects = CatalogSubject.objects.filter(is_active=True, material_slug=material_slug)
-    if not is_content_administrator(user):
-        cohort = user.cohort
-        if cohort is None or not cohort.is_active:
-            return None
-        subjects = subjects.filter(cohort_id=cohort.id)
-    return subjects.first()
+    return student_subjects(user).filter(material_slug=material_slug).first()
 
 
 def owned_sheets(*, owner: User, subject: CatalogSubject) -> QuerySet[PersonalSheet]:
+    # A copy of another student's marks lives inside the catalog sheet it marks,
+    # not in this list.
     return (
-        PersonalSheet.objects.filter(owner=owner, subject=subject)
+        PersonalSheet.objects.filter(owner=owner, subject=subject, source_document__isnull=True)
         .select_related("managed_file")
         .order_by("-created_at", "-id")
     )
 
 
 def account_sheet_count(owner: User) -> int:
-    return PersonalSheet.objects.filter(owner=owner).count()
+    # Copies of shared marks have their own limit and no file of their own.
+    return PersonalSheet.objects.filter(owner=owner, source_document__isnull=True).count()
 
 
 def normalize_title(value: object) -> str:
@@ -286,7 +283,8 @@ def delete_personal_sheets(*, owner: User, sheet_ids: Iterable[UUID]) -> int:
         return 0
     from apps.focus.models import FocusAnnotationCollection
 
-    managed_files = [sheet.managed_file for sheet in sheets]
+    # A copy shares the catalog file, which is not the student's to delete.
+    managed_files = [sheet.managed_file for sheet in sheets if sheet.source_document_id is None]
     sheet_ids = [sheet.id for sheet in sheets]
     # The marks belong to the sheet; they go with it, superseded collections first.
     collections = FocusAnnotationCollection.objects.filter(user=owner, document_id__in=sheet_ids)

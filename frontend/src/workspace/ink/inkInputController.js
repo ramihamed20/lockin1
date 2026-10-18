@@ -164,10 +164,10 @@ export function createInkInputController() {
       contactHeight: Math.max(0, finite(sample.height)),
       tiltX: clamp(finite(sample.tiltX), -90, 90),
       tiltY: clamp(finite(sample.tiltY), -90, 90),
-      altitudeAngle: Number.isFinite(Number(sample.altitudeAngle)) ? Number(sample.altitudeAngle) : null,
-      azimuthAngle: Number.isFinite(Number(sample.azimuthAngle)) ? Number(sample.azimuthAngle) : null,
-      twist: Number.isFinite(Number(sample.twist)) ? Number(sample.twist) : null,
-      tangentialPressure: Number.isFinite(Number(sample.tangentialPressure)) ? Number(sample.tangentialPressure) : null,
+      altitudeAngle: sample.altitudeAngle != null && Number.isFinite(Number(sample.altitudeAngle)) ? Number(sample.altitudeAngle) : null,
+      azimuthAngle: sample.azimuthAngle != null && Number.isFinite(Number(sample.azimuthAngle)) ? Number(sample.azimuthAngle) : null,
+      twist: sample.twist != null && Number.isFinite(Number(sample.twist)) ? Number(sample.twist) : null,
+      tangentialPressure: sample.tangentialPressure != null && Number.isFinite(Number(sample.tangentialPressure)) ? Number(sample.tangentialPressure) : null,
       isPrimary: sample.isPrimary !== false,
       w: null
     };

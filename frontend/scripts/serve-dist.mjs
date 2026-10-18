@@ -1,9 +1,13 @@
-import { createReadStream, existsSync, statSync } from "node:fs";
+import { readFileSync, createReadStream, existsSync, statSync } from "node:fs";
 import { createServer } from "node:http";
+import { createGzip } from "node:zlib";
+import { performanceApiResponse } from "./fixtures/performance-api.mjs";
 import { extname, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = resolve(fileURLToPath(new URL("../dist/", import.meta.url)));
+const root = process.env.LOCKIN_TEST_DIST
+  ? resolve(fileURLToPath(new URL("../", import.meta.url)), process.env.LOCKIN_TEST_DIST)
+  : resolve(fileURLToPath(new URL("../dist/", import.meta.url)));
 // Reader fixtures live outside dist/ on purpose: nothing that serves the
 // production bundle can reach them, and no build copies them in. Only this
 // test server maps a URL onto them. See e2e/fixtures/catalog.js.
@@ -32,7 +36,9 @@ const types = {
   ".pdf": "application/pdf",
   ".png": "image/png",
   ".svg": "image/svg+xml",
-  ".webmanifest": "application/manifest+json"
+  ".webmanifest": "application/manifest+json",
+  ".xml": "application/xml; charset=utf-8",
+  ".txt": "text/plain; charset=utf-8"
 };
 
 function publicFile(requestPath) {
@@ -111,6 +117,12 @@ function serveFixture(request, response, file) {
 const server = createServer((request, response) => {
   const pathname = decodeURIComponent(new URL(request.url || "/", `http://${host}`).pathname);
 
+  if (process.env.LOCKIN_PERFORMANCE_API === "1" && pathname.startsWith("/api/v1/")) {
+    const { status, body } = performanceApiResponse(pathname);
+    response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+    return response.end(JSON.stringify(body));
+  }
+
   if (pathname.startsWith(FIXTURE_PREFIX)) {
     const file = fixtureFile(pathname);
     if (!file) {
@@ -120,13 +132,34 @@ const server = createServer((request, response) => {
     return serveFixture(request, response, file);
   }
 
-  const candidate = publicFile(pathname);
+  const publicRoutes = JSON.parse(readFileSync(resolve(root, "public-search-routes.json"), "utf8"));
+  const canonical = publicRoutes.find((path) => pathname === path.slice(0, -1) || pathname === path + "index.html");
+  const redirect = canonical;
+  if (redirect) {
+    response.writeHead(308, { Location: redirect });
+    return response.end();
+  }
+  const isPublicPage = publicRoutes.includes(pathname);
+  const candidate = publicFile(isPublicPage ? `${pathname}index.html` : pathname);
+  if ((isPublicPage || pathname === "/sitemap.xml" || pathname === "/robots.txt" || pathname === "/llms.txt") && !existsSync(candidate)) {
+    response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+    return response.end("not found");
+  }
   const file = existsSync(candidate) && extname(candidate) ? candidate : resolve(root, "index.html");
+  const compress = process.env.LOCKIN_PERFORMANCE_GZIP === "1"
+    && /\bgzip\b/.test(request.headers["accept-encoding"] || "")
+    && [".js", ".css", ".html", ".svg", ".json"].includes(extname(file));
+  const cache = process.env.LOCKIN_PERFORMANCE_GZIP === "1" && pathname.startsWith("/assets/") ? "public, max-age=31536000, immutable" : "no-store";
   response.writeHead(200, {
     "Content-Type": types[extname(file)] || "application/octet-stream",
-    "Cache-Control": "no-store"
+    "Cache-Control": cache,
+    "X-Robots-Tag": isPublicPage ? "index, follow, max-image-preview:large" : "noindex, nofollow, noarchive",
+    ...(compress ? { "Content-Encoding": "gzip", Vary: "Accept-Encoding" } : {})
   });
-  createReadStream(file).pipe(response);
+  if (request.method === "HEAD") return response.end();
+  const stream = createReadStream(file);
+  if (compress) stream.pipe(createGzip()).pipe(response);
+  else stream.pipe(response);
 });
 
 server.listen(port, host, () => {

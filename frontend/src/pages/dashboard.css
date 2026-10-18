@@ -1,0 +1,247 @@
+/* Dashboard: Continue first, a quiet summary, then mistakes and recent sheets.
+   Loaded from App.jsx ahead of the lazily loaded page so the first paint is
+   already laid out. */
+@layer system {
+/* The column fills the page instead of shrinking to its content, so card
+   widths never depend on how long a student's titles are. */
+.dashboard {
+  display: grid;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+  max-width: 1440px;
+  margin-inline: auto;
+}
+.dashboard > * { min-width: 0; }
+.dashboard .panel { box-shadow: var(--card-shadow); }
+
+/* Continue */
+.dashboard .continue-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-content: start;
+  align-items: start;
+  gap: 0 20px;
+  min-height: 0;
+  height: auto;
+  padding: clamp(20px, 3vw, 32px);
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.dashboard .continue-card > :not(.dashboard-art) { grid-column: 1; }
+.dashboard .continue-card .eyebrow {
+  margin: 0 0 8px;
+  color: var(--accent-text);
+  font-size: var(--text-md);
+}
+.dashboard .continue-card h2 {
+  max-width: 38ch;
+  margin: 0;
+  font-size: clamp(1.375rem, 2.4vw, 2rem);
+  font-weight: var(--weight-bold);
+  line-height: 1.25;
+  letter-spacing: var(--tracking-title);
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.dashboard .continue-card > p:not(.eyebrow) {
+  display: block;
+  margin-block: 10px 20px;
+  padding: 0;
+  border: 0;
+  color: var(--muted);
+  font-size: var(--text-base);
+  overflow-wrap: anywhere;
+}
+.dashboard .continue-card .btn {
+  justify-self: start;
+  min-height: 48px;
+  min-width: 132px;
+  gap: 12px;
+  margin: 0;
+}
+.dashboard-art {
+  grid-column: 2;
+  grid-row: 1 / span 4;
+  align-self: center;
+  width: clamp(112px, 14vw, 144px);
+}
+.dashboard-art .scene-card {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: var(--radius-xl);
+  box-shadow: none;
+}
+.dashboard-art .scene-theme { width: 100%; height: 100%; object-fit: contain; }
+
+/* Summary: one connected group rather than five separate cards. */
+.dashboard .dash-states-grid {
+  gap: 1px;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--separator);
+}
+.dashboard .dash-state {
+  min-height: 76px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 0;
+  background: var(--surface);
+}
+.dashboard .dash-state-value { font-size: 1.375rem; line-height: 1.2; }
+.dashboard .dash-state-label { color: var(--muted); font-size: var(--text-sm); }
+.dashboard .dash-state-value small { font-size: var(--text-sm); }
+.dashboard .dash-state-note { font-size: var(--text-sm); }
+.dashboard .dash-state-meter { height: 4px; }
+/* Level reads as one line (value, label, XP) with the bar beneath it. */
+.dashboard .dash-states-item--wide .dash-state {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+.dashboard .dash-states-item--wide .dash-state-foot { display: contents; }
+.dashboard .dash-states-item--wide .dash-state-note { grid-column: 3; grid-row: 1; text-align: end; }
+.dashboard .dash-states-item--wide .dash-state-meter { grid-column: 1 / -1; }
+/* Phones: the four counts share one row so the first mistake rises above the
+   bottom navigation. Best-streak detail stays on Progress. */
+@container dash-states (min-width: 320px) and (max-width: 479px) {
+  .dashboard .dash-states-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .dashboard .dash-states-item--wide { grid-column: 1 / -1; }
+  .dashboard .dash-states-item:not(.dash-states-item--wide) .dash-state { min-height: 0; padding: 10px 8px 12px; }
+  .dashboard .dash-states-item:not(.dash-states-item--wide) .dash-state-value { font-size: 1.25rem; }
+  .dashboard .dash-states-item:not(.dash-states-item--wide) .dash-state-note { display: none; }
+  .dashboard .dash-state-label { font-size: var(--text-xs); line-height: 1.3; }
+}
+
+/* Mistakes and recent sheets */
+.dashboard-secondary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.dashboard-secondary > * { min-width: 0; }
+.dashboard .dashboard-review-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 16px;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  margin: 0;
+  padding: 20px;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.dashboard .dashboard-review-list,
+.dashboard .review-queue-list { display: grid; min-width: 0; max-height: none; overflow: visible; gap: 0; }
+.dashboard .review-queue-header { gap: 12px; margin: 0; }
+.dashboard .review-queue-title { gap: 10px; }
+.dashboard .review-queue-title h2,
+.dashboard .panel-title h2 { font-size: var(--text-lg); font-weight: var(--weight-semibold); }
+.dashboard .review-queue-title > span { width: 36px; height: 36px; }
+.dashboard .review-queue-item,
+.dashboard .dashboard-recent-material {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  margin: 0;
+  padding: 14px 0;
+  border: 0;
+  border-block-end: 1px solid var(--separator);
+  border-radius: 0;
+  color: var(--text);
+  background: transparent;
+  box-shadow: none;
+}
+.dashboard .review-queue-item:last-child,
+.dashboard .dashboard-recent-material:last-child { border-block-end: 0; }
+.dashboard .review-queue-item-copy { flex: 1; min-width: 0; }
+.dashboard .review-queue-item-copy h3 {
+  display: block;
+  max-height: none;
+  margin: 0;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  line-height: 1.55;
+}
+.dashboard .review-queue-item-copy p { margin-block-start: 6px; font-size: var(--text-sm); }
+.dashboard .review-queue-chevron,
+.dashboard .dashboard-recent-material > svg { flex-shrink: 0; }
+.dashboard .dashboard-recent-material > span { display: grid; gap: 4px; min-width: 0; flex: 1; white-space: normal; overflow: visible; text-overflow: clip; }
+.dashboard .dashboard-recent-material strong { min-width: 0; white-space: normal; font-size: var(--text-base); font-weight: var(--weight-medium); overflow-wrap: anywhere; }
+.dashboard .dashboard-recent-material small { min-width: 0; white-space: normal; overflow-wrap: anywhere; color: var(--muted); font-size: var(--text-sm); font-weight: var(--weight-regular); }
+.dashboard .dashboard-review-card > .btn { justify-self: start; min-height: 44px; margin: 0; }
+.dashboard .review-queue-empty { min-height: 124px; padding: 16px; }
+.dashboard .dashboard-recent-empty { padding: 24px 0; }
+.dashboard .dashboard-summary-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+}
+.dashboard .dashboard-summary-error p { margin: 0; font-size: var(--text-md); }
+.dashboard .mg-card { min-height: 92px; height: auto; margin: 0; }
+.dashboard .mg-customize,
+.dashboard .mg-card-main { min-height: 44px; }
+/* Offline status sits in the content flow here instead of floating over it. */
+.dashboard .offline-indicator {
+  position: static;
+  inset: auto;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  box-shadow: none;
+  white-space: normal;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  animation: none;
+}
+[dir="rtl"] .dashboard .review-queue-chevron,
+[dir="rtl"] .dashboard .dashboard-forward { transform: scaleX(-1); }
+
+/* Wide: mistakes take the larger, leading column (they hold the longest text
+   and the most urgent action); recent sheets follow beside them. */
+@media (min-width: 900px) {
+  .dashboard-secondary { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); }
+  .dashboard-secondary.is-single { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 639px) {
+  .dashboard { gap: 12px; }
+  .dashboard .continue-card { padding: 20px; gap: 0 12px; }
+  .dashboard-art { width: 64px; grid-row: 1 / span 2; align-self: start; }
+  .dashboard .continue-card > p:not(.eyebrow),
+  .dashboard .continue-card > .btn { grid-column: 1 / -1; }
+  .dashboard .dash-state { min-height: 70px; padding: 10px 14px; }
+  .dashboard .dashboard-review-card { padding: 18px; }
+  .dashboard .review-queue-item:nth-child(n+3) { display: none; }
+  .dashboard .review-queue-item:nth-child(2) { border-block-end: 0; }
+}
+@media (max-width: 374px) {
+  .dashboard-art { display: none; }
+  .dashboard .continue-card { grid-template-columns: minmax(0, 1fr); padding: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dashboard * { animation: none; scroll-behavior: auto; }
+}
+}

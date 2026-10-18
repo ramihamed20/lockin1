@@ -335,6 +335,11 @@ class ActiveStudyRun(models.Model):
     # is still earned once however many editions a student opens.
     edition = models.CharField(max_length=16, default="university")
     difficulty = models.CharField(max_length=12, choices=Difficulty.choices)
+    study_mode = models.CharField(
+        max_length=12,
+        default="standard",
+        choices=(("standard", "Standard"), ("custom", "Custom"), ("pomodoro", "Pomodoro")),
+    )
     page_count = models.PositiveIntegerField()
     unlocked_pages = models.PositiveIntegerField(default=3)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE)
@@ -347,6 +352,9 @@ class ActiveStudyRun(models.Model):
     stage = models.CharField(max_length=24, choices=Stage.choices, default=Stage.READING)
     completed_parts = models.JSONField(default=list)
     plan_signature = models.JSONField(default=dict)
+    # The Pomodoro countdown as the student's last device left it, so another
+    # device resumes the same minute. Timing only: progress stays above.
+    pomodoro_clock = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -382,7 +390,7 @@ class ActiveStudyRun(models.Model):
             # Legacy catalogue runs carry ``sheet=NULL`` and PostgreSQL treats
             # NULLs as distinct, so they are untouched by this.
             models.UniqueConstraint(
-                fields=("user", "sheet", "difficulty", "edition"),
+                fields=("user", "sheet", "difficulty", "edition", "study_mode"),
                 condition=Q(status="active"),
                 name="active_study_one_active_run_per_sheet",
             ),
@@ -702,3 +710,6 @@ class LofiScene(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+
+from .rescue_models import RescueMutationReceipt, RescueSession  # noqa: E402, F401

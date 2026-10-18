@@ -80,9 +80,7 @@
 }
 
 .page,
-.dashboard-layout,
-.page > *,
-.dashboard-layout > * {
+.page > * {
   min-width: 0;
 }
 

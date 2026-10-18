@@ -13,7 +13,7 @@ function earnedLabel(value, t) {
 
 export default function Achievements() {
   const { t } = useI18n();
-  const achievements = useAsyncData(() => motivationApi.achievements(), []);
+  const achievements = useAsyncData(() => motivationApi.achievements(), [], { cacheKey: "achievements" });
   if (achievements.loading) return <Page width="reading" title="Achievements" showHeading><LoadingPanel variant="list" /></Page>;
   if (achievements.error) return <Page width="reading" title="Achievements" showHeading><ErrorPanel message={achievements.error} onRetry={achievements.reload} /></Page>;
 

@@ -427,7 +427,7 @@ def timezone_now_date() -> date:
     return datetime.now(UTC).date()
 
 
-def serialize_user_detail(user: User) -> dict[str, Any]:
+def serialize_user_detail(user: User, *, include_financial: bool = True) -> dict[str, Any]:
     subscriptions = list(
         Subscription.objects.filter(account__primary_user=user)
         .select_related("plan_version__plan", "account")
@@ -494,7 +494,7 @@ def serialize_user_detail(user: User) -> dict[str, Any]:
             .values("id", "device_label", "created_at", "last_seen_at", "expires_at")
         ),
         "subscriptions": [serialize_subscription(item) for item in subscriptions],
-        "purchases": [serialize_purchase(item) for item in payments],
+        "purchases": [serialize_purchase(item) for item in payments] if include_financial else [],
         "refunds": [
             {
                 "id": item.id,
@@ -506,7 +506,9 @@ def serialize_user_detail(user: User) -> dict[str, Any]:
                 "requested_at": item.requested_at,
             }
             for item in refunds
-        ],
+        ]
+        if include_financial
+        else [],
         "learning_activity": {"progress": progress, "focus_sessions": focus_sessions},
         "assessments": {"attempts": attempts, "results": results},
         "security_events": list(

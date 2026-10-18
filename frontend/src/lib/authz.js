@@ -7,6 +7,7 @@ const CURRENT_AUTHENTICATED_ROUTES = new Set([
   "/study-plan",
   "/materials",
   "/paper-workspace",
+  "/materials/summaries",
   "/search",
   "/questions",
   "/review",

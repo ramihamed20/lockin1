@@ -12,6 +12,7 @@ import "./styles/polish.css";
 import "./styles/refine.css";
 import "./styles/study-flow.css";
 import "./styles/v2.css";
+import "./styles/rail.css";
 import "./styles/motion.css";
 // Declared last: the interaction layer owns hover, press, focus and selection
 // for the whole application, and layers — not import order — decide the winner
@@ -44,7 +45,11 @@ window.__LOCKIN_BUILD__ = BUILD_INFO;
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <HashRouter>
+    {/* Navigation commits at once. In a transition (the router's default) a
+        tap on a page whose code was still arriving kept the previous page and
+        its highlight on screen, so the sidebar seemed not to respond. A page
+        not loaded yet now shows its own skeleton instead. */}
+    <HashRouter useTransitions={false}>
       <I18nProvider>
         <PwaLifecycleProvider>
           <RouteMetadataSync />

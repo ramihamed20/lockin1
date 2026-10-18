@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from .base import *  # noqa: F403
 from .env import env, env_bool
 
@@ -7,6 +9,9 @@ ALLOWED_HOSTS = ["testserver", "localhost", "127.0.0.1"]
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 ACCOUNT_POLICY_VERSION = "test-policy-v1"
+# Verification must be able to use fresh media without touching local/student uploads.
+if test_media_root := env("LOCKIN_TEST_MEDIA_ROOT", ""):
+    MEDIA_ROOT = Path(test_media_root)
 PUBLIC_APP_URL = "http://testserver"
 ACCOUNT_LOGIN_ATTEMPT_LIMIT = 5
 PAYMENT_PROVIDER = "fake"

@@ -11,7 +11,7 @@ import { GroupBadge } from "./MyGroupControls.jsx";
  */
 export function MyGroupCard() {
   const { t } = useI18n();
-  const remote = useAsyncData((signal) => myGroupApi.get(signal), []);
+  const remote = useAsyncData((signal) => myGroupApi.get(signal), [], { cacheKey: "my-group" });
   const data = remote.data;
 
   if (remote.loading && !data) {

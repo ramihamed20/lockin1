@@ -290,7 +290,7 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2-document > :not(.workspace-v2-annotation-layer) { position: relative; z-index: 1; }
 .workspace-v2-annotation-layer { position: absolute; z-index: 3; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .workspace-v2-live-annotation-canvas { position: absolute; z-index: 4; inset: 0; display: block; width: 100%; height: 100%; pointer-events: none; }
-/* Pointer and Neon ink: above the live stroke, never saved. */
+/* Pointer ink: above the live stroke, never saved. */
 .workspace-v2-transient-ink-canvas { position: absolute; z-index: 5; inset: 0; display: block; width: 100%; height: 100%; pointer-events: none; }
 .workspace-v2-stylus-hover { position: fixed; z-index: 5; top: 0; left: 0; border: 1px solid rgba(20, 28, 48, .72); border-radius: 50%; background: rgba(255, 255, 255, .34); box-shadow: 0 0 0 1px rgba(255, 255, 255, .7); opacity: 0; pointer-events: none; will-change: transform, width, height; }
 .workspace-v2-stylus-hover[data-tool="eraser"] { border-color: rgba(118, 80, 237, .82); background: rgba(118, 80, 237, .12); }
@@ -339,14 +339,20 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2-clinical-note p { margin: 0; }
 
 
-.workspace-v2-side { position: fixed; z-index: var(--z-drawer); inset-block: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-bottom)); inset-inline-end: max(8px, env(safe-area-inset-right)); width: min(330px, calc(100vw - 20px)); min-width: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 12px; box-shadow: 0 0 12px rgba(0,0,0,.42); transform: translateX(calc(100% + 20px)); transition: transform 220ms cubic-bezier(.16,1,.3,1); pointer-events: none; }
-.workspace-v2-side.is-open { transform: translateX(0); pointer-events: auto; }
-[dir="rtl"] .workspace-v2-side { transform: translateX(calc(-100% - 20px)); }
-[dir="rtl"] .workspace-v2-side.is-open { transform: translateX(0); }
+.workspace-v2-side { position: fixed; z-index: var(--z-drawer); inset-block: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-bottom)); inset-inline-end: calc(max(8px, env(safe-area-inset-right)) + var(--workspace-visible-end-gap, 0px)); width: min(330px, calc(100vw - 20px)); min-width: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 12px; box-shadow: 0 0 12px rgba(0,0,0,.42); transform: translateX(100%); clip-path: inset(-24px 100% -24px -24px); visibility: hidden; transition: transform 220ms cubic-bezier(.4,0,1,1), clip-path 220ms cubic-bezier(.4,0,1,1), visibility 0s linear 220ms; pointer-events: none; }
+/* The drawer slides out from its own edge, and clip-path keeps everything that
+   paints inside the box it opens into. In an iPad split view the window edge is
+   not the layout edge, and a drawer travelling in from beyond it crossed the
+   page; clipped like this it can only ever appear where it is about to rest. */
+.workspace-v2-side.is-open { transform: none; clip-path: inset(-24px); visibility: visible; transition: transform 300ms cubic-bezier(.16,1,.3,1), clip-path 300ms cubic-bezier(.16,1,.3,1), visibility 0s; pointer-events: auto; }
+[dir="rtl"] .workspace-v2-side { transform: translateX(-100%); clip-path: inset(-24px -24px -24px 100%); }
+[dir="rtl"] .workspace-v2-side.is-open { transform: none; clip-path: inset(-24px); }
 .workspace-v2-body.has-side .workspace-v2-side { position: relative; z-index: 4; inset: auto; width: auto; height: 100%; box-shadow: none; transform: none; pointer-events: auto; }
 .workspace-v2-side-backdrop { position: fixed; z-index: 6; inset: 0; display: none; border: 0; background: rgba(3,7,18,.34); cursor: default; }
+.workspace-v2:fullscreen .workspace-v2-side,
 .workspace-v2:fullscreen .workspace-v2-body.has-side .workspace-v2-side,
-.workspace-v2.is-document-fullscreen .workspace-v2-body.has-side .workspace-v2-side { position: fixed; z-index: var(--z-drawer); inset-block: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-bottom)); inset-inline-end: max(8px, env(safe-area-inset-right)); width: min(330px, calc(100vw - 20px)); height: auto; box-shadow: 0 0 12px rgba(0,0,0,.42); transform: translateX(0); }
+.workspace-v2.is-document-fullscreen .workspace-v2-side,
+.workspace-v2.is-document-fullscreen .workspace-v2-body.has-side .workspace-v2-side { position: fixed; z-index: var(--z-drawer); inset-block: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-bottom)); inset-inline-end: calc(max(8px, env(safe-area-inset-right)) + var(--workspace-visible-end-gap, 0px)); width: min(330px, calc(100vw - 20px)); height: auto; box-shadow: 0 0 12px rgba(0,0,0,.42); }
 .workspace-v2:fullscreen .workspace-v2-side-backdrop,
 .workspace-v2.is-document-fullscreen .workspace-v2-side-backdrop { display: block; }
 .workspace-v2-side-close { position: absolute; z-index: 2; inset-block-start: 6px; inset-inline-end: 6px; display: grid; width: 44px; height: 44px; place-items: center; border: 0; color: #dce2f3; background: transparent; cursor: pointer; }
@@ -401,6 +407,9 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2-mode-dialog > h1 { margin: 0 0 4px; font-size: 1.3rem; letter-spacing: -.02em; }
 .workspace-v2-mode-dialog > p { margin: 0 0 16px; color: var(--workspace-chrome-secondary); font-size: .78rem; }
 .workspace-v2-mode-grid { display: grid; gap: 10px; }
+.workspace-v2-mode-back { justify-self: start; display: inline-flex; margin: 14px 0 12px; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px 0 8px; color: var(--workspace-chrome-text); border: 0; border-radius: 999px; background: var(--workspace-panel-2); font: inherit; font-size: .8125rem; font-weight: 600; cursor: pointer; }
+.workspace-v2-mode-back:disabled { opacity: .55; cursor: progress; }
+.workspace-v2-mode-back:where([dir="rtl"] *) svg { transform: scaleX(-1); }
 .workspace-v2-mode-card { min-width: 0; display: grid; color: var(--workspace-chrome-text); border: 1px solid var(--workspace-control-border); border-radius: 12px; background: var(--workspace-panel-2); text-align: start; }
 button.workspace-v2-mode-card { cursor: pointer; }
 button.workspace-v2-mode-card { grid-template-columns: 40px minmax(0,1fr) 24px; align-items: center; gap: 10px; min-height: 64px; padding: 10px 12px; }
@@ -479,7 +488,8 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v2-tool-options .workspace-v2-color-item { width: 44px; height: 50px; flex-basis: 44px; }
   .workspace-v2-tool-options .workspace-v2-custom-color { min-height: 44px; height: 44px; }
   .workspace-v2-body, .workspace-v2-body.has-side { grid-template-columns: 1fr; gap: 0; height: 100%; }
-  .workspace-v2-body.has-side .workspace-v2-side { position: fixed; z-index: var(--z-drawer); inset-block-start: calc(var(--workspace-toolbar-height, calc(52px + env(safe-area-inset-top))) + 8px); inset-block-end: auto; inset-inline-end: max(8px, env(safe-area-inset-right)); width: min(340px, calc(100vw - 16px)); height: auto; max-height: min(620px, calc(100% - 74px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); box-shadow: 0 8px 24px rgba(0,0,0,.38); transform: translateX(0); }
+  .workspace-v2-side,
+  .workspace-v2-body.has-side .workspace-v2-side { position: fixed; z-index: var(--z-drawer); inset-block-start: calc(var(--workspace-toolbar-height, calc(52px + env(safe-area-inset-top))) + 8px); inset-block-end: auto; inset-inline-end: calc(max(8px, env(safe-area-inset-right)) + var(--workspace-visible-end-gap, 0px)); width: min(340px, calc(100vw - 16px)); height: auto; max-height: min(620px, calc(100% - 74px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); box-shadow: 0 8px 24px rgba(0,0,0,.38); }
   .workspace-v2-side-backdrop { display: none !important; }
   .workspace-v2-checkpoint-dock { right: 0; bottom: max(12px, env(safe-area-inset-bottom)); left: auto; width: 48px; padding: 0; }
   .workspace-v2-checkpoint-button { width: 48px; min-width: 48px; min-height: 48px; padding: 0; border-radius: 12px 0 0 12px; font-size: 0; }
@@ -533,8 +543,10 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v2-selection-actions button:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .workspace-v2-clinical-note { padding: 16px; }
   .workspace-v2-side,
-  .workspace-v2-body.has-side .workspace-v2-side { top: auto; right: 0; bottom: 0; left: 0; width: 100%; height: min(64dvh, 520px); padding-bottom: env(safe-area-inset-bottom); border-radius: 16px 16px 0 0; }
+  .workspace-v2-body.has-side .workspace-v2-side { top: auto; right: 0; bottom: 0; left: 0; inset-inline-start: var(--workspace-visible-start-gap, 0px); inset-inline-end: var(--workspace-visible-end-gap, 0px); width: auto; height: min(64dvh, 520px); padding-bottom: env(safe-area-inset-bottom); border-radius: 16px 16px 0 0; }
   .workspace-v2-side-backdrop { display: block !important; }
+  .workspace-v2-side, [dir="rtl"] .workspace-v2-side { transform: translateY(100%); clip-path: inset(-24px -24px 100% -24px); }
+  .workspace-v2-side.is-open, [dir="rtl"] .workspace-v2-side.is-open { transform: none; clip-path: inset(-24px); }
   .workspace-v2-side::before { width: 42px; height: 4px; flex: 0 0 auto; margin: 8px auto 0; border-radius: 99px; content: ""; background: #69738e; }
   .workspace-v2-side-content { padding: 6px 8px 8px; }
   .workspace-v2-note-editor textarea { min-height: calc((4 * 1.5em) + 22px); max-height: 34dvh; resize: none; }
@@ -561,9 +573,16 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v2-answer-list button { min-height: 58px; }
 }
 
+/* Half-width windows (iPad split view) are too narrow for the notes drawer to sit
+ beside the page, so a tap outside it closes it. */
+@media (max-width: 700px) {
+  .workspace-v2-side-backdrop { display: block !important; }
+}
+
 @media (max-height: 500px) and (max-width: 900px) {
   .workspace-v2-toolbar { padding-block-end: 3px; }
   .workspace-v2-settings-popover { max-height: calc(100% - 58px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+  .workspace-v2-side,
   .workspace-v2-body.has-side .workspace-v2-side { inset-block-start: calc(var(--workspace-toolbar-height, calc(52px + env(safe-area-inset-top))) + 4px); }
 }
 
@@ -967,7 +986,6 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 
 @media (max-width: 1100px) {
   .workspace-v3-document-context { display: none; }
-  .workspace-v3-search { display: none; }
 }
 
 @media (pointer: coarse) {
@@ -1166,7 +1184,6 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v3-quick-color:active:not(:disabled) { transform: scale(.94); }
   .workspace-v3-primary .workspace-v2-history { gap: 1px; padding-inline-start: 7px; border-color: color-mix(in srgb, var(--workspace-chrome-text) 13%, transparent); }
   .workspace-v2-toolbar-actions { gap: 2px; padding-inline-start: 9px; border-color: color-mix(in srgb, var(--workspace-chrome-text) 13%, transparent); background: transparent; }
-  .workspace-v2-toolbar-actions .workspace-v3-search { display: none; }
   .workspace-v2-toolbar .workspace-v2-study-mode-button { color: var(--workspace-chrome-text); border: 0; background: transparent; }
   .workspace-v2-toolbar .workspace-v2-study-mode-button.has-progress { width: 44px; min-width: 44px; padding: 0; background: color-mix(in srgb, var(--workspace-gold) 16%, transparent); }
   .workspace-v2-toolbar .workspace-v2-study-mode-status { display: none; }
@@ -1754,3 +1771,7 @@ html.ix-hover .workspace-v2-action-popover .workspace-v3-menu-grid > button:not(
   .workspace-v2-quiz-dialog > main { margin: 0; padding: 18px 16px 20px; }
   .workspace-v2-answer-list button { min-height: 56px; }
 }
+
+/* Drawing waits for saved state, while PDF rendering continues independently. */
+.workspace-v2-document-stage[inert] { overflow: hidden; }
+.workspace-v2-hydration-status { position: absolute; z-index: 20; left: 50%; top: 50%; transform: translateX(-50%); margin: 0; padding: 12px 18px; max-width: calc(100% - 32px); border: 1px solid var(--workspace-border); border-radius: 12px; background: #101a2d; color: #f1f5f9; text-align: center; pointer-events: none; }
