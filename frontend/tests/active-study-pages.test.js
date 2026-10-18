@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { customPageRanges, maxCustomPages, maxCustomQuestions, selectPageQuestions } from "../src/lib/activeStudyPages.js";
+import { availablePageQuestions, customPageRanges, maxCustomPages, maxCustomQuestions, selectPageQuestions } from "../src/lib/activeStudyPages.js";
 import { buildActiveStudyJsonPrompt } from "../src/lib/activeStudyPrompt.js";
 import { allQuestionsTotals, buildAllQuestionsPrompt } from "../src/lib/allQuestionsPrompt.js";
 
@@ -22,7 +22,11 @@ test("selection stays within the pages and uses stable identities after regroupi
   assert.throws(() => selectPageQuestions(bank, 1, 1, 5));
 });
 
-test("a page needs fifteen questions; older banks of twenty use only the first fifteen", () => {
+test("sparse pages work with up to fifteen; older banks of twenty use only the first fifteen", () => {
+  const sparse = { pages: [{ page: 2, questions: [{ question: "a" }, { question: "b" }] }] };
+  assert.equal(availablePageQuestions(sparse, 2, 2), 2);
+  assert.equal(selectPageQuestions(sparse, 2, 2, 2).length, 2);
+  assert.throws(() => selectPageQuestions(sparse, 2, 2, 3), /not enough/);
   const legacy = { pages: [{ page: 2, questions: Array.from({ length: 20 }, (_, q) => ({ question: `old-${q}` })) }] };
   assert.equal(selectPageQuestions(legacy, 2, 2, 15).length, 15);
   assert.throws(() => selectPageQuestions(legacy, 2, 2, 16), /not enough/);
@@ -40,7 +44,8 @@ test("new-sheet prompts use physical PDF pages and fifteen questions per page", 
   const skeleton = JSON.parse(prompt.slice(prompt.indexOf('{\n  "pages"'), prompt.indexOf('\nVerify every')));
   assert.deepEqual(skeleton.pages.map((p) => p.page), [2, 3, 4, 5, 6, 7, 8]);
   assert.ok(!("parts" in skeleton));
-  assert.match(prompt, /exactly 15 distinct questions for EACH eligible page/);
+  assert.match(prompt, /up to 15 distinct questions for EACH eligible page/);
+  assert.doesNotMatch(prompt, /exactly 15 questions/);
   assert.match(prompt, /up to 30 questions per checkpoint/);
 });
 
@@ -52,4 +57,6 @@ test("All Questions calculates and prompts for the same page bank totals", () =>
   const skeleton = JSON.parse(prompt.slice(prompt.indexOf('{\n  "active_study"')));
   assert.equal(skeleton.active_study.medium.pages.length, 7);
   assert.ok(!("parts" in skeleton.active_study.medium));
+  assert.match(prompt, /up to 15 distinct questions for EACH eligible page/);
+  assert.match(prompt, /Maximum possible questions/);
 });

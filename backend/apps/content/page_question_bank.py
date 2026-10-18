@@ -21,12 +21,21 @@ def custom_page_ranges(start: int, end: int, size: int) -> list[dict[str, int]]:
     ]
 
 
+def available_page_questions(payload: dict[str, Any], start: int, end: int) -> int:
+    """Available questions for an eligible page range, capped at 15 per page."""
+    return sum(
+        min(QUESTIONS_PER_PAGE, len(item["questions"]))
+        for item in payload["pages"]
+        if start <= item["page"] <= end
+    )
+
+
 def select_page_questions(
     payload: dict[str, Any], start: int, end: int, count: int
 ) -> list[dict[str, Any]]:
     """Stable round-robin selection; source identity survives regrouping and resume."""
     pages = [item for item in payload["pages"] if start <= item["page"] <= end]
-    usable = sum(min(QUESTIONS_PER_PAGE, len(item["questions"])) for item in pages)
+    usable = available_page_questions(payload, start, end)
     if not pages or usable < count:
         raise ValueError("There are not enough questions for these pages.")
     # When fewer questions than pages were requested, spread them over the range.

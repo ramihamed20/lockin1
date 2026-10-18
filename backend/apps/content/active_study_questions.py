@@ -139,6 +139,7 @@ def validate_active_study_questions(
     number_of_parts: int,
     page_ranges: list[dict[str, int]] | None = None,
     question_format: str = "parts",
+    allow_variable_page_questions: bool = False,
 ) -> ActiveStudyQuestionValidationResult:
     """Validate and normalize one difficulty's complete JSON document."""
     errors: list[dict[str, str]] = []
@@ -190,7 +191,16 @@ def validate_active_study_questions(
             if not isinstance(raw_questions, list):
                 _error(errors, f"{path}.questions", "questions must be an array.")
             else:
-                if len(raw_questions) != difficulty.questions_per_checkpoint:
+                if allow_variable_page_questions:
+                    if not 1 <= len(raw_questions) <= difficulty.questions_per_checkpoint:
+                        _error(
+                            errors,
+                            f"{path}.questions",
+                            f"Page {part_number} must contain between 1 and "
+                            f"{difficulty.questions_per_checkpoint} questions; "
+                            f"received {len(raw_questions)}.",
+                        )
+                elif len(raw_questions) != difficulty.questions_per_checkpoint:
                     _error(
                         errors,
                         f"{path}.questions",
@@ -263,7 +273,7 @@ def validate_active_study_questions(
     }
     return ActiveStudyQuestionValidationResult(
         payload=normalized_payload,
-        checkpoint_question_count=number_of_parts * difficulty.questions_per_checkpoint,
+        checkpoint_question_count=sum(len(part["questions"]) for part in parts),
         final_exam_question_count=len(final_questions),
     )
 
@@ -300,8 +310,7 @@ def _validate_page_bank(
         raise ActiveStudyQuestionValidationError(errors)
     from dataclasses import replace
 
-    # Banks written before the 15-per-page rule hold 20 on every page; they stay
-    # valid as a whole. Anything else is held to the current per-page count.
+    # Keep old all-20 banks intact; new imports accept 1–15 per page.
     per_page = (
         LEGACY_QUESTIONS_PER_PAGE
         if parts
@@ -321,6 +330,7 @@ def _validate_page_bank(
             },
             difficulty=replace(difficulty, questions_per_checkpoint=per_page),
             number_of_parts=len(expected),
+            allow_variable_page_questions=per_page == QUESTIONS_PER_PAGE,
         )
     except ActiveStudyQuestionValidationError as error:
         raise ActiveStudyQuestionValidationError(
@@ -344,6 +354,6 @@ def _validate_page_bank(
             ),
             "final_exam": checked.payload["final_exam"],
         },
-        checkpoint_question_count=len(expected) * per_page,
+        checkpoint_question_count=checked.checkpoint_question_count,
         final_exam_question_count=checked.final_exam_question_count,
     )

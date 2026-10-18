@@ -34,6 +34,7 @@ from apps.content.page_question_bank import (
     MAX_CUSTOM_PAGES,
     MAX_CUSTOM_QUESTIONS,
     QUESTIONS_PER_PAGE,
+    available_page_questions,
     custom_page_ranges,
     select_page_questions,
 )
@@ -291,12 +292,20 @@ def _runtime_plan(
         ranges = custom_page_ranges(start, end, pages_per_checkpoint)
     except ValueError as error:
         raise ManagedActiveStudyRuleError(str(error)) from error
-    # Each page supplies at most QUESTIONS_PER_PAGE questions, so the shortest
-    # group (usually the last) caps how many a test of this size can ask.
-    shortest = min(item["end_page"] - item["start_page"] + 1 for item in ranges)
-    if questions_per_checkpoint > shortest * QUESTIONS_PER_PAGE:
+    # Source pages can hold fewer than 15. Every group must be able to supply
+    # the student-selected count, including the shorter final group.
+    offset = source_ranges[0]["start_page"] - start
+    capacity = min(
+        available_page_questions(
+            cast(dict[str, Any], content.payload),
+            item["start_page"] + offset,
+            item["end_page"] + offset,
+        )
+        for item in ranges
+    )
+    if questions_per_checkpoint > capacity:
         raise ManagedActiveStudyRuleError(
-            f"Choose at most {shortest * QUESTIONS_PER_PAGE} questions for this page count."
+            f"Choose at most {capacity} questions for this page count."
         )
     return {
         **plan,
@@ -621,17 +630,14 @@ def _questions_for(run: ActiveStudyRun, *, kind: str, part: int | None) -> list[
             source_range = content.plan_signature["page_ranges"][part - 1]
             offset = 0
         try:
-            return select_page_questions(
-                payload,
-                source_range["start_page"] + offset,
-                source_range["end_page"] + offset,
-                source_range.get(
-                    "question_count",
-                    run.plan_signature.get(
-                        "questions_per_checkpoint", plan["questions_per_checkpoint"]
-                    ),
-                ),
+            start_page, end_page = source_range["start_page"] + offset, source_range["end_page"] + offset
+            count = source_range.get(
+                "question_count",
+                run.plan_signature.get("questions_per_checkpoint", plan["questions_per_checkpoint"]),
             )
+            if run.study_mode == "standard":
+                count = min(count, available_page_questions(payload, start_page, end_page))
+            return select_page_questions(payload, start_page, end_page, count)
         except ValueError as error:
             raise ManagedActiveStudyRuleError(str(error)) from error
     selected = next(
@@ -1280,7 +1286,10 @@ def offline_bundle(*, user: User, sheet_id: UUID, edition: str = UNIVERSITY) -> 
                                 payload,
                                 r["start_page"],
                                 r["end_page"],
-                                plan["questions_per_checkpoint"],
+                                min(
+                                    plan["questions_per_checkpoint"],
+                                    available_page_questions(payload, r["start_page"], r["end_page"]),
+                                ),
                             ),
                         }
                         for r in content.plan_signature["page_ranges"]

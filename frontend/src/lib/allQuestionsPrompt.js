@@ -239,15 +239,15 @@ function buildAllPageQuestionsPrompt(context, sheetQuestionCount, style = "") {
   }]));
   return `Generate every question for one Lock-in sheet as ONE valid JSON object. No Markdown, commentary or extra fields.
 Use only the supplied PDF, physical page numbers ${context.effective_start_page}–${context.effective_end_page}; excluded pages must not be used. Wait for the sheet if missing.
-For EACH difficulty (easy, medium, hard), create exactly 15 distinct questions for EACH eligible page, grouped under pages. Do not use parts.
+For EACH difficulty (easy, medium, hard), create up to 15 distinct questions for EACH eligible page (minimum 1), grouped under pages. Do not use parts. Use fewer where the page cannot support 15 without repetition or invented facts.
 ${ordered(context).map((row) => `${label(row)}: ${DIFFICULTY_BEHAVIOUR[row.difficulty]} Final exam: exactly ${row.final_exam_questions} separate questions covering the entire eligible sheet.`).join("\n")}
 Normal Sheet Questions: exactly ${normal} questions covering the whole eligible sheet.${style}
 Return one complete JSON document with every requested page and all three final exams. If file output is supported, place that same complete JSON in one .json file. Do not split the task into separate prompts, omit sections, or return a partial batch.
 Only MCQ and True/False; no fill-in or image-dependent questions. Use exam-style stems, plausible distractors and balanced MCQ correct letters. Never say "according to the sheet". No repeated questions anywhere.
 MCQ format: {"type":"mcq","question":"Stem","options":{"A":"First","B":"Second","C":"Third","D":"Fourth"},"correct_answer":"B","explanation":"Reason"}.
 True/False format: {"type":"true_false","question":"Statement","correct_answer":true,"explanation":"Reason"}. No options for True/False.
-Every question must be supported entirely by its assigned page. If a page cannot support 15 valid questions, report that limitation instead of inventing content; do not return an incomplete bank as complete.
+Every question must be supported entirely by its assigned page. Each page must contain 1–15 valid, distinct questions; do not pad sparse pages with repetition or outside information.
 Do not add metadata inside individual questions. Fill every questions array below and preserve every page number. Each difficulty has its own final exam. Verify all counts and valid JSON syntax before returning.
-Total questions: ${allQuestionsTotals(context, normal).total}.
+Maximum possible questions (page counts may be lower): ${allQuestionsTotals(context, normal).total}.
 ${JSON.stringify({ active_study: active, sheet_questions: { questions: [] } }, null, 2)}`;
 }

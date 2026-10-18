@@ -24,10 +24,15 @@ export function customPageRanges(start, end, size) {
   return ranges;
 }
 
+export function availablePageQuestions(payload, start, end) {
+  return payload.pages.filter((item) => item.page >= start && item.page <= end)
+    .reduce((sum, page) => sum + Math.min(QUESTIONS_PER_PAGE, page.questions.length), 0);
+}
+
 export function selectPageQuestions(payload, start, end, count) {
   let pages = payload.pages.filter((item) => item.page >= start && item.page <= end);
   // Banks written with more than QUESTIONS_PER_PAGE per page use only the first of each.
-  if (!Number.isInteger(count) || count < 1 || !pages.length || pages.reduce((total, page) => total + Math.min(QUESTIONS_PER_PAGE, page.questions.length), 0) < count) throw new Error("There are not enough questions for these pages.");
+  if (!Number.isInteger(count) || count < 1 || !pages.length || availablePageQuestions(payload, start, end) < count) throw new Error("There are not enough questions for these pages.");
   if (count < pages.length) pages = Array.from({ length: count }, (_, index) => pages[Math.floor(index * pages.length / count)]);
   const selected = [];
   for (let position = 0; position < Math.min(QUESTIONS_PER_PAGE, Math.max(...pages.map((page) => page.questions.length))); position += 1) {

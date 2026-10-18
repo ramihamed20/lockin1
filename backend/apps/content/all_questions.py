@@ -550,7 +550,7 @@ def _summary(
                     "end_page": planned["end_page"],
                     "expected": per_part,
                     "received": received,
-                    "ok": received == per_part
+                    "ok": (1 <= received <= per_part if page_bank else received == per_part)
                     and index is not None
                     and not _has_error(
                         errors, f"{prefix}.{'pages' if page_bank else 'parts'}[{index}]"

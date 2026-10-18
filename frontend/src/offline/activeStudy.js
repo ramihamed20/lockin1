@@ -1,4 +1,4 @@
-import { customPageRanges, MAX_CUSTOM_QUESTIONS, QUESTIONS_PER_PAGE, selectPageQuestions } from "../lib/activeStudyPages.js";
+import { availablePageQuestions, customPageRanges, MAX_CUSTOM_QUESTIONS, selectPageQuestions } from "../lib/activeStudyPages.js";
 import { offlineDatabase } from "./database.js";
 import { captureOfflineSession } from "./sessionScope.js";
 import { getOfflineActiveStudy, readDownloadMetadata } from "./downloads.js";
@@ -181,7 +181,9 @@ function questionsFor(content, kind, part, run) {
     const regrouped = ["custom", "pomodoro"].includes(run.study_mode);
     const range = (regrouped ? run.page_ranges : content.source_page_ranges).find((item) => item.part === part);
     const offset = regrouped ? run.source_page_offset : 0;
-    return selectPageQuestions(content, range.start_page + offset, range.end_page + offset, range.question_count ?? run.questions_per_checkpoint ?? content.questions_per_checkpoint);
+    const start = range.start_page + offset, end = range.end_page + offset;
+    const requested = range.question_count ?? run.questions_per_checkpoint ?? content.questions_per_checkpoint;
+    return selectPageQuestions(content, start, end, regrouped ? requested : Math.min(requested, availablePageQuestions(content, start, end)));
   }
   return content.parts.find((item) => item.part === part)?.questions || [];
 }
@@ -231,8 +233,9 @@ const local = {
       if (!row?.customization_available || !content.pages) throw new ActiveStudyRuleError("Customization is available only for new page-based sheets.");
       if (!Number.isInteger(questionsPerCheckpoint) || questionsPerCheckpoint < 1 || questionsPerCheckpoint > MAX_CUSTOM_QUESTIONS) throw new ActiveStudyRuleError(`Choose between 1 and ${MAX_CUSTOM_QUESTIONS} questions.`);
       ranges = customPageRanges(ranges[0].start_page, ranges.at(-1).end_page, pagesPerCheckpoint);
-      const shortest = Math.min(...ranges.map((item) => item.end_page - item.start_page + 1));
-      if (questionsPerCheckpoint > shortest * QUESTIONS_PER_PAGE) throw new ActiveStudyRuleError(`Choose at most ${shortest * QUESTIONS_PER_PAGE} questions for this page count.`);
+      const offset = content.source_page_ranges[0].start_page - ranges[0].start_page;
+      const capacity = Math.min(...ranges.map((item) => availablePageQuestions(content, item.start_page + offset, item.end_page + offset)));
+      if (questionsPerCheckpoint > capacity) throw new ActiveStudyRuleError(`Choose at most ${capacity} questions for this page count.`);
     }
     const key = runKey(sheetId, edition, difficulty, studyMode);
     const existing = await readRun(userId, key);

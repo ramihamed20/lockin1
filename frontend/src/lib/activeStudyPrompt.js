@@ -129,17 +129,17 @@ Return valid JSON only, with no Markdown or extra fields.
 Difficulty: ${difficulty}.
 Eligible PDF pages: ${pages[0]}–${pages.at(-1)}. Use the physical PDF page numbers, not printed numbering.
 Use only the supplied sheet. Wait for the sheet if it has not been provided.
-Create exactly 15 distinct questions for EACH eligible page, using only that page's content.
+Create up to 15 distinct questions for EACH eligible page (minimum 1), using only that page's content. Generate fewer if the page does not support 15 valid, non-repetitive questions.
 Questions must remain grouped by page; do not use parts or checkpoint groups.
 This bank supports student-selected page groups and up to 30 questions per checkpoint, as well as the standard style.
-Pomodoro style draws up to 40 questions across the pages read in a timed session from this same bank. A single page supplies at most 15; do not change the page counts below.
+Pomodoro style draws up to 40 questions across the pages read in a timed session from this same bank. A single page supplies at most 15; the actual count may be lower.
 Create exactly ${finalExamQuestions} separate final-exam questions covering all eligible pages.
 Use only MCQ and True/False. MCQ: type "mcq", question, four distinct options A/B/C/D, correct_answer letter, explanation.
 True/False: type "true_false", question, boolean correct_answer, explanation; no options.
 Use exam-style wording, balanced correct MCQ letters, plausible distractors and concise explanations.
 Do not say "according to the sheet", refer to images, introduce outside facts, repeat questions, or add metadata inside questions.
-If a page cannot support 15 valid questions, report that limitation instead of inventing content; do not return a supposedly complete bank.
+When a page has fewer distinct, sheet-supported questions, include only those valid questions (at least 1). Never pad with duplicates or outside facts.
 Required JSON structure (fill every questions array; preserve page numbers):
 ${JSON.stringify({ pages: pages.map((page) => ({ page, questions: [] })), final_exam: { questions: [] } }, null, 2)}
-Verify every eligible page appears once, every page has exactly 15 questions, the final has exactly ${finalExamQuestions}, and there are no duplicates.`;
+Verify every eligible page appears once with 1–15 questions, the final has exactly ${finalExamQuestions}, and there are no duplicates.`;
 }

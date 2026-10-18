@@ -230,10 +230,14 @@ def test_page_json_rejects_omitted_excluded_duplicate_pages_and_incomplete_banks
         )
 
     assert validate(content.payload).checkpoint_question_count == 315
+    shortened = deepcopy(content.payload)
+    shortened["pages"][0]["questions"] = shortened["pages"][0]["questions"][:4]
+    assert validate(shortened).checkpoint_question_count == 304
     for change in (
         lambda p: p["pages"].pop(),
         lambda p: p["pages"][0].update(page=1),
-        lambda p: p["pages"][0]["questions"].pop(),
+        lambda p: p["pages"][0].update(questions=[]),
+        lambda p: p["pages"][0]["questions"].append(_question("sixteenth")),
         lambda p: p["pages"].append(p["pages"][0]),
     ):
         invalid = deepcopy(content.payload)
