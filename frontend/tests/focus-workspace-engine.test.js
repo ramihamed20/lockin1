@@ -55,6 +55,7 @@ import {
 } from "../src/workspace/ink/inkGestureRecognition.js";
 import { PdfRenderQueue, pdfRenderGenerationIsCurrent } from "../src/workspace/catalog/pdfRenderQueue.js";
 import { catalogCanvasPixelBudget, inkCanvasOutputScale } from "../src/workspace/catalog/renderBudget.js";
+import { WORKSPACE_RENDER } from "../src/workspace/config.js";
 import {
   advanceMomentumFrame,
   appendRecentPointerSamples,
@@ -282,7 +283,7 @@ test("touch devices use bounded PDF raster budgets while desktop keeps full qual
 
 test("high-DPR handwriting canvases stay inside the shared GPU memory budget", () => {
   const tabletScale = inkCanvasOutputScale(834, 1180, 3);
-  assert.ok(834 * 1180 * tabletScale ** 2 <= 3_500_000 + 1);
+  assert.ok(834 * 1180 * tabletScale ** 2 <= WORKSPACE_RENDER.maximumInkCanvasPixels + 1);
   assert.ok(tabletScale < 3);
   assert.equal(inkCanvasOutputScale(390, 560, 2.75), 2.75);
 });

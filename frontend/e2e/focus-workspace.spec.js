@@ -250,7 +250,7 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   const highlighterOptions = page.locator("#workspace-highlighter-options");
   await expect(highlighterOptions).toBeVisible();
   await expectBoundsInViewport(highlighterOptions, 834, 1194);
-  await expect(highlighterOptions.getByRole("button", { name: "Use #8b5cf6" })).toHaveCSS("width", "44px");
+  await expect(highlighterOptions.getByRole("button", { name: "Use #7c3aed" })).toHaveCSS("width", "44px");
   await expect(highlighterOptions.getByRole("slider", { name: "Thickness" })).toBeVisible();
   await expect(highlighterOptions.getByRole("slider", { name: "Opacity" })).toBeVisible();
   await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-ipad-portrait-834x1194.png`, fullPage: false });
@@ -315,7 +315,7 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await penOptions.getByRole("button", { name: "Delete #123456" }).click();
   await expect(penOptions.getByRole("button", { name: "Use #123456" })).toHaveCount(0);
   await expect(penOptions.getByRole("button", { name: "Add Color" })).toBeVisible();
-  await expect(penOptions.getByRole("button", { name: "Use #2196f3" })).toHaveAttribute("aria-pressed", "true");
+  await expect(penOptions.getByRole("button", { name: "Use #2563eb" })).toHaveAttribute("aria-pressed", "true");
   await penOptions.getByRole("button", { name: "Add Color" }).click();
   await penOptions.locator('input[aria-label="Choose custom color"]').fill("#6789ab");
   await penOptions.getByRole("button", { name: "Save custom color" }).click();

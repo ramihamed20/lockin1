@@ -31,5 +31,5 @@ export const WORKSPACE_RENDER = Object.freeze({
   maximumTabletCanvasPixels: 3_000_000,
   maximumCatalogCanvasEdge: 3200,
   maximumStudyCanvasPixels: 10_000_000,
-  maximumInkCanvasPixels: 3_500_000
+  maximumInkCanvasPixels: 6_000_000
 });

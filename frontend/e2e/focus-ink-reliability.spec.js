@@ -6,7 +6,10 @@ const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 const IPAD_PORTRAIT = { width: 834, height: 1194 };
 
 async function mockAuthenticatedWorkspace(page) {
-  await page.addInitScript(() => { Object.defineProperty(globalThis, "indexedDB", { configurable: true, value: undefined }); });
+  await page.addInitScript(() => {
+    localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now()));
+    Object.defineProperty(globalThis, "indexedDB", { configurable: true, value: undefined });
+  });
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     if (pathname === "/api/v1/auth/session") {
@@ -68,6 +71,53 @@ function savedAnnotations(page) {
 async function firstPageBox(page) {
   return page.locator(".workspace-v2-a4-page").first().boundingBox();
 }
+
+for (const device of [
+  { name: "phone", viewport: { width: 390, height: 844 }, dpr: 3 },
+  { name: "iPad portrait", viewport: IPAD_PORTRAIT, dpr: 2 },
+  { name: "iPad landscape", viewport: { width: 1194, height: 834 }, dpr: 2 }
+]) test(`${device.name}: zoomed Retina handwriting uses screen-resolution pixels and hands off to vector ink`, async ({ browser }, testInfo) => {
+  const context = await browser.newContext({ viewport: device.viewport, deviceScaleFactor: device.dpr });
+  const page = await context.newPage();
+  try {
+    await mockAuthenticatedWorkspace(page);
+    await openWorkspace(page, device.viewport);
+    const stage = page.locator(".workspace-v2-document-stage");
+    const bounds = await stage.boundingBox();
+    const x = bounds.x + bounds.width * .3;
+    const y = bounds.y + bounds.height * .35;
+    await stage.dispatchEvent("wheel", { bubbles: true, cancelable: true, clientX: x, clientY: y, ctrlKey: true, deltaY: -4000 });
+    await expect.poll(() => page.locator(".workspace-v2-a4-document").evaluate((node) => Number(getComputedStyle(node).getPropertyValue("--workspace-a4-zoom")))).toBeGreaterThan(3);
+    await dispatchPointer(stage, "pointerdown", 901, x, y);
+    for (let i = 1; i < 35; i += 1) await dispatchPointer(stage, "pointermove", 901, x + i * 5, y + Math.sin(i * .4) * 24);
+    const canvas = page.locator(".workspace-v2-live-annotation-canvas");
+    await expect.poll(() => canvas.evaluate((node) => node.width)).toBeGreaterThan(0);
+    await page.screenshot({ path: testInfo.outputPath("retina-live.png") });
+    const pixels = await canvas.evaluate((node) => {
+      const box = node.getBoundingClientRect();
+      return { perScreenPixel: node.width / box.width, pixels: node.width * node.height, dpr: devicePixelRatio };
+    });
+    const alpha = await canvas.evaluate((node, point) => {
+      const box = node.getBoundingClientRect();
+      const px = Math.floor((point.x - box.left) * node.width / box.width);
+      const py = Math.floor((point.y - box.top) * node.height / box.height);
+      return node.getContext("2d").getImageData(px, py, 1, 1).data[3];
+    }, { x: x + 80, y: y + Math.sin(16 * .4) * 24 });
+    expect(alpha).toBeGreaterThan(0);
+    await testInfo.attach("ink-density.json", { body: Buffer.from(JSON.stringify(pixels)), contentType: "application/json" });
+    await dispatchPointer(stage, "pointerup", 901, x + 170, y + Math.sin(34 * .4) * 24);
+    await expect(page.locator('.workspace-v2-annotation-layer [data-annotation-type="pen"]')).toHaveCount(1);
+    await expect.poll(() => canvas.evaluate((node) => {
+      const data = node.getContext("2d").getImageData(0, 0, node.width, node.height).data;
+      return data.some((value, i) => i % 4 === 3 && value > 0);
+    })).toBe(false);
+    await page.screenshot({ path: testInfo.outputPath("retina-committed.png") });
+    expect(pixels.pixels).toBeLessThanOrEqual(6_000_000);
+    expect(pixels.perScreenPixel).toBeGreaterThanOrEqual(pixels.dpr * .85);
+  } finally {
+    await context.close().catch(() => {});
+  }
+});
 
 test("wobbly pen and highlighter lines become clean straight lines of the same tool", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);

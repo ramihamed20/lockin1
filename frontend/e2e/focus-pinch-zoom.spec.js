@@ -549,7 +549,7 @@ test("opaque Ball Pen stays color-stable and Precision Eraser masks only touched
   await keepRawInk(page);
   await openWorkspace(page, { width: 834, height: 1194 });
   await page.getByRole("button", { name: "Pen", exact: true }).click();
-  await page.getByRole("button", { name: "Use #239ed1" }).click();
+  await page.getByRole("button", { name: "Use #db2777" }).click();
   await page.locator('.workspace-v2-toolbar [data-workspace-tool="pen"]').click();
   const stage = page.locator(".workspace-v2-document-stage");
   const pageBounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
@@ -566,7 +566,7 @@ test("opaque Ball Pen stays color-stable and Precision Eraser masks only touched
   const penMarks = page.locator('.workspace-v2-annotation-layer [data-annotation-type="pen"]');
   await expect(penMarks).toHaveCount(10);
   expect(await penMarks.evaluateAll((nodes) => nodes.every((node) => (
-    node.getAttribute("fill") === "#239ed1"
+    node.getAttribute("fill") === "#db2777"
     && node.getAttribute("opacity") === "1"
     && getComputedStyle(node).mixBlendMode === "normal"
   )))).toBe(true);

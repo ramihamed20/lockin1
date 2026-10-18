@@ -492,11 +492,11 @@ test("the lasso recolours a selection and the settings panel clears one page", a
   await expect(page.locator("[data-selection-toolbar]")).toBeVisible();
 
   await page.locator('[data-workspace-tool="select"]').click();
-  await page.getByRole("dialog", { name: "Lasso options" }).getByRole("button", { name: "Use #20b982" }).click();
-  await expect(marks.first()).toHaveAttribute("fill", "#20b982");
+  await page.getByRole("dialog", { name: "Lasso options" }).getByRole("button", { name: "Use #16a34a" }).click();
+  await expect(marks.first()).toHaveAttribute("fill", "#16a34a");
 
   await page.getByRole("button", { name: "Undo (Ctrl+Z)" }).click();
-  await expect(marks.first()).not.toHaveAttribute("fill", "#20b982");
+  await expect(marks.first()).not.toHaveAttribute("fill", "#16a34a");
 
   await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings" }).click();
@@ -595,7 +595,8 @@ test("the live ink layer paints while the stroke is still down and carries its o
   // The highlighter paints opaquely and carries its own opacity on the element,
   // so overlapping appended geometry cannot stack into a darker band.
   await page.getByRole("button", { name: "Highlight", exact: true }).click();
-  const highlightY = pageBounds.y + pageBounds.height * .55;
+  // Inside the viewport: the live layer only rasterizes the visible page.
+  const highlightY = y + 150;
   await dispatchPointer(stage, "pointerdown", 52, pageBounds.x + pageBounds.width * .2, highlightY);
   for (let step = 1; step <= 14; step += 1) {
     await dispatchPointer(stage, "pointermove", 52, pageBounds.x + pageBounds.width * (.2 + step * .03), highlightY);

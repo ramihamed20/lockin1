@@ -30,7 +30,6 @@ import {
   MousePointer2,
   Pencil,
   PenLine,
-  Pointer,
   Plus,
   Redo2,
   RotateCcw,
@@ -212,7 +211,7 @@ import whiteboardPageUrl from "../workspace/catalog/whiteboard-lined-page.pdf?ur
 import { ToolPreview } from "../workspace/catalog/ToolPreview.jsx";
 import { LiveAnnotationCanvas } from "../workspace/ink/LiveAnnotationCanvas.jsx";
 import { TransientInkCanvas } from "../workspace/ink/TransientInkCanvas.jsx";
-import { TRANSIENT_DEFAULT_COLOR, TRANSIENT_INK_KIND, TRANSIENT_PEN_PROFILES, createTransientInk } from "../workspace/ink/transientInk.js";
+import { TRANSIENT_DEFAULT_COLOR, TRANSIENT_INK_KIND, TRANSIENT_PEN_PROFILES, createTransientInk, currentPenProfile } from "../workspace/ink/transientInk.js";
 import { createWorkspacePerformanceMonitor } from "../workspace/catalog/workspacePerformance.js";
 import { addSavedColor, normalizeSavedPalette, normalizeToolColor, removeSavedColor } from "../workspace/catalog/toolPalette.js";
 import { WORKSPACE_GESTURE, WORKSPACE_ZOOM } from "../workspace/config.js";
@@ -251,7 +250,9 @@ const AUTOSAVE_IDLE_MS = 750;
 // The server mirror trails the local save, so a burst of strokes or a scroll
 // becomes one request rather than many.
 const SERVER_SYNC_DELAY_MS = 1_500;
-const COLORS = ["#2196f3", "#ff6472", "#ffe455", "#8b5cf6", "#f2b728", "#20b982", "#e65791", "#239ed1"];
+// Deep, saturated inks that stay readable on white paper and under the night
+// theme; amber doubles as the classic highlighter.
+const COLORS = ["#2563eb", "#e5383b", "#f5b700", "#16a34a", "#7c3aed", "#1e2a44", "#f97316", "#db2777"];
 const HOLD_RECOGNITION_MS = 500;
 const HOLD_ENDPOINT_TOLERANCE_PX = 28;
 const TOOL_MEMORY_KEY = "lock-in.catalog-workspace.tool-memory.v2";
@@ -305,9 +306,8 @@ const PEN_PROFILE_OPTIONS = [
   [PEN_PROFILE.BALL, "focus.pen.ball", PenLine, "focus.pen.ballShort"],
   [PEN_PROFILE.FOUNTAIN, "focus.pen.fountain", Feather, "focus.pen.fountainShort"],
   [PEN_PROFILE.BRUSH, "focus.pen.brush", Brush, "focus.pen.brushShort"],
-  // Temporary ink: drawn on its own canvas, never saved (see transientInk.js).
-  [TRANSIENT_INK_KIND.POINTER, "focus.pen.pointer", Pointer, "focus.pen.pointerShort"],
-  [TRANSIENT_INK_KIND.NEON, "focus.pen.neon", Sparkles, "focus.pen.neonShort"]
+  // Temporary glowing ink: drawn on its own canvas, never saved (see transientInk.js).
+  [TRANSIENT_INK_KIND.POINTER, "focus.pen.pointer", Sparkles, "focus.pen.pointerShort"]
 ];
 const SHAPE_OPTIONS = [
   ["line", "focus.shape.line", Minus],
@@ -332,6 +332,11 @@ const LASSO_MODE_OPTIONS = [
   ["rectangle", "focus.lasso.rectangle", Square, "focus.lasso.rectangleShort"]
 ];
 const QUICK_THICKNESSES = [1, 2, 4, 8, 12];
+/** Thickness moves continuously, in hundredths of a point, not whole steps. */
+const THICKNESS_STEP = .01;
+const formatThickness = (size) => `${Number(Number(size).toFixed(2))} pt`;
+// Hundredths exactly, so saved widths match what the server keeps (two decimals).
+const roundThickness = (size) => Math.round(Number(size) * 100) / 100;
 const ERASER_QUICK_SIZES = [8, 16, 24, 32, 40];
 const SHAPE_FILL_COLORS = ["#dceeff", "#ffd9d9", "#d9f5df", "#fff2c2", "#ebdfff", "#ffe4cc"];
 /** Panel title and one-line purpose for each configurable tool. */
@@ -375,7 +380,8 @@ function WorkspaceIconButton({ label, active = false, children, className = "", 
 function ToolRange({ label, caption = label, value, displayValue = value, min, max, step, onChange, preview = "stroke", color = "#8b5cf6" }) {
   const { t } = useI18n();
   const ratio = Math.min(1, Math.max(0, (value - min) / Math.max(step, max - min)));
-  const previewSize = preview === "opacity" ? 16 : preview === "eraser" ? Math.round(5 + ratio * 13) : Math.round(2 + ratio * 10);
+  // Unrounded, so the preview grows smoothly with a continuous slider.
+  const previewSize = preview === "opacity" ? 16 : preview === "eraser" ? Math.round(5 + ratio * 13) : 2 + ratio * 10;
   return (
     <label className={`workspace-v2-tool-range is-${preview}`} aria-label={label} style={cssVars({ "--workspace-range-progress": `${ratio * 100}%` })}>
       <span className="workspace-v2-range-heading"><span>{caption}</span><output dir="ltr" aria-label={t("focus.currentValue", { name: label.toLowerCase() })}>{displayValue}</output></span>
@@ -1174,7 +1180,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     lastPenPosition: null,
     drawingPointerId: null,
     drawingPointerType: null,
-    // The page a Pointer or Neon stroke is drawing on; it never becomes a draft.
+    // The page a Pointer stroke is drawing on; it never becomes a draft.
     transientInkPage: null,
     pan: null,
     momentum: null,
@@ -1235,7 +1241,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const remembered = String(toolMemoryRef.current.lastWritingTool || "pen");
     return DRAWING_TOOLS.has(remembered) && remembered !== "hand" ? remembered : "pen";
   })();
-  const rememberedPenProfile = String(toolMemoryRef.current.lastPenProfile || PEN_PROFILE.BALL);
+  const rememberedPenProfile = currentPenProfile(String(toolMemoryRef.current.lastPenProfile || PEN_PROFILE.BALL));
   const initialToolSettings = toolMemoryRef.current[
     rememberedWritingTool === "pen" ? `pen:${rememberedPenProfile}` : rememberedWritingTool
   ] || {};
@@ -3555,7 +3561,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       return;
     }
     if (activeTool === "pen" && TRANSIENT_PEN_PROFILES.has(penProfile)) {
-      // Pointer and Neon ink is shown, then fades; it never becomes a draft.
+      // Pointer ink is shown, then fades; it never becomes a draft.
       gesture.transientInkPage = annotationPage;
       transientInkRef.current.begin({ kind: penProfile, page: annotationPage, color: activeColor, width: brushSize * 2, point });
       gesture.mode = INTERACTION_STATE.DRAWING;
@@ -3588,6 +3594,12 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         createdAt: new Date().toISOString(),
         points
       });
+      // A live highlight merges with saved ones of the same colour and opacity,
+      // exactly as it will once it is saved, instead of darkening over them.
+      liveStrokeCanvasRef.current?.setMergeTargets?.(activeTool === "highlighter"
+        ? annotationsRef.current.filter((annotation) => annotation.type === "highlighter" && annotation.page === annotationPage
+          && annotation.color === activeColor && (annotation.opacity ?? .34) === highlighterOpacity)
+        : []);
     }
     gesture.mode = INTERACTION_STATE.DRAWING;
     if (["pen", "pencil", "highlighter"].includes(activeTool)) scheduleHoldRecognition();
@@ -5148,7 +5160,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       }
       return;
     }
-    const rememberedProfile = nextTool === "pen" ? String(toolMemoryRef.current.lastPenProfile || PEN_PROFILE.BALL) : toolStateRef.current.penProfile;
+    const rememberedProfile = nextTool === "pen" ? currentPenProfile(String(toolMemoryRef.current.lastPenProfile || PEN_PROFILE.BALL)) : toolStateRef.current.penProfile;
     const remembered = toolMemoryRef.current[nextTool === "pen" ? `pen:${rememberedProfile}` : nextTool];
     const next = { ...toolStateRef.current, activeTool: nextTool, penProfile: rememberedProfile };
     if (remembered) {
@@ -5464,7 +5476,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   }
 
   function applyPenPreset(preset) {
-    setPenProfile(String(preset.profile || PEN_PROFILE.BALL));
+    setPenProfile(currentPenProfile(String(preset.profile || PEN_PROFILE.BALL)));
     setActiveColor(normalizeToolColor(preset.color) || COLORS[0]);
     setBrushSize(Math.min(12, Math.max(1, Number(preset.size) || 4)));
     setBrushOpacity(Math.min(1, Math.max(.2, Number(preset.opacity) || 1)));
@@ -6602,7 +6614,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
               {activeTool === "select" && !selectedAnnotations.length && <p className="workspace-v9-panel-hint">{t("focus.drawAroundMarksToSelect")}</p>}
               {inkToolActive && <section className="workspace-v5-inspector-section"><h3>{activeTool === "shapes" ? t("focus.strokeWidth") : t("focus.thickness")}</h3>
                 <QuickSizes values={QUICK_THICKNESSES} value={brushSize} onChange={setBrushSize} label={activeTool === "shapes" ? t("focus.borderWidth") : t("focus.thickness")} />
-                <ToolRange label={activeTool === "shapes" ? t("focus.borderWidth") : t("focus.thickness")} value={brushSize} displayValue={`${brushSize} pt`} min={1} max={12} step={1} onChange={setBrushSize} color={activeColor} />
+                <ToolRange label={activeTool === "shapes" ? t("focus.borderWidth") : t("focus.thickness")} value={brushSize} displayValue={formatThickness(brushSize)} min={1} max={12} step={THICKNESS_STEP} onChange={(size) => setBrushSize(roundThickness(size))} color={activeColor} />
               </section>}
               {inkToolActive && <section className="workspace-v5-inspector-section workspace-v7-adjust">
                 <ToolRange label={t("focus.opacity")} value={activeToolOpacity} displayValue={`${Math.round(activeToolOpacity * 100)}%`} min={activeTool === "highlighter" ? .1 : .2} max={1} step={.05} preview="opacity" color={activeColor} onChange={updateActiveToolOpacity} />
