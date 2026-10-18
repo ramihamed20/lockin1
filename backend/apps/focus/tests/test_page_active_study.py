@@ -285,7 +285,8 @@ def test_custom_limit_uses_lowest_real_group_even_when_total_inventory_is_large(
     content.checkpoint_question_count = 182
     content.save(update_fields=("payload", "checkpoint_question_count"))
     ready = next(
-        row for row in availability(user=user, sheet_id=sheet.id)["difficulties"]
+        row
+        for row in availability(user=user, sheet_id=sheet.id)["difficulties"]
         if row["difficulty"] == "medium"
     )
     assert ready["page_question_counts"] == [9] * 20 + [2]
