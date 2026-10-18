@@ -15281,6 +15281,10 @@ html {
 }
 
 .policy-notice { margin-block: 16px; padding: 18px; }
+/* Links to the policies inside consent text: links reset to the text colour
+   app-wide, so these name themselves by colour and underline. */
+.policy-link { color: var(--accent-text); font-weight: 600; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.policy-link:hover:where(html.ix-hover *) { text-decoration-thickness: 2px; }
 .policy-notice form { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
 .policy-requests { padding: 20px; margin-block: 24px; overflow-wrap: anywhere; }
 .policy-requests form { display: grid; gap: 12px; margin-block: 16px; }

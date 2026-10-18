@@ -493,7 +493,7 @@ export default function Subscription({ onPoliciesAccepted }) {
                   </ol>
                 )}
                 <p lang="ar" dir="rtl">بداية الوصول بعد اعتماد الدفع. {selectedOffer.version.fixed_period_ends_at ? `تنتهي الخطة في ${formatDate(selectedOffer.version.fixed_period_ends_at, { dateStyle: "long" })}.` : "تسري المدة المبينة للخطة بعد اعتماد الدفع."} لا يوجد تجديد تلقائي. أعمالك تبقى محفوظة بعد الانتهاء مع توقف الوصول المدفوع إليها.</p>
-                <label lang="ar" dir="rtl"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} required /> قرأت <a href="#/terms">الشروط</a> و<a href="#/privacy">الخصوصية</a> و<a href="#/refunds">الاسترداد</a> وأوافق عليها، وتتوفر الأهلية أو موافقة الممثل القانوني حيث يلزم.</label>
+                <label lang="ar" dir="rtl"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} required /> قرأت <a className="policy-link" href="#/terms">الشروط</a> و<a className="policy-link" href="#/privacy">الخصوصية</a> و<a className="policy-link" href="#/refunds">الاسترداد</a> وأوافق عليها، وتتوفر الأهلية أو موافقة الممثل القانوني حيث يلزم.</label>
                 <RechargeCodeFields codes={codes} setCodes={setCodes} oneCardOnly={oneCardOnly} idPrefix="libyana-code" t={t} />
                 {error && <p className="form-alert error" role="alert">{error}</p>}
                 {notice && <p className="form-alert success" role="status">{notice}</p>}

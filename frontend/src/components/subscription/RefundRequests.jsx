@@ -47,7 +47,7 @@ export function RefundRequests({ payments = [], onChanged, finance = false }) {
   }
   return <section className="subscription-secondary policy-requests" lang="ar" dir="rtl" aria-labelledby={finance ? "finance-refunds" : "my-refunds"}>
     <h2 id={finance ? "finance-refunds" : "my-refunds"}>{finance ? "متابعة الاسترداد والتعويض" : "الاسترداد وإنهاء الأقساط"}</h2>
-    <p>الاسترداد المستحق خلال 48 ساعة من وصول الطلب، بما فيها العطلات، برصيد ليبيانا صافٍ. تُستكمل البيانات الناقصة دون إعادة حساب وقت الاستلام. <a href="#/refunds">اقرأ السياسة</a>.</p>
+    <p>الاسترداد المستحق خلال 48 ساعة من وصول الطلب، بما فيها العطلات، برصيد ليبيانا صافٍ. تُستكمل البيانات الناقصة دون إعادة حساب وقت الاستلام. <a className="policy-link" href="#/refunds">اقرأ السياسة</a>.</p>
     <form className="ops-form" onSubmit={submit}>
       <label className="field"><span>{finance ? "مرجع عملية الدفع للطلب الوارد" : "عملية الدفع"}</span>{finance
         ? <input value={paymentId} onChange={(e) => setPaymentId(e.target.value)} required />

@@ -23,7 +23,13 @@ test("an existing student can read their work before explicitly accepting the up
   await expect(page.getByText("Nothing saved yet")).toBeVisible();
   const notice = page.getByRole("region", { name: /تحديث السياسات/ });
   await expect(notice).toBeVisible();
-  await expect(notice.getByRole("link", { name: "الاسترداد", exact: true })).toHaveAttribute("href", "#/refunds");
+  const refundsLink = notice.getByRole("link", { name: "الاسترداد", exact: true });
+  await expect(refundsLink).toHaveAttribute("href", "#/refunds");
+  // The policy links stand out from the sentence they sit in.
+  const colors = await refundsLink.evaluate((link) => [getComputedStyle(link).color, getComputedStyle(link.parentElement).color, getComputedStyle(link).textDecorationLine]);
+  expect(colors[0]).not.toBe(colors[1]);
+  expect(colors[2]).toContain("underline");
+  await page.screenshot({ path: test.info().outputPath("policy-notice-links.png") });
   const save = notice.getByRole("button", { name: "حفظ الموافقة" });
   await expect(save).toBeDisabled();
   expect(acceptance).toBeNull();
