@@ -9,13 +9,13 @@ export function catalogCanvasPixelBudget(viewportWidth, coarsePointer = false) {
   return WORKSPACE_RENDER.maximumCatalogCanvasPixels;
 }
 
-/** Caps the transient handwriting canvas without reducing ordinary 1x output. */
-export function inkCanvasOutputScale(cssWidth, cssHeight, devicePixelRatio = 1) {
+/** Match screen pixels at the reader zoom while bounding the visible ink surface. */
+export function inkCanvasOutputScale(cssWidth, cssHeight, devicePixelRatio = 1, zoom = 1) {
   const width = Math.max(1, Number(cssWidth) || 1);
   const height = Math.max(1, Number(cssHeight) || 1);
-  const desired = Math.min(3, Math.max(1, Number(devicePixelRatio) || 1));
+  const desired = Math.min(3, Math.max(1, Number(devicePixelRatio) || 1)) * Math.max(.01, Number(zoom) || 1);
   const budget = Math.sqrt(WORKSPACE_RENDER.maximumInkCanvasPixels / (width * height));
-  return Math.max(1, Math.min(desired, budget));
+  return Math.min(desired, budget);
 }
 
 /**

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { inkCanvasOutputScale } from "../catalog/renderBudget.js";
+import { measureInkCanvas, observeInkCanvas, sizeInkCanvas } from "./inkCanvasViewport.js";
 import { TRANSIENT_INK_KIND, transientAlpha } from "./transientInk.js";
 
 function tracePath(context, points) {
@@ -80,6 +80,7 @@ export function TransientInkCanvas({ store, pageNumber }) {
     let frame = null;
     let wake = null;
     let painted = false;
+    let size = null;
 
     const paint = () => {
       frame = null;
@@ -87,26 +88,28 @@ export function TransientInkCanvas({ store, pageNumber }) {
       const time = store.now();
       const strokes = store.visible(pageNumber, time);
       if (!strokes.length) {
-        if (painted) canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+        if (painted) {
+          const context = canvas.getContext("2d");
+          context?.setTransform(1, 0, 0, 1, 0, 0);
+          context?.clearRect(0, 0, canvas.width, canvas.height);
+        }
         painted = false;
         return;
       }
-      const cssWidth = Math.max(1, canvas.clientWidth);
-      const cssHeight = Math.max(1, canvas.clientHeight);
-      const ratio = inkCanvasOutputScale(cssWidth, cssHeight, window.devicePixelRatio);
-      const width = Math.max(1, Math.round(cssWidth * ratio));
-      const height = Math.max(1, Math.round(cssHeight * ratio));
-      if (canvas.width !== width) canvas.width = width;
-      if (canvas.height !== height) canvas.height = height;
+      if (!size) {
+        size = measureInkCanvas(canvas);
+        sizeInkCanvas(canvas, size);
+      }
+      const { width, height, ratio, x, y } = size;
       const context = canvas.getContext("2d");
       if (!context) return;
       context.setTransform(1, 0, 0, 1, 0, 0);
-      context.clearRect(0, 0, width, height);
+      context.clearRect(0, 0, canvas.width, canvas.height);
       // Page units run 0-1000 on both axes, as in the annotation layer.
-      context.setTransform(width / 1000, 0, 0, height / 1000, 0, 0);
+      context.setTransform(width * ratio / 1000, 0, 0, height * ratio / 1000, -x * ratio, -y * ratio);
       context.lineCap = "round";
       context.lineJoin = "round";
-      const devicePxPerUnit = width / 1000;
+      const devicePxPerUnit = width * ratio / 1000;
       for (const stroke of strokes) {
         context.save();
         if (stroke.kind === TRANSIENT_INK_KIND.NEON) paintNeon(context, stroke, time, devicePxPerUnit);
@@ -126,9 +129,11 @@ export function TransientInkCanvas({ store, pageNumber }) {
     };
     const schedule = () => { if (frame === null) frame = requestAnimationFrame(paint); };
     const unsubscribe = store.subscribe(schedule);
+    const stopObserving = observeInkCanvas(canvas, () => { size = null; schedule(); });
     schedule();
     return () => {
       unsubscribe();
+      stopObserving();
       if (frame !== null) cancelAnimationFrame(frame);
       if (wake !== null) clearTimeout(wake);
     };

@@ -3,13 +3,13 @@ export function createIsolatedInkPreview(createCanvas) {
     let surface = null;
     let isolated = null;
     return {
-        paint(context, annotation, { width, height, ratio }, drawStroke) {
+        paint(context, annotation, { width, height, ratio, x = 0, y = 0, surfaceWidth = width, surfaceHeight = height }, drawStroke) {
             if (!annotation.erasures?.length)
                 return drawStroke(context, annotation);
             if (!surface)
                 surface = createCanvas();
-            const pixelWidth = Math.max(1, Math.round(width * ratio));
-            const pixelHeight = Math.max(1, Math.round(height * ratio));
+            const pixelWidth = Math.max(1, Math.floor(surfaceWidth * ratio));
+            const pixelHeight = Math.max(1, Math.floor(surfaceHeight * ratio));
             if (surface.width !== pixelWidth)
                 surface.width = pixelWidth;
             if (surface.height !== pixelHeight)
@@ -20,7 +20,7 @@ export function createIsolatedInkPreview(createCanvas) {
                 return 0;
             isolated.setTransform(1, 0, 0, 1, 0, 0);
             isolated.clearRect(0, 0, pixelWidth, pixelHeight);
-            isolated.setTransform(width * ratio / 1000, 0, 0, height * ratio / 1000, 0, 0);
+            isolated.setTransform(width * ratio / 1000, 0, 0, height * ratio / 1000, -x * ratio, -y * ratio);
             isolated.save();
             const geometryTime = drawStroke(isolated, annotation);
             isolated.restore();
