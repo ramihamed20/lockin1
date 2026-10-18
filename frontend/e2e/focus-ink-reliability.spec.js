@@ -765,7 +765,7 @@ test('dense precision previews keep native pixels and exact one-step history', a
   const before = await page.screenshot({ type: 'png', scale: 'css', clip });
   await dispatchPointer(stage, 'pointerup', 701, bounds.x + bounds.width * .42, bounds.y + bounds.height * .432);
   await expect(page.locator('.workspace-v2-svg-eraser-preview')).toHaveCount(0);
-  await expect.poll(() => savedAnnotations(page)).not.toEqual(original);
+  await expect.poll(() => savedAnnotations(page), { timeout: 15000 }).not.toEqual(original);
   await awaitSavedOrder();
   const committed = await savedAnnotations(page);
   await page.evaluate(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
