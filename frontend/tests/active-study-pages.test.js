@@ -37,6 +37,15 @@ test("a page permits fewer than fifteen; older banks of twenty use only the firs
   assert.throws(() => customPageRanges(2, 22, 11));
 });
 
+test("custom maximum reflects the least-stocked group and the short final group", () => {
+  assert.equal(maxCustomQuestions(2, 2, [5, 7]), 12, "two pages with 12 real questions");
+  assert.equal(maxCustomQuestions(5, 2, [8, 8, 8, 8, 4]), 4, "odd last group is the limit");
+  assert.equal(maxCustomQuestions(4, 2, [8, 8, 8, 4]), 12, "even grouping uses its least-stocked pair");
+  assert.equal(maxCustomQuestions(3, 3, [20, 20, 20]), 30, "invalid inventory falls back to theoretical limit");
+  assert.equal(maxCustomQuestions(2, 2, [20, 20]), 30, "legacy bank counts are capped before exposure");
+  assert.equal(maxCustomQuestions(3, 2), 15, "old availability without counts remains usable");
+});
+
 test("new-sheet prompts use physical PDF pages and up to fifteen questions per page", () => {
   const prompt = buildActiveStudyJsonPrompt({ questionFormat: "pages", difficulty: "medium", numberOfParts: 2, pageRanges: ranges, questionsPerPart: 15, finalExamQuestions: 50 });
   const skeleton = JSON.parse(prompt.slice(prompt.indexOf('{\n  "pages"'), prompt.indexOf('\nVerify every')));
