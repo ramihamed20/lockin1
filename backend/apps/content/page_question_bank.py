@@ -37,13 +37,14 @@ def max_available_custom_questions(
         page["page"]: min(QUESTIONS_PER_PAGE, len(page["questions"]))
         for page in payload["pages"]
     }
-    return min(
-        MAX_CUSTOM_QUESTIONS,
-        *(
-            sum(counts.get(page, 0) for page in range(group["start_page"], group["end_page"] + 1))
-            for group in custom_page_ranges(start, end, pages_per_checkpoint)
-        ),
-    )
+    per_checkpoint = []
+    for group in custom_page_ranges(start, end, pages_per_checkpoint):
+        available = sum(
+            counts.get(page, 0)
+            for page in range(group["start_page"], group["end_page"] + 1)
+        )
+        per_checkpoint.append(available)
+    return min(MAX_CUSTOM_QUESTIONS, min(per_checkpoint))
 
 
 def select_page_questions(
