@@ -357,6 +357,11 @@ class Command(BaseCommand):
                 allow_download=True,
             )
 
+        # The curated demo bank is part-based; new sheets default to page banks.
+        if sheet.active_study_page_bank_enabled:
+            sheet.active_study_page_bank_enabled = False
+            sheet.save(update_fields=("active_study_page_bank_enabled",))
+
         current = ActiveStudySettings.objects.filter(sheet=sheet, edition="university").first()
         if current is None or not current.enabled:
             update_active_study_settings(

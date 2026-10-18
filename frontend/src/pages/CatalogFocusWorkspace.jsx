@@ -93,7 +93,7 @@ import { useMarksSet } from "../workspace/catalog/useMarksSet.js";
 import { AnnotationSharePanel } from "../workspace/catalog/AnnotationSharePanel.jsx";
 import StartRescue from "../rescue/StartRescue.jsx";
 import { RESCUE_ENABLED } from "../rescue/model.js";
-import { STUDY_TOOLS_ENABLED, COMING_SOON_STUDY_TOOLS, availableStudyTools } from "../workspace/knowledge/model.js";
+import { KNOWLEDGE_FIXTURE_TOOLS, STUDY_TOOLS_ENABLED, COMING_SOON_STUDY_TOOLS, availableStudyTools } from "../workspace/knowledge/model.js";
 import { useMcqExplainLinks } from "../workspace/knowledge/useMcqExplainLinks.js";
 import { createKnowledgeStore } from "../workspace/knowledge/storage.js";
 import { knowledgeApi } from "../api/knowledge.js";
@@ -5756,7 +5756,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   }, [workspaceReady, studyToolsAvailable, studyToolFlags?.documentId, shareDocumentId, user?.id]);
   const enabledStudyTools = studyToolsAvailable && studyToolFlags?.documentId === shareDocumentId ? availableStudyTools(studyToolFlags.tools) : {};
   // The knowledge panel's own summary is replaced by My Summary (below); its map and explain tools stay.
-  const studyTools = /** @type {[string, typeof FileText][]} */ ([["map", Network], ["explain", Lightbulb]]).filter(([tool]) => enabledStudyTools[tool]);
+  const studyTools = /** @type {[string, typeof FileText][]} */ ([...(KNOWLEDGE_FIXTURE_TOOLS ? [["summary", FileText]] : []), ["map", Network], ["explain", Lightbulb]]).filter(([tool]) => enabledStudyTools[tool]);
   function openStudyTool(tool) {
     setOpenSurface(null);
     setKnowledgeVisited(true); setKnowledgeOpen(true);

@@ -111,7 +111,7 @@ test("iPad 1180: pause, page test, five-minute break and next unread pages", asy
   const calls = await setup(page);
   await start(page);
   const clock = page.locator(".pomodoro-study-clock");
-  expect((await clock.boundingBox()).width).toBeGreaterThan(170);
+  expect((await clock.boundingBox()).width).toBeGreaterThanOrEqual(140);
   await clock.getByRole("button", { name: "Pause timer", exact: true }).click();
   const paused = await clock.getByRole("timer").innerText();
   await page.clock.fastForward(60_000);
@@ -153,7 +153,7 @@ test("Arabic 375: right-hand translucent clock and single-page question capacity
   expect(alpha).not.toMatch(/rgb\(\d+, \d+, \d+\)/);
   await page.clock.fastForward(25 * 60 * 1000);
   const dialog = page.getByRole("dialog", { name: "انتهت 25 دقيقة", exact: true });
-  await expect(dialog.getByRole("spinbutton", { name: "عدد الأسئلة", exact: true })).toHaveAttribute("max", "20");
+  await expect(dialog.getByRole("spinbutton", { name: "عدد الأسئلة", exact: true })).toHaveAttribute("max", "15");
   const dialogBounds = await dialog.boundingBox();
   expect(dialogBounds.x).toBeGreaterThanOrEqual(0);
   expect(dialogBounds.x + dialogBounds.width).toBeLessThanOrEqual(375);

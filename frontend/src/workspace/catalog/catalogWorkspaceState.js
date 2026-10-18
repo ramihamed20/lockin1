@@ -23,10 +23,10 @@ function safePoint(point) {
     contactHeight: Math.max(0, finite(point?.contactHeight)),
     tiltX: Math.min(90, Math.max(-90, finite(point?.tiltX))),
     tiltY: Math.min(90, Math.max(-90, finite(point?.tiltY))),
-    altitudeAngle: Number.isFinite(Number(point?.altitudeAngle)) ? finite(point.altitudeAngle) : null,
-    azimuthAngle: Number.isFinite(Number(point?.azimuthAngle)) ? finite(point.azimuthAngle) : null,
-    twist: Number.isFinite(Number(point?.twist)) ? finite(point.twist) : null,
-    tangentialPressure: Number.isFinite(Number(point?.tangentialPressure)) ? finite(point.tangentialPressure) : null
+    altitudeAngle: point?.altitudeAngle != null && Number.isFinite(Number(point?.altitudeAngle)) ? finite(point.altitudeAngle) : null,
+    azimuthAngle: point?.azimuthAngle != null && Number.isFinite(Number(point?.azimuthAngle)) ? finite(point.azimuthAngle) : null,
+    twist: point?.twist != null && Number.isFinite(Number(point?.twist)) ? finite(point.twist) : null,
+    tangentialPressure: point?.tangentialPressure != null && Number.isFinite(Number(point?.tangentialPressure)) ? finite(point.tangentialPressure) : null
   };
 }
 

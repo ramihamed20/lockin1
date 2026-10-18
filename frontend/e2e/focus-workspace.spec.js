@@ -359,7 +359,7 @@ test("Active Study reading chrome and checkpoint remain unobstructed @chromium-o
   const dialog = page.getByRole("dialog", { name: "Choose study mode" });
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: /Start Active Study/ }).click();
-  await expect(page.getByRole("button", { name: "Active Study: part 1 of 4" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pages 1–10" })).toBeVisible();
   const checkpoint = page.locator(".workspace-v2-checkpoint-dock");
   await expect(checkpoint).toBeVisible();
   await expect(page.getByRole("button", { name: "Reach page 10 to unlock the checkpoint" })).toBeVisible();
@@ -414,7 +414,7 @@ test("Active Study can restart saved progress from Part 1 without changing the P
   await dialog.getByRole("button", { name: "Restart Medium from the beginning" }).click();
   await expect(dialog.getByText(/Your PDF notes and annotations stay/)).toBeVisible();
   await dialog.getByRole("button", { name: "Restart from Part 1" }).click();
-  await expect(page.getByRole("button", { name: "Active Study: part 1 of 4" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pages 1–10" })).toBeVisible();
   await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]").first()).toBeVisible();
   expect(restartRequests).toBe(1);
 });
@@ -474,7 +474,7 @@ test("a sheet opens in Normal Study, reopens where Active Study was saved, and D
   await expect(studyButton).toHaveClass(/is-normal/);
   await openStudyMode();
   await modeDialog.getByRole("button", { name: /Start Active Study/ }).click();
-  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pages 11–20" })).toBeVisible();
   await expect(indicator).toHaveAttribute("aria-label", "PDF page 15 of 20");
 
   // Leaving asks; Cancel stays, Save leaves.
@@ -489,7 +489,7 @@ test("a sheet opens in Normal Study, reopens where Active Study was saved, and D
 
   // Coming back resumes the saved run at its page, without the chooser.
   await openFromSheet();
-  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pages 11–20" })).toBeVisible();
   await expect(indicator).toHaveAttribute("aria-label", "PDF page 15 of 20");
   await expect(modeDialog).toBeHidden();
   expect(starts).toEqual(["medium", "medium"]);
@@ -730,7 +730,7 @@ test("an Active Study checkpoint asks before closing, saves or discards only the
   await exit.getByRole("button", { name: "Exit Without Saving" }).click();
   await expect(quiz).toHaveCount(0);
   expect(calls.filter((call) => call === "discard-attempt")).toHaveLength(2);
-  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pages 11–20" })).toBeVisible();
   await openCheckpoint();
   await expect(quiz.getByText("0 of 2 answered")).toBeVisible();
 
@@ -805,7 +805,7 @@ test("passing a checkpoint unlocks the next part below the reader instead of ret
   await page.getByRole("dialog", { name: "1 / 1" }).getByRole("button", { name: "Continue studying" }).click();
 
   // Part 2 is appended; Part 1 stays mounted and the reader has not moved.
-  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pages 11–20" })).toBeVisible();
   await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]")).toHaveCount(20);
   await expect(page.locator('.workspace-v2-a4-page[data-pdf-page="1"]')).toHaveCount(1);
   await expect(page.locator('.workspace-v2-a4-page[data-pdf-page="21"]')).toHaveCount(0);
@@ -891,7 +891,7 @@ test("an online True/False checkpoint is answered and submitted through the serv
   await third.getByRole("button", { name: "Submit test" }).click();
 
   await page.getByRole("dialog", { name: "3 / 3" }).getByRole("button", { name: "Continue studying" }).click();
-  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pages 11–20" })).toBeVisible();
   expect(posted).toEqual(["T", "F", "B"]);
   await expect(page.getByText("The request could not be completed.")).toHaveCount(0);
   expect(offlineSyncs).toEqual([]);
@@ -899,5 +899,5 @@ test("an online True/False checkpoint is answered and submitted through the serv
   // The server's run is what a reload restores.
   await page.reload();
   await page.getByRole("dialog", { name: "Choose study mode" }).getByRole("button", { name: /Active Study/ }).first().click();
-  await expect(page.getByRole("button", { name: "Active Study: part 2 of 4" })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("button", { name: "Pages 11–20" })).toBeVisible({ timeout: 20_000 });
 });

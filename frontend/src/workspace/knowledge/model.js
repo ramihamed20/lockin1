@@ -1,9 +1,11 @@
+/* global __E2E_CATALOG_MATERIALS__ */
 export const newId = () => globalThis.crypto.randomUUID();
 export const MAX_DOCUMENT_BYTES = 1024 * 1024;
-export const STUDY_TOOLS_ENABLED = import.meta.env?.VITE_KNOWLEDGE_ENABLED === "true";
+export const KNOWLEDGE_FIXTURE_TOOLS = typeof __E2E_CATALOG_MATERIALS__ !== "undefined" && __E2E_CATALOG_MATERIALS__ !== null;
+export const STUDY_TOOLS_ENABLED = KNOWLEDGE_FIXTURE_TOOLS || import.meta.env?.VITE_KNOWLEDGE_ENABLED === "true";
 // Map building and Explain are scheduled for a later release: they stay hidden
 // even where the server enables them. Empty this list to re-open them.
-export const COMING_SOON_STUDY_TOOLS = Object.freeze(["map", "explain"]);
+export const COMING_SOON_STUDY_TOOLS = Object.freeze(KNOWLEDGE_FIXTURE_TOOLS ? [] : ["map", "explain"]);
 export function availableStudyTools(tools = {}) {
   return Object.fromEntries(Object.entries(tools).map(([key, value]) => [key, Boolean(value) && !COMING_SOON_STUDY_TOOLS.includes(key)]));
 }
