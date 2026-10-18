@@ -234,12 +234,14 @@ const local = {
       if (!row?.customization_available || !content.pages) throw new ActiveStudyRuleError("Customization is available only for new page-based sheets.");
       if (!Number.isInteger(questionsPerCheckpoint) || questionsPerCheckpoint < 1 || questionsPerCheckpoint > MAX_CUSTOM_QUESTIONS) throw new ActiveStudyRuleError(`Choose between 1 and ${MAX_CUSTOM_QUESTIONS} questions.`);
       ranges = customPageRanges(ranges[0].start_page, ranges.at(-1).end_page, pagesPerCheckpoint);
+     }
+    const key = runKey(sheetId, edition, difficulty, studyMode);
+    const existing = await readRun(userId, key);
+    if (studyMode === "custom" && !(existing?.status === "active" && !replaceExisting)) {
       const counts = [...content.pages].sort((a, b) => a.page - b.page).map((page) => Math.min(QUESTIONS_PER_PAGE, page.questions.length));
       const available = maxCustomQuestions(counts.length, pagesPerCheckpoint, counts);
       if (questionsPerCheckpoint > available) throw new ActiveStudyRuleError(`Choose at most ${available} available questions for this page count.`);
     }
-    const key = runKey(sheetId, edition, difficulty, studyMode);
-    const existing = await readRun(userId, key);
     if (existing?.status === "active" && !replaceExisting) {
       if (studyMode === "custom" && (existing.pages_per_checkpoint !== pagesPerCheckpoint || existing.questions_per_checkpoint !== questionsPerCheckpoint)) throw new ActiveStudyRuleError("Resume or restart your saved custom session before changing its settings.");
       return { run: runPayload(existing), resumed: true };
