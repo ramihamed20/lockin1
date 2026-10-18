@@ -198,9 +198,9 @@ test("the JSON box stays uncontrolled so a large paste does not re-render per ke
 });
 
 test("validation shows per-part counts, a total, and each error with its location and JSON path", () => {
-  assert.match(panel, /\{row\.question_format === "pages" \? "Page" : "Part"\} \{part\.part\} — \{part\.received\}\/\{part\.expected\}/);
+  assert.match(panel, /\{row\.question_format === "pages" \? "Page" : "Part"\} \{part\.part\} — \{part\.received\}\/\{row\.question_format === "pages" \? `≤\$\{part\.expected\}` : part\.expected\}/);
   assert.match(panel, /Final Exam — \{row\.final_exam\.received\}\/\{row\.final_exam\.expected\}/);
-  assert.match(panel, /Total: \{summary\.total_received\} \/ \{summary\.total_expected\} Questions/);
+  assert.match(panel, /Total: \{summary\.total_received\} \/ \{summary\.difficulties\.every\(\(row\) => row\.question_format === "pages"\) \? "up to " : ""\}\{summary\.total_expected\} Questions/);
   assert.match(panel, /<strong>\{item\.section\}<\/strong><span>\{item\.message\}<\/span><code>\{item\.path\}<\/code>/);
   assert.match(panel, /Nothing has been saved\./);
   // A failed validation still carries its summary in the error body.

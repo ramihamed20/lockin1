@@ -39,7 +39,7 @@ function ValidationSummary({ body }) {
       {summary.difficulties.map((row) => <div key={row.difficulty} className={row.ok ? "is-ok" : "is-error"}>
         <h5><Mark ok={row.ok} />{row.label}</h5>
         <details open={!row.ok}><summary>{t("allQuestions.readyGroups")}</summary><ul>
-          {row.parts.map((part) => <li key={part.part} className={part.ok ? "is-ok" : "is-error"}><Mark ok={part.ok} />{row.question_format === "pages" ? "Page" : "Part"} {part.part} — {part.received}/{part.expected}<small>Pages {part.start_page}–{part.end_page}</small></li>)}
+          {row.parts.map((part) => <li key={part.part} className={part.ok ? "is-ok" : "is-error"}><Mark ok={part.ok} />{row.question_format === "pages" ? "Page" : "Part"} {part.part} — {part.received}/{row.question_format === "pages" ? `≤${part.expected}` : part.expected}<small>Pages {part.start_page}–{part.end_page}</small></li>)}
           <li className={row.final_exam.ok ? "is-ok" : "is-error"}><Mark ok={row.final_exam.ok} />Final Exam — {row.final_exam.received}/{row.final_exam.expected}</li>
         </ul></details>
         <p>{row.question_format === "pages" ? "Pages" : "Parts"}: {row.part_questions_received} Questions · Final: {row.final_exam.received} Questions</p>
@@ -49,7 +49,7 @@ function ValidationSummary({ body }) {
         <p>{summary.sheet_questions.received}/{summary.sheet_questions.expected} Questions</p>
       </div>
     </div>
-    <p className="admin-all-questions-total"><strong>Total: {summary.total_received} / {summary.total_expected} Questions</strong></p>
+    <p className="admin-all-questions-total"><strong>Total: {summary.total_received} / {summary.difficulties.every((row) => row.question_format === "pages") ? "up to " : ""}{summary.total_expected} Questions</strong></p>
     {!body.valid && <ol className="admin-all-questions-errors">
       {body.errors.slice(0, SHOWN_ERRORS).map((item, index) => <li key={`${item.path}-${index}`}><strong>{item.section}</strong><span>{item.message}</span><code>{item.path}</code></li>)}
     </ol>}
@@ -211,7 +211,7 @@ export function AllQuestionsPanel({ sheet, canManageQuestions = true, onSaved = 
 
       {pageBank && <p className="form-alert">{t("allQuestions.pageBankHint")} {t("allQuestions.sharedHint")}</p>}
       <h4 className="admin-all-questions-heading">Active Study</h4>
-      <ul className="admin-all-questions-plan">{totals.difficulties.map((row) => <li key={row.difficulty}><strong>{row.label}</strong><span>{row.parts} {row.questionFormat === "pages" ? "pages" : "parts"} · {row.partQuestions} questions</span><span>Final Exam: {row.finalExam}</span></li>)}</ul>
+      <ul className="admin-all-questions-plan">{totals.difficulties.map((row) => <li key={row.difficulty}><strong>{row.label}</strong><span>{row.parts} {row.questionFormat === "pages" ? "pages" : "parts"} · {row.questionFormat === "pages" ? "up to " : ""}{row.partQuestions} questions</span><span>Final Exam: {row.finalExam}</span></li>)}</ul>
 
       <h4 className="admin-all-questions-heading">Normal Questions</h4>
       <div className="admin-manage-row">
@@ -221,7 +221,7 @@ export function AllQuestionsPanel({ sheet, canManageQuestions = true, onSaved = 
       {!canManageQuestions && <small className="admin-active-study-copy-status">Adding Normal Questions requires the Manage assessments permission.</small>}
 
       <details className="admin-all-questions-style"><summary>{t("allQuestions.style")}</summary><label className="field"><span>{t("allQuestions.styleHint")}</span><textarea maxLength={6000} rows={4} value={examStyle} onChange={(event) => setExamStyle(event.target.value)} /></label></details>
-      <p className="admin-all-questions-total"><strong>Total: {totals.total} Questions</strong></p>
+      <p className="admin-all-questions-total"><strong>Total: {pageBank ? "up to " : ""}{totals.total} Questions</strong></p>
       <div className="admin-active-study-content-actions">
         <button className="btn btn-primary compact" type="button" disabled={!settled || !prompt} onClick={copy}><Icon name="sparkles" size={16} />Copy All Questions Prompt</button>
         <button className="btn btn-soft compact" type="button" disabled={!settled || !prompt} onClick={() => downloadAllQuestionsPrompt(prompt, sheet.id)}>{t("allQuestions.download")}</button>
