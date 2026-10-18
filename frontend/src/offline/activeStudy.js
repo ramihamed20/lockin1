@@ -1,4 +1,4 @@
-import { customPageRanges, MAX_CUSTOM_QUESTIONS, QUESTIONS_PER_PAGE, selectPageQuestions } from "../lib/activeStudyPages.js";
+import { customPageRanges, maxCustomQuestions, MAX_CUSTOM_QUESTIONS, QUESTIONS_PER_PAGE, selectPageQuestions } from "../lib/activeStudyPages.js";
 import { offlineDatabase } from "./database.js";
 import { captureOfflineSession } from "./sessionScope.js";
 import { getOfflineActiveStudy, readDownloadMetadata } from "./downloads.js";
@@ -235,14 +235,7 @@ const local = {
       if (!Number.isInteger(questionsPerCheckpoint) || questionsPerCheckpoint < 1 || questionsPerCheckpoint > MAX_CUSTOM_QUESTIONS) throw new ActiveStudyRuleError(`Choose between 1 and ${MAX_CUSTOM_QUESTIONS} questions.`);
       ranges = customPageRanges(ranges[0].start_page, ranges.at(-1).end_page, pagesPerCheckpoint);
       const counts = [...content.pages].sort((a, b) => a.page - b.page).map((page) => Math.min(QUESTIONS_PER_PAGE, page.questions.length));
-      const available = Math.min(MAX_CUSTOM_QUESTIONS, ...ranges.map((range) => {
-        const sourceStart = content.source_page_ranges[0].start_page;
-        const groupStart = range.start_page - content.page_ranges[0].start_page;
-        const length = range.end_page - range.start_page + 1;
-        // The source bank and the current edition have the same count of study pages.
-        void sourceStart;
-        return counts.slice(groupStart, groupStart + length).reduce((total, count) => total + count, 0);
-      }));
+      const available = maxCustomQuestions(counts.length, pagesPerCheckpoint, counts);
       if (questionsPerCheckpoint > available) throw new ActiveStudyRuleError(`Choose at most ${available} available questions for this page count.`);
     }
     const key = runKey(sheetId, edition, difficulty, studyMode);
