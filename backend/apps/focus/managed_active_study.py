@@ -293,17 +293,6 @@ def _runtime_plan(
         ranges = custom_page_ranges(start, end, pages_per_checkpoint)
     except ValueError as error:
         raise ManagedActiveStudyRuleError(str(error)) from error
-    # Enforce the actual inventory of every checkpoint, not just 15 * page count.
-    max_questions = max_available_custom_questions(
-        content.payload,
-        source_ranges[0]["start_page"],
-        source_ranges[-1]["end_page"],
-        pages_per_checkpoint,
-    )
-    if questions_per_checkpoint > max_questions:
-        raise ManagedActiveStudyRuleError(
-            f"Choose at most {max_questions} available questions for this page count."
-        )
     return {
         **plan,
         "page_ranges": ranges,
@@ -488,6 +477,20 @@ def start(
     existing = _active_run(
         user=user, sheet=sheet, difficulty=difficulty, edition=edition, study_mode=study_mode
     )
+    if study_mode == "custom" and (existing is None or replace_existing):
+        # Use the least-stocked real checkpoint when creating a new run.
+        # Previously started runs can still resume their saved settings.
+        source_ranges = content.plan_signature["page_ranges"]
+        max_questions = max_available_custom_questions(
+            content.payload,
+            source_ranges[0]["start_page"],
+            source_ranges[-1]["end_page"],
+            cast(int, pages_per_checkpoint),
+        )
+        if cast(int, questions_per_checkpoint) > max_questions:
+            raise ManagedActiveStudyRuleError(
+                f"Choose at most {max_questions} available questions for this page count."
+            )
     if existing is not None and replace_existing and study_mode in {"custom", "pomodoro"}:
         abandon(user=user, run_id=existing.id)
         existing = None
