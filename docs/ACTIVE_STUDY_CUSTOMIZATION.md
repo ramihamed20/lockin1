@@ -25,7 +25,7 @@ Legacy sheets continue importing `parts`. New sheets import:
 }
 ```
 
-Every eligible physical PDF page must appear exactly once and contain 15 distinct supported MCQ/True-False questions; the final exam keeps the configured count. Banks written earlier with 20 per page stay valid and use only the first 15 of each page. The arrays above are a structural example, not an importable complete bank. This per-page capacity makes a 15-question test on a single page possible. If the source cannot support that many valid questions, the prompt instructs the author to report the limitation instead of inventing content.
+Every eligible physical PDF page must appear exactly once and contain 1–15 distinct supported MCQ/True-False questions (up to 15, not exactly 15); the final exam keeps the configured count. Banks written earlier with 20 per page stay valid and use only the first 15 of each page. The arrays above are a structural example, not an importable complete bank. This per-page capacity makes a 15-question test on a single page possible. The prompt instructs the author to generate fewer supported questions when needed instead of inventing content. Checkpoints choose up to the requested count based on what is available from the assigned pages; final exams still use their configured exact counts.
 
 Single-difficulty and All Questions prompts, validation, save, counts and previews use the same page contract. Questions are authored on the University Sheet tab. Both PDFs share that bank. Customization of the Lockin edition is enabled only when its eligible page count matches the University edition; source page numbers then use the exclusion offset. Mismatched editions retain the standard style. No inferred page mapping is introduced.
 
