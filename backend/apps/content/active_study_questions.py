@@ -270,9 +270,12 @@ def validate_active_study_questions(
         "parts": sorted(parts, key=lambda item: cast(int, item["part"])),
         "final_exam": {"questions": final_questions},
     }
+    question_count = 0
+    for part in parts:
+        question_count += len(cast(list[object], part["questions"]))
     return ActiveStudyQuestionValidationResult(
         payload=normalized_payload,
-        checkpoint_question_count=sum(len(cast(list[object], part["questions"])) for part in parts),
+        checkpoint_question_count=question_count,
         final_exam_question_count=len(final_questions),
     )
 
@@ -321,6 +324,7 @@ def _validate_page_bank(
         )
         else QUESTIONS_PER_PAGE
     )
+    page_limit = QUESTIONS_PER_PAGE if per_page == QUESTIONS_PER_PAGE else None
     try:
         checked = validate_active_study_questions(
             {
@@ -330,9 +334,7 @@ def _validate_page_bank(
             },
             difficulty=replace(difficulty, questions_per_checkpoint=per_page),
             number_of_parts=len(expected),
-            max_questions_per_part=(
-                QUESTIONS_PER_PAGE if per_page == QUESTIONS_PER_PAGE else None
-            ),
+            max_questions_per_part=page_limit,
         )
     except ActiveStudyQuestionValidationError as error:
         raise ActiveStudyQuestionValidationError(
