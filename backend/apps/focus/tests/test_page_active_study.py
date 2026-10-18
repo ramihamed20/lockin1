@@ -266,11 +266,11 @@ def test_sparse_page_banks_work_in_standard_custom_and_offline_modes():
     downloaded = offline_bundle(user=user, sheet_id=sheet.id)
     assert len(downloaded["difficulties"]["medium"]["parts"][0]["questions"]) == expected_count
 
-    with pytest.raises(ManagedActiveStudyRuleError, match="at most 2 questions"):
-        custom_start(user, sheet, pages=2, count=3)
-    custom, _ = custom_start(user, sheet, pages=2, count=2)
+    with pytest.raises(ManagedActiveStudyRuleError, match="at most 3 questions"):
+        custom_start(user, sheet, pages=3, count=4)
+    custom, _ = custom_start(user, sheet, pages=3, count=3)
     complete_part_reading(user=user, run_id=custom.id)
-    assert len(questions(user=user, run_id=custom.id)["questions"]) == 2
+    assert len(questions(user=user, run_id=custom.id)["questions"]) == 3
 
 
 def test_a_bank_of_twenty_per_page_written_before_the_fifteen_rule_stays_ready():

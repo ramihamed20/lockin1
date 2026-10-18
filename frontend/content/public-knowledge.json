@@ -1856,7 +1856,7 @@
     "docs/ACCOUNT_DELETION_RETENTION.md": "bbbadadaca0c6c97a01df471ff300fedff71eafa16473ad21188695929764c00",
     "frontend/src/lib/featureAvailability.js": "398440aa49931ae0c14b03267fa8745740167e3c922a235ab7f62fe4ad7b8809",
     "frontend/src/pages/MyGroup.jsx": "8bb12fa42170deb4d4bd3f9e7e8edf0b9914cec68f0e4e1878cf459fd40fdf4d",
-    "backend/apps/focus/tests/test_page_active_study.py": "612d5317432f00c0a664fc13aa7179ba2d27da68f6ef678b754951abe6836bc0",
+    "backend/apps/focus/tests/test_page_active_study.py": "6e59df252f7d2643247689ae1279499675f738104934d48eb64113411f2bbacd",
     "frontend/src/components/shared/ActiveStudyCustomization.jsx": "b7e5ba0631d30781d2dd0921deec5333d59b5630620453adbe6f8123306184c6",
     "frontend/e2e/focus-active-study-customization.spec.js": "a7ed0213b69958fd7ced7b66da00c2fa8fe60fc411c244f01ae69028570a1aa9",
     "backend/apps/focus/pomodoro.py": "bded6f7e6c9f63de6665bb2fa66237bdc53d58c5eb601a31be05927b8341fcb8",
