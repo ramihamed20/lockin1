@@ -352,6 +352,9 @@ class ActiveStudyRun(models.Model):
     stage = models.CharField(max_length=24, choices=Stage.choices, default=Stage.READING)
     completed_parts = models.JSONField(default=list)
     plan_signature = models.JSONField(default=dict)
+    # The Pomodoro countdown as the student's last device left it, so another
+    # device resumes the same minute. Timing only: progress stays above.
+    pomodoro_clock = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

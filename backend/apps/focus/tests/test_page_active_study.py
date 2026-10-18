@@ -39,12 +39,12 @@ def page_world():
     content = ActiveStudyQuestionContent.objects.get(sheet=sheet)
     content.payload = {
         "pages": [
-            {"page": page, "questions": [_question(f"page-{page}-q-{q}") for q in range(20)]}
+            {"page": page, "questions": [_question(f"page-{page}-q-{q}") for q in range(15)]}
             for page in range(2, 23)
         ],
         "final_exam": {"questions": [_question(f"final-{q}") for q in range(50)]},
     }
-    content.checkpoint_question_count = 420
+    content.checkpoint_question_count = 315
     content.save()
     return user, sheet, content
 
@@ -98,7 +98,8 @@ def test_new_bank_supports_both_styles_with_independent_progress_and_page_only_q
 
 
 @pytest.mark.parametrize(
-    ("pages", "count"), [(0, 5), (22, 5), (3, 0), (3, 21), (True, 5), (3, True)]
+    ("pages", "count"),
+    [(0, 5), (11, 5), (22, 5), (3, 0), (3, 31), (1, 16), (True, 5), (3, True)],
 )
 def test_custom_limits_are_server_owned(pages, count):
     user, sheet, _ = page_world()
@@ -117,14 +118,14 @@ def test_legacy_sheet_never_enables_customization_or_accepts_custom_start():
     assert run.study_mode == "standard"
 
 
-def test_last_group_remains_short_and_twenty_question_max_works_for_single_page():
+def test_last_group_remains_short_and_fifteen_question_max_works_for_single_page():
     user, sheet, _ = page_world()
-    run, _ = custom_start(user, sheet, pages=4, count=20)
+    run, _ = custom_start(user, sheet, pages=4, count=15)
     assert run.plan_signature["page_ranges"][-1] == {"part": 6, "start_page": 22, "end_page": 22}
     for _ in range(6):
         complete_part_reading(user=user, run_id=run.id)
         payload = questions(user=user, run_id=run.id)
-        assert len(payload["questions"]) == 20
+        assert len(payload["questions"]) == 15
         run, _ = pass_test(user, run)
     assert run.stage == "final"
     assert len(questions(user=user, run_id=run.id)["questions"]) == 50
@@ -147,16 +148,23 @@ def test_setting_changes_require_explicit_replacement_and_keep_standard_progress
 
 def test_custom_and_standard_completion_do_not_duplicate_completion_xp():
     user, sheet, _ = page_world()
-    run, _ = custom_start(user, sheet, pages=21, count=1)
-    complete_part_reading(user=user, run_id=run.id)
-    run, _ = pass_test(user, run)
-    run, _ = pass_test(user, run)
+
+    def finish(run):
+        # Ten pages is the largest group, so 21 study pages take three checkpoints.
+        for _ in range(8):
+            if run.status == "completed":
+                break
+            if run.stage == "reading":
+                complete_part_reading(user=user, run_id=run.id)
+            run, _ = pass_test(user, run)
+        return run
+
+    run, _ = custom_start(user, sheet, pages=10, count=1)
+    run = finish(run)
     assert run.status == "completed"
-    second, _ = custom_start(user, sheet, pages=21, count=20)
-    complete_part_reading(user=user, run_id=second.id)
-    second, _ = pass_test(user, second)
-    second, _ = pass_test(user, second)
-    assert second.xp_awarded == 0
+    second, _ = custom_start(user, sheet, pages=10, count=15)
+    second = finish(second)
+    assert second.status == "completed" and second.xp_awarded == 0
     assert (
         XpTransaction.objects.filter(
             source_key=f"active-study-managed:{user.id}:{sheet.id}:medium"
@@ -221,7 +229,7 @@ def test_page_json_rejects_omitted_excluded_duplicate_pages_and_incomplete_banks
             question_format="pages",
         )
 
-    assert validate(content.payload).checkpoint_question_count == 420
+    assert validate(content.payload).checkpoint_question_count == 315
     for change in (
         lambda p: p["pages"].pop(),
         lambda p: p["pages"][0].update(page=1),
@@ -234,11 +242,34 @@ def test_page_json_rejects_omitted_excluded_duplicate_pages_and_incomplete_banks
             validate(invalid)
 
 
+def test_a_bank_of_twenty_per_page_written_before_the_fifteen_rule_stays_ready():
+    user, sheet, content = page_world()
+    content.payload = {
+        **content.payload,
+        "pages": [
+            {**page, "questions": [_question(f"old-{page['page']}-{q}") for q in range(20)]}
+            for page in content.payload["pages"]
+        ],
+    }
+    content.save()
+    row = next(
+        item
+        for item in availability(user=user, sheet_id=sheet.id)["difficulties"]
+        if item["difficulty"] == "medium"
+    )
+    assert row["status"] == "ready" and row["pomodoro_available"]
+    run, _ = custom_start(user, sheet, pages=1, count=15)
+    complete_part_reading(user=user, run_id=run.id)
+    assert len(questions(user=user, run_id=run.id)["questions"]) == 15
+    with pytest.raises(ManagedActiveStudyRuleError):
+        custom_start(user, sheet, pages=1, count=16, replace_existing=True)
+
+
 def test_page_format_is_consistent_in_all_questions_context_and_validator():
     _, sheet, content = page_world()
     context = all_questions_context(sheet=sheet, edition="university")
     assert all(
-        row["question_format"] == "pages" and row["part_question_total"] == 420
+        row["question_format"] == "pages" and row["part_question_total"] == 315
         for row in context["difficulties"]
     )
     result = validate_all_questions(
@@ -250,11 +281,11 @@ def test_page_format_is_consistent_in_all_questions_context_and_validator():
             "sheet_questions": {"questions": []},
         },
     )
-    assert result.summary["total_received"] == 3 * 470
+    assert result.summary["total_received"] == 3 * 365
     assert all(row["question_format"] == "pages" for row in result.summary["difficulties"])
 
 
-def test_api_enforces_twenty_max_and_does_not_leak_customization_to_legacy_sheets():
+def test_api_enforces_thirty_max_and_does_not_leak_customization_to_legacy_sheets():
     user, sheet, _ = page_world()
     _grant_focus(user)
     client = _client(user)
@@ -263,7 +294,7 @@ def test_api_enforces_twenty_max_and_does_not_leak_customization_to_legacy_sheet
         "difficulty": "medium",
         "study_mode": "custom",
         "pages_per_checkpoint": 3,
-        "questions_per_checkpoint": 21,
+        "questions_per_checkpoint": 31,
     }
     path = "/api/v1/focus/managed-active-study/start"
     assert client.post(path, body, format="json").status_code == 400
@@ -305,7 +336,7 @@ def test_page_bank_import_uses_the_admin_validation_and_persistence_path():
         actor=actor, sheet_id=sheet.id, difficulty_key="hard", payload=payload, expected_revision=0
     )
     assert "pages" in saved.payload and "parts" not in saved.payload
-    assert saved.checkpoint_question_count == 420
+    assert saved.checkpoint_question_count == 315
 
 
 def test_custom_run_refuses_changed_bank_before_grading_or_resuming():

@@ -52,6 +52,7 @@ from .admin_services import (
 )
 from .editions import LOCKIN, UNIVERSITY, edition_label, normalize_edition
 from .models import ActiveStudyQuestionContent, LearningObject
+from .page_question_bank import QUESTIONS_PER_PAGE
 from .services import ContentConflictError, ContentRuleError
 
 # A fully broken paste of several hundred questions can produce thousands of
@@ -173,13 +174,13 @@ def all_questions_context(
             for r in cast(list[dict[str, int]], row["page_ranges"])
             for page in range(r["start_page"], r["end_page"] + 1)
         ]
-        bank_total = len(pages) * 20 if page_bank else parts * per_part
+        bank_total = len(pages) * QUESTIONS_PER_PAGE if page_bank else parts * per_part
         difficulties.append(
             {
                 "difficulty": key,
                 "question_format": row.get("question_format", "parts"),
                 "page_numbers": pages,
-                "questions_per_page": 20,
+                "questions_per_page": QUESTIONS_PER_PAGE,
                 "label": DIFFICULTY_LABELS[key],
                 "number_of_parts": parts,
                 "page_ranges": row["page_ranges"],
@@ -528,7 +529,7 @@ def _summary(
             if page_bank and isinstance(raw.get("pages"), list)
             else raw.get("parts")
         )
-        per_part = 20 if page_bank else cast(int, row["questions_per_checkpoint"])
+        per_part = QUESTIONS_PER_PAGE if page_bank else cast(int, row["questions_per_checkpoint"])
         parts: list[dict[str, object]] = []
         planned_rows = (
             [

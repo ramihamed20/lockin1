@@ -1,4 +1,4 @@
-import { customPageRanges, selectPageQuestions } from "../lib/activeStudyPages.js";
+import { customPageRanges, MAX_CUSTOM_QUESTIONS, QUESTIONS_PER_PAGE, selectPageQuestions } from "../lib/activeStudyPages.js";
 import { offlineDatabase } from "./database.js";
 import { captureOfflineSession } from "./sessionScope.js";
 import { getOfflineActiveStudy, readDownloadMetadata } from "./downloads.js";
@@ -229,8 +229,10 @@ const local = {
     }
     if (studyMode === "custom") {
       if (!row?.customization_available || !content.pages) throw new ActiveStudyRuleError("Customization is available only for new page-based sheets.");
-      if (!Number.isInteger(questionsPerCheckpoint) || questionsPerCheckpoint < 1 || questionsPerCheckpoint > 20) throw new ActiveStudyRuleError("Choose between 1 and 20 questions.");
+      if (!Number.isInteger(questionsPerCheckpoint) || questionsPerCheckpoint < 1 || questionsPerCheckpoint > MAX_CUSTOM_QUESTIONS) throw new ActiveStudyRuleError(`Choose between 1 and ${MAX_CUSTOM_QUESTIONS} questions.`);
       ranges = customPageRanges(ranges[0].start_page, ranges.at(-1).end_page, pagesPerCheckpoint);
+      const shortest = Math.min(...ranges.map((item) => item.end_page - item.start_page + 1));
+      if (questionsPerCheckpoint > shortest * QUESTIONS_PER_PAGE) throw new ActiveStudyRuleError(`Choose at most ${shortest * QUESTIONS_PER_PAGE} questions for this page count.`);
     }
     const key = runKey(sheetId, edition, difficulty, studyMode);
     const existing = await readRun(userId, key);
@@ -351,10 +353,14 @@ const local = {
     if (existing && existing !== selectedAnswer) throw new ActiveStudyRuleError("This answer was already submitted.");
     const answers = { ...attempt.answers, [String(position)]: selectedAnswer };
     await saveRun(userId, { ...run, open_attempt: { ...attempt, answers } });
+    // The reader's page, as the server reports it, so results group by page offline too.
+    const sourcePage = Number(/^page:(\d+):/.exec(String(question.source_key || ""))?.[1]);
+    const offset = ["custom", "pomodoro"].includes(run.study_mode) ? run.source_page_offset || 0 : 0;
     return {
       correct: selectedAnswer === correctAnswer(question),
       correct_answer: correctAnswer(question),
       explanation: question.explanation,
+      ...(Number.isInteger(sourcePage) ? { page: sourcePage - offset } : {}),
       answered_count: Object.keys(answers).length,
       total: source.length
     };
@@ -560,7 +566,7 @@ export const activeStudyClient = {
       const review = [];
       for (const { position, selectedAnswer } of answers) {
         const checked = await local.answer(userId, localId, { attemptId, position, selectedAnswer });
-        review.push({ position, correct: checked.correct, correct_answer: checked.correct_answer, explanation: checked.explanation });
+        review.push({ position, correct: checked.correct, correct_answer: checked.correct_answer, explanation: checked.explanation, ...(Number.isInteger(checked.page) ? { page: checked.page } : {}) });
       }
       const payload = await local.submit(userId, localId, attemptId);
       return answers.length ? { ...payload, result: { ...payload.result, review } } : payload;

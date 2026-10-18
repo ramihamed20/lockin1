@@ -58,7 +58,7 @@ export function normalizeSheetQuestionCount(value, max = 200) {
 export function allQuestionsTotals(context, sheetQuestionCount) {
   const normal = normalizeSheetQuestionCount(sheetQuestionCount, context?.sheet_questions?.max_count ?? 200);
   const difficulties = (context?.difficulties || []).map((row) => {
-    const partQuestions = row.question_format === "pages" ? bankPageNumbers(row.page_ranges).length * 20 : row.number_of_parts * row.questions_per_checkpoint;
+    const partQuestions = row.question_format === "pages" ? bankPageNumbers(row.page_ranges).length * 15 : row.number_of_parts * row.questions_per_checkpoint;
     return { difficulty: row.difficulty, label: label(row), parts: row.question_format === "pages" ? bankPageNumbers(row.page_ranges).length : row.number_of_parts, questionFormat: row.question_format, partQuestions, finalExam: row.final_exam_questions, total: partQuestions + row.final_exam_questions };
   });
   return { difficulties, normal, total: difficulties.reduce((sum, row) => sum + row.total, 0) + normal };
@@ -239,14 +239,14 @@ function buildAllPageQuestionsPrompt(context, sheetQuestionCount, style = "") {
   }]));
   return `Generate every question for one Lock-in sheet as ONE valid JSON object. No Markdown, commentary or extra fields.
 Use only the supplied PDF, physical page numbers ${context.effective_start_page}–${context.effective_end_page}; excluded pages must not be used. Wait for the sheet if missing.
-For EACH difficulty (easy, medium, hard), create exactly 20 distinct questions for EACH eligible page, grouped under pages. Do not use parts.
+For EACH difficulty (easy, medium, hard), create exactly 15 distinct questions for EACH eligible page, grouped under pages. Do not use parts.
 ${ordered(context).map((row) => `${label(row)}: ${DIFFICULTY_BEHAVIOUR[row.difficulty]} Final exam: exactly ${row.final_exam_questions} separate questions covering the entire eligible sheet.`).join("\n")}
 Normal Sheet Questions: exactly ${normal} questions covering the whole eligible sheet.${style}
 Return one complete JSON document with every requested page and all three final exams. If file output is supported, place that same complete JSON in one .json file. Do not split the task into separate prompts, omit sections, or return a partial batch.
 Only MCQ and True/False; no fill-in or image-dependent questions. Use exam-style stems, plausible distractors and balanced MCQ correct letters. Never say "according to the sheet". No repeated questions anywhere.
 MCQ format: {"type":"mcq","question":"Stem","options":{"A":"First","B":"Second","C":"Third","D":"Fourth"},"correct_answer":"B","explanation":"Reason"}.
 True/False format: {"type":"true_false","question":"Statement","correct_answer":true,"explanation":"Reason"}. No options for True/False.
-Every question must be supported entirely by its assigned page. If a page cannot support 20 valid questions, report that limitation instead of inventing content; do not return an incomplete bank as complete.
+Every question must be supported entirely by its assigned page. If a page cannot support 15 valid questions, report that limitation instead of inventing content; do not return an incomplete bank as complete.
 Do not add metadata inside individual questions. Fill every questions array below and preserve every page number. Each difficulty has its own final exam. Verify all counts and valid JSON syntax before returning.
 Total questions: ${allQuestionsTotals(context, normal).total}.
 ${JSON.stringify({ active_study: active, sheet_questions: { questions: [] } }, null, 2)}`;

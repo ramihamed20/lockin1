@@ -59,6 +59,7 @@ from .models import (
     LearningObjectAsset,
     LearningObjectVersion,
 )
+from .page_question_bank import QUESTIONS_PER_PAGE
 from .services import (
     ContentConflictError,
     ContentFieldError,
@@ -923,7 +924,7 @@ def active_study_payload(*, sheet: LearningObject, edition: str = UNIVERSITY) ->
                     int(r["end_page"]) - int(r["start_page"]) + 1
                     for r in cast(list[dict[str, int]], difficulty_plan["page_ranges"])
                 )
-                * 20
+                * QUESTIONS_PER_PAGE
             )
         expected_final = cast(int, difficulty_plan["final_exam_questions"])
         status = cast(dict[str, str], difficulty_plan["readiness"])["status"]
@@ -1006,10 +1007,10 @@ def _question_counts(
     if (
         sheet.active_study_page_bank_enabled
         and questions_per_checkpoint is not None
-        and not 1 <= questions_per_checkpoint <= 20
+        and not 1 <= questions_per_checkpoint <= QUESTIONS_PER_PAGE
     ):
         raise ContentFieldError(
-            "Page-based sheets support 1 to 20 checkpoint questions.",
+            f"Page-based sheets support 1 to {QUESTIONS_PER_PAGE} checkpoint questions.",
             field="questions_per_checkpoint",
         )
     return {
@@ -1329,7 +1330,7 @@ def active_study_question_content_payload(
                     r["end_page"] - r["start_page"] + 1
                     for r in cast(list[dict[str, int]], difficulty_plan["page_ranges"])
                 )
-                * 20
+                * QUESTIONS_PER_PAGE
                 if difficulty_plan.get("question_format") == "pages"
                 else cast(int, difficulty_plan["number_of_parts"])
                 * difficulty.questions_per_checkpoint

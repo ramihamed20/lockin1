@@ -375,6 +375,49 @@ class CatalogWorkspaceReceipt(models.Model):
         return f"{self.workspace_id}:{self.idempotency_key}"
 
 
+class SheetSummary(models.Model):
+    """A student's own summary of one catalog sheet, written beside its pages.
+
+    Pen summaries keep their ink on blank pages in the sheet's workspace state
+    (the same storage as any page the student adds); this row names them.
+    Keyboard summaries keep their text here, one entry per sheet page.
+    """
+
+    class Mode(models.TextChoices):
+        PEN = "pen", "Pen"
+        KEYBOARD = "keyboard", "Keyboard"
+
+    class Status(models.TextChoices):
+        WRITING = "writing", "Writing"
+        FINISHED = "finished", "Finished"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="sheet_summaries"
+    )
+    document = models.ForeignKey(
+        CatalogDocument, on_delete=models.CASCADE, related_name="sheet_summaries"
+    )
+    title = models.CharField(max_length=120)
+    mode = models.CharField(max_length=16, choices=Mode.choices)
+    color = models.CharField(max_length=16, default="blue")
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.WRITING)
+    # Shown inside the sheet while reading; hiding keeps everything.
+    visible = models.BooleanField(default=True)
+    pages = models.JSONField(default=dict, blank=True)
+    revision = models.PositiveBigIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-updated_at",)
+        indexes = [models.Index(fields=("user", "document"), name="content_summary_owner_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.document_id}:{self.title}"
+
+
 class ActiveStudySettings(models.Model):
     """Durable configuration for future Active Study question/template content."""
 

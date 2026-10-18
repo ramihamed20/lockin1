@@ -146,7 +146,7 @@ def test_page_errors_show_physical_page_and_mark_only_that_page_invalid() -> Non
         key = row["difficulty"]
         document["active_study"][key] = {
             "pages": [
-                {"page": page, "questions": [_question(f"{key}-{page}-{i}") for i in range(20)]}
+                {"page": page, "questions": [_question(f"{key}-{page}-{i}") for i in range(15)]}
                 for page in row["page_numbers"]
             ],
             "final_exam": {

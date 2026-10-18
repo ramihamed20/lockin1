@@ -20,6 +20,8 @@ from .models import ActiveStudyRun, FocusSession
 from .rescue_models import RescueMutationReceipt, RescueSession
 
 TERMINAL = {"stopped", "continued", "finished"}
+# Explain is scheduled for a later release, so Rescue does not offer it yet.
+RESCUE_EXPLAIN_ENABLED = False
 SOURCE_FIELDS = (
     "catalog_document_id",
     "learning_object_version_id",
@@ -140,7 +142,7 @@ def suggestions(user: User, document_id: UUID | None, page: int | None) -> list[
             .select_related("source")
             .order_by("id")
             .first()
-            if flags["explain"]
+            if RESCUE_EXPLAIN_ENABLED and flags["explain"]
             else None
         )
         if question:

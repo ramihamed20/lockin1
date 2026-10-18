@@ -1,6 +1,12 @@
 export const newId = () => globalThis.crypto.randomUUID();
 export const MAX_DOCUMENT_BYTES = 1024 * 1024;
 export const STUDY_TOOLS_ENABLED = import.meta.env?.VITE_KNOWLEDGE_ENABLED === "true";
+// Map building and Explain are scheduled for a later release: they stay hidden
+// even where the server enables them. Empty this list to re-open them.
+export const COMING_SOON_STUDY_TOOLS = Object.freeze(["map", "explain"]);
+export function availableStudyTools(tools = {}) {
+  return Object.fromEntries(Object.entries(tools).map(([key, value]) => [key, Boolean(value) && !COMING_SOON_STUDY_TOOLS.includes(key)]));
+}
 
 export function createArtifact(kind, source, page = 1) {
   return {
@@ -80,6 +86,16 @@ export function formatNotebookText(text, selectionStart, selectionEnd, type) {
   const formatted = prefix ? selected.split("\n").map((line) => prefix + line).join("\n")
     : type === "bold" ? `**${selected}**` : `_${selected}_`;
   return text.slice(0, selectionStart) + formatted + text.slice(selectionEnd);
+}
+
+/** Adds a heading the student fills in, with the cursor's line left empty under it. */
+export function insertNotebookStarter(text, heading) {
+  const before = text.trimEnd();
+  return `${before ? `${before}\n\n` : ""}# ${heading}\n- `;
+}
+
+export function notebookWordCount(text) {
+  return (text.match(/[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu) || []).length;
 }
 
 export function documentSize(record) {

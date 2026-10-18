@@ -1,12 +1,35 @@
 import "./active-study-customization.css";
+import { useState } from "react";
 import { useI18n } from "../I18nProvider.jsx";
+import { maxCustomPages, maxCustomQuestions } from "../../lib/activeStudyPages.js";
+import { POMODORO_PRESETS, readPomodoroPreferences, writePomodoroPreferences } from "../../lib/pomodoroStudy.js";
+
+/** Timer length and sound live on this device; a running clock keeps its length. */
+export function PomodoroPreferences({ disabled }) {
+  const { t } = useI18n();
+  const [preferences, setPreferences] = useState(readPomodoroPreferences);
+  function change(next) { const value = { ...preferences, ...next }; setPreferences(value); writePomodoroPreferences(value); }
+  return <div className="active-study-pomodoro-preferences">
+    <fieldset disabled={disabled}>
+      <legend>{t("pomodoro.length")}</legend>
+      <div className="active-study-pomodoro-presets">
+        {Object.entries(POMODORO_PRESETS).map(([name, item]) => <label key={name} className={preferences.preset === name ? "is-selected" : ""}>
+          <input type="radio" name="pomodoro-preset" value={name} checked={preferences.preset === name} onChange={() => change({ preset: name })} />
+          <span dir="ltr">{item.focus} / {item.break}</span>
+        </label>)}
+      </div>
+    </fieldset>
+    <label className="active-study-pomodoro-sound"><input type="checkbox" checked={preferences.sound} disabled={disabled} onChange={(event) => change({ sound: event.target.checked })} /><span>{t("pomodoro.sound")}</span></label>
+  </div>;
+}
 
 /** The same settings UI in Focus and Paper Workspace. The server owns eligibility. */
-export function ActiveStudyCustomization({ availability, value, onChange, disabled = false, allowPomodoro = false }) {
+export function ActiveStudyCustomization({ availability, value, onChange, disabled = false }) {
   const { t } = useI18n();
   if (!availability?.customization_available) return null;
   const custom = value.studyMode === "custom";
-  const pomodoro = value.studyMode === "pomodoro";
+  const pagesMax = maxCustomPages(availability.eligible_study_pages);
+  const questionsMax = maxCustomQuestions(availability.eligible_study_pages, value.pagesPerCheckpoint);
   function toggle() {
     const saved = availability.custom_progress;
     onChange(value.studyMode !== "standard" ? { ...value, studyMode: "standard" } : {
@@ -15,13 +38,11 @@ export function ActiveStudyCustomization({ availability, value, onChange, disabl
     });
   }
   return <div className="active-study-customization">
-    <div className="active-study-style-actions"><button type="button" className="btn btn-soft compact" aria-pressed={custom} onClick={toggle} disabled={disabled}>{t(custom || pomodoro ? "activeStudy.standardStyle" : "activeStudy.customize")}</button>
-      {allowPomodoro && availability.pomodoro_available && <button type="button" className="btn btn-soft compact" aria-pressed={pomodoro} onClick={() => onChange({ ...value, studyMode: pomodoro ? "standard" : "pomodoro" })} disabled={disabled}>{t("pomodoro.style")}</button>}
+    <div className="active-study-style-actions"><button type="button" className="btn btn-soft compact" aria-pressed={custom} onClick={toggle} disabled={disabled}>{t(custom ? "activeStudy.standardStyle" : "activeStudy.customize")}</button>
     </div>
-    {pomodoro && <small>{t("pomodoro.hint")}</small>}
     {custom && <div className="active-study-custom-fields">
-      <label className="field"><span>{t("activeStudy.pagesPerTest")}</span><input type="number" min="1" max={availability.eligible_study_pages} step="1" value={value.pagesPerCheckpoint} disabled={disabled} onChange={(event) => onChange({ ...value, pagesPerCheckpoint: event.target.value === "" ? "" : Number(event.target.value) })} /></label>
-      <label className="field"><span>{t("activeStudy.questionsPerTest")}</span><input type="number" min="1" max="20" step="1" value={value.questionsPerCheckpoint} disabled={disabled} onChange={(event) => onChange({ ...value, questionsPerCheckpoint: event.target.value === "" ? "" : Number(event.target.value) })} /></label>
+      <label className="field"><span>{t("activeStudy.pagesPerTest", { max: pagesMax })}</span><input type="number" min="1" max={pagesMax} step="1" value={value.pagesPerCheckpoint} disabled={disabled} onChange={(event) => onChange({ ...value, pagesPerCheckpoint: event.target.value === "" ? "" : Number(event.target.value) })} /></label>
+      <label className="field"><span>{t("activeStudy.questionsPerTest", { max: questionsMax })}</span><input type="number" min="1" max={questionsMax} step="1" value={value.questionsPerCheckpoint} disabled={disabled} onChange={(event) => onChange({ ...value, questionsPerCheckpoint: event.target.value === "" ? "" : Number(event.target.value) })} /></label>
       <small>{t("activeStudy.customHint")}</small>
     </div>}
   </div>;
@@ -30,8 +51,9 @@ export function ActiveStudyCustomization({ availability, value, onChange, disabl
 export function validStudyCustomization(value, availability) {
   if (value.studyMode === "pomodoro") return Boolean(availability?.pomodoro_available);
   return value.studyMode !== "custom" || Boolean(availability?.customization_available
-    && Number.isInteger(value.pagesPerCheckpoint) && value.pagesPerCheckpoint >= 1 && value.pagesPerCheckpoint <= availability.eligible_study_pages
-    && Number.isInteger(value.questionsPerCheckpoint) && value.questionsPerCheckpoint >= 1 && value.questionsPerCheckpoint <= 20);
+    && Number.isInteger(value.pagesPerCheckpoint) && value.pagesPerCheckpoint >= 1 && value.pagesPerCheckpoint <= maxCustomPages(availability.eligible_study_pages)
+    && Number.isInteger(value.questionsPerCheckpoint) && value.questionsPerCheckpoint >= 1
+    && value.questionsPerCheckpoint <= maxCustomQuestions(availability.eligible_study_pages, value.pagesPerCheckpoint));
 }
 
 export function savedStudyProgress(value, availability) {

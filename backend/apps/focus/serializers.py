@@ -4,6 +4,7 @@ from typing import Any
 from rest_framework import serializers
 
 from apps.accounts.avatars import AvatarPayload, avatar_payload
+from apps.content.page_question_bank import MAX_CUSTOM_QUESTIONS
 from platform_core.api.serializers import StrictSerializer
 
 from .managed_active_study import ANSWER_KEYS
@@ -244,7 +245,9 @@ class ManagedActiveStudyStartSerializer(StrictSerializer):
         choices=("standard", "custom", "pomodoro"), required=False, default="standard"
     )
     pages_per_checkpoint = serializers.IntegerField(min_value=1, max_value=10000, required=False)
-    questions_per_checkpoint = serializers.IntegerField(min_value=1, max_value=20, required=False)
+    questions_per_checkpoint = serializers.IntegerField(
+        min_value=1, max_value=MAX_CUSTOM_QUESTIONS, required=False
+    )
     sheet_id = serializers.UUIDField()
     difficulty = serializers.ChoiceField(choices=("easy", "medium", "hard"))
     # Which PDF the student is reading. Omitted means the university edition,
@@ -259,6 +262,11 @@ class ManagedActiveStudyReadingSerializer(StrictSerializer):
     part = serializers.IntegerField(min_value=1, max_value=10000, required=False)
     end_page = serializers.IntegerField(min_value=1, max_value=10000, required=False)
     question_count = serializers.IntegerField(min_value=1, max_value=40, required=False)
+
+
+class ManagedActiveStudyPomodoroClockSerializer(StrictSerializer):
+    # The shape is checked by focus.pomodoro.validate_clock.
+    clock = serializers.JSONField()
 
 
 class ManagedActiveStudyAnswerSerializer(StrictSerializer):

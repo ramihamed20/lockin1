@@ -149,6 +149,7 @@ class StudyPlanItemDetailView(APIView):
             raise ValidationError("Provide at least one field to update.")
         previous_status = item.status
         previous_date = item.scheduled_date
+        previous_minutes = item.duration_minutes
         for field, value in changes.items():
             setattr(item, field, value)
         if item.scheduled_date != previous_date:
@@ -157,7 +158,10 @@ class StudyPlanItemDetailView(APIView):
             profile_for(user)
         ):
             raise ValidationError({"status": "Future sessions cannot be completed yet."})
-        validate_day(user, item.scheduled_date, item.duration_minutes, exclude=item.pk)
+        # Only a move or a longer session can push a day past its cap; legacy days
+        # that already exceed it must still allow completing or renaming a task.
+        if item.scheduled_date != previous_date or item.duration_minutes > previous_minutes:
+            validate_day(user, item.scheduled_date, item.duration_minutes, exclude=item.pk)
         if item.status != previous_status:
             item.completed_at = (
                 timezone.now() if item.status == StudyPlanItem.Status.COMPLETED else None

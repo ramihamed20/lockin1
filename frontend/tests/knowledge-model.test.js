@@ -48,3 +48,12 @@ test("a pending explanation never displays earlier feedback as its evaluation", 
   const graded = { id: "server", created_at: "2026-10-14T12:00:00Z", feedback: {} };
   assert.equal(latestExplainAttempt([graded, pending]), pending);
 });
+
+test("a summary starter adds a heading with an empty bullet, and words count in both languages", async () => {
+  const { insertNotebookStarter, notebookWordCount } = await import("../src/workspace/knowledge/model.js");
+  assert.equal(insertNotebookStarter("", "Main idea"), "# Main idea\n- ");
+  assert.equal(insertNotebookStarter("Vitamins\n\n", "Key terms"), "Vitamins\n\n# Key terms\n- ");
+  assert.equal(notebookWordCount(""), 0);
+  assert.equal(notebookWordCount("# Main idea\n- Vitamin A's role, 2 forms"), 7);
+  assert.equal(notebookWordCount("فيتامين A مهم للرؤية."), 4);
+});

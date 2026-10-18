@@ -1,7 +1,29 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { selectPageQuestions } from "../src/lib/activeStudyPages.js";
-import { closePomodoroRange, initialPomodoroRanges, newPomodoroClock, POMODORO_BREAK_MS, POMODORO_FOCUS_MS, pomodoroClockKey, pomodoroClockLabel, pomodoroRemaining, reconcilePomodoroClock, tickPomodoroClock, togglePomodoroClock, validPomodoroClock } from "../src/lib/pomodoroStudy.js";
+import { pausePomodoroAway, resumeAbandonedPomodoroClock, resumePomodoroBack } from "../src/lib/pomodoroStudy.js";
+import { closePomodoroRange, initialPomodoroRanges, newerPomodoroClock, newPomodoroClock, samePomodoroClock, POMODORO_BREAK_MS, POMODORO_FOCUS_MS, POMODORO_LONG_BREAK_MS, pomodoroCycleDots, pomodoroPageScores, pomodoroProgress, pomodoroClockKey, pomodoroClockLabel, pomodoroRemaining, reconcilePomodoroClock, tickPomodoroClock, togglePomodoroClock, validPomodoroClock } from "../src/lib/pomodoroStudy.js";
+
+test("the timer runs only while the student is on the page", () => {
+  const start = 1_000_000;
+  const running = newPomodoroClock(1, start);
+  // Ten minutes read, then the student leaves for an hour and comes back.
+  const left = pausePomodoroAway(running, start + 10 * 60_000);
+  assert.equal(left.deadline, null);
+  assert.equal(left.away, true);
+  assert.equal(left.remainingMs, POMODORO_FOCUS_MS - 10 * 60_000);
+  const back = resumePomodoroBack(left, start + 70 * 60_000);
+  assert.equal(back.away, undefined);
+  assert.equal(pomodoroClockLabel(back, start + 70 * 60_000), "15:00");
+  // A pause the student chose stays paused when they come back.
+  const chosen = togglePomodoroClock(running, start + 60_000);
+  assert.equal(pausePomodoroAway(chosen, start + 120_000), chosen);
+  assert.equal(resumePomodoroBack(chosen, start + 600_000), chosen);
+  // A page closed without saving its pause gets the time it was gone back.
+  const abandoned = resumeAbandonedPomodoroClock(running, start + 5 * 60_000, start + 65 * 60_000);
+  assert.equal(pomodoroClockLabel(abandoned, start + 65 * 60_000), "20:00");
+  assert.equal(resumeAbandonedPomodoroClock(running, start + 5 * 60_000, start + 5 * 60_000 + 3000), running, "a quick reload is not a departure");
+});
 
 test("one cycle closes at page seven and the next begins at page eight", () => {
   const initial = initialPomodoroRanges([{ part: 1, start_page: 1, end_page: 5 }, { part: 2, start_page: 6, end_page: 15 }]);
@@ -89,4 +111,55 @@ test("timer persistence is account/run scoped and malformed state is rejected", 
   for (const broken of [null, {}, { ...clock, part: -1 }, { ...clock, phase: "complete" }, { ...clock, deadline: Infinity }, { ...clock, remainingMs: -1 }, { ...clock, endPage: "7" }]) assert.equal(validPomodoroClock(broken), false);
   assert.notEqual(pomodoroClockKey("student-one", "run"), pomodoroClockKey("student-two", "run"));
   assert.notEqual(pomodoroClockKey("student-one", "run"), pomodoroClockKey("student-one", "run-two"));
+});
+
+test("every fourth finished page test earns a 15-minute break, once", () => {
+  const quiz = { ...newPomodoroClock(4, 100), phase: "quiz", deadline: null, remainingMs: 0 };
+  const long = reconcilePomodoroClock(quiz, { stage: "reading", current_part: 5, completed: 4 }, 200);
+  assert.equal(long.phase, "break");
+  assert.equal(long.long, true);
+  assert.equal(long.remainingMs, POMODORO_LONG_BREAK_MS);
+  assert.equal(validPomodoroClock(long), true);
+  const short = reconcilePomodoroClock(quiz, { stage: "reading", current_part: 5, completed: 3 }, 200);
+  assert.equal(short.remainingMs, POMODORO_BREAK_MS);
+  const focus = newPomodoroClock(5, 300, "focus", { longAt: long.longAt });
+  const retried = reconcilePomodoroClock({ ...focus, phase: "quiz", deadline: null, remainingMs: 0 }, { stage: "reading", current_part: 5, completed: 4 }, 400);
+  assert.equal(retried.remainingMs, POMODORO_BREAK_MS);
+});
+
+test("page results flag pages under two thirds and leave unpaged reviews alone", () => {
+  const review = [{ page: 2, correct: true }, { page: 2, correct: false }, { page: 2, correct: false }, { page: 1, correct: true }, { correct: false }];
+  assert.deepEqual(pomodoroPageScores(review), [{ page: 1, correct: 1, total: 1, weak: false }, { page: 2, correct: 1, total: 3, weak: true }]);
+  assert.deepEqual(pomodoroPageScores([{ correct: true }]), []);
+});
+
+test("the clock bar fills with the phase and the dots count toward the long break", () => {
+  const clock = newPomodoroClock(1, 0);
+  assert.equal(pomodoroProgress(clock, 0), 0);
+  assert.equal(pomodoroProgress(clock, POMODORO_FOCUS_MS / 2), 0.5);
+  assert.equal(pomodoroProgress({ ...clock, phase: "ready", deadline: null, remainingMs: 0 }, 0), 1);
+  const longBreak = newPomodoroClock(5, 0, "break", { long: true, longAt: 4 });
+  assert.equal(pomodoroProgress(longBreak, POMODORO_LONG_BREAK_MS / 4), 0.25);
+  assert.equal(pomodoroCycleDots(longBreak, 4), 4);
+  assert.equal(pomodoroCycleDots(clock, 6), 2);
+  assert.equal(pomodoroCycleDots(clock, undefined), 0);
+});
+
+test("a longer preset times every phase, survives validation, and the newest copy wins", () => {
+  const deep = newPomodoroClock(1, 0, "focus", { preset: "deep" });
+  assert.equal(deep.remainingMs, 50 * 60 * 1000);
+  assert.equal(pomodoroClockLabel(deep, 0), "50:00");
+  assert.equal(validPomodoroClock(deep), true);
+  assert.equal(newPomodoroClock(1, 0, "break", { preset: "deep", long: true }).remainingMs, 30 * 60 * 1000);
+  assert.equal(newPomodoroClock(1, 0, "focus", { preset: "nonsense" }).remainingMs, POMODORO_FOCUS_MS);
+  assert.equal(validPomodoroClock({ ...deep, preset: "nonsense" }), false);
+  const quiz = { ...deep, phase: "quiz", deadline: null, remainingMs: 0 };
+  assert.equal(reconcilePomodoroClock(quiz, { stage: "reading", current_part: 2, completed: 1 }, 0).remainingMs, 10 * 60 * 1000);
+  const local = { ...deep, updatedAt: 10 };
+  const server = { ...deep, phase: "break", updatedAt: 20 };
+  assert.equal(newerPomodoroClock(local, server), server);
+  assert.equal(newerPomodoroClock({ ...local, updatedAt: 30 }, server).updatedAt, 30);
+  assert.equal(newerPomodoroClock(null, server), server);
+  assert.equal(newerPomodoroClock(local, { nonsense: true }), local);
+  assert.equal(samePomodoroClock(local, { ...local, updatedAt: 99 }), true);
 });

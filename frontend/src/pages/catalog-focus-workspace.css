@@ -407,6 +407,9 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2-mode-dialog > h1 { margin: 0 0 4px; font-size: 1.3rem; letter-spacing: -.02em; }
 .workspace-v2-mode-dialog > p { margin: 0 0 16px; color: var(--workspace-chrome-secondary); font-size: .78rem; }
 .workspace-v2-mode-grid { display: grid; gap: 10px; }
+.workspace-v2-mode-back { justify-self: start; display: inline-flex; margin: 14px 0 12px; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px 0 8px; color: var(--workspace-chrome-text); border: 0; border-radius: 999px; background: var(--workspace-panel-2); font: inherit; font-size: .8125rem; font-weight: 600; cursor: pointer; }
+.workspace-v2-mode-back:disabled { opacity: .55; cursor: progress; }
+.workspace-v2-mode-back:where([dir="rtl"] *) svg { transform: scaleX(-1); }
 .workspace-v2-mode-card { min-width: 0; display: grid; color: var(--workspace-chrome-text); border: 1px solid var(--workspace-control-border); border-radius: 12px; background: var(--workspace-panel-2); text-align: start; }
 button.workspace-v2-mode-card { cursor: pointer; }
 button.workspace-v2-mode-card { grid-template-columns: 40px minmax(0,1fr) 24px; align-items: center; gap: 10px; min-height: 64px; padding: 10px 12px; }

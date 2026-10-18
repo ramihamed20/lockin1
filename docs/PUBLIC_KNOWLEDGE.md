@@ -77,3 +77,13 @@ The public pages now share a generated, byte-identical copy of src/styles/tokens
 ## Development routing — 2026-10-13
 
 Vite development now serves the published public route allowlist before its SPA fallback. Previously /about/ and /help/ returned the private app shell and re-ran account bootstrap; the production-only HTTP tests missed this. The dev handler returns the original static HTML (GET/HEAD), normalizes published aliases, fails missing public files closed and leaves private/app/API routing untouched. tests/public-knowledge-dev.test.js starts the actual Vite config and checks all published pages plus private fallback and CSS.
+
+## English edition and search improvements — 2026-10-18
+
+Every public page now has an English edition under `/en/` (132 pages: 66 per language). The English copy lives in `frontend/content/public-knowledge.en.json`, keyed by the same ids as the Arabic source. Facts, availability and evidence stay in `public-knowledge.json` and are reviewed there; the build fails when a published Arabic answer has no English translation or a different number of steps. When an Arabic answer changes, update its English entry in the same change.
+
+- Each page links its other-language edition with `hreflang` (`ar`, `en`, `x-default` → Arabic), in the page head and the sitemap. The header carries a language switch.
+- The sitemap has `lastmod` from each page's review date; JSON-LD WebPage carries `dateModified`, and Organization/WebSite list the brand spellings `Lock-in` and `لوك إن`.
+- Guides end with related answers and their feature page. `llms.txt` lists every answer in both languages with its short answer.
+- Settings and the sign-in page open the English edition when the app language is English.
+- Re-verified the whole registry on 2026-10-18: Active Study limits (10 pages / 30 questions per custom test, 15 questions per page, Pomodoro 25/45/50-minute presets with a long break every four tests, up to 40 questions), Study Plan marked coming soon, and three new answers: `pomodoro-study`, `custom-active-study` and `first-year-subjects`.

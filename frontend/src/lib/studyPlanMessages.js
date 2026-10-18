@@ -6,7 +6,7 @@ export const studyPlanMessages = {
     "plan.beginningHint": "Start with 10 minutes. Build up gently.",
     "plan.normalHint": "Share your study time across your subjects.",
     "plan.customHint": "Choose each session yourself.",
-    "plan.days": "Study days", "plan.subjects": "Subjects", "plan.subjectsHint": "Separate names with commas. Up to 12.",
+    "plan.days": "Study days", "plan.subjects": "Subjects", "plan.subjectsHint": "Tap your subjects, or type others separated by commas. Up to 12.",
     "plan.daily": "Minutes per day", "plan.session": "Minutes per session",
     "plan.timezone": "Timezone", "plan.save": "Save plan", "plan.cancel": "Cancel",
     "plan.saved": "Saved to your account.", "plan.saveFailed": "Could not save. Your changes are still here. Try again.",
@@ -34,7 +34,13 @@ export const studyPlanMessages = {
     "plan.notConfigured": "Set up a plan to begin. Your existing tasks are kept.",
     "plan.completed": "Completed", "plan.planned": "Planned minutes", "plan.today": "Today",
     "plan.invalid": "Check the session details and the daily limit, then try again.",
-    "plan.mon": "Mon", "plan.tue": "Tue", "plan.wed": "Wed", "plan.thu": "Thu", "plan.fri": "Fri", "plan.sat": "Sat", "plan.sun": "Sun"
+    "plan.mon": "Mon", "plan.tue": "Tue", "plan.wed": "Wed", "plan.thu": "Thu", "plan.fri": "Fri", "plan.sat": "Sat", "plan.sun": "Sun",
+    "plan.yourSubjects": "Your subjects", "plan.otherSubject": "Add another subject", "plan.addSubject": "Add",
+    "plan.subjectCount": "{count} of {limit} chosen", "plan.removeSubject": "Remove {name}",
+    "plan.quickTitles": "Quick picks", "plan.quickMinutes": "Quick durations",
+    "plan.typeRead": "Read the lecture", "plan.typeQuestions": "Solve questions", "plan.typeReview": "Review my mistakes", "plan.typeSummary": "Summarize",
+    "plan.studySubject": "Study {subject}", "plan.moveToday": "Move to today", "plan.moved": "Moved to today.",
+    "plan.weekProgress": "This week: {done} of {total} min done", "plan.dayAllDone": "all sessions done"
   },
   ar: {
     "plan.subtitle": "تنظيم بسيط. وتركيز أكثر.",
@@ -42,7 +48,7 @@ export const studyPlanMessages = {
     "plan.beginning": "بداية", "plan.normal": "عادي", "plan.custom": "مخصص",
     "plan.beginningHint": "ابدأ بعشر دقائق، وتدرّج بهدوء.",
     "plan.normalHint": "وزّع وقت الدراسة على موادك.", "plan.customHint": "رتّب كل جلسة بنفسك.",
-    "plan.days": "أيام الدراسة", "plan.subjects": "المواد", "plan.subjectsHint": "افصل الأسماء بفاصلة. حتى 12 مادة.",
+    "plan.days": "أيام الدراسة", "plan.subjects": "المواد", "plan.subjectsHint": "اختر من موادك، أو اكتب مواد أخرى وافصل بينها بفاصلة. حتى 12 مادة.",
     "plan.daily": "دقائق الدراسة يوميًا", "plan.session": "مدة الجلسة بالدقائق",
     "plan.timezone": "المنطقة الزمنية", "plan.save": "حفظ الخطة", "plan.cancel": "إلغاء",
     "plan.saved": "حُفظت في حسابك.", "plan.saveFailed": "تعذر الحفظ. تعديلاتك ما زالت هنا، حاول مجددًا.",
@@ -70,6 +76,12 @@ export const studyPlanMessages = {
     "plan.notConfigured": "جهّز خطتك للبدء. مهامك الموجودة محفوظة.",
     "plan.completed": "مكتملة", "plan.planned": "الدقائق المخططة", "plan.today": "اليوم",
     "plan.invalid": "راجع بيانات الجلسة والحد اليومي، ثم حاول مجددًا.",
-    "plan.mon": "اثن", "plan.tue": "ثلا", "plan.wed": "أرب", "plan.thu": "خمي", "plan.fri": "جمع", "plan.sat": "سبت", "plan.sun": "أحد"
+    "plan.mon": "إثنين", "plan.tue": "ثلاثاء", "plan.wed": "أربعاء", "plan.thu": "خميس", "plan.fri": "جمعة", "plan.sat": "سبت", "plan.sun": "أحد",
+    "plan.yourSubjects": "موادك", "plan.otherSubject": "أضف مادة أخرى", "plan.addSubject": "إضافة",
+    "plan.subjectCount": "اخترت {count} من {limit}", "plan.removeSubject": "إزالة {name}",
+    "plan.quickTitles": "اختيارات سريعة", "plan.quickMinutes": "مدد سريعة",
+    "plan.typeRead": "قراءة المحاضرة", "plan.typeQuestions": "حل أسئلة", "plan.typeReview": "مراجعة أخطائي", "plan.typeSummary": "تلخيص",
+    "plan.studySubject": "ادرس {subject}", "plan.moveToday": "انقلها لليوم", "plan.moved": "نُقلت إلى اليوم.",
+    "plan.weekProgress": "هذا الأسبوع: أنجزت {done} من {total} دقيقة", "plan.dayAllDone": "كل الجلسات مكتملة"
   }
 };

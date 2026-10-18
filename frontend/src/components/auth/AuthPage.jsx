@@ -884,7 +884,7 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, no
             )}
 
             <div className="auth-v2-switch">
-              <p><a href="/about/">{t("auth.aboutLockin")}</a></p>
+              <p><a href={locale === "en" ? "/en/about/" : "/about/"}>{t("auth.aboutLockin")}</a></p>
               {mode === "login" && <p>{t("auth.noAccount")} <button type="button" onClick={() => changeMode("signup")}>{t("auth.create")}</button></p>}
               {mode === "signup" && (signupStep === 1 || signedUp) && <p>{t("auth.hasAccount")} <button type="button" onClick={() => changeMode("login")}>{t("auth.login")}</button></p>}
               {mode === "forgot" && <button type="button" onClick={() => changeMode("login")}><Icon name={backIcon} size={17} />{t("auth.backToLogin")}</button>}

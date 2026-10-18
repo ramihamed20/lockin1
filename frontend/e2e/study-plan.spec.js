@@ -2,9 +2,10 @@ import { expect, test } from "@playwright/test";
 import { fulfillAccessContract, studentSession } from "./fixtures/productionApi.js";
 
 const TODAY = "2026-10-16";
-async function planner(page, { configured = false, locale = "en" } = {}) {
+const MATERIALS = [{ slug: "oral-histology", title: "Oral Histology", sheets: [] }, { slug: "dental-anatomy", title: "Dental Anatomy", sheets: [] }];
+async function planner(page, { configured = false, locale = "en", materials = [], items: seeded = [] } = {}) {
   let profile = { configured, mode: "normal", revision: configured ? 1 : 0, daily_minutes: 60, session_minutes: 25, weekdays: [0,1,2,3,4], subjects: [], timezone: "Africa/Tripoli" };
-  let items = [];
+  let items = seeded.map(item => ({ ...item }));
   let rejectSave = false;
   await page.addInitScript(locale => { localStorage.setItem("lock-in.locale", locale); localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now())); }, locale);
   await page.route("**/api/v1/**", async route => {
@@ -16,9 +17,11 @@ async function planner(page, { configured = false, locale = "en" } = {}) {
     if (path === "/api/v1/auth/session") return send({ user: studentSession({ id: "planner-student", preferred_language: locale }) });
     if (path === "/api/v1/auth/csrf") return send({ csrf_token: "planner-csrf" });
     if (path === "/api/v1/operations/session") return send({}, 403);
+    if (path === "/api/v1/catalog/materials") return send({ count: materials.length, results: materials });
     if (path === "/api/v1/study-plan") {
+      const overdue = items.filter(item => item.status === "planned" && item.scheduled_date < TODAY);
       const selected = items.filter(item => item.scheduled_date >= url.searchParams.get("from") && item.scheduled_date <= url.searchParams.get("to"));
-      return send({ profile, today: TODAY, progress: { completed_days: 3, session_minutes: 15, ready_for_normal: false }, overdue: [], overdue_count: 0, count: selected.length, results: selected, summary: { planned_count: selected.length, completed_count: selected.filter(item => item.status === "completed").length, planned_minutes: selected.reduce((sum,item) => sum+item.duration_minutes,0), today_minutes: selected.filter(item => item.scheduled_date === TODAY).reduce((sum,item) => sum+item.duration_minutes,0) } });
+      return send({ profile, today: TODAY, progress: { completed_days: 3, session_minutes: 15, ready_for_normal: false }, overdue, overdue_count: overdue.length, count: selected.length, results: selected, summary: { planned_count: selected.length, completed_count: selected.filter(item => item.status === "completed").length, planned_minutes: selected.reduce((sum,item) => sum+item.duration_minutes,0), completed_minutes: selected.filter(item => item.status === "completed").reduce((sum,item) => sum+item.duration_minutes,0), today_minutes: selected.filter(item => item.scheduled_date === TODAY).reduce((sum,item) => sum+item.duration_minutes,0) } });
     }
     if (path === "/api/v1/study-plan/profile") {
       const body = request.postDataJSON();
@@ -107,10 +110,44 @@ test("a rejected settings save keeps the student's draft for retry", async ({ pa
   await expect(page.locator(".plan-hero")).toBeVisible();
 });
 
+test("students pick their own subjects, use quick choices and pull an overdue session into today", async ({ page }) => {
+  const state = await planner(page, { configured: true, materials: MATERIALS, items: [
+    { id: "late", title: "Solve questions", subject: "Dental Anatomy", scheduled_date: "2026-10-13", duration_minutes: 30, status: "planned", generated: false, revision: 1 },
+    { id: "done", title: "Read the lecture", subject: "Oral Histology", scheduled_date: "2026-10-12", duration_minutes: 30, status: "completed", generated: false, revision: 1 }
+  ] });
+  await page.goto("/#/study-plan");
+  await expect(page.getByRole("progressbar", { name: "This week: 30 of 60 min done" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Monday, October 12, 2026 · all sessions done/ })).toBeVisible();
+  await page.getByText("Still on your list · 1").click();
+  await page.getByRole("button", { name: "Move to today", exact: true }).click();
+  await expect(page.getByText("Moved to today.")).toBeVisible();
+  expect(state.getItems().find(item => item.id === "late").scheduled_date).toBe(TODAY);
+  await expect(page.getByRole("link", { name: "Study Dental Anatomy", exact: true })).toHaveAttribute("href", /materials\/catalog\/dental-anatomy$/);
+  await page.getByRole("button", { name: "Plan settings", exact: true }).click();
+  await page.getByRole("radio", { name: "Normal", exact: true }).check();
+  await page.getByRole("group", { name: "Your subjects" }).getByRole("button", { name: "Oral Histology", exact: true }).click();
+  await page.getByLabel("Subjects", { exact: true }).fill("Pharmacology");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("button", { name: "Remove Pharmacology", exact: true })).toBeVisible();
+  await expect(page.getByText("2 of 12 chosen")).toBeVisible();
+  const saved = page.waitForRequest(request => request.url().endsWith("/study-plan/profile"));
+  await page.getByRole("button", { name: "Save plan", exact: true }).click();
+  expect((await saved).postDataJSON().subjects).toEqual(["Oral Histology", "Pharmacology"]);
+  await page.getByRole("button", { name: "Add session", exact: true }).click();
+  await page.getByRole("button", { name: "Pharmacology", exact: true }).click();
+  await page.getByRole("button", { name: "Review my mistakes", exact: true }).click();
+  await page.getByRole("button", { name: "45 min", exact: true }).click();
+  await expect(page.getByLabel("Minutes", { exact: true })).toHaveValue("45");
+  await page.screenshot({ path: "output/study-plan/editor-quick-picks.png", fullPage: true });
+  await page.getByRole("button", { name: "Save session", exact: true }).click();
+  await expect(page.locator(".plan-task-list")).toContainText("Review my mistakes");
+  expect(state.getItems().find(item => item.id === "manual")).toMatchObject({ subject: "Pharmacology", duration_minutes: 45 });
+});
+
 for (const [width, height, locale] of [[320,740,"ar"],[390,844,"en"],[820,1180,"ar"],[1194,834,"en"],[1440,900,"en"],[844,390,"ar"]]) {
   test(`planner reflows at ${width}x${height} in ${locale}`, async ({ page }) => {
     await page.setViewportSize({ width, height });
-    await planner(page, { locale });
+    await planner(page, { locale, materials: MATERIALS });
     await page.goto("/#/study-plan");
     await expect(page.locator(".plan-modes")).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

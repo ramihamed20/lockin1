@@ -786,7 +786,7 @@ test("custom page study stays separate, resumes offline and queues its exact set
   assert.equal(event.payload.pages_per_checkpoint, 3);
   assert.equal(event.payload.questions_per_checkpoint, 5);
   assert.equal(event.payload.bank_revision, 3);
-  await assert.rejects(focusApi.startManagedActiveStudy({ ...options, questionsPerCheckpoint: 21 }), /between 1 and 20/);
+  await assert.rejects(focusApi.startManagedActiveStudy({ ...options, questionsPerCheckpoint: 31 }), /between 1 and 30/);
 });
 
 test("Pomodoro freezes timed pages offline, keeps forty balanced questions and replays exact boundaries", async () => {
@@ -805,7 +805,7 @@ test("Pomodoro freezes timed pages offline, keeps forty balanced questions and r
   const options = { sheetId: SHEET, difficulty: "medium", studyMode: "pomodoro" };
   const started = await focusApi.startManagedActiveStudy(options);
   assert.deepEqual(started.run.current_page_range, { part: 1, start_page: 2, end_page: 22 });
-  await assert.rejects(focusApi.managedActiveStudyAction(started.run.id, "complete-reading", { part: 1, end_page: 2, question_count: 40 }), /between 1 and 20/);
+  await assert.rejects(focusApi.managedActiveStudyAction(started.run.id, "complete-reading", { part: 1, end_page: 2, question_count: 40 }), /between 1 and 15/);
   await focusApi.managedActiveStudyAction(started.run.id, "complete-reading", { part: 1, end_page: 7, question_count: 40 });
   const { quiz, submitted } = await completeQuiz(started.run.id, 40);
   assert.equal(quiz.questions.length, 40);

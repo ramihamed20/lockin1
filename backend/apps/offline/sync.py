@@ -20,6 +20,7 @@ from rest_framework.exceptions import APIException, ValidationError
 
 from apps.accounts.models import User
 from apps.content.editions import UnknownEditionError
+from apps.content.page_question_bank import MAX_CUSTOM_QUESTIONS
 from apps.content.views import _owned_question_sheet, _sheet_questions
 from apps.focus.managed_active_study import (
     ManagedActiveStudyRuleError,
@@ -89,7 +90,7 @@ def _study_options(payload: dict[str, object]) -> dict[str, Any]:
     options: dict[str, Any] = {"study_mode": mode}
     for key, maximum in (
         ("pages_per_checkpoint", 10000),
-        ("questions_per_checkpoint", 20),
+        ("questions_per_checkpoint", MAX_CUSTOM_QUESTIONS),
         ("bank_revision", None),
     ):
         if key not in payload:

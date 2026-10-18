@@ -4,25 +4,40 @@
     {
       "name": "frontend-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "cwd": "frontend",
       "port": 5050
     },
     {
       "name": "frontend-qa",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "cwd": "frontend",
       "port": 5050,
-      "env": { "VITE_DJANGO_PROXY_TARGET": "http://127.0.0.1:8011" }
+      "env": {
+        "VITE_DJANGO_PROXY_TARGET": "http://127.0.0.1:8011"
+      }
     },
     {
       "name": "frontend-plans-qa",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite", "--port", "5090", "--strictPort"],
+      "runtimeArgs": [
+        "vite",
+        "--port",
+        "5090",
+        "--strictPort"
+      ],
       "cwd": "frontend",
       "port": 5090,
-      "env": { "VITE_DJANGO_PROXY_TARGET": "http://127.0.0.1:8041" }
+      "env": {
+        "VITE_DJANGO_PROXY_TARGET": "http://127.0.0.1:8041"
+      }
     }
   ]
 }

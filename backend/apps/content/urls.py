@@ -52,6 +52,11 @@ from .practice_views import (
     PracticeHintView,
     PracticeSetView,
 )
+from .sheet_summary_views import (
+    DocumentSummaryCollectionView,
+    SheetSummaryCollectionView,
+    SheetSummaryDetailView,
+)
 from .views import (
     ArchiveLearningObjectView,
     CatalogAddedSubjectCollectionView,
@@ -79,6 +84,17 @@ urlpatterns = [
     # are valid slugs, so the broader pattern would otherwise shadow workspace
     # GET/PATCH requests and return 404/405 before authorization is evaluated.
     path("catalog/documents/<uuid:document_id>/workspace", CatalogWorkspaceView.as_view()),
+    path(
+        "catalog/documents/<uuid:document_id>/summaries",
+        DocumentSummaryCollectionView.as_view(),
+        name="document-summaries",
+    ),
+    path("catalog/summaries", SheetSummaryCollectionView.as_view(), name="sheet-summaries"),
+    path(
+        "catalog/summaries/<uuid:summary_id>",
+        SheetSummaryDetailView.as_view(),
+        name="sheet-summary-detail",
+    ),
     path(
         "catalog/documents/<uuid:document_id>/annotation-shares",
         AnnotationShareCollectionView.as_view(),

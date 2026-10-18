@@ -81,7 +81,7 @@ test("Active Study stays closed until a sheet has questions, and Quizzes is not 
   assert.match(workspace, /getManagedActiveStudyAvailability\(sheet\.learningObjectId, sheetEdition\?\.edition\)/);
   // Only resuming a run the availability check found ready skips the gate.
   assert.match(workspace, /if \(activeStudyBusy \|\| \(!resuming && !activeStudyReady\)\) return;/);
-  assert.match(workspace, /item\?\.status !== "ready" \|\| item\.progress\?\.status !== "active"/);
+  assert.match(workspace, /item\?\.status !== "ready" \|\| savedStudyProgress\(saved, item\)\?\.status !== "active"/);
   assert.match(workspace, /"materials\.activeStudyUnavailable"/);
   assert.doesNotMatch(workspace, /isTestSheet/);
 

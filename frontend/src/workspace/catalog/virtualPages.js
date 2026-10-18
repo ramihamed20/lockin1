@@ -1,19 +1,46 @@
 export const MAX_VIRTUAL_PAGES = 200;
+/** My Summary pages: one per sheet page, for at most two summaries a sheet. */
+export const MAX_SUMMARY_PAGES = 20_000;
 export const WORKSPACE_PAGE_BACKGROUNDS = ["blank", "lined", "grid", "dot"];
+const SUMMARY_ID = /^[0-9a-f-]{36}$/i;
 
 export function isVirtualPageKey(value) {
   return Number.isSafeInteger(value) && value < 0;
 }
 
+/**
+ * Pages the student added count against MAX_VIRTUAL_PAGES; pages that belong
+ * to a My Summary carry its id in `summary` and have their own, larger limit.
+ */
 export function sanitizeVirtualPages(value) {
   const seen = new Set();
-  return (Array.isArray(value) ? value : []).slice(0, MAX_VIRTUAL_PAGES).flatMap((item) => {
+  let added = 0;
+  let summaries = 0;
+  return (Array.isArray(value) ? value : []).flatMap((item) => {
     const id = Number(item?.id);
     const afterPage = Number(item?.afterPage);
     if (!isVirtualPageKey(id) || !Number.isSafeInteger(afterPage) || afterPage < 1 || afterPage > 10_000 || seen.has(id)) return [];
+    const summary = typeof item.summary === "string" && SUMMARY_ID.test(item.summary) ? item.summary : null;
+    if (summary ? summaries >= MAX_SUMMARY_PAGES : added >= MAX_VIRTUAL_PAGES) return [];
+    if (summary) summaries += 1; else added += 1;
     seen.add(id);
-    return [{ id, afterPage, background: WORKSPACE_PAGE_BACKGROUNDS.includes(item.background) ? item.background : "blank" }];
+    return [{ id, afterPage, background: WORKSPACE_PAGE_BACKGROUNDS.includes(item.background) ? item.background : "blank", ...(summary ? { summary } : {}) }];
   });
+}
+
+/** One blank page after every sheet page, for a pen summary. */
+export function addSummaryPages(pages, summaryId, pdfPageCount, background = "blank") {
+  const current = sanitizeVirtualPages(pages);
+  if (!SUMMARY_ID.test(summaryId) || current.some((item) => item.summary === summaryId)) return current;
+  const next = [...current];
+  for (let page = 1; page <= Math.min(10_000, pdfPageCount); page += 1) {
+    next.push({ id: createVirtualPageId(next), afterPage: page, background, summary: summaryId });
+  }
+  return sanitizeVirtualPages(next);
+}
+
+export function removeSummaryPages(pages, summaryId) {
+  return sanitizeVirtualPages(pages).filter((item) => item.summary !== summaryId);
 }
 
 export function createVirtualPageId(pages) {
@@ -32,7 +59,7 @@ export function insertVirtualPage(pages, afterPage, id, afterVirtualId = null, b
   const current = sanitizeVirtualPages(pages);
   if (!isVirtualPageKey(id) || current.some((item) => item.id === id)) return current;
   const anchor = Math.round(Number(afterPage));
-  if (!Number.isSafeInteger(anchor) || anchor < 1 || anchor > 10_000 || current.length >= MAX_VIRTUAL_PAGES) return current;
+  if (!Number.isSafeInteger(anchor) || anchor < 1 || anchor > 10_000 || current.filter((item) => !item.summary).length >= MAX_VIRTUAL_PAGES) return current;
   const selectedIndex = current.findIndex((item) => item.id === afterVirtualId && item.afterPage === anchor);
   let lastSameAnchor = -1;
   current.forEach((item, index) => { if (item.afterPage === anchor) lastSameAnchor = index; });
@@ -55,6 +82,6 @@ export function composeWorkspacePages(pdfPages, virtualPages) {
   }
   return (pdfPages || []).flatMap((pdfPage) => [
     { kind: "pdf", key: pdfPage, pdfPage },
-    ...(byAnchor.get(pdfPage) || []).map((item) => ({ kind: "virtual", key: item.id, pdfPage, background: item.background }))
+    ...(byAnchor.get(pdfPage) || []).map((item) => ({ kind: "virtual", key: item.id, pdfPage, background: item.background, ...(item.summary ? { summary: item.summary } : {}) }))
   ]);
 }

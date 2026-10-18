@@ -8,7 +8,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("content", "0015_annotation_shares"),
+        ("content", "0016_learningobject_active_study_page_bank_enabled"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

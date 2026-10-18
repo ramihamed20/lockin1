@@ -232,6 +232,21 @@ def test_manual_retry_daily_limit_and_account_isolation():
     )
 
 
+def test_legacy_day_over_the_cap_still_allows_completion_but_not_growth():
+    user, client, today, _monday = setup_plan(mode="custom")
+    items = [
+        StudyPlanItem.objects.create(
+            user=user, title=f"Legacy {index}", scheduled_date=today, duration_minutes=300
+        )
+        for index in range(2)
+    ]
+    path = f"/api/v1/study-plan/items/{items[0].id}"
+    completed = client.patch(path, {"status": "completed", "expected_revision": 1}, format="json")
+    assert completed.status_code == 200, completed.data
+    assert client.patch(path, {"duration_minutes": 200}, format="json").status_code == 200
+    assert client.patch(path, {"duration_minutes": 250}, format="json").status_code == 400
+
+
 def test_writes_require_authentication_subscription_and_csrf():
     assert APIClient().patch("/api/v1/study-plan/profile", config(), format="json").status_code in (
         401,

@@ -254,3 +254,56 @@ def test_downloaded_bundle_advertises_pomodoro_without_versioning_student_progre
     row = next(r for r in after["availability"]["difficulties"] if r["difficulty"] == "medium")
     assert row["pomodoro_progress"]["id"] == str(run.id)
     assert row["pomodoro_progress"]["current_page_range"]["end_page"] == 7
+
+
+def test_results_name_each_questions_page_and_the_final_carries_a_session_summary():
+    user, sheet, _ = page_world()
+    run = close_cycle(user, pomodoro_start(user, sheet), 22, 40)
+    run, result = pass_test(user, run)
+    pages = {item["page"] for item in result["review"]}
+    assert pages == set(range(2, 23))
+    assert result["pomodoro_summary"]["final_total"] is None
+    assert run.stage == "final"
+    run, final = pass_test(user, run)
+    summary = final["pomodoro_summary"]
+    assert [item["part"] for item in summary["tests"]] == [1]
+    assert summary["average_percent"] == 100
+    assert summary["final_score"] == summary["final_total"] == 50
+
+
+def test_the_newest_clock_is_shared_across_devices_and_bad_clocks_are_refused():
+    user, sheet, _ = page_world()
+    client = _client(user)
+    run = pomodoro_start(user, sheet)
+    path = f"/api/v1/focus/managed-active-study/{run.id}/pomodoro-clock"
+    clock = {
+        "version": 1,
+        "part": 1,
+        "phase": "focus",
+        "deadline": 1_700_000_900_000,
+        "remainingMs": 1_500_000,
+        "endPage": 4,
+        "preset": "deep",
+        "updatedAt": 1_700_000_000_000,
+    }
+    saved = client.post(path, {"clock": clock}, format="json")
+    assert saved.status_code == 200, saved.json()
+    assert saved.json()["run"]["pomodoro_clock"]["preset"] == "deep"
+    stale = client.post(path, {"clock": {**clock, "phase": "break", "updatedAt": 1}}, format="json")
+    assert stale.json()["run"]["pomodoro_clock"]["phase"] == "focus"
+    away = {**clock, "deadline": None, "away": True, "updatedAt": 1_700_000_100_000}
+    left = client.post(path, {"clock": away}, format="json")
+    assert left.json()["run"]["pomodoro_clock"]["away"] is True
+    assert client.post(path, {"clock": {**away, "away": "yes"}}, format="json").status_code == 400
+    for bad in (
+        {**clock, "preset": "forever"},
+        {**clock, "remainingMs": 999 * 60_000},
+        {**clock, "phase": "nap"},
+        {**clock, "part": True},
+        "25:00",
+    ):
+        assert client.post(path, {"clock": bad}, format="json").status_code == 400
+    standard, _ = study.start(user=user, sheet_id=sheet.id, difficulty="medium")
+    other = f"/api/v1/focus/managed-active-study/{standard.id}/pomodoro-clock"
+    assert client.post(other, {"clock": clock}, format="json").status_code == 400
+    assert "pomodoro_clock" not in study.run_payload(standard)

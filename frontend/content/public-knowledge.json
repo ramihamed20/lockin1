@@ -6,7 +6,7 @@
     "headline": "دراستك. بتناغم.",
     "english": "Everything in sync."
   },
-  "lastVerified": "2026-10-16",
+  "lastVerified": "2026-10-18",
   "verificationScope": "Current repository behavior and tests reviewed; production durability, real devices and outbound email are not certified. See docs/PUBLIC_KNOWLEDGE_REVERIFICATION.md.",
   "features": [
     {
@@ -21,7 +21,7 @@
         "frontend/tests/materials-catalog.test.js",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -30,14 +30,14 @@
       "name": "الشيتات وقارئ PDF",
       "status": "conditional",
       "entry": "/#/materials",
-      "requirements": "شيت منشور وقابل للتسليم وصلاحية المحتوى بحسب الحساب.",
+      "requirements": "يظهر الشيت عندما يكون منشورًا لمسارك ومتاحًا لحسابك.",
       "evidence": [
         "frontend/src/pages/Materials.jsx",
         "frontend/src/components/learning/CatalogSheetCard.jsx",
         "backend/apps/content/tests/test_catalog_workspace.py",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -46,7 +46,7 @@
       "name": "أدوات الملاحظات والكتابة",
       "status": "available",
       "entry": "/#/materials",
-      "requirements": "داخل مساحة PDF المسموح بها؛ الحفظ والمزامنة يتأثران بالاتصال.",
+      "requirements": "داخل الشيتات المتاحة لحسابك؛ الحفظ والمزامنة بين أجهزتك يتأثران بالاتصال.",
       "evidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/annotation_services.py",
@@ -54,7 +54,7 @@
         "frontend/e2e/focus-workspace-persistence.spec.js",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -63,7 +63,7 @@
       "name": "Active Study",
       "status": "conditional",
       "entry": "/#/materials",
-      "requirements": "شيت جاهز بأسئلة منشورة للمستوى المختار؛ التخصيص وPomodoro style متاحان في قارئ Focus للشيتات الجديدة المجهزة ببنك أسئلة حسب الصفحة فقط.",
+      "requirements": "شيت جاهز بأسئلة منشورة للمستوى المختار. التخصيص وأسلوب Pomodoro (بومودورو) متاحان في قارئ Focus للشيتات الجديدة المجهزة ببنك أسئلة حسب الصفحة فقط.",
       "evidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/managed_active_study.py",
@@ -72,13 +72,15 @@
         "backend/apps/focus/tests/test_page_active_study.py",
         "frontend/src/components/shared/ActiveStudyCustomization.jsx",
         "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/content/page_question_bank.py",
         "backend/apps/focus/pomodoro.py",
         "backend/apps/focus/tests/test_pomodoro_study.py",
         "frontend/src/components/shared/PomodoroStudy.jsx",
         "frontend/src/lib/pomodoroStudy.js",
+        "frontend/src/lib/pomodoroMessages.js",
         "frontend/e2e/focus-pomodoro.spec.js"
       ],
-      "lastVerified": "2026-10-17",
+      "lastVerified": "2026-10-18",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -87,14 +89,14 @@
       "name": "الأسئلة",
       "status": "conditional",
       "entry": "/#/questions",
-      "requirements": "مصادر وأسئلة منشورة ضمن المسار؛ Mix غير متاحة.",
+      "requirements": "تظهر المصادر والأسئلة المنشورة لمسارك فقط؛ Mix غير متاحة حاليًا.",
       "evidence": [
         "frontend/src/pages/Questions.jsx",
         "frontend/src/components/learning/PracticeQuestions.jsx",
         "backend/apps/content/tests/test_catalog_questions.py",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -103,7 +105,7 @@
       "name": "بنك المراجعة",
       "status": "available",
       "entry": "/#/review",
-      "requirements": "الإجابات المدعومة التي يسجلها نظام المراجعة فقط.",
+      "requirements": "تدخل المراجعة أخطاء الأسئلة التي تدعم المراجعة فقط.",
       "evidence": [
         "frontend/src/pages/Review.jsx",
         "backend/apps/review/services.py",
@@ -111,7 +113,7 @@
         "frontend/e2e/review-bank.spec.js",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -120,7 +122,7 @@
       "name": "Weekly Recall",
       "status": "conditional",
       "entry": "/#/review/weekly",
-      "requirements": "يتطلب وجود أسئلة متقنة مؤهلة؛ لا يظهر اختبار فارغ.",
+      "requirements": "يظهر عندما توجد أسئلة صحّحتها في المراجعة وصارت جاهزة للاسترجاع؛ لا يظهر اختبار فارغ.",
       "evidence": [
         "frontend/src/pages/Review.jsx",
         "backend/apps/review/policy.py",
@@ -128,7 +130,7 @@
         "backend/apps/review/tests/test_review.py",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -137,13 +139,13 @@
       "name": "التقدم",
       "status": "available",
       "entry": "/#/progress",
-      "requirements": "بيانات النشاط المسجلة؛ لا ضمان لتحسن أكاديمي أو ترتيب.",
+      "requirements": "يعرض نشاطك المسجل في Lockin، وهو مؤشر للاستخدام وليس ضمانًا لدرجة أو ترتيب.",
       "evidence": [
         "frontend/src/pages/Progress.jsx",
         "frontend/src/api/motivation.js",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -152,14 +154,14 @@
       "name": "التقارير الدورية",
       "status": "conditional",
       "entry": "/#/weekly-summary",
-      "requirements": "تقرير مولد ومتاح للحساب؛ نشاط كافٍ وفق سياسة التقارير.",
+      "requirements": "يظهر الملخص عندما يكون لديك نشاط كافٍ لإعداده.",
       "evidence": [
         "frontend/src/pages/Biweekly.jsx",
         "backend/apps/biweekly/services.py",
         "backend/apps/biweekly/tests/test_biweekly.py",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -168,7 +170,7 @@
       "name": "الحساب وتسجيل الدخول",
       "status": "available",
       "entry": "/#/settings?section=account",
-      "requirements": "حساب صالح وصلاحيات الخدمة؛ وصول البريد الفعلي يحتاج فحصًا منفصلًا.",
+      "requirements": "يتطلب حسابًا فعّالًا باسمك وصلاحية الوصول إلى الخدمة.",
       "evidence": [
         "frontend/src/components/auth/AuthPage.jsx",
         "frontend/src/pages/Settings.jsx",
@@ -176,7 +178,7 @@
         "backend/apps/accounts/tests/test_api.py",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -185,14 +187,14 @@
       "name": "الدعم والملاحظات",
       "status": "available",
       "entry": "/#/settings?section=support",
-      "requirements": "مركز معرفة عام، ونموذج الاقتراحات للمستخدم المسجل.",
+      "requirements": "مركز المساعدة متاح للجميع، ونموذج الاقتراحات متاح بعد تسجيل الدخول.",
       "evidence": [
         "frontend/src/pages/Settings.jsx",
         "frontend/src/pages/Feedback.jsx",
         "backend/apps/feedback/tests/test_api.py",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -282,13 +284,13 @@
     {
       "id": "study-plan",
       "name": "خطة الدراسة",
-      "status": "available",
+      "status": "coming_soon",
       "entry": "/#/study-plan",
-      "requirements": "خطة خاصة بالحساب بأوضاع بداية وعادي ومخصص. الإنجاز تسجيل شخصي ولا يمنح XP.",
+      "requirements": "قريبًا. خطة الدراسة غير متاحة حاليًا وتظهر في التطبيق كميزة قادمة.",
       "evidence": [
         "frontend/src/lib/featureAvailability.js"
       ],
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": false
     },
@@ -387,7 +389,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/what-is-lockin/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/App.jsx",
         "frontend/src/lib/materialCatalog.js",
@@ -401,7 +403,7 @@
       "category": "getting-started",
       "relatedFeature": "product",
       "question": "لمن تتوفر Lockin حاليًا؟",
-      "shortAnswer": "لطلبة الطب البشري وطب الأسنان في المسارات المدعومة داخل ليبيا. المواد والأسئلة التي تظهر لكل طالب مرتبطة بمساره وبالمحتوى المنشور له.",
+      "shortAnswer": "لطلبة الطب البشري في طرابلس، وطلبة طب الأسنان في السنة الأولى والثانية في طرابلس وبنغازي والزاوية. المواد والأسئلة التي تظهر لكل طالب مرتبطة بمساره وبالمحتوى المنشور له.",
       "detailedSteps": [],
       "keywords": [
         "لمن تتوفر Lockin حاليًا؟",
@@ -409,12 +411,13 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/who-is-lockin-for/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/App.jsx",
         "frontend/src/lib/materialCatalog.js",
         "frontend/tests/materials-catalog.test.js",
-        "frontend/src/lib/i18n.js"
+        "frontend/src/lib/i18n.js",
+        "backend/apps/education/migrations/0007_seed_libyan_education_tree.py"
       ],
       "status": "published"
     },
@@ -423,7 +426,7 @@
       "category": "getting-started",
       "relatedFeature": "product",
       "question": "هل تشمل Lockin كل الجامعات والسنوات؟",
-      "shortAnswer": "لا نفترض توفر كل جامعة أو سنة. خيارات المسار والمواد المتاحة داخل الحساب هي المرجع، وقد تكون بعض المسارات أو المواد غير مدعومة بعد.",
+      "shortAnswer": "ليس بعد. المسارات التي يمكن اختيارها حاليًا: طب الأسنان (سنة أولى وثانية) في طرابلس وبنغازي والزاوية، والطب البشري في طرابلس (دفعة 60 و61). المحتوى المنشور يختلف بين المسارات، وبقية الجامعات والسنوات غير مدعومة بعد.",
       "detailedSteps": [],
       "keywords": [
         "إتاحة تشمل Lockin كل الجامعات والسنوات؟",
@@ -431,12 +434,13 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/supported-universities/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/App.jsx",
         "frontend/src/lib/materialCatalog.js",
         "frontend/tests/materials-catalog.test.js",
-        "frontend/src/lib/i18n.js"
+        "frontend/src/lib/i18n.js",
+        "backend/apps/education/migrations/0007_seed_libyan_education_tree.py"
       ],
       "status": "published"
     },
@@ -453,7 +457,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/need-account/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/components/auth/AuthPage.jsx",
         "frontend/src/pages/Settings.jsx",
@@ -480,7 +484,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/open-materials/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Materials.jsx",
         "frontend/src/components/learning/CatalogSheetCard.jsx",
@@ -494,7 +498,7 @@
       "category": "getting-started",
       "relatedFeature": "materials",
       "question": "لماذا تختلف موادي عن مواد زميل آخر؟",
-      "shortAnswer": "قائمة المواد مرتبطة بالمسار والسنة أو الدفعة المسجلة للحساب، وبالمحتوى المنشور. اختلاف المسار قد يعني اختلاف المواد والأسئلة.",
+      "shortAnswer": "قائمة المواد مرتبطة بالمسار والسنة أو الدفعة المسجلة للحساب، وبالمحتوى المنشور. اختلاف المسار قد يعني اختلاف المواد والأسئلة. وفي سنة ثانية طب أسنان قد يضيف الطالب حتى مادتين من سنة أولى، فتظهر عنده دون زملائه.",
       "detailedSteps": [],
       "keywords": [
         "لماذا تختلف موادي عن مواد زميل آخر؟",
@@ -502,12 +506,14 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/cohort-content/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Materials.jsx",
         "frontend/src/components/learning/CatalogSheetCard.jsx",
         "backend/apps/content/tests/test_catalog_workspace.py",
-        "frontend/src/lib/i18n.js"
+        "frontend/src/lib/i18n.js",
+        "backend/apps/content/added_subjects.py",
+        "backend/apps/content/tests/test_added_subjects.py"
       ],
       "status": "published"
     },
@@ -524,7 +530,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/sheet-editions/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Materials.jsx",
         "frontend/src/components/learning/CatalogSheetCard.jsx",
@@ -546,7 +552,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/about-settings/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Settings.jsx",
         "frontend/src/pages/Feedback.jsx",
@@ -572,7 +578,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/open-pdf/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Materials.jsx",
         "frontend/src/components/learning/CatalogSheetCard.jsx",
@@ -595,7 +601,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/pdf-notes/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/annotation_services.py",
@@ -622,7 +628,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/pen-tool/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/annotation_services.py",
@@ -645,7 +651,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/highlight-tool/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/annotation_services.py",
@@ -668,7 +674,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/erase-marks/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/annotation_services.py",
@@ -691,7 +697,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/text-notes/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/annotation_services.py",
@@ -714,7 +720,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/notes-private/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/annotation_services.py",
@@ -737,7 +743,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/pdf-original/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/annotation_services.py",
@@ -752,7 +758,7 @@
       "category": "studying",
       "relatedFeature": "active-study",
       "question": "ما هو Active Study؟",
-      "shortAnswer": "هو وضع دراسة يربط صفحات الشيت باختبارات أثناء التقدم، ثم اختبار نهائي. في الشيتات الجديدة الجاهزة يمكنك اختيار الصفحات والأسئلة، أو Pomodoro style الذي يختبر الصفحات المقروءة بعد 25 دقيقة، مع بقاء الأسلوب المعتاد متاحًا.",
+      "shortAnswer": "هو وضع دراسة يقسم الشيت إلى أجزاء، بعد كل جزء اختبار قصير، ثم اختبار نهائي. في الشيتات الجديدة الجاهزة تقدر تختار عدد الصفحات والأسئلة لكل اختبار، أو تستخدم أسلوب Pomodoro (بومودورو): مؤقت تركيز ثم اختبار للصفحات التي قرأتها. الأسلوب المعتاد يبقى متاحًا.",
       "detailedSteps": [],
       "keywords": [
         "الدراسة التفاعلية",
@@ -761,7 +767,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/active-study-what/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-17",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/managed_active_study.py",
@@ -770,10 +776,12 @@
         "backend/apps/focus/tests/test_page_active_study.py",
         "frontend/src/components/shared/ActiveStudyCustomization.jsx",
         "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/content/page_question_bank.py",
         "backend/apps/focus/pomodoro.py",
         "backend/apps/focus/tests/test_pomodoro_study.py",
         "frontend/src/components/shared/PomodoroStudy.jsx",
         "frontend/src/lib/pomodoroStudy.js",
+        "frontend/src/lib/pomodoroMessages.js",
         "frontend/e2e/focus-pomodoro.spec.js"
       ],
       "status": "published"
@@ -787,8 +795,8 @@
       "detailedSteps": [
         "افتح المادة والشيت والنسخة المتاحة.",
         "اختر Active Study ومستوى الصعوبة.",
-        "إذا ظهر «تخصيص»، يمكنك تحديد الصفحات لكل اختبار وعدد الأسئلة حتى 20، أو الإبقاء على الأسلوب المعتاد.",
-        "إذا ظهر Pomodoro style في قارئ Focus، يمكنك اختياره لجلسة 25 دقيقة ثم تحديد حتى 40 سؤالًا للصفحات المقروءة، بحسب عدد الأسئلة المتاحة. بعد الاختبار توجد راحة 5 دقائق.",
+        "إذا ظهر «تخصيص»، حدد عدد الصفحات لكل اختبار (حتى 10) وعدد الأسئلة (حتى 30)، أو اختر «استخدام الأسلوب العادي».",
+        "إذا ظهر Pomodoro style في قارئ Focus، اختر مدة المؤقت: 25 أو 45 أو 50 دقيقة تركيز. بعد انتهاء المؤقت تختار حتى 40 سؤالًا للصفحات التي قرأتها، ثم تأخذ راحة.",
         "اضغط «ابدأ الدراسة النشطة». إذا لم تتوفر الأسئلة، اختر الدراسة العادية أو شيتًا جاهزًا آخر."
       ],
       "keywords": [
@@ -797,7 +805,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/start-active-study/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-17",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/managed_active_study.py",
@@ -806,10 +814,12 @@
         "backend/apps/focus/tests/test_page_active_study.py",
         "frontend/src/components/shared/ActiveStudyCustomization.jsx",
         "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/content/page_question_bank.py",
         "backend/apps/focus/pomodoro.py",
         "backend/apps/focus/tests/test_pomodoro_study.py",
         "frontend/src/components/shared/PomodoroStudy.jsx",
         "frontend/src/lib/pomodoroStudy.js",
+        "frontend/src/lib/pomodoroMessages.js",
         "frontend/e2e/focus-pomodoro.spec.js"
       ],
       "status": "published"
@@ -827,7 +837,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/active-availability/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-17",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/managed_active_study.py",
@@ -836,10 +846,12 @@
         "backend/apps/focus/tests/test_page_active_study.py",
         "frontend/src/components/shared/ActiveStudyCustomization.jsx",
         "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/content/page_question_bank.py",
         "backend/apps/focus/pomodoro.py",
         "backend/apps/focus/tests/test_pomodoro_study.py",
         "frontend/src/components/shared/PomodoroStudy.jsx",
         "frontend/src/lib/pomodoroStudy.js",
+        "frontend/src/lib/pomodoroMessages.js",
         "frontend/e2e/focus-pomodoro.spec.js"
       ],
       "status": "published"
@@ -849,7 +861,7 @@
       "category": "studying",
       "relatedFeature": "active-study",
       "question": "هل أستطيع اختيار صعوبة Active Study؟",
-      "shortAnswer": "نعم. اختر سهلًا أو متوسطًا أو صعبًا. للشيتات الجديدة الجاهزة يمكنك تخصيص الصفحات وعدد الأسئلة من 1 إلى 20، أو اختيار Pomodoro style واختبار الصفحات المقروءة بعد 25 دقيقة بعدد يصل إلى 40 بحسب المتاح. يبقى التقدم مستقلًا لكل أسلوب.",
+      "shortAnswer": "نعم. اختر سهلًا أو متوسطًا أو صعبًا. في الشيتات الجديدة الجاهزة تقدر تخصص حتى 10 صفحات و30 سؤالًا لكل اختبار، أو تختار أسلوب Pomodoro الذي يختبر الصفحات المقروءة بعد انتهاء مؤقت التركيز بعدد يصل إلى 40 سؤالًا بحسب المتاح. يبقى التقدم مستقلًا لكل أسلوب.",
       "detailedSteps": [],
       "keywords": [
         "إتاحة أستطيع اختيار صعوبة Active Study؟",
@@ -857,7 +869,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/active-difficulty/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-17",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/managed_active_study.py",
@@ -866,10 +878,12 @@
         "backend/apps/focus/tests/test_page_active_study.py",
         "frontend/src/components/shared/ActiveStudyCustomization.jsx",
         "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/content/page_question_bank.py",
         "backend/apps/focus/pomodoro.py",
         "backend/apps/focus/tests/test_pomodoro_study.py",
         "frontend/src/components/shared/PomodoroStudy.jsx",
         "frontend/src/lib/pomodoroStudy.js",
+        "frontend/src/lib/pomodoroMessages.js",
         "frontend/e2e/focus-pomodoro.spec.js"
       ],
       "status": "published"
@@ -881,9 +895,9 @@
       "question": "ماذا يحدث بعد قراءة صفحات الشيت؟",
       "shortAnswer": "بعد قراءة الصفحات المتاحة، افتح اختبار المرحلة. يفتح نجاحك الصفحات التالية، وتظل الصفحات السابقة قابلة للقراءة. الاختبار مرتبط بالصفحات المحددة في جلسة الدراسة.",
       "detailedSteps": [
-        "في الأسلوب المعتاد أو المخصص، افتح الاختبار عند نهاية نطاق الصفحات المحدد.",
-        "في Pomodoro style تظهر شاشة اختيار عدد الأسئلة بعد انتهاء 25 دقيقة، ويثبت الاختبار على الصفحات الجديدة التي وصلت إليها في تلك الجلسة.",
-        "توزّع الأسئلة بالتساوي قدر الإمكان بين الصفحات. صفحة واحدة توفر حتى 20 سؤالًا، وحد Pomodoro الإجمالي 40؛ وإذا قل عدد الأسئلة عن الصفحات، تُختار صفحات متباعدة من النطاق."
+        "في الأسلوب المعتاد أو المخصص، تابع القراءة حتى آخر صفحة في الجزء ليفتح اختباره.",
+        "في أسلوب Pomodoro تظهر شاشة اختيار عدد الأسئلة بعد انتهاء مؤقت التركيز، ويثبت الاختبار على الصفحات الجديدة التي وصلت إليها في تلك الجلسة.",
+        "توزّع الأسئلة بالتساوي قدر الإمكان بين الصفحات. صفحة واحدة توفر حتى 15 سؤالًا، وحد Pomodoro الإجمالي 40؛ وإذا قل عدد الأسئلة عن الصفحات، تُختار صفحات متباعدة من النطاق."
       ],
       "keywords": [
         "ماذا يحدث بعد قراءة جزء من الشيت؟",
@@ -891,7 +905,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/active-parts/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-17",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/managed_active_study.py",
@@ -900,10 +914,12 @@
         "backend/apps/focus/tests/test_page_active_study.py",
         "frontend/src/components/shared/ActiveStudyCustomization.jsx",
         "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/content/page_question_bank.py",
         "backend/apps/focus/pomodoro.py",
         "backend/apps/focus/tests/test_pomodoro_study.py",
         "frontend/src/components/shared/PomodoroStudy.jsx",
         "frontend/src/lib/pomodoroStudy.js",
+        "frontend/src/lib/pomodoroMessages.js",
         "frontend/e2e/focus-pomodoro.spec.js"
       ],
       "status": "published"
@@ -913,7 +929,7 @@
       "category": "studying",
       "relatedFeature": "active-study",
       "question": "هل يوجد اختبار في نهاية Active Study؟",
-      "shortAnswer": "نعم، يدعم التدفق اختبارًا نهائيًا بعد المراحل. يعتمد عدد الأسئلة ومحتواها على إعداد الشيت المنشور، وليس رقمًا موحدًا لكل المواد.",
+      "shortAnswer": "نعم، بعد الأجزاء يوجد اختبار نهائي يجمع ما درسته. عدد أسئلته يعتمد على إعداد الشيت، وليس رقمًا موحدًا لكل المواد.",
       "detailedSteps": [],
       "keywords": [
         "إتاحة يوجد اختبار في نهاية Active Study؟",
@@ -921,7 +937,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/active-final/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-17",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/managed_active_study.py",
@@ -930,10 +946,12 @@
         "backend/apps/focus/tests/test_page_active_study.py",
         "frontend/src/components/shared/ActiveStudyCustomization.jsx",
         "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/content/page_question_bank.py",
         "backend/apps/focus/pomodoro.py",
         "backend/apps/focus/tests/test_pomodoro_study.py",
         "frontend/src/components/shared/PomodoroStudy.jsx",
         "frontend/src/lib/pomodoroStudy.js",
+        "frontend/src/lib/pomodoroMessages.js",
         "frontend/e2e/focus-pomodoro.spec.js"
       ],
       "status": "published"
@@ -951,7 +969,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/active-resume/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-17",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/managed_active_study.py",
@@ -960,10 +978,12 @@
         "backend/apps/focus/tests/test_page_active_study.py",
         "frontend/src/components/shared/ActiveStudyCustomization.jsx",
         "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/content/page_question_bank.py",
         "backend/apps/focus/pomodoro.py",
         "backend/apps/focus/tests/test_pomodoro_study.py",
         "frontend/src/components/shared/PomodoroStudy.jsx",
         "frontend/src/lib/pomodoroStudy.js",
+        "frontend/src/lib/pomodoroMessages.js",
         "frontend/e2e/focus-pomodoro.spec.js"
       ],
       "status": "published"
@@ -981,7 +1001,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/active-restart/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-17",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/managed_active_study.py",
@@ -990,10 +1010,12 @@
         "backend/apps/focus/tests/test_page_active_study.py",
         "frontend/src/components/shared/ActiveStudyCustomization.jsx",
         "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/content/page_question_bank.py",
         "backend/apps/focus/pomodoro.py",
         "backend/apps/focus/tests/test_pomodoro_study.py",
         "frontend/src/components/shared/PomodoroStudy.jsx",
         "frontend/src/lib/pomodoroStudy.js",
+        "frontend/src/lib/pomodoroMessages.js",
         "frontend/e2e/focus-pomodoro.spec.js"
       ],
       "status": "published"
@@ -1011,7 +1033,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/normal-or-active/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-17",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/managed_active_study.py",
@@ -1020,10 +1042,12 @@
         "backend/apps/focus/tests/test_page_active_study.py",
         "frontend/src/components/shared/ActiveStudyCustomization.jsx",
         "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/content/page_question_bank.py",
         "backend/apps/focus/pomodoro.py",
         "backend/apps/focus/tests/test_pomodoro_study.py",
         "frontend/src/components/shared/PomodoroStudy.jsx",
         "frontend/src/lib/pomodoroStudy.js",
+        "frontend/src/lib/pomodoroMessages.js",
         "frontend/e2e/focus-pomodoro.spec.js"
       ],
       "status": "published"
@@ -1045,7 +1069,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/question-sources/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Questions.jsx",
         "frontend/src/components/learning/PracticeQuestions.jsx",
@@ -1067,7 +1091,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/practical-questions/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Questions.jsx",
         "frontend/src/components/learning/PracticeQuestions.jsx",
@@ -1081,7 +1105,7 @@
       "category": "studying",
       "relatedFeature": "questions",
       "question": "لماذا لا أستطيع فتح Mix؟",
-      "shortAnswer": "مصدر Mix موسوم غير متاح في سجل مصادر الأسئلة الحالي. استخدم أحد المصادر المتاحة لمسارك بدل افتراض وجود اختبار مختلط.",
+      "shortAnswer": "مصدر Mix غير متاح حاليًا. استخدم أحد مصادر الأسئلة المتاحة لمسارك في قسم الأسئلة.",
       "detailedSteps": [],
       "keywords": [
         "لماذا لا أستطيع فتح Mix؟",
@@ -1089,7 +1113,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/mixed-questions/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Questions.jsx",
         "frontend/src/components/learning/PracticeQuestions.jsx",
@@ -1103,7 +1127,7 @@
       "category": "studying",
       "relatedFeature": "questions",
       "question": "هل توجد توضيحات للإجابات؟",
-      "shortAnswer": "تستخدم واجهات الأسئلة والمراجعة مكوّن توضيح للإجابة عندما يتوفر المحتوى. لا نفترض أن لكل سؤال توضيحًا منشورًا.",
+      "shortAnswer": "يظهر توضيح الإجابة في شاشات الأسئلة والمراجعة عندما يكون متوفرًا للسؤال. ليس لكل سؤال توضيح منشور.",
       "detailedSteps": [],
       "keywords": [
         "إتاحة توجد توضيحات للإجابات؟",
@@ -1111,7 +1135,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/question-explanations/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Questions.jsx",
         "frontend/src/components/learning/PracticeQuestions.jsx",
@@ -1137,7 +1161,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/find-mistakes/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Review.jsx",
         "backend/apps/review/services.py",
@@ -1152,7 +1176,7 @@
       "category": "review-progress",
       "relatedFeature": "review",
       "question": "هل تحفظ كل إجابة خاطئة في بنك المراجعة؟",
-      "shortAnswer": "يسجل النظام أخطاء محاولات الأسئلة المدعومة بالمراجعة. لا نعد بحفظ أخطاء أي نشاط خارج هذا التدفق أو محاولات لم تصل إلى الخادم.",
+      "shortAnswer": "تُحفظ أخطاؤك في الأسئلة التي تدعم المراجعة. الأخطاء في نشاط آخر، أو المحاولات التي لم تصل إلى الخادم، لا تدخل بنك المراجعة.",
       "detailedSteps": [],
       "keywords": [
         "إتاحة تحفظ كل إجابة خاطئة في بنك المراجعة؟",
@@ -1160,7 +1184,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/saved-mistakes/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Review.jsx",
         "backend/apps/review/services.py",
@@ -1183,7 +1207,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/repeat-mistake/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Review.jsx",
         "backend/apps/review/services.py",
@@ -1206,7 +1230,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/mastered-question/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Review.jsx",
         "backend/apps/review/services.py",
@@ -1229,7 +1253,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/empty-review/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Review.jsx",
         "backend/apps/review/services.py",
@@ -1252,7 +1276,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/weekly-recall/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Review.jsx",
         "backend/apps/review/policy.py",
@@ -1275,7 +1299,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/weekly-not-ready/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Review.jsx",
         "backend/apps/review/policy.py",
@@ -1298,7 +1322,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/start-weekly/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Review.jsx",
         "backend/apps/review/policy.py",
@@ -1321,7 +1345,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/weekly-errors/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Review.jsx",
         "backend/apps/review/policy.py",
@@ -1344,7 +1368,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/progress-page/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Progress.jsx",
         "frontend/src/api/motivation.js",
@@ -1356,8 +1380,8 @@
       "id": "periodic-reports",
       "category": "review-progress",
       "relatedFeature": "biweekly",
-      "question": "أين أجد تقارير الدراسة الدورية؟",
-      "shortAnswer": "تعرض واجهات التقارير تحليلًا ومراجعة للتقارير التي ولّدها النظام لحسابك. قد لا يظهر تقرير عند غياب نشاط كافٍ أو عدم وجود تقرير متاح.",
+      "question": "أين أجد ملخصي الأسبوعي؟",
+      "shortAnswer": "عندما يجهز ملخصك الأسبوعي يظهر لك إشعار «ملخصك للأسبوع جاهز» في التطبيق، اضغط «فتح» لقراءته. قد لا يظهر ملخص إذا لم يكن لديك نشاط كافٍ.",
       "detailedSteps": [],
       "keywords": [
         "مكان أجد تقارير الدراسة الدورية؟",
@@ -1365,12 +1389,13 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/periodic-reports/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Biweekly.jsx",
         "backend/apps/biweekly/services.py",
         "backend/apps/biweekly/tests/test_biweekly.py",
-        "frontend/src/lib/i18n.js"
+        "frontend/src/lib/i18n.js",
+        "frontend/src/components/biweekly/WeeklyReadyToast.jsx"
       ],
       "status": "published"
     },
@@ -1387,7 +1412,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/private-and-public/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/App.jsx",
         "frontend/src/lib/materialCatalog.js",
@@ -1409,7 +1434,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/account-security/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/components/auth/AuthPage.jsx",
         "frontend/src/pages/Settings.jsx",
@@ -1432,7 +1457,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/supported-access/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Materials.jsx",
         "frontend/src/components/learning/CatalogSheetCard.jsx",
@@ -1454,7 +1479,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/missing-materials/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Materials.jsx",
         "frontend/src/components/learning/CatalogSheetCard.jsx",
@@ -1476,7 +1501,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/missing-questions/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Questions.jsx",
         "frontend/src/components/learning/PracticeQuestions.jsx",
@@ -1498,7 +1523,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/reader-unavailable/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Materials.jsx",
         "frontend/src/components/learning/CatalogSheetCard.jsx",
@@ -1520,7 +1545,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/notes-not-synced/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/annotation_services.py",
@@ -1543,7 +1568,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/active-start-error/",
       "featureAvailability": "conditional",
-      "lastVerified": "2026-10-17",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/CatalogFocusWorkspace.jsx",
         "backend/apps/focus/managed_active_study.py",
@@ -1552,10 +1577,12 @@
         "backend/apps/focus/tests/test_page_active_study.py",
         "frontend/src/components/shared/ActiveStudyCustomization.jsx",
         "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/content/page_question_bank.py",
         "backend/apps/focus/pomodoro.py",
         "backend/apps/focus/tests/test_pomodoro_study.py",
         "frontend/src/components/shared/PomodoroStudy.jsx",
         "frontend/src/lib/pomodoroStudy.js",
+        "frontend/src/lib/pomodoroMessages.js",
         "frontend/e2e/focus-pomodoro.spec.js"
       ],
       "status": "published"
@@ -1577,13 +1604,119 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/contact-support/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-18",
       "verificationEvidence": [
         "frontend/src/pages/Settings.jsx",
         "frontend/src/pages/Feedback.jsx",
         "backend/apps/feedback/tests/test_api.py",
         "frontend/src/lib/i18n.js"
       ],
+      "status": "published"
+    },
+    {
+      "id": "pomodoro-study",
+      "category": "studying",
+      "relatedFeature": "active-study",
+      "question": "كيف أذاكر بطريقة بومودورو (Pomodoro) في Lockin؟",
+      "shortAnswer": "اختر Pomodoro style في Active Study داخل قارئ Focus. تقرأ مع مؤقت تركيز، وبعد انتهائه تختبر الصفحات التي وصلت إليها، ثم تأخذ راحة. بعد كل أربعة اختبارات تحصل على راحة طويلة.",
+      "detailedSteps": [
+        "افتح شيتًا جديدًا جاهزًا في قارئ Focus واختر Active Study ومستوى الصعوبة.",
+        "اختر Pomodoro style ثم مدة المؤقت: 25 دقيقة تركيز و5 راحة، أو 45 و10، أو 50 و10.",
+        "اقرأ حتى ينتهي المؤقت، ثم اختر عدد الأسئلة (حتى 40) لاختبار الصفحات التي قرأتها في تلك الجلسة.",
+        "راجع النتيجة حسب الصفحة، واضغط على أي صفحة ضعيفة لتقرأها مرة ثانية.",
+        "بعد كل أربعة اختبارات صفحات تحصل على راحة طويلة، وفي النهاية يجمع الاختبار النهائي ما درسته."
+      ],
+      "keywords": [
+        "طريقة بومودورو للمذاكرة",
+        "Pomodoro study",
+        "مؤقت المذاكرة",
+        "مذاكرة بالمؤقت"
+      ],
+      "featureAvailability": "conditional",
+      "verificationEvidence": [
+        "frontend/src/pages/CatalogFocusWorkspace.jsx",
+        "backend/apps/focus/managed_active_study.py",
+        "backend/apps/focus/tests/test_managed_active_study.py",
+        "frontend/src/lib/i18n.js",
+        "backend/apps/focus/tests/test_page_active_study.py",
+        "frontend/src/components/shared/ActiveStudyCustomization.jsx",
+        "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/content/page_question_bank.py",
+        "backend/apps/focus/pomodoro.py",
+        "backend/apps/focus/tests/test_pomodoro_study.py",
+        "frontend/src/components/shared/PomodoroStudy.jsx",
+        "frontend/src/lib/pomodoroStudy.js",
+        "frontend/src/lib/pomodoroMessages.js",
+        "frontend/e2e/focus-pomodoro.spec.js"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/pomodoro-study/",
+      "lastVerified": "2026-10-18",
+      "status": "published"
+    },
+    {
+      "id": "custom-active-study",
+      "category": "studying",
+      "relatedFeature": "active-study",
+      "question": "كيف أحدد عدد الصفحات والأسئلة في Active Study؟",
+      "shortAnswer": "في الشيتات الجديدة الجاهزة اضغط «تخصيص» قبل البدء، ثم حدد حتى 10 صفحات لكل اختبار وحتى 30 سؤالًا. الاختبار النهائي يبقى كما هو، وتقدر ترجع للأسلوب العادي في أي وقت.",
+      "detailedSteps": [
+        "افتح الشيت واختر Active Study ومستوى الصعوبة.",
+        "اضغط «تخصيص» إذا ظهر، وحدد الصفحات لكل اختبار والأسئلة.",
+        "الحد الأعلى للأسئلة يعتمد على عدد الصفحات المتاحة في أقصر جزء، لأن كل صفحة توفر حتى 15 سؤالًا.",
+        "تغيير إعدادات جلسة مخصصة بدأتها يفتح جلسة جديدة بعد تأكيدك، ويُحفظ تقدم الجلسة السابقة في الأرشيف."
+      ],
+      "keywords": [
+        "تخصيص Active Study",
+        "عدد الأسئلة في الاختبار",
+        "اختبار كل كم صفحة"
+      ],
+      "featureAvailability": "conditional",
+      "verificationEvidence": [
+        "frontend/src/pages/CatalogFocusWorkspace.jsx",
+        "backend/apps/focus/managed_active_study.py",
+        "backend/apps/focus/tests/test_managed_active_study.py",
+        "frontend/src/lib/i18n.js",
+        "backend/apps/focus/tests/test_page_active_study.py",
+        "frontend/src/components/shared/ActiveStudyCustomization.jsx",
+        "frontend/e2e/focus-active-study-customization.spec.js",
+        "backend/apps/content/page_question_bank.py",
+        "backend/apps/focus/pomodoro.py",
+        "backend/apps/focus/tests/test_pomodoro_study.py",
+        "frontend/src/components/shared/PomodoroStudy.jsx",
+        "frontend/src/lib/pomodoroStudy.js",
+        "frontend/src/lib/pomodoroMessages.js",
+        "frontend/e2e/focus-pomodoro.spec.js"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/custom-active-study/",
+      "lastVerified": "2026-10-18",
+      "status": "published"
+    },
+    {
+      "id": "first-year-subjects",
+      "category": "getting-started",
+      "relatedFeature": "materials",
+      "question": "هل أستطيع إضافة مواد سنة أولى وأنا في سنة ثانية طب أسنان؟",
+      "shortAnswer": "نعم. طلبة سنة ثانية طب أسنان يقدرون يضيفون حتى مادتين من مواد سنة أولى يدرسونها هذه السنة، من زر «إضافة مادة من سنة أولى» في قسم المواد.",
+      "detailedSteps": [
+        "افتح قسم المواد في حسابك.",
+        "اضغط «إضافة مادة من سنة أولى» واختر المادة، ثم أكّد الإضافة.",
+        "الاختيار نهائي. لاستبدال مادة لاحقًا افتح الإعدادات ثم «موادي» وأرسل طلبًا يراجعه المسؤول."
+      ],
+      "keywords": [
+        "مواد محمولة سنة أولى",
+        "إضافة مادة سنة أولى",
+        "مواد سنة أولى في سنة ثانية"
+      ],
+      "featureAvailability": "conditional",
+      "verificationEvidence": [
+        "backend/apps/content/added_subjects.py",
+        "backend/apps/content/tests/test_added_subjects.py",
+        "frontend/src/pages/Materials.jsx",
+        "frontend/src/components/learning/AddedSubjectsSettings.jsx",
+        "frontend/src/lib/i18n.js"
+      ],
+      "publicSourceUrl": "https://lockin.ly/help/first-year-subjects/",
+      "lastVerified": "2026-10-18",
       "status": "published"
     }
   ],
@@ -1683,36 +1816,36 @@
     }
   ],
   "evidenceDigests": {
-    "frontend/src/App.jsx": "3cbd2a7ce2a455e239d1ac3fa0484e4f308f5a3bcd25d2f4dca437e5e95f0e75",
+    "frontend/src/App.jsx": "6135fb0eb09e0834df0c1720e51951d8def5ade9c30a1ea1077df47ddaf6cbaf",
     "frontend/src/lib/materialCatalog.js": "6f9c50e7402275182d8f9d0ab0faf34b6e1bb2e70bd95a44332e9a786b27b539",
-    "frontend/tests/materials-catalog.test.js": "0422da3b894546422ce0fee6b53b062cf5420be8b10066ada451f0c601353424",
-    "frontend/src/lib/i18n.js": "0a15d02c3ab549aabf347f24f3e096c6468f00f2f4fa1ce0e20bd434a9734e6d",
-    "frontend/src/pages/Materials.jsx": "08385374476425932ec99aca0a87e46e76bdf27048972218101e7803d116398e",
+    "frontend/tests/materials-catalog.test.js": "64061bb95772c0b05e220ead4e663286be072b909d329f87eb35fcf87d7c30d1",
+    "frontend/src/lib/i18n.js": "2f0d9f08f4ef8806d30a0ed6404dc86e4b9f08a847fa62154ce28a3535e651c6",
+    "frontend/src/pages/Materials.jsx": "21333f0bfc87ad625f449b7dee94974d7316e4595456fe09f6885310a3c90526",
     "frontend/src/components/learning/CatalogSheetCard.jsx": "0bce127fc2679e5599d10951b9bbeefa6aaec2827e5222877b36d4695240d713",
-    "backend/apps/content/tests/test_catalog_workspace.py": "3fab31330499c8193155f4a29fc49f0e99d8b6038bab0763568f328e115cce7f",
-    "frontend/src/pages/CatalogFocusWorkspace.jsx": "8f891a9aae4c5811a4de4c2e4d94790f6ecaac68399b7908d5dc331c2ca8fe60",
+    "backend/apps/content/tests/test_catalog_workspace.py": "690f59f8d3285dd07edb8b4420fc9d93a7ab3c196350dcbae7a4c3dcb812e6c8",
+    "frontend/src/pages/CatalogFocusWorkspace.jsx": "182a9cc54a40a06cad2819cde0fce163ba6fee3ec2d112f5cac2fb64a6af3323",
     "backend/apps/focus/annotation_services.py": "f69372630ac361d91b813f3746df864e0977c77dc4f406d91b46fc852dc840e2",
     "backend/apps/focus/tests/test_annotation_document_scope.py": "f3e6728a5fc81fe587f22ad6f720c7ced9b8ceadbf4d50be8e8219bf5fca2939",
     "frontend/e2e/focus-workspace-persistence.spec.js": "a40d01b19ed3193f6b4b1ba214c0b9db4eb02ad2b4d975bce02872ec020c3979",
-    "backend/apps/focus/managed_active_study.py": "f92ed6e961d5d4aabe219cd7e15e9c0888201d9ac7e04a4d48f2b2cc8ed6e0a7",
+    "backend/apps/focus/managed_active_study.py": "bbfe01fd990e19a505ab813404e24b69258629415fff64d8d847cdb2532d954d",
     "backend/apps/focus/tests/test_managed_active_study.py": "568a04a1b382ff9e9797c262ad59bbfd6bccca5f13d4e2b150c027ebd659546c",
-    "frontend/src/pages/Questions.jsx": "581a85fb9a7091f563e190fa88781f47789af1eea1225b0243f3be3d86227a99",
-    "frontend/src/components/learning/PracticeQuestions.jsx": "cad5822698f4d5fae7359af90416e9377ebf7607e3dac7db324c1525de891b64",
+    "frontend/src/pages/Questions.jsx": "af5234785c004ceea34b2a30777921907d9190720512b2b7d03d1629b255d542",
+    "frontend/src/components/learning/PracticeQuestions.jsx": "bab4222631887165568ae7cc944bcdf8c4d6e8f55a93ae48981ccdee2f411868",
     "backend/apps/content/tests/test_catalog_questions.py": "920c90319fa614dec0fbb78574e71d34202220e496b859bfa0dc7c552e32e920",
-    "frontend/src/pages/Review.jsx": "10e9bd0be4e9a2b9d1ca7171d6748768def07931e275c0d52b868d2181a874ba",
+    "frontend/src/pages/Review.jsx": "0bf91df45912f2ecb85c1b9fc5801d1a82ae6e69e10f6966b1afe765070b888a",
     "backend/apps/review/services.py": "f7464c76dc122366bd01a422eca72ebe095ffa3045cd9fdfa7259182c841baa4",
     "backend/apps/review/tests/test_api.py": "736f22eaa16b60e85e4714533a0025cadc29e62293f7031a48d143a078697417",
     "frontend/e2e/review-bank.spec.js": "829fe1c5a7a770c14db1bd96d23fc952857c0ed2e0a8a3a3bf9e879c44d1a572",
     "backend/apps/review/policy.py": "1e5d625ecfd5d00fe63dce8b862f0492f7e6e5d6420ae5b402aa7eca6f15d0ce",
     "backend/apps/review/views.py": "d4c7b1a5e3f27c39f322654aca21701a4ae2ee445caa1adb7115f4c881dfcf91",
     "backend/apps/review/tests/test_review.py": "1c80e2817783ede2a7d3270b120f88e89c97cf8e19a40112e6e27faac0bd95cc",
-    "frontend/src/pages/Progress.jsx": "a462e70ec487893d869703a1697facd871896a594ef0db162010021c6e25f391",
+    "frontend/src/pages/Progress.jsx": "74b986b8183d162aff257df9775f5f51779758f0aefe1fd071c6af1b1131c01f",
     "frontend/src/api/motivation.js": "3681c4074c71a1b51c496e2d878b57e16441dfbb5b3c6c4d91e51534f747c224",
     "frontend/src/pages/Biweekly.jsx": "a3fa9547869885abdf21f28b8b06eb6604238c867591e1375bf8770ca80c8ec2",
     "backend/apps/biweekly/services.py": "2444650f428896e2cacd0a6f94d95a8656676bcd997d07595acd0d38fa693c32",
-    "backend/apps/biweekly/tests/test_biweekly.py": "651eb7d595f48a0bdc9c92caa90aae3146e4b21fec3ea0a5088e5d52d48c879c",
-    "frontend/src/components/auth/AuthPage.jsx": "52fc1f369d81b64ef1d29070ace85ad28022d7633fd43fd38b353dd85745b5e8",
-    "frontend/src/pages/Settings.jsx": "85e34eca4b77f2ef29631f7cf22152ec81039af25d4256131c181109a2003aec",
+    "backend/apps/biweekly/tests/test_biweekly.py": "7c72e6de21d58ff812244a013cceebd4b595bab0d71ca579f9e921225d48cabf",
+    "frontend/src/components/auth/AuthPage.jsx": "6a0a4d2893dec5e837a8ca391013bf72602960a425dadb8ba6e60218690cdd77",
+    "frontend/src/pages/Settings.jsx": "86d56a83329bffd0a2773bc87f144df172e7b2eb73179b938ca58dc30222b51e",
     "frontend/src/api/accounts.js": "343c82d0ddb16095bea2574cabb1e8b592b3ec35a8cb6f5163f465ce6f26302a",
     "backend/apps/accounts/tests/test_api.py": "d7e0571992881856b9dabe3728987070a693300de62b6ffe3b0ed77db96f3363",
     "frontend/src/pages/Feedback.jsx": "92204acf6852db18570eae60564de67c24ca68d118628fbdb1c8337087b4d4cb",
@@ -1723,13 +1856,20 @@
     "docs/ACCOUNT_DELETION_RETENTION.md": "bbbadadaca0c6c97a01df471ff300fedff71eafa16473ad21188695929764c00",
     "frontend/src/lib/featureAvailability.js": "398440aa49931ae0c14b03267fa8745740167e3c922a235ab7f62fe4ad7b8809",
     "frontend/src/pages/MyGroup.jsx": "8bb12fa42170deb4d4bd3f9e7e8edf0b9914cec68f0e4e1878cf459fd40fdf4d",
-    "backend/apps/focus/tests/test_page_active_study.py": "d047f98f3e85f6c3feee811f953acc3ec129862b8b88090c55e7d350afbbfd16",
-    "frontend/src/components/shared/ActiveStudyCustomization.jsx": "6932a8532c29c79775bc19bc0afab58944364a20784d012876a890c2850a6897",
+    "backend/apps/focus/tests/test_page_active_study.py": "e8ae7f52fb1eb895263f3f572c72996d0f7f2e69a16e7f90d5c8f834f22779b5",
+    "frontend/src/components/shared/ActiveStudyCustomization.jsx": "b7e5ba0631d30781d2dd0921deec5333d59b5630620453adbe6f8123306184c6",
     "frontend/e2e/focus-active-study-customization.spec.js": "c280b3f4abd73a61c6a3e0e897372394287d30b00ce0036c46961aba1ce5ae2d",
-    "backend/apps/focus/pomodoro.py": "9ad2ece170d0838a08a3472eb04e5b92de90ba56f02aded40f4b0c10c208af16",
-    "backend/apps/focus/tests/test_pomodoro_study.py": "ba1c634acf024a4bda8ae4929555c805ff3c9097ac182ab1a3878988804c1b40",
-    "frontend/src/components/shared/PomodoroStudy.jsx": "ebcd982a6e7947b376e2db70f815aefa6b3ae47a894079546a56a7e46509c8ca",
-    "frontend/src/lib/pomodoroStudy.js": "87b07ccf5ecdc0fcb33e1e0442eca00232572fdddfdb525be5020a3c7ecd75d8",
-    "frontend/e2e/focus-pomodoro.spec.js": "5df8455e8f15e2ad6fb6de6b3b60327cb2338ea39b8348aec394d6bd77a4c915"
+    "backend/apps/focus/pomodoro.py": "bded6f7e6c9f63de6665bb2fa66237bdc53d58c5eb601a31be05927b8341fcb8",
+    "backend/apps/focus/tests/test_pomodoro_study.py": "4cbdc79b3e33eb0140665433681c0f37ab2a4972121d9214368c628b707a603a",
+    "frontend/src/components/shared/PomodoroStudy.jsx": "c3252cc3f22f24b95646230048d8d247b4866f2666b0acb19bb3b0d85450a35e",
+    "frontend/src/lib/pomodoroStudy.js": "eb8d8a34b0a66843f98044b69a865cb065c5133d7ad60de4d8052996310f73f3",
+    "frontend/e2e/focus-pomodoro.spec.js": "ac1fa0112953524fb408dbb904422cb55fb348847c597db62b4c66286f63bce8",
+    "backend/apps/content/page_question_bank.py": "9604e0c7df0665667e76c43344c9fc7e067a3fd19d6fccf9dfabc0c9b0a0a546",
+    "frontend/src/lib/pomodoroMessages.js": "db77d2c18de74c964e727a8a746a85ff1b56aac11eea8be03817b67663caa449",
+    "backend/apps/content/added_subjects.py": "fc825f3af676a404fd00148149681f573b7c1d249ef7b6ac92ebd73e011a86d8",
+    "backend/apps/content/tests/test_added_subjects.py": "84f75f1a8c2fc925fc3baa9595544cb2c57ed5648ccc3f79f09173f20b3cb817",
+    "frontend/src/components/learning/AddedSubjectsSettings.jsx": "937d7f0b89bb9b4bcec811a20cf3bae5d3c09dd42c931a533b5fd35e43fc6c4c",
+    "frontend/src/components/biweekly/WeeklyReadyToast.jsx": "d46d4b9636f60da38feb2501c70aebecb030add6b96151c19541776058ec717c",
+    "backend/apps/education/migrations/0007_seed_libyan_education_tree.py": "f6f075309d0c4635f78eefd3073fad9107c8bf036bb5214f5a55c478d720cb22"
   }
 }

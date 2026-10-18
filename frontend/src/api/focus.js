@@ -66,6 +66,11 @@ export const focusApi = {
     ), "Active Study could not be updated.");
   },
 
+  /** Online only: the countdown is a convenience, so a device offline keeps its own copy. */
+  async savePomodoroClock(runId, clock) {
+    return objectPayload(await request(`/focus/managed-active-study/${runId}/pomodoro-clock`, { method: "POST", body: { clock } }), "The Pomodoro timer could not be saved.");
+  },
+
   async getManagedActiveStudyQuestions(runId) {
     return objectPayload(await activeStudyClient.questions(runId,
       (serverRunId, options = {}) => request(`/focus/managed-active-study/${serverRunId}/questions`, options)

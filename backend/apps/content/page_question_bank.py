@@ -3,11 +3,18 @@
 from typing import Any
 
 MAX_CHECKPOINT_QUESTIONS = 20
+MAX_CUSTOM_QUESTIONS = 30
+MAX_CUSTOM_PAGES = 10
+# What a page bank holds for each page. Older banks written with 20 stay valid:
+# selection simply uses the first QUESTIONS_PER_PAGE of each page.
+QUESTIONS_PER_PAGE = 15
+LEGACY_QUESTIONS_PER_PAGE = 20
 
 
 def custom_page_ranges(start: int, end: int, size: int) -> list[dict[str, int]]:
-    if isinstance(size, bool) or not isinstance(size, int) or not 1 <= size <= end - start + 1:
-        raise ValueError("Choose a page count between 1 and the eligible sheet page count.")
+    limit = min(MAX_CUSTOM_PAGES, end - start + 1)
+    if isinstance(size, bool) or not isinstance(size, int) or not 1 <= size <= limit:
+        raise ValueError(f"Choose between 1 and {limit} pages per test.")
     return [
         {"part": index + 1, "start_page": page, "end_page": min(end, page + size - 1)}
         for index, page in enumerate(range(start, end + 1, size))
@@ -19,13 +26,14 @@ def select_page_questions(
 ) -> list[dict[str, Any]]:
     """Stable round-robin selection; source identity survives regrouping and resume."""
     pages = [item for item in payload["pages"] if start <= item["page"] <= end]
-    if not pages or sum(len(item["questions"]) for item in pages) < count:
+    usable = sum(min(QUESTIONS_PER_PAGE, len(item["questions"])) for item in pages)
+    if not pages or usable < count:
         raise ValueError("There are not enough questions for these pages.")
     # When fewer questions than pages were requested, spread them over the range.
     if count < len(pages):
         pages = [pages[index * len(pages) // count] for index in range(count)]
     selected = []
-    for position in range(max(len(page["questions"]) for page in pages)):
+    for position in range(min(QUESTIONS_PER_PAGE, max(len(page["questions"]) for page in pages))):
         for page in pages:
             if position < len(page["questions"]):
                 selected.append(

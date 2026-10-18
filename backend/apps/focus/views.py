@@ -78,6 +78,9 @@ from .managed_active_study import (
     run_payload as managed_active_study_run_payload,
 )
 from .managed_active_study import (
+    save_pomodoro_clock as save_managed_pomodoro_clock,
+)
+from .managed_active_study import (
     start as start_managed_active_study,
 )
 from .managed_active_study import (
@@ -122,6 +125,7 @@ from .serializers import (
     LockInTeamSerializer,
     LockInTeamUpdateSerializer,
     ManagedActiveStudyAnswerSerializer,
+    ManagedActiveStudyPomodoroClockSerializer,
     ManagedActiveStudyReadingSerializer,
     ManagedActiveStudyStartSerializer,
     ManagedActiveStudySubmitSerializer,
@@ -298,8 +302,8 @@ class ManagedActiveStudyRunView(APIView):
     @extend_schema(
         request=ManagedActiveStudyReadingSerializer,
         description=(
-            "Only complete-reading in Pomodoro style requires part, end_page and question_count. "
-            "Other actions keep an empty body."
+            "Only complete-reading in Pomodoro style requires part, end_page and question_count; "
+            "pomodoro-clock takes {clock}. Other actions keep an empty body."
         ),
     )
     def post(self, request: Request, run_id: UUID, action: str) -> Response:
@@ -309,6 +313,13 @@ class ManagedActiveStudyRunView(APIView):
                 serializer = ManagedActiveStudyReadingSerializer(data=request.data)
                 serializer.is_valid(raise_exception=True)
                 run = complete_part_reading(user=user, run_id=run_id, **serializer.validated_data)
+                return Response({"run": managed_active_study_run_payload(run)})
+            if action == "pomodoro-clock":
+                clock = ManagedActiveStudyPomodoroClockSerializer(data=request.data)
+                clock.is_valid(raise_exception=True)
+                run = save_managed_pomodoro_clock(
+                    user=user, run_id=run_id, clock=clock.validated_data["clock"]
+                )
                 return Response({"run": managed_active_study_run_payload(run)})
             if action == "continue":
                 run = continue_managed_active_study(user=user, run_id=run_id)

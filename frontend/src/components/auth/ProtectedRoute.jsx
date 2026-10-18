@@ -12,7 +12,7 @@ import { getConnectionSnapshot, subscribeConnection } from "../../lib/connection
 import OfflineExpiredScreen from "../../offline/OfflineExpiredScreen.jsx";
 
 const SUBSCRIPTION_PROTECTED_PATHS = [
-  "/dashboard", "/study-plan", "/materials", "/paper-workspace", "/lock-in", "/search",
+  "/dashboard", "/study-plan", "/materials", "/materials/summaries", "/paper-workspace", "/lock-in", "/search",
   "/questions", "/review", "/bookmarks", "/progress", "/progression",
   "/achievements", "/whiteboards"
 ];

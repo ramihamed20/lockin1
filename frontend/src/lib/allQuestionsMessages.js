@@ -23,7 +23,7 @@ export const allQuestionsMessages = {
     "allQuestions.final": "Final exam",
     "allQuestions.normal": "Normal Questions",
     "allQuestions.empty": "No questions in this set.",
-    "allQuestions.pageBankHint": "New sheet: 20 questions per eligible page, per difficulty, in one JSON. Students choose how many to answer per test.",
+    "allQuestions.pageBankHint": "New sheet: 15 questions per eligible page, per difficulty, in one JSON. Students choose how many to answer per test.",
     "allQuestions.sharedHint": "Page-based questions are prepared on the University Sheet tab and shared with the Lockin edition.",
     "allQuestions.readyGroups": "Show page or part counts",
     "allQuestions.fileError": "Choose a valid .json or .txt file up to 16 MB."
@@ -52,7 +52,7 @@ export const allQuestionsMessages = {
     "allQuestions.final": "الاختبار النهائي",
     "allQuestions.normal": "أسئلة الشيت العادية",
     "allQuestions.empty": "لا توجد أسئلة في هذه المجموعة.",
-    "allQuestions.pageBankHint": "شيت جديد: 20 سؤالًا لكل صفحة دراسية ولكل صعوبة، في JSON واحد. الطالب يختار عدد الأسئلة لكل اختبار.",
+    "allQuestions.pageBankHint": "شيت جديد: 15 سؤالًا لكل صفحة دراسية ولكل صعوبة، في JSON واحد. الطالب يختار عدد الأسئلة لكل اختبار.",
     "allQuestions.sharedHint": "تُجهّز أسئلة الصفحات من تبويب الشيت الجامعي وتُشارك مع نسخة Lockin.",
     "allQuestions.readyGroups": "عرض أعداد الأسئلة حسب الصفحة أو الجزء",
     "allQuestions.fileError": "اختر ملف JSON أو TXT صالحًا بحجم لا يتجاوز 16 ميجابايت."

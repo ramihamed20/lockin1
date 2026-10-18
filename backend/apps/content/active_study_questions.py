@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from .active_study import ActiveStudyDifficulty
+from .page_question_bank import LEGACY_QUESTIONS_PER_PAGE, QUESTIONS_PER_PAGE
 
 
 class ActiveStudyQuestionValidationError(ValueError):
@@ -299,6 +300,18 @@ def _validate_page_bank(
         raise ActiveStudyQuestionValidationError(errors)
     from dataclasses import replace
 
+    # Banks written before the 15-per-page rule hold 20 on every page; they stay
+    # valid as a whole. Anything else is held to the current per-page count.
+    per_page = (
+        LEGACY_QUESTIONS_PER_PAGE
+        if parts
+        and all(
+            isinstance(part["questions"], list)
+            and len(part["questions"]) == LEGACY_QUESTIONS_PER_PAGE
+            for part in parts
+        )
+        else QUESTIONS_PER_PAGE
+    )
     try:
         checked = validate_active_study_questions(
             {
@@ -306,7 +319,7 @@ def _validate_page_bank(
                 "final_exam": payload.get("final_exam"),
                 **({"difficulty": payload["difficulty"]} if "difficulty" in payload else {}),
             },
-            difficulty=replace(difficulty, questions_per_checkpoint=20),
+            difficulty=replace(difficulty, questions_per_checkpoint=per_page),
             number_of_parts=len(expected),
         )
     except ActiveStudyQuestionValidationError as error:
@@ -331,6 +344,6 @@ def _validate_page_bank(
             ),
             "final_exam": checked.payload["final_exam"],
         },
-        checkpoint_question_count=len(expected) * 20,
+        checkpoint_question_count=len(expected) * per_page,
         final_exam_question_count=checked.final_exam_question_count,
     )

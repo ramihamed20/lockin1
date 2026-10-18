@@ -44,7 +44,7 @@ test("generated pages, sitemap, canonical URLs and JSON-LD have one consistent p
   const titles=new Set(), descriptions=new Set();
   for(const path of pages){
     const html=await readPublic(path.slice(1)+"index.html");
-    assert.match(html,/<html lang="ar" dir="rtl">/);
+    assert.match(html,path.startsWith("/en/")?/<html lang="en" dir="ltr">/:/<html lang="ar" dir="rtl">/);
     assert.match(html,/name="robots" content="index, follow/);
     assert.doesNotMatch(html,/noindex|id="root"|api\/v1|<script(?! type="application\/ld\+json")/);
     assert.ok(html.includes('rel="canonical" href="https://lockin.ly'+path+'"'));
@@ -91,7 +91,7 @@ test("app remains noindex and About/Support are reachable through settings",asyn
   assert.doesNotMatch(shell,/rel="canonical"/);
   assert.match(settings,/id: "about"/);assert.match(settings,/id: "support"/);
   assert.match(links,/"\/about\/"/);assert.match(links,/"\/help\/"/);
-  assert.match(auth,/href="\/about\/"/);
+  assert.match(auth,/"\/about\/"/);assert.match(auth,/"\/en\/about\/"/);
 });
 
 test("withdrawing a verified guide removes its old public HTML and rejects unsafe paths",()=>{
@@ -129,4 +129,23 @@ test("public pages share the current application design tokens",async()=>{
   const about=await readPublic("about/index.html");
   assert.match(about,/href="\/public-search-tokens\.css"/);
   assert.match(await readPublic("robots.txt"),/Allow: \/public-search-tokens\.css\$/);
+});
+test("every public page has an English edition linked both ways with hreflang",async()=>{
+  const arabic=pages.filter((path)=>!path.startsWith("/en/"));
+  assert.equal(pages.length,arabic.length*2);
+  for(const path of arabic){
+    const english="/en"+path;
+    assert.ok(pages.includes(english),"missing English edition: "+path);
+    for(const page of [path,english]){
+      const html=await readPublic(page.slice(1)+"index.html");
+      assert.ok(html.includes('hreflang="ar" href="https://lockin.ly'+path+'"'),page);
+      assert.ok(html.includes('hreflang="en" href="https://lockin.ly'+english+'"'),page);
+      assert.ok(html.includes('hreflang="x-default" href="https://lockin.ly'+path+'"'),page);
+    }
+  }
+  const en=JSON.parse(await readFile(new URL("../content/public-knowledge.en.json",import.meta.url),"utf8"));
+  for(const item of knowledge.questions.filter((entry)=>entry.status==="published")) assert.equal(en.questions[item.id]?.detailedSteps.length,item.detailedSteps.length,item.id);
+  assert.match(await readPublic("sitemap.xml"),/<lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/);
+  const llms=await readPublic("llms.txt");
+  for(const item of knowledge.questions.filter((entry)=>entry.status==="published")) assert.ok(llms.includes("/en/help/"+item.id+"/") && llms.includes("/help/"+item.id+"/"),item.id);
 });

@@ -1,12 +1,21 @@
 import { useState } from "react";
 import { useI18n } from "../components/I18nProvider.jsx";
-import { profileDraft, profileRequest } from "./model.js";
+import { Icon } from "../lib/icons.jsx";
+import { MAX_SUBJECTS, hasSubject, mergeSubjects, parseSubjects, profileDraft, profileRequest, toggleSubject } from "./model.js";
 
-export default function PlanSettings({ profile, onSave, onCancel, busy, initialMode }) {
+export default function PlanSettings({ profile, materials = [], onSave, onCancel, busy, initialMode }) {
   const { t } = useI18n();
   const [draft, setDraft] = useState(() => ({ ...profileDraft(profile), ...(initialMode ? { mode: initialMode } : {}) }));
   const [invalidDays, setInvalidDays] = useState(false);
   const change = (key, value) => setDraft(current => ({ ...current, [key]: value }));
+  const chosen = draft.subjectList;
+  const full = chosen.length >= MAX_SUBJECTS;
+  const own = chosen.filter(subject => !materials.some(material => hasSubject([material.title], subject)));
+  function addTyped() {
+    const typed = parseSubjects(draft.subjects);
+    if (!typed.length) return;
+    setDraft(current => ({ ...current, subjectList: mergeSubjects(current.subjectList, typed), subjects: "" }));
+  }
   return <section className="plan-settings" aria-labelledby="plan-settings-title">
     <h2 id="plan-settings-title">{t(profile.configured ? "plan.settings" : "plan.choose")}</h2>
     <form onSubmit={event => { event.preventDefault(); const invalid = draft.mode !== "custom" && !draft.weekdays.length; setInvalidDays(invalid); if (!invalid) void onSave(profileRequest({ ...draft, weekdays: draft.weekdays.length ? draft.weekdays : [0, 1, 2, 3, 4] })); }}>
@@ -32,8 +41,25 @@ export default function PlanSettings({ profile, onSave, onCancel, busy, initialM
             </label>)}
           </fieldset>
           {invalidDays && <p role="alert" className="plan-error">{t("plan.noDay")}</p>}
-          <label htmlFor="plan-subjects">{t("plan.subjects")}<input id="plan-subjects" value={draft.subjects} maxLength={1452} onChange={event => change("subjects", event.target.value)} aria-describedby="plan-subject-hint" /></label>
-          <small id="plan-subject-hint">{t("plan.subjectsHint")}</small>
+          <div className="plan-subjects">
+            <div className="plan-subjects-heading"><strong>{t("plan.yourSubjects")}</strong><small>{t("plan.subjectCount", { count: chosen.length, limit: MAX_SUBJECTS })}</small></div>
+            {(materials.length > 0 || own.length > 0) && <div className="plan-chips" role="group" aria-label={t("plan.yourSubjects")}>
+              {materials.map(material => {
+                const on = hasSubject(chosen, material.title);
+                return <button key={material.slug} type="button" className="plan-chip" aria-pressed={on} disabled={!on && full} onClick={() => change("subjectList", toggleSubject(chosen, material.title))}>
+                  {on && <Icon name="check" size={16} />}<span dir="auto">{material.title}</span>
+                </button>;
+              })}
+              {own.map(subject => <button key={subject} type="button" className="plan-chip" aria-pressed="true" aria-label={t("plan.removeSubject", { name: subject })} onClick={() => change("subjectList", toggleSubject(chosen, subject))}>
+                <span dir="auto">{subject}</span><Icon name="x" size={16} />
+              </button>)}
+            </div>}
+            <div className="plan-subject-add">
+              <label htmlFor="plan-subjects">{t("plan.subjects")}<input id="plan-subjects" value={draft.subjects} maxLength={1452} placeholder={t("plan.otherSubject")} disabled={full} onChange={event => change("subjects", event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); addTyped(); } }} aria-describedby="plan-subject-hint" /></label>
+              <button type="button" className="btn btn-soft" disabled={full || !draft.subjects.trim()} onClick={addTyped}>{t("plan.addSubject")}</button>
+            </div>
+            <small id="plan-subject-hint">{t("plan.subjectsHint")}</small>
+          </div>
         </>}
         <details className="plan-advanced"><summary>{t("plan.timezone")}</summary><label>{t("plan.timezone")}<input required maxLength={80} dir="ltr" value={draft.timezone} onChange={event => change("timezone", event.target.value)} /></label></details>
         <p className="plan-note">{t("plan.preserve")}</p>

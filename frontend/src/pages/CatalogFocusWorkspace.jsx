@@ -4,6 +4,8 @@ import { useLocation, useNavigate, useParams, useSearchParams } from "react-rout
 import {
   ArrowRight,
   ArrowLeft,
+  ArrowUp,
+  ArrowDown,
   BookOpen,
   Bookmark,
   Brain,
@@ -75,7 +77,8 @@ import {
   AlertTriangle,
   Users,
   Network,
-  Lightbulb
+  Lightbulb,
+  Timer
 } from "lucide-react";
 import { focusApi } from "../api/focus.js";
 import { progressApi } from "../api/progress.js";
@@ -90,11 +93,15 @@ import { useMarksSet } from "../workspace/catalog/useMarksSet.js";
 import { AnnotationSharePanel } from "../workspace/catalog/AnnotationSharePanel.jsx";
 import StartRescue from "../rescue/StartRescue.jsx";
 import { RESCUE_ENABLED } from "../rescue/model.js";
-import { STUDY_TOOLS_ENABLED } from "../workspace/knowledge/model.js";
+import { STUDY_TOOLS_ENABLED, COMING_SOON_STUDY_TOOLS, availableStudyTools } from "../workspace/knowledge/model.js";
 import { useMcqExplainLinks } from "../workspace/knowledge/useMcqExplainLinks.js";
 import { createKnowledgeStore } from "../workspace/knowledge/storage.js";
 import { knowledgeApi } from "../api/knowledge.js";
 const KnowledgeWorkspace = lazy(() => import("../workspace/knowledge/KnowledgeWorkspace.jsx"));
+import { MySummaryDialog, SummaryReceiveCard, SummaryTextPanel } from "../workspace/summary/MySummary.jsx";
+import { useSheetSummaries } from "../workspace/summary/useSheetSummaries.js";
+import { sheetSummariesApi } from "../api/sheetSummaries.js";
+import { buildSummaryPdf, SUMMARY_COLORS } from "../workspace/summary/summaryPdf.js";
 import { useReadingSession } from "../hooks/useReadingSession.js";
 import { subscribeConnection } from "../lib/connectionState.js";
 import { createCatalogServerSync } from "../workspace/catalog/catalogServerSync.js";
@@ -183,7 +190,7 @@ import {
 } from "../workspace/catalog/catalogWorkspaceState.js";
 import { COPY_OFFSET, MOVE_THRESHOLD_PX, clampSelectionDelta, contextToolbarPosition, editableTarget, expandSelectionGroups, hitTestAnnotations, isDoubleTap, reorderSelection } from "../workspace/selection/selectionController.js";
 import { A4_PAGE_WIDTH, ContinuousA4Pdf } from "../workspace/catalog/ContinuousA4Pdf.jsx";
-import { WORKSPACE_PAGE_BACKGROUNDS, composeWorkspacePages, createVirtualPageId, insertVirtualPage, isVirtualPageKey, removeVirtualPage, sanitizeVirtualPages } from "../workspace/catalog/virtualPages.js";
+import { WORKSPACE_PAGE_BACKGROUNDS, addSummaryPages, composeWorkspacePages, createVirtualPageId, insertVirtualPage, isVirtualPageKey, removeSummaryPages, removeVirtualPage, sanitizeVirtualPages } from "../workspace/catalog/virtualPages.js";
 import { canvasesToPdf, renderWorkspacePage } from "../workspace/catalog/workspaceExport.js";
 import { canShareFile, createExportHandle, exportFileNameFor, formatFileSize, isAppleTouchDevice, shareExportFile, triggerDownload } from "../workspace/catalog/exportDelivery.js";
 import { loadPdfLibrary } from "../workspace/catalog/pdfJsAdapter.js";
@@ -230,8 +237,8 @@ import {
 } from "../workspace/storage/workspaceSnapshot.js";
 import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
-import { ActiveStudyCustomization, validStudyCustomization, changesSavedCustomization, savedStudyProgress } from "../components/shared/ActiveStudyCustomization.jsx";
-import { PomodoroStudy } from "../components/shared/PomodoroStudy.jsx";
+import { ActiveStudyCustomization, PomodoroPreferences, validStudyCustomization, changesSavedCustomization, savedStudyProgress } from "../components/shared/ActiveStudyCustomization.jsx";
+import { PomodoroResultDetails, PomodoroStudy } from "../components/shared/PomodoroStudy.jsx";
 import { ActiveStudyExitDialog, CheckpointExitDialog, CheckpointRestartDialog } from "../components/shared/CheckpointExitDialog.jsx";
 import { QuestionExplanation } from "../components/shared/QuestionExplanation.jsx";
 import { useExitGuard } from "../hooks/useExitGuard.js";
@@ -702,26 +709,59 @@ function StudyModeDialog({ customization, setCustomization, availability, diffic
   const dialogRef = useDialogFocus();
   const [confirmRestart, setConfirmRestart] = useState(false);
   const [confirmCustom, setConfirmCustom] = useState(false);
+  // Active Study and Pomodoro are separate choices. Once Pomodoro is offered the
+  // student picks one from a list and can step back out of either panel.
+  const [view, setView] = useState(customization.studyMode === "pomodoro" ? "pomodoro" : "choose");
+  const picker = Boolean(availability?.pomodoro_available) || view !== "choose";
+  const pomodoroView = picker && view === "pomodoro";
+  function chooseStyle(next) {
+    setView(next);
+    setConfirmCustom(false);
+    setCustomization(next === "pomodoro"
+      ? { ...customization, studyMode: "pomodoro" }
+      : { ...customization, studyMode: customization.studyMode === "pomodoro" ? "standard" : customization.studyMode });
+  }
+  function backToStyles() {
+    setView("choose");
+    setConfirmCustom(false);
+    setConfirmRestart(false);
+    setCustomization({ ...customization, studyMode: "standard" });
+  }
+  const showCards = !picker || view === "choose";
   return (
     <div className="workspace-v2-mode-backdrop">
       <section ref={dialogRef} className={`workspace-v2-mode-dialog${customization.studyMode !== "standard" ? " has-customization" : ""}`} role="dialog" aria-modal="true" aria-labelledby="study-mode-title" aria-describedby="study-mode-hint" tabIndex={-1}>
         <h1 id="study-mode-title">{t(activeOnly ? "materials.startActiveStudy" : "materials.chooseStudyMode")}</h1>
         <p id="study-mode-hint" dir="auto">{t(activeOnly ? "materials.chooseDifficulty" : "materials.switchModesLater")}</p>
+        {picker && view !== "choose" && <button type="button" className="workspace-v2-mode-back" onClick={backToStyles} disabled={busy}><ArrowLeft size={16} aria-hidden="true" />{t("pomodoro.backToStyles")}</button>}
         <div className="workspace-v2-mode-grid">
-          {!activeOnly && <button type="button" className="workspace-v2-mode-card" onClick={onNormal} disabled={busy}>
+          {!activeOnly && showCards && <button type="button" className="workspace-v2-mode-card" onClick={onNormal} disabled={busy}>
             <span className="workspace-v2-mode-icon"><BookOpen size={20} /></span>
             <span className="workspace-v2-mode-copy"><strong>{t("materials.normalStudy")}</strong><small>{t("materials.readSheetDescription")}</small></span>
             <ChevronRight className="workspace-v2-mode-chevron" size={18} aria-hidden="true" />
           </button>}
-          <div className="workspace-v2-mode-card is-active-study">
-            <div className="workspace-v2-mode-heading">
+          {picker && view === "choose" && <>
+            <button type="button" className="workspace-v2-mode-card" onClick={() => chooseStyle("active")} disabled={busy}>
               <span className="workspace-v2-mode-icon"><Brain size={20} /></span>
               <span className="workspace-v2-mode-copy"><strong>{t("materials.activeStudy")}</strong><small>{t(availability?.customization_available ? "activeStudy.pagesDescription" : "materials.activeStudyDescription")}</small></span>
+              <ChevronRight className="workspace-v2-mode-chevron" size={18} aria-hidden="true" />
+            </button>
+            <button type="button" className="workspace-v2-mode-card" onClick={() => chooseStyle("pomodoro")} disabled={busy}>
+              <span className="workspace-v2-mode-icon"><Timer size={20} /></span>
+              <span className="workspace-v2-mode-copy"><strong>{t("pomodoro.style")}</strong><small>{t("pomodoro.description")}</small></span>
+              <ChevronRight className="workspace-v2-mode-chevron" size={18} aria-hidden="true" />
+            </button>
+          </>}
+          {(!picker || view !== "choose") && <div className="workspace-v2-mode-card is-active-study">
+            <div className="workspace-v2-mode-heading">
+              <span className="workspace-v2-mode-icon">{pomodoroView ? <Timer size={20} /> : <Brain size={20} />}</span>
+              <span className="workspace-v2-mode-copy"><strong>{t(pomodoroView ? "pomodoro.style" : "materials.activeStudy")}</strong><small>{pomodoroView ? t("pomodoro.description") : t(availability?.customization_available ? "activeStudy.pagesDescription" : "materials.activeStudyDescription")}</small></span>
             </div>
             <div className="workspace-v2-difficulty" role="radiogroup" aria-label={t("materials.activeDifficultyGroup")}>
               {ACTIVE_DIFFICULTIES.map(([id, labelKey, detailKey]) => { const done = completed.includes(id); return <button key={id} type="button" role="radio" aria-label={`${t(labelKey)}: ${t(detailKey)}${done ? ` · ${t("materials.activeDifficultyDone")}` : ""}`} title={t(detailKey)} aria-checked={difficulty === id} className={difficulty === id ? "is-selected" : ""} onClick={() => { setDifficulty(id); setConfirmRestart(false); }}>{t(labelKey)}{done && <Check className="workspace-v2-difficulty-done" size={13} strokeWidth={2.6} aria-hidden="true" />}</button>; })}
             </div>
-            <ActiveStudyCustomization availability={availability} value={customization} onChange={(value) => { setCustomization(value); setConfirmCustom(false); }} disabled={busy} allowPomodoro />
+            {pomodoroView ? <div className="active-study-customization"><PomodoroPreferences disabled={busy} /></div>
+              : <ActiveStudyCustomization availability={availability} value={customization} onChange={(value) => { setCustomization(value); setConfirmCustom(false); }} disabled={busy} />}
             {confirmCustom && <div className="workspace-v2-study-restart"><p>{t("activeStudy.replaceCustom")}</p><button type="button" onClick={() => setConfirmCustom(false)}>{t("common.cancel")}</button><button type="button" onClick={() => onActive(true)} disabled={busy}>{t("activeStudy.newCustom")}</button></div>}
             <button type="button" className="workspace-v2-active-start" onClick={() => changesSavedCustomization(customization, availability) ? setConfirmCustom(true) : onActive(false)} disabled={busy || !activeAvailable || !validStudyCustomization(customization, availability)}>{t(checking ? "materials.activeStudyChecking" : busy ? "materials.activeStudyStarting" : activeAvailable ? "materials.startActiveStudy" : "materials.activeStudyUnavailable")}<ChevronRight size={16} /></button>
             {restartProgress && <div className="workspace-v2-study-restart">
@@ -730,7 +770,7 @@ function StudyModeDialog({ customization, setCustomization, availability, diffic
                 <div><button type="button" onClick={() => setConfirmRestart(false)} disabled={busy}>{t("common.cancel")}</button><button type="button" className="is-confirm" onClick={onRestart} disabled={busy}>{t(busy ? "materials.restartingStudy" : "materials.restartStudyNow")}</button></div>
               </>}
             </div>}
-          </div>
+          </div>}
         </div>
         {error && <p className="workspace-v2-mode-error" role="alert">{error}</p>}
       </section>
@@ -816,7 +856,7 @@ function clearActiveStudyEntry(key) {
   try { window.localStorage.removeItem(ACTIVE_ENTRY_PREFIX + key); } catch { /* storage unavailable */ }
 }
 
-function ActiveStudyQuiz({ quiz, answers, setAnswers, locked = {}, result, busy, onSubmit, onDismiss, onRetake, onContinue, onDiscard, onRestart, explainLinks = [], explainAvailability = "", onExplain }) {
+function ActiveStudyQuiz({ quiz, answers, setAnswers, locked = {}, result, busy, onSubmit, onDismiss, onRetake, onContinue, onDiscard, onRestart, explainLinks = [], explainAvailability = "", onExplain, onOpenPage }) {
   const { t } = useI18n();
   const [index, setIndex] = useState(() => {
     const saved = Number(readActiveStudyDraft(quiz.attempt_id)?.index);
@@ -850,9 +890,10 @@ function ActiveStudyQuiz({ quiz, answers, setAnswers, locked = {}, result, busy,
     return <div className="workspace-v2-quiz-backdrop"><section ref={dialogRef} className={`workspace-v2-quiz-result is-${result.outcome}`} role="dialog" aria-modal="true" aria-labelledby="active-result-title" tabIndex={-1}>
       <span className="workspace-v2-result-icon">{passed ? <Trophy size={30} /> : advisory ? <Sparkles size={30} /> : <RotateCcw size={30} />}</span>
       <p>{t(isFinal ? "activeStudy.finalAssessment" : "activeStudy.checkpointResult")}</p>
-      <h2 id="active-result-title">{result.total ? `${result.score} / ${result.total}` : result.score}</h2>
+      <h2 id="active-result-title" dir="ltr">{result.total ? `${result.score} / ${result.total}` : result.score}</h2>
       <strong>{t(passed ? (isFinal ? "activeStudy.sheetCompleted" : "activeStudy.nextUnlocked") : advisory ? "activeStudy.advisory" : "activeStudy.reviewPages")}</strong>
       {result.xp_awarded > 0 && <span className="workspace-v2-xp-award">+{result.xp_awarded} XP</span>}
+      <PomodoroResultDetails review={result.review} summary={result.pomodoro_summary} final={isFinal} busy={busy} onOpenPage={onOpenPage} />
       {missed.length > 0 && <h3 className="workspace-v9-review-heading">{t("question.reviewMissed")}</h3>}
       {missed.length > 0 && <ol className="workspace-v2-result-review" aria-label={t("question.reviewMissed")}>
         {missed.map((item) => <li key={item.position}>
@@ -2374,7 +2415,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   }, [recordCommand, updateAnnotations]);
 
   const applyWorkspacePageCommand = useCallback((command, direction) => {
-    const pages = direction === "undo" ? command.beforePages : command.afterPages;
+    // My Summary pages are not part of Undo: an older page command keeps the
+    // summary pages as they are now, whichever way it runs.
+    const chosen = direction === "undo" ? command.beforePages : command.afterPages;
+    const pages = [...chosen.filter((item) => !item.summary), ...virtualPagesRef.current.filter((item) => item.summary)];
     const pageIds = new Set(pages.map((item) => item.id));
     const keptMarks = direction === "undo" ? command.beforeItems : command.afterItems;
     const keptNotes = direction === "undo" ? command.beforeNotes : command.afterNotes;
@@ -5693,7 +5737,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     } finally { setActiveStudyBusy(false); }
   }
 
-  const mcqExplain = useMcqExplainLinks(user?.id, shareDocumentId, activeQuiz?.attempt_id, Boolean(STUDY_TOOLS_ENABLED && activeResult && !activeResult.pending_sync));
+  const mcqExplain = useMcqExplainLinks(user?.id, shareDocumentId, activeQuiz?.attempt_id, Boolean(STUDY_TOOLS_ENABLED && !COMING_SOON_STUDY_TOOLS.includes("explain") && activeResult && !activeResult.pending_sync));
   function openMistakeExplain(link) {
     if (!link || link.page_end > accessiblePageCount) { setFocusMessage(t("knowledge.lockedSource")); return; }
     setActiveQuiz(null);
@@ -5710,13 +5754,182 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       .catch(() => {});
     return () => { current = false; };
   }, [workspaceReady, studyToolsAvailable, studyToolFlags?.documentId, shareDocumentId, user?.id]);
-  const enabledStudyTools = studyToolsAvailable && studyToolFlags?.documentId === shareDocumentId ? studyToolFlags.tools : {};
-  const studyTools = /** @type {[string, typeof FileText][]} */ ([["summary", FileText], ["map", Network], ["explain", Lightbulb]]).filter(([tool]) => enabledStudyTools[tool]);
+  const enabledStudyTools = studyToolsAvailable && studyToolFlags?.documentId === shareDocumentId ? availableStudyTools(studyToolFlags.tools) : {};
+  // The knowledge panel's own summary is replaced by My Summary (below); its map and explain tools stay.
+  const studyTools = /** @type {[string, typeof FileText][]} */ ([["map", Network], ["explain", Lightbulb]]).filter(([tool]) => enabledStudyTools[tool]);
   function openStudyTool(tool) {
     setOpenSurface(null);
     setKnowledgeVisited(true); setKnowledgeOpen(true);
     setKnowledgeNavigation({ requestId: globalThis.crypto.randomUUID(), tool });
   }
+
+  /*
+   * My Summary. A pen summary is one blank page after every sheet page, marked
+   * with the summary's id in the workspace's own page list, so its ink syncs,
+   * exports and survives reloads like any page the student adds. A keyboard
+   * summary is text by sheet page, written in a side panel. Neither touches the
+   * sheet's numbering, so Active Study and Pomodoro run unchanged beside it.
+   */
+  const summariesEnabled = Boolean(shareDocumentId && user?.id);
+  const sheetSummaries = useSheetSummaries(summariesEnabled ? shareDocumentId : "");
+  const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
+  const [summaryBusy, setSummaryBusy] = useState(false);
+  const [summaryError, setSummaryError] = useState("");
+  const [summaryPanelId, setSummaryPanelId] = useState("");
+  const [summaryPanelOpen, setSummaryPanelOpen] = useState(true);
+  const [summaryReceiveDismissed, setSummaryReceiveDismissed] = useState(false);
+  const shownSummaryIds = useMemo(() => new Set(sheetSummaries.summaries.filter((item) => item.visible).map((item) => item.id)), [sheetSummaries.summaries]);
+  // Hidden summaries keep their pages and ink; the reader just leaves them out.
+  const readerVirtualPages = useMemo(() => virtualPages.filter((item) => !item.summary || shownSummaryIds.has(item.summary)), [virtualPages, shownSummaryIds]);
+  const shownKeyboardSummaries = sheetSummaries.summaries.filter((item) => item.mode === "keyboard" && item.visible);
+  const shownPenSummaries = sheetSummaries.summaries.filter((item) => item.mode === "pen" && item.visible);
+
+  // A pen summary deleted on another device leaves its pages here. Pages that
+  // name a summary this tab does not know may equally belong to one another
+  // device has just started, so the server is asked again first, and only
+  // pages whose summary it no longer has are removed.
+  const summaryIdsKey = virtualPages.filter((item) => item.summary).map((item) => item.summary).filter((id, index, all) => all.indexOf(id) === index).sort().join(",");
+  const reloadSummaries = sheetSummaries.reload;
+  useEffect(() => {
+    if (!sheetSummaries.loaded || !workspaceReady || !summaryIdsKey) return undefined;
+    const known = new Set(sheetSummaries.summaries.map((item) => item.id));
+    if (summaryIdsKey.split(",").every((id) => known.has(id))) return undefined;
+    let current = true;
+    sheetSummariesApi.forDocument(shareDocumentId).then(({ results }) => {
+      if (!current) return;
+      const fresh = new Set(results.map((item) => item.id));
+      const ids = new Set(virtualPagesRef.current.filter((item) => item.summary && !fresh.has(item.summary)).map((item) => item.id));
+      if (ids.size) {
+        const next = virtualPagesRef.current.filter((item) => !ids.has(item.id));
+        virtualPagesRef.current = next;
+        setVirtualPages(next);
+        updateAnnotations((marks) => marks.filter((item) => !ids.has(item.page)));
+      }
+      void reloadSummaries();
+    }).catch(() => undefined);
+    return () => { current = false; };
+  }, [sheetSummaries.loaded, sheetSummaries.summaries, summaryIdsKey, workspaceReady, shareDocumentId, updateAnnotations, reloadSummaries]);
+
+  function summaryProgress(summary) {
+    const total = Math.max(1, pageCount);
+    if (summary.mode === "keyboard") return { done: Object.keys(sheetSummaries.withDrafts(summary).pages).length, total };
+    const ids = new Set(virtualPagesRef.current.filter((item) => item.summary === summary.id).map((item) => item.id));
+    return { done: new Set(annotationsRef.current.filter((item) => ids.has(item.page)).map((item) => item.page)).size, total };
+  }
+
+  function setSummaryPages(next, { removePages = null } = {}) {
+    virtualPagesRef.current = next;
+    setVirtualPages(next);
+    if (removePages) updateAnnotations((current) => current.filter((item) => !removePages.has(item.page)));
+  }
+
+  async function createSummary(form) {
+    if (summaryBusy) return;
+    setSummaryBusy(true);
+    setSummaryError("");
+    try {
+      const summary = await sheetSummaries.create(form);
+      if (summary.mode === "pen") {
+        setSummaryPages(addSummaryPages(virtualPagesRef.current, summary.id, pageCount));
+        const first = virtualPagesRef.current.find((item) => item.summary === summary.id && item.afterPage >= Math.max(page, accessiblePageStart));
+        if (first) requestAnimationFrame(() => requestAnimationFrame(() => jumpToPagePosition(first.id)));
+      } else {
+        setSummaryPanelId(summary.id);
+        setSummaryPanelOpen(true);
+      }
+      setSummaryDialogOpen(false);
+      setSummaryReceiveDismissed(false);
+      setFocusMessage(t("summary.started", { title: summary.title }));
+    } catch (error) {
+      setSummaryError(error?.message || t("summary.loadFailed"));
+    } finally {
+      setSummaryBusy(false);
+    }
+  }
+
+  async function updateSummary(summary, changes) {
+    setSummaryError("");
+    try {
+      const saved = await sheetSummaries.update(summary.id, changes);
+      // A pen summary shown again after its pages went missing gets them back.
+      if (saved.mode === "pen" && saved.visible && !virtualPagesRef.current.some((item) => item.summary === saved.id)) {
+        setSummaryPages(addSummaryPages(virtualPagesRef.current, saved.id, pageCount));
+      }
+    } catch (error) {
+      setSummaryError(error?.message || t("summary.loadFailed"));
+    }
+  }
+
+  async function deleteSummary(summary) {
+    setSummaryBusy(true);
+    setSummaryError("");
+    try {
+      await sheetSummaries.remove(summary.id);
+      const ids = new Set(virtualPagesRef.current.filter((item) => item.summary === summary.id).map((item) => item.id));
+      setSummaryPages(removeSummaryPages(virtualPagesRef.current, summary.id), { removePages: ids });
+      if (ids.has(activeVirtualPageId)) setActiveVirtualPageId(null);
+      if (summaryPanelId === summary.id) setSummaryPanelId("");
+      setFocusMessage(t("summary.deleted"));
+    } catch (error) {
+      setSummaryError(error?.message || t("summary.loadFailed"));
+    } finally {
+      setSummaryBusy(false);
+    }
+  }
+
+  function continueSummary(summary) {
+    setSummaryDialogOpen(false);
+    if (summary.mode === "keyboard") { setSummaryPanelId(summary.id); setSummaryPanelOpen(true); return; }
+    const target = virtualPagesRef.current.find((item) => item.summary === summary.id && item.afterPage === page)
+      || virtualPagesRef.current.find((item) => item.summary === summary.id && item.afterPage >= accessiblePageStart);
+    if (target) jumpToPagePosition(target.id);
+  }
+
+  /** Builds the PDF, marks the summary received and hands the file over. */
+  async function receiveSummary(summary) {
+    if (summaryBusy) return;
+    setSummaryBusy(true);
+    setSummaryError("");
+    try {
+      await sheetSummaries.flush(summary.id);
+      const current = sheetSummaries.withDrafts(sheetSummaries.summaries.find((item) => item.id === summary.id) || summary);
+      const penPages = summary.mode === "pen"
+        ? virtualPagesRef.current.filter((item) => item.summary === summary.id).sort((a, b) => a.afterPage - b.afterPage)
+          .map((item) => ({ pdfPage: item.afterPage, background: item.background, annotations: annotationsRef.current.filter((mark) => mark.page === item.id) }))
+        : [];
+      const progress = summaryProgress(summary);
+      const blob = await buildSummaryPdf({
+        summary: current,
+        sheetTitle: sheet.title,
+        penPages,
+        labels: {
+          kicker: t("summary.pdfKicker"),
+          details: t("summary.pdfDetails", { mode: t(summary.mode === "pen" ? "summary.pen" : "summary.keyboard"), count: progress.done, date: new Date().toLocaleDateString(document.documentElement.lang || undefined) }),
+          page: (number) => t("summary.pdfPage", { page: number })
+        }
+      });
+      if (summary.status !== "finished") await sheetSummaries.update(summary.id, { finished: true });
+      const name = `${current.title.replace(/[\\/:*?"<>|]+/g, " ").trim() || "summary"}.pdf`;
+      const handle = createExportHandle(blob, name);
+      triggerDownload(handle.url, name);
+      window.setTimeout(() => handle.revoke(), 60_000);
+      setSummaryReceiveDismissed(true);
+      setFocusMessage(t("summary.received"));
+    } catch (error) {
+      setSummaryError(error?.message || t("summary.loadFailed"));
+      setSummaryDialogOpen(true);
+    } finally {
+      setSummaryBusy(false);
+    }
+  }
+
+  const writingSummaries = sheetSummaries.summaries.filter((item) => item.visible && item.status !== "finished");
+  const showSummaryReceive = summariesEnabled && !summaryReceiveDismissed && writingSummaries.length > 0 && page >= pageCount && pageCount > 0 && !activeQuiz;
+  const activeSummaryPage = activeVirtualPageId === null ? null : readerVirtualPages.find((item) => item.id === activeVirtualPageId && item.summary);
+  const jumpSummary = activeSummaryPage ? sheetSummaries.summaries.find((item) => item.id === activeSummaryPage.summary) : shownPenSummaries[0];
+  const jumpTarget = activeSummaryPage
+    ? activeSummaryPage.afterPage
+    : jumpSummary ? readerVirtualPages.find((item) => item.summary === jumpSummary.id && item.afterPage === page)?.id : undefined;
 
   async function submitActiveQuiz() {
     if (!activeStudy || !activeQuiz || activeStudyBusy) return;
@@ -5730,7 +5943,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       const verdicts = new Map((Array.isArray(result.review) ? result.review : []).map((item) => [item.position, item]));
       const review = activeQuiz.questions.map((question) => {
         const checked = verdicts.get(question.position);
-        return { position: question.position, prompt: question.prompt, correct: Boolean(checked?.correct), explanation: typeof checked?.explanation === "string" ? checked.explanation : "" };
+        return { position: question.position, prompt: question.prompt, correct: Boolean(checked?.correct), explanation: typeof checked?.explanation === "string" ? checked.explanation : "", ...(Number.isInteger(checked?.page) ? { page: checked.page } : {}) };
       });
       setActiveLocked(Object.fromEntries(activeQuiz.questions.map((question) => [question.id, activeAnswers[question.id]])));
       clearActiveStudyDraft(activeQuiz.attempt_id);
@@ -5828,6 +6041,16 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     } finally {
       setActiveStudyBusy(false);
     }
+  }
+
+  /** A weak page in a Pomodoro result opens straight in the reader instead of where the test began. */
+  function openPageFromResult(target) {
+    quizReaderAnchorRef.current = null;
+    setActiveQuiz(null);
+    setActiveResult(null);
+    setActiveAnswers({});
+    setActiveLocked({});
+    jumpToPagePosition(target);
   }
 
   async function dismissActiveQuiz() {
@@ -6155,7 +6378,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         const pages = kind === "current" || kind === "png"
           ? [{ kind: activeVirtualPageId === null ? "pdf" : "virtual", key: activeVirtualPageId ?? page, pdfPage: page, background: virtualPagesRef.current.find((item) => item.id === activeVirtualPageId)?.background }]
           : includeWorkspacePages
-            ? composeWorkspacePages(Array.from({ length: to - from + 1 }, (_, index) => from + index), virtualPagesRef.current)
+            ? composeWorkspacePages(Array.from({ length: to - from + 1 }, (_, index) => from + index), virtualPagesRef.current.filter((item) => !item.summary || shownSummaryIds.has(item.summary)))
             : Array.from({ length: to - from + 1 }, (_, index) => ({ kind: "pdf", key: from + index, pdfPage: from + index }));
         const annotationsNow = annotationsRef.current;
         const total = pages.length;
@@ -6544,6 +6767,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
             <header><strong>{t("focus.study")}</strong><button type="button" aria-label={t("focus.closeStudyMenu")} onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="study"]')}><X size={17} /></button></header>
             <div className="workspace-v3-menu-list">
               <button type="button" data-study-action="mode" onClick={() => { setOpenSurface(null); setModeDialogOpen(true); }}><Brain size={18} /><span><strong>{t(studyMode === "active" ? "focus.studyModeActive" : "focus.studyModeNormal")}</strong><small>{studyMode === "active" && activeStudy ? t("activeStudy.pageRange", { start: activeStudy.current_page_range?.start_page, end: activeStudy.current_page_range?.end_page }) : t("focus.studyModeHint")}</small></span></button>
+              {summariesEnabled && <hr className="workspace-v9-menu-separator" />}
+              {summariesEnabled && <button type="button" data-study-action="my-summary" onClick={() => { setOpenSurface(null); setSummaryDialogOpen(true); void sheetSummaries.reload(); }}><FileText size={18} /><span><strong>{t("summary.title")}</strong><small>{sheetSummaries.summaries.length ? sheetSummaries.summaries.map((item) => item.title).join(" · ") : t("summary.menuHint")}</small></span></button>}
               {studyTools.length > 0 && <hr className="workspace-v9-menu-separator" />}
               {studyTools.map(([tool, Icon]) => <button key={tool} type="button" data-study-tool={tool} aria-pressed={knowledgeOpen && knowledgeNavigation?.tool === tool} onClick={() => openStudyTool(tool)}><Icon size={18} /><span><strong>{t(`knowledge.${tool}`)}</strong></span></button>)}
               {shareDocumentId && <hr className="workspace-v9-menu-separator" />}
@@ -6752,7 +6977,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
             onLostPointerCapture={lostWorkspacePointer}
             onPointerLeave={() => { hideStylusHover(); hideEraserHitbox(); }}
           >
-            {sheet.pdfUrl ? <ContinuousA4Pdf pdfUrl={sheet.pdfUrl} pageCount={pageCount} visiblePageStart={accessiblePageStart} visiblePageCount={accessiblePageCount} zoom={zoom} stageRef={stageRef} documentRootRef={documentRef} onPageCount={syncPdfPageCount} onDocumentReady={markPdfDocumentReady} onDocumentLoaded={handlePdfDocumentLoaded} onCurrentPageChange={handleCurrentWorkspacePage} virtualPages={virtualPages} renderPageOverlay={renderPdfPageOverlay} onPdfPageRendered={recordPdfPageRender} documentFooter={whiteboard ? <div className="workspace-whiteboard-footer"><button type="button" onClick={addWhiteboardPage}><Plus size={18} /><span>{t("workspaceTabs.addPage")}</span></button></div> : null} /> : <article ref={documentRef} className="workspace-v2-document" onDoubleClick={smartZoom} style={cssVars({ "--workspace-document-width": `${PAGE_WIDTH * zoom}px`, "--workspace-document-min-height": `${760 * zoom}px`, "--workspace-document-max-width": "none" })}>
+            {sheet.pdfUrl ? <ContinuousA4Pdf pdfUrl={sheet.pdfUrl} pageCount={pageCount} visiblePageStart={accessiblePageStart} visiblePageCount={accessiblePageCount} zoom={zoom} stageRef={stageRef} documentRootRef={documentRef} onPageCount={syncPdfPageCount} onDocumentReady={markPdfDocumentReady} onDocumentLoaded={handlePdfDocumentLoaded} onCurrentPageChange={handleCurrentWorkspacePage} virtualPages={readerVirtualPages} renderPageOverlay={renderPdfPageOverlay} onPdfPageRendered={recordPdfPageRender} documentFooter={whiteboard ? <div className="workspace-whiteboard-footer"><button type="button" onClick={addWhiteboardPage}><Plus size={18} /><span>{t("workspaceTabs.addPage")}</span></button></div> : null} /> : <article ref={documentRef} className="workspace-v2-document" onDoubleClick={smartZoom} style={cssVars({ "--workspace-document-width": `${PAGE_WIDTH * zoom}px`, "--workspace-document-min-height": `${760 * zoom}px`, "--workspace-document-max-width": "none" })}>
               <svg className={annotationLayerClass} viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-label={t("focus.documentAnnotations")}>
                 <AnnotationVisuals annotations={annotationsHidden ? [] : pageAnnotations} prefix={`document-${page}`} includeHitTargets={activeTool === "select" && !annotationsHidden} revealedIds={revealedCoverIds} />
                 {draftAnnotation && draftAnnotation.type !== "lasso" && <WorkspaceAnnotation annotation={draftAnnotation} draft />}
@@ -6862,8 +7087,20 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         <button type="button" className={`workspace-v2-checkpoint-button${activeStudyButtonReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeStudyButtonReady} aria-label={activeStudyButtonReady ? t(activeStudy.stage.startsWith("final") ? "activeStudy.openFinal" : "activeStudy.openCheckpoint") : t("activeStudy.reachToUnlock", { page: accessiblePageCount })}>{!activeStudy.stage.startsWith("final") && activeStudy.number_of_parts > 1 && <span className="workspace-v9-step-part" aria-hidden="true">{t("activeStudy.pageRange", { start: activeStudy.current_page_range?.start_page, end: activeStudy.current_page_range?.end_page })}</span>}{activeStudyButtonReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t(activeStudy.stage.startsWith("final") ? "activeStudy.finalExam" : "activeStudy.checkpoint")}</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t("activeStudy.reachPage", { page: accessiblePageCount })}</span></>}</button>
       </div>}
       {knowledgeVisited && shareDocumentId && user?.id && <Suspense fallback={null}><KnowledgeWorkspace key={`${user.id}/${shareDocumentId}`} userId={user.id} documentId={shareDocumentId} title={sheet.title} page={page} pageLimit={accessiblePageCount} onSaveState={setKnowledgeSaveStatus} navigation={knowledgeNavigation} visible={knowledgeOpen && paneActive} onClose={() => setKnowledgeOpen(false)} onRead={(target) => { if (target >= accessiblePageStart && target <= accessiblePageCount) jumpToPagePosition(target); }} /></Suspense>}
-      {studyMode === "active" && activeStudy?.study_mode === "pomodoro" && activeStudy?.status === "active" && <PomodoroStudy key={`${user?.id}:${activeStudy.id}`} userId={user?.id || ownerKey} run={activeStudy} page={page} virtualPage={activeVirtualPageId !== null} active={paneActive && workspaceReady && !modeDialogOpen && !activeExitOpen} blocked={Boolean(activeQuiz)} deferSetup={knowledgeOpen || marksOpen || sideOpen} busy={activeStudyBusy} onStartTest={openPomodoroQuiz} onOpenTest={openActiveQuiz} />}
-      {modeDialogOpen && <StudyModeDialog customization={activeCustomization} setCustomization={setActiveCustomization} availability={selectedActiveStudyAvailability} difficulty={activeDifficulty} setDifficulty={(key) => { setActiveDifficulty(key); setActiveCustomization((current) => ({ ...current, studyMode: "standard" })); }} activeAvailable={activeStudyReady} restartProgress={savedStudyProgress(activeCustomization, selectedActiveStudyAvailability)} completed={(activeStudyAvailability?.difficulties || []).filter((item) => item.completed).map((item) => item.difficulty)} busy={activeStudyBusy || activeStudyAvailabilityLoading} checking={activeStudyAvailabilityLoading && !activeStudyBusy} error={activeStudyError} onNormal={chooseNormalStudy} onActive={(replaceExisting) => chooseActiveStudy(activeDifficulty, { replaceExisting })} onRestart={restartActiveStudy} activeOnly={entryModePreference === "active"} />}
+      {studyMode === "active" && activeStudy?.study_mode === "pomodoro" && activeStudy?.status === "active" && <PomodoroStudy key={`${user?.id}:${activeStudy.id}`} userId={user?.id || ownerKey} run={activeStudy} page={page} virtualPage={activeVirtualPageId !== null} active={paneActive && workspaceReady && !modeDialogOpen && !activeExitOpen} blocked={Boolean(activeQuiz)} deferSetup={knowledgeOpen || marksOpen || sideOpen} busy={activeStudyBusy} onStartTest={openPomodoroQuiz} onOpenTest={openActiveQuiz} onSaveClock={(clock) => focusApi.savePomodoroClock(activeStudy.id, clock)} />}
+      {summariesEnabled && paneActive && workspaceReady && !activeQuiz && shownKeyboardSummaries.length > 0 && <SummaryTextPanel
+        summaries={shownKeyboardSummaries} activeId={summaryPanelId} onActive={setSummaryPanelId} page={page}
+        open={summaryPanelOpen} onToggle={() => setSummaryPanelOpen((value) => !value)}
+        pageText={sheetSummaries.pageText} onWrite={sheetSummaries.writePage} saveState={sheetSummaries.saveState} />}
+      {summariesEnabled && paneActive && workspaceReady && !activeQuiz && jumpSummary && jumpTarget !== undefined && <button type="button" className="summary-jump"
+        style={/** @type {any} */ ({ "--summary-accent": SUMMARY_COLORS[jumpSummary.color]?.accent })}
+        onClick={() => jumpToPagePosition(jumpTarget)}>{activeSummaryPage ? <ArrowUp size={15} aria-hidden="true" /> : <ArrowDown size={15} aria-hidden="true" />}{t(activeSummaryPage ? "summary.goToSheetPage" : "summary.goToSummaryPage")}</button>}
+      {showSummaryReceive && paneActive && <SummaryReceiveCard busy={summaryBusy} onReceive={() => void receiveSummary(writingSummaries[0])} onDismiss={() => setSummaryReceiveDismissed(true)} />}
+      {summaryDialogOpen && <MySummaryDialog summaries={sheetSummaries.summaries} maxPerSheet={sheetSummaries.maxPerSheet} progressOf={summaryProgress} busy={summaryBusy}
+        error={summaryError || (sheetSummaries.error && !sheetSummaries.loaded ? t("summary.loadFailed") : "")}
+        onCreate={createSummary} onContinue={continueSummary} onUpdate={updateSummary} onDelete={deleteSummary} onReceive={receiveSummary}
+        onClose={() => { setSummaryDialogOpen(false); setSummaryError(""); }} />}
+      {modeDialogOpen && <StudyModeDialog customization={activeCustomization} setCustomization={setActiveCustomization} availability={selectedActiveStudyAvailability} difficulty={activeDifficulty} setDifficulty={(key) => { setActiveDifficulty(key); setActiveCustomization((current) => ({ ...current, studyMode: current.studyMode === "pomodoro" ? "pomodoro" : "standard" })); }} activeAvailable={activeStudyReady} restartProgress={savedStudyProgress(activeCustomization, selectedActiveStudyAvailability)} completed={(activeStudyAvailability?.difficulties || []).filter((item) => item.completed).map((item) => item.difficulty)} busy={activeStudyBusy || activeStudyAvailabilityLoading} checking={activeStudyAvailabilityLoading && !activeStudyBusy} error={activeStudyError} onNormal={chooseNormalStudy} onActive={(replaceExisting) => chooseActiveStudy(activeDifficulty, { replaceExisting })} onRestart={restartActiveStudy} activeOnly={entryModePreference === "active"} />}
       {shareDocumentId && <AnnotationSharePanel
         open={marksOpen}
         onClose={() => setMarksOpen(false)}
@@ -6872,12 +7109,16 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         marksSet={marksSet}
         onSelectMarks={onSelectMarks}
         defaultName={user?.name || user?.full_name || ""}
-        getSnapshot={() => snapshotFromReader({ annotations: annotationsRef.current, notes: notesRef.current, virtualPages: virtualPagesRef.current })}
+        getSnapshot={() => {
+          // A My Summary is the student's own: shared marks leave its pages and ink out.
+          const summaryPageIds = new Set(virtualPagesRef.current.filter((item) => item.summary).map((item) => item.id));
+          return snapshotFromReader({ annotations: annotationsRef.current.filter((item) => !summaryPageIds.has(item.page)), notes: notesRef.current.filter((item) => !summaryPageIds.has(item.page)), virtualPages: virtualPagesRef.current.filter((item) => !item.summary) });
+        }}
         onOpenCopy={({ sheetId }) => { setMarksOpen(false); onSelectMarks(sheetId); }}
       />}
       <ConfirmDialog open={deletePageConfirmOpen} title={t("focus.deleteBlankPageConfirm")} message={t("focus.deleteBlankPageUndo")} confirmLabel={t("common.delete")} onCancel={() => setDeletePageConfirmOpen(false)} onConfirm={() => deleteBlankPage({ confirmed: true })} />
       <ActiveStudyExitDialog open={activeExitOpen} busy={activeStudyBusy} onSave={exitActiveStudyAndSave} onDiscard={exitActiveStudyWithoutSaving} onCancel={() => setActiveExitOpen(false)} />
-      {activeQuiz && activeStudy && <ActiveStudyQuiz key={activeQuiz.attempt_id} quiz={activeQuiz} answers={activeAnswers} setAnswers={setActiveAnswers} locked={activeLocked} result={activeResult} explainLinks={mcqExplain.links} explainAvailability={STUDY_TOOLS_ENABLED ? mcqExplain.availability : ""} onExplain={openMistakeExplain} busy={activeStudyBusy} onSubmit={submitActiveQuiz} onDismiss={dismissActiveQuiz} onRetake={retakeActiveQuiz} onContinue={continueActiveStudyAnyway} onDiscard={(done) => discardActiveAttempt({ restart: false }, done)} onRestart={(done) => discardActiveAttempt({ restart: true }, done)} />}
+      {activeQuiz && activeStudy && <ActiveStudyQuiz key={activeQuiz.attempt_id} quiz={activeQuiz} answers={activeAnswers} setAnswers={setActiveAnswers} locked={activeLocked} result={activeResult} explainLinks={mcqExplain.links} explainAvailability={STUDY_TOOLS_ENABLED && !COMING_SOON_STUDY_TOOLS.includes("explain") ? mcqExplain.availability : ""} onExplain={openMistakeExplain} busy={activeStudyBusy} onSubmit={submitActiveQuiz} onDismiss={dismissActiveQuiz} onRetake={retakeActiveQuiz} onContinue={continueActiveStudyAnyway} onDiscard={(done) => discardActiveAttempt({ restart: false }, done)} onRestart={(done) => discardActiveAttempt({ restart: true }, done)} onOpenPage={activeStudy.study_mode === "pomodoro" ? openPageFromResult : undefined} />}
     </main>
   );
 }

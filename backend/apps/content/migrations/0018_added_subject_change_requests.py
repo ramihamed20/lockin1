@@ -9,7 +9,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('content', '0016_added_catalog_subjects'),
+        ('content', '0017_added_catalog_subjects'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

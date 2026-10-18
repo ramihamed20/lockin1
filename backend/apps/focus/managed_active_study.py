@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from math import ceil
@@ -29,7 +30,13 @@ from apps.content.active_study_readiness import (
 )
 from apps.content.editions import UNIVERSITY, normalize_edition
 from apps.content.models import ActiveStudyQuestionContent, LearningObject
-from apps.content.page_question_bank import custom_page_ranges, select_page_questions
+from apps.content.page_question_bank import (
+    MAX_CUSTOM_PAGES,
+    MAX_CUSTOM_QUESTIONS,
+    QUESTIONS_PER_PAGE,
+    custom_page_ranges,
+    select_page_questions,
+)
 from apps.content.policies import can_view_learning_object
 from apps.review.contracts import QuestionAttemptEvent
 from apps.review.models import ReviewItem
@@ -42,6 +49,7 @@ from .events import ActiveStudyExamPassed
 from .models import ActiveStudyAnswer, ActiveStudyAttempt, ActiveStudyRun
 from .pomodoro import close_range as close_pomodoro_range
 from .pomodoro import initial_ranges as pomodoro_initial_ranges
+from .pomodoro import validate_clock as validate_pomodoro_clock
 from .question_identity import question_key
 
 
@@ -256,9 +264,9 @@ def _runtime_plan(
     if study_mode == "custom" and (
         isinstance(questions_per_checkpoint, bool)
         or not isinstance(questions_per_checkpoint, int)
-        or not 1 <= questions_per_checkpoint <= 20
+        or not 1 <= questions_per_checkpoint <= MAX_CUSTOM_QUESTIONS
     ):
-        raise ManagedActiveStudyRuleError("Choose between 1 and 20 questions.")
+        raise ManagedActiveStudyRuleError(f"Choose between 1 and {MAX_CUSTOM_QUESTIONS} questions.")
     ranges = plan["page_ranges"]
     source_ranges = content.plan_signature["page_ranges"]
     start, end = ranges[0]["start_page"], ranges[-1]["end_page"]
@@ -281,6 +289,13 @@ def _runtime_plan(
         ranges = custom_page_ranges(start, end, pages_per_checkpoint)
     except ValueError as error:
         raise ManagedActiveStudyRuleError(str(error)) from error
+    # Each page supplies at most QUESTIONS_PER_PAGE questions, so the shortest
+    # group (usually the last) caps how many a test of this size can ask.
+    shortest = min(item["end_page"] - item["start_page"] + 1 for item in ranges)
+    if questions_per_checkpoint > shortest * QUESTIONS_PER_PAGE:
+        raise ManagedActiveStudyRuleError(
+            f"Choose at most {shortest * QUESTIONS_PER_PAGE} questions for this page count."
+        )
     return {
         **plan,
         "page_ranges": ranges,
@@ -351,7 +366,9 @@ def availability(*, user: User, sheet_id: UUID, edition: str = UNIVERSITY) -> di
                 "pomodoro_available": custom_supported,
                 "pomodoro_max_questions": 40,
                 "customization_available": custom_supported,
-                "max_questions": 20,
+                "max_questions": MAX_CUSTOM_QUESTIONS,
+                "max_pages": MAX_CUSTOM_PAGES,
+                "questions_per_page": QUESTIONS_PER_PAGE,
                 "eligible_study_pages": readiness["eligible_study_pages"],
                 "completed": completed,
             }
@@ -388,6 +405,7 @@ def run_payload(run: ActiveStudyRun | None) -> dict[str, Any] | None:
         "last_score": run.last_score,
         "last_outcome": run.last_outcome,
         "xp_awarded": run.xp_awarded,
+        **({"pomodoro_clock": run.pomodoro_clock or None} if run.study_mode == "pomodoro" else {}),
     }
 
 
@@ -868,16 +886,56 @@ def _review_of(attempt: ActiveStudyAttempt, source: list[dict[str, Any]]) -> lis
     """Each question's verdict, from the answers the server holds."""
 
     held = {item.question_position: item for item in attempt.answers.all()}
+    run = attempt.run
+    offset = (
+        int(run.plan_signature.get("source_page_offset", 0))
+        if run.study_mode in {"custom", "pomodoro"}
+        else 0
+    )
     return [
         {
             "position": position,
             "correct": held[position].was_correct,
             "correct_answer": _correct_answer(question),
             "explanation": question["explanation"],
+            **_review_page(question, offset),
         }
         for position, question in enumerate(source, start=1)
         if position in held
     ]
+
+
+def _review_page(question: dict[str, Any], offset: int) -> dict[str, int]:
+    """The reader's page a bank question came from, so results can be grouped by page."""
+
+    match = re.match(r"page:(\d+):", str(question.get("source_key", "")))
+    return {"page": int(match.group(1)) - offset} if match else {}
+
+
+def pomodoro_summary(run: ActiveStudyRun) -> dict[str, Any] | None:
+    """What a Pomodoro session achieved: the last scored try of each page test, and the final."""
+
+    if run.study_mode != "pomodoro":
+        return None
+    parts: dict[int, ActiveStudyAttempt] = {}
+    final: ActiveStudyAttempt | None = None
+    for attempt in run.attempts.filter(submitted_at__isnull=False).order_by("submitted_at"):
+        if attempt.kind == ActiveStudyAttempt.Kind.FINAL:
+            final = attempt
+        elif attempt.part_number is not None:
+            parts[attempt.part_number] = attempt
+    percents = [
+        round(100 * (item.score or 0) / item.total) for item in parts.values() if item.total
+    ]
+    return {
+        "tests": [
+            {"part": part, "score": item.score, "total": item.total}
+            for part, item in sorted(parts.items())
+        ],
+        "average_percent": round(sum(percents) / len(percents)) if percents else None,
+        "final_score": final.score if final else None,
+        "final_total": final.total if final else None,
+    }
 
 
 @transaction.atomic
@@ -1000,6 +1058,7 @@ def submit(
         "completed": run.status == ActiveStudyRun.Status.COMPLETED,
         "xp_awarded": run.xp_awarded,
         "review": _review_of(attempt, source),
+        **({"pomodoro_summary": pomodoro_summary(run)} if run.study_mode == "pomodoro" else {}),
     }
 
 
@@ -1053,6 +1112,23 @@ def retry_final(*, user: User, run_id: UUID) -> ActiveStudyRun:
     run.stage = ActiveStudyRun.Stage.FINAL
     run.last_outcome = "retry_final"
     run.save(update_fields=("stage", "last_outcome", "updated_at"))
+    return run
+
+
+@transaction.atomic
+def save_pomodoro_clock(*, user: User, run_id: UUID, clock: Any) -> ActiveStudyRun:
+    """Keep the newest countdown; an older device's late save never rewinds it."""
+
+    run = _locked_run(user=user, run_id=run_id)
+    if run.study_mode != "pomodoro" or run.status != ActiveStudyRun.Status.ACTIVE:
+        raise ManagedActiveStudyRuleError("This is not an active Pomodoro session.")
+    try:
+        saved = validate_pomodoro_clock(clock)
+    except ValueError as error:
+        raise ManagedActiveStudyRuleError(str(error)) from error
+    if saved["updatedAt"] >= int((run.pomodoro_clock or {}).get("updatedAt", 0)):
+        run.pomodoro_clock = saved
+        run.save(update_fields=("pomodoro_clock", "updated_at"))
     return run
 
 

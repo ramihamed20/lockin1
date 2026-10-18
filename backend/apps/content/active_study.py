@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
+from .page_question_bank import QUESTIONS_PER_PAGE
+
 # Prompt templates are authored per part count.  A plan above this many parts
 # has no matching template yet; a plan that could not be built at all says so
 # separately, because "no plan" is not "no template".
@@ -302,7 +304,7 @@ def plan_payload(
                     mirrored_sizes=(sizes_by_difficulty or {}).get(difficulty.key),
                 ),
                 "question_format": "pages" if page_question_bank else "parts",
-                "questions_per_page": 20 if page_question_bank else None,
+                "questions_per_page": QUESTIONS_PER_PAGE if page_question_bank else None,
                 **({"prompt_template_supported": True} if page_question_bank else {}),
             }
             for difficulty in difficulties

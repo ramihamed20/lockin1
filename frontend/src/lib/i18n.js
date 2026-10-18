@@ -1,6 +1,7 @@
 import { studyPlanMessages } from "./studyPlanMessages.js";
 import { allQuestionsMessages } from "./allQuestionsMessages.js";
 import { pomodoroMessages } from "./pomodoroMessages.js";
+import { summaryMessages } from "./summaryMessages.js";
 import { rescueMessages } from "./rescueMessages.js";
 import { knowledgeMessages } from "./knowledgeMessages.js";
 
@@ -10,6 +11,7 @@ const messages = {
   en: {
     ...allQuestionsMessages.en,
     ...pomodoroMessages.en,
+    ...summaryMessages.en,
     ...knowledgeMessages.en,
     ...rescueMessages.en,
     ...studyPlanMessages.en,
@@ -1012,7 +1014,6 @@ const messages = {
     "marks.uploading": "Uploading {percent}%",
     "marks.publish": "Share my marks",
     "marks.update": "Update my share",
-    "marks.addIntro": "Share the marks on this sheet so other students can copy them. They choose whether to take all of it or just some pages.",
     "marks.nameLabel": "Name shown to others",
     "marks.namePlaceholder": "Your name",
     "marks.anonymousLabel": "Share anonymously",
@@ -1444,8 +1445,8 @@ const messages = {
     "activeStudy.pagesDescription": "Read pages, then test your understanding.",
     "activeStudy.customize": "Customize",
     "activeStudy.standardStyle": "Use standard style",
-    "activeStudy.pagesPerTest": "Pages per test",
-    "activeStudy.questionsPerTest": "Questions (up to 20)",
+    "activeStudy.pagesPerTest": "Pages per test (up to {max})",
+    "activeStudy.questionsPerTest": "Questions (up to {max})",
     "activeStudy.customHint": "Choose your pace. The final exam stays the same.",
     "activeStudy.replaceCustom": "Start a new custom session with these settings? Your current custom progress will be archived.",
     "activeStudy.newCustom": "Start new session",
@@ -2951,6 +2952,7 @@ const messages = {
   ar: {
     ...allQuestionsMessages.ar,
     ...pomodoroMessages.ar,
+    ...summaryMessages.ar,
     ...knowledgeMessages.ar,
     ...rescueMessages.ar,
     ...studyPlanMessages.ar,
@@ -3981,7 +3983,6 @@ const messages = {
     "marks.uploading": "جارٍ الرفع {percent}%",
     "marks.publish": "شارك تأشيري",
     "marks.update": "حدّث مشاركتي",
-    "marks.addIntro": "شارك تأشيراتك على هذا الشيت ليتمكن زملاؤك من نسخها. وهم يقررون أخذ كل شيء أو صفحات محددة فقط.",
     "marks.nameLabel": "الاسم الظاهر للآخرين",
     "marks.namePlaceholder": "اسمك",
     "marks.anonymousLabel": "شارك باسم مجهول",
@@ -4429,8 +4430,8 @@ const messages = {
     "activeStudy.pagesDescription": "اقرأ الصفحات، ثم اختبر فهمك.",
     "activeStudy.customize": "تخصيص",
     "activeStudy.standardStyle": "استخدام الأسلوب العادي",
-    "activeStudy.pagesPerTest": "صفحات لكل اختبار",
-    "activeStudy.questionsPerTest": "الأسئلة (حتى 20)",
+    "activeStudy.pagesPerTest": "صفحات لكل اختبار (حتى {max})",
+    "activeStudy.questionsPerTest": "الأسئلة (حتى {max})",
     "activeStudy.customHint": "اختَر وتيرتك. الاختبار النهائي يبقى كما هو.",
     "activeStudy.replaceCustom": "تبدأ جلسة مخصصة جديدة بهذه الإعدادات؟ سيُحفظ تقدم الجلسة الحالية في الأرشيف.",
     "activeStudy.newCustom": "بدء جلسة جديدة",

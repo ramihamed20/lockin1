@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useI18n } from "../../components/I18nProvider.jsx";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog.jsx";
 import { useKnowledgeWorkspace } from "./useKnowledgeWorkspace.js";
-import { addMapNode } from "./model.js";
+import { addMapNode, availableStudyTools } from "./model.js";
 import { downloadKnowledge, printNotebook } from "./export.js";
 import "./knowledge.css";
 
@@ -15,7 +15,7 @@ export default function KnowledgeWorkspace({ userId, documentId, title, page, pa
   const { t, locale } = useI18n();
   const workspace = useKnowledgeWorkspace(userId, documentId);
   useEffect(() => { onSaveState(workspace.status); }, [onSaveState, workspace.status]);
-  const flags = workspace.bootstrap?.tools || {};
+  const flags = availableStudyTools(workspace.bootstrap?.tools);
   const requestedTool = workspace.ui?.tool || "summary";
   const tool = requestedTool === "knowledge" || flags[requestedTool] ? requestedTool : ["summary", "map", "explain"].find((key) => flags[key]) || "knowledge";
   const setTool = (value) => workspace.editUI({ tool: value });
@@ -189,29 +189,36 @@ export default function KnowledgeWorkspace({ userId, documentId, title, page, pa
       <nav className="knowledge-nav" aria-label={t("knowledge.tools")}>
         {["summary", "map", "explain", "knowledge"].filter((key) => key === "knowledge" || flags[key]).map((key) => <button key={key} type="button" aria-pressed={tool === key} onClick={() => { setTool(key); setConceptId(""); }}>{t(`knowledge.${key}`)}</button>)}
       </nav>
-      <div className="knowledge-save" role="status">{t(`knowledge.status_${workspace.status}`)}<button type="button" onClick={() => { void workspace.sync(); }}>{t("knowledge.sync")}</button></div>
+      <div className="knowledge-save" role="status" data-status={workspace.status}><span><i aria-hidden="true" />{t(`knowledge.status_${workspace.status}`)}</span><button type="button" onClick={() => { void workspace.sync(); }}>{t("knowledge.sync")}</button></div>
       {workspace.error && <p role="alert">{t(`knowledge.${workspace.error}`)} {workspace.error === "load_error" && <button type="button" onClick={workspace.refresh}>{t("common.tryAgain")}</button>}</p>}
       {workspace.status === "unsaved" && <div className="knowledge-toolbar"><button type="button" onClick={() => downloadKnowledge(workspace.records.filter((item) => item.content), { source, ui: workspace.ui, attempts: workspace.attempts })}>{t("knowledge.exportUnsaved")}</button><button type="button" onClick={() => setDiscarding(true)}>{t("knowledge.discardUnsaved")}</button></div>}
       {message && <p role="status">{t(message)}</p>}
       {(tool === "summary" || tool === "map") && <>
-        {current.length === 0 ? <div className="knowledge-start"><p className="knowledge-empty">{t("knowledge.emptyNotebook")}</p><button type="button" className="knowledge-start-button" disabled={workspace.status === "unsaved"} onClick={() => create()}>{t(tool === "map" ? "knowledge.startMap" : "knowledge.startSummary")}</button></div> : <div className="knowledge-toolbar">{current.length > 1 && <label>{t("knowledge.notebook")}<select value={record?.id || ""} onChange={(event) => setActiveIds((old) => ({ ...old, [tool]: event.target.value }))}><option value="" disabled>{t("knowledge.chooseDocument")}</option>{current.map((item) => <option value={item.id} key={item.id}>{item.title || t(`knowledge.${item.kind}`)} · {item.page_start}–{item.page_end}</option>)}</select></label>}<button type="button" disabled={workspace.status === "unsaved"} onClick={() => create()}>{t("knowledge.newDocument")}</button></div>}
+        {current.length === 0 ? <div className="knowledge-start">
+          <p className="knowledge-empty">{t(tool === "map" ? "knowledge.emptyNotebook" : "knowledge.emptySummary")}</p>
+          {tool === "summary" && <ol className="knowledge-steps"><li>{t("knowledge.step_read")}</li><li>{t("knowledge.step_write")}</li><li>{t("knowledge.step_check")}</li></ol>}
+          <button type="button" className="knowledge-start-button" disabled={workspace.status === "unsaved"} onClick={() => create()}>{t(tool === "map" ? "knowledge.startMap" : "knowledge.startSummary")}</button>
+        </div> : <div className="knowledge-doc-bar">{current.length > 1 && <label>{t("knowledge.notebook")}<select value={record?.id || ""} onChange={(event) => setActiveIds((old) => ({ ...old, [tool]: event.target.value }))}><option value="" disabled>{t("knowledge.chooseDocument")}</option>{current.map((item) => <option value={item.id} key={item.id}>{item.title || t(`knowledge.${item.kind}`)} · {item.page_start}–{item.page_end}</option>)}</select></label>}<button type="button" className="knowledge-new" disabled={workspace.status === "unsaved"} onClick={() => create()}>+ {t("knowledge.newDocument")}</button></div>}
         {record && !record.content ? <p role="status">{t("common.loading")}</p> : record ? <>
           {(workspace.status === "conflict" || workspace.error === "local_conflict") && !stale && <button type="button" onClick={async () => { try { const copy = await workspace.saveCopy(record, t("knowledge.copyTitle", { title: record.title || t(`knowledge.${record.kind}`) })); setActiveIds((old) => ({ ...old, [record.kind]: copy.id })); } catch { setMessage("knowledge.exportFailed"); } }}>{t("knowledge.keepBoth")}</button>}
           {stale && <p className="knowledge-warning" role="status">{t("knowledge.staleSource")}</p>}
-          <label>{t("knowledge.title")}<input dir="auto" value={record.title} maxLength={220} onChange={(event) => edit({ ...record, title: event.target.value })} /></label>
-          <div className="knowledge-toolbar"><button type="button" disabled={!history.current.get(record.id)?.length} onClick={() => step(true)}>{t("knowledge.undo")}</button><button type="button" onClick={() => downloadKnowledge([record])}>{t("knowledge.exportCurrent")}</button><button type="button" disabled={!redo.current.get(record.id)?.length} onClick={() => step(false)}>{t("knowledge.redo")}</button><button type="button" disabled={stale} onClick={() => read(record.page_start)}>{t("knowledge.readSource")}</button></div>
+          <label className="knowledge-title-field">{t("knowledge.title")}<input dir="auto" value={record.title} maxLength={220} placeholder={t(tool === "map" ? "knowledge.untitledMap" : "knowledge.untitledSummary")} onChange={(event) => edit({ ...record, title: event.target.value })} /></label>
+          <div className="knowledge-toolbar is-compact">
+            <button type="button" disabled={!history.current.get(record.id)?.length} onClick={() => step(true)}><span aria-hidden="true">↶ </span>{t("knowledge.undo")}</button>
+            <button type="button" disabled={!redo.current.get(record.id)?.length} onClick={() => step(false)}><span aria-hidden="true">↷ </span>{t("knowledge.redo")}</button>
+            <button type="button" className="knowledge-source-link" disabled={stale} onClick={() => read(record.page_start)}>{t("knowledge.readSourcePage", { page: record.page_start })}</button>
+          </div>
+          <Suspense fallback={<p role="status">{t("common.loading")}</p>}>
+            {tool === "summary" ? <SummaryEditor key={record.id} record={record} t={t} locale={locale} page={page} onChange={edit} onMap={toMap} /> : <MapEditor key={record.id} record={record} t={t} onChange={edit} focusNode={mapFocus?.documentId === record.id ? mapFocus : null} onFocused={() => setMapFocus(null)} selection={workspace.ui?.mapSelections?.[record.id] || []} onSelection={(ids) => workspace.editUI({ mapSelections: { ...(workspace.ui?.mapSelections || {}), [record.id]: ids } })} concepts={stale ? [] : concepts} questions={stale ? [] : (workspace.bootstrap.questions || []).filter((question) => question.page_end <= pageLimit)} onRead={stale ? () => setMessage("knowledge.staleSource") : read} onExplain={(id) => { setConceptId(id); setTool("explain"); }} />}
+          </Suspense>
+          {concepts.length > 0 && !stale && <details><summary>{t("knowledge.linkConcept")}</summary>{concepts.map((concept) => <label className="knowledge-concept-check" key={concept.id}><input type="checkbox" checked={(record.content.concept_ids || []).includes(concept.id)} onChange={(event) => edit({ ...record, content: { ...record.content, concept_ids: event.target.checked ? [...(record.content.concept_ids || []), concept.id] : record.content.concept_ids.filter((id) => id !== concept.id) } })} />{concept.title}</label>)}</details>}
           <details className="knowledge-document-options"><summary>{t("knowledge.documentOptions")}</summary>
           <div className="knowledge-toolbar">
             <label>{t("knowledge.fromPage")}<input type="number" min="1" max="10000" value={record.page_start} onChange={(event) => { const value = Math.max(1, Number(event.target.value)); edit({ ...record, page_start: value, page_end: Math.max(value, record.page_end) }); }} /></label>
             <label>{t("knowledge.toPage")}<input type="number" min={record.page_start} max="10000" value={record.page_end} onChange={(event) => edit({ ...record, page_end: Math.max(record.page_start, Number(event.target.value)) })} /></label>
-            <button type="button" disabled={stale} onClick={() => read(record.page_start)}>{t("knowledge.readSource")}</button>
           </div>
-          <div className="knowledge-toolbar"><button type="button" onClick={() => setDeleting(record)}>{t("common.delete")}</button><button type="button" disabled={exporting} onClick={() => { void exportWork(false); }}>{t("knowledge.exportData")}</button>{tool === "summary" && <button type="button" disabled={exporting} onClick={() => { void exportWork(true); }}>{t("knowledge.exportPdf")}</button>}</div>
+          <div className="knowledge-toolbar">{tool === "summary" && <button type="button" disabled={exporting} onClick={() => { void exportWork(true); }}>{t("knowledge.exportPdf")}</button>}<button type="button" onClick={() => downloadKnowledge([record])}>{t("knowledge.exportCurrent")}</button><button type="button" disabled={exporting} onClick={() => { void exportWork(false); }}>{t("knowledge.exportData")}</button><button type="button" className="knowledge-danger" onClick={() => setDeleting(record)}>{t("common.delete")}</button></div>
           </details>
-          <Suspense fallback={<p role="status">{t("common.loading")}</p>}>
-            {tool === "summary" ? <SummaryEditor key={record.id} record={record} t={t} locale={locale} onChange={edit} onMap={toMap} /> : <MapEditor key={record.id} record={record} t={t} onChange={edit} focusNode={mapFocus?.documentId === record.id ? mapFocus : null} onFocused={() => setMapFocus(null)} selection={workspace.ui?.mapSelections?.[record.id] || []} onSelection={(ids) => workspace.editUI({ mapSelections: { ...(workspace.ui?.mapSelections || {}), [record.id]: ids } })} concepts={stale ? [] : concepts} questions={stale ? [] : (workspace.bootstrap.questions || []).filter((question) => question.page_end <= pageLimit)} onRead={stale ? () => setMessage("knowledge.staleSource") : read} onExplain={(id) => { setConceptId(id); setTool("explain"); }} />}
-          </Suspense>
-          {concepts.length > 0 && !stale && <details><summary>{t("knowledge.linkConcept")}</summary>{concepts.map((concept) => <label className="knowledge-concept-check" key={concept.id}><input type="checkbox" checked={(record.content.concept_ids || []).includes(concept.id)} onChange={(event) => edit({ ...record, content: { ...record.content, concept_ids: event.target.checked ? [...(record.content.concept_ids || []), concept.id] : record.content.concept_ids.filter((id) => id !== concept.id) } })} />{concept.title}</label>)}</details>}
         </> : null}
       </>}
       {tool === "explain" && <Suspense fallback={<p role="status">{t("common.loading")}</p>}><ExplainEditor uiState={workspace.ui?.explainState || {}} onState={(patch) => workspace.editUI({ explainState: { ...(workspace.ui?.explainState || {}), ...patch } })} questions={(workspace.bootstrap.questions || []).filter((question) => question.page_end <= pageLimit)} attempts={workspace.attempts} drafts={explanationDrafts} onDraft={(id, text) => workspace.editUI({ explanationDrafts: { ...explanationDrafts, [id]: text } })} onSubmit={workspace.submit} onSummary={setInsert} conceptId={conceptId} page={page} locale={locale} t={t} /></Suspense>}

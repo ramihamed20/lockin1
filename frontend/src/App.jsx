@@ -50,6 +50,7 @@ const CatalogFocusWorkspace = lazyWithRecovery(() => import("./pages/CatalogFocu
 const WorkspaceKeepAlive = lazyWithRecovery(() => import("./workspace/catalog/WorkspaceKeepAlive.jsx").then((module) => ({ default: module.WorkspaceKeepAlive })));
 const LockInMode = lazyWithRecovery(() => import("./pages/LockInMode.jsx"));
 const PaperWorkspace = lazyWithRecovery(() => import("./pages/PaperWorkspace.jsx"));
+const MySummariesPage = lazyWithRecovery(() => import("./pages/MySummaries.jsx"));
 const MyGroup = lazyWithRecovery(() => import("./pages/MyGroup.jsx"));
 const Search = lazyWithRecovery(() => import("./pages/Search.jsx"));
 const Questions = lazyWithRecovery(() => import("./pages/Questions.jsx"));
@@ -754,8 +755,11 @@ function App() {
                 <Route path="/" element={<Dashboard user={user} themeSettings={themeSettings} activeTheme={activeTheme} />} />
                 <Route path="/dashboard" element={<Dashboard user={user} themeSettings={themeSettings} activeTheme={activeTheme} />} />
                 <Route path="/my-group" element={<MyGroup />} />
-                <Route path="/study-plan" element={<StudyPlan />} />
+                {isFeatureComingSoon("study-plan")
+                  ? <Route path="/study-plan/*" element={<FeatureComingSoon featureId="study-plan" />} />
+                  : <Route path="/study-plan" element={<StudyPlan user={user} />} />}
                 <Route path="/materials" element={<Materials user={user} />} />
+                <Route path="/materials/summaries" element={<MySummariesPage />} />
                 <Route path="/materials/catalog" element={<NotFoundPage variant="material-catalog" />} />
                 <Route path="/materials/catalog/:materialSlug" element={<CatalogMaterialSheets user={user} />} />
                 <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug" element={<CatalogSheetStudy user={user} />} />

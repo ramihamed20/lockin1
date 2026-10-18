@@ -1904,6 +1904,24 @@ html.ix-hover .question-player-card .choices button:not(:disabled):hover { borde
 .plan-text-button, .plan-delete { min-block-size: 44px; background: transparent; border: 0; color: var(--accent-text); cursor: pointer; padding: 8px; font: inherit; }
 .plan-delete { color: var(--danger); }
 .study-plan-v2 button:disabled { opacity: .5; cursor: default; }
+.plan-subjects { display: grid; gap: 12px; }
+.plan-subjects-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; font-size: var(--text-sm); }
+.plan-chips { display: flex; flex-wrap: wrap; gap: 8px; min-inline-size: 0; }
+.plan-chip { display: inline-flex; align-items: center; gap: 6px; min-block-size: 40px; max-inline-size: 100%; padding: 8px 14px; border: 1px solid var(--border-strong); border-radius: var(--radius-full); background: var(--surface-2); color: var(--text); font: inherit; font-size: var(--text-sm); cursor: pointer; text-align: start; }
+.plan-chip span { overflow-wrap: anywhere; }
+.plan-chip[aria-pressed=true] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-text); }
+.plan-chip svg { flex: none; }
+.plan-subject-add { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: end; gap: 10px; }
+.plan-subject-add .btn { min-block-size: 46px; }
+.plan-minutes-field { display: grid; gap: 10px; min-inline-size: 0; }
+.plan-editor .plan-field-grid { align-items: start; }
+.plan-move { justify-self: start; min-block-size: 40px; padding-inline: 0; font-weight: 600; }
+.plan-progress { grid-column: 1 / -1; display: grid; gap: 8px; }
+.plan-progress progress { inline-size: 100%; block-size: 8px; border: 0; border-radius: var(--radius-full); overflow: hidden; background: var(--surface-2); appearance: none; }
+.plan-progress progress::-webkit-progress-bar { background: var(--surface-2); }
+.plan-progress progress::-webkit-progress-value { background: var(--success); border-radius: var(--radius-full); }
+.plan-progress progress::-moz-progress-bar { background: var(--success); border-radius: var(--radius-full); }
+.plan-day-strip button[data-state=done] span { color: var(--success); font-weight: 700; }
 @media(min-width:1100px) {
   .study-plan-v2 { grid-template-columns: minmax(0,1.2fr) minmax(0,1fr); align-items: start; }
   .plan-heading, .plan-settings, .plan-notice, .study-plan-v2 > .plan-note, .plan-overdue, .study-plan-v2 > .error-panel { grid-column: 1 / -1; }
@@ -1923,6 +1941,9 @@ html.ix-hover .question-player-card .choices button:not(:disabled):hover { borde
   .plan-week-heading { flex-wrap: wrap; }
   .plan-stats strong { font-size: 1rem; }
   .plan-actions .btn { min-block-size: 44px; }
+  .plan-chip { min-block-size: 44px; }
+  .plan-weekdays label span, .plan-day-strip small { font-size: 10px; white-space: nowrap; text-align: center; }
+  .plan-day-strip button, .plan-weekdays label { overflow: hidden; }
 }
 @media(prefers-reduced-motion:reduce) { .study-plan-v2 * { scroll-behavior: auto; transition: none; animation: none; } }
 }

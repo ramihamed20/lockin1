@@ -11,3 +11,15 @@
 @media (max-width: 360px) { .active-study-custom-fields { grid-template-columns: minmax(0, 1fr); } }
 
 .workspace-v2-mode-dialog.has-customization { max-height: min(92dvh, 760px); }
+
+.active-study-pomodoro-preferences { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--border-color, #7774); border-radius: 14px; }
+.active-study-pomodoro-preferences > small { font-size: .85rem; line-height: 1.5; }
+.active-study-pomodoro-preferences fieldset { display: grid; gap: 6px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.active-study-pomodoro-preferences legend { padding: 0; font-size: .85rem; }
+.active-study-pomodoro-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.active-study-pomodoro-presets label { position: relative; display: grid; place-items: center; min-height: 44px; border: 1px solid var(--border-color, #7776); border-radius: 10px; font-size: .9rem; font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer; }
+.active-study-pomodoro-presets label.is-selected { border-color: currentColor; background: color-mix(in srgb, currentColor 10%, transparent); }
+.active-study-pomodoro-presets input { position: absolute; opacity: 0; pointer-events: none; }
+.active-study-pomodoro-presets label:has(input:focus-visible) { outline: 2px solid currentColor; outline-offset: 2px; }
+.active-study-pomodoro-sound { display: flex; gap: 10px; align-items: center; min-height: 44px; font-size: .85rem; cursor: pointer; }
+.active-study-pomodoro-sound input { width: 20px; height: 20px; margin: 0; accent-color: currentColor; }

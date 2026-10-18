@@ -3,7 +3,7 @@
 Implementation date: 2026-10-17. Base: `codex/lockin0.1.3` at `3abb4d4`.
 Working branch: `codex/active-study-page-customization`.
 
-Students can choose the standard style, customize pages per checkpoint and 1–20 questions, or use Pomodoro style in the Focus reader. The final exam retains its configured size and difficulty. Custom groups use the exact requested page count with a shorter final group. Excluded PDF pages are never tested.
+Students can choose the standard style, customize up to 10 pages per checkpoint and up to 30 questions (never more than 15 per page of the shortest group), or use Pomodoro style in the Focus reader. The final exam retains its configured size and difficulty. Custom groups use the exact requested page count with a shorter final group. Excluded PDF pages are never tested.
 
 ## Rollout and data
 
@@ -25,7 +25,7 @@ Legacy sheets continue importing `parts`. New sheets import:
 }
 ```
 
-Every eligible physical PDF page must appear exactly once and contain 20 distinct supported MCQ/True-False questions; the final exam keeps the configured count. The arrays above are a structural example, not an importable complete bank. This per-page capacity makes a 20-question test on a single page possible. If the source cannot support that many valid questions, the prompt instructs the author to report the limitation instead of inventing content.
+Every eligible physical PDF page must appear exactly once and contain 15 distinct supported MCQ/True-False questions; the final exam keeps the configured count. Banks written earlier with 20 per page stay valid and use only the first 15 of each page. The arrays above are a structural example, not an importable complete bank. This per-page capacity makes a 15-question test on a single page possible. If the source cannot support that many valid questions, the prompt instructs the author to report the limitation instead of inventing content.
 
 Single-difficulty and All Questions prompts, validation, save, counts and previews use the same page contract. Questions are authored on the University Sheet tab. Both PDFs share that bank. Customization of the Lockin edition is enabled only when its eligible page count matches the University edition; source page numbers then use the exclusion offset. Mismatched editions retain the standard style. No inferred page mapping is introduced.
 

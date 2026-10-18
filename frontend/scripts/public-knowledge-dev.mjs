@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 
 // Vite serves public files by filename, but its SPA fallback treats /help/
@@ -9,17 +9,32 @@ export function publicKnowledgeInDevelopment() {
     name: "lock-in-public-knowledge-in-development",
     configureServer(server) {
       const publicRoot = server.config.publicDir;
-      const routes = JSON.parse(readFileSync(resolve(publicRoot, "public-search-routes.json"), "utf8"));
-      const pages = new Map();
-      const redirects = new Map();
-      for (const route of routes) {
-        if (!/^\/(?:[a-z0-9-]+\/)+$/.test(route)) throw new Error("Invalid published public route.");
-        pages.set(route, resolve(publicRoot, route.slice(1), "index.html"));
-        redirects.set(route.slice(0, -1), route);
-        redirects.set(route + "index.html", route);
-      }
+      const manifest = resolve(publicRoot, "public-search-routes.json");
+      // Pages are added while the server runs (regenerating the public pages),
+      // so the allowlist follows the manifest instead of the one read at startup;
+      // otherwise a new page falls through to the app and opens the dashboard.
+      let loadedAt = -1;
+      let pages = new Map();
+      let redirects = new Map();
+      const current = () => {
+        const modified = statSync(manifest).mtimeMs;
+        if (modified === loadedAt) return;
+        const nextPages = new Map();
+        const nextRedirects = new Map();
+        for (const route of JSON.parse(readFileSync(manifest, "utf8"))) {
+          if (!/^\/(?:[a-z0-9-]+\/)+$/.test(route)) throw new Error("Invalid published public route.");
+          nextPages.set(route, resolve(publicRoot, route.slice(1), "index.html"));
+          nextRedirects.set(route.slice(0, -1), route);
+          nextRedirects.set(route + "index.html", route);
+        }
+        pages = nextPages;
+        redirects = nextRedirects;
+        loadedAt = modified;
+      };
+      current();
       server.middlewares.use((request, response, next) => {
         if (!["GET", "HEAD"].includes(request.method)) return next();
+        current();
         const pathname = new URL(request.url || "/", "http://vite.local").pathname;
         const canonical = redirects.get(pathname);
         if (canonical) {

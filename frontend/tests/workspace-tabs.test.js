@@ -99,7 +99,7 @@ test("the workspace hosts the tab strip, whiteboards, and keeps Active Study per
   // Leaving a tab mid Active Study keeps the run's place, like "Save" on exit.
   const hold = workspace.slice(workspace.indexOf("function holdActiveStudyPlace"), workspace.indexOf("function goToWorkspaceTab"));
   assert.match(hold, /writeActiveStudyResume\(activeStudy\.id, pageRef\.current\)/);
-  assert.match(hold, /writeActiveStudyEntry\(activeEntryKey, activeStudy\.difficulty\)/);
+  assert.match(hold, /writeActiveStudyEntry\(activeEntryKey, activeStudy\)/);
   // A whiteboard grows with lined pages at its end and has no study mode.
   assert.match(workspace, /insertVirtualPage\(before, 1, id, before\.length \? before\[before\.length - 1\]\.id : null, "lined"\)/);
   // A student's own sheet has no study mode either.
