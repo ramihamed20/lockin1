@@ -57,7 +57,7 @@ async function planner(page, { configured = false, locale = "en", materials = []
 
 test("Beginning and Normal persist preferences, preview sessions and retain completion after reload", async ({ page }) => {
   await planner(page);
-  await page.goto("/#/study-plan");
+  await page.goto("/#/__e2e/study-plan");
   await page.getByRole("radio", { name: "Beginning", exact: true }).check();
   await expect(page.getByText(/Every 3 completed study days/)).toBeVisible();
   await page.getByRole("button", { name: "Save plan", exact: true }).click();
@@ -77,7 +77,7 @@ test("Beginning and Normal persist preferences, preview sessions and retain comp
 
 test("Custom can create, reschedule and delete a task with an accessible confirmation", async ({ page }) => {
   await planner(page);
-  await page.goto("/#/study-plan");
+  await page.goto("/#/__e2e/study-plan");
   await page.getByRole("radio", { name: "Custom", exact: true }).check();
   await page.getByRole("button", { name: "Save plan", exact: true }).click();
   await page.getByRole("button", { name: "Add session", exact: true }).click();
@@ -100,7 +100,7 @@ test("Custom can create, reschedule and delete a task with an accessible confirm
 test("a rejected settings save keeps the student's draft for retry", async ({ page }) => {
   const state = await planner(page);
   state.reject(true);
-  await page.goto("/#/study-plan");
+  await page.goto("/#/__e2e/study-plan");
   await page.getByLabel("Subjects", { exact: true }).fill("Anatomy, Physiology");
   await page.getByRole("button", { name: "Save plan", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "Check the session details" })).toBeVisible();
@@ -115,7 +115,7 @@ test("students pick their own subjects, use quick choices and pull an overdue se
     { id: "late", title: "Solve questions", subject: "Dental Anatomy", scheduled_date: "2026-10-13", duration_minutes: 30, status: "planned", generated: false, revision: 1 },
     { id: "done", title: "Read the lecture", subject: "Oral Histology", scheduled_date: "2026-10-12", duration_minutes: 30, status: "completed", generated: false, revision: 1 }
   ] });
-  await page.goto("/#/study-plan");
+  await page.goto("/#/__e2e/study-plan");
   await expect(page.getByRole("progressbar", { name: "This week: 30 of 60 min done" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Monday, October 12, 2026 · all sessions done/ })).toBeVisible();
   await page.getByText("Still on your list · 1").click();
@@ -148,7 +148,7 @@ for (const [width, height, locale] of [[320,740,"ar"],[390,844,"en"],[820,1180,"
   test(`planner reflows at ${width}x${height} in ${locale}`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await planner(page, { locale, materials: MATERIALS });
-    await page.goto("/#/study-plan");
+    await page.goto("/#/__e2e/study-plan");
     await expect(page.locator(".plan-modes")).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await expect(page.locator("html")).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");

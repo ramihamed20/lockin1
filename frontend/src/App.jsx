@@ -1,3 +1,4 @@
+/* global __E2E_CATALOG_MATERIALS__ */
 import { PolicyNotice } from "./components/PolicyNotice.jsx";
 import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
@@ -757,6 +758,8 @@ function App() {
                 <Route path="/" element={<Dashboard user={user} themeSettings={themeSettings} activeTheme={activeTheme} />} />
                 <Route path="/dashboard" element={<Dashboard user={user} themeSettings={themeSettings} activeTheme={activeTheme} />} />
                 <Route path="/my-group" element={<MyGroup />} />
+                {/* Exercise the gated planner in fixture builds; production compiles this route away. */}
+                {typeof __E2E_CATALOG_MATERIALS__ !== "undefined" && __E2E_CATALOG_MATERIALS__ !== null && <Route path="/__e2e/study-plan" element={<StudyPlan user={user} />} />}
                 {isFeatureComingSoon("study-plan")
                   ? <Route path="/study-plan/*" element={<FeatureComingSoon featureId="study-plan" />} />
                   : <Route path="/study-plan" element={<StudyPlan user={user} />} />}

@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from django.db import transaction
+from django.db.models import QuerySet
 from django.utils import timezone
 
 from apps.accounts.models import User
@@ -80,7 +81,9 @@ def merge_page_texts(current: dict[str, str], changes: object) -> dict[str, str]
     return merged
 
 
-def owned_summaries(*, user: User, document: CatalogDocument | None = None) -> Any:
+def owned_summaries(
+    *, user: User, document: CatalogDocument | None = None
+) -> QuerySet[SheetSummary]:
     rows = SheetSummary.objects.filter(user=user).select_related(
         "document__version", "document__version__learning_object"
     )

@@ -83,10 +83,9 @@ for (const viewport of DESKTOP_VIEWPORTS) {
     await openShell(page, viewport, OPERATIONS_ACCOUNT);
     const sidebar = await page.evaluate(readSidebar);
 
-    // The five primary student destinations plus this account's workspace
-    // ones (Content Studio, Moderation); everything else lives in the
-    // expanded navigation.
-    expect(sidebar.destinations).toBe(7);
+    // Five primary destinations, four standalone rail entries, and the two
+    // operations workspaces must all remain reachable.
+    expect(sidebar.destinations).toBe(11);
     // The whole rail owns scrolling on tablets, while wider layouts can keep
     // the list as their scroller. In either case the behavior that matters is
     // that the final destination remains reachable.
