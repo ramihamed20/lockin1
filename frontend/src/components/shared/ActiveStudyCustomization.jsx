@@ -29,20 +29,28 @@ export function ActiveStudyCustomization({ availability, value, onChange, disabl
   if (!availability?.customization_available) return null;
   const custom = value.studyMode === "custom";
   const pagesMax = maxCustomPages(availability.eligible_study_pages);
-  const questionsMax = maxCustomQuestions(availability.eligible_study_pages, value.pagesPerCheckpoint);
+  const questionsMax = maxCustomQuestions(availability.eligible_study_pages, value.pagesPerCheckpoint, availability.page_question_counts);
+  const hasRealInventory = Array.isArray(availability.page_question_counts)
+    && availability.page_question_counts.length === availability.eligible_study_pages;
   function toggle() {
     const saved = availability.custom_progress;
     onChange(value.studyMode !== "standard" ? { ...value, studyMode: "standard" } : {
       studyMode: "custom", pagesPerCheckpoint: saved?.pages_per_checkpoint || 3,
-      questionsPerCheckpoint: saved?.questions_per_checkpoint || 5
+      questionsPerCheckpoint: Math.min(saved?.questions_per_checkpoint || 5,
+        maxCustomQuestions(availability.eligible_study_pages, saved?.pages_per_checkpoint || 3, availability.page_question_counts))
     });
   }
   return <div className="active-study-customization">
     <div className="active-study-style-actions"><button type="button" className="btn btn-soft compact" aria-pressed={custom} onClick={toggle} disabled={disabled}>{t(custom ? "activeStudy.standardStyle" : "activeStudy.customize")}</button>
     </div>
     {custom && <div className="active-study-custom-fields">
-      <label className="field"><span>{t("activeStudy.pagesPerTest", { max: pagesMax })}</span><input type="number" min="1" max={pagesMax} step="1" value={value.pagesPerCheckpoint} disabled={disabled} onChange={(event) => onChange({ ...value, pagesPerCheckpoint: event.target.value === "" ? "" : Number(event.target.value) })} /></label>
+      <label className="field"><span>{t("activeStudy.pagesPerTest", { max: pagesMax })}</span><input type="number" min="1" max={pagesMax} step="1" value={value.pagesPerCheckpoint} disabled={disabled} onChange={(event) => {
+        const pages = event.target.value === "" ? "" : Number(event.target.value);
+        const limit = maxCustomQuestions(availability.eligible_study_pages, pages, availability.page_question_counts);
+        onChange({ ...value, pagesPerCheckpoint: pages, questionsPerCheckpoint: Number.isInteger(value.questionsPerCheckpoint) ? Math.min(value.questionsPerCheckpoint, limit) : value.questionsPerCheckpoint });
+      }} /></label>
       <label className="field"><span>{t("activeStudy.questionsPerTest", { max: questionsMax })}</span><input type="number" min="1" max={questionsMax} step="1" value={value.questionsPerCheckpoint} disabled={disabled} onChange={(event) => onChange({ ...value, questionsPerCheckpoint: event.target.value === "" ? "" : Number(event.target.value) })} /></label>
+      {hasRealInventory && <small role="status">{t("activeStudy.actualQuestionsAvailable", { max: questionsMax })}</small>}
       <small>{t("activeStudy.customHint")}</small>
     </div>}
   </div>;
@@ -53,7 +61,7 @@ export function validStudyCustomization(value, availability) {
   return value.studyMode !== "custom" || Boolean(availability?.customization_available
     && Number.isInteger(value.pagesPerCheckpoint) && value.pagesPerCheckpoint >= 1 && value.pagesPerCheckpoint <= maxCustomPages(availability.eligible_study_pages)
     && Number.isInteger(value.questionsPerCheckpoint) && value.questionsPerCheckpoint >= 1
-    && value.questionsPerCheckpoint <= maxCustomQuestions(availability.eligible_study_pages, value.pagesPerCheckpoint));
+    && value.questionsPerCheckpoint <= maxCustomQuestions(availability.eligible_study_pages, value.pagesPerCheckpoint, availability.page_question_counts));
 }
 
 export function savedStudyProgress(value, availability) {
