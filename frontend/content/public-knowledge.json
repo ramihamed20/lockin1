@@ -1858,7 +1858,7 @@
     "frontend/src/pages/MyGroup.jsx": "8bb12fa42170deb4d4bd3f9e7e8edf0b9914cec68f0e4e1878cf459fd40fdf4d",
     "backend/apps/focus/tests/test_page_active_study.py": "25d02fa15de5480875b19b4996a4b1a67621e2b80954a64ffb2e171b75e40d07",
     "frontend/src/components/shared/ActiveStudyCustomization.jsx": "49a02da58d2cf1095ab0c16ea126572a072e2e456e9d8a69b1f0e62a0e9c4454",
-    "frontend/e2e/focus-active-study-customization.spec.js": "60093156e7d669c5860fd81c1751cde0eaaea0825cc90c986e33987eb7822fea",
+    "frontend/e2e/focus-active-study-customization.spec.js": "f675c44e9a641a43e203294f72f34ddce64870eb70a42496f61ad3959fc76e51",
     "backend/apps/focus/pomodoro.py": "bded6f7e6c9f63de6665bb2fa66237bdc53d58c5eb601a31be05927b8341fcb8",
     "backend/apps/focus/tests/test_pomodoro_study.py": "4cbdc79b3e33eb0140665433681c0f37ab2a4972121d9214368c628b707a603a",
     "frontend/src/components/shared/PomodoroStudy.jsx": "c3252cc3f22f24b95646230048d8d247b4866f2666b0acb19bb3b0d85450a35e",
