@@ -234,7 +234,7 @@ const local = {
       if (!row?.customization_available || !content.pages) throw new ActiveStudyRuleError("Customization is available only for new page-based sheets.");
       if (!Number.isInteger(questionsPerCheckpoint) || questionsPerCheckpoint < 1 || questionsPerCheckpoint > MAX_CUSTOM_QUESTIONS) throw new ActiveStudyRuleError(`Choose between 1 and ${MAX_CUSTOM_QUESTIONS} questions.`);
       ranges = customPageRanges(ranges[0].start_page, ranges.at(-1).end_page, pagesPerCheckpoint);
-     }
+    }
     const key = runKey(sheetId, edition, difficulty, studyMode);
     const existing = await readRun(userId, key);
     if (studyMode === "custom" && !(existing?.status === "active" && !replaceExisting)) {
