@@ -4,7 +4,7 @@ import { fulfillAccessContract, studentSession } from "./fixtures/productionApi.
 
 test.use({ serviceWorkers: "block" });
 
-async function setup(page, { legacy = false, language = "en" } = {}) {
+async function setup(page, { legacy = false, language = "en", sparse = false } = {}) {
   const calls = [];
   const pdf = await readFile(new URL("./fixtures/pdf/sheet-41.pdf", import.meta.url));
   await page.addInitScript(() => localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now())));
@@ -18,7 +18,7 @@ async function setup(page, { legacy = false, language = "en" } = {}) {
     if (await fulfillAccessContract(route, path)) return;
     if (path === "/api/v1/focus/lock-in") return json({ active_session: null });
     if (path === "/api/v1/catalog/materials") return json({ results: [], count: 0 });
-    if (path.startsWith("/api/v1/focus/managed-active-study/sheets/")) return json({ sheet_id: "e2e-vitamin-1", enabled: true, difficulties: ["easy", "medium", "hard"].map((difficulty) => ({ difficulty, status: "ready", number_of_parts: 8, page_ranges: [{ part: 1, start_page: 2, end_page: 6 }], progress: null, completed: false, customization_available: !legacy, eligible_study_pages: 40 })) });
+    if (path.startsWith("/api/v1/focus/managed-active-study/sheets/")) return json({ sheet_id: "e2e-vitamin-1", enabled: true, difficulties: ["easy", "medium", "hard"].map((difficulty) => ({ difficulty, status: "ready", number_of_parts: 8, page_ranges: [{ part: 1, start_page: 2, end_page: 6 }], progress: null, completed: false, customization_available: !legacy, eligible_study_pages: 40, page_question_counts: sparse ? Array.from({ length: 40 }, (_, index) => index === 39 ? 4 : 8) : undefined })) });
     if (path === "/api/v1/focus/managed-active-study/start") {
       const body = route.request().postDataJSON();
       calls.push(body);
@@ -49,6 +49,24 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1180, height: 820 
     await expect(page.locator('.workspace-v2-a4-page[data-pdf-page="5"]')).toHaveCount(0);
   });
 }
+
+test("sparse page inventory limits every checkpoint, including the last", async ({ page }) => {
+  const calls = await setup(page, { sparse: true });
+  const dialog = page.getByRole("dialog", { name: "Choose study mode" });
+  await dialog.getByRole("button", { name: "Customize", exact: true }).click();
+  await expect(dialog.getByLabel("Questions (up to 4)", { exact: true })).toHaveValue("4");
+  await expect(dialog.getByText("Available for every checkpoint: up to 4 questions (30 maximum overall).")).toBeVisible();
+  await dialog.getByLabel("Pages per test (up to 10)", { exact: true }).fill("2");
+  const count = dialog.getByLabel("Questions (up to 12)", { exact: true });
+  await count.fill("13");
+  await expect(dialog.getByRole("button", { name: "Start Active Study", exact: true })).toBeDisabled();
+  await count.fill("12");
+  await expect(dialog.getByRole("button", { name: "Start Active Study", exact: true })).toBeEnabled();
+  await dialog.getByLabel("Pages per test (up to 10)", { exact: true }).fill("3");
+  await expect(dialog.getByLabel("Questions (up to 4)", { exact: true })).toHaveValue("4");
+  await dialog.getByRole("button", { name: "Start Active Study", exact: true }).click();
+  expect(calls[0]).toMatchObject({ study_mode: "custom", pages_per_checkpoint: 3, questions_per_checkpoint: 4 });
+});
 
 test("legacy sheets retain the standard start without customization", async ({ page }) => {
   const calls = await setup(page, { legacy: true });
