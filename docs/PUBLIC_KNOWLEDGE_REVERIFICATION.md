@@ -42,3 +42,9 @@ Only these reviewed digests were refreshed: `App.jsx`, `i18n.js`, `CatalogFocusW
 ## Combined feature review — 17 October 2026
 
 Study Plan V2 is integrated after the page-based Active Study and Pomodoro changes. The shared translation catalog retains All Questions, Pomodoro and planner messages in both locales. Existing Active Study help keeps its new-sheet eligibility, page selection and question limits; planner routing remains account-owned, with self-reported completion and no XP or AI promise. Only the combined translation and feature-availability evidence digests were refreshed after resolving their merge conflicts. The other evidence and generated pages retain the reviewed changes from both branches. The public verifier remains unchanged.
+
+## Page-bank question ceiling review — 18 October 2026 (PR #64)
+
+The Active Study authoring change is limited to **1–15 source-supported questions per eligible PDF page** (old all-20 imports remain readable). Standard checkpoints now use the available questions; custom sessions validate the selected count against the actual capacity of each group, including the shortest group. Offline selection mirrors the server. Final Exams retain their configured exact totals, and legacy part-format imports remain unchanged.
+
+The published Arabic/English Active Study instructions were checked: they already say **حتى 15 سؤالًا** per page and qualify customization/Pomodoro limits by availability. No text edit or new promise of guaranteed 15 questions is required. The three watched source paths above were reviewed and their exact SHA-256 evidence digests updated; unrelated entries remain unchanged. Public knowledge verification remains mandatory. Release and actual-device behavior are not certified by this review; CI must rerun.

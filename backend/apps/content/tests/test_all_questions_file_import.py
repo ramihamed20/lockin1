@@ -166,3 +166,40 @@ def test_page_errors_show_physical_page_and_mark_only_that_page_invalid() -> Non
     assert body["errors"][0]["section"] == "Medium → Page 2 → Question 3"
     medium = next(row for row in body["summary"]["difficulties"] if row["difficulty"] == "medium")
     assert [(page["part"], page["ok"]) for page in medium["parts"]] == [(2, False), (3, True)]
+
+
+def test_all_questions_accepts_different_valid_counts_per_page() -> None:
+    _, sheet, client, base = _world(pages=4)
+    sheet.active_study_page_bank_enabled = True
+    sheet.save(update_fields=["active_study_page_bank_enabled"])
+    context = _context(client, base)
+    document = {"active_study": {}, "sheet_questions": {"questions": []}}
+    for row in context["difficulties"]:
+        key = row["difficulty"]
+        document["active_study"][key] = {
+            "pages": [
+                {
+                    "page": page,
+                    "questions": [
+                        _question(f"{key}-{page}-{i}")
+                        for i in range(3 if page == row["page_numbers"][0] else 11)
+                    ],
+                }
+                for page in row["page_numbers"]
+            ],
+            "final_exam": {
+                "questions": [
+                    _question(f"{key}-final-{i}") for i in range(row["final_exam_questions"])
+                ]
+            },
+        }
+    response = client.post(
+        f"{base}/all-questions/validate",
+        {"payload": document, "sheet_question_count": 0},
+        format="json",
+    )
+    assert response.status_code == 200, response.json()
+    assert response.json()["valid"] is True
+    for difficulty in response.json()["summary"]["difficulties"]:
+        assert [part["received"] for part in difficulty["parts"]] == [3, 11]
+        assert all(part["ok"] for part in difficulty["parts"])

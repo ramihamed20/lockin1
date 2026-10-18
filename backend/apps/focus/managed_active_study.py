@@ -630,10 +630,13 @@ def _questions_for(run: ActiveStudyRun, *, kind: str, part: int | None) -> list[
             source_range = content.plan_signature["page_ranges"][part - 1]
             offset = 0
         try:
-            start_page, end_page = source_range["start_page"] + offset, source_range["end_page"] + offset
+            start_page = source_range["start_page"] + offset
+            end_page = source_range["end_page"] + offset
             count = source_range.get(
                 "question_count",
-                run.plan_signature.get("questions_per_checkpoint", plan["questions_per_checkpoint"]),
+                run.plan_signature.get(
+                    "questions_per_checkpoint", plan["questions_per_checkpoint"]
+                ),
             )
             if run.study_mode == "standard":
                 count = min(count, available_page_questions(payload, start_page, end_page))
@@ -1288,7 +1291,9 @@ def offline_bundle(*, user: User, sheet_id: UUID, edition: str = UNIVERSITY) -> 
                                 r["end_page"],
                                 min(
                                     plan["questions_per_checkpoint"],
-                                    available_page_questions(payload, r["start_page"], r["end_page"]),
+                                    available_page_questions(
+                                        payload, r["start_page"], r["end_page"]
+                                    ),
                                 ),
                             ),
                         }
