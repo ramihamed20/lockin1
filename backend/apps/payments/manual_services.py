@@ -35,6 +35,7 @@ from .installments import (
     is_installment_suspension,
 )
 from .models import (
+    PARTIAL_COLLECTION_FAILURE_CODE,
     InstallmentAgreement,
     ManualRechargeCode,
     ManualRechargeSubmission,
@@ -174,10 +175,14 @@ def _first_subscription_offer_available(*, user: User) -> bool:
     database rule, so any completed successful paid subscription makes this
     first-subscription offer unavailable later.
     """
-    return not Payment.objects.filter(
-        account__primary_user=user,
-        status=Payment.Status.SUCCEEDED,
-    ).exists()
+    return not (
+        Payment.objects.filter(
+            account__primary_user=user,
+            status=Payment.Status.SUCCEEDED,
+        )
+        .exclude(failure_code=PARTIAL_COLLECTION_FAILURE_CODE)
+        .exists()
+    )
 
 
 def _early_renewal_allowed(*, subscription: Subscription, now: datetime) -> bool:
@@ -784,6 +789,10 @@ def review_manual_recharge(
         if submission.status == target:
             return submission, False
         raise ManualPaymentError("This payment has already been reviewed.")
+    if collected_amount_minor and decision == "approve":
+        raise ManualPaymentError("A partial collection is recorded only when rejecting.")
+    if collected_amount_minor > payment.amount_minor:
+        raise ManualPaymentError("The collected value cannot exceed the payment amount.")
 
     now = timezone.now()
     from_payment_status = payment.status
@@ -889,7 +898,7 @@ def review_manual_recharge(
             payment.amount_minor = collected_amount_minor
             payment.status = Payment.Status.SUCCEEDED
             payment.succeeded_at = now
-            payment.failure_code = "manual_rejected_partial_collection"
+            payment.failure_code = PARTIAL_COLLECTION_FAILURE_CODE
         previous_status = subscription.status
         previous = submission.previous_subscription_state
         # When ``owns_subscription_state`` is false, someone else has already

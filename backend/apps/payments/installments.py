@@ -137,12 +137,11 @@ def installment_snapshot(
     window_end = next_due + INSTALLMENT_PAYMENT_WINDOW if next_due else None
     submitted = pending.get(next_number) if open_schedule else None
     if next_due and window_end and next_due <= current:
+        # A card sent before the window closed keeps access while it is
+        # reviewed, under every policy version: the delay is the review's, not
+        # the student's. Only a card sent after the window counts as a default.
         if submitted is not None and (
-            submitted.installment_number == 1
-            or (
-                submitted.created_at <= window_end
-                and submitted.price_snapshot.get("policy_version") != USER_POLICY_VERSION
-            )
+            submitted.installment_number == 1 or submitted.created_at <= window_end
         ):
             state = InstallmentState.IN_REVIEW
         elif submitted is None and current <= window_end:

@@ -1,5 +1,6 @@
 import base64
 from datetime import timedelta
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -11,6 +12,7 @@ from apps.accounts.policies import USER_POLICY_VERSION
 from apps.accounts.tests.helpers import create_user
 from apps.entitlements.models import EntitlementGrant
 from apps.entitlements.services import entitlement_decision
+from apps.notifications.models import Notification
 from apps.payments.manual_services import review_manual_recharge
 from apps.payments.models import InstallmentAgreement, ManualRechargeSubmission, Payment
 from apps.payments.tests.test_manual_libyana import _monthly_plan_and_price, _submit, _trial_user
@@ -544,3 +546,104 @@ def test_partial_rejected_installment_does_not_count_as_paid_or_refund_prior_ins
         idempotency_key=uuid4().hex,
     ).payment
     assert retry.installment_number == 2
+
+
+@override_settings(ACCOUNT_POLICY_VERSION=USER_POLICY_VERSION)
+def test_later_installment_sent_on_time_keeps_access_while_review_runs_late():
+    from apps.payments.installments import enforce_installments, installment_snapshot
+    from apps.payments.manual_services import submit_installment_payment
+
+    user, sub, first, _, _ = _paid(installments=True)
+    agreement = first.installment_agreement
+    second_due = installment_snapshot(agreement).items[1]["due_at"]
+    with patch("django.utils.timezone.now", return_value=second_due - timedelta(hours=1)):
+        second = submit_installment_payment(
+            user=user,
+            agreement_id=agreement.id,
+            recharge_codes=["3333444455556"],
+            idempotency_key=uuid4().hex,
+        ).payment
+    assert second.price_snapshot["policy_version"] == USER_POLICY_VERSION
+    # The review is still open three days after the due date.
+    later = second_due + timedelta(days=3)
+    snapshot = installment_snapshot(agreement, now=later)
+    assert snapshot.state == "in_review"
+    assert not snapshot.blocks_access
+    sub.refresh_from_db()
+    assert enforce_installments(subscription=sub, now=later).status == Subscription.Status.ACTIVE
+    assert not Notification.objects.filter(
+        recipient=user, deduplication_key__contains="defaulted"
+    ).exists()
+
+
+def test_payment_error_refund_keeps_the_purchase_and_its_installments():
+    user, sub, payment, admin, _ = _paid(installments=True)
+    claim = _claim(user, payment, kind="payment_error", phone="0912345678")
+    claim = review_claim(
+        claim_id=claim.id, actor=admin, action="approve", reason="Duplicate charge confirmed"
+    )
+    assert claim.approved_amount_minor == payment.amount_minor
+    sub.refresh_from_db()
+    payment.installment_agreement.refresh_from_db()
+    assert sub.status == Subscription.Status.ACTIVE
+    assert payment.installment_agreement.status == InstallmentAgreement.Status.ACTIVE
+
+
+def test_partial_collection_keeps_the_offer_and_is_refunded_in_full_late():
+    from apps.payments.manual_services import _first_subscription_offer_available
+    from apps.refunds.claim_services import allocation_quote
+
+    user, _ = _trial_user(email="partial-offer@example.com")
+    plan, price = _monthly_plan_and_price()
+    client = APIClient()
+    client.force_authenticate(user)
+    response = _submit(client, plan=plan, code="1234567890123", key=uuid4().hex)
+    payment = Payment.objects.get(id=response.json()["payment"]["id"])
+    admin = create_user(email="partial-offer-finance@example.com", is_superuser=True)
+    review_manual_recharge(
+        payment_id=payment.id,
+        actor=admin,
+        decision="reject",
+        reason="Only one card had collectible value",
+        idempotency_key=uuid4().hex,
+        collected_amount_minor=price.amount_minor // 2,
+    )
+    payment.refresh_from_db()
+    # A rejected order bought nothing: the introductory offer is still unused.
+    assert _first_subscription_offer_available(user=user)
+    # Past every voluntary window, the collected money still comes back whole.
+    late = timezone.now() + timedelta(days=40)
+    quote = allocation_quote(payment, kind=RefundClaim.Kind.VOLUNTARY, received_at=late)
+    assert quote == [{"payment_id": str(payment.id), "amount_minor": price.amount_minor // 2}]
+
+
+def test_partial_collection_cannot_exceed_the_payment_or_accompany_approval():
+    from apps.payments.manual_services import ManualPaymentError
+
+    user, _ = _trial_user(email="collected-limit@example.com")
+    plan, price = _monthly_plan_and_price()
+    client = APIClient()
+    client.force_authenticate(user)
+    response = _submit(client, plan=plan, code="1234567890123", key=uuid4().hex)
+    payment = Payment.objects.get(id=response.json()["payment"]["id"])
+    admin = create_user(email="collected-limit-finance@example.com", is_superuser=True)
+    with pytest.raises(ManualPaymentError, match="exceed"):
+        review_manual_recharge(
+            payment_id=payment.id,
+            actor=admin,
+            decision="reject",
+            reason="Typed the wrong collected value",
+            idempotency_key=uuid4().hex,
+            collected_amount_minor=price.amount_minor * 10,
+        )
+    with pytest.raises(ManualPaymentError, match="only when rejecting"):
+        review_manual_recharge(
+            payment_id=payment.id,
+            actor=admin,
+            decision="approve",
+            reason="Approved with a stray collected value",
+            idempotency_key=uuid4().hex,
+            collected_amount_minor=1,
+        )
+    payment.refresh_from_db()
+    assert payment.status == Payment.Status.PENDING

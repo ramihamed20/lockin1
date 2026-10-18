@@ -13,7 +13,7 @@ from apps.entitlements.services import grant_manual_entitlement, revoke_manual_e
 from apps.invoices.services import apply_invoice_refund
 from apps.notifications.models import Notification
 from apps.notifications.services import create_notification
-from apps.payments.models import InstallmentAgreement, Payment
+from apps.payments.models import PARTIAL_COLLECTION_FAILURE_CODE, InstallmentAgreement, Payment
 from apps.payments.services import apply_successful_refund
 from apps.subscriptions.models import Subscription, SubscriptionTransition
 from apps.subscriptions.services import transition_subscription
@@ -55,13 +55,16 @@ def allocation_quote(payment: Payment, *, kind: str, received_at: datetime) -> l
     for item in purchase_payments(payment, whole_purchase=kind != RefundClaim.Kind.PAYMENT_ERROR):
         if item.status not in {Payment.Status.SUCCEEDED, Payment.Status.PARTIALLY_REFUNDED}:
             continue
+        # Money collected from a rejected card bought no service, so the
+        # voluntary-window rate never reduces it.
+        item_rate = 100 if item.failure_code == PARTIAL_COLLECTION_FAILURE_CODE else rate
         reserved = (
             item.refunds.filter(
                 status__in=(Refund.Status.REQUESTED, Refund.Status.PENDING, Refund.Status.SUCCEEDED)
             ).aggregate(total=Sum("amount_minor"))["total"]
             or 0
         )
-        amount = max(0, item.amount_minor * rate // 100 - reserved)
+        amount = max(0, item.amount_minor * item_rate // 100 - reserved)
         if amount:
             result.append({"payment_id": str(item.id), "amount_minor": amount})
     return result
@@ -180,6 +183,7 @@ def _cancel_purchase(claim: RefundClaim, actor: User) -> None:
             status__in=(Payment.Status.SUCCEEDED, Payment.Status.PENDING),
         )
         .exclude(id__in=group.values("id"))
+        .exclude(failure_code=PARTIAL_COLLECTION_FAILURE_CODE)
         .exists()
     ):
         raise ValueError(
@@ -308,7 +312,10 @@ def review_claim(
                 else claim.kind,
                 received_at=claim.received_at,
             )
-        _cancel_purchase(claim, actor)
+        # A payment error refunds only the wrong payment; the purchase it belongs
+        # to, its access and its earlier installments stay as they are.
+        if claim.kind != RefundClaim.Kind.PAYMENT_ERROR:
+            _cancel_purchase(claim, actor)
         claim.status = (
             RefundClaim.Status.APPROVED
             if claim.approved_amount_minor
