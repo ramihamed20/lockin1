@@ -273,7 +273,9 @@ def validate_active_study_questions(
     }
     return ActiveStudyQuestionValidationResult(
         payload=normalized_payload,
-        checkpoint_question_count=sum(len(part["questions"]) for part in parts),
+        checkpoint_question_count=sum(
+            len(cast(list[dict[str, object]], part["questions"])) for part in parts
+        ),
         final_exam_question_count=len(final_questions),
     )
 
