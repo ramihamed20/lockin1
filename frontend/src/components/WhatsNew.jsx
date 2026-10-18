@@ -70,7 +70,7 @@ export function ReleaseNotesDialog({ open, release = WHATS_NEW, mode = "after", 
           <span className="whats-new__badge" aria-hidden="true"><Icon name="sparkles" size={22} /></span>
           <div>
             <h2 id={titleId} dir="auto">{before ? t("whatsNew.beforeTitle", { version: release.version }) : t("whatsNew.title")}</h2>
-            <p dir="auto">{before ? t("whatsNew.beforeSubtitle") : t("whatsNew.subtitle")}</p>
+            <p dir="auto">{before ? t("whatsNew.beforeSubtitle") : whatsNewText(release.summary, locale)}</p>
           </div>
           <button className="whats-new__close" type="button" aria-label={t("confirm.close")} onClick={onClose}><Icon name="x" size={18} /></button>
         </header>
