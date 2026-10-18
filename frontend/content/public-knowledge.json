@@ -1816,7 +1816,7 @@
     }
   ],
   "evidenceDigests": {
-    "frontend/src/App.jsx": "6135fb0eb09e0834df0c1720e51951d8def5ade9c30a1ea1077df47ddaf6cbaf",
+    "frontend/src/App.jsx": "64fd0ddb4e0587980de42557018c900f62cb29dcacc482adb9cbce2d40eb8827",
     "frontend/src/lib/materialCatalog.js": "6f9c50e7402275182d8f9d0ab0faf34b6e1bb2e70bd95a44332e9a786b27b539",
     "frontend/tests/materials-catalog.test.js": "64061bb95772c0b05e220ead4e663286be072b909d329f87eb35fcf87d7c30d1",
     "frontend/src/lib/i18n.js": "2f0d9f08f4ef8806d30a0ed6404dc86e4b9f08a847fa62154ce28a3535e651c6",
@@ -1845,8 +1845,8 @@
     "backend/apps/biweekly/services.py": "2444650f428896e2cacd0a6f94d95a8656676bcd997d07595acd0d38fa693c32",
     "backend/apps/biweekly/tests/test_biweekly.py": "7c72e6de21d58ff812244a013cceebd4b595bab0d71ca579f9e921225d48cabf",
     "frontend/src/components/auth/AuthPage.jsx": "6a0a4d2893dec5e837a8ca391013bf72602960a425dadb8ba6e60218690cdd77",
-    "frontend/src/pages/Settings.jsx": "86d56a83329bffd0a2773bc87f144df172e7b2eb73179b938ca58dc30222b51e",
-    "frontend/src/api/accounts.js": "343c82d0ddb16095bea2574cabb1e8b592b3ec35a8cb6f5163f465ce6f26302a",
+    "frontend/src/pages/Settings.jsx": "0cd28e00ef334b5beefe235f6dd687d869b6e517eed0765d3ab2aae12e7e0e3b",
+    "frontend/src/api/accounts.js": "d61c3d459b2b0ad46ee0230a0f6f652c1557f8deb36975ef4665e99e946d4461",
     "backend/apps/accounts/tests/test_api.py": "d7e0571992881856b9dabe3728987070a693300de62b6ffe3b0ed77db96f3363",
     "frontend/src/pages/Feedback.jsx": "92204acf6852db18570eae60564de67c24ca68d118628fbdb1c8337087b4d4cb",
     "backend/apps/feedback/tests/test_api.py": "338bdb17ab192bbf1e43a0982cfaf86f273f51130ba46c574aad7526653c318e",
