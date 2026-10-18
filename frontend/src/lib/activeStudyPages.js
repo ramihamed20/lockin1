@@ -10,8 +10,20 @@ export const maxCustomPages = (eligiblePages) => Math.min(MAX_CUSTOM_PAGES, Math
  * Most questions a custom test of `pages` pages can ask: the overall cap, and
  * what the shortest group (usually the last) can supply at 15 per page.
  */
-export function maxCustomQuestions(eligiblePages, pages) {
+export function maxCustomQuestions(eligiblePages, pages, pageQuestionCounts) {
   if (!Number.isInteger(pages) || pages < 1 || !eligiblePages) return MAX_CUSTOM_QUESTIONS;
+  // Server availability and downloaded offline banks both publish counts only.
+  // Limit by the least-stocked checkpoint, not the average or theoretical 15/page.
+  if (Array.isArray(pageQuestionCounts) && pageQuestionCounts.length === eligiblePages
+    && pageQuestionCounts.every((count) => Number.isInteger(count) && count >= 0 && count <= QUESTIONS_PER_PAGE)) {
+    let available = MAX_CUSTOM_QUESTIONS;
+    for (let index = 0; index < pageQuestionCounts.length; index += pages) {
+      const groupCount = pageQuestionCounts.slice(index, index + pages).reduce((sum, count) => sum + count, 0);
+      available = Math.min(available, groupCount);
+    }
+    return available;
+  }
+  // Backward-compatible for old availability responses without page inventory.
   const remainder = eligiblePages % pages;
   const shortest = remainder === 0 ? Math.min(pages, eligiblePages) : Math.min(pages, remainder);
   return Math.min(MAX_CUSTOM_QUESTIONS, shortest * QUESTIONS_PER_PAGE);
