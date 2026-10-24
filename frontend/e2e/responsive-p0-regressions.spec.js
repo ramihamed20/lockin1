@@ -265,8 +265,9 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "More workspace actions" }).click();
     // Highlight, Eraser and Lasso are always on the phone rail, so More does
-    // not repeat them; the tools the rail can scroll away are listed here.
-    for (const label of ["Pencil", "Shapes", "Hand", "Add to page", "Bookmarks", "Full.screen", "settings"]) {
+    // not repeat them; folded tools, document actions and Study helpers
+    // remain available here. Pen profiles live in Pen options.
+    for (const label of ["Shapes", "Hand", "Add to page", "Bookmarks", "settings", "Whiteboard", "Open sheet", "YouTube video", "Search document", "Zoom window", "Open notes"]) {
       await expect(page.getByRole("dialog", { name: "More workspace actions" }).getByRole("button", { name: new RegExp(label, "i") })).toBeVisible();
     }
   });

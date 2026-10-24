@@ -109,7 +109,9 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 1920, height: 108
     await expect.poll(() => readerScale(page)).toBeCloseTo(start, 1);
     await expect(bar.getByRole("button", { name: "Zoom out", exact: true })).toBeEnabled();
     await bar.getByRole("button", { name: "Zoom out", exact: true }).click();
-    await expect.poll(() => readerScale(page)).toBeLessThan(start - .1);
+    // On a wide desktop, the half-stage readability floor can clamp a
+    // 20% step; Zoom out must still reduce the scale below reading fit.
+    await expect.poll(() => readerScale(page)).toBeLessThan(start);
     await reset.click();
     await expect.poll(() => readerScale(page)).toBeCloseTo(start, 1);
 

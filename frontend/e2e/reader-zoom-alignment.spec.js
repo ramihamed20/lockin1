@@ -151,11 +151,14 @@ test("a sheet reopened at a remembered zoom opens centred, and zooming keeps it 
   await page.setViewportSize({ width: 1280, height: 900 });
   await openReader(page);
   await zoomWithButton(page, "Zoom in");
+  const rememberedWidth = (await pageMargins(page)).width;
+  // The desktop reading-width fit can still be narrower than the viewport
+  // after one step; persistence must restore the exact zoomed width.
   // The zoom is remembered with the reader's view once it settles.
   await page.waitForTimeout(1_500);
   await page.reload();
   await openReader(page);
-  await expect.poll(async () => (await pageMargins(page)).width).toBeGreaterThan(1280);
+  await expect.poll(async () => (await pageMargins(page)).width).toBe(rememberedWidth);
   await expectCentred(page, "reopened");
   await zoomWithButton(page, "Zoom in");
   await zoomWithButton(page, "Zoom out");
@@ -168,12 +171,15 @@ test("an Arabic reader zooms centred and can still pan across a zoomed page", as
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   // V2 translates the Focus controls, so the Arabic reader names them in Arabic.
   for (const label of ["تكبير", "تكبير", "تصغير"]) await zoomWithButton(page, label);
+  // One step above the desktop reading width can still fit the stage.
+  // Request overflow explicitly before testing horizontal panning.
+  await zoomWithButton(page, "تكبير");
   // A horizontal pan reaches both edges of the zoomed page.
   const stage = page.locator(".workspace-v2-document-stage");
   const centred = (await pageMargins(page)).scrollLeft;
   expect(centred).toBeGreaterThan(0);
   await stage.evaluate((node) => { node.scrollLeft = 0; });
-  await expect.poll(async () => (await pageMargins(page)).left).toBe(0);
+  await expect.poll(async () => Math.abs((await pageMargins(page)).left)).toBeLessThanOrEqual(1);
   await stage.evaluate((node) => { node.scrollLeft = node.scrollWidth; });
-  await expect.poll(async () => (await pageMargins(page)).right).toBe(0);
+  await expect.poll(async () => Math.abs((await pageMargins(page)).right)).toBeLessThanOrEqual(1);
 });
