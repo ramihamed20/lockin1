@@ -251,7 +251,10 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   const highlighterOptions = page.locator("#workspace-highlighter-options");
   await expect(highlighterOptions).toBeVisible();
   await expectBoundsInViewport(highlighterOptions, 834, 1194);
-  await expect(highlighterOptions.getByRole("button", { name: "Use #7c3aed" })).toHaveCSS("width", "44px");
+  // Resizing a desktop browser to iPad dimensions retains its mouse input.
+  // Keep the compact mouse target and the full touch target distinct.
+  const swatchWidth = await page.evaluate(() => matchMedia("(pointer: coarse)").matches ? "44px" : "36px");
+  await expect(highlighterOptions.getByRole("button", { name: "Use #7c3aed" })).toHaveCSS("width", swatchWidth);
   await expect(highlighterOptions.getByRole("slider", { name: "Thickness" })).toBeVisible();
   await expect(highlighterOptions.getByRole("slider", { name: "Opacity" })).toBeVisible();
   await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-ipad-portrait-834x1194.png`, fullPage: false });

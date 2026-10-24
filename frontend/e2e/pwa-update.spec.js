@@ -109,7 +109,13 @@ async function startEdge(upstreamOrigin) {
     origin: `http://127.0.0.1:${port}`,
     workerRequests,
     deploy({ notes = false } = {}) { announce = notes; suffix = `\n// next deployment ${Date.now()}\n`; },
-    close: () => new Promise((resolve) => server.close(() => resolve(undefined)))
+    close: () => new Promise((resolve) => {
+      server.close(() => resolve(undefined));
+      // Workers in the second window can still hold a precache connection.
+      // All page assertions have finished; release these test-only sockets so
+      // shutdown cannot consume the next test's timeout.
+      server.closeAllConnections();
+    })
   };
 }
 
