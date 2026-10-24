@@ -1,84 +1,52 @@
-import { inkSvgMaskBounds } from "../workspace/ink/inkSvgMaskBounds.js";
-import { lazy, Suspense, memo, startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
-  ArrowRight,
   ArrowLeft,
   ArrowUp,
   ArrowDown,
-  BookOpen,
-  Bookmark,
   Brain,
-  Brush,
-  Check,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  Circle,
+
+
   Copy,
-  Eraser,
-  Eye,
-  Feather,
   Hash,
-  Hand,
-  Highlighter,
-  Image as ImageIcon,
+
   MessageSquare,
   MoreHorizontal,
-  MoveHorizontal,
-  Maximize2,
-  Minimize2,
-  Minus,
-  MousePointer2,
-  Pencil,
-  PenLine,
+
   Plus,
   Redo2,
   RotateCcw,
   RotateCw,
   Scissors,
-  Settings,
-  Search,
-  Shapes,
-  Square,
-  RectangleHorizontal,
-  Triangle,
+
+
   Trash2,
   Sparkles,
-  Star,
   Undo2,
   X,
   Zap,
-  ZoomIn,
-  Power,
-  Trophy,
   Type,
   ClipboardPaste,
   Download,
-  Upload,
   Lock,
   Unlock,
   FileText,
-  StickyNote,
   Share2,
-  Camera,
-  EyeOff,
-  List,
   Group,
   Ungroup,
   CopyPlus,
   BringToFront,
   SendToBack,
-  PaintBucket,
-  Ruler,
-  Info,
+
   ExternalLink,
   Loader2,
   AlertTriangle,
   Users,
   Network,
   Lightbulb,
-  Timer
+
+
 } from "lucide-react";
 import { focusApi } from "../api/focus.js";
 import { progressApi } from "../api/progress.js";
@@ -90,6 +58,7 @@ import { useAsyncData } from "../hooks/useAsyncData.js";
 import { PERSONAL_MATERIAL, personalSheetsApi, personalWorkspaceApi } from "../api/personalSheets.js";
 import { marksStorageSlug, snapshotFromReader } from "../workspace/catalog/annotationShare.js";
 import { useMarksSet } from "../workspace/catalog/useMarksSet.js";
+import { noteCardHeight, NOTE_CARD_WIDTH } from "../workspace/catalog/noteCardLayout.js";
 import { AnnotationSharePanel } from "../workspace/catalog/AnnotationSharePanel.jsx";
 import StartRescue from "../rescue/StartRescue.jsx";
 import { RESCUE_ENABLED } from "../rescue/model.js";
@@ -105,7 +74,7 @@ import { buildSummaryPdf, SUMMARY_COLORS } from "../workspace/summary/summaryPdf
 import { useReadingSession } from "../hooks/useReadingSession.js";
 import { subscribeConnection } from "../lib/connectionState.js";
 import { createCatalogServerSync } from "../workspace/catalog/catalogServerSync.js";
-import { DocumentSearchPanel, SearchHighlights, SearchNavigator, useDocumentSearch } from "../workspace/catalog/DocumentSearchPanel.jsx";
+import { SearchHighlights, SearchNavigator, useDocumentSearch } from "../workspace/catalog/DocumentSearchPanel.jsx";
 import { coverRectangle, coveredSearchMatchIds, MAX_COVERS_PER_ACTION, searchCoverEntries } from "../workspace/catalog/recallCovers.js";
 import { assetPath, cssVars } from "../lib/utils.js";
 import { subscribeViewport } from "../lib/viewport.js";
@@ -143,6 +112,7 @@ import {
   lockedGestureDelta,
   lockedGestureVelocity,
   pointerCanDraw,
+  defaultDrawingInput,
   pointerSnapshot,
   suspiciousPalmContact
 } from "../workspace/input/gestureStateMachine.js";
@@ -156,11 +126,11 @@ import {
 import {
   ERASER_MODE,
   PEN_PROFILE,
+  PRESSURE_SOURCE,
   eraserSpaceScale,
   pageRadiusForScreenRadius,
   samplesFromPointerEvent,
-  strokeEraseCoverage,
-  strokeRenderGeometry
+  strokeEraseCoverage
 } from "../workspace/ink/strokeModel.js";
 import { createInkInputController } from "../workspace/ink/inkInputController.js";
 import { createEraserSession } from "../workspace/ink/eraserSession.js";
@@ -169,6 +139,7 @@ import {
   analyzeScribbleGesture,
   gestureBounds,
   recognizeHeldStroke,
+  equalSidedEnd,
   recognizedShapeAnnotation,
   rectangleLassoPolygon,
   straightenedInkStroke
@@ -194,6 +165,7 @@ import { WORKSPACE_PAGE_BACKGROUNDS, addSummaryPages, composeWorkspacePages, cre
 import { canvasesToPdf, renderWorkspacePage } from "../workspace/catalog/workspaceExport.js";
 import { canShareFile, createExportHandle, exportFileNameFor, formatFileSize, isAppleTouchDevice, shareExportFile, triggerDownload } from "../workspace/catalog/exportDelivery.js";
 import { loadPdfLibrary } from "../workspace/catalog/pdfJsAdapter.js";
+import { PageThumbnails } from "../workspace/catalog/PageThumbnails.jsx";
 import { activeStudyResumePage } from "../workspace/catalog/visiblePdfPages.js";
 import WorkspaceTabBar from "../workspace/catalog/WorkspaceTabBar.jsx";
 import {
@@ -215,10 +187,9 @@ import {
 } from "../workspace/catalog/workspaceTabs.js";
 // Served as its own file: production CSP refuses a data: URL for the PDF reader.
 import whiteboardPageUrl from "../workspace/catalog/whiteboard-lined-page.pdf?url&no-inline";
-import { ToolPreview } from "../workspace/catalog/ToolPreview.jsx";
 import { LiveAnnotationCanvas } from "../workspace/ink/LiveAnnotationCanvas.jsx";
 import { TransientInkCanvas } from "../workspace/ink/TransientInkCanvas.jsx";
-import { TRANSIENT_DEFAULT_COLOR, TRANSIENT_INK_KIND, TRANSIENT_PEN_PROFILES, createTransientInk, currentPenProfile } from "../workspace/ink/transientInk.js";
+import { TRANSIENT_DEFAULT_COLOR, TRANSIENT_PEN_PROFILES, createTransientInk, currentPenProfile } from "../workspace/ink/transientInk.js";
 import { createWorkspacePerformanceMonitor } from "../workspace/catalog/workspacePerformance.js";
 import { addSavedColor, normalizeSavedPalette, normalizeToolColor, removeSavedColor } from "../workspace/catalog/toolPalette.js";
 import { WORKSPACE_GESTURE, WORKSPACE_ZOOM } from "../workspace/config.js";
@@ -237,703 +208,33 @@ import {
 } from "../workspace/storage/workspaceSnapshot.js";
 import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
-import { ActiveStudyCustomization, PomodoroPreferences, validStudyCustomization, changesSavedCustomization, savedStudyProgress } from "../components/shared/ActiveStudyCustomization.jsx";
-import { PomodoroResultDetails, PomodoroStudy } from "../components/shared/PomodoroStudy.jsx";
-import { ActiveStudyExitDialog, CheckpointExitDialog, CheckpointRestartDialog } from "../components/shared/CheckpointExitDialog.jsx";
-import { QuestionExplanation } from "../components/shared/QuestionExplanation.jsx";
-import { useExitGuard } from "../hooks/useExitGuard.js";
+import { formatDate } from "../lib/i18n.js";
+import { savedStudyProgress } from "../components/shared/ActiveStudyCustomization.jsx";
+import { PomodoroStudy } from "../components/shared/PomodoroStudy.jsx";
+import { ActiveStudyExitDialog } from "../components/shared/CheckpointExitDialog.jsx";
 import { acknowledgeFocusDocument, markFocusDocumentDirty, registerOpenFocusDocument } from "../offline/focusSync.js";
 import { readActiveStudyRun } from "../offline/activeStudy.js";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
+import { AUTOSAVE_IDLE_MS, COLORS, CONFIGURABLE_TOOLS, DRAWING_TOOLS, ERASER_MODES, FAVORITE_COLORS_KEY, FINGER_SCROLL_HINT_KEY, FIT_READING_WIDTH, HOLD_ENDPOINT_TOLERANCE_PX, HOLD_RECOGNITION_MS, MAX_FOCUS_ZOOM, MAX_PALETTE_COLORS, MIN_FOCUS_ZOOM, NO_ANNOTATIONS, PAGE_BACKGROUND_CHOICES, PAGE_COUNT, PAGE_SPACE, PAGE_WIDTH, PEN_PROFILE_OPTIONS, POPOVER_SURFACES, PRIMARY_WRITE_TOOLS, RECENT_COLORS_KEY, SERVER_SYNC_DELAY_MS, SPRING_DEADLINE_MS, STATUS_MESSAGE_MS, SWATCH_TOOLS, TOOL_ITEMS, TOOL_MEMORY_KEY, WORKSPACE_SETTINGS_KEY, ZOOM_OVERSHOOT_RATIO, ZOOM_SETTLE_MS, isStageControl, isUnfinished } from "./focus-workspace/constants.js";
+import { StudyModeDialog } from "./focus-workspace/studyDialogs.jsx";
+import { ACTIVE_RESULT_STAGES, clearActiveStudyDraft, clearActiveStudyEntry, clearActiveStudyResume, readActiveStudyDraft, readActiveStudyEntry, readActiveStudyResume, writeActiveStudyEntry, writeActiveStudyResume } from "./focus-workspace/activeStudyStorage.js";
+import { ActiveStudyQuiz } from "./focus-workspace/ActiveStudyQuiz.jsx";
+import { cloneAnnotation, copiedAnnotations, loadRecentColors, loadStoredWorkspace, loadStringList, loadToolMemory, loadWorkspaceSettings } from "./focus-workspace/preferences.js";
+import { AnnotationVisuals, COVER_COLOR, DraftAnnotationLayer } from "./focus-workspace/annotationVisuals.jsx";
+import { WorkspaceIconButton } from "./focus-workspace/controls.jsx";
+import { useToolRail } from "./focus-workspace/useToolRail.js";
+import { PageNavigator, ZoomBar } from "./focus-workspace/pageControls.jsx";
+import { SettingsPopover } from "./focus-workspace/SettingsPopover.jsx";
+import { ToolOptionsPanel } from "./focus-workspace/ToolOptionsPanel.jsx";
+import { AddMenu, CardEditor, ExportMenu, MoreMenu, PageBackgroundMenu, SearchMenu, StudyMenu, TextEditor } from "./focus-workspace/menus.jsx";
+import { FavoritePens } from "./focus-workspace/FavoritePens.jsx";
+import { FAVORITE_PEN_TOOLS, loadFavoritePens, matchingFavoritePen, normalizeFavoritePen, normalizeFavoritePens, saveFavoritePens } from "./focus-workspace/favoritePens.js";
+import { ZoomWindow } from "./focus-workspace/ZoomWindow.jsx";
+import { initialZoomRegion } from "./focus-workspace/zoomWindowModel.js";
 import "./catalog-focus-workspace.css";
 import "./focus-workspace-glass.css";
-
-const PAGE_COUNT = 342;
-const PAGE_WIDTH = 690;
-const PAGE_SPACE = 1000;
-const MIN_FOCUS_ZOOM = WORKSPACE_ZOOM.minimum;
-const MAX_FOCUS_ZOOM = WORKSPACE_ZOOM.catalogMaximum;
-const AUTOSAVE_IDLE_MS = 750;
-// The server mirror trails the local save, so a burst of strokes or a scroll
-// becomes one request rather than many.
-const SERVER_SYNC_DELAY_MS = 1_500;
-// Deep, saturated inks that stay readable on white paper and under the night
-// theme; amber doubles as the classic highlighter.
-const COLORS = ["#2563eb", "#e5383b", "#f5b700", "#16a34a", "#7c3aed", "#1e2a44", "#f97316", "#db2777"];
-const HOLD_RECOGNITION_MS = 500;
-const HOLD_ENDPOINT_TOLERANCE_PX = 28;
-const TOOL_MEMORY_KEY = "lock-in.catalog-workspace.tool-memory.v2";
-const RECENT_COLORS_KEY = "lock-in.catalog-workspace.recent-colors.v1";
-const FAVORITE_COLORS_KEY = "lock-in.catalog-workspace.favorite-colors.v1";
-const PEN_PRESETS_KEY = "lock-in.catalog-workspace.pen-presets.v1";
-const WORKSPACE_SETTINGS_KEY = "lock-in.catalog-workspace.settings.v1";
-const MAX_PALETTE_COLORS = 10;
-const ZOOM_OVERSHOOT_RATIO = .22;
-const NO_ANNOTATIONS = Object.freeze([]);
-const ZOOM_SETTLE_MS = 220;
-const SPRING_DEADLINE_MS = 900;
-const STATUS_MESSAGE_MS = 6_000;
-
-/** @type {Array<[string, string, import("lucide-react").LucideIcon]>} */
-const TOOL_ITEMS = [
-  ["hand", "focus.tool.pan", Hand],
-  ["pen", "focus.tool.pen", PenLine],
-  ["pencil", "focus.pencil", Pencil],
-  ["highlighter", "focus.highlight", Highlighter],
-  ["eraser", "focus.eraser", Eraser],
-  ["select", "focus.lasso", MousePointer2],
-  ["shapes", "focus.tool.shape", Shapes],
-  ["image", "focus.image", ImageIcon],
-  ["text", "focus.text", Type],
-  ["note", "focus.notes", MessageSquare]
-];
-
-/** @type {Array<[string, string, import("lucide-react").LucideIcon, string]>} */
-const PRIMARY_WRITE_TOOLS = [
-  ["pen", "focus.tool.pen", PenLine, ""],
-  ["hand", "focus.tool.hand", Hand, ""],
-  ["highlighter", "focus.highlight", Highlighter, "is-phone-secondary"],
-  ["eraser", "focus.eraser", Eraser, "is-phone-secondary"],
-  ["select", "focus.lasso", MousePointer2, "is-phone-secondary"],
-  ["shapes", "focus.shapes", Shapes, "is-tablet-secondary"]
-];
-
-const SETTINGS_SECTIONS = Object.freeze([
-  { id: "drawing", label: "focus.settingsDrawing" },
-  { id: "canvas", label: "focus.settingsCanvas" },
-  { id: "view", label: "focus.settingsView" },
-  { id: "other", label: "focus.settingsOther" }
-]);
-const PAGE_BACKGROUND_CHOICES = Object.freeze([["blank", "focus.background.blank"], ["lined", "focus.background.ruled"], ["grid", "focus.background.grid"], ["dot", "focus.background.dotted"]]);
-const DRAWING_TOOLS = new Set(["pen", "pencil", "highlighter", "eraser", "shapes", "select"]);
-const POPOVER_SURFACES = new Set(["add", "page-background", "card", "text", "more", "export", "history", "settings", "search"]);
-const CONFIGURABLE_TOOLS = new Set(["pen", "pencil", "highlighter", "eraser", "select", "shapes"]);
-/** @type {Array<[string, string, import("lucide-react").LucideIcon, string]>} */
-const PEN_PROFILE_OPTIONS = [
-  [PEN_PROFILE.BALL, "focus.pen.ball", PenLine, "focus.pen.ballShort"],
-  [PEN_PROFILE.FOUNTAIN, "focus.pen.fountain", Feather, "focus.pen.fountainShort"],
-  [PEN_PROFILE.BRUSH, "focus.pen.brush", Brush, "focus.pen.brushShort"],
-  // Temporary glowing ink: drawn on its own canvas, never saved (see transientInk.js).
-  [TRANSIENT_INK_KIND.POINTER, "focus.pen.pointer", Sparkles, "focus.pen.pointerShort"]
-];
-const SHAPE_OPTIONS = [
-  ["line", "focus.shape.line", Minus],
-  ["arrow", "focus.shape.arrow", ArrowRight],
-  ["rectangle", "focus.shape.rectangle", RectangleHorizontal],
-  ["square", "focus.shape.square", Square],
-  ["rounded", "focus.shape.rounded", RectangleHorizontal],
-  ["polygon", "focus.shape.polygon", Shapes],
-  ["ellipse", "focus.shape.ellipse", Circle],
-  ["circle", "focus.shape.circle", Circle],
-  ["triangle", "focus.shape.triangle", Triangle]
-];
-/** Pixel is the default and matches the eraser's behaviour before modes existed. */
-const ERASER_MODE_OPTIONS = [
-  [ERASER_MODE.PRECISION, "focus.eraser.pixel", Eraser, "focus.eraser.pixelShort"],
-  [ERASER_MODE.STROKE, "focus.eraser.stroke", PenLine, "focus.eraser.strokeShort"],
-  [ERASER_MODE.OBJECT, "focus.eraser.object", Square, "focus.eraser.objectShort"]
-];
-const ERASER_MODES = new Set(ERASER_MODE_OPTIONS.map(([mode]) => mode));
-const LASSO_MODE_OPTIONS = [
-  ["freeform", "focus.lasso.freeform", MousePointer2, "focus.lasso.freeformShort"],
-  ["rectangle", "focus.lasso.rectangle", Square, "focus.lasso.rectangleShort"]
-];
-const QUICK_THICKNESSES = [1, 2, 4, 8, 12];
-/** Thickness moves continuously, in hundredths of a point, not whole steps. */
-const THICKNESS_STEP = .01;
-const formatThickness = (size) => `${Number(Number(size).toFixed(2))} pt`;
-// Hundredths exactly, so saved widths match what the server keeps (two decimals).
-const roundThickness = (size) => Math.round(Number(size) * 100) / 100;
-const ERASER_QUICK_SIZES = [8, 16, 24, 32, 40];
-const SHAPE_FILL_COLORS = ["#dceeff", "#ffd9d9", "#d9f5df", "#fff2c2", "#ebdfff", "#ffe4cc"];
-/** Panel title and one-line purpose for each configurable tool. */
-const TOOL_PANEL_COPY = {
-  pen: ["focus.tool.pen", "focus.panel.pen"],
-  pencil: ["focus.pencil", "focus.panel.pencil"],
-  highlighter: ["focus.tool.highlighter", "focus.panel.highlighter"],
-  eraser: ["focus.eraser", "focus.panel.eraser"],
-  select: ["focus.lasso", "focus.panel.lasso"],
-  shapes: ["focus.shapes", "focus.panel.shapes"]
-};
-
-const SUBJECT_COPY = {
-  conservative: ["Adhesive Dentistry", "Preserving sound tooth structure is the central principle of conservative treatment."],
-  microbiology: ["Bacterial Cell Structure", "Microbial structure determines how organisms grow, spread, and respond to treatment."],
-  pharmacy: ["Drug Absorption", "Absorption controls how quickly and how much of a medicine reaches systemic circulation."],
-  "general-pathology": ["Acute Inflammation", "Acute inflammation is an early protective response to tissue injury and infection."],
-  "oral-histology": ["Enamel Structure", "Enamel is a highly mineralized tissue organized to withstand functional dental forces."],
-  "fixed-prosthodontic": ["Crown Preparation", "A successful preparation balances retention, resistance, and preservation of tooth structure."],
-  "removeable-prosthodontic": ["Denture Support", "Support distributes functional forces across the available oral tissues."]
-};
-
-const STAGE_CONTROL_SELECTOR = "button, a[href], input, select, textarea, [role='button'], [role='switch'], [role='radio'], [role='tab']";
-
-function isUnfinished(payload) {
-  return ["active", "paused", "on_break"].includes(payload?.session?.status);
-}
-
-/** Controls painted over the document still need their normal activation. */
-function isStageControl(target) {
-  return Boolean(target?.closest?.(STAGE_CONTROL_SELECTOR));
-}
-
-function WorkspaceIconButton({ label, active = false, children, className = "", ...props }) {
-  return <button className={`workspace-v2-icon-button${active ? " is-active" : ""}${className ? ` ${className}` : ""}`} type="button" aria-label={label} title={label} {...props}>
-    {children}
-  </button>;
-}
-
-/** `caption` is a shorter visible label; the accessible name stays `label`. */
-function ToolRange({ label, caption = label, value, displayValue = value, min, max, step, onChange, preview = "stroke", color = "#8b5cf6" }) {
-  const { t } = useI18n();
-  const ratio = Math.min(1, Math.max(0, (value - min) / Math.max(step, max - min)));
-  // Unrounded, so the preview grows smoothly with a continuous slider.
-  const previewSize = preview === "opacity" ? 16 : preview === "eraser" ? Math.round(5 + ratio * 13) : 2 + ratio * 10;
-  return (
-    <label className={`workspace-v2-tool-range is-${preview}`} aria-label={label} style={cssVars({ "--workspace-range-progress": `${ratio * 100}%` })}>
-      <span className="workspace-v2-range-heading"><span>{caption}</span><output dir="ltr" aria-label={t("focus.currentValue", { name: label.toLowerCase() })}>{displayValue}</output></span>
-      <span className="workspace-v2-range-control">
-        <span className="workspace-v2-range-preview" aria-hidden="true" style={cssVars({ "--workspace-range-size": `${previewSize}px`, "--workspace-range-color": color, "--workspace-range-opacity": preview === "opacity" ? value : 1 })} />
-        <input type="range" min={min} max={max} step={step} value={value} aria-label={label} onChange={(event) => onChange(Number(event.target.value))} />
-      </span>
-    </label>
-  );
-}
-
-function IconChoiceGroup({ label, value, options, onChange }) {
-  const { t } = useI18n();
-  return <div className="workspace-v2-icon-choices" role="group" aria-label={label}>
-    {options.map(([optionValue, optionKey, OptionIcon, shortKey = optionKey]) => <button
-      key={optionValue}
-      type="button"
-      className={value === optionValue ? "is-active" : ""}
-      aria-label={t(optionKey)}
-      title={t(optionKey)}
-      aria-pressed={value === optionValue}
-      onClick={() => onChange(optionValue)}
-    ><OptionIcon size={17} /><span className="workspace-v5-choice-label">{t(shortKey)}</span></button>)}
-  </div>;
-}
-
-function PenProfilePicker({ value, onChange, color }) {
-  const { t } = useI18n();
-  return <div className="workspace-v4-pen-profiles" role="group" aria-label={t("focus.penType")}>
-    {PEN_PROFILE_OPTIONS.map(([optionValue, optionKey, OptionIcon, shortKey]) => <button key={optionValue} type="button" className={value === optionValue ? "is-active" : ""} aria-label={t(optionKey)} aria-pressed={value === optionValue} onClick={() => onChange(optionValue)}>
-      <span className={`workspace-v4-nib is-${optionValue}`} style={cssVars({ "--workspace-tool-color": color })}><OptionIcon size={15} /><i /></span><strong>{t(shortKey)}</strong>
-    </button>)}
-  </div>;
-}
-
-/** A row of dots that grow with the size they choose, as on a real pen tray. */
-function QuickSizes({ values, value, onChange, label = "Thickness" }) {
-  const { t } = useI18n();
-  const largest = Math.max(...values);
-  return <div className="workspace-v4-quick-sizes" role="group" aria-label={t("focus.quickValues", { name: label.toLowerCase() })}>
-    {values.map((size) => <button key={size} type="button" className={value === size ? "is-active" : ""} aria-label={t("focus.setValueTo", { name: label.toLowerCase(), value: size })} aria-pressed={value === size} onClick={() => onChange(size)}><span style={cssVars({ "--workspace-quick-size": `${Math.round(5 + (size / largest) * 13)}px` })} /></button>)}
-  </div>;
-}
-
-function SettingsToggle({ icon: ToggleIcon, label, description, checked, onChange }) {
-  return <button type="button" className="workspace-v2-settings-toggle" role="switch" aria-checked={checked} onClick={() => onChange(!checked)}>
-    <ToggleIcon size={17} aria-hidden="true" />
-    <span><strong>{label}</strong><small>{description}</small></span>
-    <span className="workspace-v2-switch-track" aria-hidden="true"><span /></span>
-  </button>;
-}
-
-const WorkspaceAnnotation = memo(
-/** @param {{ annotation: any, draft?: boolean, interactionOnly?: boolean, groupedHighlighter?: boolean, pageAspect?: number, revealed?: boolean }} props */
-function WorkspaceAnnotation({ annotation, draft = false, interactionOnly = false, groupedHighlighter = false, pageAspect = 1, revealed = false }) {
-  const common = { "data-annotation-id": annotation.id, "data-annotation-type": annotation.type };
-  if (["pen", "pencil", "highlighter"].includes(annotation.type)) {
-    const geometry = strokeRenderGeometry(annotation);
-    if (interactionOnly && annotation.type === "pen") {
-      if (geometry.kind === "dot") return <circle {...common} className="workspace-v2-annotation-hit" cx={geometry.x} cy={geometry.y} r={Math.max(geometry.radius, 8)} fill={annotation.color} opacity="0" />;
-      return <path {...common} className="workspace-v2-annotation-hit" d={geometry.path} fill={geometry.kind === "outline" ? annotation.color : "none"} stroke={geometry.kind === "centerline" ? annotation.color : "none"} strokeWidth={Math.max(geometry.width || 0, 12)} opacity="0" />;
-    }
-    const opacity = groupedHighlighter ? 1 : draft ? Math.min(geometry.opacity, annotation.type === "pen" ? 1 : .68) : geometry.opacity;
-    let mark = null;
-    if (geometry.kind === "dot") mark = <circle {...common} cx={geometry.x} cy={geometry.y} r={geometry.radius} fill={annotation.color} opacity={opacity} />;
-    if (geometry.kind === "centerline") mark = <path {...common} d={geometry.path} fill="none" stroke={annotation.color} strokeWidth={geometry.width} strokeLinecap="round" strokeLinejoin="round" opacity={opacity} />;
-    if (geometry.kind === "outline") mark = <path {...common} d={geometry.path} fill={annotation.color} opacity={opacity} />;
-    if (!annotation.erasures?.length) return mark;
-    const maskId = `workspace-erase-${String(annotation.id).replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-    // Erasure radii are in eraser space (1/1000 of the page's longer side), so
-    // the swept area is drawn as a true circle on this non-square page.
-    const scale = eraserSpaceScale(pageAspect);
-    return <g><defs><mask id={maskId} {...inkSvgMaskBounds(annotation)} maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse">
-      <rect x="0" y="0" width="1000" height="1000" fill="white" />
-      <g transform={`scale(${1 / scale.x} ${1 / scale.y})`}>
-        {annotation.erasures.map((erasure, index) => erasure.points.length === 1
-          ? <circle key={index} cx={erasure.points[0].x * scale.x} cy={erasure.points[0].y * scale.y} r={erasure.radius} fill="black" />
-          : <path key={index} d={erasure.points.map((point, pointIndex) => `${pointIndex ? "L" : "M"}${point.x * scale.x} ${point.y * scale.y}`).join(" ")} fill="none" stroke="black" strokeWidth={erasure.radius * 2} strokeLinecap="round" strokeLinejoin="round" />)}
-      </g>
-    </mask></defs><g mask={`url(#${maskId})`}>{mark}</g></g>;
-  }
-  const commonWithOpacity = { ...common, "data-annotation-shape": annotation.type === "shape" ? annotation.shape : undefined, opacity: draft ? 0.68 : annotation.opacity ?? 1 };
-  if (annotation.type === "shape") {
-    const x = Math.min(annotation.start.x, annotation.end.x);
-    const y = Math.min(annotation.start.y, annotation.end.y);
-    const width = Math.abs(annotation.end.x - annotation.start.x);
-    const height = Math.abs(annotation.end.y - annotation.start.y);
-    const fill = annotation.fill ? (annotation.fillColor || annotation.color) : "none";
-    const dash = annotation.dashed ? "18 11" : undefined;
-    if (["line", "arrow"].includes(annotation.shape)) {
-      const dx = annotation.end.x - annotation.start.x;
-      const dy = annotation.end.y - annotation.start.y;
-      const length = Math.max(1, Math.hypot(dx, dy));
-      const head = Math.min(34, Math.max(12, annotation.width * 5));
-      const normalX = -dy / length;
-      const normalY = dx / length;
-      const baseX = annotation.end.x - (dx / length) * head;
-      const baseY = annotation.end.y - (dy / length) * head;
-      return <g {...commonWithOpacity} fill="none" stroke={annotation.color} strokeWidth={annotation.width} strokeDasharray={dash} strokeLinecap="round" strokeLinejoin="round">
-        <line x1={annotation.start.x} y1={annotation.start.y} x2={annotation.end.x} y2={annotation.end.y} />
-        {annotation.shape === "arrow" && <polyline points={`${baseX + normalX * head * .45},${baseY + normalY * head * .45} ${annotation.end.x},${annotation.end.y} ${baseX - normalX * head * .45},${baseY - normalY * head * .45}`} />}
-      </g>;
-    }
-    if (["circle", "ellipse"].includes(annotation.shape)) return <ellipse {...commonWithOpacity} cx={x + width / 2} cy={y + height / 2} rx={width / 2} ry={height / 2} fill={fill} stroke={annotation.color} strokeWidth={annotation.width} strokeDasharray={dash} />;
-    if (annotation.shape === "triangle" || annotation.shape === "polygon") {
-      const points = annotation.shape === "triangle"
-        ? `${x + width / 2},${y} ${x + width},${y + height} ${x},${y + height}`
-        : Array.from({ length: 6 }, (_, index) => `${x + width / 2 + Math.cos(index * Math.PI / 3) * width / 2},${y + height / 2 + Math.sin(index * Math.PI / 3) * height / 2}`).join(" ");
-      return <polygon {...commonWithOpacity} points={points} fill={fill} stroke={annotation.color} strokeWidth={annotation.width} strokeDasharray={dash} strokeLinejoin="round" />;
-    }
-    return <rect {...commonWithOpacity} x={x} y={y} width={width} height={height} rx={annotation.shape === "rounded" ? "28" : "6"} fill={fill} stroke={annotation.color} strokeWidth={annotation.width} strokeDasharray={dash} />;
-  }
-  if (annotation.type === "text") {
-    const textAnchor = annotation.align === "center" ? "middle" : annotation.align === "right" ? "end" : "start";
-    const fontSize = Math.max(18, annotation.width * 5);
-    return <text {...commonWithOpacity} x={annotation.x} y={annotation.y} fill={annotation.color} fontSize={fontSize} fontWeight={annotation.bold ? 700 : 400} fontFamily="system-ui, sans-serif" textAnchor={textAnchor}>{String(annotation.text).split("\n").map((line, index) => <tspan key={index} x={annotation.x} dy={index ? fontSize * 1.3 : 0}>{line || " "}</tspan>)}</text>;
-  }
-  if (annotation.type === "image") return <image {...commonWithOpacity} href={annotation.src} x={annotation.x} y={annotation.y} width={annotation.width} height={annotation.height} preserveAspectRatio="xMidYMid meet" />;
-  if (annotation.type === "cover") {
-    // Hidden, the cover is a solid box; revealed, only its outline stays so the
-    // student can see what was hidden and hide it again with another tap.
-    const radius = Math.min(10, annotation.width / 4, annotation.height / 4);
-    return <g {...common} className={`workspace-cover${revealed ? " is-revealed" : ""}`} opacity={draft ? 0.68 : 1}>
-      <rect x={annotation.x} y={annotation.y} width={annotation.width} height={annotation.height} rx={radius} fill={annotation.color} stroke={annotation.color} strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
-    </g>;
-  }
-  if (annotation.type === "card") {
-    const colors = { sticky: "#fff3a8", note: "#edf2ff", lined: "#ffffff", revision: "#ffe8ed" };
-    const header = { sticky: "Sticky Note", note: "Note Card", lined: "Lined Card", revision: "Revision Card" }[annotation.cardKind] || "Note Card";
-    const words = String(annotation.text || "").split(/\s+/);
-    const lines = [];
-    for (const word of words) {
-      const last = lines.length - 1;
-      if (last >= 0 && `${lines[last]} ${word}`.length <= Math.max(14, Math.floor(annotation.width / 11))) lines[last] += ` ${word}`;
-      else lines.push(word);
-    }
-    return <g {...commonWithOpacity}>
-      <rect x={annotation.x} y={annotation.y} width={annotation.width} height={annotation.height} rx="16" fill={colors[annotation.cardKind] || colors.note} stroke="#b8c4d6" strokeWidth="2" />
-      <text x={annotation.x + 18} y={annotation.y + 34} fill="#1d3152" fontSize="21" fontWeight="700">{header}</text>
-      {annotation.cardKind === "lined" && Array.from({ length: Math.floor((annotation.height - 65) / 35) }, (_, index) => <line key={index} x1={annotation.x + 14} x2={annotation.x + annotation.width - 14} y1={annotation.y + 70 + index * 35} y2={annotation.y + 70 + index * 35} stroke="#bed4ed" strokeWidth="1.5" />)}
-      <text x={annotation.x + 18} y={annotation.y + 70} fill="#26344e" fontSize="20">{lines.slice(0, Math.floor((annotation.height - 64) / 28)).map((line, index) => <tspan key={index} x={annotation.x + 18} dy={index ? 28 : 0}>{line}</tspan>)}</text>
-    </g>;
-  }
-  return null;
-});
-
-const NO_REVEALED_COVERS = new Set();
-// Covers are drawn in this slate blue: distinct from the gold the app keeps for
-// the one focal action, and dark enough that nothing shows through.
-const COVER_COLOR = "#5f6fd8";
-
-const AnnotationVisuals = memo(
-/** @param {{ annotations: any[], hiddenIds?: Set<string>, prefix?: string, includeHitTargets?: boolean, pageAspect?: number, revealedIds?: Set<string> }} props */
-function AnnotationVisuals({ annotations, hiddenIds = new Set(), prefix = "annotation", includeHitTargets = false, pageAspect = 1, revealedIds = NO_REVEALED_COVERS }) {
-  const visible = (annotations || []).filter((annotation) => !hiddenIds.has(annotation.id)).sort((a, b) => (a.zOrder || 0) - (b.zOrder || 0));
-  const highlightGroups = new Map();
-  for (const annotation of visible) if (annotation.type === "highlighter") {
-    const key = `${annotation.color}|${annotation.opacity ?? .34}`;
-    if (!highlightGroups.has(key)) highlightGroups.set(key, []);
-    highlightGroups.get(key).push(annotation);
-  }
-  return <>
-    {[...highlightGroups].map(([key, items]) => <g key={`${prefix}-highlight-${key}`} className="workspace-v2-highlighter-group" opacity={items[0].opacity ?? .34} style={{ mixBlendMode: "multiply" }}>
-      {items.map((annotation) => <WorkspaceAnnotation key={`${prefix}-${annotation.id}`} annotation={annotation} groupedHighlighter pageAspect={pageAspect} />)}
-    </g>)}
-    {visible.filter((annotation) => annotation.type !== "highlighter").map((annotation) => <WorkspaceAnnotation key={`${prefix}-${annotation.id}`} annotation={annotation} pageAspect={pageAspect} revealed={annotation.type === "cover" && revealedIds.has(annotation.id)} />)}
-    {includeHitTargets && (annotations || []).filter((annotation) => annotation.type === "pen").map((annotation) => <WorkspaceAnnotation key={`${prefix}-hit-${annotation.id}`} annotation={annotation} interactionOnly />)}
-  </>;
-});
-
-function loadStoredWorkspace(owner, materialSlug, sheetSlug) {
-  try {
-    return parseCatalogWorkspace(window.localStorage.getItem(catalogWorkspaceStorageKey(owner, materialSlug, sheetSlug)));
-  } catch {
-    return null;
-  }
-}
-
-function loadToolMemory() {
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(TOOL_MEMORY_KEY) || "{}");
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function loadRecentColors() {
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(RECENT_COLORS_KEY) || "[]");
-    return addSavedColor(parsed, null, MAX_PALETTE_COLORS, COLORS);
-  } catch {
-    return [];
-  }
-}
-
-function loadStringList(key, maximum = 8) {
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(key) || "[]");
-    return Array.isArray(parsed) ? parsed.filter((value) => typeof value === "string").slice(0, maximum) : [];
-  } catch { return []; }
-}
-
-function loadPenPresets() {
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(PEN_PRESETS_KEY) || "[]");
-    return Array.isArray(parsed) ? parsed.filter((preset) => preset && typeof preset === "object" && typeof preset.id === "string").slice(0, 4) : [];
-  } catch { return []; }
-}
-
-function loadWorkspaceSettings() {
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(WORKSPACE_SETTINGS_KEY) || "{}");
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function cloneAnnotation(annotation) {
-  return JSON.parse(JSON.stringify(annotation));
-}
-
-function copiedAnnotations(items, page, offset) {
-  const groups = new Map();
-  // The copy moves as one block and steps the other way at the page edge, so
-  // it is never squashed against the edge or stacked exactly on its source.
-  const bounds = selectionBounds(items);
-  const forward = clampSelectionDelta(bounds, offset, offset);
-  const backward = clampSelectionDelta(bounds, -offset, -offset);
-  const dx = forward.dx || backward.dx;
-  const dy = forward.dy || backward.dy;
-  return items.map((item) => {
-    const copy = cloneAnnotation(item);
-    if (copy.groupId) {
-      if (!groups.has(copy.groupId)) groups.set(copy.groupId, generateIdempotencyKey());
-      copy.groupId = groups.get(copy.groupId);
-    }
-    return translateAnnotation({ ...copy, id: generateIdempotencyKey(), page, locked: false }, dx, dy);
-  });
-}
-
-function useDialogFocus(onEscape = null) {
-  const dialogRef = useRef(null);
-  const escapeRef = useRef(onEscape);
-  escapeRef.current = onEscape;
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return undefined;
-    const previousFocus = document.activeElement;
-    const backdrop = dialog.parentElement;
-    const workspace = dialog.closest(".workspace-v2");
-    const hiddenSiblings = [];
-    workspace?.querySelectorAll(":scope > *").forEach((element) => {
-      if (element === backdrop) return;
-      const htmlElement = /** @type {HTMLElement} */ (element);
-      hiddenSiblings.push({ element: htmlElement, ariaHidden: htmlElement.getAttribute("aria-hidden"), inert: htmlElement.inert });
-      htmlElement.setAttribute("aria-hidden", "true");
-      htmlElement.inert = true;
-    });
-    const focusableSelector = "button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex='-1'])";
-    const focusFirst = () => {
-      const first = dialog.querySelector(focusableSelector);
-      if (first instanceof HTMLElement) first.focus();
-      else dialog.focus();
-    };
-    const frame = requestAnimationFrame(focusFirst);
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape" && escapeRef.current) {
-        event.preventDefault();
-        // The dialog answers this Escape. Letting it bubble on would hand the
-        // same keypress to a confirmation this handler has just opened, whose
-        // listener is already on the document by then, and it would close again.
-        event.stopPropagation();
-        escapeRef.current();
-        return;
-      }
-      if (event.key !== "Tab") return;
-      const focusable = [...dialog.querySelectorAll(focusableSelector)].filter((element) => !element.hidden && element.getClientRects().length);
-      if (!focusable.length) {
-        event.preventDefault();
-        dialog.focus();
-        return;
-      }
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    dialog.addEventListener("keydown", handleKeyDown);
-    return () => {
-      cancelAnimationFrame(frame);
-      dialog.removeEventListener("keydown", handleKeyDown);
-      hiddenSiblings.forEach(({ element, ariaHidden, inert }) => {
-        if (ariaHidden === null) element.removeAttribute("aria-hidden");
-        else element.setAttribute("aria-hidden", ariaHidden);
-        element.inert = inert;
-      });
-      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
-    };
-  }, []);
-  return dialogRef;
-}
-
-const ACTIVE_DIFFICULTIES = [
-  ["easy", "questions.difficulty.easy", "materials.activeDifficulty.easy"],
-  ["medium", "questions.difficulty.medium", "materials.activeDifficulty.medium"],
-  ["hard", "questions.difficulty.hard", "materials.activeDifficulty.hard"]
-];
-
-function StudyModeDialog({ customization, setCustomization, availability, difficulty, setDifficulty, activeAvailable, restartProgress, completed = [], busy, checking = false, error, onNormal, onActive, onRestart, activeOnly = false }) {
-  const { t } = useI18n();
-  const dialogRef = useDialogFocus();
-  const [confirmRestart, setConfirmRestart] = useState(false);
-  const [confirmCustom, setConfirmCustom] = useState(false);
-  // Active Study and Pomodoro are separate choices. Once Pomodoro is offered the
-  // student picks one from a list and can step back out of either panel.
-  const [view, setView] = useState(customization.studyMode === "pomodoro" ? "pomodoro" : "choose");
-  const picker = Boolean(availability?.pomodoro_available) || view !== "choose";
-  const pomodoroView = picker && view === "pomodoro";
-  function chooseStyle(next) {
-    setView(next);
-    setConfirmCustom(false);
-    setCustomization(next === "pomodoro"
-      ? { ...customization, studyMode: "pomodoro" }
-      : { ...customization, studyMode: customization.studyMode === "pomodoro" ? "standard" : customization.studyMode });
-  }
-  function backToStyles() {
-    setView("choose");
-    setConfirmCustom(false);
-    setConfirmRestart(false);
-    setCustomization({ ...customization, studyMode: "standard" });
-  }
-  const showCards = !picker || view === "choose";
-  return (
-    <div className="workspace-v2-mode-backdrop">
-      <section ref={dialogRef} className={`workspace-v2-mode-dialog${customization.studyMode !== "standard" ? " has-customization" : ""}`} role="dialog" aria-modal="true" aria-labelledby="study-mode-title" aria-describedby="study-mode-hint" tabIndex={-1}>
-        <h1 id="study-mode-title">{t(activeOnly ? "materials.startActiveStudy" : "materials.chooseStudyMode")}</h1>
-        <p id="study-mode-hint" dir="auto">{t(activeOnly ? "materials.chooseDifficulty" : "materials.switchModesLater")}</p>
-        {picker && view !== "choose" && <button type="button" className="workspace-v2-mode-back" onClick={backToStyles} disabled={busy}><ArrowLeft size={16} aria-hidden="true" />{t("pomodoro.backToStyles")}</button>}
-        <div className="workspace-v2-mode-grid">
-          {!activeOnly && showCards && <button type="button" className="workspace-v2-mode-card" onClick={onNormal} disabled={busy}>
-            <span className="workspace-v2-mode-icon"><BookOpen size={20} /></span>
-            <span className="workspace-v2-mode-copy"><strong>{t("materials.normalStudy")}</strong><small>{t("materials.readSheetDescription")}</small></span>
-            <ChevronRight className="workspace-v2-mode-chevron" size={18} aria-hidden="true" />
-          </button>}
-          {picker && view === "choose" && <>
-            <button type="button" className="workspace-v2-mode-card" onClick={() => chooseStyle("active")} disabled={busy}>
-              <span className="workspace-v2-mode-icon"><Brain size={20} /></span>
-              <span className="workspace-v2-mode-copy"><strong>{t("materials.activeStudy")}</strong><small>{t(availability?.customization_available ? "activeStudy.pagesDescription" : "materials.activeStudyDescription")}</small></span>
-              <ChevronRight className="workspace-v2-mode-chevron" size={18} aria-hidden="true" />
-            </button>
-            <button type="button" className="workspace-v2-mode-card" onClick={() => chooseStyle("pomodoro")} disabled={busy}>
-              <span className="workspace-v2-mode-icon"><Timer size={20} /></span>
-              <span className="workspace-v2-mode-copy"><strong>{t("pomodoro.style")}</strong><small>{t("pomodoro.description")}</small></span>
-              <ChevronRight className="workspace-v2-mode-chevron" size={18} aria-hidden="true" />
-            </button>
-          </>}
-          {(!picker || view !== "choose") && <div className="workspace-v2-mode-card is-active-study">
-            <div className="workspace-v2-mode-heading">
-              <span className="workspace-v2-mode-icon">{pomodoroView ? <Timer size={20} /> : <Brain size={20} />}</span>
-              <span className="workspace-v2-mode-copy"><strong>{t(pomodoroView ? "pomodoro.style" : "materials.activeStudy")}</strong><small>{pomodoroView ? t("pomodoro.description") : t(availability?.customization_available ? "activeStudy.pagesDescription" : "materials.activeStudyDescription")}</small></span>
-            </div>
-            <div className="workspace-v2-difficulty" role="radiogroup" aria-label={t("materials.activeDifficultyGroup")}>
-              {ACTIVE_DIFFICULTIES.map(([id, labelKey, detailKey]) => { const done = completed.includes(id); return <button key={id} type="button" role="radio" aria-label={`${t(labelKey)}: ${t(detailKey)}${done ? ` · ${t("materials.activeDifficultyDone")}` : ""}`} title={t(detailKey)} aria-checked={difficulty === id} className={difficulty === id ? "is-selected" : ""} onClick={() => { setDifficulty(id); setConfirmRestart(false); }}>{t(labelKey)}{done && <Check className="workspace-v2-difficulty-done" size={13} strokeWidth={2.6} aria-hidden="true" />}</button>; })}
-            </div>
-            {pomodoroView ? <div className="active-study-customization"><PomodoroPreferences disabled={busy} /></div>
-              : <ActiveStudyCustomization availability={availability} value={customization} onChange={(value) => { setCustomization(value); setConfirmCustom(false); }} disabled={busy} />}
-            {confirmCustom && <div className="workspace-v2-study-restart"><p>{t("activeStudy.replaceCustom")}</p><button type="button" onClick={() => setConfirmCustom(false)}>{t("common.cancel")}</button><button type="button" onClick={() => onActive(true)} disabled={busy}>{t("activeStudy.newCustom")}</button></div>}
-            <button type="button" className="workspace-v2-active-start" onClick={() => changesSavedCustomization(customization, availability) ? setConfirmCustom(true) : onActive(false)} disabled={busy || !activeAvailable || !validStudyCustomization(customization, availability)}>{t(checking ? "materials.activeStudyChecking" : busy ? "materials.activeStudyStarting" : activeAvailable ? "materials.startActiveStudy" : "materials.activeStudyUnavailable")}<ChevronRight size={16} /></button>
-            {restartProgress && <div className="workspace-v2-study-restart">
-              {!confirmRestart ? <button type="button" onClick={() => setConfirmRestart(true)} disabled={busy}>{t("materials.restartSavedStudy", { difficulty: t(`questions.difficulty.${difficulty}`) })}</button> : <>
-                <p>{t("materials.restartStudyConfirm")}</p>
-                <div><button type="button" onClick={() => setConfirmRestart(false)} disabled={busy}>{t("common.cancel")}</button><button type="button" className="is-confirm" onClick={onRestart} disabled={busy}>{t(busy ? "materials.restartingStudy" : "materials.restartStudyNow")}</button></div>
-              </>}
-            </div>}
-          </div>}
-        </div>
-        {error && <p className="workspace-v2-mode-error" role="alert">{error}</p>}
-      </section>
-    </div>
-  );
-}
-
-/*
- * Focus Active Study keeps the chosen answers on this device until the test is
- * submitted. "Exit & Save" leaves them here as a draft, scoped to the one
- * server attempt, so reopening the checkpoint resumes the same question.
- */
-const ACTIVE_DRAFT_PREFIX = "lock-in.active-study.draft.";
-
-// A result the student left without choosing (Return to pages, a reload) keeps
-// the run in one of these stages until they continue or study the part again.
-const ACTIVE_RESULT_STAGES = new Set(["checkpoint_result", "final_result"]);
-
-function readActiveStudyDraft(attemptId) {
-  if (!attemptId) return null;
-  try {
-    const draft = JSON.parse(window.localStorage.getItem(ACTIVE_DRAFT_PREFIX + attemptId) || "null");
-    return draft && typeof draft === "object" && draft.answers && typeof draft.answers === "object" ? draft : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeActiveStudyDraft(attemptId, draft) {
-  try { window.localStorage.setItem(ACTIVE_DRAFT_PREFIX + attemptId, JSON.stringify(draft)); } catch { /* storage unavailable */ }
-}
-
-function clearActiveStudyDraft(attemptId) {
-  try { window.localStorage.removeItem(ACTIVE_DRAFT_PREFIX + attemptId); } catch { /* storage unavailable */ }
-}
-
-/*
- * The answer to "Save your progress?" when leaving a sheet, per run: the page
- * a saved run reopens at, or null for a fresh run that opens at its first page.
- * It outranks the "resume where I left off" setting because the student chose.
- */
-const ACTIVE_RESUME_PREFIX = "lock-in.active-study.resume.";
-
-function readActiveStudyResume(runId) {
-  if (!runId) return undefined;
-  try {
-    const saved = JSON.parse(window.localStorage.getItem(ACTIVE_RESUME_PREFIX + runId) || "null");
-    return saved && typeof saved === "object" && "page" in saved ? saved.page : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function writeActiveStudyResume(runId, page) {
-  try { window.localStorage.setItem(ACTIVE_RESUME_PREFIX + runId, JSON.stringify({ page })); } catch { /* storage unavailable */ }
-}
-
-function clearActiveStudyResume(runId) {
-  try { window.localStorage.removeItem(ACTIVE_RESUME_PREFIX + runId); } catch { /* storage unavailable */ }
-}
-
-/*
- * A sheet opens in Normal Study until the student leaves an Active Study run
- * with "Save": then it reopens straight into that difficulty's run. Choosing
- * Normal Study or "Don't Save" returns the sheet to opening in Normal Study.
- */
-const ACTIVE_ENTRY_PREFIX = "lock-in.active-study.entry.";
-
-function readActiveStudyEntry(key) {
-  try {
-    const saved = JSON.parse(window.localStorage.getItem(ACTIVE_ENTRY_PREFIX + key) || "null");
-    return saved && typeof saved.difficulty === "string" ? saved : null;
-  } catch {
-    return "";
-  }
-}
-
-function writeActiveStudyEntry(key, run) {
-  try { window.localStorage.setItem(ACTIVE_ENTRY_PREFIX + key, JSON.stringify({ difficulty: run.difficulty, studyMode: run.study_mode || "standard", pagesPerCheckpoint: run.pages_per_checkpoint, questionsPerCheckpoint: run.questions_per_checkpoint })); } catch { /* storage unavailable */ }
-}
-
-function clearActiveStudyEntry(key) {
-  try { window.localStorage.removeItem(ACTIVE_ENTRY_PREFIX + key); } catch { /* storage unavailable */ }
-}
-
-function ActiveStudyQuiz({ quiz, answers, setAnswers, locked = {}, result, busy, onSubmit, onDismiss, onRetake, onContinue, onDiscard, onRestart, explainLinks = [], explainAvailability = "", onExplain, onOpenPage }) {
-  const { t } = useI18n();
-  const [index, setIndex] = useState(() => {
-    const saved = Number(readActiveStudyDraft(quiz.attempt_id)?.index);
-    return Number.isInteger(saved) && saved >= 0 && saved < quiz.questions.length ? saved : 0;
-  });
-  const [questionDirection, setQuestionDirection] = useState("next");
-  const [confirming, setConfirming] = useState(/** @type {"" | "exit" | "restart"} */ (""));
-  const inQuiz = !result;
-  // An unfinished test is never closed by accident: the close button, Escape
-  // and the browser's Back all ask first.
-  const requestExit = () => { if (inQuiz) setConfirming("exit"); else onDismiss(); };
-  const dialogRef = useDialogFocus(requestExit);
-  // Held for the dialog's whole life: Back asks during questions and simply
-  // closes a result.
-  useExitGuard({ active: true, onRequestExit: requestExit });
-  const question = quiz.questions[index];
-  const answered = Object.keys(answers).length;
-  const isFinal = quiz.kind === "final";
-
-  function exitAndSave() {
-    writeActiveStudyDraft(quiz.attempt_id, { answers, index });
-    setConfirming("");
-    onDismiss();
-  }
-
-  if (result) {
-    const passed = result.outcome === "passed";
-    const advisory = result.outcome === "advisory";
-    // As in the normal question results: explanations for the misses.
-    const missed = (result.review || []).filter((item) => !item.correct);
-    return <div className="workspace-v2-quiz-backdrop"><section ref={dialogRef} className={`workspace-v2-quiz-result is-${result.outcome}`} role="dialog" aria-modal="true" aria-labelledby="active-result-title" tabIndex={-1}>
-      <span className="workspace-v2-result-icon">{passed ? <Trophy size={30} /> : advisory ? <Sparkles size={30} /> : <RotateCcw size={30} />}</span>
-      <p>{t(isFinal ? "activeStudy.finalAssessment" : "activeStudy.checkpointResult")}</p>
-      <h2 id="active-result-title" dir="ltr">{result.total ? `${result.score} / ${result.total}` : result.score}</h2>
-      <strong>{t(passed ? (isFinal ? "activeStudy.sheetCompleted" : "activeStudy.nextUnlocked") : advisory ? "activeStudy.advisory" : "activeStudy.reviewPages")}</strong>
-      {result.xp_awarded > 0 && <span className="workspace-v2-xp-award">+{result.xp_awarded} XP</span>}
-      <PomodoroResultDetails review={result.review} summary={result.pomodoro_summary} final={isFinal} busy={busy} onOpenPage={onOpenPage} />
-      {missed.length > 0 && <h3 className="workspace-v9-review-heading">{t("question.reviewMissed")}</h3>}
-      {missed.length > 0 && <ol className="workspace-v2-result-review" aria-label={t("question.reviewMissed")}>
-        {missed.map((item) => <li key={item.position}>
-          <span className="workspace-v2-result-review-prompt" dir="auto">{item.prompt}</span>
-          {item.explanation && <QuestionExplanation explanation={item.explanation} />}
-          {explainLinks.some((link) => link.position === item.position) && <button type="button" disabled={busy} onClick={() => onExplain(explainLinks.find((link) => link.position === item.position))}>{t("knowledge.explainConcept")}</button>}
-        </li>)}
-      </ol>}
-      {missed.length === 0 && explainLinks.length > 0 && <div className="workspace-v2-result-actions">{explainLinks.map((link) => <button type="button" key={link.position} disabled={busy} onClick={() => onExplain(link)}>{t("knowledge.explainConcept")} · {link.position}</button>)}</div>}
-      {(missed.length > 0 || String(quiz.attempt_id).startsWith("result:")) && ["unprepared", "stale", "unavailable"].includes(explainAvailability) && <p>{t(`knowledge.mcq_${explainAvailability}`)}</p>}
-      <div className="workspace-v2-result-actions">
-        {passed && <button type="button" className="is-primary" onClick={onDismiss}>{t(isFinal ? "activeStudy.finish" : "activeStudy.continueStudying")}</button>}
-        {advisory && <button type="button" className="is-primary" onClick={onContinue} disabled={busy}>{t("activeStudy.continueAnyway")}</button>}
-        {!passed && <button type="button" onClick={onRetake} disabled={busy}><RotateCcw size={16} />{t(isFinal ? "activeStudy.retryFinal" : "activeStudy.studyPartAgain")}</button>}
-        {!passed && <button type="button" onClick={onDismiss}>{t("activeStudy.returnToPages")}</button>}
-      </div>
-    </section></div>;
-  }
-  return (
-    <div className="workspace-v2-quiz-backdrop">
-      <section ref={dialogRef} className="workspace-v2-quiz-dialog" role="dialog" aria-modal="true" aria-labelledby="active-question-title" tabIndex={-1}>
-        <header><div><span>{isFinal ? t("activeStudy.finalAssessment") : t("activeStudy.pageRange", { start: quiz.run.current_page_range.start_page, end: quiz.run.current_page_range.end_page })}</span><strong>{t("activeStudy.answeredOf", { answered, total: quiz.questions.length })}</strong></div><button type="button" className="workspace-v2-quiz-restart" onClick={() => setConfirming("restart")} disabled={busy}><RotateCcw size={15} />{t("checkpoint.restart")}</button><button type="button" onClick={requestExit} aria-label={t("activeStudy.closeTest")}><X size={19} /></button></header>
-        <div className="workspace-v2-quiz-progress"><span style={{ width: `${((index + 1) / quiz.questions.length) * 100}%` }} /></div>
-        <main key={index} data-question-direction={questionDirection}>
-          <span className="workspace-v2-question-number">{t("activeStudy.questionOf", { index: index + 1, total: quiz.questions.length })}</span>
-          <h2 id="active-question-title">{question.prompt}</h2>
-          <div className="workspace-v2-answer-list" role="radiogroup" aria-label={t("activeStudy.answersFor", { index: index + 1 })}>
-            {question.options.map((option, optionIndex) => <button key={option.id} type="button" role="radio" aria-checked={answers[question.id] === option.id} className={answers[question.id] === option.id ? "is-selected" : ""} aria-disabled={Boolean(locked[question.id]) && locked[question.id] !== option.id} onClick={() => { if (!locked[question.id]) setAnswers((current) => ({ ...current, [question.id]: option.id })); }}><span>{String.fromCharCode(65 + optionIndex)}</span>{option.text}{answers[question.id] === option.id && <CheckCircle2 size={18} />}</button>)}
-          </div>
-        </main>
-        <footer>
-          <button type="button" onClick={() => { setQuestionDirection("previous"); setIndex((value) => Math.max(0, value - 1)); }} disabled={index === 0}><ChevronLeft size={17} />{t("activeStudy.previous")}</button>
-          {index < quiz.questions.length - 1 ? <button type="button" className="is-primary" onClick={() => { setQuestionDirection("next"); setIndex((value) => value + 1); }} disabled={!answers[question.id]}>{t("activeStudy.next")}<ChevronRight size={17} /></button> : <button type="button" className="is-primary" onClick={onSubmit} disabled={busy || answered !== quiz.questions.length}>{t(busy ? "activeStudy.checking" : "activeStudy.submitTest")}</button>}
-        </footer>
-      </section>
-      <CheckpointExitDialog open={confirming === "exit"} busy={busy} onSave={exitAndSave} onDiscard={() => onDiscard(() => setConfirming(""))} onCancel={() => setConfirming("")} />
-      <CheckpointRestartDialog open={confirming === "restart"} busy={busy} onConfirm={() => onRestart(() => setConfirming(""))} onCancel={() => setConfirming("")} />
-    </div>
-  );
-}
+import "./focus-tool-panel-compact.css";
+import "./focus-phone.css";
 
 /**
  * The workspace mounts a large annotation and PDF stack, so the sheet is
@@ -1311,6 +612,28 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const [pencilOpacity, setPencilOpacity] = useState(() => rememberedWritingTool === "pencil" ? Number(initialToolSettings.opacity) || .78 : .78);
   const [highlighterOpacity, setHighlighterOpacity] = useState(() => rememberedWritingTool === "highlighter" ? Number(initialToolSettings.opacity) || .34 : .34);
   const [penProfile, setPenProfile] = useState(rememberedPenProfile);
+  const [favoritePens, setFavoritePens] = useState(loadFavoritePens);
+  useEffect(() => { saveFavoritePens(favoritePens); }, [favoritePens]);
+  // The Zoom Window's box on the page (null while it is closed), and its height.
+  const [zoomWindow, setZoomWindow] = useState(null);
+  const [zoomWindowHeight, setZoomWindowHeight] = useState(0);
+  // Keep the box on screen above the window as it moves along and down the page.
+  useEffect(() => {
+    if (!zoomWindow || !zoomWindowHeight) return;
+    const stage = stageRef.current;
+    const frame = window.requestAnimationFrame(() => {
+      const boxRect = stage?.querySelector(".workspace-zoom-window-box")?.getBoundingClientRect();
+      const windowRect = rootRef.current?.querySelector(".workspace-zoom-window")?.getBoundingClientRect();
+      if (!stage || !boxRect || !windowRect) return;
+      const top = stage.getBoundingClientRect().top + 8;
+      const bottom = windowRect.top - 12;
+      const delta = boxRect.bottom > bottom ? boxRect.bottom - bottom : boxRect.top < top ? boxRect.top - top : 0;
+      if (Math.abs(delta) < 1) return;
+      const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      stage.scrollBy({ top: delta, behavior: still ? "auto" : "smooth" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [zoomWindow, zoomWindowHeight]);
   const [pressureSensitivity, setPressureSensitivity] = useState(() => Number.isFinite(Number(initialToolSettings.pressureSensitivity)) ? Number(initialToolSettings.pressureSensitivity) : .55);
   const [strokeSmoothing, setStrokeSmoothing] = useState(() => Number.isFinite(Number(initialToolSettings.smoothing)) ? Number(initialToolSettings.smoothing) : .5);
   const [autoImproveHandwriting, setAutoImproveHandwriting] = useState(storedWorkspaceSettings.autoImproveHandwriting === true);
@@ -1328,7 +651,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const [circleToErase, setCircleToErase] = useState(storedCircleErase === true);
   const [recentColors, setRecentColors] = useState(loadRecentColors);
   const [favoriteColors, setFavoriteColors] = useState(() => loadStringList(FAVORITE_COLORS_KEY, 5));
-  const [penPresets, setPenPresets] = useState(loadPenPresets);
   const [customColorDraft, setCustomColorDraft] = useState(COLORS[0]);
   const [customColorEditorOpen, setCustomColorEditorOpen] = useState(false);
   const [rememberLastPosition, setRememberLastPosition] = useState(initialRememberLastPosition);
@@ -1336,16 +658,25 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const [showPageNumber, setShowPageNumber] = useState(storedWorkspaceSettings.showPageNumber !== false);
   const [keepScreenAwake, setKeepScreenAwake] = useState(storedWorkspaceSettings.keepScreenAwake === true);
   const [zoomHud, setZoomHud] = useState({ visible: false, label: "" });
+  // Whether the student has chosen what draws. Until they do, the device
+  // decides (see defaultDrawingInput), and a stylus seen on a phone takes over.
+  const drawingInputChosenRef = useRef(false);
   const [drawingInput, setDrawingInput] = useState(() => {
     // v2 leaves out the old value, which was also written automatically when
     // users selected Pen and could make a resting finger draw after an update.
-    try { return window.localStorage.getItem("lock-in.catalog-workspace.drawing-input.v2") === DRAWING_INPUT.STYLUS_AND_FINGER ? DRAWING_INPUT.STYLUS_AND_FINGER : DRAWING_INPUT.STYLUS_ONLY; }
-    catch { return DRAWING_INPUT.STYLUS_ONLY; }
+    let stored = null;
+    try { stored = window.localStorage.getItem("lock-in.catalog-workspace.drawing-input.v2"); } catch { /* No stored choice. */ }
+    drawingInputChosenRef.current = stored === DRAWING_INPUT.STYLUS_ONLY || stored === DRAWING_INPUT.STYLUS_AND_FINGER;
+    return defaultDrawingInput({
+      stored,
+      coarsePointer: Boolean(window.matchMedia?.("(pointer: coarse)").matches),
+      shortestScreenSide: Math.min(window.screen?.width || window.innerWidth, window.screen?.height || window.innerHeight)
+    });
   });
   const [annotations, setAnnotations] = useState([]);
   const [notes, setNotes] = useState([]);
   const [annotationsHidden, setAnnotationsHidden] = useState(false);
-  const [cardKind, setCardKind] = useState("sticky");
+  const [cardKind, setCardKind] = useState("note");
   const [cardDraft, setCardDraft] = useState("");
   const [editingCardId, setEditingCardId] = useState(null);
   const [clipSelecting, setClipSelecting] = useState(false);
@@ -1370,6 +701,12 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   // exportHandleRef so its object URL can be revoked when the sheet closes.
   const [exportState, setExportState] = useState(/** @type {{ status: string, kind?: string, share?: boolean, url?: string, name?: string, size?: number, apple?: boolean, shareable?: boolean, delivered?: boolean, shared?: boolean, shareError?: string, message?: string, done?: number, total?: number, progress?: number, note?: string }} */ ({ status: "idle" }));
   const exportBusy = exportState.status === "preparing";
+  // Share opens the export choices and shares whichever one is picked, rather
+  // than exporting every page before the share sheet can appear.
+  const [exportForShare, setExportForShare] = useState(false);
+  // The chosen pen, named under the panel title: on a phone the pen tiles are
+  // icons only, and the Pointer pen's name says it clears when you lift.
+  const activePenOption = PEN_PROFILE_OPTIONS.find(([value]) => value === penProfile);
   const exportHandleRef = useRef(null);
   const exportRunRef = useRef(0);
   const pdfDocumentProxyRef = useRef(null);
@@ -1387,7 +724,12 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const [exportRangeEnd, setExportRangeEnd] = useState(1);
   const [includeWorkspacePages, setIncludeWorkspacePages] = useState(storedWorkspaceSettings.includeWorkspacePages !== false);
   const [pendingImport, setPendingImport] = useState(null);
-  const [draftAnnotation, setDraftAnnotation] = useState(null);
+  const draftLayerRef = useRef(null);
+  const draftAnnotationRef = useRef(null);
+  const setDraftAnnotation = useCallback((next) => {
+    draftAnnotationRef.current = next;
+    draftLayerRef.current?.set(next);
+  }, []);
   const toolOptionsOpen = openSurface?.startsWith("tool:") ? openSurface.slice(5) : null;
   const [lastToolOptions, setLastToolOptions] = useState(null);
   useEffect(() => {
@@ -1435,8 +777,14 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const minimumPdfZoom = useCallback(() => {
     if (!sheet?.pdfUrl) return MIN_FOCUS_ZOOM;
     const stage = stageRef.current;
+    const stageWidth = stage?.clientWidth || window.innerWidth;
+    // Phones and tablets (an iPad Pro in landscape too) fit the page edge to
+    // edge. A wide desktop window would make that a 240% page with a third of
+    // it on screen, so with a mouse "fit" is a comfortable reading width,
+    // centred.
+    const readingWidth = stageWidth >= 1280 && window.matchMedia?.("(pointer: fine)").matches;
     return Math.min(MAX_FOCUS_ZOOM, Math.max(MIN_FOCUS_ZOOM, fitWidthZoom(
-      stage?.clientWidth || window.innerWidth,
+      readingWidth ? Math.min(stageWidth, FIT_READING_WIDTH) : stageWidth,
       A4_PAGE_WIDTH,
       0
     )));
@@ -1444,9 +792,12 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
 
   // Fit width is the opening/reset scale, not the lower pinch limit. Keep a
   // half-width view available on tablets while retaining a readable floor.
-  const minimumAllowedZoom = useCallback(() => sheet?.pdfUrl
-    ? Math.min(minimumPdfZoom(), Math.max(0.3, minimumPdfZoom() * 0.5))
-    : MIN_FOCUS_ZOOM, [minimumPdfZoom, sheet?.pdfUrl]);
+  // The floor is half the stage's width even where fit is a reading width.
+  const minimumAllowedZoom = useCallback(() => {
+    if (!sheet?.pdfUrl) return MIN_FOCUS_ZOOM;
+    const stageFit = Math.min(MAX_FOCUS_ZOOM, Math.max(MIN_FOCUS_ZOOM, fitWidthZoom(stageRef.current?.clientWidth || window.innerWidth, A4_PAGE_WIDTH, 0)));
+    return Math.min(minimumPdfZoom(), Math.max(0.3, stageFit * 0.5));
+  }, [minimumPdfZoom, sheet?.pdfUrl]);
 
   const clampReaderZoom = useCallback((value) => {
     return Math.min(MAX_FOCUS_ZOOM, Math.max(minimumAllowedZoom(), Number.isFinite(Number(value)) ? Number(value) : 1));
@@ -1483,6 +834,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const [saveState, setSaveState] = useState("idle");
   const [saveErrorReason, setSaveErrorReason] = useState("");
   const [pageJumpDraft, setPageJumpDraft] = useState("1");
+  const [pageThumbsOpen, setPageThumbsOpen] = useState(false);
+  useEffect(() => { if (openSurface !== "pages") setPageThumbsOpen(false); }, [openSurface]);
   const [focusPayload, setFocusPayload] = useState(null);
   const [focusStatusChecked, setFocusStatusChecked] = useState(false);
   const [focusMessage, setFocusMessage] = useState("");
@@ -1523,7 +876,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const measureViewPositionRef = useRef(null);
   const pageOffsetStaleRef = useRef(false);
 
-  const [topicTitle, topicSummary] = SUBJECT_COPY[materialSlug] || [material?.title || "Study material", sheet?.summary || "Focused study workspace."];
   const sheetRoute = whiteboard ? "/materials" : personal ? personalBackTo : `/materials/catalog/${materialSlug}/sheets/${sheetSlug}`;
   const activePageRange = studyMode === "active" && activeStudy?.status === "active" ? activeStudy.current_page_range : null;
   // Active Study unlocks cumulatively. Earlier pages remain available while
@@ -1715,72 +1067,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     };
   }, []);
   // The tool rail never wraps, so on a phone part of it is always off screen.
-  // Publish how much track is hidden on each physical side and the stylesheet
-  // fades that edge - the only honest way to say "there is more this way"
-  // without a scrollbar. Measuring in physical pixels keeps it correct in
-  // Arabic, where a scroller counts its offset backwards.
-  useEffect(() => {
-    const rail = toolRailRef.current;
-    if (!rail) return undefined;
-    const publish = () => {
-      const hidden = Math.max(0, rail.scrollWidth - rail.clientWidth);
-      const rtl = window.getComputedStyle(rail).direction === "rtl";
-      const left = Math.min(hidden, Math.max(0, rtl ? hidden + rail.scrollLeft : rail.scrollLeft));
-      rail.style.setProperty("--workspace-fade-left", `${Math.min(18, left)}px`);
-      rail.style.setProperty("--workspace-fade-right", `${Math.min(18, hidden - left)}px`);
-    };
-    publish();
-    rail.addEventListener("scroll", publish, { passive: true });
-    const observer = new window.ResizeObserver(publish);
-    observer.observe(rail);
-    for (const child of rail.children) observer.observe(child);
-    return () => {
-      rail.removeEventListener("scroll", publish);
-      observer.disconnect();
-    };
-  }, []);
-  // Choosing a tool with the keyboard, or restoring the last one on open, can
-  // land on a button parked outside the visible track. Bring it back rather
-  // than leaving the workspace claiming a tool the student cannot see.
-  useEffect(() => {
-    const rail = toolRailRef.current;
-    const button = rail?.querySelector(`[data-workspace-tool="${activeTool}"]`);
-    if (!rail || !button) return;
-    const track = rail.getBoundingClientRect();
-    const target = button.getBoundingClientRect();
-    const margin = 8;
-    const delta = target.left < track.left + margin
-      ? target.left - track.left - margin
-      : target.right > track.right - margin ? target.right - track.right + margin : 0;
-    if (!delta) return;
-    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    rail.scrollBy({ left: delta, behavior: still ? "auto" : "smooth" });
-  }, [activeTool]);
-  // One persistent capsule follows the selected tool. Measuring toolbar chrome
-  // here never changes the PDF stage or its viewport/annotation coordinates.
-  useLayoutEffect(() => {
-    const list = toolListRef.current;
-    const indicator = toolIndicatorRef.current;
-    if (!list || !indicator) return undefined;
-    let readyFrame = 0;
-    const position = () => {
-      const target = list.querySelector(`[data-workspace-tool="${activeTool}"]`);
-      if (!target || target.getClientRects().length === 0) {
-        indicator.style.opacity = "0";
-        return;
-      }
-      indicator.style.width = `${target.offsetWidth}px`;
-      indicator.style.height = `${target.offsetHeight}px`;
-      indicator.style.transform = `translate3d(${target.offsetLeft}px, ${target.offsetTop}px, 0)`;
-      indicator.style.opacity = "1";
-      if (!indicator.dataset.ready) readyFrame = requestAnimationFrame(() => { indicator.dataset.ready = "true"; });
-    };
-    position();
-    const observer = typeof window.ResizeObserver === "undefined" ? null : new window.ResizeObserver(position);
-    if (observer) observer.observe(list);
-    window.addEventListener("resize", position, { passive: true });
-    return () => { cancelAnimationFrame(readyFrame); observer?.disconnect(); window.removeEventListener("resize", position); };
-  }, [activeTool]);
+  useToolRail({ railRef: toolRailRef, listRef: toolListRef, indicatorRef: toolIndicatorRef, activeTool });
   // Keep each inspector attached to its tool without letting it leave the
   // reader at tablet widths. The phone inspector retains its full-width sheet.
   useLayoutEffect(() => {
@@ -1794,7 +1081,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const position = () => {
       if (window.innerWidth <= 560 || window.innerHeight < 600) {
         panel.style.removeProperty("left");
-        panel.style.removeProperty("--workspace-popover-origin");
+        // The full-width phone panel still points its caret at the tool.
+        const panelBounds = panel.getBoundingClientRect();
+        const sourceBounds = source.getBoundingClientRect();
+        const toolCentre = sourceBounds.left + sourceBounds.width / 2 - panelBounds.left;
+        panel.style.setProperty("--workspace-popover-origin", `${Math.max(18, Math.min(panelBounds.width - 18, toolCentre))}px`);
         return;
       }
       const readerBounds = reader.getBoundingClientRect();
@@ -1944,9 +1235,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     try { window.localStorage.setItem(FAVORITE_COLORS_KEY, JSON.stringify(favoriteColors)); } catch { /* Favorites are an optional local preference. */ }
   }, [favoriteColors]);
   useEffect(() => {
-    try { window.localStorage.setItem(PEN_PRESETS_KEY, JSON.stringify(penPresets)); } catch { /* Presets remain usable in memory. */ }
-  }, [penPresets]);
-  useEffect(() => {
     if (!["pen", "pencil", "highlighter", "eraser", "shapes"].includes(activeTool)) return;
     const key = activeTool === "pen" ? `pen:${penProfile}` : activeTool;
     toolMemoryRef.current[key] = {
@@ -2075,7 +1363,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       const opener = rootRef.current?.querySelector(owner)
         || (openSurface.startsWith("tool:") ? rootRef.current?.querySelector('[data-workspace-surface="add"]') : null)
         || (openSurface === "settings" ? rootRef.current?.querySelector('[data-workspace-surface="more"]') : null);
-      opener?.focus();
+      // A narrow toolbar folds Study (and the tools it scrolls away) into More;
+      // focus goes back there rather than to a control that is not on screen.
+      (opener?.getClientRects().length ? opener : rootRef.current?.querySelector('[data-workspace-surface="more"]'))?.focus();
     };
     document.addEventListener("pointerdown", dismissPopover);
     document.addEventListener("keydown", dismissOnEscape);
@@ -2925,6 +2215,17 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     document.addEventListener("fullscreenchange", syncFullscreenState);
     return () => document.removeEventListener("fullscreenchange", syncFullscreenState);
   }, []);
+  // Browsers without element full screen (iPhone Safari) get the CSS mode;
+  // Escape leaves it as it leaves the native one, once no panel is open.
+  useEffect(() => {
+    if (!isDocumentFullscreen || openSurface) return undefined;
+    const leave = (event) => {
+      if (event.key !== "Escape" || event.defaultPrevented || document.fullscreenElement) return;
+      setIsDocumentFullscreen(false);
+    };
+    document.addEventListener("keydown", leave);
+    return () => document.removeEventListener("keydown", leave);
+  }, [isDocumentFullscreen, openSurface]);
 
   useEffect(() => {
     if (!keepScreenAwake || !wakeLockSupported) {
@@ -3635,6 +2936,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         opacity: activeTool === "pen" ? brushOpacity : activeTool === "highlighter" ? highlighterOpacity : pencilOpacity,
         pressureSensitivity,
         smoothing: autoImproveHandwriting && activeTool !== "highlighter" ? Math.max(.8, strokeSmoothing) : strokeSmoothing,
+        // A finger or mouse reports no pressure; the controller simulates it from speed.
+        ...(nativeEvent.pointerType === "pen" ? {} : { pressureSource: PRESSURE_SOURCE.SPEED }),
         createdAt: new Date().toISOString(),
         points
       });
@@ -4317,6 +3620,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     stopScrollMomentum();
     if (event.pointerType === "pen") {
       hideStylusHover();
+      // A phone with a stylus: until the student says otherwise, the stylus
+      // draws and fingers go back to scrolling, as on a tablet.
+      if (!drawingInputChosenRef.current && drawingInput === DRAWING_INPUT.STYLUS_AND_FINGER) setDrawingInput(DRAWING_INPUT.STYLUS_ONLY);
       gesture.penPointers.set(event.pointerId, pointerSnapshot(event));
       gesture.lastPenAt = Date.now();
       gesture.lastPenPosition = { x: event.clientX, y: event.clientY };
@@ -4373,6 +3679,13 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         event.preventDefault();
         debugGesture("touch-pan-start", event, { prevented: true });
         return;
+      }
+      // The finger writes on a phone, so scrolling moves to two fingers. Say so
+      // once, at the first stroke, rather than leaving the page feel stuck.
+      if (DRAWING_TOOLS.has(activeTool) && activeTool !== "select") {
+        let told = true;
+        try { told = window.localStorage.getItem(FINGER_SCROLL_HINT_KEY) === "1"; window.localStorage.setItem(FINGER_SCROLL_HINT_KEY, "1"); } catch { /* The hint may repeat. */ }
+        if (!told) setFocusMessage(t("focus.twoFingersToScroll"));
       }
     }
     // A second stylus, or a mouse arriving mid-stroke, must not take over the
@@ -4653,12 +3966,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const draft = draftRef.current;
     if (!draft) return;
     if (draft.type === "shape") {
-      if (["circle", "square"].includes(draft.shape)) {
-        const dx = point.x - draft.start.x;
-        const dy = point.y - draft.start.y;
-        const size = Math.max(Math.abs(dx), Math.abs(dy));
-        setDraft({ ...draft, end: { ...point, x: draft.start.x + Math.sign(dx || 1) * size, y: draft.start.y + Math.sign(dy || 1) * size } });
-      } else setDraft({ ...draft, end: point });
+      if (["circle", "square"].includes(draft.shape)) setDraft({ ...draft, end: equalSidedEnd(draft.start, point, pageAspectFor(draft.page)) });
+      else setDraft({ ...draft, end: point });
     }
     else if (draft.type === "lasso") {
       if (gesture.smartSelectionActivated) return;
@@ -4849,7 +4158,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
             // style and highlighter blending are unchanged, only straightened.
             recognizedShape = straightenedInkStroke(committed, recognition);
           } else if (recognition && recognition.confidence >= .78 && committed.type !== "highlighter") {
-            recognizedShape = recognizedShapeAnnotation(committed, recognition);
+            recognizedShape = recognizedShapeAnnotation(committed, recognition, aspect);
           }
         }
         if (recognizedShape) {
@@ -5296,10 +4605,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       const snapped = Math.round(angle / step) * step;
       end = { ...end, x: Math.min(1000, Math.max(0, start.x + Math.cos(snapped) * distance)), y: Math.min(1000, Math.max(0, start.y + Math.sin(snapped) * distance)) };
     }
-    if (["square", "circle"].includes(shape.shape)) {
-      const side = Math.max(Math.abs(end.x - start.x), Math.abs(end.y - start.y));
-      end = { ...end, x: Math.min(1000, Math.max(0, start.x + Math.sign(end.x - start.x || 1) * side)), y: Math.min(1000, Math.max(0, start.y + Math.sign(end.y - start.y || 1) * side)) };
-    }
+    if (["square", "circle"].includes(shape.shape)) end = equalSidedEnd(start, end, pageAspectFor(shape.page));
     return { ...shape, start, end };
   }
 
@@ -5307,10 +4613,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const text = cardDraft.trim();
     if (!text) return;
     const existing = annotationsRef.current.find((item) => item.id === editingCardId && item.type === "card");
-    if (existing) runCommand({ type: "update", before: [existing], after: [{ ...existing, cardKind, text }] });
+    // The card grows with its text, so nothing is cut off when it is saved.
+    if (existing) runCommand({ type: "update", before: [existing], after: [{ ...existing, cardKind, text, height: Math.max(existing.height, noteCardHeight(text, existing.width, pageAspectFor(existing.page))) }] });
     else {
       const id = generateIdempotencyKey();
-      runCommand({ type: "add", items: [{ id, page: activePageKey, type: "card", cardKind, text, x: 325, y: 260, width: 350, height: 250, color: "#1d3152", opacity: 1 }] });
+      runCommand({ type: "add", items: [{ id, page: activePageKey, type: "card", cardKind, text, x: (1000 - NOTE_CARD_WIDTH) / 2, y: 240, width: NOTE_CARD_WIDTH, height: noteCardHeight(text, NOTE_CARD_WIDTH, pageAspectFor(activePageKey)), color: "#1d3152", opacity: 1 }] });
       revealInsertedAnnotation(id);
     }
     setCardDraft("");
@@ -5486,6 +4793,68 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     window.setTimeout(() => rootRef.current?.querySelector(selector)?.focus(), 0);
   }
 
+  /**
+   * Takes up a favorite pen in one step, through the same path as choosing a
+   * tool, so the very next stroke already uses it.
+   */
+  function applyFavoritePen(index) {
+    const favorite = favoritePens[index];
+    if (!favorite) return;
+    const tool = favorite.tool;
+    const profile = tool === "pen" ? favorite.profile : toolStateRef.current.penProfile;
+    const next = { ...toolStateRef.current, activeTool: tool, penProfile: profile, activeColor: favorite.color, brushSize: favorite.width };
+    if (tool === "highlighter") next.highlighterOpacity = favorite.opacity;
+    else next.brushOpacity = favorite.opacity;
+    activeToolRef.current = tool;
+    toolStateRef.current = next;
+    setCoverSelecting(false);
+    setClipSelecting(false);
+    if (annotationsHidden) setAnnotationsHidden(false);
+    if (tool === "pen") setPenProfile(profile);
+    setActiveColor(favorite.color);
+    setBrushSize(favorite.width);
+    if (tool === "highlighter") setHighlighterOpacity(favorite.opacity);
+    else setBrushOpacity(favorite.opacity);
+    setActiveTool(tool);
+    setOpenSurface((current) => current?.startsWith("tool:") ? null : current);
+    setCustomColorEditorOpen(false);
+    setSelectedIds([]);
+  }
+
+  function currentFavoritePen() {
+    return normalizeFavoritePen({ tool: activeTool, profile: penProfile, color: activeColor, width: brushSize, opacity: activeToolOpacity });
+  }
+
+  function saveFavoritePen() {
+    const favorite = currentFavoritePen();
+    if (!favorite) return;
+    setFavoritePens((current) => normalizeFavoritePens([...current, favorite]));
+    setFocusMessage(t("focus.favoritePenSaved"));
+  }
+
+  function replaceFavoritePen(index) {
+    const favorite = currentFavoritePen();
+    if (!favorite) return;
+    setFavoritePens((current) => normalizeFavoritePens(current.map((item, position) => position === index ? favorite : item)));
+  }
+
+  function removeFavoritePen(index) {
+    setFavoritePens((current) => current.filter((_, position) => position !== index));
+  }
+
+  function openZoomWindow() {
+    setOpenSurface(null);
+    if (!["pen", "highlighter"].includes(activeToolRef.current)) selectTool("pen");
+    // Start at the margin, a little below the top of what is on screen.
+    const stage = stageRef.current?.getBoundingClientRect();
+    const point = stage ? documentPoint(stage.left + stage.width / 2, stage.top + stage.height * .18, activePageKey) : null;
+    setZoomWindow(initialZoomRegion(activePageKey, point ? Math.max(0, Math.min(900, point.y)) : 80, document.documentElement.dir === "rtl"));
+  }
+
+  function commitZoomWindowStroke(stroke) {
+    runCommand({ type: "add", items: [stroke] });
+  }
+
   function changePenProfile(nextProfile) {
     const remembered = toolMemoryRef.current[`pen:${nextProfile}`];
     setPenProfile(nextProfile);
@@ -5513,21 +4882,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     setFavoriteColors((items) => items.includes(normalized) ? items.filter((color) => color !== normalized) : [normalized, ...items].slice(0, 5));
   }
 
-  function savePenPreset() {
-    const preset = { id: generateIdempotencyKey(), profile: penProfile, color: activeColor, size: brushSize, opacity: brushOpacity, pressureSensitivity, smoothing: strokeSmoothing };
-    setPenPresets((items) => [preset, ...items].slice(0, 4));
-    setFocusMessage(t("focus.penPresetSavedOnThis"));
-  }
-
-  function applyPenPreset(preset) {
-    setPenProfile(currentPenProfile(String(preset.profile || PEN_PROFILE.BALL)));
-    setActiveColor(normalizeToolColor(preset.color) || COLORS[0]);
-    setBrushSize(Math.min(12, Math.max(1, Number(preset.size) || 4)));
-    setBrushOpacity(Math.min(1, Math.max(.2, Number(preset.opacity) || 1)));
-    setPressureSensitivity(Math.min(1, Math.max(0, Number(preset.pressureSensitivity) || .55)));
-    setStrokeSmoothing(Math.min(1, Math.max(0, Number(preset.smoothing) || .5)));
-  }
-
   function commitCustomColor() {
     const normalized = normalizeToolColor(customColorDraft);
     if (!normalized) return;
@@ -5548,6 +4902,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   }
 
   function changeDrawingInput(value) {
+    drawingInputChosenRef.current = true;
     setDrawingInput(value);
     try { window.localStorage.setItem("lock-in.catalog-workspace.drawing-input.v2", value); } catch { /* This non-sensitive preference can remain in memory. */ }
   }
@@ -5617,7 +4972,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     duplicate: duplicateSelection,
     delete: deleteSelection
   };
-
 
   function rotateSelection() {
     if (!selectedAnnotations.length || !selectedBounds || selectedAnnotations.some((item) => item.locked)) return;
@@ -6135,16 +5489,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     }
   }
 
-  async function toggleDocumentFullscreen() {
-    setOpenSurface(null);
-    try {
-      if (isDocumentFullscreen && !document.fullscreenElement) setIsDocumentFullscreen(false);
-      else if (document.fullscreenElement === rootRef.current) await document.exitFullscreen();
-      else if (rootRef.current?.requestFullscreen) await rootRef.current.requestFullscreen();
-      else setIsDocumentFullscreen(true);
-    } catch { setFocusMessage(t("focus.fullscreenIsNotAvailableIn")); }
-  }
-
   function commitPageJump() {
     const target = Number.parseInt(pageJumpDraft, 10);
     if (!Number.isFinite(target)) {
@@ -6318,15 +5662,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     }
   }
 
-  function applyQuickPenPreset(kind) {
-    setActiveTool("pen");
-    setPenProfile(kind === "bold" ? PEN_PROFILE.BRUSH : PEN_PROFILE.BALL);
-    setBrushSize(kind === "underline" ? 2 : kind === "bold" ? 8 : 4);
-    setBrushOpacity(1);
-    setStrokeSmoothing(kind === "underline" ? .75 : .5);
-    setFocusMessage(t("focus.penPresetSelected", { pen: t((PEN_PROFILE_OPTIONS.find(([id]) => id === kind) || PEN_PROFILE_OPTIONS[0])[1]) }));
-  }
-
   function releaseExportFile() {
     exportHandleRef.current?.revoke();
     exportHandleRef.current = null;
@@ -6449,7 +5784,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         </>}
         {state.status === "ready" && <>
           <strong>{t("focus.exportComplete")}</strong>
-          <small dir="auto">{state.name}{state.size ? ` · ${formatFileSize(state.size)}` : ""}{state.delivered ? " · Downloaded" : state.shared ? " · Shared" : ""}</small>
+          <small dir="auto">{state.name}{state.size ? ` · ${formatFileSize(state.size)}` : ""}{state.delivered ? ` · ${t("focus.exportDownloaded")}` : state.shared ? ` · ${t("focus.exportShared")}` : ""}</small>
           {state.shareError && <small className="workspace-v8-export-note" role="alert">{state.shareError}</small>}
         </>}
         {state.status === "failed" && <>
@@ -6548,10 +5883,34 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const paletteColors = normalizeSavedPalette([...favoriteColors, ...COLORS, ...customColors], MAX_PALETTE_COLORS);
   const quickColors = normalizeSavedPalette([...favoriteColors, ...recentColors, ...COLORS], 3);
   const activeToolOpacity = activeTool === "highlighter" ? highlighterOpacity : activeTool === "pencil" ? pencilOpacity : brushOpacity;
+  // What the Zoom Window writes with: the pen or highlighter in use (the
+  // Pointer pen's glow does not belong in a magnified window, so it writes ink).
+  const zoomWindowTool = activeTool === "highlighter" ? "highlighter" : "pen";
+  const zoomWindowPen = {
+    type: zoomWindowTool,
+    profile: zoomWindowTool === "highlighter" ? PEN_PROFILE.HIGHLIGHTER : TRANSIENT_PEN_PROFILES.has(penProfile) ? PEN_PROFILE.BALL : penProfile,
+    color: activeColor,
+    width: zoomWindowTool === "highlighter" ? brushSize * 7 : brushSize * 2,
+    opacity: zoomWindowTool === "highlighter" ? highlighterOpacity : brushOpacity,
+    pressureSensitivity,
+    smoothing: autoImproveHandwriting && zoomWindowTool !== "highlighter" ? Math.max(.8, strokeSmoothing) : strokeSmoothing
+  };
+  const activeFavoritePen = matchingFavoritePen(favoritePens, { tool: activeTool, profile: penProfile, color: activeColor, width: brushSize, opacity: activeToolOpacity });
+  // The pen panel saves and manages favorites at every size; the tablet and
+  // desktop toolbar shows the saved ones for one tap (a phone's toolbar is full).
+  const favoritePensStrip = (placement) => <FavoritePens className={placement} favorites={favoritePens} activeIndex={activeFavoritePen} canSave={placement === "is-panel" && FAVORITE_PEN_TOOLS.has(activeTool)} onApply={applyFavoritePen} onSave={saveFavoritePen} onReplace={replaceFavoritePen} onRemove={removeFavoritePen} />;
   const inkToolActive = ["pen", "pencil", "highlighter", "shapes"].includes(activeTool);
   // The lasso only offers colours while they have something to recolour.
   const showColorPalette = inkToolActive || (activeTool === "select" && selectedAnnotations.length > 0);
   const pageNavigatorOpen = openSurface === "pages";
+  const tabBarTabs = workspaceTabs.tabs.length ? workspaceTabs.tabs : [whiteboard ? whiteboardTab({ boardId: sheetSlug }) : currentTab(sheetTitle)];
+  // Compact layouts drop the tab row while it would hold only this document;
+  // the More menu then names the document and opens new tabs.
+  const singleTab = showWorkspaceTabs && tabBarTabs.length === 1;
+  const studyInProgress = studyMode === "active" && Boolean(activeStudy);
+  const studyRangeLabel = studyInProgress ? t("activeStudy.pageRange", { start: activeStudy.current_page_range?.start_page, end: activeStudy.current_page_range?.end_page }) : "";
+  // The swatch on the active tool: its ink colour, and a dot that grows with the width.
+  const swatchSize = Math.round(Math.min(12, Math.max(5, 4 + brushSize * .7)));
 
   function updateActiveToolOpacity(value) {
     const rounded = Math.round(value * 100) / 100;
@@ -6636,8 +5995,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       {searchMatches && <SearchHighlights matches={searchMatches} activeId={documentSearch.activeMatch?.id} />}
       <svg className={annotationLayerClass} viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-label={isVirtualPageKey(pageNumber) ? t("focus.blankPageAnnotations") : t("focus.annotationsForPage", { page: pageNumber })}>
         <AnnotationVisuals annotations={annotationsHidden ? NO_ANNOTATIONS : annotationsOnPage} prefix={`page-${pageNumber}`} includeHitTargets={activeTool === "select" && !annotationsHidden} pageAspect={pageAspect} revealedIds={revealedCoverIds} />
-        {pageIsCurrent && draftAnnotation && draftAnnotation.type !== "lasso" && <WorkspaceAnnotation annotation={draftAnnotation} draft pageAspect={pageAspect} />}
+        {pageIsCurrent && <DraftAnnotationLayer ref={draftLayerRef} latest={draftAnnotationRef} pageAspect={pageAspect} />}
         {selectionPage === pageNumber && renderSelectionBox(pageNumber)}
+        {zoomWindow && zoomWindow.page === pageNumber && zoomWindowHeight > 0 && <rect className="workspace-zoom-window-box" x={zoomWindow.x} y={zoomWindow.y} width={zoomWindow.w} height={zoomWindowHeight} />}
       </svg>
       {pageIsCurrent && <LiveAnnotationCanvas ref={liveStrokeCanvasRef} pageNumber={pageNumber} pageAspect={pageAspect} />}
       {pageIsCurrent && <TransientInkCanvas store={transientInkRef.current} pageNumber={pageNumber} />}
@@ -6645,11 +6005,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   }
 
   return (
-    <main className={`workspace-v2${isDocumentFullscreen ? " is-document-fullscreen" : ""}${whiteboard ? " is-whiteboard" : ""}${showWorkspaceTabs ? " has-tabs" : ""}`} ref={rootRef} data-knowledge-open={knowledgeOpen ? "true" : undefined} aria-busy={!workspaceReady} aria-label={`${sheet.title} Focus Workspace`}>
+    <main className={`workspace-v2${zoomWindow ? " has-zoom-window" : ""}${isDocumentFullscreen ? " is-document-fullscreen" : ""}${whiteboard ? " is-whiteboard" : ""}${showWorkspaceTabs ? " has-tabs" : ""}${singleTab ? " has-single-tab" : ""}`} ref={rootRef} data-knowledge-open={knowledgeOpen ? "true" : undefined} aria-busy={!workspaceReady} aria-label={t("focus.workspaceLabel", { title: sheet.title })}>
       <div className={`workspace-v2-body${sideOpen ? " has-side" : ""}`}>
         <section ref={readerRef} className={`workspace-v2-reader${isDocumentFullscreen ? " is-document-fullscreen" : ""}`} aria-label={t("focus.documentReader")}>
           <nav className="workspace-v2-toolbar" aria-label={t("focus.documentTools")} ref={toolbarRef}>
-            {showWorkspaceTabs && <WorkspaceTabBar tabs={workspaceTabs.tabs.length ? workspaceTabs.tabs : [whiteboard ? whiteboardTab({ boardId: sheetSlug }) : currentTab(sheetTitle)]} activeId={currentTabId} materials={tabMaterials} portalRef={rootRef} onSelect={showWorkspaceTab} onClose={closeTab} onNewWhiteboard={openNewWhiteboard} onOpenSheet={openSheetTab} />}
+            {showWorkspaceTabs && <WorkspaceTabBar tabs={tabBarTabs} activeId={currentTabId} materials={tabMaterials} portalRef={rootRef} onSelect={showWorkspaceTab} onClose={closeTab} onNewWhiteboard={openNewWhiteboard} onOpenSheet={openSheetTab} />}
             <div className="workspace-v2-control-group is-exit">
               <WorkspaceIconButton label={t("focus.exitWorkspace")} onClick={requestWorkspaceExit}><ArrowLeft size={19} /></WorkspaceIconButton>
               <div className="workspace-v3-document-context" dir="auto">
@@ -6673,19 +6033,27 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
                     aria-expanded={CONFIGURABLE_TOOLS.has(id) ? expanded : undefined}
                     aria-controls={CONFIGURABLE_TOOLS.has(id) ? `workspace-${id}-options` : undefined}
                     data-workspace-tool={id}
-                    style={id === activeTool && ["pen", "highlighter"].includes(id) ? cssVars({ "--workspace-tool-color": activeColor }) : undefined}
+                    style={id === activeTool && SWATCH_TOOLS.has(id) ? cssVars({ "--workspace-tool-color": activeColor, "--workspace-swatch-size": `${swatchSize}px` }) : undefined}
                     onClick={() => chooseWritingTool(id)}
-                  ><ToolIcon size={19} /></WorkspaceIconButton>;
+                  ><ToolIcon size={19} />{id === activeTool && SWATCH_TOOLS.has(id) && <span className="workspace-v3-tool-swatch" aria-hidden="true" />}</WorkspaceIconButton>;
                 })}
                 <WorkspaceIconButton label={t("focus.add")} className="workspace-v3-tool-button" active={openSurface === "add"} aria-expanded={openSurface === "add"} aria-controls="workspace-add-popover" data-workspace-surface="add" onClick={() => setOpenSurface((current) => current === "add" ? null : "add")}><Plus size={20} /></WorkspaceIconButton>
               </div>
               <div className="workspace-v3-quick-colors" role="group" aria-label={t("focus.quickAnnotationColors")}>
                 {quickColors.map((color) => <button key={color} type="button" className={`workspace-v3-quick-color${activeColor === color ? " is-active" : ""}`} aria-label={t("focus.useColor", { color })} aria-pressed={activeColor === color} title={color} disabled={!showColorPalette} style={cssVars({ "--workspace-tool-color": color })} onClick={() => chooseAnnotationColor(color)}><span /></button>)}
               </div>
+              {workspaceReady && favoritePens.length > 0 && favoritePensStrip("is-toolbar")}
               <div className="workspace-v2-history" aria-label={t("focus.editHistory")}>
                 <WorkspaceIconButton label={t("focus.undoCtrlZ")} className="workspace-v3-history-button" disabled={!undoHistory.length} onClick={undoTool}><Undo2 size={18} /></WorkspaceIconButton>
                 <WorkspaceIconButton label={t("focus.redoCtrlShiftZ")} className="workspace-v3-history-button" disabled={!redoHistory.length} onClick={redoTool}><Redo2 size={18} /></WorkspaceIconButton>
               </div>
+            </div>
+            {/* A phone shows Undo and Redo here, pinned beside the tool rail,
+                because the rail scrolls them out of reach exactly when writing
+                needs them. */}
+            <div className="workspace-v2-history is-docked" role="group" aria-label={t("focus.editHistory")}>
+              <WorkspaceIconButton label={t("focus.undoCtrlZ")} className="workspace-v3-history-button" disabled={!undoHistory.length} onClick={undoTool}><Undo2 size={18} /></WorkspaceIconButton>
+              <WorkspaceIconButton label={t("focus.redoCtrlShiftZ")} className="workspace-v3-history-button" disabled={!redoHistory.length} onClick={redoTool}><Redo2 size={18} /></WorkspaceIconButton>
             </div>
             <input ref={imageInputRef} className="workspace-v2-file-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={!workspaceReady} onChange={addImage} tabIndex={-1} aria-hidden="true" />
             <div className="workspace-v2-toolbar-actions" aria-label={t("focus.workspaceControls")}>
@@ -6705,9 +6073,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
                   return true;
                 }}
               />}
-              <WorkspaceIconButton label={sideOpen ? t("focus.closeNotes") : t("focus.openNotes")} className="workspace-v3-utility-button" active={sideOpen} aria-pressed={sideOpen} aria-expanded={sideOpen} aria-controls="workspace-notes-panel" data-workspace-tool="note" disabled={!workspaceReady} onClick={() => selectTool("note")}><MessageSquare size={18} /></WorkspaceIconButton>
-              {!whiteboard && !personal && <button type="button" className={`workspace-v2-study-mode-button is-${studyMode || "choose"}${studyMode === "active" && activeStudy ? " has-progress" : ""}${openSurface === "study" ? " is-active" : ""}`} data-workspace-surface="study" aria-haspopup="dialog" aria-expanded={openSurface === "study"} aria-controls="workspace-study-popover" disabled={!workspaceReady} onClick={() => setOpenSurface((current) => current === "study" ? null : "study")} aria-label={studyMode === "active" && activeStudy ? t("activeStudy.pageRange", { start: activeStudy.current_page_range?.start_page, end: activeStudy.current_page_range?.end_page }) : t("focus.study")} title={studyMode === "active" && activeStudy ? t("activeStudy.pageRange", { start: activeStudy.current_page_range?.start_page, end: activeStudy.current_page_range?.end_page }) : t("focus.study")}><Brain size={18} />{!(studyMode === "active" && activeStudy) && <span className="workspace-v2-study-mode-label" aria-hidden="true">{t("focus.study")}</span>}{studyMode === "active" && activeStudy && <span className="workspace-v2-study-mode-status"><strong>{t("focus.active")}</strong><small>{t("activeStudy.pageRange", { start: activeStudy.current_page_range?.start_page, end: activeStudy.current_page_range?.end_page })}</small></span>}</button>}
-              <WorkspaceIconButton label={t("focus.moreWorkspaceActions")} className="workspace-v3-utility-button" active={openSurface === "more" || settingsOpen} aria-expanded={openSurface === "more" || settingsOpen} aria-controls="workspace-more-popover" data-workspace-surface="more" disabled={!workspaceReady} onClick={() => setOpenSurface((current) => current === "more" ? null : "more")}><MoreHorizontal size={20} /></WorkspaceIconButton>
+              <WorkspaceIconButton label={sideOpen ? t("focus.closeNotes") : t("focus.openNotes")} className="workspace-v3-utility-button is-phone-overflow" active={sideOpen} aria-pressed={sideOpen} aria-expanded={sideOpen} aria-controls="workspace-notes-panel" data-workspace-tool="note" disabled={!workspaceReady} onClick={() => selectTool("note")}><MessageSquare size={18} /></WorkspaceIconButton>
+              {!whiteboard && !personal && <button type="button" className={`workspace-v2-study-mode-button is-narrow-overflow is-${studyMode || "choose"}${studyMode === "active" && activeStudy ? " has-progress" : ""}${openSurface === "study" ? " is-active" : ""}`} data-workspace-surface="study" aria-haspopup="dialog" aria-expanded={openSurface === "study"} aria-controls="workspace-study-popover" disabled={!workspaceReady} onClick={() => setOpenSurface((current) => current === "study" ? null : "study")} aria-label={studyMode === "active" && activeStudy ? t("activeStudy.pageRange", { start: activeStudy.current_page_range?.start_page, end: activeStudy.current_page_range?.end_page }) : t("focus.study")} title={studyMode === "active" && activeStudy ? t("activeStudy.pageRange", { start: activeStudy.current_page_range?.start_page, end: activeStudy.current_page_range?.end_page }) : t("focus.study")}><Brain size={18} />{!(studyMode === "active" && activeStudy) && <span className="workspace-v2-study-mode-label" aria-hidden="true">{t("focus.study")}</span>}{studyMode === "active" && activeStudy && <span className="workspace-v2-study-mode-status"><strong>{t("focus.active")}</strong><small>{t("activeStudy.pageRange", { start: activeStudy.current_page_range?.start_page, end: activeStudy.current_page_range?.end_page })}</small></span>}</button>}
+              <WorkspaceIconButton label={t("focus.moreWorkspaceActions")} className={`workspace-v3-utility-button${studyInProgress ? " has-study-progress" : ""}`} active={openSurface === "more" || settingsOpen} aria-expanded={openSurface === "more" || settingsOpen} aria-controls="workspace-more-popover" data-workspace-surface="more" disabled={!workspaceReady} onClick={() => setOpenSurface((current) => current === "more" ? null : "more")}><MoreHorizontal size={20} />{studyInProgress && <span className="workspace-v3-more-badge" aria-hidden="true" />}</WorkspaceIconButton>
             </div>
           </nav>
 
@@ -6716,255 +6084,26 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
             <span dir="auto">{marksSet.author ? t("marks.viewing", { author: marksSet.author }) : t("marks.viewingAnonymous")}</span>
           </button>}
 
-          {workspaceReady && popover("add").shown && <section {...popover("add").props} id="workspace-add-popover" className="workspace-v2-action-popover is-add" role="dialog" aria-label={t("focus.addToPage")} onPointerDown={(event) => event.stopPropagation()}>
-            <header><strong>{t("focus.addToPage")} {page}</strong><button type="button" aria-label={t("focus.closeAddMenu")} onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="add"]')}><X size={17} /></button></header>
-            <div className="workspace-v3-menu-list workspace-v5-add-list">
-              <button type="button" aria-label={t("focus.text")} onClick={() => { setEditingTextId(null); setTextDraft(""); setOpenSurface("text"); }} data-workspace-tool="text"><Type size={18} /><span><strong>{t("focus.addText")}</strong></span></button>
-              <button type="button" aria-label={t("focus.image")} data-workspace-tool="image" onClick={() => selectTool("image")}><ImageIcon size={18} /><span><strong>{t("focus.addImage")}</strong></span></button>
-              <button type="button" onClick={() => { setCardKind("sticky"); setCardDraft(""); setEditingCardId(null); setOpenSurface("card"); }}><StickyNote size={18} /><span><strong>{t("focus.addStickyNote")}</strong></span></button>
-              <button type="button" onClick={() => { setCardKind("note"); setCardDraft(""); setEditingCardId(null); setOpenSurface("card"); }}><FileText size={18} /><span><strong>{t("focus.addNoteCard")}</strong></span></button>
-              {sheet.pdfUrl && <button type="button" onClick={() => { setClipSelecting(true); setCoverSelecting(false); setLassoMode("rectangle"); setActiveTool("select"); setSelectedIds([]); setOpenSurface(null); setFocusMessage(t("focus.dragARectangleOverThe")); }}><Camera size={18} /><span><strong>{t("focus.addStudyClip")}</strong></span></button>}
-              <button type="button" data-workspace-tool="cover" onClick={() => { setCoverSelecting(true); setClipSelecting(false); setLassoMode("rectangle"); setActiveTool("select"); setSelectedIds([]); setOpenSurface(null); setFocusMessage(t("focus.dragOverWhatToHide")); }}><EyeOff size={18} /><span><strong>{t("focus.hidePartOfPage")}</strong><small>{t("focus.hidePartOfPageHint")}</small></span></button>
-              {sheet.pdfUrl && <hr className="workspace-v9-menu-separator" />}
-              {sheet.pdfUrl && <button type="button" data-drill="" aria-label={t("focus.addPage")} onClick={() => setOpenSurface("page-background")}><Plus size={18} /><span><strong>{t("focus.addPage2")}</strong></span></button>}
-              <hr className="workspace-v9-menu-separator" />
-              <button type="button" onClick={() => selectTool("note")}><MessageSquare size={18} /><span><strong>{t("focus.openNotes")}</strong></span></button>
-              {!personal && <button type="button" onClick={toggleBookmark} disabled={bookmarkBusy} aria-pressed={bookmarked}><Bookmark size={18} /><span><strong>{bookmarked ? t("focus.removeBookmark") : t("focus.bookmarkPage")}</strong></span></button>}
-            </div>
-            {studyMode === "active" && <p className="workspace-v7-menu-note"><Info size={15} aria-hidden="true" />{t("focus.pagesYouAddBelongTo")}</p>}
-          </section>}
+          <AddMenu closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} page={page} popover={popover} selectTool={selectTool} setActiveTool={setActiveTool} setCardDraft={setCardDraft} setCardKind={setCardKind} setClipSelecting={setClipSelecting} setCoverSelecting={setCoverSelecting} setEditingCardId={setEditingCardId} setEditingTextId={setEditingTextId} setFocusMessage={setFocusMessage} setLassoMode={setLassoMode} setOpenSurface={setOpenSurface} setSelectedIds={setSelectedIds} setTextDraft={setTextDraft} sheet={sheet} studyMode={studyMode} t={t} workspaceReady={workspaceReady} />
 
-          {workspaceReady && popover("page-background").shown && <section {...popover("page-background").props} className="workspace-v2-action-popover is-add" role="dialog" aria-label={t("focus.chooseWorkspacePageBackground")} onPointerDown={(event) => event.stopPropagation()}>
-            <header><strong>{t("focus.addPageAfterPdfPage", { page })}</strong><button type="button" aria-label={t("focus.closePageBackgrounds")} onClick={() => setOpenSurface("add")}><X size={17} /></button></header>
-            <div className="workspace-v3-menu-list">
-              {PAGE_BACKGROUND_CHOICES.map(([background, labelKey]) => <button key={background} type="button" onClick={() => addBlankPage(background)}><span className={`workspace-v6-page-pattern is-${background}`} aria-hidden="true" /><span><strong>{t(labelKey)}</strong></span></button>)}
-            </div>
-          </section>}
+          <PageBackgroundMenu addBlankPage={addBlankPage} page={page} popover={popover} setOpenSurface={setOpenSurface} t={t} workspaceReady={workspaceReady} />
 
-          {workspaceReady && popover("card").shown && <section {...popover("card").props} className="workspace-v2-action-popover is-add workspace-v6-card-editor" role="dialog" aria-label={editingCardId ? t("focus.editStudyCard") : t("focus.addStudyCard")} onPointerDown={(event) => event.stopPropagation()}>
-            <header><strong>{editingCardId ? t("focus.editStudyCard") : t("focus.addStudyCard")}</strong><button type="button" aria-label={t("focus.closeCardEditor")} onClick={() => setOpenSurface(null)}><X size={17} /></button></header>
-            <div className="workspace-v6-card-kinds" role="group" aria-label={t("focus.cardStyle")}>
-              {[["sticky", "focus.card.sticky"], ["note", "focus.card.note"], ["lined", "focus.card.lined"], ["revision", "focus.card.revision"]].map(([kind, labelKey]) => <button key={kind} type="button" className={cardKind === kind ? "is-active" : ""} aria-pressed={cardKind === kind} onClick={() => setCardKind(kind)}>{t(labelKey)}</button>)}
-            </div>
-            <label className="workspace-v3-text-entry"><span>{t("focus.cardText")}</span><textarea value={cardDraft} maxLength={1200} rows={5} onChange={(event) => setCardDraft(event.target.value)} /></label>
-            <button type="button" className="workspace-v3-menu-primary" onClick={saveCard} disabled={!cardDraft.trim()}>{editingCardId ? t("focus.saveCard") : t("focus.addCard")}</button>
-            {editingCardId && <button type="button" className="workspace-v6-card-delete" onClick={deleteEditingCard}><Trash2 size={16} />{t("focus.deleteCard")}</button>}
-          </section>}
+          <CardEditor cardDraft={cardDraft} cardKind={cardKind} deleteEditingCard={deleteEditingCard} editingCardId={editingCardId} popover={popover} saveCard={saveCard} setCardDraft={setCardDraft} setCardKind={setCardKind} setOpenSurface={setOpenSurface} t={t} workspaceReady={workspaceReady} />
 
-          {workspaceReady && popover("text").shown && <section {...popover("text").props} className="workspace-v2-action-popover is-text" role="dialog" aria-label={editingTextId ? t("focus.editTextAnnotation") : t("focus.addTextAnnotation")} onPointerDown={(event) => event.stopPropagation()}>
-            <header><strong>{editingTextId ? t("focus.editText") : activeVirtualPageId === null ? t("focus.addTextToPdfPage", { page }) : t("focus.addTextToBlankPage", { page })}</strong><button type="button" aria-label={t("focus.closeTextEditor")} onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="add"]')}><X size={17} /></button></header>
-            <label className="workspace-v3-text-entry"><span>{t("focus.annotationText")}</span><textarea ref={textInputRef} value={textDraft} maxLength={1000} rows={4} onChange={(event) => setTextDraft(event.target.value)} /></label>
-            <div className="workspace-v6-text-controls">
-              <label>{t("focus.size")} <input type="number" min="18" max="64" value={textFontSize} onChange={(event) => setTextFontSize(Math.min(64, Math.max(18, Number(event.target.value) || 18)))} /></label>
-              <label>{t("focus.color")} <input type="color" value={textColor} onChange={(event) => setTextColor(event.target.value)} /></label>
-              <button type="button" aria-pressed={textBold} className={textBold ? "is-active" : ""} onClick={() => setTextBold((current) => !current)}><strong>B</strong> Bold</button>
-              <label>{t("focus.align")} <select value={textAlign} onChange={(event) => setTextAlign(event.target.value)}><option value="left">{t("focus.left")}</option><option value="center">{t("focus.center")}</option><option value="right">{t("focus.right")}</option></select></label>
-            </div>
-            <button type="button" className="workspace-v3-menu-primary" onClick={addTextAnnotation} disabled={!textDraft.trim()}>{editingTextId ? t("focus.saveText") : t("focus.addText")}</button>
-          </section>}
+          <TextEditor activeVirtualPageId={activeVirtualPageId} addTextAnnotation={addTextAnnotation} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} editingTextId={editingTextId} page={page} popover={popover} setTextAlign={setTextAlign} setTextBold={setTextBold} setTextColor={setTextColor} setTextDraft={setTextDraft} setTextFontSize={setTextFontSize} t={t} textAlign={textAlign} textBold={textBold} textColor={textColor} textDraft={textDraft} textFontSize={textFontSize} textInputRef={textInputRef} workspaceReady={workspaceReady} />
 
-          {workspaceReady && !whiteboard && !personal && popover("study").shown && <section {...popover("study").props} id="workspace-study-popover" className="workspace-v2-action-popover is-more is-study" role="dialog" aria-label={t("focus.study")} onPointerDown={(event) => event.stopPropagation()}>
-            <header><strong>{t("focus.study")}</strong><button type="button" aria-label={t("focus.closeStudyMenu")} onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="study"]')}><X size={17} /></button></header>
-            <div className="workspace-v3-menu-list">
-              <button type="button" data-study-action="mode" onClick={() => { setOpenSurface(null); setModeDialogOpen(true); }}><Brain size={18} /><span><strong>{t(studyMode === "active" ? "focus.studyModeActive" : "focus.studyModeNormal")}</strong><small>{studyMode === "active" && activeStudy ? t("activeStudy.pageRange", { start: activeStudy.current_page_range?.start_page, end: activeStudy.current_page_range?.end_page }) : t("focus.studyModeHint")}</small></span></button>
-              {summariesEnabled && <hr className="workspace-v9-menu-separator" />}
-              {summariesEnabled && <button type="button" data-study-action="my-summary" onClick={() => { setOpenSurface(null); setSummaryDialogOpen(true); void sheetSummaries.reload(); }}><FileText size={18} /><span><strong>{t("summary.title")}</strong><small>{sheetSummaries.summaries.length ? sheetSummaries.summaries.map((item) => item.title).join(" · ") : t("summary.menuHint")}</small></span></button>}
-              {studyTools.length > 0 && <hr className="workspace-v9-menu-separator" />}
-              {studyTools.map(([tool, Icon]) => <button key={tool} type="button" data-study-tool={tool} aria-pressed={knowledgeOpen && knowledgeNavigation?.tool === tool} onClick={() => openStudyTool(tool)}><Icon size={18} /><span><strong>{t(`knowledge.${tool}`)}</strong></span></button>)}
-              {shareDocumentId && <hr className="workspace-v9-menu-separator" />}
-              {shareDocumentId && <button type="button" data-study-action="marks" onClick={() => { setOpenSurface(null); setMarksOpen(true); }}><Users size={18} /><span><strong>{t("marks.menu")}</strong><small>{t("marks.menuHint")}</small></span></button>}
-            </div>
-          </section>}
+          <StudyMenu activeStudy={activeStudy} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} knowledgeNavigation={knowledgeNavigation} knowledgeOpen={knowledgeOpen} openStudyTool={openStudyTool} personal={personal} popover={popover} setMarksOpen={setMarksOpen} setModeDialogOpen={setModeDialogOpen} setOpenSurface={setOpenSurface} setSummaryDialogOpen={setSummaryDialogOpen} shareDocumentId={shareDocumentId} sheetSummaries={sheetSummaries} studyMode={studyMode} studyTools={studyTools} summariesEnabled={summariesEnabled} t={t} whiteboard={whiteboard} workspaceReady={workspaceReady} />
 
-          {workspaceReady && popover("more").shown && <section {...popover("more").props} id="workspace-more-popover" className="workspace-v2-action-popover is-more" role="dialog" aria-label={t("focus.moreWorkspaceActions")} onPointerDown={(event) => event.stopPropagation()}>
-            <header><strong>{t("focus.workspace")}</strong><button type="button" aria-label={t("focus.closeWorkspaceActions")} onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="more"]')}><X size={17} /></button></header>
-            <div className="workspace-v3-menu-list">
-              {sheet.pdfUrl && <button type="button" data-workspace-action="search" onClick={() => setOpenSurface("search")} disabled={!searchDocumentProxy}><Search size={18} /><span><strong>{t("focus.searchDocument")}</strong>{documentSearch.matches.length > 0 && <small dir="auto">{documentSearch.query}</small>}</span></button>}
-              <button type="button" onClick={() => chooseWritingTool("pencil")}><Pencil size={18} /><span><strong>{t("focus.pencil")}</strong></span></button>
-              <button type="button" className="workspace-v3-compact-only" onClick={() => chooseWritingTool("shapes")}><Shapes size={18} /><span><strong>{t("focus.shapes")}</strong></span></button>
-              <button type="button" className="workspace-v3-phone-only" onClick={() => chooseWritingTool("highlighter")}><Highlighter size={18} /><span><strong>{t("focus.highlight")}</strong></span></button>
-              <button type="button" className="workspace-v3-phone-only" onClick={() => chooseWritingTool("eraser")}><Eraser size={18} /><span><strong>{t("focus.eraser")}</strong></span></button>
-              <button type="button" className="workspace-v3-phone-only" onClick={() => chooseWritingTool("select")}><MousePointer2 size={18} /><span><strong>{t("focus.lasso")}</strong></span></button>
-              <hr className="workspace-v9-menu-separator" />
-              {shareDocumentId && <button type="button" data-workspace-action="marks" onClick={() => { setOpenSurface(null); setMarksOpen(true); }}><Users size={18} /><span><strong>{t("marks.menu")}</strong><small>{t("marks.menuHint")}</small></span></button>}
-              <button type="button" onClick={() => exportStudyDocument("annotated", { share: true })} disabled={exportBusy}><Share2 size={18} /><span><strong>{t("focus.share")}</strong></span></button>
-              <button type="button" data-drill="" onClick={() => { setExportRangeStart(page); setExportRangeEnd(page); setOpenSurface("export"); }}><FileText size={18} /><span><strong>{t("focus.export")}</strong></span></button>
-              <hr className="workspace-v9-menu-separator" />
-              {!personal && <button type="button" aria-label={bookmarked ? t("focus.removeFromBookmarks") : t("focus.saveToBookmarks")} aria-pressed={bookmarked} onClick={toggleBookmark} disabled={bookmarkBusy}><Bookmark size={18} fill={bookmarked ? "currentColor" : "none"} /><span><strong>{bookmarked ? t("focus.removeBookmark") : t("focus.bookmarkPage")}</strong></span></button>}
-              {coverIds.length > 0 && <button type="button" onClick={toggleAllCovers}>{allCoversRevealed ? <EyeOff size={18} /> : <Eye size={18} />}<span><strong>{allCoversRevealed ? t("focus.hideAllCovers") : t("focus.revealAllCovers")}</strong><small>{t("focus.hiddenOnPage")}: {coverIds.length}</small></span></button>}
-              <button type="button" onClick={() => { setAnnotationsHidden((value) => !value); setSelectedIds([]); setActiveTool("hand"); }} aria-pressed={annotationsHidden}>{annotationsHidden ? <Eye size={18} /> : <EyeOff size={18} />}<span><strong>{annotationsHidden ? t("focus.showAnnotations") : t("focus.hideAnnotations")}</strong></span></button>
-              <button type="button" onClick={toggleDocumentFullscreen}>{isDocumentFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}<span><strong>{isDocumentFullscreen ? t("focus.exitFullScreen") : t("focus.fullScreenMode")}</strong></span></button>
-              <hr className="workspace-v9-menu-separator" />
-              <button type="button" data-drill="" onClick={() => setOpenSurface("history")}><List size={18} /><span><strong>{t("focus.versionHistory")}</strong></span></button>
-              {activeVirtualPageId !== null && <button type="button" onClick={() => deleteBlankPage()}><Trash2 size={18} /><span><strong>{t("focus.deleteBlankPage")}</strong></span></button>}
-              <button type="button" data-drill="" aria-label={t("focus.workspaceSettings")} aria-controls="workspace-settings-popover" onClick={() => setOpenSurface("settings")}><Settings size={18} /><span><strong>{t("focus.settings")}</strong></span></button>
-            </div>
-          </section>}
+          <MoreMenu openZoomWindow={openZoomWindow} activeVirtualPageId={activeVirtualPageId} allCoversRevealed={allCoversRevealed} annotationsHidden={annotationsHidden} bookmarkBusy={bookmarkBusy} bookmarked={bookmarked} chooseWritingTool={chooseWritingTool} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} coverIds={coverIds} deleteBlankPage={deleteBlankPage} documentSearch={documentSearch} exportBusy={exportBusy} openNewWhiteboard={openNewWhiteboard} page={page} personal={personal} popover={popover} searchDocumentProxy={searchDocumentProxy} selectTool={selectTool} setActiveTool={setActiveTool} setAnnotationsHidden={setAnnotationsHidden} setExportForShare={setExportForShare} setExportRangeEnd={setExportRangeEnd} setExportRangeStart={setExportRangeStart} setMarksOpen={setMarksOpen} setOpenSurface={setOpenSurface} setSelectedIds={setSelectedIds} shareDocumentId={shareDocumentId} sheet={sheet} sheetEdition={sheetEdition} singleTab={singleTab} studyInProgress={studyInProgress} studyRangeLabel={studyRangeLabel} summaryMode={summaryMode} t={t} toggleAllCovers={toggleAllCovers} toggleBookmark={toggleBookmark} whiteboard={whiteboard} workspaceReady={workspaceReady} />
 
-          {workspaceReady && popover("export").shown && <section {...popover("export").props} className="workspace-v2-action-popover is-more" role="dialog" aria-label={t("focus.exportWorkspace")} onPointerDown={(event) => event.stopPropagation()}>
-            <header><strong>{t("focus.export")}</strong><button type="button" aria-label={t("focus.closeExportMenu")} onClick={() => setOpenSurface("more")}><X size={17} /></button></header>
-            <div className="workspace-v3-menu-list">
-              <button type="button" onClick={() => exportStudyDocument("original")} disabled={exportBusy || studyMode === "active"}><Download size={18} /><span><strong>{t("focus.originalPDF")}</strong></span></button>
-              <button type="button" onClick={() => exportStudyDocument("annotated")} disabled={exportBusy}><FileText size={18} /><span><strong>{t("focus.pdfWithAnnotations")}</strong></span></button>
-              <button type="button" onClick={() => exportStudyDocument("current")} disabled={exportBusy}><FileText size={18} /><span><strong>{t("focus.currentPage")}</strong></span></button>
-              <div className="workspace-v6-export-range"><label>{t("focus.from")} <input type="number" min="1" max={accessiblePageCount} value={exportRangeStart} onChange={(event) => setExportRangeStart(Number(event.target.value) || 1)} /></label><label>{t("focus.to")} <input type="number" min="1" max={accessiblePageCount} value={exportRangeEnd} onChange={(event) => setExportRangeEnd(Number(event.target.value) || 1)} /></label><button type="button" onClick={() => exportStudyDocument("range")} disabled={exportBusy}>{t("focus.exportPageRange")}</button></div>
-              <button type="button" onClick={() => exportStudyDocument("png")} disabled={exportBusy}><ImageIcon size={18} /><span><strong>{t("focus.imagePNG")}</strong></span></button>
-            </div>
-          </section>}
+          <ExportMenu accessiblePageCount={accessiblePageCount} exportBusy={exportBusy} exportForShare={exportForShare} exportRangeEnd={exportRangeEnd} exportRangeStart={exportRangeStart} exportStudyDocument={exportStudyDocument} popover={popover} setExportRangeEnd={setExportRangeEnd} setExportRangeStart={setExportRangeStart} setOpenSurface={setOpenSurface} studyMode={studyMode} t={t} workspaceReady={workspaceReady} />
 
-          {workspaceReady && popover("history").shown && <section {...popover("history").props} className="workspace-v2-action-popover is-more" role="dialog" aria-label={t("focus.versionHistory")} onPointerDown={(event) => event.stopPropagation()}>
-            <header><strong>{t("focus.versionHistory")}</strong><button type="button" aria-label={t("focus.closeVersionHistory")} onClick={() => setOpenSurface("more")}><X size={17} /></button></header>
-            <div className="workspace-v3-menu-list workspace-v6-history"><p>{t("focus.editsFromThisSessionUse")}</p><strong>{undoHistory.length} edit{undoHistory.length === 1 ? "" : "s"} available</strong><button type="button" onClick={undoTool} disabled={!undoHistory.length}><Undo2 size={18} /><span><strong>{t("focus.undoMostRecentEdit")}</strong><small>{t("focus.redoRemainsAvailableInThe")}</small></span></button></div>
-          </section>}
-
-          {workspaceReady && popover("search").shown && <section {...popover("search").props} id="workspace-search-popover" className="workspace-v2-action-popover is-more is-search" role="dialog" aria-label={t("focus.searchDocument")} onPointerDown={(event) => event.stopPropagation()}>
-            <DocumentSearchPanel search={documentSearch} coveredIds={coveredMatchIds} open={openSurface === "search"} onShowMatch={showSearchMatch} onHideMatches={hideSearchMatches} onClose={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="more"]')} />
-          </section>}
+          <SearchMenu closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} coveredMatchIds={coveredMatchIds} documentSearch={documentSearch} hideSearchMatches={hideSearchMatches} openSurface={openSurface} popover={popover} showSearchMatch={showSearchMatch} t={t} workspaceReady={workspaceReady} />
           {workspaceReady && openSurface !== "search" && <SearchNavigator search={documentSearch} onShowMatch={showSearchMatch} onOpen={() => setOpenSurface("search")} onHideMatch={() => documentSearch.activeMatch && hideSearchMatches([documentSearch.activeMatch], true)} covered={Boolean(documentSearch.activeMatch && coveredMatchIds.has(documentSearch.activeMatch.id))} />}
 
-          {workspaceReady && displayedToolOptions && <div ref={toolOptionsRef} id={`workspace-${displayedToolOptions}-options`} className={`workspace-v2-tool-options${toolOptionsOpen ? "" : " is-exiting"}`} data-workspace-tool={toolOptionsOpen ? displayedToolOptions : undefined} role="dialog" aria-label={`${activeToolLabel} options`} aria-hidden={!toolOptionsOpen} inert={toolOptionsOpen ? undefined : ""} onPointerDown={(event) => event.stopPropagation()}>
-            <div className="workspace-v2-tool-options-title">
-              <span><strong>{TOOL_PANEL_COPY[activeTool] ? t(TOOL_PANEL_COPY[activeTool][0]) : activeToolLabel}</strong><small>{TOOL_PANEL_COPY[activeTool] ? t(TOOL_PANEL_COPY[activeTool][1]) : ""}</small></span>
-              <span className="workspace-v7-preview-well"><ToolPreview tool={activeTool} color={activeColor} size={activeTool === "eraser" ? eraserSize : brushSize} opacity={activeToolOpacity} shape={shapeStyle} fill={shapeFill ? shapeFillColor : null} dashed={shapeDashed} lassoMode={lassoMode} penProfile={penProfile} /></span>
-            </div>
-            <div className="workspace-v7-panel-body">
-              {activeTool === "pen" && <section className="workspace-v5-inspector-section"><PenProfilePicker value={penProfile} onChange={changePenProfile} color={activeColor} /></section>}
-              {activeTool === "shapes" && <section className="workspace-v5-inspector-section"><IconChoiceGroup label={t("focus.shapeType")} value={shapeStyle} options={SHAPE_OPTIONS} onChange={setShapeStyle} /></section>}
+          <ToolOptionsPanel favoritesStrip={favoritePensStrip("is-panel")} activeColor={activeColor} activePenOption={activePenOption} activeTool={activeTool} activeToolLabel={activeToolLabel} activeToolOpacity={activeToolOpacity} brushSize={brushSize} changePenProfile={changePenProfile} chooseAnnotationColor={chooseAnnotationColor} circleToErase={circleToErase} clearPageAnnotations={clearPageAnnotations} commitCustomColor={commitCustomColor} customColorDraft={customColorDraft} customColorEditorOpen={customColorEditorOpen} customColorSet={customColorSet} deleteCustomColor={deleteCustomColor} displayedToolOptions={displayedToolOptions} drawAndHold={drawAndHold} eraserMode={eraserMode} eraserSize={eraserSize} favoriteColors={favoriteColors} inkToolActive={inkToolActive} lassoMode={lassoMode} pageAnnotations={pageAnnotations} paletteColors={paletteColors} penProfile={penProfile} recentColors={recentColors} selectedAnnotations={selectedAnnotations} setBrushSize={setBrushSize} setCircleToErase={setCircleToErase} setCustomColorDraft={setCustomColorDraft} setCustomColorEditorOpen={setCustomColorEditorOpen} setDrawAndHold={setDrawAndHold} setEraserMode={setEraserMode} setEraserSize={setEraserSize} setLassoMode={setLassoMode} setShapeAngle={setShapeAngle} setShapeDashed={setShapeDashed} setShapeFill={setShapeFill} setShapeFillColor={setShapeFillColor} setShapeSnapGrid={setShapeSnapGrid} setShapeStyle={setShapeStyle} shapeAngle={shapeAngle} shapeDashed={shapeDashed} shapeFill={shapeFill} shapeFillColor={shapeFillColor} shapeSnapGrid={shapeSnapGrid} shapeStyle={shapeStyle} showColorPalette={showColorPalette} t={t} toggleFavoriteColor={toggleFavoriteColor} toolOptionsOpen={toolOptionsOpen} toolOptionsRef={toolOptionsRef} updateActiveToolOpacity={updateActiveToolOpacity} workspaceReady={workspaceReady} />
 
-              {activeTool === "eraser" && <section className="workspace-v5-inspector-section"><h3>{t("focus.eraseMode")}</h3><IconChoiceGroup label={t("focus.eraserMode")} value={eraserMode} options={ERASER_MODE_OPTIONS} onChange={setEraserMode} /><p>{eraserMode === ERASER_MODE.STROKE ? t("focus.eraserHintStroke") : eraserMode === ERASER_MODE.OBJECT ? t("focus.eraserHintObject") : t("focus.eraserHintPixel")}</p></section>}
-              {activeTool === "eraser" && <section className="workspace-v5-inspector-section"><h3>{t("focus.size")}</h3><QuickSizes values={ERASER_QUICK_SIZES} value={eraserSize} onChange={setEraserSize} label={t("focus.eraserSize")} /><ToolRange label={t("focus.eraserSize")} value={eraserSize} displayValue={`${eraserSize}px`} min={6} max={48} step={2} preview="eraser" onChange={setEraserSize} /></section>}
-              {activeTool === "eraser" && <section className="workspace-v5-inspector-section workspace-v7-rows"><button type="button" className="workspace-v2-settings-action is-danger" onClick={clearPageAnnotations} disabled={!pageAnnotations.some((item) => !item.locked)}><Trash2 size={18} /><span><strong>{t("focus.clearPageHandwriting")}</strong><small>{t("focus.removeUnlockedMarksOnThis")}</small></span></button></section>}
-
-              {activeTool === "select" && <section className="workspace-v5-inspector-section"><IconChoiceGroup label={t("focus.lassoMode")} value={lassoMode} options={LASSO_MODE_OPTIONS} onChange={setLassoMode} /></section>}
-              {activeTool === "select" && !selectedAnnotations.length && <p className="workspace-v9-panel-hint">{t("focus.drawAroundMarksToSelect")}</p>}
-              {inkToolActive && <section className="workspace-v5-inspector-section"><h3>{activeTool === "shapes" ? t("focus.strokeWidth") : t("focus.thickness")}</h3>
-                <QuickSizes values={QUICK_THICKNESSES} value={brushSize} onChange={setBrushSize} label={activeTool === "shapes" ? t("focus.borderWidth") : t("focus.thickness")} />
-                <ToolRange label={activeTool === "shapes" ? t("focus.borderWidth") : t("focus.thickness")} value={brushSize} displayValue={formatThickness(brushSize)} min={1} max={12} step={THICKNESS_STEP} onChange={(size) => setBrushSize(roundThickness(size))} color={activeColor} />
-              </section>}
-              {inkToolActive && <section className="workspace-v5-inspector-section workspace-v7-adjust">
-                <ToolRange label={t("focus.opacity")} value={activeToolOpacity} displayValue={`${Math.round(activeToolOpacity * 100)}%`} min={activeTool === "highlighter" ? .1 : .2} max={1} step={.05} preview="opacity" color={activeColor} onChange={updateActiveToolOpacity} />
-                {["pen", "pencil"].includes(activeTool) && <ToolRange label={t("focus.strokeSmoothing")} caption={t("focus.smoothing")} value={strokeSmoothing} displayValue={`${Math.round(strokeSmoothing * 100)}%`} min={0} max={1} step={.05} preview="smoothing" onChange={setStrokeSmoothing} color={activeColor} />}
-                {activeTool === "pen" && <ToolRange label={t("focus.pressureSensitivity")} caption={t("focus.pressure")} value={pressureSensitivity} displayValue={`${Math.round(pressureSensitivity * 100)}%`} min={0} max={1} step={.05} preview="pressure" onChange={setPressureSensitivity} color={activeColor} />}
-              </section>}
-
-              {showColorPalette && <section className="workspace-v5-inspector-section"><h3>{activeTool === "select" ? t("focus.selectedMarkColor") : activeTool === "shapes" ? t("focus.strokeColor") : t("focus.colors")}</h3>
-                <div className="workspace-v2-colors" aria-label={activeTool === "select" ? t("focus.selectionColors") : t("focus.annotationColors")}>
-                  {paletteColors.map((color) => <span key={color} className={`workspace-v2-color-item${customColorSet.has(color) ? " is-custom" : ""}`}>
-                    <button type="button" className={`workspace-v2-color-swatch${activeColor === color ? " is-active" : ""}`} aria-label={t("focus.useColor", { color })} title={color} aria-pressed={activeColor === color} style={cssVars({ "--workspace-tool-color": color })} onClick={() => chooseAnnotationColor(color)} />
-                    {customColorSet.has(color) && <button type="button" className="workspace-v2-color-delete" aria-label={t("focus.deleteColor", { color })} title={t("focus.deleteColor", { color })} onClick={() => deleteCustomColor(color)}><Minus size={11} /></button>}
-                  </span>)}
-                  {paletteColors.length < MAX_PALETTE_COLORS && <button type="button" className={`workspace-v2-custom-color${customColorEditorOpen ? " is-active" : ""}`} aria-label={t("focus.addColor")} title={t("focus.addColor")} aria-expanded={customColorEditorOpen} onClick={() => { setCustomColorDraft(activeColor); setCustomColorEditorOpen((current) => !current); }}><Plus size={15} /><span>{t("focus.add")}</span></button>}
-                  <button type="button" className={`workspace-v4-favorite-color${favoriteColors.includes(activeColor) ? " is-active" : ""}`} aria-label={favoriteColors.includes(activeColor) ? t("focus.removeFavoriteColor") : t("focus.favoriteCurrentColor")} aria-pressed={favoriteColors.includes(activeColor)} onClick={toggleFavoriteColor}><Star size={15} fill={favoriteColors.includes(activeColor) ? "currentColor" : "none"} /></button>
-                  {customColorEditorOpen && <div className="workspace-v2-custom-color-editor" role="group" aria-label={t("focus.customColorEditor")}>
-                    <input type="color" aria-label={t("focus.chooseCustomColor")} value={customColorDraft} onChange={(event) => setCustomColorDraft(event.target.value)} />
-                    <button type="button" aria-label={t("focus.saveCustomColor")} title={t("focus.saveColor")} onClick={commitCustomColor}><Check size={16} /></button>
-                  </div>}
-                </div>
-              </section>}
-              {["pen", "highlighter"].includes(activeTool) && recentColors.length > 0 && <section className="workspace-v5-inspector-section"><h3>{t("focus.recentColors")}</h3><div className="workspace-v6-color-strip">{recentColors.slice(0, 8).map((color) => <button key={color} type="button" aria-label={t("focus.useRecentColor", { color })} className={activeColor === color ? "is-active" : ""} style={cssVars({ "--workspace-tool-color": color })} onClick={() => chooseAnnotationColor(color)} />)}</div></section>}
-              {["pen", "highlighter"].includes(activeTool) && favoriteColors.length > 0 && <section className="workspace-v5-inspector-section"><h3>{t("focus.favorites")}</h3><div className="workspace-v6-color-strip">{favoriteColors.map((color) => <button key={color} type="button" aria-label={t("focus.useFavoriteColor", { color })} className={activeColor === color ? "is-active" : ""} style={cssVars({ "--workspace-tool-color": color })} onClick={() => chooseAnnotationColor(color)} />)}</div></section>}
-
-              {activeTool === "highlighter" && <section className="workspace-v5-inspector-section workspace-v7-rows"><SettingsToggle icon={Minus} label={t("focus.straightenOnRelease")} description={t("focus.aNearStraightHighlightBecomes")} checked={drawAndHold} onChange={setDrawAndHold} /></section>}
-
-              {activeTool === "shapes" && <section className="workspace-v5-inspector-section workspace-v7-rows"><h3>{t("focus.style")}</h3>
-                <SettingsToggle icon={PaintBucket} label={t("focus.fillShape")} description={t("focus.useASolidColorInside")} checked={shapeFill} onChange={setShapeFill} />
-                {shapeFill && <div className="workspace-v7-fill-colors" role="group" aria-label={t("focus.fillColors")}>
-                  {SHAPE_FILL_COLORS.map((color) => <button key={color} type="button" className={shapeFillColor === color ? "is-active" : ""} aria-label={t("focus.fillWith", { color })} aria-pressed={shapeFillColor === color} style={cssVars({ "--workspace-tool-color": color })} onClick={() => setShapeFillColor(color)} />)}
-                  <label className="workspace-v7-fill-custom"><span className="workspace-v2-visually-hidden">{t("focus.customFillColor")}</span><input type="color" value={shapeFillColor} onChange={(event) => setShapeFillColor(event.target.value)} /></label>
-                </div>}
-                <SettingsToggle icon={Minus} label={t("focus.dashedLine")} description={t("focus.drawBordersAndLinesAs")} checked={shapeDashed} onChange={setShapeDashed} />
-                <SettingsToggle icon={Sparkles} label={t("focus.perfectShapesOnRelease")} description={t("focus.straightenLinesAndCleanUp")} checked={drawAndHold} onChange={setDrawAndHold} />
-                <SettingsToggle icon={Hash} label={t("focus.snapToGrid")} description={t("focus.alignEndpointsToA25")} checked={shapeSnapGrid} onChange={setShapeSnapGrid} />
-                <SettingsToggle icon={Ruler} label={t("focus.straightenLine")} description={t("focus.snapLineAndArrowAngles")} checked={shapeAngle > 0} onChange={(enabled) => setShapeAngle(enabled ? 15 : 0)} />
-                {shapeAngle > 0 && <label className="workspace-v7-select-row">{t("focus.angleSteps")} <select value={shapeAngle} onChange={(event) => setShapeAngle(Number(event.target.value))}><option value="15">15°</option><option value="30">30°</option><option value="45">45°</option><option value="90">90°</option></select></label>}
-              </section>}
-
-              {activeTool === "pen" && <details className="workspace-v5-advanced"><summary>{t("focus.presetsAndGestures")}</summary>
-                <div className="workspace-v6-quick-presets" role="group" aria-label={t("focus.quickPenPresets")}>{["notes", "underline", "bold"].map((kind) => <button key={kind} type="button" onClick={() => applyQuickPenPreset(kind)}><span className={`is-${kind}`} /><strong>{kind[0].toUpperCase() + kind.slice(1)}</strong></button>)}</div>
-                <div className="workspace-v4-pen-presets" aria-label={t("focus.savedPenPresets")}>
-                  {penPresets.map((preset, index) => <span key={preset.id} className="workspace-v4-pen-preset"><button type="button" aria-label={t("focus.usePenPreset", { number: index + 1 })} title={t("focus.presetNumber", { number: index + 1 })} onClick={() => applyPenPreset(preset)} style={cssVars({ "--workspace-tool-color": preset.color, "--workspace-preset-size": `${Math.max(2, Number(preset.size) || 4)}px` })}><i /></button><button type="button" aria-label={t("focus.deletePenPreset", { number: index + 1 })} onClick={() => setPenPresets((items) => items.filter((item) => item.id !== preset.id))}><X size={10} /></button></span>)}
-                  <button type="button" className="workspace-v4-save-preset" aria-label={t("focus.saveCurrentPenPreset")} onClick={savePenPreset} disabled={penPresets.length >= 4}><Plus size={14} /><span>{t("focus.preset")}</span></button>
-                </div>
-                <div className="workspace-v4-pen-gestures workspace-v7-rows" aria-label={t("focus.penGestures")}><SettingsToggle icon={Shapes} label={t("focus.perfectShapesOnRelease")} description={t("focus.refineLinesAndShapesWhen")} checked={drawAndHold} onChange={setDrawAndHold} /><SettingsToggle icon={Circle} label={t("focus.circleErase")} description={t("focus.circleMarksAndHoldTo")} checked={circleToErase} onChange={setCircleToErase} /></div>
-              </details>}
-            </div>
-          </div>}
-
-          {workspaceReady && popover("settings").shown && <section {...popover("settings").props} id="workspace-settings-popover" className="workspace-v2-settings-popover workspace-v8-settings" role="dialog" aria-label={t("focus.workspaceSettings")} onPointerDown={(event) => event.stopPropagation()}>
-            <header className="workspace-v8-settings-head"><strong>{t("focus.settings")}</strong><button type="button" aria-label={t("focus.closeWorkspaceSettings")} onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="more"]')}><X size={17} /></button></header>
-            <div className="workspace-v8-settings-tabs" role="tablist" aria-label={t("focus.settingsSections")}>
-              {SETTINGS_SECTIONS.map(({ id, label }) => <button key={id} id={`workspace-settings-tab-${id}`} type="button" role="tab" aria-selected={settingsTab === id} aria-controls="workspace-settings-panel" tabIndex={settingsTab === id ? 0 : -1} onClick={() => setSettingsTab(id)} onKeyDown={(event) => {
-                const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
-                if (!step) return;
-                event.preventDefault();
-                const direction = window.getComputedStyle(event.currentTarget).direction === "rtl" ? -step : step;
-                const index = SETTINGS_SECTIONS.findIndex((section) => section.id === settingsTab);
-                const next = SETTINGS_SECTIONS[(index + direction + SETTINGS_SECTIONS.length) % SETTINGS_SECTIONS.length];
-                setSettingsTab(next.id);
-                window.requestAnimationFrame(() => document.getElementById(`workspace-settings-tab-${next.id}`)?.focus());
-              }}>{t(label)}</button>)}
-            </div>
-            <div id="workspace-settings-panel" className="workspace-v2-settings-content workspace-v8-settings-panel" role="tabpanel" aria-labelledby={`workspace-settings-tab-${settingsTab}`}>
-              {settingsTab === "drawing" && <>
-                <div className="workspace-v8-settings-group">
-                  <SettingsToggle icon={PenLine} label={t("focus.applePencilMode")} description={t("focus.onlyThePencilDrawsFingers")} checked={drawingInput === DRAWING_INPUT.STYLUS_ONLY} onChange={(enabled) => changeDrawingInput(enabled ? DRAWING_INPUT.STYLUS_ONLY : DRAWING_INPUT.STYLUS_AND_FINGER)} />
-                  <ToolRange label={t("focus.pressureSensitivity")} value={pressureSensitivity} displayValue={`${Math.round(pressureSensitivity * 100)}%`} min={0} max={1} step={.05} onChange={setPressureSensitivity} color={activeColor} />
-                  <ToolRange label={t("focus.strokeSmoothing")} value={strokeSmoothing} displayValue={`${Math.round(strokeSmoothing * 100)}%`} min={0} max={1} step={.05} onChange={setStrokeSmoothing} color={activeColor} />
-                </div>
-                <div className="workspace-v8-settings-group">
-                  <SettingsToggle icon={Sparkles} label={t("focus.improveNewHandwriting")} description={t("focus.smoothNewPenAndPencil")} checked={autoImproveHandwriting} onChange={setAutoImproveHandwriting} />
-                  <SettingsToggle icon={Ruler} label={t("focus.straightLinesShapes")} description={t("focus.snapNearStraightLinesAnd")} checked={drawAndHold} onChange={setDrawAndHold} />
-                  <SettingsToggle icon={Eraser} label={t("focus.scribbleToErase")} description={t("focus.scratchAcrossYourOwnInk")} checked={scribbleToErase} onChange={setScribbleToErase} />
-                  <SettingsToggle icon={Circle} label={t("focus.circleToErase")} description={t("focus.circleHandwritingAndHoldTo")} checked={circleToErase} onChange={setCircleToErase} />
-                </div>
-              </>}
-              {settingsTab === "canvas" && <>
-                {activeVirtualPageId !== null
-                  ? <div className="workspace-v8-settings-group">
-                    <p className="workspace-v8-settings-label">{t("focus.thisPageSBackground")}</p>
-                    <div className="workspace-v8-segmented" role="radiogroup" aria-label={t("focus.pageBackground")}>
-                      {PAGE_BACKGROUND_CHOICES.map(([background, labelKey]) => <button key={background} type="button" role="radio" aria-checked={activeVirtualPage?.background === background} onClick={() => changeVirtualPageBackground(background)}><span className={`workspace-v6-page-pattern is-${background}`} aria-hidden="true" />{t(labelKey)}</button>)}
-                    </div>
-                  </div>
-                  : <div className="workspace-v8-settings-group">
-                    <p className="workspace-v8-settings-label">{t("focus.addPageAfterPage", { page })}</p>
-                    <div className="workspace-v8-segmented" role="group" aria-label={t("focus.addAPage")}>
-                      {PAGE_BACKGROUND_CHOICES.map(([background, labelKey]) => <button key={background} type="button" aria-label={t("focus.addBackgroundPage", { background: t(labelKey).toLowerCase() })} disabled={!sheet.pdfUrl || !pdfDocumentReady} onClick={() => addBlankPage(background)}><span className={`workspace-v6-page-pattern is-${background}`} aria-hidden="true" />{t(labelKey)}</button>)}
-                    </div>
-                  </div>}
-                <div className="workspace-v8-settings-group">
-                  <SettingsToggle icon={Eye} label={t("focus.showAnnotations")} description={t("focus.turnOffToSeeOnly")} checked={!annotationsHidden} onChange={(shown) => { setAnnotationsHidden(!shown); setSelectedIds([]); if (!shown) setActiveTool("hand"); }} />
-                </div>
-                <div className="workspace-v8-settings-group">
-                  <button type="button" className="workspace-v2-settings-action is-danger" onClick={clearPageAnnotations} disabled={!pageAnnotations.some((item) => !item.locked)}><Trash2 size={18} /><span><strong>{activeVirtualPageId === null ? t("focus.clearInkOnPdfPage", { page }) : t("focus.clearInkThisPage")}</strong><small>{t("focus.removesUnlockedMarksUndoRestores")}</small></span></button>
-                  {activeVirtualPageId !== null && <button type="button" className="workspace-v2-settings-action is-danger" onClick={() => deleteBlankPage()}><Trash2 size={18} /><span><strong>{t("focus.deleteThisAddedPage")}</strong><small>{t("focus.removesThePageAndIts")}</small></span></button>}
-                </div>
-              </>}
-              {settingsTab === "view" && <>
-                <div className="workspace-v8-settings-group">
-                  {sheet.pdfUrl && <button type="button" className="workspace-v2-settings-action" onClick={fitPdfWidth}><MoveHorizontal size={18} /><span><strong>{t("focus.fitPageWidth")}</strong><small>{t("focus.resetTheZoomSoThe")}</small></span></button>}
-                  <SettingsToggle icon={ZoomIn} label={t("focus.rememberZoomLevel")} description={t("focus.reopenThisSheetAtYour")} checked={rememberZoomLevel} onChange={setRememberZoomLevel} />
-                  <SettingsToggle icon={Hash} label={t("focus.showPageNumber")} description={t("focus.keepThePageCounterIn")} checked={showPageNumber} onChange={setShowPageNumber} />
-                  <SettingsToggle icon={Bookmark} label={t("focus.resumeActiveStudyWhereI")} description={t("focus.reopenAnActiveStudyPart")} checked={rememberLastPosition} onChange={setRememberLastPosition} />
-                  {wakeLockSupported && <SettingsToggle icon={Power} label={t("focus.keepScreenAwake")} description={t("focus.stopTheScreenFromSleeping")} checked={keepScreenAwake} onChange={setKeepScreenAwake} />}
-                </div>
-              </>}
-              {settingsTab === "other" && <>
-                <div className="workspace-v8-settings-group">
-                  <button type="button" className="workspace-v2-settings-action" onClick={() => exportStudyDocument("annotated")} disabled={exportBusy}><FileText size={18} /><span><strong>{t("focus.exportAsPDF")}</strong><small>{t("focus.yourPagesWithEveryMark")}</small></span></button>
-                  <button type="button" className="workspace-v2-settings-action" onClick={() => exportStudyDocument("png")} disabled={exportBusy}><ImageIcon size={18} /><span><strong>{t("focus.exportThisPageAsAn")}</strong><small>{t("focus.pngOfThePageYou")}</small></span></button>
-                  <SettingsToggle icon={BookOpen} label={t("focus.includeAddedPages")} description={t("focus.putPagesYouAddedInto")} checked={includeWorkspacePages} onChange={setIncludeWorkspacePages} />
-                </div>
-                <div className="workspace-v8-settings-group">
-                  {saveState === "error" && <p className="workspace-v2-settings-note" role="alert">{saveErrorReason || t("focus.marksNotSaved")}</p>}
-                  <button type="button" className="workspace-v2-settings-action" onClick={exportWorkspaceBackup} disabled={backupBusy}><Download size={18} /><span><strong>{t("focus.exportWorkspaceBackup")}</strong><small>{t("focus.saveEditableMarksAndNotes")}</small></span></button>
-                  <button type="button" className="workspace-v2-settings-action" onClick={() => backupInputRef.current?.click()} disabled={backupBusy}><Upload size={18} /><span><strong>{t("focus.restoreABackup")}</strong><small>{t("focus.addAnythingMissingWithoutReplacing")}</small></span></button>
-                  {pendingImport && <div className="workspace-v2-settings-confirm" role="group" aria-label={t("focus.confirmRestoreFromAnotherSheet")}><p>{t("focus.restoreMarksFrom", { count: pendingImport.annotations.length, sheet: pendingImport.sheetTitle || pendingImport.sheetSlug })}</p><div><button type="button" onClick={() => applyRestoredBackup(pendingImport)}>{t("focus.restoreAnyway")}</button><button type="button" onClick={() => setPendingImport(null)}>{t("focus.cancel")}</button></div></div>}
-                </div>
-              </>}
-              <input ref={backupInputRef} className="workspace-v2-file-input" type="file" accept="application/json,.json" onChange={readWorkspaceBackup} tabIndex={-1} aria-hidden="true" />
-            </div>
-          </section>}
+          <SettingsPopover activeVirtualPage={activeVirtualPage} activeVirtualPageId={activeVirtualPageId} addBlankPage={addBlankPage} annotationsHidden={annotationsHidden} applyRestoredBackup={applyRestoredBackup} autoImproveHandwriting={autoImproveHandwriting} backupBusy={backupBusy} backupInputRef={backupInputRef} changeDrawingInput={changeDrawingInput} changeVirtualPageBackground={changeVirtualPageBackground} circleToErase={circleToErase} clearPageAnnotations={clearPageAnnotations} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} deleteBlankPage={deleteBlankPage} drawAndHold={drawAndHold} drawingInput={drawingInput} exportBusy={exportBusy} exportStudyDocument={exportStudyDocument} exportWorkspaceBackup={exportWorkspaceBackup} includeWorkspacePages={includeWorkspacePages} keepScreenAwake={keepScreenAwake} page={page} pageAnnotations={pageAnnotations} pdfDocumentReady={pdfDocumentReady} pendingImport={pendingImport} popover={popover} readWorkspaceBackup={readWorkspaceBackup} rememberLastPosition={rememberLastPosition} rememberZoomLevel={rememberZoomLevel} saveErrorReason={saveErrorReason} saveState={saveState} scribbleToErase={scribbleToErase} setActiveTool={setActiveTool} setAnnotationsHidden={setAnnotationsHidden} setAutoImproveHandwriting={setAutoImproveHandwriting} setCircleToErase={setCircleToErase} setDrawAndHold={setDrawAndHold} setIncludeWorkspacePages={setIncludeWorkspacePages} setKeepScreenAwake={setKeepScreenAwake} setPendingImport={setPendingImport} setRememberLastPosition={setRememberLastPosition} setRememberZoomLevel={setRememberZoomLevel} setScribbleToErase={setScribbleToErase} setSelectedIds={setSelectedIds} setSettingsTab={setSettingsTab} setShowPageNumber={setShowPageNumber} settingsTab={settingsTab} sheet={sheet} showPageNumber={showPageNumber} t={t} wakeLockSupported={wakeLockSupported} workspaceReady={workspaceReady} />
 
           <div
             className={`workspace-v2-document-stage is-tool-${activeTool}`}
@@ -6980,50 +6119,28 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
             {sheet.pdfUrl ? <ContinuousA4Pdf pdfUrl={sheet.pdfUrl} pageCount={pageCount} visiblePageStart={accessiblePageStart} visiblePageCount={accessiblePageCount} zoom={zoom} stageRef={stageRef} documentRootRef={documentRef} onPageCount={syncPdfPageCount} onDocumentReady={markPdfDocumentReady} onDocumentLoaded={handlePdfDocumentLoaded} onCurrentPageChange={handleCurrentWorkspacePage} virtualPages={readerVirtualPages} renderPageOverlay={renderPdfPageOverlay} onPdfPageRendered={recordPdfPageRender} documentFooter={whiteboard ? <div className="workspace-whiteboard-footer"><button type="button" onClick={addWhiteboardPage}><Plus size={18} /><span>{t("workspaceTabs.addPage")}</span></button></div> : null} /> : <article ref={documentRef} className="workspace-v2-document" onDoubleClick={smartZoom} style={cssVars({ "--workspace-document-width": `${PAGE_WIDTH * zoom}px`, "--workspace-document-min-height": `${760 * zoom}px`, "--workspace-document-max-width": "none" })}>
               <svg className={annotationLayerClass} viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-label={t("focus.documentAnnotations")}>
                 <AnnotationVisuals annotations={annotationsHidden ? [] : pageAnnotations} prefix={`document-${page}`} includeHitTargets={activeTool === "select" && !annotationsHidden} revealedIds={revealedCoverIds} />
-                {draftAnnotation && draftAnnotation.type !== "lasso" && <WorkspaceAnnotation annotation={draftAnnotation} draft />}
+                <DraftAnnotationLayer ref={draftLayerRef} latest={draftAnnotationRef} />
                 {selectionPage !== null && renderSelectionBox(page)}
               </svg>
               <LiveAnnotationCanvas ref={liveStrokeCanvasRef} pageNumber={page} />
               <TransientInkCanvas store={transientInkRef.current} pageNumber={page} />
-              <h1>{topicTitle}</h1>
-              <p className="workspace-v2-lead">{topicSummary} It helps connect foundational knowledge with confident clinical decisions.</p>
-              <div className="workspace-v2-selection-actions" aria-label={t("focus.selectedTextActions")}>
-                <button type="button" onClick={() => navigate("/questions")}><Copy size={16} />{t("focus.createFlashcard")}</button>
-                <button type="button" onClick={() => selectTool("note")}><MessageSquare size={16} />{t("focus.addNote")}</button>
-                <button type="button" onClick={() => navigate("/review")}><Bookmark size={16} />{t("focus.saveToReview")}</button>
-              </div>
-              <div className="workspace-v2-document-grid">
-                <div><p>Understanding the <mark>core anatomical and clinical relationship</mark> improves recognition, recall, and application during assessment.</p><h2>Key Features</h2><ul><li>Connects structure with clinical function</li><li>Highlights the essential examination points</li><li>Supports active recall and revision</li><li>Organizes the topic into a practical sequence</li></ul></div>
-                <figure className="workspace-v2-figure"><div><Sparkles size={34} /><strong>{material.title}</strong><span>Focused visual reference</span></div><figcaption>Figure {sheet.number}.1 · Core concept overview</figcaption></figure>
-              </div>
-              <aside className="workspace-v2-clinical-note"><span><Zap size={23} /></span><div><strong>Clinical Note</strong><p>Use the selected tools to highlight, annotate, and connect this concept to the current study session.</p></div></aside>
+              <p className="workspace-v2-lead">{t("materials.editionUnavailable")}</p>
             </article>}
             <span ref={stylusHoverRef} className="workspace-v2-stylus-hover" aria-hidden="true" />
             <span ref={eraserHitboxRef} className="workspace-v2-eraser-hitbox" aria-hidden="true" />
           </div>
           {!workspaceReady && <p className="workspace-v2-hydration-status" role="status">{t("focus.restoringSavedWork")}</p>}
           {showPageNumber && <div className={`workspace-v2-page-dock${pageNavigatorOpen ? " is-open" : ""}`} inert={workspaceReady ? undefined : ""}>
-            {pageNavigatorOpen && <div id="workspace-page-navigator" className="workspace-v2-page-navigator" role="group" aria-label={t("focus.pageAndZoom")} onPointerDown={(event) => event.stopPropagation()}>
-              <div className="workspace-v2-page-jump">
-                <button type="button" aria-label={t("focus.previousPage")} title={t("focus.previousPage")} disabled={page <= accessiblePageStart} onClick={() => jumpToPagePosition(page - 1)}><ChevronLeft size={16} /></button>
-                <label className="workspace-v2-page-input"><span className="workspace-v2-visually-hidden">{t("focus.goToPage")}</span><input type="number" inputMode="numeric" min={accessiblePageStart} max={accessiblePageCount} value={pageJumpDraft} onChange={(event) => setPageJumpDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commitPageJump(); } }} onBlur={commitPageJump} /></label>
-                <span className="workspace-v2-page-total">/ {accessiblePageCount}</span>
-                <button type="button" aria-label={t("focus.nextPage")} title={t("focus.nextPage")} disabled={page >= accessiblePageCount} onClick={() => jumpToPagePosition(page + 1)}><ChevronRight size={16} /></button>
-              </div>
-              <div className="workspace-v2-page-jump" role="group" aria-label={t("focus.workspacePages")}>
-                <button type="button" onClick={() => addBlankPage()}><Plus size={16} />{t("focus.addPage")}</button>
-                {activeVirtualPageId !== null && <button type="button" onClick={() => deleteBlankPage()}><Trash2 size={16} />{t("focus.deleteBlankPage")}</button>}
-              </div>
-              <div className="workspace-v2-zoom-control" role="group" aria-label={t("focus.zoom")}>
-                <button type="button" aria-label={t("focus.zoomOut")} title={t("focus.zoomOut")} disabled={zoom <= minimumAllowedZoom() + .001} onClick={() => zoomByStep(1 / 1.25)}><Minus size={16} /></button>
-                <output aria-label={t("focus.currentZoom", { percent: Math.round(zoom * 100) })}>{Math.round(zoom * 100)}%</output>
-                <button type="button" aria-label={t("focus.zoomIn")} title={t("focus.zoomIn")} disabled={zoom >= MAX_FOCUS_ZOOM - .001} onClick={() => zoomByStep(1.25)}><Plus size={16} /></button>
-                {sheet.pdfUrl && <button type="button" className="workspace-v2-fit-width" aria-label={t("focus.fitWidth")} title={t("focus.fitWidth")} onClick={fitPdfWidth}><MoveHorizontal size={16} /></button>}
-              </div>
-              {sheet.pdfUrl && <div className="workspace-v4-zoom-presets" role="group" aria-label={t("focus.quickZoomPresets")}>
-                {[1, 1.25, 1.5, 2].map((multiple) => <button key={multiple} type="button" className={Math.abs(zoom / minimumPdfZoom() - multiple) < .04 ? "is-active" : ""} aria-label={multiple === 1 ? t("focus.setZoomFitPreset") : t("focus.zoomToMultiple", { multiple })} onClick={() => zoomToFitMultiple(multiple)}>{multiple === 1 ? t("focus.fit") : `${multiple}×`}</button>)}
-              </div>}
-            </div>}
+            {pageNavigatorOpen && pageThumbsOpen && searchDocumentProxy && <PageThumbnails
+              pdf={searchDocumentProxy}
+              total={Math.max(pageCount, searchDocumentProxy.numPages || 0)}
+              accessibleCount={accessiblePageCount}
+              currentPage={activeVirtualPageId === null ? page : 0}
+              labels={{ title: t("focus.pageThumbnails"), close: t("focus.closePageThumbnails"), page: (number) => t("focus.thumbnailPage", { page: number }), locked: (number) => t("focus.thumbnailLocked", { page: number }) }}
+              onJump={(target) => { jumpToPagePosition(target); setPageThumbsOpen(false); window.setTimeout(() => rootRef.current?.querySelector(".workspace-v2-page-thumbs-toggle")?.focus(), 0); }}
+              onClose={() => { setPageThumbsOpen(false); window.setTimeout(() => rootRef.current?.querySelector(".workspace-v2-page-thumbs-toggle")?.focus(), 0); }}
+            />}
+            <PageNavigator accessiblePageCount={accessiblePageCount} accessiblePageStart={accessiblePageStart} activeVirtualPageId={activeVirtualPageId} addBlankPage={addBlankPage} commitPageJump={commitPageJump} deleteBlankPage={deleteBlankPage} fitPdfWidth={fitPdfWidth} jumpToPagePosition={jumpToPagePosition} minimumAllowedZoom={minimumAllowedZoom} minimumPdfZoom={minimumPdfZoom} page={page} pageJumpDraft={pageJumpDraft} pageNavigatorOpen={pageNavigatorOpen} pageThumbsOpen={pageThumbsOpen} searchDocumentProxy={searchDocumentProxy} setPageJumpDraft={setPageJumpDraft} setPageThumbsOpen={setPageThumbsOpen} sheet={sheet} t={t} whiteboard={whiteboard} zoom={zoom} zoomByStep={zoomByStep} zoomToFitMultiple={zoomToFitMultiple} />
             <button
               type="button"
               className="workspace-v2-page-number"
@@ -7040,17 +6157,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
           {/* Laptop and desktop readers get a zoom bar that is always on screen. CSS
               shows it only for a fine pointer without a touchscreen, so phones and
               iPads keep pinch zoom and the page dock exactly as they were. */}
-          {sheet.pdfUrl && <div className="workspace-v2-zoom-bar" inert={workspaceReady ? undefined : ""} role="group" aria-label={t("focus.zoom")} onPointerDown={(event) => event.stopPropagation()}>
-            <button type="button" aria-label={t("focus.zoomOut")} title={t("focus.zoomOut")} disabled={zoom <= minimumAllowedZoom() + .001} onClick={() => zoomByStep(1 / 1.25)}><Minus size={16} /></button>
-            <output aria-label={t("focus.currentZoom", { percent: Math.round(zoom * 100) })}>{Math.round(zoom * 100)}%</output>
-            <button type="button" aria-label={t("focus.zoomIn")} title={t("focus.zoomIn")} disabled={zoom >= MAX_FOCUS_ZOOM - .001} onClick={() => zoomByStep(1.25)}><Plus size={16} /></button>
-            <span className="workspace-v2-zoom-bar-divider" aria-hidden="true" />
-            <button type="button" className="workspace-v4-zoom-fit" aria-label={t("focus.fitWidth")} title={t("focus.resetZoomToFitThe")} onClick={fitPdfWidth}><MoveHorizontal size={14} aria-hidden="true" /><span>{t("focus.fit")}</span></button>
-            <div className="workspace-v4-zoom-presets is-compact" role="group" aria-label={t("focus.quickZoomPresets")}>
-              {[1.25, 1.5, 2].map((multiple) => <button key={multiple} type="button" className={Math.abs(zoom / minimumPdfZoom() - multiple) < .04 ? "is-active" : ""} aria-label={t("focus.zoomToMultiple", { multiple })} onClick={() => zoomToFitMultiple(multiple)}>{multiple}×</button>)}
-            </div>
-          </div>}
-          {sheet.pdfUrl && <output className={`workspace-v4-zoom-hud${zoomHud.visible ? " is-visible" : ""}`} aria-live="polite" aria-label={`Zoom ${Math.round(zoom * 100)} percent`}><strong>{Math.round(zoom * 100)}%</strong><span>{zoomHud.label && !zoomHud.label.endsWith("%") ? zoomHud.label : pdfZoomModeRef.current === "fit" ? t("focus.fitWidth") : t("focus.zoom")}</span></output>}
+          <ZoomBar fitPdfWidth={fitPdfWidth} minimumAllowedZoom={minimumAllowedZoom} minimumPdfZoom={minimumPdfZoom} sheet={sheet} t={t} workspaceReady={workspaceReady} zoom={zoom} zoomByStep={zoomByStep} zoomToFitMultiple={zoomToFitMultiple} />
+          {workspaceReady && zoomWindow && <ZoomWindow region={zoomWindow} onRegionChange={setZoomWindow} pageAspect={pageAspectFor(zoomWindow.page)} annotations={annotationsHidden ? NO_ANNOTATIONS : (annotationsByPage.get(zoomWindow.page) || NO_ANNOTATIONS)} pdfDocument={searchDocumentProxy} pen={zoomWindowPen} onCommit={commitZoomWindowStroke} onClose={() => setZoomWindow(null)} onHeightChange={setZoomWindowHeight} />}
+          {sheet.pdfUrl && <output className={`workspace-v4-zoom-hud${zoomHud.visible ? " is-visible" : ""}`} aria-live="polite" aria-label={t("focus.currentZoom", { percent: Math.round(zoom * 100) })}><strong>{Math.round(zoom * 100)}%</strong><span>{zoomHud.label && !zoomHud.label.endsWith("%") ? zoomHud.label : pdfZoomModeRef.current === "fit" ? t("focus.fitWidth") : t("focus.zoom")}</span></output>}
           {saveState === "error" && <p className="workspace-v2-save-warning" role="alert"><Zap size={14} aria-hidden="true" />{t("focus.thisDeviceCannotStoreMore")}</p>}
           {focusMessage && !sideOpen && <p className="workspace-v2-toast" aria-hidden="true">{focusMessage}</p>}
           {workspaceReady && renderSelectionToolbar()}
@@ -7059,7 +6168,12 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
 
         {sideOpen && <button className="workspace-v2-side-backdrop" type="button" onClick={() => setOpenSurface(null)} aria-label={t("focus.closeWorkspacePanel")} />}
         <aside id="workspace-notes-panel" className={`workspace-v2-side${sideOpen ? " is-open" : ""}`} aria-label={t("focus.workspaceNotesAndActions")} aria-hidden={!sideOpen || !workspaceReady} inert={sideOpen && workspaceReady ? undefined : ""}>
-          <button ref={sideCloseRef} className="workspace-v2-side-close" type="button" onClick={() => { setOpenSurface(null); rootRef.current?.querySelector('[data-workspace-tool="note"]')?.focus(); }} aria-label={t("focus.closeWorkspacePanel")}><X size={18} /></button>
+          <button ref={sideCloseRef} className="workspace-v2-side-close" type="button" onClick={() => {
+            setOpenSurface(null);
+            // A phone keeps Notes in More, so focus goes there when the button is hidden.
+            const notes = rootRef.current?.querySelector('.workspace-v2-toolbar [data-workspace-tool="note"]');
+            (notes?.getClientRects().length ? notes : rootRef.current?.querySelector('[data-workspace-surface="more"]'))?.focus();
+          }} aria-label={t("focus.closeWorkspacePanel")}><X size={18} /></button>
           <div className="workspace-v2-tabs" role="tablist" aria-label={t("focus.workspacePanels")}>
             <button type="button" id="workspace-notes-tab" role="tab" aria-selected={sideTab === "notes"} aria-controls="workspace-notes-tabpanel" tabIndex={sideTab === "notes" ? 0 : -1} className={sideTab === "notes" ? "is-active" : ""} onClick={() => setSideTab("notes")}>{t("focus.notes")}</button>
             <button type="button" id="workspace-highlights-tab" role="tab" aria-selected={sideTab === "highlights"} aria-controls="workspace-highlights-tabpanel" tabIndex={sideTab === "highlights" ? 0 : -1} className={sideTab === "highlights" ? "is-active" : ""} onClick={() => setSideTab("highlights")}>{t("focus.highlights")} <span>{highlights.length}</span></button>
@@ -7068,7 +6182,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
             {sideTab === "notes" && <section id="workspace-notes-tabpanel" role="tabpanel" aria-labelledby="workspace-notes-tab" tabIndex={0} className="workspace-v2-note-list">
               {sortedNotes.map((note) => <div key={note.id} className="workspace-v2-note-item">
                 <button type="button" className="workspace-v2-note-card" onClick={() => openNote(note)} aria-label={t("focus.openNoteFromPage", { page: note.page })}>
-                  <span className="workspace-v2-card-meta"><strong>{t("focus.pageNumberLabel", { page: note.page })}</strong><span>{new Date(note.createdAt).toLocaleDateString()}</span></span>
+                  <span className="workspace-v2-card-meta"><strong>{t("focus.pageNumberLabel", { page: note.page })}</strong><span>{formatDate(note.createdAt)}</span></span>
                   <span className="workspace-v2-card-copy">{note.body}</span>
                   <span className="workspace-v2-card-tags"><span>{material.title}</span><span>{t("focus.pageNote")}</span></span>
                 </button>

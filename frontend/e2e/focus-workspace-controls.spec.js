@@ -172,7 +172,7 @@ test("study cards move directly and settings open as a compact panel in each the
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page);
   await page.getByRole("button", { name: "Add", exact: true }).click();
-  await page.getByRole("button", { name: /Add sticky note/i }).click();
+  await page.getByRole("button", { name: /Add note card/i }).click();
   await page.getByRole("textbox", { name: "Card text" }).fill("Move this note");
   await page.getByRole("button", { name: "Add card" }).click();
   const card = page.locator('.workspace-v2-annotation-layer [data-annotation-type="card"]').first();
@@ -180,7 +180,7 @@ test("study cards move directly and settings open as a compact panel in each the
   // Adding a card closes the editor with an exit animation and scrolls the new
   // card into view. Grab it only once both have finished, or the press lands
   // where the card was a moment ago.
-  await expect(page.getByRole("dialog", { name: "Add study card" })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Add note card" })).toHaveCount(0);
   let settled = null;
   await expect.poll(async () => {
     const box = await card.boundingBox();
@@ -188,21 +188,21 @@ test("study cards move directly and settings open as a compact panel in each the
     settled = box;
     return Boolean(same);
   }, { intervals: [150] }).toBe(true);
-  const beforeX = Number(await card.locator("rect").getAttribute("x"));
+  const beforeX = Number(await card.locator(".workspace-note-card-paper").getAttribute("x"));
   const bounds = await card.boundingBox();
   await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + 20);
   await page.mouse.down();
   await page.mouse.move(bounds.x + bounds.width / 2 + 45, bounds.y + 45, { steps: 5 });
   await page.mouse.up();
-  await expect.poll(async () => Number(await card.locator("rect").getAttribute("x"))).toBeGreaterThan(beforeX + 20);
-  const movedX = Number(await card.locator("rect").getAttribute("x"));
+  await expect.poll(async () => Number(await card.locator(".workspace-note-card-paper").getAttribute("x"))).toBeGreaterThan(beforeX + 20);
+  const movedX = Number(await card.locator(".workspace-note-card-paper").getAttribute("x"));
   const movedBounds = await card.boundingBox();
   const touchX = movedBounds.x + movedBounds.width / 2;
   const touchY = movedBounds.y + 20;
   await dispatchPointer(card, "pointerdown", 32, touchX, touchY, "touch");
   await dispatchPointer(page.locator(".workspace-v2-document-stage"), "pointermove", 32, touchX + 35, touchY + 20, "touch");
   await dispatchPointer(page.locator(".workspace-v2-document-stage"), "pointerup", 32, touchX + 35, touchY + 20, "touch");
-  await expect.poll(async () => Number(await card.locator("rect").getAttribute("x"))).toBeGreaterThan(movedX + 10);
+  await expect.poll(async () => Number(await card.locator(".workspace-note-card-paper").getAttribute("x"))).toBeGreaterThan(movedX + 10);
 
   await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.getByRole("button", { name: "Workspace settings" }).click();

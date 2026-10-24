@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { readWorkspaceSource } from "./helpers/workspaceSource.js";
 import {
   MAX_WORKSPACE_TABS,
   closeWorkspaceTab,
@@ -16,7 +17,7 @@ import {
 } from "../src/workspace/catalog/workspaceTabs.js";
 
 const [workspace, app, keepAliveHost, authz] = await Promise.all([
-  readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8"),
+  readWorkspaceSource(),
   readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
   readFile(new URL("../src/workspace/catalog/WorkspaceKeepAlive.jsx", import.meta.url), "utf8"),
   readFile(new URL("../src/lib/authz.js", import.meta.url), "utf8")

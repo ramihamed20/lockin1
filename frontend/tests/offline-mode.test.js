@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 import test, { after } from "node:test";
 
 import { installOfflineEnvironment, signedLease } from "./helpers/offlineEnvironment.js";
+import { readWorkspaceSource } from "./helpers/workspaceSource.js";
 
 // The environment must exist before the API client reads `window` at import.
 const env = installOfflineEnvironment();
@@ -728,7 +729,7 @@ test("a refused batch keeps its work with the reason and does not hold back Focu
 
 test("the workspace, service worker and route guard keep their offline contracts", async () => {
   const [workspace, worker, guard, api] = await Promise.all([
-    readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8"),
+    readWorkspaceSource(),
     readFile(new URL("../src/service-worker.js", import.meta.url), "utf8"),
     readFile(new URL("../src/components/auth/ProtectedRoute.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/api/focus.js", import.meta.url), "utf8")

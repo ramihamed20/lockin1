@@ -2,6 +2,9 @@ const DEFAULT_MINIMUM_DISTANCE_PX = .35;
 const DEFAULT_MAXIMUM_GAP_PX = 6;
 const MAX_INTERPOLATED_POINTS = 48;
 const MAX_DIAGNOSTIC_POINTS = 256;
+// Simulated pressure for a finger or mouse, from speed in css px per ms: a slow
+// hand presses harder, a quick one lifts - the way ink pools and thins on paper.
+const SIMULATED_PRESSURE = Object.freeze({ start: .55, slow: .78, fast: .3, fastSpeed: 1.5, follow: .22 });
 
 /**
  * @typedef {Object} NormalizedInkSample
@@ -35,6 +38,7 @@ const MAX_DIAGNOSTIC_POINTS = 256;
  * @property {boolean} finalized
  * @property {number|null} lastPressure
  * @property {boolean} hasReliablePressure
+ * @property {{x:number,y:number,t:number,p:number}|null} simulation last sample of a pointer without pressure
  */
 
 function finite(value, fallback = 0) {
@@ -140,6 +144,21 @@ export function createInkInputController() {
     return { p: .5, pressureAvailable: false };
   }
 
+  /**
+   * Pressure for a pointer that reports none, eased towards the value its speed
+   * implies so a single jittery sample cannot pinch the line.
+   */
+  function simulatedPressure(point, time, mutate) {
+    const state = session?.simulation;
+    if (!state) return SIMULATED_PRESSURE.start;
+    const elapsed = Math.max(1, time - state.t);
+    const speed = Math.hypot(point.x - state.x, point.y - state.y) / pageUnitsPerCssPixel / elapsed;
+    const target = SIMULATED_PRESSURE.slow - (SIMULATED_PRESSURE.slow - SIMULATED_PRESSURE.fast) * clamp(speed / SIMULATED_PRESSURE.fastSpeed);
+    const pressure = state.p + (target - state.p) * SIMULATED_PRESSURE.follow;
+    if (mutate) session.simulation = { x: point.x, y: point.y, t: time, p: pressure };
+    return pressure;
+  }
+
   function normalizeSample(sample, event, mutatePressureState = true) {
     if (!mapClientPoint || !session) return null;
     const clientX = Number(sample.clientX);
@@ -151,10 +170,16 @@ export function createInkInputController() {
       ? (sample.pointerType || event.pointerType)
       : "unknown";
     const pressure = normalizedPressure(sample, event, mutatePressureState);
+    const time = Math.max(0, finite(sample.timeStamp, Date.now()));
+    if (pointer !== "pen") {
+      const point = { x: Number(mapped.x), y: Number(mapped.y) };
+      pressure.p = simulatedPressure(point, time, mutatePressureState);
+      if (mutatePressureState && !session.simulation) session.simulation = { ...point, t: time, p: pressure.p };
+    }
     return {
       ...mapped,
       page: session.page,
-      t: Math.max(0, finite(sample.timeStamp, Date.now())),
+      t: time,
       p: pressure.p,
       pressureAvailable: pressure.pressureAvailable,
       pointer,
@@ -233,7 +258,8 @@ export function createInkInputController() {
         active: true,
         finalized: false,
         lastPressure: null,
-        hasReliablePressure: false
+        hasReliablePressure: false,
+        simulation: null
       };
       publishDiagnostics("begin", { pointerId, pointerType: session.pointerType, capture: options?.captured === true, reason: null });
       return appendEvent(event, "begin");

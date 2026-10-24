@@ -14,6 +14,7 @@ import {
   mergeById
 } from "../src/workspace/catalog/catalogServerSync.js";
 import { parseCatalogDocument } from "../src/hooks/useCatalogDocument.js";
+import { readWorkspaceSource } from "./helpers/workspaceSource.js";
 
 const DOCUMENT_ID = "9a3c4ab0-7a8e-4a55-9a26-1d8a4f0e2b11";
 const VERSION_ID = "2f7d6c1e-0b4a-4d3c-8e21-6b5a4c3d2e1f";
@@ -462,7 +463,7 @@ test("only a protected same-origin file resolves as the sheet's document", () =>
 });
 
 test("the workspace resolves its document and syncs when the connection returns", async () => {
-  const source = await readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8");
+  const source = await readWorkspaceSource();
   const catalogHook = await readFile(new URL("../src/hooks/useCatalogMaterials.js", import.meta.url), "utf8");
   assert.match(source, /useCatalogDocument\(/);
   assert.match(source, /materialsLoading/);

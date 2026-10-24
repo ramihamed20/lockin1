@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
 import { translate } from "../src/lib/i18n.js";
+import { readWorkspaceSource } from "./helpers/workspaceSource.js";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
 test("every question surface uses the one Explanation control", async () => {
   for (const path of ["../src/pages/PaperWorkspace.jsx", "../src/pages/CatalogFocusWorkspace.jsx", "../src/pages/Questions.jsx", "../src/pages/Review.jsx", "../src/pages/AssessmentResult.jsx"]) {
-    assert.match(await read(path), /<QuestionExplanation /, path);
+    assert.match(path.endsWith("CatalogFocusWorkspace.jsx") ? await readWorkspaceSource() : await read(path), /<QuestionExplanation /, path);
   }
   // Timed attempts keep explanations until the result is released.
   assert.doesNotMatch(await read("../src/pages/Attempt.jsx"), /<QuestionExplanation /);

@@ -1,18 +1,32 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { currentAppLocale, directionForLocale, normalizeLocale, translate } from "../lib/i18n.js";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { currentAppLocale, directionForLocale, loadLocaleMessages, normalizeLocale, translate } from "../lib/i18n.js";
 
 const I18nContext = createContext(null);
 
-export function I18nProvider({ children }) {
-  const [locale, setLocaleState] = useState(() => {
-    try {
-      const stored = window.localStorage.getItem("lock-in.locale");
-      if (stored) return normalizeLocale(stored);
-    } catch { /* Storage can be unavailable in hardened/private contexts. */ }
-    return currentAppLocale();
-  });
+/** The language the app opens in: the reader's last choice, else the document's. */
+export function initialAppLocale() {
+  try {
+    const stored = window.localStorage.getItem("lock-in.locale");
+    if (stored) return normalizeLocale(stored);
+  } catch { /* Storage can be unavailable in hardened/private contexts. */ }
+  return currentAppLocale();
+}
 
-  const setLocale = useCallback((value) => setLocaleState(normalizeLocale(value)), []);
+export function I18nProvider({ children }) {
+  const [locale, setLocaleState] = useState(initialAppLocale);
+
+  // A production build holds one language at a time, so switch only once the
+  // other one has arrived; a page never renders its keys in place of words.
+  // If it cannot arrive (offline before it was ever cached), stay as we are.
+  // Only the latest choice applies, however the downloads finish.
+  const requestedLocale = useRef(null);
+  const setLocale = useCallback((value) => {
+    const next = normalizeLocale(value);
+    requestedLocale.current = next;
+    loadLocaleMessages(next).then(() => {
+      if (requestedLocale.current === next) setLocaleState(next);
+    }, () => undefined);
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;

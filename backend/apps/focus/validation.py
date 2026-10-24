@@ -26,6 +26,11 @@ STROKE_TOOLS = frozenset({"pen", "pencil", "highlighter"})
 SHAPE_TOOLS = frozenset({"line", "arrow", "rectangle", "circle"})
 TEXT_TOOLS = frozenset({"text", "sticky-note"})
 POINTER_KINDS = frozenset({"pen", "touch", "mouse", "unknown"})
+# The nib a stroke was drawn with, so another device draws it the same way.
+STROKE_PROFILES = frozenset({"ball", "fountain", "brush", "pencil", "highlighter", "calligraphy"})
+# A finger or mouse reports no pressure; its strokes carry one simulated from speed.
+PRESSURE_SOURCES = frozenset({"speed"})
+STROKE_STYLE_KEYS = frozenset({"profile", "pressureSensitivity", "smoothing", "pressureSource"})
 COLOR_PATTERN = re.compile(r"#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?")
 MAX_ANNOTATION_PAYLOAD_BYTES = 128 * 1024
 MAX_WORKSPACE_STATE_BYTES = 8 * 1024
@@ -55,6 +60,25 @@ def _point(value: object, *, label: str) -> dict[str, float]:
     }
 
 
+def _stroke_style(value: object) -> dict[str, Any]:
+    """Optional nib settings; strokes written before they were kept have none."""
+    if not isinstance(value, Mapping) or not set(value).issubset(STROKE_STYLE_KEYS):
+        raise FocusValidationError("Stroke style has an invalid shape.")
+    style: dict[str, Any] = {}
+    if "profile" in value:
+        if value["profile"] not in STROKE_PROFILES:
+            raise FocusValidationError("Stroke style has an unsupported pen profile.")
+        style["profile"] = value["profile"]
+    if "pressureSource" in value:
+        if value["pressureSource"] not in PRESSURE_SOURCES:
+            raise FocusValidationError("Stroke style has an unsupported pressure source.")
+        style["pressureSource"] = value["pressureSource"]
+    for key in ("pressureSensitivity", "smoothing"):
+        if key in value:
+            style[key] = _number(value[key], label=f"style.{key}", minimum=0, maximum=1)
+    return style
+
+
 def validate_bounds(value: object) -> dict[str, float]:
     required = {"x", "y", "width", "height"}
     if not isinstance(value, Mapping) or set(value) != required:
@@ -79,7 +103,7 @@ def validate_payload(*, tool: str, value: object) -> dict[str, Any]:
         raise FocusValidationError("Annotation payload is too large.")
 
     if tool in STROKE_TOOLS:
-        allowed = {"kind", "samples", "erasures"}
+        allowed = {"kind", "samples", "erasures", "style"}
         if (
             not {"kind", "samples"}.issubset(payload)
             or not set(payload).issubset(allowed)
@@ -124,6 +148,8 @@ def validate_payload(*, tool: str, value: object) -> dict[str, Any]:
                 }
             )
         stroke_result: dict[str, Any] = {"kind": "stroke", "samples": normalized}
+        if "style" in payload:
+            stroke_result["style"] = _stroke_style(payload["style"])
         if "erasures" in payload:
             erasures = payload["erasures"]
             if (

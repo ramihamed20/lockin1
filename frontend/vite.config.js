@@ -72,6 +72,59 @@ function releaseNotesFile(release) {
   };
 }
 
+/**
+ * Ships each language as its own chunk. lib/i18n.js stays the one source (tests
+ * and the public-knowledge evidence read it as written); in a production build
+ * this plugin replaces its catalogue literal with the route names in English
+ * -- routeMetadata compares a page's English title against them in every
+ * language -- and serves `virtual:lockin-locale/<locale>` as that locale's
+ * catalogue merged over English, which loadLocaleMessages() imports on demand.
+ */
+function localeChunks() {
+  const prefix = "virtual:lockin-locale/";
+  const source = new URL("./src/lib/i18n.js", import.meta.url);
+  let catalogues;
+  let building = false;
+  async function catalogue(locale) {
+    catalogues ??= await import(source.href);
+    return catalogues.messageCatalog(locale);
+  }
+  return {
+    name: "lock-in-locale-chunks",
+    configResolved(config) {
+      building = config.command === "build";
+    },
+    resolveId(id) {
+      return id.startsWith(prefix) ? `\0${id}` : null;
+    },
+    async load(id) {
+      if (!id.startsWith(`\0${prefix}`)) return null;
+      const locale = id.slice(prefix.length + 1);
+      // JSON.parse of a string literal is the quickest way for an engine to
+      // read an object this size.
+      return `export default JSON.parse(${JSON.stringify(JSON.stringify(await catalogue(locale)))});`;
+    },
+    async transform(code, id) {
+      if (!building || !id.replace(/\\/g, "/").endsWith("/src/lib/i18n.js")) return null;
+      const routeSource = readFileSync(new URL("./src/lib/routeMetadata.js", import.meta.url), "utf8");
+      const routeKeys = new Set(["route.notFound", ...[...routeSource.matchAll(/key: "([^"]+)"/g)].map((match) => match[1])]);
+      const english = await catalogue("en");
+      const routeNames = Object.fromEntries([...routeKeys].filter((key) => key in english).map((key) => [key, english[key]]));
+      const literal = /const messages = \{[\s\S]*?\r?\n\};(?=\r?\n\r?\nexport function normalizeLocale)/;
+      const loaded = "const loadedLocales = new Set(SUPPORTED_LOCALES);";
+      if (!literal.test(code) || code.split(loaded).length !== 2) {
+        this.error("lib/i18n.js no longer has the shape localeChunks rewrites; update the plugin.");
+      }
+      return {
+        code: code
+          .replace(loaded, "const loadedLocales = new Set();")
+          .replace(literal, `const messages = { en: ${JSON.stringify(routeNames)}, ar: {} };`),
+        map: null
+      };
+    }
+  };
+}
+
 export default defineConfig(async ({ mode, command }) => {
   if (command === "build") writePublicKnowledge({ check: true });
   const env = loadEnv(mode, process.cwd(), "");
@@ -104,6 +157,7 @@ export default defineConfig(async ({ mode, command }) => {
   },
   plugins: [
     react(),
+    localeChunks(),
     releaseNotesFile(WHATS_NEW),
     publicKnowledgeInDevelopment(),
     ...(mode === "development" ? [removeLegacyWorkerInDevelopment()] : []),
@@ -182,6 +236,13 @@ export default defineConfig(async ({ mode, command }) => {
           "assets/*.js",
           "assets/*.mjs",
           "assets/*.css"
+        ],
+        // The operations and moderation consoles are staff-only and work only
+        // online, so every student device need not download them on each
+        // release. They load from the network when opened, as before.
+        globIgnores: [
+          "assets/OperationsAdmin-*",
+          "assets/Moderation-*"
         ]
       }
     })

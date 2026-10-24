@@ -91,7 +91,8 @@ def owned_summaries(
 
 
 def owned_summary(*, user: User, summary_id: Any) -> SheetSummary | None:
-    return owned_summaries(user=user).filter(id=summary_id).first()
+    summary: SheetSummary | None = owned_summaries(user=user).filter(id=summary_id).first()
+    return summary
 
 
 def create_summary(

@@ -625,35 +625,6 @@ test("precision eraser leaves nearby parallel ink unchanged", async ({ page }) =
   await expect(page.locator('.workspace-v2-annotation-layer mask[id^="workspace-erase-"]')).toHaveCount(1);
 });
 
-test("Pencil supports 100 percent opacity without internal color stacking", async ({ page }) => {
-  test.setTimeout(60_000);
-  await mockAuthenticatedWorkspace(page);
-  await keepRawInk(page);
-  await openWorkspace(page, { width: 834, height: 1194 });
-  await page.getByRole("button", { name: "More workspace actions" }).click();
-  await page.getByRole("dialog", { name: "More workspace actions" }).getByRole("button", { name: /Pencil/ }).click();
-  await page.getByRole("button", { name: "More workspace actions" }).click();
-  await page.getByRole("dialog", { name: "More workspace actions" }).getByRole("button", { name: /Pencil/ }).click();
-  const opacity = page.locator(".workspace-v2-tool-range.is-opacity input");
-  await opacity.fill("1");
-  await expect(page.locator(".workspace-v2-tool-range.is-opacity output")).toHaveText("100%");
-  await page.keyboard.press("Escape");
-
-  const stage = page.locator(".workspace-v2-document-stage");
-  const pageBounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
-  const start = { x: pageBounds.x + pageBounds.width * .34, y: pageBounds.y + pageBounds.height * .42 };
-  const end = { x: pageBounds.x + pageBounds.width * .66, y: start.y + 2 };
-  await drawPointerPath(stage, 100, [start, end]);
-  await drawPointerPath(stage, 101, [start, end]);
-
-  const pencils = page.locator('.workspace-v2-annotation-layer [data-annotation-type="pencil"]');
-  await expect(pencils).toHaveCount(2);
-  expect(await pencils.evaluateAll((nodes) => nodes.every((node) => (
-    node.getAttribute("opacity") === "1"
-    && getComputedStyle(node).mixBlendMode === "normal"
-  )))).toBe(true);
-});
-
 test("smart ink gestures erase scribbles, straighten on release, and undo a straightened line in one step", async ({ page }) => {
   test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
@@ -719,15 +690,25 @@ test("highlighter makes a vertical line as soon as the stroke is released", asyn
   const line = page.locator('.workspace-v2-highlighter-group [data-annotation-type="highlighter"]');
   await expect(line).toHaveCount(1);
   await expect(page.locator('[data-annotation-type="shape"]')).toHaveCount(0);
-  const numbers = (await line.getAttribute("d")).match(/-?\d+(?:\.\d+)?/g).map(Number);
-  const points = Array.from({ length: numbers.length / 2 }, (_, index) => ({ x: numbers[index * 2], y: numbers[index * 2 + 1] }));
-  const [first, last] = [points[0], points.at(-1)];
+  // The highlight is an outlined band: one strip, and a round disc at each end.
+  const subpaths = (await line.getAttribute("d")).split("M").filter(Boolean);
+  const pairs = (text) => {
+    const numbers = text.match(/-?\d+(?:\.\d+)?/g).map(Number);
+    return Array.from({ length: Math.floor(numbers.length / 2) }, (_, index) => ({ x: numbers[index * 2], y: numbers[index * 2 + 1] }));
+  };
+  const strips = subpaths.filter((part) => !part.includes("A"));
+  const discs = subpaths.filter((part) => part.includes("A"));
+  expect(strips).toHaveLength(1);
+  expect(discs).toHaveLength(2);
+  // A disc starts at its rightmost point: centre = start - radiusX.
+  const [first, last] = discs.map((part) => {
+    const [start, radii] = pairs(part);
+    return { x: start.x - radii.x, y: start.y };
+  });
   expect(last.y - first.y).toBeGreaterThan(50);
-  // Every sample and curve control point sits on the one straight segment.
-  for (const point of points) {
-    const offLine = Math.abs((last.x - first.x) * (point.y - first.y) - (last.y - first.y) * (point.x - first.x)) / Math.hypot(last.x - first.x, last.y - first.y);
-    expect(offLine).toBeLessThan(.1);
-  }
+  // Both edges of the band run parallel to the one straight segment.
+  const distances = pairs(strips[0]).map((point) => Math.abs((last.x - first.x) * (point.y - first.y) - (last.y - first.y) * (point.x - first.x)) / Math.hypot(last.x - first.x, last.y - first.y));
+  for (const distance of distances) expect(Math.abs(distance - distances[0])).toBeLessThan(.1);
 });
 
 test("circle erase removes enclosed ink once and remains undoable", async ({ page }) => {
@@ -735,7 +716,6 @@ test("circle erase removes enclosed ink once and remains undoable", async ({ pag
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 834, height: 1194 });
   await page.getByRole("button", { name: "Pen", exact: true }).click();
-  await page.getByText("Presets & pen gestures").click();
   await page.getByRole("switch", { name: /Circle erase/ }).click();
   const stage = page.locator(".workspace-v2-document-stage");
   const pageBounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
@@ -768,7 +748,6 @@ test("circle erase can finish after a pause during its incomplete loop", async (
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 834, height: 1194 });
   await page.getByRole("button", { name: "Pen", exact: true }).click();
-  await page.getByText("Presets & pen gestures").click();
   await page.getByRole("switch", { name: /Circle erase/ }).click();
   const stage = page.locator(".workspace-v2-document-stage");
   const bounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();

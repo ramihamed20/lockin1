@@ -16,6 +16,13 @@ import { PRODUCT_ROLES } from "../api/contracts.js";
 import { hasProductRole } from "../lib/authz.js";
 import { educationPathFor, isSelectableStudyPath, uniqueEducationOptions } from "../lib/educationPath.js";
 
+const ACCOUNT_STATUSES = new Set(["active", "suspended", "deleted"]);
+
+/** The account's status in the reader's language, never the raw server value. */
+function accountStatusLabel(status, t) {
+  return ACCOUNT_STATUSES.has(status) ? t(`profile.status.${status}`) : t("profile.unknown");
+}
+
 function resolved(result, fallback) {
   return result.status === "fulfilled" ? result.value : fallback;
 }
@@ -283,13 +290,13 @@ export default function Profile({ user, onUserUpdate }) {
     finally { setChangingCohort(false); }
   }
 
-  if (profile.loading) return <Page title="My Profile"><LoadingPanel variant="profile" /></Page>;
+  if (profile.loading) return <Page title="Profile"><LoadingPanel variant="profile" /></Page>;
 
   const displayName = account?.name || t("profile.learner");
   const bestStreak = optionalNumber(streak.longest_days);
 
   return (
-    <Page title="My Profile" headingHandled>
+    <Page title="Profile" headingHandled>
       <div className="profile-v2">
         {workspace.unavailableCount > 0 && <p className="profile-v2-note" role="status"><Icon name="activity" size={15} />{t("profile.syncNote")}</p>}
 
@@ -308,7 +315,7 @@ export default function Profile({ user, onUserUpdate }) {
               <div className="profile-edit-actions"><button className="btn btn-primary compact" type="submit" aria-busy={saving || undefined} disabled={saving}>{t(saving ? "profile.saving" : "profile.saveChanges")}</button><button className="btn btn-soft compact" type="button" onClick={() => setEditing(false)}>{t("common.cancel")}</button></div>
             </form> : <div className="id-card-info">
               <div className="id-card-field"><span className="id-card-label">{t("profile.academyMember")}</span><h1 className="id-card-value" dir="auto">{displayName}</h1><p className="id-card-value email" dir="auto">{t("profile.studentId", { id: (account?.id || "—").slice(0, 8) })}</p></div>
-              <div className="profile-id-tags"><span className="id-card-value-pill"><Icon name="award" size={13} /> {t("profile.scholar")}</span><span className={`id-card-value-pill ${account?.status === "active" ? "active" : ""}`} dir="auto">{account?.status || t("profile.unknown")}</span></div>
+              <div className="profile-id-tags"><span className="id-card-value-pill"><Icon name="award" size={13} /> {t("profile.scholar")}</span><span className={`id-card-value-pill ${account?.status === "active" ? "active" : ""}`}>{accountStatusLabel(account?.status, t)}</span></div>
               <div className="id-card-row"><div className="id-card-field"><span className="id-card-label">{t("profile.memberSince")}</span><span className="profile-id-data" dir="auto">{dateLabel(account?.dateJoined, t)}</span></div><div className="id-card-field"><span className="id-card-label">{t("profile.language")}</span><span className="profile-id-data">{t(account?.preferredLanguage === "ar" ? "profile.arabic" : "profile.english")}</span></div></div>
               <div className="profile-id-progress"><div><span>{t("profile.xpProgressLabel")}</span><strong dir="auto">{t("profile.xpOf", { current: formatNumber(xp.level_progress), target: formatNumber(xp.level_target) })}</strong></div><ProgressLine value={levelProgress} /></div>
               <button className="btn btn-soft compact edit-id-btn" type="button" onClick={() => setEditing(true)}><Icon name="settings" size={14} /> {t("profile.editProfile")}</button>

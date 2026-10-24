@@ -1,0 +1,186 @@
+/* Compact tool panels (pen, highlighter, eraser, shapes, lasso). Loaded after
+   the glass layer, so these rules win at equal specificity.
+
+   Layout, top to bottom: a short title row with the live preview, the tool's
+   own choices (pen type, shape, eraser mode), every slider in one card on a
+   shared label column, one sideways-scrolling row of colours, then toggles
+   without their long copy.
+
+   On a phone the panel hangs from the toolbar, under the tool that opened it,
+   instead of rising from the bottom over the hand that is writing. */
+
+/* ------------------------------------------------------------ Shell */
+
+.workspace-v2 .workspace-v2-tool-options-title { gap: 12px; padding: 10px 14px 8px; }
+.workspace-v2 .workspace-v2-tool-options-title small { display: none; }
+.workspace-v2 .workspace-v2-tool-options-title strong { font-size: .9375rem; }
+.workspace-v7-preview-well { min-width: 96px; height: 32px; border-radius: 10px; }
+
+@media (min-width: 561px) and (min-height: 501px) {
+  .workspace-v2 .workspace-v2-tool-options { width: min(336px, calc(100% - 24px)); max-width: min(336px, calc(100% - 24px)); border-radius: 20px; }
+}
+.workspace-v7-panel-body { box-sizing: border-box; min-width: 0; grid-template-columns: minmax(0, 1fr); padding: 0 14px 8px; max-height: min(calc(var(--app-viewport-height, 100dvh) - var(--workspace-toolbar-height, 84px) - 120px), 440px); }
+.workspace-v2 .workspace-v7-panel-body > .workspace-v5-inspector-section { min-width: 0; grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 8px 0; }
+.workspace-v2 .workspace-v7-panel-body h3 { font-size: .6875rem; }
+
+/* ------------------------------------------------------------ Sizes */
+
+/* Every slider shares one label column. */
+.workspace-v2 {
+  --tool-label-column: 76px;
+  --tool-label-gap: 10px;
+}
+.workspace-v2 .workspace-v7-panel-body .workspace-v2-tool-range { min-height: 36px; grid-template-columns: var(--tool-label-column) minmax(0, 1fr); gap: var(--tool-label-gap); }
+.workspace-v2 .workspace-v7-panel-body .workspace-v2-range-heading { overflow-wrap: anywhere; line-height: 1.2; }
+.workspace-v2 .workspace-v7-panel-body .workspace-v2-tool-range:is(.is-stroke, .is-eraser) { grid-template-columns: var(--tool-label-column) minmax(0, 1fr); }
+.workspace-v2 .workspace-v7-panel-body .workspace-v2-tool-range:is(.is-stroke, .is-eraser) .workspace-v2-range-heading { position: static; inset: auto; pointer-events: auto; }
+.workspace-v2 .workspace-v7-panel-body .workspace-v2-tool-range:is(.is-stroke, .is-eraser) .workspace-v2-range-heading > span { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: normal; }
+.workspace-v7-adjust { gap: 0 !important; }
+
+/* The sliders sit together in one soft card, split by hairlines. */
+.workspace-v2 .workspace-v7-panel-body > .workspace-v7-adjust {
+  margin-block: 8px;
+  padding: 2px 12px;
+  border-radius: 14px;
+  background: var(--fx-fill, rgb(255 255 255 / .05));
+}
+.workspace-v2 .workspace-v7-panel-body > .workspace-v7-adjust + .workspace-v5-inspector-section { border-top: 0; }
+.workspace-v2 .workspace-v7-panel-body .workspace-v7-adjust > .workspace-v2-tool-range { border-radius: 0; }
+.workspace-v2 .workspace-v7-panel-body .workspace-v7-adjust > .workspace-v2-tool-range + .workspace-v2-tool-range { box-shadow: 0 -1px 0 var(--fx-hair, rgb(255 255 255 / .08)); }
+.workspace-v2 .workspace-v7-panel-body .workspace-v2-range-heading > span { color: var(--fx-text-2); font-size: .75rem; font-weight: 550; }
+.workspace-v2 .workspace-v7-panel-body .workspace-v2-tool-range { padding-inline-end: 46px; }
+.workspace-v2 .workspace-v7-panel-body .workspace-v2-range-heading output { width: 42px; font-size: .75rem; }
+
+/* ------------------------------------------------------------ Choices */
+
+.workspace-v2 .workspace-v7-panel-body .workspace-v4-pen-profiles { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.workspace-v2 .workspace-v7-panel-body :is(.workspace-v2-icon-choices, .workspace-v4-pen-profiles) button { min-width: 0; min-height: 50px; padding-inline: 2px; border-radius: 12px; }
+.workspace-v2 .workspace-v7-panel-body :is(.workspace-v5-choice-label, .workspace-v4-pen-profiles button strong) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-v2 .workspace-v7-panel-body .workspace-v2-icon-choices[aria-label="Shape type"] button { min-height: 50px; }
+
+/* ------------------------------------------------------------ Colours */
+
+.workspace-v2 .workspace-v7-panel-body > .workspace-v5-inspector-section:has(.workspace-v2-colors) > h3 { display: none; }
+.workspace-v2 .workspace-v7-panel-body .workspace-v2-colors {
+  flex-wrap: nowrap;
+  gap: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  overscroll-behavior-inline: contain;
+  touch-action: pan-x;
+  /* A soft edge says the row continues. */
+  -webkit-mask-image: linear-gradient(to var(--tool-fade-side, right), #000 calc(100% - 22px), transparent);
+  mask-image: linear-gradient(to var(--tool-fade-side, right), #000 calc(100% - 22px), transparent);
+}
+[dir="rtl"] .workspace-v2 { --tool-fade-side: left; }
+.workspace-v2 .workspace-v7-panel-body .workspace-v2-colors::-webkit-scrollbar { display: none; }
+.workspace-v2 .workspace-v7-panel-body .workspace-v2-colors:has(.workspace-v2-custom-color-editor) { flex-wrap: wrap; overflow: visible; -webkit-mask-image: none; mask-image: none; }
+.workspace-v2 .workspace-v7-panel-body .workspace-v6-color-strip { gap: 8px; }
+.workspace-v2 .workspace-v7-panel-body .workspace-v6-color-strip button { width: 26px; height: 26px; }
+
+@media (pointer: fine) {
+  .workspace-v2 .workspace-v7-panel-body .workspace-v2-color-item,
+  .workspace-v2 .workspace-v7-panel-body .workspace-v2-color-swatch,
+  .workspace-v2 .workspace-v7-panel-body :is(.workspace-v2-custom-color, .workspace-v4-favorite-color) { width: 36px; min-width: 36px; height: 36px; min-height: 36px; flex-basis: 36px; }
+  .workspace-v2 .workspace-v7-panel-body .workspace-v2-color-swatch::before { inset: 6px; }
+}
+
+/* Touch keeps 44px targets everywhere. */
+@media (pointer: coarse) {
+  .workspace-v2 .workspace-v7-panel-body .workspace-v2-tool-range { min-height: 44px; }
+}
+
+/* ------------------------------------------------------------ Toggles */
+
+.workspace-v2 .workspace-v7-panel-body .workspace-v7-rows .workspace-v2-settings-toggle small { display: none; }
+.workspace-v2 .workspace-v7-panel-body .workspace-v7-rows .workspace-v2-settings-toggle { min-height: 44px; padding-block: 2px; }
+
+/* ------------------------------------------------------------ Phone */
+
+@media (max-width: 560px) {
+  .workspace-v2 .workspace-v2-tool-options {
+    top: calc(var(--workspace-toolbar-height, 52px) + 8px);
+    bottom: auto;
+    left: max(8px, env(safe-area-inset-left));
+    max-width: none;
+    max-height: none;
+    overflow: visible;
+    transform: none;
+    border-radius: 18px;
+    transform-origin: var(--workspace-popover-origin, 50%) top;
+  }
+  /* The caret points at the tool, as it does on larger screens. */
+  .workspace-v2 .workspace-v2-tool-options::before {
+    position: absolute;
+    top: -6px;
+    left: calc(var(--workspace-popover-origin, 50%) - 6px);
+    width: 12px;
+    height: 12px;
+    border-top: 1px solid var(--fx-edge);
+    border-left: 1px solid var(--fx-edge);
+    border-top-left-radius: 3px;
+    content: "";
+    background: rgb(42 46 53 / .96);
+    transform: rotate(45deg);
+    clip-path: polygon(0 0, 100% 0, 0 100%);
+  }
+  .workspace-v2 .workspace-v2-tool-options-title { min-height: 0; gap: 10px; }
+  .workspace-v2 .workspace-v2-tool-options-title strong { font-size: .875rem; }
+  .workspace-v7-preview-well { min-width: 72px; border-radius: 8px; }
+  .workspace-v7-panel-body { max-height: min(56dvh, 420px); border-radius: 0 0 18px 18px; }
+  .workspace-v2 { --tool-label-gap: 8px; }
+
+  /* Choices become icon tiles; their names stay as accessible labels. */
+  .workspace-v2 .workspace-v7-panel-body :is(.workspace-v2-icon-choices, .workspace-v4-pen-profiles) button { grid-template-rows: 1fr; gap: 0; padding: 0; }
+  .workspace-v2 .workspace-v7-panel-body :is(.workspace-v5-choice-label, .workspace-v4-pen-profiles button strong) { display: none; }
+  .workspace-v2 .workspace-v7-panel-body .workspace-v2-icon-choices[aria-label="Shape type"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  /* A smaller thumb on a phone; the 44px row stays the touch target. */
+  .workspace-v2 .workspace-v7-panel-body > .workspace-v7-adjust { border-radius: 12px; }
+  .workspace-v2 .workspace-v7-panel-body .workspace-v2-tool-range input::-webkit-slider-runnable-track { height: 4px; }
+  .workspace-v2 .workspace-v7-panel-body .workspace-v2-tool-range input::-webkit-slider-thumb { width: 16px; height: 16px; margin-top: -6px; box-shadow: 0 1px 2px rgb(0 0 0 / .3), 0 2px 5px rgb(0 0 0 / .25); }
+  .workspace-v2 .workspace-v7-panel-body .workspace-v2-tool-range input::-moz-range-track { height: 4px; }
+  .workspace-v2 .workspace-v7-panel-body .workspace-v2-tool-range input::-moz-range-progress { height: 4px; }
+  .workspace-v2 .workspace-v7-panel-body .workspace-v2-tool-range input::-moz-range-thumb { width: 16px; height: 16px; }
+  .workspace-v2 .workspace-v7-panel-body .workspace-v2-tool-range input:active::-webkit-slider-thumb { transform: scale(1.12); }
+
+  /* A compact card under the tools rather than a full-width sheet. */
+  .workspace-v2 .workspace-v2-tool-options { right: auto; width: min(300px, calc(100% - 16px)); }
+  [dir="rtl"] .workspace-v2 .workspace-v2-tool-options { right: max(8px, env(safe-area-inset-right)); left: auto; }
+  .workspace-v2 .workspace-v2-tool-options-title { padding: 6px 10px 4px; }
+  .workspace-v7-preview-well { height: 22px; }
+  .workspace-v7-panel-body { padding: 0 10px 4px; }
+  .workspace-v2 .workspace-v7-panel-body > .workspace-v5-inspector-section { padding: 4px 0; }
+  /* Compact, but every row and tile keeps the 44px touch target. */
+  .workspace-v2 .workspace-v7-panel-body :is(.workspace-v2-icon-choices, .workspace-v4-pen-profiles) button { min-height: 44px; border-radius: 10px; }
+  .workspace-v2 .workspace-v7-panel-body .workspace-v2-icon-choices[aria-label="Shape type"] button { min-height: 44px; }
+  .workspace-v2 .workspace-v7-panel-body :is(.workspace-v2-icon-choices button > svg, .workspace-v4-nib svg) { width: 18px; height: 18px; }
+  .workspace-v2 { --tool-label-column: 62px; }
+  .workspace-v2 .workspace-v7-panel-body .workspace-v2-tool-range { min-height: 44px; padding-inline-end: 40px; }
+  .workspace-v2 .workspace-v7-panel-body .workspace-v2-range-heading > span,
+  .workspace-v2 .workspace-v7-panel-body .workspace-v2-range-heading output { font-size: .7rem; }
+  .workspace-v2 .workspace-v7-panel-body .workspace-v2-range-heading output { width: 38px; }
+  .workspace-v2 .workspace-v7-panel-body > .workspace-v7-adjust { margin-block: 4px; padding-inline: 8px; }
+  .workspace-v2 .workspace-v7-panel-body .workspace-v7-rows .workspace-v2-settings-toggle { min-height: 44px; padding-block: 0; }
+  .workspace-v2 .workspace-v7-panel-body .workspace-v7-rows .workspace-v2-settings-toggle strong { font-size: .72rem; }
+
+  /* The eraser's mode hint repeats what the selected tile already says. */
+  .workspace-v2 .workspace-v7-panel-body > .workspace-v5-inspector-section > p { display: none; }
+}
+
+@media (max-width: 560px) and (prefers-reduced-motion: no-preference) {
+  .workspace-v2 .workspace-v2-tool-options { animation: workspace-tool-drop 280ms var(--fx-spring, cubic-bezier(.22, 1, .36, 1)) both; }
+}
+@keyframes workspace-tool-drop { from { opacity: 0; translate: 0 -6px; scale: .97; } to { opacity: 1; translate: 0 0; scale: 1; } }
+
+/* A switch that is on matches the panel's sliders and selected tiles, rather
+   than the app accent (gold in some themes) beside blue sliders. */
+.workspace-v2 .workspace-v7-panel-body .workspace-v2-settings-toggle[aria-checked="true"] .workspace-v2-switch-track { background: var(--fx-accent); }
+
+/* Undo and Redo arrows point the way the text runs. */
+[dir="rtl"] .workspace-v2 .workspace-v2-history svg { transform: scaleX(-1); }
+
+/* The chosen pen is named in the title (its tiles are icons on a phone); the
+   Pointer pen also says that its ink clears when you lift. */
+.workspace-v2 .workspace-v2-tool-options-title strong em { color: var(--fx-text-3, currentColor); font-style: normal; font-weight: 600; }
+.workspace-v2 .workspace-v2-tool-options-title small.is-shown { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

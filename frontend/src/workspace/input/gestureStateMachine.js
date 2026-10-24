@@ -129,6 +129,18 @@ export function pointerSnapshot(event) {
   };
 }
 
+/**
+ * What draws before the student has chosen. A phone is written on with a
+ * finger, so the finger draws there; a tablet is usually written on with a
+ * stylus, so fingers keep scrolling and zooming. A stored choice always wins.
+ * @param {{ stored?: string | null, coarsePointer?: boolean, shortestScreenSide?: number }} device
+ */
+export function defaultDrawingInput({ stored = null, coarsePointer = false, shortestScreenSide = 0 } = {}) {
+  if (stored === DRAWING_INPUT.STYLUS_ONLY || stored === DRAWING_INPUT.STYLUS_AND_FINGER) return stored;
+  const phone = coarsePointer && Number(shortestScreenSide) > 0 && Number(shortestScreenSide) < 600;
+  return phone ? DRAWING_INPUT.STYLUS_AND_FINGER : DRAWING_INPUT.STYLUS_ONLY;
+}
+
 export function pointerCanDraw(pointerType, drawingInput) {
   if (pointerType === "pen" || pointerType === "mouse") return true;
   return pointerType === "touch" && drawingInput === DRAWING_INPUT.STYLUS_AND_FINGER;

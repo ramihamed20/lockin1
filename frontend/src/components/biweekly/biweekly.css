@@ -190,7 +190,11 @@ html.ix-hover .biweekly-row-actions a:hover { background: color-mix(in srgb, var
 .weekly-summary-column { display: grid; min-width: 0; gap: 12px; }
 .weekly-summary-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 .weekly-summary-head h2 { margin: 0; }
-.weekly-ready-toast > div { display: grid; gap: 6px; justify-items: start; }
+/* The open button sits beside the message, not under it, so the card stays
+   one short row above the phone's bottom bar instead of covering the page. */
+.weekly-ready-toast > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; row-gap: 2px; }
+.weekly-ready-toast > div > :not(.btn) { grid-column: 1; margin: 0; }
+.weekly-ready-toast > div > .btn { grid-column: 2; grid-row: 1 / span 2; }
 
 .weekly-summary-tabs { display: none; }
 @media (max-width: 899px) {
@@ -208,4 +212,10 @@ html.ix-hover .biweekly-row-actions a:hover { background: color-mix(in srgb, var
 .reminder-toast.weekly-ready-toast { height: fit-content; align-self: start; }
 @media (max-width: 640px) {
   .reminder-toast.weekly-ready-toast { top: auto; bottom: calc(84px + env(safe-area-inset-bottom)); }
+}
+/* On wider screens the card waits in the bottom corner away from the
+   navigation rail. Pinned top-right it covered the header's controls and,
+   in Arabic, the rail itself and the page heading. */
+@media (min-width: 641px) {
+  .reminder-toast.weekly-ready-toast { top: auto; right: auto; left: auto; bottom: calc(18px + env(safe-area-inset-bottom)); inset-inline-end: 18px; }
 }

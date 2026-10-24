@@ -66,3 +66,34 @@ export function bootFailureMessage(error, { online = true, retrying = false } = 
   if (Number.isFinite(status) && status >= 500) return SERVER_MESSAGE;
   return normalizeUserError(/** @type {any} */ (error)?.message, GENERIC_MESSAGE);
 }
+
+/** Set while a sign-out made offline is waiting to reach the server. */
+export const OFFLINE_PENDING_LOGOUT_KEY = "lock-in.offline-pending-logout";
+
+let earlySessionCheck = null;
+
+/**
+ * Sends the first session check while the rest of the app is still arriving
+ * (main.jsx calls this before the first render), so it is not queued behind
+ * the language chunk and the first render. The first boot takes it with
+ * takeEarlySessionCheck(); later boots and retries ask again.
+ *
+ * Not sent when the device is offline or a sign-out is still waiting to be
+ * sent: the boot must run those cases in its own order.
+ * @param {() => Promise<unknown>} check
+ */
+export function startEarlySessionCheck(check) {
+  try {
+    if (navigator.onLine === false || window.localStorage.getItem(OFFLINE_PENDING_LOGOUT_KEY)) return;
+  } catch { /* Without storage there is no pending sign-out to respect. */ }
+  earlySessionCheck = check();
+  // The boot reads the outcome; an unread rejection is not an error here.
+  earlySessionCheck.catch(() => undefined);
+}
+
+/** The early session check, once; null when there is none or it was taken. */
+export function takeEarlySessionCheck() {
+  const check = earlySessionCheck;
+  earlySessionCheck = null;
+  return check;
+}

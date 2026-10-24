@@ -4,7 +4,7 @@ import { Icon } from "../../lib/icons.jsx";
 import { authApi } from "../../lib/api.js";
 import { assetPath } from "../../lib/utils.js";
 import { educationPathFor, isSelectableStudyPath, uniqueEducationOptions } from "../../lib/educationPath.js";
-import { normalizeLocale, translate } from "../../lib/i18n.js";
+import { loadLocaleMessages, normalizeLocale, translate } from "../../lib/i18n.js";
 import { useI18n } from "../I18nProvider.jsx";
 import { AccountFieldErrors, AccountFormAlert, fieldErrorAttributes } from "../account/AccountFormErrors.jsx";
 import { fieldsForSignupStep, firstInvalidField, focusAuthField, normalizeAuthError, signupStepForField, validateAuthForm } from "../../lib/authValidation.js";
@@ -438,7 +438,8 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, no
   function changeLanguage(value) {
     const nextLocale = normalizeLocale(value);
     setLocale(nextLocale);
-    setError((current) => {
+    // The new language may still be arriving; re-ask once it can be read.
+    loadLocaleMessages(nextLocale).then(() => setError((current) => {
       if (current?.code !== "client_validation" || !current.fields) return current;
       const nextT = (key, variables) => translate(nextLocale, key, variables);
       const fresh = validateAuthForm({ mode, form, t: nextT, requiresName, requiresCohort, requiresUsername });
@@ -446,7 +447,7 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, no
       const messages = Object.values(fields).flat();
       if (!messages.length) return null;
       return { ...current, fields, message: messages[0] };
-    });
+    }), () => undefined);
   }
 
   // Editing a box answers its own complaint. Clearing only that field's message

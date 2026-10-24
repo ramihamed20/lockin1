@@ -93,7 +93,7 @@ test("blank workspace pages hold ink and text across reload without entering PDF
   await drawOnBlankPage(page, 94);
   await expect(blank.locator("[data-annotation-type='pen']:not(.workspace-v2-annotation-hit)")).toHaveCount(1);
   await page.getByRole("button", { name: "Add", exact: true }).click();
-  await page.getByRole("button", { name: "Text", exact: true }).click();
+  await page.getByRole("button", { name: "Add text", exact: true }).click();
   await page.getByRole("dialog", { name: "Add text annotation" }).getByRole("textbox", { name: "Annotation text" }).fill("Blank page writing");
   await page.getByRole("dialog", { name: "Add text annotation" }).getByRole("button", { name: "B Bold" }).click();
   await page.getByRole("dialog", { name: "Add text annotation" }).getByRole("combobox", { name: "Align" }).selectOption("right");

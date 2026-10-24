@@ -148,11 +148,11 @@ test("predicted samples, tool changes, and cleared surfaces all force a full rep
   assert.equal(live.frame(stroke(27, { id: "another-stroke" })).mode, "full");
 });
 
-test("live highlighter geometry stays a centerline and appends without repainting the whole path", () => {
+test("live highlighter geometry is outlined like the saved one and appends without repainting the whole path", () => {
   const highlighter = (count) => stroke(count, { id: "live-highlight", type: "highlighter", profile: PEN_PROFILE.HIGHLIGHTER, width: 28, opacity: .34 });
   const live = createLiveStrokeGeometry();
   const first = live.frame(highlighter(30));
-  assert.equal(first.kind, "centerline");
+  assert.equal(first.kind, "outline");
   assert.equal(first.composite, "multiply");
   assert.equal(first.mode, "full");
   const next = live.frame(highlighter(31));

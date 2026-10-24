@@ -1,0 +1,66 @@
+/* The Zoom Window: a magnified strip docked at the bottom of the reader. */
+.workspace-zoom-window {
+  position: absolute;
+  z-index: 7;
+  inset-inline: 0;
+  bottom: 0;
+  display: grid;
+  height: clamp(190px, 34dvh, 340px);
+  grid-template-rows: auto minmax(0, 1fr);
+  padding: 0 max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  border-top: 1px solid var(--fx-edge, rgb(255 255 255 / .12));
+  background: var(--fx-panel, rgb(28 32 40 / .97));
+  box-shadow: 0 -12px 30px rgb(0 0 0 / .28);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  backdrop-filter: blur(24px) saturate(1.6);
+}
+@media (min-width: 900px) {
+  .workspace-zoom-window { inset-inline: max(16px, calc((100% - 960px) / 2)); bottom: 12px; border: 1px solid var(--fx-edge, rgb(255 255 255 / .12)); border-radius: 20px; }
+}
+.workspace-zoom-window-bar { display: flex; align-items: center; gap: 2px; padding: 2px 0; }
+.workspace-zoom-window-bar button {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  color: var(--fx-text, #eef1fb);
+  background: transparent;
+  cursor: pointer;
+}
+.workspace-zoom-window-bar button:disabled { opacity: .35; cursor: default; }
+.workspace-zoom-window-bar button.is-return { color: #8ec5ff; }
+@media (hover: hover) {
+  .workspace-zoom-window-bar button:hover:not(:disabled) { background: rgb(255 255 255 / .08); }
+}
+.workspace-zoom-window-bar button:focus-visible { outline: 2px solid var(--fx-accent, #3d9bff); outline-offset: -2px; }
+.workspace-zoom-window-spacer { flex: 1 1 auto; }
+.workspace-zoom-window-surface {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #ffffff;
+  cursor: crosshair;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.workspace-zoom-window-page, .workspace-zoom-window-ink { position: absolute; inset: 0; width: 100%; height: 100%; }
+.workspace-zoom-window-ink { overflow: hidden; }
+/* Writing into this zone moves the box along the line. */
+.workspace-zoom-window-advance {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: 22%;
+  border-inline-start: 1px dashed rgb(34 160 90 / .55);
+  background: rgb(34 197 94 / .07);
+  pointer-events: none;
+}
+/* The box on the page that the window magnifies. */
+.workspace-zoom-window-box { fill: rgb(37 99 235 / .07); stroke: #2563eb; stroke-width: 2; vector-effect: non-scaling-stroke; pointer-events: none; }
+/* The page indicator and zoom bar would sit under the window. */
+.workspace-v2.has-zoom-window :is(.workspace-v2-page-number, .workspace-v2-zoom-bar) { visibility: hidden; }

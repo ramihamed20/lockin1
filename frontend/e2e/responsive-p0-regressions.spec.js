@@ -222,8 +222,14 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
       };
       return {
         total: controls.length,
-        // The open-document tabs are a row of their own above the tools.
+        // With one document open there is no tab row; on a phone undo/redo are
+        // pinned in the tool row, beside the rail, so they never scroll away.
         rows: new Set(controls.filter((control) => !control.closest(".workspace-tabs")).map((control) => Math.round(control.getBoundingClientRect().top))).size,
+        dockedOutsideToolRow: (() => {
+          const pen = nav.querySelector('[data-workspace-tool="pen"]').getBoundingClientRect();
+          const docked = controls.filter((control) => control.closest(".workspace-v2-history.is-docked"));
+          return docked.length === 2 ? docked.filter((control) => Math.abs(control.getBoundingClientRect().top - pen.top) > 2).map((control) => control.getAttribute("aria-label")) : ["Undo/Redo missing"];
+        })(),
         offScreen: controls
           .filter((control) => {
             const bounds = control.getBoundingClientRect();
@@ -250,15 +256,19 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     expect(toolbar.underTouchSize, "workspace controls are under the touch minimum").toEqual([]);
     expect(toolbar.total).toBeGreaterThanOrEqual(6);
     expect(toolbar.rows, "the toolbar wrapped to a second row").toBe(1);
+    expect(toolbar.dockedOutsideToolRow, "undo/redo are not pinned in the tool row").toEqual([]);
     expect(toolbar.horizontalOverflow, "the toolbar itself scrolls sideways instead of its tool rail").toBeLessThanOrEqual(1);
     expect(toolbar.publishedHeight).toBe(toolbar.actualHeight);
 
     await page.getByRole("button", { name: "Add", exact: true }).click();
-    for (const label of ["Image", "Text"]) await expect(page.getByRole("button", { name: label, exact: true })).toBeVisible();
+    for (const label of ["Add image", "Add text"]) await expect(page.getByRole("button", { name: label, exact: true })).toBeVisible();
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "More workspace actions" }).click();
-    for (const label of ["Pencil", "Shapes", "Highlight", "Eraser", "Lasso", "Bookmarks", "Full.screen", "settings"]) {
-      await expect(page.getByRole("button", { name: new RegExp(label, "i") })).toBeVisible();
+    // Highlight, Eraser and Lasso are always on the phone rail, so More does
+    // not repeat them; folded tools, document actions and Study helpers
+    // remain available here. Pen profiles live in Pen options.
+    for (const label of ["Shapes", "Hand", "Add to page", "Bookmarks", "settings", "Whiteboard", "Open sheet", "YouTube video", "Search document", "Zoom window", "Open notes"]) {
+      await expect(page.getByRole("dialog", { name: "More workspace actions" }).getByRole("button", { name: new RegExp(label, "i") })).toBeVisible();
     }
   });
 }

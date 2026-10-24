@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { activeStudyResumePage, visiblePdfPages } from "../src/workspace/catalog/visiblePdfPages.js";
+import { readWorkspaceSource } from "./helpers/workspaceSource.js";
 
-const [workspace, workspaceStyles, continuousPdf, api, study, profile, catalogue] = await Promise.all([
-  readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8"),
+const [workspace, workspaceStyles, glassStyles, continuousPdf, api, study, profile, catalogue] = await Promise.all([
+  readWorkspaceSource(),
   readFile(new URL("../src/pages/catalog-focus-workspace.css", import.meta.url), "utf8"),
+  readFile(new URL("../src/pages/focus-workspace-glass.css", import.meta.url), "utf8"),
   readFile(new URL("../src/workspace/catalog/ContinuousA4Pdf.jsx", import.meta.url), "utf8"),
   readFile(new URL("../src/api/focus.js", import.meta.url), "utf8"),
   readFile(new URL("../src/pages/LearningObjectStudy.jsx", import.meta.url), "utf8"),
@@ -104,12 +106,15 @@ test("Active Study quiz surfaces inherit the current application theme", () => {
     workspaceStyles.indexOf("@keyframes workspace-options-in")
   );
   assert.match(themedQuiz, /workspace-v2-quiz-backdrop[^}]+var\(--workspace-overlay/);
-  assert.match(themedQuiz, /workspace-v2-quiz-dialog,[\s\S]+background: var\(--workspace-panel\)/);
-  assert.match(themedQuiz, /workspace-v2-quiz-dialog > main[^}]+background: var\(--workspace-panel-2\)/);
-  assert.match(themedQuiz, /workspace-v2-answer-list button[^}]+color: var\(--workspace-chrome-text\)[^}]+background: var\(--workspace-control-bg\)/);
-  assert.match(themedQuiz, /workspace-v2-answer-list button\.is-selected[^}]+var\(--workspace-gold\)/);
-  assert.match(themedQuiz, /workspace-v2-quiz-progress span[^}]+background: var\(--workspace-gold\)/);
-  assert.match(themedQuiz, /workspace-v2-result-actions button\.is-primary[^}]+color: var\(--workspace-on-accent\)/);
+  // The values that actually paint the quiz: the glass layer's app theme
+  // surfaces and accent (the base file's older colours were always overridden
+  // by them and have been removed).
+  assert.match(glassStyles, /\.workspace-v2-quiz-dialog,\s*\.workspace-v2-quiz-result \{[^}]*background: var\(--surface\)/);
+  assert.match(workspaceStyles, /\.workspace-v2-quiz-dialog > main \{[^}]*background: transparent/);
+  assert.match(glassStyles, /\.workspace-v2-answer-list button \{[^}]*color: var\(--text\)[^}]*background: var\(--surface-2\)/);
+  assert.match(glassStyles, /\.workspace-v2-answer-list button\.is-selected \{[^}]*var\(--accent/);
+  assert.match(glassStyles, /\.workspace-v2-quiz-progress span \{[^}]*background: var\(--accent\)/);
+  assert.match(glassStyles, /\.workspace-v2-result-actions button\.is-primary \{[^}]*color: var\(--on-accent\)[^}]*background: var\(--accent\)/);
 });
 
 test("Active Study has one reader and no iframe or parallel legacy client", () => {

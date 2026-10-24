@@ -56,7 +56,12 @@ async function prepare(page, arabic = false) {
 
 // Summary, Map and Explain open from the toolbar Study launcher.
 async function openStudyTool(page, tool = "summary") {
-  await page.locator("[data-workspace-surface=\"study\"]").click();
+  const study = page.locator('[data-workspace-surface="study"]:visible');
+  if (await study.count()) await study.click();
+  else {
+    await page.locator('[data-workspace-surface="more"]:visible').click();
+    await page.locator('#workspace-more-popover [data-workspace-action="study"]').click();
+  }
   await page.locator(`[data-study-tool="${tool}"]`).click();
 }
 

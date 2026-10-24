@@ -1,5 +1,6 @@
 import { strokeRenderGeometry } from "../ink/strokeModel.js";
 import { paintInkErasures } from "../ink/inkErasures.js";
+import { layoutNoteCard } from "./noteCardLayout.js";
 
 function colorWithOpacity(color, opacity = 1) {
   const value = String(color || "#27364d");
@@ -113,42 +114,45 @@ function drawCover(context, item) {
   context.fill();
 }
 
-function drawCard(context, item) {
-  const colors = { sticky: "#fff3a8", note: "#edf2ff", lined: "#ffffff", revision: "#ffe8ed" };
-  context.fillStyle = colors[item.cardKind] || colors.note;
-  context.strokeStyle = "#b8c4d6";
-  context.lineWidth = 2;
+function drawCard(context, item, pageAspect) {
+  const card = layoutNoteCard(item, pageAspect);
+  const rounded = () => { context.beginPath(); context.roundRect(item.x, item.y, item.width, card.height, card.radius); };
+  context.save();
+  context.translate(item.x, item.y);
+  context.scale(1, card.scaleY);
+  context.translate(-item.x, -item.y);
+  context.fillStyle = "rgba(15, 23, 42, .12)";
   context.beginPath();
-  context.roundRect(item.x, item.y, item.width, item.height, 16);
+  context.roundRect(item.x, item.y + 5, item.width, card.height, card.radius);
   context.fill();
+  context.fillStyle = card.style.paper;
+  rounded();
+  context.fill();
+  context.save();
+  rounded();
+  context.clip();
+  context.fillStyle = card.style.accent;
+  context.fillRect(item.x, item.y, item.width, card.band);
+  context.restore();
+  context.strokeStyle = card.style.rule || "transparent";
+  context.lineWidth = 1.5;
+  for (const y of card.rules) {
+    context.beginPath();
+    context.moveTo(item.x + card.pad, y);
+    context.lineTo(item.x + item.width - card.pad, y);
+    context.stroke();
+  }
+  context.strokeStyle = "rgba(15, 23, 42, .1)";
+  rounded();
   context.stroke();
-  context.fillStyle = "#1d3152";
-  context.font = "700 21px system-ui";
-  context.fillText(({ sticky: "Sticky Note", note: "Note Card", lined: "Lined Card", revision: "Revision Card" })[item.cardKind] || "Note Card", item.x + 18, item.y + 34);
-  if (item.cardKind === "lined") {
-    context.strokeStyle = "#bed4ed";
-    for (let y = item.y + 70; y < item.y + item.height - 10; y += 35) {
-      context.beginPath();
-      context.moveTo(item.x + 14, y);
-      context.lineTo(item.x + item.width - 14, y);
-      context.stroke();
-    }
+  context.direction = card.rtl ? "rtl" : "ltr";
+  context.textAlign = "start";
+  for (const line of card.lines) {
+    context.fillStyle = line.color;
+    context.font = `${line.weight} ${line.size}px system-ui`;
+    context.fillText(line.text, line.x, line.y);
   }
-  context.fillStyle = "#26344e";
-  context.font = "20px system-ui";
-  const words = String(item.text || "").split(/\s+/);
-  let line = "";
-  let y = item.y + 70;
-  for (const word of words) {
-    const next = line ? `${line} ${word}` : word;
-    if (context.measureText(next).width > item.width - 36 && line) {
-      context.fillText(line, item.x + 18, y);
-      y += 28;
-      line = word;
-    } else line = next;
-    if (y > item.y + item.height - 12) break;
-  }
-  if (line && y <= item.y + item.height - 12) context.fillText(line, item.x + 18, y);
+  context.restore();
 }
 
 /** Export resolution: twice PDF points, independent of the reader's zoom and the screen's pixel ratio. */
@@ -192,14 +196,14 @@ export async function renderWorkspacePage({ pdf, pageNumber, background = "blank
       strokeContext.setTransform(1, 0, 0, 1, 0, 0);
       strokeContext.clearRect(0, 0, strokeCanvas.width, strokeCanvas.height);
       strokeContext.setTransform(strokeCanvas.width / 1000, 0, 0, strokeCanvas.height / 1000, 0, 0);
-      const geometry = strokeRenderGeometry(item);
+      const geometry = strokeRenderGeometry(item, pageAspect);
       strokeContext.fillStyle = item.color;
       strokeContext.strokeStyle = item.color;
       strokeContext.lineWidth = geometry.width || 1;
       strokeContext.lineCap = "round";
       strokeContext.lineJoin = "round";
       if (geometry.kind === "dot") {
-        strokeContext.beginPath(); strokeContext.arc(geometry.x, geometry.y, geometry.radius, 0, Math.PI * 2); strokeContext.fill();
+        strokeContext.beginPath(); strokeContext.ellipse(geometry.x, geometry.y, geometry.radiusX ?? geometry.radius, geometry.radiusY ?? geometry.radius, 0, 0, Math.PI * 2); strokeContext.fill();
       } else if (geometry.kind === "centerline") strokeContext.stroke(new window.Path2D(geometry.path));
       else if (geometry.kind === "outline") strokeContext.fill(new window.Path2D(geometry.path));
       paintInkErasures(strokeContext, item.erasures, pageAspect);
@@ -220,12 +224,12 @@ export async function renderWorkspacePage({ pdf, pageNumber, background = "blank
       if (inkCanvas) { inkCanvas.width = canvas.width; inkCanvas.height = canvas.height; }
       const inkContext = inkCanvas ? inkCanvas.getContext("2d") : context;
       if (inkCanvas) inkContext.scale(inkCanvas.width / 1000, inkCanvas.height / 1000);
-      const geometry = strokeRenderGeometry(item);
+      const geometry = strokeRenderGeometry(item, pageAspect);
       inkContext.fillStyle = colorWithOpacity(item.color);
       inkContext.strokeStyle = colorWithOpacity(item.color);
       if (geometry.kind === "dot") {
         inkContext.beginPath();
-        inkContext.arc(geometry.x, geometry.y, geometry.radius, 0, Math.PI * 2);
+        inkContext.ellipse(geometry.x, geometry.y, geometry.radiusX ?? geometry.radius, geometry.radiusY ?? geometry.radius, 0, 0, Math.PI * 2);
         inkContext.fill();
       } else if (geometry.kind === "centerline") {
         inkContext.lineWidth = geometry.width;
@@ -246,7 +250,7 @@ export async function renderWorkspacePage({ pdf, pageNumber, background = "blank
       for (const [index, line] of String(item.text).split("\n").entries()) context.fillText(line, item.x, item.y + index * fontSize * 1.3);
     } else if (item.type === "image") {
       try { await drawImage(context, item); } catch { /* Corrupt local image does not hide the rest of the page. */ }
-    } else if (item.type === "card") drawCard(context, item);
+    } else if (item.type === "card") drawCard(context, item, pageAspect);
     else if (item.type === "cover") drawCover(context, item);
     context.restore();
   }

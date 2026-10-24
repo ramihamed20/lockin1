@@ -5,6 +5,7 @@ import test from "node:test";
 import { buildActiveStudyJsonPrompt } from "../src/lib/activeStudyPrompt.js";
 import { copyTextToClipboard } from "../src/lib/clipboard.js";
 import { resolveSheetEdition, withEditionPdfUrl } from "../src/lib/materialCatalog.js";
+import { readWorkspaceSource } from "./helpers/workspaceSource.js";
 
 const UNIVERSITY_URL = "/api/v1/files/11111111-1111-1111-1111-111111111111/view";
 const LOCKIN_URL = "/api/v1/files/22222222-2222-2222-2222-222222222222/view";
@@ -257,7 +258,7 @@ test("Admin always gives the prompt a way out of the browser", async () => {
 });
 
 test("the reader never falls back to a document the address did not name", async () => {
-  const workspace = await readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8");
+  const workspace = await readWorkspaceSource();
   assert.match(workspace, /withEditionPdfUrl\(materials, \{/);
   // A catalog sheet without its own PDF is stopped before the view, whose
   // no-PDF branch renders a built-in placeholder document.
@@ -268,7 +269,7 @@ test("the reader never falls back to a document the address did not name", async
 
 test("the reader tells the server which of a sheet's PDFs it is marking", async () => {
   const [workspace, focusApiSource, sync] = await Promise.all([
-    readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8"),
+    readWorkspaceSource(),
     readFile(new URL("../src/api/focus.js", import.meta.url), "utf8"),
     readFile(new URL("../src/workspace/catalog/catalogServerSync.js", import.meta.url), "utf8")
   ]);

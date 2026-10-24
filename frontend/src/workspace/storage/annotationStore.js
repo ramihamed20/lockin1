@@ -1,4 +1,5 @@
 import { sanitizeVirtualPages } from "../catalog/virtualPages.js";
+import { compactCatalogAnnotation } from "../catalog/catalogWorkspaceState.js";
 import {
   WORKSPACE_RECORD_VERSION,
   groupAnnotationsByPage,
@@ -183,7 +184,7 @@ export function createAnnotationStore(environment = {}) {
       pages.forEach((annotations, page) => {
         const pageKey = workspacePageId(id, page);
         if (!annotations.length) pageStore.delete(pageKey);
-        else pageStore.put({ id: pageKey, documentId: id, page, annotations });
+        else pageStore.put({ id: pageKey, documentId: id, page, annotations: annotations.map(compactCatalogAnnotation).filter(Boolean) });
       });
       for (const page of removedPages) pageStore.delete(workspacePageId(id, page));
       await transactionSettled(transaction);

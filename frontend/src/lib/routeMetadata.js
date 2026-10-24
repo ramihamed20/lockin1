@@ -1,3 +1,5 @@
+import { translate } from "./i18n.js";
+
 const routeDefinitions = [
   { match: (path) => path === "/" || path === "/dashboard", key: "route.dashboard" },
   { match: (path) => path === "/my-group", key: "route.myGroup" },
@@ -44,4 +46,19 @@ export function routeMetadata(pathname, t = (key) => key) {
     h1: label,
     breadcrumbLabel: label
   };
+}
+
+/**
+ * The browser tab's name. A page that passes the route's own English name
+ * (most pages do) gets the route name in the reader's language, as its
+ * visible heading already does; any other title is shown as given.
+ * @param {string} title
+ * @param {string} pathname
+ * @param {(key: string) => string} t
+ */
+export function pageDocumentTitle(title, pathname, t) {
+  const metadata = routeMetadata(pathname, t);
+  if (!title || title === metadata.h1) return metadata.documentTitle;
+  if (title === routeMetadata(pathname, (key) => translate("en", key)).h1) return metadata.documentTitle;
+  return `${title} — Lock-in`;
 }

@@ -135,7 +135,7 @@ async function useTool(page, name) {
 
 async function addText(page, value = "Movable note") {
   await page.getByRole("button", { name: "Add", exact: true }).click();
-  await page.getByRole("button", { name: "Text", exact: true }).click();
+  await page.getByRole("button", { name: "Add text", exact: true }).click();
   await page.getByRole("dialog", { name: "Add text annotation" }).getByLabel("Annotation text").fill(value);
   await page.getByRole("button", { name: "Add text", exact: true }).click();
   const text = layer(page).locator('[data-annotation-type="text"]').last();
@@ -577,6 +577,10 @@ test.describe("export", () => {
       page.on("download", () => { downloads += 1; });
       await page.getByRole("button", { name: "More workspace actions" }).click();
       await page.getByRole("dialog", { name: "More workspace actions" }).getByRole("button", { name: /^Share/ }).click();
+      // Share asks what to share before exporting anything.
+      const choices = page.getByRole("dialog", { name: "Export workspace" });
+      await expect(choices.locator("header strong")).toHaveText("Share");
+      await choices.getByRole("button", { name: "PDF with annotations" }).click();
       const sheet = page.locator(".workspace-v8-export-sheet");
       await expect(sheet).toHaveAttribute("data-export-status", "ready", { timeout: 60_000 });
       // iOS waits for a tap instead of firing a download nobody asked for.

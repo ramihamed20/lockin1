@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
+import { readWorkspaceSource } from "./helpers/workspaceSource.js";
 
 async function source(path) {
   return readFile(new URL(path, import.meta.url), "utf8");
@@ -150,7 +151,7 @@ test("the document, the shell and the opening frame share one height authority",
 test("one module owns a stable application viewport and observes keyboard occlusion", async () => {
   const [viewport, workspace, main] = await Promise.all([
     source("../src/lib/viewport.js"),
-    source("../src/pages/CatalogFocusWorkspace.jsx"),
+    readWorkspaceSource(),
     source("../src/main.jsx")
   ]);
 

@@ -267,6 +267,68 @@ def test_text_annotation_formatting_round_trips_with_legacy_payloads() -> None:
     assert rejected.status_code == 400
 
 
+def test_stroke_style_round_trips_and_legacy_strokes_stay_valid() -> None:
+    _, student, _, version_id = _workspace_fixture()
+    client = _client(student)
+    styled_id = str(uuid4())
+    legacy_id = str(uuid4())
+    styled = _stroke(styled_id)
+    styled["payload"] = {
+        **styled["payload"],
+        "style": {
+            "profile": "calligraphy",
+            "pressureSensitivity": 0.7,
+            "smoothing": 0.8,
+            "pressureSource": "speed",
+        },
+    }
+    url = f"/api/v1/focus/documents/{version_id}/annotations"
+    saved = client.post(
+        url,
+        {
+            "expected_collection_revision": 0,
+            "idempotency_key": str(uuid4()),
+            "annotations": [styled, _stroke(legacy_id)],
+            "deleted_ids": [],
+        },
+        format="json",
+    )
+    assert saved.status_code == 200
+    loaded = {
+        item["id"]: item["payload"] for item in client.get(f"{url}?pages=1").json()["results"]
+    }
+    assert loaded[styled_id]["style"] == {
+        "profile": "calligraphy",
+        "pressureSensitivity": 0.7,
+        "smoothing": 0.8,
+        "pressureSource": "speed",
+    }
+    assert "style" not in loaded[legacy_id]
+
+    for index, style in enumerate(
+        (
+            {"profile": "neon"},
+            {"pressureSource": "tilt"},
+            {"profile": "ball", "pressureSensitivity": 1.5},
+            {"profile": "ball", "color": "#000000"},
+            "fountain",
+        )
+    ):
+        invalid = _stroke(str(uuid4()))
+        invalid["payload"] = {**invalid["payload"], "style": style}
+        rejected = client.post(
+            url,
+            {
+                "expected_collection_revision": 1,
+                "idempotency_key": str(uuid4()),
+                "annotations": [invalid],
+                "deleted_ids": [],
+            },
+            format="json",
+        )
+        assert rejected.status_code == 400, index
+
+
 def test_replacing_pdf_preserves_annotations_under_the_logical_sheet() -> None:
     admin, student, document_id, old_version_id = _workspace_fixture()
     client = _client(student)

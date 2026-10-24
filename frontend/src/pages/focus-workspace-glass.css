@@ -18,7 +18,6 @@
   --fx-text-2: rgb(235 238 245 / .74);
   --fx-text-3: rgb(235 238 245 / .5);
   --fx-danger: #ff6b6b;
-  --fx-switch-on: #2f8cff;
   --fx-accent: #3d9bff;
   --fx-shine: inset 0 1px 0 rgb(255 255 255 / .1);
   --fx-depth: 0 1px 2px rgb(0 0 0 / .24), 0 16px 36px -12px rgb(0 0 0 / .55), 0 40px 80px -32px rgb(0 0 0 / .55);
@@ -116,12 +115,9 @@ html.ix-hover .workspace-v2-toolbar .workspace-v2-icon-button:hover:not(:disable
 
 @media (min-width: 561px) and (min-height: 501px) {
   .workspace-v2 .workspace-v2-tool-options {
-    width: min(396px, calc(100% - 24px));
-    max-width: min(396px, calc(100% - 24px));
     max-height: none;
     padding: 0;
     overflow: visible;
-    border-radius: 24px;
   }
   /* The caret points at the tool the panel belongs to. */
   .workspace-v2 .workspace-v2-tool-options::before {
@@ -146,20 +142,15 @@ html.ix-hover .workspace-v2-toolbar .workspace-v2-icon-button:hover:not(:disable
   width: 100%;
   min-height: 0;
   align-items: center;
-  gap: 14px;
-  padding: 16px 18px 14px;
   border-bottom: 1px solid var(--fx-hair);
 }
 .workspace-v2 .workspace-v2-tool-options-title > span:first-child { display: grid; gap: 3px; min-width: 0; flex: 0 1 auto; }
-.workspace-v2 .workspace-v2-tool-options-title strong { color: var(--fx-text); font-size: 1.02rem; font-weight: 650; letter-spacing: -.015em; }
+.workspace-v2 .workspace-v2-tool-options-title strong { color: var(--fx-text); font-weight: 650; letter-spacing: -.015em; }
 .workspace-v2 .workspace-v2-tool-options-title small { color: var(--fx-text-3); font-size: .7rem; line-height: 1.3; }
 .workspace-v7-preview-well {
   display: block;
-  min-width: 120px;
-  height: 52px;
   flex: 1 1 0;
   overflow: hidden;
-  border-radius: 14px;
   background: radial-gradient(120% 140% at 50% 0%, rgb(255 255 255 / .06), transparent 60%), rgb(0 0 0 / .26);
   box-shadow: inset 0 1px 3px rgb(0 0 0 / .35), inset 0 0 0 1px rgb(255 255 255 / .05);
 }
@@ -173,7 +164,6 @@ html.ix-hover .workspace-v2-toolbar .workspace-v2-icon-button:hover:not(:disable
   display: grid;
   width: 100%;
   max-height: min(calc(var(--app-viewport-height, 100dvh) - var(--workspace-toolbar-height, 84px) - 150px), 600px);
-  padding: 2px 18px 16px;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -184,13 +174,11 @@ html.ix-hover .workspace-v2-toolbar .workspace-v2-icon-button:hover:not(:disable
 .workspace-v2 .workspace-v7-panel-body > .workspace-v5-inspector-section {
   display: grid;
   width: 100%;
-  gap: 10px;
-  padding: 14px 0;
   border: 0;
   border-top: 1px solid var(--fx-hair);
 }
 .workspace-v2 .workspace-v7-panel-body > .workspace-v5-inspector-section:first-child { border-top: 0; }
-.workspace-v2 .workspace-v7-panel-body h3 { margin: 0; color: var(--fx-text-2); font-size: .72rem; font-weight: 600; letter-spacing: 0; }
+.workspace-v2 .workspace-v7-panel-body h3 { margin: 0; color: var(--fx-text-2); font-weight: 600; letter-spacing: 0; }
 .workspace-v2 .workspace-v7-panel-body p { margin: 0; color: var(--fx-text-3); font-size: .68rem; line-height: 1.4; }
 
 /* Tiles: pen types, shapes, eraser modes, lasso modes. */
@@ -205,12 +193,9 @@ html.ix-hover .workspace-v2-toolbar .workspace-v2-icon-button:hover:not(:disable
 }
 .workspace-v2 .workspace-v7-panel-body .workspace-v2-icon-choices[aria-label="Shape type"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 /* Four pen types (three inks and Pointer) share one row. */
-.workspace-v2 .workspace-v7-panel-body .workspace-v4-pen-profiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .workspace-v2 .workspace-v7-panel-body :is(.workspace-v2-icon-choices, .workspace-v4-pen-profiles) button {
   display: grid;
-  min-width: 0;
   width: auto;
-  min-height: 66px;
   height: auto;
   grid-template-rows: 24px auto;
   place-items: center;
@@ -218,7 +203,6 @@ html.ix-hover .workspace-v2-toolbar .workspace-v2-icon-button:hover:not(:disable
   gap: 5px;
   padding: 8px 4px;
   border: 1px solid transparent;
-  border-radius: 15px;
   color: var(--fx-text-2);
   background: var(--fx-fill);
   box-shadow: none;
@@ -226,7 +210,7 @@ html.ix-hover .workspace-v2-toolbar .workspace-v2-icon-button:hover:not(:disable
   font-weight: 600;
   cursor: pointer;
 }
-.workspace-v2 .workspace-v7-panel-body .workspace-v2-icon-choices[aria-label="Shape type"] button { min-height: 58px; border-radius: 13px; }
+.workspace-v2 .workspace-v7-panel-body .workspace-v2-icon-choices[aria-label="Shape type"] button { border-radius: 13px; }
 .workspace-v2 .workspace-v7-panel-body :is(.workspace-v2-icon-choices, .workspace-v4-pen-profiles) button.is-active {
   color: color-mix(in srgb, var(--fx-accent) 45%, #fff);
   border-color: color-mix(in srgb, var(--fx-accent) 75%, transparent);
@@ -243,48 +227,6 @@ html.ix-hover .workspace-v2 .workspace-v7-panel-body :is(.workspace-v2-icon-choi
 .workspace-v2 .workspace-v7-panel-body :is(.workspace-v2-icon-choices button.is-active > svg, .workspace-v4-pen-profiles button.is-active svg) { transform: scale(1.12); }
 
 /* Size dots that grow with the size they choose. */
-.workspace-v2 .workspace-v7-panel-body .workspace-v4-quick-sizes {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-}
-.workspace-v2 .workspace-v7-panel-body .workspace-v4-quick-sizes button {
-  display: grid;
-  width: 44px;
-  min-width: 44px;
-  height: 44px;
-  min-height: 44px;
-  flex: 0 0 44px;
-  place-items: center;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  box-shadow: none;
-  font-size: 0;
-  grid-template-rows: none;
-  cursor: pointer;
-}
-.workspace-v2 .workspace-v7-panel-body .workspace-v4-quick-sizes button > span {
-  display: block;
-  width: var(--workspace-quick-size);
-  height: var(--workspace-quick-size);
-  max-height: none;
-  border-radius: 50%;
-  background: rgb(255 255 255 / .82);
-  transition: background-color 220ms var(--fx-spring), box-shadow 260ms var(--fx-spring), transform 380ms var(--fx-bounce);
-}
-.workspace-v2 .workspace-v7-panel-body .workspace-v4-quick-sizes button.is-active > span {
-  background: var(--fx-accent);
-  box-shadow: 0 0 0 3px var(--fx-solid), 0 0 0 5px color-mix(in srgb, var(--fx-accent) 80%, #fff);
-  transform: scale(1.08);
-}
-.workspace-v2 .workspace-v7-panel-body .workspace-v4-quick-sizes button:active > span { transform: scale(.85); }
 
 /* Sliders: label, track, value on one line, with an iOS thumb. */
 .workspace-v2 .workspace-v7-panel-body .workspace-v2-tool-range {
@@ -292,12 +234,8 @@ html.ix-hover .workspace-v2 .workspace-v7-panel-body :is(.workspace-v2-icon-choi
   display: grid;
   width: 100%;
   min-width: 0;
-  min-height: 40px;
-  grid-template-columns: 96px minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
   padding: 0;
-  padding-inline-end: 52px;
   border: 0;
   background: transparent;
   box-shadow: none;
@@ -307,21 +245,19 @@ html.ix-hover .workspace-v2 .workspace-v7-panel-body :is(.workspace-v2-icon-choi
   position: absolute;
   inset-inline-end: 0;
   top: 50%;
-  width: 48px;
   color: var(--fx-text);
-  font-size: .72rem;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   text-align: end;
   transform: translateY(-50%);
 }
+/* The value reads LTR ("4 pt", "100%"), and an LTR element resolves its own
+   logical insets: in Arabic it would land on the label's side. Pin it to the
+   end of the row physically. */
+[dir="rtl"] .workspace-v2 .workspace-v7-panel-body .workspace-v2-range-heading output { right: auto; left: 0; text-align: left; }
 .workspace-v2 .workspace-v7-panel-body .workspace-v2-range-control { display: block; min-width: 0; }
 .workspace-v2 .workspace-v7-panel-body .workspace-v2-range-preview { display: none; }
 /* Under its own heading a size slider needs no second label. */
-.workspace-v2 .workspace-v7-panel-body .workspace-v2-tool-range:is(.is-stroke, .is-eraser) { grid-template-columns: minmax(0, 1fr); }
-.workspace-v2 .workspace-v7-panel-body .workspace-v2-tool-range:is(.is-stroke, .is-eraser) .workspace-v2-range-heading { position: absolute; inset: 0; pointer-events: none; }
-.workspace-v2 .workspace-v7-panel-body .workspace-v2-tool-range:is(.is-stroke, .is-eraser) .workspace-v2-range-heading > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.workspace-v7-adjust { gap: 2px !important; }
 
 .workspace-v2 .workspace-v2-tool-range input { width: 100%; min-width: 0; height: 30px; margin: 0; appearance: none; -webkit-appearance: none; background: transparent; cursor: pointer; }
 .workspace-v2 .workspace-v7-panel-body .workspace-v2-tool-range input::-webkit-slider-runnable-track,
@@ -357,9 +293,7 @@ html.ix-hover .workspace-v2 .workspace-v7-panel-body :is(.workspace-v2-icon-choi
   display: flex;
   width: 100%;
   max-width: 100%;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 2px;
   padding: 0;
   overflow: visible;
 }
@@ -404,7 +338,7 @@ html.ix-hover .workspace-v2 .workspace-v7-panel-body :is(.workspace-v2-icon-choi
 .workspace-v2 .workspace-v7-panel-body .workspace-v2-custom-color-editor input { width: 100%; height: 34px; border: 0; border-radius: 10px; background: transparent; }
 .workspace-v2 .workspace-v7-panel-body .workspace-v2-custom-color-editor button { display: grid; width: 44px; height: 44px; flex: 0 0 44px; place-items: center; border: 0; border-radius: 12px; color: #fff; background: var(--fx-accent); cursor: pointer; }
 
-.workspace-v2 .workspace-v7-panel-body .workspace-v6-color-strip { display: flex; flex-wrap: wrap; gap: 10px; }
+.workspace-v2 .workspace-v7-panel-body .workspace-v6-color-strip { display: flex; flex-wrap: wrap; }
 .workspace-v2 .workspace-v7-panel-body .workspace-v6-color-strip button,
 .workspace-v7-fill-colors button {
   width: 30px;
@@ -487,71 +421,8 @@ html.ix-hover .workspace-v2 :is(.workspace-v7-panel-body, .workspace-v2-settings
 .workspace-v7-select-row select { min-height: 34px; padding: 0 12px; border: 0; border-radius: 10px; color: var(--fx-text); background: var(--fx-fill-strong); font-size: .74rem; }
 
 /* Lasso actions: icon over label, three to a row. */
-.workspace-v2 .workspace-v7-panel-body .workspace-v6-inspector-actions {
-  display: grid;
-  width: 100%;
-  min-width: 0;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-.workspace-v2 .workspace-v7-panel-body .workspace-v6-inspector-actions button {
-  display: grid;
-  min-height: 64px;
-  place-items: center;
-  align-content: center;
-  justify-content: center;
-  text-align: center;
-  gap: 6px;
-  padding: 8px 4px;
-  border: 0;
-  border-radius: 15px;
-  color: var(--fx-text);
-  background: var(--fx-fill);
-  font-size: .66rem;
-  font-weight: 550;
-  cursor: pointer;
-}
-.workspace-v2 .workspace-v7-panel-body .workspace-v6-inspector-actions button > svg { width: 20px; height: 20px; color: var(--fx-text-2); }
-.workspace-v2 .workspace-v7-panel-body .workspace-v6-inspector-actions button.is-danger,
-.workspace-v2 .workspace-v7-panel-body .workspace-v6-inspector-actions button.is-danger > svg { color: var(--fx-danger); }
-html.ix-hover .workspace-v2 .workspace-v7-panel-body .workspace-v6-inspector-actions button:not(:disabled):hover { background: var(--fx-fill-strong); }
-.workspace-v2 .workspace-v7-panel-body .workspace-v6-inspector-actions button:disabled { opacity: .45; cursor: default; }
 
 /* Pen extras. */
-.workspace-v2 .workspace-v7-panel-body .workspace-v5-advanced { display: grid; width: 100%; gap: 12px; padding: 12px 0 0; border-top: 1px solid var(--fx-hair); }
-.workspace-v2 .workspace-v7-panel-body .workspace-v5-advanced summary {
-  display: flex;
-  min-height: 44px;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 4px;
-  border: 0;
-  border-radius: 12px;
-  color: var(--fx-text-2);
-  background: transparent;
-  font-size: .74rem;
-  font-weight: 600;
-  list-style: none;
-  cursor: pointer;
-}
-.workspace-v2 .workspace-v7-panel-body .workspace-v5-advanced summary::-webkit-details-marker { display: none; }
-.workspace-v2 .workspace-v7-panel-body .workspace-v5-advanced summary::after {
-  width: 7px;
-  height: 7px;
-  margin-inline-end: 8px;
-  border-right: 1.8px solid var(--fx-text-3);
-  border-bottom: 1.8px solid var(--fx-text-3);
-  content: "";
-  transform: rotate(45deg);
-  transition: transform 320ms var(--fx-spring);
-}
-.workspace-v2 .workspace-v7-panel-body .workspace-v5-advanced[open] summary::after { transform: rotate(-135deg); }
-.workspace-v2 .workspace-v7-panel-body .workspace-v6-quick-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.workspace-v2 .workspace-v7-panel-body .workspace-v6-quick-presets button { min-height: 56px; border: 0; border-radius: 14px; color: var(--fx-text); background: var(--fx-fill); }
-.workspace-v2 .workspace-v7-panel-body .workspace-v6-quick-presets button > span { background: var(--fx-accent); }
 .workspace-v2 .workspace-v7-panel-body .workspace-v4-pen-gestures { display: grid; width: 100%; grid-template-columns: 1fr; padding: 0; border: 0; }
 
 /* ------------------------------------------------------ Menus (Add, More) */
@@ -559,27 +430,21 @@ html.ix-hover .workspace-v2 .workspace-v7-panel-body .workspace-v6-inspector-act
 .workspace-v2 .workspace-v2-action-popover { border-radius: 22px; }
 .workspace-v2 .workspace-v2-action-popover.is-add { width: min(360px, calc(100% - 16px)); }
 .workspace-v2 .workspace-v2-action-popover.is-more { width: min(340px, calc(100% - 16px)); }
-.workspace-v2 .workspace-v2-action-popover > header { min-height: 54px; padding-inline: 18px 8px; border-color: var(--fx-hair); }
-.workspace-v2 .workspace-v2-action-popover > header strong { color: var(--fx-text); font-size: .95rem; font-weight: 650; letter-spacing: -.01em; }
+.workspace-v2 .workspace-v2-action-popover > header { padding-inline: 18px 8px; border-color: var(--fx-hair); }
+.workspace-v2 .workspace-v2-action-popover > header strong { color: var(--fx-text); letter-spacing: -.01em; }
 .workspace-v2 .workspace-v2-action-popover > header button { display: grid; width: 44px; height: 44px; place-items: center; border: 0; border-radius: 50%; color: var(--fx-text-2); background: transparent; cursor: pointer; }
 html.ix-hover .workspace-v2 .workspace-v2-action-popover > header button:hover { color: var(--fx-text); background: var(--fx-fill); }
-.workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list { display: grid; gap: 2px; padding: 8px; }
+.workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list { display: grid; }
 .workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list > button {
   display: grid;
   width: 100%;
-  min-height: 56px;
-  grid-template-columns: 38px minmax(0, 1fr) 12px;
   align-items: center;
-  gap: 12px;
-  padding: 8px 12px 8px 8px;
   border: 0;
-  border-radius: 14px;
   color: var(--fx-text);
   background: transparent;
   text-align: start;
   cursor: pointer;
 }
-[dir="rtl"] .workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list > button { padding: 8px 8px 8px 12px; }
 .workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list > button > svg {
   box-sizing: content-box;
   width: 19px;
@@ -591,20 +456,17 @@ html.ix-hover .workspace-v2 .workspace-v2-action-popover > header button:hover {
   box-shadow: inset 0 1px 0 rgb(255 255 255 / .08);
 }
 .workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list > button > span { display: grid; gap: 2px; min-width: 0; }
-.workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list > button strong { font-size: .8rem; font-weight: 550; }
 .workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list > button small { color: var(--fx-text-3); font-size: .66rem; }
 .workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list > button::after {
   width: 7px;
   height: 7px;
   border-top: 1.8px solid var(--fx-text-3);
   border-right: 1.8px solid var(--fx-text-3);
-  content: "";
   transform: rotate(45deg);
 }
 [dir="rtl"] .workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list > button::after { transform: rotate(-135deg); }
 html.ix-hover .workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list > button:not(:disabled):hover { background: var(--fx-fill); }
 .workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list > button:disabled { opacity: .4; cursor: default; }
-.workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list > button[aria-pressed="true"] > svg { color: #ffd65c; }
 /* Tints give each insert its own quick read. */
 .workspace-v2 .workspace-v5-add-list > button:nth-child(1) > svg { color: #8ec5ff; background: rgb(61 155 255 / .16); }
 .workspace-v2 .workspace-v5-add-list > button:nth-child(2) > svg { color: #86e3b8; background: rgb(52 199 130 / .16); }
@@ -646,73 +508,7 @@ html.ix-hover .workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list
 .workspace-v2 .workspace-v2-settings-popover > header > span strong { font-size: 1.2rem; font-weight: 700; letter-spacing: -.02em; }
 .workspace-v2 .workspace-v2-settings-popover > header button { border-radius: 50%; color: var(--fx-text-2); }
 html.ix-hover .workspace-v2 .workspace-v2-settings-popover > header button:hover { color: var(--fx-text); background: var(--fx-fill); }
-.workspace-v2 .workspace-v6-settings-nav { gap: 4px; padding: 16px 12px; border-color: var(--fx-hair); }
-.workspace-v2 .workspace-v6-settings-nav button {
-  display: grid;
-  grid-template-columns: 40px minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border: 0;
-  border-radius: 14px;
-  color: var(--fx-text);
-  background: transparent;
-  text-align: start;
-  transition: background-color 220ms var(--fx-spring), box-shadow 220ms var(--fx-spring);
-}
-.workspace-v2 .workspace-v6-settings-nav button > svg {
-  box-sizing: content-box;
-  width: 20px;
-  height: 20px;
-  padding: 10px;
-  border-radius: 12px;
-  color: var(--fx-text-2);
-  background: var(--fx-fill);
-  transition: color 220ms var(--fx-spring), background-color 220ms var(--fx-spring);
-}
-.workspace-v2 .workspace-v6-settings-nav button.is-active { background: rgb(61 155 255 / .14); box-shadow: inset 0 0 0 1px rgb(61 155 255 / .3); }
-.workspace-v2 .workspace-v6-settings-nav button.is-active > svg { color: #fff; background: var(--fx-switch-on); }
-.workspace-v2 .workspace-v6-settings-nav strong { font-size: .8rem; font-weight: 600; }
-.workspace-v2 .workspace-v6-settings-nav small { color: var(--fx-text-3); font-size: .66rem; }
-.workspace-v7-settings-hint {
-  display: grid;
-  grid-template-columns: 16px minmax(0, 1fr);
-  gap: 8px;
-  margin: auto 4px 0;
-  padding: 12px;
-  border-radius: 14px;
-  color: var(--fx-text-2);
-  background: var(--fx-fill);
-  font-size: .66rem;
-  line-height: 1.45;
-}
-.workspace-v7-settings-hint svg { color: #8ec5ff; }
 .workspace-v2 .workspace-v2-settings-popover .workspace-v2-settings-content { padding: 20px; }
-.workspace-v2 .workspace-v2-settings-popover .workspace-v2-settings-content .workspace-v7-settings-card {
-  display: grid;
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  align-content: start;
-  gap: 2px;
-  padding: 18px 16px 12px;
-  border: 1px solid var(--fx-card-edge);
-  border-radius: 22px;
-  background: var(--fx-card);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / .04);
-}
-.workspace-v2 .workspace-v2-settings-popover .workspace-v2-settings-content .workspace-v7-settings-card { transition: border-color 260ms var(--fx-spring), box-shadow 260ms var(--fx-spring); }
-.workspace-v2 .workspace-v2-settings-popover .workspace-v2-settings-content .workspace-v7-settings-card.is-current { border-color: rgb(61 155 255 / .35); }
-.workspace-v7-card-head { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; gap: 12px; padding: 0 4px 12px; }
-.workspace-v7-card-head > svg { box-sizing: content-box; width: 22px; height: 22px; padding: 11px; border-radius: 14px; color: #8ec5ff; background: rgb(61 155 255 / .14); }
-:root .workspace-v2 .workspace-v2-settings-popover .workspace-v2-settings-content .workspace-v7-card-head h2 { margin: 0; color: var(--fx-text); font-size: 1rem; font-weight: 700; letter-spacing: -.015em; }
-.workspace-v7-card-head p { margin: 2px 0 0; color: var(--fx-text-3); font-size: .7rem; }
-.workspace-v7-settings-card > :is(.workspace-v2-settings-toggle, .workspace-v2-settings-action, .workspace-v2-tool-range) + :is(.workspace-v2-settings-toggle, .workspace-v2-settings-action, .workspace-v2-tool-range) { box-shadow: 0 -1px 0 var(--fx-hair); border-radius: 0; }
-:root .workspace-v2 .workspace-v2-settings-popover .workspace-v7-settings-card .workspace-v2-tool-range { display: grid; width: 100%; min-height: 0; gap: 4px; padding: 12px 4px; border: 0; border-radius: 0; background: transparent; box-shadow: 0 -1px 0 var(--fx-hair); }
-:root .workspace-v2 .workspace-v2-settings-popover .workspace-v7-settings-card .workspace-v2-range-heading { display: flex; justify-content: space-between; color: var(--fx-text); font-size: .78rem; font-weight: 550; }
-:root .workspace-v2 .workspace-v2-settings-popover .workspace-v7-settings-card .workspace-v2-range-heading output { color: var(--fx-text-2); font-variant-numeric: tabular-nums; }
-:root .workspace-v2 .workspace-v2-settings-popover .workspace-v7-settings-card .workspace-v2-range-control { display: block; }
-:root .workspace-v2 .workspace-v2-settings-popover .workspace-v7-settings-card .workspace-v2-range-preview { display: none; }
 
 @media (min-width: 1000px) {
   .workspace-v2 .workspace-v2-settings-popover .workspace-v2-settings-content {
@@ -721,13 +517,8 @@ html.ix-hover .workspace-v2 .workspace-v2-settings-popover > header button:hover
     align-content: start;
     gap: 18px;
   }
-  .workspace-v2 .workspace-v6-settings-layout { grid-template-columns: 280px minmax(0, 1fr); }
-  .workspace-v2 .workspace-v6-settings-nav { display: flex; flex-direction: column; }
 }
 /* Narrower screens stack the cards in one scrolling list; the nav jumps to each. */
-@media (max-width: 999px) {
-  .workspace-v7-settings-hint { display: none; }
-}
 
 /* Day themes: settings reads as the light sheet from the reference. */
 :root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2 .workspace-v2-settings-popover {
@@ -744,10 +535,7 @@ html.ix-hover .workspace-v2 .workspace-v2-settings-popover > header button:hover
   background: rgb(241 244 249 / .96);
 }
 :root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2 .workspace-v2-settings-popover .workspace-v2-settings-toggle:not([aria-checked="true"]) .workspace-v2-switch-track { background: rgb(17 24 39 / .14); }
-:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2 .workspace-v2-settings-popover .workspace-v7-settings-card { box-shadow: 0 1px 2px rgb(17 24 39 / .04), 0 8px 24px -12px rgb(17 24 39 / .12); }
 :root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2 .workspace-v2-settings-popover .workspace-v2-tool-range input::-webkit-slider-runnable-track { background: linear-gradient(to right, var(--fx-switch-on) 0 var(--workspace-range-progress), rgb(17 24 39 / .12) var(--workspace-range-progress) 100%); }
-:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2 .workspace-v7-card-head > svg,
-:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2 .workspace-v7-settings-hint svg { color: #1f6fe0; }
 
 /* ------------------------------------------------------------------ Phones */
 
@@ -755,10 +543,8 @@ html.ix-hover .workspace-v2 .workspace-v2-settings-popover > header button:hover
   .workspace-v2 .workspace-v2-reader > .workspace-v2-toolbar { width: calc(100% - 16px); margin-inline: 8px; border-radius: 20px; }
 }
 @media (max-width: 560px), (max-height: 500px) and (max-width: 900px) {
-  .workspace-v2 .workspace-v2-tool-options { padding: 0; overflow: hidden; border-radius: 22px; }
-  .workspace-v2 .workspace-v2-tool-options-title { padding: 12px 14px 10px; }
-  .workspace-v7-preview-well { height: 44px; }
-  .workspace-v7-panel-body { max-height: min(46dvh, 380px); padding: 0 14px 12px; border-radius: 0; }
+  .workspace-v2 .workspace-v2-tool-options { padding: 0; overflow: hidden; }
+  .workspace-v7-panel-body { max-height: min(46dvh, 380px); border-radius: 0; }
   .workspace-v2 .workspace-v7-panel-body .workspace-v2-icon-choices[aria-label="Shape type"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
@@ -800,10 +586,6 @@ html.ix-hover .workspace-v2 .workspace-v2-settings-popover > header button:hover
   .workspace-v2-action-popover .workspace-v3-menu-list > :nth-child(3) { animation-delay: 36ms; }
   .workspace-v2-action-popover .workspace-v3-menu-list > :nth-child(4) { animation-delay: 54ms; }
   .workspace-v2-action-popover .workspace-v3-menu-list > :nth-child(n + 5) { animation-delay: 70ms; }
-  .workspace-v7-settings-card { animation: workspace-glass-content 380ms var(--fx-spring) both; }
-  .workspace-v7-settings-card:nth-child(2) { animation-delay: 40ms; }
-  .workspace-v7-settings-card:nth-child(3) { animation-delay: 80ms; }
-  .workspace-v7-settings-card:nth-child(4) { animation-delay: 120ms; }
   /* Buttons in panels press in and spring back. */
   .workspace-v2 :is(.workspace-v7-panel-body, .workspace-v2-action-popover, .workspace-v2-settings-popover) button {
     transition: color 200ms var(--fx-spring), background-color 200ms var(--fx-spring), border-color 200ms var(--fx-spring), box-shadow 220ms var(--fx-spring), opacity 200ms var(--fx-spring), transform 340ms var(--fx-bounce);
@@ -811,12 +593,7 @@ html.ix-hover .workspace-v2 .workspace-v2-settings-popover > header button:hover
   .workspace-v2 :is(.workspace-v7-panel-body, .workspace-v2-action-popover, .workspace-v2-settings-popover) button:active:not(:disabled) { transform: scale(.965); transition-duration: 90ms; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .workspace-v2 :is(.workspace-v2-tool-options, .workspace-v2-action-popover, .workspace-v2-settings-popover, .workspace-v2-page-navigator),
-  .workspace-v7-panel-body > *,
-  .workspace-v2-action-popover .workspace-v3-menu-list > *,
-  .workspace-v7-settings-card,
-  .workspace-v7-preview-draw,
-  .workspace-v7-preview-ants { animation: none !important; }
+  .workspace-v2 :is(.workspace-v2-tool-options, .workspace-v2-action-popover, .workspace-v2-settings-popover, .workspace-v2-page-navigator), .workspace-v7-panel-body > *, .workspace-v2-action-popover .workspace-v3-menu-list > *, .workspace-v7-preview-draw, .workspace-v7-preview-ants { animation: none !important; }
   .workspace-v2-toolbar .workspace-v2-icon-button > svg,
   .workspace-v2 .workspace-v2-switch-track > span,
   .workspace-v2-tool-indicator[data-ready="true"] { transition: none !important; }
@@ -847,7 +624,7 @@ html.ix-hover .workspace-v2 .workspace-v2-settings-popover > header button:hover
     scroll-padding-top: calc(var(--workspace-toolbar-height, 56px) + 4px);
   }
 
-  .workspace-v2-toolbar :is(.workspace-v2-icon-button, .workspace-v2-study-mode-button, .workspace-v3-posture) {
+  .workspace-v2-toolbar :is(.workspace-v2-icon-button, .workspace-v2-study-mode-button) {
     min-width: 44px;
     width: 44px;
     min-height: 44px;
@@ -864,14 +641,10 @@ html.ix-hover .workspace-v2 .workspace-v2-settings-popover > header button:hover
   .workspace-v2 .workspace-v3-primary { gap: 0; }
   .workspace-v2 .workspace-v2-tool-list { gap: 0; }
 
-  /* The full tool set, in the scrolling rail. */
-  .workspace-v2 .workspace-v2-toolbar .workspace-v3-primary :is(.is-phone-secondary, .is-tablet-secondary) { display: grid; }
-  .workspace-v2 .workspace-v2-toolbar .workspace-v3-primary .workspace-v2-history { display: flex; flex: 0 0 auto; gap: 0; padding-inline-start: 3px; }
-  .workspace-v2 .workspace-v2-toolbar .workspace-v3-quick-colors { display: flex; flex: 0 0 auto; align-items: center; gap: 0; padding-inline: 3px; }
-  .workspace-v2 .workspace-v2-toolbar .workspace-v3-quick-color { display: grid; width: 44px; height: 44px; flex: 0 0 44px; place-items: center; padding: 0; border: 0; border-radius: 10px; background: transparent; cursor: pointer; }
-  .workspace-v2 .workspace-v2-toolbar .workspace-v3-quick-color > span { display: block; width: 18px; height: 18px; border-radius: 50%; background: var(--workspace-tool-color); }
-  .workspace-v2 .workspace-v2-toolbar .workspace-v3-quick-color:disabled { opacity: .42; cursor: default; }
-  .workspace-v2 .workspace-v3-menu-list > :is(.workspace-v3-phone-only, .workspace-v3-compact-only) { display: none !important; }
+  /* The full tool set, in the scrolling rail. Undo/Redo are pinned beside it
+     and the colours live in the active tool's swatch and panel instead (see
+     "Toolbar layout" at the end of this file). */
+  .workspace-v2 .workspace-v2-toolbar .workspace-v3-primary .is-tablet-secondary { display: grid; }
 
   /* Tool panels: the same controls, in a shorter sheet. */
   .workspace-v2 .workspace-v2-tool-options { bottom: calc(max(8px, env(safe-area-inset-bottom)) + 50px); border-radius: 18px; }
@@ -1033,7 +806,7 @@ html.ix-hover .workspace-v2 .workspace-v8-settings :is(.workspace-v2-settings-to
 :root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2 .workspace-v8-settings { box-shadow: 0 24px 60px -18px rgb(17 24 39 / .35), 0 2px 8px rgb(17 24 39 / .12); }
 
 @media (pointer: coarse) {
-  .workspace-v2 .workspace-v8-settings-tabs button { min-height: 40px; }
+  .workspace-v2 .workspace-v8-settings-tabs button { min-height: 44px; }
 }
 
 /* --------------------------------------------- Selection box and toolbar */
@@ -1051,11 +824,8 @@ html.ix-hover .workspace-v2 .workspace-v8-settings :is(.workspace-v2-settings-to
   display: grid;
   max-width: calc(100% - 16px);
   gap: 4px;
-  padding: 4px;
   border: 1px solid var(--fx-edge);
-  border-radius: 14px;
   color: var(--fx-text);
-  background: rgb(22 25 31 / .94);
   box-shadow: 0 12px 30px -10px rgb(0 0 0 / .55), 0 1px 3px rgb(0 0 0 / .25);
   backdrop-filter: blur(24px) saturate(1.5);
   -webkit-backdrop-filter: blur(24px) saturate(1.5);
@@ -1068,25 +838,18 @@ html.ix-hover .workspace-v2 .workspace-v8-settings :is(.workspace-v2-settings-to
 .workspace-v8-selection-toolbar.is-dragging,
 .workspace-v8-selection-toolbar[data-offscreen="true"] { opacity: 0; pointer-events: none; }
 .workspace-v8-selection-row,
-.workspace-v8-selection-more { display: flex; min-width: 0; align-items: center; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+.workspace-v8-selection-more { display: flex; min-width: 0; align-items: center; overflow-x: auto; scrollbar-width: none; }
 .workspace-v8-selection-row::-webkit-scrollbar,
 .workspace-v8-selection-more::-webkit-scrollbar { display: none; }
 .workspace-v8-selection-more { padding-top: 4px; border-top: 1px solid var(--fx-hair); }
 .workspace-v8-selection-toolbar button {
   display: inline-flex;
-  min-width: 36px;
-  height: 36px;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  padding: 0 8px;
   border: 0;
-  border-radius: 10px;
   color: var(--fx-text);
   background: transparent;
-  font-size: .74rem;
-  font-weight: 600;
   cursor: pointer;
   transition: background-color 120ms ease;
 }
@@ -1097,10 +860,6 @@ html.ix-hover .workspace-v8-selection-toolbar button:not(:disabled):hover,
 .workspace-v8-selection-toolbar button:disabled { opacity: .35; cursor: default; }
 .workspace-v8-selection-toolbar button.is-danger { color: #ff8a93; }
 .workspace-v8-selection-toolbar button:focus-visible { outline: 2px solid #3d9bff; outline-offset: -2px; }
-@media (pointer: coarse) {
-  .workspace-v8-selection-toolbar button { min-width: 42px; height: 42px; }
-  .workspace-v8-selection-toolbar button:not(.has-label) { width: 42px; }
-}
 :root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v8-selection-toolbar { --fx-text: #111827; --fx-edge: rgb(17 24 39 / .1); --fx-hair: rgb(17 24 39 / .08); background: rgb(255 255 255 / .96); box-shadow: 0 12px 30px -10px rgb(17 24 39 / .3), 0 1px 3px rgb(17 24 39 / .12); }
 :root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v8-selection-toolbar button.is-danger { color: #d92d3a; }
 
@@ -1136,7 +895,7 @@ html.ix-hover .workspace-v8-selection-toolbar button:not(:disabled):hover,
 .workspace-v8-export-copy small { overflow: hidden; color: var(--fx-text-2); font-size: .7rem; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-v8-export-copy .workspace-v8-export-note { color: #ffb3b9; white-space: normal; }
 .workspace-v8-export-progress { position: relative; display: block; height: 4px; margin-top: 6px; overflow: hidden; border-radius: 99px; background: rgb(255 255 255 / .12); }
-.workspace-v8-export-progress > span { position: absolute; inset-block: 0; inset-inline-start: 0; width: var(--export-progress, 8%); border-radius: inherit; background: #3d9bff; transition: width 240ms ease; }
+.workspace-v8-export-progress > span { position: absolute; inset-block: 0; inset-inline-start: 0; width: var(--export-progress, 8%); border-radius: inherit; transition: width 240ms ease; }
 .workspace-v8-export-actions { display: flex; grid-column: 1 / -1; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-top: 8px; }
 .workspace-v8-export-actions :is(button, a) {
   display: inline-flex;
@@ -1145,15 +904,11 @@ html.ix-hover .workspace-v8-selection-toolbar button:not(:disabled):hover,
   gap: 6px;
   padding: 0 14px;
   border: 0;
-  border-radius: 11px;
   color: var(--fx-text);
   background: rgb(255 255 255 / .1);
-  font-size: .76rem;
-  font-weight: 650;
   text-decoration: none;
   cursor: pointer;
 }
-.workspace-v8-export-actions :is(button, a).is-primary { color: #fff; background: #2f8cff; }
 .workspace-v8-export-actions .workspace-v8-export-close { width: 40px; justify-content: center; padding: 0; background: transparent; }
 @keyframes workspace-v8-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
@@ -1267,7 +1022,6 @@ html.ix-hover .workspace-v8-selection-toolbar button:not(:disabled):hover,
    the one action a surface is for, take the app's accent, so Focus reads as
    part of Lock-in rather than a second product. */
 .workspace-v2 { --fx-switch-on: var(--accent); }
-.workspace-v2 .workspace-v6-settings-nav button.is-active > svg { color: var(--on-accent); }
 .workspace-v8-export-progress > span { background: var(--accent); }
 .workspace-v8-export-actions :is(button, a) { border-radius: 999px; font-size: .8125rem; font-weight: 600; }
 .workspace-v8-export-actions :is(button, a).is-primary { color: var(--on-accent); background: var(--accent); }
@@ -1577,6 +1331,9 @@ html.ix-hover .workspace-v2-answer-list button:hover:not(.is-selected):not([aria
 /* Numbers about the document read left to right in every language: "1 / 12"
    had become "12 / 1", and "2×" had become "×2", under an Arabic interface. */
 .workspace-v2 :is(.workspace-v2-page-number, .workspace-v2-zoom-bar, .workspace-v2-page-jump, .workspace-v2-zoom-control, .workspace-v4-zoom-presets, .workspace-v4-zoom-hud) { direction: ltr; }
+/* Only the numbers read LTR; the row of page actions carries words. */
+.workspace-v2 .workspace-v2-page-jump.is-page-actions { direction: inherit; }
+.workspace-v2 .workspace-v2-page-navigator .workspace-v2-page-jump.is-page-actions > button { display: inline-flex; width: auto; flex: 0 0 auto; align-items: center; gap: 6px; padding-inline: 12px; white-space: nowrap; }
 
 /* ------------------------------- One chrome material in every theme (V2) */
 
@@ -1890,7 +1647,9 @@ html.ix-hover .workspace-tab:not(.is-active):hover { color: var(--fx-text-2); ba
 .workspace-tabs-add:hover, .workspace-tabs-add.is-active { color: var(--fx-text); background: var(--fx-fill-strong); }
 .workspace-tab button:focus-visible, .workspace-tabs-add:focus-visible { outline: 2px solid var(--fx-accent); outline-offset: -2px; }
 
-@media (min-width: 1200px) and (min-height: 600px) and (pointer: fine) {
+/* Same breakpoint as the one-row bar (1180px): between 1180 and 1199 a second
+   tab's 44px close button used to make that row 10px taller. */
+@media (min-width: 1180px) and (min-height: 600px) and (pointer: fine) {
   .workspace-v2-toolbar > .workspace-tabs { padding-block-end: 4px; }
   .workspace-tab { border-radius: 9px; }
   .workspace-tab > button[role="tab"] { min-width: 0; height: 30px; padding-inline: 10px 8px; font-size: .72rem; }
@@ -1898,7 +1657,7 @@ html.ix-hover .workspace-tab:not(.is-active):hover { color: var(--fx-text-2); ba
   .workspace-tabs-add { width: 30px; height: 30px; flex-basis: 30px; border-radius: 9px; }
 }
 
-.workspace-tabs-menu { position: absolute; z-index: 1000; display: grid; width: min(270px, calc(100% - 16px)); gap: 2px; padding: 6px; border: 1px solid var(--fx-edge); border-radius: 14px; color: var(--fx-text); background: var(--fx-panel); box-shadow: var(--fx-shine), var(--fx-depth); backdrop-filter: blur(30px) saturate(1.8); -webkit-backdrop-filter: blur(30px) saturate(1.8); }
+.workspace-tabs-menu { box-sizing: border-box; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; position: absolute; z-index: 1000; display: grid; width: min(270px, calc(100% - 16px)); gap: 2px; padding: 6px; border: 1px solid var(--fx-edge); border-radius: 14px; color: var(--fx-text); background: var(--fx-panel); box-shadow: var(--fx-shine), var(--fx-depth); backdrop-filter: blur(30px) saturate(1.8); -webkit-backdrop-filter: blur(30px) saturate(1.8); }
 .workspace-tabs-menu button { display: grid; min-height: 52px; grid-template-columns: 22px minmax(0, 1fr); align-items: center; gap: 10px; padding: 7px 10px; border: 0; border-radius: 10px; color: inherit; background: transparent; cursor: pointer; text-align: start; font: inherit; }
 .workspace-tabs-menu button:hover, .workspace-tabs-menu button:focus-visible { background: var(--fx-fill-strong); outline: none; }
 .workspace-tabs-menu span { display: grid; gap: 2px; }
@@ -1954,7 +1713,6 @@ html.ix-hover .workspace-tab:not(.is-active):hover { color: var(--fx-text-2); ba
   width: 100%;
   margin: 0;
   padding-block-start: max(4px, env(safe-area-inset-top));
-  padding-inline: max(10px, env(safe-area-inset-left)) max(10px, env(safe-area-inset-right));
   border-width: 0 0 1px;
   border-style: solid;
   border-color: var(--fx-hair);
@@ -2023,15 +1781,16 @@ html.ix-hover .workspace-tab:not(.is-active):hover { color: var(--fx-text-2); ba
   .workspace-v2.has-tabs .workspace-tab.is-active::after { inset-inline: 12px; inset-block-end: 3px; height: 2px; border-radius: 2px; }
 }
 
-/* With a precise pointer the row can be slim: 34px controls, a 44px bar. */
+/* With a precise pointer the row can be slim: 40px controls (the agreed
+   desktop minimum), a 48px bar. */
 @media (min-width: 1180px) and (min-height: 600px) and (pointer: fine) {
   .workspace-v2.has-tabs .workspace-v2-toolbar .workspace-v2-icon-button,
   .workspace-v2.has-tabs .workspace-v2-toolbar .workspace-v2-study-mode-button,
-  .workspace-v2.has-tabs .workspace-v2-toolbar .workspace-v2-study-mode-button.has-progress { min-width: 34px; width: 34px; min-height: 34px; height: 34px; border-radius: 9px; }
-  .workspace-v2.has-tabs .workspace-v2-toolbar :is(.workspace-v2-icon-button, .workspace-v2-study-mode-button) > svg { width: 17px; height: 17px; }
-  .workspace-v2.has-tabs .workspace-v2-tool-indicator { border-radius: 9px; }
-  .workspace-v2.has-tabs .workspace-v2-toolbar .workspace-v3-tool-button.is-active:is([data-workspace-tool="pen"], [data-workspace-tool="highlighter"])::after { inset-inline: 11px; inset-block-end: 2px; }
-  .workspace-v2.has-tabs .workspace-v2-toolbar .workspace-v3-quick-color { width: 26px; height: 34px; flex-basis: 26px; }
+  .workspace-v2.has-tabs .workspace-v2-toolbar .workspace-v2-study-mode-button.has-progress { min-width: 40px; width: 40px; min-height: 40px; height: 40px; border-radius: 10px; }
+  .workspace-v2.has-tabs .workspace-v2-toolbar :is(.workspace-v2-icon-button, .workspace-v2-study-mode-button) > svg { width: 18px; height: 18px; }
+  .workspace-v2.has-tabs .workspace-v2-tool-indicator { border-radius: 10px; }
+  .workspace-v2.has-tabs .workspace-v2-toolbar .workspace-v3-tool-button.is-active:is([data-workspace-tool="pen"], [data-workspace-tool="highlighter"])::after { inset-inline: 13px; inset-block-end: 3px; }
+  .workspace-v2.has-tabs .workspace-v2-toolbar .workspace-v3-quick-color { width: 32px; height: 40px; flex-basis: 32px; }
   .workspace-v2.has-tabs .workspace-v2-toolbar .workspace-v3-quick-color > span { width: 16px; height: 16px; }
   .workspace-v2.has-tabs .workspace-tab > button[role="tab"] { height: 30px; font-size: .71rem; }
   .workspace-v2.has-tabs .workspace-tabs-add { width: 30px; height: 30px; flex-basis: 30px; }
@@ -2048,7 +1807,9 @@ html.ix-hover .workspace-tab:not(.is-active):hover { color: var(--fx-text-2); ba
    secondary navigation (as in Safari and GoodNotes), so it is lighter than
    the tools, and the tools row keeps ample spacing instead of 44px tiles.
    Every target stays well above the 24px WCAG minimum. */
-@media (max-width: 1179px), (max-height: 599px) {
+/* Compact chrome is for a mouse or trackpad. Touch keeps 44px targets at every
+   width: an iPad in portrait and a phone are still written on with fingers. */
+@media (max-width: 1179px) and (pointer: fine), (max-height: 599px) and (pointer: fine) {
   .workspace-v2 .workspace-v2-reader > .workspace-v2-toolbar {
     min-height: 0;
     gap: 2px;
@@ -2058,21 +1819,21 @@ html.ix-hover .workspace-tab:not(.is-active):hover { color: var(--fx-text-2); ba
   .workspace-v2 .workspace-v2-toolbar .workspace-tab > button[role="tab"] { min-width: 34px; height: 34px; padding-inline: 10px 6px; font-size: .72rem; }
   .workspace-v2 .workspace-v2-toolbar .workspace-tab-close { width: 30px; height: 34px; flex-basis: 30px; }
   .workspace-v2 .workspace-v2-toolbar .workspace-tabs-add { width: 34px; height: 34px; flex-basis: 34px; }
-  .workspace-v2 .workspace-v2-toolbar :is(.workspace-v2-icon-button, .workspace-v2-study-mode-button, .workspace-v2-study-mode-button.has-progress, .workspace-v3-posture) { min-width: 40px; width: 40px; min-height: 40px; height: 40px; border-radius: 11px; }
+  .workspace-v2 .workspace-v2-toolbar :is(.workspace-v2-icon-button, .workspace-v2-study-mode-button, .workspace-v2-study-mode-button.has-progress) { min-width: 40px; width: 40px; min-height: 40px; height: 40px; border-radius: 11px; }
   .workspace-v2 .workspace-v2-toolbar :is(.workspace-v2-icon-button, .workspace-v2-study-mode-button) > svg { width: 18px; height: 18px; }
   .workspace-v2 .workspace-v2-tool-indicator { border-radius: 11px; }
   .workspace-v2 .workspace-v2-toolbar .workspace-v3-quick-color { width: 34px; height: 40px; flex-basis: 34px; }
   .workspace-v2 .workspace-v2-toolbar .workspace-v3-quick-color > span { width: 18px; height: 18px; }
   .workspace-v2 .workspace-v2-toolbar .workspace-v3-tool-button.is-active:is([data-workspace-tool="pen"], [data-workspace-tool="highlighter"])::after { inset-inline: 13px; inset-block-end: 3px; }
 }
-@media (max-width: 560px), (max-height: 500px) and (max-width: 900px) {
+@media (max-width: 560px) and (pointer: fine), (max-height: 500px) and (max-width: 900px) and (pointer: fine) {
   .workspace-v2 .workspace-v2-reader > .workspace-v2-toolbar { padding-block: max(2px, env(safe-area-inset-top)) 2px; }
   .workspace-v2 .workspace-v2-reader > .workspace-v2-toolbar > .workspace-tabs { margin-block-end: 2px; }
   .workspace-v2 .workspace-v2-toolbar .workspace-tab > button[role="tab"] { height: 32px; padding-inline: 9px 4px; font-size: .7rem; }
   .workspace-v2 .workspace-v2-toolbar .workspace-tab > button[role="tab"] > svg { width: 13px; height: 13px; }
   .workspace-v2 .workspace-v2-toolbar .workspace-tab-close { width: 28px; height: 32px; flex-basis: 28px; }
   .workspace-v2 .workspace-v2-toolbar .workspace-tabs-add { width: 32px; height: 32px; flex-basis: 32px; }
-  .workspace-v2 .workspace-v2-toolbar :is(.workspace-v2-icon-button, .workspace-v2-study-mode-button, .workspace-v2-study-mode-button.has-progress, .workspace-v3-posture) { min-width: 38px; width: 38px; min-height: 38px; height: 38px; border-radius: 10px; }
+  .workspace-v2 .workspace-v2-toolbar :is(.workspace-v2-icon-button, .workspace-v2-study-mode-button, .workspace-v2-study-mode-button.has-progress) { min-width: 38px; width: 38px; min-height: 38px; height: 38px; border-radius: 10px; }
   .workspace-v2 .workspace-v2-toolbar :is(.workspace-v2-icon-button, .workspace-v2-study-mode-button) > svg { width: 17px; height: 17px; }
   .workspace-v2 .workspace-v2-tool-indicator { border-radius: 10px; }
   .workspace-v2 .workspace-v2-toolbar .workspace-v3-quick-color { width: 30px; height: 38px; flex-basis: 30px; }
@@ -2094,4 +1855,190 @@ html.ix-hover .workspace-tab:not(.is-active):hover { color: var(--fx-text-2); ba
 @media (min-width: 1180px) and (min-height: 600px) and (pointer: fine) {
   .workspace-v2.workspace-v2 .workspace-v2-toolbar .workspace-v2-study-mode-button:not(.has-progress) { display: inline-flex; width: auto; gap: 6px; padding-inline: 10px; }
   .workspace-v2-study-mode-label { display: inline; font-size: .8rem; font-weight: 700; }
+}
+
+/* ------------------------------------------------------ Toolbar layout */
+
+/* Phone: one row of 44px targets when a single document is open.
+     Back | Pen Highlight Eraser Lasso › Hand Shapes Add | Undo Redo | (Notes) (Study) More
+   The rail scrolls; everything it can hide (Hand, Shapes, Add) and every
+   action dropped for room (Notes below 561px, Study below 400px) is also in
+   the More menu, so nothing is reachable by scrolling alone.
+   Below the one-row 1180px bar, Undo/Redo are pinned beside the rail at every
+   width, so neither a phone nor an iPad in portrait can scroll them away
+   mid-writing. */
+.workspace-v2 .workspace-v2-toolbar > .workspace-v2-history.is-docked { display: none; }
+@media (max-width: 1179px), (max-height: 599px) {
+  .workspace-v2 .workspace-v2-reader > .workspace-v2-toolbar { grid-template-columns: auto minmax(0, 1fr) auto auto; }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-v2-control-group.is-exit { grid-column: 1; }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-v3-primary { grid-column: 2; }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-v2-history.is-docked { position: relative; grid-column: 3; display: flex; gap: 0; padding: 0; border: 0; }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-v2-history.is-docked::before { position: absolute; inset-block: 26%; inset-inline-start: 0; width: 1px; content: ""; background: rgb(255 255 255 / .12); }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-v2-toolbar-actions { grid-column: 4; }
+  .workspace-v2 .workspace-v2-toolbar .workspace-v3-primary .workspace-v2-history { display: none; }
+}
+@media (max-width: 560px), (max-height: 500px) and (max-width: 900px) {
+  .workspace-v2 .workspace-v2-reader > .workspace-v2-toolbar {
+    --workspace-bar-inline-start: max(2px, env(safe-area-inset-left));
+    --workspace-bar-inline-end: max(2px, env(safe-area-inset-right));
+  }
+  /* Every pixel goes to targets: 360px holds exactly eight 44px buttons. The
+     group dividers are drawn by ::before/::after and take no width. */
+  .workspace-v2 .workspace-v2-toolbar > .workspace-v2-control-group.is-exit,
+  .workspace-v2.has-tabs .workspace-v2-toolbar > .workspace-v2-control-group.is-exit { padding-inline-end: 0; border-inline-end: 0; }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-v2-toolbar-actions { padding-inline-start: 0; border-inline-start: 0; }
+}
+@media (max-width: 560px) {
+  .workspace-v2 .workspace-v2-toolbar .workspace-v2-icon-button.is-phone-overflow { display: none; }
+}
+@media (max-width: 399px) {
+  .workspace-v2 .workspace-v2-toolbar .workspace-v2-study-mode-button.is-narrow-overflow { display: none; }
+}
+/* With a mouse the phone-width row is compact; Undo/Redo match the tools. */
+@media (max-width: 560px) and (pointer: fine), (max-height: 500px) and (max-width: 900px) and (pointer: fine) {
+  .workspace-v2 .workspace-v2-toolbar > .workspace-v2-history.is-docked > button { block-size: 38px; min-block-size: 38px; inline-size: 38px; min-inline-size: 38px; }
+}
+
+/* A single open document needs no tab row wherever the tabs would take a row
+   of their own (everything below the one-row 1180px bar). Its name, and New
+   tab's three choices, move to the top of the More menu. Two or more
+   documents bring the row back: switching between them is its job. */
+@media (max-width: 1179px), (max-height: 599px) {
+  .workspace-v2.has-single-tab .workspace-v2-toolbar > .workspace-tabs { display: none; }
+}
+
+/* Full screen is for the page: the tab row steps aside (tabs come back on
+   exit) and "Exit full screen" moves to the top of More. Tools, zoom, page
+   and study state are untouched. */
+.workspace-v2.is-document-fullscreen .workspace-v2-toolbar > .workspace-tabs { display: none; }
+.workspace-v2.is-document-fullscreen .workspace-v3-menu-list > [data-workspace-action="fullscreen"] { order: -1; }
+
+/* More menu entries that stand in for hidden toolbar controls. They name the
+   popover so they outrank its generic "every row is a grid" rule. */
+.workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list > :is(.is-single-tab-entry, .is-phone-entry, .is-notes-entry, .is-narrow-entry, .is-compact-entry, .is-compact-separator) { display: none; }
+@media (max-width: 1179px), (max-height: 599px) {
+  .workspace-v2.has-single-tab .workspace-v2-action-popover .workspace-v3-menu-list > :is(.is-single-tab-entry, .is-compact-separator) { display: grid; }
+  .workspace-v2.has-single-tab .workspace-v2-action-popover .workspace-v3-menu-list > hr.is-compact-separator { display: block; }
+}
+@media (max-width: 810px) {
+  .workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list > .is-compact-entry { display: grid; }
+}
+@media (max-width: 560px), (max-height: 500px) and (max-width: 900px) {
+  .workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list > .is-phone-entry { display: grid; }
+}
+@media (max-width: 560px) {
+  .workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list > .is-notes-entry { display: grid; }
+  .workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list > hr.is-compact-separator { display: block; }
+}
+@media (max-width: 399px) {
+  .workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list > .is-narrow-entry { display: grid; }
+}
+.workspace-v2 .workspace-v3-menu-list > .workspace-v3-menu-document {
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  min-height: 48px;
+  padding: 5px 12px 5px 7px;
+  color: var(--fx-text-2);
+}
+.workspace-v2 .workspace-v3-menu-document > svg { justify-self: center; }
+.workspace-v2 .workspace-v3-menu-document > span { display: grid; gap: 1px; min-width: 0; }
+.workspace-v2 .workspace-v3-menu-document strong { overflow: hidden; color: var(--fx-text); font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-v2 .workspace-v3-menu-document small { color: var(--fx-text-3); font-size: .66rem; }
+
+/* Active Study keeps a mark on More while its button is folded into the menu. */
+.workspace-v3-more-badge { display: none; }
+@media (max-width: 399px) {
+  .workspace-v2 .workspace-v2-toolbar .has-study-progress { position: relative; }
+  .workspace-v2 .workspace-v2-toolbar .has-study-progress > .workspace-v3-more-badge { position: absolute; inset-block-start: 9px; inset-inline-end: 9px; display: block; width: 8px; height: 8px; border-radius: 50%; background: var(--workspace-gold, #f2c14e); box-shadow: 0 0 0 2px rgb(20 24 30); }
+}
+
+/* The active colour tool carries a swatch: its ink colour, sized by its width.
+   It replaces the thin underline and is the phone's colour indicator; tapping
+   the active tool (or the sliders button beside the colours) opens its panel. */
+.workspace-v2 .workspace-v2-toolbar .workspace-v3-tool-button.is-active:has(> .workspace-v3-tool-swatch)::after { display: none; }
+.workspace-v3-tool-swatch {
+  position: absolute;
+  inset-block-end: 5px;
+  inset-inline-end: 5px;
+  width: var(--workspace-swatch-size, 8px);
+  height: var(--workspace-swatch-size, 8px);
+  border-radius: 50%;
+  background: var(--workspace-tool-color);
+  box-shadow: 0 0 0 1.5px rgb(20 24 30), 0 0 0 2.5px rgb(255 255 255 / .55);
+  pointer-events: none;
+  transition: width 160ms var(--fx-spring), height 160ms var(--fx-spring), background-color 160ms ease;
+}
+
+/* The sliders button sits with the quick colours, so it shows where they do. */
+@media (min-width: 700px) and (min-height: 600px) {
+  .workspace-v2 .workspace-v2-toolbar .workspace-v3-quick-colors { padding-inline-end: 0; }
+}
+
+/* Tool groups, without extra height: Draw (Pen, Highlight, Eraser) ·
+   Select (Lasso, Hand, Shapes) · Insert (Add). A hairline sits in the gap. */
+@media (min-width: 561px) and (min-height: 501px) {
+  .workspace-v2 .workspace-v2-toolbar .workspace-v2-tool-list > :is([data-workspace-tool="select"], [data-workspace-surface="add"]) { margin-inline-start: 9px; }
+  .workspace-v2 .workspace-v2-toolbar .workspace-v2-tool-list > :is([data-workspace-tool="select"], [data-workspace-surface="add"])::before {
+    position: absolute;
+    inset-block: 28%;
+    inset-inline-start: -5px;
+    width: 1px;
+    content: "";
+    background: rgb(255 255 255 / .12);
+  }
+}
+
+/* Tablets written on with a finger get larger glyphs in the same 44px targets. */
+@media (min-width: 700px) and (pointer: coarse) {
+  .workspace-v2 .workspace-v2-toolbar :is(.workspace-v2-icon-button, .workspace-v2-study-mode-button) > svg { width: 20px; height: 20px; }
+}
+/* An iPad in portrait fits Back, seven tools, three colours, the sliders,
+   Undo/Redo and three actions in one row of 44px targets by spending less on
+   the gaps between groups, never on the targets themselves. */
+@media (min-width: 561px) and (max-width: 1179px) and (pointer: coarse) {
+  .workspace-v2 .workspace-v2-reader > .workspace-v2-toolbar { column-gap: 0; }
+  .workspace-v2 .workspace-v2-toolbar .workspace-v2-tool-list { gap: 0; }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-v3-primary { gap: 2px; }
+  .workspace-v2 .workspace-v2-toolbar .workspace-v3-quick-colors { padding-inline: 3px 0; }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-v2-control-group.is-exit,
+  .workspace-v2.has-tabs .workspace-v2-toolbar > .workspace-v2-control-group.is-exit { padding-inline-end: 4px; }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-v2-toolbar-actions { padding-inline-start: 4px; }
+  .workspace-v2 .workspace-v2-toolbar .workspace-v2-tool-list > :is([data-workspace-tool="select"], [data-workspace-surface="add"]) { margin-inline-start: 5px; }
+  .workspace-v2 .workspace-v2-toolbar .workspace-v2-tool-list > :is([data-workspace-tool="select"], [data-workspace-surface="add"])::before { inset-inline-start: -3px; }
+}
+
+/* One active tool at a time: the sliding capsule is the only highlight once it
+   has measured itself, carries the tool's accent, and arrives quickly, so a
+   switch never shows the old and new tool lit together. */
+.workspace-v2 .workspace-v2-toolbar .workspace-v2-tool-list:has(> .workspace-v2-tool-indicator[data-ready="true"]) > .workspace-v3-tool-button.is-active {
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.workspace-v2 .workspace-v2-tool-list[data-active-tool="pen"] { --workspace-tool-accent: #42b9ff; }
+.workspace-v2 .workspace-v2-tool-list[data-active-tool="pencil"] { --workspace-tool-accent: #d9c771; }
+.workspace-v2 .workspace-v2-tool-list[data-active-tool="highlighter"] { --workspace-tool-accent: #eadb82; }
+.workspace-v2 .workspace-v2-tool-list[data-active-tool="eraser"] { --workspace-tool-accent: #f59ca8; }
+.workspace-v2 .workspace-v2-tool-list[data-active-tool="select"] { --workspace-tool-accent: #b8a5ff; }
+.workspace-v2 .workspace-v2-tool-list[data-active-tool="hand"] { --workspace-tool-accent: #9bc4db; }
+.workspace-v2 .workspace-v2-tool-list[data-active-tool="shapes"] { --workspace-tool-accent: #8ddcc3; }
+.workspace-v2 .workspace-v2-tool-list > .workspace-v2-tool-indicator {
+  background: color-mix(in srgb, var(--workspace-tool-accent, var(--fx-accent)) 24%, #30383e);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--workspace-tool-accent, var(--fx-accent)) 55%, transparent), 0 4px 13px color-mix(in srgb, var(--workspace-tool-accent, var(--fx-accent)) 13%, transparent);
+}
+.workspace-v2 .workspace-v2-tool-list > .workspace-v2-tool-indicator[data-ready="true"] {
+  transition: transform 240ms cubic-bezier(.22, 1, .36, 1), width 240ms cubic-bezier(.22, 1, .36, 1), height 240ms cubic-bezier(.22, 1, .36, 1), opacity 120ms ease, background-color 200ms ease, box-shadow 200ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-v2 .workspace-v2-tool-list > .workspace-v2-tool-indicator[data-ready="true"] { transition: none; }
+}
+
+/* Phone: Hand and Shapes share one slot of the rail, so choosing Shapes from
+   More never scrolls Pen out under Back. Shapes shows only while it is the
+   tool; Hand steps back into More meanwhile. */
+@media (max-width: 560px), (max-height: 500px) and (max-width: 900px) {
+  .workspace-v2 .workspace-v2-toolbar .workspace-v2-tool-list:not([data-active-tool="shapes"]) > [data-workspace-tool="shapes"] { display: none; }
+  .workspace-v2 .workspace-v2-toolbar .workspace-v2-tool-list[data-active-tool="shapes"] > [data-workspace-tool="hand"] { display: none; }
 }

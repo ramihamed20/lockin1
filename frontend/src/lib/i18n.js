@@ -7,6 +7,13 @@ import { knowledgeMessages } from "./knowledgeMessages.js";
 
 export const SUPPORTED_LOCALES = ["en", "ar"];
 
+// Locales whose whole catalogue is in memory. A production build swaps the
+// literal below for the route names alone and starts this set empty; each
+// locale then arrives as its own chunk (see loadLocaleMessages and the
+// localeChunks plugin in vite.config.js), so the first screen does not parse
+// the language it is not shown in.
+const loadedLocales = new Set(SUPPORTED_LOCALES);
+
 const messages = {
   en: {
     ...allQuestionsMessages.en,
@@ -1523,6 +1530,23 @@ const messages = {
     "focusVideo.smaller": "Make the video smaller",
     "focusVideo.close": "Close the video",
     "focus.quickAnnotationColors": "Quick annotation colors",
+    "focus.favoritePens": "Favorite pens",
+    "focus.favoritePenName": "{pen} · {color} · {width} pt",
+    "focus.saveFavoritePen": "Save this pen as a favorite",
+    "focus.updateFavoritePen": "Update with current pen",
+    "focus.removeFavoritePen": "Remove favorite",
+    "focus.favoritePenSaved": "Pen saved to favorites.",
+    "focus.zoomWindow": "Zoom window",
+    "focus.zoomWindowHint": "Write large, place it small on the page",
+    "focus.zoomWindowControls": "Zoom window controls",
+    "focus.zoomWindowLeft": "Move the box left",
+    "focus.zoomWindowRight": "Move the box right",
+    "focus.zoomWindowUp": "Move the box up",
+    "focus.zoomWindowDown": "Move the box down",
+    "focus.zoomWindowNewLine": "Next line",
+    "focus.zoomWindowLess": "Show more of the page",
+    "focus.zoomWindowMore": "Magnify more",
+    "focus.closeZoomWindow": "Close zoom window",
     "focus.editHistory": "Edit history",
     "focus.undoCtrlZ": "Undo (Ctrl+Z)",
     "focus.undo": "Undo",
@@ -1606,7 +1630,7 @@ const messages = {
     "focus.eraser": "Eraser",
     "focus.lasso": "Lasso",
     "focus.share": "Share",
-    "focus.versionHistory": "Version history",
+    "focus.versionHistory": "Undo history",
     "focus.deleteBlankPage": "Delete blank page",
     "focus.workspaceSettings": "Workspace settings",
     "focus.settings": "Settings",
@@ -1619,7 +1643,7 @@ const messages = {
     "focus.to": "To",
     "focus.exportPageRange": "Export page range",
     "focus.imagePNG": "Image (PNG)",
-    "focus.closeVersionHistory": "Close version history",
+    "focus.closeVersionHistory": "Close undo history",
     "focus.editsFromThisSessionUse": "Edits from this session. Use Undo to restore an earlier step.",
     "focus.undoMostRecentEdit": "Undo most recent edit",
     "focus.redoRemainsAvailableInThe": "Redo remains available in the toolbar",
@@ -1670,10 +1694,21 @@ const messages = {
     "focus.closeWorkspaceSettings": "Close workspace settings",
     "focus.settingsSections": "Settings sections",
     "focus.applePencilMode": "Pen mode",
+    "focus.twoFingersToScroll": "Your finger writes. Scroll with two fingers, or turn on Pen mode in Settings.",
     "focus.onlyThePencilDrawsFingers": "Only the pen draws; fingers scroll and zoom",
     "focus.improveNewHandwriting": "Improve new handwriting",
     "focus.smoothNewPenAndPencil": "Smooth new pen and pencil strokes; the original points are kept",
     "focus.straightLinesShapes": "Straight lines & shapes",
+    "focus.exportDownloaded": "Downloaded",
+    "focus.exportShared": "Shared",
+    "focus.workspaceLabel": "{title} Focus Workspace",
+    "focus.bold": "Bold",
+    "focus.editsAvailable.one": "{count} edit available",
+    "focus.editsAvailable.other": "{count} edits available",
+    "focus.toolOptions": "{tool} options",
+    "focus.preset.notes": "Notes",
+    "focus.preset.underline": "Underline",
+    "focus.preset.bold": "Bold",
     "focus.snapNearStraightLinesAnd": "Snap near-straight lines and rough shapes when you lift",
     "focus.scribbleToErase": "Scribble to erase",
     "focus.scratchAcrossYourOwnInk": "Scratch across your own ink to remove it",
@@ -1717,6 +1752,10 @@ const messages = {
     "focus.pageAndZoom": "Page and zoom",
     "focus.previousPage": "Previous page",
     "focus.goToPage": "Go to page",
+    "focus.pageThumbnails": "Page thumbnails",
+    "focus.closePageThumbnails": "Close page thumbnails",
+    "focus.thumbnailPage": "Page {page}",
+    "focus.thumbnailLocked": "Page {page}, locked",
     "focus.nextPage": "Next page",
     "focus.workspacePages": "Workspace pages",
     "focus.zoom": "Zoom",
@@ -1758,6 +1797,8 @@ const messages = {
     "focus.pen.fountainShort": "Fountain",
     "focus.pen.brush": "Brush Pen",
     "focus.pen.brushShort": "Brush",
+    "focus.pen.calligraphy": "Calligraphy Pen",
+    "focus.pen.calligraphyShort": "Script",
     "focus.pen.pointer": "Pointer Pen: glows, clears when you lift",
     "focus.pen.pointerShort": "Pointer",
     "focus.shape.line": "Line",
@@ -1789,6 +1830,7 @@ const messages = {
     "focus.card.note": "Note",
     "focus.card.lined": "Lined",
     "focus.card.revision": "Revision",
+    "focus.cardTextHint": "First line is the title",
     "focus.penType": "Pen type",
     "focus.currentValue": "Current {name}",
     "focus.quickValues": "Quick {name}",
@@ -1806,7 +1848,7 @@ const messages = {
     "focus.deleteBlankPageUndo": "Undo brings it back.",
     "focus.textUpdated": "Text updated.",
     "focus.cardUpdated": "Card updated. Tap it to move it.",
-    "focus.studyCardAdded": "Study card added. Tap and drag it to move it.",
+    "focus.studyCardAdded": "Note card added. Drag it to move it.",
     "focus.selectionLocked": "Selection locked.",
     "focus.selectionUnlocked": "Selection unlocked.",
     "focus.activeStudyStartFailed": "Active Study could not be started.",
@@ -1857,8 +1899,8 @@ const messages = {
     "focus.studyModeHint": "Switch to Active Study or back",
     "focus.bookmarkPage": "Bookmark page",
     "focus.removeBookmark": "Remove bookmark",
-    "focus.addStudyCard": "Add study card",
-    "focus.editStudyCard": "Edit study card",
+    "focus.addStudyCard": "Add note card",
+    "focus.editStudyCard": "Edit note card",
     "focus.addCard": "Add card",
     "focus.saveCard": "Save card",
     "focus.addTextAnnotation": "Add text annotation",
@@ -2687,6 +2729,9 @@ const messages = {
     "profile.studentId": "Student ID · {id}",
     "profile.scholar": "Scholar",
     "profile.unknown": "Unknown",
+    "profile.status.active": "Active",
+    "profile.status.suspended": "Suspended",
+    "profile.status.deleted": "Deleted",
     "profile.memberSince": "MEMBER SINCE",
     "profile.language": "LANGUAGE",
     "profile.xpProgressLabel": "XP PROGRESS",
@@ -4510,6 +4555,23 @@ const messages = {
     "focusVideo.smaller": "تصغير الفيديو",
     "focusVideo.close": "إغلاق الفيديو",
     "focus.quickAnnotationColors": "ألوان سريعة",
+    "focus.favoritePens": "الأقلام المفضلة",
+    "focus.favoritePenName": "{pen} · {color} · {width} نقطة",
+    "focus.saveFavoritePen": "احفظ هذا القلم في المفضلة",
+    "focus.updateFavoritePen": "حدّثه بالقلم الحالي",
+    "focus.removeFavoritePen": "إزالة من المفضلة",
+    "focus.favoritePenSaved": "حُفظ القلم في المفضلة.",
+    "focus.zoomWindow": "نافذة التكبير",
+    "focus.zoomWindowHint": "اكتب بخط كبير ويُوضع صغيرًا على الصفحة",
+    "focus.zoomWindowControls": "أدوات نافذة التكبير",
+    "focus.zoomWindowLeft": "حرّك المربع لليسار",
+    "focus.zoomWindowRight": "حرّك المربع لليمين",
+    "focus.zoomWindowUp": "حرّك المربع للأعلى",
+    "focus.zoomWindowDown": "حرّك المربع للأسفل",
+    "focus.zoomWindowNewLine": "السطر التالي",
+    "focus.zoomWindowLess": "أظهر جزءًا أكبر من الصفحة",
+    "focus.zoomWindowMore": "كبّر أكثر",
+    "focus.closeZoomWindow": "إغلاق نافذة التكبير",
     "focus.editHistory": "سجل التعديلات",
     "focus.undoCtrlZ": "تراجع (Ctrl+Z)",
     "focus.undo": "تراجع",
@@ -4593,7 +4655,7 @@ const messages = {
     "focus.eraser": "ممحاة",
     "focus.lasso": "تحديد",
     "focus.share": "مشاركة",
-    "focus.versionHistory": "سجل النسخ",
+    "focus.versionHistory": "سجل التراجع",
     "focus.deleteBlankPage": "حذف الصفحة الفارغة",
     "focus.workspaceSettings": "إعدادات مساحة العمل",
     "focus.settings": "الإعدادات",
@@ -4606,7 +4668,7 @@ const messages = {
     "focus.to": "إلى",
     "focus.exportPageRange": "تصدير نطاق الصفحات",
     "focus.imagePNG": "صورة (PNG)",
-    "focus.closeVersionHistory": "إغلاق سجل النسخ",
+    "focus.closeVersionHistory": "إغلاق سجل التراجع",
     "focus.editsFromThisSessionUse": "تعديلات هذه الجلسة. استخدم التراجع لاستعادة خطوة سابقة.",
     "focus.undoMostRecentEdit": "التراجع عن آخر تعديل",
     "focus.redoRemainsAvailableInThe": "تبقى الإعادة متاحة في شريط الأدوات",
@@ -4657,10 +4719,25 @@ const messages = {
     "focus.closeWorkspaceSettings": "إغلاق إعدادات مساحة العمل",
     "focus.settingsSections": "أقسام الإعدادات",
     "focus.applePencilMode": "وضع القلم",
+    "focus.twoFingersToScroll": "إصبعك يكتب الآن. مرّر الصفحة بإصبعين، أو فعّل وضع القلم من الإعدادات.",
     "focus.onlyThePencilDrawsFingers": "يرسم القلم فقط، والأصابع للتمرير والتكبير",
     "focus.improveNewHandwriting": "تحسين الكتابة الجديدة",
     "focus.smoothNewPenAndPencil": "تنعيم خطوط القلم الجديدة مع الاحتفاظ بالنقاط الأصلية",
     "focus.straightLinesShapes": "خطوط مستقيمة وأشكال",
+    "focus.exportDownloaded": "تم التنزيل",
+    "focus.exportShared": "تمت المشاركة",
+    "focus.workspaceLabel": "مساحة التركيز: {title}",
+    "focus.bold": "عريض",
+    "focus.editsAvailable.zero": "لا توجد تعديلات للتراجع عنها",
+    "focus.editsAvailable.one": "تعديل واحد متاح",
+    "focus.editsAvailable.two": "تعديلان متاحان",
+    "focus.editsAvailable.few": "{count} تعديلات متاحة",
+    "focus.editsAvailable.many": "{count} تعديلًا متاحًا",
+    "focus.editsAvailable.other": "{count} تعديل متاح",
+    "focus.toolOptions": "خيارات {tool}",
+    "focus.preset.notes": "ملاحظات",
+    "focus.preset.underline": "تسطير",
+    "focus.preset.bold": "عريض",
     "focus.snapNearStraightLinesAnd": "تقويم الخطوط شبه المستقيمة والأشكال التقريبية عند الرفع",
     "focus.scribbleToErase": "الشخبطة للمسح",
     "focus.scratchAcrossYourOwnInk": "اشطب فوق حبرك لإزالته",
@@ -4704,6 +4781,10 @@ const messages = {
     "focus.pageAndZoom": "الصفحة والتكبير",
     "focus.previousPage": "الصفحة السابقة",
     "focus.goToPage": "الانتقال إلى صفحة",
+    "focus.pageThumbnails": "مصغّرات الصفحات",
+    "focus.closePageThumbnails": "إغلاق مصغّرات الصفحات",
+    "focus.thumbnailPage": "الصفحة {page}",
+    "focus.thumbnailLocked": "الصفحة {page}، مقفلة",
     "focus.nextPage": "الصفحة التالية",
     "focus.workspacePages": "صفحات مساحة العمل",
     "focus.zoom": "التكبير",
@@ -4745,6 +4826,8 @@ const messages = {
     "focus.pen.fountainShort": "سائل",
     "focus.pen.brush": "قلم فرشاة",
     "focus.pen.brushShort": "فرشاة",
+    "focus.pen.calligraphy": "قلم خط",
+    "focus.pen.calligraphyShort": "خط",
     "focus.pen.pointer": "قلم مؤشر: يضيء ويختفي عند رفع القلم",
     "focus.pen.pointerShort": "مؤشر",
     "focus.shape.line": "خط",
@@ -4776,6 +4859,7 @@ const messages = {
     "focus.card.note": "ملاحظة",
     "focus.card.lined": "مسطّرة",
     "focus.card.revision": "مراجعة",
+    "focus.cardTextHint": "السطر الأول هو العنوان",
     "focus.penType": "نوع القلم",
     "focus.currentValue": "{name} الحالي",
     "focus.quickValues": "{name} سريع",
@@ -4793,7 +4877,7 @@ const messages = {
     "focus.deleteBlankPageUndo": "يمكنك استعادتها بالتراجع.",
     "focus.textUpdated": "حُدّث النص.",
     "focus.cardUpdated": "حُدّثت البطاقة. اضغط عليها لتحريكها.",
-    "focus.studyCardAdded": "أُضيفت بطاقة الدراسة. اضغط واسحب لتحريكها.",
+    "focus.studyCardAdded": "أُضيفت بطاقة الملاحظة. اسحبها لتحريكها.",
     "focus.selectionLocked": "قُفل التحديد.",
     "focus.selectionUnlocked": "أُلغي قفل التحديد.",
     "focus.activeStudyStartFailed": "تعذّر بدء الدراسة النشطة.",
@@ -4844,8 +4928,8 @@ const messages = {
     "focus.studyModeHint": "انتقل إلى الدراسة النشطة أو عُد منها",
     "focus.bookmarkPage": "حفظ الصفحة",
     "focus.removeBookmark": "إزالة الحفظ",
-    "focus.addStudyCard": "إضافة بطاقة دراسة",
-    "focus.editStudyCard": "تعديل بطاقة الدراسة",
+    "focus.addStudyCard": "إضافة بطاقة ملاحظة",
+    "focus.editStudyCard": "تعديل بطاقة الملاحظة",
     "focus.addCard": "إضافة البطاقة",
     "focus.saveCard": "حفظ البطاقة",
     "focus.addTextAnnotation": "إضافة تعليق نصي",
@@ -5786,6 +5870,9 @@ const messages = {
     "profile.studentId": "رقم الطالب · {id}",
     "profile.scholar": "دارس",
     "profile.unknown": "غير معروف",
+    "profile.status.active": "نشط",
+    "profile.status.suspended": "موقوف",
+    "profile.status.deleted": "محذوف",
     "profile.memberSince": "عضو منذ",
     "profile.language": "اللغة",
     "profile.xpProgressLabel": "تقدّم النقاط",
@@ -6183,4 +6270,29 @@ export function greetingKey(date = new Date()) {
 
 export function messageCatalog(locale) {
   return { ...messages.en, ...(messages[normalizeLocale(locale)] || {}) };
+}
+
+const pendingLocales = new Map();
+
+/**
+ * Resolves once a locale's catalogue can be read synchronously by translate().
+ * Source, tests and the dev server already hold both, so this settles at once;
+ * a production build fetches the locale's chunk the first time it is asked for.
+ * A failed fetch is not remembered, so the next call tries again.
+ * @param {string} locale
+ * @returns {Promise<string>} the normalized locale
+ */
+export function loadLocaleMessages(locale) {
+  const normalized = normalizeLocale(locale);
+  if (loadedLocales.has(normalized)) return Promise.resolve(normalized);
+  if (!pendingLocales.has(normalized)) {
+    const chunk = normalized === "ar" ? import("virtual:lockin-locale/ar") : import("virtual:lockin-locale/en");
+    pendingLocales.set(normalized, chunk.then((module) => {
+      // Each chunk is already merged over English, so it stands on its own.
+      Object.assign(messages[normalized], module.default);
+      loadedLocales.add(normalized);
+      return normalized;
+    }).finally(() => pendingLocales.delete(normalized)));
+  }
+  return pendingLocales.get(normalized);
 }

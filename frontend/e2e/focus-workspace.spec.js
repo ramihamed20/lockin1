@@ -1,6 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
+import { toggleNotesPanel } from "./helpers/workspaceToolbar.js";
 
 const WORKSPACE_ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-2/workspace";
 const SHARED_TEST_SHEET_ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
@@ -250,7 +251,10 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   const highlighterOptions = page.locator("#workspace-highlighter-options");
   await expect(highlighterOptions).toBeVisible();
   await expectBoundsInViewport(highlighterOptions, 834, 1194);
-  await expect(highlighterOptions.getByRole("button", { name: "Use #7c3aed" })).toHaveCSS("width", "44px");
+  // Resizing a desktop browser to iPad dimensions retains its mouse input.
+  // Keep the compact mouse target and the full touch target distinct.
+  const swatchWidth = await page.evaluate(() => matchMedia("(pointer: coarse)").matches ? "44px" : "36px");
+  await expect(highlighterOptions.getByRole("button", { name: "Use #7c3aed" })).toHaveCSS("width", swatchWidth);
   await expect(highlighterOptions.getByRole("slider", { name: "Thickness" })).toBeVisible();
   await expect(highlighterOptions.getByRole("slider", { name: "Opacity" })).toBeVisible();
   await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-ipad-portrait-834x1194.png`, fullPage: false });
@@ -342,11 +346,12 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await expect(page.getByRole("button", { name: "Save to Bookmarks" })).toHaveAttribute("aria-pressed", "false");
   await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-iphone-portrait-390x844.png`, fullPage: false });
-  await notesTool.click();
+  // A phone folds Notes into the More menu; it opens and closes from there.
+  await toggleNotesPanel(page);
   await expect(sidePanel).toBeVisible();
   await expectContainedInViewport(sidePanel, 390, 844);
   await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-iphone-portrait-notes-390x844.png`, fullPage: false });
-  await notesTool.click();
+  await toggleNotesPanel(page);
   await expect(sidePanel).toBeHidden();
 
   expect(pageErrors).toEqual([]);

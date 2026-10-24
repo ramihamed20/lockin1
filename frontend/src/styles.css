@@ -5740,6 +5740,13 @@ a.streak-card:hover:where(html.ix-hover *) {
   background: linear-gradient(120deg, color-mix(in srgb, var(--primary) 12%, var(--surface-2)), var(--surface-2));
 }
 
+/* The action keeps its own width; squeezed by a long message it broke
+   "Renew subscription" onto two lines. */
+.subscription-saved-banner > .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .subscription-saved-banner p:last-child,
 .subscription-payment .panel-title p:last-child {
   margin-top: var(--space-1);
@@ -15280,7 +15287,11 @@ html {
   visibility: hidden !important;
 }
 
-.policy-notice { margin-block: 16px; padding: 18px; }
+/* The notice sits above every page, so it shares the reading column and reads
+   as one card; spanning the whole shell, its Arabic text hugged the far edge
+   away from the page it sits on. */
+.policy-notice { box-sizing: border-box; width: 100%; max-width: 760px; margin: 16px auto; padding: 18px; border: 1px solid color-mix(in srgb, var(--primary) 32%, var(--border)); border-radius: var(--radius-lg); background: var(--surface-2); }
+.policy-notice h2 { margin: 0 0 8px; font-size: var(--text-lg); }
 /* Links to the policies inside consent text: links reset to the text colour
    app-wide, so these name themselves by colour and underline. */
 .policy-link { color: var(--accent-text); font-weight: 600; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }

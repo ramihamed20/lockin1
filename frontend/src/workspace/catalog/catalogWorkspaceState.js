@@ -9,6 +9,10 @@ function finite(value, fallback = 0) {
   return Number.isFinite(number) ? number : fallback;
 }
 
+function optionalNumber(value) {
+  return value === null || value === undefined || value === "" || !Number.isFinite(Number(value)) ? null : Number(value);
+}
+
 function safePoint(point) {
   return {
     x: Math.min(1000, Math.max(0, finite(point?.x))),
@@ -23,10 +27,49 @@ function safePoint(point) {
     contactHeight: Math.max(0, finite(point?.contactHeight)),
     tiltX: Math.min(90, Math.max(-90, finite(point?.tiltX))),
     tiltY: Math.min(90, Math.max(-90, finite(point?.tiltY))),
-    altitudeAngle: point?.altitudeAngle != null && Number.isFinite(Number(point?.altitudeAngle)) ? finite(point.altitudeAngle) : null,
-    azimuthAngle: point?.azimuthAngle != null && Number.isFinite(Number(point?.azimuthAngle)) ? finite(point.azimuthAngle) : null,
-    twist: point?.twist != null && Number.isFinite(Number(point?.twist)) ? finite(point.twist) : null,
-    tangentialPressure: point?.tangentialPressure != null && Number.isFinite(Number(point?.tangentialPressure)) ? finite(point.tangentialPressure) : null
+    // Number(null) is 0, so a missing angle has to be tested before converting.
+    altitudeAngle: optionalNumber(point?.altitudeAngle),
+    azimuthAngle: optionalNumber(point?.azimuthAngle),
+    twist: optionalNumber(point?.twist),
+    tangentialPressure: optionalNumber(point?.tangentialPressure)
+  };
+}
+
+// Fields every point of one stroke shares; the stored form keeps them once.
+const STROKE_POINT_FIELDS = ["pointer", "pointerId", "buttons", "pressureAvailable"];
+
+function sharedPointFields(value) {
+  if (!value || typeof value !== "object") return null;
+  return Object.fromEntries(STROKE_POINT_FIELDS.filter((field) => field in value).map((field) => [field, value[field]]));
+}
+
+// Values are kept exactly: a reload must redraw the very same outline.
+function compactPoint(point, shared) {
+  const stored = { x: point.x, y: point.y, t: point.t };
+  if (point.p) stored.p = point.p;
+  for (const field of STROKE_POINT_FIELDS) if (point[field] !== shared[field]) stored[field] = point[field];
+  for (const field of ["contactWidth", "contactHeight", "tiltX", "tiltY"]) if (point[field]) stored[field] = point[field];
+  for (const field of ["altitudeAngle", "azimuthAngle", "twist", "tangentialPressure"]) if (point[field] !== null) stored[field] = point[field];
+  return stored;
+}
+
+/**
+ * The stored form of an annotation. A raw point carries sixteen full-precision
+ * fields, most of them defaults or the same for the whole stroke, so 300 short
+ * strokes filled most of a localStorage quota. Here a point keeps only what
+ * differs from what `safePoint` fills back in, and the fields a whole stroke
+ * shares are kept once; `sanitizeCatalogAnnotation` expands it again on load.
+ */
+export function compactCatalogAnnotation(annotation) {
+  /** @type {any} */
+  const safe = sanitizeCatalogAnnotation(annotation);
+  if (!safe?.points?.length) return safe;
+  const first = safe.points[0];
+  const shared = Object.fromEntries(STROKE_POINT_FIELDS.map((field) => [field, first[field]]));
+  return {
+    ...safe,
+    pointShared: shared,
+    points: safe.points.map((point) => compactPoint(point, shared))
   };
 }
 
@@ -47,19 +90,23 @@ export function sanitizeCatalogAnnotation(annotation) {
     type: annotation.type,
     color: typeof annotation.color === "string" ? annotation.color.slice(0, 32) : "#8b5cf6",
     width: Math.min(120, Math.max(1, finite(annotation.width, 4))),
-    opacity: annotation.type === "pen" ? 1 : Math.min(1, Math.max(0.05, finite(annotation.opacity, 1))),
-    profile: ["ball", "fountain", "brush", "pencil", "highlighter"].includes(annotation.profile)
+    opacity: Math.min(1, Math.max(0.05, finite(annotation.opacity, 1))),
+    profile: ["ball", "fountain", "brush", "pencil", "highlighter", "calligraphy"].includes(annotation.profile)
       ? annotation.profile
       : annotation.type === "pencil" ? "pencil" : annotation.type === "highlighter" ? "highlighter" : "ball",
     pressureSensitivity: Math.min(1, Math.max(0, finite(annotation.pressureSensitivity, .55))),
     smoothing: Math.min(1, Math.max(0, finite(annotation.smoothing, .5))),
+    ...(annotation.pressureSource === "speed" ? { pressureSource: "speed" } : {}),
     createdAt: Number.isFinite(Date.parse(annotation.createdAt)) ? new Date(annotation.createdAt).toISOString() : new Date().toISOString(),
     groupId: typeof annotation.groupId === "string" ? annotation.groupId.slice(0, 80) : "",
     locked: annotation.locked === true,
     zOrder: Math.min(100000, Math.max(-100000, Math.round(finite(annotation.zOrder))))
   };
   if (["pen", "pencil", "highlighter"].includes(annotation.type)) {
-    const points = Array.isArray(annotation.points) ? annotation.points.slice(0, 12000).map(safePoint) : [];
+    const shared = sharedPointFields(annotation.pointShared);
+    const points = Array.isArray(annotation.points)
+      ? annotation.points.slice(0, 12000).map((point) => safePoint(shared ? { ...shared, ...point } : point))
+      : [];
     const erasures = Array.isArray(annotation.erasures)
       ? annotation.erasures.slice(0, 32).filter((item) => Array.isArray(item?.points) && item.points.length > 0)
         .map((item) => ({ radius: Math.min(80, Math.max(.5, finite(item.radius, 4))), points: item.points.slice(0, 96).map((point) => ({ x: safePoint(point).x, y: safePoint(point).y })) }))
@@ -134,7 +181,7 @@ export function sanitizeCatalogNote(note) {
 export function serializeCatalogWorkspace(snapshot) {
   const annotations = (Array.isArray(snapshot?.annotations) ? snapshot.annotations : [])
     .slice(-MAX_ANNOTATIONS)
-    .map(sanitizeCatalogAnnotation)
+    .map(compactCatalogAnnotation)
     .filter(Boolean);
   const notes = (Array.isArray(snapshot?.notes) ? snapshot.notes : [])
     .slice(-MAX_NOTES)

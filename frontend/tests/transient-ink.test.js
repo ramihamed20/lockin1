@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { readWorkspaceSource } from "./helpers/workspaceSource.js";
 import {
   TRANSIENT_FADE_MS,
   TRANSIENT_HOLD_MS,
@@ -95,7 +96,7 @@ test("transient ink is scoped to its page and notifies the canvas", () => {
 });
 
 test("Pointer ink never enters the annotation commit path", async () => {
-  const workspace = await readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8");
+  const workspace = await readWorkspaceSource();
   // They begin before a draft id exists, so nothing reaches runCommand.
   assert.match(workspace, /if \(activeTool === "pen" && TRANSIENT_PEN_PROFILES\.has\(penProfile\)\) \{[\s\S]{0,400}?return;\s*\}\s*const id = generateIdempotencyKey\(\);/);
   assert.match(workspace, /if \(gesture\.transientInkPage != null\) \{\s*transientInkRef\.current\.end\(\);/);
@@ -120,9 +121,10 @@ test("only the stroke under the pen is live, so a held earlier stroke never ligh
 });
 
 test("pen thickness moves continuously and a live highlight merges with saved ones", async () => {
-  const workspace = await readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8");
+  const workspace = await readWorkspaceSource();
   assert.match(workspace, /const THICKNESS_STEP = \.01;/);
-  assert.match(workspace, /step=\{THICKNESS_STEP\} onChange=\{\(size\) => setBrushSize\(roundThickness\(size\)\)\}/);
+  // Dragging is continuous; one arrow key moves half a point.
+  assert.match(workspace, /step=\{THICKNESS_STEP\} keyStep=\{\.5\} onChange=\{\(size\) => setBrushSize\(roundThickness\(size\)\)\}/);
   assert.match(workspace, /setMergeTargets\?\.\(activeTool === "highlighter"/);
   const live = await readFile(new URL("../src/workspace/ink/LiveAnnotationCanvas.jsx", import.meta.url), "utf8");
   assert.match(live, /if \(annotation\?\.type === "highlighter" && mergeTargetsRef\.current\.length\) cutMergedHighlights/);

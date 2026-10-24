@@ -20,7 +20,11 @@ def _student(*, program_code: str, name: str):
 
 def test_human_medicine_studies_free_until_the_window_ends() -> None:
     student = _student(program_code="human-medicine", name="med_student")
-    decision = entitlement_decision(user=student, entitlement_code="focus.workspace")
+    decision = entitlement_decision(
+        user=student,
+        entitlement_code="focus.workspace",
+        at=free_access.FREE_ACCESS_ENDS_AT - timedelta(days=1),
+    )
     assert decision.allowed is True
     assert decision.reason == "free_access_window"
 
@@ -36,7 +40,10 @@ def test_other_programs_are_not_covered() -> None:
     assert free_access.free_access_ends_at(dentist) is None
 
 
-def test_subscription_endpoint_reports_the_free_window() -> None:
+def test_subscription_endpoint_reports_the_free_window(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Exercise the advertised window independently of the runner's real date.
+    before_expiry = free_access.FREE_ACCESS_ENDS_AT - timedelta(days=1)
+    monkeypatch.setattr(free_access.timezone, "now", lambda: before_expiry)
     student = _student(program_code="human-medicine", name="med_student_api")
     client = APIClient()
     client.force_authenticate(student)

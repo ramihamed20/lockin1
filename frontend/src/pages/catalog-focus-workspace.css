@@ -5,26 +5,15 @@
    names. */
 .workspace-v2 {
   --workspace-violet: var(--purple);
-  --workspace-violet-bright: color-mix(in srgb, var(--purple) 62%, #fff);
   --workspace-gold: var(--gold);
   --workspace-gold-bright: var(--gold-2);
   --workspace-bg: #070b17;
-  --workspace-panel: color-mix(in srgb, var(--purple) 10%, #090d1d);
-  --workspace-panel-2: color-mix(in srgb, var(--purple) 15%, #0c1124);
-  --workspace-border: color-mix(in srgb, var(--purple) 20%, transparent);
   /* Night-theme defaults for the names the light themes re-point. Keeping the
      chrome on variables means one rule serves every theme. */
-  --workspace-chrome-text: #f2f4ff;
-  --workspace-chrome-secondary: #c4c9e6;
-  --workspace-chrome-muted: #959cc0;
-  --workspace-control-bg: color-mix(in srgb, var(--purple) 13%, #0b0f21);
-  --workspace-control-border: color-mix(in srgb, var(--purple) 26%, transparent);
   --workspace-control-hover: color-mix(in srgb, #fff 8%, transparent);
-  --workspace-track: color-mix(in srgb, var(--purple) 30%, #171c33);
   --workspace-on-accent: var(--button-text);
   --workspace-toolbar-radius: var(--radius-sm, 10px);
   --workspace-panel-radius: var(--radius-md, 14px);
-  --workspace-ease: cubic-bezier(.2, 0, 0, 1);
   position: fixed;
   inset: 0;
   z-index: var(--z-immersive);
@@ -93,39 +82,20 @@
 /* Three fixed regions: exit, the scrolling tool rail, workspace actions. The
    rail is the only part that ever scrolls, at every width, so the tools stay
    on one line and the page itself never gains a sideways scrollbar. */
-.workspace-v2-toolbar { z-index: 8; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; min-width: 0; min-height: calc(52px + env(safe-area-inset-top)); margin: 0; padding: env(safe-area-inset-top) max(5px, env(safe-area-inset-right)) 5px max(5px, env(safe-area-inset-left)); border-width: 0 0 1px; overflow: hidden; overscroll-behavior: contain; touch-action: pan-x; background-image: linear-gradient(180deg, color-mix(in srgb, var(--purple) 9%, transparent), transparent 72%); }
+.workspace-v2-toolbar { z-index: 8; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; min-width: 0; min-height: calc(52px + env(safe-area-inset-top)); margin: 0; padding: env(safe-area-inset-top) max(5px, env(safe-area-inset-right)) 5px max(5px, env(safe-area-inset-left)); border-width: 0 0 1px; overflow: hidden; overscroll-behavior: contain; }
 /* The fades are driven from the component: it publishes how much track is
    hidden on each physical side, so the affordance is correct in RTL too and
    the first and last tool are never dimmed when everything already fits. */
-.workspace-v2-toolbar-scroll {
-  --workspace-fade-left: 0px;
-  --workspace-fade-right: 0px;
-  min-width: 0;
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 4px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  overscroll-behavior-inline: contain;
-  scrollbar-width: none;
-  scroll-behavior: smooth;
-  scroll-padding-inline: 8px;
-  touch-action: pan-x;
-  -webkit-overflow-scrolling: touch;
-  mask-image: linear-gradient(to right, transparent 0, #000 var(--workspace-fade-left), #000 calc(100% - var(--workspace-fade-right)), transparent 100%);
-}
-.workspace-v2-toolbar-scroll::-webkit-scrollbar, .workspace-v2-tool-options::-webkit-scrollbar, .workspace-v2-settings-content::-webkit-scrollbar { display: none; }
+.workspace-v2-tool-options::-webkit-scrollbar, .workspace-v2-settings-content::-webkit-scrollbar { display: none; }
 .workspace-v2-control-group, .workspace-v2-toolbar-actions { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; }
 .workspace-v2-control-group.is-exit { padding-inline-end: 4px; border-inline-end: 1px solid var(--workspace-border); }
-.workspace-v2-toolbar-actions { padding-inline-start: 5px; border-inline-start: 1px solid var(--workspace-border); background: var(--workspace-panel); }
-.workspace-v2-toolbar-divider { width: 1px; height: 22px; flex: 0 0 1px; margin-inline: 3px; background: var(--workspace-border); }
-.workspace-v2-tool-list, .workspace-v2-colors, .workspace-v2-history, .workspace-v2-tool-settings { display: flex; flex-wrap: nowrap; align-items: center; gap: 3px; flex: 0 0 auto; }
+.workspace-v2-toolbar-actions { border-inline-start: 1px solid var(--workspace-border); background: var(--workspace-panel); }
+.workspace-v2-tool-list, .workspace-v2-colors, .workspace-v2-history { display: flex; flex-wrap: nowrap; align-items: center; gap: 3px; flex: 0 0 auto; }
 .workspace-v2-file-input { position: fixed; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
 /* Docked flush under the rail with only its lower corners rounded and a gold
    hairline along the seam, so opening a tool reads as the toolbar unfolding
    rather than a floating panel arriving from somewhere else. */
-.workspace-v2-tool-options { position: absolute; z-index: 7; inset-inline: max(6px, env(safe-area-inset-left)) max(6px, env(safe-area-inset-right)); top: var(--workspace-toolbar-height, calc(52px + env(safe-area-inset-top))); display: flex; width: max-content; max-width: calc(100% - max(12px, env(safe-area-inset-left) + env(safe-area-inset-right))); min-height: 48px; align-items: center; gap: 6px; padding: 5px 8px; overflow-x: auto; border-block-start: 0; border-radius: 0 0 var(--workspace-panel-radius) var(--workspace-panel-radius); box-shadow: inset 0 1px 0 0 color-mix(in srgb, var(--workspace-gold) 20%, transparent), 0 14px 26px -14px rgba(0, 0, 0, .62); scrollbar-width: none; overscroll-behavior-inline: contain; touch-action: pan-x; animation: workspace-options-in 150ms cubic-bezier(.16,1,.3,1); }
+.workspace-v2-tool-options { position: absolute; z-index: 7; inset-inline: max(6px, env(safe-area-inset-left)) max(6px, env(safe-area-inset-right)); display: flex; align-items: center; gap: 6px; padding: 5px 8px; overflow-x: auto; border-block-start: 0; scrollbar-width: none; overscroll-behavior-inline: contain; touch-action: pan-x; }
 .workspace-v2-tool-options-title { display: grid; min-width: 54px; gap: 0; padding-inline: 7px 4px; line-height: 1.05; }
 .workspace-v2-tool-options-title strong { color: var(--workspace-chrome-text); font-size: .72rem; }
 .workspace-v2-tool-options-title span { color: var(--workspace-chrome-muted); font-size: .58rem; }
@@ -144,7 +114,6 @@
 .workspace-v2-custom-color-editor input { width: 38px; height: 30px; padding: 2px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; }
 .workspace-v2-custom-color-editor button { display: grid; width: 32px; height: 30px; place-items: center; padding: 0; border: 0; border-radius: 6px; color: var(--workspace-on-accent); background: var(--workspace-gold); cursor: pointer; }
 .workspace-v2-custom-color-editor button::before { display: none; }
-.workspace-v2-tool-settings { gap: 5px; padding: 0; }
 .workspace-v2-icon-choices { display: flex; flex: 0 0 auto; align-items: center; gap: 2px; padding: 2px; border-radius: var(--workspace-toolbar-radius); background: var(--workspace-control-bg); }
 .workspace-v2-icon-choices button { display: grid; width: 32px; height: 32px; place-items: center; padding: 0; border: 0; border-radius: 6px; color: var(--workspace-chrome-secondary); background: transparent; cursor: pointer; transition: color 160ms var(--workspace-ease), background-color 160ms var(--workspace-ease); }
 .workspace-v2-icon-choices button.is-active { color: var(--workspace-gold-bright); background: color-mix(in srgb, var(--workspace-gold) 17%, transparent); }
@@ -168,9 +137,9 @@
 .workspace-v2-tool-range input::-moz-range-progress { height: 4px; border-radius: 99px; background: var(--workspace-gold); }
 .workspace-v2-tool-range input::-moz-range-thumb { width: 13px; height: 13px; border: 2px solid var(--workspace-panel); border-radius: 50%; background: var(--workspace-gold-bright); }
 .workspace-v2-settings-popover { position: absolute; z-index: 9; top: var(--workspace-toolbar-height, calc(52px + env(safe-area-inset-top))); inset-inline-end: max(6px, env(safe-area-inset-right)); width: min(330px, calc(100% - 12px)); max-height: calc(100% - 62px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow: hidden; border: 1px solid var(--workspace-border); border-block-start: 0; border-radius: 0 0 var(--workspace-panel-radius) var(--workspace-panel-radius); color: var(--workspace-chrome-text); background: var(--workspace-panel); box-shadow: inset 0 1px 0 0 color-mix(in srgb, var(--workspace-gold) 20%, transparent), 0 14px 26px -14px rgba(0, 0, 0, .62); animation: workspace-options-in 150ms cubic-bezier(.16,1,.3,1); }
-.workspace-v2-settings-popover > header { display: flex; min-height: 44px; align-items: center; justify-content: space-between; padding-inline-start: 12px; border-bottom: 1px solid var(--workspace-border); }
-.workspace-v2-settings-popover > header > span { display: inline-flex; align-items: center; gap: 7px; font-size: .78rem; font-weight: 750; }
-.workspace-v2-settings-popover > header button { display: grid; width: 44px; height: 44px; place-items: center; border: 0; color: var(--workspace-chrome-secondary); background: transparent; cursor: pointer; }
+.workspace-v2-settings-popover > header { display: flex; align-items: center; justify-content: space-between; padding-inline-start: 12px; border-bottom: 1px solid var(--workspace-border); }
+.workspace-v2-settings-popover > header > span { display: inline-flex; align-items: center; font-weight: 750; }
+.workspace-v2-settings-popover > header button { display: grid; width: 44px; height: 44px; place-items: center; border: 0; background: transparent; cursor: pointer; }
 .workspace-v2-settings-content { max-height: calc(var(--app-viewport-height, 100dvh) - 120px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow-y: auto; padding: 8px; scrollbar-width: none; }
 .workspace-v2-settings-content section + section { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--workspace-border); }
 .workspace-v2-settings-content h2 { margin: 2px 4px 6px; color: var(--workspace-chrome-muted); font-size: .65rem; font-weight: 750; }
@@ -265,10 +234,6 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2-document-stage.is-tool-hand:active { cursor: grabbing; user-select: none; }
 .workspace-v2-document-stage.is-writing-locked { touch-action: none; overscroll-behavior: none; scroll-behavior: auto; }
 .workspace-v2-document { position: relative; width: var(--workspace-document-width); max-width: var(--workspace-document-max-width); min-height: var(--workspace-document-min-height); margin: 0 auto; padding: clamp(34px, 5vw, 64px); border-radius: 10px; color: #11162a; background: #fff; box-shadow: 0 6px 12px rgba(0,0,0,.32); }
-.workspace-v2-pdf-document { padding: 0; overflow: hidden; background: #fff; }
-.workspace-v2-pdf-page { position: relative; width: 100%; min-height: inherit; }
-.workspace-v2-pdf-canvas { display: block; width: 100% !important; height: auto !important; }
-.workspace-v2-pdf-status { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: #3b4154; background: rgba(255,255,255,.86); font-weight: 700; }
 .workspace-v2-a4-zoom-surface { position: relative; min-width: 100%; padding: 0; overflow-anchor: none; }
 .workspace-v2-a4-live-layer { position: absolute; overflow-anchor: none; transform-origin: 0 0; }
 .workspace-v2-a4-live-layer.is-live-pinching { will-change: transform; }
@@ -283,16 +248,18 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v6-page-pattern.is-dot { background-image: radial-gradient(circle, #bdcad8 1px, transparent 1px); background-size: 7px 7px; }
 .workspace-v2-a4-canvas { position: absolute; z-index: 1; inset: 0; display: block; width: 100%; height: 100%; visibility: hidden; opacity: 0; pointer-events: none; background: #fff; backface-visibility: hidden; }
 .workspace-v2-a4-canvas.is-visible { visibility: visible; opacity: 1; }
+/* The sharp on-screen part of a zoomed page; placed in page units by ContinuousA4Pdf. */
+.workspace-v2-a4-detail-canvas { position: absolute; z-index: 2; display: block; visibility: hidden; pointer-events: none; background: #fff; backface-visibility: hidden; }
+.workspace-v2-a4-detail-canvas.is-visible { visibility: visible; }
 .workspace-v2-a4-status { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: #3b4154; background: rgba(255,255,255,.86); font-weight: 700; }
 .workspace-v2-a4-status p { margin: 0; }
 .workspace-v2-a4-status button { min-width: 112px; min-height: 44px; padding: 0 16px; border: 0; border-radius: 9px; color: #fff; background: #7650ed; cursor: pointer; }
-.workspace-v2-a4-page .workspace-v2-selection-menu { position: absolute !important; }
 .workspace-v2-document > :not(.workspace-v2-annotation-layer) { position: relative; z-index: 1; }
 .workspace-v2-annotation-layer { position: absolute; z-index: 3; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .workspace-v2-live-annotation-canvas { position: absolute; z-index: 4; inset: 0; display: block; width: 100%; height: 100%; pointer-events: none; }
 /* Pointer ink: above the live stroke, never saved. */
 .workspace-v2-transient-ink-canvas { position: absolute; z-index: 5; inset: 0; display: block; width: 100%; height: 100%; pointer-events: none; }
-.workspace-v2-stylus-hover { position: fixed; z-index: 5; top: 0; left: 0; border: 1px solid rgba(20, 28, 48, .72); border-radius: 50%; background: rgba(255, 255, 255, .34); box-shadow: 0 0 0 1px rgba(255, 255, 255, .7); opacity: 0; pointer-events: none; will-change: transform, width, height; }
+.workspace-v2-stylus-hover { position: fixed; z-index: 5; top: 0; left: 0; border: 1px solid rgba(20, 28, 48, .72); border-radius: 50%; background: rgba(255, 255, 255, .34); opacity: 0; pointer-events: none; will-change: transform, width, height; }
 .workspace-v2-stylus-hover[data-tool="eraser"] { border-color: rgba(118, 80, 237, .82); background: rgba(118, 80, 237, .12); }
 /* The eraser outline is the exact erase disc: border-box keeps the ring inside
    the diameter, and a faint light halo keeps it legible over dark ink. */
@@ -305,38 +272,14 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2-annotation-layer [data-annotation-type="pencil"] { mix-blend-mode: normal; }
 .workspace-v2-annotation-layer [data-annotation-type="highlighter"] { mix-blend-mode: multiply; }
 .workspace-v2-annotation-layer .workspace-v2-highlighter-group [data-annotation-type="highlighter"] { mix-blend-mode: normal; }
-
-.workspace-v2-lasso-path { fill: rgba(118,80,237,.08); stroke: #7650ed; stroke-width: 3; stroke-dasharray: 12 8; vector-effect: non-scaling-stroke; }
-.workspace-v2-selection-box rect { fill: rgba(118,80,237,.05); stroke: #7650ed; stroke-width: 3; stroke-dasharray: 10 7; vector-effect: non-scaling-stroke; pointer-events: none; }
 .workspace-v2-selection-box circle { fill: #fff; stroke: #7650ed; stroke-width: 4; vector-effect: non-scaling-stroke; pointer-events: all; cursor: nwse-resize; }
-.workspace-v2-selection-menu { position: absolute !important; z-index: 6 !important; display: flex; max-width: min(580px, calc(100vw - 24px)); flex-wrap: wrap; justify-content: center; gap: 4px; padding: 5px; border-radius: 9px; color: #fff; background: #0e1428; box-shadow: 0 8px 20px rgba(5,10,30,.28); transform: translate(-50%, calc(-100% - 12px)); }
-.workspace-v2-selection-menu button { display: inline-flex; min-height: 36px; align-items: center; gap: 5px; padding: 0 10px; border: 0; border-radius: 7px; color: #e9edfb; background: transparent; cursor: pointer; font-size: .7rem; }
-.workspace-v2-selection-menu button:hover:where(html.ix-hover *) { background: rgba(118,80,237,.22); }
-.workspace-v2-selection-menu button:disabled { opacity: .4; cursor: default; }
-.workspace-v2-selection-menu button.is-danger { color: #ffb0b6; }
 .workspace-v2-document h1 { width: max-content; max-width: 100%; margin: 0 0 22px; padding-bottom: 6px; border-bottom: 3px solid #7650ed; color: #16182d; font-family: Georgia, serif; font-size: clamp(2rem, 4vw, 2.75rem); letter-spacing: -.02em; }
 .workspace-v2-document h2 { margin: 26px 0 10px; color: #15182a; font-family: Georgia, serif; font-size: 1.35rem; }
 .workspace-v2-document p, .workspace-v2-document li { color: #202536; font-size: 1rem; line-height: 1.65; }
 .workspace-v2-lead { max-width: 66ch; margin: 0 0 20px; }
 .workspace-v2-document mark { padding: 0 .12em; color: inherit; background: #ffe978; }
-.workspace-v2-document-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(210px, .9fr); gap: 34px; align-items: center; }
 .workspace-v2-document ul { display: grid; gap: 8px; margin: 0; padding: 18px 24px 18px 40px; border-radius: 8px; background: #f4f1ff; }
 .workspace-v2-document li::marker { color: #7650ed; }
-.workspace-v2-figure { margin: 0; text-align: center; }
-.workspace-v2-figure > div { min-height: 260px; display: grid; place-content: center; gap: 8px; border-radius: 12px; color: #7450dd; background: radial-gradient(circle at 50% 42%, #efe8ff, #ddd2f7 70%, #c5b5ea); }
-.workspace-v2-figure strong { color: #433175; font-size: 1.1rem; }
-.workspace-v2-figure span, .workspace-v2-figure figcaption { color: #6b6580; font-size: .78rem; }
-.workspace-v2-figure figcaption { margin-top: 10px; font-style: italic; }
-
-.workspace-v2-selection-actions { display: flex; width: max-content; max-width: 100%; gap: 3px; margin: 10px 0 4px 24px; padding: 8px; overflow-x: auto; border-radius: 11px; background: #0e1428; box-shadow: 0 4px 8px rgba(5, 10, 30, .28); }
-.workspace-v2-selection-actions button { min-width: 88px; min-height: 50px; display: grid; place-items: center; gap: 4px; padding: 6px 8px; border: 0; border-radius: 8px; color: #eef1ff; background: transparent; font-size: .68rem; cursor: pointer; }
-.workspace-v2-selection-actions button:hover:where(html.ix-hover *) { background: rgba(118,80,237,.22); }
-.workspace-v2-selection-actions button:disabled { color: #788199; background: transparent; cursor: not-allowed; }
-
-.workspace-v2-clinical-note { display: flex; gap: 16px; align-items: flex-start; margin-top: 28px; padding: 22px; border: 1px solid #d9cff5; border-radius: 10px; background: #f0ecff; }
-.workspace-v2-clinical-note > span { display: grid; flex: 0 0 42px; height: 42px; place-items: center; border-radius: 10px; color: #7450dd; background: #ddd2ff; }
-.workspace-v2-clinical-note strong { display: block; margin-bottom: 3px; font-size: 1.1rem; }
-.workspace-v2-clinical-note p { margin: 0; }
 
 
 .workspace-v2-side { position: fixed; z-index: var(--z-drawer); inset-block: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-bottom)); inset-inline-end: calc(max(8px, env(safe-area-inset-right)) + var(--workspace-visible-end-gap, 0px)); width: min(330px, calc(100vw - 20px)); min-width: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 12px; box-shadow: 0 0 12px rgba(0,0,0,.42); transform: translateX(100%); clip-path: inset(-24px 100% -24px -24px); visibility: hidden; transition: transform 220ms cubic-bezier(.4,0,1,1), clip-path 220ms cubic-bezier(.4,0,1,1), visibility 0s linear 220ms; pointer-events: none; }
@@ -403,58 +346,46 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 
 .workspace-v2-mode-backdrop,
 .workspace-v2-quiz-backdrop { position: fixed; z-index: calc(var(--z-immersive) + 10); inset: 0; display: grid; place-items: center; padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left)); color: var(--workspace-chrome-text); background: var(--workspace-overlay, rgba(3,6,15,.82)); }
-.workspace-v2-mode-dialog { width: min(500px, 100%); max-height: 100%; overflow: auto; padding: 20px; border: 1px solid var(--workspace-control-border); border-radius: 14px; color: var(--workspace-chrome-text); background: var(--workspace-panel); }
-.workspace-v2-mode-dialog > h1 { margin: 0 0 4px; font-size: 1.3rem; letter-spacing: -.02em; }
-.workspace-v2-mode-dialog > p { margin: 0 0 16px; color: var(--workspace-chrome-secondary); font-size: .78rem; }
-.workspace-v2-mode-grid { display: grid; gap: 10px; }
+.workspace-v2-mode-dialog { max-height: 100%; overflow: auto; color: var(--workspace-chrome-text); }
+.workspace-v2-mode-grid { display: grid; }
 .workspace-v2-mode-back { justify-self: start; display: inline-flex; margin: 14px 0 12px; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px 0 8px; color: var(--workspace-chrome-text); border: 0; border-radius: 999px; background: var(--workspace-panel-2); font: inherit; font-size: .8125rem; font-weight: 600; cursor: pointer; }
 .workspace-v2-mode-back:disabled { opacity: .55; cursor: progress; }
 .workspace-v2-mode-back:where([dir="rtl"] *) svg { transform: scaleX(-1); }
 .workspace-v2-mode-card { min-width: 0; display: grid; color: var(--workspace-chrome-text); border: 1px solid var(--workspace-control-border); border-radius: 12px; background: var(--workspace-panel-2); text-align: start; }
 button.workspace-v2-mode-card { cursor: pointer; }
-button.workspace-v2-mode-card { grid-template-columns: 40px minmax(0,1fr) 24px; align-items: center; gap: 10px; min-height: 64px; padding: 10px 12px; }
+button.workspace-v2-mode-card { align-items: center; gap: 10px; }
 button.workspace-v2-mode-card:hover:where(html.ix-hover *) { border-color: var(--accent-border); background: var(--workspace-control-hover); }
 button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
-.workspace-v2-mode-card.is-active-study { gap: 12px; padding: 12px; border-color: var(--accent-border); }
-.workspace-v2-mode-heading { display: grid; grid-template-columns: 40px minmax(0,1fr); align-items: center; gap: 10px; }
-.workspace-v2-mode-icon { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 10px; color: var(--workspace-violet-bright); background: color-mix(in srgb, var(--workspace-violet) 15%, var(--workspace-control-bg)); }
+.workspace-v2-mode-heading { display: grid; align-items: center; gap: 10px; }
+.workspace-v2-mode-icon { display: grid; place-items: center; }
 .workspace-v2-mode-copy { min-width: 0; display: grid; gap: 2px; }
-.workspace-v2-mode-copy strong { font-size: .9rem; }
-.workspace-v2-mode-copy small { color: var(--workspace-chrome-secondary); font-size: .7rem; line-height: 1.35; }
-.workspace-v2-mode-chevron { color: var(--workspace-violet-bright); }
-.workspace-v2-difficulty { width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.workspace-v2-difficulty button { min-width: 0; min-height: 40px; padding: 0 6px; border: 1px solid var(--workspace-control-border); border-radius: 8px; color: var(--workspace-chrome-secondary); background: var(--workspace-control-bg); cursor: pointer; font-size: .7rem; font-weight: 750; }
-.workspace-v2-difficulty button.is-selected { color: var(--workspace-on-accent); border-color: var(--workspace-gold); background: var(--workspace-gold); box-shadow: 0 0 0 2px color-mix(in srgb, var(--workspace-gold) 18%, transparent); }
-.workspace-v2-active-start { width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 7px; border: 0; border-radius: 9px; color: var(--workspace-on-accent); background: var(--workspace-gold); cursor: pointer; font-size: .76rem; font-weight: 800; }
+.workspace-v2-mode-copy small { line-height: 1.35; }
+.workspace-v2-difficulty { width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); }
+.workspace-v2-difficulty button { min-width: 0; padding: 0 6px; cursor: pointer; }
+.workspace-v2-difficulty button.is-selected { border-color: var(--workspace-gold); }
+.workspace-v2-active-start { width: 100%; display: flex; align-items: center; justify-content: center; gap: 7px; border: 0; cursor: pointer; }
 .workspace-v2-active-start:disabled { color: var(--workspace-chrome-muted); background: var(--workspace-control-bg); cursor: not-allowed; }
 .workspace-v2-mode-error { margin: 14px 0 0; color: var(--danger); font-size: .75rem; }
 
 .workspace-v2-quiz-dialog,
-.workspace-v2-quiz-result { width: min(720px, 100%); max-height: 100%; overflow: auto; border: 1px solid var(--workspace-control-border); border-radius: 16px; color: var(--workspace-chrome-text); background: var(--workspace-panel); }
-.workspace-v2-quiz-dialog > header { display: flex; align-items: center; justify-content: space-between; padding: 17px 20px 13px; }
+.workspace-v2-quiz-result { max-height: 100%; overflow: auto; color: var(--workspace-chrome-text); }
+.workspace-v2-quiz-dialog > header { display: flex; align-items: center; justify-content: space-between; }
 .workspace-v2-quiz-dialog > header > div { display: grid; gap: 2px; }
-.workspace-v2-quiz-dialog > header span { color: var(--workspace-violet-bright); font-size: .68rem; font-weight: 800; text-transform: uppercase; }
-.workspace-v2-quiz-dialog > header strong { color: var(--workspace-chrome-secondary); font-size: .68rem; }
-.workspace-v2-quiz-dialog > header button { display: grid; width: 38px; height: 38px; place-items: center; border: 0; border-radius: 9px; color: var(--workspace-chrome-secondary); background: var(--workspace-control-bg); cursor: pointer; }
+.workspace-v2-quiz-dialog > header button { display: grid; place-items: center; border: 0; cursor: pointer; }
 /* Restart sits quietly beside Close; it asks before clearing the attempt. */
-.workspace-v2-quiz-dialog > header .workspace-v2-quiz-restart { display: inline-flex; width: auto; gap: 6px; align-items: center; margin-inline: auto 8px; padding: 0 12px; font: inherit; font-size: .72rem; font-weight: 750; }
+.workspace-v2-quiz-dialog > header .workspace-v2-quiz-restart { display: inline-flex; width: auto; gap: 6px; align-items: center; margin-inline: auto 8px; font: inherit; }
 .workspace-v2-quiz-dialog > header .workspace-v2-quiz-restart:disabled { opacity: .5; cursor: default; }
 /* Missed questions with their explanations, as in the normal results. */
-.workspace-v2-result-review { width: 100%; max-height: min(40vh, 320px); overflow: auto; display: grid; gap: 10px; margin: 18px 0 0; padding: 0; list-style: none; text-align: start; }
-.workspace-v2-result-review li { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--workspace-control-border); border-radius: 12px; background: var(--workspace-control-bg); }
-.workspace-v2-result-review-prompt { color: var(--workspace-chrome-text); font-size: .8rem; font-weight: 700; line-height: 1.4; }
+.workspace-v2-result-review { width: 100%; display: grid; gap: 10px; margin: 18px 0 0; padding: 0; list-style: none; text-align: start; }
+.workspace-v2-result-review li { display: grid; gap: 8px; padding: 12px 14px; }
+.workspace-v2-result-review-prompt { color: var(--workspace-chrome-text); line-height: 1.4; }
 .workspace-v2-result-review .question-explanation-text { color: var(--workspace-chrome-secondary); }
-.workspace-v2-quiz-progress { height: 5px; background: var(--workspace-track); }
-.workspace-v2-quiz-progress span { display: block; height: 100%; background: var(--workspace-gold); transition: width 180ms cubic-bezier(.2, 0, 0, 1); }
-.workspace-v2-quiz-dialog > main { margin: 0 20px 20px; padding: clamp(22px, 4vw, 34px); border: 1px solid var(--workspace-control-border); border-radius: 12px; background: var(--workspace-panel-2); }
-.workspace-v2-question-number { color: var(--workspace-chrome-secondary); font-size: .68rem; font-weight: 750; }
-.workspace-v2-quiz-dialog h2 { max-width: 620px; margin: 10px 0 22px; color: var(--workspace-chrome-text); font-size: clamp(1.18rem, 3vw, 1.6rem); line-height: 1.35; text-wrap: pretty; }
-.workspace-v2-answer-list { display: grid; gap: 8px; }
-.workspace-v2-answer-list button { width: 100%; min-height: 52px; display: grid; grid-template-columns: 30px minmax(0,1fr) auto; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--workspace-control-border); border-radius: 10px; color: var(--workspace-chrome-text); background: var(--workspace-control-bg); cursor: pointer; text-align: start; font-size: .78rem; transition: border-color 160ms var(--workspace-ease), background-color 160ms var(--workspace-ease), color 160ms var(--workspace-ease); }
-.workspace-v2-answer-list button > span { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 7px; color: var(--workspace-chrome-secondary); background: color-mix(in srgb, var(--workspace-chrome-text) 7%, var(--workspace-control-bg)); font-size: .66rem; font-weight: 800; }
-.workspace-v2-answer-list button.is-selected { border-color: var(--workspace-gold); background: color-mix(in srgb, var(--workspace-gold) 13%, var(--workspace-control-bg)); }
-.workspace-v2-answer-list button.is-selected > span { color: var(--workspace-on-accent); background: var(--workspace-gold); }
-.workspace-v2-answer-list button.is-selected > svg { color: var(--workspace-gold); }
+.workspace-v2-quiz-progress span { display: block; height: 100%; }
+.workspace-v2-quiz-dialog h2 { max-width: 620px; color: var(--workspace-chrome-text); text-wrap: pretty; }
+.workspace-v2-answer-list { display: grid; }
+.workspace-v2-answer-list button { width: 100%; display: grid; align-items: center; cursor: pointer; text-align: start; }
+.workspace-v2-answer-list button > span { display: grid; place-items: center; }
+.workspace-v2-answer-list button.is-selected { border-color: var(--workspace-gold); }
 @media (hover: hover) and (pointer: fine) {
   .workspace-v2-answer-list button:hover:not(.is-selected) { border-color: var(--accent-border); background: var(--workspace-control-hover); }
   .workspace-v2-quiz-dialog > :is(header, footer) button:hover:not(:disabled),
@@ -462,18 +393,16 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v2-quiz-dialog > :is(header, footer) button.is-primary:hover:not(:disabled),
   .workspace-v2-result-actions button.is-primary:hover:not(:disabled) { border-color: transparent; background: var(--workspace-gold-bright); }
 }
-.workspace-v2-quiz-dialog > footer { display: flex; justify-content: space-between; gap: 10px; padding: 15px 20px; border-top: 1px solid var(--workspace-border); }
+.workspace-v2-quiz-dialog > footer { display: flex; justify-content: space-between; gap: 10px; border-top: 1px solid var(--workspace-border); }
 .workspace-v2-quiz-dialog > footer button,
-.workspace-v2-result-actions button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 15px; border: 1px solid var(--workspace-control-border); border-radius: 9px; color: var(--workspace-chrome-text); background: var(--workspace-control-bg); cursor: pointer; font-size: .75rem; font-weight: 750; }
+.workspace-v2-result-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
 .workspace-v2-quiz-dialog > footer button.is-primary,
-.workspace-v2-result-actions button.is-primary { color: var(--workspace-on-accent); border-color: transparent; background: var(--workspace-gold); }
+.workspace-v2-result-actions button.is-primary { border-color: transparent; }
 .workspace-v2-quiz-dialog > footer button:disabled { opacity: .42; cursor: not-allowed; }
-.workspace-v2-quiz-result { display: flex; flex-direction: column; align-items: center; padding: clamp(30px, 6vw, 54px); text-align: center; }
-.workspace-v2-result-icon { display: grid; width: 66px; height: 66px; place-items: center; border-radius: 14px; color: var(--workspace-violet-bright); background: color-mix(in srgb, var(--workspace-violet) 15%, var(--workspace-control-bg)); }
-.workspace-v2-quiz-result > p { margin: 18px 0 2px; color: var(--workspace-chrome-secondary); font-size: .7rem; text-transform: uppercase; }
-.workspace-v2-quiz-result h2 { margin: 0; font-size: 3.5rem; letter-spacing: -.03em; }
-.workspace-v2-quiz-result > strong { max-width: 480px; margin-top: 5px; color: var(--workspace-chrome-text); font-size: .9rem; }
-.workspace-v2-xp-award { margin-top: 16px; padding: 7px 12px; border-radius: 99px; color: var(--highlight); background: color-mix(in srgb, var(--highlight) 13%, var(--workspace-control-bg)); font-size: .8rem; font-weight: 850; }
+.workspace-v2-quiz-result { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.workspace-v2-result-icon { display: grid; place-items: center; color: var(--workspace-violet-bright); background: color-mix(in srgb, var(--workspace-violet) 15%, var(--workspace-control-bg)); }
+.workspace-v2-quiz-result > strong { max-width: 480px; margin-top: 5px; color: var(--workspace-chrome-text); }
+.workspace-v2-xp-award { margin-top: 16px; padding: 7px 12px; border-radius: 99px; color: var(--highlight); background: color-mix(in srgb, var(--highlight) 13%, var(--workspace-control-bg)); }
 .workspace-v2-result-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 24px; }
 .workspace-v2-quiz-result.is-passed .workspace-v2-result-icon { color: var(--color-success); background: color-mix(in srgb, var(--color-success) 14%, var(--workspace-control-bg)); }
 .workspace-v2-quiz-result.is-blocked .workspace-v2-result-icon { color: var(--danger); background: color-mix(in srgb, var(--danger) 13%, var(--workspace-control-bg)); }
@@ -518,30 +447,18 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 @media (max-width: 560px) {
   .workspace-v2-toolbar {
     align-items: center;
-    gap: 2px;
     padding-inline: max(4px, env(safe-area-inset-left)) max(4px, env(safe-area-inset-right));
     padding-block-end: 5px;
   }
-
-  .workspace-v2-toolbar-scroll { gap: 2px; }
   .workspace-v2-tool-list, .workspace-v2-history { gap: 2px; }
-  .workspace-v2-control-group.is-exit { padding-inline-end: 3px; }
-  .workspace-v2-toolbar-actions { gap: 0; padding-inline-start: 3px; }
-  .workspace-v2-toolbar-divider { margin-inline: 2px; }
 
   .workspace-v2-study-mode-button { width: 44px; height: 44px; }
   .workspace-v2-icon-button { width: 44px; height: 44px; }
-  .workspace-v2-tool-options { inset-inline: 4px; max-width: calc(100% - 8px); min-height: 52px; padding: 4px 6px; }
-  .workspace-v2-tool-range { width: 160px; min-height: 48px; flex-basis: 160px; }
+  .workspace-v2-tool-options { inset-inline: 4px; min-height: 52px; padding: 4px 6px; }
+  .workspace-v2-tool-range { min-height: 48px; }
   .workspace-v2-tool-range input { height: 40px; }
   .workspace-v2-tool-options-title { display: none; }
-  .workspace-v2-tool-options .workspace-v2-toolbar-divider { display: none; }
   .workspace-v2-document { min-height: 680px; padding: 28px 22px; }
-  .workspace-v2-document-grid { grid-template-columns: 1fr; gap: 20px; }
-  .workspace-v2-selection-actions { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; margin-inline: 0; overflow: visible; }
-  .workspace-v2-selection-actions button { min-width: 0; min-height: 48px; }
-  .workspace-v2-selection-actions button:last-child:nth-child(odd) { grid-column: 1 / -1; }
-  .workspace-v2-clinical-note { padding: 16px; }
   .workspace-v2-side,
   .workspace-v2-body.has-side .workspace-v2-side { top: auto; right: 0; bottom: 0; left: 0; inset-inline-start: var(--workspace-visible-start-gap, 0px); inset-inline-end: var(--workspace-visible-end-gap, 0px); width: auto; height: min(64dvh, 520px); padding-bottom: env(safe-area-inset-bottom); border-radius: 16px 16px 0 0; }
   .workspace-v2-side-backdrop { display: block !important; }
@@ -551,7 +468,6 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v2-side-content { padding: 6px 8px 8px; }
   .workspace-v2-note-editor textarea { min-height: calc((4 * 1.5em) + 22px); max-height: 34dvh; resize: none; }
   .workspace-v2-settings-popover { inset-inline: 4px; width: auto; max-height: calc(100% - 68px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
-  .workspace-v2-selection-menu { max-width: calc(100% - 20px); }
   .workspace-v2-checkpoint-dock { right: 0; bottom: max(12px, env(safe-area-inset-bottom)); left: auto; width: 48px; padding: 0; }
   .workspace-v2-checkpoint-button { width: 48px; min-width: 48px; min-height: 48px; padding: 0; border-radius: 12px 0 0 12px; font-size: 0; }
   .workspace-v2-checkpoint-copy { display: none; }
@@ -562,7 +478,7 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v2-toast { inset-inline: max(8px, env(safe-area-inset-left)) max(8px, env(safe-area-inset-right)); max-width: none; bottom: calc(max(10px, env(safe-area-inset-bottom)) + 40px); transform: none; }
   .workspace-v2-mode-backdrop, .workspace-v2-quiz-backdrop { align-items: end; padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); }
   .workspace-v2-mode-dialog, .workspace-v2-quiz-dialog, .workspace-v2-quiz-result { width: 100%; max-height: 94dvh; border-radius: 16px; }
-  .workspace-v2-mode-dialog { max-height: min(88dvh, 430px); padding: 16px 14px max(14px, env(safe-area-inset-bottom)); border-radius: 14px 14px 10px 10px; }
+  .workspace-v2-mode-dialog { max-height: min(88dvh, 430px); padding: 16px 14px max(14px, env(safe-area-inset-bottom)); }
   .workspace-v2-mode-dialog > h1 { font-size: 1.15rem; }
   .workspace-v2-mode-dialog > p { margin-bottom: 12px; }
   .workspace-v2-mode-card.is-active-study { gap: 10px; padding: 10px; }
@@ -612,10 +528,6 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 .workspace-v2-study-mode-status { min-width: 0; display: grid; justify-items: start; gap: 1px; line-height: 1; }
 .workspace-v2-study-mode-status strong { font-size: .68rem; }
 .workspace-v2-study-mode-status small { color: var(--workspace-chrome-secondary); font-size: .58rem; font-weight: 700; }
-
-@media (max-width: 560px) {
-  .workspace-v2-study-mode-button.has-progress { width: auto; max-width: 108px; }
-}
 
 /* Mobile Safari magnifies the whole page whenever it focuses a control whose
    text is smaller than 16px, and it does not undo that magnification when the
@@ -712,10 +624,6 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   background: var(--workspace-panel);
 }
 
-:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) :is(.workspace-v2-selection-menu button.is-danger, .workspace-v6-card-delete) {
-  color: var(--danger);
-}
-
 :root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2 :is(.workspace-v2-tool-range, .workspace-v2-icon-choices, .workspace-v2-custom-color-editor) {
   color: var(--workspace-chrome-text);
   border-color: var(--workspace-control-border);
@@ -773,24 +681,6 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 :root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2-color-swatch.is-active::before {
   border-color: var(--surface-elevated);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
-}
-
-:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2 :is(.workspace-v2-selection-menu, .workspace-v2-selection-actions) {
-  color: var(--workspace-chrome-text);
-  background: var(--surface-elevated);
-  box-shadow: 0 8px 20px var(--shadow-color);
-}
-
-:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2 :is(.workspace-v2-selection-menu button, .workspace-v2-selection-actions button) {
-  color: var(--workspace-chrome-text);
-}
-
-:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2 :is(.workspace-v2-selection-menu button:hover, .workspace-v2-selection-actions button:hover):where(html.ix-hover *) {
-  background: var(--interactive-selected);
-}
-
-:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2-selection-actions button:disabled {
-  color: var(--disabled-text);
 }
 
 :root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2-side {
@@ -909,8 +799,8 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 
 .workspace-v2-control-group.is-exit { min-width: 0; gap: 8px; }
 .workspace-v3-document-context { display: grid; width: clamp(150px, 18vw, 250px); min-width: 0; gap: 1px; padding-inline-end: 8px; line-height: 1.15; }
-.workspace-v3-document-context strong { overflow: hidden; color: var(--workspace-chrome-text); font-size: .76rem; text-overflow: ellipsis; white-space: nowrap; }
-.workspace-v3-document-context span { overflow: hidden; color: var(--workspace-chrome-muted); font-size: .61rem; text-overflow: ellipsis; text-transform: capitalize; white-space: nowrap; }
+.workspace-v3-document-context strong { overflow: hidden; font-size: .76rem; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-v3-document-context span { overflow: hidden; font-size: .61rem; text-overflow: ellipsis; text-transform: capitalize; white-space: nowrap; }
 
 .workspace-v3-primary { display: flex; min-width: 0; align-items: center; justify-content: flex-start; gap: 4px; overflow-x: auto; overflow-y: hidden; overscroll-behavior-inline: contain; scrollbar-width: none; touch-action: pan-x; -webkit-overflow-scrolling: touch; mask-image: linear-gradient(to right, transparent 0, #000 var(--workspace-fade-left, 0px), #000 calc(100% - var(--workspace-fade-right, 0px)), transparent 100%); }
 .workspace-v3-primary::-webkit-scrollbar { display: none; }
@@ -918,13 +808,8 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 .workspace-v3-primary .workspace-v2-history { flex: 0 0 auto; }
 .workspace-v3-primary .workspace-v2-history { padding-inline-start: 4px; border-inline-start: 1px solid var(--workspace-border); }
 
-.workspace-v3-posture { display: inline-flex; min-width: 68px; height: 38px; flex: 0 0 auto; align-items: center; justify-content: center; gap: 6px; padding: 0 9px; border: 1px solid var(--workspace-control-border); border-radius: 10px; color: var(--workspace-chrome-text); background: var(--workspace-control-bg); cursor: pointer; font-size: .68rem; font-weight: 750; }
-.workspace-v3-posture.is-writing { color: var(--workspace-gold-bright); border-color: color-mix(in srgb, var(--workspace-gold) 42%, var(--workspace-control-border)); }
 
 .workspace-v2-toolbar-actions { gap: 2px; padding-inline-start: 4px; }
-.workspace-v3-phone-only { display: none !important; }
-.workspace-v3-compact-only { display: none !important; }
-.workspace-v3-touch-pan { display: none !important; }
 
 .workspace-v2-action-popover {
   position: absolute;
@@ -944,10 +829,6 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 .workspace-v2-action-popover > header { display: flex; min-height: 42px; align-items: center; justify-content: space-between; padding-inline-start: 12px; border-bottom: 1px solid var(--workspace-border); }
 .workspace-v2-action-popover > header strong { font-size: .74rem; }
 .workspace-v2-action-popover > header button { display: grid; width: 42px; height: 42px; place-items: center; padding: 0; border: 0; color: var(--workspace-chrome-secondary); background: transparent; cursor: pointer; }
-
-.workspace-v3-menu-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 8px; }
-.workspace-v3-menu-grid > button { display: grid; min-width: 0; min-height: 64px; place-items: center; gap: 4px; padding: 7px 4px; border: 0; border-radius: 10px; color: var(--workspace-chrome-secondary); background: transparent; cursor: pointer; font-size: .65rem; font-weight: 700; }
-.workspace-v3-menu-grid > button:hover:where(html.ix-hover *) { color: var(--workspace-chrome-text); background: var(--workspace-control-hover); }
 
 .workspace-v3-menu-list { display: grid; padding: 6px; }
 .workspace-v3-menu-list > button { display: grid; min-height: 48px; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: 7px; padding: 5px 7px; border: 0; border-radius: 10px; color: var(--workspace-chrome-text); background: transparent; cursor: pointer; text-align: start; }
@@ -975,7 +856,6 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   top: calc(var(--workspace-toolbar-height, 54px) + 7px);
   right: auto;
   left: 50%;
-  max-width: min(760px, calc(100% - 16px));
   min-height: 50px;
   border: 1px solid var(--workspace-border);
   border-radius: 12px;
@@ -990,10 +870,6 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 
 @media (pointer: coarse) {
   .workspace-v3-primary { gap: 0; }
-  .workspace-v3-posture { min-width: 44px; width: 44px; min-height: 44px; height: 44px; padding: 0; }
-  .workspace-v3-posture span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-  .workspace-v3-primary .is-pointer-primary { display: none; }
-  .workspace-v3-touch-pan { display: grid !important; }
 }
 
 @media (max-width: 560px) {
@@ -1002,13 +878,7 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v2-toolbar-actions { gap: 0; padding-inline-start: 0; }
   .workspace-v2-icon-button,
   .workspace-v2-study-mode-button { min-width: 44px; width: 44px; min-height: 44px; height: 44px; }
-  .workspace-v3-posture { min-width: 44px; width: 44px; min-height: 44px; height: 44px; padding: 0; }
-  .workspace-v3-posture span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-  .workspace-v3-primary .is-pointer-primary,
-  .workspace-v3-primary .workspace-v2-history,
-  .workspace-v3-primary .is-phone-secondary { display: none; }
-  .workspace-v3-touch-pan,
-  .workspace-v3-phone-only { display: grid !important; }
+  .workspace-v3-primary .workspace-v2-history { display: none; }
   .workspace-v2-study-mode-button.has-progress { width: 44px; max-width: 44px; padding: 0; }
   .workspace-v2-study-mode-status { display: none; }
   .workspace-v2-tool-options {
@@ -1028,7 +898,6 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   }
   .workspace-v4-pen-gestures { width: 100%; grid-template-columns: 1fr; padding: 6px 0 0; border-inline-start: 0; border-block-start: 1px solid var(--workspace-border); }
   .workspace-v2-tool-options-title { width: 100%; grid-auto-flow: column; justify-content: start; gap: 4px; padding: 5px 7px 2px; }
-  .workspace-v2-tool-settings { width: 100%; flex-wrap: wrap; }
   .workspace-v2-tool-range { width: 100%; flex-basis: 100%; }
   .workspace-v2-action-popover { top: calc(var(--workspace-toolbar-height, 54px) + 5px); }
   .workspace-v2-action-popover.is-more { max-height: calc(100% - var(--workspace-toolbar-height, 54px) - 74px); overflow-y: auto; }
@@ -1083,24 +952,11 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 .workspace-v4-nib i { display: block; height: 2px; flex: 1; border-radius: 99px; background: var(--workspace-tool-color); transform: rotate(-7deg); }
 .workspace-v4-nib.is-fountain i { height: 4px; clip-path: polygon(0 35%, 100% 0, 100% 100%, 0 65%); }
 .workspace-v4-nib.is-brush i { height: 7px; border-radius: 100% 15% 15% 100%; }
-
-.workspace-v4-pen-presets { display: flex; min-height: 44px; align-items: center; gap: 3px; padding: 3px; border-radius: 10px; background: var(--workspace-control-bg); }
-.workspace-v4-pen-preset { position: relative; display: grid; width: 38px; height: 36px; place-items: center; }
-.workspace-v4-pen-preset > button:first-child { display: grid; width: 34px; height: 34px; place-items: center; padding: 0; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
-.workspace-v4-pen-preset i { width: 22px; height: var(--workspace-preset-size); max-height: 10px; border-radius: 99px; background: var(--workspace-tool-color); transform: rotate(-14deg); }
-.workspace-v4-pen-preset > button:last-child { position: absolute; top: -3px; right: -3px; display: grid; width: 17px; height: 17px; place-items: center; padding: 0; border: 0; border-radius: 50%; color: var(--workspace-chrome-secondary); background: var(--workspace-panel); cursor: pointer; }
-.workspace-v4-save-preset { display: inline-flex; min-width: 58px; height: 34px; align-items: center; justify-content: center; gap: 3px; padding: 0 6px; border: 1px dashed var(--workspace-control-border); border-radius: 8px; color: var(--workspace-chrome-secondary); background: transparent; cursor: pointer; font-size: .58rem; font-weight: 750; }
-.workspace-v4-save-preset:disabled { opacity: .38; }
+/* A broad nib cut at an angle: thick on the flat, a hairline on the edge. */
+.workspace-v4-nib.is-calligraphy i { height: 6px; border-radius: 1px; clip-path: polygon(0 100%, 18% 0, 100% 0, 82% 100%); transform: rotate(-7deg) skewX(-28deg); }
 
 .workspace-v4-favorite-color { display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; padding: 0; border: 0; border-radius: 9px; color: var(--workspace-chrome-secondary); background: var(--workspace-control-bg); cursor: pointer; }
 .workspace-v4-favorite-color.is-active { color: var(--workspace-gold-bright); }
-.workspace-v4-quick-sizes { display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 10px; background: var(--workspace-control-bg); }
-.workspace-v4-quick-sizes button { display: grid; width: 36px; height: 36px; grid-template-rows: 15px auto; place-items: center; padding: 2px; border: 0; border-radius: 7px; color: var(--workspace-chrome-muted); background: transparent; cursor: pointer; font-size: .56rem; font-variant-numeric: tabular-nums; }
-.workspace-v4-quick-sizes button span { width: 22px; height: var(--workspace-quick-size); max-height: 10px; border-radius: 99px; background: currentColor; }
-.workspace-v4-quick-sizes button.is-active { color: var(--workspace-gold-bright); background: color-mix(in srgb, var(--workspace-gold) 14%, transparent); }
-.workspace-v4-stroke-feel { display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 10px; background: var(--workspace-control-bg); }
-.workspace-v4-stroke-feel button { min-width: 58px; height: 34px; padding: 0 7px; border: 0; border-radius: 7px; color: var(--workspace-chrome-muted); background: transparent; cursor: pointer; font-size: .59rem; font-weight: 700; }
-.workspace-v4-stroke-feel button.is-active { color: var(--workspace-gold-bright); background: color-mix(in srgb, var(--workspace-gold) 14%, transparent); }
 
 .workspace-v2-stylus-hover { display: grid; place-items: center; border-color: color-mix(in srgb, var(--workspace-hover-color) 82%, #111827); background: color-mix(in srgb, var(--workspace-hover-color) 18%, transparent); box-shadow: 0 0 0 1px rgba(255,255,255,.68); }
 .workspace-v2-stylus-hover::after { width: 72%; height: var(--workspace-hover-line); max-height: 12px; border-radius: 99px; content: ""; background: var(--workspace-hover-color); opacity: var(--workspace-hover-opacity); transform: rotate(-12deg); }
@@ -1120,9 +976,7 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 
 @media (max-width: 560px), (max-height: 500px) and (max-width: 900px) {
   .workspace-v2-tool-options { justify-content: start; padding: 7px; }
-  .workspace-v4-pen-profiles, .workspace-v4-pen-presets, .workspace-v2-colors, .workspace-v2-tool-settings { width: 100%; overflow-x: auto; scrollbar-width: none; }
-  .workspace-v4-stroke-feel { flex: 1 0 100%; }
-  .workspace-v4-stroke-feel button { flex: 1; min-width: 0; }
+  .workspace-v4-pen-profiles, .workspace-v2-colors { width: 100%; overflow-x: auto; scrollbar-width: none; }
   .workspace-v4-zoom-hud { top: 44%; }
 }
 
@@ -1130,8 +984,7 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v4-zoom-hud { transition: opacity 120ms linear; }
 }
 
-:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v4-zoom-hud,
-:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v4-pen-preset > button:last-child { color: var(--workspace-chrome-text); background: var(--surface-elevated); }
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v4-zoom-hud { color: var(--workspace-chrome-text); background: var(--surface-elevated); }
 
 /* Tablet Focus controls: the existing tool state and inspectors live in a
    floating shell. The PDF row still owns its own geometry and zoom bounds. */
@@ -1210,19 +1063,11 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v2-tool-options-title > span:first-child { display: grid; gap: 3px; }
   .workspace-v2-tool-options-title strong { font-size: .91rem; }
   .workspace-v2-tool-options-title small { color: var(--workspace-chrome-muted); font-size: .67rem; }
-  .workspace-v2-tool-options .workspace-v2-tool-settings { display: grid; width: 100%; flex: none; grid-template-columns: 1fr; gap: 7px; }
-  .workspace-v2-tool-settings .workspace-v4-quick-sizes,
-  .workspace-v2-tool-settings .workspace-v4-stroke-feel { width: 100%; }
-  .workspace-v2-tool-settings .workspace-v4-quick-sizes button,
-  .workspace-v2-tool-settings .workspace-v4-stroke-feel button { flex: 1; }
-  .workspace-v2-tool-settings .workspace-v2-tool-range { width: 100%; min-width: 0; flex-basis: auto; min-height: 54px; padding: 8px 10px; }
   .workspace-v2-tool-options .workspace-v2-colors { width: 100%; max-width: 100%; flex-wrap: wrap; gap: 4px; overflow: visible; }
   .workspace-v2-tool-options .workspace-v2-color-item { flex: 0 0 44px; }
   .workspace-v2-tool-options .workspace-v2-color-swatch { width: 44px; height: 44px; }
   .workspace-v2-tool-options .workspace-v2-color-swatch::before { inset: 9px; }
   .workspace-v4-pen-gestures { width: 100%; padding: 7px 0 0; border-inline-start: 0; border-block-start: 1px solid var(--workspace-border); }
-  .workspace-v4-quick-sizes button { width: 44px; height: 44px; }
-  .workspace-v4-stroke-feel button { min-height: 44px; height: 44px; }
   .workspace-v2-icon-choices button { min-width: 44px; min-height: 44px; }
   .workspace-v2-tool-options .workspace-v2-icon-choices { width: 100%; flex-wrap: wrap; gap: 4px; padding: 4px; }
   .workspace-v2-tool-options .workspace-v2-icon-choices button { min-width: 78px; min-height: 58px; flex: 1 1 78px; grid-template-rows: 22px auto; gap: 3px; border-radius: 9px; }
@@ -1230,25 +1075,11 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v5-inspector-section { display: grid; width: 100%; gap: 7px; padding: 11px 0; border-bottom: 1px solid var(--workspace-border); }
   .workspace-v5-inspector-section h3 { margin: 0 2px; color: var(--workspace-chrome-secondary); font-size: .66rem; font-weight: 750; letter-spacing: .01em; }
   .workspace-v5-inspector-section p { margin: 0 3px; color: var(--workspace-chrome-muted); font-size: .65rem; line-height: 1.35; }
-  .workspace-v5-stroke-preview { display: grid; width: 94px; height: 35px; flex: 0 0 94px; place-items: center; border-radius: 8px; background: var(--workspace-control-bg); }
-  .workspace-v5-stroke-preview::before { width: 66px; height: var(--workspace-preview-size); max-height: 12px; border-radius: 99px; content: ""; background: var(--workspace-tool-color); opacity: var(--workspace-preview-opacity); transform: rotate(-6deg); }
-  .workspace-v5-stroke-preview.is-eraser::before { width: 18px; height: 18px; border: 2px dashed var(--workspace-chrome-secondary); border-radius: 50%; background: transparent; opacity: 1; transform: none; }
-  .workspace-v5-stroke-preview.is-select::before { width: 54px; height: 20px; border: 2px dashed var(--workspace-chrome-secondary); border-radius: 6px; background: transparent; opacity: 1; transform: none; }
-  .workspace-v5-stroke-preview.is-highlighter::before { height: 10px; }
-  .workspace-v5-advanced { width: 100%; padding: 10px 0 0; color: var(--workspace-chrome-text); }
-  .workspace-v5-advanced summary { min-height: 44px; display: flex; align-items: center; padding: 0 10px; border-radius: 9px; color: var(--workspace-chrome-secondary); background: var(--workspace-control-bg); cursor: pointer; font-size: .7rem; font-weight: 700; }
-  .workspace-v5-advanced[open] { display: grid; gap: 8px; }
-  .workspace-v5-advanced .workspace-v2-tool-range { width: 100%; min-height: 52px; }
-  .workspace-v5-clear-action { width: 100%; margin-top: 10px; }
-  .workspace-v5-add-divider { height: 1px; margin: 4px 8px; background: var(--workspace-border); }
   .workspace-v2-action-popover,
   .workspace-v2-settings-popover { top: calc(var(--workspace-toolbar-height, 68px) + 18px); border-radius: 16px; box-shadow: 0 6px 14px rgba(0,0,0,.25); }
   .workspace-v2-action-popover.is-add,
   .workspace-v2-action-popover.is-text { animation: workspace-menu-center-settle 170ms var(--workspace-ease) both; }
   .workspace-v2-action-popover.is-more { animation: workspace-menu-settle 170ms var(--workspace-ease) both; }
-  .workspace-v3-menu-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .workspace-v2-selection-menu { border-radius: 13px; animation: workspace-selection-settle 150ms var(--workspace-ease) both; }
-  .workspace-v2-selection-menu button { min-height: 44px; border-radius: 9px; }
 }
 
 /* A desktop pointer is precise, so the bar can be smaller than the 44px
@@ -1280,9 +1111,6 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 @media (max-width: 699px), (max-height: 599px) {
   .workspace-v2-toolbar .is-tablet-secondary { display: none; }
 }
-@media (max-width: 810px) {
-  .workspace-v3-compact-only { display: flex !important; }
-}
 
 :root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2 {
   --workspace-toolbar-surface: color-mix(in srgb, var(--surface-elevated, var(--surface)) 94%, transparent);
@@ -1299,7 +1127,7 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 @keyframes workspace-menu-settle { from { opacity: 0; transform: translateY(-5px) scale(.985); } to { opacity: 1; transform: none; } }
 @keyframes workspace-selection-settle { from { opacity: 0; transform: translate(-50%, calc(-100% - 8px)) scale(.985); } to { opacity: 1; transform: translate(-50%, calc(-100% - 12px)); } }
 @media (prefers-reduced-motion: reduce) {
-  .workspace-v2-toolbar, .workspace-v2-tool-options, .workspace-v2-action-popover, .workspace-v2-selection-menu { animation: none !important; }
+  .workspace-v2-toolbar, .workspace-v2-tool-options, .workspace-v2-action-popover { animation: none !important; }
 }
 
 /* Reference-inspired Focus chrome: charcoal glass, tool-specific highlights,
@@ -1356,26 +1184,16 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--workspace-tool-accent) 55%, transparent), 0 4px 13px color-mix(in srgb, var(--workspace-tool-accent) 13%, transparent);
 }
 .workspace-v2-toolbar .workspace-v3-tool-button.is-active::after { background: var(--workspace-tool-accent) !important; }
-.workspace-v2-toolbar .workspace-v3-quick-color.is-active > span {
-  box-shadow: 0 0 0 2px #283036, 0 0 0 4px #42b9ff;
-}
-
-.workspace-v2-tool-options { --workspace-gold: var(--workspace-tool-accent); --workspace-gold-bright: var(--workspace-tool-accent); }
 .workspace-v2-tool-options-title { border-color: rgba(255, 255, 255, .12); }
 .workspace-v2-tool-options-title strong { font-weight: 700; }
 .workspace-v5-inspector-section { border-color: rgba(255, 255, 255, .1); }
 .workspace-v2-tool-options .workspace-v2-icon-choices,
-.workspace-v2-tool-options .workspace-v4-quick-sizes,
-.workspace-v2-tool-options .workspace-v4-stroke-feel,
 .workspace-v2-tool-options .workspace-v4-pen-profiles > button,
-.workspace-v2-tool-options .workspace-v2-tool-range,
-.workspace-v2-tool-options .workspace-v5-advanced summary {
+.workspace-v2-tool-options .workspace-v2-tool-range {
   border-radius: 11px;
   background: rgba(255, 255, 255, .055);
 }
 .workspace-v2-tool-options .workspace-v2-icon-choices button.is-active,
-.workspace-v2-tool-options .workspace-v4-quick-sizes button.is-active,
-.workspace-v2-tool-options .workspace-v4-stroke-feel button.is-active,
 .workspace-v2-tool-options .workspace-v4-pen-profiles > button.is-active {
   color: var(--workspace-tool-accent);
   background: color-mix(in srgb, var(--workspace-tool-accent) 16%, #30363b);
@@ -1395,15 +1213,13 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 .workspace-v2-tool-options .workspace-v2-tool-range input::-moz-range-progress { background: var(--workspace-tool-accent); }
 
 .workspace-v2-action-popover .workspace-v3-menu-list > button,
-.workspace-v2-action-popover .workspace-v3-menu-grid > button,
 .workspace-v2-settings-popover .workspace-v2-settings-action,
 .workspace-v2-settings-popover .workspace-v2-settings-toggle {
   border: 1px solid rgba(255, 255, 255, .065);
   background: rgba(255, 255, 255, .045);
   transition: background-color 180ms var(--workspace-ease), transform 180ms var(--workspace-ease);
 }
-html.ix-hover .workspace-v2-action-popover .workspace-v3-menu-list > button:not(:disabled):hover,
-html.ix-hover .workspace-v2-action-popover .workspace-v3-menu-grid > button:not(:disabled):hover {
+html.ix-hover .workspace-v2-action-popover .workspace-v3-menu-list > button:not(:disabled):hover {
   background: rgba(255, 255, 255, .11);
   transform: translateY(-1px);
 }
@@ -1444,9 +1260,6 @@ html.ix-hover .workspace-v2-action-popover .workspace-v3-menu-grid > button:not(
   .workspace-v2-action-popover button {
     transition: color 180ms var(--workspace-ease), background-color 180ms var(--workspace-ease), box-shadow 200ms var(--workspace-ease), transform 200ms var(--workspace-ease);
   }
-  .workspace-v2-tool-options { animation: workspace-inspector-settle 230ms var(--workspace-ease) both; }
-  .workspace-v2-action-popover.is-add,
-  .workspace-v2-action-popover.is-text { animation: workspace-menu-center-settle 230ms var(--workspace-ease) both; }
   .workspace-v2-action-popover.is-more,
   .workspace-v2-settings-popover { animation: workspace-menu-settle 230ms var(--workspace-ease) both; }
 }
@@ -1458,25 +1271,17 @@ html.ix-hover .workspace-v2-action-popover .workspace-v3-menu-grid > button:not(
 }
 
 /* Expanded study tools keep the established charcoal inspector language. */
-.workspace-v6-quick-presets,
-.workspace-v6-inspector-actions,
-.workspace-v6-card-kinds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; width: 100%; }
-.workspace-v6-quick-presets button,
-.workspace-v6-inspector-actions button,
+.workspace-v6-card-kinds { display: grid; gap: 6px; width: 100%; }
 .workspace-v6-card-kinds button { display: grid; min-height: 44px; place-items: center; gap: 4px; padding: 7px 8px; border: 1px solid var(--workspace-control-border); border-radius: 10px; color: var(--workspace-chrome-text); background: rgba(255,255,255,.055); cursor: pointer; font-size: .68rem; }
-.workspace-v6-quick-presets button > span { display: block; width: 40px; height: 4px; border-radius: 99px; background: #42b9ff; }
-.workspace-v6-quick-presets button > span.is-underline { height: 2px; }
-.workspace-v6-quick-presets button > span.is-bold { height: 7px; }
-.workspace-v6-inspector-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.workspace-v6-inspector-actions button { display: flex; justify-content: start; text-align: start; }
-.workspace-v6-inspector-actions button:disabled { opacity: .42; cursor: not-allowed; }
 .workspace-v6-color-strip { display: flex; min-height: 42px; align-items: center; gap: 7px; }
 .workspace-v6-color-strip > button { width: 34px; height: 34px; border: 2px solid rgba(255,255,255,.58); border-radius: 50%; cursor: pointer; }
-.workspace-v6-shape-settings { display: grid; width: 100%; gap: 5px; }
-.workspace-v6-shape-settings > label { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 9px; border-radius: 9px; color: var(--workspace-chrome-text); background: rgba(255,255,255,.055); font-size: .7rem; }
-.workspace-v6-shape-settings :is(select, input[type="color"]) { min-width: 96px; min-height: 34px; border: 1px solid var(--workspace-control-border); border-radius: 7px; color: var(--workspace-chrome-text); background: var(--workspace-control-bg); }
 .workspace-v6-card-editor { width: min(350px, calc(100% - 16px)); }
-.workspace-v6-card-kinds { grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 9px 9px 0; }
+.workspace-v6-card-kinds { grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 9px 9px 0; }
+/* Each style shows a small card in its paper and accent colours. */
+.workspace-v6-card-kinds button > i { display: block; width: 30px; height: 20px; border-radius: 5px; border-top: 4px solid var(--card-accent); background: var(--card-paper); box-shadow: 0 1px 3px rgb(0 0 0 / .3); }
+.workspace-v6-card-kinds button > i.is-note { --card-paper: #f4f7ff; --card-accent: #4f6df5; }
+.workspace-v6-card-kinds button > i.is-lined { --card-paper: repeating-linear-gradient(#fff 0 5px, #dbe4f0 5px 6px); --card-accent: #64748b; background: repeating-linear-gradient(#fff 0 5px, #dbe4f0 5px 6px); }
+.workspace-v6-card-kinds button > i.is-revision { --card-paper: #fff3f5; --card-accent: #e0466a; }
 .workspace-v6-card-kinds button { min-width: 0; padding-inline: 3px; }
 .workspace-v6-card-kinds button.is-active { border-color: #42b9ff; color: #9cdcff; background: rgba(66,185,255,.15); }
 .workspace-v6-card-editor textarea { width: 100%; min-height: 108px; padding: 9px; border: 1px solid var(--workspace-control-border); border-radius: 9px; color: var(--workspace-chrome-text); background: var(--workspace-control-bg); resize: vertical; }
@@ -1485,11 +1290,6 @@ html.ix-hover .workspace-v2-action-popover .workspace-v3-menu-grid > button:not(
 .workspace-v6-export-range label { display: grid; gap: 4px; color: var(--workspace-chrome-secondary); font-size: .65rem; }
 .workspace-v6-export-range input { width: 100%; min-height: 38px; padding: 5px 8px; border: 1px solid var(--workspace-control-border); border-radius: 8px; color: var(--workspace-chrome-text); background: var(--workspace-control-bg); }
 .workspace-v6-export-range button { grid-column: 1 / -1; min-height: 42px; border: 1px solid #42b9ff; border-radius: 9px; color: #a8e3ff; background: rgba(66,185,255,.12); cursor: pointer; }
-.workspace-v6-history { gap: 8px; color: var(--workspace-chrome-text); }
-.workspace-v6-history p { margin: 3px 7px; color: var(--workspace-chrome-muted); font-size: .72rem; }
-.workspace-v6-history > strong { padding-inline: 7px; font-size: .72rem; }
-.workspace-v2-selection-menu { max-width: min(440px, calc(100vw - 24px)); border: 1px solid rgba(255,255,255,.15); border-radius: 13px; background: #22292f; box-shadow: 0 12px 28px rgba(0,0,0,.3); }
-.workspace-v2-selection-menu button { min-height: 44px; border-radius: 9px; }
 
 /* Settings occupies the workspace viewport and follows the selected theme. */
 .workspace-v2 .workspace-v2-settings-popover {
@@ -1513,11 +1313,7 @@ html.ix-hover .workspace-v2-action-popover .workspace-v3-menu-grid > button:not(
   max-height: none;
   border: 0;
   border-radius: 0;
-  color: var(--settings-text);
-  background: var(--settings-surface);
   box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
 }
 :root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2 .workspace-v2-settings-popover {
   --settings-surface: #f7faff;
@@ -1531,13 +1327,6 @@ html.ix-hover .workspace-v2-action-popover .workspace-v3-menu-grid > button:not(
 .workspace-v2-settings-popover > header { min-height: 60px; padding-inline: max(20px, env(safe-area-inset-left)) max(8px, env(safe-area-inset-right)); border-color: var(--settings-border); }
 .workspace-v2-settings-popover > header > span { gap: 10px; color: var(--settings-text); font-size: 1.1rem; }
 .workspace-v2-settings-popover > header button { color: var(--settings-text); }
-.workspace-v6-settings-layout { display: grid; grid-template-columns: minmax(170px, 230px) minmax(0, 1fr); min-height: 0; height: calc(100% - 60px); }
-.workspace-v6-settings-nav { display: grid; align-content: start; gap: 5px; padding: 14px; border-inline-end: 1px solid var(--settings-border); }
-.workspace-v6-settings-nav button { display: flex; min-height: 62px; align-items: center; gap: 12px; padding: 9px 10px; border: 0; border-radius: 12px; color: var(--settings-text); background: transparent; text-align: start; cursor: pointer; }
-.workspace-v6-settings-nav button.is-active { color: var(--workspace-gold-bright); background: var(--settings-active); }
-.workspace-v6-settings-nav button span { display: grid; gap: 3px; }
-.workspace-v6-settings-nav strong { font-size: .82rem; }
-.workspace-v6-settings-nav small { color: var(--settings-muted); font-size: .65rem; }
 .workspace-v2-settings-popover .workspace-v2-settings-content { max-height: none; height: 100%; overflow-y: auto; padding: 18px; }
 .workspace-v2-settings-popover .workspace-v2-settings-content section { max-width: 780px; margin: 0 auto; padding: 20px; border: 1px solid var(--settings-border); border-radius: 18px; background: var(--settings-panel); }
 .workspace-v2-settings-popover .workspace-v2-settings-content h2 { margin: 0 0 12px; color: var(--settings-text); font-size: 1.1rem; }
@@ -1560,10 +1349,6 @@ html.ix-hover .workspace-v2-action-popover .workspace-v3-menu-grid > button:not(
   .workspace-v2-toolbar { margin-block-start: 8px; }
 }
 @media (max-width: 700px) {
-  .workspace-v6-settings-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
-  .workspace-v6-settings-nav { display: flex; gap: 4px; overflow-x: auto; padding: 8px; border-inline-end: 0; border-block-end: 1px solid var(--settings-border); }
-  .workspace-v6-settings-nav button { min-width: 104px; min-height: 52px; flex: 0 0 auto; padding: 7px; }
-  .workspace-v6-settings-nav small { display: none; }
   .workspace-v2-settings-popover .workspace-v2-settings-content { padding: 8px; }
   .workspace-v2-settings-popover .workspace-v2-settings-content section { padding: 12px; }
 }
@@ -1595,7 +1380,6 @@ html.ix-hover .workspace-v2-action-popover .workspace-v3-menu-grid > button:not(
   .workspace-v2-action-popover.is-more,
   .workspace-v2-settings-popover,
   .workspace-v2-page-navigator { animation: workspace-menu-settle 260ms var(--workspace-ease) both; }
-  .workspace-v2-selection-menu { animation: workspace-selection-settle 260ms var(--workspace-ease) both; }
 }
 @media (prefers-reduced-motion: no-preference) and (max-width: 900px) {
   .workspace-v2-tool-options { animation: workspace-menu-settle 260ms var(--workspace-ease) both; }
@@ -1604,20 +1388,19 @@ html.ix-hover .workspace-v2-action-popover .workspace-v3-menu-grid > button:not(
   .workspace-v2-tool-options,
   .workspace-v2-action-popover,
   .workspace-v2-settings-popover,
-  .workspace-v2-page-navigator,
-  .workspace-v2-selection-menu { animation: none !important; }
+  .workspace-v2-page-navigator { animation: none !important; }
 }
 
 /* Keep the first writing tool reachable when the rail is wider than its slot. */
 .workspace-v2-toolbar .workspace-v3-primary { justify-content: flex-start; }
 
 .workspace-v2-study-restart { display: grid; gap: 8px; border-block-start: 1px solid var(--workspace-border); padding-block-start: 10px; }
-.workspace-v2-study-restart > button { min-height: 40px; border: 0; color: var(--workspace-chrome-secondary); background: transparent; cursor: pointer; font-size: .7rem; }
+.workspace-v2-study-restart > button { min-height: 40px; border: 0; background: transparent; cursor: pointer; }
 .workspace-v2-study-restart > button:hover:where(html.ix-hover *) { color: var(--workspace-chrome-text); }
-.workspace-v2-study-restart p { margin: 0; color: var(--workspace-chrome-secondary); font-size: .72rem; line-height: 1.45; }
+.workspace-v2-study-restart p { margin: 0; line-height: 1.45; }
 .workspace-v2-study-restart > div { display: flex; justify-content: flex-end; gap: 8px; }
-.workspace-v2-study-restart > div button { min-height: 40px; padding-inline: 12px; border: 1px solid var(--workspace-control-border); border-radius: 9px; color: var(--workspace-chrome-text); background: var(--workspace-control-bg); cursor: pointer; font-size: .7rem; }
-.workspace-v2-study-restart > div button.is-confirm { border-color: var(--workspace-gold); color: var(--workspace-on-accent); background: var(--workspace-gold); font-weight: 750; }
+.workspace-v2-study-restart > div button { min-height: 40px; padding-inline: 12px; color: var(--workspace-chrome-text); cursor: pointer; }
+.workspace-v2-study-restart > div button.is-confirm { border-color: var(--workspace-gold); font-weight: 750; }
 .workspace-v2-study-restart button:disabled { opacity: .5; cursor: not-allowed; }
 
 /* Spatial motion: only chrome and newly inserted workspace content move.
@@ -1629,17 +1412,10 @@ html.ix-hover .workspace-v2-action-popover .workspace-v3-menu-grid > button:not(
   z-index: 0;
   width: 0;
   height: 0;
-  border-radius: 13px;
   background: color-mix(in srgb, var(--workspace-violet) 27%, var(--workspace-control-bg));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--workspace-violet-bright) 25%, transparent);
   opacity: 0;
   pointer-events: none;
-}
-.workspace-v2-tool-indicator[data-ready="true"] {
-  transition: transform var(--motion-panel-duration) var(--motion-enter-ease),
-    width var(--motion-panel-duration) var(--motion-enter-ease),
-    height var(--motion-panel-duration) var(--motion-enter-ease),
-    opacity var(--motion-micro-duration) var(--motion-enter-ease);
 }
 .workspace-v2-toolbar .workspace-v2-tool-list > button { position: relative; z-index: 1; }
 .workspace-v2-toolbar .workspace-v2-tool-list > .workspace-v3-tool-button.is-active {
@@ -1713,29 +1489,15 @@ html.ix-hover .workspace-v2-action-popover .workspace-v3-menu-grid > button:not(
 .workspace-v2-mode-card.is-active-study { border-color: var(--workspace-control-border); }
 .workspace-v2-difficulty {
   gap: 2px;
-  padding: 3px;
-  border-radius: 11px;
-  background: var(--workspace-control-bg);
-  box-shadow: inset 0 0 0 1px var(--workspace-control-border);
 }
 .workspace-v2-difficulty button {
-  min-height: 38px;
   border: 0;
-  border-radius: 8px;
   background: transparent;
-  font-size: .75rem;
-  font-weight: 650;
   transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .workspace-v2-difficulty button:hover:not(.is-selected) { color: var(--workspace-chrome-text); }
 .workspace-v2-difficulty button.is-selected {
-  color: var(--workspace-chrome-text);
   border: 0;
-  background: var(--workspace-panel-2);
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.28), inset 0 0 0 1px var(--accent-border);
-}
-@media (pointer: coarse) {
-  .workspace-v2-difficulty button { min-height: 44px; }
 }
 
 /* A difficulty the student has already finished carries a check after its name. */
@@ -1749,26 +1511,19 @@ html.ix-hover .workspace-v2-action-popover .workspace-v3-menu-grid > button:not(
    exit confirmation and submission are untouched. */
 .workspace-v2-quiz-dialog > main {
   margin: 0;
-  padding: clamp(18px, 3.5vw, 30px) clamp(18px, 3.5vw, 32px) clamp(20px, 3vw, 28px);
   border: 0;
   border-radius: 0;
   background: transparent;
 }
-.workspace-v2-quiz-dialog h2 { margin: 8px 0 20px; font-size: clamp(1.125rem, 2.4vw, 1.4rem); font-weight: 650; line-height: 1.42; }
 .workspace-v2-answer-list button {
-  min-height: 54px;
   gap: 12px;
-  padding: 10px 14px;
   font-size: .9375rem;
   font-weight: 500;
   line-height: 1.4;
 }
-.workspace-v2-answer-list button > span { width: 30px; height: 30px; border-radius: 9px; font-size: .75rem; }
-.workspace-v2-answer-list button.is-selected { border-color: color-mix(in srgb, var(--workspace-gold) 70%, transparent); background: color-mix(in srgb, var(--workspace-gold) 10%, var(--workspace-control-bg)); }
-.workspace-v2-quiz-dialog > header span { color: var(--workspace-chrome-secondary); letter-spacing: .06em; }
-.workspace-v2-quiz-dialog > header strong { color: var(--workspace-chrome-text); font-size: .8rem; font-weight: 600; }
+.workspace-v2-answer-list button.is-selected { border-color: color-mix(in srgb, var(--workspace-gold) 70%, transparent); }
 @media (max-width: 640px) {
-  .workspace-v2-quiz-dialog > main { margin: 0; padding: 18px 16px 20px; }
+  .workspace-v2-quiz-dialog > main { margin: 0; }
   .workspace-v2-answer-list button { min-height: 56px; }
 }
 
