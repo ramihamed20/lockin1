@@ -8,11 +8,13 @@ import { measureInkCanvas, observeInkCanvas, sizeInkCanvas } from "./inkCanvasVi
 import { paintInkErasures } from "./inkErasures.js";
 import { useWorkspacePaneActive } from "../catalog/workspacePane.js";
 
-function drawDot(context, point, width, color, opacity) {
+/** A dot is round on the page, so in page units it is an ellipse on a page that is not square. */
+function drawDot(context, geometry, color, opacity) {
+  const radius = Math.max(.6, geometry.radius);
   context.globalAlpha = opacity;
   context.fillStyle = color;
   context.beginPath();
-  context.arc(point.x, point.y, Math.max(.6, width / 2), 0, Math.PI * 2);
+  context.ellipse(geometry.x, geometry.y, geometry.radiusX ?? radius, geometry.radiusY ?? radius, 0, 0, Math.PI * 2);
   context.fill();
 }
 
@@ -67,13 +69,13 @@ const mergePathCache = new WeakMap();
  * live stroke has its own opacity, and without this cut it would show a darker
  * band over them until the pen lifts.
  */
-function cutMergedHighlights(context, targets) {
+function cutMergedHighlights(context, targets, pageAspect = 1) {
   context.globalCompositeOperation = "destination-out";
   context.globalAlpha = 1;
   for (const target of targets) {
-    const geometry = strokeRenderGeometry(target);
+    const geometry = strokeRenderGeometry(target, pageAspect);
     if (geometry.kind === "dot") {
-      drawDot(context, geometry, geometry.radius * 2, "#000", 1);
+      drawDot(context, geometry, "#000", 1);
       continue;
     }
     if (!geometry.path) continue;
@@ -91,11 +93,11 @@ function drawStroke(context, annotation, pageAspect = 1, previewCache = null) {
   const points = annotation?.points || [];
   if (!points.length) return 0;
   const geometryStarted = window.performance.now();
-  const prepared = previewCache?.get(annotation, window.Path2D);
-  const geometry = prepared?.geometry || strokeRenderGeometry(annotation);
+  const prepared = previewCache?.get(annotation, window.Path2D, pageAspect);
+  const geometry = prepared?.geometry || strokeRenderGeometry(annotation, pageAspect);
   const geometryTime = window.performance.now() - geometryStarted;
   if (geometry.kind === "dot") {
-    drawDot(context, geometry, geometry.radius * 2, annotation.color, geometry.opacity);
+    drawDot(context, geometry, annotation.color, geometry.opacity);
     paintInkErasures(context, annotation.erasures, pageAspect);
     return geometryTime;
   }
@@ -215,7 +217,10 @@ function LiveAnnotationCanvas({ pageNumber, pageAspect = 1 }, ref) {
       liveGeometryRef.current.invalidate();
     }
     if (!contextRef.current) {
-      contextRef.current = canvas.getContext("2d");
+      // A desynchronized canvas may present outside the compositor's frame,
+      // which shortens pen-to-ink latency where the browser supports it
+      // (Chromium); elsewhere the hint is ignored.
+      contextRef.current = canvas.getContext("2d", { desynchronized: true });
     }
     return contextRef.current;
   }, []);
@@ -267,7 +272,7 @@ function LiveAnnotationCanvas({ pageNumber, pageAspect = 1 }, ref) {
       return { geometryTime, incremental: false };
     }
     const geometryStarted = window.performance.now();
-    const geometry = liveGeometryRef.current.frame(annotation, predicted, { forceFull: forceFull || Boolean(diagnostics) });
+    const geometry = liveGeometryRef.current.frame(annotation, predicted, { forceFull: forceFull || Boolean(diagnostics), pageAspect: pageAspectRef.current });
     const geometryTime = window.performance.now() - geometryStarted;
     const { width, height } = resetSurface(context, {
       blend: geometry.composite === "multiply" ? "multiply" : "normal",
@@ -279,10 +284,10 @@ function LiveAnnotationCanvas({ pageNumber, pageAspect = 1 }, ref) {
     const cssScale = 1000 / Math.max(1, width);
     context.globalAlpha = 1;
     context.globalCompositeOperation = "source-over";
-    if (geometry.kind === "dot") drawDot(context, geometry, geometry.radius * 2, geometry.color, 1);
+    if (geometry.kind === "dot") drawDot(context, geometry, geometry.color, 1);
     else paintGeometry(context, geometry, geometry.color);
     // Re-cut every frame: appended geometry is painted over the earlier cut.
-    if (annotation?.type === "highlighter" && mergeTargetsRef.current.length) cutMergedHighlights(context, mergeTargetsRef.current);
+    if (annotation?.type === "highlighter" && mergeTargetsRef.current.length) cutMergedHighlights(context, mergeTargetsRef.current, pageAspectRef.current);
     drawDiagnostics(context, diagnostics, cssScale);
     context.restore();
     return { geometryTime, incremental: geometry.mode === "append" };

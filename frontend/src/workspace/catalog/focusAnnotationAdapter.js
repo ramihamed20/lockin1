@@ -1,3 +1,5 @@
+import { reduceStrokeSamples } from "../ink/strokeReduction.js";
+
 function clamp(value, minimum, maximum) {
   return Math.max(minimum, Math.min(maximum, Number(value) || 0));
 }
@@ -14,6 +16,40 @@ function round(value, places) {
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const HEX_COLOR = /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i;
 const POINTER_KINDS = new Set(["pen", "touch", "mouse"]);
+const STROKE_PROFILES = new Set(["ball", "fountain", "brush", "pencil", "highlighter", "calligraphy"]);
+const PRESSURE_SOURCES = new Set(["speed"]);
+/** What a stroke without a stored style is drawn with; see sanitizeCatalogAnnotation. */
+const STYLE_DEFAULTS = Object.freeze({ pressureSensitivity: .55, smoothing: .5 });
+// The server stores at most 2048 samples and 128 KiB per annotation. A stroke
+// past either limit used to be refused, and the refusal stopped every later
+// change to the sheet from syncing. Long strokes are simplified to fit instead.
+const WIRE_SAMPLE_LIMIT = 900;
+const WIRE_PAYLOAD_BUDGET = 120_000;
+
+function defaultProfile(tool) {
+  return tool === "pencil" ? "pencil" : tool === "highlighter" ? "highlighter" : "ball";
+}
+
+/** Only what differs from the defaults travels, so older strokes are not re-sent. */
+function strokeStyle(item) {
+  const style = {};
+  if (STROKE_PROFILES.has(item.profile) && item.profile !== defaultProfile(item.type)) style.profile = item.profile;
+  if (PRESSURE_SOURCES.has(item.pressureSource)) style.pressureSource = item.pressureSource;
+  for (const key of Object.keys(STYLE_DEFAULTS)) {
+    if (item[key] === undefined || item[key] === null || !Number.isFinite(Number(item[key]))) continue;
+    const value = round(clamp(item[key], 0, 1), 3);
+    if (value !== STYLE_DEFAULTS[key]) style[key] = value;
+  }
+  return Object.keys(style).length ? style : null;
+}
+
+function wireSample(sample) {
+  return {
+    ...toFocusPoint(sample), pointer: POINTER_KINDS.has(sample.pointer) ? sample.pointer : "unknown",
+    pressure: round(clamp(sample.p, 0, 1), 4), tiltX: round(clamp(sample.tiltX, -90, 90), 2),
+    tiltY: round(clamp(sample.tiltY, -90, 90), 2), timestamp: Math.max(0, Math.round(Number(sample.t) || 0))
+  };
+}
 
 function toFocusPoint(value = {}) {
   return { x: round(clamp(value.x / 1000, 0, 1), 6), y: round(clamp(value.y / 1000, 0, 1), 6) };
@@ -49,15 +85,18 @@ export function catalogAnnotationToFocus(item) {
     opacity: round(clamp(item.opacity ?? 1, 0, 1), 3)
   };
   if (["pen", "pencil", "highlighter"].includes(item.type)) {
-    const samples = (item.points || []).slice(0, 2048).map((sample) => ({
-      ...toFocusPoint(sample), pointer: POINTER_KINDS.has(sample.pointer) ? sample.pointer : "unknown",
-      pressure: round(clamp(sample.p, 0, 1), 4), tiltX: round(clamp(sample.tiltX, -90, 90), 2),
-      tiltY: round(clamp(sample.tiltY, -90, 90), 2), timestamp: Math.max(0, Math.round(Number(sample.t) || 0))
-    }));
     const erasures = Array.isArray(item.erasures)
       ? item.erasures.slice(0, 32).map((erasure) => ({ radius: round(clamp(erasure.radius / 1000, .0005, .08), 6), points: (erasure.points || []).slice(0, 96).map(toFocusPoint) })).filter((erasure) => erasure.points.length)
       : [];
-    return samples.length >= 2 ? { ...base, tool: item.type, payload: { kind: "stroke", samples, ...(erasures.length ? { erasures } : {}) } } : null;
+    const style = strokeStyle(item);
+    const encode = (points) => ({ kind: "stroke", samples: points.map(wireSample), ...(style ? { style } : {}), ...(erasures.length ? { erasures } : {}) });
+    let points = reduceStrokeSamples(item.points || [], WIRE_SAMPLE_LIMIT);
+    let payload = encode(points);
+    while (JSON.stringify(payload).length > WIRE_PAYLOAD_BUDGET && points.length > 2) {
+      points = reduceStrokeSamples(points, Math.floor(points.length * .75));
+      payload = encode(points);
+    }
+    return payload.samples.length >= 2 ? { ...base, tool: item.type, payload } : null;
   }
   if (item.type === "shape") {
     const tool = ({ square: "rectangle", ellipse: "circle" })[item.shape] || item.shape;
@@ -76,7 +115,11 @@ export function focusAnnotationToCatalog(item) {
   };
   if (["pen", "pencil", "highlighter"].includes(item.tool) && item.payload?.kind === "stroke") {
     return {
-      ...base, type: item.tool, profile: item.tool,
+      ...base, type: item.tool,
+      profile: STROKE_PROFILES.has(item.payload.style?.profile) ? item.payload.style.profile : defaultProfile(item.tool),
+      pressureSensitivity: Number.isFinite(item.payload.style?.pressureSensitivity) ? item.payload.style.pressureSensitivity : STYLE_DEFAULTS.pressureSensitivity,
+      smoothing: Number.isFinite(item.payload.style?.smoothing) ? item.payload.style.smoothing : STYLE_DEFAULTS.smoothing,
+      ...(PRESSURE_SOURCES.has(item.payload.style?.pressureSource) ? { pressureSource: item.payload.style.pressureSource } : {}),
       points: item.payload.samples.map((sample) => ({
         ...fromFocusPoint(sample), p: sample.pressure, t: sample.timestamp,
         pointer: sample.pointer, tiltX: sample.tiltX, tiltY: sample.tiltY

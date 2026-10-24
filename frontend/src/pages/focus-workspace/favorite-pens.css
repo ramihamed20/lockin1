@@ -1,0 +1,77 @@
+/* Favorite pens: a strip of saved pens in the pen panel and, on tablets and
+   desktops, beside the quick colours in the toolbar. */
+.workspace-favorite-pens { position: relative; display: flex; flex: 0 0 auto; align-items: center; gap: 2px; }
+.workspace-favorite-pens.is-toolbar { padding-inline: 6px 2px; }
+.workspace-favorite-pens.is-panel { gap: 6px; padding: 8px 0 2px; }
+.workspace-favorite-pen-slot { position: relative; display: inline-flex; }
+.workspace-favorite-pen {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  color: var(--fx-text-2, #c9d1e3);
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 160ms ease, box-shadow 160ms ease;
+}
+.workspace-favorite-pens.is-panel .workspace-favorite-pen { background: rgb(255 255 255 / .05); }
+/* The nib: a ring in the pen's colour, a dot as thick as the pen. */
+.workspace-favorite-pen > i {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--favorite-color) 0 calc(var(--favorite-size) / 2), transparent calc(var(--favorite-size) / 2 + .5px));
+  box-shadow: inset 0 0 0 2px var(--favorite-color);
+  opacity: max(var(--favorite-opacity), .5);
+}
+.workspace-favorite-pen.is-highlighter > i { width: 24px; height: 12px; border-radius: 4px; background: var(--favorite-color); box-shadow: none; opacity: .6; transform: rotate(-20deg); }
+.workspace-favorite-pen.is-active { background: rgb(255 255 255 / .12); box-shadow: inset 0 0 0 1.5px var(--favorite-color); }
+.workspace-favorite-pen.is-add { border: 1px dashed rgb(255 255 255 / .22); background: transparent; }
+@media (hover: hover) {
+  .workspace-favorite-pen:hover { background: rgb(255 255 255 / .1); }
+}
+.workspace-favorite-pen:focus-visible { outline: 2px solid var(--fx-accent, #3d9bff); outline-offset: 1px; }
+.workspace-favorite-pen-menu {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  inset-inline-start: 0;
+  display: grid;
+  min-width: 210px;
+  padding: 6px;
+  border: 1px solid var(--fx-edge, rgb(255 255 255 / .12));
+  border-radius: 14px;
+  background: var(--fx-panel, rgb(32 36 44 / .98));
+  box-shadow: 0 14px 34px rgb(0 0 0 / .38);
+}
+.workspace-favorite-pen-menu button {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--fx-text, #eef1fb);
+  background: transparent;
+  font: inherit;
+  font-size: .82rem;
+  font-weight: 600;
+  text-align: start;
+  cursor: pointer;
+}
+.workspace-favorite-pen-menu button:hover, .workspace-favorite-pen-menu button:focus-visible { background: rgb(255 255 255 / .08); outline: none; }
+.workspace-favorite-pen-menu button.is-danger { color: #ff8f8f; }
+/* A mouse on the one-row desktop bar gets the bar's 40px controls. */
+@media (min-width: 1180px) and (min-height: 600px) and (pointer: fine) {
+  .workspace-favorite-pens.is-toolbar .workspace-favorite-pen { width: 34px; height: 40px; border-radius: 10px; }
+  .workspace-favorite-pens.is-toolbar .workspace-favorite-pen > i { width: 20px; height: 20px; }
+}
+/* The phone toolbar is full: favorites live in the pen panel there. */
+@media (max-width: 560px), (max-height: 500px) and (max-width: 900px) {
+  .workspace-favorite-pens.is-toolbar { display: none; }
+}

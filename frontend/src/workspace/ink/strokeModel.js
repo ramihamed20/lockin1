@@ -42,16 +42,28 @@ export const PEN_PROFILE = Object.freeze({
   FOUNTAIN: "fountain",
   BRUSH: "brush",
   PENCIL: "pencil",
-  HIGHLIGHTER: "highlighter"
+  HIGHLIGHTER: "highlighter",
+  CALLIGRAPHY: "calligraphy"
 });
 
 export const PEN_PROFILE_CONFIG = Object.freeze({
-  [PEN_PROFILE.BALL]: Object.freeze({ pressureStrength: .1, velocityStrength: .02, smoothing: .42, taperStart: 0, taperEnd: 0, tiltStrength: 0 }),
-  [PEN_PROFILE.FOUNTAIN]: Object.freeze({ pressureStrength: .42, velocityStrength: .16, smoothing: .56, taperStart: .08, taperEnd: .12, tiltStrength: .04 }),
-  [PEN_PROFILE.BRUSH]: Object.freeze({ pressureStrength: .82, velocityStrength: .1, smoothing: .62, taperStart: .12, taperEnd: .18, tiltStrength: .14 }),
+  // The pens should read as different tools at a glance: Ball is an even
+  // monoline, Fountain thins when written fast, Brush swells with pressure.
+  // End tapers stay short: the live canvas repaints the tapering tail each frame.
+  [PEN_PROFILE.BALL]: Object.freeze({ pressureStrength: .04, velocityStrength: 0, smoothing: .42, taperStart: 0, taperEnd: 0, tiltStrength: 0 }),
+  [PEN_PROFILE.FOUNTAIN]: Object.freeze({ pressureStrength: .7, velocityStrength: .34, smoothing: .56, taperStart: .24, taperEnd: .12, tiltStrength: .04 }),
+  [PEN_PROFILE.BRUSH]: Object.freeze({ pressureStrength: 1.45, velocityStrength: .26, smoothing: .62, taperStart: .4, taperEnd: .18, tiltStrength: .2 }),
   [PEN_PROFILE.PENCIL]: Object.freeze({ pressureStrength: .56, velocityStrength: .05, smoothing: .48, taperStart: .04, taperEnd: .06, tiltStrength: .38 }),
-  [PEN_PROFILE.HIGHLIGHTER]: Object.freeze({ pressureStrength: 0, velocityStrength: 0, smoothing: .36, taperStart: 0, taperEnd: 0, tiltStrength: 0 })
+  [PEN_PROFILE.HIGHLIGHTER]: Object.freeze({ pressureStrength: 0, velocityStrength: 0, smoothing: .36, taperStart: 0, taperEnd: 0, tiltStrength: 0 }),
+  // A broad nib held at a fixed angle: thick across it, thin along its edge.
+  // The edge rises at 60 degrees, so horizontal strokes are full, verticals
+  // medium and rising diagonals hairlines - the contrast of a cut qalam or an
+  // italic nib. `nibAngle` is in page orientation (y grows downwards).
+  [PEN_PROFILE.CALLIGRAPHY]: Object.freeze({ pressureStrength: .3, velocityStrength: .04, smoothing: .55, taperStart: .03, taperEnd: .05, tiltStrength: 0, nibAngle: -Math.PI / 3, nibThin: .14, nibScale: 1.5 })
 });
+
+/** Where a stroke's pressure came from when the device reported none. */
+export const PRESSURE_SOURCE = Object.freeze({ SPEED: "speed" });
 
 export const ERASER_MODE = Object.freeze({
   PRECISION: "precision",
@@ -84,7 +96,7 @@ function format(value) {
 /**
  * @typedef {{x:number,y:number,t?:number,p?:number,pressureAvailable?:boolean,pointer?:string,tiltX?:number,tiltY?:number}} InkPoint
  * @typedef {{id:string,page:number,type:"pen"|"pencil"|"highlighter",color:string,width:number,opacity:number,points:InkPoint[],profile?:string,pressureSensitivity?:number,smoothing?:number}} InkStroke
- * @typedef {{kind:"empty"|"dot"|"centerline"|"outline", opacity:number, composite:string, path?:string, width?:number, radius?:number, x?:number, y?:number}} StrokeGeometry
+ * @typedef {{kind:"empty"|"dot"|"centerline"|"outline", opacity:number, composite:string, path?:string, width?:number, radius?:number, radiusX?:number, radiusY?:number, x?:number, y?:number}} StrokeGeometry
  */
 
 const TAPER_NIB_SPAN = 40;
@@ -129,13 +141,15 @@ function unscalePoint(point, scale) {
 
 const scaledStrokeCache = new WeakMap();
 
-/** The stroke's samples in eraser space; the width stays the unscaled (widest) value. */
+/** The stroke's samples in eraser space, the space its width is drawn in (see `inkSpace`). */
 function strokeInEraserSpace(annotation, scale) {
   if (isIdentityScale(scale) || !annotation) return annotation;
   const cached = scaledStrokeCache.get(annotation);
-  if (cached && cached.x === scale.x && cached.y === scale.y) return cached.stroke;
+  // A stroke being drawn keeps its identity while its samples grow.
+  if (cached && cached.x === scale.x && cached.y === scale.y && cached.points === annotation.points
+    && cached.count === annotation.points?.length) return cached.stroke;
   const stroke = { ...annotation, points: (annotation.points || []).map((point) => scalePoint(point, scale)) };
-  scaledStrokeCache.set(annotation, { x: scale.x, y: scale.y, stroke });
+  scaledStrokeCache.set(annotation, { x: scale.x, y: scale.y, points: annotation.points, count: annotation.points?.length, stroke });
   return stroke;
 }
 
@@ -157,9 +171,8 @@ function interpolatePoint(first, second, ratio) {
   return point;
 }
 
-/** Returns an opaque value for normal ink and isolated transparency for media that intentionally needs it. */
+/** The stroke's own opacity, applied once to the whole stroke so overlaps never darken. */
 export function strokeOpacity(annotation) {
-  if (annotation?.type === "pen") return 1;
   if (annotation?.type === "highlighter") return clamp(finite(annotation.opacity, .34), .08, 1);
   if (annotation?.type === "pencil") return clamp(finite(annotation.opacity, .78), .18, 1);
   return clamp(finite(annotation?.opacity, 1), .05, 1);
@@ -170,7 +183,10 @@ export function strokeWidthAtPoint(annotation, point, context = {}) {
   const profile = annotation?.profile || (annotation?.type === "pencil" ? PEN_PROFILE.PENCIL : PEN_PROFILE.BALL);
   const config = PEN_PROFILE_CONFIG[profile] || PEN_PROFILE_CONFIG[PEN_PROFILE.BALL];
   const configuredSensitivity = clamp(finite(annotation?.pressureSensitivity, .55), 0, 1);
-  const pressureAvailable = point?.pressureAvailable === true || (point?.pointer === "pen" && finite(point?.p) > 0);
+  // A finger or mouse has no pressure; its strokes carry one simulated from
+  // speed and say so, so strokes saved before that keep their constant width.
+  const pressureAvailable = point?.pressureAvailable === true || (point?.pointer === "pen" && finite(point?.p) > 0)
+    || annotation?.pressureSource === PRESSURE_SOURCE.SPEED;
   const pressure = pressureAvailable ? clamp(finite(point?.p, .5), .04, 1) : .5;
   const pressureFactor = 1 + (pressure - .5) * 2 * config.pressureStrength * configuredSensitivity;
   const previous = context.previous;
@@ -181,7 +197,21 @@ export function strokeWidthAtPoint(annotation, point, context = {}) {
   const tilt = Math.min(90, Math.hypot(finite(point?.tiltX), finite(point?.tiltY)));
   const tiltFactor = 1 + (tilt / 90) * config.tiltStrength;
   const taper = strokeTaperFactor(config, baseWidth, context);
-  return clamp(baseWidth * pressureFactor * velocityFactor * tiltFactor * taper, baseWidth * .22, baseWidth * 2.25);
+  const nib = nibFactor(config, previous, next);
+  return clamp(baseWidth * pressureFactor * velocityFactor * tiltFactor * taper * nib, baseWidth * .22, baseWidth * 2.25);
+}
+
+/** Width of an angled nib for the direction of travel; 1 for a round nib. */
+function nibFactor(config, previous, next) {
+  if (!Number.isFinite(config.nibAngle)) return 1;
+  const thin = clamp(finite(config.nibThin, .3), .05, 1);
+  const scale = finite(config.nibScale, 1);
+  const dx = next && previous ? finite(next.x) - finite(previous.x) : 0;
+  const dy = next && previous ? finite(next.y) - finite(previous.y) : 0;
+  // No direction (a tap, or a hit test without neighbours): the full nib, so
+  // erasing never under-measures the stroke.
+  if (Math.hypot(dx, dy) < 1e-6) return scale;
+  return scale * (thin + (1 - thin) * Math.abs(Math.sin(Math.atan2(dy, dx) - config.nibAngle)));
 }
 
 /**
@@ -279,10 +309,17 @@ export function strokeCenterlinePathRange(source, fromIndex = 0) {
   return path;
 }
 
-function circlePath(point, radius) {
-  const y = format(point.y);
-  const r = format(Math.max(.01, radius));
-  return `M${format(point.x + radius)} ${y} A${r} ${r} 0 1 0 ${format(point.x - radius)} ${y} A${r} ${r} 0 1 0 ${format(point.x + radius)} ${y} Z`;
+/**
+ * A round disc in ink space, written in page units. On a page that is not
+ * square the page axes have different lengths, so the disc is written as the
+ * axis-aligned ellipse that the page's own scaling turns back into a circle.
+ */
+function circlePath(point, radius, toPage = IDENTITY_SCALE) {
+  const r = Math.max(.01, radius);
+  const y = format(point.y * toPage.y);
+  const rx = format(r * toPage.x);
+  const ry = format(r * toPage.y);
+  return `M${format((point.x + r) * toPage.x)} ${y} A${rx} ${ry} 0 1 0 ${format((point.x - r) * toPage.x)} ${y} A${rx} ${ry} 0 1 0 ${format((point.x + r) * toPage.x)} ${y} Z`;
 }
 
 /**
@@ -334,41 +371,99 @@ export function strokeRadiiForPoints(annotation, points, cumulative, target = []
   return target;
 }
 
+// A turn sharper than this ends the strip in a round join.
+const STRIP_SPLIT_COSINE = Math.cos(Math.PI / 4);
+// Where the curve bends tighter than the nib is wide, the inner edge of a strip
+// would fold back over itself and the fold would leave a hole in the fill.
+const STRIP_FOLD_RATIO = .8;
+
 /**
- * Emits the compound outline for `[fromIndex, points.length)`. Every part is a
- * sub-path of one fill with a consistent winding direction, so a sharp turn can
- * never expose the page between neighbouring samples.
+ * Emits the outline for `[fromIndex, points.length)` as filled strips: one
+ * polygon per smooth run, its left edge forward and its right edge back, with
+ * round discs only where a run starts or ends - the stroke's ends, sharp turns,
+ * and bends tighter than the nib. Every strip and disc has the same winding, so
+ * in one nonzero fill they never cancel each other out.
+ *
+ * This draws the same shape as a quad and a disc at every sample, at a fifth of
+ * the path length, which is what the browser parses and rasterizes for every
+ * stroke on the page.
+ *
+ * `points` and `radii` are in ink space; `toPage` writes the result in page units.
  */
-export function strokeOutlinePathRange(points, radii, fromIndex = 0) {
+export function strokeOutlinePathRange(points, radii, fromIndex = 0, toPage = IDENTITY_SCALE) {
   const start = Math.max(0, fromIndex);
   if (!Array.isArray(points) || points.length < 2 || start >= points.length) return "";
-  let path = "";
-  for (let index = Math.max(1, start); index < points.length; index += 1) {
-    const from = points[index - 1];
-    const to = points[index];
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const length = Math.max(.001, Math.hypot(dx, dy));
-    const normalX = -dy / length;
-    const normalY = dx / length;
-    const startRadius = radii[index - 1];
-    const endRadius = radii[index];
-    path += `M${format(from.x + normalX * startRadius)} ${format(from.y + normalY * startRadius)}`;
-    path += ` L${format(to.x + normalX * endRadius)} ${format(to.y + normalY * endRadius)}`;
-    path += ` L${format(to.x - normalX * endRadius)} ${format(to.y - normalY * endRadius)}`;
-    path += ` L${format(from.x - normalX * startRadius)} ${format(from.y - normalY * startRadius)} Z`;
+  // An appended range starts on the last sample already painted, so it joins it.
+  const first = Math.max(0, start - 1);
+  const write = (x, y) => `${format(x * toPage.x)} ${format(y * toPage.y)}`;
+  // Unit direction and length of the segment that ends at each index.
+  const directions = [];
+  let lastDirection = null;
+  for (let index = first + 1; index < points.length; index += 1) {
+    const dx = points[index].x - points[index - 1].x;
+    const dy = points[index].y - points[index - 1].y;
+    const length = Math.hypot(dx, dy);
+    // A repeated sample keeps the direction it arrived with.
+    if (length > 1e-6) lastDirection = { x: dx / length, y: dy / length, length };
+    directions[index] = lastDirection || { x: 1, y: 0, length: 0 };
   }
-  for (let index = start; index < points.length; index += 1) path += circlePath(points[index], radii[index]);
+  let path = "";
+  let left = [];
+  let right = [];
+  const offset = (index, normalX, normalY, distance) => {
+    const point = points[index];
+    left.push(write(point.x + normalX * distance, point.y + normalY * distance));
+    right.push(write(point.x - normalX * distance, point.y - normalY * distance));
+  };
+  const closeStrip = () => {
+    if (left.length >= 2) path += `M${left.join(" L")} L${right.reverse().join(" L")} Z`;
+    left = [];
+    right = [];
+  };
+  const discs = [first];
+  const firstDirection = directions[first + 1];
+  offset(first, -firstDirection.y, firstDirection.x, radii[first]);
+  for (let index = first + 1; index < points.length; index += 1) {
+    const incoming = directions[index];
+    if (index === points.length - 1) {
+      offset(index, -incoming.y, incoming.x, radii[index]);
+      break;
+    }
+    const outgoing = directions[index + 1];
+    const cosine = Math.max(-1, Math.min(1, incoming.x * outgoing.x + incoming.y * outgoing.y));
+    const turn = Math.acos(cosine);
+    const shortest = Math.min(incoming.length, outgoing.length);
+    if (cosine < STRIP_SPLIT_COSINE || radii[index] * turn > STRIP_FOLD_RATIO * shortest) {
+      // End this run on the incoming edge and start the next on the outgoing
+      // one; the disc between them rounds the join.
+      offset(index, -incoming.y, incoming.x, radii[index]);
+      closeStrip();
+      discs.push(index);
+      offset(index, -outgoing.y, outgoing.x, radii[index]);
+      continue;
+    }
+    // A mitred join keeps the full width across a gentle turn.
+    const miterX = -(incoming.y + outgoing.y);
+    const miterY = incoming.x + outgoing.x;
+    const miterLength = Math.hypot(miterX, miterY) || 1;
+    const normalX = miterX / miterLength;
+    const normalY = miterY / miterLength;
+    const alignment = Math.max(.5, normalX * -incoming.y + normalY * incoming.x);
+    offset(index, normalX, normalY, radii[index] / alignment);
+  }
+  closeStrip();
+  discs.push(points.length - 1);
+  for (const index of discs) path += circlePath(points[index], radii[index], toPage);
   return path;
 }
 
-export function strokeOutlinePath(annotation) {
+export function strokeOutlinePath(annotation, toPage = IDENTITY_SCALE) {
   const config = strokeProfileConfig(annotation);
   const points = smoothStrokePoints(annotation?.points || [], finite(annotation?.smoothing, config.smoothing));
   if (points.length < 2) return "";
   const cumulative = strokeCumulativeLengths(points);
   const radii = strokeRadiiForPoints(annotation, points, cumulative);
-  return strokeOutlinePathRange(points, radii, 0);
+  return strokeOutlinePathRange(points, radii, 0, toPage);
 }
 
 function geometryCacheKey(annotation) {
@@ -388,43 +483,57 @@ function geometryCacheKey(annotation) {
   ].join(":");
 }
 
-/** @returns {StrokeGeometry} */
-export function strokeRenderGeometry(annotation) {
-  const cacheKey = geometryCacheKey(annotation);
+/**
+ * The space a stroke's shape is built in, and the way back to page units.
+ *
+ * Page coordinates span 1000 units on both axes, so on an A4 page a unit across
+ * is 1.41 times shorter than a unit down. A nib built in those units drew every
+ * horizontal line 41% thicker than a vertical one (and the reverse on a
+ * landscape slide). Ink is shaped in eraser space instead, where a unit is
+ * 1/1000 of the page's longer side on both axes. On a portrait page that keeps
+ * horizontal lines and highlights exactly as they were and brings vertical
+ * lines up to the same width; it is also the space the eraser measures in.
+ * @param {number} [pageAspect] rendered page height divided by its width
+ */
+export function inkSpace(pageAspect = 1) {
+  const scale = eraserSpaceScale(pageAspect);
+  return { scale, toPage: isIdentityScale(scale) ? IDENTITY_SCALE : { x: 1 / scale.x, y: 1 / scale.y } };
+}
+
+/**
+ * @param {any} annotation
+ * @param {number} [pageAspect] rendered page height divided by its width
+ * @returns {StrokeGeometry}
+ */
+export function strokeRenderGeometry(annotation, pageAspect = 1) {
+  const { scale, toPage } = inkSpace(pageAspect);
+  const cacheKey = `${geometryCacheKey(annotation)}:${scale.x}:${scale.y}`;
   const cached = annotation && typeof annotation === "object" ? strokeGeometryCache.get(annotation) : null;
   if (cached?.key === cacheKey) return cached.geometry;
-  const points = annotation?.points || [];
+  const ink = strokeInEraserSpace(annotation, scale);
+  const points = ink?.points || [];
   const opacity = strokeOpacity(annotation);
-  const profile = annotation?.profile || (annotation?.type === "pencil" ? PEN_PROFILE.PENCIL : PEN_PROFILE.BALL);
-  const config = PEN_PROFILE_CONFIG[profile] || PEN_PROFILE_CONFIG[PEN_PROFILE.BALL];
-  const smoothing = finite(annotation?.smoothing, config.smoothing);
+  const composite = annotation?.type === "highlighter" ? "multiply" : "source-over";
   if (!points.length) return { kind: "empty", opacity, composite: "source-over" };
-  if (points.length === 1) {
-    /** @type {StrokeGeometry} */
-    const geometry = {
-      kind: "dot",
-      x: points[0].x,
-      y: points[0].y,
-      radius: strokeWidthAtPoint(annotation, points[0]) / 2,
-      opacity,
-      composite: annotation.type === "highlighter" ? "multiply" : "source-over"
-    };
-    if (annotation && typeof annotation === "object") strokeGeometryCache.set(annotation, { key: cacheKey, geometry });
-    return geometry;
-  }
-  if (annotation.type === "highlighter") {
-    /** @type {StrokeGeometry} */
-    const geometry = { kind: "centerline", path: strokeCenterlinePath(points, smoothing), width: Math.max(.5, finite(annotation.width, 4)), opacity, composite: "multiply" };
-    if (annotation && typeof annotation === "object") strokeGeometryCache.set(annotation, { key: cacheKey, geometry });
-    return geometry;
-  }
   /** @type {StrokeGeometry} */
-  const geometry = {
-    kind: "outline",
-    path: strokeOutlinePath(annotation),
-    opacity,
-    composite: "source-over"
-  };
+  let geometry;
+  if (points.length === 1) {
+    const radius = strokeWidthAtPoint(ink, points[0]) / 2;
+    geometry = {
+      kind: "dot",
+      x: points[0].x * toPage.x,
+      y: points[0].y * toPage.y,
+      radius,
+      radiusX: radius * toPage.x,
+      radiusY: radius * toPage.y,
+      opacity,
+      composite
+    };
+  } else {
+    // A highlighter is a constant-width nib, so it is outlined like a pen. A
+    // stroked centerline cannot be: its width would follow the page's axes.
+    geometry = { kind: "outline", path: strokeOutlinePath(ink, toPage), opacity, composite };
+  }
   if (annotation && typeof annotation === "object") strokeGeometryCache.set(annotation, { key: cacheKey, geometry });
   return geometry;
 }

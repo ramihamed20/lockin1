@@ -31,5 +31,11 @@ export const WORKSPACE_RENDER = Object.freeze({
   maximumTabletCanvasPixels: 3_000_000,
   maximumCatalogCanvasEdge: 3200,
   maximumStudyCanvasPixels: 10_000_000,
-  maximumInkCanvasPixels: 6_000_000
+  maximumInkCanvasPixels: 6_000_000,
+  // The detail canvas covers only what is on screen (at most a page or two),
+  // so it can afford a full screen of pixels where page bitmaps cannot.
+  maximumPhoneDetailCanvasPixels: 4_000_000,
+  maximumTabletDetailCanvasPixels: 6_000_000,
+  maximumDetailCanvasPixels: 9_000_000,
+  maximumDetailCanvasEdge: 4096
 });

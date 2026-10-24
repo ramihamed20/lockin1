@@ -6,6 +6,16 @@ import { useI18n } from "../../components/I18nProvider.jsx";
 import { requestFocusVideo } from "./focusVideo.js";
 import { personalTabId, sheetTabId } from "./workspaceTabs.js";
 
+const SHEET_PICKER_EVENT = "lockin:workspace-sheet-picker";
+
+/**
+ * Opens the "Open sheet" picker from outside the strip: when a single document
+ * is open, compact layouts hide the strip and offer it from the More menu.
+ */
+export function requestSheetPicker() {
+  if (globalThis.CustomEvent) globalThis.dispatchEvent?.(new globalThis.CustomEvent(SHEET_PICKER_EVENT));
+}
+
 function tabLabel(tab, t) {
   return tab.kind === "whiteboard" ? t("workspaceTabs.whiteboardNumber", { number: tab.number }) : tab.title;
 }
@@ -139,6 +149,12 @@ export default function WorkspaceTabBar({ tabs, activeId, materials, portalRef, 
   const openIds = useMemo(() => new Set(tabs.map((tab) => tab.id)), [tabs]);
 
   useEffect(() => {
+    const open = () => { setMenuOpen(false); setPickerOpen(true); };
+    globalThis.addEventListener?.(SHEET_PICKER_EVENT, open);
+    return () => globalThis.removeEventListener?.(SHEET_PICKER_EVENT, open);
+  }, []);
+
+  useEffect(() => {
     if (!menuOpen) return undefined;
     const close = (event) => {
       if (menuRef.current?.contains(event.target) || addRef.current?.contains(event.target)) return;
@@ -154,6 +170,14 @@ export default function WorkspaceTabBar({ tabs, activeId, materials, portalRef, 
     };
   }, [menuOpen]);
 
+  // The strip is hidden while it holds a single tab, so the picker may have
+  // been opened from the More menu; return focus to whichever is on screen.
+  function restoreFocus() {
+    const add = addRef.current;
+    if (add?.getClientRects().length) add.focus();
+    else portalTarget?.querySelector('[data-workspace-surface="more"]')?.focus();
+  }
+
   function toggleMenu() {
     if (menuOpen) { setMenuOpen(false); return; }
     const button = addRef.current?.getBoundingClientRect();
@@ -168,7 +192,7 @@ export default function WorkspaceTabBar({ tabs, activeId, materials, portalRef, 
     <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); requestFocusVideo(); }}><Youtube size={18} /><span><strong>{t("focusVideo.menu")}</strong><small>{t("focusVideo.menuHint")}</small></span></button>
   </div>;
 
-  return <div className="workspace-tabs" role="tablist" aria-label={t("workspaceTabs.label")}>
+  return <div className="workspace-tabs" role="tablist" aria-label={t("workspaceTabs.label")} data-single={tabs.length === 1 ? "" : undefined}>
     <div className="workspace-tabs-scroller">
       {tabs.map((tab) => {
         const active = tab.id === activeId;
@@ -184,6 +208,6 @@ export default function WorkspaceTabBar({ tabs, activeId, materials, portalRef, 
     </div>
     <button ref={addRef} type="button" className={`workspace-tabs-add${menuOpen ? " is-active" : ""}`} aria-label={t("workspaceTabs.newTab")} title={t("workspaceTabs.newTab")} aria-haspopup="menu" aria-expanded={menuOpen} onClick={toggleMenu}><Plus size={16} /></button>
     {menu && portalTarget && createPortal(menu, portalTarget)}
-    {pickerOpen && portalTarget && createPortal(<SheetPicker materials={materials} openIds={openIds} onClose={() => { setPickerOpen(false); addRef.current?.focus(); }} onPick={(choice) => { setPickerOpen(false); onOpenSheet(choice); }} />, portalTarget)}
+    {pickerOpen && portalTarget && createPortal(<SheetPicker materials={materials} openIds={openIds} onClose={() => { setPickerOpen(false); restoreFocus(); }} onPick={(choice) => { setPickerOpen(false); onOpenSheet(choice); }} />, portalTarget)}
   </div>;
 }

@@ -1,5 +1,5 @@
 import {
-  strokeCenterlinePathRange,
+  inkSpace,
   strokeCumulativeLengths,
   strokeOpacity,
   strokeOutlinePathRange,
@@ -10,8 +10,6 @@ import {
 } from "./strokeModel.js";
 
 const MINIMUM_UNIQUE_DISTANCE = .025;
-/** Control points of the centerline curve reach two samples back. */
-const CENTERLINE_DIRTY_SAMPLES = 3;
 
 function finite(value, fallback = 0) {
   const number = Number(value);
@@ -41,8 +39,9 @@ function smoothInterior(previous, point, next, smoothing) {
   return { ...point, x: point.x + (centerX - point.x) * amount, y: point.y + (centerY - point.y) * amount };
 }
 
-function strokeIdentity(annotation) {
+function strokeIdentity(annotation, pageAspect) {
   return [
+    finite(pageAspect, 1),
     annotation?.id,
     annotation?.type,
     annotation?.profile,
@@ -67,9 +66,13 @@ function strokeIdentity(annotation) {
  * taper span is a fixed distance from the moving tip, so a point can only leave
  * the taper. Repainting a wider outline over a narrower one is therefore exact,
  * and the caller never has to clear pixels it cannot reconstruct.
+ *
+ * Samples are kept in ink space (see `inkSpace`), exactly as the committed
+ * stroke is built, so the hand-off at pen-up changes nothing on screen.
  */
 export function createLiveStrokeGeometry() {
   let identity = null;
+  let space = inkSpace(1);
   let consumed = 0;
   let smoothing = .5;
   let unique = [];
@@ -99,8 +102,9 @@ export function createLiveStrokeGeometry() {
   function appendSource(points) {
     const previousUniqueCount = unique.length;
     for (let index = consumed; index < points.length; index += 1) {
-      const point = points[index];
-      if (!Number.isFinite(point?.x) || !Number.isFinite(point?.y)) continue;
+      const source = points[index];
+      if (!Number.isFinite(source?.x) || !Number.isFinite(source?.y)) continue;
+      const point = toInk(source);
       const last = unique[unique.length - 1];
       if (!last || pointDistance(last, point) > MINIMUM_UNIQUE_DISTANCE) unique.push(point);
       else unique[unique.length - 1] = point;
@@ -138,18 +142,23 @@ export function createLiveStrokeGeometry() {
     return index;
   }
 
+  function toInk(point) {
+    return space.toPage.x === 1 && space.toPage.y === 1 ? point : { ...point, x: point.x * space.scale.x, y: point.y * space.scale.y };
+  }
+
   /**
    * @param {any} annotation
    * @param {any[]} [predicted] display-only samples that must never be appended
-   * @param {{ forceFull?: boolean }} [options]
+   * @param {{ forceFull?: boolean, pageAspect?: number }} [options]
    */
-  function frame(annotation, predicted = [], { forceFull = false } = {}) {
+  function frame(annotation, predicted = [], { forceFull = false, pageAspect = 1 } = {}) {
     const points = annotation?.points || [];
-    const nextIdentity = strokeIdentity(annotation);
+    const nextIdentity = strokeIdentity(annotation, pageAspect);
     const volatileTail = Boolean(predicted?.length);
     if (identity !== nextIdentity || points.length < consumed) {
       reset();
       identity = nextIdentity;
+      space = inkSpace(pageAspect);
       smoothing = finite(annotation?.smoothing, strokeProfileConfig(annotation).smoothing);
     }
     let dirtyFrom = Math.max(0, smoothed.length - 1);
@@ -162,8 +171,8 @@ export function createLiveStrokeGeometry() {
     }
 
     const opacity = strokeOpacity(annotation);
-    const isHighlighter = annotation?.type === "highlighter";
-    const composite = isHighlighter ? "multiply" : "source-over";
+    const composite = annotation?.type === "highlighter" ? "multiply" : "source-over";
+    const { toPage } = space;
     if (!smoothed.length) {
       paintedCount = 0;
       paintedVolatile = false;
@@ -172,12 +181,15 @@ export function createLiveStrokeGeometry() {
     if (smoothed.length === 1) {
       paintedCount = 0;
       paintedVolatile = false;
+      const radius = strokeWidthAtPoint(annotation, smoothed[0]) / 2;
       return {
         mode: "full",
         kind: "dot",
-        x: smoothed[0].x,
-        y: smoothed[0].y,
-        radius: strokeWidthAtPoint(annotation, smoothed[0]) / 2,
+        x: smoothed[0].x * toPage.x,
+        y: smoothed[0].y * toPage.y,
+        radius,
+        radiusX: radius * toPage.x,
+        radiusY: radius * toPage.y,
         opacity,
         composite,
         color: annotation?.color
@@ -185,28 +197,14 @@ export function createLiveStrokeGeometry() {
     }
 
     const full = forceFull || volatileTail || paintedVolatile || paintedCount === 0 || paintedCount > smoothed.length;
-    const displaySamples = volatileTail ? [...smoothed, ...predicted] : smoothed;
-    if (isHighlighter) {
-      const from = full ? 0 : Math.max(0, Math.min(dirtyFrom, paintedCount - CENTERLINE_DIRTY_SAMPLES));
-      paintedCount = smoothed.length;
-      paintedVolatile = volatileTail;
-      return {
-        mode: full ? "full" : "append",
-        kind: "centerline",
-        path: strokeCenterlinePathRange(displaySamples, full ? 0 : from),
-        width: Math.max(.5, finite(annotation?.width, 4)),
-        opacity,
-        composite,
-        color: annotation?.color
-      };
-    }
+    const displaySamples = volatileTail ? [...smoothed, ...predicted.map(toInk)] : smoothed;
     let path;
     if (full) {
       path = volatileTail
-        ? strokeOutlinePathRange(displaySamples, displayRadii(annotation, displaySamples), 0)
-        : strokeOutlinePathRange(smoothed, radii, 0);
+        ? strokeOutlinePathRange(displaySamples, displayRadii(annotation, displaySamples), 0, toPage)
+        : strokeOutlinePathRange(smoothed, radii, 0, toPage);
     } else {
-      path = strokeOutlinePathRange(smoothed, radii, Math.max(0, Math.min(dirtyFrom, paintedCount - 1)));
+      path = strokeOutlinePathRange(smoothed, radii, Math.max(0, Math.min(dirtyFrom, paintedCount - 1)), toPage);
     }
     paintedCount = smoothed.length;
     paintedVolatile = volatileTail;

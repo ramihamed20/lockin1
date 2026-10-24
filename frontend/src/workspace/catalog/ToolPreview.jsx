@@ -5,7 +5,21 @@
  * change. Purely decorative: the panel's controls carry every label.
  */
 
+import { PEN_PROFILE, strokeRenderGeometry } from "../ink/strokeModel.js";
+
 const WAVE = "M14 40 C 52 6, 92 6, 124 26 S 196 50, 226 16";
+
+/**
+ * An angled nib only shows itself in a real stroke, thick and thin by
+ * direction, so its sample is the actual outline along a loop and a wave.
+ */
+function calligraphySample(width) {
+  const points = Array.from({ length: 90 }, (_, index) => {
+    const progress = index / 89;
+    return { x: 16 + progress * 208, y: 28 - Math.sin(progress * Math.PI * 2.4) * 15, t: index * 16, p: .5 };
+  });
+  return strokeRenderGeometry({ type: "pen", profile: PEN_PROFILE.CALLIGRAPHY, width: Math.min(14, 3 + width * 1.1), opacity: 1, points }).path;
+}
 const BAND = "M18 30 C 74 24, 150 34, 222 27";
 const LASSO_FREEFORM = "M44 30 C 40 12, 92 6, 136 10 C 186 14, 210 24, 200 38 C 188 52, 110 54, 70 48 C 52 45, 46 40, 44 30 Z";
 
@@ -67,6 +81,8 @@ export function ToolPreview({ tool, color, size, opacity = 1, shape = "rectangle
     const closed = !["line", "arrow"].includes(shape);
     // The draw-on animation is itself a dash, so a dashed outline skips it.
     body = <path className={dashed ? undefined : "workspace-v7-preview-draw"} pathLength={1} d={shapePath(shape)} fill={closed && fill ? fill : "none"} fillOpacity={closed && fill ? .55 : 0} stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={dashed ? "0.04 0.03" : undefined} style={{ strokeWidth: Math.min(8, 1 + width * .6), opacity }} />;
+  } else if (tool === "pen" && penProfile === PEN_PROFILE.CALLIGRAPHY) {
+    body = <path className="workspace-v7-preview-fill" d={calligraphySample(width)} fill={color} style={{ opacity }} />;
   } else {
     // Pen and pencil: one confident S-curve. A brush nib reads heavier and a
     // fountain nib lighter, as the nibs themselves do on paper.

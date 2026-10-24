@@ -5,7 +5,8 @@ import { boundedOutputScale, pdfPageAspectRatio } from "../document/coordinateTr
 import { WORKSPACE_RENDER } from "../config.js";
 import { PdfRenderQueue, pdfRenderGenerationIsCurrent } from "./pdfRenderQueue.js";
 import { loadPdfLibrary } from "./pdfJsAdapter.js";
-import { catalogCanvasPixelBudget, deferDuringScroll } from "./renderBudget.js";
+import { catalogCanvasPixelBudget, catalogDetailCanvasPixelBudget, deferDuringScroll } from "./renderBudget.js";
+import { pdfDetailArea, pdfDetailCovers, pdfDetailNeeded, visiblePageArea } from "./pdfDetailArea.js";
 import { visiblePdfPages } from "./visiblePdfPages.js";
 import { recordWorkspacePdfLoadTiming } from "./workspacePerformance.js";
 import { composeWorkspacePages } from "./virtualPages.js";
@@ -41,6 +42,14 @@ export function a4RenderQualityScale(renderZoom, devicePixelRatio = 1, pageAspec
 }
 
 const GEOMETRY_MEASURE_CONCURRENCY = 8;
+const MAX_DETAIL_CANVAS_EDGE = WORKSPACE_RENDER.maximumDetailCanvasEdge;
+
+function releaseCanvas(canvas) {
+  if (!canvas) return;
+  canvas.classList.remove("is-visible");
+  canvas.width = 0;
+  canvas.height = 0;
+}
 
 
 /**
@@ -77,7 +86,7 @@ async function measureEveryPage(documentProxy, isCancelled) {
 }
 
 const A4PdfCanvas = memo(
-/** @param {{ documentProxy: any, pageNumber: number, pageAspectRatio: number, renderZoom: number, shouldRender: boolean, evictionDelayMs?: number, renderRevision: number, wakeToken?: number, renderController: { suspended: boolean, generation: number, scrolling: boolean, deferred: Set<() => void> }, priority: number, renderQueue: PdfRenderQueue, onPageGeometry?: (pageNumber: number, width: number, height: number) => void, onPageRendered?: (duration: number) => void, onPageOutcome?: (pageNumber: number, failed: boolean) => void }} props */
+/** @param {{ documentProxy: any, pageNumber: number, pageAspectRatio: number, renderZoom: number, shouldRender: boolean, evictionDelayMs?: number, renderRevision: number, wakeToken?: number, renderController: { suspended: boolean, generation: number, scrolling: boolean, deferred: Set<() => void>, viewportListeners: Set<() => void> }, priority: number, renderQueue: PdfRenderQueue, onPageGeometry?: (pageNumber: number, width: number, height: number) => void, onPageRendered?: (duration: number) => void, onPageOutcome?: (pageNumber: number, failed: boolean) => void }} props */
 function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, shouldRender, evictionDelayMs = CANVAS_EVICTION_MS, renderRevision, wakeToken = 0, renderController, priority, renderQueue, onPageGeometry, onPageRendered, onPageOutcome }) {
   const paneActive = useWorkspacePaneActive();
   const canvasRefs = useRef([null, null]);
@@ -88,6 +97,183 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
   const wakeTokenRef = useRef(wakeToken);
   const maximumPixels = catalogCanvasPixelBudget(window.visualViewport?.width || window.innerWidth, window.matchMedia?.("(pointer: coarse)").matches);
   const qualityScale = a4RenderQualityScale(renderZoom, window.devicePixelRatio, pageAspectRatio, maximumPixels);
+
+  // The on-screen detail canvas, see pdfDetailArea.js. It is double buffered
+  // like the page canvas: the area being shown stays up until its successor
+  // has completely painted.
+  const detailCanvasRefs = useRef([null, null]);
+  const detailShownRef = useRef(-1);
+  /** @type {import("react").MutableRefObject<null | { minX: number, minY: number, width: number, height: number, scale: number, documentProxy: any }>} */
+  const detailAreaRef = useRef(null);
+  /** @type {import("react").MutableRefObject<null | { minX: number, minY: number, width: number, height: number, scale: number, documentProxy: any }>} */
+  const detailPendingRef = useRef(null);
+  const detailRetireRafRef = useRef(null);
+  const detailStateRef = useRef(null);
+  detailStateRef.current = { documentProxy, pageNumber, pageAspectRatio, renderZoom, qualityScale, shouldRender, paneActive, priority };
+
+  const releaseDetail = useCallback(() => {
+    renderQueue.cancel(`detail:${pageNumber}`);
+    if (detailRetireRafRef.current !== null) cancelAnimationFrame(detailRetireRafRef.current);
+    detailRetireRafRef.current = null;
+    detailCanvasRefs.current.forEach(releaseCanvas);
+    detailShownRef.current = -1;
+    detailAreaRef.current = null;
+    detailPendingRef.current = null;
+  }, [pageNumber, renderQueue]);
+
+  const updateDetail = useCallback(() => {
+    const state = detailStateRef.current;
+    if (!state.paneActive || !state.documentProxy || !state.shouldRender) {
+      if (detailShownRef.current >= 0 || detailPendingRef.current) releaseDetail();
+      return;
+    }
+    // Suspended for a pinch or a zoom: what is shown stays, scaled with the
+    // page, and the settle that follows asks again. A scroll settles the same way.
+    if (renderController.suspended || renderController.scrolling) return;
+    const devicePixelRatio = Math.max(1, Number(window.devicePixelRatio) || 1);
+    const targetScale = devicePixelRatio * Math.max(.01, Number(state.renderZoom) || 1);
+    if (!pdfDetailNeeded(state.qualityScale, targetScale)) {
+      if (detailShownRef.current >= 0 || detailPendingRef.current) releaseDetail();
+      return;
+    }
+    const pageElement = canvasRefs.current[0]?.parentElement;
+    const stage = pageElement?.closest(".workspace-v2-document-stage");
+    if (!pageElement || !stage) return;
+    const pageHeight = A4_PAGE_WIDTH * state.pageAspectRatio;
+    const pageBounds = pageElement.getBoundingClientRect();
+    const visible = visiblePageArea(pageBounds, stage.getBoundingClientRect(), A4_PAGE_WIDTH, pageHeight);
+    if (!visible) {
+      if (detailShownRef.current >= 0 || detailPendingRef.current) releaseDetail();
+      return;
+    }
+    const budget = catalogDetailCanvasPixelBudget(window.visualViewport?.width || window.innerWidth, window.matchMedia?.("(pointer: coarse)").matches);
+    const area = pdfDetailArea({
+      visible,
+      pageWidth: A4_PAGE_WIDTH,
+      pageHeight,
+      targetScale,
+      maximumPixels: budget,
+      maximumEdge: MAX_DETAIL_CANVAS_EDGE,
+      pageLeft: pageBounds.left,
+      pageTop: pageBounds.top,
+      screenScale: pageBounds.width / A4_PAGE_WIDTH,
+      devicePixelRatio
+    });
+    if (!area || !pdfDetailNeeded(state.qualityScale, area.scale)) {
+      if (detailShownRef.current >= 0 || detailPendingRef.current) releaseDetail();
+      return;
+    }
+    const sameDocument = (candidate) => candidate?.documentProxy === state.documentProxy;
+    if (sameDocument(detailPendingRef.current) && pdfDetailCovers(detailPendingRef.current, visible, area.scale, A4_PAGE_WIDTH, pageHeight)) return;
+    if (!detailPendingRef.current && detailShownRef.current >= 0 && sameDocument(detailAreaRef.current)
+      && pdfDetailCovers(detailAreaRef.current, visible, area.scale, A4_PAGE_WIDTH, pageHeight)) return;
+
+    const { documentProxy: detailDocument, pageNumber: detailPage } = state;
+    const pending = { ...area, documentProxy: detailDocument };
+    detailPendingRef.current = pending;
+    const renderGeneration = renderController.generation;
+    renderQueue.enqueue({
+      key: `detail:${detailPage}`,
+      // After this page's own bitmap, before its neighbours'.
+      priority: state.priority + 5,
+      run: async ({ isCancelled, registerCancel }) => {
+        let renderTask;
+        /** @type {null | (() => void)} */
+        let continuation = null;
+        const nextIndex = detailShownRef.current === 0 ? 1 : 0;
+        let painted = false;
+        try {
+          const pdfPage = await detailDocument.getPage(detailPage);
+          if (!pdfRenderGenerationIsCurrent(renderController, renderGeneration, isCancelled())) return;
+          const rawViewport = pdfPage.getViewport({ scale: 1 });
+          const viewport = pdfPage.getViewport({ scale: (A4_PAGE_WIDTH / rawViewport.width) * area.scale });
+          const canvas = detailCanvasRefs.current[nextIndex];
+          if (!canvas) return;
+          canvas.width = area.pixelWidth;
+          canvas.height = area.pixelHeight;
+          canvas.style.left = `${area.minX}px`;
+          canvas.style.top = `${area.minY}px`;
+          canvas.style.width = `${area.width}px`;
+          canvas.style.height = `${area.height}px`;
+          const context = canvas.getContext("2d", { alpha: false });
+          if (!context || isCancelled()) return;
+          renderTask = pdfPage.render({
+            canvasContext: context,
+            viewport,
+            transform: [1, 0, 0, 1, -area.minX * area.scale, -area.minY * area.scale]
+          });
+          renderTask.onContinue = (continueRendering) => {
+            const resume = () => {
+              continuation = null;
+              if (!pdfRenderGenerationIsCurrent(renderController, renderGeneration, isCancelled())) {
+                renderTask?.cancel();
+                return;
+              }
+              continueRendering();
+            };
+            if (renderController.scrolling) {
+              // Never compete with a scroll for the main thread.
+              renderController.deferred.add(resume);
+              continuation = () => renderController.deferred.delete(resume);
+            } else {
+              const frame = requestAnimationFrame(resume);
+              continuation = () => cancelAnimationFrame(frame);
+            }
+          };
+          registerCancel(() => {
+            continuation?.();
+            continuation = null;
+            renderTask?.cancel();
+          });
+          await renderTask.promise;
+          if (!pdfRenderGenerationIsCurrent(renderController, renderGeneration, isCancelled())) return;
+          const previous = detailShownRef.current >= 0 ? detailCanvasRefs.current[detailShownRef.current] : null;
+          canvas.classList.add("is-visible");
+          previous?.classList.remove("is-visible");
+          detailShownRef.current = nextIndex;
+          detailAreaRef.current = pending;
+          painted = true;
+          if (previous) {
+            if (detailRetireRafRef.current !== null) cancelAnimationFrame(detailRetireRafRef.current);
+            detailRetireRafRef.current = requestAnimationFrame(() => {
+              detailRetireRafRef.current = requestAnimationFrame(() => {
+                detailRetireRafRef.current = null;
+                if (detailCanvasRefs.current[detailShownRef.current] !== previous) {
+                  previous.width = 0;
+                  previous.height = 0;
+                }
+              });
+            });
+          }
+        } catch (error) {
+          // A missing detail only leaves the page bitmap showing.
+          if (!isCancelled() && error?.name !== "RenderingCancelledException") console.warn("Could not sharpen PDF page", error);
+        } finally {
+          continuation?.();
+          if (detailPendingRef.current === pending) detailPendingRef.current = null;
+          if (!painted && detailShownRef.current !== nextIndex) {
+            const abandoned = detailCanvasRefs.current[nextIndex];
+            if (abandoned) {
+              abandoned.width = 0;
+              abandoned.height = 0;
+            }
+          }
+        }
+      }
+    });
+  }, [releaseDetail, renderController, renderQueue]);
+
+  useEffect(() => {
+    const listeners = renderController.viewportListeners;
+    listeners?.add(updateDetail);
+    return () => { listeners?.delete(updateDetail); };
+  }, [renderController, updateDetail]);
+
+  useEffect(() => {
+    updateDetail();
+  }, [documentProxy, paneActive, qualityScale, renderRevision, renderZoom, shouldRender, updateDetail, wakeToken]);
+
+  useEffect(() => releaseDetail, [releaseDetail]);
 
   useEffect(() => {
     const queueKey = `page:${pageNumber}`;
@@ -270,6 +456,8 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
   return <>
     <canvas ref={(canvas) => { canvasRefs.current[0] = canvas; }} className="workspace-v2-a4-canvas is-visible" width={0} height={0} aria-label={`PDF page ${pageNumber}`} />
     <canvas ref={(canvas) => { canvasRefs.current[1] = canvas; }} className="workspace-v2-a4-canvas" width={0} height={0} aria-hidden="true" />
+    <canvas ref={(canvas) => { detailCanvasRefs.current[0] = canvas; }} className="workspace-v2-a4-detail-canvas" width={0} height={0} aria-hidden="true" />
+    <canvas ref={(canvas) => { detailCanvasRefs.current[1] = canvas; }} className="workspace-v2-a4-detail-canvas" width={0} height={0} aria-hidden="true" />
   </>;
 });
 
@@ -353,7 +541,11 @@ export function ContinuousA4Pdf({
   const scrollTimerRef = useRef(null);
   const scrollingRef = useRef(false);
   const suspensionRef = useRef({ activity: false, pinch: false, scroll: false, zoom: false, pane: false });
-  const renderControllerRef = useRef({ suspended: false, generation: 0, scrolling: false, deferred: new Set() });
+  const renderControllerRef = useRef({ suspended: false, generation: 0, scrolling: false, deferred: new Set(), viewportListeners: new Set() });
+  // Pages that keep an on-screen detail canvas re-measure when the view settles.
+  const notifyViewportSettled = useCallback(() => {
+    renderControllerRef.current.viewportListeners.forEach((listener) => listener());
+  }, []);
   const renderQueueRef = useRef(null);
   if (!renderQueueRef.current) renderQueueRef.current = new PdfRenderQueue({ concurrency: 1 });
 
@@ -582,6 +774,7 @@ export function ContinuousA4Pdf({
         renderController.scrolling = false;
         scrollTimerRef.current = null;
         resumeDeferredRenders();
+        notifyViewportSettled();
       }, SCROLL_SETTLE_MS);
     };
     const handleScroll = () => {
@@ -615,7 +808,13 @@ export function ContinuousA4Pdf({
       renderController.scrolling = false;
       resumeDeferredRenders();
     };
-  }, [documentRootRef, stageRef]);
+  }, [documentRootRef, notifyViewportSettled, stageRef]);
+
+  // A resized stage shows a different part of each page.
+  useEffect(() => {
+    const frame = requestAnimationFrame(notifyViewportSettled);
+    return () => cancelAnimationFrame(frame);
+  }, [notifyViewportSettled, stageViewport]);
 
   useEffect(() => {
     let cancelled = false;
@@ -767,12 +966,14 @@ export function ContinuousA4Pdf({
       pageObserver.observe(element);
     });
     documentRoot.addEventListener("workspace:zoomgeometrysettled", updateCurrentFromGeometry);
+    documentRoot.addEventListener("workspace:zoomgeometrysettled", notifyViewportSettled);
     return () => {
+      documentRoot.removeEventListener("workspace:zoomgeometrysettled", notifyViewportSettled);
       renderObserver.disconnect();
       pageObserver.disconnect();
       documentRoot.removeEventListener("workspace:zoomgeometrysettled", updateCurrentFromGeometry);
     };
-  }, [commitNearbyPages, commitPrimaryPage, documentRootRef, pageCount, pageGeometryReady, stageRef, visiblePageCount, visiblePageStart, virtualPages, wakeToken]);
+  }, [commitNearbyPages, commitPrimaryPage, documentRootRef, notifyViewportSettled, pageCount, pageGeometryReady, stageRef, visiblePageCount, visiblePageStart, virtualPages, wakeToken]);
 
   // Nothing is laid out at a guessed page shape. The sheet knows its page count
   // long before the file is open, so the reader used to raise a full document of

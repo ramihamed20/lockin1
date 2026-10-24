@@ -453,23 +453,56 @@ export function recognizeHeldStroke(points, { unitsPerCssPixel = 1, aspect = 1 }
     return { kind: "triangle", confidence: Math.min(.96, closed.confidence + .08), bounds };
   }
   if (corners.length === 4 && fillRatio >= .68) {
-    const squareRatio = Math.min(bounds.width, bounds.height) / Math.max(1, Math.max(bounds.width, bounds.height));
+    const squareRatio = visualSideRatio(bounds, aspect);
     return { kind: squareRatio >= .86 ? "square" : "rectangle", confidence: Math.min(.96, closed.confidence + .08), bounds };
   }
   if (closed.circularity >= .46) {
-    const circleRatio = Math.min(bounds.width, bounds.height) / Math.max(1, Math.max(bounds.width, bounds.height));
+    const circleRatio = visualSideRatio(bounds, aspect);
     return { kind: circleRatio >= .84 ? "circle" : "ellipse", confidence: closed.confidence, bounds };
   }
   return null;
 }
 
-export function recognizedShapeAnnotation(stroke, recognition) {
+/**
+ * Page units are not square (a y unit is `aspect` x units on screen), so a
+ * shape that must look square or round keeps its sides equal on screen, not
+ * in units. Returns the corner opposite `start` for a drag to `end`.
+ */
+export function equalSidedEnd(start, end, aspect = 1) {
+  const yScale = Math.max(.05, finite(aspect, 1));
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const signX = Math.sign(dx || 1);
+  const signY = Math.sign(dy || 1);
+  // Near an edge the side shrinks to fit the page rather than being clipped
+  // on one axis, which would leave a rectangle.
+  const room = Math.min(signX > 0 ? 1000 - start.x : start.x, (signY > 0 ? 1000 - start.y : start.y) * yScale);
+  const side = Math.max(0, Math.min(Math.max(Math.abs(dx), Math.abs(dy) * yScale), room));
+  return { ...end, x: start.x + signX * side, y: start.y + signY * side / yScale };
+}
+
+function visualSideRatio(bounds, aspect) {
+  const width = bounds.width;
+  const height = bounds.height * Math.max(.05, finite(aspect, 1));
+  return Math.min(width, height) / Math.max(1, Math.max(width, height));
+}
+
+export function recognizedShapeAnnotation(stroke, recognition, aspect = 1) {
   if (!stroke || !recognition) return null;
   if (["line", "arrow"].includes(recognition.kind)) {
     return { ...stroke, type: "shape", shape: recognition.kind, start: recognition.start, end: recognition.end, points: undefined, rawStroke: undefined };
   }
-  const bounds = recognition.bounds;
+  let bounds = recognition.bounds;
   if (!bounds) return null;
+  if (["square", "circle"].includes(recognition.kind)) {
+    // A hand-drawn square or circle is never exact; even it out on screen,
+    // about the drawing's centre.
+    const yScale = Math.max(.05, finite(aspect, 1));
+    const side = (bounds.width + bounds.height * yScale) / 2;
+    const centerX = bounds.x + bounds.width / 2;
+    const centerY = bounds.y + bounds.height / 2;
+    bounds = { x: centerX - side / 2, y: centerY - side / yScale / 2, width: side, height: side / yScale };
+  }
   return {
     ...stroke,
     type: "shape",

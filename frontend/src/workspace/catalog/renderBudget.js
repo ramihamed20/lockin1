@@ -9,6 +9,15 @@ export function catalogCanvasPixelBudget(viewportWidth, coarsePointer = false) {
   return WORKSPACE_RENDER.maximumCatalogCanvasPixels;
 }
 
+/** Bounds the on-screen detail canvas; see pdfDetailArea.js. */
+export function catalogDetailCanvasPixelBudget(viewportWidth, coarsePointer = false) {
+  const width = Math.max(0, Number(viewportWidth) || 0);
+  if (!coarsePointer) return WORKSPACE_RENDER.maximumDetailCanvasPixels;
+  if (width <= 600) return WORKSPACE_RENDER.maximumPhoneDetailCanvasPixels;
+  if (width <= 1_200) return WORKSPACE_RENDER.maximumTabletDetailCanvasPixels;
+  return WORKSPACE_RENDER.maximumDetailCanvasPixels;
+}
+
 /** Match screen pixels at the reader zoom while bounding the visible ink surface. */
 export function inkCanvasOutputScale(cssWidth, cssHeight, devicePixelRatio = 1, zoom = 1) {
   const width = Math.max(1, Number(cssWidth) || 1);
