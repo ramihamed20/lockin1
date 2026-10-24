@@ -1,6 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
+import { toggleNotesPanel } from "./helpers/workspaceToolbar.js";
 
 const WORKSPACE_ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-2/workspace";
 const SHARED_TEST_SHEET_ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
@@ -342,11 +343,12 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await expect(page.getByRole("button", { name: "Save to Bookmarks" })).toHaveAttribute("aria-pressed", "false");
   await page.getByRole("button", { name: "More workspace actions" }).click();
   await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-iphone-portrait-390x844.png`, fullPage: false });
-  await notesTool.click();
+  // A phone folds Notes into the More menu; it opens and closes from there.
+  await toggleNotesPanel(page);
   await expect(sidePanel).toBeVisible();
   await expectContainedInViewport(sidePanel, 390, 844);
   await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-iphone-portrait-notes-390x844.png`, fullPage: false });
-  await notesTool.click();
+  await toggleNotesPanel(page);
   await expect(sidePanel).toBeHidden();
 
   expect(pageErrors).toEqual([]);

@@ -4,6 +4,7 @@ import { catalogWorkspaceStorageKey, parseCatalogWorkspace } from "../src/worksp
 
 const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 const IPAD_PORTRAIT = { width: 834, height: 1194 };
+const IPAD_LANDSCAPE = { width: 1194, height: 834 };
 
 async function mockAuthenticatedWorkspace(page) {
   await page.addInitScript(() => {
@@ -63,9 +64,12 @@ async function drawStroke(stage, pointerId, points, pointerType = "pen") {
   await dispatchPointer(stage, "pointerup", pointerId, points.at(-1).x, points.at(-1).y, pointerType);
 }
 
-function savedAnnotations(page) {
+// The marks as the reader would load them: the stored form is compact (shared
+// point fields kept once per stroke), so raw JSON differs from a seeded one
+// that holds the same marks.
+async function savedAnnotations(page) {
   const key = catalogWorkspaceStorageKey("user:ink-student", "biochemistry-1", "vitamin-1");
-  return page.evaluate((key) => JSON.parse(localStorage.getItem(key) || "null")?.annotations ?? [], key);
+  return parseCatalogWorkspace(await page.evaluate((key) => localStorage.getItem(key), key))?.annotations ?? [];
 }
 
 async function firstPageBox(page) {
@@ -168,12 +172,12 @@ test("a sticky note has a clear Delete, and undo and redo restore and remove it 
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page);
   await page.getByRole("button", { name: "Add", exact: true }).click();
-  await page.getByRole("button", { name: /Add sticky note/i }).click();
+  await page.getByRole("button", { name: /Add note card/i }).click();
   await page.getByRole("textbox", { name: "Card text" }).fill("Delete me");
   await page.getByRole("button", { name: "Add card" }).click();
   const card = page.locator('.workspace-v2-annotation-layer [data-annotation-type="card"]');
   await expect(card).toHaveCount(1);
-  const rect = card.locator("rect").first();
+  const rect = card.locator(".workspace-note-card-paper");
   const position = { x: await rect.getAttribute("x"), y: await rect.getAttribute("y") };
   const box = await card.boundingBox();
   await page.mouse.click(box.x + box.width / 2, box.y + 30);
@@ -193,7 +197,7 @@ test("a sticky note has a clear Delete, and undo and redo restore and remove it 
   const again = await card.boundingBox();
   await page.mouse.click(again.x + again.width / 2, again.y + 30);
   await page.locator("[data-selection-toolbar]").getByRole("button", { name: "Edit card" }).click();
-  await page.getByRole("dialog", { name: "Edit study card" }).getByRole("button", { name: "Delete card" }).click();
+  await page.getByRole("dialog", { name: "Edit note card" }).getByRole("button", { name: "Delete card" }).click();
   await expect(card).toHaveCount(0);
   await page.getByRole("button", { name: "Undo (Ctrl+Z)" }).click();
   await expect(card).toHaveCount(1);
@@ -672,7 +676,10 @@ for (const maskCount of [1, 31]) {
     test.setTimeout(90_000);
     await mockAuthenticatedWorkspace(page);
     await seedMaskScopeWorkspace(page, maskCount);
-    await openWorkspace(page);
+    // Landscape keeps the tabs in the toolbar's one row, so opening the second
+    // sheet below does not add a tab row and move the reader between the two
+    // pixel captures (portrait drops the row while one document is open).
+    await openWorkspace(page, IPAD_LANDSCAPE);
     await expect(page.locator('[data-pdf-page="1"] [data-annotation-type="pen"]')).toHaveCount(2);
     const original = await savedAnnotations(page);
     await page.getByRole("button", { name: "Eraser", exact: true }).click();

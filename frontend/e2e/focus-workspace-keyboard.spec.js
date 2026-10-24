@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
+import { toggleNotesPanel } from "./helpers/workspaceToolbar.js";
 
 /**
  * The note editor and the on-screen keyboard.
@@ -182,7 +183,7 @@ for (const viewport of [...PHONES, ...TABLETS]) {
     await mockStudent(page);
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await openWorkspace(page);
-    await page.locator('[data-workspace-tool="note"]').click();
+    await toggleNotesPanel(page);
     await expect(page.locator(".workspace-v2-note-editor textarea")).toBeVisible();
 
     const fields = await page.evaluate(() => [...document.querySelectorAll(".workspace-v2 textarea, .workspace-v2 input")]
@@ -226,7 +227,7 @@ for (const { viewport, mode } of KEYBOARD_SESSIONS) {
     });
     await waitForStableReader(page);
 
-    await page.locator('[data-workspace-tool="note"]').click();
+    await toggleNotesPanel(page);
     const editor = page.locator(".workspace-v2-note-editor textarea");
     await expect(editor).toBeVisible();
 
@@ -288,12 +289,13 @@ test("the notes drawer rides above the keyboard on a phone", async ({ page }) =>
   await mockStudent(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await openWorkspace(page);
-  await page.locator('[data-workspace-tool="note"]').click();
+  await toggleNotesPanel(page);
   const editor = page.locator(".workspace-v2-note-editor textarea");
   await expect(editor).toBeVisible();
 
+  // Opened from More, the drawer may still be sliding up; measure it at rest.
+  await expect.poll(async () => (await readerState(page)).drawerBottom).toBe(0);
   const resting = await readerState(page);
-  expect(resting.drawerBottom).toBe(0);
 
   await editor.click();
   const inset = 354;

@@ -4,11 +4,12 @@ import test from "node:test";
 import { parseLimits, parsePersonalSheet } from "../src/api/personalSheets.js";
 import { canAccessRoute } from "../src/lib/authz.js";
 import { forgetPersonalTabs, openWorkspaceTab, personalTab, readWorkspaceTabs, sanitizeWorkspaceTabs, sheetTab, workspaceTabRoute, writeWorkspaceTabs } from "../src/workspace/catalog/workspaceTabs.js";
+import { readWorkspaceSource } from "./helpers/workspaceSource.js";
 
 const student = { id: "student-1", role: "student" };
 
 const [workspace, app, keepAliveHost, materials, component] = await Promise.all([
-  readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8"),
+  readWorkspaceSource(),
   readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
   readFile(new URL("../src/workspace/catalog/WorkspaceKeepAlive.jsx", import.meta.url), "utf8"),
   readFile(new URL("../src/pages/Materials.jsx", import.meta.url), "utf8"),

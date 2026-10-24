@@ -100,11 +100,11 @@ for (const orientation of ["portrait", "landscape"]) {
       expect(toolbarBox.y, `the ${viewport.name} toolbar leaves a gap above it`).toBe(0);
       expect(toolbarBox.x, `the ${viewport.name} toolbar leaves a gap beside it`).toBe(0);
       expect(toolbarBox.width).toBe(viewport.width);
-      if (compactPhone) {
-        // The open-document tabs are a row of their own above the tools.
-        const tabsBox = await page.locator(".workspace-v2-toolbar > .workspace-tabs").boundingBox();
-        expect(tabsBox.height, `the ${viewport.name} tab row is taller than one touch target`).toBeLessThanOrEqual(48);
-        expect(toolbarBox.height - tabsBox.height, `the ${viewport.name} toolbar is taller than the compact bar`).toBeLessThanOrEqual(56);
+      if (compactPhone || viewport.width < 1180) {
+        // A single open document needs no tab row: the bar is one row of tools,
+        // and the document's name and New tab move into the More menu.
+        await expect(page.locator(".workspace-v2-toolbar > .workspace-tabs")).toBeHidden();
+        expect(toolbarBox.height, `the ${viewport.name} toolbar is taller than one compact row`).toBeLessThanOrEqual(56);
       }
 
       // The reader always fills the viewport, and the page dock is reachable.
@@ -149,12 +149,21 @@ for (const orientation of ["portrait", "landscape"]) {
       });
       expect(rail.tools).toBe(7);
       if (compactPhone) {
-        // A phone carries the iPad tool set in its scrolling rail.
+        // A phone carries the iPad tool set in its scrolling rail, writing tools
+        // first. Undo and Redo are pinned beside the rail, where scrolling it
+        // never hides them, and quick colours stay in the pen's panel.
         const railTools = await page.locator(".workspace-v3-primary").evaluate((scroller) => [...scroller.querySelectorAll("button")]
           .filter((button) => button.getBoundingClientRect().width > 0)
           .map((button) => button.getAttribute("aria-label")));
-        for (const label of ["Pen", "Hand", "Highlight", "Eraser", "Lasso", "Shapes", "Add", "Undo (Ctrl+Z)", "Redo (Ctrl+Shift+Z)"]) expect(railTools, `${label} is missing on ${viewport.name}`).toContain(label);
-        expect(railTools.filter((label) => label?.startsWith("Use #"))).toHaveLength(3);
+        for (const label of ["Pen", "Hand", "Highlight", "Eraser", "Lasso", "Add"]) expect(railTools, `${label} is missing on ${viewport.name}`).toContain(label);
+        // Shapes shares Hand's slot and shows only while it is the tool (it is
+        // in More), so choosing it never scrolls Pen out of the rail.
+        expect(railTools, `Shapes took a rail slot on ${viewport.name}`).not.toContain("Shapes");
+        const docked = await page.locator(".workspace-v2-history.is-docked button").evaluateAll((buttons) => buttons.map((button) => {
+          const box = button.getBoundingClientRect();
+          return { label: button.getAttribute("aria-label"), onScreen: box.width > 0 && box.left >= 0 && box.right <= window.innerWidth };
+        }));
+        expect(docked, `Undo and Redo are not on screen on ${viewport.name}`).toEqual([{ label: "Undo (Ctrl+Z)", onScreen: true }, { label: "Redo (Ctrl+Shift+Z)", onScreen: true }]);
       }
       expect(rail.rowSpread, `the tool rail wrapped on ${viewport.name}`).toBeLessThan(2);
       expect(rail.scrollsHorizontally, `the primary toolbar cannot scroll on ${viewport.name}`).toBe(true);
@@ -192,23 +201,37 @@ test("writing controls open immediately and preserve tool state while every seco
   await expect(page.getByRole("slider", { name: "Thickness" })).toHaveValue("9");
 
   await page.getByRole("button", { name: "Add", exact: true }).click();
-  for (const label of ["Image", "Text"]) await expect(page.getByRole("button", { name: label, exact: true })).toBeVisible();
+  for (const label of ["Add image", "Add text"]) await expect(page.getByRole("button", { name: label, exact: true })).toBeVisible();
   for (const label of ["Pencil", "Shapes"]) await expect(page.getByRole("dialog", { name: "Add to page" }).getByRole("button", { name: label, exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "Text", exact: true }).click();
+  await page.getByRole("button", { name: "Add text", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Add text annotation" })).toBeVisible();
   await page.getByRole("button", { name: "Close text editor" }).click();
 
   await page.getByRole("button", { name: "More workspace actions" }).click();
   const moreMenu = page.getByRole("dialog", { name: "More workspace actions" });
   // V2 menu rows are single lines, so the name is the label alone.
-  await expect(moreMenu.getByRole("button", { name: "Pencil", exact: true })).toBeVisible();
-  for (const label of ["Bookmarks", "Full.screen", "settings"]) await expect(moreMenu.getByRole("button", { name: new RegExp(label, "i") })).toBeVisible();
+  await expect(moreMenu.getByRole("button", { name: "Pencil", exact: true })).toHaveCount(0);
+  await expect(moreMenu.getByRole("button", { name: /Full.screen/i })).toHaveCount(0);
+  for (const label of ["Bookmarks", "settings"]) await expect(moreMenu.getByRole("button", { name: new RegExp(label, "i") })).toBeVisible();
   // The phone rail carries these tools itself, so the menu does not repeat them.
   const rail = page.locator(".workspace-v3-primary");
-  for (const label of ["Highlight", "Eraser", "Lasso", "Shapes"]) {
+  for (const label of ["Highlight", "Eraser", "Lasso"]) {
     await expect(rail.getByRole("button", { name: label, exact: true })).toBeVisible();
     await expect(moreMenu.getByRole("button", { name: new RegExp(`^${label} `) })).toBeHidden();
   }
+  // Shapes is chosen from More; it then takes Hand's slot in the rail.
+  await expect(rail.getByRole("button", { name: "Shapes", exact: true })).toBeHidden();
+  await moreMenu.getByRole("button", { name: "Shapes", exact: true }).click();
+  await expect(rail.getByRole("button", { name: "Shapes", exact: true })).toBeVisible();
+  await expect(rail.getByRole("button", { name: "Hand", exact: true })).toBeHidden();
+  // A 320px rail holds three tools, but on a 390px phone the fifth overflows by
+  // ten pixels at most, so Pen's icon stays whole while Shapes is the tool.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(async () => rail.evaluate((node) => {
+    const pen = node.querySelector('[data-workspace-tool="pen"]').getBoundingClientRect();
+    return pen.left >= node.getBoundingClientRect().left - 11;
+  })).toBe(true);
+  await page.setViewportSize({ width: 320, height: 568 });
   const toolbar = page.locator(".workspace-v2-toolbar");
   await expect.poll(async () => toolbar.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
 });
@@ -225,7 +248,8 @@ test("the iPad toolbar keeps direct tools, quick colors, and Active Study usable
   expect(await toolbar.boundingBox()).toMatchObject({ x: 0, y: 0, width: 834 });
   await expect(toolbar.locator(".workspace-v3-quick-color")).toHaveCount(3);
   const sizing = await toolbar.evaluate((node) => {
-    const boxes = [...node.querySelectorAll("button")].filter((button) => getComputedStyle(button).display !== "none").map((button) => ({ label: button.getAttribute("aria-label"), box: button.getBoundingClientRect() }));
+    // Rendered buttons only: a hidden group (the docked Undo/Redo, a single-tab strip) hides its children too.
+    const boxes = [...node.querySelectorAll("button")].filter((button) => button.getClientRects().length > 0).map((button) => ({ label: button.getAttribute("aria-label"), box: button.getBoundingClientRect() }));
     const rail = node.querySelector(".workspace-v3-primary").getBoundingClientRect();
     return {
       // The tablet bar is compact by design: 40px tools and 34px tabs.
@@ -248,12 +272,16 @@ test("the iPad toolbar keeps direct tools, quick colors, and Active Study usable
   await expect.poll(() => page.locator("#workspace-pen-options").evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
   await page.screenshot({ path: testInfo.outputPath("ipad-pen-options-night.png") });
   // Ball, Fountain, Brush, and the temporary glowing Pointer pen.
-  await expect(page.getByRole("group", { name: "Pen type" }).getByRole("button")).toHaveCount(4);
-  await page.getByRole("button", { name: "Set thickness to 8" }).click();
+  await expect(page.getByRole("group", { name: "Pen type" }).getByRole("button")).toHaveCount(5);
+  await page.getByRole("slider", { name: "Thickness" }).fill("8");
   await expect(page.getByRole("slider", { name: "Thickness" })).toHaveValue("8");
-  await page.getByText("Presets & pen gestures").click();
-  await expect(page.getByRole("slider", { name: "Pressure sensitivity" })).toBeVisible();
-  await expect(page.getByRole("slider", { name: "Stroke smoothing" })).toBeVisible();
+  // Percentages move in whole percents.
+  await expect(page.getByRole("slider", { name: "Opacity" })).toHaveAttribute("step", "0.01");
+  // The pen keeps its two gestures in view; presets, smoothing and pressure are gone.
+  await expect(page.getByRole("switch", { name: /Straight lines/ })).toBeVisible();
+  await expect(page.getByRole("switch", { name: /Circle erase/ })).toBeVisible();
+  await expect(page.getByRole("slider", { name: "Pressure sensitivity" })).toHaveCount(0);
+  await expect(page.getByRole("slider", { name: "Stroke smoothing" })).toHaveCount(0);
   await page.keyboard.press("Escape");
 
   const color = toolbar.locator(".workspace-v3-quick-color").nth(1);
@@ -292,11 +320,14 @@ test("the iPad toolbar keeps direct tools, quick colors, and Active Study usable
   await page.keyboard.press("Escape");
   await toolbar.getByRole("button", { name: "Add", exact: true }).click();
   const addMenu = page.getByRole("dialog", { name: "Add to page" });
-  for (const label of ["Text", "Image", "Add Page"]) await expect(addMenu.getByRole("button", { name: label, exact: true })).toBeVisible();
+  for (const label of ["Add text", "Add image", "Add Page"]) await expect(addMenu.getByRole("button", { name: label, exact: true })).toBeVisible();
   await expect(addMenu.getByRole("button", { name: "Pencil", exact: true })).toHaveCount(0);
   await expect(addMenu.getByRole("button", { name: "Shapes", exact: true })).toHaveCount(0);
-  await expect(addMenu.getByRole("button", { name: /Open notes/ })).toBeVisible();
-  await expect(addMenu.getByRole("button", { name: /Bookmark page/ })).toBeVisible();
+  // Notes open from the toolbar; the Add menu only adds things.
+  for (const label of [/Open notes/, /Add sticky note/, /Add study clip/]) await expect(addMenu.getByRole("button", { name: label })).toHaveCount(0);
+  await expect(addMenu.getByRole("button", { name: "Add note card" })).toBeVisible();
+  // Bookmarks live in More only; the Add menu adds things to the page.
+  await expect(addMenu.getByRole("button", { name: /Bookmark/ })).toHaveCount(0);
   await expect.poll(() => addMenu.evaluate((node) => getComputedStyle(node).opacity)).toBe("1");
   await page.screenshot({ path: testInfo.outputPath("ipad-add-menu-night.png") });
   await page.keyboard.press("Escape");

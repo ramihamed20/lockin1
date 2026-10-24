@@ -719,7 +719,8 @@ test("stroke geometry uses connected round subpaths and stays identical between 
   const committedGeometry = strokeRenderGeometry(committed);
   assert.equal(liveGeometry.kind, "outline");
   assert.equal(liveGeometry.path, committedGeometry.path);
-  assert.ok((liveGeometry.path.match(/ A/g) || []).length >= points.length * 2, "every join has a round disc in the compound fill");
+  // The two right-angle turns end their strips in round discs, as do both ends.
+  assert.equal((liveGeometry.path.match(/ A/g) || []).length, 4 * 2, "a round disc at each end and each sharp turn");
   assert.equal(/NaN|Infinity/.test(liveGeometry.path), false);
 });
 
@@ -806,7 +807,7 @@ test("a long eraser drag keeps one masked stroke without fragment growth", () =>
   assert.equal(session.getDiagnostics().pathPointCount, path.length);
 });
 
-test("opaque pen geometry keeps one stable color while translucent tools stay isolated", () => {
+test("pen geometry keeps one stable color at the opacity the student chose", () => {
   const points = [
     { x: 100, y: 200, p: .2, t: 0, pointer: "pen", pressureAvailable: true },
     { x: 500, y: 200, p: .8, t: 20, pointer: "pen", pressureAvailable: true }
@@ -814,12 +815,16 @@ test("opaque pen geometry keeps one stable color while translucent tools stay is
   const pen = { id: "blue", type: "pen", profile: PEN_PROFILE.BALL, color: "#239ed1", width: 8, opacity: .2, pressureSensitivity: .6, points };
   const first = strokeRenderGeometry(pen);
   assert.equal(first.kind, "outline");
-  assert.equal(first.opacity, 1);
+  // The Opacity slider reaches the ink, applied once to the whole outline.
+  assert.equal(first.opacity, .2);
+  assert.equal(strokeRenderGeometry({ ...pen, opacity: undefined }).opacity, 1);
   assert.equal(first.composite, "source-over");
   for (let repeat = 0; repeat < 10; repeat += 1) assert.deepEqual(strokeRenderGeometry({ ...pen }), first);
 
+  // A highlighter is outlined like a pen so its width is the same in every
+  // direction on a page that is not square.
   const highlighter = strokeRenderGeometry({ ...pen, type: "highlighter", profile: PEN_PROFILE.HIGHLIGHTER, opacity: .34 });
-  assert.equal(highlighter.kind, "centerline");
+  assert.equal(highlighter.kind, "outline");
   assert.equal(highlighter.opacity, .34);
   assert.equal(highlighter.composite, "multiply");
 });

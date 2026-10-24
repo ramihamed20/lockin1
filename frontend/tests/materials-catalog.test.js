@@ -3,6 +3,7 @@ import test from "node:test";
 import { readFile } from "node:fs/promises";
 import { COHORT_CATALOGS, getCatalogMaterial, getCatalogSheet, getCohortMaterials, getCohortQuestionCategories, getLastOpenedCatalogSheet, getRecentOpenedCatalogSheets, rememberLastOpenedCatalogSheet } from "../src/lib/materialCatalog.js";
 import { canAccessRoute } from "../src/lib/authz.js";
+import { readWorkspaceSource } from "./helpers/workspaceSource.js";
 
 const humanMedicine60 = { cohort: { code: "60", program: { code: "human-medicine" } } };
 const dentistryTripoli = { cohort: { code: "year-2", program: { code: "dentistry-tripoli" } } };
@@ -76,7 +77,7 @@ test("Active Study stays closed until a sheet has questions, and Quizzes is not 
   // Every published sheet opens in Normal Study: hasActiveStudy is the opt-in,
   // and no sheet sets it yet.
   assert.ok(COHORT_CATALOGS.every((catalog) => catalog.materials.every((material) => material.sheets.every((sheet) => !sheet.hasActiveStudy))));
-  const workspace = await readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8");
+  const workspace = await readWorkspaceSource();
   assert.match(workspace, /activeAvailable=\{activeStudyReady\}/);
   assert.match(workspace, /getManagedActiveStudyAvailability\(sheet\.learningObjectId, sheetEdition\?\.edition\)/);
   // Only resuming a run the availability check found ready skips the gate.
@@ -118,7 +119,7 @@ test("Catalog sheet prioritizes Focus Workspace and keeps only the page count", 
 test("Catalog sheet exposes a Normal Mode summary, opened in the study reader", async () => {
   const materials = await readFile(new URL("../src/pages/Materials.jsx", import.meta.url), "utf8");
   const app = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
-  const workspace = await readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8");
+  const workspace = await readWorkspaceSource();
   const messages = await readFile(new URL("../src/lib/i18n.js", import.meta.url), "utf8");
   assert.match(materials, /edition\.summaryPdf\?\.viewUrl/);
   assert.match(materials, /materials\.resourcesSection/);
@@ -189,7 +190,7 @@ test("Catalog Focus Workspace uses a compact contextual toolbar and persistent c
   const [app, layout, workspace, styles, continuousPdf, eraserSession] = await Promise.all([
     readFile(new URL("../src/App.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/layout/index.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8"),
+    readWorkspaceSource(),
     readFile(new URL("../src/pages/catalog-focus-workspace.css", import.meta.url), "utf8"),
     readFile(new URL("../src/workspace/catalog/ContinuousA4Pdf.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/workspace/ink/eraserSession.js", import.meta.url), "utf8")
@@ -203,7 +204,8 @@ test("Catalog Focus Workspace uses a compact contextual toolbar and persistent c
   assert.match(workspace, /beginAnnotation/);
   assert.match(workspace, /beginPan/);
   assert.match(workspace, /WorkspaceAnnotation/);
-  assert.match(workspace, /requestFullscreen/);
+  // Full screen was removed from the More menu.
+  assert.doesNotMatch(workspace, /requestFullscreen/);
   assert.match(workspace, /ref=\{readerRef\}/);
   assert.match(workspace, /CONFIGURABLE_TOOLS\.has\(nextTool\)/);
   assert.match(workspace, /current === `tool:\$\{nextTool\}` \? null : `tool:\$\{nextTool\}`/);
@@ -211,7 +213,9 @@ test("Catalog Focus Workspace uses a compact contextual toolbar and persistent c
   assert.match(workspace, /workspace-v2-settings-popover/);
   assert.doesNotMatch(workspace, /workspace-v2-header|workspace-v2-tool-inspector|workspace-v2-mobile-panel/);
   assert.match(workspace, /ContinuousA4Pdf/);
-  assert.match(workspace, /fitWidthZoom\(\s*stage\?\.clientWidth \|\| window\.innerWidth,\s*A4_PAGE_WIDTH,\s*0/);
+  // Fit fills the stage below the desktop bar, and a reading width on a wide desktop window.
+  assert.match(workspace, /const stageWidth = stage\?\.clientWidth \|\| window\.innerWidth;/);
+  assert.match(workspace, /fitWidthZoom\(\s*readingWidth \? Math\.min\(stageWidth, FIT_READING_WIDTH\) : stageWidth,\s*A4_PAGE_WIDTH,\s*0/);
   assert.doesNotMatch(workspace, /fitPageZoom/);
   assert.doesNotMatch(workspace, /Open original PDF in a new tab/);
   assert.match(workspace, /jumpToPage/);
@@ -372,10 +376,11 @@ test("Catalog Focus Workspace uses a compact contextual toolbar and persistent c
   assert.match(styles, /\.workspace-v2-toolbar \{[^}]*min-height: calc\(52px \+ env\(safe-area-inset-top\)\)/);
   assert.match(styles, /\.workspace-v2-tool-options \{[^}]*var\(--workspace-toolbar-height/);
   assert.doesNotMatch(styles, /display: contents/);
-  assert.match(styles, /\.workspace-v2-toolbar-scroll \{[^}]*flex-wrap: nowrap/);
-  assert.match(styles, /\.workspace-v2-toolbar-scroll \{[^}]*scroll-behavior: smooth/);
-  assert.match(styles, /\.workspace-v2-tool-list, \.workspace-v2-colors, \.workspace-v2-history, \.workspace-v2-tool-settings \{[^}]*flex-wrap: nowrap/);
-  assert.match(styles, /\.workspace-v2-toolbar-scroll \{[^}]*overflow-x: auto/);
+  // The rail itself is .workspace-v3-primary (the old .workspace-v2-toolbar-scroll
+  // element is gone, and so are its rules).
+  assert.doesNotMatch(styles, /\.workspace-v2-toolbar-scroll/);
+  assert.match(styles, /\.workspace-v2-tool-list, \.workspace-v2-colors, \.workspace-v2-history \{[^}]*flex-wrap: nowrap/);
+  assert.match(styles, /\.workspace-v3-primary \{[^}]*overflow-x: auto/);
   // The rail publishes how much track is hidden on each side so the fade is
   // correct in Arabic, and it brings a newly chosen tool back into view.
   assert.match(workspace, /rail\.style\.setProperty\("--workspace-fade-left"/);
@@ -413,7 +418,7 @@ test("a sheet opens either edition directly and keeps resources below", async ()
   assert.match(catalogLib, /export function resolveSheetEdition\(material, slug\)/);
   assert.match(materials, /resolveSheetEdition\(material, sheetSlug\)/);
   assert.match(materials, /function SheetEditionChooser\(/);
-  const workspace = await readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8");
+  const workspace = await readWorkspaceSource();
   assert.match(workspace, /resolveSheetEdition\(material, sheetSlug\)/);
   assert.doesNotMatch(workspace, /sheets\.find\(\(item\) => item\.slug === sheetSlug\)/);
   assert.match(materials, /t\(`materials\.edition\.\$\{item\.edition\}`\)/);

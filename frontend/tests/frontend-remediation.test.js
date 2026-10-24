@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { directionForLocale, formatNumber, normalizeLocale, translate } from "../src/lib/i18n.js";
 import { normalizeUserError } from "../src/lib/errors.js";
-import { routeMetadata } from "../src/lib/routeMetadata.js";
+import { pageDocumentTitle, routeMetadata } from "../src/lib/routeMetadata.js";
 
 test("shared localization owns English and Arabic direction, messages, and number formatting", () => {
   assert.equal(normalizeLocale("ar-LY"), "ar");
@@ -24,6 +24,16 @@ test("route metadata is authoritative for shell, document, and accessible page i
   );
   assert.equal(lockIn.h1, "وضع التركيز");
   assert.equal(lockIn.documentTitle, "وضع التركيز — Lock-in");
+});
+
+test("a page passing its English route name gets the tab title in the reader's language", () => {
+  const arabic = (key) => translate("ar", key);
+  // Pages pass the English route name; the Arabic tab used to keep it.
+  assert.equal(pageDocumentTitle("Dashboard", "/dashboard", arabic), "لوحة التحكم — Lock-in");
+  assert.equal(pageDocumentTitle("Notifications", "/notifications", arabic), translate("ar", "route.notifications") + " — Lock-in");
+  // A title of the page's own, such as a sheet name, is kept as given.
+  assert.equal(pageDocumentTitle("Vitamin A · Workspace", "/materials/catalog/b/sheets/v/workspace", arabic), "Vitamin A · Workspace — Lock-in");
+  assert.equal(pageDocumentTitle("", "/settings", (key) => translate("en", key)), "Settings — Lock-in");
 });
 
 test("raw server HTML and technical traces never reach user-facing error copy", () => {

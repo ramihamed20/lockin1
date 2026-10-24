@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
 import { COHORT_CATALOGS } from "../src/lib/materialCatalog.js";
+import { readWorkspaceSource } from "./helpers/workspaceSource.js";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
@@ -14,7 +15,7 @@ const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
  */
 test("every catalogue screen separates 'not loaded yet' from 'nothing here'", async () => {
   const materials = await read("../src/pages/Materials.jsx");
-  const workspace = await read("../src/pages/CatalogFocusWorkspace.jsx");
+  const workspace = await readWorkspaceSource();
 
   // Materials, CatalogMaterialSheets and CatalogSheetStudy live here. The
   // Sheet Summary is now the study reader in summary mode, so it gates in the

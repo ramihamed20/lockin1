@@ -1,3 +1,4 @@
+import { readWorkspaceSource } from "./helpers/workspaceSource.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
@@ -194,7 +195,7 @@ test("Lo-Fi scene videos are silent and the player supplies nature audio", async
 test("both checkpoint surfaces guard exits and discard only the open attempt", async () => {
   const [paper, focus] = await Promise.all([
     readFile(new URL("../src/pages/PaperWorkspace.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8")
+    readWorkspaceSource()
   ]);
   for (const source of [paper, focus]) {
     // Held for the dialog's whole life, so a loading state never drops it.

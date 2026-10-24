@@ -1,3 +1,4 @@
+import { readWorkspaceSource } from "./helpers/workspaceSource.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
@@ -58,7 +59,7 @@ test("sharing reports a cancelled sheet without treating it as a failure", async
 
 test("the exporter never fetches data: URLs, which production's connect-src refuses", async () => {
   const exporter = await readFile(new URL("../src/workspace/catalog/workspaceExport.js", import.meta.url), "utf8");
-  const workspace = await readFile(new URL("../src/pages/CatalogFocusWorkspace.jsx", import.meta.url), "utf8");
+  const workspace = await readWorkspaceSource();
   assert.doesNotMatch(exporter, /fetch\(/);
   assert.doesNotMatch(exporter, /toDataURL/);
   assert.match(exporter, /canvas\.toBlob/);
