@@ -5,10 +5,12 @@ from django.utils import timezone
 
 TRIPOLI = dt_timezone(timedelta(hours=2))
 
-# Human Medicine is not on a paid plan yet; its students study free until the
-# end of 23 October 2026 (Tripoli) while pricing is arranged.
+# Temporary free study access for Tripoli Human Medicine batches 60 and 61.
+# The human-medicine cohorts are attached to the Tripoli college in the
+# education catalog; exclude other programs and cohorts.
 FREE_ACCESS_PROGRAM_CODES = frozenset({"human-medicine"})
-FREE_ACCESS_ENDS_AT = datetime(2026, 10, 23, 23, 59, 59, tzinfo=TRIPOLI)
+FREE_ACCESS_COHORT_CODES = frozenset({"60", "61"})
+FREE_ACCESS_ENDS_AT = datetime(2027, 2, 28, 23, 59, 59, tzinfo=TRIPOLI)
 
 
 def free_access_ends_at(user: object, at: datetime | None = None) -> datetime | None:
@@ -16,7 +18,11 @@ def free_access_ends_at(user: object, at: datetime | None = None) -> datetime | 
 
     cohort = getattr(user, "cohort", None)
     program = getattr(cohort, "program", None)
-    if program is None or program.code not in FREE_ACCESS_PROGRAM_CODES:
+    if (
+        program is None
+        or program.code not in FREE_ACCESS_PROGRAM_CODES
+        or getattr(cohort, "code", None) not in FREE_ACCESS_COHORT_CODES
+    ):
         return None
     if (at or timezone.now()) > FREE_ACCESS_ENDS_AT:
         return None
