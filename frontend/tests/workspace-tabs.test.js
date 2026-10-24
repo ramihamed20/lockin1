@@ -95,8 +95,8 @@ test("the workspace hosts the tab strip, whiteboards, and keeps Active Study per
   assert.match(authz, /\\\/whiteboards\\\/\[\^\/\]\+\\\/workspace\$/);
   assert.match(workspace, /<WorkspaceTabBar /);
   // Each sheet is its own reader, so no study mode or run leaks between tabs.
-  // The copied-marks choice is part of the reader's identity, so switching it remounts the reader.
-  assert.match(workspace, /<CatalogFocusWorkspaceView key={`\$\{materialSlug\}\/\$\{sheetSlug\}\/\$\{documentScope\.view\}\/\$\{marks\.marksSet\?\.id \|\| "own"\}`}/);
+  // A new PDF version or copied-marks choice remounts the reader and its annotations.
+  assert.match(workspace, /<CatalogFocusWorkspaceView key={`\$\{materialSlug\}\/\$\{sheetSlug\}\/\$\{documentScope\.view\}\/\$\{catalogDocument\.document\?\.versionId \|\| "fixture"\}\/\$\{marks\.marksSet\?\.id \|\| "own"\}`}/);
   // Leaving a tab mid Active Study keeps the run's place, like "Save" on exit.
   const hold = workspace.slice(workspace.indexOf("function holdActiveStudyPlace"), workspace.indexOf("function goToWorkspaceTab"));
   assert.match(hold, /writeActiveStudyResume\(activeStudy\.id, pageRef\.current\)/);

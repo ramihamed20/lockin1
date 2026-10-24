@@ -1,7 +1,9 @@
+import { useRef, useState } from "react";
 import { catalogWorkspaceApi } from "../api/catalogWorkspace.js";
 import { useAsyncData } from "./useAsyncData.js";
 import { isOfflinePdfUrl } from "../offline/pdfUrl.js";
 import { resolveSheet, resolveSummary } from "../offline/resolver.js";
+import { loadReaderDocument } from "../offline/readerDocument.js";
 
 const documentCache = new Map();
 
@@ -9,21 +11,20 @@ function documentKey(materialSlug, sheetSlug, view = "", ownerKey = "") {
   return `${ownerKey}|${materialSlug}|${sheetSlug}|${view}`;
 }
 
-function loadCatalogDocument(materialSlug, sheetSlug, view = "", ownerKey = "") {
+function loadCatalogDocument(materialSlug, sheetSlug, view = "", ownerKey = "", onRefresh) {
   const key = documentKey(materialSlug, sheetSlug, view, ownerKey);
-  if (documentCache.has(key)) return documentCache.get(key);
-  // An authoritative 401/403/404 never falls back to a downloaded PDF; only a
-  // network failure under a valid lease does.
-  const online = () => catalogWorkspaceApi.resolve(materialSlug, sheetSlug, { view });
-  const promise = (view === "summary"
+  const online = () => {
+    if (documentCache.has(key)) return documentCache.get(key);
+    const promise = catalogWorkspaceApi.resolve(materialSlug, sheetSlug, { view })
+      .finally(() => { if (documentCache.get(key) === promise) documentCache.delete(key); });
+    documentCache.set(key, promise);
+    return promise;
+  };
+  // Keep the old offline-only fallback for a cold start that is already down.
+  const network = () => (view === "summary"
     ? resolveSummary(ownerKey, materialSlug, sheetSlug, online)
-    : resolveSheet(ownerKey, materialSlug, sheetSlug, online))
-    .catch((error) => {
-      documentCache.delete(key);
-      throw error;
-    });
-  documentCache.set(key, promise);
-  return promise;
+    : resolveSheet(ownerKey, materialSlug, sheetSlug, online));
+  return loadReaderDocument(ownerKey, { materialSlug, sheetSlug, view: view === "summary" ? "summary" : "study" }, network, onRefresh);
 }
 
 export function preloadCatalogDocument(materialSlug, sheetSlug, view = "", ownerKey = "") {
@@ -60,19 +61,29 @@ export function parseCatalogDocument(payload) {
  * @param {string} [view] "summary" opens that document's Sheet Summary instead.
  */
 export function useCatalogDocument(materialSlug, sheetSlug, view = "", ownerKey = "") {
+  const key = documentKey(materialSlug, sheetSlug, view, ownerKey);
+  const generation = useRef(0);
+  const [fresh, setFresh] = useState(null);
   const result = useAsyncData(
-    () => (materialSlug && sheetSlug ? loadCatalogDocument(materialSlug, sheetSlug, view, ownerKey) : Promise.resolve(null)),
+    async (signal) => {
+      const run = ++generation.current;
+      const onRefresh = (value) => {
+        if (!signal?.aborted && generation.current === run) setFresh({ key, run, ...value });
+      };
+      const payload = materialSlug && sheetSlug ? await loadCatalogDocument(materialSlug, sheetSlug, view, ownerKey, onRefresh) : null;
+      return { key, run, payload };
+    },
     [materialSlug, sheetSlug, view, ownerKey]
   );
-  // useAsyncData keeps the previous result while reloading; after a sheet change
-  // that would be the previous sheet's document, and its sync would receive this
-  // sheet's work. Nothing is reported until the current sheet has resolved.
+  const current = result.data?.key === key ? result.data : null;
+  const refreshed = fresh?.key === key && fresh?.run === current?.run ? fresh : null;
+  const payload = refreshed ? refreshed.payload : current?.payload;
   return {
-    document: result.loading ? null : parseCatalogDocument(result.data),
-    loading: result.loading,
-    error: result.error,
+    document: result.loading ? null : parseCatalogDocument(payload),
+    loading: result.loading || (!result.error && !current),
+    error: refreshed?.error?.message || result.error,
     reload: () => {
-      documentCache.delete(documentKey(materialSlug, sheetSlug, view, ownerKey));
+      documentCache.delete(key);
       result.reload();
     }
   };

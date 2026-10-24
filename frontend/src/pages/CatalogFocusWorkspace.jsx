@@ -396,7 +396,7 @@ function CatalogSheetWorkspace({ user = null, variant = "study" }) {
   const selectMarks = (marksId) => { setMarksSwitched(true); marks.select(marksId); };
   // Each document is its own reader: moving between tabs never carries one
   // sheet's study mode, Active Study run or tool state into another.
-  return <CatalogFocusWorkspaceView key={`${materialSlug}/${sheetSlug}/${documentScope.view}/${marks.marksSet?.id || "own"}`} marksSet={marks.marksSet} onSelectMarks={selectMarks} user={user} materials={resolvedMaterials} catalogDocument={catalogDocument.document} documentScope={documentScope} onDocumentChanged={catalogDocument.reload} summaryMode={summaryMode} preferredMode={preferredMode} />;
+  return <CatalogFocusWorkspaceView key={`${materialSlug}/${sheetSlug}/${documentScope.view}/${catalogDocument.document?.versionId || "fixture"}/${marks.marksSet?.id || "own"}`} marksSet={marks.marksSet} onSelectMarks={selectMarks} user={user} materials={resolvedMaterials} catalogDocument={catalogDocument.document} documentScope={documentScope} onDocumentChanged={catalogDocument.reload} summaryMode={summaryMode} preferredMode={preferredMode} />;
 }
 
 function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials = materials, materialSlug: materialSlugProp = "", sheetSlug: sheetSlugProp = "", whiteboard = false, personalBackTo = "", personalSubject = "", catalogDocument = null, documentScope = null, onDocumentChanged = () => {}, summaryMode = false, preferredMode = "", marksSet = null, onSelectMarks = /** @type {(marksId: string) => void} */ (() => {}) }) {

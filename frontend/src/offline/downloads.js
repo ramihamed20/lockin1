@@ -62,7 +62,7 @@ export function dependencyGraph(manifest, item) {
 
 async function isOwnContentStored(userId, item) {
   const metadata = await readDownloadMetadata(userId, item.id);
-  if (metadata?.checksum !== item.checksum || metadata?.version !== item.version) return false;
+  if (metadata?.blocked || metadata?.checksum !== item.checksum || metadata?.version !== item.version) return false;
   if (JSON_TYPES.has(item.type)) return Boolean(await offlineDatabase.get(userId, `content:${item.id}:${item.checksum}`));
   return Boolean(await cachedFile(await caches.open(cacheName(userId)), userId, item));
 }
@@ -191,8 +191,14 @@ async function downloadFile(userId, item, onProgress, assertCurrent) {
   if ((item.size && received !== item.size) || (item.checksum && await sha256(blob) !== item.checksum.toLowerCase())) {
     throw new Error("Download integrity check failed.");
   }
+  return storePdfBlob(userId, item, blob, received, assertCurrent);
+}
+
+async function storePdfBlob(userId, item, blob, received, assertCurrent) {
   return mutateOfflineCache(userId, async () => {
     assertCurrent();
+    const existing = await readDownloadMetadata(userId, item.id);
+    if (existing?.blocked && existing.download_url === item.download_url) return null;
     const cache = await caches.open(cacheName(userId));
     assertCurrent();
     const key = cacheKey(userId, item.id, item.checksum);
@@ -260,30 +266,73 @@ const PDF_SIGNATURE = [0x25, 0x50, 0x44, 0x46, 0x2d]; // "%PDF-"
  * outlive no page, and are checked against what the download stored.
  * @returns {Promise<Uint8Array<ArrayBuffer> | null>}
  */
-export async function readOfflinePdfBytes(userId, itemId) {
-  if (!(await offlineAccessStatus(userId)).available) return null;
+export async function readOfflinePdfBytes(userId, itemId, { onlineAuthorized = false } = {}) {
+  const assertCurrent = captureOfflineSession(userId);
+  if (!onlineAuthorized && !(await offlineAccessStatus(userId)).available) return null;
   const current = (await readOfflineManifest(userId))?.items?.find((item) => item.id === itemId && item.available);
   const stored = await readDownloadMetadata(userId, itemId);
-  if (!current || !stored || current.type !== stored.type || JSON_TYPES.has(stored.type)) return null;
+  if (!current || !stored || stored.blocked || current.type !== stored.type || JSON_TYPES.has(stored.type)) return null;
   const response = await cachedFile(await caches.open(cacheName(userId)), userId, stored);
   if (!response) return null;
   const bytes = new Uint8Array(await response.arrayBuffer());
   if (!bytes.length || (stored.storedSize && bytes.length !== stored.storedSize) || PDF_SIGNATURE.some((value, index) => bytes[index] !== value)) {
     throw new Error("The downloaded copy of this PDF is damaged. Download it again.");
   }
+  if (stored.checksum && await sha256(new Blob([bytes])) !== stored.checksum.toLowerCase()) {
+    throw new Error("The downloaded copy of this PDF is damaged. Download it again.");
+  }
+  assertCurrent();
   return bytes;
 }
 
 /** Whether a version of this downloaded file (current or older) is stored. */
 export async function hasStoredOfflineFile(userId, itemId) {
   const stored = await readDownloadMetadata(userId, itemId);
-  return Boolean(stored && !JSON_TYPES.has(stored.type) && await cachedFile(await caches.open(cacheName(userId)), userId, stored));
+  return Boolean(stored && !stored.blocked && !JSON_TYPES.has(stored.type) && await cachedFile(await caches.open(cacheName(userId)), userId, stored));
 }
 
 /** The downloaded item behind an online file view URL, when one is stored. */
 export async function findDownloadedPdfItem(userId, viewUrl) {
-  const item = (await readOfflineManifest(userId))?.items?.find((entry) => entry.available && entry.download_url === viewUrl && !JSON_TYPES.has(entry.type));
-  return item && await readDownloadMetadata(userId, item.id) ? item : null;
+  const items = (await readOfflineManifest(userId))?.items?.filter((entry) => entry.available && ["sheet", "summary"].includes(entry.type)) || [];
+  const current = items.find((entry) => entry.download_url === viewUrl);
+  if (current) {
+    const stored = await readDownloadMetadata(userId, current.id);
+    return stored?.download_url === viewUrl ? stored : null;
+  }
+  // A refreshed manifest can precede the replacement download. Read the old
+  // file only through its old URL and version, never through the new URL.
+  const stored = await offlineDatabase.getMany(userId, items.map((entry) => `download:${entry.id}`));
+  return stored.find((entry) => entry?.download_url === viewUrl) || null;
+}
+
+/** Save the bytes PDF.js already loaded; opening a sheet never downloads it twice. */
+export async function storeOpenedPdf(userId, viewUrl, data) {
+  const assertCurrent = captureOfflineSession(userId);
+  if (!/^\/api\/v1\/files\/[0-9a-f-]+\/view$/i.test(viewUrl)) return null;
+  let manifest = await readOfflineManifest(userId);
+  const find = () => manifest?.items?.find((entry) => entry.available && ["sheet", "summary"].includes(entry.type) && entry.download_url === viewUrl);
+  let item = find();
+  if (!item) { manifest = await fetchOfflineManifest(userId, assertCurrent); item = find(); }
+  if (!item) return null;
+  if (await isOwnContentStored(userId, item) && await readOfflinePdfBytes(userId, item.id, { onlineAuthorized: true }).catch(() => null)) return null;
+  const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+  const blob = new Blob([bytes], { type: "application/pdf" });
+  if (!/^[a-f0-9]{64}$/i.test(item.checksum || "") || !bytes.length ||
+      (item.size && bytes.length !== item.size) || PDF_SIGNATURE.some((value, index) => bytes[index] !== value) ||
+      await sha256(blob) !== item.checksum.toLowerCase()) throw new Error("Download integrity check failed.");
+  assertCurrent();
+  return storePdfBlob(userId, item, blob, bytes.length, assertCurrent);
+}
+
+/** A known server denial locks the downloaded PDF without deleting student work. */
+export async function setStoredPdfAccess(userId, viewUrl, allowed) {
+  const assertCurrent = captureOfflineSession(userId);
+  const item = await findDownloadedPdfItem(userId, viewUrl);
+  if (!item) return;
+  await mutateOfflineCache(userId, () => offlineDatabase.updateScoped(userId, `download:${item.id}`, (stored) => {
+    if (!stored || stored.download_url !== viewUrl) return stored;
+    return { ...stored, blocked: !allowed };
+  }, assertCurrent));
 }
 
 /** Removes downloaded content only. Progress and unsynced work stay on the device. */
