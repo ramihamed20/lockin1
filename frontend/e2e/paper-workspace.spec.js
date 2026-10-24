@@ -182,7 +182,7 @@ test("a student sets up a paper session and plays a video", async ({ page }) => 
   await expect(page.getByRole("timer")).toHaveText(/^(50:00|49:5\d)$/);
   await expect(page.locator("iframe.paper-player-frame")).toHaveAttribute("src", /\/embed\/FxAgAyZYXJ8\?/);
   const status = page.locator(".paper-status");
-  await expect(status.getByText("Part 1 of 2")).toBeVisible();
+  await expect(status.getByText("Pages 1–5")).toBeVisible();
   await expect(status.getByText("1 – 5")).toBeVisible();
   await page.getByRole("textbox", { name: "Notes" }).fill("Basal lamina = lucida + densa");
   await page.getByRole("button", { name: "Pause" }).first().click();
@@ -208,7 +208,7 @@ test("a paper checkpoint saves answers and advances the session", async ({ page 
   await page.goto("/#/paper-workspace");
   await page.getByRole("button", { name: /Start Session/ }).click();
   const status = page.locator(".paper-status");
-  await expect(status.getByText("Part 1 of 2")).toBeVisible();
+  await expect(status.getByText("Pages 1–5")).toBeVisible();
   await page.getByRole("textbox", { name: "Notes" }).fill("Basal lamina = lucida + densa");
   // Checkpoint opens a modal dialog and answers are checked one by one. The
   // run was already moved on elsewhere, so completing the reading is refused;
@@ -236,7 +236,7 @@ test("a paper checkpoint saves answers and advances the session", async ({ page 
   await expect(dialog).toHaveCount(0);
 
   // The status follows the run: part 1 is done, part 2 is current.
-  await expect(status.getByText("Part 2 of 2")).toBeVisible();
+  await expect(status.getByText("Pages 6–10")).toBeVisible();
   await expect(status.getByText("6 – 10")).toBeVisible();
   await expect(status.locator(".paper-step.is-done")).toHaveCount(1);
   await expect(status.locator(".paper-step.is-current")).toHaveText(/Part 2/);
@@ -393,7 +393,7 @@ test("a checkpoint cannot be closed by accident: Exit & Save resumes, Exit Witho
   await page.setViewportSize({ width: 1280, height: 860 });
   await startSession(page);
   const status = page.locator(".paper-status");
-  await expect(status.getByText("Part 1 of 2")).toBeVisible();
+  await expect(status.getByText("Pages 1–5")).toBeVisible();
 
   // Answer question 1, then try to close: the student is asked first.
   await page.getByRole("button", { name: /Checkpoint/ }).click();
@@ -446,7 +446,7 @@ test("a checkpoint cannot be closed by accident: Exit & Save resumes, Exit Witho
   await expect(page.getByRole("dialog")).toHaveCount(0);
   expect(server.calls.filter((call) => call.endsWith("/discard-attempt"))).toHaveLength(2);
   expect(server.answers()).toEqual({});
-  await expect(status.getByText("Part 1 of 2")).toBeVisible();
+  await expect(status.getByText("Pages 1–5")).toBeVisible();
   await page.getByRole("button", { name: /Checkpoint/ }).click();
   await expect(dialog.locator(".paper-quiz-count")).toHaveText(/1 of 2$/);
   await expect(dialog.getByRole("button", { name: /Gap junction/ })).toBeEnabled();

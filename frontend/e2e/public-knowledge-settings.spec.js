@@ -47,7 +47,7 @@ test("About and Support sections expose the official pages from settings",async(
 test("raw HTML remains public without account requests and withheld instructions never get indexed",async({request})=>{
   const sitemap=await request.get("/sitemap.xml"), xml=await sitemap.text();
   const paths=[...xml.matchAll(/<loc>https:\/\/lockin\.ly([^<]+)<\/loc>/g)].map((m)=>m[1]);
-  expect(paths).toHaveLength(63);
+  expect(paths).toHaveLength(132);
   for(const path of paths){
     const response=await request.get(path,{headers:{"User-Agent":"OAI-SearchBot"}});
     expect(response.status()).toBe(200);

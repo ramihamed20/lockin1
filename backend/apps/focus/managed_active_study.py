@@ -285,6 +285,8 @@ def _runtime_plan(
         }
     if pages_per_checkpoint is None:
         raise ManagedActiveStudyRuleError("Choose a page count for custom Active Study.")
+    if questions_per_checkpoint is None:
+        raise ManagedActiveStudyRuleError("Choose a question count for custom Active Study.")
     try:
         ranges = custom_page_ranges(start, end, pages_per_checkpoint)
     except ValueError as error:

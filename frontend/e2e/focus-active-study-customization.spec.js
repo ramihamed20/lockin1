@@ -37,9 +37,9 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1180, height: 820 
     const calls = await setup(page);
     const dialog = page.getByRole("dialog", { name: "Choose study mode" });
     await dialog.getByRole("button", { name: "Customize", exact: true }).click();
-    await dialog.getByLabel("Pages per test", { exact: true }).fill("3");
-    const count = dialog.getByLabel("Questions (up to 20)", { exact: true });
-    await count.fill("21");
+    await dialog.getByLabel("Pages per test (up to 10)", { exact: true }).fill("3");
+    const count = dialog.getByLabel("Questions (up to 15)", { exact: true });
+    await count.fill("16");
     await expect(dialog.getByRole("button", { name: "Start Active Study", exact: true })).toBeDisabled();
     await count.fill("5");
     await page.screenshot({ path: `/tmp/active-custom-${viewport.width}.png` });
@@ -65,7 +65,7 @@ test("Arabic customization fields remain inside the phone viewport", async ({ pa
   await setup(page, { language: "ar" });
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: "تخصيص", exact: true }).click();
-  await expect(dialog.getByLabel("صفحات لكل اختبار", { exact: true })).toBeVisible();
+  await expect(dialog.getByLabel("صفحات لكل اختبار (حتى 10)", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: "/tmp/active-custom-ar.png" });
 });

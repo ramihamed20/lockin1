@@ -92,7 +92,10 @@ for (const viewport of VIEWPORTS) {
     const storeBox = await store.boundingBox();
     const plansBox = await plans.boundingBox();
     expect(plansBox.y).toBeGreaterThan(storeBox.y);
-    expect(plansBox.y - storeBox.y).toBeLessThan(storeBox.height * 1.8);
+    // Portrait rails intentionally distribute spare height between entries.
+    // Plans must be the very next destination after Store at every width.
+    const destinations = await nav.getByRole("link").evaluateAll(links => links.map(link => link.getAttribute("href")));
+    expect(destinations.indexOf("#/subscription")).toBe(destinations.indexOf("#/store") + 1);
     await plans.click();
 
     // One screen: the plan list and the card field together, no steps between.

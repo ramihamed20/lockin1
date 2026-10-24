@@ -41,7 +41,8 @@ done
 
 fetch_page "/sitemap.xml" Googlebot
 grep -Eiq '^Content-Type: application/xml' "$probe_dir/headers"
-[ "$(grep -o '<loc>' "$probe_dir/body" | wc -l | tr -d ' ')" = "63" ]
+# 66 reviewed pages are published in both Arabic and English.
+[ "$(grep -o '<loc>' "$probe_dir/body" | wc -l | tr -d ' ')" = "132" ]
 if grep -Eq '/api/|/profile|/materials|#' "$probe_dir/body"; then exit 1; fi
 
 fetch_page "/robots.txt" OAI-SearchBot

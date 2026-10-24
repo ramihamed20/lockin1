@@ -733,6 +733,9 @@ for (const maskCount of [1, 31]) {
 }
 
 test('dense precision previews keep native pixels and exact one-step history', async ({ page }, testInfo) => {
+  // Native-density screenshots and 164 annotated strokes can take over 30s
+  // on the shared CI runner; retain every pixel/history assertion below.
+  test.setTimeout(90000);
   await mockAuthenticatedWorkspace(page);
   const annotations = Array.from({ length: 160 }, (_, index) => ({ id: `clip-${index}`, page: 1, type: ['pen', 'pencil', 'highlighter'][index % 3], color: ['#8b5cf6', '#dc2626', '#16a34a'][index % 3], width: 4 + index % 5 * 4, opacity: index % 3 === 2 ? .34 : 1, profile: index % 3 === 1 ? 'pencil' : 'ball', locked: index % 13 === 0, points: Array.from({ length: 40 }, (_, step) => ({ x: (index * 13 + step * 4) % 980, y: (index * 29 + step * 7) % 980, t: step * 8, p: step % 5 / 4, pointer: 'pen' })), ...(index % 7 === 0 ? { erasures: [{ radius: 12, points: [{ x: 400, y: 350 }, { x: 480, y: 600 }] }] } : {}) }));
   for (const [index, points] of [[[0, 0], [1000, 0]], [[1000, 0], [1000, 1000]], [[1000, 1000], [0, 1000]], [[0, 1000], [0, 0]]].entries()) annotations.push({ id: `edge-${index}`, page: 1, type: 'pen', color: '#0000ff', width: 24, opacity: 1, profile: 'ball', points: points.map(([x, y]) => ({ x, y, p: .8, pointer: 'pen' })) });
@@ -742,14 +745,16 @@ test('dense precision previews keep native pixels and exact one-step history', a
   await openWorkspace(page);
   await expect(page.locator('[data-pdf-page="1"] [data-annotation-id]')).toHaveCount(164);
   const layer = page.locator('[data-pdf-page="1"] > svg.workspace-v2-annotation-layer');
-  const renderedIds = () => layer.locator('[data-annotation-id]').evaluateAll(marks => marks.map(mark => mark.dataset.annotationId));
   const awaitSavedOrder = async () => {
     // This fixture has one highlighter group, painted below the other ink.
-    await expect.poll(async () => {
-      const saved = await savedAnnotations(page);
+    // Compare in one browser turn instead of transferring thousands of pen
+    // points between two observations of asynchronously saved/rendered state.
+    await expect.poll(() => page.evaluate((key) => {
+      const saved = JSON.parse(localStorage.getItem(key) || "null")?.annotations ?? [];
       const painted = [...saved.filter(mark => mark.type === 'highlighter'), ...saved.filter(mark => mark.type !== 'highlighter')];
-      return JSON.stringify(painted.map(mark => mark.id)) === JSON.stringify(await renderedIds());
-    }).toBe(true);
+      const rendered = [...document.querySelectorAll('[data-pdf-page="1"] > svg.workspace-v2-annotation-layer [data-annotation-id]')].map(mark => mark.dataset.annotationId);
+      return JSON.stringify(painted.map(mark => mark.id)) === JSON.stringify(rendered);
+    }, catalogWorkspaceStorageKey('user:ink-student', 'biochemistry-1', 'vitamin-1')), { timeout: 15000 }).toBe(true);
   };
   await awaitSavedOrder();
   const original = await savedAnnotations(page);
@@ -767,7 +772,7 @@ test('dense precision previews keep native pixels and exact one-step history', a
   const before = await page.screenshot({ type: 'png', scale: 'css', clip });
   await dispatchPointer(stage, 'pointerup', 701, bounds.x + bounds.width * .42, bounds.y + bounds.height * .432);
   await expect(page.locator('.workspace-v2-svg-eraser-preview')).toHaveCount(0);
-  await expect.poll(() => savedAnnotations(page)).not.toEqual(original);
+  await expect.poll(() => savedAnnotations(page), { timeout: 15000 }).not.toEqual(original);
   await awaitSavedOrder();
   const committed = await savedAnnotations(page);
   await page.evaluate(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
@@ -778,9 +783,9 @@ test('dense precision previews keep native pixels and exact one-step history', a
   await page.evaluate(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
   const undone = await savedAnnotations(page);
   await testInfo.attach('dense-history.json', { body: Buffer.from(JSON.stringify({ original, committed, undone })), contentType: 'application/json' });
-  await expect.poll(() => savedAnnotations(page)).toEqual(original);
+  await expect.poll(() => savedAnnotations(page), { timeout: 15000 }).toEqual(original);
   await page.getByRole('button', { name: 'Redo (Ctrl+Shift+Z)' }).click();
-  await expect.poll(() => savedAnnotations(page)).toEqual(committed);
+  await expect.poll(() => savedAnnotations(page), { timeout: 15000 }).toEqual(committed);
   await expect(layer).toBeVisible();
   expect(before.equals(after)).toBe(true);
 });

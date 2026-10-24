@@ -40,7 +40,7 @@ test("public routes normalize URLs, expose sitemap XML and keep private app resp
   const sitemap = await request.get("/sitemap.xml");
   expect(sitemap.headers()["content-type"]).toContain("application/xml");
   const xml = await sitemap.text();
-  expect([...xml.matchAll(/<loc>/g)]).toHaveLength(63);
+  expect([...xml.matchAll(/<loc>/g)]).toHaveLength(132);
   expect(xml).not.toMatch(/#|\/api\/|\/profile|\/materials/);
   for (const path of ["/", "/settings", "/about/private"]) {
     const response = await request.get(path);
