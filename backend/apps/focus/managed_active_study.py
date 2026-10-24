@@ -289,6 +289,8 @@ def _runtime_plan(
         ranges = custom_page_ranges(start, end, pages_per_checkpoint)
     except ValueError as error:
         raise ManagedActiveStudyRuleError(str(error)) from error
+    if questions_per_checkpoint is None:
+        raise ManagedActiveStudyRuleError(f"Choose between 1 and {MAX_CUSTOM_QUESTIONS} questions.")
     # Each page supplies at most QUESTIONS_PER_PAGE questions, so the shortest
     # group (usually the last) caps how many a test of this size can ask.
     shortest = min(item["end_page"] - item["start_page"] + 1 for item in ranges)

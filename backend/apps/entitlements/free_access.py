@@ -14,10 +14,12 @@ FREE_ACCESS_ENDS_AT = datetime(2026, 10, 23, 23, 59, 59, tzinfo=TRIPOLI)
 def free_access_ends_at(user: object, at: datetime | None = None) -> datetime | None:
     """When the free window of the user's program ends, or None if it does not apply now."""
 
+    # The clock first: this runs on every gated request, and once the window has
+    # closed reading the cohort and its program would be two queries for nothing.
+    if (at or timezone.now()) > FREE_ACCESS_ENDS_AT:
+        return None
     cohort = getattr(user, "cohort", None)
     program = getattr(cohort, "program", None)
     if program is None or program.code not in FREE_ACCESS_PROGRAM_CODES:
-        return None
-    if (at or timezone.now()) > FREE_ACCESS_ENDS_AT:
         return None
     return FREE_ACCESS_ENDS_AT

@@ -162,7 +162,8 @@ class ManagedFileDeliveryView(APIView):
             not_modified["Cache-Control"] = WORKSPACE_MEDIA_CACHE_CONTROL
             return not_modified
         try:
-            stored_object = open_managed_object(managed_file.blob)
+            # Every check above has passed, so a shared local copy may answer.
+            stored_object = open_managed_object(managed_file.blob, cache=True)
         except ManagedObjectUnavailable as error:
             raise NotFound("File not found.") from error
 

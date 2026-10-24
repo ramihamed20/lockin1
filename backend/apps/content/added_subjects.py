@@ -12,6 +12,8 @@ to another cohort keeps their rows, but they stop granting anything.
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from django.db import transaction
 from django.db.models import Q, QuerySet
 from django.utils import timezone
@@ -174,7 +176,7 @@ def request_change(
 
 @transaction.atomic
 def decide_change(
-    *, request_id: object, approve: bool, actor: User, admin_note: str = ""
+    *, request_id: UUID | str, approve: bool, actor: User, admin_note: str = ""
 ) -> AddedSubjectChangeRequest:
     item = (
         AddedSubjectChangeRequest.objects.select_for_update()

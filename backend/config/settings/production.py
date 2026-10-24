@@ -285,6 +285,10 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Private study material belongs in object storage: container-host disks are
 # ephemeral and a host volume cannot follow the application across a migration.
+# 4 GiB of the persistent media volume: room for a few hundred sheets on the
+# 40 GB host, evicted least-recently-read first.
+MANAGED_OBJECT_CACHE_MAX_BYTES = env_int("MANAGED_OBJECT_CACHE_MAX_BYTES", 4 * 1024**3)
+
 if STORAGE_BACKEND == "filesystem" and not env_bool(  # noqa: F405
     "STORAGE_ALLOW_LOCAL_MEDIA", False
 ):

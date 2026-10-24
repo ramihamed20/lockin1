@@ -18,6 +18,8 @@ from typing import Any
 
 from django.db.models.fields.files import FieldFile
 
+from platform_core import object_cache
+
 DEFAULT_CHUNK_SIZE = 64 * 1024
 
 
@@ -141,11 +143,21 @@ class ManagedObject:
             self._handle.close()
 
 
-def open_managed_object(field_file: FieldFile) -> ManagedObject:
-    """Open a stored object, raising :class:`ManagedObjectUnavailable` when it is missing."""
+def open_managed_object(field_file: FieldFile, *, cache: bool = False) -> ManagedObject:
+    """Open a stored object, raising :class:`ManagedObjectUnavailable` when it is missing.
+
+    With ``cache`` (file delivery only), a local verified copy answers without
+    any provider request, and a provider-backed miss starts one; see
+    :mod:`platform_core.object_cache`. Callers decide access before asking.
+    """
 
     if not field_file.name:
         raise ManagedObjectUnavailable("The managed file has no stored object.")
+    if cache:
+        cached = object_cache.open_cached(field_file.name)
+        if cached is not None:
+            cached_handle, cached_size = cached
+            return ManagedObject(cached_handle, None, size=cached_size)
     try:
         size = int(field_file.storage.size(field_file.name))
         handle = field_file.storage.open(field_file.name, "rb")
@@ -153,7 +165,16 @@ def open_managed_object(field_file: FieldFile) -> ManagedObject:
         raise ManagedObjectUnavailable(str(error)) from error
     # django-storages exposes the boto3 object as a documented attribute; its
     # absence simply means a filesystem-backed deployment.
-    return ManagedObject(handle, getattr(handle, "obj", None), size=size)
+    remote = getattr(handle, "obj", None)
+    if cache and remote is not None:
+        row = getattr(field_file, "instance", None)
+        object_cache.schedule_fill(
+            storage=field_file.storage,
+            name=field_file.name,
+            size=size,
+            checksum=str(getattr(row, "checksum_sha256", "") or ""),
+        )
+    return ManagedObject(handle, remote, size=size)
 
 
 class SequentialReader:

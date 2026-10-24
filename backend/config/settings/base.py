@@ -240,6 +240,12 @@ STORAGE_BACKEND = storage_backend_name()
 STORAGES = storages_setting(
     static_backend="django.contrib.staticfiles.storage.StaticFilesStorage",
 )
+# A verified local copy of each delivered private object, shared by every
+# reader, so a sheet opened once is read from disk afterwards rather than from
+# object storage (platform_core/object_cache.py). 0 turns it off; production
+# turns it on.
+MANAGED_OBJECT_CACHE_DIR = env("MANAGED_OBJECT_CACHE_DIR", str(MEDIA_ROOT / "object-cache"))
+MANAGED_OBJECT_CACHE_MAX_BYTES = env_int("MANAGED_OBJECT_CACHE_MAX_BYTES", 0)
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CONTENT_MAX_PDF_BYTES = env_int("CONTENT_MAX_PDF_BYTES", 50 * 1024 * 1024)
