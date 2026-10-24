@@ -234,6 +234,7 @@ import { initialZoomRegion } from "./focus-workspace/zoomWindowModel.js";
 import "./catalog-focus-workspace.css";
 import "./focus-workspace-glass.css";
 import "./focus-tool-panel-compact.css";
+import "./focus-phone.css";
 
 /**
  * The workspace mounts a large annotation and PDF stack, so the sheet is

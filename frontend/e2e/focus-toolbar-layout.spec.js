@@ -233,3 +233,34 @@ test("the Arabic phone toolbar mirrors and keeps the same reach", async ({ page 
   expect(menu.x).toBeGreaterThanOrEqual(-1);
   expect(menu.x + menu.width).toBeLessThanOrEqual(391);
 });
+
+for (const language of ["en", "ar"]) {
+  test(`new tab menu stays inside the pane after resize (${language})`, async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now())));
+    await page.route("**/e2e-fixtures/pdf/**", (route) => route.fulfill({
+      path: new URL("./fixtures/pdf/sheet-41.pdf", import.meta.url).pathname,
+      contentType: "application/pdf"
+    }));
+    await openWorkspace(page, { width: 390, height: 844 }, { language });
+    await toolbar(page).locator('[data-workspace-surface="more"]').click();
+    await page.locator('.workspace-pane.is-active [data-workspace-action="new-whiteboard"]').click();
+    await expect(toolbar(page).locator("[role='tab']")).toHaveCount(2);
+    await toolbar(page).locator(".workspace-tabs-add").click();
+    const menu = page.locator(".workspace-tabs-menu:visible");
+    const fits = () => menu.evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      const pane = node.closest(".workspace-v2").getBoundingClientRect();
+      return rect.left >= pane.left + 7 && rect.right <= pane.right - 7 && rect.bottom <= Math.min(pane.bottom, innerHeight) - 7;
+    });
+    await expect.poll(fits).toBe(true);
+    await page.setViewportSize({ width: 820, height: 1180 });
+    await expect.poll(fits).toBe(true);
+    await page.setViewportSize({ width: 390, height: 190 });
+    await expect.poll(fits).toBe(true);
+    const youtube = menu.getByRole("menuitem").last();
+    await youtube.scrollIntoViewIfNeeded();
+    await expect(youtube).toBeInViewport();
+    await youtube.click();
+    await expect(page.locator(".focus-video")).toBeVisible();
+  });
+}

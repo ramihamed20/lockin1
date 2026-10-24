@@ -1657,7 +1657,7 @@ html.ix-hover .workspace-tab:not(.is-active):hover { color: var(--fx-text-2); ba
   .workspace-tabs-add { width: 30px; height: 30px; flex-basis: 30px; border-radius: 9px; }
 }
 
-.workspace-tabs-menu { position: absolute; z-index: 1000; display: grid; width: min(270px, calc(100% - 16px)); gap: 2px; padding: 6px; border: 1px solid var(--fx-edge); border-radius: 14px; color: var(--fx-text); background: var(--fx-panel); box-shadow: var(--fx-shine), var(--fx-depth); backdrop-filter: blur(30px) saturate(1.8); -webkit-backdrop-filter: blur(30px) saturate(1.8); }
+.workspace-tabs-menu { box-sizing: border-box; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; position: absolute; z-index: 1000; display: grid; width: min(270px, calc(100% - 16px)); gap: 2px; padding: 6px; border: 1px solid var(--fx-edge); border-radius: 14px; color: var(--fx-text); background: var(--fx-panel); box-shadow: var(--fx-shine), var(--fx-depth); backdrop-filter: blur(30px) saturate(1.8); -webkit-backdrop-filter: blur(30px) saturate(1.8); }
 .workspace-tabs-menu button { display: grid; min-height: 52px; grid-template-columns: 22px minmax(0, 1fr); align-items: center; gap: 10px; padding: 7px 10px; border: 0; border-radius: 10px; color: inherit; background: transparent; cursor: pointer; text-align: start; font: inherit; }
 .workspace-tabs-menu button:hover, .workspace-tabs-menu button:focus-visible { background: var(--fx-fill-strong); outline: none; }
 .workspace-tabs-menu span { display: grid; gap: 2px; }

@@ -1,10 +1,21 @@
-import { Check, Circle, Hash, Minus, PaintBucket, Plus, Ruler, Shapes, Sparkles, Star, Trash2 } from "lucide-react";
+import { useState, useId } from "react";
+import { ChevronDown, Check, Circle, Hash, Minus, PaintBucket, Plus, Ruler, Shapes, Sparkles, Star, Trash2 } from "lucide-react";
 import { ERASER_MODE } from "../../workspace/ink/strokeModel.js";
 import { ERASER_MODE_OPTIONS, LASSO_MODE_OPTIONS, MAX_PALETTE_COLORS, SHAPE_FILL_COLORS, SHAPE_OPTIONS, THICKNESS_STEP, TOOL_PANEL_COPY, formatThickness, roundThickness } from "./constants.js";
 import { IconChoiceGroup, PenProfilePicker, SettingsToggle, ToolRange } from "./controls.jsx";
 import { TRANSIENT_INK_KIND } from "../../workspace/ink/transientInk.js";
 import { ToolPreview } from "../../workspace/catalog/ToolPreview.jsx";
 import { cssVars } from "../../lib/utils.js";
+
+/** Keep secondary gestures reachable without filling the phone card. */
+function ToolExtras({ label, children }) {
+  const [expanded, setExpanded] = useState(false);
+  const id = useId();
+  return <div className={`workspace-tool-extras${expanded ? " is-expanded" : ""}`}>
+    <button type="button" className="workspace-tool-extras-toggle" aria-expanded={expanded} aria-controls={id} onClick={() => setExpanded((value) => !value)}>{label}<ChevronDown size={15} /></button>
+    <div id={id} className="workspace-tool-extras-body">{children}</div>
+  </div>;
+}
 
 /**
  * The active tool's options: pen type, thickness, opacity, colours and the tool's switches.
@@ -64,7 +75,7 @@ export function ToolOptionsPanel({ favoritesStrip, activeColor, activePenOption,
           {shapeAngle > 0 && <label className="workspace-v7-select-row">{t("focus.angleSteps")} <select value={shapeAngle} onChange={(event) => setShapeAngle(Number(event.target.value))}><option value="15">15°</option><option value="30">30°</option><option value="45">45°</option><option value="90">90°</option></select></label>}
         </section>}
     
-        {activeTool === "pen" && <section className="workspace-v5-inspector-section workspace-v7-rows workspace-v4-pen-gestures" aria-label={t("focus.penGestures")}><SettingsToggle icon={Shapes} label={t("focus.straightLinesShapes")} description={t("focus.refineLinesAndShapesWhen")} checked={drawAndHold} onChange={setDrawAndHold} /><SettingsToggle icon={Circle} label={t("focus.circleErase")} description={t("focus.circleMarksAndHoldTo")} checked={circleToErase} onChange={setCircleToErase} /></section>}
+        {activeTool === "pen" && <ToolExtras label={t("focus.penGestures")}><section className="workspace-v5-inspector-section workspace-v7-rows workspace-v4-pen-gestures" aria-label={t("focus.penGestures")}><SettingsToggle icon={Shapes} label={t("focus.straightLinesShapes")} description={t("focus.refineLinesAndShapesWhen")} checked={drawAndHold} onChange={setDrawAndHold} /><SettingsToggle icon={Circle} label={t("focus.circleErase")} description={t("focus.circleMarksAndHoldTo")} checked={circleToErase} onChange={setCircleToErase} /></section></ToolExtras>}
       </div>
     </div>}
   </>;

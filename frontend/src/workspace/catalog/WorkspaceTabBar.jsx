@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, FileText, Folder, NotebookPen, Plus, X, Youtube } from "lucide-react";
 import { personalSheetsApi } from "../../api/personalSheets.js";
@@ -163,12 +163,60 @@ export default function WorkspaceTabBar({ tabs, activeId, materials, portalRef, 
     const escape = (event) => { if (event.key === "Escape") { setMenuOpen(false); addRef.current?.focus(); } };
     document.addEventListener("pointerdown", close, true);
     document.addEventListener("keydown", escape);
-    menuRef.current?.querySelector("button")?.focus();
+    menuRef.current?.querySelector("button")?.focus({ preventScroll: true });
     return () => {
       document.removeEventListener("pointerdown", close, true);
       document.removeEventListener("keydown", escape);
     };
   }, [menuOpen]);
+
+  // Fit the measured menu to this workspace pane, including split view.
+  useLayoutEffect(() => {
+    if (!menuOpen || !portalTarget) return undefined;
+    const menu = menuRef.current;
+    const anchor = addRef.current;
+    if (!menu || !anchor) return undefined;
+    const position = () => {
+      const root = portalTarget.getBoundingClientRect();
+      const button = anchor.getBoundingClientRect();
+      const viewport = window.visualViewport;
+      const viewportLeft = viewport?.offsetLeft || 0;
+      const viewportTop = viewport?.offsetTop || 0;
+      const start = Math.max(root.left, viewportLeft) - root.left + 8;
+      const end = Math.min(root.right, viewportLeft + (viewport?.width || window.innerWidth)) - root.left - 8;
+      const bottom = Math.min(root.bottom, viewportTop + (viewport?.height || window.innerHeight)) - root.top - 8;
+      const topEdge = Math.max(root.top, viewportTop) - root.top + 8;
+      const width = Math.max(0, end - start);
+      const menuWidth = Math.min(menu.getBoundingClientRect().width, width);
+      const desiredLeft = document.documentElement.dir === "rtl" ? button.right - root.left - menuWidth : button.left - root.left;
+      const below = button.bottom - root.top + 6;
+      const above = button.top - root.top - 6;
+      const belowSpace = Math.max(0, bottom - below);
+      const aboveSpace = Math.max(0, above - topEdge);
+      const useBelow = menu.scrollHeight <= belowSpace || belowSpace >= aboveSpace;
+      const maxHeight = useBelow ? belowSpace : aboveSpace;
+      const next = {
+        left: Math.max(start, Math.min(desiredLeft, end - menuWidth)),
+        top: useBelow ? below : Math.max(topEdge, above - Math.min(menu.scrollHeight + 2, maxHeight)),
+        maxWidth: width,
+        maxHeight
+      };
+      setMenuPosition((current) => current && Object.keys(next).every((key) => current[key] === next[key]) ? current : next);
+    };
+    position();
+    const observer = new window.ResizeObserver(position);
+    observer.observe(portalTarget);
+    observer.observe(menu);
+    window.addEventListener("resize", position);
+    window.visualViewport?.addEventListener("resize", position);
+    window.visualViewport?.addEventListener("scroll", position);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", position);
+      window.visualViewport?.removeEventListener("resize", position);
+      window.visualViewport?.removeEventListener("scroll", position);
+    };
+  }, [menuOpen, portalTarget]);
 
   // The strip is hidden while it holds a single tab, so the picker may have
   // been opened from the More menu; return focus to whichever is on screen.
@@ -180,13 +228,11 @@ export default function WorkspaceTabBar({ tabs, activeId, materials, portalRef, 
 
   function toggleMenu() {
     if (menuOpen) { setMenuOpen(false); return; }
-    const button = addRef.current?.getBoundingClientRect();
-    const root = portalTarget?.getBoundingClientRect();
-    if (button && root) setMenuPosition({ top: button.bottom - root.top + 6, left: button.left - root.left, right: root.right - button.right });
+    setMenuPosition(null);
     setMenuOpen(true);
   }
 
-  const menu = menuOpen && <div ref={menuRef} className="workspace-tabs-menu" role="menu" aria-label={t("workspaceTabs.newTab")} style={menuPosition ? { top: menuPosition.top, insetInlineStart: document.documentElement.dir === "rtl" ? menuPosition.right : menuPosition.left } : undefined}>
+  const menu = menuOpen && <div ref={menuRef} className="workspace-tabs-menu" role="menu" aria-label={t("workspaceTabs.newTab")} style={menuPosition || { visibility: "hidden" }}>
     <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onNewWhiteboard(); }}><NotebookPen size={18} /><span><strong>{t("workspaceTabs.whiteboard")}</strong><small>{t("workspaceTabs.whiteboardHint")}</small></span></button>
     <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setPickerOpen(true); }}><FileText size={18} /><span><strong>{t("workspaceTabs.openSheet")}</strong><small>{t("workspaceTabs.openSheetHint")}</small></span></button>
     <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); requestFocusVideo(); }}><Youtube size={18} /><span><strong>{t("focusVideo.menu")}</strong><small>{t("focusVideo.menuHint")}</small></span></button>
