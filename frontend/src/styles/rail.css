@@ -251,10 +251,12 @@
   .rail-tooltip { display: none; }
 }
 /* A tablet held upright has far more height than the destinations need, so
-   they spread down the whole rail instead of leaving its lower half empty.
+   they breathe further down the rail instead of leaving its lower half empty.
+   The gap is capped: spread evenly, an iPad put ~100px between neighbours,
+   splitting related destinations (Store, Plans) and lengthening every scan.
    Landscape keeps them stacked at the top. */
 @media (min-width: 640px) and (min-height: 560px) and (orientation: portrait) {
-  .app-shell--rail .sidebar .nav-list { align-content: space-evenly; }
+  .app-shell--rail .sidebar .nav-list { align-content: start; row-gap: clamp(4px, (100dvh - 640px) / 16, 28px); }
 }
 /* Hub sections: Materials, Review and Progress show their sections as one
    segmented control at the top of the page. Links, each its own route. */

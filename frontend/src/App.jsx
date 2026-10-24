@@ -16,7 +16,7 @@ import { appIconOptions } from "./lib/constants.js";
 import { Shell } from "./components/layout/index.jsx";
 import { AuthPage } from "./components/auth/AuthPage.jsx";
 import { FullScreenState, ReminderToast } from "./components/shared/index.jsx";
-import { bootFailureMessage, bootRetryDelayMs, shouldRetryBootAutomatically } from "./lib/sessionBootstrap.js";
+import { OFFLINE_PENDING_LOGOUT_KEY, bootFailureMessage, bootRetryDelayMs, shouldRetryBootAutomatically, takeEarlySessionCheck } from "./lib/sessionBootstrap.js";
 import { ErrorBoundary } from "./components/ErrorBoundary.jsx";
 import { ConfirmDialog } from "./components/shared/ConfirmDialog.jsx";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute.jsx";
@@ -89,7 +89,6 @@ const Subscription = lazyWithRecovery(() => import("./pages/Subscription.jsx"));
 const WelcomeOnboarding = lazyWithRecovery(() => import("./pages/WelcomeOnboarding.jsx"));
 const Moderation = lazyWithRecovery(() => import("./pages/Moderation.jsx"));
 const SESSION_USER_SNAPSHOT_KEY = "lock-in.session-user";
-const OFFLINE_PENDING_LOGOUT_KEY = "lock-in.offline-pending-logout";
 // How long a cold start waits for the session check before a device with a
 // valid signed offline lease opens its downloaded work instead. A radio can
 // report a connection while requests hang until their 30 second timeout.
@@ -498,7 +497,8 @@ function App() {
             }
           }
         }
-        return { user: await authApi.me(), offline: false };
+        // main.jsx may already have asked; that answer serves the first boot.
+        return { user: await (takeEarlySessionCheck() ?? authApi.me()), offline: false };
       })();
       if (pendingLogout) return onlineStart;
       // Online first, but not at the cost of a device that cannot reach the

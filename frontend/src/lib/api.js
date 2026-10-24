@@ -8,6 +8,28 @@ import {
 import { accountsApi } from "../api/accounts.js";
 import { normalizeOperationsSession } from "../api/contracts.js";
 
+/** @type {Record<string, Promise<any>>} */
+const earlySignInData = {};
+
+/** Hands out an answer fetched at start-up once; later calls ask again. */
+function takeEarly(name, load) {
+  const early = earlySignInData[name];
+  delete earlySignInData[name];
+  return early || load();
+}
+
+/**
+ * A device with no session will show the sign-in screen, which needs the study
+ * paths and the sign-in providers. Ask for both alongside the session check
+ * (main.jsx) instead of after the screen has mounted.
+ */
+export function prefetchSignInData() {
+  earlySignInData.cohorts = accountsApi.listCohorts();
+  earlySignInData.providers = accountsApi.oauthProviders();
+  // The screen reads the outcome; an unread rejection is not an error here.
+  Object.values(earlySignInData).forEach((early) => early.catch(() => undefined));
+}
+
 export const authApi = {
   me: () => accountsApi.currentSession(),
 
@@ -28,8 +50,8 @@ export const authApi = {
   login: (payload) => accountsApi.login(payload),
 
   register: (payload) => accountsApi.register(payload),
-  listCohorts: () => accountsApi.listCohorts(),
-  oauthProviders: () => accountsApi.oauthProviders(),
+  listCohorts: () => takeEarly("cohorts", () => accountsApi.listCohorts()),
+  oauthProviders: () => takeEarly("providers", () => accountsApi.oauthProviders()),
   startOAuth: (provider, payload) => accountsApi.startOAuth(provider, payload),
   updateProfile: (payload) => accountsApi.updateProfile(payload),
   completeWelcome: (preferences) => accountsApi.completeWelcome(preferences),
