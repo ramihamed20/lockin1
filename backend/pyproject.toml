@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11,<3.15"
 dependencies = [
   "Django==5.2.17",
-  "djangorestframework==3.17.2",
+  "djangorestframework==3.18.2",
   "drf-spectacular==0.30.0",
   "cryptography==50.0.0",
   "boto3==1.43.86",
@@ -18,7 +18,7 @@ dependencies = [
   "gunicorn==26.0.0; platform_system != 'Windows'",
   "psycopg[binary]==3.3.4",
   "PyJWT[crypto]==2.15.1",
-  "pypdf==6.19.0",
+  "pypdf==6.21.2",
   "weasyprint==70.0",
   "sqlparse==0.6.0",
   "urllib3==2.8.0",

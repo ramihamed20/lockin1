@@ -10,6 +10,7 @@ const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 
 async function mockWorkspace(page, { language = "en" } = {}) {
   await withoutServiceWorker(page);
+  await page.addInitScript(() => localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now())));
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     if (pathname === "/api/v1/auth/session") {
@@ -236,7 +237,6 @@ test("the Arabic phone toolbar mirrors and keeps the same reach", async ({ page 
 
 for (const language of ["en", "ar"]) {
   test(`new tab menu stays inside the pane after resize (${language})`, async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now())));
     await page.route("**/e2e-fixtures/pdf/**", (route) => route.fulfill({
       path: new URL("./fixtures/pdf/sheet-41.pdf", import.meta.url).pathname,
       contentType: "application/pdf"
