@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
+from threading import Barrier
 from typing import Any
 from unittest.mock import patch
 from uuid import uuid4
@@ -789,3 +790,75 @@ def test_concurrent_duplicate_answers_create_one_persisted_answer() -> None:
         ).count()
         == 1
     )
+
+
+def test_batch_grading_uses_bounded_answer_queries() -> None:
+    """A checkpoint should not SELECT/INSERT each answer separately."""
+    user, sheet, _ = _setup()
+    run, payload = _open_checkpoint(user, sheet)
+    with CaptureQueriesContext(connection) as captured:
+        _, result = submit(
+            user=user, run_id=run.id, attempt_id=payload["attempt_id"], answers=_batch(payload, 15)
+        )
+    table = ActiveStudyAnswer._meta.db_table
+    reads = [q for q in captured if q["sql"].startswith("SELECT") and f'"{table}"' in q["sql"]]
+    writes = [q for q in captured if q["sql"].startswith("INSERT") and f'"{table}"' in q["sql"]]
+    print(
+        f"GRADING_QUERIES total={len(captured)} "
+        f"answer_reads={len(reads)} answer_inserts={len(writes)}"
+    )
+    assert result["score"] == 15
+    assert len(reads) <= 4
+    assert len(writes) == 1
+
+
+@pytest.mark.postgres
+@pytest.mark.django_db(transaction=True)
+def test_concurrent_batch_submissions_keep_one_set_of_answers_and_mistakes() -> None:
+    user, sheet, _ = _setup()
+    run, payload = _open_checkpoint(user, sheet)
+    barrier = Barrier(2)
+
+    def send() -> dict[str, Any]:
+        close_old_connections()
+        try:
+            barrier.wait(timeout=10)
+            _, result = submit(
+                user=user,
+                run_id=run.id,
+                attempt_id=payload["attempt_id"],
+                answers=_batch(payload, 12),
+            )
+            return result
+        finally:
+            close_old_connections()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        outcomes = list(pool.map(lambda _: send(), range(2)))
+    assert [item["score"] for item in outcomes] == [12, 12]
+    assert sum(bool(item.get("already_submitted")) for item in outcomes) == 1
+    assert ActiveStudyAnswer.objects.filter(attempt_id=payload["attempt_id"]).count() == 15
+    assert ReviewItem.objects.filter(user=user).count() == 3
+    counts = list(ReviewItem.objects.filter(user=user).values_list("mistake_count", flat=True))
+    assert counts == [1] * 3
+
+
+def test_batch_final_exam_preserves_pass_reward_review_and_idempotency() -> None:
+    user, sheet, _ = _setup()
+    run, _ = start(user=user, sheet_id=sheet.id, difficulty="medium")
+    for _ in range(4):
+        complete_part_reading(user=user, run_id=run.id)
+        payload = questions(user=user, run_id=run.id)
+        run, _ = submit(
+            user=user, run_id=run.id, attempt_id=payload["attempt_id"], answers=_batch(payload, 15)
+        )
+    final = questions(user=user, run_id=run.id)
+    batch = _batch(final, 35)
+    run, result = submit(user=user, run_id=run.id, attempt_id=final["attempt_id"], answers=batch)
+    assert result["passed"] and result["score"] == 35 and result["xp_awarded"] > 0
+    assert ActiveStudyAnswer.objects.filter(attempt_id=final["attempt_id"]).count() == 50
+    assert ReviewItem.objects.filter(user=user, canonical_key__contains=":final:").count() == 15
+    assert XpTransaction.objects.filter(user=user).count() == 1
+    _, again = submit(user=user, run_id=run.id, attempt_id=final["attempt_id"], answers=batch)
+    assert again["already_submitted"] and again["review"] == result["review"]
+    assert XpTransaction.objects.filter(user=user).count() == 1

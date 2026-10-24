@@ -11,8 +11,9 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
-from django.db import close_old_connections
+from django.db import close_old_connections, connection
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -438,3 +439,19 @@ def test_concurrent_submissions_record_one_answer_and_one_award() -> None:
     assert awards.count() == (1 if answer.is_correct else 0)
     balance = XpBalance.objects.filter(user=student).first()
     assert (balance.total_points if balance else 0) == expected
+
+
+def test_wrong_answer_reuses_the_sheet_already_loaded_for_authorization() -> None:
+    fixture = _fixture()
+    client = _client(fixture["zawiya_student"])
+    sheet = fixture["zawiya_sheet"]
+    payload = client.get(f"/api/v1/catalog/sheets/{sheet.id}/questions").json()
+    question = payload["results"][0]
+    with CaptureQueriesContext(connection) as captured:
+        response = _answer(client, sheet, question, "Spinous")
+    assert response.status_code == 201
+    assert response.json()["answer"]["is_correct"] is False
+    table = LearningObject._meta.db_table
+    reads = [q for q in captured if q["sql"].startswith("SELECT") and f'FROM "{table}"' in q["sql"]]
+    print(f"NORMAL_GRADING_QUERIES total={len(captured)} sheet_reads={len(reads)}")
+    assert len(reads) <= 1

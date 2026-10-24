@@ -866,6 +866,56 @@ def _record_answer(
     }
 
 
+def _record_submitted_answers(
+    *,
+    run: ActiveStudyRun,
+    attempt: ActiveStudyAttempt,
+    source: list[dict[str, Any]],
+    answers: Sequence[Mapping[str, Any]],
+) -> None:
+    """The caller holds the run/attempt locks and owns the atomic submission.
+
+    Read existing positions once and insert the new rows together. Validation,
+    immutable prior answers and Review events match the single-answer path.
+    """
+    if not answers:
+        return
+    held = {item.question_position: item for item in attempt.answers.all()}
+    created: list[ActiveStudyAnswer] = []
+    for item in answers:
+        position, selected = int(item["position"]), str(item["selected_answer"])
+        if position < 1 or position > len(source):
+            raise ManagedActiveStudyRuleError("Question position is invalid.")
+        question = source[position - 1]
+        if selected not in _display_options(question):
+            raise ManagedActiveStudyRuleError("Choose an answer for this question.")
+        existing = held.get(position)
+        if existing is not None:
+            if existing.selected_answer != selected:
+                raise ManagedActiveStudyRuleError("This answer was already submitted.")
+            continue
+        checked = ActiveStudyAnswer(
+            attempt=attempt,
+            question_position=position,
+            selected_answer=selected,
+            was_correct=selected == _correct_answer(question),
+        )
+        held[position] = checked
+        created.append(checked)
+    ActiveStudyAnswer.objects.bulk_create(created)
+    for checked in created:
+        record_question_attempt(
+            event=_question_event(
+                run=run,
+                attempt=attempt,
+                question=source[checked.question_position - 1],
+                position=checked.question_position,
+                selected=checked.selected_answer,
+                correct=checked.was_correct,
+            )
+        )
+
+
 @transaction.atomic
 def answer(
     *, user: User, run_id: UUID, attempt_id: UUID, position: int, selected_answer: str
@@ -1000,14 +1050,7 @@ def submit(
     ):
         raise ManagedActiveStudyRuleError("This attempt cannot be submitted now.")
     source = _questions_for(run, kind=attempt.kind, part=attempt.part_number)
-    for item in answers:
-        _record_answer(
-            run=run,
-            attempt=attempt,
-            source=source,
-            position=int(item["position"]),
-            selected_answer=str(item["selected_answer"]),
-        )
+    _record_submitted_answers(run=run, attempt=attempt, source=source, answers=answers)
     if attempt.answers.count() != attempt.total:
         raise ManagedActiveStudyRuleError("Answer every question before submitting.")
     score = attempt.answers.filter(was_correct=True).count()

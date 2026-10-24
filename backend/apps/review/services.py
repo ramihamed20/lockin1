@@ -151,14 +151,15 @@ def _record_mistake_locked(*, event: QuestionAttemptEvent) -> tuple[ReviewItem, 
     return item, mistake, True
 
 
-@transaction.atomic
 def record_question_attempt(*, event: QuestionAttemptEvent) -> AttemptRecord:
     _validate_attempt(event)
     if event.is_correct:
         return AttemptRecord(review_item=None, mistake_event=None, created=False)
-    User.objects.select_for_update().only("id").get(id=event.user.id)
-    item, mistake, created = _record_mistake_locked(event=event)
-    return AttemptRecord(review_item=item, mistake_event=mistake, created=created)
+    # Correct answers have no Review writes; avoid a savepoint for every one.
+    with transaction.atomic():
+        User.objects.select_for_update().only("id").get(id=event.user.id)
+        item, mistake, created = _record_mistake_locked(event=event)
+        return AttemptRecord(review_item=item, mistake_event=mistake, created=created)
 
 
 def _validate_selected_options(item: ReviewItem, selected_option_ids: tuple[str, ...]) -> None:
