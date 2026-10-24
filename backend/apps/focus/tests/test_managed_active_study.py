@@ -815,6 +815,7 @@ def test_batch_grading_uses_bounded_answer_queries() -> None:
 @pytest.mark.postgres
 @pytest.mark.django_db(transaction=True)
 def test_concurrent_batch_submissions_keep_one_set_of_answers_and_mistakes() -> None:
+    Group.objects.get_or_create(name=Role.ADMINISTRATOR.value)
     user, sheet, _ = _setup()
     run, payload = _open_checkpoint(user, sheet)
     barrier = Barrier(2)

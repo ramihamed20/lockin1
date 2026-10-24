@@ -18,6 +18,8 @@ import { UserAvatar } from "../components/shared/UserAvatar.jsx";
 import { Page, ErrorPanel, RadioGroup, RadioOption, Switch } from "../components/ui/index.jsx";
 import { ResponsiveThemePreview } from "../components/shared/ResponsiveThemePreview.jsx";
 import OfflineSettings from "../offline/OfflineSettings.jsx";
+import { showLocalNotification } from "../pwa/localNotification.js";
+import DevicePushSettings from "../pwa/DevicePushSettings.jsx";
 import AppUpdateSettings from "../pwa/AppUpdateSettings.jsx";
 import FeedbackSettings from "./Feedback.jsx";
 import AddedSubjectsSettings, { canAddSubjects } from "../components/learning/AddedSubjectsSettings.jsx";
@@ -179,7 +181,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
         return;
       }
     }
-    new Notification(t("settings.reminderNotificationTitle"), {
+    await showLocalNotification(t("settings.reminderNotificationTitle"), {
       body: t("settings.reminderNotificationBody")
     });
   }
@@ -346,6 +348,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
               </div>
               <p className="ui-group-footer">{t("settings.reminderHint")}</p>
             </div>
+            <DevicePushSettings userId={user?.id} />
             {isAdministrator && <NotificationPreferences />}
           </section>}
 

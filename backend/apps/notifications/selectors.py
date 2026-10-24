@@ -3,6 +3,7 @@ from django.db.models import QuerySet
 from apps.accounts.models import User
 
 from .models import Notification, NotificationCounter, NotificationPreference
+from .push import configured
 
 
 def notifications_for_user(*, user: User, unread_only: bool = False) -> QuerySet[Notification]:
@@ -28,7 +29,8 @@ def preferences_for_user(*, user: User) -> list[dict[str, object]]:
             "channel": channel,
             "enabled": saved.get((category, channel), True),
             "required": category in (Notification.Category.ACCOUNT, Notification.Category.BILLING),
-            "available": channel == NotificationPreference.Channel.IN_APP,
+            "available": channel == NotificationPreference.Channel.IN_APP
+            or (channel == NotificationPreference.Channel.PUSH and configured()),
         }
         for category in Notification.Category.values
         for channel in NotificationPreference.Channel.values
