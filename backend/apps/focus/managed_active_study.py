@@ -35,6 +35,8 @@ from apps.content.page_question_bank import (
     MAX_CUSTOM_QUESTIONS,
     QUESTIONS_PER_PAGE,
     custom_page_ranges,
+    max_available_custom_questions,
+    page_question_counts,
     select_page_questions,
 )
 from apps.content.policies import can_view_learning_object
@@ -291,15 +293,6 @@ def _runtime_plan(
         ranges = custom_page_ranges(start, end, pages_per_checkpoint)
     except ValueError as error:
         raise ManagedActiveStudyRuleError(str(error)) from error
-    if questions_per_checkpoint is None:
-        raise ManagedActiveStudyRuleError(f"Choose between 1 and {MAX_CUSTOM_QUESTIONS} questions.")
-    # Each page supplies at most QUESTIONS_PER_PAGE questions, so the shortest
-    # group (usually the last) caps how many a test of this size can ask.
-    shortest = min(item["end_page"] - item["start_page"] + 1 for item in ranges)
-    if questions_per_checkpoint > shortest * QUESTIONS_PER_PAGE:
-        raise ManagedActiveStudyRuleError(
-            f"Choose at most {shortest * QUESTIONS_PER_PAGE} questions for this page count."
-        )
     return {
         **plan,
         "page_ranges": ranges,
@@ -315,6 +308,14 @@ def availability(*, user: User, sheet_id: UUID, edition: str = UNIVERSITY) -> di
     sheet = _sheet_for_user(user=user, sheet_id=sheet_id)
     readiness = readiness_payload(sheet=sheet, edition=edition)
     rows: list[dict[str, Any]] = []
+    # Counts only: no answers or full question banks in the availability response.
+    page_counts_by_difficulty: dict[str, list[int]] = {}
+    if sheet.active_study_page_bank_enabled:
+        for difficulty, payload in ActiveStudyQuestionContent.objects.filter(
+            sheet=sheet
+        ).values_list("difficulty", "payload"):
+            if isinstance(payload, dict) and isinstance(payload.get("pages"), list):
+                page_counts_by_difficulty[difficulty] = page_question_counts(payload)
     for item in cast(list[dict[str, Any]], readiness["difficulties"]):
         status = cast(dict[str, str], item["readiness"])["status"]
         active = (
@@ -373,6 +374,9 @@ def availability(*, user: User, sheet_id: UUID, edition: str = UNIVERSITY) -> di
                 "max_questions": MAX_CUSTOM_QUESTIONS,
                 "max_pages": MAX_CUSTOM_PAGES,
                 "questions_per_page": QUESTIONS_PER_PAGE,
+                "page_question_counts": (
+                    page_counts_by_difficulty.get(item["difficulty"]) if custom_supported else None
+                ),
                 "eligible_study_pages": readiness["eligible_study_pages"],
                 "completed": completed,
             }
@@ -473,6 +477,20 @@ def start(
     existing = _active_run(
         user=user, sheet=sheet, difficulty=difficulty, edition=edition, study_mode=study_mode
     )
+    if study_mode == "custom" and (existing is None or replace_existing):
+        # Use the least-stocked real checkpoint when creating a new run.
+        # Previously started runs can still resume their saved settings.
+        source_ranges = content.plan_signature["page_ranges"]
+        max_questions = max_available_custom_questions(
+            content.payload,
+            source_ranges[0]["start_page"],
+            source_ranges[-1]["end_page"],
+            cast(int, pages_per_checkpoint),
+        )
+        if cast(int, questions_per_checkpoint) > max_questions:
+            raise ManagedActiveStudyRuleError(
+                f"Choose at most {max_questions} available questions for this page count."
+            )
     if existing is not None and replace_existing and study_mode in {"custom", "pomodoro"}:
         abandon(user=user, run_id=existing.id)
         existing = None

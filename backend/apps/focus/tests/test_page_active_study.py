@@ -233,13 +233,87 @@ def test_page_json_rejects_omitted_excluded_duplicate_pages_and_incomplete_banks
     for change in (
         lambda p: p["pages"].pop(),
         lambda p: p["pages"][0].update(page=1),
-        lambda p: p["pages"][0]["questions"].pop(),
+        lambda p: p["pages"][0]["questions"].clear(),
+        lambda p: p["pages"][0]["questions"].append(_question("sixteenth")),
         lambda p: p["pages"].append(p["pages"][0]),
     ):
         invalid = deepcopy(content.payload)
         change(invalid)
         with pytest.raises(ActiveStudyQuestionValidationError):
             validate(invalid)
+
+
+def test_sparse_page_banks_are_ready_and_use_available_questions_online_and_offline():
+    user, sheet, content = page_world()
+    for page in content.payload["pages"]:
+        page["questions"] = page["questions"][: (3 if page["page"] == 2 else 7)]
+    content.checkpoint_question_count = 143
+    content.save()
+    plan = active_study_plan_preview(sheet=sheet)["difficulties"][1]
+    checked = validate_active_study_questions(
+        content.payload,
+        difficulty=difficulty_for_key("medium"),
+        number_of_parts=plan["number_of_parts"],
+        page_ranges=plan["page_ranges"],
+        question_format="pages",
+    )
+    assert checked.checkpoint_question_count == 143
+    ready = next(
+        row
+        for row in availability(user=user, sheet_id=sheet.id)["difficulties"]
+        if row["difficulty"] == "medium"
+    )
+    assert ready["status"] == "ready"
+    assert ready["page_question_counts"] == [3] + [7] * 20
+    with pytest.raises(ManagedActiveStudyRuleError, match="at most 3 available"):
+        custom_start(user, sheet, pages=1, count=15)
+    custom, _ = custom_start(user, sheet, pages=1, count=3)
+    complete_part_reading(user=user, run_id=custom.id)
+    assert len(questions(user=user, run_id=custom.id)["questions"]) == 3
+    standard, _ = start(user=user, sheet_id=sheet.id, difficulty="medium")
+    complete_part_reading(user=user, run_id=standard.id)
+    assert 1 <= len(questions(user=user, run_id=standard.id)["questions"]) <= 15
+    bundle = offline_bundle(user=user, sheet_id=sheet.id)
+    assert len(bundle["difficulties"]["medium"]["pages"][0]["questions"]) == 3
+
+
+def test_existing_sparse_custom_run_can_resume_but_replacement_checks_actual_inventory():
+    user, sheet, content = page_world()
+    for page in content.payload["pages"]:
+        page["questions"] = page["questions"][:3]
+    content.checkpoint_question_count = 63
+    content.save(update_fields=("payload", "checkpoint_question_count"))
+    run, _ = custom_start(user, sheet, pages=1, count=3)
+    signature = dict(run.plan_signature)
+    signature["questions_per_checkpoint"] = 15  # Valid before the inventory-based cap.
+    run.plan_signature = signature
+    run.save(update_fields=("plan_signature",))
+    resumed, created = custom_start(user, sheet, pages=1, count=15)
+    assert not created and resumed.id == run.id
+    with pytest.raises(ManagedActiveStudyRuleError, match="at most 3 available"):
+        custom_start(user, sheet, pages=1, count=15, replace_existing=True)
+    run.refresh_from_db()
+    assert run.status == "active", "invalid replacement must not abandon the old run"
+
+
+def test_custom_limit_uses_lowest_real_group_even_when_total_inventory_is_large():
+    user, sheet, content = page_world()
+    # Twenty-one pages grouped by two ends with a single-page checkpoint.
+    for page in content.payload["pages"]:
+        page["questions"] = page["questions"][: (2 if page["page"] == 22 else 9)]
+    content.checkpoint_question_count = 182
+    content.save(update_fields=("payload", "checkpoint_question_count"))
+    ready = next(
+        row
+        for row in availability(user=user, sheet_id=sheet.id)["difficulties"]
+        if row["difficulty"] == "medium"
+    )
+    assert ready["page_question_counts"] == [9] * 20 + [2]
+    with pytest.raises(ManagedActiveStudyRuleError, match="at most 2 available"):
+        custom_start(user, sheet, pages=2, count=3)
+    run, _ = custom_start(user, sheet, pages=2, count=2)
+    complete_part_reading(user=user, run_id=run.id)
+    assert len(questions(user=user, run_id=run.id)["questions"]) == 2
 
 
 def test_a_bank_of_twenty_per_page_written_before_the_fifteen_rule_stays_ready():

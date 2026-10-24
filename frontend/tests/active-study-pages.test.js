@@ -22,9 +22,11 @@ test("selection stays within the pages and uses stable identities after regroupi
   assert.throws(() => selectPageQuestions(bank, 1, 1, 5));
 });
 
-test("a page needs fifteen questions; older banks of twenty use only the first fifteen", () => {
+test("a page permits fewer than fifteen; older banks of twenty use only the first fifteen", () => {
   const legacy = { pages: [{ page: 2, questions: Array.from({ length: 20 }, (_, q) => ({ question: `old-${q}` })) }] };
   assert.equal(selectPageQuestions(legacy, 2, 2, 15).length, 15);
+  const sparse = { pages: [{ page: 2, questions: [{ question: "first" }, { question: "second" }] }] };
+  assert.deepEqual(selectPageQuestions(sparse, 2, 2, 15).map((q) => q.source_key), ["page:2:question:1", "page:2:question:2"]);
   assert.throws(() => selectPageQuestions(legacy, 2, 2, 16), /not enough/);
   assert.equal(maxCustomQuestions(21, 1), 15);
   assert.equal(maxCustomQuestions(20, 2), 30);
@@ -35,12 +37,21 @@ test("a page needs fifteen questions; older banks of twenty use only the first f
   assert.throws(() => customPageRanges(2, 22, 11));
 });
 
-test("new-sheet prompts use physical PDF pages and fifteen questions per page", () => {
+test("custom maximum reflects the least-stocked group and the short final group", () => {
+  assert.equal(maxCustomQuestions(2, 2, [5, 7]), 12, "two pages with 12 real questions");
+  assert.equal(maxCustomQuestions(5, 2, [8, 8, 8, 8, 4]), 4, "odd last group is the limit");
+  assert.equal(maxCustomQuestions(4, 2, [8, 8, 8, 4]), 12, "even grouping uses its least-stocked pair");
+  assert.equal(maxCustomQuestions(3, 3, [20, 20, 20]), 30, "invalid inventory falls back to theoretical limit");
+  assert.equal(maxCustomQuestions(2, 2, [20, 20]), 30, "legacy bank counts are capped before exposure");
+  assert.equal(maxCustomQuestions(3, 2), 15, "old availability without counts remains usable");
+});
+
+test("new-sheet prompts use physical PDF pages and up to fifteen questions per page", () => {
   const prompt = buildActiveStudyJsonPrompt({ questionFormat: "pages", difficulty: "medium", numberOfParts: 2, pageRanges: ranges, questionsPerPart: 15, finalExamQuestions: 50 });
   const skeleton = JSON.parse(prompt.slice(prompt.indexOf('{\n  "pages"'), prompt.indexOf('\nVerify every')));
   assert.deepEqual(skeleton.pages.map((p) => p.page), [2, 3, 4, 5, 6, 7, 8]);
   assert.ok(!("parts" in skeleton));
-  assert.match(prompt, /exactly 15 distinct questions for EACH eligible page/);
+  assert.match(prompt, /up to 15 distinct questions for EACH eligible page/);
   assert.match(prompt, /up to 30 questions per checkpoint/);
 });
 
@@ -52,4 +63,6 @@ test("All Questions calculates and prompts for the same page bank totals", () =>
   const skeleton = JSON.parse(prompt.slice(prompt.indexOf('{\n  "active_study"')));
   assert.equal(skeleton.active_study.medium.pages.length, 7);
   assert.ok(!("parts" in skeleton.active_study.medium));
+  assert.match(prompt, /up to 15 distinct questions for EACH eligible page/);
+  assert.match(prompt, /Maximum total questions: 475/);
 });

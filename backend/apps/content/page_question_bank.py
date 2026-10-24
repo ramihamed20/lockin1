@@ -21,14 +21,47 @@ def custom_page_ranges(start: int, end: int, size: int) -> list[dict[str, int]]:
     ]
 
 
+def page_question_counts(payload: dict[str, Any]) -> list[int]:
+    """Count usable questions per physical page in ascending page order."""
+    result: list[int] = []
+    for page in sorted(payload["pages"], key=lambda item: item["page"]):
+        result.append(min(QUESTIONS_PER_PAGE, len(page["questions"])))
+    return result
+
+
+def max_available_custom_questions(
+    payload: dict[str, Any], start: int, end: int, pages_per_checkpoint: int
+) -> int:
+    """Minimum available questions across all checkpoint groups."""
+    counts: dict[int, int] = {}
+    for page in payload["pages"]:
+        counts[page["page"]] = min(QUESTIONS_PER_PAGE, len(page["questions"]))
+
+    maximum = MAX_CUSTOM_QUESTIONS
+    for group in custom_page_ranges(start, end, pages_per_checkpoint):
+        available = 0
+        for page in range(group["start_page"], group["end_page"] + 1):
+            available += counts.get(page, 0)
+        maximum = min(maximum, available)
+    return maximum
+
+
 def select_page_questions(
     payload: dict[str, Any], start: int, end: int, count: int
 ) -> list[dict[str, Any]]:
-    """Stable round-robin selection; source identity survives regrouping and resume."""
+    """Select up to the requested count, without inventing missing page questions."""
     pages = [item for item in payload["pages"] if start <= item["page"] <= end]
     usable = sum(min(QUESTIONS_PER_PAGE, len(item["questions"])) for item in pages)
-    if not pages or usable < count:
+    if (
+        not pages
+        or isinstance(count, bool)
+        or not isinstance(count, int)
+        or count < 1
+        or count > len(pages) * QUESTIONS_PER_PAGE
+        or usable < 1
+    ):
         raise ValueError("There are not enough questions for these pages.")
+    count = min(count, usable)
     # When fewer questions than pages were requested, spread them over the range.
     if count < len(pages):
         pages = [pages[index * len(pages) // count] for index in range(count)]

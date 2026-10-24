@@ -173,7 +173,6 @@ export function PageThumbnails({ pdf, total, accessibleCount, currentPage, onJum
         tabbable={pageNumber === focusPage}
         bitmap={locked ? null : cacheRef.current.get(pageNumber)}
         version={version}
-        columns={columns}
         label={locked ? labels.locked(pageNumber) : labels.page(pageNumber)}
         onActivate={() => { if (!locked) onJump(pageNumber); }}
         onFocus={() => setFocusPage(pageNumber)}

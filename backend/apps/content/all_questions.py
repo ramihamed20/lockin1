@@ -52,7 +52,7 @@ from .admin_services import (
 )
 from .editions import LOCKIN, UNIVERSITY, edition_label, normalize_edition
 from .models import ActiveStudyQuestionContent, LearningObject
-from .page_question_bank import QUESTIONS_PER_PAGE
+from .page_question_bank import LEGACY_QUESTIONS_PER_PAGE, QUESTIONS_PER_PAGE
 from .services import ContentConflictError, ContentRuleError
 
 # A fully broken paste of several hundred questions can produce thousands of
@@ -539,6 +539,17 @@ def _summary(
             if page_bank
             else cast(list[dict[str, int]], row["page_ranges"])
         )
+        legacy_page_bank = (
+            page_bank
+            and isinstance(raw_parts, list)
+            and len(raw_parts) == len(planned_rows)
+            and all(
+                isinstance(item, dict)
+                and isinstance(item.get("questions"), list)
+                and len(item["questions"]) == LEGACY_QUESTIONS_PER_PAGE
+                for item in raw_parts
+            )
+        )
         for planned in planned_rows:
             index = _raw_part_index(raw_parts, planned["part"])
             raw_part = cast(list[Any], raw_parts)[index] if index is not None else None
@@ -550,7 +561,14 @@ def _summary(
                     "end_page": planned["end_page"],
                     "expected": per_part,
                     "received": received,
-                    "ok": received == per_part
+                    "ok": (
+                        (
+                            1 <= received <= per_part
+                            or (legacy_page_bank and received == LEGACY_QUESTIONS_PER_PAGE)
+                        )
+                        if page_bank
+                        else received == per_part
+                    )
                     and index is not None
                     and not _has_error(
                         errors, f"{prefix}.{'pages' if page_bank else 'parts'}[{index}]"
@@ -764,7 +782,7 @@ def save_all_questions(
         metadata={
             "edition": edition,
             "boundaries_updated": boundaries_updated,
-            "total_questions": summary["total_expected"],
+            "total_questions": summary["total_received"],
             "sheet_question_count": sheet_question_count,
             "sheet_question_batch_id": batch_id,
             "replaced_sheet_question_count": replaced_sheet_questions,
