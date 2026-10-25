@@ -1,10 +1,18 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useI18n } from "../components/I18nProvider.jsx";
-import { QUICK_MINUTES, QUICK_TITLES, hasSubject, mergeSubjects } from "./model.js";
+import { QUICK_MINUTES, QUICK_TITLES, hasSubject, mergeSubjects, rebaseTaskDraft } from "./model.js";
 
 export default function TaskEditor({ item, day, subjects = [], onSave, onCancel, onDelete, busy }) {
   const { t } = useI18n();
   const [draft, setDraft] = useState(() => ({ title: item?.title || "", subject: item?.subject || "", scheduledDate: item?.scheduled_date || day, durationMinutes: item?.duration_minutes || 25 }));
+  const previous = useRef(item);
+  useEffect(() => {
+    if (item && previous.current && item.revision !== previous.current.revision) {
+      const original = previous.current;
+      setDraft(current => rebaseTaskDraft(current, original, item));
+    }
+    previous.current = item;
+  }, [item]);
   const change = (key, value) => setDraft(current => ({ ...current, [key]: value }));
   const subjectChoices = mergeSubjects(subjects);
   return <section className="plan-editor" aria-labelledby="plan-editor-title">

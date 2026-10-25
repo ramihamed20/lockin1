@@ -284,13 +284,13 @@
     {
       "id": "study-plan",
       "name": "خطة الدراسة",
-      "status": "coming_soon",
+      "status": "conditional",
       "entry": "/#/study-plan",
-      "requirements": "قريبًا. خطة الدراسة غير متاحة حاليًا وتظهر في التطبيق كميزة قادمة.",
+      "requirements": "خطة أسبوعية محفوظة على الحساب وتتطلب اتصالًا وصلاحية المحتوى المدفوع. تدعم Beginning وNormal وCustom؛ إكمال الجلسات يدوي ولا يمنح XP.",
       "evidence": [
         "frontend/src/lib/featureAvailability.js"
       ],
-      "lastVerified": "2026-10-18",
+      "lastVerified": "2026-10-25",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": false
     },
@@ -1816,7 +1816,7 @@
     }
   ],
   "evidenceDigests": {
-    "frontend/src/App.jsx": "a8756110755d04bb815186c16ad41a9cb8566984e964b19ac6f1269e0a356770",
+    "frontend/src/App.jsx": "202a5263c92679f01281a945329414e4a956eb2060ade2de7357fe83604cf494",
     "frontend/src/lib/materialCatalog.js": "6f9c50e7402275182d8f9d0ab0faf34b6e1bb2e70bd95a44332e9a786b27b539",
     "frontend/tests/materials-catalog.test.js": "fdcaf2c2e40b77cf07400c75e80aa90999ddeb0b6f895d7718424b7da49b7430",
     "frontend/src/lib/i18n.js": "357a3bd8d83a8610f5ad8b0c42f280212f791619222b94eba40382151d76299c",

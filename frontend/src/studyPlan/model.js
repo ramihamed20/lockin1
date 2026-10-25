@@ -89,3 +89,13 @@ export function profileRequest(draft) {
   return { ...rest, daily_minutes: Number(draft.daily_minutes), session_minutes: Number(draft.session_minutes),
     subjects: mergeSubjects(subjectList, parseSubjects(draft.subjects || "")) };
 }
+
+/** Refresh untouched fields from the server while preserving the student's edits. */
+export function rebaseTaskDraft(draft, previous, latest) {
+  const fields = { title: "title", subject: "subject", scheduledDate: "scheduled_date", durationMinutes: "duration_minutes" };
+  const next = { ...draft };
+  for (const [local, remote] of Object.entries(fields)) {
+    if (String(draft[local]) === String(previous[remote])) next[local] = latest[remote];
+  }
+  return next;
+}

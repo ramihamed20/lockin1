@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { translate } from "../src/lib/i18n.js";
-import { DEFAULT_STUDY_DAYS, addDays, dayState, materialFor, toggleSubject, weekDays, weekOf, weekProgress, profileDraft, profileRequest } from "../src/studyPlan/model.js";
+import { rebaseTaskDraft, DEFAULT_STUDY_DAYS, addDays, dayState, materialFor, toggleSubject, weekDays, weekOf, weekProgress, profileDraft, profileRequest } from "../src/studyPlan/model.js";
 import { studyPlanMessages } from "../src/lib/studyPlanMessages.js";
 
 test("planner calendar crosses months and years without shifting week boundaries", () => {
@@ -62,4 +62,14 @@ test("every new planner message is translated and interpolation works in both la
     const label = translate(locale, "plan.beginnerProgress", { days: 3, minutes: 15 });
     assert.doesNotMatch(label, /\{days\}|\{minutes\}/);
   }
+});
+
+
+test("refreshing a task preserves dirty fields and adopts other server edits", () => {
+  const previous = { title: "Read", subject: "Anatomy", scheduled_date: "2026-10-16", duration_minutes: 25 };
+  const draft = { title: "My title", subject: "Anatomy", scheduledDate: "2026-10-16", durationMinutes: "25" };
+  assert.deepEqual(rebaseTaskDraft(draft, previous, { ...previous, title: "Other title", duration_minutes: 40 }), {
+    ...draft, durationMinutes: 40
+  });
+  assert.equal(draft.durationMinutes, "25");
 });

@@ -59,3 +59,17 @@ This change does not publish, merge or deploy production. Production approval de
 ## Integration verification — 17 October 2026
 
 Integrated after `55cea80` (page-based Active Study and Pomodoro). Planner implementation files match original local commit `4cea99b`; shared translations and public help retain both feature sets. Targeted frontend checks: 75 passed. Backend planner, page-based Active Study, Pomodoro and offline regressions: 76 passed, 3 PostgreSQL-only tests skipped in explicit SQLite mode. Both TypeScript projects, production build, targeted frontend/backend lint, Django check, migration drift and the unchanged public-content verifier pass. PostgreSQL concurrency remains a CI requirement; this integration check did not repeat browser or physical-device tests.
+
+## Readiness review — 25 October 2026 (0.1.4)
+
+Study Plan is reopened through the ordinary availability registry. The E2E-only query bypass and its stale App comments are removed; planner browser tests now use the same route as users.
+
+- Moving an overdue task to today while browsing another week returns to the current week and shows the moved task.
+- Refresh after a 409 conflict updates the editor's revision, preserves locally changed fields and refreshes untouched fields. Deleted tasks close their obsolete editor. Stale generation previews are discarded so a fresh preview is reviewed before adding sessions.
+- The real browser/Django smoke test exposed `Asia/Calcutta` being rejected when the system timezone installation omitted compatibility aliases. The backend now declares `tzdata==2026.5`, the standard ZoneInfo fallback, instead of depending entirely on host timezone files. A regression empties the system TZPATH and uses uncached ZoneInfo to exercise both profile validation and local-date calculation. See https://docs.python.org/3/library/zoneinfo.html#data-sources. The backend dependency image must be rebuilt by CI; no host build/deployment was performed.
+- Added timezone-boundary and expired-entitlement tests. Expired access denies reads/writes and retains existing work.
+- [Arabic user guide](STUDY_PLAN_GUIDE_AR.md) documents the three modes, progression, settings, manual completion and current limits. No automated plan reminders, timer/Active Study completion integration, AI scheduling or XP grants are claimed.
+
+Validation: 793 frontend unit tests; 16 production-bundle planner/navigation browser cases, including 320/390/820/1194/1440/short-landscape Arabic and English layouts; 32 selected backend cases passed across the reviewed suite and targeted follow-ups, with one PostgreSQL concurrency case reserved for CI. ESLint, both TypeScript projects, backend Ruff/format/mypy, Django check, migration drift, public evidence verification, production build and bundle budgets pass. The new timezone dependency audit reports no known vulnerabilities.
+
+A separate no-API-mock phone workflow against an isolated Django SQLite server passed real cookie login + CSRF, Normal preview/generation, completion/reload, switching to Custom without losing completion, manual creation, persistence in a fresh browser context and second-account isolation. This is local browser evidence, not physical-device or PostgreSQL locking certification. New full CI must pass before merge/release; these changes do not merge or deploy production.

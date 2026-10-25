@@ -1,4 +1,3 @@
-/* global __E2E_CATALOG_MATERIALS__ */
 import { PolicyNotice } from "./components/PolicyNotice.jsx";
 import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
@@ -127,9 +126,6 @@ function mergeRemoteThemeSettings(remoteSettings, currentSettings) {
 
 function App() {
   const location = useLocation();
-  // Keep planner tests on the real authenticated/subscription-protected route.
-  // Ordinary builds compile this fixture-only opt-in to false.
-  const fixturePlanner = typeof __E2E_CATALOG_MATERIALS__ !== "undefined" && __E2E_CATALOG_MATERIALS__ !== null && location.search === "?fixture=study-plan";
   const navigate = useNavigate();
   const { setLocale, t } = useI18n();
   const [themeSettings, setThemeSettings] = useState(readLocalThemeSettings);
@@ -766,7 +762,7 @@ function App() {
                 <Route path="/" element={<Dashboard user={user} themeSettings={themeSettings} activeTheme={activeTheme} />} />
                 <Route path="/dashboard" element={<Dashboard user={user} themeSettings={themeSettings} activeTheme={activeTheme} />} />
                 <Route path="/my-group" element={<MyGroup />} />
-                {isFeatureComingSoon("study-plan") && !fixturePlanner
+                {isFeatureComingSoon("study-plan")
                   ? <Route path="/study-plan/*" element={<FeatureComingSoon featureId="study-plan" />} />
                   : <Route path="/study-plan" element={<StudyPlan user={user} />} />}
                 <Route path="/materials" element={<Materials user={user} />} />

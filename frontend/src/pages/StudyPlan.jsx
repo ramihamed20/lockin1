@@ -45,6 +45,7 @@ export default function StudyPlan({ user }) {
         setDay(next.today);
         setStart(weekOf(next.today));
       }
+      return next;
     } catch (nextError) { if (current === sequence.current) setError(nextError); }
     finally { if (current === sequence.current) setLoading(false); }
   }, [start]);
@@ -59,6 +60,16 @@ export default function StudyPlan({ user }) {
     catch (nextError) { fail(nextError); }
     finally { setBusy(""); }
   }
+  async function refreshPlan() {
+    const fresh = await load(true);
+    if (!fresh) return;
+    setPreview(null); setDeleting(null); setMessage("");
+    setEditor(current => {
+      if (!current?.item) return current;
+      const latest = [...fresh.results, ...fresh.overdue].find(item => item.id === current.item.id);
+      return latest ? { ...current, item: latest } : null;
+    });
+  }
   function changeWeek(next) { setStart(next); setDay(next === weekOf(plan.today) ? plan.today : next); setPreview(null); }
   const profile = plan?.profile;
   const today = plan?.today || dateStamp();
@@ -71,7 +82,10 @@ export default function StudyPlan({ user }) {
   const subjectChoices = mergeSubjects(profile?.subjects || [], materials.map(material => material.title));
   const moveToToday = item => action(`move-${item.id}`, async () => {
     await studyPlanApi.updateItem(item.id, { scheduled_date: today, expected_revision: item.revision });
-    await load(true); setDay(today); setMessage("plan.moved");
+    setDay(today);
+    if (start !== weekOf(today)) setStart(weekOf(today));
+    else await load(true);
+    setMessage("plan.moved");
   });
   async function previewWeek() {
     await action("preview", async () => { const result = await studyPlanApi.previewWeek(start); setPreview({ ...result, start }); });
@@ -90,7 +104,7 @@ export default function StudyPlan({ user }) {
     <div className="study-plan-v2">
       <header className="plan-heading"><div><h1>{t("nav.studyPlan")}</h1><p>{t("plan.subtitle")}</p></div>{profile?.configured && <button className="btn btn-soft" type="button" disabled={Boolean(busy)} onClick={() => { setSettings(!settings); setInitialMode(""); }}>{t("plan.settings")}</button>}</header>
       {loading && !plan ? <LoadingPanel variant="list" /> : !plan && error ? <ErrorPanel message={error} onRetry={() => load()} /> : plan && <>
-        {message && <div className={`plan-notice ${["plan.stale", "plan.invalid", "plan.saveFailed"].includes(message) ? "plan-error" : ""}`} role="status"><span>{t(message)}</span>{message === "plan.stale" && <button className="btn btn-soft" type="button" onClick={() => load(true)}>{t("plan.refresh")}</button>}</div>}
+        {message && <div className={`plan-notice ${["plan.stale", "plan.invalid", "plan.saveFailed"].includes(message) ? "plan-error" : ""}`} role="status"><span>{t(message)}</span>{message === "plan.stale" && <button className="btn btn-soft" type="button" disabled={Boolean(busy)} onClick={() => { void action("refresh", refreshPlan); }}>{t("plan.refresh")}</button>}</div>}
         {error && <ErrorPanel message={t("plan.offline")} onRetry={() => load(true)} />}
         {(settings || !profile.configured) && <PlanSettings key={`${profile.configured}-${initialMode}`} profile={profile} materials={materials} initialMode={initialMode} busy={Boolean(busy)} onCancel={() => setSettings(false)} onSave={draft => action("profile", async () => {
           await studyPlanApi.saveProfile(draft, profile.revision); await load(true); setSettings(false); setPreview(null); setMessage("plan.saved");
