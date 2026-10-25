@@ -154,6 +154,8 @@ for (const [width, height, locale] of [[320,740,"ar"],[390,844,"en"],[820,1180,"
     await expect(page.locator(".plan-modes")).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await expect(page.locator("html")).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
+    await expect(page.locator(".plan-week")).toHaveCount(0);
+    await page.getByRole("button", { name: locale === "ar" ? "حفظ الخطة" : "Save plan", exact: true }).click();
     const strip = page.locator(".plan-day-strip");
     const selected = strip.locator('[aria-pressed="true"]');
     await expect.poll(async () => {
@@ -228,3 +230,37 @@ for (const locale of ["ar", "en"]) {
     }
   });
 }
+
+
+test("settings focus on configuration and return without changing study tasks", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await planner(page, { configured: true, items: [
+    { id: "done", title: "Completed task", scheduled_date: TODAY, duration_minutes: 25, status: "completed", revision: 1 },
+    { id: "pending", title: "Pending task", scheduled_date: TODAY, duration_minutes: 25, status: "planned", revision: 1 }
+  ] });
+  await page.goto("/#/study-plan");
+  await expect(page.locator(".plan-task-list li").first()).toContainText("Pending task");
+  const week = await page.locator(".plan-week").boundingBox();
+  const stats = await page.locator(".plan-stats").boundingBox();
+  expect(week.y).toBeLessThan(stats.y);
+  await page.getByRole("button", { name: "Plan settings", exact: true }).click();
+  await expect(page.locator(".plan-week")).toHaveCount(0);
+  await expect(page.locator(".plan-stats")).toHaveCount(0);
+  await page.getByRole("radio", { name: "Custom", exact: true }).check();
+  await page.getByRole("button", { name: "Back to plan", exact: true }).click();
+  await expect(page.locator(".plan-task-list li")).toHaveCount(2);
+  await expect(page.locator(".plan-task-list li").last()).toContainText("Completed task");
+  const strip = page.locator(".plan-day-strip");
+  await expect.poll(async () => {
+    const [container, selected] = await Promise.all([strip.boundingBox(), strip.locator('[aria-pressed="true"]').boundingBox()]);
+    return selected.x >= container.x - 1 && selected.x + selected.width <= container.x + container.width + 1;
+  }).toBe(true);
+});
+
+test("the selected day's add action keeps the chosen date", async ({ page }) => {
+  await planner(page, { configured: true });
+  await page.goto("/#/study-plan");
+  await page.locator(".plan-day-strip button").first().click();
+  await page.getByRole("button", { name: "Add a session for the selected day", exact: true }).click();
+  await expect(page.getByLabel("Date", { exact: true })).toHaveValue("2026-10-12");
+});

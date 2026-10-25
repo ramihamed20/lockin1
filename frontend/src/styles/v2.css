@@ -2001,5 +2001,50 @@ html.ix-hover .question-player-card .choices button:not(:disabled):hover { borde
  .plan-hero { padding: 18px; }
  .plan-field-grid { grid-template-columns: 1fr; }
 }
+/* A shorter first action and a focused settings surface. */
+.plan-hero { padding: 26px; gap: 20px; border-inline-start: 0; background: color-mix(in srgb, var(--accent) 4%, var(--surface)); }
+.plan-hero .plan-eyebrow { margin-block-start: 16px; }
+.plan-hero h2 { font-size: clamp(1.6rem,3vw,2.1rem); }
+.plan-hero .plan-actions .plan-start-link { display: flex; align-items: center; justify-content: space-between; padding-inline: 20px; }
+:dir(rtl) .plan-start-link > svg { transform: scaleX(-1); }
+.plan-day-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.plan-day-heading h3 { margin: 0; font-size: var(--text-sm); font-weight: 550; color: var(--muted); }
+.plan-day-add { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-block-size: 44px; padding: 8px 12px; border: 0; border-radius: 12px; color: var(--accent-text); background: var(--accent-soft); cursor: pointer; font: inherit; font-size: var(--text-sm); }
+.plan-modes label { position: relative; grid-template-columns: 1fr; padding: 18px; }
+.plan-modes label input { position: absolute; inset-inline-end: 14px; inset-block-start: 16px; }
+.plan-modes label > span { gap: 12px; padding-inline-end: 12px; }
+.plan-modes label > span > svg { color: var(--muted); }
+.plan-modes .is-selected > span > svg { color: var(--accent-text); }
+.plan-mode-description { font-size: var(--text-sm); }
+.plan-settings form { gap: 18px; }
+.plan-settings form > .plan-actions { padding-block-start: 12px; border-block-start: 1px solid var(--separator); }
+@media(max-width:899px) {
+ .plan-stats { order: 1; }
+ .study-plan-v2 > .plan-note { order: 2; }
+}
+@media(max-width:600px) {
+ .study-plan-v2 { gap: 14px; }
+ .plan-heading { padding-block: 4px; }
+ .plan-hero { padding: 20px; gap: 16px; }
+ .plan-hero-top .plan-book-mark { inline-size: 36px; block-size: 36px; border-radius: 11px; }
+ .plan-hero .plan-eyebrow { margin-block-start: 12px; }
+ .plan-hero h2 { font-size: 1.55rem; margin-block: 6px 10px; }
+ .plan-session-meta { font-size: 12px; }
+ .plan-hero .plan-actions .btn-soft { font-size: 12px; }
+ .plan-week { gap: 12px; }
+ .plan-day-strip { padding-block-end: 14px; }
+ .plan-day-strip button { min-block-size: 62px; }
+ .plan-modes { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px; }
+ .plan-modes label { padding: 14px 10px; }
+ .plan-modes label input { inline-size: 14px; block-size: 14px; inset-inline-end: 9px; inset-block-start: 14px; }
+ .plan-modes label > span { padding: 0; gap: 12px; }
+ .plan-modes strong { font-size: 13px; }
+ .plan-mode-description { font-size: 12px; }
+ .plan-settings form > .plan-actions { position: sticky; inset-block-end: calc(72px + env(safe-area-inset-bottom,0px)); background: var(--surface); padding: 12px 0; z-index: 1; }
+ .plan-settings form > .plan-actions .btn-primary { flex: 1; }
+ .plan-stats .plan-progress-ring { inline-size: 52px; block-size: 52px; flex-basis: 52px; }
+ .plan-stats { gap: 14px 6px; }
+ .plan-stats .plan-progress { padding-block-end: 14px; }
+}
 @media(prefers-reduced-motion:reduce) { .study-plan-v2 * { scroll-behavior: auto; transition: none; animation: none; } }
 }
