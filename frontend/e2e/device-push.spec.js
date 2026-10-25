@@ -51,8 +51,7 @@ async function visibleNotices(worker) {
   return worker.evaluate(() => globalThis.__pushNotices.map((notice) => notice.title));
 }
 
-test("device opt-in receives a push through the real worker and disable blocks stale pushes", async ({ page, context, baseURL }) => {
-  test.setTimeout(120_000);
+async function enrollDevice(page, context) {
   await context.grantPermissions(["notifications"]);
   const changes = await server(page);
   const cdp = await context.newCDPSession(page);
@@ -77,14 +76,29 @@ test("device opt-in receives a push through the real worker and disable blocks s
   expect(changes).toEqual(["POST"]);
   await panel.getByRole("button", { name: "Send a test notification" }).click();
   await expect(panel.getByRole("status")).toContainText("requested");
+  return { changes, cdp, registrations: () => registrations, worker, panel };
+}
+
+test("device opt-in receives a push while outside Lock-in and disable blocks stale pushes", async ({ page, context, baseURL }) => {
+  test.setTimeout(120_000);
+  const { changes, cdp, registrations, worker, panel } = await enrollDevice(page, context);
   const origin = new URL(baseURL).origin;
-  await expect.poll(() => registrations.some((item) => item.scopeURL === origin + "/" && !item.isDeleted)).toBe(true);
-  const registrationId = registrations.findLast((item) => item.scopeURL === origin + "/" && !item.isDeleted).registrationId;
+  await expect.poll(() => registrations().some((item) => item.scopeURL === origin + "/" && !item.isDeleted)).toBe(true);
+  const registrationId = registrations().findLast((item) => item.scopeURL === origin + "/" && !item.isDeleted).registrationId;
   const data = JSON.stringify({ id: NOTICE, binding: BINDING, title: "New Lock-in sheet", body: "Ready", expires_at: new Date(Date.now() + 60_000).toISOString() });
-  // The site has no open document when the browser delivers the event.
-  await page.goto("about:blank");
+  // A real cross-origin document is active, with no Lock-in window left open.
+  await context.route("https://outside.example.test/**", (route) => route.fulfill({
+    contentType: "text/html", body: "<title>Outside Lock-in</title><h1>Another website</h1>"
+  }));
+  await page.goto("https://outside.example.test/");
+  await expect(page.getByRole("heading", { name: "Another website" })).toBeVisible();
+  expect(await worker.evaluate(() => clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => windows.length))).toBe(0);
   await cdp.send("ServiceWorker.deliverPushMessage", { origin, registrationId, data });
   await expect.poll(() => visibleNotices(worker)).toEqual(["New Lock-in sheet"]);
+  await expect(page).toHaveURL("https://outside.example.test/");
+  expect(await worker.evaluate(() => globalThis.__pushNotices[0].options)).toMatchObject({
+    body: "Ready", tag: `lock-in:${NOTICE}`, icon: "/icons/lockin-gold-192-v2.png", data: { binding: BINDING, id: NOTICE }
+  });
   await page.goto("/#/settings?section=notifications");
   await expect(panel.getByText("Enabled on this device", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => window.__pushAsks)).toBe(0);
@@ -110,4 +124,51 @@ test("iPhone browser view explains installation and never asks for permission", 
   await expect(panel).toContainText("Home Screen");
   await expect(panel.getByRole("button", { name: "Enable notifications" })).toBeDisabled();
   expect(await page.evaluate(() => window.__pushAsks)).toBe(0);
+});
+
+
+test("a closed Lock-in tab still receives push and its click requests the inbox", async ({ page, context, baseURL }) => {
+  test.setTimeout(120_000);
+  const { registrations, worker } = await enrollDevice(page, context);
+  const origin = new URL(baseURL).origin;
+  await expect.poll(() => registrations().some((item) => item.scopeURL === origin + "/" && !item.isDeleted)).toBe(true);
+  const registrationId = registrations().findLast((item) => item.scopeURL === origin + "/" && !item.isDeleted).registrationId;
+  await context.route("https://outside.example.test/**", (route) => route.fulfill({
+    contentType: "text/html", body: "<title>Outside Lock-in</title><h1>Another website</h1>"
+  }));
+  const outside = await context.newPage();
+  await outside.goto("https://outside.example.test/");
+  const cdp = await context.newCDPSession(outside);
+  await cdp.send("ServiceWorker.enable");
+  await page.close();
+  expect(context.pages()).toEqual([outside]);
+  expect(await worker.evaluate(() => clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => windows.length))).toBe(0);
+  await cdp.send("ServiceWorker.deliverPushMessage", { origin, registrationId, data: JSON.stringify({
+    id: NOTICE, binding: BINDING, title: "إشعار من Lock-in", body: "وصلك الإشعار وأنت خارج الموقع",
+    url: "https://untrusted.example.test/", expires_at: new Date(Date.now() + 60_000).toISOString()
+  }) });
+  await expect.poll(() => visibleNotices(worker)).toEqual(["إشعار من Lock-in"]);
+  // Headless Chromium has no clickable OS notification surface. Invoke the
+  // real click listener but capture openWindow's requested URL, without
+  // pretending this is a physical notification click or an OS display test.
+  const click = await worker.evaluate(async () => {
+    const opened = [];
+    let closed = false;
+    let pending;
+    const original = clients.openWindow;
+    clients.openWindow = async (url) => { opened.push(url); return null; };
+    try {
+      const notice = globalThis.__pushNotices[0];
+      const event = new Event("notificationclick");
+      Object.defineProperties(event, {
+        notification: { value: { data: notice.options.data, close: () => { closed = true; } } },
+        waitUntil: { value: (promise) => { pending = promise; } }
+      });
+      self.dispatchEvent(event);
+      await pending;
+      return { opened, closed };
+    } finally { clients.openWindow = original; }
+  });
+  expect(click).toEqual({ opened: [origin + "/#/notifications"], closed: true });
+  await expect(outside).toHaveURL("https://outside.example.test/");
 });
