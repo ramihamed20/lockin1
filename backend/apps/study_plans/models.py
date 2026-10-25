@@ -1,8 +1,11 @@
 import uuid
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import Q
+from django.db.models import F, Q
+
+from .exam_models import ExamPeriod, ExamSchedule, ExamSyllabusScope  # noqa: F401
 
 
 def default_weekdays() -> list[int]:
@@ -47,6 +50,12 @@ class StudyPlanProfile(models.Model):
 
 
 class StudyPlanItem(models.Model):
+    class Activity(models.TextChoices):
+        MANUAL = "manual", "Manual session"
+        READING = "reading", "Reading"
+        ACTIVE_STUDY = "active_study", "Active Study"
+        REVIEW = "review", "Review"
+
     class Status(models.TextChoices):
         PLANNED = "planned", "Planned"
         COMPLETED = "completed", "Completed"
@@ -59,6 +68,29 @@ class StudyPlanItem(models.Model):
     )
     title = models.CharField(max_length=180)
     subject = models.CharField(max_length=120, blank=True)
+    # Additive anchors. Legacy rows stay manual and retain their original text.
+    catalog_subject = models.ForeignKey(
+        "content.CatalogSubject",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="study_plan_items",
+    )
+    content_version = models.ForeignKey(
+        "content.LearningObjectVersion",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="study_plan_items",
+    )
+    activity = models.CharField(max_length=16, choices=Activity.choices, default=Activity.MANUAL)
+    edition = models.CharField(
+        max_length=16,
+        choices=(("university", "University Sheet"), ("lockin", "Lockin Sheet")),
+        default="university",
+    )
+    page_start = models.PositiveIntegerField(null=True, blank=True)
+    page_end = models.PositiveIntegerField(null=True, blank=True)
     scheduled_date = models.DateField()
     duration_minutes = models.PositiveSmallIntegerField(default=25)
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.PLANNED)
@@ -73,6 +105,31 @@ class StudyPlanItem(models.Model):
     class Meta:
         ordering = ("scheduled_date", "created_at", "id")
         constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(activity="manual")
+                    | Q(activity="review", catalog_subject__isnull=False)
+                    | Q(
+                        activity__in=("reading", "active_study"),
+                        catalog_subject__isnull=False,
+                        content_version__isnull=False,
+                    )
+                ),
+                name="study_task_activity_target_valid",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(page_start__isnull=True, page_end__isnull=True)
+                    | Q(
+                        content_version__isnull=False,
+                        page_start__isnull=False,
+                        page_end__isnull=False,
+                        page_start__gte=1,
+                        page_end__gte=F("page_start"),
+                    )
+                ),
+                name="study_task_page_range_valid",
+            ),
             models.UniqueConstraint(
                 fields=("user", "client_request_id"),
                 condition=Q(client_request_id__isnull=False),
@@ -97,3 +154,14 @@ class StudyPlanItem(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id}:{self.scheduled_date}:{self.title}"
+
+    def clean(self) -> None:
+        super().clean()
+        version = self.content_version
+        subject = self.catalog_subject
+        if version is not None and subject is not None:
+            node = subject.source_node
+            if node is None or not version.academic_node.path.startswith(node.path):
+                raise ValidationError({"content_version": "Choose content from this subject."})
+        if subject is not None and self.user_id and subject.cohort_id != self.user.cohort_id:
+            raise ValidationError({"catalog_subject": "Choose a subject from this cohort."})

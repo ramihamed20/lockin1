@@ -24,7 +24,10 @@ test("all scheduled routes terminate at the shared coming-soon surface", async (
   const app = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
   const layout = await readFile(new URL("../src/components/layout/index.jsx", import.meta.url), "utf8");
 
-  assert.match(app, /path="\/study-plan\/\*" element=\{<FeatureComingSoon featureId="study-plan" \/>\}/);
+  assert.match(app, /path="\/study-plan\/\*" element=\{<StudyPlanEntry/);
+  const entry = await readFile(new URL("../src/studyPlan/StudyPlanEntry.jsx", import.meta.url), "utf8");
+  assert.match(entry, /<FeatureComingSoon featureId="study-plan"/);
+  assert.match(entry, /studyPlanApi.getExams/);
   assert.match(app, /path="\/ranked\/\*" element=\{<FeatureComingSoon featureId="rank" \/>\}/);
   assert.match(app, /path="\/community\/\*" element=\{<FeatureComingSoon featureId="community" \/>\}/);
   assert.match(app, /path="\/lock-in\/\*" element=\{<FeatureComingSoon featureId="lock-in" \/>\}/);

@@ -2048,3 +2048,32 @@ html.ix-hover .question-player-card .choices button:not(:disabled):hover { borde
 }
 @media(prefers-reduced-motion:reduce) { .study-plan-v2 * { scroll-behavior: auto; transition: none; animation: none; } }
 }
+
+/* Availability is a soft planning budget, independent of the API safety cap. */
+.plan-day-workload { padding: 12px 16px; margin-block: 8px 12px; border-inline-start: 3px solid var(--border); background: var(--surface); border-radius: 8px; font-size: var(--text-sm); }
+.plan-day-workload p { margin: 4px 0 0; color: var(--muted); overflow-wrap: anywhere; }
+.plan-day-workload.is-over-budget { border-inline-start-color: var(--danger); }
+
+/* Exam trial: explicit read-only preview, scoped to the planner. */
+.plan-exam-panel { grid-column: 1 / -1; min-inline-size: 0; padding: clamp(16px, 3vw, 24px); border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+.plan-exam-panel h2 { display: flex; align-items: center; gap: 10px; margin-block: 8px 12px; }
+.plan-exam-form { display: flex; align-items: end; gap: 12px; flex-wrap: wrap; }
+.plan-exam-form label { display: grid; gap: 6px; flex: 1 1 180px; min-inline-size: 0; }
+.plan-exam-form select { inline-size: 100%; min-inline-size: 0; min-block-size: 44px; }
+.plan-exam-form button { min-block-size: 44px; }
+.plan-exam-status { color: var(--muted); font-size: var(--text-sm); }
+.plan-exam-totals { display: flex; flex-wrap: wrap; gap: 20px; margin-block: 20px; }
+.plan-exam-totals dt { color: var(--muted); font-size: var(--text-sm); }
+.plan-exam-totals dd { margin: 6px 0 0; font-weight: 700; }
+.plan-exam-task-list { margin: 0; padding-inline-start: 24px; }
+.plan-exam-task-list li { padding: 12px 4px; border-block-end: 1px solid var(--border); }
+.plan-exam-task-list strong, .plan-exam-task-list span, .plan-exam-task-list small { display: block; overflow-wrap: anywhere; }
+.plan-exam-task-list small { color: var(--muted); margin-block-start: 4px; }
+.plan-exam-unplaced summary { cursor: pointer; min-block-size: 44px; align-content: center; }
+.plan-exam-unplaced li { margin-block: 12px; overflow-wrap: anywhere; }
+.plan-exam-warning { border-inline-start: 3px solid var(--danger); padding-inline: 12px; }
+.plan-pilot-retry { margin: 16px; }
+@media (max-width: 600px) {
+  .plan-exam-form { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .plan-exam-totals { gap: 16px; }
+}

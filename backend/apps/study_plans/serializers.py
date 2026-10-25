@@ -115,3 +115,7 @@ class StudyPlanPreviewSerializer(StrictSerializer):
 
 class StudyPlanGenerateSerializer(StudyPlanPreviewSerializer):
     preview_token = serializers.RegexField(r"^[a-f0-9]{64}$")
+
+
+class ReadingPlanPreviewSerializer(StrictSerializer):
+    edition = serializers.ChoiceField(choices=("university", "lockin"), default="university")

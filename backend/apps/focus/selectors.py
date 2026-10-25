@@ -2,10 +2,79 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from django.db.models import Count, Max, QuerySet, Sum
-from django.db.models.functions import Coalesce
+from django.db.models import Count, F, Max, Q, QuerySet, Sum, Window
+from django.db.models.functions import Coalesce, RowNumber
 
-from .models import FocusAnnotation, FocusAnnotationCollection, FocusSession, FocusWorkspaceSnapshot
+from .models import (
+    ActiveStudyRun,
+    FocusAnnotation,
+    FocusAnnotationCollection,
+    FocusSession,
+    FocusWorkspaceSnapshot,
+)
+
+
+def planning_active_study_evidence(
+    *, user_id: UUID, sheet_ids: list[UUID]
+) -> dict[UUID, list[dict[str, object]]]:
+    """Aggregate scoring once, without loading answer bodies or certifying mastery.
+
+    Existing runs do not pin an immutable PDF version. Their evidence remains
+    useful history, but must not automatically complete a version-specific task.
+    """
+    grouped: dict[UUID, list[dict[str, object]]] = {}
+    rows = (
+        ActiveStudyRun.objects.filter(user_id=user_id, sheet_id__in=sheet_ids)
+        .values("sheet_id", "edition", "difficulty")
+        .annotate(
+            run_count=Count("id", distinct=True),
+            submitted_attempts=Count("attempts", filter=Q(attempts__submitted_at__isnull=False)),
+            correct=Sum("attempts__score", filter=Q(attempts__submitted_at__isnull=False)),
+            total=Sum("attempts__total", filter=Q(attempts__submitted_at__isnull=False)),
+            last_activity_at=Max("updated_at"),
+        )
+    )
+    for row in rows:
+        sheet_id = row.pop("sheet_id")
+        grouped.setdefault(sheet_id, []).append({**row, "version_verified": False})
+    return grouped
+
+
+def planning_reader_positions(
+    *, user_id: UUID, version_ids: list[UUID]
+) -> dict[UUID, list[dict[str, object]]]:
+    grouped: dict[UUID, list[dict[str, object]]] = {}
+    latest = (
+        FocusWorkspaceSnapshot.objects.filter(
+            user_id=user_id,
+            document_version_id__in=version_ids,
+        )
+        .annotate(
+            position_rank=Window(
+                expression=RowNumber(),
+                partition_by=[F("document_version_id"), F("file_id")],
+                order_by=[F("updated_at").desc(), F("id").desc()],
+            )
+        )
+        .filter(position_rank=1)
+        .values(
+            "document_version_id",
+            "file_id",
+            "current_page",
+            "updated_at",
+        )
+    )
+    for row in latest:
+        grouped.setdefault(row["document_version_id"], []).append(
+            {
+                "file_id": str(row["file_id"]),
+                "page": row["current_page"],
+                "updated_at": row["updated_at"],
+                "version_verified": True,
+                "source": "focus_workspace",
+            }
+        )
+    return grouped
 
 
 @dataclass(frozen=True, slots=True)
