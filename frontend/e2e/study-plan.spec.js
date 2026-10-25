@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 import { fulfillAccessContract, studentSession } from "./fixtures/productionApi.js";
 
+import { isFeatureComingSoon } from "../src/lib/featureAvailability.js";
+
+// Retain planner coverage for reactivation; release builds assert the shared
+// coming-soon route in coming-soon-features.spec.js instead.
+test.skip(isFeatureComingSoon("study-plan"), "Study Plan is intentionally coming soon in this release.");
+
 const TODAY = "2026-10-16";
 const MATERIALS = [{ slug: "oral-histology", title: "Oral Histology", sheets: [] }, { slug: "dental-anatomy", title: "Dental Anatomy", sheets: [] }];
 async function planner(page, { configured = false, locale = "en", materials = [], items: seeded = [] } = {}) {
