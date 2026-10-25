@@ -7,79 +7,39 @@
  * already start on this version, so they are not shown the after-update panel.
  */
 export const WHATS_NEW = {
-  id: "0.1.3",
-  version: "0.1.3",
-  date: "2026-10-18",
+  id: "0.1.4",
+  version: "0.1.4",
+  date: "2026-10-25",
   summary: {
-    en: "A more flexible study experience, with tools closer to the way you study.",
-    ar: "تجربة دراسية أكثر مرونة، وأدوات أقرب لطريقتك."
+    en: "Smoother writing, easier controls and a faster study experience.",
+    ar: "كتابة أكثر سلاسة، واستخدام أسهل، وتجربة دراسية أسرع."
   },
   items: [
     {
-      icon: "brain",
-      title: { en: "Active Study, your way", ar: "الدراسة النشطة بطريقتك" },
+      icon: "pencil",
+      title: { en: "Smoother writing and easier controls", ar: "كتابة وأقلام أفضل واستخدام أسهل" },
       body: {
-        en: "Choose how many pages and questions fit your session.",
-        ar: "خصص عدد الصفحات والأسئلة بما يناسب جلستك."
-      }
-    },
-    {
-      icon: "clock",
-      title: { en: "Pomodoro style", ar: "أسلوب بومودورو" },
-      body: {
-        en: "Study in intervals, then test your understanding of the pages you read when the timer ends.",
-        ar: "ادرس على فترات، واختبر فهمك للصفحات التي قرأتها عند انتهاء المؤقت."
+        en: "Improvements to handwriting, pen tools and ease of use.",
+        ar: "تحسينات في الكتابة وأدوات الأقلام وسهولة الاستخدام."
       }
     },
     {
       icon: "file",
-      title: { en: "My summaries", ar: "ملخصاتي" },
+      title: { en: "Faster sheet and file opening", ar: "فتح أسرع للشيتات والملفات" },
       body: {
-        en: "Write your own summary in your own words, and come back to one you trust.",
-        ar: "أنشئ ملخصك الخاص، بكلماتك وفهمك، وارجع إلى ملخص تثق فيه."
+        en: "Less waiting when opening sheets and files, especially those already saved on your device.",
+        ar: "انتظار أقل عند فتح الشيتات والملفات، خصوصًا المحفوظة مسبقًا على جهازك."
       }
     },
     {
-      icon: "highlighter",
-      title: { en: "Share your marks", ar: "مشاركة التأشير" },
+      icon: "brain",
+      title: { en: "Faster answer feedback", ar: "استجابة أسرع عند الإجابة" },
       body: {
-        en: "Share your notes and marks, and download other students' marks to learn from them.",
-        ar: "شارك ملاحظاتك وتأشيرك، وحمّل تأشير غيرك للاستفادة منه."
+        en: "Faster answer processing and less waiting for question results.",
+        ar: "تحسين سرعة معالجة الإجابات وتقليل الانتظار لظهور نتيجة السؤال."
       }
-    },
-    {
-      icon: "play",
-      title: { en: "YouTube inside the sheet", ar: "يوتيوب داخل الشيت" },
-      body: {
-        en: "Open YouTube videos inside the PDF reader and follow the explanation while you study.",
-        ar: "افتح فيديوهات يوتيوب داخل قارئ PDF وتابع الشرح أثناء الدراسة."
-      }
-    },
-    {
-      icon: "pencil",
-      title: { en: "Clearer, smoother writing", ar: "كتابة أوضح وأكثر سلاسة" },
-      body: {
-        en: "Improvements to the pens and to line quality while you write and after.",
-        ar: "تحسينات في الأقلام وجودة الخط أثناء الكتابة وبعدها."
-      }
-    },
-    {
-      icon: "sparkles",
-      title: { en: "An easier experience", ar: "تجربة استخدام أسهل" },
-      body: {
-        en: "Improvements to the look and navigation, with better support for split-screen mode.",
-        ar: "تحسينات في الشكل العام والتنقل، ودعم أفضل لوضع انقسام الشاشة."
-      }
-    },
-    {
-      icon: "lock",
-      title: { en: "Updated privacy policy", ar: "سياسة خصوصية محدّثة" },
-      body: {
-        en: "Clearer explanations of your data and how it is used and protected.",
-        ar: "توضيحات حول بياناتك وكيفية استخدامها وحمايتها."
-      }
-    },
-  ],
+    }
+  ]
 };
 
 const STORAGE_PREFIX = "lock-in.whats-new.seen:";
