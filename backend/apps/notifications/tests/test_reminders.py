@@ -140,9 +140,10 @@ def test_concurrent_schedulers_skip_the_locked_reminder():
         finally:
             close_old_connections()
 
-    with patch(
-        "apps.notifications.reminders.create_notification", side_effect=create_while_locked
-    ), ThreadPoolExecutor(max_workers=2) as pool:
+    with (
+        patch("apps.notifications.reminders.create_notification", side_effect=create_while_locked),
+        ThreadPoolExecutor(max_workers=2) as pool,
+    ):
         first = pool.submit(dispatch)
         assert entered.wait(timeout=10)
         try:
