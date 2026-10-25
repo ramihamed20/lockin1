@@ -29,7 +29,7 @@ def active_review_items(*, user: User, subject_key: str) -> QuerySet[ReviewItem]
             state=ReviewItem.State.ACTIVE,
             subject_key=subject_key,
         )
-        .select_related("subject")
+        .select_related("subject", "last_question_version")
         .order_by(
             "-mistake_count",
             "-review_incorrect_count",
@@ -44,7 +44,7 @@ def all_active_review_items(*, user: User) -> QuerySet[ReviewItem]:
 
     return (
         ReviewItem.objects.filter(user=user, state=ReviewItem.State.ACTIVE)
-        .select_related("subject")
+        .select_related("subject", "last_question_version")
         .order_by(
             "subject_key",
             "-mistake_count",

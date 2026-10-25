@@ -256,7 +256,7 @@ test("dashboard continue and recent sheets share actual opened-sheet history", a
     source("../src/lib/i18n.js")
   ]);
 
-  assert.match(dashboard, /const recent = getRecentOpenedCatalogSheets\(user\?\.id\)/);
+  assert.match(dashboard, /recentStudyEntries\(recentStudy\.data\?\.results, getRecentOpenedCatalogSheets\(user\?\.id\)\)/);
   assert.match(dashboard, /<ContinueCard sheetEntry=\{recent\[0\] \|\| null\}/);
   // The sheet Continue offers is not repeated in the list beneath it.
   assert.match(dashboard, /const otherRecent = recent\.slice\(1\)/);

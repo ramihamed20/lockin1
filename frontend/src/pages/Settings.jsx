@@ -2,12 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { accountsApi } from "../api/accounts.js";
 import { motivationApi } from "../api/motivation.js";
-import { PRODUCT_ROLES } from "../api/contracts.js";
 import { Icon } from "../lib/icons.jsx";
-import { hasProductRole } from "../lib/authz.js";
 import { useSubscriptionSession } from "../lib/SubscriptionSessionContext.jsx";
 import { appIconOptions, characterOptions, themeOptions } from "../lib/constants.js";
-import { assetPath, normalizeThemeSettings, normalizeReminderSettings } from "../lib/utils.js";
+import { assetPath, normalizeThemeSettings } from "../lib/utils.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { AccountFieldErrors, AccountFormAlert, fieldErrorAttributes } from "../components/account/AccountFormErrors.jsx";
 import { normalizeAuthError } from "../lib/authValidation.js";
@@ -18,7 +16,7 @@ import { UserAvatar } from "../components/shared/UserAvatar.jsx";
 import { Page, ErrorPanel, RadioGroup, RadioOption, Switch } from "../components/ui/index.jsx";
 import { ResponsiveThemePreview } from "../components/shared/ResponsiveThemePreview.jsx";
 import OfflineSettings from "../offline/OfflineSettings.jsx";
-import { showLocalNotification } from "../pwa/localNotification.js";
+import StudyReminderSettings from "../pwa/StudyReminderSettings.jsx";
 import DevicePushSettings from "../pwa/DevicePushSettings.jsx";
 import AppUpdateSettings from "../pwa/AppUpdateSettings.jsx";
 import FeedbackSettings from "./Feedback.jsx";
@@ -66,14 +64,12 @@ function resolveSection(requested, deletionToken) {
   return { section: "", anchor: "" };
 }
 
-export default function Settings({ user, onUserUpdate, settings, activeTheme, reminderSettings, onReminderSettingsChange, onSettingsChange, onSignedOut }) {
+export default function Settings({ user, onUserUpdate, settings, activeTheme, onSettingsChange, onSignedOut }) {
   const { t } = useI18n();
   const location = useLocation();
   const navigate = useNavigate();
   const [saving, setSaving] = useState("");
   const [error, setError] = useState("");
-  const [reminderError, setReminderError] = useState("");
-  const isAdministrator = hasProductRole(user, PRODUCT_ROLES.ADMINISTRATOR);
   const { status: updateStatus } = usePwaUpdates();
   const searchParameters = new URLSearchParams(location.search);
   const requestedSection = searchParameters.get("section") || "";
@@ -147,52 +143,13 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
     }
   }
 
-  async function saveReminder(nextSettings, source) {
-    const normalized = normalizeReminderSettings(nextSettings);
-    setReminderError("");
-    onReminderSettingsChange(normalized);
-    setSaving(source);
-    try {
-      if (normalized.enabled && window.Notification && Notification.permission === "default") {
-        const permission = await Notification.requestPermission();
-        if (permission !== "granted") {
-          onReminderSettingsChange({ ...normalized, enabled: false });
-          setReminderError(t("settings.notificationsDenied"));
-          return;
-        }
-      }
-    } catch (err) {
-      setReminderError(err.message);
-    } finally {
-      setSaving("");
-    }
-  }
-
-  async function testReminder() {
-    setReminderError("");
-    if (!window.Notification) {
-      setReminderError(t("settings.notificationsUnsupported"));
-      return;
-    }
-    if (Notification.permission !== "granted") {
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") {
-        setReminderError(t("settings.testReminderDenied"));
-        return;
-      }
-    }
-    await showLocalNotification(t("settings.reminderNotificationTitle"), {
-      body: t("settings.reminderNotificationBody")
-    });
-  }
-
   const themeValue = settings.autoTheme
     ? t("settings.autoThemeValue", { name: t(`settings.theme.${activeTheme}`) })
     : t(`settings.theme.${settings.theme}`);
   const sectionValues = {
     account: user?.username || "",
     appearance: themeValue,
-    notifications: reminderSettings.enabled ? reminderSettings.time : t("settings.valueOff"),
+    notifications: "",
     offline: "",
     suggest: "",
     updates: updateStatus === UPDATE_STATUS.AVAILABLE || updateStatus === UPDATE_STATUS.RELOAD_REQUIRED
@@ -241,7 +198,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
             <h2 id={`settings-${activeSection}-heading`} tabIndex={-1} dir="auto">{sectionTitle}</h2>
           </header>
 
-          {(error || reminderError) && <ErrorPanel message={error || reminderError} />}
+          {error && <ErrorPanel message={error} />}
 
           {activeSection === "account" && <section className="settings-v2-section" id="settings-account" aria-labelledby="settings-account-heading">
             <AccountSummary user={user} />
@@ -331,25 +288,9 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, re
           </section>}
 
           {activeSection === "notifications" && <section className="settings-v2-section" id="settings-notifications" aria-labelledby="settings-notifications-heading">
-            <div className="ui-group-block settings-v2-block" id="settings-reminder">
-              <h3 className="ui-group-title" id="settings-reminder-heading" tabIndex={-1}>{t("settings.studyReminder")}</h3>
-              <div className="ui-group">
-                <div className="ui-row">
-                  <span className="ui-row-body"><label htmlFor="settings-reminder-toggle">{t("settings.dailyStudyReminder")}</label></span>
-                  <Switch id="settings-reminder-toggle" checked={reminderSettings.enabled} busy={saving === "reminder-toggle"} onCheckedChange={(next) => saveReminder({ ...reminderSettings, enabled: next }, "reminder-toggle")} />
-                </div>
-                <div className="ui-row">
-                  <span className="ui-row-body"><label htmlFor="settings-reminder-time">{t("settings.reminderTime")}</label></span>
-                  <input id="settings-reminder-time" className="ui-row-input" type="time" value={reminderSettings.time} onChange={(event) => saveReminder({ ...reminderSettings, time: event.target.value }, "reminder-time")} />
-                </div>
-                <button type="button" className="ui-row settings-v2-action" onClick={testReminder}>
-                  <span className="ui-row-body"><span>{t("settings.testReminder")}</span></span>
-                </button>
-              </div>
-              <p className="ui-group-footer">{t("settings.reminderHint")}</p>
-            </div>
+            <StudyReminderSettings key={user?.id} userId={user?.id} />
             <DevicePushSettings userId={user?.id} />
-            {isAdministrator && <NotificationPreferences />}
+            <NotificationPreferences userId={user?.id} />
           </section>}
 
           {activeSection === "offline" && user?.id && <OfflineSettings userId={user.id} />}
@@ -676,9 +617,9 @@ function ConnectedAccountsCard({ email }) {
   </div>;
 }
 
-function NotificationPreferences() {
+function NotificationPreferences({ userId }) {
   const { t } = useI18n();
-  const preferenceData = useAsyncData(() => motivationApi.notificationPreferences(), []);
+  const preferenceData = useAsyncData(() => motivationApi.notificationPreferences(), [userId]);
   const [preferences, setPreferences] = useState([]);
   const [saving, setSaving] = useState("");
   const [error, setError] = useState("");
@@ -715,10 +656,10 @@ function NotificationPreferences() {
           const unavailable = !preference.available;
           const locked = preference.required;
           const key = `${preference.category}-${preference.channel}`;
-          const label = t("settings.notificationToggleLabel", { category: preference.category, channel: preference.channel.replace("_", " ") });
+          const label = t("settings.notificationToggleLabel", { category: t(`notifications.category.${preference.category}`), channel: t(`notifications.channel.${preference.channel}`) });
           return (
             <div className="ui-row" key={key}>
-              <span className="ui-row-body"><strong dir="auto">{preference.category} · {preference.channel.replace("_", " ")}</strong><small>{t(locked ? "settings.alwaysOn" : unavailable ? "settings.channelUnavailable" : preference.enabled ? "settings.enabled" : "settings.disabled")}</small></span>
+              <span className="ui-row-body"><strong dir="auto">{t(`notifications.category.${preference.category}`)} · {t(`notifications.channel.${preference.channel}`)}</strong><small>{t(locked ? "settings.alwaysOn" : unavailable ? "settings.channelUnavailable" : preference.enabled ? "settings.enabled" : "settings.disabled")}</small></span>
               <Switch label={label} checked={preference.enabled} busy={saving === key} onCheckedChange={() => { void togglePreference(index); }} disabled={locked || unavailable || Boolean(saving)} />
             </div>
           );

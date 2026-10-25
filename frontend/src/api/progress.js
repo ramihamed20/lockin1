@@ -5,6 +5,10 @@ import { buildQueryString } from "./pagination.js";
 /** Server-authoritative bookmarks and learning progress. */
 export const progressApi = {
   /** @param {{ signal?: AbortSignal }} [options] */
+  async recentCatalogStudy({ signal } = {}) {
+    return objectPayload(await request("/catalog/workspaces/recent", { signal }), "Recent study could not be loaded.");
+  },
+  /** @param {{ signal?: AbortSignal }} [options] */
   async learningDashboard({ signal } = {}) {
     return objectPayload(
       await request("/learning/dashboard", { signal }),

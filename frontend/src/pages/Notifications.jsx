@@ -16,19 +16,12 @@ function dateLabel(value, t) {
   return formatted === "—" ? t("notifications.dateFallback") : formatted;
 }
 
-async function loadNotifications(unreadOnly) {
-  const [feed, summary] = await Promise.all([
-    motivationApi.listNotifications({ unreadOnly }),
-    motivationApi.notificationSummary()
-  ]);
-  return { feed, summary };
-}
-
-export default function Notifications({ onNotificationsChanged }) {
+export default function Notifications({ user = null, onNotificationsChanged }) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [unreadOnly, setUnreadOnly] = useState(false);
-  const feed = useAsyncData(() => loadNotifications(unreadOnly), [unreadOnly], { cacheKey: `notifications:${unreadOnly}` });
+  const feed = useAsyncData(() => motivationApi.listNotifications({ unreadOnly }), [user?.id, unreadOnly], { cacheKey: `notifications:${user?.id}:${unreadOnly}` });
+  const summary = useAsyncData(() => motivationApi.notificationSummary(), [user?.id], { cacheKey: `notification-summary:${user?.id}` });
   const [notifications, setNotifications] = useState([]);
   const [nextCursor, setNextCursor] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -39,8 +32,8 @@ export default function Notifications({ onNotificationsChanged }) {
 
   useEffect(() => {
     if (!feed.data) return;
-    setNotifications(feed.data.feed.results);
-    setNextCursor(feed.data.feed.nextCursor);
+    setNotifications(feed.data.results);
+    setNextCursor(feed.data.nextCursor);
     setVisibleCount(5);
   }, [feed.data]);
 
@@ -51,6 +44,7 @@ export default function Notifications({ onNotificationsChanged }) {
 
   function refresh() {
     feed.reload();
+    summary.reload();
   }
 
   const visibleNotifications = compactFeed ? notifications.slice(0, visibleCount) : notifications;
@@ -121,6 +115,7 @@ export default function Notifications({ onNotificationsChanged }) {
       {/* The page title already says what this is: the list starts with its
           filter and the one bulk action, then the notifications themselves as
           one grouped list. */}
+      {summary.error && <ErrorPanel message={summary.error} onRetry={summary.reload} />}
       <section className="notifications-inbox-card notifications-v2">
         <div className="notifications-v2-bar">
           {/* A filter is one-of-N, not two independent toggles: `aria-pressed`
@@ -128,9 +123,9 @@ export default function Notifications({ onNotificationsChanged }) {
               selected look at once. */}
           <TabList className="notification-filter-actions ui-segmented" label={t("notifications.filterLabel")} variant="thumb" value={unreadOnly ? "unread" : "all"} onChange={(next) => setUnreadOnly(next === "unread")}>
             <Tab value="all">{t("notifications.all")}</Tab>
-            <Tab value="unread">{feed.data.summary.unread_count ? t("notifications.unreadCount", { count: feed.data.summary.unread_count }) : t("notifications.unread")}</Tab>
+            <Tab value="unread">{summary.data?.unread_count ? t("notifications.unreadCount", { count: summary.data?.unread_count }) : t("notifications.unread")}</Tab>
           </TabList>
-          {feed.data.summary.unread_count > 0 && <button className="notifications-v2-mark" type="button" onClick={() => { void markAllRead(); }} disabled={busyId === "all"}>{busyId === "all" ? t("notifications.marking") : t("common.markAllRead")}</button>}
+          {summary.data?.unread_count > 0 && <button className="notifications-v2-mark" type="button" onClick={() => { void markAllRead(); }} disabled={busyId === "all"}>{busyId === "all" ? t("notifications.marking") : t("common.markAllRead")}</button>}
         </div>
         {actionError && <ErrorPanel message={actionError} onRetry={feed.reload} />}
         {!notifications.length ? <EmptyState title={t(unreadOnly ? "notifications.noUnreadTitle" : "notifications.emptyTitle")} text={t(unreadOnly ? "notifications.noUnreadText" : "notifications.emptyText")} /> : (

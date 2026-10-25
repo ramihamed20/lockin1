@@ -66,6 +66,13 @@ JOBS = (
         60,
         _no_options,
     ),
+    JobSpec(
+        "study_reminders",
+        "dispatch_study_reminders",
+        "STUDY_REMINDER_INTERVAL_SECONDS",
+        60,
+        _no_options,
+    ),
     JobSpec("web_push_delivery", "dispatch_web_push", "WEB_PUSH_INTERVAL_SECONDS", 60, _no_options),
     JobSpec(
         "subscription_lifecycle",

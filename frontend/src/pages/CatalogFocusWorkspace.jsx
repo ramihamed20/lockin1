@@ -5130,6 +5130,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const [summaryBusy, setSummaryBusy] = useState(false);
   const [summaryError, setSummaryError] = useState("");
   const [summaryPanelId, setSummaryPanelId] = useState("");
+  const requestedSummaryId = searchParams.get("summary") || "";
+  const openedSummaryLink = useRef("");
+  const requestedSourcePage = Number(searchParams.get("sourcePage"));
+  const requestedSourceVersion = searchParams.get("sourceVersion") || "";
+  const openedSourcePage = useRef("");
   const [summaryPanelOpen, setSummaryPanelOpen] = useState(true);
   const [summaryReceiveDismissed, setSummaryReceiveDismissed] = useState(false);
   const shownSummaryIds = useMemo(() => new Set(sheetSummaries.summaries.filter((item) => item.visible).map((item) => item.id)), [sheetSummaries.summaries]);
@@ -5238,6 +5243,41 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       || virtualPagesRef.current.find((item) => item.summary === summary.id && item.afterPage >= accessiblePageStart);
     if (target) jumpToPagePosition(target.id);
   }
+
+  useEffect(() => {
+    if (!requestedSummaryId) { openedSummaryLink.current = ""; return undefined; }
+    if (!paneActive || !sheetSummaries.loaded || !workspaceReady) return undefined;
+    const key = `${shareDocumentId}:${requestedSummaryId}`;
+    if (openedSummaryLink.current === key) return undefined;
+    const summary = sheetSummaries.summaries.find(item => item.id === requestedSummaryId);
+    if (!summary) return undefined;
+    if (!summary.visible) {
+      openedSummaryLink.current = key;
+      setSummaryDialogOpen(true);
+      return undefined;
+    }
+    if (summary.mode === "pen" && !virtualPages.some(item => item.summary === summary.id)) return undefined;
+    const frame = requestAnimationFrame(() => { openedSummaryLink.current = key; continueSummary(summary); });
+    return () => cancelAnimationFrame(frame);
+    // Open a requested summary once after its pages and saved state are ready.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedSummaryId, paneActive, sheetSummaries.loaded, sheetSummaries.summaries, workspaceReady, shareDocumentId, virtualPages]);
+
+  useEffect(() => {
+    if (!Number.isInteger(requestedSourcePage) || requestedSourcePage < 1 || !paneActive || !workspaceReady) return undefined;
+    const key = `${shareDocumentId}:${requestedSourcePage}`;
+    if (openedSourcePage.current === key) return undefined;
+    if (requestedSourceVersion && requestedSourceVersion !== catalogDocument?.versionId) {
+      openedSourcePage.current = key;
+      setFocusMessage(translateRef.current("review.sourceUpdated"));
+      return undefined;
+    }
+    if (requestedSourcePage < accessiblePageStart || requestedSourcePage > accessiblePageCount) return undefined;
+    const frame = requestAnimationFrame(() => { openedSourcePage.current = key; jumpToPagePosition(requestedSourcePage); });
+    return () => cancelAnimationFrame(frame);
+    // Source navigation respects the reader's existing accessible page bounds.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedSourcePage, requestedSourceVersion, catalogDocument?.versionId, paneActive, workspaceReady, shareDocumentId, accessiblePageStart, accessiblePageCount]);
 
   /** Builds the PDF, marks the summary received and hands the file over. */
   async function receiveSummary(summary) {
