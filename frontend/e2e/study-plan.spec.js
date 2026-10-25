@@ -154,6 +154,17 @@ for (const [width, height, locale] of [[320,740,"ar"],[390,844,"en"],[820,1180,"
     await expect(page.locator(".plan-modes")).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await expect(page.locator("html")).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
+    const strip = page.locator(".plan-day-strip");
+    const selected = strip.locator('[aria-pressed="true"]');
+    await expect.poll(async () => {
+      const [container, button] = await Promise.all([strip.boundingBox(), selected.boundingBox()]);
+      return Boolean(container && button && button.x >= container.x - 1 && button.x + button.width <= container.x + container.width + 1);
+    }).toBe(true);
+    for (const button of await strip.getByRole("button").all()) {
+      const bounds = await button.boundingBox();
+      expect(bounds.width).toBeGreaterThanOrEqual(44);
+      expect(bounds.height).toBeGreaterThanOrEqual(44);
+    }
     await page.screenshot({ path: `output/study-plan/setup-${width}-${locale}.png`, fullPage: true });
   });
 }
@@ -198,3 +209,22 @@ test("refreshing a stale week discards its obsolete generation preview", async (
   await page.getByRole("button",{name:"Add these sessions"}).click();
   await expect(page.locator(".plan-preview")).toHaveCount(0);
 });
+
+for (const locale of ["ar", "en"]) {
+  test(`selected day stays reachable when resizing the planner in ${locale}`, async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await planner(page, { configured: true, locale });
+    await page.goto("/#/study-plan");
+    const strip = page.locator(".plan-day-strip");
+    await expect(strip).toBeVisible();
+    for (const width of [320, 820, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect.poll(async () => {
+        const [container, selected] = await Promise.all([
+          strip.boundingBox(), strip.locator('[aria-pressed="true"]').boundingBox()
+        ]);
+        return Boolean(container && selected && selected.x >= container.x - 1 && selected.x + selected.width <= container.x + container.width + 1);
+      }).toBe(true);
+    }
+  });
+}

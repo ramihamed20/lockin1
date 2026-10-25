@@ -33,6 +33,7 @@ export default function StudyPlan({ user }) {
   const initialized = useRef(false);
   const editorAnchor = useRef(null);
   const previewAnchor = useRef(null);
+  const dayStrip = useRef(null);
   const load = useCallback(async (silent = false) => {
     const current = ++sequence.current;
     if (!silent) setLoading(true);
@@ -52,6 +53,24 @@ export default function StudyPlan({ user }) {
   useEffect(() => { void load(); return () => { sequence.current += 1; }; }, [load]);
   useEffect(() => { if (editor) editorAnchor.current?.querySelector("input")?.focus(); }, [editor]);
   useEffect(() => { if (preview) previewAnchor.current?.focus(); }, [preview]);
+  useEffect(() => {
+    const strip = dayStrip.current;
+    if (!strip) return;
+    const revealSelected = () => {
+      const selected = strip.querySelector('[aria-pressed="true"]');
+      if (!selected) return;
+      const container = strip.getBoundingClientRect();
+      const button = selected.getBoundingClientRect();
+      // Scroll only the calendar, keeping the page's reading position intact.
+      if (button.left < container.left || button.right > container.right) {
+        strip.scrollLeft += button.left - container.left - (strip.clientWidth - button.width) / 2;
+      }
+    };
+    revealSelected();
+    const observer = new window.ResizeObserver(revealSelected);
+    observer.observe(strip);
+    return () => observer.disconnect();
+  }, [day, loading]);
   const fail = error => setMessage(error?.status === 409 ? "plan.stale" : error?.status === 400 ? "plan.invalid" : "plan.saveFailed");
   async function action(key, work) {
     if (busy) return;
@@ -102,7 +121,7 @@ export default function StudyPlan({ user }) {
   }
   return <Page title="Study Plan" headingHandled>
     <div className="study-plan-v2">
-      <header className="plan-heading"><div><h1>{t("nav.studyPlan")}</h1><p>{t("plan.subtitle")}</p></div>{profile?.configured && <button className="btn btn-soft" type="button" disabled={Boolean(busy)} onClick={() => { setSettings(!settings); setInitialMode(""); }}>{t("plan.settings")}</button>}</header>
+      <header className="plan-heading"><div><p className="plan-date"><Icon name="calendar" size={16} />{displayDate(today, { weekday: "long", month: "long", day: "numeric" })}</p><h1>{t("nav.studyPlan")}</h1></div>{profile?.configured && <button className="btn btn-soft" type="button" disabled={Boolean(busy)} onClick={() => { setSettings(!settings); setInitialMode(""); }}><Icon name="settings" size={17} />{t("plan.settings")}</button>}</header>
       {loading && !plan ? <LoadingPanel variant="list" /> : !plan && error ? <ErrorPanel message={error} onRetry={() => load()} /> : plan && <>
         {message && <div className={`plan-notice ${["plan.stale", "plan.invalid", "plan.saveFailed"].includes(message) ? "plan-error" : ""}`} role="status"><span>{t(message)}</span>{message === "plan.stale" && <button className="btn btn-soft" type="button" disabled={Boolean(busy)} onClick={() => { void action("refresh", refreshPlan); }}>{t("plan.refresh")}</button>}</div>}
         {error && <ErrorPanel message={t("plan.offline")} onRetry={() => load(true)} />}
@@ -110,18 +129,18 @@ export default function StudyPlan({ user }) {
           await studyPlanApi.saveProfile(draft, profile.revision); await load(true); setSettings(false); setPreview(null); setMessage("plan.saved");
         })} />}
         {profile.configured && !settings && <section className="plan-hero" aria-labelledby="plan-next-title">
-          <div><span className="plan-mode-label">{t(`plan.${profile.mode}`)}</span><p className="plan-eyebrow">{t("plan.next")}</p><h2 id="plan-next-title" dir="auto">{next ? title(next) : t("plan.emptyTitle")}</h2><p>{next ? `${displayDate(next.scheduled_date, { weekday: "long", month: "short", day: "numeric" })} · ${t("studyPlan.minutesValue", { count: next.duration_minutes })}` : t("plan.emptyHint")}</p>
+          <div><div className="plan-hero-top"><span className="plan-book-mark" aria-hidden="true"><Icon name="book-open" size={25} /></span><span className="plan-mode-label">{t(`plan.${profile.mode}`)}</span></div><p className="plan-eyebrow">{t("plan.next")}</p><h2 id="plan-next-title" dir="auto">{next ? title(next) : t("plan.emptyTitle")}</h2><p className="plan-session-meta">{next ? <><Icon name="clock" size={16} />{t("studyPlan.minutesValue", { count: next.duration_minutes })}<span aria-hidden="true">·</span>{displayDate(next.scheduled_date, { weekday: "long", day: "numeric", month: "short" })}</> : t("plan.emptyHint")}</p>
           {profile.mode === "beginning" && <p>{t("plan.beginnerProgress", { days: plan.progress.completed_days, minutes: plan.progress.session_minutes })}</p>}
           {profile.mode === "beginning" && plan.progress.ready_for_normal && <p>{t("plan.ready")} <button type="button" className="plan-text-button" onClick={() => { setInitialMode("normal"); setSettings(true); }}>{t("plan.switch")}</button></p>}
           </div><div className="plan-actions">{next && <Link className="btn btn-primary" to={nextMaterial ? `/materials/catalog/${encodeURIComponent(nextMaterial.slug)}` : "/materials"}>{nextMaterial ? t("plan.studySubject", { subject: nextMaterial.title }) : t("plan.openMaterials")}</Link>}{canGenerate && <button type="button" className={`btn ${next ? "btn-soft" : "btn-primary"}`} disabled={Boolean(busy)} onClick={previewWeek}>{t("plan.preview")}</button>}<button type="button" className={`btn ${next || canGenerate ? "btn-soft" : "btn-primary"}`} disabled={Boolean(busy)} onClick={() => openEditor()}>{t("plan.add")}</button></div>
         </section>}
         <div className="plan-stats" aria-label={t("studyPlan.summaryLabel")}>
           <div><span>{t("plan.completed")}</span><strong dir="ltr">{plan.summary.completed_count} / {plan.summary.planned_count}</strong></div><div><span>{t("plan.planned")}</span><strong>{t("studyPlan.minutesValue", { count: plan.summary.planned_minutes })}</strong></div><div><span>{t("plan.today")}</span><strong>{t("studyPlan.minutesValue", { count: plan.summary.today_minutes })}</strong></div>
-          {progress.total > 0 && <div className="plan-progress"><span>{t("plan.weekProgress", { done: progress.done, total: progress.total })}</span><progress max={100} value={progress.percent} aria-label={t("plan.weekProgress", { done: progress.done, total: progress.total })}>{progress.percent}%</progress></div>}
+          {progress.total > 0 && <div className="plan-progress"><div className="plan-progress-ring" aria-hidden="true"><svg viewBox="0 0 100 100"><circle className="plan-ring-track" cx="50" cy="50" r="42" /><circle className="plan-ring-value" cx="50" cy="50" r="42" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - progress.percent} /></svg><strong dir="ltr">{Math.round(progress.percent)}<small>%</small></strong></div><div className="plan-progress-copy"><strong>{t("plan.week")}</strong><span>{t("plan.weekProgress", { done: progress.done, total: progress.total })}</span><progress max={100} value={progress.percent} aria-label={t("plan.weekProgress", { done: progress.done, total: progress.total })}>{progress.percent}%</progress></div></div>}
         </div>
         <section className="plan-week" aria-labelledby="plan-week-title">
           <header className="plan-week-heading"><div><h2 id="plan-week-title">{t("plan.week")}</h2><p>{displayDate(start, { month: "short", day: "numeric" })} – {displayDate(addDays(start, 6), { month: "short", day: "numeric" })}</p></div><div className="plan-actions"><button type="button" className="plan-icon-button" disabled={Boolean(busy)} aria-label={t("studyPlan.previousWeek")} onClick={() => changeWeek(addDays(start, -7))}><Icon name="chevron-left" size={20} /></button><button className="btn btn-soft" type="button" disabled={Boolean(busy)} onClick={() => changeWeek(weekOf(today))}>{t("plan.today")}</button><button type="button" className="plan-icon-button" disabled={Boolean(busy)} aria-label={t("studyPlan.nextWeek")} onClick={() => changeWeek(addDays(start, 7))}><Icon name="chevron-right" size={20} /></button></div></header>
-          <div className="plan-day-strip" role="group" aria-label={t("plan.weekDays")}>{weekDays(start).map(stamp => <button key={stamp} type="button" disabled={Boolean(busy)} aria-pressed={day === stamp} aria-label={`${displayDate(stamp, { dateStyle: "full" })}${dayState(items, stamp) === "done" ? ` · ${t("plan.dayAllDone")}` : ""}`} data-state={dayState(items, stamp)} onClick={() => setDay(stamp)}><small>{t(`plan.${["mon", "tue", "wed", "thu", "fri", "sat", "sun"][(fromStamp(stamp).getDay() + 6) % 7]}`)}</small><strong>{fromStamp(stamp).getDate()}</strong><span aria-hidden="true">{DAY_MARK[dayState(items, stamp)] || " "}</span></button>)}</div>
+          <div ref={dayStrip} className="plan-day-strip" role="group" aria-label={t("plan.weekDays")}>{weekDays(start).map(stamp => <button key={stamp} type="button" disabled={Boolean(busy)} aria-pressed={day === stamp} aria-label={`${displayDate(stamp, { dateStyle: "full" })}${dayState(items, stamp) === "done" ? ` · ${t("plan.dayAllDone")}` : ""}`} data-state={dayState(items, stamp)} onClick={() => setDay(stamp)}><small>{t(`plan.${["mon", "tue", "wed", "thu", "fri", "sat", "sun"][(fromStamp(stamp).getDay() + 6) % 7]}`)}</small><strong>{fromStamp(stamp).getDate()}</strong><span aria-hidden="true">{DAY_MARK[dayState(items, stamp)] || " "}</span></button>)}</div>
           {loading ? <LoadingPanel variant="list" /> : items.some(item => item.scheduled_date === day) ? tasks(items.filter(item => item.scheduled_date === day)) : <p className="plan-empty-day">{t("plan.emptyDay")}</p>}
         </section>
         {preview && <section className="plan-preview" aria-labelledby="plan-preview-title"><h2 id="plan-preview-title" ref={previewAnchor} tabIndex={-1}>{t("plan.previewTitle")}</h2><p>{t(preview.count ? "plan.previewHint" : "plan.previewEmpty", { count: preview.count, minutes: preview.minutes })}</p>
