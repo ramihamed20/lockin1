@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { translate } from "../src/lib/i18n.js";
-import { rebaseTaskDraft, DEFAULT_STUDY_DAYS, addDays, dayState, materialFor, toggleSubject, weekDays, weekOf, weekProgress, profileDraft, profileRequest } from "../src/studyPlan/model.js";
+import { dayWorkload, rebaseTaskDraft, DEFAULT_STUDY_DAYS, addDays, dayState, materialFor, toggleSubject, weekDays, weekOf, weekProgress, profileDraft, profileRequest } from "../src/studyPlan/model.js";
 import { studyPlanMessages } from "../src/lib/studyPlanMessages.js";
 
 test("planner calendar crosses months and years without shifting week boundaries", () => {
@@ -72,4 +72,25 @@ test("refreshing a task preserves dirty fields and adopts other server edits", (
     ...draft, durationMinutes: 40
   });
   assert.equal(draft.durationMinutes, "25");
+});
+
+test("daily budget retains completed time, isolates dates and exposes catch-up overload", () => {
+  const profile = { configured: true, mode: "normal", daily_minutes: 60, weekdays: [0, 1, 2, 3, 5, 6] };
+  const items = [
+    { scheduled_date: "2026-10-25", duration_minutes: 25, status: "completed" },
+    { scheduled_date: "2026-10-25", duration_minutes: 45, status: "planned" },
+    { scheduled_date: "2026-10-26", duration_minutes: 60, status: "planned" }
+  ];
+  assert.deepEqual(dayWorkload(profile, items, "2026-10-25"), { available: 60, planned: 70, remaining: 0, overflow: 10 });
+  assert.deepEqual(dayWorkload(profile, items, "2026-10-26"), { available: 60, planned: 60, remaining: 0, overflow: 0 });
+  assert.equal(items[0].status, "completed");
+});
+
+test("rest days have no capacity and modes without availability do not invent one", () => {
+  const profile = { configured: true, mode: "normal", daily_minutes: 120, weekdays: [0] };
+  const items = [{ scheduled_date: "2026-10-23", duration_minutes: 15, status: "planned" }];
+  assert.deepEqual(dayWorkload(profile, items, "2026-10-23"), { available: 0, planned: 15, remaining: 0, overflow: 15 });
+  assert.deepEqual(dayWorkload(profile, [], "2026-10-26"), { available: 120, planned: 0, remaining: 120, overflow: 0 });
+  for (const mode of ["beginning", "custom"]) assert.equal(dayWorkload({ ...profile, mode }, items, "2026-10-23"), null);
+  assert.equal(dayWorkload({ ...profile, configured: false }, items, "2026-10-23"), null);
 });

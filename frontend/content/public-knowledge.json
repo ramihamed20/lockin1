@@ -21,7 +21,7 @@
         "frontend/tests/materials-catalog.test.js",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-24",
+      "lastVerified": "2026-10-25",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -284,9 +284,9 @@
     {
       "id": "study-plan",
       "name": "خطة الدراسة",
-      "status": "conditional",
+      "status": "coming-soon",
       "entry": "/#/study-plan",
-      "requirements": "خطة أسبوعية محفوظة على الحساب وتتطلب اتصالًا وصلاحية المحتوى المدفوع. تدعم Beginning وNormal وCustom؛ إكمال الجلسات يدوي ولا يمنح XP.",
+      "requirements": "قادم قريبًا للعامة. النسخة التجريبية محددة خادميًا لحسابات مخولة؛ معاينة القراءة لا تحفظ مهام ولا تمثل خطة تعلم ومراجعة مكتملة.",
       "evidence": [
         "frontend/src/lib/featureAvailability.js"
       ],
@@ -389,7 +389,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/what-is-lockin/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-24",
+      "lastVerified": "2026-10-25",
       "verificationEvidence": [
         "frontend/src/App.jsx",
         "frontend/src/lib/materialCatalog.js",
@@ -411,7 +411,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/who-is-lockin-for/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-24",
+      "lastVerified": "2026-10-25",
       "verificationEvidence": [
         "frontend/src/App.jsx",
         "frontend/src/lib/materialCatalog.js",
@@ -434,7 +434,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/supported-universities/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-24",
+      "lastVerified": "2026-10-25",
       "verificationEvidence": [
         "frontend/src/App.jsx",
         "frontend/src/lib/materialCatalog.js",
@@ -1412,7 +1412,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/private-and-public/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-24",
+      "lastVerified": "2026-10-25",
       "verificationEvidence": [
         "frontend/src/App.jsx",
         "frontend/src/lib/materialCatalog.js",
@@ -1816,7 +1816,7 @@
     }
   ],
   "evidenceDigests": {
-    "frontend/src/App.jsx": "202a5263c92679f01281a945329414e4a956eb2060ade2de7357fe83604cf494",
+    "frontend/src/App.jsx": "9feb51c550a69565c8690cf7bbf14a3ac169081c0983fdf507876ad760364db5",
     "frontend/src/lib/materialCatalog.js": "6f9c50e7402275182d8f9d0ab0faf34b6e1bb2e70bd95a44332e9a786b27b539",
     "frontend/tests/materials-catalog.test.js": "fdcaf2c2e40b77cf07400c75e80aa90999ddeb0b6f895d7718424b7da49b7430",
     "frontend/src/lib/i18n.js": "357a3bd8d83a8610f5ad8b0c42f280212f791619222b94eba40382151d76299c",
