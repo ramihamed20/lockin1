@@ -1,5 +1,7 @@
 /// <reference lib="webworker" />
 /* global __APP_VERSION__ */
+import { readPushBinding, writePushBinding } from "./pwa/pushStorage.js";
+import { notificationFromPush } from "./pwa/pushMessage.js";
 import { clientsClaim } from "workbox-core";
 import { cleanupOutdatedCaches, precacheAndRoute } from "workbox-precaching";
 
@@ -76,5 +78,55 @@ workerScope.addEventListener("activate", (event) => {
       if (cacheName.startsWith(runtimeCachePrefix) && cacheName !== optionalAssetCache) return caches.delete(cacheName);
       return Promise.resolve(false);
     }));
+  })());
+});
+
+// Web Push uses its own account marker, never the private API runtime cache.
+workerScope.addEventListener("push", (event) => {
+  event.waitUntil((async () => {
+    let payload;
+    try { payload = event.data?.json(); } catch { return; }
+    const binding = await readPushBinding().catch(() => null);
+    const notice = notificationFromPush(payload, binding);
+    if (notice) await workerScope.registration.showNotification(notice.title, notice.options);
+  })());
+});
+
+workerScope.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil((async () => {
+    const binding = await readPushBinding().catch(() => null);
+    if (!binding || binding.binding !== event.notification.data?.binding) return;
+    // The account-owned inbox resolves protected destinations on the server.
+    const target = new URL("/#/notifications", workerScope.location.origin).href;
+    const windows = await workerScope.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const existing = windows.find((client) => new URL(client.url).origin === workerScope.location.origin);
+    if (existing) {
+      await existing.navigate(target);
+      await existing.focus();
+    } else await workerScope.clients.openWindow(target);
+  })());
+});
+
+workerScope.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil((async () => {
+    const binding = await readPushBinding().catch(() => null);
+    if (!binding) return; // Never opt a signed-out installation back in.
+    try {
+      const subscription = event.newSubscription || await workerScope.registration.pushManager.subscribe({
+        userVisibleOnly: true, applicationServerKey: event.oldSubscription?.options.applicationServerKey
+      });
+      const csrf = await fetch("/api/v1/auth/csrf", { credentials: "include" });
+      if (!csrf.ok) return;
+      const token = (await csrf.json()).csrf_token;
+      const response = await fetch("/api/v1/notifications/push", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": token },
+        body: JSON.stringify({ user_id: binding.userId, subscription: subscription.toJSON(), locale: "ar" })
+      });
+      if (!response.ok) return;
+      const payload = await response.json();
+      await writePushBinding({ userId: binding.userId, binding: payload.binding }, binding.userId);
+    } catch { /* A later explicit enable can renew a failed browser subscription. */ }
   })());
 });

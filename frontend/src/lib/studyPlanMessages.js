@@ -1,5 +1,8 @@
 export const studyPlanMessages = {
   en: {
+    "plan.start": "Start studying",
+    "plan.backToPlan": "Back to plan",
+    "plan.addForDay": "Add a session for the selected day",
     "plan.subtitle": "A little structure. More room to focus.",
     "plan.choose": "Choose your pace", "plan.settings": "Plan settings",
     "plan.beginning": "Beginning", "plan.normal": "Normal", "plan.custom": "Custom",
@@ -43,6 +46,9 @@ export const studyPlanMessages = {
     "plan.weekProgress": "This week: {done} of {total} min done", "plan.dayAllDone": "all sessions done"
   },
   ar: {
+    "plan.start": "ابدأ الدراسة",
+    "plan.backToPlan": "العودة للخطة",
+    "plan.addForDay": "إضافة جلسة لليوم المحدد",
     "plan.subtitle": "تنظيم بسيط. وتركيز أكثر.",
     "plan.choose": "اختر الوتيرة المناسبة لك", "plan.settings": "إعدادات الخطة",
     "plan.beginning": "بداية", "plan.normal": "عادي", "plan.custom": "مخصص",

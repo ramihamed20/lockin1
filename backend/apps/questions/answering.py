@@ -150,7 +150,12 @@ def answer_question(
 ) -> tuple[QuestionAnswer, bool]:
     """Record and grade the student's answer; ``False`` means it was already recorded."""
 
-    existing = QuestionAnswer.objects.filter(user=user, question=question).first()
+    existing = (
+        QuestionAnswer.objects.select_related("version")
+        .prefetch_related("version__options")
+        .filter(user=user, question=question)
+        .first()
+    )
     if existing is not None:
         return existing, False
 
@@ -204,5 +209,10 @@ def answer_question(
                 answer.save(update_fields=("xp_awarded",))
     except IntegrityError:
         # A concurrent submission recorded the answer first. Theirs stands.
-        return QuestionAnswer.objects.get(user=user, question=question), False
+        return (
+            QuestionAnswer.objects.select_related("version")
+            .prefetch_related("version__options")
+            .get(user=user, question=question),
+            False,
+        )
     return answer, True

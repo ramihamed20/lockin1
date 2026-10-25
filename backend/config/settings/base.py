@@ -383,3 +383,10 @@ KNOWLEDGE_AI_ENABLED = False
 
 # Optional behavioral starts remain off until device validation and owner activation.
 START_RESCUE_ENABLED = env_bool("START_RESCUE_ENABLED", False)
+
+
+# Optional Web Push. Private keys stay on the server and can use *_FILE secrets.
+WEB_PUSH_ENABLED = env_bool("WEB_PUSH_ENABLED", False)
+WEB_PUSH_VAPID_PRIVATE_KEY = secret_env("WEB_PUSH_VAPID_PRIVATE_KEY", "")
+WEB_PUSH_VAPID_PUBLIC_KEY = env("WEB_PUSH_VAPID_PUBLIC_KEY", "")
+WEB_PUSH_CONTACT = env("WEB_PUSH_CONTACT", "https://lockin.ly")

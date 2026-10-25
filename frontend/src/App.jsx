@@ -1,4 +1,3 @@
-/* global __E2E_CATALOG_MATERIALS__ */
 import { PolicyNotice } from "./components/PolicyNotice.jsx";
 import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
@@ -35,6 +34,8 @@ import { FeatureComingSoon } from "./components/FeatureComingSoon.jsx";
 import { isFeatureComingSoon } from "./lib/featureAvailability.js";
 import { synchronizeOffline } from "./offline/coordinator.js";
 import { forgetOfflineUser, rememberOfflineUser, restoreOfflineUser } from "./offline/profile.js";
+import { showLocalNotification } from "./pwa/localNotification.js";
+import { forgetPushAccount } from "./pwa/devicePush.js";
 import OfflineIndicator from "./offline/OfflineIndicator.jsx";
 import "./pages/dashboard.css";
 import { WeeklyReadyToast } from "./components/biweekly/WeeklyReadyToast.jsx";
@@ -125,9 +126,6 @@ function mergeRemoteThemeSettings(remoteSettings, currentSettings) {
 
 function App() {
   const location = useLocation();
-  // Keep planner tests on the real authenticated/subscription-protected route.
-  // Ordinary builds compile this fixture-only opt-in to false.
-  const fixturePlanner = typeof __E2E_CATALOG_MATERIALS__ !== "undefined" && __E2E_CATALOG_MATERIALS__ !== null && location.search === "?fixture=study-plan";
   const navigate = useNavigate();
   const { setLocale, t } = useI18n();
   const [themeSettings, setThemeSettings] = useState(readLocalThemeSettings);
@@ -196,7 +194,10 @@ function App() {
     }
   }, []);
 
+  const pushAccount = useRef(user?.id || "");
+  pushAccount.current = user?.id || "";
   const clearAuthenticatedUi = useCallback(() => {
+    if (pushAccount.current) void forgetPushAccount(String(pushAccount.current)).catch(() => undefined);
     // Lock In uses only a per-user return-route hint locally; authoritative
     // session data remains in Django. Never carry that hint into another user.
     try {
@@ -380,7 +381,7 @@ function App() {
     setReminderSettings((current) => ({ ...current, lastSentDate: todayStamp(now) }));
     setReminderToast(message);
     if (window.Notification && Notification.permission === "granted") {
-      new Notification("Lock-in study reminder", { body: message });
+      void showLocalNotification("Lock-in study reminder", { body: message }).catch(() => undefined);
     }
   }, [clockTick, reminderSettings]);
 
@@ -761,7 +762,7 @@ function App() {
                 <Route path="/" element={<Dashboard user={user} themeSettings={themeSettings} activeTheme={activeTheme} />} />
                 <Route path="/dashboard" element={<Dashboard user={user} themeSettings={themeSettings} activeTheme={activeTheme} />} />
                 <Route path="/my-group" element={<MyGroup />} />
-                {isFeatureComingSoon("study-plan") && !fixturePlanner
+                {isFeatureComingSoon("study-plan")
                   ? <Route path="/study-plan/*" element={<FeatureComingSoon featureId="study-plan" />} />
                   : <Route path="/study-plan" element={<StudyPlan user={user} />} />}
                 <Route path="/materials" element={<Materials user={user} />} />

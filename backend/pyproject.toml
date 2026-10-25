@@ -22,6 +22,8 @@ dependencies = [
   "weasyprint==70.0",
   "sqlparse==0.6.0",
   "urllib3==2.8.0",
+  "pywebpush==2.5.0",
+  "tzdata==2026.5",
 ]
 
 [project.optional-dependencies]
@@ -81,7 +83,7 @@ module = ["config.settings.*"]
 disable_error_code = ["name-defined", "misc"]
 
 [[tool.mypy.overrides]]
-module = ["botocore.*", "boto3.*", "storages.*", "weasyprint.*"]
+module = ["botocore.*", "boto3.*", "storages.*", "weasyprint.*", "requests", "pywebpush"]
 ignore_missing_imports = true
 
 [tool.django-stubs]

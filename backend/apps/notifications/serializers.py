@@ -40,3 +40,14 @@ class PlatformNoticeSerializer(serializers.Serializer[dict[str, object]]):
     body = serializers.CharField(max_length=320, trim_whitespace=True)
     notice_key = serializers.RegexField(r"^[a-zA-Z0-9][a-zA-Z0-9._:-]{2,119}$")
     is_required = serializers.BooleanField(default=False)
+
+
+class PushSubscriptionSerializer(serializers.Serializer[dict[str, object]]):
+    user_id = serializers.UUIDField()
+    subscription = serializers.JSONField()
+    locale = serializers.ChoiceField(choices=("ar", "en"), default="ar")
+
+
+class PushEndpointSerializer(serializers.Serializer[dict[str, object]]):
+    user_id = serializers.UUIDField()
+    endpoint = serializers.CharField(max_length=2048)

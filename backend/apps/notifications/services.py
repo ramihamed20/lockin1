@@ -75,6 +75,9 @@ def create_notification(
         status=NotificationDelivery.Status.DELIVERED,
         delivered_at=timezone.now(),
     )
+    from .push import enqueue_push
+
+    enqueue_push(notification)
     counter.unread_count = F("unread_count") + 1
     counter.revision = F("revision") + 1
     counter.save(update_fields=("unread_count", "revision", "updated_at"))

@@ -93,6 +93,8 @@ async function mockServer(page, state) {
     }
     if (pathname === "/api/v1/catalog/questions") return json({ count: 0, results: [] });
     if (pathname === `/api/v1/catalog/documents/${MATERIAL}/${SHEET}`) {
+      if (state.metadataGate) await state.metadataGate;
+      if (state.documentDenied) return json({ error: { message: "Access denied" } }, 403);
       return json({ document: { id: DOCUMENT_ID, document_version_id: VERSION_ID, file_id: FILE_ID, view_url: `/api/v1/files/${FILE_ID}/view` } });
     }
     if (pathname === `/api/v1/catalog/documents/${DOCUMENT_ID}/workspace` && method === "GET") return json({ revision: 0, state: {} });
@@ -156,6 +158,59 @@ async function goToPage(page, pageNumber) {
 test.describe("under the production Content-Security-Policy", () => {
   // The worker would answer the shell from its cache without the header.
   test.use({ serviceWorkers: "block" });
+
+  test("first opening saves automatically and subsequent online/offline openings transfer no PDF", async ({ page, baseURL }) => {
+    test.setTimeout(120_000);
+    const state = newState();
+    await applyProductionPolicy(page, baseURL);
+    await mockServer(page, state);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openSheet(page); // No visit to Downloads, no bulk auto-download setting.
+    await expect.poll(() => page.evaluate(({ user, item }) => new Promise((resolve, reject) => {
+      const request = indexedDB.open(`lock-in-offline-v1-${user}`, 1);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const db = request.result;
+        const read = db.transaction("records", "readonly").objectStore("records").get(`download:${item}`);
+        read.onsuccess = () => { resolve(Boolean(read.result?.downloadedAt)); db.close(); };
+        read.onerror = () => { reject(read.error); db.close(); };
+      };
+    }), { user: USER_ID, item: PDF_ITEM }), { timeout: 20_000 }).toBe(true);
+    const initialRequests = state.fileRequests;
+    expect(initialRequests).toBe(1);
+
+    let releaseMetadata;
+    state.metadataGate = new Promise((resolve) => { releaseMetadata = resolve; });
+    await page.goto("/#/");
+    await openSheet(page); // Painted while metadata is deliberately still pending.
+    await goToPage(page, 12);
+    expect(state.fileRequests).toBe(initialRequests);
+    releaseMetadata();
+    state.metadataGate = null;
+    state.serverDown = true;
+    await page.goto("/#/");
+    await openSheet(page);
+    await goToPage(page, 9);
+    expect(state.fileRequests).toBe(initialRequests);
+    expect(state.errors).toEqual([]);
+  });
+
+  test("background permission denial removes a locally opened reader", async ({ page, baseURL }) => {
+    test.setTimeout(90_000);
+    const state = newState();
+    await applyProductionPolicy(page, baseURL);
+    await mockServer(page, state);
+    await downloadSubject(page);
+    await page.goto("/#/");
+    let releaseMetadata;
+    state.metadataGate = new Promise((resolve) => { releaseMetadata = resolve; });
+    await openSheet(page);
+    state.documentDenied = true;
+    releaseMetadata();
+    state.metadataGate = null;
+    await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]")).toHaveCount(0, { timeout: 20_000 });
+    await expect(page.getByText("Access denied", { exact: false }).first()).toBeVisible();
+  });
 
   test("a downloaded PDF opens from the device with the server unreachable", async ({ page, baseURL }) => {
     test.setTimeout(120_000);

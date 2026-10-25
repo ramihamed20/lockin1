@@ -23,9 +23,10 @@ export default function PlanSettings({ profile, materials = [], onSave, onCancel
         <legend className="visually-hidden">{t("plan.choose")}</legend>
         {["beginning", "normal", "custom"].map(mode => <label key={mode} aria-label={t(`plan.${mode}`)} className={draft.mode === mode ? "is-selected" : ""}>
           <input type="radio" name="plan-mode" value={mode} checked={draft.mode === mode} onChange={() => change("mode", mode)} />
-          <span><strong>{t(`plan.${mode}`)}</strong><small>{t(`plan.${mode}Hint`)}</small></span>
+          <span><Icon name={{ beginning: "book-open", normal: "target", custom: "settings" }[mode]} size={20} /><strong>{t(`plan.${mode}`)}</strong></span>
         </label>)}
       </fieldset>
+      <p className="plan-mode-description">{t(`plan.${draft.mode}Hint`)}</p>
       <fieldset className="plan-settings-fields" disabled={busy}>
         <legend className="visually-hidden">{t("plan.settings")}</legend>
         {draft.mode === "beginning" && <p className="plan-note">{t("plan.beginnerRule")}</p>}

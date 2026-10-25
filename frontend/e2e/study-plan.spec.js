@@ -1,12 +1,19 @@
 import { expect, test } from "@playwright/test";
 import { fulfillAccessContract, studentSession } from "./fixtures/productionApi.js";
 
+import { isFeatureComingSoon } from "../src/lib/featureAvailability.js";
+
+// Retain planner coverage for reactivation; release builds assert the shared
+// coming-soon route in coming-soon-features.spec.js instead.
+test.skip(isFeatureComingSoon("study-plan"), "Study Plan is intentionally coming soon in this release.");
+
 const TODAY = "2026-10-16";
 const MATERIALS = [{ slug: "oral-histology", title: "Oral Histology", sheets: [] }, { slug: "dental-anatomy", title: "Dental Anatomy", sheets: [] }];
 async function planner(page, { configured = false, locale = "en", materials = [], items: seeded = [] } = {}) {
   let profile = { configured, mode: "normal", revision: configured ? 1 : 0, daily_minutes: 60, session_minutes: 25, weekdays: [0,1,2,3,4], subjects: [], timezone: "Africa/Tripoli" };
   let items = seeded.map(item => ({ ...item }));
   let rejectSave = false;
+  let stalePreview = false;
   await page.addInitScript(locale => { localStorage.setItem("lock-in.locale", locale); localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now())); }, locale);
   await page.route("**/api/v1/**", async route => {
     const request = route.request();
@@ -30,8 +37,9 @@ async function planner(page, { configured = false, locale = "en", materials = []
       profile = { ...profile, ...body, revision: profile.revision + 1, configured: true };
       return send(profile);
     }
-    if (path === "/api/v1/study-plan/preview") return send({ count: 1, minutes: profile.mode === "beginning" ? 15 : 25, preview_token: "a".repeat(64), items: [{ title: "Study session", subject: "", scheduled_date: TODAY, duration_minutes: profile.mode === "beginning" ? 15 : 25 }] });
+    if (path === "/api/v1/study-plan/preview") { stalePreview = false; return send({ count: 1, minutes: profile.mode === "beginning" ? 15 : 25, preview_token: "a".repeat(64), items: [{ title: "Study session", subject: "", scheduled_date: TODAY, duration_minutes: profile.mode === "beginning" ? 15 : 25 }] }); }
     if (path === "/api/v1/study-plan/generate") {
+      if (stalePreview) return send({error:{code:"plan_changed",message:"Refresh your plan"}},409);
       expect(request.postDataJSON().preview_token).toBe("a".repeat(64));
       items.push({ id: "generated", title: "Study session", subject: "", generated: true, plan_mode: profile.mode, scheduled_date: TODAY, duration_minutes: 25, status: "planned", revision: 1 });
       return send({ count: 1, results: items });
@@ -47,17 +55,17 @@ async function planner(page, { configured = false, locale = "en", materials = []
       const item = items.find(item => item.id === id);
       if (request.method() === "DELETE") { items = items.filter(item => item.id !== id); return route.fulfill({ status: 204 }); }
       const body = request.postDataJSON();
-      expect(body.expected_revision).toBe(item.revision);
+      if (body.expected_revision !== item.revision) return send({error:{code:"plan_changed",message:"Refresh your plan"}},409);
       Object.assign(item, body, { revision: item.revision + 1 }); return send(item);
     }
     return send({ count: 0, results: [] });
   });
-  return { reject: value => { rejectSave = value; }, getItems: () => items };
+  return { reject: value => { rejectSave = value; }, getItems: () => items, changeItem: (id, changes) => { Object.assign(items.find(item => item.id === id), changes); stalePreview = true; } };
 }
 
 test("Beginning and Normal persist preferences, preview sessions and retain completion after reload", async ({ page }) => {
   await planner(page);
-  await page.goto("/#/study-plan?fixture=study-plan");
+  await page.goto("/#/study-plan");
   await page.getByRole("radio", { name: "Beginning", exact: true }).check();
   await expect(page.getByText(/Every 3 completed study days/)).toBeVisible();
   await page.getByRole("button", { name: "Save plan", exact: true }).click();
@@ -77,7 +85,7 @@ test("Beginning and Normal persist preferences, preview sessions and retain comp
 
 test("Custom can create, reschedule and delete a task with an accessible confirmation", async ({ page }) => {
   await planner(page);
-  await page.goto("/#/study-plan?fixture=study-plan");
+  await page.goto("/#/study-plan");
   await page.getByRole("radio", { name: "Custom", exact: true }).check();
   await page.getByRole("button", { name: "Save plan", exact: true }).click();
   await page.getByRole("button", { name: "Add session", exact: true }).click();
@@ -100,7 +108,7 @@ test("Custom can create, reschedule and delete a task with an accessible confirm
 test("a rejected settings save keeps the student's draft for retry", async ({ page }) => {
   const state = await planner(page);
   state.reject(true);
-  await page.goto("/#/study-plan?fixture=study-plan");
+  await page.goto("/#/study-plan");
   await page.getByLabel("Subjects", { exact: true }).fill("Anatomy, Physiology");
   await page.getByRole("button", { name: "Save plan", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "Check the session details" })).toBeVisible();
@@ -115,7 +123,7 @@ test("students pick their own subjects, use quick choices and pull an overdue se
     { id: "late", title: "Solve questions", subject: "Dental Anatomy", scheduled_date: "2026-10-13", duration_minutes: 30, status: "planned", generated: false, revision: 1 },
     { id: "done", title: "Read the lecture", subject: "Oral Histology", scheduled_date: "2026-10-12", duration_minutes: 30, status: "completed", generated: false, revision: 1 }
   ] });
-  await page.goto("/#/study-plan?fixture=study-plan");
+  await page.goto("/#/study-plan");
   await expect(page.getByRole("progressbar", { name: "This week: 30 of 60 min done" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Monday, October 12, 2026 · all sessions done/ })).toBeVisible();
   await page.getByText("Still on your list · 1").click();
@@ -148,10 +156,117 @@ for (const [width, height, locale] of [[320,740,"ar"],[390,844,"en"],[820,1180,"
   test(`planner reflows at ${width}x${height} in ${locale}`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await planner(page, { locale, materials: MATERIALS });
-    await page.goto("/#/study-plan?fixture=study-plan");
+    await page.goto("/#/study-plan");
     await expect(page.locator(".plan-modes")).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await expect(page.locator("html")).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
+    await expect(page.locator(".plan-week")).toHaveCount(0);
+    await page.getByRole("button", { name: locale === "ar" ? "حفظ الخطة" : "Save plan", exact: true }).click();
+    const strip = page.locator(".plan-day-strip");
+    const selected = strip.locator('[aria-pressed="true"]');
+    await expect.poll(async () => {
+      const [container, button] = await Promise.all([strip.boundingBox(), selected.boundingBox()]);
+      return Boolean(container && button && button.x >= container.x - 1 && button.x + button.width <= container.x + container.width + 1);
+    }).toBe(true);
+    for (const button of await strip.getByRole("button").all()) {
+      const bounds = await button.boundingBox();
+      expect(bounds.width).toBeGreaterThanOrEqual(44);
+      expect(bounds.height).toBeGreaterThanOrEqual(44);
+    }
     await page.screenshot({ path: `output/study-plan/setup-${width}-${locale}.png`, fullPage: true });
   });
 }
+
+
+test("moving an overdue session from another week returns to today", async ({page}) => {
+  await planner(page,{configured:true,items:[{id:"late",title:"Overdue anatomy",subject:"Anatomy",scheduled_date:"2026-10-01",duration_minutes:25,status:"planned",generated:false,revision:1}]});
+  await page.goto("/#/study-plan");
+  await page.getByRole("button",{name:"Next week",exact:true}).click();
+  await page.getByText("Still on your list · 1").click();
+  await page.getByRole("button",{name:"Move to today",exact:true}).click();
+  await expect(page.locator(".plan-week .plan-task-list")).toContainText("Overdue anatomy");
+  await expect(page.locator(".plan-day-strip button[aria-pressed=true]")).toHaveAttribute("aria-label",/Friday, October 16/);
+});
+
+test("a stale editor refresh keeps changed fields and reloads untouched fields", async ({page}) => {
+  const state=await planner(page,{configured:true,items:[{id:"task",title:"Read anatomy",subject:"Anatomy",scheduled_date:TODAY,duration_minutes:25,status:"planned",generated:false,revision:1}]});
+  await page.goto("/#/study-plan");
+  await page.getByRole("button",{name:"Edit Read anatomy",exact:true}).click();
+  await page.getByLabel("What will you study?",{exact:true}).fill("My revised title");
+  state.changeItem("task",{duration_minutes:40,revision:2});
+  await page.getByRole("button",{name:"Save session",exact:true}).click();
+  await page.getByRole("button",{name:"Refresh plan",exact:true}).click();
+  await expect(page.getByLabel("What will you study?",{exact:true})).toHaveValue("My revised title");
+  await expect(page.getByLabel("Minutes",{exact:true})).toHaveValue("40");
+  await page.getByRole("button",{name:"Save session",exact:true}).click();
+  await expect(page.locator(".plan-editor")).toHaveCount(0);
+  expect(state.getItems()[0]).toMatchObject({title:"My revised title",duration_minutes:40,revision:3});
+});
+
+test("refreshing a stale week discards its obsolete generation preview", async ({page}) => {
+  const state=await planner(page,{configured:true,items:[{id:"task",title:"Existing task",subject:"",scheduled_date:TODAY,duration_minutes:25,status:"planned",generated:false,revision:1}]});
+  await page.goto("/#/study-plan");
+  await page.getByRole("button",{name:"Preview this week"}).click();
+  await expect(page.locator(".plan-preview")).toBeVisible();
+  state.changeItem("task",{revision:2});
+  await page.getByRole("button",{name:"Add these sessions"}).click();
+  await page.getByRole("button",{name:"Refresh plan",exact:true}).click();
+  await expect(page.locator(".plan-preview")).toHaveCount(0);
+  await page.getByRole("button",{name:"Preview this week"}).click();
+  await expect(page.locator(".plan-preview")).toBeVisible();
+  await page.getByRole("button",{name:"Add these sessions"}).click();
+  await expect(page.locator(".plan-preview")).toHaveCount(0);
+});
+
+for (const locale of ["ar", "en"]) {
+  test(`selected day stays reachable when resizing the planner in ${locale}`, async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await planner(page, { configured: true, locale });
+    await page.goto("/#/study-plan");
+    const strip = page.locator(".plan-day-strip");
+    await expect(strip).toBeVisible();
+    for (const width of [320, 820, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect.poll(async () => {
+        const [container, selected] = await Promise.all([
+          strip.boundingBox(), strip.locator('[aria-pressed="true"]').boundingBox()
+        ]);
+        return Boolean(container && selected && selected.x >= container.x - 1 && selected.x + selected.width <= container.x + container.width + 1);
+      }).toBe(true);
+    }
+  });
+}
+
+
+test("settings focus on configuration and return without changing study tasks", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await planner(page, { configured: true, items: [
+    { id: "done", title: "Completed task", scheduled_date: TODAY, duration_minutes: 25, status: "completed", revision: 1 },
+    { id: "pending", title: "Pending task", scheduled_date: TODAY, duration_minutes: 25, status: "planned", revision: 1 }
+  ] });
+  await page.goto("/#/study-plan");
+  await expect(page.locator(".plan-task-list li").first()).toContainText("Pending task");
+  const week = await page.locator(".plan-week").boundingBox();
+  const stats = await page.locator(".plan-stats").boundingBox();
+  expect(week.y).toBeLessThan(stats.y);
+  await page.getByRole("button", { name: "Plan settings", exact: true }).click();
+  await expect(page.locator(".plan-week")).toHaveCount(0);
+  await expect(page.locator(".plan-stats")).toHaveCount(0);
+  await page.getByRole("radio", { name: "Custom", exact: true }).check();
+  await page.getByRole("button", { name: "Back to plan", exact: true }).click();
+  await expect(page.locator(".plan-task-list li")).toHaveCount(2);
+  await expect(page.locator(".plan-task-list li").last()).toContainText("Completed task");
+  const strip = page.locator(".plan-day-strip");
+  await expect.poll(async () => {
+    const [container, selected] = await Promise.all([strip.boundingBox(), strip.locator('[aria-pressed="true"]').boundingBox()]);
+    return selected.x >= container.x - 1 && selected.x + selected.width <= container.x + container.width + 1;
+  }).toBe(true);
+});
+
+test("the selected day's add action keeps the chosen date", async ({ page }) => {
+  await planner(page, { configured: true });
+  await page.goto("/#/study-plan");
+  await page.locator(".plan-day-strip button").first().click();
+  await page.getByRole("button", { name: "Add a session for the selected day", exact: true }).click();
+  await expect(page.getByLabel("Date", { exact: true })).toHaveValue("2026-10-12");
+});

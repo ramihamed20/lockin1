@@ -80,7 +80,7 @@ const GRADING = {
   "question-two": { correct: "two-a", explanation: "They form most of the epidermis.", xp: 10 }
 };
 
-async function mockStudent(page, { directory = DIRECTORY, submissions = [], retries = [] } = {}) {
+async function mockStudent(page, { directory = DIRECTORY, submissions = [], retries = [], retryGate = null } = {}) {
   const recorded = {};
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -128,6 +128,7 @@ async function mockStudent(page, { directory = DIRECTORY, submissions = [], retr
       const questionId = retrying[1];
       const { choice_ids: choiceIds, retry_key: retryKey } = request.postDataJSON();
       retries.push({ questionId, choiceIds, retryKey });
+      if (retryGate) await retryGate;
       const grading = GRADING[questionId];
       return json({
         question_id: questionId,
@@ -280,4 +281,27 @@ test("a cohort with no published questions is told so, not shown an empty subjec
   await page.goto("/#/questions/categories/ai-sheet");
 
   await expect(page.getByText("No questions yet")).toBeVisible();
+});
+
+
+test("practice feedback and navigation do not wait for a stalled retry request", async ({ page }) => {
+  let release;
+  const retryGate = new Promise((resolve) => { release = resolve; });
+  const retries = [];
+  await mockStudent(page, { retryGate, retries });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/#/questions/categories/ai-sheet/subjects/dentistry-tripoli-year-1-oral-histology/sheets/${SHEET_ID}`);
+  await page.getByRole("button", { name: "Start Questions" }).click();
+  const card = page.locator(".question-card");
+  await card.getByRole("button", { name: /Basal/ }).click();
+  await expect(card.getByText("Correct", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Restart", exact: true }).click();
+  await card.getByRole("button", { name: /Spinous/ }).click();
+  // The server route is deliberately held open, so this proves local feedback.
+  await expect(card.getByText("Not quite", { exact: true })).toBeVisible();
+  await expect(card.getByText(/\+\d+ XP/)).toHaveCount(0);
+  await page.getByRole("button", { name: /Next question/ }).click();
+  await expect(page.getByText("Question 2 of 2")).toBeVisible();
+  await expect.poll(() => retries.length).toBe(1);
+  release();
 });

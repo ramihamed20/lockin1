@@ -1,6 +1,6 @@
-import { findDownloadedPdfItem, readOfflinePdfBytes } from "./downloads.js";
+import { findDownloadedPdfItem, readOfflinePdfBytes, storeOpenedPdf } from "./downloads.js";
 import { isOfflinePdfUrl, offlinePdfItemId } from "./pdfUrl.js";
-import { currentOfflineUserId } from "./profile.js";
+import { currentOfflineUserId, captureOfflineSession } from "./sessionScope.js";
 
 /**
  * Where the reader's PDF.js document comes from.
@@ -18,8 +18,27 @@ import { currentOfflineUserId } from "./profile.js";
  * @param {(url: string) => string} [resolveUrl]
  * @returns {Promise<{ data: Uint8Array<ArrayBuffer> } | { url: string }>}
  */
+const authorizations = new Map();
+
+/** A fresh server descriptor may authorize a local read even without an offline lease. */
+export function authorizeCachedPdf(userId, url) {
+  const assertCurrent = captureOfflineSession(userId);
+  authorizations.set(`${userId}|${url}`, { assertCurrent, until: Date.now() + 30_000 });
+  if (authorizations.size > 100) authorizations.delete(authorizations.keys().next().value);
+}
+
 export async function pdfDocumentSource(url, resolveUrl = (value) => value) {
-  if (!isOfflinePdfUrl(url)) return { url: resolveUrl(url) };
+  if (!isOfflinePdfUrl(url)) {
+    const owner = currentOfflineUserId();
+    const grant = authorizations.get(`${owner}|${url}`);
+    const onlineAuthorized = Boolean(grant && grant.until > Date.now() && grant.assertCurrent.isCurrent());
+    if (owner) {
+      const item = await findDownloadedPdfItem(owner, url).catch(() => null);
+      const bytes = item ? await readOfflinePdfBytes(owner, item.id, { onlineAuthorized }).catch(() => null) : null;
+      if (bytes) return { data: bytes };
+    }
+    return { url: resolveUrl(url) };
+  }
   const userId = currentOfflineUserId();
   const data = userId ? await readOfflinePdfBytes(userId, offlinePdfItemId(url)) : null;
   if (!data) throw new Error("This PDF hasn’t been downloaded for offline use.");
@@ -54,4 +73,16 @@ export function isPdfNetworkFailure(error) {
   return status === 0
     || globalThis.navigator?.onLine === false
     || /failed to fetch|load failed|networkerror|network error/i.test(String(error?.message || ""));
+}
+
+/** The transport is reused for a full durable copy; storage failure never blocks reading. */
+export async function rememberOpenedPdf(url, pdfDocument) {
+  const userId = currentOfflineUserId();
+  if (!userId || isOfflinePdfUrl(url) || !/^\/api\/v1\/files\/[0-9a-f-]+\/view$/i.test(url)) return;
+  const assertCurrent = captureOfflineSession(userId);
+  const item = await findDownloadedPdfItem(userId, url).catch(() => null);
+  if (item && await readOfflinePdfBytes(userId, item.id, { onlineAuthorized: true }).catch(() => null)) return;
+  const bytes = await pdfDocument.getData();
+  assertCurrent();
+  await storeOpenedPdf(userId, url, bytes);
 }

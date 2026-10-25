@@ -11,6 +11,7 @@ import {
 test("the feature registry is the authoritative source for every scheduled feature", () => {
   assert.deepEqual(comingSoonFeatures().map((feature) => feature.id), ["lock-in", "study-plan", "rank", "community"]);
   assert.equal(isFeatureComingSoon(getFeatureForPath("/study-plan")), true);
+  assert.equal(isFeatureComingSoon(getFeatureForPath("/study-plan/session-1")), true);
   assert.equal(isFeatureComingSoon(getFeatureForPath("/ranked")), true);
   assert.equal(isFeatureComingSoon(getFeatureForPath("/community/discussions/thread-1")), true);
   assert.equal(isFeatureComingSoon(getFeatureForPath("/lock-in")), true);

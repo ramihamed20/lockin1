@@ -1,3 +1,4 @@
+import { forgetPushAccount } from "../pwa/devicePush.js";
 import { offlineDatabase } from "./database.js";
 import { offlineAccessStatus } from "./lease.js";
 import { clearOfflineDownloads } from "./downloads.js";
@@ -39,6 +40,7 @@ export function isRetainedOfflineWork(key) {
  */
 export async function forgetOfflineUser(userId) {
   if (!userId) return;
+  await forgetPushAccount(String(userId)).catch(() => undefined);
   invalidateOfflineSession();
   if (localStorage.getItem(CURRENT_USER_KEY) === String(userId)) localStorage.removeItem(CURRENT_USER_KEY);
   await offlineDatabase.delete(userId, "lease");

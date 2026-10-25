@@ -741,7 +741,13 @@ class CatalogSheetQuestionAnswerView(APIView):
     def post(self, request: Request, sheet_id: UUID, question_id: UUID) -> Response:
         user = _user(request)
         sheet, _ = _owned_question_sheet(user, sheet_id)
-        question = get_object_or_404(_sheet_questions(sheet), id=question_id)
+        question = get_object_or_404(
+            _sheet_questions(sheet).select_related(
+                "published_version__academic_node",
+                "published_version__source_learning_object__published_version",
+            ),
+            id=question_id,
+        )
         raw = request.data.get("choice_ids") if isinstance(request.data, dict) else None
         if not isinstance(raw, list) or not raw:
             raise AnswerInvalid("Choose an answer.")
@@ -775,7 +781,13 @@ class CatalogSheetQuestionRetryView(APIView):
     def post(self, request: Request, sheet_id: UUID, question_id: UUID) -> Response:
         user = _user(request)
         sheet, _ = _owned_question_sheet(user, sheet_id)
-        question = get_object_or_404(_sheet_questions(sheet), id=question_id)
+        question = get_object_or_404(
+            _sheet_questions(sheet).select_related(
+                "published_version__academic_node",
+                "published_version__source_learning_object__published_version",
+            ),
+            id=question_id,
+        )
         data = request.data if isinstance(request.data, dict) else {}
         raw = data.get("choice_ids")
         if not isinstance(raw, list) or not raw:

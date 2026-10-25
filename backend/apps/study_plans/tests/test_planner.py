@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from datetime import timedelta
+from datetime import UTC, timedelta
 from threading import Barrier
 from uuid import uuid4
 
@@ -363,3 +363,66 @@ def test_real_cookie_session_can_save_preview_and_complete_with_rotated_csrf():
         ]
         == 1
     )
+
+
+def test_account_timezone_controls_today_and_future_completion(monkeypatch):
+    from datetime import datetime
+
+    user, client, _today, _monday = setup_plan()
+    monkeypatch.setattr(
+        "apps.study_plans.services.timezone.now",
+        lambda: datetime(2026, 10, 25, 22, 30, tzinfo=UTC),
+    )
+    item = StudyPlanItem.objects.create(user=user, title="Monday", scheduled_date="2026-10-26")
+    path = f"/api/v1/study-plan/items/{item.id}"
+    query = "/api/v1/study-plan?from=2026-10-25&to=2026-10-26"
+    assert client.get(query).json()["today"] == "2026-10-26"
+    assert client.patch(path, {"status": "completed"}, format="json").status_code == 200
+    assert client.patch(path, {"status": "planned"}, format="json").status_code == 200
+    changed = client.patch(
+        "/api/v1/study-plan/profile",
+        config(timezone="America/Los_Angeles", expected_revision=1),
+        format="json",
+    )
+    assert changed.status_code == 200
+    assert client.get(query).json()["today"] == "2026-10-25"
+    assert client.patch(path, {"status": "completed"}, format="json").status_code == 400
+
+
+def test_expired_access_blocks_plan_reads_and_writes_without_deleting_work():
+    from apps.entitlements.models import EntitlementGrant
+    from apps.subscriptions.models import Subscription
+
+    user = create_user(with_trial=True)
+    item = StudyPlanItem.objects.create(
+        user=user, title="Retained work", scheduled_date=timezone.localdate()
+    )
+    Subscription.objects.filter(account__primary_user=user).update(status="expired")
+    EntitlementGrant.objects.filter(user=user).update(status="expired")
+    client = authenticated_client(user)
+    today = timezone.localdate()
+    assert client.get(f"/api/v1/study-plan?from={today}&to={today}").status_code == 403
+    assert client.patch("/api/v1/study-plan/profile", config(), format="json").status_code == 403
+    assert not StudyPlanProfile.objects.filter(user=user).exists()
+    assert StudyPlanItem.objects.filter(pk=item.pk).exists()
+
+
+def test_browser_timezone_alias_works_without_system_timezone_files():
+    import zoneinfo
+    from unittest.mock import patch
+
+    user = create_user(with_trial=True)
+    client = authenticated_client(user)
+    original = zoneinfo.TZPATH
+    zoneinfo.reset_tzpath(())
+    try:
+        with patch("apps.study_plans.serializers.ZoneInfo", zoneinfo.ZoneInfo.no_cache):
+            saved = client.patch(
+                "/api/v1/study-plan/profile", config(timezone="Asia/Calcutta"), format="json"
+            )
+        assert saved.status_code == 200, saved.data
+        with patch("apps.study_plans.services.ZoneInfo", zoneinfo.ZoneInfo.no_cache):
+            today = plan_today(profile_for(user))
+            assert client.get(f"/api/v1/study-plan?from={today}&to={today}").status_code == 200
+    finally:
+        zoneinfo.reset_tzpath(original)

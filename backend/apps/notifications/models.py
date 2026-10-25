@@ -2,6 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class Notification(models.Model):
@@ -64,7 +65,7 @@ class NotificationPreference(models.Model):
     class Channel(models.TextChoices):
         IN_APP = "in_app", "In app"
         EMAIL = "email", "Email (future)"
-        PUSH = "push", "Push (future)"
+        PUSH = "push", "Push"
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -103,7 +104,7 @@ class NotificationCounter(models.Model):
 
 
 class NotificationDelivery(models.Model):
-    """Channel-neutral delivery state; only in-app is implemented in this phase."""
+    """In-app delivery summary; Web Push tracks each installation separately."""
 
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
@@ -135,3 +136,51 @@ class NotificationDelivery(models.Model):
 
     def __str__(self) -> str:
         return f"{self.notification_id}:{self.channel}:{self.status}"
+
+
+class PushSubscription(models.Model):
+    """One browser installation, owned by its current authenticated session."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    account_session = models.ForeignKey(
+        "accounts.AccountSession", on_delete=models.CASCADE, related_name="push_subscriptions"
+    )
+    endpoint_hash = models.CharField(max_length=64, unique=True)
+    subscription = models.JSONField()
+    binding = models.UUIDField(default=uuid.uuid4)
+    locale = models.CharField(max_length=2, default="ar")
+    active = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return f"Web Push installation {self.id}"
+
+
+class PushDelivery(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        SENDING = "sending", "Sending"
+        ACCEPTED = "accepted", "Accepted by push service"
+        FAILED = "failed", "Failed"
+        CANCELLED = "cancelled", "Cancelled"
+
+    notification = models.ForeignKey(Notification, on_delete=models.CASCADE)
+    subscription = models.ForeignKey(PushSubscription, on_delete=models.CASCADE)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    next_attempt_at = models.DateTimeField(default=timezone.now)
+    locked_until = models.DateTimeField(null=True, blank=True)
+    lock_token = models.UUIDField(null=True, blank=True)
+    error_code = models.CharField(max_length=40, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("notification", "subscription"), name="push_delivery_unique"
+            )
+        ]
+        indexes = [models.Index(fields=("status", "next_attempt_at"), name="push_delivery_due_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.notification_id}:{self.status}"

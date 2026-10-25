@@ -8,6 +8,7 @@ import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/ind
 import { CatalogTile } from "../components/learning/CatalogTile.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
 import { QuestionExplanation } from "../components/shared/QuestionExplanation.jsx";
+import { gradeRecordedRetry } from "../lib/practiceRetry.js";
 import { prefersReducedMotion } from "../lib/motion.js";
 import { DirectoryState, QuestionBreadcrumbs, QuestionDirectoryHeader } from "../components/learning/QuestionDirectory.jsx";
 import { PracticeCategory, PracticeSubject, PracticePlayerPage } from "../components/learning/PracticeQuestions.jsx";
@@ -435,6 +436,16 @@ function PracticeItem({ sheetId, userId, source, question, answer, recorded = nu
       inFlight.current = true;
       setPending(true);
       setError("");
+      const immediate = gradeRecordedRetry(question, recorded, choiceIds);
+      if (immediate) {
+        answeredHere.current = true;
+        onAnswered(question.id, immediate, true);
+        setPending(false);
+        // Only practice feedback is immediate. The server still records the
+        // retry, counts mistakes and enforces access; this never awards XP.
+        void catalogWorkspaceApi.retryQuestion(sheetId, question.id, choiceIds).catch(() => undefined);
+        return;
+      }
       let correctIds = recorded.correct_choice_ids || [];
       let isCorrect = choiceIds.length === correctIds.length && choiceIds.every((id) => correctIds.includes(id));
       try {

@@ -829,7 +829,7 @@ export function ContinuousA4Pdf({
         setFailedPages(new Set());
         setDefaultPageAspectRatio(A4_PAGE_RATIO);
         setPageAspectRatios(new Map());
-        const [pdfjs, { pdfDocumentSource, downloadedPdfSource, isPdfNetworkFailure }] = await Promise.all([loadPdfLibrary(), import("../../offline/pdfSource.js")]);
+        const [pdfjs, { pdfDocumentSource, downloadedPdfSource, isPdfNetworkFailure, rememberOpenedPdf }] = await Promise.all([loadPdfLibrary(), import("../../offline/pdfSource.js")]);
         const libraryReady = measureLoad ? window.performance.now() : 0;
         // A downloaded PDF arrives as its stored bytes, read for this open only.
         const source = await pdfDocumentSource(pdfUrl, assetPath);
@@ -861,6 +861,8 @@ export function ContinuousA4Pdf({
         });
         applyMeasuredGeometry(geometry);
         setDocumentProxy(nextDocument);
+        // Reuse PDF.js's transport, then save all bytes in the background.
+        void rememberOpenedPdf(pdfUrl, nextDocument).catch(() => undefined);
         onPageCount(nextDocument.numPages);
         setStatus("");
       } catch (error) {
