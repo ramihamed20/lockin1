@@ -1,3 +1,4 @@
+import { settingsMessages } from "./settingsMessages.js";
 import { experienceMessages } from "./experienceMessages.js";
 import { studyPlanMessages } from "./studyPlanMessages.js";
 import { allQuestionsMessages } from "./allQuestionsMessages.js";
@@ -24,6 +25,7 @@ const messages = {
     ...rescueMessages.en,
     ...studyPlanMessages.en,
     ...experienceMessages.en,
+    ...settingsMessages.en,
     "app.name": "Lock-in",
     "common.loading": "Loading content…",
     "common.tryAgain": "Try again",
@@ -3022,6 +3024,7 @@ const messages = {
     ...rescueMessages.ar,
     ...studyPlanMessages.ar,
     ...experienceMessages.ar,
+    ...settingsMessages.ar,
     "app.name": "Lock-in",
     "common.loading": "جارٍ تحميل المحتوى…",
     "common.tryAgain": "حاول مجددًا",

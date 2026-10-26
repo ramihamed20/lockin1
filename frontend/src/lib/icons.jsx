@@ -1,6 +1,7 @@
 import { memo } from "react";
 import {
   Activity,
+  Laptop,
   AlertTriangle,
   Award,
   BarChart3,
@@ -94,6 +95,7 @@ import {
 } from "lucide-react";
 
 const icons = {
+  devices: Laptop,
   grip: GripVertical,
   "chevron-up": ChevronUp,
   "chevron-down": ChevronDown,

@@ -65,6 +65,82 @@
 .settings-v2-icon--suggest { background: #d9822b; }
 .settings-v2-icon--updates { background: #3b82c4; }
 
+/* Settings: calm, grouped navigation and device-specific illustrations. */
+.settings-v2-nav { display: grid; align-content: start; gap: 22px; min-inline-size: 0; }
+.settings-nav-group { gap: 8px; }
+.settings-version { margin: 0; color: var(--muted); font-size: var(--text-sm); text-align: center; }
+.settings-search { display: flex; align-items: center; gap: 8px; min-block-size: 48px; padding-inline: 12px 4px; border-radius: var(--radius-md); background: var(--surface-2); color: var(--muted); }
+.settings-search input { flex: 1; min-inline-size: 0; inline-size: 100%; min-block-size: 46px; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--text); box-shadow: none; font-size: 16px; }
+.settings-search input::-webkit-search-cancel-button { display: none; }
+.settings-search button { display: grid; place-items: center; flex: 0 0 44px; min-block-size: 44px; border: 0; background: transparent; color: var(--muted); border-radius: var(--radius-full); cursor: pointer; }
+.settings-detail-description { margin: 10px 0 0; max-inline-size: 54ch; color: var(--muted); font-size: var(--text-base); line-height: 1.6; }
+.settings-v2-icon--security { background: #687482; }
+.settings-v2-icon--devices { background: #4b78c3; }
+.settings-v2-icon--billing { background: #38917d; }
+.settings-v2-icon--privacy { background: #8570b4; }
+.settings-v2-icon--subjects { background: #b87741; }
+.settings-device-list { list-style: none; padding: 0; }
+.settings-device { padding: 20px; }
+.settings-device + .settings-device { border-block-start: 1px solid var(--separator); }
+.settings-device-summary { display: flex; align-items: center; gap: 18px; min-inline-size: 0; }
+.settings-device-art { flex: 0 0 84px; inline-size: 84px; block-size: 78px; color: var(--muted); }
+.settings-device.is-current .settings-device-art { color: var(--accent-text); }
+.settings-device-body { display: grid; gap: 5px; min-inline-size: 0; }
+.settings-device-body > strong { color: var(--text); font-size: var(--text-lg); font-weight: var(--weight-semibold); }
+.settings-device-body > span:not(.settings-device-current), .settings-device-body > small { color: var(--muted); font-size: var(--text-sm); line-height: 1.6; overflow-wrap: anywhere; }
+.settings-device-current { display: inline-flex; align-items: center; gap: 6px; color: var(--success); font-size: var(--text-sm); font-weight: var(--weight-medium); }
+.settings-device-current > span { inline-size: 6px; block-size: 6px; border-radius: 50%; background: currentColor; }
+.settings-device-details { margin-block-start: 10px; }
+.settings-device-details > summary { display: flex; align-items: center; gap: 6px; min-block-size: 44px; inline-size: fit-content; cursor: pointer; color: var(--accent-text); font-size: var(--text-sm); }
+.settings-device-details > summary::-webkit-details-marker, .settings-payment > summary::-webkit-details-marker { display: none; }
+.settings-device-details[open] > summary svg, .settings-payment[open] .settings-v2-disclosure { transform: rotate(180deg); }
+.settings-device-details dl, .settings-payment-detail dl { display: grid; gap: 12px; margin: 0 0 16px; font-size: var(--text-sm); }
+.settings-device-details dl > div, .settings-payment-detail dl > div { display: grid; grid-template-columns: minmax(100px, 1fr) minmax(0, 2fr); gap: 12px; }
+.settings-device-details dt, .settings-payment-detail dt { color: var(--muted); }
+.settings-device-details dd, .settings-payment-detail dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
+.settings-device-count { font-variant-numeric: tabular-nums; }
+.settings-payment > summary { cursor: pointer; list-style: none; min-block-size: 86px; }
+.settings-payment > summary .ui-row-body > strong { white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
+.settings-payment-icon { color: var(--accent-text); background: var(--accent-soft); }
+.settings-payment-value { display: grid; gap: 6px; flex-shrink: 0; max-inline-size: 43%; text-align: end; font-size: var(--text-base); }
+.settings-payment-value > strong { font-weight: var(--weight-semibold); overflow-wrap: anywhere; }
+.settings-payment-status { font-size: var(--text-sm); color: var(--muted); }
+.settings-payment-status.is-pending, .settings-payment-status.is-initiated { color: var(--warning); }
+.settings-payment-status.is-succeeded, .settings-payment-status.is-approved { color: var(--success); }
+.settings-payment-status.is-failed, .settings-payment-status.is-rejected { color: var(--danger); }
+.settings-payment-detail { padding: 8px 18px 2px; }
+.settings-payment-paging { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding-block: 8px; }
+.settings-payment-paging > span { color: var(--muted); font-size: var(--text-sm); }
+.settings-text-link { display: inline-flex; align-items: center; gap: 6px; min-block-size: 44px; color: var(--accent-text); font-size: var(--text-base); inline-size: fit-content; }
+.settings-empty { display: grid; justify-items: center; gap: 10px; padding: 34px 18px; text-align: center; color: var(--muted); }
+.settings-empty strong { color: var(--text); }
+.settings-empty p { margin: 0; font-size: var(--text-sm); line-height: 1.6; }
+.settings-notification-preview { display: flex; align-items: start; gap: 12px; padding: 18px; border-radius: var(--radius-card); background: var(--surface-2); }
+.settings-notification-preview > div { display: grid; gap: 5px; }
+.settings-notification-preview small { color: var(--muted); font-size: var(--text-sm); }
+.settings-notification-preview strong { color: var(--text); font-size: var(--text-base); font-weight: var(--weight-semibold); }
+.settings-notification-preview p { margin: 0; color: var(--muted); line-height: 1.6; font-size: var(--text-sm); }
+.settings-notification-app { display: grid; place-items: center; flex: 0 0 40px; block-size: 40px; border-radius: 11px; color: var(--on-accent); background: var(--accent); }
+.settings-notification-category + .settings-notification-category { border-block-start: 1px solid var(--separator); }
+.settings-notification-category-title { margin: 0; padding: 16px 16px 4px; font-size: var(--text-sm); color: var(--muted); font-weight: var(--weight-semibold); }
+.settings-notification-category .ui-row-body > label { cursor: pointer; }
+.settings-v2 .settings-v2-select { min-block-size: 44px; }
+@media (max-width: 639px) {
+  .settings-device { padding: 16px; }
+  .settings-device-summary { gap: 12px; }
+  .settings-device-art { flex-basis: 70px; inline-size: 70px; block-size: 70px; }
+  .settings-payment-icon { display: none; }
+  .settings-payment > summary { gap: 10px; }
+  .settings-payment > summary .ui-row-chevron { display: none; }
+}
+@media (min-width: 1100px) {
+  .settings-v2-nav { max-block-size: calc(100dvh - 100px - var(--safe-top, 0px)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding-block-end: 12px; }
+  .settings-v2-nav .settings-v2-avatar { inline-size: 44px; block-size: 44px; flex-basis: 44px; }
+  .settings-v2-nav .settings-v2-profile .ui-row { padding-inline: 12px; gap: 10px; }
+  .settings-v2-nav .settings-v2-profile .ui-row-body > strong { font-size: var(--text-base); }
+  .settings-v2-nav .settings-v2-profile small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+
 /* Settings → Updates. Build identifiers stay left-to-right in Arabic. */
 .app-updates-id { font-variant-numeric: tabular-nums; unicode-bidi: isolate; }
 .app-updates-icon {

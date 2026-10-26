@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { motivationApi } from "../api/motivation.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { useI18n } from "../components/I18nProvider.jsx";
-import { ErrorPanel } from "../components/ui/index.jsx";
+import { ErrorPanel, Switch } from "../components/ui/index.jsx";
 
 /** Scheduling is server-owned; enabling a browser's push permission is a separate action. */
 export default function StudyReminderSettings({ userId }) {
@@ -30,7 +30,7 @@ export default function StudyReminderSettings({ userId }) {
     {state.loading && <p role="status">{t("common.loading")}</p>}
     {state.error && <ErrorPanel message={state.error} onRetry={state.reload} />}
     {draft && !state.error && <form className="ui-group settings-v2-form" onSubmit={save}>
-      <label className="ui-row"><input type="checkbox" checked={draft.enabled} disabled={busy} onChange={event => setDraft({ ...draft, enabled: event.target.checked })} /><span>{t("settings.dailyStudyReminder")}</span></label>
+      <div className="ui-row"><span className="ui-row-body"><label htmlFor="settings-reminder-enabled">{t("settings.dailyStudyReminder")}</label></span><Switch id="settings-reminder-enabled" checked={draft.enabled} disabled={busy} onCheckedChange={enabled => setDraft({ ...draft, enabled })} /></div>
       <label className="field"><span>{t("settings.reminderTime")}</span><input type="time" required value={draft.time} disabled={busy} onChange={event => setDraft({ ...draft, time: event.target.value })} /></label>
       <label className="field"><span>{t("reminder.timezone")}</span><select value={draft.timezone} disabled={busy} onChange={event => setDraft({ ...draft, timezone: event.target.value })}>{[...new Set(["Africa/Tripoli", deviceZone, draft.timezone])].filter(Boolean).map(zone => <option key={zone} value={zone}>{zone === "Africa/Tripoli" ? t("reminder.libyaTimezone") : t("reminder.deviceTimezone", { zone })}</option>)}</select></label>
       <div className="settings-v2-form-actions"><button type="submit" className="btn btn-primary compact" disabled={busy}>{t(busy ? "common.loading" : "common.save")}</button></div>
