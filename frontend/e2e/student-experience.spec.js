@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { reminderDefaults } from "../src/pwa/studyReminder.js";
 import { fulfillAccessContract, studentSession } from "./fixtures/productionApi.js";
 
 const OWNER = "11111111-1111-4111-8111-111111111111";
@@ -8,7 +9,7 @@ const summaries = [
 ];
 
 async function server(context, { locale = "en", signedIn = true } = {}) {
-  const state = { weeklyFails: true, ledgerReads: [], reminderWrites: [], reminder: { enabled: false, time: "18:00", timezone: "Africa/Tripoli", locale, revision: 0 } };
+  const state = { weeklyFails: true, ledgerReads: [], reminderWrites: [], reminder: { ...reminderDefaults, locale, revision: 0 } };
   await context.addInitScript(({ language }) => localStorage.setItem("lock-in.locale", language), { language: locale });
   await context.route("**/api/v1/**", async route => {
     const req = route.request();
@@ -36,7 +37,7 @@ async function server(context, { locale = "en", signedIn = true } = {}) {
     if (path === "/api/v1/notifications/preferences") return json([{ category: "learning", channel: "push", enabled: true, available: true, required: false }]);
     if (path === "/api/v1/notifications/push") return json({ enabled: false, registered: false });
     if (path === "/api/v1/notifications/study-reminder") {
-      if (req.method() === "PUT") { const data = req.postDataJSON(); state.reminderWrites.push(data); state.reminder = { ...data, revision: data.expected_revision + 1 }; }
+      if (req.method() === "PUT") { const data = req.postDataJSON(); state.reminderWrites.push(data); state.reminder = { ...data, revision: data.expected_revision + 1, paused_until: data.pause_hours ? new Date(Date.now() + data.pause_hours * 3600000).toISOString() : null, next_due_at: new Date(Date.now() + 86400000).toISOString() }; }
       return json(state.reminder);
     }
     if (path === "/api/v1/notifications/summary") return json({ detail: "Summary unavailable" }, 503);
@@ -91,6 +92,44 @@ for (const config of [{ locale: "en", width: 390, height: 844 }, { locale: "ar",
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
+  test(`study notification types, quiet hours, pause and reload persist — ${config.locale}`, async ({ page, context }) => {
+    const state = await server(context, config);
+    await page.setViewportSize({ width: config.width, height: config.height });
+    await page.goto("/#/settings?section=notifications");
+    const panel = page.locator("#settings-reminder");
+    const checks = panel.getByRole("checkbox");
+    await checks.nth(0).check();
+    await checks.nth(2).check();
+    await checks.nth(3).check();
+    await panel.locator("select").first().selectOption("4");
+    await panel.locator(".study-alert-days button").nth(1).click();
+    await checks.nth(5).check();
+    await checks.nth(6).uncheck();
+    const save = panel.getByRole("button", { name: config.locale === "ar" ? "حفظ" : "Save", exact: true });
+    await panel.locator('input[type="time"]').first().fill("23:00");
+    await save.click();
+    await expect(panel.getByRole("alert")).toContainText(config.locale === "ar" ? "خارج ساعات الهدوء" : "outside quiet hours");
+    expect(state.reminderWrites).toHaveLength(0);
+    await panel.locator('input[type="time"]').first().fill("20:30");
+    await save.click();
+    await expect.poll(() => state.reminderWrites.length).toBe(1);
+    expect(state.reminderWrites[0]).toMatchObject({ review_enabled: true, weekly_enabled: true, weekly_day: 4, quiet_enabled: true, push_preview: false, weekdays: [0, 2, 3, 4, 5, 6] });
+    await expect(panel.locator(".study-alert-schedule")).toBeVisible();
+    await page.reload();
+    await expect(panel.getByRole("checkbox").nth(2)).toBeChecked();
+    await expect(panel.locator(".study-alert-days button").nth(1)).toHaveAttribute("aria-pressed", "false");
+    await panel.getByRole("button", { name: config.locale === "ar" ? "إيقاف تنبيهات الدراسة لمدة 24 ساعة" : "Pause study alerts for 24 hours", exact: true }).click();
+    await expect.poll(() => state.reminderWrites.length).toBe(2);
+    expect(state.reminderWrites[1].pause_hours).toBe(24);
+    await expect(panel.locator(".study-alert-schedule")).toContainText(config.locale === "ar" ? "متوقفة" : "paused");
+    await panel.getByRole("button", { name: config.locale === "ar" ? "استئناف تنبيهات الدراسة" : "Resume study alerts", exact: true }).click();
+    await expect.poll(() => state.reminderWrites.length).toBe(3);
+    expect(state.reminderWrites[2].pause_hours).toBe(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    const targets = await panel.locator(".study-alert-days button, .study-alert-toggle, .study-alert-actions button").evaluateAll(elements => elements.map(el => el.getBoundingClientRect().height));
+    expect(targets.every(height => height >= 44)).toBe(true);
+  });
+
   test(`daily reminder saves the account schedule without requesting device permission — ${config.locale}`, async ({ page, context }) => {
     const state = await server(context, config);
     await context.addInitScript(() => {
@@ -104,11 +143,11 @@ for (const config of [{ locale: "en", width: 390, height: 844 }, { locale: "ar",
     await page.goto("/#/settings?section=notifications");
     const panel = page.locator("#settings-reminder");
     await expect(panel.locator('input[type="time"]')).toHaveValue("18:00");
-    await panel.getByRole("checkbox").check();
+    await panel.getByRole("checkbox", { name: config.locale === "ar" ? "تفعيل التنبيهات الدراسية المجدولة" : "Enable scheduled study notifications", exact: true }).check();
     await panel.locator('input[type="time"]').fill("20:30");
     await panel.getByRole("button", { name: config.locale === "ar" ? "حفظ" : "Save", exact: true }).click();
     await expect.poll(() => state.reminderWrites.length).toBe(1);
-    expect(state.reminderWrites[0]).toEqual({ enabled: true, time: "20:30", timezone: "Africa/Tripoli", locale: config.locale, expected_revision: 0 });
+    expect(state.reminderWrites[0]).toMatchObject({ enabled: true, time: "20:30", timezone: "Africa/Tripoli", locale: config.locale, expected_revision: 0, study_enabled: true, review_enabled: false, weekly_enabled: false, weekdays: [0, 1, 2, 3, 4, 5, 6] });
     await expect(panel.getByRole("status")).toBeVisible();
     expect(await page.evaluate(() => window.__reminderPermissionRequests)).toBe(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

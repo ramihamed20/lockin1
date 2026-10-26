@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motivationApi } from "../api/motivation.js";
 import { isApiError } from "../api/client.js";
 import { isKnownNotificationRoute, notificationFallbackRoute } from "../lib/notificationRoutes.js";
@@ -112,6 +112,7 @@ export default function Notifications({ user = null, onNotificationsChanged }) {
 
   return (
     <Page width="reading" title="Notifications" showHeading>
+      <p><Link className="btn btn-soft compact" to="/settings?section=notifications">{t("notifications.manage")}</Link></p>
       {/* The page title already says what this is: the list starts with its
           filter and the one bulk action, then the notifications themselves as
           one grouped list. */}

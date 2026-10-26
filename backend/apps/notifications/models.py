@@ -1,9 +1,13 @@
 import uuid
-from datetime import time
+from datetime import time as wall_time
 
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+
+
+def study_weekdays() -> list[int]:
+    return list(range(7))
 
 
 class Notification(models.Model):
@@ -112,14 +116,37 @@ class StudyReminder(models.Model):
         related_name="study_reminder",
     )
     enabled = models.BooleanField(default=False)
-    time = models.TimeField(default=time(18, 0))
+    time = models.TimeField(default=wall_time(18, 0))
     timezone = models.CharField(max_length=64, default="Africa/Tripoli")
     locale = models.CharField(
         max_length=2, choices=(("ar", "Arabic"), ("en", "English")), default="ar"
     )
+    weekdays = models.JSONField(default=study_weekdays)
+    study_enabled = models.BooleanField(default=True)
+    review_enabled = models.BooleanField(default=False)
+    weekly_enabled = models.BooleanField(default=False)
+    weekly_day = models.PositiveSmallIntegerField(default=6)
+    skip_if_studied = models.BooleanField(default=False)
+    paused_until = models.DateTimeField(null=True, blank=True)
+    quiet_enabled = models.BooleanField(default=False)
+    quiet_start = models.TimeField(default=wall_time(22, 0))
+    quiet_end = models.TimeField(default=wall_time(8, 0))
+    push_preview = models.BooleanField(default=True)
     revision = models.PositiveIntegerField(default=1)
     next_due_at = models.DateTimeField(null=True, blank=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(weekly_day__lte=6), name="study_reminder_weekday_valid"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(quiet_enabled=False)
+                | ~models.Q(quiet_start=models.F("quiet_end")),
+                name="study_reminder_quiet_valid",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.user_id}:{self.timezone}:{self.time}"
