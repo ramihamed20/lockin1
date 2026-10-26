@@ -182,7 +182,7 @@
         "backend/apps/accounts/tests/test_api.py",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-25",
+      "lastVerified": "2026-10-26",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -198,7 +198,7 @@
         "backend/apps/feedback/tests/test_api.py",
         "frontend/src/lib/i18n.js"
       ],
-      "lastVerified": "2026-10-25",
+      "lastVerified": "2026-10-26",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": true
     },
@@ -461,7 +461,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/need-account/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-25",
+      "lastVerified": "2026-10-26",
       "verificationEvidence": [
         "frontend/src/components/auth/AuthPage.jsx",
         "frontend/src/pages/Settings.jsx",
@@ -556,7 +556,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/about-settings/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-25",
+      "lastVerified": "2026-10-26",
       "verificationEvidence": [
         "frontend/src/pages/Settings.jsx",
         "frontend/src/pages/Feedback.jsx",
@@ -1438,7 +1438,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/account-security/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-25",
+      "lastVerified": "2026-10-26",
       "verificationEvidence": [
         "frontend/src/components/auth/AuthPage.jsx",
         "frontend/src/pages/Settings.jsx",
@@ -1608,7 +1608,7 @@
       ],
       "publicSourceUrl": "https://lockin.ly/help/contact-support/",
       "featureAvailability": "available",
-      "lastVerified": "2026-10-25",
+      "lastVerified": "2026-10-26",
       "verificationEvidence": [
         "frontend/src/pages/Settings.jsx",
         "frontend/src/pages/Feedback.jsx",
@@ -1823,7 +1823,7 @@
     "frontend/src/App.jsx": "fe9f98ce74137af9d7c43243e7b62fc046c075cf4b4de08bb59b6cd29788ac07",
     "frontend/src/lib/materialCatalog.js": "3bf3c59c161ca2952e33bf6086429d5b11c68f6ca13797f047b1914b9ecfe1a4",
     "frontend/tests/materials-catalog.test.js": "fdcaf2c2e40b77cf07400c75e80aa90999ddeb0b6f895d7718424b7da49b7430",
-    "frontend/src/lib/i18n.js": "053e5153b9998698173ee3e829741b53c1d93c321e4d705edf0adab1ea46833d",
+    "frontend/src/lib/i18n.js": "a4aa2b961eb9224bfb8c560e776a84e706af3bae04bc69f91f4c859a8955b78f",
     "frontend/src/pages/Materials.jsx": "21333f0bfc87ad625f449b7dee94974d7316e4595456fe09f6885310a3c90526",
     "frontend/src/components/learning/CatalogSheetCard.jsx": "0bce127fc2679e5599d10951b9bbeefa6aaec2827e5222877b36d4695240d713",
     "backend/apps/content/tests/test_catalog_workspace.py": "690f59f8d3285dd07edb8b4420fc9d93a7ab3c196350dcbae7a4c3dcb812e6c8",
@@ -1849,7 +1849,7 @@
     "backend/apps/biweekly/services.py": "2444650f428896e2cacd0a6f94d95a8656676bcd997d07595acd0d38fa693c32",
     "backend/apps/biweekly/tests/test_biweekly.py": "7c72e6de21d58ff812244a013cceebd4b595bab0d71ca579f9e921225d48cabf",
     "frontend/src/components/auth/AuthPage.jsx": "e0b46e79a5d48d62bc6312545b2be86d51f8ddb3d4d842123924ae49ae7690cc",
-    "frontend/src/pages/Settings.jsx": "e733b4dde751871958b33c7f0ff804761217516e8730edb46909ce1b8ca5e2a3",
+    "frontend/src/pages/Settings.jsx": "1fbec9ad4ad4542bd549f409cb02ecafc577a446e4a0652e2cac0116104c8947",
     "frontend/src/api/accounts.js": "d61c3d459b2b0ad46ee0230a0f6f652c1557f8deb36975ef4665e99e946d4461",
     "backend/apps/accounts/tests/test_api.py": "d7e0571992881856b9dabe3728987070a693300de62b6ffe3b0ed77db96f3363",
     "frontend/src/pages/Feedback.jsx": "92204acf6852db18570eae60564de67c24ca68d118628fbdb1c8337087b4d4cb",

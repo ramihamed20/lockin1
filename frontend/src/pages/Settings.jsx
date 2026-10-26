@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import EmailChangeSettings from "../components/settings/EmailChangeSettings.jsx";
+import AccountDataExport from "../components/settings/AccountDataExport.jsx";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { accountsApi } from "../api/accounts.js";
 import { motivationApi } from "../api/motivation.js";
@@ -10,6 +12,8 @@ import { useAsyncData } from "../hooks/useAsyncData.js";
 import { AccountFieldErrors, AccountFormAlert, fieldErrorAttributes } from "../components/account/AccountFormErrors.jsx";
 import { normalizeAuthError } from "../lib/authValidation.js";
 import { useI18n } from "../components/I18nProvider.jsx";
+import PaymentHistory from "../components/settings/PaymentHistory.jsx";
+import { SETTINGS_SECTIONS, resolveSettingsSection, searchSettingsSections } from "../lib/settingsNavigation.js";
 import { SessionList } from "../components/account/SessionList.jsx";
 import { SubscriptionStatus } from "../components/subscription/SubscriptionStatus.jsx";
 import { UserAvatar } from "../components/shared/UserAvatar.jsx";
@@ -35,46 +39,22 @@ import { usePwaUpdates } from "../pwa/usePwaUpdates.js";
  * Earlier links name the six sections the page used to have. They still work:
  * each one opens the section that now holds it and scrolls to its group.
  */
-const SECTIONS = [
-  { id: "account", labelKey: "common.account", icon: "user" },
-  { id: "appearance", labelKey: "common.appearance", icon: "palette" },
-  { id: "notifications", labelKey: "settings.notifications", icon: "bell" },
-  { id: "offline", labelKey: "offline.title", icon: "package" },
-  // Second Year Dentistry only: requests to change added First Year subjects.
-  { id: "subjects", labelKey: "subjects.section", icon: "book-open", visible: canAddSubjects },
-  { id: "suggest", labelKey: "settings.suggest.section", icon: "messages" },
-  { id: "updates", labelKey: "settings.updates.section", icon: "sparkles" },
-  { id: "about", labelKey: "settings.public.about", icon: "globe" },
-  { id: "support", labelKey: "settings.public.support", icon: "help" }
-];
-
-const LEGACY_SECTIONS = {
-  character: ["appearance", "settings-character"],
-  "app-icon": ["appearance", "settings-app-icon"],
-  themes: ["appearance", "settings-themes"],
-  reminder: ["notifications", "settings-reminder"]
-};
-
-const DEFAULT_WIDE_SECTION = "appearance";
-
-function resolveSection(requested, deletionToken) {
-  if (LEGACY_SECTIONS[requested]) return { section: LEGACY_SECTIONS[requested][0], anchor: LEGACY_SECTIONS[requested][1] };
-  if (SECTIONS.some((entry) => entry.id === requested)) return { section: requested, anchor: "" };
-  if (deletionToken) return { section: "account", anchor: "" };
-  return { section: "", anchor: "" };
-}
+const SECTIONS = SETTINGS_SECTIONS;
+const DEFAULT_WIDE_SECTION = "account";
 
 export default function Settings({ user, onUserUpdate, settings, activeTheme, onSettingsChange, onSignedOut }) {
   const { t } = useI18n();
   const location = useLocation();
   const navigate = useNavigate();
+  const savingRef = useRef(false);
+  const [query, setQuery] = useState("");
   const [saving, setSaving] = useState("");
   const [error, setError] = useState("");
   const { status: updateStatus } = usePwaUpdates();
   const searchParameters = new URLSearchParams(location.search);
   const requestedSection = searchParameters.get("section") || "";
   const deletionToken = searchParameters.get("token") || "";
-  const resolved = resolveSection(requestedSection, deletionToken);
+  const resolved = resolveSettingsSection(requestedSection, deletionToken, searchParameters.get("focus"));
   // With no section named, a phone shows the list; a wide screen shows the
   // list beside the default section. CSS decides which of the two is visible.
   const activeSection = resolved.section || DEFAULT_WIDE_SECTION;
@@ -83,7 +63,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
   const handleDeletionConfirmation = useCallback(() => {
     const search = new URLSearchParams(location.search);
     search.delete("token");
-    search.set("section", "account");
+    search.set("section", "privacy");
     navigate(
       { pathname: "/settings", search: `?${search.toString()}` },
       { replace: true }
@@ -97,7 +77,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
     const focus = new URLSearchParams(location.search).get("focus");
     const focusTarget = focus === "username" || focus === "password" ? `settings-${focus}` : resolved.anchor;
     const target = focusTarget ? document.getElementById(focusTarget) : null;
-    const heading = document.getElementById(`${focusTarget || `settings-${resolved.section}`}-heading`);
+    const heading = document.getElementById(`${focusTarget || `settings-${resolved.section}`}-heading`) || document.getElementById(`settings-${resolved.section}-heading`);
     const frame = window.requestAnimationFrame(() => {
       if (target) {
         target.scrollIntoView({
@@ -123,11 +103,14 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
   }
 
   async function saveSettings(nextSettings, source) {
+    if (savingRef.current) return;
     const normalized = normalizeThemeSettings(nextSettings);
     const previous = normalizeThemeSettings(settings);
     onSettingsChange(normalized);
-    setSaving(source);
     setError("");
+    if (source.startsWith("app-icon-")) return;
+    savingRef.current = true;
+    setSaving(source);
     try {
       const updated = await accountsApi.updateProfile({
         mascotPreference: normalized.character,
@@ -139,6 +122,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
       onSettingsChange(previous);
       setError(requestError.message || t("settings.themeSaveError"));
     } finally {
+      savingRef.current = false;
       setSaving("");
     }
   }
@@ -156,6 +140,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
       ? t("settings.updates.availableShort")
       : BUILD_INFO.version
   };
+  const visibleSections = searchSettingsSections(SECTIONS.filter(section => section.id !== "subjects" || canAddSubjects(user)), query, t);
   const sectionTitle = t(SECTIONS.find((entry) => entry.id === activeSection)?.labelKey || "settings.pageTitle");
 
   return (
@@ -166,8 +151,17 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
         </header>
 
         <nav className="settings-v2-nav" aria-label={t("settings.sectionsLabel")}>
+          <AccountSummary user={user} />
+          <div className="settings-search">
+            <Icon name="search" size={18} />
+            <input type="search" aria-label={t("settings.search")} placeholder={t("settings.searchPlaceholder")} value={query} onChange={event => setQuery(event.target.value)} />
+            {query && <button type="button" aria-label={t("settings.searchClear")} onClick={() => setQuery("")}><Icon name="x" size={16} /></button>}
+          </div>
+          {query && !visibleSections.length && <p className="ui-group-footer" role="status">{t("settings.searchEmpty")}</p>}
+          {["account", "preferences", "help"].map(group => visibleSections.some(section => section.group === group) && <div className="ui-group-block settings-nav-group" key={group}>
+            <h2 className="ui-group-title">{t(`settings.group.${group}`)}</h2>
           <ul className="ui-group">
-            {SECTIONS.filter((section) => !section.visible || section.visible(user)).map((section) => {
+            {visibleSections.filter(section => section.group === group).map((section) => {
               const current = activeSection === section.id;
               return <li key={section.id}>
                 <button
@@ -187,6 +181,8 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
               </li>;
             })}
           </ul>
+          </div>)}
+          <p className="settings-version" dir="ltr">Lockin · {BUILD_INFO.version}</p>
         </nav>
 
         <div className="settings-v2-detail" id="settings-v2-detail">
@@ -196,24 +192,46 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
               <span>{t("settings.pageTitle")}</span>
             </button>
             <h2 id={`settings-${activeSection}-heading`} tabIndex={-1} dir="auto">{sectionTitle}</h2>
+            <p className="settings-detail-description">{t(`settings.hint.${activeSection}`)}</p>
           </header>
 
           {error && <ErrorPanel message={error} />}
 
           {activeSection === "account" && <section className="settings-v2-section" id="settings-account" aria-labelledby="settings-account-heading">
             <AccountSummary user={user} />
-            <AccountSubscriptionGroup />
             <UsernameCard user={user} onUserUpdate={onUserUpdate} />
+            <div className="ui-group">
+              {["security", "devices", "billing", "privacy"].map(id => <button type="button" className="ui-row" key={id} onClick={() => openSection(id)}>
+                <span className={`ui-row-icon settings-v2-icon settings-v2-icon--${id}`}><Icon name={SECTIONS.find(section => section.id === id).icon} size={18} /></span>
+                <span className="ui-row-body"><strong>{t(SECTIONS.find(section => section.id === id).labelKey)}</strong><small>{t(`settings.hint.${id}`)}</small></span>
+                <Icon className="ui-row-chevron" name="chevron-right" size={17} />
+              </button>)}
+            </div>
+          </section>}
+
+          {activeSection === "security" && <section className="settings-v2-section" id="settings-security" aria-labelledby="settings-security-heading">
             <PasswordCard id="settings-password" headingId="settings-password-heading" />
-            <ConnectedAccountsCard email={user?.email} />
-            <SessionList onCurrentSessionRevoked={onSignedOut} />
-            <AccountDeletionCard
-              confirmationToken={deletionToken}
-              onConfirmationHandled={handleDeletionConfirmation}
-            />
+            <EmailChangeSettings key={user?.id} email={user?.email} />
+          </section>}
+
+          {activeSection === "devices" && <section className="settings-v2-section" id="settings-devices" aria-labelledby="settings-devices-heading">
+            <SessionList key={user?.id} onCurrentSessionRevoked={onSignedOut} />
+          </section>}
+
+          {activeSection === "billing" && <section className="settings-v2-section" id="settings-billing" aria-labelledby="settings-billing-heading">
+            <AccountSubscriptionGroup />
+            <PaymentHistory key={user?.id} userId={user?.id} />
+          </section>}
+
+          {activeSection === "privacy" && <section className="settings-v2-section" id="settings-privacy" aria-labelledby="settings-privacy-heading">
+            <AccountDeletionCard key={user?.id} confirmationToken={deletionToken} onConfirmationHandled={handleDeletionConfirmation} />
+            <div className="ui-group-block settings-v2-block"><h3 className="ui-group-title">{t("settings.privacyPolicies")}</h3><div className="ui-group">
+              {[["/privacy", "settings.privacyPolicy"], ["/terms", "settings.termsPolicy"], ["/refunds", "settings.refundPolicy"]].map(([to, key]) => <Link className="ui-row" to={to} key={to}><span className="ui-row-body">{t(key)}</span><Icon name="chevron-right" className="ui-row-chevron" size={17} /></Link>)}
+            </div></div>
           </section>}
 
           {activeSection === "appearance" && <section className="settings-v2-section" id="settings-appearance" aria-labelledby="settings-appearance-heading">
+            <p className="ui-group-footer">{t("settings.customizationSync")}</p>
             <div className="ui-group-block settings-v2-block" id="settings-themes">
               <h3 className="ui-group-title" id="settings-themes-heading" tabIndex={-1}>{t("settings.themeLabel")}</h3>
               <div className="ui-group settings-v2-pad">
@@ -224,7 +242,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
                         className={`settings-v2-choice settings-v2-choice--${option.id}`}
                         key={option.id}
                         value={option.id}
-                        disabled={settings.autoTheme}
+                        disabled={settings.autoTheme || Boolean(saving)}
                       >
                         <span className="settings-v2-choice-art"><ResponsiveThemePreview character={settings.character} theme={option.id} alt={t("settings.themePreviewNamed", { name: t(`settings.theme.${option.id}`) })} sizes="(max-width: 639px) 42vw, 180px" /></span>
                         <span className="settings-v2-choice-label">{t(`settings.theme.${option.id}`)}</span>
@@ -237,7 +255,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
               <div className="ui-group">
                 <div className="ui-row">
                   <span className="ui-row-body"><label htmlFor="settings-auto-theme">{t("settings.autoTheme")}</label><small>{t("settings.autoThemeDescription")}</small></span>
-                  <Switch id="settings-auto-theme" checked={settings.autoTheme} busy={saving === "auto"} onCheckedChange={(next) => saveSettings({ ...settings, autoTheme: next }, "auto")} />
+                  <Switch id="settings-auto-theme" disabled={Boolean(saving)} checked={settings.autoTheme} busy={saving === "auto"} onCheckedChange={(next) => saveSettings({ ...settings, autoTheme: next }, "auto")} />
                 </div>
               </div>
             </div>
@@ -253,6 +271,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
                     return (
                       <RadioOption
                         className="settings-v2-choice"
+                        disabled={Boolean(saving)}
                         key={option.id}
                         value={option.id}
                       >
@@ -273,6 +292,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
                     return (
                       <RadioOption
                         className="settings-v2-icon-option"
+                        disabled={Boolean(saving)}
                         key={option.id}
                         value={option.id}
                       >
@@ -288,8 +308,11 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
           </section>}
 
           {activeSection === "notifications" && <section className="settings-v2-section" id="settings-notifications" aria-labelledby="settings-notifications-heading">
+            <div className="settings-notification-preview" aria-label={t("settings.notificationsPreviewLabel")}>
+              <span className="settings-notification-app"><Icon name="bell" size={19} /></span><div><small>Lockin</small><strong>{t("settings.notificationsPreview")}</strong><p>{t("settings.notificationsPreviewBody")}</p></div>
+            </div>
+            <DevicePushSettings key={`push-${user?.id}`} userId={user?.id} />
             <StudyReminderSettings key={user?.id} userId={user?.id} />
-            <DevicePushSettings userId={user?.id} />
             <NotificationPreferences userId={user?.id} />
           </section>}
 
@@ -317,7 +340,7 @@ function AccountSummary({ user }) {
     <Link className="ui-row" to="/profile">
       <UserAvatar user={user} className="settings-v2-avatar" loading="eager" />
       <span className="ui-row-body">
-        <strong dir="auto">{user?.full_name || user?.username || t("common.account")}</strong>
+        <strong dir="auto">{user?.name || user?.full_name || user?.username || t("common.account")}</strong>
         <small dir="auto">{user?.email}</small>
       </span>
       <span className="ui-row-value">{t("settings.viewProfile")}</span>
@@ -335,7 +358,7 @@ function AccountSubscriptionGroup() {
       <Link className="ui-row" to="/subscription">
         <span className="ui-row-icon"><Icon name="coins" size={17} /></span>
         <span className="ui-row-body">
-          <strong dir="auto">{subscription?.plan_title || t("subscription.noPlan")}</strong>
+          <strong dir="auto">{subscription?.plan_title || subscription?.plan?.title || t(subscription ? "settings.currentSubscription" : "subscription.noPlan")}</strong>
           <SubscriptionStatus subscription={subscription} compact />
         </span>
         <Icon className="ui-row-chevron" name="chevron-right" size={17} />
@@ -515,27 +538,18 @@ function AccountDeletionCard({ confirmationToken, onConfirmationHandled }) {
   // waits behind one deliberate tap instead of sitting open on the page.
   const expanded = open || isOpen || Boolean(error);
 
-  return <div className="ui-group-block settings-v2-block account-deletion-card">
-    <h3 className="ui-group-title">{t("settings.dataRights")}</h3>
-    <button className="btn btn-outline compact" type="button" disabled={busy} onClick={async () => {
-      setBusy(true); setError(null);
-      try {
-        const data = await accountsApi.exportPersonalData();
-        const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
-        const link = document.createElement("a"); link.href = url; link.download = "lockin-personal-data.json"; link.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-      } catch (requestError) { setError(requestError); }
-      finally { setBusy(false); }
-    }}>تنزيل نسخة من بياناتك المحفوظة</button>
+  return <div className="ui-group-block settings-v2-block account-deletion-card" id="settings-deletion">
+    <h3 className="ui-group-title" id="settings-deletion-heading" tabIndex={-1}>{t("settings.dataRights")}</h3>
+    <AccountDataExport />
     <div className="ui-group">
       <button type="button" className="ui-row is-danger" aria-expanded={expanded} aria-controls="settings-deletion-form" onClick={() => setOpen((value) => !value)}>
-        <span className="ui-row-body"><strong>{t("settings.deleteAccount")}</strong></span>
+        <span className="ui-row-icon"><Icon name="trash" size={18} /></span><span className="ui-row-body"><strong>{t("settings.deleteAccount")}</strong></span>
         <span className="ui-row-value" role="status">{state.loading ? t("settings.deletionChecking") : statusLabel}</span>
         <Icon className="ui-row-chevron settings-v2-disclosure" name="chevron-down" size={17} />
       </button>
       {expanded && <div className="settings-v2-form settings-v2-form--inset" id="settings-deletion-form">
         <p className="settings-v2-note">{t("settings.deletionDescription")}</p>
-        <p lang="ar" dir="rtl">نستهدف معالجة طلب الحذف خلال 30 يومًا. تأكيد البريد خطوة تحقق ولا يعني اكتمال الحذف. طلب الحذف لا يسقط استردادًا مستحقًا؛ نزّل نسخة من أعمالك وامسح بيانات الموقع من الأجهزة المشتركة.</p>
+        <p className="settings-v2-note">{t("settings.deletionNotice")}</p>
         {state.request?.processing_note && <p className="form-notice" role="status">{state.request.processing_note}</p>}
         {state.status === "confirmed" && !state.request?.policy_version && <p className="form-notice" role="alert">{t("settings.deletionPolicyPending")}</p>}
         <label className="field"><span>{t("settings.currentPassword")}</span><input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy || state.loading || state.status === "processing" || state.status === "completed"} /></label>
@@ -598,25 +612,6 @@ function LanguageCard({ onUserUpdate }) {
   </div>;
 }
 
-function ConnectedAccountsCard({ email }) {
-  const { t } = useI18n();
-  const providers = [
-    { id: "email", icon: "lock", title: t("settings.emailPassword"), detail: email || t("settings.primarySignIn"), value: t("settings.primary") },
-    { id: "google", icon: "globe", title: "Google", detail: t("settings.providerLinkingDisabled"), value: t("settings.notConnected") },
-    { id: "apple", icon: "user", title: "Apple", detail: t("settings.providerLinkingDisabled"), value: t("settings.notConnected") }
-  ];
-  return <div className="ui-group-block settings-v2-block">
-    <h3 className="ui-group-title">{t("settings.connectedAccounts")}</h3>
-    <ul className="ui-group settings-v2-providers">
-      {providers.map((provider) => <li key={provider.id} className="ui-row">
-        <span className="ui-row-icon"><Icon name={provider.icon} size={17} /></span>
-        <span className="ui-row-body"><strong>{provider.title}</strong><small dir="auto">{provider.detail}</small></span>
-        <span className="ui-row-value">{provider.value}</span>
-      </li>)}
-    </ul>
-  </div>;
-}
-
 function NotificationPreferences({ userId }) {
   const { t } = useI18n();
   const preferenceData = useAsyncData(() => motivationApi.notificationPreferences(), [userId]);
@@ -652,18 +647,22 @@ function NotificationPreferences({ userId }) {
       {error && <ErrorPanel message={error} onRetry={preferenceData.reload} />}
       {!preferenceData.loading && !preferenceData.error && <div className="ui-group">
         {!preferences.length && <p className="ui-row">{t("settings.noNotificationCategories")}</p>}
-        {preferences.map((preference, index) => {
+        {[...new Set(preferences.map(preference => preference.category))].map(category => <div className="settings-notification-category" key={category}>
+          <h4 className="settings-notification-category-title">{t(`notifications.category.${category}`)}</h4>
+        {preferences.filter(preference => preference.category === category).map((preference) => {
+          const index = preferences.indexOf(preference);
           const unavailable = !preference.available;
           const locked = preference.required;
           const key = `${preference.category}-${preference.channel}`;
           const label = t("settings.notificationToggleLabel", { category: t(`notifications.category.${preference.category}`), channel: t(`notifications.channel.${preference.channel}`) });
           return (
             <div className="ui-row" key={key}>
-              <span className="ui-row-body"><strong dir="auto">{t(`notifications.category.${preference.category}`)} · {t(`notifications.channel.${preference.channel}`)}</strong><small>{t(locked ? "settings.alwaysOn" : unavailable ? "settings.channelUnavailable" : preference.enabled ? "settings.enabled" : "settings.disabled")}</small></span>
-              <Switch label={label} checked={preference.enabled} busy={saving === key} onCheckedChange={() => { void togglePreference(index); }} disabled={locked || unavailable || Boolean(saving)} />
+              <span className="ui-row-body"><label htmlFor={`notification-${key}`} dir="auto">{t(`notifications.channel.${preference.channel}`)}</label><small>{t(locked ? "settings.alwaysOn" : unavailable ? "settings.channelUnavailable" : preference.enabled ? "settings.enabled" : "settings.disabled")}</small></span>
+              <Switch id={`notification-${key}`} label={label} checked={preference.enabled} busy={saving === key} onCheckedChange={() => { void togglePreference(index); }} disabled={locked || unavailable || Boolean(saving)} />
             </div>
           );
         })}
+        </div>)}
       </div>}
       <p className="ui-group-footer">{t("settings.serverNotificationsHint")}</p>
     </div>

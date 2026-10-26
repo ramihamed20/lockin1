@@ -58,6 +58,16 @@ function checkoutPayload(payload) {
 }
 
 export const billingApi = {
+  async paymentHistory(page = 1, signal) {
+    const payload = await request(`/payments?page=${Math.max(1, Math.trunc(page))}&page_size=10`, { signal });
+    const source = objectPayload(payload, "The payment history response was incomplete.");
+    const results = resultsPayload(payload, "The payment history response was incomplete.");
+    if (typeof source.count !== "number" || !Number.isInteger(source.count) || source.count < 0) {
+      throw new ApiError(500, payload, "The payment history response was incomplete.", "invalid_response");
+    }
+    return { results, count: source.count, hasNext: Boolean(source.next), hasPrevious: Boolean(source.previous) };
+  },
+
   currentSubscription() {
     return request("/subscriptions/current").then(currentSubscriptionPayload);
   },

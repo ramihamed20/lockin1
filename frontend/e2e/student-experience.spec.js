@@ -104,7 +104,7 @@ for (const config of [{ locale: "en", width: 390, height: 844 }, { locale: "ar",
     await page.goto("/#/settings?section=notifications");
     const panel = page.locator("#settings-reminder");
     await expect(panel.locator('input[type="time"]')).toHaveValue("18:00");
-    await panel.getByRole("checkbox").check();
+    await panel.getByRole("switch").click();
     await panel.locator('input[type="time"]').fill("20:30");
     await panel.getByRole("button", { name: config.locale === "ar" ? "حفظ" : "Save", exact: true }).click();
     await expect.poll(() => state.reminderWrites.length).toBe(1);
