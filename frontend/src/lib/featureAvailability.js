@@ -31,7 +31,7 @@ const FEATURE_REGISTRY = Object.freeze([
     primaryPath: "/ranked",
     routes: ["/ranked"],
     labelKey: "nav.ranked",
-    status: FEATURE_AVAILABILITY.COMING_SOON
+    status: FEATURE_AVAILABILITY.AVAILABLE
   }),
   Object.freeze({
     id: "community",

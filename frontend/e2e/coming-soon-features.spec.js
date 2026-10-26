@@ -24,7 +24,6 @@ async function mockStudent(page) {
 
 const features = [
   { id: "study-plan", route: "/study-plan" },
-  { id: "rank", route: "/ranked" },
   { id: "community", route: "/community" }
 ];
 

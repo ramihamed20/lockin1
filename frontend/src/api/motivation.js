@@ -73,6 +73,13 @@ export const motivationApi = {
     );
   },
 
+  async liveRanking(period = "weekly") {
+    return objectPayload(
+      await request("/progression/rankings/live" + buildQueryString({ period })),
+      "The ranking response was incomplete."
+    );
+  },
+
   async rankingProfile() {
     return objectPayload(
       await request("/progression/rankings/profile"),

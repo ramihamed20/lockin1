@@ -86,3 +86,20 @@ Web Push defaults off until keys and the deployment flag are configured. It forw
 ## Study Plan availability review — 25 October 2026
 
 The normal Study Plan route is reopened through the product availability registry; its E2E-only query bypass is removed. Account-owned planning still requires an authenticated eligible account and connection. Completion remains self reported, without XP, automatic grading or elapsed-time certification. The inventory now describes Beginning/Normal/Custom accurately; publicDocumentable remains false, so no new public guide or outcome claim is published. App routing and the registry are the only changed published evidence sources. Other feature gates, authentication and content permissions remain unchanged. Regression tests now use the ordinary route and cover overdue navigation and stale editing/preview recovery. Evidence hashes are updated only for the reviewed App and registry files; the verifier is unchanged.
+
+
+## Rank Mode review — 26 October 2026
+
+Reviewed the diff of App.jsx, i18n.js, api/motivation.js and featureAvailability.js against the published product and progress claims. The App diff only adds the lazy Ranked page and replaces its coming-soon route; authentication and other routes are unchanged. The API addition only fetches live ranking data. Existing XP/streak/achievement methods and existing translations are unchanged; the translation additions describe cohort-based ranking, privacy and periods. Existing published account/content/reader/Review instructions therefore retain their meaning. Only these four evidence digests were refreshed. The mandatory verifier is unchanged.
+
+The withheld rankings inventory is updated to the implemented availability; publicDocumentable remains false, and no public marketing page or production rollout is claimed. The new endpoint reads ranking-owned evidence, enforces cohort boundaries, and provides current privacy filtering. Tests and deployment limits are recorded in RANK_MODE_REBUILD_AR.md.
+
+
+## Rank Mode interface review — 26 October 2026
+
+Reviewed the additional Rank Mode translations: they label the existing individual leaderboard, a points-to-next-rank meter, keyboard-accessible period tabs, participation controls and progressive disclosure. No published help instruction or existing translation is changed. Ranking/XP rules, account authentication and content access are unchanged. Refreshed only the reviewed i18n.js evidence digest; the mandatory public verifier remains enabled. Rank Mode remains withheld from public marketing. Browser validation is documented in RANK_MODE_REBUILD_AR.md.
+
+
+## Rank Mode concise copy — 26 October 2026
+
+Reviewed the revised Rank Mode copy and labels. The page now names the ranking and cohort directly, removes motivational/repeated copy, and moves update/reset timestamps into the existing rules disclosure. Existing public help instructions and all other translations retain their meaning; only the reviewed i18n.js digest was refreshed. No scoring, API, access or public marketing availability changed.

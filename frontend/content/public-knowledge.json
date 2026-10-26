@@ -271,13 +271,17 @@
     {
       "id": "rankings",
       "name": "الترتيب بين الطلاب",
-      "status": "coming_soon",
+      "status": "available",
       "entry": "/#/ranked",
-      "requirements": "محجوبة بسجل إتاحة المنتج.",
+      "requirements": "تسجيل الدخول وتحديد الدفعة؛ ترتيب أسبوعي وشهري وإجمالي من نقاط التعلّم المؤهلة مع خيارات الخصوصية.",
       "evidence": [
-        "frontend/src/lib/featureAvailability.js"
+        "frontend/src/lib/featureAvailability.js",
+        "frontend/src/pages/Ranked.jsx",
+        "backend/apps/rankings/live.py",
+        "backend/apps/rankings/tests/test_live.py",
+        "frontend/e2e/rank-mode.spec.js"
       ],
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-26",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": false
     },
@@ -1816,10 +1820,10 @@
     }
   ],
   "evidenceDigests": {
-    "frontend/src/App.jsx": "202a5263c92679f01281a945329414e4a956eb2060ade2de7357fe83604cf494",
+    "frontend/src/App.jsx": "99bf079ad3c2a43437b30b0f680869a5d40ebfaa0353a09d21be674a714fa4b4",
     "frontend/src/lib/materialCatalog.js": "6f9c50e7402275182d8f9d0ab0faf34b6e1bb2e70bd95a44332e9a786b27b539",
     "frontend/tests/materials-catalog.test.js": "fdcaf2c2e40b77cf07400c75e80aa90999ddeb0b6f895d7718424b7da49b7430",
-    "frontend/src/lib/i18n.js": "357a3bd8d83a8610f5ad8b0c42f280212f791619222b94eba40382151d76299c",
+    "frontend/src/lib/i18n.js": "842ceeec6586b127e4fb75707da6da90be0675840d0ec62b37e8427411520201",
     "frontend/src/pages/Materials.jsx": "21333f0bfc87ad625f449b7dee94974d7316e4595456fe09f6885310a3c90526",
     "frontend/src/components/learning/CatalogSheetCard.jsx": "0bce127fc2679e5599d10951b9bbeefa6aaec2827e5222877b36d4695240d713",
     "backend/apps/content/tests/test_catalog_workspace.py": "690f59f8d3285dd07edb8b4420fc9d93a7ab3c196350dcbae7a4c3dcb812e6c8",
@@ -1840,7 +1844,7 @@
     "backend/apps/review/views.py": "d4c7b1a5e3f27c39f322654aca21701a4ae2ee445caa1adb7115f4c881dfcf91",
     "backend/apps/review/tests/test_review.py": "1c80e2817783ede2a7d3270b120f88e89c97cf8e19a40112e6e27faac0bd95cc",
     "frontend/src/pages/Progress.jsx": "74b986b8183d162aff257df9775f5f51779758f0aefe1fd071c6af1b1131c01f",
-    "frontend/src/api/motivation.js": "3681c4074c71a1b51c496e2d878b57e16441dfbb5b3c6c4d91e51534f747c224",
+    "frontend/src/api/motivation.js": "482f951e592faf8f1d07a271912ee8ad15585236d9f7a3ca373b3dc4df4fe29b",
     "frontend/src/pages/Biweekly.jsx": "a3fa9547869885abdf21f28b8b06eb6604238c867591e1375bf8770ca80c8ec2",
     "backend/apps/biweekly/services.py": "2444650f428896e2cacd0a6f94d95a8656676bcd997d07595acd0d38fa693c32",
     "backend/apps/biweekly/tests/test_biweekly.py": "7c72e6de21d58ff812244a013cceebd4b595bab0d71ca579f9e921225d48cabf",
@@ -1854,7 +1858,7 @@
     "backend/apps/accounts/tests/test_email_delivery.py": "5740aca699e1752eccf48d6675ba491aa28ac3d5364722a633ff81c2608ea588",
     "frontend/src/pages/Profile.jsx": "d31d05023680158c9eb9b2fd10c37483d5fa4fa82a5f01d9fd819d6aed57267f",
     "docs/ACCOUNT_DELETION_RETENTION.md": "bbbadadaca0c6c97a01df471ff300fedff71eafa16473ad21188695929764c00",
-    "frontend/src/lib/featureAvailability.js": "398440aa49931ae0c14b03267fa8745740167e3c922a235ab7f62fe4ad7b8809",
+    "frontend/src/lib/featureAvailability.js": "5108150935f5b33bedc572a380be6ffeb2943d8c6b8c742a18a44a7b092895ed",
     "frontend/src/pages/MyGroup.jsx": "8bb12fa42170deb4d4bd3f9e7e8edf0b9914cec68f0e4e1878cf459fd40fdf4d",
     "backend/apps/focus/tests/test_page_active_study.py": "25d02fa15de5480875b19b4996a4b1a67621e2b80954a64ffb2e171b75e40d07",
     "frontend/src/components/shared/ActiveStudyCustomization.jsx": "49a02da58d2cf1095ab0c16ea126572a072e2e456e9d8a69b1f0e62a0e9c4454",
