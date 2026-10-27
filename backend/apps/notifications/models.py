@@ -1,4 +1,5 @@
 import uuid
+from datetime import time
 
 from django.conf import settings
 from django.db import models
@@ -101,6 +102,27 @@ class NotificationCounter(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id}:{self.unread_count}"
+
+
+class StudyReminder(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        primary_key=True,
+        on_delete=models.CASCADE,
+        related_name="study_reminder",
+    )
+    enabled = models.BooleanField(default=False)
+    time = models.TimeField(default=time(18, 0))
+    timezone = models.CharField(max_length=64, default="Africa/Tripoli")
+    locale = models.CharField(
+        max_length=2, choices=(("ar", "Arabic"), ("en", "English")), default="ar"
+    )
+    revision = models.PositiveIntegerField(default=1)
+    next_due_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.timezone}:{self.time}"
 
 
 class NotificationDelivery(models.Model):

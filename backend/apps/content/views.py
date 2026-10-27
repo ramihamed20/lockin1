@@ -816,6 +816,46 @@ class CatalogSheetQuestionRetryView(APIView):
         )
 
 
+class RecentCatalogWorkspacesView(APIView):
+    """Only metadata for this reader's recent, still-accessible catalog sources."""
+
+    def get(self, request: Request) -> Response:
+        user = _user(request)
+        require_entitlement(user=user, entitlement_code="focus.workspace")
+        candidates = (
+            CatalogWorkspaceSnapshot.objects.filter(
+                user=user, revision__gt=0, document__is_active=True
+            )
+            .select_related("document")
+            .only("id", "updated_at", "document__material_slug", "document__sheet_slug")
+            .order_by("-updated_at", "id")[:12]
+        )
+        results = []
+        for snapshot in candidates:
+            try:
+                document = _catalog_document(
+                    user=user,
+                    material_slug=snapshot.document.material_slug,
+                    sheet_slug=snapshot.document.sheet_slug,
+                )
+            except (PermissionDenied, NotFound, CatalogFileUnavailable):
+                continue
+            results.append(
+                {
+                    "material_slug": document.material_slug,
+                    "material_title": document.version.academic_node.title,
+                    "sheet_slug": document.sheet_slug,
+                    "sheet_title": document.version.title,
+                    "edition": document.edition,
+                    "document_version_id": str(document.version_id),
+                    "updated_at": snapshot.updated_at.isoformat(),
+                }
+            )
+            if len(results) == 4:
+                break
+        return Response({"results": results})
+
+
 class CatalogWorkspaceView(APIView):
     def get(self, request: Request, document_id: UUID) -> Response:
         user = _user(request)

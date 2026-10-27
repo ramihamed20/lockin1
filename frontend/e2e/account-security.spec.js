@@ -40,7 +40,8 @@ for (const [device, width, height] of [["phone", 320, 640], ["iPad landscape", 1
       const gate = new Promise((resolve) => { release = resolve; });
       const state = { revokes: 0, passwords: 0, deletions: [] };
       await mockAccount(page, state, gate);
-      await page.goto("/#/settings?section=account");
+      await page.goto("/#/settings?section=devices");
+      await page.locator(".settings-device-details summary").click();
       await page.locator(".account-security-panel").getByRole("button", { name: "إنهاء", exact: true }).click();
       const dialog = page.getByRole("alertdialog");
       const confirm = dialog.locator(".btn-danger");
@@ -59,7 +60,7 @@ for (const [device, width, height] of [["phone", 320, 640], ["iPad landscape", 1
     test("password errors stay on their field and deletion keeps its email confirmation step", async ({ page }) => {
       const state = { revokes: 0, passwords: 0, deletions: [] };
       await mockAccount(page, state);
-      await page.goto("/#/settings?section=account");
+      await page.goto("/#/settings?section=security");
       const password = page.locator("#settings-password");
       const current = password.locator("input").nth(0);
       const confirmation = password.locator("input").nth(2);
@@ -86,6 +87,7 @@ for (const [device, width, height] of [["phone", 320, 640], ["iPad landscape", 1
       await expect(password.getByRole("status")).toHaveText("تم تحديث كلمة المرور.");
       await expect(current).toHaveValue("");
       expect(state.passwords).toBe(2);
+      await page.goto("/#/settings?section=privacy");
       await page.getByRole("button", { name: /حذف الحساب/ }).click();
       const deletion = page.locator("#settings-deletion-form");
       const request = deletion.getByRole("button", { name: "طلب حذف الحساب", exact: true });

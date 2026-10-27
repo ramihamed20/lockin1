@@ -395,8 +395,9 @@ Add V2 rules to `v2.css` or `system.css`. Never fix a V2 screen by editing legac
 
 ### Tokens
 
-- **Night surfaces:** `--bg #080a10` → `--surface #10141c` → `--surface-2 #171b26` → `--surface-3 #1f2431`.
+- **Night surfaces:** `--bg #080a10` → `--surface #15171d` → `--surface-2 #202229` → `--surface-3 #2c2f37`.
   Panels step up one level; a control inside a panel steps up again.
+- **Light surfaces:** grouped page `#f2f2f7`, white surfaces, flat cards without a drop shadow.
 - **Lines:** `--separator` (hairline between rows), `--card-edge` (the faint outline of a surface).
   Use `--border-strong` only for inputs that need an edge to be found.
 - **Accent:** `--accent`, `--accent-soft` (tinted fill), `--accent-text` (accent on dark),
@@ -404,7 +405,7 @@ Add V2 rules to `v2.css` or `system.css`. Never fix a V2 screen by editing legac
 - **Status:** `--success`/`--success-soft`, `--danger`/`--danger-soft`, `--warning`.
 - **Radii:** `--radius-card` 20 px for surfaces, `--radius-lg` 16 px for grouped lists,
   `--radius-md` 12 px for fields and rows, `--radius-full` for every button and pill.
-- **Type:** weights 400/510/600/700; `--title-large` 1.875 rem (1.625 rem on phones) with
+- **Type:** weights 400/510/600/700; `--title-large` 1.375 rem (1.25 rem on phones) with
   `--tracking-title`; body `--text-base` 15 px; secondary `--text-sm` 13 px. Text inputs are 16 px so
   iOS never zooms.
 - **Material:** `--material` / `--material-filter` for floating chrome (top bar, bottom nav,
@@ -453,9 +454,17 @@ press scale is the only movement.
 
 ### Typography hierarchy
 
-Large title (page `h1`, `showHeading` or the directory header) → group title (13 px, muted, sentence
-case) → row label (15 px, 510) → secondary line (13 px, muted). **No uppercase or tracked labels**
-in student screens; the rendered-style audit in this pass found none left.
+The top bar names the main student route. Its page `h1` remains visually hidden for assistive
+navigation; do not add another hero title or an introductory paragraph above the controls.
+Nested material and sheet pages retain their specific content name and back navigation.
+Section title (20–22 px, 600) → group title (13 px, muted, sentence case) → row label (15 px, 510)
+→ secondary line (13 px, muted). **No uppercase or tracked labels** in student screens.
+This compact hierarchy (2026-10-27) supersedes the earlier large-title convention for Settings,
+Materials and Questions roots, Review, Notifications, Progress and Subscription. Loading states
+keep their semantic title and status without drawing a second skeleton heading.
+Dashboard continuation names the current sheet or the start action, without a welcome paragraph.
+Keep security, payment, permission and save consequences visible; optional device explanations
+belong in an accessible disclosure.
 
 ### Motion
 

@@ -663,16 +663,31 @@ def change_password(*, user: User, new_password: str, keep_session_key: str | No
 
 def _coarse_device_label(user_agent: str) -> str:
     value = user_agent.lower()
-    device = (
-        "Mobile device"
-        if any(part in value for part in ("mobile", "android", "iphone"))
-        else "Computer"
-    )
+    # Store only a coarse browser/device name, never the full user agent.
     if "ipad" in value:
-        device = "Tablet"
+        device = "iPad"
+    elif "iphone" in value or "ipod" in value:
+        device = "iPhone"
+    elif "android" in value:
+        device = "Android phone" if "mobile" in value else "Android tablet"
+    elif "mobile" in value:
+        device = "Mobile device"
+    elif "macintosh" in value or "mac os" in value:
+        device = "Mac"
+    elif "windows" in value:
+        device = "Windows computer"
+    elif "cros" in value:
+        device = "Chromebook"
+    else:
+        device = "Computer"
     browser = "Browser"
     for marker, label in (
+        ("edgios/", "Edge"),
+        ("edga/", "Edge"),
         ("edg/", "Edge"),
+        ("fxios/", "Firefox"),
+        ("crios/", "Chrome"),
+        ("samsungbrowser/", "Samsung Internet"),
         ("firefox/", "Firefox"),
         ("chrome/", "Chrome"),
         ("safari/", "Safari"),

@@ -8,6 +8,7 @@ import { motivationApi } from "../api/motivation.js";
 import { reviewApi } from "../api/review.js";
 import { Icon } from "../lib/icons.jsx";
 import { getRecentOpenedCatalogSheets } from "../lib/materialCatalog.js";
+import { recentStudyEntries } from "../lib/recentStudy.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { Page } from "../components/ui/index.jsx";
 import { ResponsiveThemePreview } from "../components/shared/ResponsiveThemePreview.jsx";
@@ -23,6 +24,7 @@ import { MyGroupCard } from "../components/myGroup/MyGroupCard.jsx";
 export default function Dashboard({ user, themeSettings, activeTheme }) {
   const { t } = useI18n();
   const learning = useAsyncData(signal => progressApi.learningDashboard({ signal }), [user?.id], { cacheKey: `dashboard-learning:${user?.id || ""}` });
+  const recentStudy = useAsyncData(signal => progressApi.recentCatalogStudy({ signal }), [user?.id], { cacheKey: `dashboard-recent:${user?.id || ""}` });
   const bank = useAsyncData(signal => reviewApi.getBank("", { signal }), [user?.id], { cacheKey: `dashboard-bank:${user?.id || ""}` });
   const xp = useAsyncData(signal => motivationApi.xpSummary({ signal }), [user?.id], { cacheKey: `dashboard-xp:${user?.id || ""}` });
   const streak = useAsyncData(() => motivationApi.streakSummary({ scope: user }), [user?.id], { cacheKey: `dashboard-streak:${user?.id || ""}` });
@@ -30,8 +32,8 @@ export default function Dashboard({ user, themeSettings, activeTheme }) {
   const summaries = [learning, bank, xp, streak];
   const summaryLoading = summaries.some(section => section.loading);
   const failedSummaries = summaries.filter(section => section.error);
-  const recent = getRecentOpenedCatalogSheets(user?.id);
-  const hasActivity = learning.data?.completed_count > 0 || xp.data?.total_xp > 0;
+  const recent = recentStudyEntries(recentStudy.data?.results, getRecentOpenedCatalogSheets(user?.id));
+  const hasActivity = learning.data?.completed_count > 0 || xp.data?.total_points > 0;
   const emptyState = hasActivity && bank.data?.active_count === 0 ? "cleared" : "new";
   // Continue already offers the latest sheet, so the list below starts with the
   // one before it; a student with no sheets sees Continue's invitation alone.
@@ -126,13 +128,11 @@ function ContinueCard({ sheetEntry, character = "none", theme }) {
   const material = sheetEntry?.material;
   return (
     <article className="panel continue-card">
-      <p className="eyebrow">{t(sheet ? "dashboard.continueStudying" : "dashboard.startStudying")}</p>
-      <h2 dir="auto">{sheet?.title || t("dashboard.welcomeStudy")}</h2>
+      <h2 dir="auto">{sheet?.title || t("dashboard.startStudying")}</h2>
       {sheet && material ? <>
-        <p className="progress-meta"><bdi dir={direction}>{t("dashboard.sheetName", { name: material.title, number: sheet.number })}</bdi></p>
+        <p className="progress-meta"><bdi dir={direction}>{sheet.number ? t("dashboard.sheetName", { name: material.title, number: sheet.number }) : material.title}</bdi></p>
         <Link className="btn btn-primary" to={sheetEntry.path}>{t("dashboard.continue")}<Icon className="dashboard-forward" name="arrow-up-right" size={18} aria-hidden="true" /></Link>
       </> : <>
-        <p>{t("dashboard.openSheetHint")}</p>
         <Link className="btn btn-primary" to="/materials">{t("dashboard.browseMaterials")}</Link>
       </>}
       {character !== "none" && <div className="dashboard-art"><DashboardHero character={character} theme={theme} /></div>}
@@ -158,7 +158,7 @@ function RecentContent({ sheetEntries }) {
 function RecentSheetLink({ entry }) {
   const { t, direction } = useI18n();
   const { material, sheet, path } = entry;
-  const displayName = t("dashboard.sheetName", { name: material.title, number: sheet.number });
+  const displayName = sheet.number ? t("dashboard.sheetName", { name: material.title, number: sheet.number }) : material.title;
   const accessibleName = sheet.title ? `${sheet.title} · ${displayName}` : displayName;
   return <Link className="dashboard-review-item dashboard-recent-material" to={path} aria-label={t("materials.openNamed", { name: accessibleName })}><span><strong dir="auto">{sheet.title}</strong><small><bdi dir={direction}>{displayName}</bdi></small></span><Icon className="dashboard-forward" name="arrow-up-right" size={15} aria-hidden="true" /></Link>;
 }

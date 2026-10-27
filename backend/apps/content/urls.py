@@ -72,6 +72,7 @@ from .views import (
     PublicLearningObjectDetailView,
     PublicLearningObjectListView,
     PublishLearningObjectView,
+    RecentCatalogWorkspacesView,
     RejectLearningObjectView,
     SubmitLearningObjectView,
     TransferLearningObjectView,
@@ -80,6 +81,9 @@ from .views import (
 app_name = "content"
 
 urlpatterns = [
+    path(
+        "catalog/workspaces/recent", RecentCatalogWorkspacesView.as_view(), name="recent-workspaces"
+    ),
     # Keep the structural UUID route before the two-slug alias resolver: UUIDs
     # are valid slugs, so the broader pattern would otherwise shadow workspace
     # GET/PATCH requests and return 404/405 before authorization is evaluated.

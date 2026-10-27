@@ -30,35 +30,29 @@ function sourceDescription(item, t) {
   return parts.filter(Boolean).join(" · ") || t("review.sourceUnavailable");
 }
 
-async function loadReviewCenter(userId) {
-  const [bank, queue, weekly] = await Promise.all([
-    reviewApi.getBank(userId),
-    reviewApi.getQueue(userId),
-    reviewApi.getWeeklyRecall(userId)
-  ]);
-  return { bank, queue, weekly };
-}
-
 export default function ReviewCenter({ user = null }) {
   const { t } = useI18n();
-  const review = useAsyncData(() => loadReviewCenter(user?.id || ""), [user?.id], { cacheKey: `review-center:${user?.id || ""}` });
+  const bankState = useAsyncData(() => reviewApi.getBank(user?.id || ""), [user?.id], { cacheKey: `review-bank:${user?.id || ""}` });
+  const queueState = useAsyncData(() => reviewApi.getQueue(user?.id || ""), [user?.id], { cacheKey: `review-queue:${user?.id || ""}` });
+  const weeklyState = useAsyncData(() => reviewApi.getWeeklyRecall(user?.id || ""), [user?.id], { cacheKey: `review-weekly:${user?.id || ""}` });
   const biweekly = useBiweekly("review");
-  if (review.loading) return <ReviewCenterSkeleton />;
-  if (review.error) return <Page width="reading" title={t("review.center")} showHeading><ErrorPanel message={review.error} onRetry={review.reload} /></Page>;
-
-  const { bank, queue, weekly } = review.data;
-  const weeklyStatus = weekly.session?.status;
-  const weeklyCount = weekly.session?.total_questions || weekly.eligible_count || 0;
+  const bank = bankState.data;
+  const queue = queueState.data;
+  const weekly = weeklyState.data;
+  const weeklyStatus = weekly?.session?.status;
+  const weeklyCount = weekly?.session?.total_questions || weekly?.eligible_count || 0;
   // Recovery starts where most is waiting: the first subject in the bank's own
   // order, so the primary action is one tap into answering, not into a list.
-  const firstSubject = bank.active_count ? bank.subjects[0] : null;
+  const firstSubject = bank?.active_count ? bank.subjects[0] : null;
   return (
-    <Page width="reading" title={t("review.center")} showHeading>
+    <Page width="reading" title={t("review.center")}>
       {/* One focal block (what is waiting and the way into it), then the
           scheduled reviews as quieter peers, then the material itself, and
           the archive last. */}
       <div className="review-center-layout review-v2">
-        <section className={`review-bank-entry ${bank.active_count ? "has-work" : "is-clear"}`} aria-labelledby="review-bank-title">
+        {bankState.loading && <ReviewCenterSkeleton inline />}
+        {bankState.error && <ErrorPanel message={bankState.error} onRetry={bankState.reload} />}
+        {bank && <section className={`review-bank-entry ${bank.active_count ? "has-work" : "is-clear"}`} aria-labelledby="review-bank-title">
           <div className="review-bank-entry-copy">
             <span className="review-feature-icon"><Icon name={bank.active_count ? "target" : "check"} size={22} /></span>
             <div>
@@ -79,26 +73,30 @@ export default function ReviewCenter({ user = null }) {
               </div>
               : <Link className="btn btn-soft" to="/review/bank">{t("review.openBank")}</Link>}
           </div>
-        </section>
+        </section>}
 
-        <section className={`weekly-recall-entry ${weekly.available ? "is-available" : ""}`} aria-labelledby="weekly-recall-title">
+        {weeklyState.loading && <LoadingPanel variant="list" />}
+        {weeklyState.error && <ErrorPanel message={weeklyState.error} onRetry={weeklyState.reload} />}
+        {weekly && <section className={`weekly-recall-entry ${weekly.available ? "is-available" : ""}`} aria-labelledby="weekly-recall-title">
           <div>
             <span className="review-feature-icon"><Icon name="calendar" size={20} /></span>
             <div><h2 id="weekly-recall-title">{t("review.weekly")}</h2><p dir="auto">{weeklyStatus === "completed" ? t("review.weeklyDone") : weekly.session ? t("review.weeklySessionCopy", { count: weeklyCount }) : weekly.available ? t("review.weeklyReady", { count: weeklyCount }) : t("review.weeklyPrepare")}</p></div>
           </div>
           {weekly.available ? <Link className="btn btn-soft compact" to="/review/weekly">{weeklyStatus === "completed" ? t("review.viewResults") : weekly.session ? t("review.resumeWeekly") : t("review.startWeekly")}</Link> : <span className="pill">{t("review.notReady")}</span>}
-        </section>
+        </section>}
 
         <BiweeklyCurrent type="review" biweekly={biweekly} />
 
         {/* Caught up is said once, by the bank above. Empty sections are not
             printed a second and third time underneath it. */}
-        {bank.subjects.length > 0 && <section className="review-center-section" aria-labelledby="subjects-title">
+        {bank?.subjects.length > 0 && <section className="review-center-section" aria-labelledby="subjects-title">
           <header className="review-section-heading"><h2 id="subjects-title">{t("review.subjectsTitle")}</h2><Link to="/review/bank">{t("review.viewAll")}</Link></header>
           <div className="review-subject-list">{bank.subjects.slice(0, 4).map((subject) => <SubjectRow key={subject.subject_key} subject={subject} />)}</div>
         </section>}
 
-        {queue.results.length > 0 && <section className="review-center-section" aria-labelledby="recent-mistakes-title">
+        {queueState.loading && <LoadingPanel variant="list" />}
+        {queueState.error && <ErrorPanel message={queueState.error} onRetry={queueState.reload} />}
+        {queue?.results.length > 0 && <section className="review-center-section" aria-labelledby="recent-mistakes-title">
           <header className="review-section-heading"><h2 id="recent-mistakes-title">{t("review.recentMistakes")}</h2><span>{queue.count}</span></header>
           <div className="recent-mistake-list">{queue.results.map((item) => <RecentMistake key={item.id} item={item} />)}</div>
         </section>}
@@ -110,9 +108,10 @@ export default function ReviewCenter({ user = null }) {
   );
 }
 
-function ReviewCenterSkeleton() {
+function ReviewCenterSkeleton({ inline = false }) {
   const { t } = useI18n();
-  return <Page width="reading" title={t("review.center")} showHeading><div className="review-center-skeleton" aria-label={t("review.loadingCenter")} aria-busy="true"><span /><span /><span /></div></Page>;
+  const skeleton = <div className="review-center-skeleton" aria-label={t("review.loadingCenter")} aria-busy="true"><span /><span /><span /></div>;
+  return inline ? skeleton : <Page width="reading" title={t("review.center")}>{skeleton}</Page>;
 }
 
 function SubjectRow({ subject }) {
@@ -154,6 +153,7 @@ function ReviewQuestionCard({ item, selectedIds = [], onSelect, outcome, busy, e
   return (
     <article className="review-session-question">
       <div className="review-question-source"><span>{t("review.originallyFrom")}</span><strong dir="auto">{sourceDescription(item, t)}</strong>{item.mistake_count > 1 && <em className="review-missed-count">{t("review.missedTimes", { count: item.mistake_count })}</em>}</div>
+      {item.original_source?.has_page && <Link className="btn btn-soft compact" to={`/review/source/${encodeURIComponent(item.id)}`} target="_blank" rel="noopener noreferrer">{t("review.sourcePage")}</Link>}
       <h2 dir="auto">{item.prompt}</h2>
       <fieldset className="review-choice-list" disabled={busy || Boolean(outcome)}>
         <legend className="visually-hidden">{t(multiple ? "review.chooseEvery" : "review.chooseOne")}</legend>

@@ -296,8 +296,8 @@ export default function Subscription({ onPoliciesAccepted }) {
     reloadDetails();
   }, [reloadDetails, reviewStamp]);
 
-  if (details.loading) return <Page width="reading" title={t("subscription.title")} showHeading><LoadingPanel variant="list" /></Page>;
-  if (details.error) return <Page width="reading" title={t("subscription.title")} showHeading><ErrorPanel message={details.error} onRetry={details.reload} /></Page>;
+  if (details.loading) return <Page width="reading" title={t("subscription.title")}><LoadingPanel variant="list" /></Page>;
+  if (details.error) return <Page width="reading" title={t("subscription.title")}><ErrorPanel message={details.error} onRetry={details.reload} /></Page>;
 
   const { subscription, directAccess, accessExempt } = subscriptionSession;
   const { payments, catalog } = details.data;
@@ -416,8 +416,8 @@ export default function Subscription({ onPoliciesAccepted }) {
             facts that used to sit in a collapsed "Current access" block are
             the card itself now. */}
         <header className="subscription-premium-header">
-          <div>
-            <h1>{t("subscription.title")}</h1>
+          <div className="visually-hidden">
+            <h1 className="visually-hidden">{t("subscription.title")}</h1>
           </div>
           <div className="subscription-current-summary">
             <span>{t("subscription.currentPlan")}</span>

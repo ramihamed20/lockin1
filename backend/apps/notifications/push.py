@@ -20,7 +20,13 @@ from django.db.models import Q
 from django.utils import timezone
 from pywebpush import WebPushException, webpush
 
-from .models import Notification, NotificationPreference, PushDelivery, PushSubscription
+from .models import (
+    Notification,
+    NotificationPreference,
+    PushDelivery,
+    PushSubscription,
+    StudyReminder,
+)
 
 PUSH_HOSTS = (
     "fcm.googleapis.com",
@@ -166,6 +172,15 @@ def dispatch_push(*, limit: int = 100, budget_seconds: float = 25) -> dict[str, 
             or session.expires_at <= now
             or session.user_id != notice.recipient_id
             or notice.created_at < now - timedelta(days=1)
+            or (
+                notice.template_key == "study.reminder"
+                and (
+                    notice.created_at < now - timedelta(hours=2)
+                    or not StudyReminder.objects.filter(
+                        user_id=notice.recipient_id, enabled=True
+                    ).exists()
+                )
+            )
             or not Session.objects.filter(
                 session_key=session.session_key, expire_date__gt=now
             ).exists()
