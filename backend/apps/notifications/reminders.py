@@ -1,4 +1,4 @@
-"""Daily study reminders owned by the account and dispatched without an open tab."""
+"""Opt-in study briefings dispatched by the existing operations scheduler."""
 
 from datetime import datetime, timedelta
 from datetime import time as wall_time
@@ -7,12 +7,32 @@ from zoneinfo import ZoneInfo
 
 from django.db import transaction
 from django.utils import timezone
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException, ValidationError
 
 from apps.accounts.models import User
+from apps.review.selectors import due_review_count
+from apps.streaks.activity_selectors import recent_study_days
 
+from .delivery_policy import STUDY_TEMPLATES, in_quiet_hours
 from .models import Notification, PushDelivery, StudyReminder
 from .services import create_notification
+
+REMINDER_FIELDS = (
+    "enabled",
+    "time",
+    "timezone",
+    "locale",
+    "weekdays",
+    "study_enabled",
+    "review_enabled",
+    "weekly_enabled",
+    "weekly_day",
+    "skip_if_studied",
+    "quiet_enabled",
+    "quiet_start",
+    "quiet_end",
+    "push_preview",
+)
 
 
 class ReminderChanged(APIException):
@@ -21,24 +41,41 @@ class ReminderChanged(APIException):
     default_detail = "Your reminder changed on another device. Reload it first."
 
 
-def next_due(now: datetime, at: wall_time, zone_name: str) -> datetime:
+def next_due(
+    now: datetime, at: wall_time, zone_name: str, weekdays: list[int] | None = None
+) -> datetime:
     zone = ZoneInfo(zone_name)
     local = now.astimezone(zone)
-    candidate = datetime.combine(local.date(), at, tzinfo=zone)
-    if candidate <= local:
-        candidate = datetime.combine(local.date() + timedelta(days=1), at, tzinfo=zone)
-    return candidate.astimezone(ZoneInfo("UTC"))
+    allowed = list(range(7)) if weekdays is None else weekdays
+    for offset in range(8):
+        day = local.date() + timedelta(days=offset)
+        candidate = datetime.combine(day, at, tzinfo=zone)
+        # Compare wall time to avoid sending twice in a repeated DST hour.
+        if day.weekday() in allowed and candidate > local:
+            return candidate.astimezone(ZoneInfo("UTC"))
+    raise ValueError("At least one scheduled weekday is required.")
+
+
+def _schedule(reminder: StudyReminder, now: datetime) -> datetime | None:
+    if not reminder.enabled:
+        return None
+    days = set(reminder.weekdays) if reminder.study_enabled or reminder.review_enabled else set()
+    if reminder.weekly_enabled:
+        days.add(reminder.weekly_day)
+    anchor = max(now, reminder.paused_until) if reminder.paused_until else now
+    return next_due(anchor, reminder.time, reminder.timezone, sorted(days))
 
 
 def reminder_payload(reminder: StudyReminder) -> dict[str, Any]:
-    return {
-        "enabled": reminder.enabled,
-        "time": reminder.time.strftime("%H:%M"),
-        "timezone": reminder.timezone,
-        "locale": reminder.locale,
-        "revision": 0 if reminder._state.adding else reminder.revision,
-        "next_due_at": reminder.next_due_at.isoformat() if reminder.next_due_at else None,
-    }
+    result = {field: getattr(reminder, field) for field in REMINDER_FIELDS}
+    for field in ("time", "quiet_start", "quiet_end"):
+        result[field] = result[field].strftime("%H:%M")
+    result.update(
+        revision=0 if reminder._state.adding else reminder.revision,
+        next_due_at=reminder.next_due_at.isoformat() if reminder.next_due_at else None,
+        paused_until=reminder.paused_until.isoformat() if reminder.paused_until else None,
+    )
+    return result
 
 
 def get_reminder(user: User) -> dict[str, Any]:
@@ -49,8 +86,7 @@ def get_reminder(user: User) -> dict[str, Any]:
 
 @transaction.atomic
 def save_reminder(user: User, data: dict[str, Any]) -> dict[str, Any]:
-    # Serialize first-time settings creation without blocking notification FK
-    # inserts while a scheduler holds the existing reminder row.
+    # Do not block notification FK inserts while the scheduler holds this reminder.
     User.objects.select_for_update(no_key=True).get(pk=user.pk)
     reminder = StudyReminder.objects.select_for_update().filter(user=user).first()
     if reminder is None:
@@ -58,20 +94,95 @@ def save_reminder(user: User, data: dict[str, Any]) -> dict[str, Any]:
     revision = 0 if reminder._state.adding else reminder.revision
     if revision != data["expected_revision"]:
         raise ReminderChanged()
-    for field in ("enabled", "time", "timezone", "locale"):
-        setattr(reminder, field, data[field])
+    for field in REMINDER_FIELDS:
+        if field in data:
+            setattr(reminder, field, data[field])
+    if reminder.enabled and not any(
+        (reminder.study_enabled, reminder.review_enabled, reminder.weekly_enabled)
+    ):
+        raise ValidationError({"enabled": "Choose at least one study notification."})
+    if reminder.quiet_enabled:
+        if reminder.quiet_start == reminder.quiet_end:
+            raise ValidationError({"quiet_end": "Quiet hours need different start and end times."})
+        if reminder.enabled and in_quiet_hours(
+            reminder.time, reminder.quiet_start, reminder.quiet_end
+        ):
+            raise ValidationError({"time": "Choose a reminder time outside quiet hours."})
+    now = timezone.now()
+    if "pause_hours" in data:
+        reminder.paused_until = (
+            now + timedelta(hours=data["pause_hours"]) if data["pause_hours"] else None
+        )
     reminder.revision = revision + 1
-    reminder.next_due_at = (
-        next_due(timezone.now(), reminder.time, reminder.timezone) if reminder.enabled else None
-    )
+    reminder.next_due_at = _schedule(reminder, now)
     reminder.save()
-    # A disabled/rescheduled reminder must not retain an obsolete queued push.
     PushDelivery.objects.filter(
         notification__recipient=user,
-        notification__template_key="study.reminder",
+        notification__template_key__in=STUDY_TEMPLATES,
         status__in=("pending", "sending"),
     ).update(status="cancelled", lock_token=None, locked_until=None)
     return reminder_payload(reminder)
+
+
+def _briefing(reminder: StudyReminder, now: datetime) -> dict[str, str] | None:
+    local = now.astimezone(ZoneInfo(reminder.timezone))
+    user = reminder.user
+    arabic = reminder.locale == "ar"
+    if reminder.weekly_enabled and local.weekday() == reminder.weekly_day:
+        days = recent_study_days(user=user, now=now, zone_name=reminder.timezone)
+        count = due_review_count(user=user, now=now) if reminder.review_enabled else 0
+        body = (
+            f"درست في {len(days)} أيام خلال آخر 7 أيام. افتح تقدمك وحدد خطوتك القادمة."
+            if arabic
+            else (
+                f"You studied on {len(days)} of the last 7 days. "
+                "See your progress and plan your next step."
+            )
+        )
+        if count:
+            body = (
+                f"درست في {len(days)} أيام خلال آخر 7 أيام. لديك {count} أسئلة جاهزة للمراجعة."
+                if arabic
+                else (
+                    f"You studied on {len(days)} of the last 7 days. "
+                    f"{count} questions are ready to review."
+                )
+            )
+        return {
+            "template_key": "study.weekly",
+            "title": "أسبوعك في الدراسة" if arabic else "Your study week",
+            "body": body,
+            "target_route": "/progress",
+        }
+    if local.weekday() not in reminder.weekdays:
+        return None
+    if reminder.review_enabled:
+        count = due_review_count(user=user, now=now)
+        if count:
+            return {
+                "template_key": "study.review",
+                "title": "مراجعة قصيرة تثبّت معلوماتك"
+                if arabic
+                else "A little review helps it stick",
+                "body": f"لديك {count} أسئلة جاهزة في بنك المراجعة. ابدأ ببضعة أسئلة اليوم."
+                if arabic
+                else f"{count} questions are ready in your Review Bank. Try a few today.",
+                "target_route": "/review",
+            }
+    if not reminder.study_enabled:
+        return None
+    if reminder.skip_if_studied and local.date().isoformat() in recent_study_days(
+        user=user, now=now, zone_name=reminder.timezone
+    ):
+        return None
+    return {
+        "template_key": "study.reminder",
+        "title": "حان وقت الدراسة" if arabic else "Time to study",
+        "body": "جلسة قصيرة خطوة نحو هدفك. تابع دراستك في Lockin."
+        if arabic
+        else "A short session moves you forward. Continue your study in Lockin.",
+        "target_route": "/dashboard",
+    }
 
 
 def dispatch_study_reminders(*, limit: int = 100) -> dict[str, int]:
@@ -88,28 +199,29 @@ def dispatch_study_reminders(*, limit: int = 100) -> dict[str, int]:
             if reminder is None:
                 break
             due = reminder.next_due_at
-            assert due is not None  # noqa: S101 - required by the due query
+            assert due is not None  # noqa: S101 - guaranteed by the due query
             local = now.astimezone(ZoneInfo(reminder.timezone))
             timely = (
                 now - due <= timedelta(hours=2)
                 and due.astimezone(ZoneInfo(reminder.timezone)).date() == local.date()
+                and not (reminder.paused_until and reminder.paused_until > now)
             )
             active = User.objects.filter(pk=reminder.user_id, is_active=True).exists()
-            if timely and active:
+            briefing = _briefing(reminder, now) if timely and active else None
+            if briefing:
                 _, created = create_notification(
                     recipient_id=reminder.user_id,
                     category=Notification.Category.LEARNING,
-                    template_key="study.reminder",
-                    title="حان وقت الدراسة" if reminder.locale == "ar" else "Time to study",
-                    body="جلسة قصيرة خطوة نحو هدفك. تابع دراستك في Lockin."
-                    if reminder.locale == "ar"
-                    else "A short session moves you forward. Continue your study in Lockin.",
+                    template_key=briefing["template_key"],
+                    title=briefing["title"],
+                    body=briefing["body"],
                     deduplication_key=f"study-reminder:{local.date().isoformat()}",
-                    target_route="/dashboard",
+                    target_route=briefing["target_route"],
+                    data={"reminder_revision": reminder.revision},
                 )
                 counts["created" if created else "skipped"] += 1
             else:
                 counts["skipped"] += 1
-            reminder.next_due_at = next_due(now, reminder.time, reminder.timezone)
+            reminder.next_due_at = _schedule(reminder, now)
             reminder.save(update_fields=("next_due_at",))
     return counts
