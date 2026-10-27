@@ -1,6 +1,7 @@
 import { request } from "./client.js";
 
 export const knowledgeApi = {
+  recovery: (itemId) => request(`/knowledge/review-items/${itemId}/recovery`),
   library: () => request("/knowledge/library"),
   mcqLinks: (id, attemptId) => request(String(attemptId).startsWith("result:")
     ? `/knowledge/documents/${id}/mcq-runs/${String(attemptId).slice(7)}/explain-links`

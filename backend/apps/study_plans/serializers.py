@@ -70,6 +70,11 @@ def study_plan_item_payload(item: StudyPlanItem) -> dict[str, object]:
         "revision": item.revision,
         "generated": item.generated_slot is not None,
         "plan_mode": item.plan_mode,
+        "activity": item.activity,
+        "planning_key": item.planning_key,
+        "page_start": item.page_start,
+        "page_end": item.page_end,
+        "start_url": task_start_url(item),
     }
 
 
@@ -118,4 +123,44 @@ class StudyPlanGenerateSerializer(StudyPlanPreviewSerializer):
 
 
 class ReadingPlanPreviewSerializer(StrictSerializer):
+    include_reviews = serializers.BooleanField(default=False)
+    report_id = serializers.UUIDField(required=False, allow_null=True)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if attrs.get("report_id") and not attrs.get("include_reviews"):
+            raise serializers.ValidationError("A report requires review planning.")
+        return attrs
+
     edition = serializers.ChoiceField(choices=("university", "lockin"), default="university")
+
+
+class PlanApplySerializer(ReadingPlanPreviewSerializer):
+    client_request_id = serializers.UUIDField()
+    preview_token = serializers.RegexField(r"^[a-f0-9]{64}$")
+
+
+def task_start_url(item: StudyPlanItem) -> str | None:
+    from urllib.parse import quote
+
+    if item.activity == "review" and item.review_item_id:
+        review = item.review_item
+        if (
+            review is not None
+            and review.user_id == item.user_id
+            and review.state == "active_review"
+        ):
+            return f"/review/bank/{quote(review.subject_key, safe='')}?item={review.pk}"
+    if item.activity == "reading" and item.catalog_document_id and item.source_file_id:
+        doc = item.catalog_document
+        if (
+            doc
+            and doc.is_active
+            and doc.version_id == item.content_version_id
+            and doc.managed_file_id == item.source_file_id
+        ):
+            return (
+                f"/materials/catalog/{doc.material_slug}/sheets/{doc.sheet_slug}/workspace"
+                f"?studyPage={item.page_start}&studyVersion={item.content_version_id}"
+                f"&studyFile={item.source_file_id}"
+            )
+    return None

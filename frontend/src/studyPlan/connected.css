@@ -1,0 +1,11 @@
+
+.plan-preview-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-block: 18px; }
+.plan-preview-filters [aria-pressed=true] { border-color: var(--accent); color: var(--text); }
+.plan-preview-days section { border-inline-start: 2px solid var(--border); padding-inline-start: 14px; margin-block: 20px; }
+.plan-preview-days h3 { margin-block: 0 8px; font-size: var(--text-sm); color: var(--muted); }
+.plan-apply-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border-block-start: 1px solid var(--border); padding-block-start: 16px; margin-block-start: 20px; }
+.plan-apply-bar p { color: var(--muted); margin: 0; max-inline-size: 52ch; }
+.plan-connected-review { display: flex; align-items: center; gap: 10px; min-block-size: 44px; margin-block: 10px; }
+.plan-apply-success { border-inline-start: 3px solid var(--accent); padding: 12px; background: var(--surface); border-radius: 8px; }
+
+.plan-capacity-warning { border-inline-start: 3px solid var(--danger); padding: 12px; background: var(--surface); border-radius: 8px; }

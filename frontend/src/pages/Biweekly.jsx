@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { studyPlanApi } from "../api/studyPlan.js";
 import { biweeklyApi } from "../api/biweekly.js";
 import { BiweeklyArchive } from "../components/biweekly/BiweeklyArchive.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
@@ -22,6 +23,7 @@ export function BiweeklyDetail({ type }) {
   const data = report.data;
   return <Page title={type === "review" ? t("biweekly.reviewTitle") : t("biweekly.analysisTitle")} subtitle={periodLabel(report.period_start, report.period_end, locale)}>
     <div className="biweekly-detail-actions"><Link className="btn btn-soft" to={type === "review" ? "/review" : "/analysis"}>{t("biweekly.history")}</Link><a className="btn btn-soft" href={biweeklyApi.pdfUrl(type, id, true)} target="_blank" rel="noopener noreferrer">{t("biweekly.previewPdf")}</a><a className="btn btn-primary" href={biweeklyApi.pdfUrl(type, id)}>{t("biweekly.downloadPdf")}</a></div>
+    <ReportPlanAction reportId={id} />
     {type === "analysis" ? <AnalysisDetail data={data} t={t} /> : <ReviewDetail data={data} reportId={id} t={t} />}
   </Page>;
 }
@@ -53,7 +55,7 @@ export function WeeklySummaryPage() {
     <div className="weekly-summary-grid">
       <section id="weekly-panel-analysis" role="tabpanel" aria-labelledby="weekly-tab-analysis" className={`weekly-summary-column${part === "analysis" ? " is-current" : ""}`} aria-label={t("biweekly.analysisTitle")}>
         <div className="weekly-summary-head"><h2>{t("biweekly.analysisTitle")}</h2>{analysis && <a className="btn btn-primary compact" href={biweeklyApi.pdfUrl("analysis", analysis.id)}>{t("weekly.downloadSummary")}</a>}</div>
-        {analysis ? <AnalysisDetail data={analysis.data} t={t} /> : <p>{t("biweekly.lowActivity")}</p>}
+        {analysis ? <><ReportPlanAction reportId={analysis.id} /><AnalysisDetail data={analysis.data} t={t} /></> : <p>{t("biweekly.lowActivity")}</p>}
       </section>
       <section id="weekly-panel-review" role="tabpanel" aria-labelledby="weekly-tab-review" className={`weekly-summary-column${part === "review" ? " is-current" : ""}`} aria-label={t("biweekly.reviewTitle")}>
         <div className="weekly-summary-head"><h2>{t("biweekly.reviewTitle")}</h2>{review && <a className="btn btn-primary compact" href={biweeklyApi.pdfUrl("review", review.id)}>{t("weekly.downloadQuestions")}</a>}</div>
@@ -110,4 +112,15 @@ export function BiweeklyTest() {
       {!outcome && questions.length > 0 && <button className="btn btn-primary" type="submit" disabled={busy || questions.some((question) => !(selected[question.review_item_id] || []).length)}>{t("biweekly.submitTest")}</button>}{error && <p role="alert">{error}</p>}
     </form>
   </Page>;
+}
+
+function ReportPlanAction({ reportId }) {
+  const { t } = useI18n();
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController(); setReady(false);
+    studyPlanApi.getExams({ signal: controller.signal }).then(exams => { if (!controller.signal.aborted) setReady(exams.length > 0); }).catch(() => { if (!controller.signal.aborted) setReady(false); });
+    return () => controller.abort();
+  }, [reportId]);
+  return ready ? <Link className="btn btn-soft" to={`/study-plan?report=${reportId}`}>{t("connected.planReport")}</Link> : null;
 }

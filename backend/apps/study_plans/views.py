@@ -54,17 +54,20 @@ class StudyPlanView(APIView):
         start = query.validated_data["from"]
         end = query.validated_data["to"]
         user = _user(request)
+        from .task_progress import reconcile_review_tasks
+
+        reconcile_review_tasks(user)
         profile = profile_for(user)
         items = list(
             StudyPlanItem.objects.filter(
                 user=user,
                 scheduled_date__range=(start, end),
-            )
+            ).select_related("catalog_document", "review_item")
         )
         today = plan_today(profile)
         overdue = StudyPlanItem.objects.filter(
             user=user, status="planned", scheduled_date__lt=today
-        )
+        ).select_related("catalog_document", "review_item")
         completed_count = 0
         planned_minutes = 0
         completed_minutes = 0
@@ -163,6 +166,7 @@ class StudyPlanItemDetailView(APIView):
         if item.scheduled_date != previous_date or item.duration_minutes > previous_minutes:
             validate_day(user, item.scheduled_date, item.duration_minutes, exclude=item.pk)
         if item.status != previous_status:
+            item.status_changed_at = timezone.now()
             item.completed_at = (
                 timezone.now() if item.status == StudyPlanItem.Status.COMPLETED else None
             )
