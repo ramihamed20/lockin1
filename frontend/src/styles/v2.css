@@ -27,7 +27,7 @@
 .settings-public-icon { background: var(--surface-2); color: var(--muted); }
 .settings-public-primary .ui-row { padding-block: var(--space-4); }
 .settings-public-primary .ui-row-body > span:first-child { color: var(--accent-text); }
-.settings-v2-icon--about, .settings-v2-icon--support { color: var(--info); background: var(--info-soft); }
+.settings-v2-icon.settings-v2-icon--about, .settings-v2-icon.settings-v2-icon--support { color: var(--text); background: var(--surface-3); }
 
 
 /* One column on phones and tablets: the section list is a screen of its own
@@ -42,13 +42,6 @@
   margin-inline: auto;
 }
 
-.settings-v2-head h1 {
-  margin: 0;
-  font-size: var(--title-large);
-  font-weight: var(--weight-bold);
-  line-height: 1.15;
-  letter-spacing: var(--tracking-title);
-}
 
 .settings-v2-nav .ui-row {
   min-height: 52px;
@@ -66,14 +59,13 @@
 .settings-v2-icon--updates { background: #3b82c4; }
 
 /* Settings: calm, grouped navigation and device-specific illustrations. */
-.settings-v2-nav { display: grid; align-content: start; gap: 22px; min-inline-size: 0; }
+.settings-v2-nav { display: grid; align-content: start; gap: 14px; min-inline-size: 0; }
 .settings-nav-group { gap: 8px; }
 .settings-version { margin: 0; color: var(--muted); font-size: var(--text-sm); text-align: center; }
 .settings-search { display: flex; align-items: center; gap: 8px; min-block-size: 48px; padding-inline: 12px 4px; border-radius: var(--radius-md); background: var(--surface-2); color: var(--muted); }
 .settings-search input { flex: 1; min-inline-size: 0; inline-size: 100%; min-block-size: 46px; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--text); box-shadow: none; font-size: 16px; }
 .settings-search input::-webkit-search-cancel-button { display: none; }
 .settings-search button { display: grid; place-items: center; flex: 0 0 44px; min-block-size: 44px; border: 0; background: transparent; color: var(--muted); border-radius: var(--radius-full); cursor: pointer; }
-.settings-detail-description { margin: 10px 0 0; max-inline-size: 54ch; color: var(--muted); font-size: var(--text-base); line-height: 1.6; }
 .settings-v2-icon--security { background: #687482; }
 .settings-v2-icon--devices { background: #4b78c3; }
 .settings-v2-icon--billing { background: #38917d; }
@@ -115,12 +107,6 @@
 .settings-empty { display: grid; justify-items: center; gap: 10px; padding: 34px 18px; text-align: center; color: var(--muted); }
 .settings-empty strong { color: var(--text); }
 .settings-empty p { margin: 0; font-size: var(--text-sm); line-height: 1.6; }
-.settings-notification-preview { display: flex; align-items: start; gap: 12px; padding: 18px; border-radius: var(--radius-card); background: var(--surface-2); }
-.settings-notification-preview > div { display: grid; gap: 5px; }
-.settings-notification-preview small { color: var(--muted); font-size: var(--text-sm); }
-.settings-notification-preview strong { color: var(--text); font-size: var(--text-base); font-weight: var(--weight-semibold); }
-.settings-notification-preview p { margin: 0; color: var(--muted); line-height: 1.6; font-size: var(--text-sm); }
-.settings-notification-app { display: grid; place-items: center; flex: 0 0 40px; block-size: 40px; border-radius: 11px; color: var(--on-accent); background: var(--accent); }
 .settings-notification-category + .settings-notification-category { border-block-start: 1px solid var(--separator); }
 .settings-notification-category-title { margin: 0; padding: 16px 16px 4px; font-size: var(--text-sm); color: var(--muted); font-weight: var(--weight-semibold); }
 .settings-notification-category .ui-row-body > label { cursor: pointer; }
@@ -141,6 +127,13 @@
   .settings-v2-nav .settings-v2-profile small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }
 
+/* Supporting information is available on demand, outside the primary controls. */
+.settings-info > summary { display: flex; align-items: center; inline-size: fit-content; min-block-size: 44px; padding-inline: 16px; cursor: pointer; color: var(--muted); font-size: var(--text-sm); }
+.settings-info > .ui-group-footer { padding-block: 4px 12px; }
+@media (min-width: 1100px) {
+  .settings-v2-detail .settings-v2-profile { display: none; }
+}
+
 /* Settings → Updates. Build identifiers stay left-to-right in Arabic. */
 .app-updates-id { font-variant-numeric: tabular-nums; unicode-bidi: isolate; }
 .app-updates-icon {
@@ -159,7 +152,7 @@
 
 .settings-v2-detail {
   display: grid;
-  gap: 22px;
+  gap: 18px;
   min-width: 0;
 }
 
@@ -172,8 +165,8 @@
 .settings-v2-detail-head h2 {
   margin: 0;
   font-size: var(--title-large);
-  font-weight: var(--weight-bold);
-  line-height: 1.15;
+  font-weight: var(--weight-semibold);
+  line-height: 1.4;
   letter-spacing: var(--tracking-title);
 }
 
@@ -204,7 +197,7 @@ html.ix-hover .settings-v2-back:hover {
 
 .settings-v2-section {
   display: grid;
-  gap: 26px;
+  gap: 20px;
   min-width: 0;
 }
 
@@ -483,15 +476,6 @@ html.ix-hover .settings-v2-back:hover {
     display: none;
   }
 
-  .settings-v2[data-view="detail"] > .settings-v2-head {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
 
   .settings-v2[data-view="detail"] > .settings-v2-detail {
     animation: settings-v2-push var(--motion-panel-duration) var(--motion-enter-ease) backwards;
@@ -530,9 +514,6 @@ html.ix-hover .settings-v2-back:hover {
     max-width: 1040px;
   }
 
-  .settings-v2-head {
-    grid-column: 1 / -1;
-  }
 
   /* Clears the sticky top bar (56px plus the safe area) with a small gap. */
   .settings-v2-nav {
@@ -561,7 +542,7 @@ html.ix-hover .settings-v2-back:hover {
   }
 
   .settings-v2-detail-head h2 {
-    font-size: var(--text-2xl);
+    font-size: var(--title-large);
   }
 
   .settings-v2-detail {
@@ -570,7 +551,6 @@ html.ix-hover .settings-v2-back:hover {
 }
 
 @media (max-width: 639px) {
-  .settings-v2-head h1,
   .settings-v2-detail-head h2 {
     font-size: var(--title-large-phone);
   }
@@ -1028,6 +1008,7 @@ html.ix-hover .dash-state:hover {
    size or the baseline of the heading. */
 .progress-page-heading {
   align-items: center;
+  justify-content: flex-end;
   /* The page's own gap spaces the title from what follows, as on every other
      screen; the extra margin stacked 36px between title, period and tabs. */
   margin: 0;

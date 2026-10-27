@@ -92,7 +92,7 @@ export default function Progress({ user = null }) {
   return (
     <Page title={t("progress.title")} showHeading={false} headingHandled>
       <header className="progress-page-heading">
-        <h1>{t("progress.title")}</h1>
+        <h1 className="visually-hidden">{t("progress.title")}</h1>
         <label className="progress-range-control"><Icon name="calendar" size={16} /><select value={range} onChange={(event) => { setRange(event.target.value); setPage(1); }} aria-label={t("progress.period")}><option value="week">{t("progress.weekThis")}</option><option value="month">{t("progress.rangeMonth")}</option><option value="all">{t("progress.rangeAll")}</option></select></label>
       </header>
 

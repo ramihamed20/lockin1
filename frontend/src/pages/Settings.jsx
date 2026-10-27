@@ -146,9 +146,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
   return (
     <Page title={t("settings.pageTitle")} headingHandled>
       <section className="settings-v2" data-view={view} data-active-section={activeSection}>
-        <header className="settings-v2-head">
-          <h1 dir="auto">{t("settings.pageTitle")}</h1>
-        </header>
+        <h1 className="visually-hidden" dir="auto">{t("settings.pageTitle")}</h1>
 
         <nav className="settings-v2-nav" aria-label={t("settings.sectionsLabel")}>
           <AccountSummary user={user} />
@@ -159,8 +157,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
           </div>
           {query && !visibleSections.length && <p className="ui-group-footer" role="status">{t("settings.searchEmpty")}</p>}
           {["account", "preferences", "help"].map(group => visibleSections.some(section => section.group === group) && <div className="ui-group-block settings-nav-group" key={group}>
-            <h2 className="ui-group-title">{t(`settings.group.${group}`)}</h2>
-          <ul className="ui-group">
+          <ul className="ui-group" aria-label={t(`settings.group.${group}`)}>
             {visibleSections.filter(section => section.group === group).map((section) => {
               const current = activeSection === section.id;
               return <li key={section.id}>
@@ -192,7 +189,6 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
               <span>{t("settings.pageTitle")}</span>
             </button>
             <h2 id={`settings-${activeSection}-heading`} tabIndex={-1} dir="auto">{sectionTitle}</h2>
-            <p className="settings-detail-description">{t(`settings.hint.${activeSection}`)}</p>
           </header>
 
           {error && <ErrorPanel message={error} />}
@@ -203,7 +199,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
             <div className="ui-group">
               {["security", "devices", "billing", "privacy"].map(id => <button type="button" className="ui-row" key={id} onClick={() => openSection(id)}>
                 <span className={`ui-row-icon settings-v2-icon settings-v2-icon--${id}`}><Icon name={SECTIONS.find(section => section.id === id).icon} size={18} /></span>
-                <span className="ui-row-body"><strong>{t(SECTIONS.find(section => section.id === id).labelKey)}</strong><small>{t(`settings.hint.${id}`)}</small></span>
+                <span className="ui-row-body"><strong>{t(SECTIONS.find(section => section.id === id).labelKey)}</strong></span>
                 <Icon className="ui-row-chevron" name="chevron-right" size={17} />
               </button>)}
             </div>
@@ -231,7 +227,6 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
           </section>}
 
           {activeSection === "appearance" && <section className="settings-v2-section" id="settings-appearance" aria-labelledby="settings-appearance-heading">
-            <p className="ui-group-footer">{t("settings.customizationSync")}</p>
             <div className="ui-group-block settings-v2-block" id="settings-themes">
               <h3 className="ui-group-title" id="settings-themes-heading" tabIndex={-1}>{t("settings.themeLabel")}</h3>
               <div className="ui-group settings-v2-pad">
@@ -308,9 +303,6 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
           </section>}
 
           {activeSection === "notifications" && <section className="settings-v2-section" id="settings-notifications" aria-labelledby="settings-notifications-heading">
-            <div className="settings-notification-preview" aria-label={t("settings.notificationsPreviewLabel")}>
-              <span className="settings-notification-app"><Icon name="bell" size={19} /></span><div><small>Lockin</small><strong>{t("settings.notificationsPreview")}</strong><p>{t("settings.notificationsPreviewBody")}</p></div>
-            </div>
             <DevicePushSettings key={`push-${user?.id}`} userId={user?.id} />
             <StudyReminderSettings key={user?.id} userId={user?.id} />
             <NotificationPreferences userId={user?.id} />
@@ -343,7 +335,6 @@ function AccountSummary({ user }) {
         <strong dir="auto">{user?.name || user?.full_name || user?.username || t("common.account")}</strong>
         <small dir="auto">{user?.email}</small>
       </span>
-      <span className="ui-row-value">{t("settings.viewProfile")}</span>
       <Icon className="ui-row-chevron" name="chevron-right" size={17} />
     </Link>
   </div>;

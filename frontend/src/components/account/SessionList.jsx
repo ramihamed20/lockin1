@@ -86,7 +86,7 @@ export function SessionList({ onCurrentSessionRevoked, refreshKey = 0 }) {
       })}
       {visibleSessions.length < sessions.length && <li><button className="ui-row settings-v2-action" type="button" onClick={() => setExpanded(true)}><span className="ui-row-body">{t("settings.sessionShowAll", { count: sessions.length })}</span></button></li>}
     </ul>
-    <p className="ui-group-footer">{t("settings.device.hint")}</p>
+    <details className="settings-info"><summary>{t("settings.device.about")}</summary><p className="ui-group-footer">{t("settings.device.hint")}</p></details>
     {!loading && sessions.length > 0 && <div className="ui-group"><button type="button" className="ui-row is-danger" disabled={Boolean(pending)} onClick={() => setConfirming({ id: "all" })}><span className="ui-row-icon"><Icon name="logout" size={18} /></span><span className="ui-row-body">{t("settings.device.signOutAll")}</span></button></div>}
     <ConfirmDialog open={Boolean(confirming)} busy={Boolean(pending)}
       title={t(all ? "settings.device.signOutAllTitle" : confirming?.is_current ? "settings.sessionSignOutTitle" : "settings.sessionRevokeTitle")}

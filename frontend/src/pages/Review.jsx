@@ -45,7 +45,7 @@ export default function ReviewCenter({ user = null }) {
   // order, so the primary action is one tap into answering, not into a list.
   const firstSubject = bank?.active_count ? bank.subjects[0] : null;
   return (
-    <Page width="reading" title={t("review.center")} showHeading>
+    <Page width="reading" title={t("review.center")}>
       {/* One focal block (what is waiting and the way into it), then the
           scheduled reviews as quieter peers, then the material itself, and
           the archive last. */}
@@ -111,7 +111,7 @@ export default function ReviewCenter({ user = null }) {
 function ReviewCenterSkeleton({ inline = false }) {
   const { t } = useI18n();
   const skeleton = <div className="review-center-skeleton" aria-label={t("review.loadingCenter")} aria-busy="true"><span /><span /><span /></div>;
-  return inline ? skeleton : <Page width="reading" title={t("review.center")} showHeading>{skeleton}</Page>;
+  return inline ? skeleton : <Page width="reading" title={t("review.center")}>{skeleton}</Page>;
 }
 
 function SubjectRow({ subject }) {

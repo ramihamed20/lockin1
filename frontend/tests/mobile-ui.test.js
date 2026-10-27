@@ -291,8 +291,8 @@ test("the dashboard fills its column, keeps the cat small, and lifts mistakes on
 
   // Width never depends on the length of a student's titles.
   assert.match(styles, /\.dashboard \{[\s\S]*?width: 100%;[\s\S]*?max-width: 1440px;/);
-  // The cat supports Continue: 112-144px beside it, 64px on phones, absent below 375px.
-  assert.match(styles, /\.dashboard-art \{[\s\S]*?width: clamp\(112px, 14vw, 144px\);/);
+  // The cat supports Continue: 64-96px beside it, 64px on phones, absent below 375px.
+  assert.match(styles, /\.dashboard-art \{[\s\S]*?width: clamp\(64px, 8vw, 96px\);/);
   assert.match(styles, /@media \(max-width: 639px\)[\s\S]*\.dashboard-art \{ width: 64px;/);
   assert.match(styles, /@media \(max-width: 374px\)[\s\S]*\.dashboard-art \{ display: none; \}/);
   assert.match(styles, /\.dashboard-art \.scene-card \{[\s\S]*?aspect-ratio: 1;/);

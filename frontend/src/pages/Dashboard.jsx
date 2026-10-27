@@ -128,13 +128,11 @@ function ContinueCard({ sheetEntry, character = "none", theme }) {
   const material = sheetEntry?.material;
   return (
     <article className="panel continue-card">
-      <p className="eyebrow">{t(sheet ? "dashboard.continueStudying" : "dashboard.startStudying")}</p>
-      <h2 dir="auto">{sheet?.title || t("dashboard.welcomeStudy")}</h2>
+      <h2 dir="auto">{sheet?.title || t("dashboard.startStudying")}</h2>
       {sheet && material ? <>
         <p className="progress-meta"><bdi dir={direction}>{sheet.number ? t("dashboard.sheetName", { name: material.title, number: sheet.number }) : material.title}</bdi></p>
         <Link className="btn btn-primary" to={sheetEntry.path}>{t("dashboard.continue")}<Icon className="dashboard-forward" name="arrow-up-right" size={18} aria-hidden="true" /></Link>
       </> : <>
-        <p>{t("dashboard.openSheetHint")}</p>
         <Link className="btn btn-primary" to="/materials">{t("dashboard.browseMaterials")}</Link>
       </>}
       {character !== "none" && <div className="dashboard-art"><DashboardHero character={character} theme={theme} /></div>}

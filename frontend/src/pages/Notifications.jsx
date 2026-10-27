@@ -39,8 +39,8 @@ export default function Notifications({ user = null, onNotificationsChanged }) {
 
   // Loading and failure keep the page's title and column, so nothing moves
   // when the feed arrives.
-  if (feed.loading) return <Page width="reading" title="Notifications" showHeading><LoadingPanel variant="list" /></Page>;
-  if (feed.error) return <Page width="reading" title="Notifications" showHeading><ErrorPanel message={feed.error} onRetry={feed.reload} /></Page>;
+  if (feed.loading) return <Page width="reading" title="Notifications"><LoadingPanel variant="list" /></Page>;
+  if (feed.error) return <Page width="reading" title="Notifications"><ErrorPanel message={feed.error} onRetry={feed.reload} /></Page>;
 
   function refresh() {
     feed.reload();
@@ -111,7 +111,7 @@ export default function Notifications({ user = null, onNotificationsChanged }) {
   }
 
   return (
-    <Page width="reading" title="Notifications" showHeading>
+    <Page width="reading" title="Notifications">
       {/* The page title already says what this is: the list starts with its
           filter and the one bulk action, then the notifications themselves as
           one grouped list. */}

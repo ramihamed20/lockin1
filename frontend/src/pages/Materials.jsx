@@ -137,10 +137,10 @@ function AddFirstYearSubject({ onChange }) {
 
 function CatalogDirectoryHeader({ id, title, subtitle = "", backTo = "", backLabel = "", breadcrumb = null }) {
   return (
-    <header className="catalog-directory-header">
+    <header className={!backTo && !breadcrumb ? "visually-hidden" : "catalog-directory-header"}>
       {backTo && <Link className="catalog-back-link" to={backTo}><Icon name="arrow-left" size={18} aria-hidden="true" /><span dir="auto">{backLabel}</span></Link>}
       {breadcrumb}
-      <div className="catalog-directory-title"><h1 id={id} dir="auto">{title}</h1>{subtitle && <p dir="auto">{subtitle}</p>}</div>
+      <div className="catalog-directory-title"><h1 id={id} className={!backTo && !breadcrumb ? "visually-hidden" : undefined} dir="auto">{title}</h1>{subtitle && <p dir="auto">{subtitle}</p>}</div>
     </header>
   );
 }
