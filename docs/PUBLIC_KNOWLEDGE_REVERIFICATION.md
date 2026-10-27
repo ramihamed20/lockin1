@@ -86,3 +86,19 @@ Web Push defaults off until keys and the deployment flag are configured. It forw
 ## Study Plan availability review — 25 October 2026
 
 The normal Study Plan route is reopened through the product availability registry; its E2E-only query bypass is removed. Account-owned planning still requires an authenticated eligible account and connection. Completion remains self reported, without XP, automatic grading or elapsed-time certification. The inventory now describes Beginning/Normal/Custom accurately; publicDocumentable remains false, so no new public guide or outcome claim is published. App routing and the registry are the only changed published evidence sources. Other feature gates, authentication and content permissions remain unchanged. Regression tests now use the ordinary route and cover overdue navigation and stale editing/preview recovery. Evidence hashes are updated only for the reviewed App and registry files; the verifier is unchanged.
+
+
+## 27 October 2026 — manual Arabic sheet translations
+
+Reviewed the additive diff in i18n.js and CatalogFocusWorkspace.jsx. It adds localized
+labels and an independent translation panel only for authorized catalog documents,
+inside the active pane and outside mode dialogs/quizzes. Existing reading state,
+annotation ownership, Active Study restrictions and published help claims are unchanged.
+The admin can import complete translations by physical page; there is no external
+translation provider or automatic content generation. No new marketing claim is added.
+
+Validation: 29 targeted backend cases (SQLite) and 37 frontend cases passed, including
+catalog authorization, admin imports, source identity, stale revisions, CSRF and edition
+isolation. Type checking and lint are included. Only the two reviewed changed evidence
+digests are refreshed; the gate and unrelated evidence remain intact. See
+SHEET_TRANSLATION_AR.md for operational and verification limits.

@@ -1,3 +1,4 @@
+import { SheetTranslationEditor } from "./admin/SheetTranslationEditor.jsx";
 import { bankPageNumbers } from "../lib/activeStudyPages.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
@@ -362,7 +363,7 @@ function SheetRow({ sheet, sheets, index, subject, canManage, canManageQuestions
           <summary>Open control center <Icon name="chevron-right" size={17} /></summary>
           <HierarchyBreadcrumb subject={subject} sheetTitle={sheet.title} />
           <TabList className="admin-sheet-control-tabs" label="Sheet control center" variant="tint" value={manageTab} onChange={setManageTab}>
-            {[['overview', 'Overview'], ['files', 'Files'], ['questions', 'Questions'], ['active-study', 'Active Study'], ['all-questions', 'All Questions'], ['publication', 'Publication'], ['danger', 'Danger Zone']].map(([key, label]) => <Tab key={key} value={key}>{label}</Tab>)}
+            {[['overview', 'Overview'], ['files', 'Files'], ['translation', 'Arabic translation'], ['questions', 'Questions'], ['active-study', 'Active Study'], ['all-questions', 'All Questions'], ['publication', 'Publication'], ['danger', 'Danger Zone']].map(([key, label]) => <Tab key={key} value={key}>{label}</Tab>)}
           </TabList>
           <div className="admin-sheet-control">
             {manageTab === "overview" && <section className="admin-control-section" aria-labelledby={`sheet-overview-${sheet.id}`}>
@@ -395,6 +396,11 @@ function SheetRow({ sheet, sheets, index, subject, canManage, canManageQuestions
               </div>
               {sheet.summary_pdf && sheet.summary_pdf.student_visible === false && <p className="form-alert">The Summary PDF is attached to the draft version. Publish the sheet before students can open it.</p>}
               {sheet.summary_pdf && sheet.summary_pdf.deliverable === false && <p className="form-alert error">The Summary PDF is still being validated or scanned, so students cannot open it yet.</p>}
+            </section>}
+
+            {manageTab === "translation" && <section className="admin-control-section">
+              <EditionTabs sheet={sheet} edition={edition} onChange={setEdition} />
+              <SheetTranslationEditor key={`${sheet.id}/${edition}/${editionRow.file_id || "none"}`} sheetId={sheet.id} edition={edition} />
             </section>}
 
             {manageTab === "questions" && <section className="admin-control-section" aria-label="Question readiness">

@@ -1,3 +1,4 @@
+import { sheetTranslationMessages } from "./sheetTranslationMessages.js";
 import { studyPlanMessages } from "./studyPlanMessages.js";
 import { allQuestionsMessages } from "./allQuestionsMessages.js";
 import { pomodoroMessages } from "./pomodoroMessages.js";
@@ -19,6 +20,7 @@ const messages = {
     ...allQuestionsMessages.en,
     ...pomodoroMessages.en,
     ...summaryMessages.en,
+    ...sheetTranslationMessages.en,
     ...knowledgeMessages.en,
     ...rescueMessages.en,
     ...studyPlanMessages.en,
@@ -3016,6 +3018,7 @@ const messages = {
     ...allQuestionsMessages.ar,
     ...pomodoroMessages.ar,
     ...summaryMessages.ar,
+    ...sheetTranslationMessages.ar,
     ...knowledgeMessages.ar,
     ...rescueMessages.ar,
     ...studyPlanMessages.ar,
