@@ -97,11 +97,13 @@ class ReviewAnswerWriteSerializer(StrictSerializer):
 
 
 def _original_source(item: ReviewItem) -> dict[str, object]:
+    version = item.last_question_version
     return {
         "type": item.source_type,
         "id": item.source_id or None,
         "label": item.source_label_snapshot or None,
         "question_index": item.source_question_index,
+        "has_page": bool(version and version.source_learning_object_id and version.source_page),
     }
 
 

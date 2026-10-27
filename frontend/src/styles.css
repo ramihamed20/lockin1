@@ -15297,6 +15297,10 @@ html {
 .policy-link { color: var(--accent-text); font-weight: 600; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .policy-link:hover:where(html.ix-hover *) { text-decoration-thickness: 2px; }
 .policy-notice form { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+@media (pointer: coarse) {
+  .policy-notice .policy-link { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding-inline: 4px; }
+  .policy-notice form label { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; }
+}
 .policy-requests { padding: 20px; margin-block: 24px; overflow-wrap: anywhere; }
 .policy-requests form { display: grid; gap: 12px; margin-block: 16px; }
 .policy-requests input, .policy-requests select, .policy-requests textarea { max-inline-size: 100%; }

@@ -6,11 +6,7 @@ import {
   autoThemeForDate,
   assetPath,
   normalizeThemeSettings,
-  parseReminderTime,
   readLocalThemeSettings,
-  readReminderSettings,
-  reminderKey,
-  todayStamp
 } from "./lib/utils.js";
 import { appIconOptions } from "./lib/constants.js";
 import { Shell } from "./components/layout/index.jsx";
@@ -34,7 +30,6 @@ import { FeatureComingSoon } from "./components/FeatureComingSoon.jsx";
 import { isFeatureComingSoon } from "./lib/featureAvailability.js";
 import { synchronizeOffline } from "./offline/coordinator.js";
 import { forgetOfflineUser, rememberOfflineUser, restoreOfflineUser } from "./offline/profile.js";
-import { showLocalNotification } from "./pwa/localNotification.js";
 import { forgetPushAccount } from "./pwa/devicePush.js";
 import OfflineIndicator from "./offline/OfflineIndicator.jsx";
 import "./pages/dashboard.css";
@@ -43,6 +38,7 @@ import { WhatsNew } from "./components/WhatsNew.jsx";
 
 // --- Lazy-loaded pages ---
 const StudyPlan = lazyWithRecovery(() => import("./pages/StudyPlan.jsx"));
+const ReviewSource = lazyWithRecovery(() => import("./pages/ReviewSource.jsx"));
 const Dashboard = lazyWithRecovery(() => import("./pages/Dashboard.jsx"));
 const loadMaterialsPage = () => import("./pages/Materials.jsx");
 const Materials = lazyWithRecovery(loadMaterialsPage);
@@ -129,9 +125,7 @@ function App() {
   const navigate = useNavigate();
   const { setLocale, t } = useI18n();
   const [themeSettings, setThemeSettings] = useState(readLocalThemeSettings);
-  const [reminderSettings, setReminderSettings] = useState(() => readReminderSettings());
-  const clockTick = useVisibleNow(themeSettings.autoTheme || reminderSettings.enabled, 60_000);
-  const [reminderToast, setReminderToast] = useState("");
+  const clockTick = useVisibleNow(themeSettings.autoTheme, 60_000);
   // If a browser recreates this document after a short background period, the
   // non-secret profile snapshot lets the existing route paint immediately.
   // The HttpOnly cookie is still checked in the background before any server
@@ -360,30 +354,6 @@ function App() {
       );
     }
   }, [booting, user]);
-
-  useEffect(() => {
-    setReminderSettings(readReminderSettings(user?.email));
-  }, [user?.email]);
-
-  useEffect(() => {
-    localStorage.setItem(reminderKey(user?.email), JSON.stringify(reminderSettings));
-  }, [user?.email, reminderSettings]);
-
-  useEffect(() => {
-    if (!reminderSettings.enabled) return;
-    const now = new Date(clockTick);
-    const { hours, minutes } = parseReminderTime(reminderSettings.time);
-    const target = new Date(now);
-    target.setHours(hours, minutes, 0, 0);
-    const shouldPing = now >= target && reminderSettings.lastSentDate !== todayStamp(now);
-    if (!shouldPing) return;
-    const message = `Reminder: your ${reminderSettings.time} study block is ready.`;
-    setReminderSettings((current) => ({ ...current, lastSentDate: todayStamp(now) }));
-    setReminderToast(message);
-    if (window.Notification && Notification.permission === "granted") {
-      void showLocalNotification("Lock-in study reminder", { body: message }).catch(() => undefined);
-    }
-  }, [clockTick, reminderSettings]);
 
   useEffect(() => onUnauthorized(() => {
     // Losing a session mid-visit is not the same event as arriving without one.
@@ -795,6 +765,7 @@ function App() {
                 <Route path="/questions/attempts/:attemptId" element={<Attempt />} />
                 <Route path="/questions/results/:resultId" element={<AssessmentResult />} />
                 <Route path="/review" element={<Review user={user} />} />
+                <Route path="/review/source/:itemId" element={<ReviewSource />} />
                 <Route path="/review/bank" element={<ReviewBank user={user} />} />
                 <Route path="/review/bank/:subjectKey" element={<SubjectReviewSession user={user} />} />
                 <Route path="/review/weekly" element={<WeeklyRecall user={user} />} />
@@ -803,18 +774,18 @@ function App() {
                 <Route path="/community/*" element={<FeatureComingSoon featureId="community" />} />
                 <Route path="/ranked/*" element={<FeatureComingSoon featureId="rank" />} />
                 <Route path="/bookmarks" element={<Bookmarks />} />
-                <Route path="/progress" element={<Progress />} />
+                <Route path="/progress" element={<Progress user={user} />} />
                 <Route path="/weekly-summary" element={<WeeklySummaryPage />} />
                 <Route path="/analysis" element={<AnalysisPage />} />
                 <Route path="/analysis/:id" element={<BiweeklyDetail type="analysis" />} />
-                <Route path="/progression" element={<Progress />} />
+                <Route path="/progression" element={<Progress user={user} />} />
                 <Route path="/achievements" element={<Achievements />} />
-                <Route path="/notifications" element={<Notifications onNotificationsChanged={() => setNotificationVersion((version) => version + 1)} />} />
+                <Route path="/notifications" element={<Notifications user={user} onNotificationsChanged={() => setNotificationVersion((version) => version + 1)} />} />
                 <Route path="/store" element={<Store commerceEnabled={false} onLockBalanceChange={setLockBalance} onCartCountChange={setStoreCartCount} />} />
                 <Route path="/profile" element={<Profile user={user} onUserUpdate={setUser} />} />
                 <Route path="/security" element={<Navigate to="/settings" replace />} />
                 <Route path="/subscription" element={<Subscription onPoliciesAccepted={setUser} />} />
-                <Route path="/settings" element={<Settings user={user} onUserUpdate={setUser} settings={themeSettings} activeTheme={activeTheme} reminderSettings={reminderSettings} onReminderSettingsChange={setReminderSettings} onSettingsChange={updateThemeSettings} onSignedOut={clearAuthenticatedUi} />} />
+                <Route path="/settings" element={<Settings user={user} onUserUpdate={setUser} settings={themeSettings} activeTheme={activeTheme} onSettingsChange={updateThemeSettings} onSignedOut={clearAuthenticatedUi} />} />
                 <Route path="/admin/*" element={<OperationsAdmin operationsSession={operationsSession} />} />
                 {/* Same content.view gate as /creator; /admin/* also requires the administrator role. */}
                 <Route path="/creator/*" element={<Navigate to="/operations/admin/content" replace />} />
@@ -827,7 +798,6 @@ function App() {
         </ErrorBoundary>
       </Shell>
       {!inLockInMode && !inFocusWorkspace && user && <WeeklyReadyToast />}
-      {!inLockInMode && !inFocusWorkspace && reminderToast && <ReminderToast message={reminderToast} onDismiss={() => setReminderToast("")} />}
       {!inLockInMode && !inFocusWorkspace && sessionNotice && <ReminderToast title="Session" icon="alert-triangle" message={sessionNotice} onDismiss={() => setSessionNotice("")} />}
       {logoutConfirmDialog}
       </>

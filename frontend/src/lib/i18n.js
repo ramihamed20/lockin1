@@ -1,3 +1,4 @@
+import { experienceMessages } from "./experienceMessages.js";
 import { studyPlanMessages } from "./studyPlanMessages.js";
 import { allQuestionsMessages } from "./allQuestionsMessages.js";
 import { pomodoroMessages } from "./pomodoroMessages.js";
@@ -22,6 +23,7 @@ const messages = {
     ...knowledgeMessages.en,
     ...rescueMessages.en,
     ...studyPlanMessages.en,
+    ...experienceMessages.en,
     "app.name": "Lock-in",
     "common.loading": "Loading content…",
     "common.tryAgain": "Try again",
@@ -550,7 +552,7 @@ const messages = {
     "settings.notifications": "Notifications",
     "settings.serverNotifications": "Server Notifications",
     "settings.preferences": "Preferences",
-    "settings.serverNotificationsHint": "These preferences control server notifications. Study reminders stay on this device.",
+
     "settings.loadingNotifications": "Loading notification preferences…",
     "settings.noNotificationCategories": "No notification preference categories are available for this account.",
     "settings.notificationSaveError": "Notification preferences could not be saved.",
@@ -3019,6 +3021,7 @@ const messages = {
     ...knowledgeMessages.ar,
     ...rescueMessages.ar,
     ...studyPlanMessages.ar,
+    ...experienceMessages.ar,
     "app.name": "Lock-in",
     "common.loading": "جارٍ تحميل المحتوى…",
     "common.tryAgain": "حاول مجددًا",
@@ -3547,7 +3550,7 @@ const messages = {
     "settings.notifications": "الإشعارات",
     "settings.serverNotifications": "إشعارات الخادم",
     "settings.preferences": "التفضيلات",
-    "settings.serverNotificationsHint": "تتحكم هذه التفضيلات في إشعارات الخادم، بينما تبقى تذكيرات الدراسة على هذا الجهاز.",
+
     "settings.loadingNotifications": "جارٍ تحميل تفضيلات الإشعارات…",
     "settings.noNotificationCategories": "لا توجد فئات تفضيلات إشعارات متاحة لهذا الحساب.",
     "settings.notificationSaveError": "تعذّر حفظ تفضيلات الإشعارات.",

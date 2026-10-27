@@ -7,68 +7,12 @@ import { PaginationControls } from "../components/learning/PaginationControls.js
 import { formatDate, formatDateTime, formatNumber } from "../lib/i18n.js";
 import { useI18n } from "../components/I18nProvider.jsx";
 
-const WEEK_COUNT = 4;
+import { activityCalendar } from "../lib/progressCalendar.js";
 
 function dateLabel(value, t) {
   if (!value) return t("progress.awardNone");
   const formatted = formatDateTime(value, { dateStyle: undefined, timeStyle: undefined, month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
   return formatted === "—" ? t("progress.awardRecorded") : formatted;
-}
-
-function dateKey(value) {
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
-}
-
-function startOfWeek(value = new Date()) {
-  const date = new Date(value.getFullYear(), value.getMonth(), value.getDate());
-  date.setDate(date.getDate() - ((date.getDay() + 6) % 7));
-  return date;
-}
-
-function addDays(value, days) {
-  const date = new Date(value);
-  date.setDate(date.getDate() + days);
-  return date;
-}
-
-/**
- * Short weekday names in the interface language, starting on Monday. Counting
- * from a date that is known to be a Monday keeps the order fixed while the
- * names follow the locale.
- */
-function weekdayLabels() {
-  const knownMonday = new Date(2024, 0, 1);
-  return Array.from({ length: 7 }, (_, index) => formatDate(addDays(knownMonday, index), { weekday: "short" }));
-}
-
-function weekLabel(rowIndex, t) {
-  if (rowIndex === 0) return t("progress.weekThis");
-  if (rowIndex === 1) return t("progress.weekLast");
-  return t("progress.weeksAgo", { count: rowIndex });
-}
-
-function activityCalendar(entries, lastQualifiedOn, t) {
-  const activityDays = new Set(entries.map((entry) => dateKey(entry.occurred_at)).filter(Boolean));
-  const weekStart = startOfWeek();
-  const today = dateKey(new Date());
-  const weekdays = weekdayLabels();
-  const cells = Array.from({ length: WEEK_COUNT }, (_, rowIndex) => {
-    const rowStart = addDays(weekStart, -rowIndex * 7);
-    return {
-      label: weekLabel(rowIndex, t),
-      weekdays,
-      days: weekdays.map((day, dayIndex) => {
-        const key = dateKey(addDays(rowStart, dayIndex));
-        const future = key > today;
-        const qualified = !future && key === lastQualifiedOn;
-        const active = !future && activityDays.has(key);
-        return { day, key, state: future ? "future" : qualified ? "qualified" : active ? "active" : "empty" };
-      })
-    };
-  });
-  return { cells, weekdays, activeDays: activityDays.size };
 }
 
 function ProgressCalendarGrid({ activity, selectedDay, onSelect }) {
@@ -125,46 +69,25 @@ function ledgerIcon(category) {
   return "sparkles";
 }
 
-async function loadProgression(page) {
-  const [xp, ledger, streak] = await Promise.all([
-    motivationApi.xpSummary(),
-    motivationApi.xpLedger({ page }),
-    motivationApi.streakSummary()
-  ]);
-  return { xp, ledger, streak };
-}
-
-export default function Progress() {
+export default function Progress({ user = null }) {
   const { t } = useI18n();
   const [page, setPage] = useState(1);
   const [range, setRange] = useState("week");
   const [selectedDay, setSelectedDay] = useState(null);
   const [progressSection, setProgressSection] = useState("summary");
-  // Paging the history refines the same screen, so the page stays up while the
-  // next page of awards arrives instead of collapsing to a skeleton.
-  const progression = useAsyncData(() => loadProgression(page), [page], { keepPreviousData: true, cacheKey: `progress:${page}` });
-  if (progression.loading) return <Page title={t("progress.title")} showHeading><LoadingPanel variant="progress" /></Page>;
-  if (progression.error) return <Page title={t("progress.title")} showHeading><ErrorPanel message={progression.error} onRetry={progression.reload} /></Page>;
-
-  const { xp, ledger, streak } = progression.data;
-  const levelProgress = Number(xp.level_target) > 0
-    ? Math.round((Number(xp.level_progress) / Number(xp.level_target)) * 100)
-    : 0;
-  const currentDays = Number(streak.current_days) || 0;
-  const longestDays = Number(streak.longest_days) || 0;
-  const activity = activityCalendar(ledger.results, typeof streak.last_qualified_on === "string" ? streak.last_qualified_on : "", t);
-  const rangeStart = (() => {
-    const now = new Date();
-    if (range === "month") return addDays(now, -28);
-    if (range === "all") return null;
-    return startOfWeek(now);
-  })();
-  const rangeLedger = rangeStart
-    ? ledger.results.filter((entry) => new Date(entry.occurred_at) >= rangeStart)
-    : ledger.results;
-  const visibleLedger = rangeLedger.length ? rangeLedger : ledger.results;
-  const ledgerPreview = visibleLedger.slice(0, 5);
-  const consistencyRate = Math.min(100, Math.round((activity.activeDays / 28) * 100));
+  const xpState = useAsyncData(() => motivationApi.xpSummary(), [user?.id], { cacheKey: `progress-xp:${user?.id}` });
+  const streakState = useAsyncData(() => motivationApi.streakSummary(), [user?.id], { cacheKey: `progress-streak:${user?.id}` });
+  const zone = streakState.data?.calendar?.timezone || "UTC";
+  const ledgerState = useAsyncData(() => motivationApi.xpLedger({ page, pageSize: 5, period: range, timezone: zone }), [user?.id, page, range, zone], { cacheKey: `progress-ledger:${user?.id}:${page}:${range}:${zone}` });
+  const xp = xpState.data;
+  const streak = streakState.data;
+  const ledger = ledgerState.loading ? null : ledgerState.data;
+  const levelProgress = xp?.level_target > 0 ? Math.round(xp.level_progress * 100 / xp.level_target) : 0;
+  const currentDays = streak?.current_days ?? 0;
+  const longestDays = streak?.longest_days ?? 0;
+  const activity = activityCalendar(streak?.calendar, streak?.last_qualified_on, t, formatDate);
+  const ledgerPreview = ledger?.results || [];
+  const consistencyRate = activity?.consistencyRate ?? 0;
 
   return (
     <Page title={t("progress.title")} showHeading={false} headingHandled>
@@ -179,32 +102,41 @@ export default function Progress() {
         ))}
       </TabList>
 
-      <section className={`progress-level-hero progress-mobile-section ${progressSection === "summary" ? "is-active" : ""}`}>
+      {xpState.loading && <LoadingPanel variant="progress" />}
+      {xpState.error && <ErrorPanel message={xpState.error} onRetry={xpState.reload} />}
+      {xp && <section className={`progress-level-hero progress-mobile-section ${progressSection === "summary" ? "is-active" : ""}`}>
         <div className="progress-level-orb" aria-label={t("progress.levelLabel", { level: xp.level ?? 1 })}><strong>{xp.level ?? 1}</strong></div>
         <div className="progress-level-copy"><h2 dir="auto">{t("progress.levelTitle", { level: xp.level ?? 1 })}</h2><div className="progress-level-bar" role="progressbar" aria-label={t("progress.xpProgress")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={levelProgress}><i style={{ width: String(levelProgress) + "%" }} /></div><small dir="auto">{t("progress.xpToNext", { current: formatNumber(xp.level_progress || 0), target: formatNumber(xp.level_target || 0), next: Number(xp.level ?? 1) + 1 })}</small></div>
-      </section>
+      </section>}
 
       <section className={`progress-stat-grid progress-mobile-section ${progressSection === "summary" ? "is-active" : ""}`}>
-        <article className="progress-stat-card progress-stat-card--xp"><span className="progress-stat-icon"><Icon name="award" size={25} /></span><div><small>{t("progress.totalXp")}</small><strong dir="auto">{formatNumber(xp.total_points || 0)} <em>{t("progress.xp")}</em></strong><p dir="auto">{t("progress.fromAwards", { count: formatNumber(xp.transaction_count ?? 0) })}</p></div><Icon name="analytics" size={26} /></article>
-        <article className="progress-stat-card progress-stat-card--streak"><span className="progress-stat-icon"><Icon name="flame" size={25} /></span><div><small>{t("progress.currentStreak")}</small><strong dir="auto">{currentDays} <em>{t("progress.dayCount", { count: currentDays })}</em></strong><p dir="auto">{t("progress.personalBest", { count: longestDays })}</p></div><Icon name="activity" size={26} /></article>
-        <article className="progress-stat-card progress-stat-card--policy"><span className="progress-stat-icon"><Icon name="calendar" size={25} /></span><div><small>{t("progress.streakPolicy")}</small><strong dir="auto">{!streak.policy?.title || streak.policy.title === "Meaningful learning days" ? t(streak.policy?.title ? "progress.meaningfulDays" : "progress.learningDays") : streak.policy.title}</strong><p dir="auto">{t("progress.graceDays", { count: streak.policy?.grace_days ?? 0 })}</p></div><Icon name="help" size={19} /></article>
+        {xp && <article className="progress-stat-card progress-stat-card--xp"><span className="progress-stat-icon"><Icon name="award" size={25} /></span><div><small>{t("progress.totalXp")}</small><strong dir="auto">{formatNumber(xp.total_points || 0)} <em>{t("progress.xp")}</em></strong><p dir="auto">{t("progress.fromAwards", { count: formatNumber(xp.transaction_count ?? 0) })}</p></div><Icon name="analytics" size={26} /></article>}
+        {streak && <article className="progress-stat-card progress-stat-card--streak"><span className="progress-stat-icon"><Icon name="flame" size={25} /></span><div><small>{t("progress.currentStreak")}</small><strong dir="auto">{currentDays} <em>{t("progress.dayCount", { count: currentDays })}</em></strong><p dir="auto">{t("progress.personalBest", { count: longestDays })}</p></div><Icon name="activity" size={26} /></article>}
+        {streak && <article className="progress-stat-card progress-stat-card--policy"><span className="progress-stat-icon"><Icon name="calendar" size={25} /></span><div><small>{t("progress.streakPolicy")}</small><strong dir="auto">{!streak.policy?.title || streak.policy.title === "Meaningful learning days" ? t(streak.policy?.title ? "progress.meaningfulDays" : "progress.learningDays") : streak.policy.title}</strong><p dir="auto">{t("progress.graceDays", { count: streak?.policy?.grace_days ?? 0 })}</p></div><Icon name="help" size={19} /></article>}
       </section>
 
       <section className="progress-detail-grid">
         <article className={`progress-ledger-panel progress-mobile-section ${progressSection === "history" ? "is-active" : ""}`}>
           <header><h2>{t("progress.awardHistory")}</h2></header>
-          <div className="progress-ledger-list">
+          {ledgerState.loading && <LoadingPanel variant="list" />}
+          {ledgerState.error && <ErrorPanel message={ledgerState.error} onRetry={ledgerState.reload} />}
+          {ledger && <div className="progress-ledger-list">
             {ledgerPreview.length ? ledgerPreview.map((entry) => <article className="progress-ledger-row" key={entry.id}><span className={"progress-ledger-icon progress-ledger-icon--" + (entry.category || "default")}><Icon name={ledgerIcon(entry.category)} size={17} /></span><div><strong dir="auto">{entry.reason || t("progress.xpAward")}</strong><small dir="auto">{dateLabel(entry.occurred_at, t)}</small></div><b dir="auto">{Number(entry.points || 0) >= 0 ? "+" : ""}{entry.points ?? 0} {t("progress.xp")}</b></article>) : <p className="progress-empty-ledger">{t("progress.noAwards")}</p>}
-          </div>
+          </div>}
           <PaginationControls page={page} pageData={ledger} onPageChange={setPage} label={t("progress.ledgerPages")} />
         </article>
 
         <article className={`progress-calendar-panel progress-mobile-section ${progressSection === "calendar" ? "is-active" : ""}`}>
           <header><h2>{t("progress.meaningfulDays")}</h2></header>
+          {streakState.loading && <LoadingPanel variant="list" />}
+          {streakState.error && <ErrorPanel message={streakState.error} onRetry={streakState.reload} />}
+          {streak && !activity && <p role="status">{t("progress.calendarUnavailable")}</p>}
+          {activity && <>
           <ProgressCalendarGrid activity={activity} selectedDay={selectedDay} onSelect={setSelectedDay} />
           {selectedDay && <p className="activity-cell-detail" role="status"><strong dir="auto">{selectedDay.day}, {selectedDay.key}</strong><span>{t(selectedDay.state === "active" || selectedDay.state === "qualified" ? "progress.dayActivity" : selectedDay.state === "future" ? "progress.dayFuture" : "progress.dayNone")}</span></p>}
           <div className="progress-calendar-legend"><span><i className="active" /> {t("progress.legendActivity")}</span><span><i className="qualified" /> {t("progress.legendQualified")}</span><span><i className="empty" /> {t("progress.legendNone")}</span></div>
-          <div className="progress-calendar-metrics"><div><strong>{activity.activeDays}</strong><span>{t("progress.activeDays")}</span></div><div><strong>{streak.policy?.grace_days ?? 0}</strong><span>{t("progress.graceAllowance")}</span></div><div><strong>{consistencyRate}%</strong><span>{t("progress.consistencyRate")}</span></div></div>
+          <div className="progress-calendar-metrics"><div><strong>{activity.activeDays}</strong><span>{t("progress.activeDays")}</span></div><div><strong>{streak?.policy?.grace_days ?? 0}</strong><span>{t("progress.graceAllowance")}</span></div><div><strong>{consistencyRate}%</strong><span>{t("progress.consistencyRate")}</span></div></div>
+          </>}
         </article>
       </section>
 

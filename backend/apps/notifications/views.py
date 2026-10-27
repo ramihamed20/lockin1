@@ -10,7 +10,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import User
-from apps.accounts.permissions import IsAdministrator
 from apps.accounts.roles import Role, user_has_role
 
 from .models import Notification
@@ -82,7 +81,7 @@ class NotificationOpenView(APIView):
 
 
 class NotificationPreferenceView(APIView):
-    permission_classes = [IsAdministrator]
+    """Authenticated readers manage only their own delivery preferences."""
 
     def get(self, request: Request) -> Response:
         return Response(preferences_for_user(user=_user(request)))

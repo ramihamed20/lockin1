@@ -82,6 +82,10 @@ for (const viewport of VIEWPORTS) {
     // cold install can outlast a generic five-second locator assertion.
     await expect(page.getByRole("button", { name: "Open profile menu" })).toBeVisible({ timeout: 15_000 });
 
+    // Access is resolved after the shell paints. An expired account moves to
+    // Subscription; wait for that navigation before opening the phone drawer.
+    await expect(page).toHaveURL(/#\/subscription$/);
+
     const compact = viewport.width < 640;
     if (compact) await page.getByRole("button", { name: "More" }).click();
     const nav = compact ? page.locator("#mobile-drawer") : page.getByRole("navigation", { name: "Primary" });

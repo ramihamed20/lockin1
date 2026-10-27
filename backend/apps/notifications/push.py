@@ -16,11 +16,18 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from django.conf import settings
 from django.contrib.sessions.models import Session
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import F, Q
 from django.utils import timezone
 from pywebpush import WebPushException, webpush
 
-from .models import Notification, NotificationPreference, PushDelivery, PushSubscription
+from .delivery_policy import push_expires_at, quiet_until, scheduled_push_allowed
+from .models import (
+    Notification,
+    NotificationPreference,
+    PushDelivery,
+    PushSubscription,
+    StudyReminder,
+)
 
 PUSH_HOSTS = (
     "fcm.googleapis.com",
@@ -118,7 +125,7 @@ def enqueue_push(notification: Notification) -> None:
 
 
 def dispatch_push(*, limit: int = 100, budget_seconds: float = 25) -> dict[str, int]:
-    counts = {"accepted": 0, "retry": 0, "failed": 0, "cancelled": 0}
+    counts = {"accepted": 0, "retry": 0, "failed": 0, "cancelled": 0, "deferred": 0}
     if not configured():
         return counts
     started = time.monotonic()
@@ -159,13 +166,16 @@ def dispatch_push(*, limit: int = 100, budget_seconds: float = 25) -> dict[str, 
             continue
         subscription, notice = delivery.subscription, delivery.notification
         session = subscription.account_session
+        reminder = StudyReminder.objects.filter(user_id=notice.recipient_id).first()
+        expires_at = push_expires_at(notice, session.expires_at)
         status, error_code = "accepted", ""
         if (
             not subscription.active
             or not session.user.is_active
             or session.expires_at <= now
             or session.user_id != notice.recipient_id
-            or notice.created_at < now - timedelta(days=1)
+            or expires_at <= now
+            or not scheduled_push_allowed(notice, reminder, now)
             or not Session.objects.filter(
                 session_key=session.session_key, expire_date__gt=now
             ).exists()
@@ -178,6 +188,35 @@ def dispatch_push(*, limit: int = 100, budget_seconds: float = 25) -> dict[str, 
         ):
             status = "cancelled"
         else:
+            # Tests are explicitly requested; security and billing remain timely.
+            defer_until = (
+                quiet_until(reminder, now)
+                if not notice.is_required
+                and notice.category not in ("account", "billing")
+                and notice.template_key != "push.test"
+                else None
+            )
+            if defer_until is not None:
+                deferred = defer_until < expires_at
+                PushDelivery.objects.filter(
+                    pk=delivery.pk, lock_token=delivery.lock_token, status="sending"
+                ).update(
+                    status="pending" if deferred else "cancelled",
+                    next_attempt_at=defer_until,
+                    attempts=F("attempts") - 1,
+                    locked_until=None,
+                    lock_token=None,
+                )
+                counts["deferred" if deferred else "cancelled"] += 1
+                continue
+            title, body = notice.title, notice.body
+            if reminder is not None and not reminder.push_preview:
+                title = "Lockin"
+                body = (
+                    "افتح Lockin لقراءة إشعارك."
+                    if reminder.locale == "ar"
+                    else "Open Lockin to read your notification."
+                )
             try:
                 info = validate_subscription(subscription.subscription)
                 # Do not follow even a trusted provider's redirect to another host.
@@ -190,16 +229,16 @@ def dispatch_push(*, limit: int = 100, budget_seconds: float = 25) -> dict[str, 
                             {
                                 "id": str(notice.id),
                                 "binding": str(subscription.binding),
-                                "expires_at": session.expires_at.isoformat(),
-                                "title": notice.title,
-                                "body": notice.body,
+                                "expires_at": expires_at.isoformat(),
+                                "title": title,
+                                "body": body,
                             },
                             ensure_ascii=False,
                         ),
                         vapid_private_key=settings.WEB_PUSH_VAPID_PRIVATE_KEY,
                         vapid_claims={"sub": settings.WEB_PUSH_CONTACT},
                         content_encoding="aes128gcm",
-                        ttl=86400,
+                        ttl=max(1, int((expires_at - now).total_seconds())),
                         timeout=5,
                         requests_session=http,
                     )

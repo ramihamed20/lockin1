@@ -7,6 +7,7 @@ import { usePwaUpdates } from "./usePwaUpdates.js";
 import { OPEN_WHATS_NEW_EVENT, ReleaseNotesDialog } from "../components/WhatsNew.jsx";
 import { WHATS_NEW, whatsNewText } from "../lib/whatsNew.js";
 import { usePendingRelease } from "./usePendingRelease.js";
+import { usePwaLifecycle } from "./PwaLifecycleProvider.jsx";
 
 const STATUS_COPY = {
   [UPDATE_STATUS.IDLE]: ["settings.updates.idle", ""],
@@ -42,6 +43,7 @@ function lastCheckedLabel(t, locale, checkedAt, now) {
 /** Settings → Updates: what is installed, and a real worker update check. */
 export default function AppUpdateSettings({ user = null }) {
   const { t, locale } = useI18n();
+  const { installed, openInstall } = usePwaLifecycle();
   const { status, error, lastCheckedAt, checkForUpdates, applyUpdate } = usePwaUpdates();
   const now = useNow(30 * 1000);
   const pending = usePendingRelease(status === UPDATE_STATUS.AVAILABLE);
@@ -58,6 +60,7 @@ export default function AppUpdateSettings({ user = null }) {
   const icon = ok ? "check" : canApply ? "sparkles" : status === UPDATE_STATUS.IDLE || status === UPDATE_STATUS.CHECKING ? "rotate-forward" : "alert-triangle";
 
   return <section className="settings-v2-section app-updates" id="settings-updates" aria-labelledby="settings-updates-heading">
+    {!installed && <div className="ui-group-block settings-v2-block"><button className="btn btn-soft" type="button" onClick={openInstall}>{t("pwa.install")}</button><p className="ui-group-footer">{t("pwa.installOptionalHint")}</p></div>}
     <div className="ui-group-block settings-v2-block">
       <div className="ui-group">
         <div className="ui-row">

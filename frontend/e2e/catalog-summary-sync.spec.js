@@ -35,6 +35,7 @@ const pdf = readFile(new URL("./fixtures/pdf/sheet-17.pdf", import.meta.url));
 function createServer() {
   return {
     collections: new Map(),
+    summaries: [],
     workspace: { revision: 0, state: {} },
     receipts: new Map()
   };
@@ -69,6 +70,7 @@ async function mockServer(page, server) {
       return json({ user: { id: "sync-reader", email: "sync@example.test", full_name: "Sync Reader", preferred_language: "en", status: "active", is_email_verified: true, roles: ["student"], date_joined: "2026-01-01T00:00:00Z" } });
     }
     if (pathname === "/api/v1/auth/csrf") return json({ csrf_token: "csrf" });
+    if (pathname === `/api/v1/catalog/documents/${STUDY_DOCUMENT_ID}/summaries`) return json({ results: server.summaries, max_per_sheet: 2 });
     if (pathname === "/api/v1/operations/session") return json({ error: { code: "permission_denied", message: "Student" } }, 403);
     if (pathname === "/api/v1/focus/lock-in" && method === "GET") return json({ active_session: null });
     if (pathname === "/api/v1/catalog/materials") {
@@ -158,6 +160,29 @@ async function drawStroke(page) {
   await send("pointermove", bounds.x + bounds.width * 0.45);
   await send("pointermove", bounds.x + bounds.width * 0.62);
   await send("pointerup", bounds.x + bounds.width * 0.62);
+}
+
+test("a personal summary link opens the requested summary in the real reader", async ({ page }) => {
+  const server = createServer();
+  server.summaries = ["first", "requested"].map(id => ({
+    id, title: `${id} notes`, mode: "keyboard", color: "blue", visible: true,
+    status: "writing", pages: { 1: `${id} saved text` }
+  }));
+  await mockServer(page, server);
+  await page.goto(`${STUDY_ROUTE}?summary=requested`);
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await expect(page.locator(".summary-panel__which select")).toHaveValue("requested", { timeout: 20_000 });
+  await expect(page.locator(".summary-panel textarea")).toHaveValue("requested saved text");
+});
+
+for (const currentVersion of [true, false]) {
+  test(`a source link ${currentVersion ? "opens the verified page" : "stops when the PDF version changed"}`, async ({ page }) => {
+    await mockServer(page, createServer());
+    await page.goto(`${STUDY_ROUTE}?sourcePage=5&sourceVersion=${currentVersion ? VERSION_ID : "old-version"}`);
+    await page.getByRole("button", { name: /Normal Study/ }).click();
+    await expect(page.locator(".workspace-v2-page-number")).toHaveAttribute("aria-label", `PDF page ${currentVersion ? 5 : 1} of 17`, { timeout: 20_000 });
+    if (!currentVersion) await expect(page.locator(".workspace-v2-toast")).toHaveText(/This sheet changed while opening its source/);
+  });
 }
 
 test("ink on a Sheet Summary reaches the reader's other devices", async ({ page, browser }) => {
