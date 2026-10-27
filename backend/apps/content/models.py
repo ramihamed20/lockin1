@@ -869,3 +869,29 @@ class SharedAnnotationImport(models.Model):
 
     def __str__(self) -> str:
         return f"{self.shared_set_id}:{self.user_id}:v{self.imported_version}"
+
+
+class SheetPageTranslation(models.Model):
+    """Administrator-supplied Arabic text for one physical PDF page."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    managed_file = models.ForeignKey(ManagedFile, on_delete=models.CASCADE)
+    checksum = models.CharField(max_length=64)
+    page = models.PositiveIntegerField()
+    source_text = models.TextField(blank=True)
+    translated_text = models.TextField(blank=True)
+    revision = models.PositiveIntegerField(default=1)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("managed_file", "checksum", "page"), name="sheet_translation_page_unique"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(page__gte=1), name="translation_page_positive"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.managed_file_id}:{self.page}:ar"

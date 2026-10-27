@@ -1,0 +1,10 @@
+.sheet-translation { position: absolute; z-index: 45; inset-inline-end: 14px; top: 82px; bottom: 84px; width: min(420px, 45%); display: flex; flex-direction: column; overflow: hidden; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 12px 36px rgb(0 0 0 / .22); }
+.sheet-translation header { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 14px; border-bottom: 1px solid var(--border); }
+.sheet-translation header > div { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sheet-translation button { min-width: 44px; min-height: 44px; padding: 8px; border: 1px solid var(--border); border-radius: 10px; color: inherit; background: var(--surface-2); cursor: pointer; }
+.sheet-translation__body { overflow: auto; overscroll-behavior: contain; padding: 16px; min-height: 0; }
+.sheet-translation__notice { font-size: .8rem; color: var(--text-muted); line-height: 1.7; margin: 0 0 16px; }
+.sheet-translation__text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.95; font-size: 1rem; user-select: text; -webkit-user-select: text; }
+.sheet-translation details { margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--border); }
+.sheet-translation summary { cursor: pointer; min-height: 44px; }
+@media (max-width: 600px), (max-height: 550px) { .sheet-translation { top: auto; bottom: calc(10px + env(safe-area-inset-bottom)); inset-inline: 10px; width: auto; max-height: 48%; } }
