@@ -69,6 +69,7 @@ const AnalysisPage = lazyWithRecovery(() => import("./pages/Biweekly.jsx").then(
 const BiweeklyDetail = lazyWithRecovery(() => import("./pages/Biweekly.jsx").then((module) => ({ default: module.BiweeklyDetail })));
 const WeeklySummaryPage = lazyWithRecovery(() => import("./pages/Biweekly.jsx").then((module) => ({ default: module.WeeklySummaryPage })));
 const BiweeklyTest = lazyWithRecovery(() => import("./pages/Biweekly.jsx").then((module) => ({ default: module.BiweeklyTest })));
+const Ranked = lazyWithRecovery(() => import("./pages/Ranked.jsx"));
 const Achievements = lazyWithRecovery(() => import("./pages/Achievements.jsx"));
 const Notifications = lazyWithRecovery(() => import("./pages/Notifications.jsx"));
 const Store = lazyWithRecovery(() => import("./pages/Store.jsx"));
@@ -772,7 +773,7 @@ function App() {
                 <Route path="/review/biweekly/:id" element={<BiweeklyDetail type="review" />} />
                 <Route path="/review/biweekly/:id/test" element={<BiweeklyTest />} />
                 <Route path="/community/*" element={<FeatureComingSoon featureId="community" />} />
-                <Route path="/ranked/*" element={<FeatureComingSoon featureId="rank" />} />
+                <Route path="/ranked/*" element={<Ranked />} />
                 <Route path="/bookmarks" element={<Bookmarks />} />
                 <Route path="/progress" element={<Progress user={user} />} />
                 <Route path="/weekly-summary" element={<WeeklySummaryPage />} />
