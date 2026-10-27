@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import cast
 from uuid import UUID
 
@@ -17,6 +17,7 @@ from .events import (
     FocusSessionResumed,
     FocusSessionStarted,
 )
+from .live_accounting import publish_participant_completions, settle_participant
 from .models import (
     FocusSession,
     FocusSessionActivity,
@@ -27,6 +28,7 @@ from .models import (
     FocusTeamMembership,
     FocusTeamMessage,
     FocusWorkspaceSnapshot,
+    focus_invite_expiry,
     focus_team_invite_code,
 )
 
@@ -51,7 +53,11 @@ def active_lock_in_session_for_user(*, user: User) -> FocusSession | None:
         participants__left_at__isnull=True,
         status__in=UNFINISHED_STATUSES,
     )
-    return (owned | shared).order_by("-started_at").first()
+    combined = owned | shared
+    return (
+        combined.filter(experience_version=2).order_by("-started_at").first()
+        or combined.order_by("-started_at").first()
+    )
 
 
 def active_team_lock_in_session(*, team: FocusTeam) -> FocusSession | None:
@@ -91,6 +97,7 @@ def create_focus_team(
                     owner=user,
                     name=name.strip(),
                     max_members=max_members,
+                    cohort_id=user.cohort_id,
                     invite_code=_fresh_team_code(),
                 )
                 team.full_clean()
@@ -116,10 +123,14 @@ def join_focus_team(
         team = FocusTeam.objects.select_for_update().get(invite_code=invite_code.strip().upper())
     except FocusTeam.DoesNotExist as error:
         raise FocusSessionStateError("That team invite code was not found.") from error
+    if team.cohort_id and team.cohort_id != user.cohort_id:
+        raise FocusSessionStateError("This team is not available to this account.")
     if team.closed_at:
         raise FocusSessionStateError("This team has ended.")
     if FocusTeamMembership.objects.filter(team=team, user=user).exists():
         raise FocusSessionStateError("You are already in this team.")
+    if team.invite_expires_at <= timezone.now():
+        raise FocusSessionStateError("This invite code expired. Ask the host for a new code.")
     if team.joining_locked:
         raise FocusSessionStateError("Joining is locked.")
     members = list(FocusTeamMembership.objects.filter(team=team).only("anonymous_alias"))
@@ -136,7 +147,11 @@ def join_focus_team(
         team=team, user=user, anonymous=anonymous, anonymous_alias=alias
     )
     live_session = active_team_lock_in_session(team=team)
-    if live_session is not None and active_lock_in_session_for_user(user=user) is None:
+    if (
+        live_session is not None
+        and live_session.experience_version == 1
+        and active_lock_in_session_for_user(user=user) is None
+    ):
         FocusSessionParticipant.objects.create(
             session=live_session, user=user, presence=FocusSessionParticipant.Presence.AWAY
         )
@@ -160,6 +175,8 @@ def manage_focus_team(
             left_at__isnull=True,
         ):
             _finish_participant_break(participant, now)
+            if participant.session.experience_version == 2:
+                settle_participant(participant, now)
             participant.left_at = now
             participant.save(update_fields=("left_at", "break_seconds", "break_started_at"))
         if team.owner_id == user.id:
@@ -198,9 +215,10 @@ def manage_focus_team(
     elif action == "regenerate-code":
         for _ in range(5):
             team.invite_code = _fresh_team_code(exclude_team_id=team.id)
+            team.invite_expires_at = focus_invite_expiry()
             try:
                 with transaction.atomic():
-                    team.save(update_fields=("invite_code", "updated_at"))
+                    team.save(update_fields=("invite_code", "invite_expires_at", "updated_at"))
                 break
             except IntegrityError:
                 continue
@@ -221,6 +239,8 @@ def manage_focus_team(
                 left_at__isnull=True,
             ):
                 _finish_participant_break(participant, now)
+                if participant.session.experience_version == 2:
+                    settle_participant(participant, now)
                 participant.left_at = now
                 participant.save(update_fields=("left_at", "break_seconds", "break_started_at"))
             target.delete()
@@ -319,6 +339,7 @@ def _settle_open_reading_sessions(*, user: User) -> int:
         FocusSession.objects.filter(
             user=user,
             context_type=FocusSession.ContextType.STUDY,
+            experience_version=1,
             status__in=(
                 FocusSession.Status.ACTIVE,
                 FocusSession.Status.PAUSED,
@@ -352,6 +373,7 @@ def touch_reading_session(*, user: User, document_version_id: UUID) -> bool:
             user=user,
             context_type=FocusSession.ContextType.STUDY,
             context_id=document_version_id,
+            experience_version=1,
             status=FocusSession.Status.ACTIVE,
         ).update(last_activity_at=timezone.now())
         > 0
@@ -437,6 +459,8 @@ def start_lock_in_session(
     topic: str,
     note: str,
     tasks: tuple[tuple[UUID, str], ...],
+    experience_version: int = 1,
+    study_metadata: dict[str, object] | None = None,
 ) -> tuple[FocusSession, bool]:
     """Create one durable Lock In session, or return the user's unfinished one.
 
@@ -451,7 +475,13 @@ def start_lock_in_session(
         live_session = active_team_lock_in_session(team=team)
         if live_session is not None:
             return live_session, False
-        members = list(FocusTeamMembership.objects.filter(team=team).order_by("joined_at", "id"))
+        members = list(
+            FocusTeamMembership.objects.filter(team=team)
+            .select_related("user")
+            .order_by("joined_at", "id")
+        )
+        if experience_version == 2:
+            members = [member for member in members if member.user_id == user.id]
         list(
             User.objects.select_for_update()
             .filter(id__in=[member.user_id for member in members])
@@ -506,7 +536,14 @@ def start_lock_in_session(
     session.team = team
     session.team_name = team.name if team is not None else team_name.strip()
     session.anonymous = anonymous
-    session.lock_in_live = document is None
+    session.lock_in_live = experience_version == 2 or document is None
+    session.experience_version = experience_version
+    session.study_metadata = study_metadata or {}
+    session.deadline_at = (
+        timezone.now() + timedelta(seconds=planned_duration_seconds)
+        if experience_version == 2 and planned_duration_seconds
+        else None
+    )
     session.goal = goal.strip()
     session.topic = topic.strip()
     session.full_clean()
@@ -518,6 +555,9 @@ def start_lock_in_session(
             "team_name",
             "anonymous",
             "lock_in_live",
+            "experience_version",
+            "study_metadata",
+            "deadline_at",
             "goal",
             "topic",
             "updated_at",
@@ -529,6 +569,7 @@ def start_lock_in_session(
                 FocusSessionParticipant(
                     session=session,
                     user=member.user,
+                    active_since=timezone.now() if experience_version == 2 else None,
                     presence=(
                         FocusSessionParticipant.Presence.FOCUSED
                         if member.user_id == user.id
@@ -654,7 +695,10 @@ def _active_duration(*, session: FocusSession, until: datetime) -> int:
 
 def _owned_locked_session(*, user: User, session_id: UUID) -> FocusSession:
     try:
-        return FocusSession.objects.select_for_update().get(id=session_id, user=user)
+        session = FocusSession.objects.select_for_update().get(id=session_id, user=user)
+        if session.experience_version == 2 and session.team_id:
+            raise FocusSessionStateError("Use the shared session controls.")
+        return session
     except FocusSession.DoesNotExist as error:
         raise FocusSessionStateError("Focus session was not found.") from error
 
@@ -670,7 +714,9 @@ def pause_focus_session(*, user: User, session_id: UUID) -> FocusSession:
     session.status = FocusSession.Status.PAUSED
     session.last_activity_at = occurred_at
     session.revision += 1
-    session.save(update_fields=("status", "last_activity_at", "revision", "updated_at"))
+    session.save(
+        update_fields=("status", "last_activity_at", "deadline_at", "revision", "updated_at")
+    )
     _append_activity(
         session=session,
         activity_type=FocusSessionActivity.ActivityType.PAUSED,
@@ -697,9 +743,16 @@ def resume_focus_session(*, user: User, session_id: UUID) -> FocusSession:
         raise FocusSessionStateError("Only a paused Focus session can be resumed.")
     occurred_at = timezone.now()
     session.status = FocusSession.Status.ACTIVE
+    if session.experience_version == 2 and session.planned_duration_seconds:
+        used = _active_duration(session=session, until=occurred_at)
+        session.deadline_at = occurred_at + timedelta(
+            seconds=max(0, session.planned_duration_seconds - used)
+        )
     session.last_activity_at = occurred_at
     session.revision += 1
-    session.save(update_fields=("status", "last_activity_at", "revision", "updated_at"))
+    session.save(
+        update_fields=("status", "last_activity_at", "deadline_at", "revision", "updated_at")
+    )
     _append_activity(
         session=session,
         activity_type=FocusSessionActivity.ActivityType.RESUMED,
@@ -728,7 +781,9 @@ def start_focus_break(*, user: User, session_id: UUID) -> FocusSession:
     session.status = FocusSession.Status.ON_BREAK
     session.last_activity_at = occurred_at
     session.revision += 1
-    session.save(update_fields=("status", "last_activity_at", "revision", "updated_at"))
+    session.save(
+        update_fields=("status", "last_activity_at", "deadline_at", "revision", "updated_at")
+    )
     _append_activity(
         session=session,
         activity_type=FocusSessionActivity.ActivityType.BREAK_STARTED,
@@ -746,9 +801,16 @@ def end_focus_break(*, user: User, session_id: UUID) -> FocusSession:
         raise FocusSessionStateError("Only a Focus session on break can resume focus.")
     occurred_at = timezone.now()
     session.status = FocusSession.Status.ACTIVE
+    if session.experience_version == 2 and session.planned_duration_seconds:
+        used = _active_duration(session=session, until=occurred_at)
+        session.deadline_at = occurred_at + timedelta(
+            seconds=max(0, session.planned_duration_seconds - used)
+        )
     session.last_activity_at = occurred_at
     session.revision += 1
-    session.save(update_fields=("status", "last_activity_at", "revision", "updated_at"))
+    session.save(
+        update_fields=("status", "last_activity_at", "deadline_at", "revision", "updated_at")
+    )
     _append_activity(
         session=session,
         activity_type=FocusSessionActivity.ActivityType.BREAK_ENDED,
@@ -762,24 +824,33 @@ def join_live_team_session(*, user: User, team_id: UUID) -> FocusSession:
     team = FocusTeam.objects.select_for_update().get(id=team_id)
     if team.closed_at or not FocusTeamMembership.objects.filter(team=team, user=user).exists():
         raise FocusSessionStateError("This team is not available.")
+    User.objects.select_for_update().get(id=user.id)
     session = active_team_lock_in_session(team=team)
     if session is None:
         raise FocusSessionStateError("There is no active team Lockin.")
     current = active_lock_in_session_for_user(user=user)
     if current is not None and current.id != session.id:
         raise FocusSessionStateError("Resume your active Lockin first.")
+    session = FocusSession.objects.select_for_update().get(id=session.id)
     now = timezone.now()
     participant, _ = FocusSessionParticipant.objects.select_for_update().get_or_create(
         session=session,
         user=user,
         defaults={"presence": FocusSessionParticipant.Presence.FOCUSED},
     )
+    if session.experience_version == 2:
+        settle_participant(participant, now)
+        participant.active_since = now
     if participant.left_at is not None:
         participant.left_at = None
         participant.joined_at = now
     participant.presence = FocusSessionParticipant.Presence.FOCUSED
     participant.last_seen_at = now
-    participant.save(update_fields=("left_at", "joined_at", "presence", "last_seen_at"))
+    participant.save(
+        update_fields=("left_at", "joined_at", "presence", "last_seen_at", "active_since")
+    )
+    session.revision += 1
+    session.save(update_fields=("revision",))
     return session
 
 
@@ -807,6 +878,11 @@ def set_live_team_presence(*, user: User, session_id: UUID, presence: str) -> Fo
     except FocusSessionParticipant.DoesNotExist as error:
         raise FocusSessionStateError("Join this Lockin to update your status.") from error
     now = timezone.now()
+    if session.experience_version == 2:
+        settle_participant(participant, now)
+        participant.active_since = (
+            now if presence == FocusSessionParticipant.Presence.FOCUSED else None
+        )
     if presence != FocusSessionParticipant.Presence.BREAK:
         _finish_participant_break(participant, now)
     elif participant.presence != FocusSessionParticipant.Presence.BREAK:
@@ -814,8 +890,16 @@ def set_live_team_presence(*, user: User, session_id: UUID, presence: str) -> Fo
     participant.presence = presence
     participant.last_seen_at = now
     participant.save(
-        update_fields=("presence", "last_seen_at", "break_started_at", "break_seconds")
+        update_fields=(
+            "presence",
+            "last_seen_at",
+            "break_started_at",
+            "break_seconds",
+            "active_since",
+        )
     )
+    session.revision += 1
+    session.save(update_fields=("revision",))
     return session
 
 
@@ -832,8 +916,12 @@ def leave_live_team_session(*, user: User, session_id: UUID) -> FocusSession:
         raise FocusSessionStateError("You are not in this Lockin.") from error
     now = timezone.now()
     _finish_participant_break(participant, now)
+    if session.experience_version == 2:
+        settle_participant(participant, now)
     participant.left_at = now
     participant.save(update_fields=("left_at", "break_started_at", "break_seconds"))
+    session.revision += 1
+    session.save(update_fields=("revision",))
     return session
 
 
@@ -913,6 +1001,14 @@ def complete_focus_session(
         occurred_at=finished_at,
         metadata={"active_duration_seconds": active_duration_seconds},
     )
+    if session.experience_version == 2 and session.team_id:
+        for participant in session.participants.select_for_update().filter(
+            break_started_at__isnull=False
+        ):
+            _finish_participant_break(participant, finished_at)
+            participant.save(update_fields=("break_started_at", "break_seconds"))
+        publish_participant_completions(session, finished_at)
+        return session
     publish_after_commit(
         FocusSessionCompleted(
             session_id=session.id,
@@ -1033,3 +1129,16 @@ def toggle_focus_session_task(*, user: User, session_id: UUID, task_id: UUID) ->
     task.completed_at = None if task.completed_at is not None else timezone.now()
     task.save(update_fields=("completed_at", "updated_at"))
     return task
+
+
+@transaction.atomic
+def save_live_private_note(
+    *, user: User, session: FocusSession, body: str, expected_revision: int | None
+) -> None:
+    locked = FocusSession.objects.select_for_update().get(id=session.id)
+    participant = FocusSessionParticipant.objects.select_for_update().get(session=locked, user=user)
+    if expected_revision != participant.note_revision:
+        raise FocusSessionStateError("The session note changed. Reopen it before saving.")
+    participant.private_note = body.strip()
+    participant.note_revision += 1
+    participant.save(update_fields=("private_note", "note_revision"))

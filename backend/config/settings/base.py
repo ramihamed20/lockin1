@@ -390,3 +390,9 @@ WEB_PUSH_ENABLED = env_bool("WEB_PUSH_ENABLED", False)
 WEB_PUSH_VAPID_PRIVATE_KEY = secret_env("WEB_PUSH_VAPID_PRIVATE_KEY", "")
 WEB_PUSH_VAPID_PUBLIC_KEY = env("WEB_PUSH_VAPID_PUBLIC_KEY", "")
 WEB_PUSH_CONTACT = env("WEB_PUSH_CONTACT", "https://lockin.ly")
+
+# Opening discovery never replaces server authorization. Existing runs remain recoverable.
+LOCKIN_MODE_ENABLED = env_bool("LOCKIN_MODE_ENABLED", False)
+LOCKIN_MODE_PILOT_USER_IDS = tuple(
+    value.strip() for value in env("LOCKIN_MODE_PILOT_USER_IDS", "").split(",") if value.strip()
+)

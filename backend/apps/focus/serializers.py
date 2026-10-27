@@ -122,6 +122,14 @@ class LockInInitialTaskSerializer(StrictSerializer):
 
 
 class LockInStartSerializer(StrictSerializer):
+    experience_version = serializers.ChoiceField(choices=[1, 2], required=False, default=1)
+    edition = serializers.ChoiceField(
+        choices=["university", "lockin"], required=False, default="university"
+    )
+    page_start = serializers.IntegerField(min_value=1, max_value=10000, required=False, default=1)
+    page_end = serializers.IntegerField(
+        min_value=1, max_value=10000, required=False, allow_null=True, default=None
+    )
     document_version_id = serializers.UUIDField(required=False, allow_null=True, default=None)
     client_instance_id = serializers.UUIDField()
     session_type = serializers.ChoiceField(choices=FocusSession.SessionType.choices)

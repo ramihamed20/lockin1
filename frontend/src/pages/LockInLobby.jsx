@@ -144,6 +144,10 @@ export function LockInSetup({ bootstrap, teamId, preselectedDocumentVersionId, o
   const [materialId, setMaterialId] = useState(initialMaterial);
   const [duration, setDuration] = useState("25");
   const [anonymous, setAnonymous] = useState(false);
+  const [goal, setGoal] = useState("");
+  const [pageStart, setPageStart] = useState("1");
+  const [pageEnd, setPageEnd] = useState("");
+  const selectedMaterial = materials.find((item) => item.document_version_id === materialId);
   function submit(event) {
     event.preventDefault();
     onStart({
@@ -153,7 +157,9 @@ export function LockInSetup({ bootstrap, teamId, preselectedDocumentVersionId, o
       breakDurationSeconds: null,
       teamId: teamId || null,
       anonymous: !teamId && anonymous,
-      goal: "", topic: "", note: "", tasks: []
+      experienceVersion: 2, goal: goal.trim(),
+      pageStart: Number(pageStart), pageEnd: pageEnd ? Number(pageEnd) : null,
+      topic: "", note: "", tasks: []
     });
   }
   return <main className="lm-shell" aria-label={t("lockIn.title")}>
@@ -162,7 +168,13 @@ export function LockInSetup({ bootstrap, teamId, preselectedDocumentVersionId, o
       <header className="lm-heading"><h1>{teamId ? t("lockIn.teamSession") : t("lockIn.soloSession")}</h1></header>
       {bootstrap?.active_session && <ResumeCard active={bootstrap.active_session} onResume={onResume} />}
       <form className="lm-form" onSubmit={submit}>
-        {!teamId && preselectedDocumentVersionId && <div className="ui-group-block">
+        <div className="ui-group">
+          <div className="ui-row">
+            <label className="ui-row-body" htmlFor="lm-goal">{t("lockIn.goal")}</label>
+            <input id="lm-goal" className="ui-row-input lm-row-input-wide" maxLength={280} value={goal} onChange={(event) => setGoal(event.target.value)} placeholder={t("lockIn.goalPlaceholder")} />
+          </div>
+        </div>
+        {<div className="ui-group-block">
           <div className="ui-group"><div className="ui-row">
             <label className="ui-row-body" htmlFor="lm-material"><span>{t("lockIn.material")}</span></label>
             <select id="lm-material" className="ui-row-input lm-select" value={materialId} onChange={(event) => setMaterialId(event.target.value)}>
@@ -177,6 +189,16 @@ export function LockInSetup({ bootstrap, teamId, preselectedDocumentVersionId, o
             {DURATIONS.map((value) => <RadioOption key={value} value={String(value)} className="lm-duration"><strong>{value}</strong><small>{t("lockIn.minuteUnit")}</small></RadioOption>)}
           </RadioGroup>
         </div>
+        {materialId && <div className="ui-group lm-page-range">
+          <div className="ui-row"><label className="ui-row-body" htmlFor="lm-page-start">{t("lockIn.fromPage")}</label>
+            <input id="lm-page-start" className="ui-row-input lm-row-input-number" type="number" min="1" max={selectedMaterial?.page_count || undefined} required value={pageStart} onChange={(event) => setPageStart(event.target.value)} /></div>
+          <div className="ui-row"><label className="ui-row-body" htmlFor="lm-page-end">{t("lockIn.toPage")}</label>
+            <input id="lm-page-end" className="ui-row-input lm-row-input-number" type="number" min={Number(pageStart)} max={selectedMaterial?.page_count || undefined} value={pageEnd} onChange={(event) => setPageEnd(event.target.value)} /></div>
+        </div>}
+        <details className="lm-custom-duration"><summary>{t("lockIn.customize")}</summary>
+          <label htmlFor="lm-custom-minutes">{t("lockIn.duration")}</label>
+          <input id="lm-custom-minutes" type="number" min="1" max="480" value={duration} onChange={(event) => setDuration(event.target.value)} required />
+        </details>
         {!teamId && <AnonymousRow id="lm-solo-anonymous" checked={anonymous} onChange={setAnonymous} />}
         {error && <p className="lm-error" role="alert">{error}</p>}
         <button className="btn btn-primary lm-submit" type="submit" disabled={busy}>{t("lockIn.start")}</button>
@@ -290,14 +312,19 @@ export default function LockInLobby({ bootstrap, onExit, onSolo, onTeamStart, on
 
   const loadTeam = useCallback(async (id) => {
     try { const result = await focusApi.getLockInTeam(id); const nextTeam = /** @type {any} */ (result.team); setTeam(nextTeam); setError(""); if (nextTeam.active_session_id && nextTeam.can_resume_session) onResumeSession(nextTeam.active_session_id); }
-    catch { setTeam(null); setTeamId(null); setScreen("home"); setError(removedMessage); await onRefresh(); }
-  }, [removedMessage, onRefresh, onResumeSession]);
+    catch (failure) {
+      if ([400, 403, 404].includes(failure.status)) { setTeam(null); setTeamId(null); setScreen("home"); setError(removedMessage); await onRefresh(); }
+      else setError(t("lockIn.reconnecting"));
+    }
+  }, [removedMessage, onRefresh, onResumeSession, t]);
 
   useEffect(() => {
     if (!teamId || screen !== "lobby") return undefined;
     void loadTeam(teamId);
-    const interval = window.setInterval(() => { void loadTeam(teamId); }, 10000);
-    return () => window.clearInterval(interval);
+    const refresh = () => { if (!document.hidden) void loadTeam(teamId); };
+    const interval = window.setInterval(refresh, 10000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => { window.clearInterval(interval); document.removeEventListener("visibilitychange", refresh); };
   }, [teamId, screen, loadTeam]);
 
   useEffect(() => {
@@ -363,11 +390,11 @@ export default function LockInLobby({ bootstrap, onExit, onSolo, onTeamStart, on
     </LockInBar>
 
     {screen === "home" && <div className="lm-page">
-      <header className="lm-heading"><h1 id="lm-title">{t("lockIn.title")}</h1><p>{t("lockIn.intro")}</p></header>
+      <header className="lm-heading"><h1 id="lm-title">{t("lockIn.title")}</h1></header>
       {active && <ResumeCard active={active} onResume={onResume} />}
       <section className="ui-group-block" aria-labelledby="lm-start-title">
         <h2 className="ui-group-title" id="lm-start-title">{t("lockIn.startGroup")}</h2>
-        <ul className="ui-group">
+        <ul className="ui-group lm-mode-choices">
           <NavRow icon={Timer} title={t("lockIn.solo")} hint={t("lockIn.soloHint")} onClick={() => onSolo()} />
           <NavRow icon={Users} title={t("lockIn.team")} hint={t("lockIn.teamHint")} onClick={() => go("team")} />
         </ul>

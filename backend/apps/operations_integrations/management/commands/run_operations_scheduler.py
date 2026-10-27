@@ -53,6 +53,13 @@ JOBS = (
         _no_options,
     ),
     JobSpec(
+        "lock_in_expiry",
+        "settle_lock_in_sessions",
+        "LOCKIN_EXPIRY_INTERVAL_SECONDS",
+        60,
+        _no_options,
+    ),
+    JobSpec(
         "biweekly_reports",
         "close_biweekly_reports",
         "BIWEEKLY_REPORT_INTERVAL_SECONDS",
