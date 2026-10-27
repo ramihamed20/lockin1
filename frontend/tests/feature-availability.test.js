@@ -9,13 +9,13 @@ import {
 } from "../src/lib/featureAvailability.js";
 
 test("the feature registry is the authoritative source for every scheduled feature", () => {
-  assert.deepEqual(comingSoonFeatures().map((feature) => feature.id), ["lock-in", "study-plan", "community"]);
+  assert.deepEqual(comingSoonFeatures().map((feature) => feature.id), ["study-plan", "community"]);
   assert.equal(isFeatureComingSoon(getFeatureForPath("/study-plan")), true);
   assert.equal(isFeatureComingSoon(getFeatureForPath("/study-plan/session-1")), true);
   assert.equal(isFeatureComingSoon(getFeatureForPath("/ranked")), false);
   assert.equal(isFeatureComingSoon(getFeatureForPath("/community/discussions/thread-1")), true);
-  assert.equal(isFeatureComingSoon(getFeatureForPath("/lock-in")), true);
-  assert.equal(isFeatureComingSoon(getFeatureForPath("/lock-in/session-1")), true);
+  assert.equal(isFeatureComingSoon(getFeatureForPath("/lock-in")), false);
+  assert.equal(isFeatureComingSoon(getFeatureForPath("/lock-in/session-1")), false);
   assert.equal(getFeatureForPath("/materials"), null);
   assert.equal(FEATURE_AVAILABILITY.COMING_SOON, "coming-soon");
 });
