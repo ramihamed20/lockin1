@@ -57,6 +57,7 @@ from .sheet_summary_views import (
     SheetSummaryCollectionView,
     SheetSummaryDetailView,
 )
+from .translation_views import AdminSheetTranslationView, DocumentTranslationView
 from .views import (
     ArchiveLearningObjectView,
     CatalogAddedSubjectCollectionView,
@@ -81,6 +82,17 @@ from .views import (
 app_name = "content"
 
 urlpatterns = [
+    path(
+        "operations/admin/content/sheets/<uuid:sheet_id>/translations",
+        AdminSheetTranslationView.as_view(),
+        name="admin-sheet-translations",
+    ),
+    path(
+        "catalog/documents/<uuid:document_id>/translation",
+        DocumentTranslationView.as_view(),
+        name="document-translation",
+    ),
+
     path(
         "catalog/workspaces/recent", RecentCatalogWorkspacesView.as_view(), name="recent-workspaces"
     ),
