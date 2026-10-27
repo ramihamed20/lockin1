@@ -210,14 +210,17 @@ def test_saved_reader_target_does_not_silently_open_a_different_version(curricul
     assert client.get(path).json()["results"][0]["start_url"] is None
 
 
+@pytest.mark.postgres
 @pytest.mark.django_db(transaction=True)
 def test_concurrent_identical_applies_create_one_run(monkeypatch):
     """Test the PostgreSQL lock boundary; real selectors are covered above."""
     from concurrent.futures import ThreadPoolExecutor
     from threading import Barrier
 
+    from django.contrib.auth.models import Group
     from django.db import close_old_connections, connection
 
+    from apps.accounts.roles import Role
     from apps.education.models import AcademicProgram, StudentCohort
     from apps.education.services import create_node
     from apps.education.tests.helpers import create_admin
@@ -227,6 +230,8 @@ def test_concurrent_identical_applies_create_one_run(monkeypatch):
 
     if connection.vendor != "postgresql":
         pytest.skip("Requires PostgreSQL account-row locking")
+    # Transactional tests can follow a flush of migration-seeded groups.
+    Group.objects.get_or_create(name=Role.ADMINISTRATOR.value)
     admin = create_admin(email=f"planner-admin-{uuid4()}@example.com")
     institution = create_node(
         actor=admin, parent=None, kind="institution", title="Planner lock test"
