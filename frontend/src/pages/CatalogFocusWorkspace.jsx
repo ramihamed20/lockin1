@@ -62,6 +62,7 @@ import { marksStorageSlug, snapshotFromReader } from "../workspace/catalog/annot
 import { useMarksSet } from "../workspace/catalog/useMarksSet.js";
 import { noteCardHeight, NOTE_CARD_WIDTH } from "../workspace/catalog/noteCardLayout.js";
 import { AnnotationSharePanel } from "../workspace/catalog/AnnotationSharePanel.jsx";
+import { usePlannedSourceNavigation } from "../workspace/knowledge/usePlannedSourceNavigation.js";
 import StartRescue from "../rescue/StartRescue.jsx";
 import { RESCUE_ENABLED } from "../rescue/model.js";
 import { KNOWLEDGE_FIXTURE_TOOLS, STUDY_TOOLS_ENABLED, COMING_SOON_STUDY_TOOLS, availableStudyTools } from "../workspace/knowledge/model.js";
@@ -5531,6 +5532,16 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       setBookmarkBusy(false);
     }
   }
+
+  usePlannedSourceNavigation({ search: searchParams, source: catalogDocument, limit: accessiblePageCount,
+    ready: workspaceReady && pdfDocumentReady && paneActive && !modeDialogOpen,
+    onRead: jumpToPagePosition, onUnavailable: () => setFocusMessage(t("knowledge.lockedSource")),
+    onExplain: questionId => {
+      if (!STUDY_TOOLS_ENABLED || COMING_SOON_STUDY_TOOLS.includes("explain")) return;
+      setKnowledgeVisited(true); setKnowledgeOpen(true);
+      setKnowledgeNavigation({ requestId: globalThis.crypto.randomUUID(), question_id: questionId });
+    },
+  });
 
   function commitPageJump() {
     const target = Number.parseInt(pageJumpDraft, 10);

@@ -1,7 +1,8 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { STUDY_TOOLS_ENABLED } from "../workspace/knowledge/model.js";
+import { COMING_SOON_STUDY_TOOLS, STUDY_TOOLS_ENABLED } from "../workspace/knowledge/model.js";
+const ReviewRecovery = lazy(() => import("../workspace/knowledge/ReviewRecovery.jsx"));
 const KnowledgeShelf = lazy(() => import("../workspace/knowledge/KnowledgeShelf.jsx"));
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { reviewApi } from "../api/review.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
@@ -167,6 +168,7 @@ function ReviewQuestionCard({ item, selectedIds = [], onSelect, outcome, busy, e
       </fieldset>
       {!outcome && <button className="btn btn-primary review-submit-answer" type="button" disabled={!selectedIds.length || busy} aria-busy={busy || undefined} onClick={onSubmit}>{t(busy ? "review.checking" : "review.checkAnswer")}</button>}
       {outcome && <section className={`review-answer-outcome ${outcome.was_correct ? "is-correct" : "is-incorrect"}`} role="status" aria-live="polite"><Icon name={outcome.was_correct ? "check" : "alert-triangle"} size={20} /><div><strong>{t(outcome.was_correct ? "review.correctMoved" : "review.notYet")}</strong><p>{t(outcome.was_correct ? "review.correctBody" : "review.incorrectBody")}</p><QuestionExplanation explanation={outcome.review_item?.explanation} /></div></section>}
+      {outcome && !outcome.was_correct && STUDY_TOOLS_ENABLED && !COMING_SOON_STUDY_TOOLS.includes("explain") && <Suspense fallback={null}><ReviewRecovery key={item.id} itemId={item.id} /></Suspense>}
       {error && <p className="inline-error" role="alert" dir="auto">{error}</p>}
     </article>
   );
@@ -175,6 +177,8 @@ function ReviewQuestionCard({ item, selectedIds = [], onSelect, outcome, busy, e
 export function SubjectReviewSession({ user = null }) {
   const { t } = useI18n();
   const { subjectKey = "" } = useParams();
+  const [searchParams] = useSearchParams();
+  const requestedItem = searchParams.get("item");
   const detail = useAsyncData(() => reviewApi.getSubject(subjectKey, user?.id || ""), [subjectKey, user?.id], { cacheKey: `review-subject:${user?.id || ""}:${subjectKey}` });
   const [items, setItems] = useState([]);
   const [index, setIndex] = useState(0);
@@ -188,14 +192,15 @@ export function SubjectReviewSession({ user = null }) {
   useEffect(() => {
     if (!detail.data) return;
     setItems(detail.data.results);
-    setIndex(0);
+    setIndex(Math.max(0, detail.data.results.findIndex(item => item.id === requestedItem)));
     setSelected({});
     setOutcomes({});
     setComplete(false);
     answerKeys.current = new Map();
-  }, [detail.data]);
+  }, [detail.data, requestedItem]);
 
-  const item = items[index];
+  const missingRequested = requestedItem && detail.data && !detail.data.results.some(item => item.id === requestedItem);
+  const item = missingRequested ? null : items[index];
   const outcome = item ? outcomes[item.id] : null;
   const cleared = items.length > 0 && items.every((candidate) => outcomes[candidate.id]?.was_correct === true);
 
@@ -228,6 +233,7 @@ export function SubjectReviewSession({ user = null }) {
 
   if (detail.loading) return <LoadingPanel variant="quiz" />;
   if (detail.error) return <Page width="reading" title={t("review.sessionTitle")}><ErrorPanel message={detail.error} onRetry={detail.reload} /></Page>;
+  if (missingRequested) return <Page width="reading" title={t("review.sessionTitle")}><p role="status">{t("connected.reviewUnavailable")}</p><Link className="btn btn-primary" to="/review/bank">{t("review.backToBank")}</Link></Page>;
   if (!items.length) return <Page width="reading" title={detail.data?.subject_label || t("review.subjectReview")}><EmptyState title={t("review.subjectCleared")} text={t("review.subjectClearedText")} /><div className="result-actions"><Link className="btn btn-primary" to="/review/bank">{t("review.backToBank")}</Link></div></Page>;
   if (complete) return <Page width="reading" title={detail.data?.subject_label || t("review.subjectReview")}><section className="review-session-complete"><span><Icon name={cleared ? "check" : "target"} size={28} /></span><h2>{t(cleared ? "review.subjectCleared" : "review.passComplete")}</h2><p dir="auto">{cleared ? t("review.clearedIn", { name: detail.data.subject_label }) : t("review.someRemain")}</p><div className="result-actions"><button className="btn btn-primary" type="button" onClick={detail.reload}>{t("review.reviewAgain")}</button><Link className="btn btn-soft" to="/review/bank">{t("review.backToBank")}</Link></div></section></Page>;
 
