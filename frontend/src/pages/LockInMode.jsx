@@ -1,3 +1,4 @@
+import { acceptsLiveResponse } from "../components/lock-in/liveSession.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, Eraser, FileText, Hand, Highlighter, Image as ImageIcon, LockKeyhole, Maximize2, MessageSquare, Minimize2, Minus, MoreHorizontal, MousePointer2, PanelRightOpen, Pause, PenLine, Play, Plus, Redo2, Search, Send, Shapes, Type, Undo2, Users, X } from "lucide-react";
@@ -684,6 +685,7 @@ export default function LockInMode({ user }) {
   const navigate = useNavigate();
   const [state, setState] = useState({ loading: true, error: "", bootstrap: null, payload: null });
   const [starting, setStarting] = useState(false);
+  const startKeyRef = useRef(uuid());
   const [busy, setBusy] = useState("");
   const [exitOpen, setExitOpen] = useState(false);
   const [abandonOpen, setAbandonOpen] = useState(false);
@@ -699,7 +701,9 @@ export default function LockInMode({ user }) {
   const workspaceSaveTimerRef = useRef(null);
 
   const replacePayload = useCallback((payload, { syncNote = true } = {}) => {
-    setState((current) => ({ ...current, payload: { ...payload, received_at_ms: Date.now() }, error: "", loading: false }));
+    setState((current) => acceptsLiveResponse(current.payload, payload)
+      ? { ...current, payload: { ...payload, received_at_ms: Date.now(), received_at_monotonic_ms: window.performance.now() }, error: "", loading: false }
+      : current);
     if (syncNote && typeof payload?.note?.body === "string") setNoteBody(payload.note.body);
   }, []);
 
@@ -807,8 +811,10 @@ export default function LockInMode({ user }) {
     setStarting(true);
     writeReturnState(user, returnStateRef.current);
     try {
-      const payload = await focusApi.startLockIn({ ...input, clientInstanceId: uuid() });
+      const payload = await focusApi.startLockIn({ ...input, clientInstanceId: startKeyRef.current });
       replacePayload(payload);
+      startKeyRef.current = uuid();
+      setSetupMode("");
       navigate(`/lock-in/${payloadSessionId(payload)}`, { replace: true });
     } catch (error) {
       setState((current) => ({ ...current, error: error.message || t("lockIn.startFailed") }));

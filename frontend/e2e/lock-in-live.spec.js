@@ -47,7 +47,8 @@ async function connect(page, { team = null, active = false, language = "en", oth
     const { pathname } = new URL(request.url());
     const method = request.method();
     const json = (payload, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(payload) });
-    if (pathname === "/api/v1/auth/session") return json({ user: studentSession({ preferred_language: language }) });
+    if (pathname === "/api/v1/auth/session") return json({ user: studentSession({ preferred_language: language, policy_version: "2026.10", policy_accepted_at: "2026-10-27T00:00:00Z" }) });
+    if (pathname === "/api/v1/focus/lock-in/availability") return json({ enabled: true });
     if (pathname === "/api/v1/auth/csrf") return json({ csrf_token: "live-csrf" });
     if (await fulfillAccessContract(route, pathname)) return;
     if (pathname === "/api/v1/operations/session") return json({ error: { code: "permission_denied", message: "Student account" } }, 403);

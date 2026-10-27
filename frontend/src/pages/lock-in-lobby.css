@@ -96,6 +96,12 @@
   gap: 24px;
 }
 
+.lm-mode-choices .ui-row { padding-block: 24px; }
+.lm-mode-choices .ui-row-icon { width: 44px; height: 44px; border-radius: var(--radius-card); }
+.lm-custom-duration summary { min-height: 44px; align-content: center; cursor: pointer; color: var(--muted); }
+.lm-custom-duration input { width: 100%; margin-top: 8px; }
+.lm-page-range input { min-height: 44px; }
+
 .lm-submit { width: 100%; }
 
 .lm-error {

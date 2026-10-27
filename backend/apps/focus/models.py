@@ -1,5 +1,6 @@
 import secrets
 import uuid
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from django.conf import settings
@@ -14,6 +15,10 @@ def focus_team_invite_code() -> str:
     return f"{secrets.randbelow(900_000) + 100_000:06d}"
 
 
+def focus_invite_expiry() -> "datetime":
+    return timezone.now() + timedelta(days=1)
+
+
 class FocusTeam(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=80)
@@ -24,7 +29,15 @@ class FocusTeam(models.Model):
         max_length=12, unique=True, db_index=True, default=focus_team_invite_code
     )
     max_members = models.PositiveSmallIntegerField(default=8)
+    cohort = models.ForeignKey(
+        "education.StudentCohort",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="focus_teams",
+    )
     joining_locked = models.BooleanField(default=False)
+    invite_expires_at = models.DateTimeField(default=focus_invite_expiry)
     closed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -132,6 +145,9 @@ class FocusSession(models.Model):
     team_name = models.CharField(max_length=80, blank=True)
     anonymous = models.BooleanField(default=False)
     lock_in_live = models.BooleanField(default=False)
+    experience_version = models.PositiveSmallIntegerField(default=1)
+    deadline_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    study_metadata = models.JSONField(default=dict, blank=True)
     team = models.ForeignKey(
         FocusTeam,
         on_delete=models.SET_NULL,
@@ -211,6 +227,11 @@ class FocusSessionParticipant(models.Model):
     last_seen_at = models.DateTimeField(default=timezone.now)
     break_started_at = models.DateTimeField(null=True, blank=True)
     break_seconds = models.PositiveIntegerField(default=0)
+    active_microseconds = models.PositiveBigIntegerField(default=0)
+    active_since = models.DateTimeField(null=True, blank=True)
+    credited_at = models.DateTimeField(null=True, blank=True)
+    private_note = models.TextField(blank=True)
+    note_revision = models.PositiveIntegerField(default=1)
 
     class Meta:
         constraints = [
@@ -713,3 +734,12 @@ class LofiScene(models.Model):
 
 
 from .rescue_models import RescueMutationReceipt, RescueSession  # noqa: E402, F401
+
+
+class FocusInviteWindow(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    started_at = models.DateTimeField(default=timezone.now)
+    attempts = models.PositiveSmallIntegerField(default=0)
+
+    def __str__(self) -> str:
+        return str(self.user_id)
