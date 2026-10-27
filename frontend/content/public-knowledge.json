@@ -275,13 +275,17 @@
     {
       "id": "rankings",
       "name": "الترتيب بين الطلاب",
-      "status": "coming_soon",
+      "status": "available",
       "entry": "/#/ranked",
-      "requirements": "محجوبة بسجل إتاحة المنتج.",
+      "requirements": "تسجيل الدخول وتحديد الدفعة؛ ترتيب أسبوعي وشهري وإجمالي من نقاط التعلّم المؤهلة مع خيارات الخصوصية.",
       "evidence": [
-        "frontend/src/lib/featureAvailability.js"
+        "frontend/src/lib/featureAvailability.js",
+        "frontend/src/pages/Ranked.jsx",
+        "backend/apps/rankings/live.py",
+        "backend/apps/rankings/tests/test_live.py",
+        "frontend/e2e/rank-mode.spec.js"
       ],
-      "lastVerified": "2026-10-16",
+      "lastVerified": "2026-10-26",
       "verificationScope": "repository_and_existing_tests",
       "publicDocumentable": false
     },
