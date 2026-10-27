@@ -14,6 +14,7 @@ from .models import (
 )
 from .policy import iso_week_key, iso_week_start
 
+
 def planning_review_summary(
     *,
     user: User,
