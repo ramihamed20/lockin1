@@ -115,3 +115,19 @@ Reviewed the additional Rank Mode translations: they label the existing individu
 ## Rank Mode concise copy — 26 October 2026
 
 Reviewed the revised Rank Mode copy and labels. The page now names the ranking and cohort directly, removes motivational/repeated copy, and moves update/reset timestamps into the existing rules disclosure. Existing public help instructions and all other translations retain their meaning; only the reviewed i18n.js digest was refreshed. No scoring, API, access or public marketing availability changed.
+
+
+## 27 October 2026 — manual Arabic sheet translations
+
+Reviewed the additive diff in i18n.js and CatalogFocusWorkspace.jsx. It adds localized
+labels and an independent translation panel only for authorized catalog documents,
+inside the active pane and outside mode dialogs/quizzes. Existing reading state,
+annotation ownership, Active Study restrictions and published help claims are unchanged.
+The admin can import complete translations by physical page; there is no external
+translation provider or automatic content generation. No new marketing claim is added.
+
+Validation: 29 targeted backend cases (SQLite) and 37 frontend cases passed, including
+catalog authorization, admin imports, source identity, stale revisions, CSRF and edition
+isolation. Type checking and lint are included. Only the two reviewed changed evidence
+digests are refreshed; the gate and unrelated evidence remain intact. See
+SHEET_TRANSLATION_AR.md for operational and verification limits.
