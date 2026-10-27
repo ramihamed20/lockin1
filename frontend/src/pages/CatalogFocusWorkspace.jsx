@@ -1,3 +1,4 @@
+import { StudyDock } from "../components/lock-in/StudyDock.jsx";
 import { lazy, Suspense, startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
@@ -2201,7 +2202,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
 
   useEffect(() => {
     const sessionId = focusPayload?.session?.id;
-    if (!sessionId || !isUnfinished(focusPayload)) return undefined;
+    if (!sessionId || !isUnfinished(focusPayload) || focusPayload.session.experience_version === 2) return undefined;
     const refresh = () => { if (!document.hidden) focusApi.getLockInSession(sessionId).then(setFocusPayload).catch(() => {}); };
     document.addEventListener("visibilitychange", refresh);
     return () => document.removeEventListener("visibilitychange", refresh);
@@ -6057,6 +6058,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
             </div>
             <input ref={imageInputRef} className="workspace-v2-file-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={!workspaceReady} onChange={addImage} tabIndex={-1} aria-hidden="true" />
             <div className="workspace-v2-toolbar-actions" aria-label={t("focus.workspaceControls")}>
+              {focusPayload?.session?.experience_version === 2 && <StudyDock payload={focusPayload} onChange={setFocusPayload} active={paneActive} />}
               {RESCUE_ENABLED && shareDocumentId && user?.id && rescueSource.managed_file_id && <StartRescue
                 key={user.id + "/" + shareDocumentId}
                 userId={user.id} source={rescueSource} page={page} pageLimit={accessiblePageCount}

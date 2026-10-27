@@ -37,3 +37,6 @@ if env_bool("LOCKIN_TEST_USE_SQLITE", False):
             "NAME": env("LOCKIN_TEST_SQLITE_PATH", ":memory:"),
         }
     }
+
+LOCKIN_MODE_ENABLED = True
+LOCKIN_MODE_ALLOW_LEGACY_STARTS = True

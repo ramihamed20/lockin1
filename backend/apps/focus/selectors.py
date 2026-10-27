@@ -5,7 +5,13 @@ from uuid import UUID
 from django.db.models import Count, Max, QuerySet, Sum
 from django.db.models.functions import Coalesce
 
-from .models import FocusAnnotation, FocusAnnotationCollection, FocusSession, FocusWorkspaceSnapshot
+from .models import (
+    FocusAnnotation,
+    FocusAnnotationCollection,
+    FocusSession,
+    FocusSessionParticipant,
+    FocusWorkspaceSnapshot,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,17 +22,27 @@ class FocusSummary:
 
 
 def get_focus_summary(*, user_id: UUID) -> FocusSummary:
-    values = FocusSession.objects.filter(
-        user_id=user_id, status=FocusSession.Status.COMPLETED
-    ).aggregate(
-        completed_sessions=Count("id"),
-        active_seconds=Coalesce(Sum("active_duration_seconds"), 0),
-        last_completed_at=Max("ended_at"),
+    values = (
+        FocusSession.objects.filter(user_id=user_id, status=FocusSession.Status.COMPLETED)
+        .exclude(experience_version=2, team__isnull=False)
+        .aggregate(
+            completed_sessions=Count("id"),
+            active_seconds=Coalesce(Sum("active_duration_seconds"), 0),
+            last_completed_at=Max("ended_at"),
+        )
     )
+    shared = FocusSessionParticipant.objects.filter(
+        user_id=user_id,
+        credited_at__isnull=False,
+        active_microseconds__gt=0,
+    ).aggregate(
+        count=Count("id"), micros=Coalesce(Sum("active_microseconds"), 0), last=Max("credited_at")
+    )
+    dates = [value for value in [values["last_completed_at"], shared["last"]] if value]
     return FocusSummary(
-        completed_sessions=int(values["completed_sessions"]),
-        active_seconds=int(values["active_seconds"]),
-        last_completed_at=values["last_completed_at"],
+        completed_sessions=int(values["completed_sessions"]) + int(shared["count"]),
+        active_seconds=int(values["active_seconds"]) + int(shared["micros"]) // 1_000_000,
+        last_completed_at=max(dates) if dates else None,
     )
 
 

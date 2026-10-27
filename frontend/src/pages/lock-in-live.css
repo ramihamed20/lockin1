@@ -3,13 +3,14 @@
    and the controls. */
 
 .lm-live {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
   min-height: 100dvh;
 }
 
 .lm-live-main {
+  flex: 1;
   display: grid;
   align-content: center;
   justify-items: center;
@@ -35,7 +36,7 @@
 .lm-live-clock h1 {
   margin: 0;
   color: var(--text);
-  font-size: clamp(5.5rem, 15vw, 11.5rem);
+  font-size: clamp(4rem, 10vw, 7rem);
   font-weight: var(--weight-regular);
   line-height: 1;
   letter-spacing: -0.04em;
@@ -70,7 +71,36 @@
 
 .lm-live-presence .ui-row { --row-inset: 36px; gap: 10px; }
 .lm-live-presence .ui-row-value { font-size: var(--text-sm); }
-.lm-live-presence .lm-icon-button { width: 32px; height: 32px; }
+.lm-live-presence .lm-icon-button { width: 44px; height: 44px; }
+
+.lm-session-goal { text-align: center; margin: 24px 16px 0; color: var(--muted); overflow-wrap: anywhere; }
+.lm-study-target {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 24px;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  text-align: center;
+  width: min(100%, 420px);
+}
+.lm-study-target strong { overflow-wrap: anywhere; }
+.lm-study-target span { color: var(--muted); font-size: var(--text-sm); }
+.lm-live.is-team .lm-live-clock { grid-column: 1; }
+.lm-live.is-team .lm-study-target { grid-column: 1; }
+.lm-live.is-team .lm-live-presence { grid-column: 2; grid-row: 1 / span 2; }
+.lm-live-extras { width: min(100% - 32px, 600px); margin: 0 auto 16px; }
+.lm-private-note, .lm-discussion { border-top: 1px solid var(--separator); padding: 8px 0; }
+.lm-private-note summary, .lm-discussion summary { min-height: 44px; align-content: center; cursor: pointer; color: var(--muted); }
+.lm-private-note form { display: grid; gap: 10px; justify-items: end; }
+.lm-private-note textarea { width: 100%; resize: vertical; padding: 12px; border-radius: var(--radius-card); background: var(--surface); color: var(--text); border: 1px solid var(--separator); }
+.lm-messages { list-style: none; margin: 0; padding: 0; max-height: 280px; overflow: auto; }
+.lm-messages li { padding: 12px; border-bottom: 1px solid var(--separator); }
+.lm-messages strong { font-size: var(--text-sm); color: var(--muted); }
+.lm-messages p { margin: 6px 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.lm-discussion form { display: flex; gap: 8px; padding-block: 12px; }
+.lm-discussion input { min-width: 0; flex: 1; }
+.lm-study-dock { display: inline-flex; gap: 6px; align-items: center; justify-content: center; min-height: 44px; padding-inline: 10px; border-radius: var(--radius-full); background: var(--surface-2); color: var(--text); font-variant-numeric: tabular-nums; text-decoration: none; white-space: nowrap; }
 
 .lm-live-controls {
   display: flex;
@@ -112,6 +142,7 @@
 
 @media (max-width: 800px) {
   .lm-live.is-team .lm-live-main { grid-template-columns: minmax(0, 1fr); }
+  .lm-live.is-team .lm-live-presence { grid-column: 1; grid-row: auto; }
   .lm-live-presence { width: min(100%, 520px); justify-self: center; }
 }
 
