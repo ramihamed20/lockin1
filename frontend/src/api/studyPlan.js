@@ -10,8 +10,7 @@ function objectPayload(payload, message) {
 const nonnegativeInteger = value => Number.isInteger(value) && value >= 0;
 const dateValue = value => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 const previewTask = task => task && typeof task.key === "string" && typeof task.title === "string"
-  && Number.isInteger(task.page_start) && task.page_start >= 1
-  && Number.isInteger(task.page_end) && task.page_end >= task.page_start
+  && (task.activity === "review" ? typeof task.review_item_id === "string" && typeof task.start_url === "string" && task.start_url.startsWith("/review/bank/") : Number.isInteger(task.page_start) && task.page_start >= 1 && Number.isInteger(task.page_end) && task.page_end >= task.page_start)
   && Number.isInteger(task.estimated_minutes) && task.estimated_minutes > 0 && task.estimated_minutes <= 480;
 
 export const studyPlanApi = {
@@ -25,12 +24,14 @@ export const studyPlanApi = {
     return payload.results;
   },
 
-  /** @param {string} periodId @param {string} edition @param {{signal?: AbortSignal}} [options] */
-  async previewReading(periodId, edition, { signal } = {}) {
+  /** @param {string} periodId @param {string} edition @param {{signal?: AbortSignal, includeReviews?: boolean, reportId?: string}} [options] */
+  async previewReading(periodId, edition, { signal, includeReviews = false, reportId } = {}) {
     const payload = objectPayload(await request(`/study-plan/v2/exams/${encodeURIComponent(periodId)}/reading-preview`, {
-      method: "POST", body: { edition }, signal
+      method: "POST", body: { edition, ...(includeReviews ? { include_reviews: true } : {}), ...(reportId ? { report_id: reportId } : {}) }, signal
     }), "The reading preview was incomplete.");
-    if (payload.kind !== "reading_only_preview" || payload.persisted !== false
+    if (!["reading_only_preview", "reading_and_review_preview"].includes(payload.kind) || payload.persisted !== false
+      || (payload.kind === "reading_and_review_preview" && (!nonnegativeInteger(payload.required_review_minutes) || !nonnegativeInteger(payload.scheduled_review_minutes) || payload.scheduled_review_minutes > payload.required_review_minutes))
+      || (payload.apply_token !== undefined && (typeof payload.apply_token !== "string" || !/^[a-f0-9]{64}$/.test(payload.apply_token)))
       || !Array.isArray(payload.assignments) || !Array.isArray(payload.unscheduled)
       || !Array.isArray(payload.issues) || !Array.isArray(payload.days)
       || !nonnegativeInteger(payload.required_reading_minutes) || !nonnegativeInteger(payload.scheduled_reading_minutes)
@@ -43,6 +44,12 @@ export const studyPlanApi = {
       || payload.days.some(day => !day || !dateValue(day.date) || !["available_minutes", "existing_minutes", "allocated_minutes", "remaining_minutes", "existing_overflow_minutes"].every(key => nonnegativeInteger(day[key])))) {
       throw new ApiError(500, payload, "The reading preview was incomplete.", "invalid_response");
     }
+    return payload;
+  },
+
+  async applyPreview(periodId, body) {
+    const payload = objectPayload(await request(`/study-plan/v2/exams/${encodeURIComponent(periodId)}/apply`, { method: "POST", body, retryable: true, allowOfflineQueue: false }), "The plan could not be saved.");
+    if (payload.persisted !== true || typeof payload.run_id !== "string" || !nonnegativeInteger(payload.unscheduled_count) || !nonnegativeInteger(payload.issues_count) || !nonnegativeInteger(payload.created_count) || payload.created_count > 3000 || !Array.isArray(payload.item_ids) || payload.item_ids.length !== payload.created_count || payload.item_ids.some(id => typeof id !== "string") || !dateValue(payload.first_date)) throw new ApiError(500, payload, "The plan receipt was incomplete.", "invalid_response");
     return payload;
   },
 

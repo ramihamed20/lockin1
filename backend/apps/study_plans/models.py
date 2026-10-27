@@ -49,6 +49,28 @@ class StudyPlanProfile(models.Model):
         return f"{self.user_id}:{self.mode}"
 
 
+class PlannerRun(models.Model):
+    """Immutable apply receipt; a retry returns the original committed result."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    period = models.ForeignKey(ExamPeriod, on_delete=models.PROTECT)
+    client_request_id = models.UUIDField()
+    request_digest = models.CharField(max_length=64)
+    result = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("user", "client_request_id"), name="planner_apply_request_unique"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.period_id}:{self.pk}"
+
+
 class StudyPlanItem(models.Model):
     class Activity(models.TextChoices):
         MANUAL = "manual", "Manual session"
@@ -65,6 +87,17 @@ class StudyPlanItem(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="study_plan_items",
+    )
+    planner_run = models.ForeignKey(PlannerRun, on_delete=models.RESTRICT, null=True, blank=True)
+    planning_key = models.CharField(max_length=220, null=True, blank=True)
+    catalog_document = models.ForeignKey(
+        "content.CatalogDocument", on_delete=models.PROTECT, null=True, blank=True
+    )
+    source_file = models.ForeignKey(
+        "files.ManagedFile", on_delete=models.PROTECT, null=True, blank=True
+    )
+    review_item = models.ForeignKey(
+        "review.ReviewItem", on_delete=models.RESTRICT, null=True, blank=True
     )
     title = models.CharField(max_length=180)
     subject = models.CharField(max_length=120, blank=True)
@@ -95,6 +128,7 @@ class StudyPlanItem(models.Model):
     duration_minutes = models.PositiveSmallIntegerField(default=25)
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.PLANNED)
     completed_at = models.DateTimeField(null=True, blank=True)
+    status_changed_at = models.DateTimeField(null=True, blank=True)
     generated_slot = models.PositiveSmallIntegerField(null=True, blank=True)
     plan_mode = models.CharField(max_length=12, default="custom")
     revision = models.PositiveIntegerField(default=1)
@@ -105,6 +139,15 @@ class StudyPlanItem(models.Model):
     class Meta:
         ordering = ("scheduled_date", "created_at", "id")
         constraints = [
+            models.UniqueConstraint(
+                fields=("user", "planning_key"),
+                condition=Q(planning_key__isnull=False),
+                name="study_planning_key_unique",
+            ),
+            models.CheckConstraint(
+                condition=Q(planning_key__isnull=True) | Q(planner_run__isnull=False),
+                name="study_planning_run_required",
+            ),
             models.CheckConstraint(
                 condition=(
                     Q(activity="manual")
