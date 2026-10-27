@@ -1,13 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
-async function mockStudent(page) {
+async function mockStudent(page, locale = "en") {
   await page.addInitScript(() => localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now())));
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     if (await fulfillAccessContract(route, pathname)) return;
     if (pathname === "/api/v1/auth/session") {
-      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ user: { id: "coming-soon", email: "coming-soon@example.test", full_name: "Coming Soon Student", preferred_language: "en", status: "active", is_email_verified: true, roles: ["student"], date_joined: "2026-01-01T00:00:00Z" } }) });
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ user: { id: "coming-soon", email: "coming-soon@example.test", full_name: "Coming Soon Student", preferred_language: locale, status: "active", is_email_verified: true, roles: ["student"], date_joined: "2026-01-01T00:00:00Z" } }) });
       return;
     }
     if (pathname === "/api/v1/operations/session") {
@@ -89,11 +89,12 @@ test("direct feature routes, including nested Community links, are all guarded",
 
 for (const locale of ["ar", "en"]) {
   test(`Study Plan is coming soon without loading planner data (${locale})`, async ({ page }) => {
-    await mockStudent(page);
+    await mockStudent(page, locale);
     await page.addInitScript(locale => localStorage.setItem("lock-in.locale", locale), locale);
     const plannerRequests = [];
     page.on("request", request => {
-      if (new URL(request.url()).pathname.startsWith("/api/v1/study-plan")) plannerRequests.push(request.url());
+      const path = new URL(request.url()).pathname;
+      if (path.startsWith("/api/v1/study-plan") && path !== "/api/v1/study-plan/v2/exams") plannerRequests.push(request.url());
     });
     await page.goto("/#/study-plan");
     const surface = page.locator('.feature-coming-soon[data-feature-id="study-plan"]');

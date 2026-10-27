@@ -37,6 +37,7 @@ import { WeeklyReadyToast } from "./components/biweekly/WeeklyReadyToast.jsx";
 import { WhatsNew } from "./components/WhatsNew.jsx";
 
 // --- Lazy-loaded pages ---
+const StudyPlanEntry = lazyWithRecovery(() => import("./studyPlan/StudyPlanEntry.jsx"));
 const StudyPlan = lazyWithRecovery(() => import("./pages/StudyPlan.jsx"));
 const ReviewSource = lazyWithRecovery(() => import("./pages/ReviewSource.jsx"));
 const Dashboard = lazyWithRecovery(() => import("./pages/Dashboard.jsx"));
@@ -734,7 +735,7 @@ function App() {
                 <Route path="/dashboard" element={<Dashboard user={user} themeSettings={themeSettings} activeTheme={activeTheme} />} />
                 <Route path="/my-group" element={<MyGroup />} />
                 {isFeatureComingSoon("study-plan")
-                  ? <Route path="/study-plan/*" element={<FeatureComingSoon featureId="study-plan" />} />
+                  ? <Route path="/study-plan/*" element={<StudyPlanEntry key={`${user.id}-${user.cohort?.id || ""}`} user={user} />} />
                   : <Route path="/study-plan" element={<StudyPlan user={user} />} />}
                 <Route path="/materials" element={<Materials user={user} />} />
                 <Route path="/materials/summaries" element={<MySummariesPage />} />

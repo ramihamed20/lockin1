@@ -278,6 +278,9 @@ FILE_SCAN_BATCH_SIZE = env_int("FILE_SCAN_BATCH_SIZE", 8)
 # and the API stays closed unless a deployment says otherwise. Off by default so
 # a new environment cannot expose it by omission; development and tests opt in.
 COMMUNITY_ENABLED = env_bool("COMMUNITY_ENABLED", False)
+# Study Plan 2.0 is opt-in. A nonempty allowlist restricts an enabled pilot.
+STUDY_PLAN_V2_ENABLED = env_bool("STUDY_PLAN_V2_ENABLED", False)
+STUDY_PLAN_V2_USER_IDS = env_list("STUDY_PLAN_V2_USER_IDS")
 COMMUNITY_DISCUSSION_RATE_WINDOW_SECONDS = env_int("COMMUNITY_DISCUSSION_RATE_WINDOW_SECONDS", 300)
 COMMUNITY_DISCUSSION_RATE_LIMIT = env_int("COMMUNITY_DISCUSSION_RATE_LIMIT", 5)
 COMMUNITY_COMMENT_RATE_WINDOW_SECONDS = env_int("COMMUNITY_COMMENT_RATE_WINDOW_SECONDS", 300)
