@@ -242,7 +242,7 @@ def test_concurrent_identical_applies_create_one_run(monkeypatch):
     cohort = StudentCohort.objects.create(
         program=program, code="lock", name_en="Lock", name_ar="اختبار"
     )
-    user = create_user(email=f"planner-{uuid4()}@example.com", cohort=cohort, with_trial=True)
+    user = create_user(email=f"planner-{uuid4()}@example.com", cohort=cohort, with_trial=False)
     period = ExamPeriod.objects.create(
         institution=institution,
         cohort=cohort,
