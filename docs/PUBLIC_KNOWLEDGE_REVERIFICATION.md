@@ -131,3 +131,9 @@ catalog authorization, admin imports, source identity, stale revisions, CSRF and
 isolation. Type checking and lint are included. Only the two reviewed changed evidence
 digests are refreshed; the gate and unrelated evidence remain intact. See
 SHEET_TRANSLATION_AR.md for operational and verification limits.
+
+## Study Plan server-authorized trial — 25 October 2026
+
+Reviewed the App route change and the five affected public product/identity/audience/private-content entries. Public product, academic placement and private/public boundaries remain unchanged: the existing authenticated/subscription ProtectedRoute still encloses Study Plan, and only its coming-soon branch delegates to a server-authorized trial entry. The trial requires an explicit versioned capability response from the existing account-protected V2 exams endpoint. A generic successful response, denied pilot, missing capability or malformed envelope cannot unlock it. No browser storage or query-string toggle enables the trial.
+
+The ordinary student sees coming soon; the private inventory is corrected to that state and stays non-publicDocumentable. Trial users see a reading-only preview with an initial estimate, incomplete-content warnings, unplaced work and explicit non-persistence. It does not advertise automatic completion, a mastery percentage, a full adaptive plan, or exam-grade outcomes. Reviewed App's changed digest only; public copy requires no factual change. Targeted route/registry/translation/API checks pass. Full public evidence tests and production build remain required; the verifier is not disabled.

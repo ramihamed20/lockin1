@@ -292,9 +292,9 @@
     {
       "id": "study-plan",
       "name": "خطة الدراسة",
-      "status": "conditional",
+      "status": "coming-soon",
       "entry": "/#/study-plan",
-      "requirements": "خطة أسبوعية محفوظة على الحساب وتتطلب اتصالًا وصلاحية المحتوى المدفوع. تدعم Beginning وNormal وCustom؛ إكمال الجلسات يدوي ولا يمنح XP.",
+      "requirements": "قادم قريبًا للعامة. النسخة التجريبية محددة خادميًا لحسابات مخولة؛ معاينة القراءة لا تحفظ مهام ولا تمثل خطة تعلم ومراجعة مكتملة.",
       "evidence": [
         "frontend/src/lib/featureAvailability.js"
       ],
@@ -1849,7 +1849,7 @@
     "backend/apps/review/tests/test_review.py": "1c80e2817783ede2a7d3270b120f88e89c97cf8e19a40112e6e27faac0bd95cc",
     "frontend/src/pages/Progress.jsx": "d23519fc92f7c997ddea421ff83382de3a2404bc065bd2e66a1b851d4e7a8186",
     "frontend/src/api/motivation.js": "8cb7c63d249eab5074d6f996f4e714980020a47f75044920fcc7098d0919ff40",
-    "frontend/src/pages/Biweekly.jsx": "a3fa9547869885abdf21f28b8b06eb6604238c867591e1375bf8770ca80c8ec2",
+    "frontend/src/pages/Biweekly.jsx": "46332a9a898747d0beb5a467569ee89df39dad0e961d3a699d60463d36ec6eb9",
     "backend/apps/biweekly/services.py": "2444650f428896e2cacd0a6f94d95a8656676bcd997d07595acd0d38fa693c32",
     "backend/apps/biweekly/tests/test_biweekly.py": "7c72e6de21d58ff812244a013cceebd4b595bab0d71ca579f9e921225d48cabf",
     "frontend/src/components/auth/AuthPage.jsx": "e0b46e79a5d48d62bc6312545b2be86d51f8ddb3d4d842123924ae49ae7690cc",
