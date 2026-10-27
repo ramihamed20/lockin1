@@ -47,7 +47,7 @@ const CatalogSheetStudy = lazyWithRecovery(() => loadMaterialsPage().then((m) =>
 const PersonalSheetsPage = lazyWithRecovery(() => loadMaterialsPage().then((m) => ({ default: m.PersonalSheetsPage })));
 const CatalogFocusWorkspace = lazyWithRecovery(() => import("./pages/CatalogFocusWorkspace.jsx"));
 const WorkspaceKeepAlive = lazyWithRecovery(() => import("./workspace/catalog/WorkspaceKeepAlive.jsx").then((module) => ({ default: module.WorkspaceKeepAlive })));
-const LockInMode = lazyWithRecovery(() => import("./pages/LockInMode.jsx"));
+const LockInMode = lazyWithRecovery(() => import("./pages/LockInEntry.jsx"));
 const PaperWorkspace = lazyWithRecovery(() => import("./pages/PaperWorkspace.jsx"));
 const MySummariesPage = lazyWithRecovery(() => import("./pages/MySummaries.jsx"));
 const MyGroup = lazyWithRecovery(() => import("./pages/MyGroup.jsx"));
