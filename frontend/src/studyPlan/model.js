@@ -99,3 +99,17 @@ export function rebaseTaskDraft(draft, previous, latest) {
   }
   return next;
 }
+
+/** Planned minutes, including completed sessions, consume the day's budget.
+ * Custom/Beginning do not currently collect a daily availability budget.
+ * This is a display projection; it never moves work or measures actual time.
+ */
+export function dayWorkload(profile, items, stamp) {
+  if (!profile?.configured || profile.mode !== "normal") return null;
+  const weekday = (fromStamp(stamp).getDay() + 6) % 7;
+  const available = profile.weekdays.includes(weekday) ? profile.daily_minutes : 0;
+  const planned = items.filter(item => item.scheduled_date === stamp)
+    .reduce((minutes, item) => minutes + item.duration_minutes, 0);
+  return { available, planned, remaining: Math.max(0, available - planned),
+    overflow: Math.max(0, planned - available) };
+}

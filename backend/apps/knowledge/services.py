@@ -224,6 +224,8 @@ def attempt_payload(item: ExplainAttempt) -> dict[str, Any]:
         "feedback": item.feedback,
         "evaluation_status": item.evaluation_status,
         "self_rating": item.self_rating,
+        "confidence": item.confidence,
+        "error_reason": item.error_reason,
         "created_at": item.created_at.isoformat(),
     }
 
@@ -248,6 +250,8 @@ def save_attempt(
             or (
                 existing.question_revision != data["question_revision"]
                 or existing.self_rating != data["self_rating"]
+                or existing.confidence != data.get("confidence", "")
+                or existing.error_reason != data.get("error_reason", "")
             )
         ):
             raise KnowledgeConflict("An attempt identifier cannot be reused for another answer.")
@@ -282,6 +286,8 @@ def save_attempt(
         answer=data["answer"],
         question_revision=question.revision,
         self_rating=data["self_rating"],
+        confidence=data.get("confidence", ""),
+        error_reason=data.get("error_reason", ""),
         feedback={
             "prompt": question.prompt,
             "source_id": str(question.source_id),

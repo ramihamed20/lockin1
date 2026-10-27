@@ -144,3 +144,42 @@ test("study plan requests use the authenticated Django API", async () => {
     { url: "/api/v1/study-plan/items/task", method: "DELETE", body: undefined }
   ]);
 });
+
+test("planner trial access requires explicit server capability and uses CSRF for previews", async () => {
+  setup();
+  const calls = [];
+  globalThis.fetch = async (url, options = {}) => {
+    calls.push({ url, method: options.method, body: options.body ? JSON.parse(options.body) : undefined, csrf: new Headers(options.headers).get("X-CSRFToken") });
+    return response({ results: [] });
+  };
+  await assert.rejects(studyPlanApi.getExams(), error => error.code === "invalid_response");
+  globalThis.fetch = async (url, options = {}) => {
+    calls.push({ url, method: options.method, body: options.body ? JSON.parse(options.body) : undefined, csrf: new Headers(options.headers).get("X-CSRFToken") });
+    if (String(url).endsWith("/v2/exams")) return response({ enabled: true, schema_version: 1, results: [] });
+    return response({ kind: "reading_only_preview", persisted: false, assignments: [], unscheduled: [], issues: [], days: [], required_reading_minutes: 0, scheduled_reading_minutes: 0, profile_revision: 1, estimate: { minutes_per_page: 5 } });
+  };
+  assert.deepEqual(await studyPlanApi.getExams(), []);
+  await studyPlanApi.previewReading("exam-id", "lockin");
+  assert.equal(calls.at(-1).url, "/api/v1/study-plan/v2/exams/exam-id/reading-preview");
+  assert.equal(calls.at(-1).method, "POST");
+  assert.deepEqual(calls.at(-1).body, { edition: "lockin" });
+  assert.equal(calls.at(-1).csrf, "csrf-value");
+});
+
+
+test("apply sends the same intent through the CSRF API and validates its receipt", async () => {
+  setup();
+  const calls = [];
+  globalThis.fetch = async (url, options = {}) => {
+    calls.push({ url, body: JSON.parse(options.body), csrf: new Headers(options.headers).get("X-CSRFToken") });
+    return response({ persisted: true, run_id: "run", created_count: 1, item_ids: ["item"], first_date: "2026-10-27", unscheduled_count: 0, issues_count: 0 });
+  };
+  const body = { preview_token: "a".repeat(64), client_request_id: "intent", edition: "university" };
+  await studyPlanApi.applyPreview("exam", body);
+  await studyPlanApi.applyPreview("exam", body);
+  assert.equal(calls[0].url, "/api/v1/study-plan/v2/exams/exam/apply");
+  assert.deepEqual(calls[0].body, calls[1].body);
+  assert.equal(calls[0].csrf, "csrf-value");
+  globalThis.fetch = async () => response({ persisted: true });
+  await assert.rejects(studyPlanApi.applyPreview("exam", body), error => error.code === "invalid_response");
+});

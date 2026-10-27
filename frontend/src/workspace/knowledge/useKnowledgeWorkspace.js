@@ -150,9 +150,9 @@ export function useKnowledgeWorkspace(userId, documentId) {
     edit(record);
     return record;
   }, [edit, state.bootstrap]);
-  const submit = useCallback(async (question, answer, rating = "") => {
+  const submit = useCallback(async (question, answer, rating = "", reflection = {}) => {
     const id = globalThis.crypto.randomUUID();
-    const body = { question_id: question.id, question_revision: question.revision, answer, self_rating: rating };
+    const body = { question_id: question.id, question_revision: question.revision, answer, self_rating: rating, confidence: reflection.confidence || "", error_reason: reflection.error_reason || "" };
     await store.queueAttempt(id, body);
     setState((old) => ({ ...old, attempts: [...old.attempts, { id, ...body, evaluation_status: "pending" }], status: "local" }));
     await sync();

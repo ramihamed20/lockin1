@@ -40,9 +40,10 @@ def validate_content(value: Any, kind: str) -> dict[str, Any]:
     if size > MAX_BYTES:
         raise serializers.ValidationError("Document exceeds the 1 MB limit.")
     allowed = (
-        {"text", "paper", "strokes", "suggestions", "concept_ids"}
+        {"text", "paper", "strokes", "suggestions", "concept_ids", "recall"}
         if kind == "summary"
         else {
+            "recall",
             "nodes",
             "edges",
             "viewport",
@@ -51,6 +52,14 @@ def validate_content(value: Any, kind: str) -> dict[str, Any]:
     )
     if set(value) - allowed:
         raise serializers.ValidationError("Unsupported document fields.")
+    recall = value.get("recall")
+    if recall is not None:
+        if not isinstance(recall, dict) or set(recall) - {"answer", "reflection", "revealed"}:
+            raise serializers.ValidationError("Invalid recall practice.")
+        text(recall.get("answer", ""), 10000)
+        text(recall.get("reflection", ""), 10000)
+        if type(recall.get("revealed", False)) is not bool:
+            raise serializers.ValidationError("Invalid recall stage.")
     concepts = value.get("concept_ids", [])
     if not isinstance(concepts, list) or len(concepts) > 100:
         raise serializers.ValidationError("Invalid concept links.")
@@ -185,4 +194,9 @@ class AttemptWriteSerializer(StrictSerializer):
     self_rating = serializers.ChoiceField(
         choices=["", "needs_review", "partial", "understood"],
         default="",
+    )
+
+    confidence = serializers.ChoiceField(choices=["", "low", "medium", "high"], default="")
+    error_reason = serializers.ChoiceField(
+        choices=["", "forgot", "confused", "misunderstood"], default=""
     )

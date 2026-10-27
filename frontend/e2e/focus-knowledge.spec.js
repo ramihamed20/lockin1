@@ -9,7 +9,7 @@ const CONCEPT = "66000000-0000-4000-8000-000000000004";
 const QUESTION = "66000000-0000-4000-8000-000000000005";
 const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 
-async function prepare(page, arabic = false) {
+async function prepare(page, arabic = false, extraConcepts = []) {
   await withoutServiceWorker(page);
   await page.addInitScript((locale) => localStorage.setItem("lock-in.locale", locale), arabic ? "ar" : "en");
   const artifacts = new Map(), attempts = new Map();
@@ -44,7 +44,7 @@ async function prepare(page, arabic = false) {
       source: { document_id: DOCUMENT, source_version_id: VERSION, source_file_id: FILE, edition: "university" },
       artifacts: [...artifacts.values()].map((record) => ({ ...record, content: null })), attempts: [...attempts.values()],
       questions: [{ id: QUESTION, revision: 1, concept_id: CONCEPT, difficulty: "easy", page_start: 1, page_end: 1, prompt: "Explain nutrient diffusion." }],
-      concepts: [{ id: CONCEPT, title: "Nutrient diffusion", page_start: 1, page_end: 1, status: "not_practiced", verified_events: 0 }],
+      concepts: [{ id: CONCEPT, title: "Nutrient diffusion", page_start: 1, page_end: 1, status: "not_practiced", verified_events: 0 }, ...extraConcepts],
     });
     if (path.includes("/workspace") && method === "GET") return send({ revision: 0, state: null });
     if (path.includes("/workspace") && method === "PATCH") return send({ revision: 1, state: route.request().postDataJSON().state });
@@ -219,4 +219,46 @@ test("failed Explain draft remains unsaved and its text is included in recovery 
   const { readFile } = await import("node:fs/promises");
   const backup = JSON.parse(await readFile(await download.path(), "utf8"));
   expect(Object.values(backup.workspace_state.ui.explanationDrafts)).toContain("answer quota draft");
+});
+
+
+test("writing recall keeps the original and survives reopening", async ({ page }) => {
+  const { artifacts } = await prepare(page);
+  const panel = await open(page);
+  await panel.getByRole("button", { name: "Start my summary", exact: true }).click();
+  await panel.getByLabel("In your own words").fill("Original nutrient explanation.");
+  await panel.getByRole("button", { name: "Recall in writing", exact: true }).click();
+  await expect(panel.getByText("Original nutrient explanation.", { exact: true })).toHaveCount(0);
+  await panel.getByLabel("What do you remember?").fill("Nutrients diffuse.");
+  await panel.getByRole("button", { name: "Reveal my original", exact: true }).click();
+  await expect(panel.getByText("Original nutrient explanation.", { exact: true })).toBeVisible();
+  await panel.getByLabel("What did you miss or mix up?").fill("I forgot the source.");
+  await panel.getByRole("button", { name: "Back to my work", exact: true }).click();
+  await expect(panel.getByLabel("In your own words")).toHaveValue("Original nutrient explanation.");
+  await expect.poll(() => [...artifacts.values()].some(item => item.content?.recall?.reflection === "I forgot the source.")).toBe(true);
+  const resumed = await open(page, true);
+  await resumed.getByRole("button", { name: "Recall in writing", exact: true }).click();
+  await expect(resumed.getByLabel("What do you remember?")).toHaveValue("Nutrients diffuse.");
+});
+
+test("concept comparison and corrected explanation stay linked to the student's notebook", async ({ page }) => {
+  const second = { id: "66000000-0000-4000-8000-000000000006", title: "Blood supply", page_start: 1, page_end: 1, status: "needs_review" };
+  const { artifacts, attempts } = await prepare(page, false, [second]);
+  const panel = await open(page);
+  await panel.getByRole("button", { name: "My Knowledge", exact: true }).click();
+  await panel.getByText("Compare two concepts", { exact: true }).click();
+  await panel.getByRole("combobox", { name: "First concept", exact: true }).selectOption(CONCEPT);
+  await panel.getByRole("combobox", { name: "Second concept", exact: true }).selectOption(second.id);
+  await panel.getByRole("button", { name: "Create comparison notebook" }).click();
+  await expect(panel.getByLabel("In your own words")).toHaveValue(/Nutrient diffusion ↔ Blood supply/);
+  await expect.poll(() => [...artifacts.values()].some(item => item.content?.concept_ids?.length === 2)).toBe(true);
+  await panel.getByRole("button", { name: "Explain", exact: true }).click();
+  await panel.getByLabel("Your explanation", { exact: true }).fill("My explanation.");
+  await panel.getByRole("combobox", { name: "Confidence before checking (optional)", exact: true }).selectOption("high");
+  await panel.getByRole("button", { name: "Save answer and review criteria", exact: true }).click();
+  await expect.poll(() => [...attempts.values()].some(item => item.confidence === "high")).toBe(true);
+  await panel.getByLabel("After comparing: explain it in your own words").fill("My corrected understanding.");
+  await panel.getByRole("button", { name: "Add my explanation to my summary", exact: true }).click();
+  await page.getByRole("alertdialog", { name: "Add my explanation to my summary" }).getByRole("button", { name: "Add my explanation to my summary", exact: true }).click();
+  await expect(panel.getByLabel("In your own words")).toHaveValue(/My corrected understanding/);
 });

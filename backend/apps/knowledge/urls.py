@@ -7,10 +7,16 @@ from .views import (
     LibraryView,
     McqExplainLinksView,
     McqRunExplainLinksView,
+    ReviewRecoveryView,
 )
 
 app_name = "knowledge"
 urlpatterns = [
+    path(
+        "knowledge/review-items/<uuid:item_id>/recovery",
+        ReviewRecoveryView.as_view(),
+        name="review-recovery",
+    ),
     path("knowledge/library", LibraryView.as_view(), name="library"),
     path(
         "knowledge/documents/<uuid:document_id>/mcq-runs/<uuid:run_id>/explain-links",

@@ -1,5 +1,11 @@
 from django.urls import path
 
+from .v2_views import (
+    StudentExamListView,
+    StudentLearningSnapshotView,
+    StudentPlanApplyView,
+    StudentReadingPlanPreviewView,
+)
 from .views import (
     StudyPlanGenerateView,
     StudyPlanItemCollectionView,
@@ -12,6 +18,22 @@ from .views import (
 app_name = "study_plans"
 
 urlpatterns = [
+    path(
+        "study-plan/v2/exams/<uuid:period_id>/apply",
+        StudentPlanApplyView.as_view(),
+        name="v2-apply",
+    ),
+    path(
+        "study-plan/v2/exams/<uuid:period_id>/reading-preview",
+        StudentReadingPlanPreviewView.as_view(),
+        name="v2-reading-preview",
+    ),
+    path("study-plan/v2/exams", StudentExamListView.as_view(), name="v2-exams"),
+    path(
+        "study-plan/v2/exams/<uuid:period_id>/snapshot",
+        StudentLearningSnapshotView.as_view(),
+        name="v2-snapshot",
+    ),
     path("study-plan", StudyPlanView.as_view(), name="plan"),
     path("study-plan/profile", StudyPlanProfileView.as_view(), name="profile"),
     path("study-plan/preview", StudyPlanPreviewView.as_view(), name="preview"),

@@ -1,5 +1,7 @@
+import { connectedMessages } from "./connectedMessages.js";
 export const knowledgeMessages = {
   "en": {
+    ...connectedMessages.en,
     "knowledge.tools": "Study tools",
     "knowledge.mcq_unprepared": "No reviewed concept link with a prepared Explain question is available for these mistakes yet.",
     "knowledge.mcq_stale": "These mistakes belong to an earlier question bank. Read their saved feedback; links to the current edition are unavailable.",
@@ -172,6 +174,7 @@ export const knowledgeMessages = {
     "knowledge.reviewBank": "Open Review Bank"
   },
   "ar": {
+    ...connectedMessages.ar,
     "knowledge.tools": "أدوات الدراسة",
     "knowledge.mcq_unprepared": "لا يتوفر بعد ربط مفهوم مُراجع مع سؤال اشرح مُحضّر لهذه الأخطاء.",
     "knowledge.mcq_stale": "هذه الأخطاء تخص بنك أسئلة سابق. راجع الشرح المحفوظ؛ الربط بالإصدار الحالي غير متاح.",

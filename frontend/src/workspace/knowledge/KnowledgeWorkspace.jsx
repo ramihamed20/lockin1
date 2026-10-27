@@ -6,6 +6,7 @@ import { useKnowledgeWorkspace } from "./useKnowledgeWorkspace.js";
 import { addMapNode, availableStudyTools } from "./model.js";
 import { downloadKnowledge, printNotebook } from "./export.js";
 import "./knowledge.css";
+import { RecallPractice, ConceptComparison, LearningFlow } from "./ConnectedPractice.jsx";
 
 const SummaryEditor = lazy(() => import("./SummaryEditor.jsx"));
 const MapEditor = lazy(() => import("./MapEditor.jsx"));
@@ -37,12 +38,13 @@ export default function KnowledgeWorkspace({ userId, documentId, title, page, pa
     if (!question || !flags.explain || question.page_end > pageLimit) { setMessage("knowledge.mcq_unprepared"); return; }
     workspace.editUI({ tool: "explain", explainState: { ...(workspace.ui?.explainState || {}), selected: question.id, difficulty: question.difficulty, conceptIds: question.concept_ids || [question.concept_id] } });
   }, [navigation, workspace, flags.summary, flags.map, flags.explain, pageLimit]);
-  /** @typedef {{text: string, conceptIds?: string[], source?: {source_version_id?: string, source_file_id?: string, page_start?: number}}} FeedbackInsert */
+  /** @typedef {{text: string, conceptIds?: string[], source?: {source_version_id?: string, source_file_id?: string, page_start?: number, page_end?: number}, ownWords?: boolean}} FeedbackInsert */
   const [insert, setInsert] = useState(/** @type {FeedbackInsert | null} */ (null));
   const [mapFocus, setMapFocus] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [discarding, setDiscarding] = useState(false);
   const [message, setMessage] = useState("");
+  const [recallId, setRecallId] = useState("");
   const [exporting, setExporting] = useState(false);
   const [mobile, setMobile] = useState(() => window.matchMedia("(max-width: 999px)").matches);
   const panel = useRef(null);
@@ -147,6 +149,11 @@ export default function KnowledgeWorkspace({ userId, documentId, title, page, pa
       edit(next); setActiveIds((old) => ({ ...old, map: target.id })); setTool("map");
     } catch { setMessage("knowledge.load_error"); }
   }
+  function compare(draft) {
+    if (!flags.summary || !draft || workspace.status === "unsaved") return;
+    const target = create("summary", draft.page_start);
+    if (target) { edit({ ...target, title: draft.title, page_end: draft.page_end, content: { ...target.content, text: draft.text, concept_ids: draft.concept_ids } }); setTool("summary"); }
+  }
   async function saveFeedback() {
     if (!insert) return;
     if ((insert.source?.source_version_id && insert.source.source_version_id !== source.source_version_id)
@@ -160,9 +167,11 @@ export default function KnowledgeWorkspace({ userId, documentId, title, page, pa
       if (target && workspace.latestRecord(target.id)?.content) target = workspace.latestRecord(target.id);
       if (!target) target = create("summary", insert.source?.page_start || page);
       const linked = (insert.conceptIds || []).filter((id) => concepts.some((concept) => concept.id === id));
-      if (target) edit({ ...target, content: { ...target.content,
+      if (target) edit({ ...target,
+        page_start: Math.min(target.page_start, insert.source?.page_start || target.page_start),
+        page_end: Math.max(target.page_end, Math.min(pageLimit, insert.source?.page_end || target.page_end)), content: { ...target.content,
         concept_ids: [...new Set([...(target.content.concept_ids || []), ...linked])],
-        suggestions: [...(target.content.suggestions || []), insert.text].slice(-100),
+        ...(insert.ownWords ? { text: [target.content.text, insert.text].filter(Boolean).join("\n\n") } : { suggestions: [...(target.content.suggestions || []), insert.text].slice(-100) }),
       } });
       setInsert(null); setTool("summary");
     } catch { setMessage("knowledge.load_error"); setInsert(null); }
@@ -193,6 +202,7 @@ export default function KnowledgeWorkspace({ userId, documentId, title, page, pa
       {workspace.error && <p role="alert">{t(`knowledge.${workspace.error}`)} {workspace.error === "load_error" && <button type="button" onClick={workspace.refresh}>{t("common.tryAgain")}</button>}</p>}
       {workspace.status === "unsaved" && <div className="knowledge-toolbar"><button type="button" onClick={() => downloadKnowledge(workspace.records.filter((item) => item.content), { source, ui: workspace.ui, attempts: workspace.attempts })}>{t("knowledge.exportUnsaved")}</button><button type="button" onClick={() => setDiscarding(true)}>{t("knowledge.discardUnsaved")}</button></div>}
       {message && <p role="status">{t(message)}</p>}
+      <LearningFlow page={page} pageLimit={pageLimit} questions={workspace.bootstrap.questions || []} flags={flags} t={t} onRead={read} onWrite={() => setTool("summary")} onExplain={question => workspace.editUI({ tool: "explain", explainState: { selected: question.id, difficulty: question.difficulty, conceptIds: question.concept_ids || [question.concept_id] } })} />
       {(tool === "summary" || tool === "map") && <>
         {current.length === 0 ? <div className="knowledge-start">
           <p className="knowledge-empty">{t(tool === "map" ? "knowledge.emptyNotebook" : "knowledge.emptySummary")}</p>
@@ -209,8 +219,9 @@ export default function KnowledgeWorkspace({ userId, documentId, title, page, pa
             <button type="button" className="knowledge-source-link" disabled={stale} onClick={() => read(record.page_start)}>{t("knowledge.readSourcePage", { page: record.page_start })}</button>
           </div>
           <Suspense fallback={<p role="status">{t("common.loading")}</p>}>
-            {tool === "summary" ? <SummaryEditor key={record.id} record={record} t={t} locale={locale} page={page} onChange={edit} onMap={toMap} /> : <MapEditor key={record.id} record={record} t={t} onChange={edit} focusNode={mapFocus?.documentId === record.id ? mapFocus : null} onFocused={() => setMapFocus(null)} selection={workspace.ui?.mapSelections?.[record.id] || []} onSelection={(ids) => workspace.editUI({ mapSelections: { ...(workspace.ui?.mapSelections || {}), [record.id]: ids } })} concepts={stale ? [] : concepts} questions={stale ? [] : (workspace.bootstrap.questions || []).filter((question) => question.page_end <= pageLimit)} onRead={stale ? () => setMessage("knowledge.staleSource") : read} onExplain={(id) => { setConceptId(id); setTool("explain"); }} />}
+            {recallId === record.id ? <RecallPractice key={record.id} record={record} t={t} onChange={edit} onClose={() => setRecallId("")} /> : tool === "summary" ? <SummaryEditor key={record.id} record={record} t={t} locale={locale} page={page} onChange={edit} onMap={toMap} /> : <MapEditor key={record.id} record={record} t={t} onChange={edit} focusNode={mapFocus?.documentId === record.id ? mapFocus : null} onFocused={() => setMapFocus(null)} selection={workspace.ui?.mapSelections?.[record.id] || []} onSelection={(ids) => workspace.editUI({ mapSelections: { ...(workspace.ui?.mapSelections || {}), [record.id]: ids } })} concepts={stale ? [] : concepts} questions={stale ? [] : (workspace.bootstrap.questions || []).filter((question) => question.page_end <= pageLimit)} onRead={stale ? () => setMessage("knowledge.staleSource") : read} onExplain={(id) => { setConceptId(id); setTool("explain"); }} />}
           </Suspense>
+          {!stale && record.content && recallId !== record.id && <button type="button" onClick={() => setRecallId(record.id)}>{t("connected.recall")}</button>}
           {concepts.length > 0 && !stale && <details><summary>{t("knowledge.linkConcept")}</summary>{concepts.map((concept) => <label className="knowledge-concept-check" key={concept.id}><input type="checkbox" checked={(record.content.concept_ids || []).includes(concept.id)} onChange={(event) => edit({ ...record, content: { ...record.content, concept_ids: event.target.checked ? [...(record.content.concept_ids || []), concept.id] : record.content.concept_ids.filter((id) => id !== concept.id) } })} />{concept.title}</label>)}</details>}
           <details className="knowledge-document-options"><summary>{t("knowledge.documentOptions")}</summary>
           <div className="knowledge-toolbar">
@@ -222,8 +233,9 @@ export default function KnowledgeWorkspace({ userId, documentId, title, page, pa
         </> : null}
       </>}
       {tool === "explain" && <Suspense fallback={<p role="status">{t("common.loading")}</p>}><ExplainEditor uiState={workspace.ui?.explainState || {}} onState={(patch) => workspace.editUI({ explainState: { ...(workspace.ui?.explainState || {}), ...patch } })} questions={(workspace.bootstrap.questions || []).filter((question) => question.page_end <= pageLimit)} attempts={workspace.attempts} drafts={explanationDrafts} onDraft={(id, text) => workspace.editUI({ explanationDrafts: { ...explanationDrafts, [id]: text } })} onSubmit={workspace.submit} onSummary={setInsert} conceptId={conceptId} page={page} locale={locale} t={t} /></Suspense>}
+      {tool === "knowledge" && flags.summary && <ConceptComparison concepts={concepts} t={t} onCreate={compare} disabled={workspace.status === "unsaved"} />}
       {tool === "knowledge" && <KnowledgeView concepts={concepts} records={workspace.records} questions={workspace.bootstrap.questions} t={t} onRead={read} onDocument={openConceptDocument} onExplain={(id) => { setConceptId(id); setTool("explain"); }} />}
-      <ConfirmDialog confirmVariant="primary" open={Boolean(insert)} title={t("knowledge.addSummary")} message={t("knowledge.insertConfirm")} confirmLabel={t("knowledge.addSummary")} onCancel={() => setInsert(null)} onConfirm={saveFeedback} />
+      <ConfirmDialog confirmVariant="primary" open={Boolean(insert)} title={t(insert?.ownWords ? "connected.saveOwnWords" : "knowledge.addSummary")} message={t(insert?.ownWords ? "connected.ownConfirm" : "knowledge.insertConfirm")} confirmLabel={t(insert?.ownWords ? "connected.saveOwnWords" : "knowledge.addSummary")} onCancel={() => setInsert(null)} onConfirm={saveFeedback} />
       <ConfirmDialog open={discarding} title={t("knowledge.discardUnsaved")} message={t("knowledge.discardConfirm")} confirmLabel={t("knowledge.discardUnsaved")} onCancel={() => setDiscarding(false)} onConfirm={async () => { await workspace.discardUnsaved(); setDiscarding(false); }} />
       <ConfirmDialog open={Boolean(deleting)} title={t("common.delete")} message={t("knowledge.deleteConfirm")} confirmLabel={t("common.delete")} onCancel={() => setDeleting(null)} onConfirm={() => { edit({ ...deleting, deleted: true }); setDeleting(null); }} />
     </>)}

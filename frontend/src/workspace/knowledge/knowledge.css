@@ -97,3 +97,13 @@
 .knowledge-panel .knowledge-danger { color:var(--danger,#e5484d); }
 .knowledge-panel .knowledge-start-button { border-color:transparent; background:linear-gradient(135deg,var(--gold),var(--gold-2)); color:var(--color-text-inverse); }
 .knowledge-start { padding:16px; border:1px solid var(--border); border-radius:16px; background:var(--surface-2); }
+
+.connected-practice { margin-block: 12px; padding: 14px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); overflow-wrap: anywhere; }
+.connected-practice header { display: flex; justify-content: space-between; align-items: start; gap: 10px; }
+.connected-practice h3 { margin-block: 4px 12px; }
+.connected-practice summary { cursor: pointer; min-block-size: 44px; align-content: center; font-weight: 600; }
+.connected-practice textarea { inline-size: 100%; box-sizing: border-box; }
+.connected-original { white-space: pre-wrap; }
+.connected-practice svg { inline-size: 100%; max-block-size: 420px; }
+.connected-choice { display: grid; gap: 6px; margin-block: 12px; }
+.connected-choice select { min-inline-size: 0; inline-size: 100%; }
