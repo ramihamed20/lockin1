@@ -137,3 +137,19 @@ SHEET_TRANSLATION_AR.md for operational and verification limits.
 Reviewed the App route change and the five affected public product/identity/audience/private-content entries. Public product, academic placement and private/public boundaries remain unchanged: the existing authenticated/subscription ProtectedRoute still encloses Study Plan, and only its coming-soon branch delegates to a server-authorized trial entry. The trial requires an explicit versioned capability response from the existing account-protected V2 exams endpoint. A generic successful response, denied pilot, missing capability or malformed envelope cannot unlock it. No browser storage or query-string toggle enables the trial.
 
 The ordinary student sees coming soon; the private inventory is corrected to that state and stays non-publicDocumentable. Trial users see a reading-only preview with an initial estimate, incomplete-content warnings, unplaced work and explicit non-persistence. It does not advertise automatic completion, a mastery percentage, a full adaptive plan, or exam-grade outcomes. Reviewed App's changed digest only; public copy requires no factual change. Targeted route/registry/translation/API checks pass. Full public evidence tests and production build remain required; the verifier is not disabled.
+
+
+## Focus tab interaction fixes — 27 October 2026
+
+Reviewed the CatalogFocusWorkspace.jsx diff against the notes and Active Study
+help entries that cite it. Its only change is to scope popover keyboard/pointer
+listeners to the visible reader and respect an already-handled Escape event.
+Reading, annotation persistence, sharing, quiz restrictions and the study-mode
+entry paths are unchanged. Existing published copy and capability dates remain
+valid. Only this reviewed source digest is refreshed; the verifier stays enabled.
+
+Validation: 23 targeted tab/scroll/reader/ink/video unit checks and targeted lint
+passed. Added browser regressions for hidden-reader picker events, modal focus,
+picker cleanup on tab switch and thumbnail column changes. Browser execution
+remains unverified because the local Playwright browser is unavailable; the
+previous attempt to download it returned an unavailable-site response.

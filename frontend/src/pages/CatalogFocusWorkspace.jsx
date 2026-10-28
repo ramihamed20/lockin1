@@ -1341,7 +1341,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     return () => window.removeEventListener("resize", closeOnWidthChange);
   }, [sideOpen]);
   useEffect(() => {
-    if (!openSurface || openSurface === "notes") return undefined;
+    if (!paneActive || !openSurface || openSurface === "notes") return undefined;
     const dismissPopover = (event) => {
       if (event.target.closest?.(".workspace-v2-toolbar, .workspace-v2-tool-options, .workspace-v2-action-popover, .workspace-v2-settings-popover, .workspace-v2-page-dock")) return;
       setOpenSurface(null);
@@ -1350,7 +1350,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     // toggle. Escape is the other half of that contract for a keyboard, and it
     // hands focus back to the control that owns the panel.
     const dismissOnEscape = (event) => {
-      if (event.key !== "Escape") return;
+      if (event.key !== "Escape" || event.defaultPrevented) return;
       event.stopPropagation();
       const owner = openSurface.startsWith("tool:")
         ? `[data-workspace-tool="${openSurface.slice(5)}"]`
@@ -1377,7 +1377,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       document.removeEventListener("pointerdown", dismissPopover);
       document.removeEventListener("keydown", dismissOnEscape);
     };
-  }, [openSurface]);
+  }, [openSurface, paneActive]);
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) return undefined;

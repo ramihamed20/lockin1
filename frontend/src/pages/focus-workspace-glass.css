@@ -1632,10 +1632,11 @@ html.ix-hover .workspace-search-footer button:hover:not(:disabled) { background:
    keep 44px targets and show Close on the open tab only; a desktop pointer
    gets a compact strip with Close on every tab. */
 .workspace-v2-toolbar > .workspace-tabs { grid-column: 1 / -1; display: flex; min-width: 0; align-items: center; gap: 4px; margin-block-end: 2px; padding-block-end: 3px; border-block-end: 1px solid var(--fx-hair); }
-.workspace-tabs-scroller { display: flex; min-width: 0; flex: 0 1 auto; gap: 3px; overflow-x: auto; scrollbar-width: none; overscroll-behavior-inline: contain; }
-.workspace-tabs-scroller::-webkit-scrollbar { display: none; }
+.workspace-tabs-scroller { display: flex; min-width: 0; flex: 0 1 auto; gap: 3px; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; scrollbar-color: var(--fx-text-3) transparent; overscroll-behavior-inline: contain; touch-action: pan-x; -webkit-overflow-scrolling: touch; }
+.workspace-tabs-scroller::-webkit-scrollbar { height: 3px; }
+.workspace-tabs-scroller::-webkit-scrollbar-thumb { border-radius: 3px; background: var(--fx-text-3); }
 .workspace-tab { position: relative; display: flex; max-width: 200px; flex: 0 0 auto; align-items: center; border-radius: 11px; color: var(--fx-text-3); transition: background-color 180ms var(--fx-spring), color 180ms var(--fx-spring); }
-.workspace-tab > button[role="tab"] { display: flex; min-width: 44px; height: 44px; align-items: center; gap: 6px; padding-inline: 12px 10px; border: 0; color: inherit; background: transparent; cursor: pointer; font: inherit; font-size: .74rem; font-weight: 600; }
+.workspace-tab > button[role="tab"] { display: flex; min-width: 44px; height: 44px; flex: 1 1 auto; align-items: center; gap: 6px; padding-inline: 12px 10px; border: 0; color: inherit; background: transparent; cursor: pointer; font: inherit; font-size: .74rem; font-weight: 600; }
 .workspace-tab > button[role="tab"] > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-tab > button[role="tab"] > svg { flex: 0 0 auto; }
 .workspace-tab.is-active { color: var(--fx-text); background: var(--fx-fill-strong); box-shadow: inset 0 0 0 1px var(--fx-hair); }
