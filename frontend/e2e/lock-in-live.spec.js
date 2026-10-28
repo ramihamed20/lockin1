@@ -266,7 +266,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 820, height: 1180 
     await tabs.getByRole("tab").nth(1).tap();
     await expect(page.locator(".lm-live-presence")).toBeVisible();
     await tabs.getByRole("tab").first().tap();
-    await expect(page.locator(".lm-discussion input")).toBeVisible();
+    await expect(page.locator(".lm-discussion textarea")).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await screenshot(page, `lockin-room-ar-day-${viewport.width}.png`);
     await expect(page.locator("html")).toHaveAttribute("data-theme", "day");
@@ -325,4 +325,25 @@ test("invitation code can be selected when clipboard access is denied", async ({
   await page.getByRole("button", { name: "Copy", exact: true }).click();
   await expect(page.locator(".lm-copy-fallback")).toHaveValue("482731");
   await expect(page.locator(".lm-code-card").getByRole("status")).toContainText("Select and copy");
+});
+
+test("chat composer grows for multiline text and sends with Enter", async ({ page }) => {
+  await connect(page, { team: makeTeam(), active: true });
+  let messages = [];
+  await page.route(`**/api/v1/focus/lock-in/teams/${TEAM_ID}/messages`, async (route) => {
+    if (route.request().method() === "POST") messages = [{ id: "multiline", author_name: "E2E Student", body: route.request().postDataJSON().body }];
+    await route.fulfill({ json: { messages } });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/#/lock-in/${ID}`);
+  const input = page.getByRole("textbox", { name: "Share a question or an explanation" });
+  await input.fill("First line");
+  await input.press("Shift+Enter");
+  await input.pressSequentially("Second line");
+  await expect(input).toHaveValue("First line\nSecond line");
+  expect((await input.boundingBox()).height).toBeLessThanOrEqual(120);
+  await input.press("Enter");
+  await expect(input).toHaveValue("");
+  expect(messages[0].body).toBe("First line\nSecond line");
+  await expect(page.locator(".lm-messages")).toContainText("Second line");
 });

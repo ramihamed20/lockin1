@@ -83,7 +83,7 @@ export default function LockInLive({ payload, busy, error, onAction, onHome, onP
         <ul className="ui-group" aria-labelledby="lm-live-members">{participants.map((member) => {
           const name = lockInMemberName(member, t);
           return <li key={member.member_id}><div className="ui-row">
-            <span className={`lm-live-dot is-${member.presence || "away"}`} aria-hidden="true" />
+            <span className="lm-member-avatar" aria-hidden="true">{name.slice(0, 1)}<i className={`lm-live-dot is-${member.presence || "away"}`} /></span>
             <span className="ui-row-body"><strong dir="auto">{name}</strong></span>
             <span className="ui-row-value">{t(PRESENCE_LABEL[member.presence] || "lockIn.away")}</span>
             {payload.is_host && member.member_id !== team.self_member_id && <button className="lm-icon-button" type="button" aria-label={`${t("lockIn.remove")}: ${name}`} onClick={() => setConfirm({ type: "kick", member, name })}><X size={16} aria-hidden="true" /></button>}

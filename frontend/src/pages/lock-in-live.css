@@ -68,7 +68,7 @@
 .lm-message-meta time { flex: none; font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
 .lm-messages p { width: fit-content; max-width: 100%; box-sizing: border-box; margin: 6px 0 0; padding: 10px 14px; border-radius: 16px; border-start-start-radius: 5px; background: var(--surface-2); color: var(--text); font-size: var(--text-sm); line-height: 1.6; overflow-wrap: anywhere; white-space: pre-wrap; }
 .lm-discussion form { display: flex; align-items: end; gap: 8px; padding-block: 12px; }
-.lm-discussion input { box-sizing: border-box; min-width: 0; flex: 1; min-height: 44px; padding: 10px 14px; border: 1px solid var(--separator); border-radius: var(--radius-full); background: var(--surface-2); color: var(--text); font: inherit; font-size: 16px; }
+.lm-discussion textarea { box-sizing: border-box; min-width: 0; flex: 1; min-height: 44px; padding: 10px 14px; border: 1px solid var(--separator); border-radius: var(--radius-full); background: var(--surface-2); color: var(--text); font: inherit; font-size: 16px; }
 .lm-discussion .lm-send { flex: 0 0 44px; width: 44px; min-width: 44px; min-height: 44px; padding: 0; border-radius: 50%; }
 [dir="rtl"] .lm-send svg { transform: scaleX(-1); }
 
@@ -79,7 +79,7 @@
 .lm-study-team-toggle span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .lm-study-team-toggle[aria-expanded="true"] { color: var(--accent); background: var(--accent-soft); }
 .lm-focus-room { position: absolute; z-index: var(--z-popover, 60); inset-block-start: calc(var(--workspace-toolbar-height, 60px) + 8px); inset-inline-end: 12px; width: min(360px, calc(100% - 24px)); max-height: var(--lm-room-max-height, calc(100% - var(--workspace-toolbar-height, 60px) - 20px)); overflow: auto; overscroll-behavior: contain; border-radius: var(--radius-2xl); box-shadow: var(--shadow-float); }
-.lm-focus-room input { scroll-margin-block: 16px; }
+.lm-focus-room :is(input, textarea) { scroll-margin-block: 16px; }
 .lm-focus-room button:focus-visible, .lm-focus-room summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
 
 /* Completed sessions retain their existing facts and note. */
@@ -121,3 +121,32 @@
 @media (prefers-reduced-motion: reduce) { .lm-clock-ring { transition: none; } }
 .lm-chat-error { display: grid; justify-items: start; gap: 8px; padding-block-end: 12px; }
 .lm-copy-fallback { width: 100%; max-width: 180px; min-height: 44px; font: inherit; font-size: 16px; padding: 8px; border: 1px solid var(--separator); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); }
+
+/* Final visual hierarchy: a calm clock surface and a conversation sheet. */
+.lm-live-clock { box-sizing: border-box; padding: 24px; border-radius: var(--radius-2xl); background: var(--surface); }
+.lm-live-clock .lm-status { background: var(--surface-2); }
+.lm-clock-progress { transition: stroke-dasharray 600ms linear; }
+.lm-room-panel-heading .lm-avatar-stack { display: flex; flex: none; padding-inline-start: 5px; }
+.lm-avatar-stack > span { display: grid; place-items: center; box-sizing: border-box; width: 26px; height: 26px; margin-inline-start: -5px; border: 2px solid var(--surface); border-radius: 50%; background: var(--info-soft); color: var(--info); font-size: 11px; }
+.lm-member-avatar { position: relative; display: grid; place-items: center; flex: 0 0 34px; width: 34px; height: 34px; border-radius: 50%; color: var(--info); background: var(--info-soft); font-size: var(--text-sm); font-weight: var(--weight-medium); }
+.lm-member-avatar .lm-live-dot { position: absolute; inset-block-end: 0; inset-inline-end: 0; width: 7px; height: 7px; box-shadow: 0 0 0 2px var(--surface); }
+.lm-discussion.is-expanded { display: flex; flex-direction: column; min-height: 260px; }
+.lm-chat-empty { flex: 1; justify-items: center; gap: 14px; min-height: 170px; }
+.lm-chat-empty-symbol { display: grid; place-items: center; width: 60px; height: 60px; border-radius: 20px; color: var(--info); background: var(--info-soft); }
+.lm-chat-empty p { margin: 0; }
+.lm-discussion.is-expanded form { margin-block-start: auto; }
+.lm-discussion textarea { resize: none; max-height: 120px; overflow-y: auto; line-height: 1.45; border-radius: 22px; }
+.lm-discussion textarea:focus-visible { outline: 2px solid var(--accent-border); outline-offset: 2px; }
+.lm-chat-loading { display: grid; flex: 1; align-content: start; gap: 12px; padding-block: 20px; }
+.lm-chat-loading i { width: 75%; height: 32px; border-radius: 12px; background: var(--surface-2); animation: lm-loading-pulse 1.4s ease-in-out infinite alternate; }
+.lm-chat-loading i:nth-of-type(2) { width: 55%; animation-delay: .15s; }
+.lm-chat-loading i:nth-of-type(3) { width: 65%; animation-delay: .3s; }
+.lm-chat-error { grid-template-columns: auto minmax(0, 1fr); align-items: start; padding: 12px; margin-block-end: 12px; border-radius: var(--radius-md); background: var(--danger-soft); color: var(--danger); }
+.lm-chat-error .lm-error { padding: 0; line-height: 1.5; }
+.lm-chat-error button { grid-column: 2; }
+.lm-spin { animation: lm-loading-spin 1s linear infinite; }
+@keyframes lm-loading-pulse { to { opacity: .45; } }
+@keyframes lm-loading-spin { to { transform: rotate(360deg); } }
+@media (max-width: 699px) { .lm-live-clock { padding: 20px 16px; } }
+@media (max-height: 500px) { .lm-live-clock { padding: 14px; } }
+@media (prefers-reduced-motion: reduce) { .lm-clock-progress { transition: none; } .lm-spin, .lm-chat-loading i { animation: none; } }
