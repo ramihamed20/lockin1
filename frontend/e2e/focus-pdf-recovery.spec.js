@@ -29,6 +29,55 @@ async function mockWorkspace(page) {
   });
 }
 
+test("returning from another app repaints reclaimed PDF bitmaps without reloading the sheet", async ({ page }) => {
+  await mockWorkspace(page);
+  await page.setViewportSize({ width: 834, height: 1194 });
+  await page.goto(ROUTE);
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  const front = page.locator('[data-pdf-page="1"] .workspace-v2-a4-canvas.is-visible');
+  await expect.poll(() => front.evaluate((canvas) => canvas.width), { timeout: 20_000 }).toBeGreaterThan(0);
+  const originalSize = await front.evaluate((canvas) => [canvas.width, canvas.height]);
+  const stage = page.locator(".workspace-v2-document-stage");
+  await stage.evaluate((node) => { node.scrollTop = 120; });
+  await expect.poll(() => stage.evaluate((node) => node.scrollTop)).toBe(120);
+  const originalScroll = await stage.evaluate((node) => [node.scrollLeft, node.scrollTop]);
+  let pdfRequests = 0;
+  page.on("request", (request) => { if (new URL(request.url()).pathname.endsWith(".pdf")) pdfRequests++; });
+
+  // Safari may reclaim backing pixels while a music/video app has the screen.
+  // Keep the canvas dimensions: checking width alone cannot detect this loss.
+  await page.evaluate(() => {
+    Object.defineProperty(document, "hidden", { configurable: true, value: true });
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+    document.dispatchEvent(new Event("visibilitychange"));
+    window.dispatchEvent(new Event("pagehide"));
+    const canvas = document.querySelector('[data-pdf-page="1"] .workspace-v2-a4-canvas.is-visible');
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#ff00ff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+  });
+
+  // Repeated lifecycle notifications must not leave rendering suspended.
+  await page.evaluate(() => {
+    Object.defineProperty(document, "hidden", { configurable: true, value: false });
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+    document.dispatchEvent(new Event("visibilitychange"));
+    window.dispatchEvent(new Event("pageshow"));
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await expect.poll(() => front.evaluate((canvas) => {
+    if (!canvas.width || !canvas.height) return false;
+    const pixel = canvas.getContext("2d").getImageData(0, 0, 1, 1).data;
+    return pixel[0] !== 255 || pixel[1] !== 0 || pixel[2] !== 255;
+  }), { timeout: 6_000 }).toBe(true);
+  expect(await front.evaluate((canvas) => [canvas.width, canvas.height])).toEqual(originalSize);
+  const restoredScroll = await stage.evaluate((node) => [node.scrollLeft, node.scrollTop]);
+  expect(Math.abs(restoredScroll[0] - originalScroll[0])).toBeLessThanOrEqual(1);
+  expect(Math.abs(restoredScroll[1] - originalScroll[1])).toBeLessThanOrEqual(1);
+  expect(pdfRequests).toBe(0);
+  await expect(page.locator(".workspace-v2-a4-status[role='alert']")).toHaveCount(0);
+});
+
 test("a PDF that fails to load explains itself and retries without duplicating render work", async ({ page }) => {
   test.setTimeout(90_000);
   let failDownload = true;

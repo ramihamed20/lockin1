@@ -108,6 +108,7 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
   /** @type {import("react").MutableRefObject<null | { minX: number, minY: number, width: number, height: number, scale: number, documentProxy: any }>} */
   const detailPendingRef = useRef(null);
   const detailRetireRafRef = useRef(null);
+  const detailWakeTokenRef = useRef(wakeToken);
   const detailStateRef = useRef(null);
   detailStateRef.current = { documentProxy, pageNumber, pageAspectRatio, renderZoom, qualityScale, shouldRender, paneActive, priority };
 
@@ -270,8 +271,13 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
   }, [renderController, updateDetail]);
 
   useEffect(() => {
+    // Cached bounds do not prove the bitmap survived backgrounding on iOS.
+    if (detailWakeTokenRef.current !== wakeToken) {
+      detailWakeTokenRef.current = wakeToken;
+      releaseDetail();
+    }
     updateDetail();
-  }, [documentProxy, paneActive, qualityScale, renderRevision, renderZoom, shouldRender, updateDetail, wakeToken]);
+  }, [documentProxy, paneActive, qualityScale, releaseDetail, renderRevision, renderZoom, shouldRender, updateDetail, wakeToken]);
 
   useEffect(() => releaseDetail, [releaseDetail]);
 
@@ -316,6 +322,9 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
     // us (mobile browsers reclaim them); coming back repaints every live page.
     const woken = wakeTokenRef.current !== wakeToken;
     wakeTokenRef.current = wakeToken;
+    // Keep the old bitmap invalid until its replacement actually finishes.
+    // A resume revision can cancel this first attempt before it paints.
+    if (woken) renderedRef.current = { documentProxy: null, qualityScale: 0 };
     if (!woken && renderedRef.current.documentProxy === documentProxy
       && renderedRef.current.qualityScale >= qualityScale
       && canvasRefs.current[visibleCanvasRef.current]?.width > 0) return undefined;
@@ -510,7 +519,7 @@ export function ContinuousA4Pdf({
   const [primaryPage, setPrimaryPage] = useState(1);
   const [renderScale, setRenderScale] = useState(zoom);
   const [renderRevision, setRenderRevision] = useState(0);
-  // Bumped each time this tab returns to the screen, see A4PdfCanvas.
+  // Bumped when a kept pane or the browser page returns, see A4PdfCanvas.
   const paneActive = useWorkspacePaneActive();
   const [wakeToken, setWakeToken] = useState(0);
   const wasPaneActiveRef = useRef(paneActive);
@@ -540,7 +549,7 @@ export function ContinuousA4Pdf({
   const renderResumeRafRef = useRef(null);
   const scrollTimerRef = useRef(null);
   const scrollingRef = useRef(false);
-  const suspensionRef = useRef({ activity: false, pinch: false, scroll: false, zoom: false, pane: false });
+  const suspensionRef = useRef({ activity: false, pinch: false, scroll: false, zoom: false, pane: false, visibility: false });
   const renderControllerRef = useRef({ suspended: false, generation: 0, scrolling: false, deferred: new Set(), viewportListeners: new Set() });
   // Pages that keep an on-screen detail canvas re-measure when the view settles.
   const notifyViewportSettled = useCallback(() => {
@@ -698,6 +707,31 @@ export function ContinuousA4Pdf({
   useEffect(() => {
     setRenderSuspension("pane", !paneActive);
   }, [paneActive, setRenderSuspension]);
+
+  useEffect(() => {
+    let pageHidden = false;
+    let backgrounded = false;
+    const syncVisibility = () => {
+      const next = pageHidden || document.visibilityState === "hidden";
+      if (next === backgrounded) return;
+      backgrounded = next;
+      // Cancel pending continuations before Safari freezes animation frames.
+      // Keep the displayed page and reading position while the app is away.
+      setRenderSuspension("visibility", next);
+      if (!next) setWakeToken((token) => token + 1);
+    };
+    const hidePage = () => { pageHidden = true; syncVisibility(); };
+    const showPage = () => { pageHidden = false; syncVisibility(); };
+    document.addEventListener("visibilitychange", syncVisibility);
+    window.addEventListener("pagehide", hidePage);
+    window.addEventListener("pageshow", showPage);
+    syncVisibility();
+    return () => {
+      document.removeEventListener("visibilitychange", syncVisibility);
+      window.removeEventListener("pagehide", hidePage);
+      window.removeEventListener("pageshow", showPage);
+    };
+  }, [setRenderSuspension]);
 
   useEffect(() => {
     if (Math.abs(renderScaleRef.current - zoom) < .001) {
