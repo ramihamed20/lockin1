@@ -579,6 +579,7 @@ def _team_payload(*, user: User, team: FocusTeam) -> dict[str, object]:
 
 
 def _live_lock_in_payload(*, user: User, session: FocusSession) -> dict[str, object]:
+    participant: FocusSessionParticipant | None = None
     now = timezone.now()
     if session.team_id is not None:
         membership = FocusTeamMembership.objects.filter(team_id=session.team_id, user=user).first()

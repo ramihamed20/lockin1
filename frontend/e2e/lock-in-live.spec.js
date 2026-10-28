@@ -273,3 +273,56 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 820, height: 1180 
     await expect(page.locator(".lm-shell")).toHaveCSS("background-color", "rgb(242, 242, 247)");
   });
 }
+
+test("failed chat send keeps draft and error through a refresh, then retries", async ({ page }) => {
+  await connect(page, { team: makeTeam(), active: true });
+  let sends = 0;
+  let messages = [];
+  await page.route(`**/api/v1/focus/lock-in/teams/${TEAM_ID}/messages`, async (route) => {
+    if (route.request().method() === "POST") {
+      sends += 1;
+      if (sends === 1) return route.fulfill({ status: 503, json: { error: { code: "unavailable", message: "Try sending again." } } });
+      messages = [{ id: "retry-message", author_name: "E2E Student", body: route.request().postDataJSON().body }];
+    }
+    return route.fulfill({ json: { messages } });
+  });
+  await page.goto(`/#/lock-in/${ID}`);
+  const input = page.getByRole("textbox", { name: "Share a question or an explanation" });
+  await input.fill("Keep this question");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Try sending again.");
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect(input).toHaveValue("Keep this question");
+  await expect(page.getByRole("alert")).toContainText("Try sending again.");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.locator(".lm-messages")).toContainText("Keep this question");
+  await expect(input).toHaveValue("");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
+test("unsaved private note is protected when leaving the session", async ({ page }) => {
+  const getLive = await connect(page, { active: true });
+  getLive().session.experience_version = 2;
+  getLive().note = { body: "", revision: 1 };
+  await page.goto(`/#/lock-in/${ID}`);
+  await page.locator(".lm-private-note summary").click();
+  await page.locator(".lm-private-note textarea").fill("Do not lose this note");
+  await page.locator(".lm-bar-back").click();
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm).toContainText("Unsaved note");
+  await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.locator(".lm-private-note textarea")).toHaveValue("Do not lose this note");
+  await page.locator(".lm-bar-back").click();
+  await confirm.getByRole("button", { name: "Leave without saving" }).click();
+  await expect(page.getByRole("heading", { name: "Lock-in Mode", exact: true })).toBeVisible();
+});
+
+test("invitation code can be selected when clipboard access is denied", async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, "clipboard", { value: { writeText: async () => { throw new Error("denied"); } }, configurable: true }));
+  await connect(page, { team: makeTeam(), active: true });
+  await page.goto(`/#/lock-in/${ID}`);
+  await page.locator(".lm-room-invite summary").click();
+  await page.getByRole("button", { name: "Copy", exact: true }).click();
+  await expect(page.locator(".lm-copy-fallback")).toHaveValue("482731");
+  await expect(page.locator(".lm-code-card").getByRole("status")).toContainText("Select and copy");
+});

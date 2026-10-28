@@ -1,15 +1,23 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { focusApi } from "../../api/focus.js";
 import { useI18n } from "../I18nProvider.jsx";
 
-export function SessionNote({ payload }) {
+export function SessionNote({ payload, onDirtyChange = undefined }) {
   const { t } = useI18n();
   const [body, setBody] = useState(payload.note?.body || "");
   const [saved, setSaved] = useState({ body: payload.note?.body || "", revision: payload.note?.revision || 1 });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const dirty = body !== saved.body;
+  useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+  useEffect(() => {
+    if (!dirty) return undefined;
+    const warn = (event) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
   async function save(event) {
-    event.preventDefault(); setBusy(true); setError("");
+    event.preventDefault(); if (busy) return; setBusy(true); setError("");
     try {
       const result = await focusApi.updateLockInNote(payload.session.id, { body, expectedRevision: saved.revision });
       const note = /** @type {any} */ (result.note);

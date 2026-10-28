@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { clock, liveClock } from "../components/lock-in/liveSession.js";
 import { useLiveConnection } from "../components/lock-in/useLiveConnection.js";
 import { SessionNote } from "../components/lock-in/SessionNote.jsx";
@@ -16,10 +16,13 @@ const PRESENCE_LABEL = { focused: "lockIn.focused", break: "lockIn.onBreak", awa
 
 function LiveSummary({ payload, onHome }) {
   const { t } = useI18n();
+  const [noteDirty, setNoteDirty] = useState(false);
+  const [exitOpen, setExitOpen] = useState(false);
+  const goHome = () => noteDirty ? setExitOpen(true) : onHome();
   const { session, timing, member_count: memberCount } = payload;
   const duration = Math.max(0, Math.floor((new Date(session.ended_at).getTime() - new Date(session.started_at).getTime()) / 1000));
   return <main className="lm-shell lm-live" aria-label={t("lockIn.sessionLabel")}>
-    <LockInBar onBack={onHome} backLabel={t("lockIn.home")} />
+    <LockInBar onBack={goHome} backLabel={t("lockIn.home")} />
     <section className="lm-page lm-live-summary" aria-labelledby="lm-live-summary-title">
       <header className="lm-heading">
         <h1 id="lm-live-summary-title">{t("lockIn.complete")}</h1>
@@ -32,9 +35,10 @@ function LiveSummary({ payload, onHome }) {
         {session.team_id && <div className="ui-row"><dt className="ui-row-body"><span>{t("lockIn.members")}</span></dt><dd className="ui-row-value">{memberCount}</dd></div>}
       </dl>
       {session.goal && <p dir="auto" className="lm-session-goal">{session.goal}</p>}
-      {(!session.team_id || session.experience_version === 2) && <SessionNote payload={payload} />}
-      <button className="btn btn-primary lm-submit" type="button" onClick={onHome}>{t("lockIn.done")}</button>
+      {(!session.team_id || session.experience_version === 2) && <SessionNote payload={payload} onDirtyChange={setNoteDirty} />}
+      <button className="btn btn-primary lm-submit" type="button" onClick={goHome}>{t("lockIn.done")}</button>
     </section>
+    <ConfirmDialog open={exitOpen} title={t("lockIn.unsavedNote")} message={t("lockIn.unsavedNoteMessage")} confirmLabel={t("lockIn.leaveWithoutSaving")} onCancel={() => setExitOpen(false)} onConfirm={onHome} />
   </main>;
 }
 
@@ -43,6 +47,8 @@ export default function LockInLive({ payload, busy, error, onAction, onHome, onP
   const { session, participants = [], team } = payload;
   const teamMode = Boolean(session.team_id);
   const [confirm, setConfirm] = useState(null);
+  const [noteDirty, setNoteDirty] = useState(false);
+  const navigate = useNavigate();
   useVisibleNow(session.status === "active" || session.status === "on_break");
   const { personal: activeSeconds, remaining } = liveClock(payload, window.performance.now());
   useLiveConnection({ payload, onRefresh, onPresence });
@@ -62,7 +68,9 @@ export default function LockInLive({ payload, busy, error, onAction, onHome, onP
   }
 
   const leaving = teamMode && !payload.is_host;
-  const confirmCopy = confirm?.type === "kick"
+  const confirmCopy = ["home", "sheet"].includes(confirm?.type)
+    ? { title: t("lockIn.unsavedNote"), message: t("lockIn.unsavedNoteMessage"), label: t("lockIn.leaveWithoutSaving") }
+    : confirm?.type === "kick"
     ? { title: t("lockIn.removeConfirm", { name: confirm.name }), message: t("lockIn.removeMessage"), label: t("lockIn.remove") }
     : confirm?.type === "leave"
       ? { title: t("lockIn.leaveSessionConfirm"), message: t("lockIn.leaveSessionMessage"), label: t("lockIn.leaveSession") }
@@ -85,7 +93,7 @@ export default function LockInLive({ payload, busy, error, onAction, onHome, onP
 
   return <main className={`lm-shell lm-live${teamMode ? " is-team" : ""}`} aria-label={t("lockIn.sessionLabel")}>
     <LockInBar
-      onBack={onHome}
+      onBack={() => noteDirty ? setConfirm({ type: "home" }) : onHome()}
       backLabel={t("lockIn.home")}
       end={teamMode && payload.is_host ? <LockInMenu label={t("lockIn.sessionControls")} items={[
         { label: team.joining_locked ? t("lockIn.unlockJoining") : t("lockIn.lockJoining"), onSelect: () => void onTeamAction("update", { joining_locked: !team.joining_locked }) },
@@ -113,9 +121,9 @@ export default function LockInLive({ payload, busy, error, onAction, onHome, onP
         <div className="lm-sheet-copy"><strong dir="auto">{payload.study_target.title}</strong>
           {payload.study_target.page_end && <span>{t("lockIn.pageRange", { start: payload.study_target.page_start, end: payload.study_target.page_end })}</span>}
         </div>
-        <Link className="btn btn-primary" to={payload.study_target.reader_path} state={{ lockInPanelOpen: teamMode }}>{t("lockIn.openSheet")}<ArrowUpRight className="lm-flip" size={16} aria-hidden="true" /></Link>
+        <Link className="btn btn-primary" to={payload.study_target.reader_path} state={{ lockInPanelOpen: teamMode }} onClick={(event) => { if (noteDirty) { event.preventDefault(); setConfirm({ type: "sheet" }); } }}>{t("lockIn.openSheet")}<ArrowUpRight className="lm-flip" size={16} aria-hidden="true" /></Link>
       </section>}
-      {(!teamMode || session.experience_version === 2) && <div className="lm-live-extras"><SessionNote payload={payload} /></div>}
+      {(!teamMode || session.experience_version === 2) && <div className="lm-live-extras"><SessionNote payload={payload} onDirtyChange={setNoteDirty} /></div>}
       </div>
       {teamMode && <SessionRoomPanel payload={payload} members={members} />}
     </div>
@@ -125,6 +133,6 @@ export default function LockInLive({ payload, busy, error, onAction, onHome, onP
       <button className="btn btn-soft lm-live-end" type="button" disabled={Boolean(busy)} onClick={() => setConfirm({ type: leaving ? "leave" : "end" })}>{leaving ? t("lockIn.leaveSession") : t("lockIn.endSession")}</button>
     </footer>
     {error && <p className="lm-error lm-live-error" role="alert">{error}</p>}
-    <ConfirmDialog open={Boolean(confirm)} title={confirmCopy.title} message={confirmCopy.message} confirmLabel={confirmCopy.label} cancelLabel={t("common.cancel")} busy={Boolean(busy)} onCancel={() => setConfirm(null)} onConfirm={() => { const choice = confirm; setConfirm(null); if (choice?.type === "kick") void onTeamAction("kick", { member_id: choice.member.member_id }); else if (choice?.type === "leave") void onLeave(); else void onAction("complete"); }} />
+    <ConfirmDialog open={Boolean(confirm)} title={confirmCopy.title} message={noteDirty && ["end", "leave"].includes(confirm?.type) ? `${confirmCopy.message} ${t("lockIn.unsavedNoteMessage")}` : confirmCopy.message} confirmLabel={confirmCopy.label} cancelLabel={t("common.cancel")} busy={Boolean(busy)} onCancel={() => setConfirm(null)} onConfirm={() => { const choice = confirm; setConfirm(null); if (choice?.type === "home") onHome(); else if (choice?.type === "sheet") navigate(payload.study_target.reader_path, { state: { lockInPanelOpen: teamMode } }); else if (choice?.type === "kick") void onTeamAction("kick", { member_id: choice.member.member_id }); else if (choice?.type === "leave") void onLeave(); else void onAction("complete"); }} />
   </main>;
 }

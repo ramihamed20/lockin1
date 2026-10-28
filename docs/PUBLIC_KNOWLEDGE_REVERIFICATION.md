@@ -177,3 +177,16 @@ compact invitations and responsive setup. A sheet change clears the page-range
 inputs before submitting the same authorized version-2 contract. No independent
 friendship system or new production rollout is claimed. Only the reviewed i18n
 evidence digest is refreshed; verification stays enabled.
+
+
+## Lockin release resilience — 28 October 2026
+
+Reviewed additive translations for unsaved notes and manual code copying. Existing
+public capability claims and verification dates are unchanged; only the reviewed
+i18n digest is refreshed. Session APIs, launch gate, permissions and private
+annotation data are unchanged.
+
+Backend follow-up: reviewed the one-line initialization of the optional session
+participant in _live_lock_in_payload. Solo responses previously raised an
+UnboundLocalError; they now follow the existing non-team note branch. No
+authorization, accounting, scoring or published capability statement changed.

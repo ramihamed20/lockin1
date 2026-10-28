@@ -72,15 +72,17 @@ function TeamRows({ teams, onOpen }) {
 export function TeamCode({ code, compact = false }) {
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
   async function copyCode() {
-    try { await navigator.clipboard.writeText(code); setCopied(true); window.setTimeout(() => setCopied(false), 1800); }
-    catch { setCopied(false); }
+    try { await navigator.clipboard.writeText(code); setCopyFailed(false); setCopied(true); window.setTimeout(() => setCopied(false), 1800); }
+    catch { setCopied(false); setCopyFailed(true); }
   }
   return <section className={`lm-code-card${compact ? " is-compact" : ""}`} aria-label={t("lockIn.inviteFriends")}>
     <div>
       <h2>{t(compact ? "lockIn.inviteFriends" : "lockIn.code")}</h2>
       <strong dir="ltr" translate="no">{code}</strong>
       <p>{t("lockIn.codeHint")}</p>
+      {copyFailed && <><label className="visually-hidden" htmlFor={`lm-copy-${code}`}>{t("lockIn.code")}</label><input id={`lm-copy-${code}`} className="lm-copy-fallback" readOnly value={code} dir="ltr" onFocus={(event) => event.currentTarget.select()} /><p role="status">{t("lockIn.copyManually")}</p></>}
     </div>
     <button className="btn btn-soft compact" type="button" onClick={copyCode} aria-live="polite">
       {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}{copied ? t("lockIn.copied") : t("lockIn.copy")}

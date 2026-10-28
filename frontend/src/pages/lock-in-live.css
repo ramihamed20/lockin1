@@ -119,3 +119,5 @@
   .lm-live-controls .btn { min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { .lm-clock-ring { transition: none; } }
+.lm-chat-error { display: grid; justify-items: start; gap: 8px; padding-block-end: 12px; }
+.lm-copy-fallback { width: 100%; max-width: 180px; min-height: 44px; font: inherit; font-size: 16px; padding: 8px; border: 1px solid var(--separator); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); }
