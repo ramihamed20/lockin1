@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { clock, liveClock } from "../components/lock-in/liveSession.js";
 import { useLiveConnection } from "../components/lock-in/useLiveConnection.js";
 import { SessionNote } from "../components/lock-in/SessionNote.jsx";
-import { TeamDiscussion } from "../components/lock-in/TeamDiscussion.jsx";
+import { SessionRoomPanel } from "../components/lock-in/SessionRoomPanel.jsx";
 import { useEffect, useState } from "react";
 import { BookOpen, Coffee, Pause, Play, X } from "lucide-react";
 import { useI18n } from "../components/I18nProvider.jsx";
@@ -68,6 +68,19 @@ export default function LockInLive({ payload, busy, error, onAction, onHome, onP
       ? { title: t("lockIn.leaveSessionConfirm"), message: t("lockIn.leaveSessionMessage"), label: t("lockIn.leaveSession") }
       : { title: t("lockIn.endConfirm"), message: teamMode ? t("lockIn.endTeamSessionMessage") : t("lockIn.endSoloMessage"), label: t("lockIn.endSession") };
 
+  const members = teamMode && <section className="ui-group-block lm-live-presence" aria-labelledby="lm-live-members">
+        <h2 className="ui-group-title" id="lm-live-members">{t("lockIn.members")} · {participants.length}</h2>
+        <ul className="ui-group" aria-labelledby="lm-live-members">{participants.map((member) => {
+          const name = lockInMemberName(member, t);
+          return <li key={member.member_id}><div className="ui-row">
+            <span className={`lm-live-dot is-${member.presence || "away"}`} aria-hidden="true" />
+            <span className="ui-row-body"><strong dir="auto">{name}</strong></span>
+            <span className="ui-row-value">{t(PRESENCE_LABEL[member.presence] || "lockIn.away")}</span>
+            {payload.is_host && member.member_id !== team.self_member_id && <button className="lm-icon-button" type="button" aria-label={`${t("lockIn.remove")}: ${name}`} onClick={() => setConfirm({ type: "kick", member, name })}><X size={16} aria-hidden="true" /></button>}
+          </div></li>;
+        })}</ul>
+      </section>;
+
   return <main className={`lm-shell lm-live${teamMode ? " is-team" : ""}`} aria-label={t("lockIn.sessionLabel")}>
     <LockInBar
       onBack={onHome}
@@ -80,7 +93,7 @@ export default function LockInLive({ payload, busy, error, onAction, onHome, onP
       <span className="lm-bar-title" dir="auto">{team?.name || t("lockIn.solo")}</span>
     </LockInBar>
     {session.goal && <p className="lm-session-goal" dir="auto">{session.goal}</p>}
-    <div className="lm-live-main">
+    <div className={`lm-live-main${teamMode ? " lm-room-layout" : ""}`}>
       <section className="lm-live-clock" aria-label={remaining == null ? t("lockIn.timeFocused") : t("lockIn.timeRemaining")}>
         <h1 dir="ltr">{clock(remaining ?? activeSeconds)}</h1>
         <p className={`lm-status ${statusTone}`}><span className="lm-live-dot" aria-hidden="true" />{t(statusKey)}</p>
@@ -90,24 +103,12 @@ export default function LockInLive({ payload, busy, error, onAction, onHome, onP
         <BookOpen size={24} aria-hidden="true" />
         <strong dir="auto">{payload.study_target.title}</strong>
         {payload.study_target.page_end && <span>{t("lockIn.pageRange", { start: payload.study_target.page_start, end: payload.study_target.page_end })}</span>}
-        <Link className="btn btn-primary" to={payload.study_target.reader_path}>{t("lockIn.openSheet")}</Link>
+        <Link className="btn btn-primary" to={payload.study_target.reader_path} state={{ lockInPanelOpen: teamMode }}>{t("lockIn.openSheet")}</Link>
       </section>}
-      {teamMode && <section className="ui-group-block lm-live-presence" aria-labelledby="lm-live-members">
-        <h2 className="ui-group-title" id="lm-live-members">{t("lockIn.members")} · {participants.length}</h2>
-        <ul className="ui-group" aria-labelledby="lm-live-members">{participants.map((member) => {
-          const name = lockInMemberName(member, t);
-          return <li key={member.member_id}><div className="ui-row">
-            <span className={`lm-live-dot is-${member.presence || "away"}`} aria-hidden="true" />
-            <span className="ui-row-body"><strong dir="auto">{name}</strong></span>
-            <span className="ui-row-value">{t(PRESENCE_LABEL[member.presence] || "lockIn.away")}</span>
-            {payload.is_host && member.member_id !== team.self_member_id && <button className="lm-icon-button" type="button" aria-label={`${t("lockIn.remove")}: ${name}`} onClick={() => setConfirm({ type: "kick", member, name })}><X size={16} aria-hidden="true" /></button>}
-          </div></li>;
-        })}</ul>
-      </section>}
+      {teamMode && <SessionRoomPanel payload={payload} members={members} />}
     </div>
     <div className="lm-live-extras">
       {(!teamMode || session.experience_version === 2) && <SessionNote payload={payload} />}
-      {teamMode && <TeamDiscussion teamId={team.id} />}
     </div>
     <footer className="lm-live-controls">
       {!teamMode && <button className="btn btn-soft" type="button" disabled={Boolean(busy)} onClick={() => void onAction(paused ? "resume" : "pause")}>{paused ? <Play size={17} aria-hidden="true" /> : <Pause size={17} aria-hidden="true" />}{paused ? t("lockIn.resume") : t("lockIn.pause")}</button>}

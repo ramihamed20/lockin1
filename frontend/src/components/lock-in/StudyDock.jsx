@@ -1,6 +1,8 @@
-import { useCallback, useMemo } from "react";
-import { Link } from "react-router-dom";
-import { Timer } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { createPortal } from "react-dom";
+import { SessionRoomPanel } from "./SessionRoomPanel.jsx";
+import { Timer, Users } from "lucide-react";
 import { focusApi } from "../../api/focus.js";
 import { useI18n } from "../I18nProvider.jsx";
 import { useVisibleNow } from "../../hooks/useVisibleNow.js";
@@ -8,18 +10,41 @@ import { acceptsLiveResponse, clock, liveClock } from "./liveSession.js";
 import { useLiveConnection } from "./useLiveConnection.js";
 import "../../pages/lock-in-live.css";
 
-export function StudyDock({ payload, onChange, active }) {
+export function StudyDock({ payload, onChange, active, portalRef }) {
+  const location = useLocation();
+  const [roomOpen, setRoomOpen] = useState(location.state?.lockInPanelOpen === true);
+  const roomRef = useRef(null);
+  const toggleRef = useRef(null);
+  const closeRoom = useCallback(() => { setRoomOpen(false); toggleRef.current?.focus({ preventScroll: true }); }, []);
+  useEffect(() => { if (!active) setRoomOpen(false); }, [active]);
+  useEffect(() => {
+    if (!active || !roomOpen) return undefined;
+    const escape = (event) => {
+      if (event.key !== "Escape" || !roomRef.current?.contains(event.target)) return;
+      event.preventDefault(); event.stopImmediatePropagation(); closeRoom();
+    };
+    document.addEventListener("keydown", escape, true);
+    return () => document.removeEventListener("keydown", escape, true);
+  }, [active, roomOpen, closeRoom]);
   const { t } = useI18n();
   useVisibleNow(active);
   const snapshot = useMemo(() => ({ ...payload, received_at_monotonic_ms: window.performance.now() }), [payload]);
   const replace = useCallback((next) => onChange((current) => acceptsLiveResponse(current, next) ? next : current), [onChange]);
   const refresh = useCallback(async () => {
-    try { replace(await focusApi.getLockInSession(payload.session.id)); } catch { /* The room exposes retry and access errors. */ }
-  }, [payload.session.id, replace]);
+    try { replace(await focusApi.getLockInSession(payload.session.id)); }
+    catch (error) {
+      if ([401, 403, 404].includes(error?.status)) onChange((current) => current?.session?.id === payload.session.id ? null : current);
+    }
+  }, [payload.session.id, replace, onChange]);
   const presence = useCallback(async (value) => { replace(await focusApi.setLockInPresence(payload.session.id, value)); }, [payload.session.id, replace]);
   useLiveConnection({ payload, onRefresh: refresh, onPresence: presence, enabled: active });
   const timing = liveClock(snapshot, window.performance.now());
-  return <Link className="lm-study-dock" to={`/lock-in/${payload.session.id}`} aria-label={t("lockIn.returnToSession")}>
+  const dock = <Link className="lm-study-dock" to={`/lock-in/${payload.session.id}`} aria-label={t("lockIn.returnToSession")}>
     <Timer size={18} aria-hidden="true" /><span dir="ltr">{clock(timing.remaining ?? timing.personal)}</span>
   </Link>;
+  return <div className="lm-study-dock-group">
+    {dock}
+    {payload.team && <button ref={toggleRef} className="lm-study-dock lm-study-team-toggle" type="button" aria-label={t("lockIn.discussion")} aria-expanded={active && roomOpen} onClick={() => setRoomOpen((value) => !value)}><Users size={16} aria-hidden="true" /><span>{t("lockIn.team")}</span></button>}
+    {active && roomOpen && payload.team && portalRef?.current && createPortal(<div ref={roomRef} className="lm-focus-room"><SessionRoomPanel payload={payload} onClose={closeRoom} /></div>, portalRef.current)}
+  </div>;
 }

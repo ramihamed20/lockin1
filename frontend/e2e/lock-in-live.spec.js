@@ -193,3 +193,41 @@ test("Arabic live timer stays left to right and resumes after refresh", async ({
   await expect(page.getByRole("main", { name: "جلسة التركيز" })).toBeVisible();
   await screenshot(page, "lockin-live-rtl.png");
 });
+
+for (const viewport of [{ width: 390, height: 844 }, { width: 1180, height: 820 }]) {
+  test(`team discussion stays beside the real Focus reader at ${viewport.width}px`, async ({ page }) => {
+    const team = makeTeam();
+    const getLive = await connect(page, { team, active: true });
+    const live = getLive();
+    live.session.experience_version = 2;
+    live.study_target = { title: "Vitamin -1", reader_path: "/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace", page_start: 1, page_end: 5 };
+    let messages = [];
+    await page.route(`**/api/v1/focus/lock-in/teams/${TEAM_ID}/messages`, async (route) => {
+      if (route.request().method() === "POST") messages = [...messages, { id: String(messages.length + 1), author_name: "E2E Student", body: route.request().postDataJSON().body }];
+      await route.fulfill({ json: { messages } });
+    });
+    await page.addInitScript(() => localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now())));
+    await page.setViewportSize(viewport);
+    await page.goto(`/#/lock-in/${ID}`);
+    await expect(page.getByRole("region", { name: "Team discussion" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Invite friends" })).toBeVisible();
+    await page.getByRole("link", { name: "Open sheet", exact: true }).click();
+    await page.getByRole("button", { name: /Normal Study/ }).click();
+    const room = page.locator(".lm-focus-room");
+    await expect(room).toBeVisible();
+    await expect(page.locator(".workspace-pane.is-active .workspace-v2-a4-canvas.is-visible").first()).toBeVisible();
+    const input = room.getByRole("textbox", { name: "Share a question or an explanation" });
+    await input.fill("Which page are we studying?");
+    await room.getByRole("button", { name: "Send", exact: true }).click();
+    await expect(room.getByText("Which page are we studying?", { exact: true })).toBeVisible();
+    await input.focus();
+    await page.keyboard.press("Escape");
+    await expect(room).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Team discussion", exact: true })).toBeFocused();
+    await page.getByRole("button", { name: "Team discussion", exact: true }).click();
+    await expect(room).toBeVisible();
+    const box = await room.boundingBox();
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+  });
+}

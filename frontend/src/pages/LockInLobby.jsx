@@ -69,16 +69,16 @@ function TeamRows({ teams, onOpen }) {
   </section>;
 }
 
-function TeamCode({ code }) {
+export function TeamCode({ code, compact = false }) {
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   async function copyCode() {
     try { await navigator.clipboard.writeText(code); setCopied(true); window.setTimeout(() => setCopied(false), 1800); }
     catch { setCopied(false); }
   }
-  return <section className="lm-code-card" aria-labelledby="lm-code-label">
+  return <section className={`lm-code-card${compact ? " is-compact" : ""}`} aria-label={t("lockIn.inviteFriends")}>
     <div>
-      <h2 id="lm-code-label">{t("lockIn.code")}</h2>
+      <h2>{t(compact ? "lockIn.inviteFriends" : "lockIn.code")}</h2>
       <strong dir="ltr" translate="no">{code}</strong>
       <p>{t("lockIn.codeHint")}</p>
     </div>

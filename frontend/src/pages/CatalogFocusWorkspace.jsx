@@ -6111,7 +6111,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
             </div>
             <input ref={imageInputRef} className="workspace-v2-file-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={!workspaceReady} onChange={addImage} tabIndex={-1} aria-hidden="true" />
             <div className="workspace-v2-toolbar-actions" aria-label={t("focus.workspaceControls")}>
-              {focusPayload?.session?.experience_version === 2 && <StudyDock payload={focusPayload} onChange={setFocusPayload} active={paneActive} />}
+              {focusPayload?.session?.experience_version === 2 && <StudyDock payload={focusPayload} onChange={setFocusPayload} active={paneActive} portalRef={rootRef} />}
               {RESCUE_ENABLED && shareDocumentId && user?.id && rescueSource.managed_file_id && <StartRescue
                 key={user.id + "/" + shareDocumentId}
                 userId={user.id} source={rescueSource} page={page} pageLimit={accessiblePageCount}

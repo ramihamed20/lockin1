@@ -88,7 +88,6 @@
 .lm-study-target span { color: var(--muted); font-size: var(--text-sm); }
 .lm-live.is-team .lm-live-clock { grid-column: 1; }
 .lm-live.is-team .lm-study-target { grid-column: 1; }
-.lm-live.is-team .lm-live-presence { grid-column: 2; grid-row: 1 / span 2; }
 .lm-live-extras { width: min(100% - 32px, 600px); margin: 0 auto 16px; }
 .lm-private-note, .lm-discussion { border-top: 1px solid var(--separator); padding: 8px 0; }
 .lm-private-note summary, .lm-discussion summary { min-height: 44px; align-content: center; cursor: pointer; color: var(--muted); }
@@ -142,7 +141,6 @@
 
 @media (max-width: 800px) {
   .lm-live.is-team .lm-live-main { grid-template-columns: minmax(0, 1fr); }
-  .lm-live.is-team .lm-live-presence { grid-column: 1; grid-row: auto; }
   .lm-live-presence { width: min(100%, 520px); justify-self: center; }
 }
 
@@ -161,4 +159,46 @@
   .lm-live-presence { max-height: 52vh; overflow: auto; }
   .lm-live-controls { padding-block: 6px max(8px, env(safe-area-inset-bottom)); }
   .lm-live-controls .btn { flex: 0 1 auto; min-width: 112px; }
+}
+
+/* Study room: the app's grouped surfaces, with discussion beside the task. */
+.lm-live.is-team .lm-room-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  align-content: start;
+  align-items: start;
+  padding-block: 24px;
+  gap: 24px;
+}
+.lm-room-layout > .lm-live-clock { grid-column: 1; grid-row: 1; padding-block: 12px; gap: 12px; }
+.lm-room-layout > .lm-live-clock h1 { font-size: clamp(3rem, 6vw, 4.5rem); }
+.lm-room-layout > .lm-study-target { grid-column: 1; grid-row: 2; width: 100%; box-sizing: border-box; border: 1px solid var(--card-edge); box-shadow: var(--card-shadow); }
+.lm-room-layout > .lm-room-panel { grid-column: 2; grid-row: 1 / span 3; }
+.lm-room-panel { width: 100%; min-width: 0; overflow: hidden; border: 1px solid var(--card-edge); border-radius: var(--radius-card); background: var(--surface); color: var(--text); box-shadow: var(--card-shadow); }
+.lm-room-panel-heading { display: flex; align-items: center; gap: 10px; min-height: 52px; padding-inline: 16px; border-bottom: 1px solid var(--separator); }
+.lm-room-panel-heading strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-base); }
+.lm-room-panel-body { display: grid; min-height: 0; gap: 16px; padding: 16px; }
+.lm-room-panel .lm-live-presence { width: 100%; margin: 0; max-height: 200px; overflow: auto; }
+.lm-room-panel .lm-code-card.is-compact { padding: 12px; gap: 8px; box-shadow: none; background: var(--surface-2); }
+.lm-code-card.is-compact strong { font-size: 1.5rem; }
+.lm-code-card.is-compact p { font-size: var(--text-xs); }
+.lm-room-members summary { min-height: 44px; align-content: center; cursor: pointer; color: var(--muted); font-size: var(--text-sm); }
+.lm-room-panel .ui-row-value { font-size: var(--text-xs); }
+.lm-room-panel .ui-row-body { overflow-wrap: anywhere; }
+.lm-discussion.is-expanded { min-width: 0; padding: 0; border: 0; }
+.lm-discussion.is-expanded h2 { margin: 0 0 8px; font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+.lm-chat-empty { color: var(--muted); font-size: var(--text-sm); line-height: 1.6; }
+.lm-discussion.is-expanded .lm-messages { max-height: min(38dvh, 360px); overscroll-behavior: contain; }
+.lm-study-dock-group { display: flex; min-width: 0; align-items: center; gap: 4px; }
+.lm-study-team-toggle { border: 0; cursor: pointer; }
+.lm-study-team-toggle span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.lm-study-team-toggle[aria-expanded="true"] { color: var(--accent); background: var(--accent-soft); }
+.lm-focus-room { position: absolute; z-index: var(--z-popover, 60); inset-block-start: calc(var(--workspace-toolbar-height, 60px) + 8px); inset-inline-end: 12px; width: min(350px, calc(100% - 24px)); max-height: calc(100% - var(--workspace-toolbar-height, 60px) - 20px); overflow: auto; overscroll-behavior: contain; border-radius: var(--radius-card); }
+@media (max-width: 800px) {
+  .lm-live.is-team .lm-room-layout { grid-template-columns: minmax(0, 1fr); width: min(100% - 24px, 600px); gap: 16px; }
+  .lm-room-layout > .lm-room-panel { grid-column: 1; grid-row: auto; }
+  .lm-room-layout > .lm-live-clock h1 { font-size: 3.5rem; }
+}
+@media (max-height: 500px) and (min-width: 650px) {
+  .lm-live.is-team .lm-room-layout { grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); }
+  .lm-room-layout > .lm-room-panel { grid-column: 2; grid-row: 1 / span 3; }
 }

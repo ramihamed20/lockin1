@@ -153,3 +153,15 @@ passed. Added browser regressions for hidden-reader picker events, modal focus,
 picker cleanup on tab switch and thumbnail column changes. Browser execution
 remains unverified because the local Playwright browser is unavailable; the
 previous attempt to download it returned an unavailable-site response.
+
+
+## Lockin team discussion beside Focus — 28 October 2026
+
+Reviewed the additive i18n labels and the one-line CatalogFocusWorkspace diff.
+StudyDock now receives the existing reader root for its team-panel portal. No
+annotation ownership, PDF permissions, study progression or public claim changes.
+The team room reuses authorized team messages and code-based invitations; it
+does not claim a persistent friendship graph. The existing real Focus reader
+opens the authorized sheet, with an optional team panel; no iframe, duplicate PDF
+reader or relaxed framing/security policy is introduced. Only these reviewed
+evidence digests are refreshed. Lockin launch remains controlled by the server.
