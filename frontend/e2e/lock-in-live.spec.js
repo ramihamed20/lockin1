@@ -284,6 +284,14 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 820, height: 1180 
     await tabs.getByRole("tab").first().tap();
     await expect(page.locator(".lm-discussion textarea")).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    // With a real target and note, both primary study and communication actions
+    // should be available in the initial portrait viewport.
+    const target = await page.locator(".lm-study-target").boundingBox();
+    const editor = await page.locator(".lm-discussion textarea").boundingBox();
+    const clock = await page.locator(".lm-live-clock").boundingBox();
+    expect(clock.height).toBeLessThan(280);
+    expect(target.y + target.height).toBeLessThan(viewport.height);
+    expect(editor.y + editor.height).toBeLessThanOrEqual(viewport.height);
     await screenshot(page, `lockin-room-ar-day-${viewport.width}.png`);
     await expect(page.locator("html")).toHaveAttribute("data-theme", "day");
     await expect(page.locator(".lm-shell")).toHaveCSS("background-color", "rgb(242, 242, 247)");
@@ -363,3 +371,22 @@ test("chat composer grows for multiline text and sends with Enter", async ({ pag
   expect(messages[0].body).toBe("First line\nSecond line");
   await expect(page.locator(".lm-messages")).toContainText("Second line");
 });
+
+for (const viewport of [{ width: 390, height: 844 }, { width: 820, height: 1180 }]) {
+  test(`long team conversation keeps composer on screen at ${viewport.width}px`, async ({ page }) => {
+    const getLive = await connect(page, { team: makeTeam(), active: true });
+    getLive().session.experience_version = 2;
+    getLive().study_target = { title: "Anatomy", reader_path: "/materials/catalog/anatomy/sheets/intro/workspace", page_start: 1, page_end: 12 };
+    await page.route(`**/api/v1/focus/lock-in/teams/${TEAM_ID}/messages`, (route) => route.fulfill({ json: { messages: Array.from({ length: 80 }, (_, i) => ({ id: String(i), author_name: "Student", body: `Question ${i + 1}: a longer explanation to review together.` })) } }));
+    await page.setViewportSize(viewport);
+    await page.goto(`/#/lock-in/${ID}`);
+    await expect(page.locator(".lm-messages li")).toHaveCount(80);
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+    expect(await page.locator(".lm-messages").evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+    const composer = page.locator(".lm-discussion textarea");
+    const rect = await composer.boundingBox();
+    expect(rect.y + rect.height).toBeLessThanOrEqual(viewport.height);
+    await composer.fill("Still reachable");
+    await expect(composer).toHaveValue("Still reachable");
+  });
+}
