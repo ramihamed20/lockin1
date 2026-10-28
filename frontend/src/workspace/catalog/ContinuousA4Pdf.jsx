@@ -361,7 +361,10 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
           nextCanvas.width = Math.ceil(viewport.width);
           nextCanvas.height = Math.ceil(viewport.height);
           const nextContext = nextCanvas.getContext("2d", { alpha: false });
-          if (!nextContext || isCancelled()) return;
+          if (isCancelled()) return;
+          if (!nextContext || nextContext.isContextLost?.()) {
+            throw new Error("PDF page canvas is unavailable");
+          }
           renderTask = pdfPage.render({ canvasContext: nextContext, viewport });
           renderTask.onContinue = (continueRendering) => {
             if (!pdfRenderGenerationIsCurrent(renderController, renderGeneration, isCancelled())) {
@@ -432,6 +435,7 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
           onPageOutcome?.(pageNumber, false);
         } catch (error) {
           if (!isCancelled() && error?.name !== "RenderingCancelledException") {
+            renderedRef.current = { documentProxy: null, qualityScale: 0 };
             console.error("Could not render PDF page", error);
             // A blank page shell with no explanation looks like missing
             // content. The reader is told, and offered the page again.
@@ -716,9 +720,17 @@ export function ContinuousA4Pdf({
       if (next === backgrounded) return;
       backgrounded = next;
       // Cancel pending continuations before Safari freezes animation frames.
-      // Keep the displayed page and reading position while the app is away.
+      // Preserve page geometry and reading position while the app is away.
       setRenderSuspension("visibility", next);
-      if (!next) setWakeToken((token) => token + 1);
+      if (next) {
+        // The app is hidden: release PDF raster allocations before another
+        // media app needs GPU memory. Page geometry and annotations stay put.
+        documentRootRef.current?.querySelectorAll(".workspace-v2-a4-canvas, .workspace-v2-a4-detail-canvas").forEach((element) => {
+          const canvas = /** @type {HTMLCanvasElement} */ (element);
+          canvas.width = 0;
+          canvas.height = 0;
+        });
+      } else setWakeToken((token) => token + 1);
     };
     const hidePage = () => { pageHidden = true; syncVisibility(); };
     const showPage = () => { pageHidden = false; syncVisibility(); };
@@ -731,7 +743,7 @@ export function ContinuousA4Pdf({
       window.removeEventListener("pagehide", hidePage);
       window.removeEventListener("pageshow", showPage);
     };
-  }, [setRenderSuspension]);
+  }, [documentRootRef, setRenderSuspension]);
 
   useEffect(() => {
     if (Math.abs(renderScaleRef.current - zoom) < .001) {

@@ -2,9 +2,12 @@ import { expect, test } from "@playwright/test";
 import { withoutServiceWorker } from "./helpers/serviceWorker.js";
 import { fulfillAccessContract } from "./fixtures/productionApi.js";
 
+test.use({ hasTouch: true });
+
 const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 
 async function mockWorkspace(page) {
+  await page.addInitScript(() => localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now())));
   await withoutServiceWorker(page);
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
@@ -76,6 +79,68 @@ test("returning from another app repaints reclaimed PDF bitmaps without reloadin
   expect(Math.abs(restoredScroll[1] - originalScroll[1])).toBeLessThanOrEqual(1);
   expect(pdfRequests).toBe(0);
   await expect(page.locator(".workspace-v2-a4-status[role='alert']")).toHaveCount(0);
+});
+
+test("backgrounding releases PDF raster memory and restores the same reading position", async ({ page }) => {
+  await mockWorkspace(page);
+  await page.setViewportSize({ width: 834, height: 1194 });
+  await page.goto(ROUTE);
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  const front = page.locator('[data-pdf-page="1"] .workspace-v2-a4-canvas.is-visible');
+  await expect.poll(() => front.evaluate((canvas) => canvas.width), { timeout: 20_000 }).toBeGreaterThan(0);
+  const stage = page.locator(".workspace-v2-document-stage");
+  await stage.evaluate((node) => { node.scrollTop = 120; });
+  await expect.poll(() => stage.evaluate((node) => node.scrollTop)).toBe(120);
+  const rasterPixels = () => page.locator(".workspace-v2-a4-canvas, .workspace-v2-a4-detail-canvas")
+    .evaluateAll((canvases) => canvases.reduce((total, canvas) => total + canvas.width * canvas.height, 0));
+  expect(await rasterPixels()).toBeGreaterThan(0);
+
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await expect.poll(rasterPixels).toBe(0);
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await expect.poll(() => front.evaluate((canvas) => canvas.width)).toBeGreaterThan(0);
+  expect(await stage.evaluate((node) => node.scrollTop)).toBe(120);
+  await expect(page.getByRole("button", { name: "Retry page 1", exact: true })).toHaveCount(0);
+});
+
+for (const failure of ["unavailable", "lost"]) test(`a ${failure} foreground canvas offers a page retry without reloading the PDF`, async ({ page }) => {
+  await mockWorkspace(page);
+  await page.setViewportSize(failure === "unavailable" ? { width: 390, height: 844 } : { width: 834, height: 1194 });
+  await page.addInitScript(({ failure }) => {
+    window.__denyPdfCanvas = true;
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (kind, ...args) {
+      if (window.__denyPdfCanvas && kind === "2d" && this.matches(".workspace-v2-a4-canvas")
+        && this.closest('[data-pdf-page="1"]')) {
+        if (failure === "unavailable") return null;
+        const context = original.call(this, kind, ...args);
+        context.isContextLost = () => window.__denyPdfCanvas;
+        return context;
+      }
+      return original.call(this, kind, ...args);
+    };
+  }, { failure });
+  await page.goto(ROUTE);
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  const retry = page.getByRole("button", { name: "Retry page 1", exact: true });
+  await expect(retry).toBeVisible();
+  // An unavailable canvas on one page cannot strand the shared render queue.
+  await expect.poll(() => page.locator('[data-pdf-page="2"] .workspace-v2-a4-canvas.is-visible')
+    .evaluate((canvas) => canvas.width)).toBeGreaterThan(0);
+  let pdfRequests = 0;
+  page.on("request", (request) => { if (new URL(request.url()).pathname.endsWith(".pdf")) pdfRequests++; });
+  await page.evaluate(() => { window.__denyPdfCanvas = false; });
+  await retry.tap();
+  await expect.poll(() => page.locator('[data-pdf-page="1"] .workspace-v2-a4-canvas.is-visible')
+    .evaluate((canvas) => canvas.width)).toBeGreaterThan(0);
+  await expect(retry).toHaveCount(0);
+  expect(pdfRequests).toBe(0);
 });
 
 test("a PDF that fails to load explains itself and retries without duplicating render work", async ({ page }) => {
