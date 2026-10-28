@@ -1,3 +1,4 @@
+import { errorUiMessages } from "./errorUiMessages.js";
 import { settingsMessages } from "./settingsMessages.js";
 import { experienceMessages } from "./experienceMessages.js";
 import { sheetTranslationMessages } from "./sheetTranslationMessages.js";
@@ -26,6 +27,7 @@ const messages = {
     ...knowledgeMessages.en,
     ...rescueMessages.en,
     ...studyPlanMessages.en,
+    ...errorUiMessages.en,
     ...experienceMessages.en,
     ...settingsMessages.en,
     "app.name": "Lock-in",
@@ -3105,6 +3107,7 @@ const messages = {
     ...knowledgeMessages.ar,
     ...rescueMessages.ar,
     ...studyPlanMessages.ar,
+    ...errorUiMessages.ar,
     ...experienceMessages.ar,
     ...settingsMessages.ar,
     "app.name": "Lock-in",

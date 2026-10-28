@@ -80,7 +80,7 @@ export default function Ranked() {
         </IconButton>
       </div>
 
-      {ranking.loading ? <RankSkeleton /> : ranking.error ? <ErrorPanel message={ranking.error} onRetry={ranking.reload} /> : data && <div className="rank-mode-content" aria-busy={ranking.refreshing}>
+      {ranking.loading ? <RankSkeleton /> : ranking.error ? <ErrorPanel message={ranking.errorDetails || ranking.error} onRetry={ranking.reload} /> : data && <div className="rank-mode-content" aria-busy={ranking.refreshing}>
         {!data.cohort_required && <StandingSummary data={data} excluded={excluded} onPrivacy={openPrivacy} />}
         {data.cohort_required ? <section className="rank-mode-unassigned">
           <EmptyState title={t("rankMode.chooseCohort")} text={t("rankMode.chooseCohortBody")} />
@@ -102,7 +102,7 @@ export default function Ranked() {
           <summary><span className="rank-mode-setting-icon"><Icon name="eye" size={19} /></span><span><strong>{t("rankMode.privacyTitle")}</strong></span><Icon name="chevron-down" size={17} /></summary>
           <div className="rank-mode-disclosure">
             <p>{t("rankMode.privacyBody")}</p>
-            {profile.loading ? <LoadingPanel /> : profile.error ? <ErrorPanel message={profile.error} onRetry={profile.reload} /> : draft && <form onSubmit={saveProfile}>
+            {profile.loading ? <LoadingPanel /> : profile.error ? <ErrorPanel message={profile.errorDetails || profile.error} onRetry={profile.reload} /> : draft && <form onSubmit={saveProfile}>
               <fieldset disabled={saving || profile.refreshing}>
                 <div className="rank-mode-inclusion"><label htmlFor="rank-mode-included">{t("ranked.includeScore")}</label><Switch id="rank-mode-included" label={t("ranked.includeScore")} checked={draft.included === true} onCheckedChange={(included) => changeDraft({ included })} /></div>
                 <span className="rank-mode-choice-label">{t("ranked.howOthersSee")}</span>

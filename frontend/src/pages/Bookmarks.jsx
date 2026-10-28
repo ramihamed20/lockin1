@@ -36,7 +36,7 @@ export default function Bookmarks() {
   }
 
   if (bookmarks.loading) return <Page width="reading" title="Bookmarks" showHeading><LoadingPanel variant="list" /></Page>;
-  if (bookmarks.error) return <Page width="reading" title="Bookmarks" showHeading><ErrorPanel message={bookmarks.error} onRetry={bookmarks.reload} /></Page>;
+  if (bookmarks.error) return <Page width="reading" title="Bookmarks" showHeading><ErrorPanel message={bookmarks.errorDetails || bookmarks.error} onRetry={bookmarks.reload} /></Page>;
 
   return (
     <Page width="reading" title="Bookmarks" showHeading>

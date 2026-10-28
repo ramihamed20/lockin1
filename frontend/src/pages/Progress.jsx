@@ -103,7 +103,7 @@ export default function Progress({ user = null }) {
       </TabList>
 
       {xpState.loading && <LoadingPanel variant="progress" />}
-      {xpState.error && <ErrorPanel message={xpState.error} onRetry={xpState.reload} />}
+      {xpState.error && <ErrorPanel message={xpState.errorDetails || xpState.error} onRetry={xpState.reload} />}
       {xp && <section className={`progress-level-hero progress-mobile-section ${progressSection === "summary" ? "is-active" : ""}`}>
         <div className="progress-level-orb" aria-label={t("progress.levelLabel", { level: xp.level ?? 1 })}><strong>{xp.level ?? 1}</strong></div>
         <div className="progress-level-copy"><h2 dir="auto">{t("progress.levelTitle", { level: xp.level ?? 1 })}</h2><div className="progress-level-bar" role="progressbar" aria-label={t("progress.xpProgress")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={levelProgress}><i style={{ width: String(levelProgress) + "%" }} /></div><small dir="auto">{t("progress.xpToNext", { current: formatNumber(xp.level_progress || 0), target: formatNumber(xp.level_target || 0), next: Number(xp.level ?? 1) + 1 })}</small></div>
@@ -119,7 +119,7 @@ export default function Progress({ user = null }) {
         <article className={`progress-ledger-panel progress-mobile-section ${progressSection === "history" ? "is-active" : ""}`}>
           <header><h2>{t("progress.awardHistory")}</h2></header>
           {ledgerState.loading && <LoadingPanel variant="list" />}
-          {ledgerState.error && <ErrorPanel message={ledgerState.error} onRetry={ledgerState.reload} />}
+          {ledgerState.error && <ErrorPanel message={ledgerState.errorDetails || ledgerState.error} onRetry={ledgerState.reload} />}
           {ledger && <div className="progress-ledger-list">
             {ledgerPreview.length ? ledgerPreview.map((entry) => <article className="progress-ledger-row" key={entry.id}><span className={"progress-ledger-icon progress-ledger-icon--" + (entry.category || "default")}><Icon name={ledgerIcon(entry.category)} size={17} /></span><div><strong dir="auto">{entry.reason || t("progress.xpAward")}</strong><small dir="auto">{dateLabel(entry.occurred_at, t)}</small></div><b dir="auto">{Number(entry.points || 0) >= 0 ? "+" : ""}{entry.points ?? 0} {t("progress.xp")}</b></article>) : <p className="progress-empty-ledger">{t("progress.noAwards")}</p>}
           </div>}
@@ -129,7 +129,7 @@ export default function Progress({ user = null }) {
         <article className={`progress-calendar-panel progress-mobile-section ${progressSection === "calendar" ? "is-active" : ""}`}>
           <header><h2>{t("progress.meaningfulDays")}</h2></header>
           {streakState.loading && <LoadingPanel variant="list" />}
-          {streakState.error && <ErrorPanel message={streakState.error} onRetry={streakState.reload} />}
+          {streakState.error && <ErrorPanel message={streakState.errorDetails || streakState.error} onRetry={streakState.reload} />}
           {streak && !activity && <p role="status">{t("progress.calendarUnavailable")}</p>}
           {activity && <>
           <ProgressCalendarGrid activity={activity} selectedDay={selectedDay} onSelect={setSelectedDay} />

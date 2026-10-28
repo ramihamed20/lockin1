@@ -33,7 +33,7 @@ async function planner(page, { configured = false, locale = "en", materials = []
     if (path === "/api/v1/study-plan/profile") {
       const body = request.postDataJSON();
       expect(body.expected_revision).toBe(profile.revision);
-      if (rejectSave) return send({ error: { code: "invalid", message: "Try again" } }, 400);
+      if (rejectSave) return send({ error: { code: "invalid", message: "The request could not be completed.", fields: { timezone: ["Choose a valid timezone."] }, field_codes: { timezone: ["invalid_timezone"] }, request_id: "planner-field-error" } }, 400);
       profile = { ...profile, ...body, revision: profile.revision + 1, configured: true };
       return send(profile);
     }
@@ -111,7 +111,8 @@ test("a rejected settings save keeps the student's draft for retry", async ({ pa
   await page.goto("/#/study-plan");
   await page.getByLabel("Subjects", { exact: true }).fill("Anatomy, Physiology");
   await page.getByRole("button", { name: "Save plan", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Check the session details" })).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "Timezone: Choose a valid timezone." })).toBeVisible();
+  await expect(page.getByRole("alert")).toContainText("planner-field-error");
   await expect(page.getByLabel("Subjects", { exact: true })).toHaveValue("Anatomy, Physiology");
   state.reject(false);
   await page.getByRole("button", { name: "Save plan", exact: true }).click();

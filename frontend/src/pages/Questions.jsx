@@ -182,7 +182,7 @@ function ExamSheetQuestions({ user = null }) {
   const back = category?.available ? { backTo: `/questions/categories/${categoryId}/subjects/${subjectId}`, backLabel: data.data?.sheet?.subject_title || t(category.titleKey) } : { backTo: "/questions", backLabel: t("route.questions") };
   if (!category?.available) return <DirectoryState title={t("materials.notFoundTitle")} {...back}><ErrorPanel message={t("questions.subjectUnavailable")} /></DirectoryState>;
   if (data.loading) return <DirectoryState title={t(category.titleKey)} {...back}><LoadingPanel variant="quiz" /></DirectoryState>;
-  if (data.error) return <DirectoryState title={t(category.titleKey)} {...back}><ErrorPanel message={data.error} onRetry={data.reload} /></DirectoryState>;
+  if (data.error) return <DirectoryState title={t(category.titleKey)} {...back}><ErrorPanel message={data.errorDetails || data.error} onRetry={data.reload} /></DirectoryState>;
   if (!questions.length) return <DirectoryState title={sheetTitle} {...back}><EmptyState icon="study" title={t("questions.noQuestionsTitle")} text={t("questions.noQuestionsText")} /></DirectoryState>;
 
   const subjectTitle = data.data?.sheet?.subject_title || t("questions.aiSheet");

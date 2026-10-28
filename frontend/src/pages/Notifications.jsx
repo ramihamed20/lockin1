@@ -40,7 +40,7 @@ export default function Notifications({ user = null, onNotificationsChanged }) {
   // Loading and failure keep the page's title and column, so nothing moves
   // when the feed arrives.
   if (feed.loading) return <Page width="reading" title="Notifications"><LoadingPanel variant="list" /></Page>;
-  if (feed.error) return <Page width="reading" title="Notifications"><ErrorPanel message={feed.error} onRetry={feed.reload} /></Page>;
+  if (feed.error) return <Page width="reading" title="Notifications"><ErrorPanel message={feed.errorDetails || feed.error} onRetry={feed.reload} /></Page>;
 
   function refresh() {
     feed.reload();
@@ -116,7 +116,7 @@ export default function Notifications({ user = null, onNotificationsChanged }) {
       {/* The page title already says what this is: the list starts with its
           filter and the one bulk action, then the notifications themselves as
           one grouped list. */}
-      {summary.error && <ErrorPanel message={summary.error} onRetry={summary.reload} />}
+      {summary.error && <ErrorPanel message={summary.errorDetails || summary.error} onRetry={summary.reload} />}
       <section className="notifications-inbox-card notifications-v2">
         <div className="notifications-v2-bar">
           {/* A filter is one-of-N, not two independent toggles: `aria-pressed`

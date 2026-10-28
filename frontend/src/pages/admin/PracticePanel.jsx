@@ -84,7 +84,7 @@ export function PracticeSetList({ subjectId, canManage, onBack, onOpen }) {
       <button className="btn btn-primary" type="submit" disabled={pending || !title.trim()}><Icon name="plus" size={17} />{pending ? "Creating…" : "Create set"}</button>
     </form>}
     <Notice error={error} />
-    {data.loading ? <LoadingPanel variant="admin-list" /> : data.error ? <ErrorPanel message={data.error} onRetry={data.reload} /> : (
+    {data.loading ? <LoadingPanel variant="admin-list" /> : data.error ? <ErrorPanel message={data.errorDetails || data.error} onRetry={data.reload} /> : (
       <div className="admin-subject-list">
         {data.data.sets.length ? data.data.sets.map((set) => <button type="button" key={set.id} onClick={() => onOpen(set)}>
           <span className="stat-icon"><Icon name="brain" /></span>

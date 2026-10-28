@@ -160,7 +160,9 @@ class StudyPlanItemDetailView(APIView):
         if item.status == StudyPlanItem.Status.COMPLETED and item.scheduled_date > plan_today(
             profile_for(user)
         ):
-            raise ValidationError({"status": "Future sessions cannot be completed yet."})
+            raise ValidationError(
+                {"status": "Future sessions cannot be completed yet."}, code="future_session"
+            )
         # Only a move or a longer session can push a day past its cap; legacy days
         # that already exceed it must still allow completing or renaming a task.
         if item.scheduled_date != previous_date or item.duration_minutes > previous_minutes:

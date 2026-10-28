@@ -23,6 +23,7 @@ export default function StudyPlan({ user, examPeriods = null }) {
   const [plan, setPlan] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [actionError, setActionError] = useState(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState("");
   const [settings, setSettings] = useState(false);
@@ -73,10 +74,10 @@ export default function StudyPlan({ user, examPeriods = null }) {
     observer.observe(strip);
     return () => observer.disconnect();
   }, [day, loading, settings, configured]);
-  const fail = error => setMessage(error?.status === 409 ? "plan.stale" : error?.status === 400 ? "plan.invalid" : "plan.saveFailed");
+  const fail = error => setActionError(error);
   async function action(key, work) {
     if (busy) return;
-    setBusy(key); setMessage("");
+    setBusy(key); setMessage(""); setActionError(null);
     try { await work(); }
     catch (nextError) { fail(nextError); }
     finally { setBusy(""); }
@@ -84,7 +85,7 @@ export default function StudyPlan({ user, examPeriods = null }) {
   async function refreshPlan() {
     const fresh = await load(true);
     if (!fresh) return;
-    setPreview(null); setDeleting(null); setMessage("");
+    setPreview(null); setDeleting(null); setMessage(""); setActionError(null);
     setEditor(current => {
       if (!current?.item) return current;
       const latest = [...fresh.results, ...fresh.overdue].find(item => item.id === current.item.id);
@@ -127,7 +128,8 @@ export default function StudyPlan({ user, examPeriods = null }) {
       <header className="plan-heading"><div><p className="plan-date"><Icon name="calendar" size={16} />{displayDate(today, { weekday: "long", month: "long", day: "numeric" })}</p><h1>{t("nav.studyPlan")}</h1></div>{profile?.configured && <button className="btn btn-soft" type="button" disabled={Boolean(busy)} onClick={() => { setSettings(!settings); setInitialMode(""); }}><Icon name={settings ? "x" : "settings"} size={17} />{t(settings ? "plan.backToPlan" : "plan.settings")}</button>}</header>
       {loading && !plan ? <LoadingPanel variant="list" /> : !plan && error ? <ErrorPanel message={error} onRetry={() => load()} /> : plan && <>
         {message && <div className={`plan-notice ${["plan.stale", "plan.invalid", "plan.saveFailed"].includes(message) ? "plan-error" : ""}`} role="status"><span>{t(message)}</span>{message === "plan.stale" && <button className="btn btn-soft" type="button" disabled={Boolean(busy)} onClick={() => { void action("refresh", refreshPlan); }}>{t("plan.refresh")}</button>}</div>}
-        {error && <ErrorPanel message={t("plan.offline")} onRetry={() => load(true)} />}
+        {error && <ErrorPanel message={error} onRetry={() => load(true)} />}
+        {actionError && <><ErrorPanel message={actionError} />{actionError.code === "plan_changed" && <button className="btn btn-soft" type="button" disabled={Boolean(busy)} onClick={() => { void action("refresh", refreshPlan); }}>{t("plan.refresh")}</button>}</>}
         {(settings || !profile.configured) && <PlanSettings key={`${profile.configured}-${initialMode}`} profile={profile} materials={materials} initialMode={initialMode} busy={Boolean(busy)} onCancel={() => setSettings(false)} onSave={draft => action("profile", async () => {
           await studyPlanApi.saveProfile(draft, profile.revision); await load(true); setSettings(false); setPreview(null); setMessage("plan.saved");
         })} />}

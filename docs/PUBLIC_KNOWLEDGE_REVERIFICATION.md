@@ -199,3 +199,23 @@ shorten the visible prompt only; the existing accessible label and all published
 capability/help text are unchanged. No session, membership, friendship, note,
 Focus, permission or rollout capability was added. Only the reviewed i18n
 evidence digest is refreshed; verification remains enabled.
+
+
+## Error handling review — 28 October 2026
+
+Read the affected published Arabic feature requirements and help answers, including
+reader-unavailable, notes-not-synced and active-start-error. The matching English
+answers remain factually applicable. Changed list pages only pass the existing
+error object to ErrorPanel; catalog, question availability, Review scheduling,
+XP, access requirements and published routes retain their behavior. The reader
+changes classify local-save failures and remove a false out-of-space diagnosis;
+they do not change annotation scope, synchronization ownership or source PDFs.
+The translation catalog only adds error/recovery strings. No new product
+capability, outbound-delivery claim, AI promise or automatic-sync guarantee was
+added to public copy. In particular the existing advice to preserve unsynced
+work and not clear browser data remains correct.
+
+Only changed paths already present in evidenceDigests were refreshed following
+this review. The public verifier and publication allowlist remain mandatory and
+unchanged; public text and its last substantive verification dates are retained.
+Validation and runtime limits for this change are recorded in ERROR_HANDLING_FIXES.md.

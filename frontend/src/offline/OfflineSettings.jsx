@@ -1,3 +1,4 @@
+import { offlineOperationMessage } from "../lib/userErrors.js";
 import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "../components/I18nProvider.jsx";
 import { Switch } from "../components/ui/index.jsx";
@@ -243,7 +244,7 @@ export default function OfflineSettings({ userId }) {
       <h3 className="ui-group-title">{t("offline.failedChanges")}</h3>
       <div className="ui-group">
         {conflicts.slice(0, 5).map((operation) => <div key={operation.operation_id} className="ui-row">
-          <span className="ui-row-body"><span dir="auto">{operation.reason || operation.operation_type}</span></span>
+          <span className="ui-row-body"><span dir="auto">{offlineOperationMessage(operation, locale)}</span></span>
           <button type="button" className="btn btn-soft compact" onClick={() => dismiss(operation.operation_id)}>{t("offline.dismiss")}</button>
         </div>)}
       </div>

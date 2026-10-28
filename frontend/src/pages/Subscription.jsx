@@ -297,7 +297,7 @@ export default function Subscription({ onPoliciesAccepted }) {
   }, [reloadDetails, reviewStamp]);
 
   if (details.loading) return <Page width="reading" title={t("subscription.title")}><LoadingPanel variant="list" /></Page>;
-  if (details.error) return <Page width="reading" title={t("subscription.title")}><ErrorPanel message={details.error} onRetry={details.reload} /></Page>;
+  if (details.error) return <Page width="reading" title={t("subscription.title")}><ErrorPanel message={details.errorDetails || details.error} onRetry={details.reload} /></Page>;
 
   const { subscription, directAccess, accessExempt } = subscriptionSession;
   const { payments, catalog } = details.data;
