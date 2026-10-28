@@ -239,7 +239,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
                         value={option.id}
                         disabled={settings.autoTheme || Boolean(saving)}
                       >
-                        <span className="settings-v2-choice-art"><ResponsiveThemePreview character={settings.character} theme={option.id} alt={t("settings.themePreviewNamed", { name: t(`settings.theme.${option.id}`) })} sizes="(max-width: 639px) 42vw, 180px" /></span>
+                        <span className="settings-v2-choice-art"><img src={assetPath(option.preview)} alt={t("settings.themePreviewNamed", { name: t(`settings.theme.${option.id}`) })} width="640" height="640" loading="lazy" decoding="async" /></span>
                         <span className="settings-v2-choice-label">{t(`settings.theme.${option.id}`)}</span>
                         <small><span dir="ltr">{option.time}</span></small>
                       </RadioOption>

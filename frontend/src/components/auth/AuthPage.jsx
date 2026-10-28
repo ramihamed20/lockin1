@@ -705,7 +705,7 @@ export function AuthPage({ onAuthed, completionUser = null, onSignOut = null, no
     <main className="auth-v2" dir={direction}>
       <header className="auth-v2-topbar">
         <div className="auth-v2-brand" aria-label="Lock-in">
-          <img src={assetPath("/icons/lockin-light-192-v2.png")} alt="" width="38" height="38" />
+          <img src={assetPath("/icons/lockin-logo.svg")} alt="" width="38" height="38" />
           <div><strong>Lock-in</strong><span>{t("auth.platform")}</span></div>
         </div>
         <label className="auth-v2-language">

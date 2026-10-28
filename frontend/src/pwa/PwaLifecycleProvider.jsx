@@ -76,7 +76,7 @@ function PwaLaunchScreen({ status, platform, busy, error, onInstall, onContinue 
     <section className="pwa-launch-screen" role="dialog" aria-modal="true" aria-labelledby="pwa-launch-title">
       <div className="pwa-launch-shell">
         <header className="pwa-launch-brand" aria-label={t("app.name")}>
-          <img src={assetPath("/icons/lockin-light-192-v2.png")} alt="" draggable="false" />
+          <img src={assetPath("/icons/lockin-logo.svg")} alt="" draggable="false" />
           <strong>lock-in</strong>
         </header>
 

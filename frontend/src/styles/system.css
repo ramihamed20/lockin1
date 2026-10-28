@@ -98,8 +98,12 @@ body::after {
   box-shadow: none;
 }
 
-.brand-logo-img {
+.brand-mark .brand-logo-img {
+  box-sizing: border-box;
+  padding: 6px;
   border-radius: inherit;
+  background: #FFFDF9;
+  object-fit: contain;
 }
 
 .brand strong {

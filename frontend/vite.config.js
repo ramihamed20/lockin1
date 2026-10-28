@@ -168,12 +168,13 @@ export default defineConfig(async ({ mode, command }) => {
       srcDir: "src",
       filename: "service-worker.js",
       includeAssets: [
-        "icons/lockin-light-16-v2.png",
-        "icons/lockin-light-32-v2.png",
-        "icons/lockin-light-180-v2.png",
-        "icons/lockin-light-192-v2.png",
-        "icons/lockin-light-512-v2.png",
-        "icons/lockin-light-maskable-512-v2.png",
+        "icons/*.svg",
+        "icons/lockin-light-16-v3.png",
+        "icons/lockin-light-32-v3.png",
+        "icons/lockin-light-180-v3.png",
+        "icons/lockin-light-192-v3.png",
+        "icons/lockin-light-512-v3.png",
+        "icons/lockin-light-maskable-512-v3.png",
         "startup.css"
       ],
       manifest: {
@@ -204,19 +205,19 @@ export default defineConfig(async ({ mode, command }) => {
         prefer_related_applications: false,
         icons: [
           {
-            src: "icons/lockin-light-192-v2.png",
+            src: "icons/lockin-light-192-v3.png",
             sizes: "192x192",
             type: "image/png",
             purpose: "any"
           },
           {
-            src: "icons/lockin-light-512-v2.png",
+            src: "icons/lockin-light-512-v3.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "any"
           },
           {
-            src: "icons/lockin-light-maskable-512-v2.png",
+            src: "icons/lockin-light-maskable-512-v3.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable"
