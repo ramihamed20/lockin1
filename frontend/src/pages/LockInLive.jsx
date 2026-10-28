@@ -4,7 +4,7 @@ import { useLiveConnection } from "../components/lock-in/useLiveConnection.js";
 import { SessionNote } from "../components/lock-in/SessionNote.jsx";
 import { SessionRoomPanel } from "../components/lock-in/SessionRoomPanel.jsx";
 import { useEffect, useState } from "react";
-import { BookOpen, Coffee, Pause, Play, X } from "lucide-react";
+import { ArrowUpRight, BookOpen, Coffee, Pause, Play, X } from "lucide-react";
 import { useI18n } from "../components/I18nProvider.jsx";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
 import { useVisibleNow } from "../hooks/useVisibleNow.js";
@@ -68,6 +68,8 @@ export default function LockInLive({ payload, busy, error, onAction, onHome, onP
       ? { title: t("lockIn.leaveSessionConfirm"), message: t("lockIn.leaveSessionMessage"), label: t("lockIn.leaveSession") }
       : { title: t("lockIn.endConfirm"), message: teamMode ? t("lockIn.endTeamSessionMessage") : t("lockIn.endSoloMessage"), label: t("lockIn.endSession") };
 
+  const progress = session.planned_duration_seconds > 0 && remaining != null
+    ? Math.max(0, Math.min(100, (1 - remaining / session.planned_duration_seconds) * 100)) : 0;
   const members = teamMode && <section className="ui-group-block lm-live-presence" aria-labelledby="lm-live-members">
         <h2 className="ui-group-title" id="lm-live-members">{t("lockIn.members")} · {participants.length}</h2>
         <ul className="ui-group" aria-labelledby="lm-live-members">{participants.map((member) => {
@@ -94,21 +96,28 @@ export default function LockInLive({ payload, busy, error, onAction, onHome, onP
     </LockInBar>
     {session.goal && <p className="lm-session-goal" dir="auto">{session.goal}</p>}
     <div className={`lm-live-main${teamMode ? " lm-room-layout" : ""}`}>
+      <div className="lm-live-study">
       <section className="lm-live-clock" aria-label={remaining == null ? t("lockIn.timeFocused") : t("lockIn.timeRemaining")}>
-        <h1 dir="ltr">{clock(remaining ?? activeSeconds)}</h1>
+        <div className={`lm-clock-face ${statusTone}`}>
+          <svg className="lm-clock-ring" viewBox="0 0 300 300" aria-hidden="true">
+            <circle className="lm-clock-track" cx="150" cy="150" r="144" />
+            <circle className="lm-clock-progress" cx="150" cy="150" r="144" pathLength="100" strokeDasharray={`${progress} 100`} />
+          </svg>
+          <div className="lm-clock-content"><span className="lm-clock-label">{t(remaining == null ? "lockIn.timeFocused" : "lockIn.timeRemaining")}</span><h1 dir="ltr">{clock(remaining ?? activeSeconds)}</h1></div>
+        </div>
         <p className={`lm-status ${statusTone}`}><span className="lm-live-dot" aria-hidden="true" />{t(statusKey)}</p>
         {remaining != null && <p className="lm-live-meta">{t("lockIn.focusedSoFar", { time: clock(activeSeconds) })}</p>}
       </section>
       {payload.study_target?.reader_path && <section className="lm-study-target">
-        <BookOpen size={24} aria-hidden="true" />
-        <strong dir="auto">{payload.study_target.title}</strong>
-        {payload.study_target.page_end && <span>{t("lockIn.pageRange", { start: payload.study_target.page_start, end: payload.study_target.page_end })}</span>}
-        <Link className="btn btn-primary" to={payload.study_target.reader_path} state={{ lockInPanelOpen: teamMode }}>{t("lockIn.openSheet")}</Link>
+        <span className="lm-sheet-symbol"><BookOpen size={24} aria-hidden="true" /></span>
+        <div className="lm-sheet-copy"><strong dir="auto">{payload.study_target.title}</strong>
+          {payload.study_target.page_end && <span>{t("lockIn.pageRange", { start: payload.study_target.page_start, end: payload.study_target.page_end })}</span>}
+        </div>
+        <Link className="btn btn-primary" to={payload.study_target.reader_path} state={{ lockInPanelOpen: teamMode }}>{t("lockIn.openSheet")}<ArrowUpRight className="lm-flip" size={16} aria-hidden="true" /></Link>
       </section>}
+      {(!teamMode || session.experience_version === 2) && <div className="lm-live-extras"><SessionNote payload={payload} /></div>}
+      </div>
       {teamMode && <SessionRoomPanel payload={payload} members={members} />}
-    </div>
-    <div className="lm-live-extras">
-      {(!teamMode || session.experience_version === 2) && <SessionNote payload={payload} />}
     </div>
     <footer className="lm-live-controls">
       {!teamMode && <button className="btn btn-soft" type="button" disabled={Boolean(busy)} onClick={() => void onAction(paused ? "resume" : "pause")}>{paused ? <Play size={17} aria-hidden="true" /> : <Pause size={17} aria-hidden="true" />}{paused ? t("lockIn.resume") : t("lockIn.pause")}</button>}

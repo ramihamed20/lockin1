@@ -165,3 +165,15 @@ does not claim a persistent friendship graph. The existing real Focus reader
 opens the authorized sheet, with an optional team panel; no iframe, duplicate PDF
 reader or relaxed framing/security policy is introduced. Only these reviewed
 evidence digests are refreshed. Lockin launch remains controlled by the server.
+
+
+## Lockin native room styling — 28 October 2026
+
+Reviewed the additive live-status label in i18n.js against published help text.
+This change adds presentation labels only. The existing Lockin, Focus, notes and
+Active Study capability wording and all API contracts remain intact. The room
+now uses the app palette, a decorative clock ring, segmented chat/member views,
+compact invitations and responsive setup. A sheet change clears the page-range
+inputs before submitting the same authorized version-2 contract. No independent
+friendship system or new production rollout is claimed. Only the reviewed i18n
+evidence digest is refreshed; verification stays enabled.

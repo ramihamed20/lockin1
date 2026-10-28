@@ -7,6 +7,8 @@ import { isFeatureComingSoon } from "../src/lib/featureAvailability.js";
 // Lockin Mode is scheduled; lock-in-coming-soon.spec.js covers the gated route.
 test.skip(isFeatureComingSoon("lock-in"), "Lockin Mode is coming soon");
 
+test.use({ hasTouch: true });
+
 const OUTPUT = new URL("../output/playwright/", import.meta.url);
 const ID = "10000000-0000-4000-8000-000000000001";
 const TEAM_ID = "20000000-0000-4000-8000-000000000001";
@@ -38,7 +40,7 @@ function makeTeam(role = "owner") {
     ] };
 }
 
-async function connect(page, { team = null, active = false, language = "en", otherPresence = "break" } = {}) {
+async function connect(page, { team = null, active = false, language = "en", otherPresence = "break", theme = "night" } = {}) {
   let live = active ? makeLive(team) : null;
   if (live && team) live.participants[1].presence = otherPresence;
   if (active && team) { team.active_session_id = ID; team.can_resume_session = true; }
@@ -47,7 +49,7 @@ async function connect(page, { team = null, active = false, language = "en", oth
     const { pathname } = new URL(request.url());
     const method = request.method();
     const json = (payload, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(payload) });
-    if (pathname === "/api/v1/auth/session") return json({ user: studentSession({ preferred_language: language, policy_version: "2026.10", policy_accepted_at: "2026-10-27T00:00:00Z" }) });
+    if (pathname === "/api/v1/auth/session") return json({ user: studentSession({ preferred_language: language, theme_settings: { theme, autoTheme: false }, policy_version: "2026.10", policy_accepted_at: "2026-10-27T00:00:00Z" }) });
     if (pathname === "/api/v1/focus/lock-in/availability") return json({ enabled: true });
     if (pathname === "/api/v1/auth/csrf") return json({ csrf_token: "live-csrf" });
     if (await fulfillAccessContract(route, pathname)) return;
@@ -134,6 +136,7 @@ test("Team host starts one shared session with anonymous presence", async ({ pag
   await page.getByRole("button", { name: "Start session" }).click();
   await page.getByRole("button", { name: "Start", exact: true }).click();
   await expect(page.getByRole("main", { name: "Lock-in session" })).toBeVisible();
+  await page.getByRole("tab", { name: /^Members/ }).click();
   await expect(page.getByText("Anonymous 01")).toBeVisible();
   await screenshot(page, "lockin-live-member-break.png");
   await expect(page.locator(".lm-live-presence").getByText("On break", { exact: true })).toBeVisible();
@@ -146,6 +149,7 @@ test("Team member resumes from Break, has no host controls, and can leave", asyn
   await connect(page, { team: makeTeam("member"), active: true });
   await page.goto(`/#/lock-in/${ID}`);
   await expect(page.getByRole("button", { name: "Session controls" })).toHaveCount(0);
+  await page.getByRole("tab", { name: /^Members/ }).click();
   await expect(page.getByText("Anonymous 01")).toBeVisible();
   await page.getByRole("button", { name: "Back to focus" }).click();
   await expect(page.getByRole("button", { name: "Break" })).toBeVisible();
@@ -165,6 +169,7 @@ test("Away presence remains distinct from Break", async ({ page }) => {
   await connect(page, { team: makeTeam(), active: true, otherPresence: "away" });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/#/lock-in/${ID}`);
+  await page.getByRole("tab", { name: /^Members/ }).click();
   await expect(page.locator(".lm-live-presence").getByText("Away")).toBeVisible();
   await screenshot(page, "lockin-live-away.png");
 });
@@ -210,7 +215,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1180, height: 820 
     await page.setViewportSize(viewport);
     await page.goto(`/#/lock-in/${ID}`);
     await expect(page.getByRole("region", { name: "Team discussion" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Invite friends" })).toBeVisible();
+    await expect(page.locator(".lm-room-invite summary")).toContainText("Invite friends");
     await page.getByRole("link", { name: "Open sheet", exact: true }).click();
     await page.getByRole("button", { name: /Normal Study/ }).click();
     const room = page.locator(".lm-focus-room");
@@ -218,6 +223,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1180, height: 820 
     await expect(page.locator(".workspace-pane.is-active .workspace-v2-a4-canvas.is-visible").first()).toBeVisible();
     const input = room.getByRole("textbox", { name: "Share a question or an explanation" });
     await input.fill("Which page are we studying?");
+    await room.getByRole("tab", { name: /^Members/ }).click();
+    await expect(room.getByText("Anonymous 01")).toBeVisible();
+    await room.getByRole("tab", { name: "Team discussion", exact: true }).click();
+    await expect(input).toHaveValue("Which page are we studying?");
     await room.getByRole("button", { name: "Send", exact: true }).click();
     await expect(room.getByText("Which page are we studying?", { exact: true })).toBeVisible();
     await input.focus();
@@ -229,5 +238,38 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1180, height: 820 
     const box = await room.boundingBox();
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+    if (viewport.width === 390) {
+      await page.evaluate(() => {
+        Object.defineProperty(window.visualViewport, "height", { configurable: true, value: 400 });
+        window.visualViewport.dispatchEvent(new Event("resize"));
+      });
+      await expect.poll(async () => { const rect = await room.boundingBox(); return rect.y + rect.height; }).toBeLessThanOrEqual(400);
+      await page.evaluate(() => { delete window.visualViewport.height; window.visualViewport.dispatchEvent(new Event("resize")); });
+    }
+    await screenshot(page, `lockin-focus-team-${viewport.width}.png`);
+  });
+}
+
+for (const viewport of [{ width: 390, height: 844 }, { width: 820, height: 1180 }]) {
+  test(`Arabic light room supports touch and member tabs at ${viewport.width}px`, async ({ page }) => {
+    await connect(page, { team: makeTeam(), active: true, language: "ar", theme: "day" });
+    await page.addInitScript(() => {
+      localStorage.setItem("lock-in.locale", "ar");
+      localStorage.setItem("lock-in.theme.settings", JSON.stringify({ theme: "day", autoTheme: false }));
+      localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now()));
+    });
+    await page.setViewportSize(viewport);
+    await page.goto(`/#/lock-in/${ID}`);
+    await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "day");
+    const tabs = page.locator(".lm-room-tabs");
+    await tabs.getByRole("tab").nth(1).tap();
+    await expect(page.locator(".lm-live-presence")).toBeVisible();
+    await tabs.getByRole("tab").first().tap();
+    await expect(page.locator(".lm-discussion input")).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await screenshot(page, `lockin-room-ar-day-${viewport.width}.png`);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "day");
+    await expect(page.locator(".lm-shell")).toHaveCSS("background-color", "rgb(242, 242, 247)");
   });
 }

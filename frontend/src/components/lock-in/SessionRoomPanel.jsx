@@ -1,4 +1,6 @@
-import { Users, X } from "lucide-react";
+import { useId, useState } from "react";
+import { Tab, TabList } from "../ui/interactive.jsx";
+import { ChevronDown, UserPlus, Users, X } from "lucide-react";
 import { useI18n } from "../I18nProvider.jsx";
 import { TeamCode, lockInMemberName } from "../../pages/LockInLobby.jsx";
 import { TeamDiscussion } from "./TeamDiscussion.jsx";
@@ -7,23 +9,31 @@ import { TeamDiscussion } from "./TeamDiscussion.jsx";
 export function SessionRoomPanel({ payload, onClose = undefined, members = null }) {
   const { t } = useI18n();
   const { team, participants = [] } = payload;
+  const [section, setSection] = useState("chat");
+  const id = useId();
   if (!team) return null;
   return <aside className="lm-room-panel" aria-label={t("lockIn.team")}>
     <header className="lm-room-panel-heading">
       <Users size={18} aria-hidden="true" /><strong dir="auto">{team.name}</strong>
       {onClose && <button type="button" className="lm-icon-button" onClick={onClose} aria-label={t("common.close")}><X size={18} /></button>}
     </header>
-    <div className="lm-room-panel-body">
-      {!team.closed_at && !team.joining_locked && team.invite_code && <TeamCode code={team.invite_code} compact />}
-      {members || <details className="lm-room-members">
-        <summary>{t("lockIn.members")} · {participants.length}</summary>
+    <TabList className="ui-segmented lm-room-tabs" label={t("lockIn.team")} value={section} onChange={setSection}>
+      <Tab value="chat" id={`${id}-chat-tab`} aria-controls={`${id}-panel`}>{t("lockIn.discussion")}</Tab>
+      <Tab value="members" id={`${id}-members-tab`} aria-controls={`${id}-panel`}>{t("lockIn.members")} <span className="lm-count">{participants.length}</span></Tab>
+    </TabList>
+    {!team.closed_at && !team.joining_locked && team.invite_code && <details className="lm-room-invite">
+      <summary><UserPlus size={16} aria-hidden="true" /><span>{t("lockIn.inviteFriends")}</span><b dir="ltr">{team.invite_code}</b><ChevronDown size={14} aria-hidden="true" /></summary>
+      <TeamCode code={team.invite_code} compact />
+    </details>}
+    <div className="lm-room-panel-body" id={`${id}-panel`} role="tabpanel" aria-labelledby={`${id}-${section}-tab`}>
+      {section === "members" && (members || <section className="lm-room-members">
         <ul className="ui-group">{participants.map((member) => <li key={member.member_id} className="ui-row">
           <span className={`lm-live-dot is-${member.presence || "away"}`} aria-hidden="true" />
           <span className="ui-row-body" dir="auto">{lockInMemberName(member, t)}</span>
           <span className="ui-row-value">{t(member.presence === "focused" ? "lockIn.focused" : member.presence === "break" ? "lockIn.onBreak" : "lockIn.away")}</span>
         </li>)}</ul>
-      </details>}
-      <TeamDiscussion key={team.id} teamId={team.id} expanded />
+      </section>)}
+      <div hidden={section !== "chat"}><TeamDiscussion key={team.id} teamId={team.id} expanded active={section === "chat"} /></div>
     </div>
   </aside>;
 }

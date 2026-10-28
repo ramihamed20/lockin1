@@ -7,6 +7,8 @@ import { isFeatureComingSoon } from "../src/lib/featureAvailability.js";
 // Lockin Mode is scheduled; lock-in-coming-soon.spec.js covers the gated route.
 test.skip(isFeatureComingSoon("lock-in"), "Lockin Mode is coming soon");
 
+test.use({ hasTouch: true });
+
 const OUTPUT = new URL("../output/playwright/", import.meta.url);
 
 async function connect(page, language = "en", initialTeam = null) {
@@ -172,3 +174,29 @@ test("Arabic lobby keeps codes legible", async ({ page }) => {
   await expect(code).toHaveAttribute("dir", "ltr");
   await screenshot(page, "lockin-rtl-join.png");
 });
+
+for (const width of [390, 820]) {
+  test(`setup uses the chosen duration and clears the previous sheet range at ${width}px`, async ({ page }) => {
+    await connect(page);
+    await page.route("**/api/v1/focus/lock-in", (route) => route.fulfill({ json: {
+      active_session: null, teams: [], team_rankings: [], materials: [
+        { document_version_id: "long-sheet", title: "Long sheet", page_count: 40 },
+        { document_version_id: "short-sheet", title: "Short sheet", page_count: 5 }
+      ]
+    } }));
+    await page.setViewportSize({ width, height: 1180 });
+    await page.goto("/#/lock-in");
+    await page.getByRole("button", { name: /^Solo/ }).click();
+    await page.getByRole("radio", { name: /45/ }).click();
+    await expect(page.locator(".lm-duration-preview")).toContainText("45");
+    const sheet = page.getByRole("combobox", { name: "Study material", exact: true });
+    await sheet.selectOption("long-sheet");
+    await page.getByLabel("From page", { exact: true }).fill("20");
+    await page.getByLabel("To page", { exact: true }).fill("30");
+    await sheet.selectOption("short-sheet");
+    await expect(page.getByLabel("From page", { exact: true })).toHaveValue("1");
+    await expect(page.getByLabel("To page", { exact: true })).toHaveValue("");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await screenshot(page, `lockin-setup-touch-${width}.png`);
+  });
+}

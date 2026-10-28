@@ -28,7 +28,7 @@
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 12px;
-  min-height: 60px;
+  min-height: 64px;
   padding: env(safe-area-inset-top) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
   background: var(--material);
   -webkit-backdrop-filter: var(--material-filter);
@@ -67,7 +67,7 @@
 
 .lm-heading h1 {
   margin: 0;
-  font-size: var(--title-large);
+  font-size: clamp(1.65rem, 3vw, 2rem);
   font-weight: var(--weight-bold);
   line-height: 1.15;
   letter-spacing: var(--tracking-title);
@@ -253,8 +253,8 @@
   display: grid;
   flex: none;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   margin-inline-end: -6px;
   border: 0;
   border-radius: var(--radius-full);
@@ -381,7 +381,7 @@ html.ix-hover .lm-menu button:hover { background: color-mix(in srgb, var(--text)
 /* --- Sizes ---------------------------------------------------------------- */
 
 @media (max-width: 639px) {
-  .lm-heading h1 { font-size: var(--title-large-phone); }
+  .lm-heading h1 { font-size: 1.65rem; }
   .lm-page { gap: 20px; padding-top: 24px; }
   .lm-team-heading { flex-direction: column; align-items: stretch; }
   .lm-team-heading .btn { width: 100%; }
@@ -400,4 +400,73 @@ html.ix-hover .lm-menu button:hover { background: color-mix(in srgb, var(--text)
 @media (max-height: 500px) and (orientation: landscape) {
   .lm-bar { min-height: 48px; }
   .lm-page { padding-top: 16px; gap: 16px; }
+}
+
+
+/* Native grouped surfaces: shared colours and controls in every app theme. */
+.lm-shell { font-family: var(--font-body); }
+.lm-shell :is(input, select, textarea) { font-size: max(16px, 1rem); }
+.lm-shell .btn { min-height: 44px; }
+.lm-home-page { width: min(100% - 40px, 920px); gap: 24px; padding-block-start: clamp(28px, 5dvh, 56px); }
+.lm-home-page .lm-heading { padding-inline: 4px; }
+.lm-home-page .lm-heading h1 { font-weight: var(--weight-bold); letter-spacing: var(--tracking-title); }
+.lm-home-page .lm-mode-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; overflow: visible; background: transparent; border: 0; box-shadow: none; }
+.lm-mode-choices > li { min-width: 0; border: 0; }
+.lm-mode-choices > li::after { display: none; }
+.lm-mode-choices .ui-row { display: grid; grid-template-columns: 1fr auto; min-height: 176px; gap: 22px 12px; padding: 24px; border-radius: var(--radius-2xl); background: var(--surface); box-shadow: var(--card-shadow); }
+.lm-mode-choices .ui-row::after, .lm-mode-choices > li + li > .ui-row::before { display: none; }
+.lm-mode-choices .ui-row-icon { grid-column: 1; width: 48px; height: 48px; margin: 0; border-radius: var(--radius-lg); background: var(--accent-soft); color: var(--accent-text); }
+.lm-mode-choices li:nth-child(2) .ui-row-icon { background: var(--info-soft); color: var(--info); }
+.lm-mode-choices .ui-row-body { grid-column: 1; display: grid; gap: 4px; }
+.lm-mode-choices .ui-row-body strong { font-size: var(--text-xl); font-weight: var(--weight-semibold); }
+.lm-mode-choices .ui-row-body small { font-size: var(--text-sm); line-height: 1.5; }
+.lm-mode-choices .ui-row-chevron { grid-column: 2; grid-row: 2; align-self: center; }
+.lm-quick-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.lm-quick-actions .btn { flex: 0 1 auto; font-size: var(--text-sm); gap: 8px; }
+.lm-team-list .ui-row-value { color: var(--success); font-size: var(--text-xs); }
+.lm-resume-card { padding: 18px 20px; border-radius: var(--radius-2xl); }
+.lm-resume-card .lm-live-dot { margin-inline: 6px; }
+.lm-setup-shell .lm-page { width: min(100% - 40px, 920px); }
+.lm-setup-form { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start; gap: 24px; }
+.lm-setup-details { display: grid; gap: 20px; min-width: 0; }
+.lm-setup-timing { display: grid; justify-items: center; gap: 12px; min-width: 0; padding: 24px; border-radius: var(--radius-2xl); background: var(--surface); }
+.lm-setup-timing > svg { color: var(--accent-text); }
+.lm-setup-timing > .ui-group-block { width: 100%; }
+.lm-setup-timing .ui-group-title { margin-block-end: 10px; }
+.lm-duration-preview { display: flex; align-items: baseline; gap: 8px; padding-block: 4px 12px; }
+.lm-duration-preview strong { font-size: 4.5rem; font-weight: var(--weight-regular); line-height: 1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.lm-duration-preview span { color: var(--muted); font-size: var(--text-sm); }
+.lm-setup-timing .lm-durations { background: var(--surface-2); }
+.lm-setup-timing .lm-custom-duration { width: 100%; }
+.lm-form-submit, .lm-setup-form > .lm-error { grid-column: 1 / -1; }
+.lm-form-submit { position: sticky; bottom: max(12px, env(safe-area-inset-bottom)); padding: 6px; border-radius: var(--radius-full); background: var(--material); backdrop-filter: var(--material-filter); -webkit-backdrop-filter: var(--material-filter); }
+.lm-form-submit .btn { min-height: 50px; }
+.lm-room-invite .lm-code-card { flex-direction: row; align-items: center; }
+.lm-room-invite .lm-code-card .btn { align-self: center; }
+.lm-bar-back:focus-visible, .lm-icon-button:focus-visible, .lm-menu button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media (max-width: 639px) {
+  .lm-home-page, .lm-setup-shell .lm-page { width: min(100% - 32px, 520px); }
+  .lm-home-page .lm-mode-choices { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .lm-mode-choices .ui-row { grid-template-columns: auto minmax(0, 1fr) auto; min-height: 112px; gap: 14px; padding: 20px; }
+  .lm-mode-choices .ui-row-icon { grid-column: 1; grid-row: 1; }
+  .lm-mode-choices .ui-row-body { grid-column: 2; grid-row: 1; }
+  .lm-mode-choices .ui-row-chevron { grid-column: 3; grid-row: 1; }
+  .lm-mode-choices .ui-row-body strong { font-size: var(--text-lg); }
+  .lm-quick-actions .btn { flex: 1 1 auto; }
+  .lm-setup-form { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .lm-setup-timing { grid-row: 1; padding: 20px; }
+  .lm-duration-preview strong { font-size: 4rem; }
+  .lm-setup-details .ui-row { flex-wrap: wrap; gap: 8px 12px; }
+  .lm-setup-details .lm-row-input-wide { flex-basis: 100%; width: 100%; }
+  .lm-setup-details .lm-select { max-width: 100%; }
+  .lm-bar { gap: 8px; padding-inline: max(12px, env(safe-area-inset-left)) max(12px, env(safe-area-inset-right)); }
+  .lm-bar-back { width: 44px; height: 44px; padding: 0; }
+  .lm-bar-back span { display: none; }
+  .lm-bar-title { max-width: 54vw; }
+}
+@media (max-width: 359px) {
+  .lm-mode-choices .ui-row { padding: 16px; gap: 10px; }
+  .lm-mode-choices .ui-row-icon { width: 40px; height: 40px; }
+  .lm-resume-card { padding: 14px; gap: 10px; flex-wrap: wrap; }
+  .lm-resume-card .btn { margin-inline-start: auto; }
 }

@@ -24,7 +24,7 @@ function initial(name) {
 export function LockInBar({ onBack, backLabel, backIcon = "back", children = null, end = null }) {
   return <header className="lm-bar">
     <div className="lm-bar-start">
-      <button className="btn btn-soft compact lm-bar-back" type="button" onClick={onBack}>
+      <button className="btn btn-soft compact lm-bar-back" type="button" onClick={onBack} aria-label={backLabel}>
         {backIcon === "close" ? <X size={17} aria-hidden="true" /> : <ArrowLeft className="lm-flip" size={17} aria-hidden="true" />}
         <span>{backLabel}</span>
       </button>
@@ -63,8 +63,8 @@ function TeamRows({ teams, onOpen }) {
   if (!open.length) return null;
   return <section className="ui-group-block" aria-labelledby="lm-your-teams">
     <h2 className="ui-group-title" id="lm-your-teams">{t("lockIn.yourTeams")}</h2>
-    <ul className="ui-group">
-      {open.map((item) => <NavRow key={item.id} icon={Users} title={item.name} hint={t("lockIn.membersOf", { count: item.member_count, max: item.max_members })} onClick={() => onOpen(item)} />)}
+    <ul className="ui-group lm-team-list">
+      {open.map((item) => <NavRow key={item.id} icon={Users} title={item.name} hint={t("lockIn.membersOf", { count: item.member_count, max: item.max_members })} value={item.active_session_id ? t("lockIn.liveNow") : null} onClick={() => onOpen(item)} />)}
     </ul>
   </section>;
 }
@@ -162,12 +162,13 @@ export function LockInSetup({ bootstrap, teamId, preselectedDocumentVersionId, o
       topic: "", note: "", tasks: []
     });
   }
-  return <main className="lm-shell" aria-label={t("lockIn.title")}>
+  return <main className="lm-shell lm-setup-shell" aria-label={t("lockIn.title")}>
     <LockInBar onBack={onBack} backLabel={t("lockIn.back")} />
     <div className="lm-page">
       <header className="lm-heading"><h1>{teamId ? t("lockIn.teamSession") : t("lockIn.soloSession")}</h1></header>
       {bootstrap?.active_session && <ResumeCard active={bootstrap.active_session} onResume={onResume} />}
-      <form className="lm-form" onSubmit={submit}>
+      <form className="lm-form lm-setup-form" onSubmit={submit}>
+        <section className="lm-setup-details" aria-label={t("lockIn.material")}>
         <div className="ui-group">
           <div className="ui-row">
             <label className="ui-row-body" htmlFor="lm-goal">{t("lockIn.goal")}</label>
@@ -177,31 +178,36 @@ export function LockInSetup({ bootstrap, teamId, preselectedDocumentVersionId, o
         {<div className="ui-group-block">
           <div className="ui-group"><div className="ui-row">
             <label className="ui-row-body" htmlFor="lm-material"><span>{t("lockIn.material")}</span></label>
-            <select id="lm-material" className="ui-row-input lm-select" value={materialId} onChange={(event) => setMaterialId(event.target.value)}>
+            <select id="lm-material" className="ui-row-input lm-select" value={materialId} onChange={(event) => { setMaterialId(event.target.value); setPageStart("1"); setPageEnd(""); }}>
               <option value="">{t("lockIn.independent")}</option>
               {materials.map((item) => <option key={item.document_version_id} value={item.document_version_id}>{item.title}</option>)}
             </select>
           </div></div>
         </div>}
-        <div className="ui-group-block">
-          <h2 className="ui-group-title" id="lm-duration-title">{t("lockIn.duration")}</h2>
-          <RadioGroup className="lm-durations" value={duration} onChange={setDuration} label={t("lockIn.duration")}>
-            {DURATIONS.map((value) => <RadioOption key={value} value={String(value)} className="lm-duration"><strong>{value}</strong><small>{t("lockIn.minuteUnit")}</small></RadioOption>)}
-          </RadioGroup>
-        </div>
         {materialId && <div className="ui-group lm-page-range">
           <div className="ui-row"><label className="ui-row-body" htmlFor="lm-page-start">{t("lockIn.fromPage")}</label>
             <input id="lm-page-start" className="ui-row-input lm-row-input-number" type="number" min="1" max={selectedMaterial?.page_count || undefined} required value={pageStart} onChange={(event) => setPageStart(event.target.value)} /></div>
           <div className="ui-row"><label className="ui-row-body" htmlFor="lm-page-end">{t("lockIn.toPage")}</label>
             <input id="lm-page-end" className="ui-row-input lm-row-input-number" type="number" min={Number(pageStart)} max={selectedMaterial?.page_count || undefined} value={pageEnd} onChange={(event) => setPageEnd(event.target.value)} /></div>
         </div>}
+        {!teamId && <AnonymousRow id="lm-solo-anonymous" checked={anonymous} onChange={setAnonymous} />}
+        </section>
+        <section className="lm-setup-timing" aria-labelledby="lm-duration-title">
+          <Timer size={24} aria-hidden="true" />
+          <output className="lm-duration-preview" aria-label={t("lockIn.duration")}><strong>{duration || "—"}</strong><span>{t("lockIn.minuteUnit")}</span></output>
+        <div className="ui-group-block">
+          <h2 className="ui-group-title" id="lm-duration-title">{t("lockIn.duration")}</h2>
+          <RadioGroup className="lm-durations" value={duration} onChange={setDuration} label={t("lockIn.duration")}>
+            {DURATIONS.map((value) => <RadioOption key={value} value={String(value)} className="lm-duration"><strong>{value}</strong><small>{t("lockIn.minuteUnit")}</small></RadioOption>)}
+          </RadioGroup>
+        </div>
         <details className="lm-custom-duration"><summary>{t("lockIn.customize")}</summary>
           <label htmlFor="lm-custom-minutes">{t("lockIn.duration")}</label>
           <input id="lm-custom-minutes" type="number" min="1" max="480" value={duration} onChange={(event) => setDuration(event.target.value)} required />
         </details>
-        {!teamId && <AnonymousRow id="lm-solo-anonymous" checked={anonymous} onChange={setAnonymous} />}
+        </section>
         {error && <p className="lm-error" role="alert">{error}</p>}
-        <button className="btn btn-primary lm-submit" type="submit" disabled={busy}>{t("lockIn.start")}</button>
+        <div className="lm-form-submit"><button className="btn btn-primary lm-submit" type="submit" disabled={busy}>{t("lockIn.start")}</button></div>
       </form>
     </div>
   </main>;
@@ -389,7 +395,7 @@ export default function LockInLobby({ bootstrap, onExit, onSolo, onTeamStart, on
       </TabList>}
     </LockInBar>
 
-    {screen === "home" && <div className="lm-page">
+    {screen === "home" && <div className="lm-page lm-home-page">
       <header className="lm-heading"><h1 id="lm-title">{t("lockIn.title")}</h1></header>
       {active && <ResumeCard active={active} onResume={onResume} />}
       <section className="ui-group-block" aria-labelledby="lm-start-title">
@@ -399,6 +405,10 @@ export default function LockInLobby({ bootstrap, onExit, onSolo, onTeamStart, on
           <NavRow icon={Users} title={t("lockIn.team")} hint={t("lockIn.teamHint")} onClick={() => go("team")} />
         </ul>
       </section>
+      <div className="lm-quick-actions">
+        <button className="btn btn-soft" type="button" onClick={() => go("create")}><UserPlus size={17} aria-hidden="true" />{t("lockIn.createTeam")}</button>
+        <button className="btn btn-soft" type="button" onClick={() => go("join")}><KeyRound size={17} aria-hidden="true" />{t("lockIn.joinTeam")}</button>
+      </div>
       <TeamRows teams={teams} onOpen={openTeam} />
       {error && <p className="lm-error" role="alert">{error}</p>}
     </div>}

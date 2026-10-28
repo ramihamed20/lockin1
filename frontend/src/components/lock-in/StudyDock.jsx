@@ -26,6 +26,27 @@ export function StudyDock({ payload, onChange, active, portalRef }) {
     document.addEventListener("keydown", escape, true);
     return () => document.removeEventListener("keydown", escape, true);
   }, [active, roomOpen, closeRoom]);
+  // iPad split view and phone keyboards change the visible viewport before
+  // they change the reader's layout viewport. Keep the composer reachable.
+  useEffect(() => {
+    if (!active || !roomOpen) return undefined;
+    const panel = roomRef.current;
+    if (!panel) return undefined;
+    const viewport = window.visualViewport;
+    const measure = () => {
+      const visibleBottom = (viewport?.offsetTop || 0) + (viewport?.height || window.innerHeight);
+      panel.style.setProperty("--lm-room-max-height", `${Math.max(120, visibleBottom - panel.getBoundingClientRect().top - 12)}px`);
+    };
+    measure();
+    viewport?.addEventListener("resize", measure);
+    viewport?.addEventListener("scroll", measure);
+    window.addEventListener("resize", measure);
+    return () => {
+      viewport?.removeEventListener("resize", measure);
+      viewport?.removeEventListener("scroll", measure);
+      window.removeEventListener("resize", measure);
+    };
+  }, [active, roomOpen]);
   const { t } = useI18n();
   useVisibleNow(active);
   const snapshot = useMemo(() => ({ ...payload, received_at_monotonic_ms: window.performance.now() }), [payload]);
