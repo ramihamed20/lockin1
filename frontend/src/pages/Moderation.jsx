@@ -116,7 +116,7 @@ export default function Moderation({ user }) {
   }
 
   if (queue.loading) return <LoadingPanel />;
-  if (queue.error) return <ErrorPanel message={queue.error} onRetry={queue.reload} />;
+  if (queue.error) return <ErrorPanel message={queue.errorDetails || queue.error} onRetry={queue.reload} />;
 
   return (
     <Page title="Moderation" subtitle="Review the reports authorized for your account.">

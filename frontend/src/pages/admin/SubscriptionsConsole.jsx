@@ -77,7 +77,7 @@ function SubscriptionDetail({ subscriptionId, canManage, onChanged, onClose }) {
   const [success, setSuccess] = useState("");
 
   if (data.loading) return <QueueDetail label="Subscription detail"><LoadingPanel /></QueueDetail>;
-  if (data.error) return <QueueDetail label="Subscription detail"><ErrorPanel message={data.error} onRetry={data.reload} /></QueueDetail>;
+  if (data.error) return <QueueDetail label="Subscription detail"><ErrorPanel message={data.errorDetails || data.error} onRetry={data.reload} /></QueueDetail>;
 
   const item = data.data;
   const education = item.user.education || {};
@@ -294,7 +294,7 @@ export default function SubscriptionsConsole({ canManage }) {
 
       <QueueRefreshStatus refreshing={list.refreshing} />
       {list.loading ? <QueueSkeleton /> : list.error ? (
-        <ErrorPanel message={list.error} onRetry={list.reload} />
+        <ErrorPanel message={list.errorDetails || list.error} onRetry={list.reload} />
       ) : (
         <section className="panel ops-table-panel" aria-busy={list.refreshing || undefined}>
           <div className="ops-panel-head">

@@ -88,19 +88,21 @@ class StudyPlanProfileWriteSerializer(StrictSerializer):
 
     def validate_weekdays(self, value: list[int]) -> list[int]:
         if len(set(value)) != len(value):
-            raise serializers.ValidationError("Choose each day once.")
+            raise serializers.ValidationError("Choose each day once.", code="duplicate_day")
         return sorted(value)
 
     def validate_subjects(self, value: list[str]) -> list[str]:
         if len({subject.casefold() for subject in value}) != len(value):
-            raise serializers.ValidationError("Choose each subject once.")
+            raise serializers.ValidationError("Choose each subject once.", code="duplicate_subject")
         return value
 
     def validate_timezone(self, value: str) -> str:
         try:
             ZoneInfo(value)
         except (ZoneInfoNotFoundError, ValueError) as error:
-            raise serializers.ValidationError("Choose a valid timezone.") from error
+            raise serializers.ValidationError(
+                "Choose a valid timezone.", code="invalid_timezone"
+            ) from error
         return value
 
 
@@ -109,7 +111,9 @@ class StudyPlanPreviewSerializer(StrictSerializer):
 
     def validate_start_date(self, value: Any) -> Any:
         if value.weekday() != 0:
-            raise serializers.ValidationError("Choose the Monday that starts this week.")
+            raise serializers.ValidationError(
+                "Choose the Monday that starts this week.", code="week_start_required"
+            )
         return value
 
 

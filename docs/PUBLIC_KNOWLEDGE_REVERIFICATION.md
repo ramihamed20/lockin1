@@ -86,3 +86,22 @@ Web Push defaults off until keys and the deployment flag are configured. It forw
 ## Study Plan availability review — 25 October 2026
 
 The normal Study Plan route is reopened through the product availability registry; its E2E-only query bypass is removed. Account-owned planning still requires an authenticated eligible account and connection. Completion remains self reported, without XP, automatic grading or elapsed-time certification. The inventory now describes Beginning/Normal/Custom accurately; publicDocumentable remains false, so no new public guide or outcome claim is published. App routing and the registry are the only changed published evidence sources. Other feature gates, authentication and content permissions remain unchanged. Regression tests now use the ordinary route and cover overdue navigation and stale editing/preview recovery. Evidence hashes are updated only for the reviewed App and registry files; the verifier is unchanged.
+
+## Error handling review — 28 October 2026
+
+Read the affected published Arabic feature requirements and help answers, including
+reader-unavailable, notes-not-synced and active-start-error. The matching English
+answers remain factually applicable. Changed list pages only pass the existing
+error object to ErrorPanel; catalog, question availability, Review scheduling,
+XP, access requirements and published routes retain their behavior. The reader
+changes classify local-save failures and remove a false out-of-space diagnosis;
+they do not change annotation scope, synchronization ownership or source PDFs.
+The translation catalog only adds error/recovery strings. No new product
+capability, outbound-delivery claim, AI promise or automatic-sync guarantee was
+added to public copy. In particular the existing advice to preserve unsynced
+work and not clear browser data remains correct.
+
+Only changed paths already present in evidenceDigests were refreshed following
+this review. The public verifier and publication allowlist remain mandatory and
+unchanged; public text and its last substantive verification dates are retained.
+Validation and runtime limits for this change are recorded in ERROR_HANDLING_FIXES.md.

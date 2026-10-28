@@ -1,4 +1,5 @@
 import { isHtmlErrorMessage, normalizeUserError } from "../lib/errors.js";
+import { userErrorMessage } from "../lib/userErrors.js";
 import {
   configureConnectionProbe,
   getConnectionSnapshot,
@@ -241,6 +242,25 @@ function combineSignals(callerSignal, deadlineSignal) {
   return controller.signal;
 }
 
+/** Wait without cancelling shared work (such as the CSRF bootstrap). */
+function withinSignal(work, signal) {
+  if (!signal) return work;
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(Object.assign(new Error("Request cancelled"), { name: "AbortError" }));
+    // Observe work even if already cancelled; fetch may have returned an
+    // already-rejected promise, which must not become an unhandled rejection.
+    Promise.resolve(work).then(resolve, reject).finally(() => signal.removeEventListener("abort", abort));
+    if (signal.aborted) abort();
+    else signal.addEventListener("abort", abort, { once: true });
+  });
+}
+
+function retryAfterSeconds(value) {
+  if (!value) return null;
+  const seconds = /^\d+$/.test(value.trim()) ? Number(value) : Math.ceil((Date.parse(value) - Date.now()) / 1000);
+  return Number.isFinite(seconds) && seconds >= 0 ? seconds : null;
+}
+
 export class ApiError extends Error {
   /**
    * @param {number} status
@@ -256,7 +276,7 @@ export class ApiError extends Error {
       : "";
     const detail = detailMessage(payload);
     super(normalizeUserError(
-      (error && typeof error.message === "string" && error.message) ||
+      (error && typeof error.message === "string" && !/^The request could not be completed\.?$/i.test(error.message) && error.message) ||
         fieldMessage ||
         detail ||
         fallbackMessage,
@@ -266,6 +286,13 @@ export class ApiError extends Error {
     this.status = status;
     this.code = (error && typeof error.code === "string" && error.code) || fallbackCode;
     this.fields = fields;
+    this.fieldCodes = error?.field_codes || null;
+    this.rawMessage = this.message;
+    this.method = "GET";
+    this.requestSent = false;
+    this.retryAfterSeconds = null;
+    this.retryAt = null;
+    this.message = userErrorMessage(this, { locale: readerLanguage() });
     this.request_id =
       (error && typeof error.request_id === "string" && error.request_id) || null;
     this.requestId = this.request_id;
@@ -316,7 +343,13 @@ export function onUnauthorized(subscriber) {
 async function readErrorPayload(response) {
   const contentType = response.headers.get("content-type") || "";
   if (contentType.includes("json")) {
-    return response.json().catch(() => null);
+    try { return await response.json(); }
+    catch (error) {
+      if (isAbortError(error)) throw error;
+      // Keep the HTTP status authoritative even if its error body is broken.
+      // In particular a 401 must still end the session, and 429 keeps headers.
+      return null;
+    }
   }
 
   const text = await response.text().catch(() => "");
@@ -328,40 +361,32 @@ async function readErrorPayload(response) {
 }
 
 async function fetchCsrfToken() {
-  let response;
+  const deadline = timeoutSignal(DEFAULT_REQUEST_TIMEOUT_MS);
   try {
-    response = await fetch(apiPath("/auth/csrf"), {
+    const response = await withinSignal(fetch(apiPath("/auth/csrf"), {
       credentials: "include",
-      headers: { Accept: "application/json" }
-    });
+      headers: { Accept: "application/json" },
+      signal: deadline?.signal
+    }), deadline?.signal);
     reportConnectionSuccess();
-  } catch {
+    if (!response.ok) {
+      throw new ApiError(response.status, await withinSignal(readErrorPayload(response), deadline?.signal),
+        "Unable to establish a secure session with the server.", "csrf_bootstrap_failed");
+    }
+    let payload;
+    try { payload = await withinSignal(response.json(), deadline?.signal); }
+    catch (error) {
+      if (isAbortError(error)) throw error;
+      throw new ApiError(response.status, null, "The server returned an incomplete response.", "invalid_response");
+    }
+    const token = (payload && typeof payload.csrf_token === "string" && payload.csrf_token) || readCsrfCookie();
+    if (!token) throw new ApiError(response.status, null, "Unable to establish a secure session with the server.", "csrf_token_missing");
+    return token;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
     reportConnectionFailure();
-    throw new ApiError(0, null, "Network error. Check your connection and try again.", "network_error");
-  }
-  if (!response.ok) {
-    const payload = await readErrorPayload(response);
-    throw new ApiError(
-      response.status,
-      payload,
-      "Unable to establish a secure session with the server.",
-      "csrf_bootstrap_failed"
-    );
-  }
-
-  const payload = await response.json().catch(() => null);
-  const token =
-    (payload && typeof payload.csrf_token === "string" && payload.csrf_token) || readCsrfCookie();
-  if (!token) {
-    throw new ApiError(
-      response.status,
-      payload,
-      "The server did not provide a CSRF token.",
-      "csrf_token_missing"
-    );
-  }
-
-  return token;
+    throw new ApiError(0, null, "Unable to establish a secure session with the server.", "csrf_bootstrap_failed");
+  } finally { deadline?.clear(); }
 }
 
 export async function ensureCsrfToken() {
@@ -397,6 +422,13 @@ async function parseResponse(response, responseType) {
     if (response.status === 401 || (response.status === 403 && error.code === "not_authenticated")) {
       notifyUnauthorized();
     }
+    const reference = response.headers?.get("X-Request-ID");
+    if (!error.request_id && reference && /^[a-zA-Z0-9_-]{1,128}$/.test(reference)) {
+      error.request_id = reference;
+      error.requestId = reference;
+    }
+    error.retryAfterSeconds = retryAfterSeconds(response.headers?.get("Retry-After"));
+    error.retryAt = error.retryAfterSeconds === null ? null : Date.now() + error.retryAfterSeconds * 1000;
     throw error;
   }
 
@@ -404,7 +436,11 @@ async function parseResponse(response, responseType) {
   if (responseType === "blob") return response.blob();
   if (responseType === "arraybuffer") return response.arrayBuffer();
   if (responseType === "text") return response.text();
-  return response.json().catch(() => null);
+  try { return await response.json(); }
+  catch (error) {
+    if (isAbortError(error)) throw error;
+    throw new ApiError(response.status, null, "The server returned an incomplete response.", "invalid_response");
+  }
 }
 
 /**
@@ -428,65 +464,62 @@ export async function request(path, options = {}) {
   if (options.idempotencyKey) {
     headers.set("Idempotency-Key", options.idempotencyKey);
   }
-  if (isUnsafe(method)) {
-    headers.set("X-CSRFToken", await ensureCsrfToken());
-  }
-
-  const timeout = requestTimeoutMs(options, method);
-  const deadline = timeoutSignal(timeout);
+  // One budget covers CSRF preparation, headers AND response body. A caller's
+  // cancellation stops only its wait, never another caller's shared bootstrap.
+  const deadline = timeoutSignal(requestTimeoutMs(options, method));
   const signal = combineSignals(options.signal, deadline?.signal);
-  // A read that began while the server still looked reachable is held to the
-  // shorter budget as soon as the connection is found to be failing, so a page
-  // waiting on it can fall back to downloaded content.
   const defaultRead = deadline && ["GET", "HEAD"].includes(method) && !(Number(options.timeoutMs) > 0);
   const stopWatching = defaultRead ? subscribeConnection(({ status }) => {
     if (status !== "connected") deadline.shorten(status === "offline" ? OFFLINE_READ_TIMEOUT_MS : UNREACHABLE_READ_TIMEOUT_MS);
   }) : () => {};
-
-  let response;
   const retryable = options.retryable === true || ["GET", "HEAD", "OPTIONS"].includes(method);
-  // Cleared on every exit, failures included, so a failed request does not
-  // leave its deadline timer running.
+  let requestSent = false;
   try {
-    for (let attempt = 0; ; attempt += 1) try {
-      response = await fetch(apiPath(path), { method, headers, body: /** @type {BodyInit | null | undefined} */ (body), credentials: "include", signal });
-      reportConnectionSuccess();
-      break;
-    } catch (error) {
-      if (error instanceof ApiError) throw error;
-      // A timeout, a caller's cancellation and a dead network are three different
-      // answers, and a reader deserves to be told which. Collapsing them into
-      // "network error" made a slow connection look like a broken one, and made a
-      // navigation away look like a failure worth reporting.
-      // The deadline covers the whole request, retries included, so once it has
-      // expired another attempt would only reuse an already-aborted signal.
-      if (deadline?.expired) {
+    if (isUnsafe(method)) headers.set("X-CSRFToken", await withinSignal(ensureCsrfToken(), signal));
+    let response;
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        requestSent = true;
+        response = await withinSignal(fetch(apiPath(path), { method, headers, body: /** @type {BodyInit | null | undefined} */ (body), credentials: "include", signal }), signal);
+        reportConnectionSuccess();
+        break;
+      } catch (error) {
+        if (error instanceof ApiError || isAbortError(error) || signal?.aborted) throw error;
         reportConnectionFailure();
-        throw new ApiError(
-          0,
-          null,
-          "The server took too long to answer. Check your connection and try again.",
-          "timeout"
-        );
+        if (retryable && attempt < 2 && !browserReportsOffline()) {
+          await withinSignal(new Promise(resolve => setTimeout(resolve, [400, 1100][attempt])), signal);
+          continue;
+        }
+        throw new ApiError(0, null, "Network error. Check your connection and try again.", "network_error");
       }
-      if (isAbortError(error)) {
-        throw new ApiError(0, null, "This request was cancelled.", "aborted");
-      }
-      reportConnectionFailure();
-      if (retryable && attempt < 2 && !browserReportsOffline()) { await new Promise((resolve) => setTimeout(resolve, [400, 1100][attempt])); continue; }
-      throw new ApiError(
-        0,
-        null,
-        "Network error. Check your connection and try again.",
-        "network_error"
-      );
     }
+    return await withinSignal(parseResponse(response, options.responseType || "json"), signal);
+  } catch (cause) {
+    let error = cause;
+    if (deadline?.expired) {
+      reportConnectionFailure();
+      error = new ApiError(0, null, "The server took too long to answer. Check your connection and try again.", "timeout");
+    } else if (isAbortError(cause)) {
+      error = new ApiError(0, null, "This request was cancelled.", "aborted");
+    }
+    if (error instanceof ApiError) {
+      // A bootstrap rejection can be shared; never attach one request's state
+      // to the Error that another request is also waiting on.
+      const failure = new ApiError(error.status, error.payload, error.rawMessage, error.code);
+      failure.request_id = error.request_id;
+      failure.requestId = error.request_id;
+      failure.retryAfterSeconds = error.retryAfterSeconds;
+      failure.retryAt = error.retryAt;
+      failure.method = method;
+      failure.requestSent = requestSent;
+      failure.message = userErrorMessage(failure, { locale: readerLanguage() });
+      throw failure;
+    }
+    throw error;
   } finally {
     deadline?.clear();
     stopWatching();
   }
-
-  return parseResponse(response, options.responseType || "json");
 }
 
 configureConnectionProbe(async () => {
@@ -514,6 +547,7 @@ export const __testing = {
   isUnsafe,
   reset() {
     cachedCsrfToken = "";
+    pendingCsrfToken = null;
     unauthorizedSubscribers.clear();
     setSessionMarker(false);
   }

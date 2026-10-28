@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Wifi, WifiOff, LoaderCircle } from "lucide-react";
+import { useI18n } from "../I18nProvider.jsx";
 import { getConnectionSnapshot, subscribeConnection } from "../../lib/connectionState.js";
 
 export function ConnectionStatus() {
+  const { t } = useI18n();
   const [connection, setConnection] = useState(getConnectionSnapshot);
   const [restored, setRestored] = useState(false);
   const previousRef = useRef(connection.status);
@@ -25,8 +27,7 @@ export function ConnectionStatus() {
   }, []);
   const state = connection.status === "connected" ? (restored ? "restored" : "hidden") : connection.status;
   if (state === "hidden") return null;
-  const copy = state === "reconnecting" ? "Reconnecting…" : state === "offline"
-    ? "You’re offline — changes will sync when connection returns" : "Connection restored";
+  const copy = t(`errors.connection.${state}`);
   const Icon = state === "reconnecting" ? LoaderCircle : state === "offline" ? WifiOff : Wifi;
   return <div className={`connection-status connection-status--${state}`} role="status" aria-live="polite"><Icon size={16} aria-hidden="true" /><span>{copy}</span></div>;
 }

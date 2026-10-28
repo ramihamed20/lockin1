@@ -185,5 +185,6 @@ def validate_day(user: User, day: date, minutes: int, exclude: Any = None) -> No
         or (items.aggregate(total=Sum("duration_minutes"))["total"] or 0) + minutes > 480
     ):
         raise ValidationError(
-            {"duration_minutes": "A day can contain at most 480 minutes and 48 sessions."}
+            {"duration_minutes": "A day can contain at most 480 minutes and 48 sessions."},
+            code="day_limit_exceeded",
         )

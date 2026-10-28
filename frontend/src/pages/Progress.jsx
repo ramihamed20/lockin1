@@ -144,7 +144,7 @@ export default function Progress() {
   // next page of awards arrives instead of collapsing to a skeleton.
   const progression = useAsyncData(() => loadProgression(page), [page], { keepPreviousData: true, cacheKey: `progress:${page}` });
   if (progression.loading) return <Page title={t("progress.title")} showHeading><LoadingPanel variant="progress" /></Page>;
-  if (progression.error) return <Page title={t("progress.title")} showHeading><ErrorPanel message={progression.error} onRetry={progression.reload} /></Page>;
+  if (progression.error) return <Page title={t("progress.title")} showHeading><ErrorPanel message={progression.errorDetails || progression.error} onRetry={progression.reload} /></Page>;
 
   const { xp, ledger, streak } = progression.data;
   const levelProgress = Number(xp.level_target) > 0

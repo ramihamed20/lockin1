@@ -1,3 +1,5 @@
+import { currentAppLocale } from "../lib/i18n.js";
+import { localSaveError } from "../lib/userErrors.js";
 import { lazy, Suspense, startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
@@ -1818,9 +1820,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         setSaveErrorReason("");
         markDocumentDirty(target);
         if (!target) scheduleServerSync();
-      } catch {
+      } catch (error) {
         setSaveState("error");
-        setSaveErrorReason(translateRef.current("focus.outOfSpace"));
+        setSaveErrorReason(localSaveError(error, currentAppLocale()));
       }
       return;
     }
@@ -1847,7 +1849,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       // The signatures are deliberately not advanced, so the next save retries
       // exactly the pages that failed.
       setSaveState("error");
-      setSaveErrorReason(error?.message || translateRef.current("focus.marksNotSaved"));
+      setSaveErrorReason(localSaveError(error, currentAppLocale()));
     }
   }, [markDocumentDirty, materialSlug, minimumPdfZoom, ownerKey, scheduleServerSync, storageSlug]);
 
@@ -6160,7 +6162,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
           <ZoomBar fitPdfWidth={fitPdfWidth} minimumAllowedZoom={minimumAllowedZoom} minimumPdfZoom={minimumPdfZoom} sheet={sheet} t={t} workspaceReady={workspaceReady} zoom={zoom} zoomByStep={zoomByStep} zoomToFitMultiple={zoomToFitMultiple} />
           {workspaceReady && zoomWindow && <ZoomWindow region={zoomWindow} onRegionChange={setZoomWindow} pageAspect={pageAspectFor(zoomWindow.page)} annotations={annotationsHidden ? NO_ANNOTATIONS : (annotationsByPage.get(zoomWindow.page) || NO_ANNOTATIONS)} pdfDocument={searchDocumentProxy} pen={zoomWindowPen} onCommit={commitZoomWindowStroke} onClose={() => setZoomWindow(null)} onHeightChange={setZoomWindowHeight} />}
           {sheet.pdfUrl && <output className={`workspace-v4-zoom-hud${zoomHud.visible ? " is-visible" : ""}`} aria-live="polite" aria-label={t("focus.currentZoom", { percent: Math.round(zoom * 100) })}><strong>{Math.round(zoom * 100)}%</strong><span>{zoomHud.label && !zoomHud.label.endsWith("%") ? zoomHud.label : pdfZoomModeRef.current === "fit" ? t("focus.fitWidth") : t("focus.zoom")}</span></output>}
-          {saveState === "error" && <p className="workspace-v2-save-warning" role="alert"><Zap size={14} aria-hidden="true" />{t("focus.thisDeviceCannotStoreMore")}</p>}
+          {saveState === "error" && <p className="workspace-v2-save-warning" role="alert"><Zap size={14} aria-hidden="true" />{saveErrorReason || t("errors.localSaveFailed")}</p>}
           {focusMessage && !sideOpen && <p className="workspace-v2-toast" aria-hidden="true">{focusMessage}</p>}
           {workspaceReady && renderSelectionToolbar()}
           {workspaceReady && renderExportSheet()}

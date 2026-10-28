@@ -1,3 +1,4 @@
+import { errorUiMessages } from "./errorUiMessages.js";
 import { studyPlanMessages } from "./studyPlanMessages.js";
 import { allQuestionsMessages } from "./allQuestionsMessages.js";
 import { pomodoroMessages } from "./pomodoroMessages.js";
@@ -22,6 +23,7 @@ const messages = {
     ...knowledgeMessages.en,
     ...rescueMessages.en,
     ...studyPlanMessages.en,
+    ...errorUiMessages.en,
     "app.name": "Lock-in",
     "common.loading": "Loading content…",
     "common.tryAgain": "Try again",
@@ -3019,6 +3021,7 @@ const messages = {
     ...knowledgeMessages.ar,
     ...rescueMessages.ar,
     ...studyPlanMessages.ar,
+    ...errorUiMessages.ar,
     "app.name": "Lock-in",
     "common.loading": "جارٍ تحميل المحتوى…",
     "common.tryAgain": "حاول مجددًا",

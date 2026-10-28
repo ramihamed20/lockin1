@@ -32,7 +32,7 @@ export default function Ranked() {
   }, [ranked.data]);
 
   if (ranked.loading) return <LoadingPanel />;
-  if (ranked.error) return <ErrorPanel message={ranked.error} onRetry={ranked.reload} />;
+  if (ranked.error) return <ErrorPanel message={ranked.errorDetails || ranked.error} onRetry={ranked.reload} />;
 
   const { ranking } = ranked.data;
   const definition = ranking.definition;

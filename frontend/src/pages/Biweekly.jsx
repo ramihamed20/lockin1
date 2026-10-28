@@ -17,7 +17,7 @@ export function BiweeklyDetail({ type }) {
   const { t, locale } = useI18n();
   const state = useAsyncData(() => biweeklyApi.report(type, id), [type, id]);
   if (state.loading) return <Page title={t("biweekly.view")}> <LoadingPanel /> </Page>;
-  if (state.error) return <Page title={t("biweekly.view")}><ErrorPanel message={state.error} onRetry={state.reload} /></Page>;
+  if (state.error) return <Page title={t("biweekly.view")}><ErrorPanel message={state.errorDetails || state.error} onRetry={state.reload} /></Page>;
   const report = state.data;
   const data = report.data;
   return <Page title={type === "review" ? t("biweekly.reviewTitle") : t("biweekly.analysisTitle")} subtitle={periodLabel(report.period_start, report.period_end, locale)}>
@@ -42,7 +42,7 @@ export function WeeklySummaryPage() {
     return { analysis: analysisReport, review: reviewReport };
   }, []);
   if (state.loading) return <Page title={t("weekly.title")}><LoadingPanel /></Page>;
-  if (state.error) return <Page title={t("weekly.title")}><ErrorPanel message={state.error} onRetry={state.reload} /></Page>;
+  if (state.error) return <Page title={t("weekly.title")}><ErrorPanel message={state.errorDetails || state.error} onRetry={state.reload} /></Page>;
   const { analysis, review } = state.data;
   if (!analysis && !review) return <Page title={t("weekly.title")}><p>{t("biweekly.noHistory")}</p></Page>;
   const period = analysis || review;
@@ -93,7 +93,7 @@ export function BiweeklyTest() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   if (state.loading) return <Page title={t("biweekly.startTest")}><LoadingPanel /></Page>;
-  if (state.error) return <Page title={t("biweekly.startTest")}><ErrorPanel message={state.error} onRetry={state.reload} /></Page>;
+  if (state.error) return <Page title={t("biweekly.startTest")}><ErrorPanel message={state.errorDetails || state.error} onRetry={state.reload} /></Page>;
   const questions = state.data.questions;
   const outcome = result || state.data.result;
   async function submit(event) {

@@ -47,7 +47,7 @@ export default function Notifications({ onNotificationsChanged }) {
   // Loading and failure keep the page's title and column, so nothing moves
   // when the feed arrives.
   if (feed.loading) return <Page width="reading" title="Notifications" showHeading><LoadingPanel variant="list" /></Page>;
-  if (feed.error) return <Page width="reading" title="Notifications" showHeading><ErrorPanel message={feed.error} onRetry={feed.reload} /></Page>;
+  if (feed.error) return <Page width="reading" title="Notifications" showHeading><ErrorPanel message={feed.errorDetails || feed.error} onRetry={feed.reload} /></Page>;
 
   function refresh() {
     feed.reload();

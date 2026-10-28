@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
+import { translate } from "../src/lib/i18n.js";
 
 import {
   __testing,
@@ -23,8 +24,10 @@ test("connection recovery only updates state and never reloads the application",
   const app = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
   const status = await readFile(new URL("../src/components/shared/ConnectionStatus.jsx", import.meta.url), "utf8");
   assert.doesNotMatch(app, /location\.reload|window\.location\s*=/);
-  assert.match(status, /Connection restored/);
-  assert.match(status, /You’re offline/);
+  assert.match(status, /errors\.connection/);
+  assert.equal(translate("en", "errors.connection.restored"), "Connection restored");
+  assert.match(translate("ar", "errors.connection.offline"), /المنزّل/);
+  assert.doesNotMatch(translate("en", "errors.connection.offline"), /changes will sync/);
 });
 
 test("prolonged browser-offline state is visible and recovery is published without a refresh", () => {

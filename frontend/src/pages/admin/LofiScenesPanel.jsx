@@ -81,7 +81,7 @@ function sizeAdvice(local) {
 
 export default function LofiScenesPanel({ canManage }) {
   const data = useAsyncData(() => adminControlApi.lofiScenes(), []);
-  if (!data.data) return data.error ? <ErrorPanel message={data.error} onRetry={data.reload} /> : <LoadingPanel />;
+  if (!data.data) return data.error ? <ErrorPanel message={data.errorDetails || data.error} onRetry={data.reload} /> : <LoadingPanel />;
   return <ScenesManager state={data.data} canManage={canManage} onChanged={data.reload} />;
 }
 

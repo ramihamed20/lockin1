@@ -707,7 +707,7 @@ function NotificationPreferences() {
     <div className="ui-group-block settings-v2-block">
       <h3 className="ui-group-title">{t("settings.serverNotifications")}</h3>
       {preferenceData.loading && <p className="ui-group-footer">{t("settings.loadingNotifications")}</p>}
-      {preferenceData.error && <ErrorPanel message={preferenceData.error} onRetry={preferenceData.reload} />}
+      {preferenceData.error && <ErrorPanel message={preferenceData.errorDetails || preferenceData.error} onRetry={preferenceData.reload} />}
       {error && <ErrorPanel message={error} onRetry={preferenceData.reload} />}
       {!preferenceData.loading && !preferenceData.error && <div className="ui-group">
         {!preferences.length && <p className="ui-row">{t("settings.noNotificationCategories")}</p>}
