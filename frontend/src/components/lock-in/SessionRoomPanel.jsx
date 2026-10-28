@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 import { Tab, TabList } from "../ui/interactive.jsx";
-import { ChevronDown, UserPlus, Users, X } from "lucide-react";
+import { ChevronDown, MessageCircle, UserPlus, X } from "lucide-react";
 import { useI18n } from "../I18nProvider.jsx";
 import { TeamCode, lockInMemberName } from "../../pages/LockInLobby.jsx";
 import { TeamDiscussion } from "./TeamDiscussion.jsx";
@@ -14,7 +14,7 @@ export function SessionRoomPanel({ payload, onClose = undefined, members = null 
   if (!team) return null;
   return <aside className="lm-room-panel" aria-label={t("lockIn.team")}>
     <header className="lm-room-panel-heading">
-      <Users size={18} aria-hidden="true" /><strong dir="auto">{team.name}</strong>
+      <span className="lm-room-symbol" aria-hidden="true"><MessageCircle size={20} /></span><div className="lm-room-heading-copy"><strong>{t("lockIn.team")}</strong><span dir="auto">{team.name}</span></div>
       <span className="lm-avatar-stack" aria-hidden="true">{participants.slice(0, 3).map((member) => <span key={member.member_id}>{lockInMemberName(member, t).slice(0, 1)}</span>)}</span>
       {onClose && <button type="button" className="lm-icon-button" onClick={onClose} aria-label={t("common.close")}><X size={18} /></button>}
     </header>
@@ -23,7 +23,7 @@ export function SessionRoomPanel({ payload, onClose = undefined, members = null 
       <Tab value="members" id={`${id}-members-tab`} aria-controls={`${id}-panel`}>{t("lockIn.members")} <span className="lm-count">{participants.length}</span></Tab>
     </TabList>
     {!team.closed_at && !team.joining_locked && team.invite_code && <details className="lm-room-invite">
-      <summary><UserPlus size={16} aria-hidden="true" /><span>{t("lockIn.inviteFriends")}</span><b dir="ltr">{team.invite_code}</b><ChevronDown size={14} aria-hidden="true" /></summary>
+      <summary><UserPlus size={16} aria-hidden="true" /><span>{t("lockIn.inviteFriends")}</span><ChevronDown size={14} aria-hidden="true" /></summary>
       <TeamCode code={team.invite_code} compact />
     </details>}
     <div className="lm-room-panel-body" id={`${id}-panel`} role="tabpanel" aria-labelledby={`${id}-${section}-tab`}>

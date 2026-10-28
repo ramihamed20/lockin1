@@ -190,3 +190,12 @@ Backend follow-up: reviewed the one-line initialization of the optional session
 participant in _live_lock_in_payload. Solo responses previously raised an
 UnboundLocalError; they now follow the existing non-team note branch. No
 authorization, accounting, scoring or published capability statement changed.
+
+
+## Lockin studio redesign — 28 October 2026
+
+Reviewed the two additive composer placeholder translations in i18n.js. They
+shorten the visible prompt only; the existing accessible label and all published
+capability/help text are unchanged. No session, membership, friendship, note,
+Focus, permission or rollout capability was added. Only the reviewed i18n
+evidence digest is refreshed; verification remains enabled.

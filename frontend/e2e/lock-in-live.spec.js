@@ -176,7 +176,7 @@ test("Away presence remains distinct from Break", async ({ page }) => {
 
 for (const [name, viewport] of Object.entries({
   desktop: { width: 1440, height: 900 }, ipad: { width: 768, height: 1024 },
-  phone: { width: 320, height: 720 }, landscape: { width: 667, height: 375 }
+  phone: { width: 320, height: 720 }, widePhone: { width: 430, height: 932 }, ipadLandscape: { width: 1194, height: 834 }, landscape: { width: 667, height: 375 }
 })) {
   test(`Live session fits ${name}`, async ({ page }) => {
     await connect(page, { team: makeTeam(), active: true });
@@ -184,6 +184,17 @@ for (const [name, viewport] of Object.entries({
     await page.goto(`/#/lock-in/${ID}`);
     await expect(page.getByRole("main", { name: "Lock-in session" })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+    const composer = page.locator(".lm-discussion textarea");
+    await composer.scrollIntoViewIfNeeded();
+    await expect(composer).toBeVisible();
+    expect(await composer.evaluate((el) => { const r = el.getBoundingClientRect(); return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2) === el; })).toBe(true);
+    for (const button of await page.locator(".lm-live-controls button").all()) expect((await button.boundingBox()).height).toBeGreaterThanOrEqual(44);
+    if (viewport.width < 650) {
+      const controls = await page.locator(".lm-live-controls").boundingBox();
+      const room = await page.locator(".lm-room-panel").boundingBox();
+      expect(controls.y + controls.height).toBeLessThanOrEqual(room.y);
+    }
+    await page.evaluate(() => window.scrollTo(0, 0));
     await screenshot(page, `lockin-live-${name}.png`);
   });
 }
@@ -252,7 +263,12 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1180, height: 820 
 
 for (const viewport of [{ width: 390, height: 844 }, { width: 820, height: 1180 }]) {
   test(`Arabic light room supports touch and member tabs at ${viewport.width}px`, async ({ page }) => {
-    await connect(page, { team: makeTeam(), active: true, language: "ar", theme: "day" });
+    const getLive = await connect(page, { team: makeTeam(), active: true, language: "ar", theme: "day" });
+    getLive().session.experience_version = 2;
+    getLive().study_target = { title: "Anatomy · الفصل الأول", reader_path: "/materials/catalog/anatomy/sheets/intro/workspace", page_start: 1, page_end: 12 };
+    await page.route(`**/api/v1/focus/lock-in/teams/${TEAM_ID}/messages`, (route) => route.fulfill({ json: { messages: [
+      { id: "sample", author_name: "طالب", body: "نراجع الصفحات الأولى مع بعض؟", created_at: "2026-10-28T12:00:00Z" }
+    ] } }));
     await page.addInitScript(() => {
       localStorage.setItem("lock-in.locale", "ar");
       localStorage.setItem("lock-in.theme.settings", JSON.stringify({ theme: "day", autoTheme: false }));

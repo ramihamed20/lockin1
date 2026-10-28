@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { AlertCircle, LoaderCircle, MessageSquare, Send } from "lucide-react";
+import { AlertCircle, ArrowUp, LoaderCircle, MessageCircle } from "lucide-react";
 import { formatTime } from "../../lib/i18n.js";
 import { focusApi } from "../../api/focus.js";
 import { useI18n } from "../I18nProvider.jsx";
@@ -64,18 +64,18 @@ export function TeamDiscussion({ teamId, expanded = false, active = true }) {
   }
   const content = <>
       {!loaded && !error && <div className="lm-chat-loading" role="status"><span className="visually-hidden">{t("common.loading")}</span><i /><i /><i /></div>}
-      {loaded && !messages.length && !error && <div className="lm-chat-empty"><span className="lm-chat-empty-symbol" aria-hidden="true"><MessageSquare size={26} /></span><p>{t("lockIn.chatEmpty")}</p></div>}
+      {loaded && !messages.length && !error && <div className="lm-chat-empty"><span className="lm-chat-empty-symbol" aria-hidden="true"><MessageCircle size={26} /></span><p>{t("lockIn.chatEmpty")}</p></div>}
       <ol ref={listRef} className="lm-messages" aria-live="polite" onScroll={(event) => { const list = event.currentTarget; followRef.current = list.scrollHeight - list.clientHeight - list.scrollTop < 48; }}>{messages.map((message) => <li key={message.id}>
         <div className="lm-message-meta"><span className="lm-chat-avatar" aria-hidden="true">{String(message.author_name || "?").slice(0, 1)}</span><strong dir="auto">{message.author_name}</strong>{message.created_at && <time dateTime={message.created_at}>{formatTime(message.created_at)}</time>}</div><p dir="auto">{message.body}</p>
       </li>)}</ol>
       <form onSubmit={send}>
         <label className="visually-hidden" htmlFor={inputId}>{t("lockIn.message")}</label>
-        <textarea ref={editorRef} id={inputId} rows={1} dir="auto" maxLength={1000} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={t("lockIn.message")} autoComplete="off" enterKeyHint="send" onKeyDown={(event) => {
+        <textarea ref={editorRef} id={inputId} rows={1} dir="auto" maxLength={1000} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={t("lockIn.messagePlaceholder")} autoComplete="off" enterKeyHint="send" onKeyDown={(event) => {
           if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
             event.preventDefault(); event.currentTarget.form?.requestSubmit();
           }
         }} />
-        <button className="btn btn-primary lm-send" aria-label={t("lockIn.send")} disabled={busy || !draft.trim()} type="submit" aria-busy={busy}>{busy ? <LoaderCircle className="lm-spin" size={18} aria-hidden="true" /> : <Send size={18} aria-hidden="true" />}</button>
+        <button className="btn btn-primary lm-send" aria-label={t("lockIn.send")} disabled={busy || !draft.trim()} type="submit" aria-busy={busy}>{busy ? <LoaderCircle className="lm-spin" size={18} aria-hidden="true" /> : <ArrowUp size={20} aria-hidden="true" />}</button>
       </form>
       {error && <div className="lm-chat-error"><AlertCircle size={16} aria-hidden="true" /><p className="lm-error" role="alert">{error}</p><button className="btn btn-soft compact" type="button" onClick={() => void load()}>{t("common.tryAgain")}</button></div>}
       {sendError && <p className="lm-error" role="alert">{sendError}</p>}

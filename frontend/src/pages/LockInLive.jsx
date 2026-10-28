@@ -4,7 +4,7 @@ import { useLiveConnection } from "../components/lock-in/useLiveConnection.js";
 import { SessionNote } from "../components/lock-in/SessionNote.jsx";
 import { SessionRoomPanel } from "../components/lock-in/SessionRoomPanel.jsx";
 import { useEffect, useState } from "react";
-import { ArrowUpRight, BookOpen, Coffee, Pause, Play, X } from "lucide-react";
+import { ArrowUpRight, BookOpen, Coffee, Focus, Pause, Play, X } from "lucide-react";
 import { useI18n } from "../components/I18nProvider.jsx";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
 import { useVisibleNow } from "../hooks/useVisibleNow.js";
@@ -102,24 +102,26 @@ export default function LockInLive({ payload, busy, error, onAction, onHome, onP
     >
       <span className="lm-bar-title" dir="auto">{team?.name || t("lockIn.solo")}</span>
     </LockInBar>
-    {session.goal && <p className="lm-session-goal" dir="auto">{session.goal}</p>}
     <div className={`lm-live-main${teamMode ? " lm-room-layout" : ""}`}>
       <div className="lm-live-study">
       <section className="lm-live-clock" aria-label={remaining == null ? t("lockIn.timeFocused") : t("lockIn.timeRemaining")}>
+        <div className="lm-study-heading"><span className="lm-focus-symbol" aria-hidden="true"><Focus size={22} /></span><span>{t("lockIn.title")}</span><p className={`lm-status ${statusTone}`}><span className="lm-live-dot" aria-hidden="true" />{t(statusKey)}</p></div>
+        {session.goal && <p className="lm-session-goal" dir="auto">{session.goal}</p>}
         <div className={`lm-clock-face ${statusTone}`}>
-          <svg className="lm-clock-ring" viewBox="0 0 300 300" aria-hidden="true">
-            <circle className="lm-clock-track" cx="150" cy="150" r="144" />
-            <circle className="lm-clock-progress" cx="150" cy="150" r="144" pathLength="100" strokeDasharray={`${progress} 100`} />
-          </svg>
-          <div className="lm-clock-content"><span className="lm-clock-label">{t(remaining == null ? "lockIn.timeFocused" : "lockIn.timeRemaining")}</span><h1 dir="ltr">{clock(remaining ?? activeSeconds)}</h1></div>
+          <span className="lm-clock-label">{t(remaining == null ? "lockIn.timeFocused" : "lockIn.timeRemaining")}</span>
+          <h1 dir="ltr">{clock(remaining ?? activeSeconds)}</h1>
         </div>
-        <p className={`lm-status ${statusTone}`}><span className="lm-live-dot" aria-hidden="true" />{t(statusKey)}</p>
-        {remaining != null && <p className="lm-live-meta">{t("lockIn.focusedSoFar", { time: clock(activeSeconds) })}</p>}
+        {remaining != null && <div className="lm-timeline"><progress max="100" value={progress} aria-label={t("lockIn.focusTime")} /><div><span>{t("lockIn.focusedSoFar", { time: clock(activeSeconds) })}</span><span dir="ltr">{clock(session.planned_duration_seconds)}</span></div></div>}
+    <div className="lm-live-controls">
+      {!teamMode && <button className="btn btn-soft" type="button" disabled={Boolean(busy)} onClick={() => void onAction(paused ? "resume" : "pause")}>{paused ? <Play size={17} aria-hidden="true" /> : <Pause size={17} aria-hidden="true" />}{paused ? t("lockIn.resume") : t("lockIn.pause")}</button>}
+      {!paused && <button className="btn btn-soft" type="button" disabled={Boolean(busy)} onClick={() => { if (teamMode) void onPresence(onBreak ? "focused" : "break").catch(() => {}); else void onAction(onBreak ? "end-break" : "start-break"); }}>{onBreak ? <Play size={17} aria-hidden="true" /> : <Coffee size={17} aria-hidden="true" />}{onBreak ? t("lockIn.backToFocus") : t("lockIn.takeBreak")}</button>}
+      <button className="btn btn-soft lm-live-end" type="button" disabled={Boolean(busy)} onClick={() => setConfirm({ type: leaving ? "leave" : "end" })}>{leaving ? t("lockIn.leaveSession") : t("lockIn.endSession")}</button>
+    </div>
       </section>
       {payload.study_target?.reader_path && <section className="lm-study-target">
         <span className="lm-sheet-symbol"><BookOpen size={24} aria-hidden="true" /></span>
         <div className="lm-sheet-copy"><strong dir="auto">{payload.study_target.title}</strong>
-          {payload.study_target.page_end && <span>{t("lockIn.pageRange", { start: payload.study_target.page_start, end: payload.study_target.page_end })}</span>}
+          {payload.study_target.page_end && <span>{t("lockIn.pageRange", { start: `⁦${payload.study_target.page_start}`, end: `${payload.study_target.page_end}⁩` })}</span>}
         </div>
         <Link className="btn btn-primary" to={payload.study_target.reader_path} state={{ lockInPanelOpen: teamMode }} onClick={(event) => { if (noteDirty) { event.preventDefault(); setConfirm({ type: "sheet" }); } }}>{t("lockIn.openSheet")}<ArrowUpRight className="lm-flip" size={16} aria-hidden="true" /></Link>
       </section>}
@@ -127,11 +129,6 @@ export default function LockInLive({ payload, busy, error, onAction, onHome, onP
       </div>
       {teamMode && <SessionRoomPanel payload={payload} members={members} />}
     </div>
-    <footer className="lm-live-controls">
-      {!teamMode && <button className="btn btn-soft" type="button" disabled={Boolean(busy)} onClick={() => void onAction(paused ? "resume" : "pause")}>{paused ? <Play size={17} aria-hidden="true" /> : <Pause size={17} aria-hidden="true" />}{paused ? t("lockIn.resume") : t("lockIn.pause")}</button>}
-      {!paused && <button className="btn btn-soft" type="button" disabled={Boolean(busy)} onClick={() => { if (teamMode) void onPresence(onBreak ? "focused" : "break").catch(() => {}); else void onAction(onBreak ? "end-break" : "start-break"); }}>{onBreak ? <Play size={17} aria-hidden="true" /> : <Coffee size={17} aria-hidden="true" />}{onBreak ? t("lockIn.backToFocus") : t("lockIn.takeBreak")}</button>}
-      <button className="btn btn-soft lm-live-end" type="button" disabled={Boolean(busy)} onClick={() => setConfirm({ type: leaving ? "leave" : "end" })}>{leaving ? t("lockIn.leaveSession") : t("lockIn.endSession")}</button>
-    </footer>
     {error && <p className="lm-error lm-live-error" role="alert">{error}</p>}
     <ConfirmDialog open={Boolean(confirm)} title={confirmCopy.title} message={noteDirty && ["end", "leave"].includes(confirm?.type) ? `${confirmCopy.message} ${t("lockIn.unsavedNoteMessage")}` : confirmCopy.message} confirmLabel={confirmCopy.label} cancelLabel={t("common.cancel")} busy={Boolean(busy)} onCancel={() => setConfirm(null)} onConfirm={() => { const choice = confirm; setConfirm(null); if (choice?.type === "home") onHome(); else if (choice?.type === "sheet") navigate(payload.study_target.reader_path, { state: { lockInPanelOpen: teamMode } }); else if (choice?.type === "kick") void onTeamAction("kick", { member_id: choice.member.member_id }); else if (choice?.type === "leave") void onLeave(); else void onAction("complete"); }} />
   </main>;

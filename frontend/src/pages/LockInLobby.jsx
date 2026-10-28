@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, Check, ChevronRight, Copy, KeyRound, MoreHorizontal, Timer, UserPlus, Users, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronRight, Copy, Focus, KeyRound, MoreHorizontal, Timer, UserPlus, Users, X } from "lucide-react";
 import { focusApi } from "../api/focus.js";
 import { useI18n } from "../components/I18nProvider.jsx";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
@@ -170,6 +170,20 @@ export function LockInSetup({ bootstrap, teamId, preselectedDocumentVersionId, o
       <header className="lm-heading"><h1>{teamId ? t("lockIn.teamSession") : t("lockIn.soloSession")}</h1></header>
       {bootstrap?.active_session && <ResumeCard active={bootstrap.active_session} onResume={onResume} />}
       <form className="lm-form lm-setup-form" onSubmit={submit}>
+        <section className="lm-setup-timing" aria-labelledby="lm-duration-title">
+          <span className="lm-focus-symbol" aria-hidden="true"><Timer size={22} /></span>
+          <output className="lm-duration-preview" aria-label={t("lockIn.duration")}><strong>{duration || "—"}</strong><span>{t("lockIn.minuteUnit")}</span></output>
+        <div className="ui-group-block">
+          <h2 className="ui-group-title" id="lm-duration-title">{t("lockIn.duration")}</h2>
+          <RadioGroup className="lm-durations" value={duration} onChange={setDuration} label={t("lockIn.duration")}>
+            {DURATIONS.map((value) => <RadioOption key={value} value={String(value)} className="lm-duration"><strong>{value}</strong><small>{t("lockIn.minuteUnit")}</small></RadioOption>)}
+          </RadioGroup>
+        </div>
+        <details className="lm-custom-duration"><summary>{t("lockIn.customize")}</summary>
+          <label htmlFor="lm-custom-minutes">{t("lockIn.duration")}</label>
+          <input id="lm-custom-minutes" type="number" min="1" max="480" value={duration} onChange={(event) => setDuration(event.target.value)} required />
+        </details>
+        </section>
         <section className="lm-setup-details" aria-label={t("lockIn.material")}>
         <div className="ui-group">
           <div className="ui-row">
@@ -194,22 +208,8 @@ export function LockInSetup({ bootstrap, teamId, preselectedDocumentVersionId, o
         </div>}
         {!teamId && <AnonymousRow id="lm-solo-anonymous" checked={anonymous} onChange={setAnonymous} />}
         </section>
-        <section className="lm-setup-timing" aria-labelledby="lm-duration-title">
-          <Timer size={24} aria-hidden="true" />
-          <output className="lm-duration-preview" aria-label={t("lockIn.duration")}><strong>{duration || "—"}</strong><span>{t("lockIn.minuteUnit")}</span></output>
-        <div className="ui-group-block">
-          <h2 className="ui-group-title" id="lm-duration-title">{t("lockIn.duration")}</h2>
-          <RadioGroup className="lm-durations" value={duration} onChange={setDuration} label={t("lockIn.duration")}>
-            {DURATIONS.map((value) => <RadioOption key={value} value={String(value)} className="lm-duration"><strong>{value}</strong><small>{t("lockIn.minuteUnit")}</small></RadioOption>)}
-          </RadioGroup>
-        </div>
-        <details className="lm-custom-duration"><summary>{t("lockIn.customize")}</summary>
-          <label htmlFor="lm-custom-minutes">{t("lockIn.duration")}</label>
-          <input id="lm-custom-minutes" type="number" min="1" max="480" value={duration} onChange={(event) => setDuration(event.target.value)} required />
-        </details>
-        </section>
         {error && <p className="lm-error" role="alert">{error}</p>}
-        <div className="lm-form-submit"><button className="btn btn-primary lm-submit" type="submit" disabled={busy}>{t("lockIn.start")}</button></div>
+        <div className="lm-form-submit"><button className="btn btn-primary lm-submit" type="submit" disabled={busy}><Timer size={18} aria-hidden="true" />{t("lockIn.start")}</button></div>
       </form>
     </div>
   </main>;
@@ -398,10 +398,10 @@ export default function LockInLobby({ bootstrap, onExit, onSolo, onTeamStart, on
     </LockInBar>
 
     {screen === "home" && <div className="lm-page lm-home-page">
-      <header className="lm-heading"><h1 id="lm-title">{t("lockIn.title")}</h1></header>
+      <header className="lm-heading lm-home-heading"><span className="lm-home-symbol" aria-hidden="true"><Focus size={32} strokeWidth={1.5} /></span><div><h1 id="lm-title">{t("lockIn.title")}</h1><p>{t("lockIn.startGroup")}</p></div></header>
       {active && <ResumeCard active={active} onResume={onResume} />}
       <section className="ui-group-block" aria-labelledby="lm-start-title">
-        <h2 className="ui-group-title" id="lm-start-title">{t("lockIn.startGroup")}</h2>
+        <h2 className="visually-hidden" id="lm-start-title">{t("lockIn.startGroup")}</h2>
         <ul className="ui-group lm-mode-choices">
           <NavRow icon={Timer} title={t("lockIn.solo")} hint={t("lockIn.soloHint")} onClick={() => onSolo()} />
           <NavRow icon={Users} title={t("lockIn.team")} hint={t("lockIn.teamHint")} onClick={() => go("team")} />
