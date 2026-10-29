@@ -614,6 +614,7 @@ test("a Focus document changed offline syncs on reconnect without reopening the 
 test("Automatic Downloads fetch opted-in content once and then only what changed", async () => {
   const userId = await freshUser();
   const { saveOfflinePreferences, readOfflinePreferences } = await import("../src/offline/coordinator.js");
+  await saveOfflinePreferences(userId, { automatic: false });
   env.route("GET /offline/lease/", () => ({ lease: signedLease({ userId }) }));
   env.route("GET /catalog/materials", () => ({ results: [] }));
   env.route("GET /catalog/questions?source=exam", () => ({ results: [] }));
@@ -625,8 +626,8 @@ test("Automatic Downloads fetch opted-in content once and then only what changed
   assert.ok(!env.calls.some((call) => call.includes("/offline/active-study/")), "nothing downloads while Automatic Downloads is off");
 
   const preferences = await readOfflinePreferences(userId);
-  assert.equal(preferences.types.active_study, true);
-  await saveOfflinePreferences(userId, { ...preferences, automatic: true, network: "any" });
+  assert.equal(preferences.types.active_study, false);
+  await saveOfflinePreferences(userId, { ...preferences, automatic: true, network: "any", types: { ...preferences.types, active_study: true } });
   env.calls.length = 0;
   await synchronizeOffline(userId, () => {}, { force: true });
   assert.ok(env.calls.includes("GET /files/file-1/view"));

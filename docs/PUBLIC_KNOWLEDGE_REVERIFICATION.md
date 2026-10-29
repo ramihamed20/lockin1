@@ -1,5 +1,33 @@
 # Public knowledge evidence review — 14 October 2026
 
+## Automatic PDF downloads — 29 October 2026
+
+The follow-up hardening review covers two additional source changes: App waits
+for account cleanup before starting the first sync and cancels obsolete effect
+callbacks; i18n's existing Clear Downloads confirmation now explicitly says
+automatic downloads will be turned off. Reviewed published feature requirements
+and account/materials/reader/privacy/support Help claims retain their meaning:
+publication, subscription, account isolation, original PDF content and server
+grading rules are unchanged. Refreshed only these two affected source digests.
+The evidence verifier remains enabled. Timeout, truncated/oversized content,
+rollback, removal, session-race and shared-file authorization regression tests
+cover this iteration. Browser execution remains unverified in this environment.
+
+Reviewed the affected published feature requirements and Help answers before refreshing
+only the App.jsx and i18n.js evidence digests. App now polls the authorized offline
+manifest while visible; its existing authenticated and subscription routes are retained.
+The two changed translations describe automatic sheet/summary downloads while Lockin
+is open. No published account, cohort, edition, annotation, question, Review, XP or
+support claim changes. Downloading a PDF does not prepare an Active Study bank;
+question bundles remain separately selectable. Signed offline leases, current-session
+checks, private account caches and authoritative access denials remain enforced.
+
+The public evidence verifier is retained unchanged. Unit checks cover default downloads,
+new/replaced files, local reopens, interruption, foreground reader priority, account
+switches and uploads during a large download. Browser execution is pending because
+the browser download returned an incomplete archive in this environment. This review
+does not certify live deployment, unlimited storage retention or closed-app downloads.
+
 The production gate was correctly rejecting changed source digests. It remains enabled, with the same verifier and mandatory evidence checks. This review does not certify a release or turn the new Knowledge tools on.
 
 ## Reviewed source changes and affected claims

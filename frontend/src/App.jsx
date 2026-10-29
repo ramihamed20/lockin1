@@ -28,7 +28,7 @@ import { SubscriptionSessionProvider } from "./lib/SubscriptionSessionContext.js
 import { clearSubscriptionSnapshots } from "./lib/subscriptionSession.js";
 import { FeatureComingSoon } from "./components/FeatureComingSoon.jsx";
 import { isFeatureComingSoon } from "./lib/featureAvailability.js";
-import { synchronizeOffline } from "./offline/coordinator.js";
+import { synchronizeOffline, refreshAutomaticDownloads } from "./offline/coordinator.js";
 import { forgetOfflineUser, rememberOfflineUser, restoreOfflineUser } from "./offline/profile.js";
 import { forgetPushAccount } from "./pwa/devicePush.js";
 import OfflineIndicator from "./offline/OfflineIndicator.jsx";
@@ -228,12 +228,12 @@ function App() {
 
   useEffect(() => {
     if (!user?.id || user.onboardingRequired || user.welcomeRequired) return undefined;
-    if (navigator.onLine) void rememberOfflineUser(user).catch(() => undefined);
+    let disposed = false;
     // App open, resume and focus are throttled inside the coordinator; a
     // regained connection or newly queued work always syncs.
     const sync = (force) => {
-      if (navigator.onLine && document.visibilityState !== "hidden") {
-        void synchronizeOffline(user.id, undefined, { force }).catch(() => undefined);
+      if (!disposed && navigator.onLine && document.visibilityState !== "hidden") {
+        void synchronizeOffline(user.id, undefined, { force, backgroundDownloads: true }).catch(() => undefined);
       }
     };
     const resume = () => sync(false);
@@ -243,14 +243,21 @@ function App() {
       window.clearTimeout(queuedTimer);
       queuedTimer = window.setTimeout(() => sync(true), 2_000);
     };
-    sync(true);
+    // Account cleanup finishes before the first download captures its owner.
+    if (navigator.onLine) void rememberOfflineUser(user).then(() => sync(true)).catch(() => undefined);
+    // Discover newly published sheets even while the student keeps reading.
+    const contentTimer = window.setInterval(() => {
+      void refreshAutomaticDownloads(user.id).catch(() => undefined);
+    }, 60_000);
     window.addEventListener("online", reconnect);
     window.addEventListener("focus", resume);
     window.addEventListener("pageshow", resume);
     document.addEventListener("visibilitychange", resume);
     window.addEventListener("lock-in:offline-queued", queued);
     return () => {
+      disposed = true;
       window.clearTimeout(queuedTimer);
+      window.clearInterval(contentTimer);
       window.removeEventListener("online", reconnect);
       window.removeEventListener("focus", resume);
       window.removeEventListener("pageshow", resume);

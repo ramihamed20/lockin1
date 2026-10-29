@@ -1,4 +1,4 @@
-import { findDownloadedPdfItem, readOfflinePdfBytes, storeOpenedPdf } from "./downloads.js";
+import { findDownloadedPdfItem, readOfflinePdfBytes, storeOpenedPdf, prioritizePdfRead } from "./downloads.js";
 import { isOfflinePdfUrl, offlinePdfItemId } from "./pdfUrl.js";
 import { currentOfflineUserId, captureOfflineSession } from "./sessionScope.js";
 
@@ -19,6 +19,12 @@ import { currentOfflineUserId, captureOfflineSession } from "./sessionScope.js";
  * @returns {Promise<{ data: Uint8Array<ArrayBuffer> } | { url: string }>}
  */
 const authorizations = new Map();
+
+export function beginReaderPdfLoad(url) {
+  const userId = currentOfflineUserId();
+  return userId && /^\/api\/v1\/files\/[0-9a-f-]+\/view$/i.test(url)
+    ? prioritizePdfRead(userId, url) : () => {};
+}
 
 /** A fresh server descriptor may authorize a local read even without an offline lease. */
 export function authorizeCachedPdf(userId, url) {

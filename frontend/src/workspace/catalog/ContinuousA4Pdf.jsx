@@ -865,6 +865,7 @@ export function ContinuousA4Pdf({
   useEffect(() => {
     let cancelled = false;
     let loadingTask;
+    let finishPdfRead = () => {};
     async function load() {
       const measureLoad = import.meta.env.VITE_WORKSPACE_BENCHMARK === "1";
       const started = measureLoad ? window.performance.now() : 0;
@@ -875,10 +876,13 @@ export function ContinuousA4Pdf({
         setFailedPages(new Set());
         setDefaultPageAspectRatio(A4_PAGE_RATIO);
         setPageAspectRatios(new Map());
-        const [pdfjs, { pdfDocumentSource, downloadedPdfSource, isPdfNetworkFailure, rememberOpenedPdf }] = await Promise.all([loadPdfLibrary(), import("../../offline/pdfSource.js")]);
+        const [pdfjs, { pdfDocumentSource, downloadedPdfSource, isPdfNetworkFailure, rememberOpenedPdf, beginReaderPdfLoad }] = await Promise.all([loadPdfLibrary(), import("../../offline/pdfSource.js")]);
         const libraryReady = measureLoad ? window.performance.now() : 0;
+        if (cancelled) return;
+        finishPdfRead = beginReaderPdfLoad(pdfUrl);
         // A downloaded PDF arrives as its stored bytes, read for this open only.
         const source = await pdfDocumentSource(pdfUrl, assetPath);
+        let usingStoredBytes = "data" in source;
         if (cancelled) return;
         const sourceReady = measureLoad ? window.performance.now() : 0;
         loadingTask = pdfjs.getDocument(source);
@@ -893,6 +897,7 @@ export function ContinuousA4Pdf({
           void loadingTask.destroy();
           loadingTask = pdfjs.getDocument(stored);
           nextDocument = await loadingTask.promise;
+          usingStoredBytes = true;
         }
         if (cancelled) return;
         const parsed = measureLoad ? window.performance.now() : 0;
@@ -908,7 +913,7 @@ export function ContinuousA4Pdf({
         applyMeasuredGeometry(geometry);
         setDocumentProxy(nextDocument);
         // Reuse PDF.js's transport, then save all bytes in the background.
-        void rememberOpenedPdf(pdfUrl, nextDocument).catch(() => undefined);
+        if (!usingStoredBytes) void rememberOpenedPdf(pdfUrl, nextDocument).catch(() => undefined);
         onPageCount(nextDocument.numPages);
         setStatus("");
       } catch (error) {
@@ -922,6 +927,7 @@ export function ContinuousA4Pdf({
     load();
     return () => {
       cancelled = true;
+      finishPdfRead();
       renderQueueRef.current?.clear();
       loadingTask?.destroy();
     };
