@@ -252,6 +252,8 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2-a4-detail-canvas { position: absolute; z-index: 2; display: block; visibility: hidden; pointer-events: none; background: #fff; backface-visibility: hidden; }
 .workspace-v2-a4-detail-canvas.is-visible { visibility: visible; }
 .workspace-v2-a4-status { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: #3b4154; background: rgba(255,255,255,.86); font-weight: 700; }
+/* Page recovery controls must receive taps above the ink input layers. */
+.workspace-v2-a4-page > .workspace-v2-a4-status { z-index: 6; }
 .workspace-v2-a4-status p { margin: 0; }
 .workspace-v2-a4-status button { min-width: 112px; min-height: 44px; padding: 0 16px; border: 0; border-radius: 9px; color: #fff; background: #7650ed; cursor: pointer; }
 .workspace-v2-document > :not(.workspace-v2-annotation-layer) { position: relative; z-index: 1; }
