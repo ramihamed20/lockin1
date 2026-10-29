@@ -29,6 +29,18 @@ test("the floating player is kept inside the screen however far it is dragged", 
   assert.deepEqual(clampPanelPosition({ x: 40, y: 40 }, { width: 400, height: 260 }, { width: 375, height: 667 }, 12), { x: 12, y: 40 });
 });
 
+test("keyboard and pinch offsets bound dragging and resizing to the visible screen", () => {
+  const visible = { width: 400, height: 300, left: 80, top: 120 };
+  const size = { width: 220, height: 125.75 };
+  assert.deepEqual(clampPanelPosition({ x: 0, y: 0 }, size, visible, 12), { x: 92, y: 132 });
+  assert.deepEqual(clampPanelPosition({ x: 900, y: 900 }, size, visible, 12), { x: 248, y: 282 });
+  const start = { x: 92, y: 132, ...size };
+  const resized = resizePanel({ edge: "se", dx: 1000, dy: 1000, start, viewport: visible, margin: 12 });
+  assert.equal(resized.width, 376);
+  assert.equal(resized.x, 92);
+  assert.equal(resized.y, 132);
+});
+
 test("one player is mounted beside the kept readers and opened from the new-tab menu", async () => {
   const keepAlive = await readFile(new URL("../src/workspace/catalog/WorkspaceKeepAlive.jsx", import.meta.url), "utf8");
   const tabBar = await readFile(new URL("../src/workspace/catalog/WorkspaceTabBar.jsx", import.meta.url), "utf8");

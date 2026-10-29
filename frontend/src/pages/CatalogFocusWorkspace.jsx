@@ -2053,9 +2053,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       try {
         const result = await sync.refresh({
           pageCount,
-          local: { annotations: annotationsRef.current, notes: notesRef.current, virtualPages: virtualPagesRef.current }
+          getLocal: () => ({ annotations: annotationsRef.current, notes: notesRef.current, virtualPages: virtualPagesRef.current })
         });
-        if (disposed) return;
+        if (disposed || serverSyncRef.current !== sync) return;
         if (result.documentChanged) {
           setFocusMessage(translateRef.current("focus.thisSheetWasUpdatedYour"));
           onDocumentChanged();

@@ -74,3 +74,31 @@ test("a blocked open that succeeds after fallback closes its unowned database", 
   fixture.requests[0].onsuccess();
   assert.equal(fixture.closes(), 1);
 });
+
+test("unexpected storage closure reopens before the next save", async () => {
+  const fixture = storageFixture();
+  const first = fixture.store.open();
+  fixture.requests[0].onsuccess();
+  await first;
+  fixture.database.onclose?.();
+  const writing = fixture.store.writeDocument({ owner: "a", materialSlug: "m", sheetSlug: "s", view: {}, notes: [], pages: new Map(), savedAt: "recovered" });
+  assert.equal(fixture.requests.length, 2, "a terminated connection must not be reused");
+  fixture.requests[1].onsuccess();
+  await tick();
+  fixture.transactions[0].oncomplete();
+  assert.deepEqual(await writing, { savedAt: "recovered" });
+});
+
+test("a stale close notification cannot evict a replacement connection", async () => {
+  const fixture = storageFixture();
+  const first = fixture.store.open();
+  fixture.requests[0].onsuccess();
+  await first;
+  const notifyClose = fixture.database.onclose;
+  fixture.database.onversionchange();
+  const second = fixture.store.open();
+  fixture.requests[1].onsuccess();
+  await second;
+  notifyClose?.();
+  assert.equal(fixture.store.open(), second);
+});
