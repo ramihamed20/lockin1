@@ -18,6 +18,7 @@ export default function ReadingPlanPanel({ exams, profile, disabled, onSetup, on
   const [edition, setEdition] = useState("university");
   const [includeReviews, setIncludeReviews] = useState(true);
   const [includeActiveStudy, setIncludeActiveStudy] = useState(true);
+  const [includeQuestions, setIncludeQuestions] = useState(true);
   const [replan, setReplan] = useState(false);
   const [difficulty, setDifficulty] = useState("medium");
   const [state, setState] = useState({ status: "idle", identity: "", preview: null });
@@ -27,7 +28,7 @@ export default function ReadingPlanPanel({ exams, profile, disabled, onSetup, on
   const [applyError, setApplyError] = useState("");
   const [progressNotice, setProgressNotice] = useState("");
   const controller = useRef(null), intent = useRef(""), applyLock = useRef(false), alive = useRef(true);
-  const identity = `${examId}:${edition}:${profile.revision}:${includeReviews}:${reportId}:${includeActiveStudy}:${replan}:${difficulty}`;
+  const identity = `${examId}:${edition}:${profile.revision}:${includeReviews}:${reportId}:${includeActiveStudy}:${includeQuestions}:${replan}:${difficulty}`;
   useEffect(() => { controller.current?.abort(); setState({ status: "idle", identity: "", preview: null }); setResult(null); setApplyError(""); setConfirm(false); }, [identity, disabled]);
   useEffect(() => { alive.current = true; return () => { alive.current = false; controller.current?.abort(); }; }, []);
   const selected = exams.find(exam => exam.id === examId);
@@ -39,7 +40,7 @@ export default function ReadingPlanPanel({ exams, profile, disabled, onSetup, on
     controller.current?.abort(); const request = new AbortController(); controller.current = request;
     setState({ status: "loading", identity, preview: null }); setApplyError(""); setResult(null);
     try {
-      const data = await studyPlanApi.previewReading(examId, edition, { signal: request.signal, includeReviews, includeActiveStudy, replan, difficulty, ...(reportId ? { reportId } : {}) });
+      const data = await studyPlanApi.previewReading(examId, edition, { signal: request.signal, includeReviews, includeActiveStudy, includeQuestions, replan, difficulty, ...(reportId ? { reportId } : {}) });
       if (!request.signal.aborted) { intent.current = globalThis.crypto.randomUUID(); setState(data.profile_revision !== profile.revision ? { status: "stale", identity, preview: null } : { status: "ready", identity, preview: data }); }
     } catch (error) { if (!request.signal.aborted) setState({ status: error.status === 403 ? "denied" : "error", identity, preview: null }); }
   }
@@ -47,7 +48,7 @@ export default function ReadingPlanPanel({ exams, profile, disabled, onSetup, on
     if (!preview?.apply_token || applyLock.current || blocked) return;
     applyLock.current = true; setApplying(true); setApplyError(""); onApplying?.(true);
     try {
-      const saved = await studyPlanApi.applyPreview(examId, { client_request_id: intent.current, preview_token: preview.apply_token, edition, include_reviews: includeReviews, include_active_study: includeActiveStudy, replan, difficulty, ...(reportId ? { report_id: reportId } : {}) });
+      const saved = await studyPlanApi.applyPreview(examId, { client_request_id: intent.current, preview_token: preview.apply_token, edition, include_reviews: includeReviews, include_active_study: includeActiveStudy, include_questions: includeQuestions, replan, difficulty, ...(reportId ? { report_id: reportId } : {}) });
       if (!alive.current) return;
       setResult(saved); setConfirm(false); setState({ status: "idle", identity: "", preview: null });
       await onApplied?.(saved);
@@ -66,6 +67,7 @@ export default function ReadingPlanPanel({ exams, profile, disabled, onSetup, on
         <button className="btn btn-primary" type="submit" disabled={blocked || state.status === "loading" || !selected}>{t(state.status === "loading" ? "plan.examLoading" : "connected.preview")}</button>
       </form>
       <label className="plan-connected-review"><input type="checkbox" checked={includeReviews} disabled={blocked || Boolean(reportId)} onChange={event => setIncludeReviews(event.target.checked)} />{t("connected.includeReviews")}</label>
+      <label className="plan-connected-review"><input type="checkbox" checked={includeQuestions} disabled={blocked} onChange={event => setIncludeQuestions(event.target.checked)} />{t("smart.includeQuestions")}</label>
       <label className="plan-connected-review"><input type="checkbox" checked={includeActiveStudy} disabled={blocked} onChange={event => setIncludeActiveStudy(event.target.checked)} />{t("smart.includeActive")}</label>
       {includeActiveStudy && <label>{t("smart.difficulty")}<select value={difficulty} disabled={blocked} onChange={event => setDifficulty(event.target.value)}>{["easy", "medium", "hard"].map(value => <option key={value} value={value}>{t(`smart.${value}`)}</option>)}</select></label>}
       <label className="plan-connected-review"><input type="checkbox" checked={replan} disabled={blocked} onChange={event => setReplan(event.target.checked)} />{t("smart.replan")}</label>

@@ -1,5 +1,9 @@
 export const studyPlanMessages = {
   en: {
+    "smart.includeQuestions": "Include unanswered sheet and past-exam questions",
+    "smart.questionsCount": "{count} questions to answer",
+    "smart.questionCoverage": "Available questions: {available} · Answered: {answered} · Remaining: {remaining}",
+    "smart.reason.unanswered_questions": "Unanswered published questions from this sheet",
     "smart.habitTitle": "Your study pace",
     "smart.habitIntro": "Starting check-in: enter your usual daily study time and comfortable continuous block. Recorded activity may later refine the estimate.",
     "smart.habitBaseline": "Minutes you usually study per day (optional)",
@@ -123,6 +127,10 @@ export const studyPlanMessages = {
     "plan.weekProgress": "This week: {done} of {total} min done", "plan.dayAllDone": "all sessions done"
   },
   ar: {
+    "smart.includeQuestions": "إضافة أسئلة الشيت والسنوات السابقة غير المحلولة",
+    "smart.questionsCount": "{count} أسئلة للحل",
+    "smart.questionCoverage": "الأسئلة المتاحة: {available} · المحلولة: {answered} · المتبقية: {remaining}",
+    "smart.reason.unanswered_questions": "أسئلة منشورة لهذا الشيت لم تُحل بعد",
     "smart.habitTitle": "وتيرة دراستك",
     "smart.habitIntro": "تقييم بداية: أدخل وقتك المعتاد وأطول جلسة مريحة لك. يمكن للموقع تحسين التقدير من نشاط الدراسة المسجل لاحقًا.",
     "smart.habitBaseline": "كم دقيقة تدرس عادة في اليوم؟ (اختياري)",
