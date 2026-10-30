@@ -38,6 +38,7 @@ def reading_plan_preview(
     include_reviews: bool = False,
     report_id: UUID | None = None,
     include_active_study: bool = False,
+    include_questions: bool = False,
     replan: bool = False,
     difficulty: str = "medium",
 ) -> dict[str, Any]:
@@ -339,6 +340,15 @@ def reading_plan_preview(
             fixed_count=len(fixed) + len(review_units),
             issues=issues,
         )
+    question_inventory = {"available": 0, "answered": 0, "remaining": 0, "by_source": {}}
+    if include_questions:
+        from .question_preview import add_question_units
+
+        question_inventory = add_question_units(
+            user=user, snapshot=snapshot, today=today, period=period,
+            anchored=anchored, units=units, targets=targets,
+            limit=MAX_UNITS - len(fixed) - len(review_units),
+        )
     expired = [unit for unit in units if unit.deadline < today or unit.earliest > unit.deadline]
     blocked = {unit.key for unit in expired}
     # A dependent block cannot bypass an unplaceable prefix.
@@ -375,7 +385,10 @@ def reading_plan_preview(
         if preparation_days else None,
         "preparation_days": preparation_days,
         "estimated_workload_minutes": required_minutes,
-        "estimate_scope": "reading_active_review_only",
+        "estimate_scope": (
+            "reading_active_review_catalog_questions" if include_questions
+            else "reading_active_review_only"
+        ),
     }
     payload = {
         "schema_version": 1,
@@ -392,6 +405,8 @@ def reading_plan_preview(
         "replace_item_ids": [str(item.pk) for item in replaceable],
         "replan": replan,
         "include_active_study": include_active_study,
+        "include_questions": include_questions,
+        "question_inventory": question_inventory,
         "difficulty": difficulty,
         "subject_estimates": subject_estimates,
         "habit": habit,
@@ -453,13 +468,20 @@ def reading_plan_preview(
             for item in result.assignments
             if targets[item.key]["activity"] == "reading"
         ),
+        "required_question_minutes": sum(
+            item.minutes for item in units if targets[item.key]["activity"] == "questions"
+        ),
+        "scheduled_question_minutes": sum(
+            item.minutes for item in result.assignments
+            if targets[item.key]["activity"] == "questions"
+        ),
         "required_review_minutes": sum(item.minutes for item in review_units),
         "scheduled_review_minutes": sum(
             item.minutes for item in result.assignments if targets[item.key]["activity"] == "review"
         ),
         "scope_notice": (
-            "Reading, selected Active Study checkpoints and mapped Review Bank questions. "
-            "Estimates are uncalibrated; this heuristic does not prove feasibility."
+            "Reading, selected catalog sheet/past-exam questions, Active Study and Review. "
+            "Other final banks remain out of scope. Estimates do not prove feasibility."
         ),
     }
     signed = {

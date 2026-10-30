@@ -12,6 +12,7 @@ from .models import StudyPlanItem
 def reconcile_review_tasks(user: User) -> None:
     User.objects.select_for_update().get(pk=user.pk)
     reconcile_active_tasks(user)
+    reconcile_question_tasks(user)
     pending = list(
         StudyPlanItem.objects.filter(
             user=user,
@@ -89,4 +90,41 @@ def reconcile_active_tasks(user: User) -> None:
     if changed:
         StudyPlanItem.objects.bulk_update(
             changed, ["status", "completed_at", "updated_at", "revision"], batch_size=200
+        )
+
+
+
+def reconcile_question_tasks(user: User) -> None:
+    """Mark coverage complete only from actual recorded QuestionAnswer rows."""
+    from apps.questions.models import QuestionAnswer
+
+    tasks = list(
+        StudyPlanItem.objects.filter(
+            user=user, activity="questions", status="planned", planning_key__isnull=False
+        ).order_by("id")[:3000]
+    )
+    if not tasks:
+        return
+    ids = {qid for task in tasks for qid in task.question_ids}
+    recorded = dict(
+        (str(qid), when) for qid, when in QuestionAnswer.objects.filter(
+            user=user, question_id__in=ids
+        ).values_list("question_id", "answered_at")
+    )
+    changed = []
+    for task in tasks:
+        if not task.question_ids or not all(qid in recorded for qid in task.question_ids):
+            continue
+        finished_at = max(recorded[qid] for qid in task.question_ids)
+        if finished_at <= (task.status_changed_at or task.created_at):
+            continue
+        task.status = StudyPlanItem.Status.COMPLETED
+        task.completed_at = finished_at
+        task.status_changed_at = finished_at
+        task.revision += 1
+        changed.append(task)
+    if changed:
+        StudyPlanItem.objects.bulk_update(
+            changed, ["status", "completed_at", "status_changed_at", "revision"],
+            batch_size=200,
         )

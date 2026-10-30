@@ -114,6 +114,7 @@ class StudyPlanItem(models.Model):
         MANUAL = "manual", "Manual session"
         READING = "reading", "Reading"
         ACTIVE_STUDY = "active_study", "Active Study"
+        QUESTIONS = "questions", "Sheet questions"
         REVIEW = "review", "Review"
 
     class Status(models.TextChoices):
@@ -141,6 +142,12 @@ class StudyPlanItem(models.Model):
     pinned = models.BooleanField(default=False)
     completed_page_end = models.PositiveIntegerField(null=True, blank=True)
     difficulty = models.CharField(max_length=8, default="medium")
+    question_ids = models.JSONField(default=list, blank=True)
+    question_source = models.CharField(
+        max_length=12,
+        choices=(("ai-sheet", "Sheet questions"), ("exam", "Past exams")),
+        default="", blank=True,
+    )
     priority_reasons = models.JSONField(default=list, blank=True)
     title = models.CharField(max_length=180)
     subject = models.CharField(max_length=120, blank=True)
@@ -196,7 +203,7 @@ class StudyPlanItem(models.Model):
                     Q(activity="manual")
                     | Q(activity="review", catalog_subject__isnull=False)
                     | Q(
-                        activity__in=("reading", "active_study"),
+                        activity__in=("reading", "active_study", "questions"),
                         catalog_subject__isnull=False,
                         content_version__isnull=False,
                     )

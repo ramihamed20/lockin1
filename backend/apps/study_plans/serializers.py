@@ -77,6 +77,8 @@ def study_plan_item_payload(item: StudyPlanItem) -> dict[str, object]:
         "completed_page_end": item.completed_page_end,
         "priority_reasons": item.priority_reasons,
         "difficulty": item.difficulty,
+        "question_count": len(item.question_ids) if item.activity == "questions" else None,
+        "question_source": item.question_source,
         "period_id": str(item.planner_run.period_id) if item.planner_run is not None else None,
         "planning_key": item.planning_key,
         "page_start": item.page_start,
@@ -170,6 +172,7 @@ class StudyPlanGenerateSerializer(StudyPlanPreviewSerializer):
 class ReadingPlanPreviewSerializer(StrictSerializer):
     include_reviews = serializers.BooleanField(default=False)
     include_active_study = serializers.BooleanField(default=False)
+    include_questions = serializers.BooleanField(default=False)
     replan = serializers.BooleanField(default=False)
     difficulty = serializers.ChoiceField(choices=("easy", "medium", "hard"), default="medium")
     report_id = serializers.UUIDField(required=False, allow_null=True)
@@ -198,6 +201,15 @@ def task_start_url(item: StudyPlanItem) -> str | None:
             and review.state == "active_review"
         ):
             return f"/review/bank/{quote(review.subject_key, safe='')}?item={review.pk}"
+    if item.activity == "questions" and item.content_version_id and item.catalog_subject_id:
+        source = "years" if item.question_source == "exam" else "ai-sheet"
+        subject = item.catalog_subject
+        version = item.content_version
+        if version and subject and version.learning_object.published_version_id == version.pk:
+            return (
+                f"/questions/categories/{source}/subjects/{quote(subject.material_slug, safe='')}"
+                f"/sheets/{version.learning_object_id}"
+            )
     if (
         item.activity in ("reading", "active_study")
         and item.catalog_document_id

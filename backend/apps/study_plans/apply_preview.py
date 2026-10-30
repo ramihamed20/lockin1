@@ -28,6 +28,7 @@ def apply_preview(
     include_reviews: bool = False,
     report_id: UUID | None = None,
     include_active_study: bool = False,
+    include_questions: bool = False,
     replan: bool = False,
     difficulty: str = "medium",
 ) -> dict[str, Any]:
@@ -41,6 +42,7 @@ def apply_preview(
                 "reviews": include_reviews,
                 "report": str(report_id) if report_id else None,
                 "active": include_active_study,
+                "questions": include_questions,
                 "replan": replan,
                 "difficulty": difficulty,
             },
@@ -62,6 +64,7 @@ def apply_preview(
         include_reviews=include_reviews,
         report_id=report_id,
         include_active_study=include_active_study,
+        include_questions=include_questions,
         replan=replan,
         difficulty=difficulty,
     )
@@ -114,6 +117,8 @@ def apply_preview(
             subject=task.get("subject_title", "")[:120],
             activity=task["activity"],
             difficulty=task.get("difficulty", difficulty),
+            question_ids=task.get("question_ids", []),
+            question_source=task.get("question_source", ""),
             priority_reasons=task.get("priority_reasons", []),
             edition=edition,
             page_start=task.get("page_start"),
