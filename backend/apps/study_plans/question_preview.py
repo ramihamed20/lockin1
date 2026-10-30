@@ -27,7 +27,10 @@ def add_question_units(
         for subject in snapshot["subjects"] for sheet in subject["sheets"]
     }
     if not sheets:
-        return {"available": 0, "answered": 0, "remaining": 0, "by_source": {}}
+        return {
+            "available": 0, "answered": 0, "remaining": 0, "by_source": {},
+            "fingerprint": hashlib.sha256(b"").hexdigest(),
+        }
     slugs = {
         str(subject_id): slug
         for subject_id, slug in CatalogSubject.objects.filter(
@@ -91,6 +94,13 @@ def add_question_units(
             unit.key for unit in units
             if unit.category == "reading" and targets[unit.key].get("sheet_id") == sheet_id
         )
+        saved_reading = [
+            item.scheduled_date for item in anchored
+            if item.activity == "reading"
+            and str(item.content_version_id) == sheet["version_id"]
+            and item.status == "planned"
+        ]
+        earliest = max([today, *saved_reading])
         preceding = None
         for start in range(0, len(ids), 10):
             batch = ids[start : start + 10]
@@ -102,7 +112,7 @@ def add_question_units(
                 raise ValidationError({"questions": "This plan exceeds its size limit."})
             requires = (*prerequisite, *((preceding,) if preceding else ()))
             units.append(WorkUnit(
-                key, max(5, ceil(len(batch) * 2.5)), today, deadline,
+                key, max(5, ceil(len(batch) * 2.5)), earliest, deadline,
                 priority=2, requires=requires, category="questions",
                 subject=subject["subject_id"],
             ))
