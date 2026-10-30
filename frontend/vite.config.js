@@ -256,7 +256,12 @@ export default defineConfig(async ({ mode, command }) => {
     // through a tunnel on mobile, where that can look exactly like an app
     // reload. Keep development refreshes manual; production has no HMR client.
     hmr: false,
-    allowedHosts: [".trycloudflare.com", ".ngrok-free.app", ".ngrok-free.dev", ".ngrok.app", ".ngrok.io"],
+    // Codespaces serves the 5173 port over a private github.dev host.
+    // Permit only this Codespace's assigned hostname, not arbitrary hosts.
+    allowedHosts: [
+      ".trycloudflare.com", ".ngrok-free.app", ".ngrok-free.dev", ".ngrok.app", ".ngrok.io",
+      ...(env.CODESPACE_NAME ? [`${env.CODESPACE_NAME}-5173.app.github.dev`] : [])
+    ],
     proxy: {
       "/api/v1": {
         target: djangoProxyTarget,
