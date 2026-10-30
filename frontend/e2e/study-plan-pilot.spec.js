@@ -9,6 +9,8 @@ function result(title = "Oral Histology") {
   return {
     kind: "reading_only_preview", persisted: false, planner_ready: false, profile_revision: 1,
     estimate: { minutes_per_page: 5 }, required_reading_minutes: 70, scheduled_reading_minutes: 25,
+    required_question_minutes: 0, scheduled_question_minutes: 0, include_questions: true,
+    question_inventory: { available: 0, answered: 0, remaining: 0, by_source: {} },
     issues: [{ sheet_id: "missing", title: "Pharmacology", reason: "page_count_unknown" }],
     days: [], assignments: [{ key: "reading-one", title, page_start: 1, page_end: 5, estimated_minutes: 25, scheduled_date: "2026-10-25" }],
     unscheduled: [{ key: "reading-two", title: "General Pathology", page_start: 1, page_end: 9, estimated_minutes: 45, reason: "no_fitting_slot" }]

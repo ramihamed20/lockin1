@@ -27,6 +27,8 @@ async function setup(page, locale) {
       if (path.endsWith("/reading-preview")) return send({ kind: "reading_and_review_preview", persisted: false, profile_revision: profile.revision,
         estimate: { minutes_per_page: 5 }, required_reading_minutes: 25, scheduled_reading_minutes: 25,
         required_review_minutes: 0, scheduled_review_minutes: 0, required_active_study_minutes: 15, scheduled_active_study_minutes: 15,
+        required_question_minutes: 0, scheduled_question_minutes: 0, include_questions: true,
+        question_inventory: { available: 0, answered: 0, remaining: 0, by_source: {} },
         apply_token: "a".repeat(64), replace_item_ids: [itemId], today,
         issues: [], days: [], unscheduled: [], assignments: [{ key: "active", title: "Anatomy sheet", activity: "active_study", page_start: 1, page_end: 5,
           estimated_minutes: 15, scheduled_date: today, priority_reasons: ["retrieval_after_reading"], start_url: "/materials" }] });
