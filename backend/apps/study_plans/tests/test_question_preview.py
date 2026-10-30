@@ -6,10 +6,9 @@ from django.utils import timezone
 from apps.questions.models import Question, QuestionAnswer, QuestionVersion
 
 from ..models import StudyPlanItem
-from .test_apply_preview import apply
 from . import test_foundation as fixtures
+from .test_apply_preview import apply
 from .test_reading_preview import preview, setup_plan
-
 
 curriculum = fixtures.curriculum
 pytestmark = pytest.mark.django_db

@@ -146,7 +146,7 @@ class Command(BaseCommand):
                 "status": ExamPeriod.Status.CONFIRMED,
             },
         )
-        for offset, subject in zip((0, 4, 9), subjects):
+        for offset, subject in zip((0, 4, 9), subjects, strict=True):
             ExamSyllabusScope.objects.get_or_create(
                 period=exam, subject=subject, defaults={"include_future_sheets": True},
             )

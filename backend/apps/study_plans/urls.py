@@ -3,8 +3,8 @@ from django.urls import path
 from .v2_views import (
     StudentExamListView,
     StudentLearningSnapshotView,
-    StudentPlanChangesView,
     StudentPlanApplyView,
+    StudentPlanChangesView,
     StudentReadingPlanPreviewView,
     StudentReadingProgressView,
     StudentTaskProgressView,
