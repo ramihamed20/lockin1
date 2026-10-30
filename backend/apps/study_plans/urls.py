@@ -3,6 +3,7 @@ from django.urls import path
 from .v2_views import (
     StudentExamListView,
     StudentLearningSnapshotView,
+    StudentPlanChangesView,
     StudentPlanApplyView,
     StudentReadingPlanPreviewView,
     StudentReadingProgressView,
@@ -39,6 +40,10 @@ urlpatterns = [
         "study-plan/v2/exams/<uuid:period_id>/reading-preview",
         StudentReadingPlanPreviewView.as_view(),
         name="v2-reading-preview",
+    ),
+    path(
+        "study-plan/v2/exams/<uuid:period_id>/changes",
+        StudentPlanChangesView.as_view(), name="v2-changes",
     ),
     path("study-plan/v2/exams", StudentExamListView.as_view(), name="v2-exams"),
     path(

@@ -40,12 +40,17 @@ def add_question_units(
             published_version__source_learning_object_id__in=sheets,
             published_version__source_learning_object__archived_at__isnull=True,
         ).order_by("id").values(
-            "id", "published_version__source_learning_object_id",
+            "id", "published_version_id", "published_version__source_learning_object_id",
             "published_version__metadata",
         )[:10001]
     )
     if len(published) > 10000:
         raise ValidationError({"questions": "The available bank exceeds the preview limit."})
+    fingerprint = hashlib.sha256(
+        ",".join(
+            f"{row['id']}:{row['published_version_id']}" for row in published
+        ).encode()
+    ).hexdigest()
     answered = {
         str(qid) for qid in QuestionAnswer.objects.filter(
             user=user, question_id__in=[row["id"] for row in published]
@@ -121,4 +126,21 @@ def add_question_units(
         "answered": sum(row["answered"] for row in sources.values()),
         "remaining": sum(row["remaining"] for row in sources.values()),
         "by_source": sources,
+        "fingerprint": fingerprint,
     }
+
+
+
+def published_question_fingerprint(sheet_ids: list[str]) -> str:
+    """Snapshot only published question identity/revisions, without question bodies."""
+    pairs = Question.objects.filter(
+        published_version__isnull=False, retired_at__isnull=True,
+        published_version__source_learning_object_id__in=sheet_ids,
+        published_version__source_learning_object__archived_at__isnull=True,
+    ).order_by("id").values_list("id", "published_version_id")[:10001]
+    rows = list(pairs)
+    if len(rows) > 10000:
+        raise ValidationError({"questions": "The available bank exceeds the preview limit."})
+    return hashlib.sha256(
+        ",".join(f"{qid}:{version}" for qid, version in rows).encode()
+    ).hexdigest()

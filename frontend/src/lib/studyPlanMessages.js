@@ -1,5 +1,6 @@
 export const studyPlanMessages = {
   en: {
+    "smart.planChanged": "Your exam plan may need an update: new content, a changed date or overdue work. Preview a new plan before applying changes.",
     "smart.includeQuestions": "Include unanswered sheet and past-exam questions",
     "smart.questionsCount": "{count} questions to answer",
     "smart.questionCoverage": "Available questions: {available} · Answered: {answered} · Remaining: {remaining}",
@@ -127,6 +128,7 @@ export const studyPlanMessages = {
     "plan.weekProgress": "This week: {done} of {total} min done", "plan.dayAllDone": "all sessions done"
   },
   ar: {
+    "smart.planChanged": "خطتك تحتاج مراجعة: ربما أضيف محتوى، أو تغير موعد، أو توجد مهام متأخرة. عاين التحديث قبل تطبيقه.",
     "smart.includeQuestions": "إضافة أسئلة الشيت والسنوات السابقة غير المحلولة",
     "smart.questionsCount": "{count} أسئلة للحل",
     "smart.questionCoverage": "الأسئلة المتاحة: {available} · المحلولة: {answered} · المتبقية: {remaining}",

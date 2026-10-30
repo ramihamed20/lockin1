@@ -143,3 +143,47 @@ class StudentTaskProgressView(StudyPlanV2View):
                 user=user, task=task, data={**serializer.validated_data, "period": period}
             )
         )
+
+
+
+class StudentPlanChangesView(StudyPlanV2View):
+    """Read-only check: notify about material changes without rewriting saved tasks."""
+
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
+    def get(self, request: Request, period_id: UUID) -> Response:
+        from .models import PlannerRun, StudyPlanItem
+        from .question_preview import published_question_fingerprint
+        from .services import plan_today, profile_for
+
+        user = _user(request)
+        period = get_object_or_404(student_exam_periods(user=user), pk=period_id)
+        run = PlannerRun.objects.filter(
+            user=user, period=period
+        ).order_by("-created_at", "-id").first()
+        if run is None:
+            return Response({"has_plan": False, "needs_review": False, "reasons": []})
+        snapshot = student_learning_snapshot(user=user, period=period)
+        before = run.result
+        reasons = []
+        if not before.get("syllabus_fingerprint"):
+            reasons.append("untracked_baseline")
+        elif before["syllabus_fingerprint"] != snapshot["syllabus_fingerprint"]:
+            reasons.append("syllabus_changed")
+        if before.get("includes_questions"):
+            sheet_ids = [
+                sheet["sheet_id"] for subject in snapshot["subjects"]
+                for sheet in subject["sheets"]
+            ]
+            if before.get("question_fingerprint") != published_question_fingerprint(sheet_ids):
+                reasons.append("questions_changed")
+        today = plan_today(profile_for(user))
+        if StudyPlanItem.objects.filter(
+            user=user, planner_run__period=period,
+            scheduled_date__lt=today, status="planned",
+        ).exists():
+            reasons.append("overdue_work")
+        return Response({
+            "has_plan": True, "needs_review": bool(reasons),
+            "reasons": reasons,
+            "last_applied": run.created_at.isoformat(),
+        })

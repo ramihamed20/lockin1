@@ -184,6 +184,10 @@ class StudyPlanItemDetailView(APIView):
             raise PlanChanged()
         if not changes:
             raise ValidationError("Provide at least one field to update.")
+        if item.activity == "questions" and "status" in changes:
+            raise ValidationError(
+                {"status": "Question coverage is completed by recorded answers only."}
+            )
         previous_status = item.status
         previous_date = item.scheduled_date
         previous_minutes = item.duration_minutes

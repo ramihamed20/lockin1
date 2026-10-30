@@ -27,10 +27,19 @@ export default function ReadingPlanPanel({ exams, profile, disabled, onSetup, on
   const [result, setResult] = useState(null);
   const [applyError, setApplyError] = useState("");
   const [progressNotice, setProgressNotice] = useState("");
+  const [changes, setChanges] = useState(null);
   const controller = useRef(null), intent = useRef(""), applyLock = useRef(false), alive = useRef(true);
   const identity = `${examId}:${edition}:${profile.revision}:${includeReviews}:${reportId}:${includeActiveStudy}:${includeQuestions}:${replan}:${difficulty}`;
   useEffect(() => { controller.current?.abort(); setState({ status: "idle", identity: "", preview: null }); setResult(null); setApplyError(""); setConfirm(false); }, [identity, disabled]);
   useEffect(() => { alive.current = true; return () => { alive.current = false; controller.current?.abort(); }; }, []);
+  useEffect(() => {
+    if (!examId) { setChanges(null); return; }
+    let active = true;
+    studyPlanApi.getChanges(examId).then(data => {
+      if (active) setChanges(data);
+    }).catch(() => { if (active) setChanges(null); });
+    return () => { active = false; };
+  }, [examId, result]);
   const selected = exams.find(exam => exam.id === examId);
   const preview = state.identity === identity && !disabled ? state.preview : null;
   const blocked = disabled || applying;
@@ -60,6 +69,10 @@ export default function ReadingPlanPanel({ exams, profile, disabled, onSetup, on
     <header><div><span className="plan-eyebrow">{t("plan.examPilot")}</span><h2 id="plan-exam-title"><Icon name="calendar" size={21} />{t("plan.examTitle")}</h2></div></header>
     <p className="plan-note">{t("connected.previewHint")}</p>
     {!exams.length ? <p role="status">{t("plan.examNone")}</p> : profile.mode !== "normal" ? <div className="plan-actions"><p>{t("plan.examSetup")}</p><button className="btn btn-soft" type="button" onClick={onSetup} disabled={blocked}>{t("plan.settings")}</button></div> : <>
+      {changes?.needs_review && <div className="plan-exam-warning" role="status">
+        <p>{t("smart.planChanged")}</p>
+        <button className="btn btn-soft" type="button" onClick={() => setReplan(true)} disabled={blocked}>{t("smart.replan")}</button>
+      </div>}
       {reportId && <p>{t("connected.reportScope")} <Link to="/study-plan">{t("connected.allReviews")}</Link></p>}
       <form className="plan-exam-form" onSubmit={loadPreview}>
         <label>{t("plan.examChoose")}<select value={examId} disabled={blocked} onChange={event => setExamId(event.target.value)}>{exams.map(exam => <option key={exam.id} value={exam.id}>{exam.title}</option>)}</select></label>

@@ -30,6 +30,14 @@ export const studyPlanApi = {
     return payload.results;
   },
 
+  async getChanges(periodId) {
+    const result = objectPayload(await request(`/study-plan/v2/exams/${encodeURIComponent(periodId)}/changes`), "Could not check plan changes.");
+    if (typeof result.has_plan !== "boolean" || typeof result.needs_review !== "boolean" || !Array.isArray(result.reasons)) {
+      throw new ApiError(500, result, "The plan change response was incomplete.", "invalid_response");
+    }
+    return result;
+  },
+
   /** @param {string} periodId @param {string} edition @param {{signal?: AbortSignal, includeReviews?: boolean, reportId?: string, includeActiveStudy?: boolean, includeQuestions?: boolean, replan?: boolean, difficulty?: string}} [options] */
   async previewReading(periodId, edition, { signal, includeReviews = false, reportId, includeActiveStudy = false, includeQuestions = false, replan = false, difficulty = "medium" } = {}) {
     const payload = objectPayload(await request(`/study-plan/v2/exams/${encodeURIComponent(periodId)}/reading-preview`, {
