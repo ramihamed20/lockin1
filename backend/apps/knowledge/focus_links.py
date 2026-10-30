@@ -100,3 +100,76 @@ def resumed_explain_links(user: User, document: CatalogDocument, run_id: UUID) -
     if not attempt:
         raise NotFound()
     return explain_links(user, document, attempt.id)
+
+
+def review_recovery_links(user: User, item_id: UUID) -> dict[str, Any]:
+    from django.db.models import F, Q
+    from rest_framework.exceptions import APIException
+
+    from apps.review.models import ReviewItem
+
+    from .models import ConceptSource
+    from .services import document_for
+
+    require_enabled()
+    item = ReviewItem.objects.filter(pk=item_id, user=user).first()
+    if item is None:
+        raise NotFound()
+    parts = item.canonical_key.split(":")
+    if len(parts) < 3 or parts[0] != "active-study":
+        return {"links": []}
+    links = []
+    seen = set()
+    for mapping in (
+        McqConceptLink.objects.filter(canonical_key=item.canonical_key)
+        .select_related("concept")
+        .order_by("id")[:20]
+    ):
+        for source in ConceptSource.objects.filter(
+            concept=mapping.concept,
+            concept__published=True,
+            document__is_active=True,
+            source_version_id=F("document__version_id"),
+            source_file_id=F("document__managed_file_id"),
+        ).select_related("document__version")[:20]:
+            bank = ActiveStudyQuestionContent.objects.filter(
+                sheet_id=mapping.concept.sheet_id,
+                source_version_id=source.source_version_id,
+                revision=mapping.bank_revision,
+                difficulty=parts[2],
+            ).first()
+            if (
+                bank is None
+                or item.last_mistake_at is None
+                or item.last_mistake_at < bank.updated_at
+            ):
+                continue
+            try:
+                document = document_for(user, source.document_id)
+            except APIException:
+                continue
+            if not tool_flags(document)["explain"]:
+                continue
+            question = (
+                ExplainQuestion.objects.filter(published=True, source__in=sources_for(document))
+                .filter(Q(source__concept_id=mapping.concept_id) | Q(concepts=mapping.concept))
+                .order_by("id")
+                .first()
+            )
+            if question is None or question.pk in seen:
+                continue
+            seen.add(question.pk)
+            links.append(
+                {
+                    "concept_id": str(mapping.concept_id),
+                    "title": mapping.concept.title,
+                    "start_url": (
+                        f"/materials/catalog/{document.material_slug}/sheets/{document.sheet_slug}/workspace"
+                        f"?studyPage={question.source.page_start}&studyVersion={document.version_id}"
+                        f"&studyFile={document.managed_file_id}&studyQuestion={question.pk}"
+                    ),
+                }
+            )
+            if len(links) == 3:
+                return {"links": links}
+    return {"links": links}

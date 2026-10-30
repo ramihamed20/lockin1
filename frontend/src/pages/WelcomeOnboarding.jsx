@@ -95,7 +95,7 @@ export default function WelcomeOnboarding({ user, onUserUpdate, onThemeSettingsC
         <div className="welcome-onboarding-shell welcome-onboarding-shell--group">
           <header className="welcome-onboarding-header">
             <span className="welcome-brand">
-              <img src={assetPath("/icons/lockin-light-192-v2.png")} width="40" height="40" alt="" />
+              <img src={assetPath("/icons/lockin-logo.svg")} width="40" height="40" alt="" />
               <strong>Lock-in</strong>
             </span>
           </header>
@@ -118,7 +118,7 @@ export default function WelcomeOnboarding({ user, onUserUpdate, onThemeSettingsC
       <div className="welcome-onboarding-shell">
         <header className="welcome-onboarding-header">
           <span className="welcome-brand">
-            <img src={assetPath("/icons/lockin-light-192-v2.png")} width="40" height="40" alt="" />
+            <img src={assetPath("/icons/lockin-logo.svg")} width="40" height="40" alt="" />
             <strong>Lock-in</strong>
           </span>
           <span className="welcome-trial-badge">{t("subscription.freeTrial")} · {t("welcome.trialLength", { count: trialDays })}</span>

@@ -27,6 +27,7 @@ export function SubscriptionSessionProvider({ user, children }) {
   const userId = String(user?.id || "");
   const [state, setState] = useState(() => initialState(userId));
   const requestRef = useRef(0);
+  const refreshRef = useRef(null);
   const revalidatedRef = useRef(false);
   const retryAttemptRef = useRef(0);
   const directAccess = hasDirectStudyAccess(state.entitlements);
@@ -48,29 +49,45 @@ export function SubscriptionSessionProvider({ user, children }) {
     return next;
   }, [state.entitlements, userId]);
 
-  const refresh = useCallback(async ({ blocking = true } = {}) => {
-    if (!userId) return null;
+  const refresh = useCallback(({ blocking = true } = {}) => {
+    if (!userId) return Promise.resolve(null);
     revalidatedRef.current = true;
-    const requestId = requestRef.current + 1;
-    requestRef.current = requestId;
-    if (blocking) setState((current) => ({ ...current, ready: false, error: "" }));
-    try {
-      const snapshot = await billingApi.accessSnapshot();
-      if (requestRef.current !== requestId) return null;
-      const next = writeSubscriptionSnapshot(userId, snapshot.subscription, snapshot.entitlements);
-      if (!isSubscriptionSnapshotFresh(next, userId)) {
-        throw new Error("Subscription access did not include a valid expiration.");
+    // Focus, visibility and the poll often arrive together after an app switch.
+    // Share the read, while allowing an expiry check to make it blocking.
+    const active = refreshRef.current;
+    if (active) {
+      if (blocking && !active.blocking) {
+        active.blocking = true;
+        setState((current) => ({ ...current, ready: false, error: "" }));
       }
-      retryAttemptRef.current = 0;
-      setState({ ready: true, error: "", ...next });
-      return next;
-    } catch (error) {
-      if (requestRef.current === requestId) {
-        retryAttemptRef.current += 1;
-        setState((current) => ({ ...current, ready: !blocking && current.ready, error: error?.message || "Subscription access could not be loaded." }));
-      }
-      return null;
+      return active.promise;
     }
+    const requestId = ++requestRef.current;
+    const operation = { blocking, promise: null };
+    refreshRef.current = operation;
+    if (blocking) setState((current) => ({ ...current, ready: false, error: "" }));
+    operation.promise = (async () => {
+      try {
+        const snapshot = await billingApi.accessSnapshot();
+        if (requestRef.current !== requestId) return null;
+        const next = writeSubscriptionSnapshot(userId, snapshot.subscription, snapshot.entitlements);
+        if (!isSubscriptionSnapshotFresh(next, userId)) {
+          throw new Error("Subscription access did not include a valid expiration.");
+        }
+        retryAttemptRef.current = 0;
+        setState({ ready: true, error: "", ...next });
+        return next;
+      } catch (error) {
+        if (requestRef.current === requestId) {
+          retryAttemptRef.current += 1;
+          setState((current) => ({ ...current, ready: !operation.blocking && current.ready, error: error?.message || "Subscription access could not be loaded." }));
+        }
+        return null;
+      } finally {
+        if (refreshRef.current === operation) refreshRef.current = null;
+      }
+    })();
+    return operation.promise;
   }, [userId]);
 
   useEffect(() => {

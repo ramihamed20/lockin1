@@ -1,8 +1,9 @@
 from uuid import UUID
 
+from django.db import models
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.exceptions import APIException, PermissionDenied
+from rest_framework.exceptions import APIException, NotFound, PermissionDenied
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,7 +11,7 @@ from rest_framework.views import APIView
 from apps.accounts.models import User
 
 from .contracts import QuestionAttemptEvent
-from .models import ReviewAnswerLog
+from .models import ReviewAnswerLog, ReviewItem
 from .selectors import (
     active_review_items,
     current_weekly_session,
@@ -122,6 +123,45 @@ class ReviewBankSubjectView(APIView):
                 "subject_label": items[0].subject_label_snapshot if items else None,
                 "count": len(items),
                 "results": [review_item_payload(item) for item in items],
+            }
+        )
+
+
+class ReviewSourceView(APIView):
+    """Resolve the current published reference, rechecking reader access on every click."""
+
+    def get(self, request: Request, item_id: UUID) -> Response:
+        from apps.content.models import CatalogDocument
+        from apps.content.views import _catalog_document_by_id
+
+        item = (
+            ReviewItem.objects.select_related("last_question_version")
+            .filter(pk=item_id, user=_user(request))
+            .first()
+        )
+        version = item.last_question_version if item else None
+        if version is None or not version.source_learning_object_id or not version.source_page:
+            raise NotFound("A source page is not available for this question.")
+        document = CatalogDocument.objects.filter(
+            is_active=True,
+            edition="university",
+            version__learning_object_id=version.source_learning_object_id,
+            version__learning_object__published_version_id=models.F("version_id"),
+        ).first()
+        if document is None:
+            raise NotFound("The source is no longer available.")
+        document = _catalog_document_by_id(user=_user(request), document_id=document.id)
+        if document.version.created_at > version.created_at:
+            raise NotFound("The source was updated. Its original page needs reverification.")
+        page_count = document.version.page_count or document.managed_file.pdf_page_count
+        if page_count is None or version.source_page > page_count:
+            raise NotFound("The source page is no longer available.")
+        return Response(
+            {
+                "material_slug": document.material_slug,
+                "sheet_slug": document.sheet_slug,
+                "page": version.source_page,
+                "document_version_id": str(document.version_id),
             }
         )
 

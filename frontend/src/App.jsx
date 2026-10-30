@@ -6,11 +6,7 @@ import {
   autoThemeForDate,
   assetPath,
   normalizeThemeSettings,
-  parseReminderTime,
   readLocalThemeSettings,
-  readReminderSettings,
-  reminderKey,
-  todayStamp
 } from "./lib/utils.js";
 import { appIconOptions } from "./lib/constants.js";
 import { Shell } from "./components/layout/index.jsx";
@@ -32,9 +28,8 @@ import { SubscriptionSessionProvider } from "./lib/SubscriptionSessionContext.js
 import { clearSubscriptionSnapshots } from "./lib/subscriptionSession.js";
 import { FeatureComingSoon } from "./components/FeatureComingSoon.jsx";
 import { isFeatureComingSoon } from "./lib/featureAvailability.js";
-import { synchronizeOffline } from "./offline/coordinator.js";
+import { synchronizeOffline, refreshAutomaticDownloads } from "./offline/coordinator.js";
 import { forgetOfflineUser, rememberOfflineUser, restoreOfflineUser } from "./offline/profile.js";
-import { showLocalNotification } from "./pwa/localNotification.js";
 import { forgetPushAccount } from "./pwa/devicePush.js";
 import OfflineIndicator from "./offline/OfflineIndicator.jsx";
 import "./pages/dashboard.css";
@@ -42,7 +37,9 @@ import { WeeklyReadyToast } from "./components/biweekly/WeeklyReadyToast.jsx";
 import { WhatsNew } from "./components/WhatsNew.jsx";
 
 // --- Lazy-loaded pages ---
+const StudyPlanEntry = lazyWithRecovery(() => import("./studyPlan/StudyPlanEntry.jsx"));
 const StudyPlan = lazyWithRecovery(() => import("./pages/StudyPlan.jsx"));
+const ReviewSource = lazyWithRecovery(() => import("./pages/ReviewSource.jsx"));
 const Dashboard = lazyWithRecovery(() => import("./pages/Dashboard.jsx"));
 const loadMaterialsPage = () => import("./pages/Materials.jsx");
 const Materials = lazyWithRecovery(loadMaterialsPage);
@@ -51,7 +48,7 @@ const CatalogSheetStudy = lazyWithRecovery(() => loadMaterialsPage().then((m) =>
 const PersonalSheetsPage = lazyWithRecovery(() => loadMaterialsPage().then((m) => ({ default: m.PersonalSheetsPage })));
 const CatalogFocusWorkspace = lazyWithRecovery(() => import("./pages/CatalogFocusWorkspace.jsx"));
 const WorkspaceKeepAlive = lazyWithRecovery(() => import("./workspace/catalog/WorkspaceKeepAlive.jsx").then((module) => ({ default: module.WorkspaceKeepAlive })));
-const LockInMode = lazyWithRecovery(() => import("./pages/LockInMode.jsx"));
+const LockInMode = lazyWithRecovery(() => import("./pages/LockInEntry.jsx"));
 const PaperWorkspace = lazyWithRecovery(() => import("./pages/PaperWorkspace.jsx"));
 const MySummariesPage = lazyWithRecovery(() => import("./pages/MySummaries.jsx"));
 const MyGroup = lazyWithRecovery(() => import("./pages/MyGroup.jsx"));
@@ -73,6 +70,7 @@ const AnalysisPage = lazyWithRecovery(() => import("./pages/Biweekly.jsx").then(
 const BiweeklyDetail = lazyWithRecovery(() => import("./pages/Biweekly.jsx").then((module) => ({ default: module.BiweeklyDetail })));
 const WeeklySummaryPage = lazyWithRecovery(() => import("./pages/Biweekly.jsx").then((module) => ({ default: module.WeeklySummaryPage })));
 const BiweeklyTest = lazyWithRecovery(() => import("./pages/Biweekly.jsx").then((module) => ({ default: module.BiweeklyTest })));
+const Ranked = lazyWithRecovery(() => import("./pages/Ranked.jsx"));
 const Achievements = lazyWithRecovery(() => import("./pages/Achievements.jsx"));
 const Notifications = lazyWithRecovery(() => import("./pages/Notifications.jsx"));
 const Store = lazyWithRecovery(() => import("./pages/Store.jsx"));
@@ -129,9 +127,7 @@ function App() {
   const navigate = useNavigate();
   const { setLocale, t } = useI18n();
   const [themeSettings, setThemeSettings] = useState(readLocalThemeSettings);
-  const [reminderSettings, setReminderSettings] = useState(() => readReminderSettings());
-  const clockTick = useVisibleNow(themeSettings.autoTheme || reminderSettings.enabled, 60_000);
-  const [reminderToast, setReminderToast] = useState("");
+  const clockTick = useVisibleNow(themeSettings.autoTheme, 60_000);
   // If a browser recreates this document after a short background period, the
   // non-secret profile snapshot lets the existing route paint immediately.
   // The HttpOnly cookie is still checked in the background before any server
@@ -232,12 +228,12 @@ function App() {
 
   useEffect(() => {
     if (!user?.id || user.onboardingRequired || user.welcomeRequired) return undefined;
-    if (navigator.onLine) void rememberOfflineUser(user).catch(() => undefined);
+    let disposed = false;
     // App open, resume and focus are throttled inside the coordinator; a
     // regained connection or newly queued work always syncs.
     const sync = (force) => {
-      if (navigator.onLine && document.visibilityState !== "hidden") {
-        void synchronizeOffline(user.id, undefined, { force }).catch(() => undefined);
+      if (!disposed && navigator.onLine && document.visibilityState !== "hidden") {
+        void synchronizeOffline(user.id, undefined, { force, backgroundDownloads: true }).catch(() => undefined);
       }
     };
     const resume = () => sync(false);
@@ -247,14 +243,21 @@ function App() {
       window.clearTimeout(queuedTimer);
       queuedTimer = window.setTimeout(() => sync(true), 2_000);
     };
-    sync(true);
+    // Account cleanup finishes before the first download captures its owner.
+    if (navigator.onLine) void rememberOfflineUser(user).then(() => sync(true)).catch(() => undefined);
+    // Discover newly published sheets even while the student keeps reading.
+    const contentTimer = window.setInterval(() => {
+      void refreshAutomaticDownloads(user.id).catch(() => undefined);
+    }, 60_000);
     window.addEventListener("online", reconnect);
     window.addEventListener("focus", resume);
     window.addEventListener("pageshow", resume);
     document.addEventListener("visibilitychange", resume);
     window.addEventListener("lock-in:offline-queued", queued);
     return () => {
+      disposed = true;
       window.clearTimeout(queuedTimer);
+      window.clearInterval(contentTimer);
       window.removeEventListener("online", reconnect);
       window.removeEventListener("focus", resume);
       window.removeEventListener("pageshow", resume);
@@ -360,30 +363,6 @@ function App() {
       );
     }
   }, [booting, user]);
-
-  useEffect(() => {
-    setReminderSettings(readReminderSettings(user?.email));
-  }, [user?.email]);
-
-  useEffect(() => {
-    localStorage.setItem(reminderKey(user?.email), JSON.stringify(reminderSettings));
-  }, [user?.email, reminderSettings]);
-
-  useEffect(() => {
-    if (!reminderSettings.enabled) return;
-    const now = new Date(clockTick);
-    const { hours, minutes } = parseReminderTime(reminderSettings.time);
-    const target = new Date(now);
-    target.setHours(hours, minutes, 0, 0);
-    const shouldPing = now >= target && reminderSettings.lastSentDate !== todayStamp(now);
-    if (!shouldPing) return;
-    const message = `Reminder: your ${reminderSettings.time} study block is ready.`;
-    setReminderSettings((current) => ({ ...current, lastSentDate: todayStamp(now) }));
-    setReminderToast(message);
-    if (window.Notification && Notification.permission === "granted") {
-      void showLocalNotification("Lock-in study reminder", { body: message }).catch(() => undefined);
-    }
-  }, [clockTick, reminderSettings]);
 
   useEffect(() => onUnauthorized(() => {
     // Losing a session mid-visit is not the same event as arriving without one.
@@ -763,7 +742,7 @@ function App() {
                 <Route path="/dashboard" element={<Dashboard user={user} themeSettings={themeSettings} activeTheme={activeTheme} />} />
                 <Route path="/my-group" element={<MyGroup />} />
                 {isFeatureComingSoon("study-plan")
-                  ? <Route path="/study-plan/*" element={<FeatureComingSoon featureId="study-plan" />} />
+                  ? <Route path="/study-plan/*" element={<StudyPlanEntry key={`${user.id}-${user.cohort?.id || ""}`} user={user} />} />
                   : <Route path="/study-plan" element={<StudyPlan user={user} />} />}
                 <Route path="/materials" element={<Materials user={user} />} />
                 <Route path="/materials/summaries" element={<MySummariesPage />} />
@@ -795,26 +774,27 @@ function App() {
                 <Route path="/questions/attempts/:attemptId" element={<Attempt />} />
                 <Route path="/questions/results/:resultId" element={<AssessmentResult />} />
                 <Route path="/review" element={<Review user={user} />} />
+                <Route path="/review/source/:itemId" element={<ReviewSource />} />
                 <Route path="/review/bank" element={<ReviewBank user={user} />} />
                 <Route path="/review/bank/:subjectKey" element={<SubjectReviewSession user={user} />} />
                 <Route path="/review/weekly" element={<WeeklyRecall user={user} />} />
                 <Route path="/review/biweekly/:id" element={<BiweeklyDetail type="review" />} />
                 <Route path="/review/biweekly/:id/test" element={<BiweeklyTest />} />
                 <Route path="/community/*" element={<FeatureComingSoon featureId="community" />} />
-                <Route path="/ranked/*" element={<FeatureComingSoon featureId="rank" />} />
+                <Route path="/ranked/*" element={<Ranked />} />
                 <Route path="/bookmarks" element={<Bookmarks />} />
-                <Route path="/progress" element={<Progress />} />
+                <Route path="/progress" element={<Progress user={user} />} />
                 <Route path="/weekly-summary" element={<WeeklySummaryPage />} />
                 <Route path="/analysis" element={<AnalysisPage />} />
                 <Route path="/analysis/:id" element={<BiweeklyDetail type="analysis" />} />
-                <Route path="/progression" element={<Progress />} />
+                <Route path="/progression" element={<Progress user={user} />} />
                 <Route path="/achievements" element={<Achievements />} />
-                <Route path="/notifications" element={<Notifications onNotificationsChanged={() => setNotificationVersion((version) => version + 1)} />} />
+                <Route path="/notifications" element={<Notifications user={user} onNotificationsChanged={() => setNotificationVersion((version) => version + 1)} />} />
                 <Route path="/store" element={<Store commerceEnabled={false} onLockBalanceChange={setLockBalance} onCartCountChange={setStoreCartCount} />} />
                 <Route path="/profile" element={<Profile user={user} onUserUpdate={setUser} />} />
                 <Route path="/security" element={<Navigate to="/settings" replace />} />
                 <Route path="/subscription" element={<Subscription onPoliciesAccepted={setUser} />} />
-                <Route path="/settings" element={<Settings user={user} onUserUpdate={setUser} settings={themeSettings} activeTheme={activeTheme} reminderSettings={reminderSettings} onReminderSettingsChange={setReminderSettings} onSettingsChange={updateThemeSettings} onSignedOut={clearAuthenticatedUi} />} />
+                <Route path="/settings" element={<Settings user={user} onUserUpdate={setUser} settings={themeSettings} activeTheme={activeTheme} onSettingsChange={updateThemeSettings} onSignedOut={clearAuthenticatedUi} />} />
                 <Route path="/admin/*" element={<OperationsAdmin operationsSession={operationsSession} />} />
                 {/* Same content.view gate as /creator; /admin/* also requires the administrator role. */}
                 <Route path="/creator/*" element={<Navigate to="/operations/admin/content" replace />} />
@@ -827,7 +807,6 @@ function App() {
         </ErrorBoundary>
       </Shell>
       {!inLockInMode && !inFocusWorkspace && user && <WeeklyReadyToast />}
-      {!inLockInMode && !inFocusWorkspace && reminderToast && <ReminderToast message={reminderToast} onDismiss={() => setReminderToast("")} />}
       {!inLockInMode && !inFocusWorkspace && sessionNotice && <ReminderToast title="Session" icon="alert-triangle" message={sessionNotice} onDismiss={() => setSessionNotice("")} />}
       {logoutConfirmDialog}
       </>

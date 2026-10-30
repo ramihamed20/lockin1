@@ -22,7 +22,7 @@ test("obsolete public PDF.js assets are absent and Welcome assets remain present
   await assert.rejects(access(projectFile("public/pdf.min.js")));
   await assert.rejects(access(projectFile("public/pdf.worker.min.js")));
   await Promise.all([
-    access(projectFile("public/icons/lockin-light-192-v2.png")),
+    access(projectFile("public/icons/lockin-logo.svg")),
     access(projectFile("public/assets/mascot-study-640.webp"))
   ]);
 });

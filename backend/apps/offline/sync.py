@@ -190,7 +190,15 @@ def replay_batch(*, user: User, operations: list[object]) -> dict[str, object]:
     accepted: list[dict[str, object]] = []
     rejected: list[dict[str, object]] = []
 
-    def reject(operation_id: object, *, code: str, reason: str, retryable: bool = False) -> None:
+    def reject(
+        operation_id: object,
+        *,
+        code: str,
+        reason: str,
+        retryable: bool = False,
+        fields: Any = None,
+        field_codes: Any = None,
+    ) -> None:
         # `retryable` separates a business-rule refusal, which will never
         # succeed, from a temporary one the device should try again.
         logger.info(
@@ -202,6 +210,7 @@ def replay_batch(*, user: User, operations: list[object]) -> dict[str, object]:
                 "code": code,
                 "reason": reason,
                 "retryable": retryable,
+                **({"fields": fields, "field_codes": field_codes} if fields else {}),
             }
         )
 
@@ -250,7 +259,11 @@ def replay_batch(*, user: User, operations: list[object]) -> dict[str, object]:
             reject(
                 operation_id,
                 code="rejected",
-                reason=str(getattr(error, "detail", "Content unavailable.")),
+                reason="The saved change could not be accepted."
+                if isinstance(error, ValidationError)
+                else "Content unavailable.",
+                fields=error.detail if isinstance(error, ValidationError) else None,
+                field_codes=error.get_codes() if isinstance(error, ValidationError) else None,
             )
         except APIException as error:
             # Throttling or a temporarily unavailable dependency: the device
@@ -259,7 +272,9 @@ def replay_batch(*, user: User, operations: list[object]) -> dict[str, object]:
             reject(
                 operation_id,
                 code="unavailable" if retryable else "rejected",
-                reason=str(error.detail),
+                reason=str(error.detail)
+                if isinstance(error.detail, str)
+                else "The saved change could not be synced.",
                 retryable=retryable,
             )
     balance = XpBalance.objects.filter(user=user).first()

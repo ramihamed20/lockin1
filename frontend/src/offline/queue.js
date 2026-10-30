@@ -133,7 +133,7 @@ function due(operation, now) {
   return !operation.next_attempt_at || Date.parse(operation.next_attempt_at) <= now;
 }
 
-function scheduleRetry(operation, { reason = "", code = "" } = {}) {
+function scheduleRetry(operation, { reason = "", code = "", fields = undefined, field_codes = undefined, reason_code = undefined } = {}) {
   const retryCount = operation.retry_count + 1;
   return {
     ...operation,
@@ -141,7 +141,9 @@ function scheduleRetry(operation, { reason = "", code = "" } = {}) {
     retry_count: retryCount,
     next_attempt_at: new Date(Date.now() + backoffDelay(retryCount)).toISOString(),
     ...(reason ? { reason } : {}),
-    ...(code ? { code } : {})
+    ...(code ? { code } : {}),
+    ...(fields ? { fields, field_codes } : {}),
+    ...(reason_code ? { reason_code } : {})
   };
 }
 
@@ -169,7 +171,7 @@ async function flushServerBatch(userId, batch, leaseToken, assertCurrent) {
     // of the whole batch (an ended session, a lease too old to prove the work)
     // keeps it too, with the server's reason instead of "connection", so it can
     // upload once the student signs in or renews access.
-    const reason = isConnectivityError(error) ? {} : { reason: error?.message || "", code: Number(error?.status) === 401 ? "signin" : "access" };
+    const reason = isConnectivityError(error) ? {} : { reason: error?.rawMessage || error?.message || "", reason_code: error?.code, code: Number(error?.status) === 401 ? "signin" : "access" };
     await offlineDatabase.putMany(userId, batch.map((operation) => [`${OPERATION_PREFIX}${operation.operation_id}`, scheduleRetry(operation, { code: "connection", ...reason })]));
     throw error;
   }
@@ -198,10 +200,10 @@ async function flushServerBatch(userId, batch, leaseToken, assertCurrent) {
     byId.delete(rejected.operation_id);
     if (rejected.retryable || (rejected.code === "out_of_order" && blocked.has(operation.ordering_key))) {
       blocked.add(operation.ordering_key);
-      await saveOperation(userId, scheduleRetry(operation, { reason: rejected.reason, code: rejected.code }));
+      await saveOperation(userId, scheduleRetry(operation, { reason: rejected.reason, code: rejected.code, fields: rejected.fields, field_codes: rejected.field_codes }));
       continue;
     }
-    const failed = { ...operation, sync_status: OPERATION_STATUS.FAILED, retry_count: operation.retry_count + 1, reason: rejected.reason, code: rejected.code || "rejected" };
+    const failed = { ...operation, sync_status: OPERATION_STATUS.FAILED, retry_count: operation.retry_count + 1, reason: rejected.reason, code: rejected.code, fields: rejected.fields, field_codes: rejected.field_codes || "rejected" };
     await saveOperation(userId, failed);
     try { await handlers.get(operation.operation_type)?.onRejected?.(userId, failed, rejected); } catch { /* the failure stays visible in Settings */ }
   }

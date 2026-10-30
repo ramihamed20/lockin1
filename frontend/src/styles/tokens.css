@@ -41,9 +41,9 @@
        The navy tint is Lock-in's own; the steps are spaced like a native
        grouped interface (page, grouped surface, raised, pressed). */
     --bg: #080a10;
-    --surface: #10141c;
-    --surface-2: #171b26;
-    --surface-3: #1f2431;
+    --surface: #15171d;
+    --surface-2: #202229;
+    --surface-3: #2c2f37;
     --border: #1f2431;
     --border-strong: #2d3446;
     --separator: rgb(255 255 255 / 0.075);
@@ -126,10 +126,10 @@
     --weight-medium: 510;
     --weight-semibold: 600;
     --weight-bold: 700;
-    /* Titles: one large page title, then section titles. */
-    --title-large: 1.875rem;
-    --title-large-phone: 1.625rem;
-    --tracking-title: -0.024em;
+    /* Compact titles; the navigation bar carries the page identity. */
+    --title-large: 1.375rem;
+    --title-large-phone: 1.25rem;
+    --tracking-title: -0.015em;
 
     /* Controls */
     --control-h: 40px;
@@ -182,10 +182,10 @@
   /* Light neutrals, shared by every light theme. */
   :root:is([data-theme="day"], [data-theme="light"], [data-theme="dawn"], [data-theme="sunset"]) {
     color-scheme: light;
-    --bg: #f5f6f8;
+    --bg: #f2f2f7;
     --surface: #ffffff;
-    --surface-2: #f3f4f7;
-    --surface-3: #eaecf1;
+    --surface-2: #f2f2f7;
+    --surface-3: #e8e8ed;
     --border: #e3e6ec;
     --border-strong: #cfd4dd;
     --text: #141821;
@@ -208,7 +208,7 @@
     --shadow-float: 0 0 0 1px rgb(20 24 33 / 0.06), 0 2px 6px rgb(20 24 33 / 0.06), 0 18px 44px rgb(20 24 33 / 0.14);
     --separator: rgb(20 24 33 / 0.09);
     --card-edge: rgb(20 24 33 / 0.06);
-    --card-shadow: 0 1px 2px rgb(20 24 33 / 0.04), 0 1px 1px rgb(20 24 33 / 0.02);
+    --card-shadow: none;
     --material: rgb(255 255 255 / 0.78);
     --material-thick: rgb(255 255 255 / 0.92);
 

@@ -63,7 +63,7 @@ export function PageThumbnails({ pdf, total, accessibleCount, currentPage, onJum
     scroller.scrollTop = Math.max(0, row * (CELL_HEIGHT + GAP) - (scroller.clientHeight - CELL_HEIGHT) / 2);
     setScrollTop(scroller.scrollTop);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [columns > 0]);
+  }, [columns]);
 
   useEffect(() => {
     const queue = new PdfRenderQueue({ concurrency: 1 });

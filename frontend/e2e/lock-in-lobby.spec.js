@@ -7,6 +7,8 @@ import { isFeatureComingSoon } from "../src/lib/featureAvailability.js";
 // Lockin Mode is scheduled; lock-in-coming-soon.spec.js covers the gated route.
 test.skip(isFeatureComingSoon("lock-in"), "Lockin Mode is coming soon");
 
+test.use({ hasTouch: true });
+
 const OUTPUT = new URL("../output/playwright/", import.meta.url);
 
 async function connect(page, language = "en", initialTeam = null) {
@@ -16,7 +18,8 @@ async function connect(page, language = "en", initialTeam = null) {
     const { pathname } = new URL(request.url());
     const method = request.method();
     const json = (payload, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(payload) });
-    if (pathname === "/api/v1/auth/session") return json({ user: studentSession({ preferred_language: language }) });
+    if (pathname === "/api/v1/auth/session") return json({ user: studentSession({ preferred_language: language, policy_version: "2026.10", policy_accepted_at: "2026-10-27T00:00:00Z" }) });
+    if (pathname === "/api/v1/focus/lock-in/availability") return json({ enabled: true });
     if (pathname === "/api/v1/auth/csrf") return json({ csrf_token: "lobby-csrf" });
     if (await fulfillAccessContract(route, pathname)) return;
     if (pathname === "/api/v1/operations/session") return json({ error: { code: "permission_denied", message: "Student account" } }, 403);
@@ -68,7 +71,8 @@ test("sidebar enters the dedicated Lockin surface", async ({ page }) => {
   await connect(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/#/dashboard");
-  await page.locator(".sidebar").getByRole("link", { name: "Lock-in Mode" }).click();
+  await page.locator(".sidebar .rail-expand").click();
+  await page.locator(".mobile-drawer.open").getByRole("link", { name: "Lock-in Mode" }).click();
   await expect(page.getByRole("heading", { name: "Lock-in Mode" })).toBeVisible();
   await expect(page.locator(".sidebar")).toHaveCount(0);
 });
@@ -170,3 +174,29 @@ test("Arabic lobby keeps codes legible", async ({ page }) => {
   await expect(code).toHaveAttribute("dir", "ltr");
   await screenshot(page, "lockin-rtl-join.png");
 });
+
+for (const width of [390, 820]) {
+  test(`setup uses the chosen duration and clears the previous sheet range at ${width}px`, async ({ page }) => {
+    await connect(page);
+    await page.route("**/api/v1/focus/lock-in", (route) => route.fulfill({ json: {
+      active_session: null, teams: [], team_rankings: [], materials: [
+        { document_version_id: "long-sheet", title: "Long sheet", page_count: 40 },
+        { document_version_id: "short-sheet", title: "Short sheet", page_count: 5 }
+      ]
+    } }));
+    await page.setViewportSize({ width, height: 1180 });
+    await page.goto("/#/lock-in");
+    await page.getByRole("button", { name: /^Solo/ }).click();
+    await page.getByRole("radio", { name: /45/ }).click();
+    await expect(page.locator(".lm-duration-preview")).toContainText("45");
+    const sheet = page.getByRole("combobox", { name: "Study material", exact: true });
+    await sheet.selectOption("long-sheet");
+    await page.getByLabel("From page", { exact: true }).fill("20");
+    await page.getByLabel("To page", { exact: true }).fill("30");
+    await sheet.selectOption("short-sheet");
+    await expect(page.getByLabel("From page", { exact: true })).toHaveValue("1");
+    await expect(page.getByLabel("To page", { exact: true })).toHaveValue("");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await screenshot(page, `lockin-setup-touch-${width}.png`);
+  });
+}

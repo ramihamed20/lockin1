@@ -71,6 +71,8 @@
 
 /* Materials -> My summaries */
 .summary-rows { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.summary-filters { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; margin-block-end: 12px; }
+@media (max-width: 639px) { .summary-filters { grid-template-columns: minmax(0, 1fr); } }
 .summary-row { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 14px; border: 1px solid var(--border); border-inline-start: 4px solid var(--summary-accent); border-radius: 16px; background: color-mix(in srgb, var(--summary-accent) 5%, var(--surface)); }
 .summary-row__text { display: grid; gap: 2px; min-width: 0; }
 .summary-row__text strong { overflow-wrap: anywhere; }

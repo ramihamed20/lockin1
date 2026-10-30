@@ -53,6 +53,13 @@ JOBS = (
         _no_options,
     ),
     JobSpec(
+        "lock_in_expiry",
+        "settle_lock_in_sessions",
+        "LOCKIN_EXPIRY_INTERVAL_SECONDS",
+        60,
+        _no_options,
+    ),
+    JobSpec(
         "biweekly_reports",
         "close_biweekly_reports",
         "BIWEEKLY_REPORT_INTERVAL_SECONDS",
@@ -63,6 +70,13 @@ JOBS = (
         "notification_campaigns",
         "dispatch_due_notification_campaigns",
         "NOTIFICATION_SCHEDULER_INTERVAL_SECONDS",
+        60,
+        _no_options,
+    ),
+    JobSpec(
+        "study_reminders",
+        "dispatch_study_reminders",
+        "STUDY_REMINDER_INTERVAL_SECONDS",
         60,
         _no_options,
     ),

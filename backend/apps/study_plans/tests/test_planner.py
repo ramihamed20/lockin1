@@ -368,11 +368,13 @@ def test_real_cookie_session_can_save_preview_and_complete_with_rotated_csrf():
 def test_account_timezone_controls_today_and_future_completion(monkeypatch):
     from datetime import datetime
 
-    user, client, _today, _monday = setup_plan()
     monkeypatch.setattr(
         "apps.study_plans.services.timezone.now",
         lambda: datetime(2026, 10, 25, 22, 30, tzinfo=UTC),
     )
+    # Trial grants must be created on the same clock as the authenticated read.
+    # Otherwise this timezone test starts failing once wall time passes its date.
+    user, client, _today, _monday = setup_plan()
     item = StudyPlanItem.objects.create(user=user, title="Monday", scheduled_date="2026-10-26")
     path = f"/api/v1/study-plan/items/{item.id}"
     query = "/api/v1/study-plan?from=2026-10-25&to=2026-10-26"

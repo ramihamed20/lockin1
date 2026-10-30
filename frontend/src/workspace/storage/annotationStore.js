@@ -76,6 +76,7 @@ export function createAnnotationStore(environment = {}) {
     connection = null;
     void opening.then((database) => {
       database.onversionchange = null;
+      database.onclose = null;
       database.close();
     }).catch(() => {});
   }
@@ -98,7 +99,7 @@ export function createAnnotationStore(environment = {}) {
   function open() {
     if (!factory) return Promise.reject(new WorkspaceStorageError("Local storage is unavailable in this browser.", "unsupported"));
     if (connection) return connection;
-    connection = new Promise((resolve, reject) => {
+    const opening = new Promise((resolve, reject) => {
       const request = factory.open(WORKSPACE_DB_NAME, WORKSPACE_DB_VERSION);
       let rejected = false;
       request.onupgradeneeded = () => {
@@ -118,7 +119,12 @@ export function createAnnotationStore(environment = {}) {
         // stale connection that blocks it.
         database.onversionchange = () => {
           database.close();
-          connection = null;
+          if (connection === opening) connection = null;
+        };
+        // Mobile browsers can terminate a connection while the app is away.
+        // Do not retain the resolved promise for a database that cannot save.
+        database.onclose = () => {
+          if (connection === opening) connection = null;
         };
         resolve(database);
       };
@@ -128,10 +134,11 @@ export function createAnnotationStore(environment = {}) {
         reject(new WorkspaceStorageError("Another tab is upgrading local storage.", "blocked"));
       };
     }).catch((error) => {
-      connection = null;
+      if (connection === opening) connection = null;
       throw error;
     });
-    return connection;
+    connection = opening;
+    return opening;
   }
 
   async function readDocumentWithDatabase(database, { owner, materialSlug, sheetSlug }) {

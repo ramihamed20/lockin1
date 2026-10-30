@@ -278,6 +278,9 @@ FILE_SCAN_BATCH_SIZE = env_int("FILE_SCAN_BATCH_SIZE", 8)
 # and the API stays closed unless a deployment says otherwise. Off by default so
 # a new environment cannot expose it by omission; development and tests opt in.
 COMMUNITY_ENABLED = env_bool("COMMUNITY_ENABLED", False)
+# Study Plan 2.0 is opt-in. A nonempty allowlist restricts an enabled pilot.
+STUDY_PLAN_V2_ENABLED = env_bool("STUDY_PLAN_V2_ENABLED", False)
+STUDY_PLAN_V2_USER_IDS = env_list("STUDY_PLAN_V2_USER_IDS")
 COMMUNITY_DISCUSSION_RATE_WINDOW_SECONDS = env_int("COMMUNITY_DISCUSSION_RATE_WINDOW_SECONDS", 300)
 COMMUNITY_DISCUSSION_RATE_LIMIT = env_int("COMMUNITY_DISCUSSION_RATE_LIMIT", 5)
 COMMUNITY_COMMENT_RATE_WINDOW_SECONDS = env_int("COMMUNITY_COMMENT_RATE_WINDOW_SECONDS", 300)
@@ -390,3 +393,9 @@ WEB_PUSH_ENABLED = env_bool("WEB_PUSH_ENABLED", False)
 WEB_PUSH_VAPID_PRIVATE_KEY = secret_env("WEB_PUSH_VAPID_PRIVATE_KEY", "")
 WEB_PUSH_VAPID_PUBLIC_KEY = env("WEB_PUSH_VAPID_PUBLIC_KEY", "")
 WEB_PUSH_CONTACT = env("WEB_PUSH_CONTACT", "https://lockin.ly")
+
+# Opening discovery never replaces server authorization. Existing runs remain recoverable.
+LOCKIN_MODE_ENABLED = env_bool("LOCKIN_MODE_ENABLED", False)
+LOCKIN_MODE_PILOT_USER_IDS = tuple(
+    value.strip() for value in env("LOCKIN_MODE_PILOT_USER_IDS", "").split(",") if value.strip()
+)

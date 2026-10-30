@@ -1,5 +1,6 @@
 import { Component } from "react";
 import { isStaleClientError, reloadForUpdate } from "../lib/lazyWithRecovery.js";
+import { currentAppLocale, translate } from "../lib/i18n.js";
 import { reportClientError } from "../lib/clientErrorReporting.js";
 
 export class ErrorBoundary extends Component {
@@ -29,18 +30,19 @@ export class ErrorBoundary extends Component {
 
   render() {
     if (this.state.hasError) {
+      const t = (key) => translate(this.props.locale || currentAppLocale(), key);
       const staleClient = isStaleClientError(this.state.error);
       return (
         <section className="panel error-panel app-recovery-panel" role="alert">
-          <h2>{staleClient ? "Lock-in has an update" : "This page could not open"}</h2>
+          <h2>{t(staleClient ? "errors.boundary.updateTitle" : "errors.boundary.title")}</h2>
           <p>
             {staleClient
-              ? "A newer version is ready. Reload to update the app and continue where you left off."
-              : "Your account is safe. Try opening this page again, or reload Lock-in if the problem continues."}
+              ? t("errors.boundary.updateBody")
+              : t("errors.boundary.body")}
           </p>
           <div className="error-actions">
-            {staleClient && <button className="btn btn-primary" type="button" onClick={() => { void reloadForUpdate(); }}>Update and reload</button>}
-            <button className={staleClient ? "btn btn-soft" : "btn btn-primary"} type="button" onClick={() => this.setState({ hasError: false, error: null })}>Try again</button>
+            {staleClient && <button className="btn btn-primary" type="button" onClick={() => { void reloadForUpdate(); }}>{t("errors.boundary.update")}</button>}
+            <button className={staleClient ? "btn btn-soft" : "btn btn-primary"} type="button" onClick={() => this.setState({ hasError: false, error: null })}>{t("common.tryAgain")}</button>
           </div>
         </section>
       );

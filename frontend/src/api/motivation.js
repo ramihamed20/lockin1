@@ -35,14 +35,24 @@ function notificationCursor(next) {
 
 /** Server-authoritative personal motivation, ranking, and notification APIs. */
 export const motivationApi = {
+  async studyReminder() {
+    return objectPayload(await request("/notifications/study-reminder"), "The reminder could not be loaded.");
+  },
+
+  async saveStudyReminder(value, expectedRevision) {
+    return objectPayload(await request("/notifications/study-reminder", {
+      method: "PUT",
+      body: { ...value, expected_revision: expectedRevision }
+    }), "The reminder could not be saved.");
+  },
   /** @param {{ signal?: AbortSignal }} [options] */
   async xpSummary({ signal } = {}) {
     return objectPayload(await request("/progression/xp", { signal }), "The XP summary response was incomplete.");
   },
 
-  async xpLedger({ page = 1, pageSize = 25 } = {}) {
+  async xpLedger({ page = 1, pageSize = 25, period = null, timezone = null } = {}) {
     return pagePayload(
-      await request("/progression/xp/ledger" + buildQueryString({ page, page_size: pageSize })),
+      await request("/progression/xp/ledger" + buildQueryString({ page, page_size: pageSize, period, timezone })),
       "The XP ledger response was incomplete."
     );
   },
@@ -69,6 +79,13 @@ export const motivationApi = {
     const code = options.code;
     return objectPayload(
       await request("/progression/rankings/current" + buildQueryString({ code })),
+      "The ranking response was incomplete."
+    );
+  },
+
+  async liveRanking(period = "weekly") {
+    return objectPayload(
+      await request("/progression/rankings/live" + buildQueryString({ period })),
       "The ranking response was incomplete."
     );
   },

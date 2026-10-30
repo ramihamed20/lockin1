@@ -7,6 +7,8 @@ import { isFeatureComingSoon } from "../src/lib/featureAvailability.js";
 // Lockin Mode is scheduled; lock-in-coming-soon.spec.js covers the gated route.
 test.skip(isFeatureComingSoon("lock-in"), "Lockin Mode is coming soon");
 
+test.use({ hasTouch: true });
+
 const OUTPUT = new URL("../output/playwright/", import.meta.url);
 const ID = "10000000-0000-4000-8000-000000000001";
 const TEAM_ID = "20000000-0000-4000-8000-000000000001";
@@ -38,7 +40,7 @@ function makeTeam(role = "owner") {
     ] };
 }
 
-async function connect(page, { team = null, active = false, language = "en", otherPresence = "break" } = {}) {
+async function connect(page, { team = null, active = false, language = "en", otherPresence = "break", theme = "night" } = {}) {
   let live = active ? makeLive(team) : null;
   if (live && team) live.participants[1].presence = otherPresence;
   if (active && team) { team.active_session_id = ID; team.can_resume_session = true; }
@@ -47,7 +49,8 @@ async function connect(page, { team = null, active = false, language = "en", oth
     const { pathname } = new URL(request.url());
     const method = request.method();
     const json = (payload, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(payload) });
-    if (pathname === "/api/v1/auth/session") return json({ user: studentSession({ preferred_language: language }) });
+    if (pathname === "/api/v1/auth/session") return json({ user: studentSession({ preferred_language: language, theme_settings: { theme, autoTheme: false }, policy_version: "2026.10", policy_accepted_at: "2026-10-27T00:00:00Z" }) });
+    if (pathname === "/api/v1/focus/lock-in/availability") return json({ enabled: true });
     if (pathname === "/api/v1/auth/csrf") return json({ csrf_token: "live-csrf" });
     if (await fulfillAccessContract(route, pathname)) return;
     if (pathname === "/api/v1/operations/session") return json({ error: { code: "permission_denied", message: "Student account" } }, 403);
@@ -133,6 +136,7 @@ test("Team host starts one shared session with anonymous presence", async ({ pag
   await page.getByRole("button", { name: "Start session" }).click();
   await page.getByRole("button", { name: "Start", exact: true }).click();
   await expect(page.getByRole("main", { name: "Lock-in session" })).toBeVisible();
+  await page.getByRole("tab", { name: /^Members/ }).click();
   await expect(page.getByText("Anonymous 01")).toBeVisible();
   await screenshot(page, "lockin-live-member-break.png");
   await expect(page.locator(".lm-live-presence").getByText("On break", { exact: true })).toBeVisible();
@@ -145,6 +149,7 @@ test("Team member resumes from Break, has no host controls, and can leave", asyn
   await connect(page, { team: makeTeam("member"), active: true });
   await page.goto(`/#/lock-in/${ID}`);
   await expect(page.getByRole("button", { name: "Session controls" })).toHaveCount(0);
+  await page.getByRole("tab", { name: /^Members/ }).click();
   await expect(page.getByText("Anonymous 01")).toBeVisible();
   await page.getByRole("button", { name: "Back to focus" }).click();
   await expect(page.getByRole("button", { name: "Break" })).toBeVisible();
@@ -164,13 +169,14 @@ test("Away presence remains distinct from Break", async ({ page }) => {
   await connect(page, { team: makeTeam(), active: true, otherPresence: "away" });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/#/lock-in/${ID}`);
+  await page.getByRole("tab", { name: /^Members/ }).click();
   await expect(page.locator(".lm-live-presence").getByText("Away")).toBeVisible();
   await screenshot(page, "lockin-live-away.png");
 });
 
 for (const [name, viewport] of Object.entries({
   desktop: { width: 1440, height: 900 }, ipad: { width: 768, height: 1024 },
-  phone: { width: 320, height: 720 }, landscape: { width: 667, height: 375 }
+  phone: { width: 320, height: 720 }, widePhone: { width: 430, height: 932 }, ipadLandscape: { width: 1194, height: 834 }, landscape: { width: 667, height: 375 }
 })) {
   test(`Live session fits ${name}`, async ({ page }) => {
     await connect(page, { team: makeTeam(), active: true });
@@ -178,6 +184,17 @@ for (const [name, viewport] of Object.entries({
     await page.goto(`/#/lock-in/${ID}`);
     await expect(page.getByRole("main", { name: "Lock-in session" })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+    const composer = page.locator(".lm-discussion textarea");
+    await composer.scrollIntoViewIfNeeded();
+    await expect(composer).toBeVisible();
+    expect(await composer.evaluate((el) => { const r = el.getBoundingClientRect(); return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2) === el; })).toBe(true);
+    for (const button of await page.locator(".lm-live-controls button").all()) expect((await button.boundingBox()).height).toBeGreaterThanOrEqual(44);
+    if (viewport.width < 650) {
+      const controls = await page.locator(".lm-live-controls").boundingBox();
+      const room = await page.locator(".lm-room-panel").boundingBox();
+      expect(controls.y + controls.height).toBeLessThanOrEqual(room.y);
+    }
+    await page.evaluate(() => window.scrollTo(0, 0));
     await screenshot(page, `lockin-live-${name}.png`);
   });
 }
@@ -192,3 +209,184 @@ test("Arabic live timer stays left to right and resumes after refresh", async ({
   await expect(page.getByRole("main", { name: "جلسة التركيز" })).toBeVisible();
   await screenshot(page, "lockin-live-rtl.png");
 });
+
+for (const viewport of [{ width: 390, height: 844 }, { width: 1180, height: 820 }]) {
+  test(`team discussion stays beside the real Focus reader at ${viewport.width}px`, async ({ page }) => {
+    const team = makeTeam();
+    const getLive = await connect(page, { team, active: true });
+    const live = getLive();
+    live.session.experience_version = 2;
+    live.study_target = { title: "Vitamin -1", reader_path: "/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace", page_start: 1, page_end: 5 };
+    let messages = [];
+    await page.route(`**/api/v1/focus/lock-in/teams/${TEAM_ID}/messages`, async (route) => {
+      if (route.request().method() === "POST") messages = [...messages, { id: String(messages.length + 1), author_name: "E2E Student", body: route.request().postDataJSON().body }];
+      await route.fulfill({ json: { messages } });
+    });
+    await page.addInitScript(() => localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now())));
+    await page.setViewportSize(viewport);
+    await page.goto(`/#/lock-in/${ID}`);
+    await expect(page.getByRole("region", { name: "Team discussion" })).toBeVisible();
+    await expect(page.locator(".lm-room-invite summary")).toContainText("Invite friends");
+    await page.getByRole("link", { name: "Open sheet", exact: true }).click();
+    await page.getByRole("button", { name: /Normal Study/ }).click();
+    const room = page.locator(".lm-focus-room");
+    await expect(room).toBeVisible();
+    await expect(page.locator(".workspace-pane.is-active .workspace-v2-a4-canvas.is-visible").first()).toBeVisible();
+    const input = room.getByRole("textbox", { name: "Share a question or an explanation" });
+    await input.fill("Which page are we studying?");
+    await room.getByRole("tab", { name: /^Members/ }).click();
+    await expect(room.getByText("Anonymous 01")).toBeVisible();
+    await room.getByRole("tab", { name: "Team discussion", exact: true }).click();
+    await expect(input).toHaveValue("Which page are we studying?");
+    await room.getByRole("button", { name: "Send", exact: true }).click();
+    await expect(room.getByText("Which page are we studying?", { exact: true })).toBeVisible();
+    await input.focus();
+    await page.keyboard.press("Escape");
+    await expect(room).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Team discussion", exact: true })).toBeFocused();
+    await page.getByRole("button", { name: "Team discussion", exact: true }).click();
+    await expect(room).toBeVisible();
+    const box = await room.boundingBox();
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+    if (viewport.width === 390) {
+      await page.evaluate(() => {
+        Object.defineProperty(window.visualViewport, "height", { configurable: true, value: 400 });
+        window.visualViewport.dispatchEvent(new Event("resize"));
+      });
+      await expect.poll(async () => { const rect = await room.boundingBox(); return rect.y + rect.height; }).toBeLessThanOrEqual(400);
+      await page.evaluate(() => { delete window.visualViewport.height; window.visualViewport.dispatchEvent(new Event("resize")); });
+    }
+    await screenshot(page, `lockin-focus-team-${viewport.width}.png`);
+  });
+}
+
+for (const viewport of [{ width: 390, height: 844 }, { width: 820, height: 1180 }]) {
+  test(`Arabic light room supports touch and member tabs at ${viewport.width}px`, async ({ page }) => {
+    const getLive = await connect(page, { team: makeTeam(), active: true, language: "ar", theme: "day" });
+    getLive().session.experience_version = 2;
+    getLive().study_target = { title: "Anatomy · الفصل الأول", reader_path: "/materials/catalog/anatomy/sheets/intro/workspace", page_start: 1, page_end: 12 };
+    await page.route(`**/api/v1/focus/lock-in/teams/${TEAM_ID}/messages`, (route) => route.fulfill({ json: { messages: [
+      { id: "sample", author_name: "طالب", body: "نراجع الصفحات الأولى مع بعض؟", created_at: "2026-10-28T12:00:00Z" }
+    ] } }));
+    await page.addInitScript(() => {
+      localStorage.setItem("lock-in.locale", "ar");
+      localStorage.setItem("lock-in.theme.settings", JSON.stringify({ theme: "day", autoTheme: false }));
+      localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now()));
+    });
+    await page.setViewportSize(viewport);
+    await page.goto(`/#/lock-in/${ID}`);
+    await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "day");
+    const tabs = page.locator(".lm-room-tabs");
+    await tabs.getByRole("tab").nth(1).tap();
+    await expect(page.locator(".lm-live-presence")).toBeVisible();
+    await tabs.getByRole("tab").first().tap();
+    await expect(page.locator(".lm-discussion textarea")).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    // With a real target and note, both primary study and communication actions
+    // should be available in the initial portrait viewport.
+    const target = await page.locator(".lm-study-target").boundingBox();
+    const editor = await page.locator(".lm-discussion textarea").boundingBox();
+    const clock = await page.locator(".lm-live-clock").boundingBox();
+    expect(clock.height).toBeLessThan(280);
+    expect(target.y + target.height).toBeLessThan(viewport.height);
+    expect(editor.y + editor.height).toBeLessThanOrEqual(viewport.height);
+    await screenshot(page, `lockin-room-ar-day-${viewport.width}.png`);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "day");
+    await expect(page.locator(".lm-shell")).toHaveCSS("background-color", "rgb(242, 242, 247)");
+  });
+}
+
+test("failed chat send keeps draft and error through a refresh, then retries", async ({ page }) => {
+  await connect(page, { team: makeTeam(), active: true });
+  let sends = 0;
+  let messages = [];
+  await page.route(`**/api/v1/focus/lock-in/teams/${TEAM_ID}/messages`, async (route) => {
+    if (route.request().method() === "POST") {
+      sends += 1;
+      if (sends === 1) return route.fulfill({ status: 503, json: { error: { code: "unavailable", message: "Try sending again." } } });
+      messages = [{ id: "retry-message", author_name: "E2E Student", body: route.request().postDataJSON().body }];
+    }
+    return route.fulfill({ json: { messages } });
+  });
+  await page.goto(`/#/lock-in/${ID}`);
+  const input = page.getByRole("textbox", { name: "Share a question or an explanation" });
+  await input.fill("Keep this question");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Try sending again.");
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect(input).toHaveValue("Keep this question");
+  await expect(page.getByRole("alert")).toContainText("Try sending again.");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.locator(".lm-messages")).toContainText("Keep this question");
+  await expect(input).toHaveValue("");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
+test("unsaved private note is protected when leaving the session", async ({ page }) => {
+  const getLive = await connect(page, { active: true });
+  getLive().session.experience_version = 2;
+  getLive().note = { body: "", revision: 1 };
+  await page.goto(`/#/lock-in/${ID}`);
+  await page.locator(".lm-private-note summary").click();
+  await page.locator(".lm-private-note textarea").fill("Do not lose this note");
+  await page.locator(".lm-bar-back").click();
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm).toContainText("Unsaved note");
+  await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.locator(".lm-private-note textarea")).toHaveValue("Do not lose this note");
+  await page.locator(".lm-bar-back").click();
+  await confirm.getByRole("button", { name: "Leave without saving" }).click();
+  await expect(page.getByRole("heading", { name: "Lock-in Mode", exact: true })).toBeVisible();
+});
+
+test("invitation code can be selected when clipboard access is denied", async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, "clipboard", { value: { writeText: async () => { throw new Error("denied"); } }, configurable: true }));
+  await connect(page, { team: makeTeam(), active: true });
+  await page.goto(`/#/lock-in/${ID}`);
+  await page.locator(".lm-room-invite summary").click();
+  await page.getByRole("button", { name: "Copy", exact: true }).click();
+  await expect(page.locator(".lm-copy-fallback")).toHaveValue("482731");
+  await expect(page.locator(".lm-code-card").getByRole("status")).toContainText("Select and copy");
+});
+
+test("chat composer grows for multiline text and sends with Enter", async ({ page }) => {
+  await connect(page, { team: makeTeam(), active: true });
+  let messages = [];
+  await page.route(`**/api/v1/focus/lock-in/teams/${TEAM_ID}/messages`, async (route) => {
+    if (route.request().method() === "POST") messages = [{ id: "multiline", author_name: "E2E Student", body: route.request().postDataJSON().body }];
+    await route.fulfill({ json: { messages } });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/#/lock-in/${ID}`);
+  const input = page.getByRole("textbox", { name: "Share a question or an explanation" });
+  await input.fill("First line");
+  await input.press("Shift+Enter");
+  await input.pressSequentially("Second line");
+  await expect(input).toHaveValue("First line\nSecond line");
+  expect((await input.boundingBox()).height).toBeLessThanOrEqual(120);
+  await input.press("Enter");
+  await expect(input).toHaveValue("");
+  expect(messages[0].body).toBe("First line\nSecond line");
+  await expect(page.locator(".lm-messages")).toContainText("Second line");
+});
+
+for (const viewport of [{ width: 390, height: 844 }, { width: 820, height: 1180 }]) {
+  test(`long team conversation keeps composer on screen at ${viewport.width}px`, async ({ page }) => {
+    const getLive = await connect(page, { team: makeTeam(), active: true });
+    getLive().session.experience_version = 2;
+    getLive().study_target = { title: "Anatomy", reader_path: "/materials/catalog/anatomy/sheets/intro/workspace", page_start: 1, page_end: 12 };
+    await page.route(`**/api/v1/focus/lock-in/teams/${TEAM_ID}/messages`, (route) => route.fulfill({ json: { messages: Array.from({ length: 80 }, (_, i) => ({ id: String(i), author_name: "Student", body: `Question ${i + 1}: a longer explanation to review together.` })) } }));
+    await page.setViewportSize(viewport);
+    await page.goto(`/#/lock-in/${ID}`);
+    await expect(page.locator(".lm-messages li")).toHaveCount(80);
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+    expect(await page.locator(".lm-messages").evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+    const composer = page.locator(".lm-discussion textarea");
+    const rect = await composer.boundingBox();
+    expect(rect.y + rect.height).toBeLessThanOrEqual(viewport.height);
+    await composer.fill("Still reachable");
+    await expect(composer).toHaveValue("Still reachable");
+  });
+}

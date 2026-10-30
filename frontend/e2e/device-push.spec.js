@@ -97,7 +97,7 @@ test("device opt-in receives a push while outside Lock-in and disable blocks sta
   await expect.poll(() => visibleNotices(worker)).toEqual(["New Lock-in sheet"]);
   await expect(page).toHaveURL("https://outside.example.test/");
   expect(await worker.evaluate(() => globalThis.__pushNotices[0].options)).toMatchObject({
-    body: "Ready", tag: `lock-in:${NOTICE}`, icon: "/icons/lockin-gold-192-v2.png", data: { binding: BINDING, id: NOTICE }
+    body: "Ready", tag: `lock-in:${NOTICE}`, icon: "/icons/lockin-gold-192-v3.png", data: { binding: BINDING, id: NOTICE }
   });
   await page.goto("/#/settings?section=notifications");
   await expect(panel.getByText("Enabled on this device", { exact: true })).toBeVisible();

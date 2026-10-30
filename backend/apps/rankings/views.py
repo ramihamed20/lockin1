@@ -1,5 +1,7 @@
 from typing import cast
 
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -8,9 +10,10 @@ from rest_framework.views import APIView
 from apps.accounts.models import User
 from apps.accounts.roles import Role, user_has_role
 
+from .live import live_ranking
 from .models import RankingDefinition
 from .selectors import current_ranking
-from .serializers import RankingProfileSerializer
+from .serializers import LiveRankingQuerySerializer, RankingProfileSerializer
 from .services import build_snapshot, get_or_create_profile
 
 
@@ -20,6 +23,18 @@ class CurrentRankingView(APIView):
         return Response(
             current_ranking(viewer=user, code=request.query_params.get("code", "learning_all_time"))
         )
+
+
+class LiveRankingView(APIView):
+    @extend_schema(parameters=[LiveRankingQuerySerializer], responses={200: OpenApiTypes.OBJECT})
+    def get(self, request: Request) -> Response:
+        query = LiveRankingQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        response = Response(
+            live_ranking(viewer=cast(User, request.user), period=query.validated_data["period"])
+        )
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class RankingProfileView(APIView):

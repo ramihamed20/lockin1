@@ -1,5 +1,33 @@
 # Public knowledge evidence review — 14 October 2026
 
+## Automatic PDF downloads — 29 October 2026
+
+The follow-up hardening review covers two additional source changes: App waits
+for account cleanup before starting the first sync and cancels obsolete effect
+callbacks; i18n's existing Clear Downloads confirmation now explicitly says
+automatic downloads will be turned off. Reviewed published feature requirements
+and account/materials/reader/privacy/support Help claims retain their meaning:
+publication, subscription, account isolation, original PDF content and server
+grading rules are unchanged. Refreshed only these two affected source digests.
+The evidence verifier remains enabled. Timeout, truncated/oversized content,
+rollback, removal, session-race and shared-file authorization regression tests
+cover this iteration. Browser execution remains unverified in this environment.
+
+Reviewed the affected published feature requirements and Help answers before refreshing
+only the App.jsx and i18n.js evidence digests. App now polls the authorized offline
+manifest while visible; its existing authenticated and subscription routes are retained.
+The two changed translations describe automatic sheet/summary downloads while Lockin
+is open. No published account, cohort, edition, annotation, question, Review, XP or
+support claim changes. Downloading a PDF does not prepare an Active Study bank;
+question bundles remain separately selectable. Signed offline leases, current-session
+checks, private account caches and authoritative access denials remain enforced.
+
+The public evidence verifier is retained unchanged. Unit checks cover default downloads,
+new/replaced files, local reopens, interruption, foreground reader priority, account
+switches and uploads during a large download. Browser execution is pending because
+the browser download returned an incomplete archive in this environment. This review
+does not certify live deployment, unlimited storage retention or closed-app downloads.
+
 The production gate was correctly rejecting changed source digests. It remains enabled, with the same verifier and mandatory evidence checks. This review does not certify a release or turn the new Knowledge tools on.
 
 ## Reviewed source changes and affected claims
@@ -86,3 +114,136 @@ Web Push defaults off until keys and the deployment flag are configured. It forw
 ## Study Plan availability review — 25 October 2026
 
 The normal Study Plan route is reopened through the product availability registry; its E2E-only query bypass is removed. Account-owned planning still requires an authenticated eligible account and connection. Completion remains self reported, without XP, automatic grading or elapsed-time certification. The inventory now describes Beginning/Normal/Custom accurately; publicDocumentable remains false, so no new public guide or outcome claim is published. App routing and the registry are the only changed published evidence sources. Other feature gates, authentication and content permissions remain unchanged. Regression tests now use the ordinary route and cover overdue navigation and stale editing/preview recovery. Evidence hashes are updated only for the reviewed App and registry files; the verifier is unchanged.
+
+
+## Settings review — 26 October 2026
+
+Reviewed the published account/access, account-security, About and Support answers against the Settings reorganization. The account list now links to separate Security, Devices, Billing and Privacy screens; existing About/Support/Suggestion routes remain available. Single-use deletion links open Privacy; old theme/reminder and account-password deep links retain their destinations. The i18n change imports only a bilingual settings catalogue and does not change other features or their availability. Only Settings.jsx and i18n.js evidence hashes are refreshed. Account/support entries and their four directly affected answers carry today's review date; other source evidence and dates are unchanged.
+
+New settings remain account-owned API consumers: money/refund states come from the payment endpoint, session revocation and deletion remain server-enforced, and requesting an email change does not claim the address has changed. Device silhouettes are approximate browser/device classifications, not verified hardware identities. Public wording still does not promise universal notification support, outbound delivery, complete erasure, or a deployed release. The mandatory public-evidence verifier is unchanged. Validation and remaining limits are recorded in SETTINGS_REDESIGN_AR.md.
+
+
+## Compact student interface — 27 October 2026
+
+Reviewed published materials/cohort/edition/reader, Review/Weekly Recall, progress, account and support guidance against this visual-only refinement. Repeated route headings are now screen-reader titles beneath the existing toolbar identity; subject/sheet titles and navigation remain. Settings removes promotional preview copy and redundant descriptions, keeps field labels and security/payment/deletion notices, and makes the device-classification explanation available through a native disclosure. Dashboard keeps its real continuation target and uses a shorter first-study entry. The global palette, title scale and loading chrome change presentation only; no route, permission, entitlement, scoring, retention or delivery behavior is changed. Refreshed only changed existing evidence sources after reading the affected answers. Capability verification dates and public claims are retained; the generated token asset is regenerated from the same source. The mandatory verifier stays enabled. Validation is documented in APPLE_UI_REFINEMENT_AR.md.
+
+
+## Rank Mode review — 26 October 2026
+
+Reviewed the diff of App.jsx, i18n.js, api/motivation.js and featureAvailability.js against the published product and progress claims. The App diff only adds the lazy Ranked page and replaces its coming-soon route; authentication and other routes are unchanged. The API addition only fetches live ranking data. Existing XP/streak/achievement methods and existing translations are unchanged; the translation additions describe cohort-based ranking, privacy and periods. Existing published account/content/reader/Review instructions therefore retain their meaning. Only these four evidence digests were refreshed. The mandatory verifier is unchanged.
+
+The withheld rankings inventory is updated to the implemented availability; publicDocumentable remains false, and no public marketing page or production rollout is claimed. The new endpoint reads ranking-owned evidence, enforces cohort boundaries, and provides current privacy filtering. Tests and deployment limits are recorded in RANK_MODE_REBUILD_AR.md.
+
+
+## Rank Mode interface review — 26 October 2026
+
+Reviewed the additional Rank Mode translations: they label the existing individual leaderboard, a points-to-next-rank meter, keyboard-accessible period tabs, participation controls and progressive disclosure. No published help instruction or existing translation is changed. Ranking/XP rules, account authentication and content access are unchanged. Refreshed only the reviewed i18n.js evidence digest; the mandatory public verifier remains enabled. Rank Mode remains withheld from public marketing. Browser validation is documented in RANK_MODE_REBUILD_AR.md.
+
+
+## Rank Mode concise copy — 26 October 2026
+
+Reviewed the revised Rank Mode copy and labels. The page now names the ranking and cohort directly, removes motivational/repeated copy, and moves update/reset timestamps into the existing rules disclosure. Existing public help instructions and all other translations retain their meaning; only the reviewed i18n.js digest was refreshed. No scoring, API, access or public marketing availability changed.
+
+
+## 27 October 2026 — manual Arabic sheet translations
+
+Reviewed the additive diff in i18n.js and CatalogFocusWorkspace.jsx. It adds localized
+labels and an independent translation panel only for authorized catalog documents,
+inside the active pane and outside mode dialogs/quizzes. Existing reading state,
+annotation ownership, Active Study restrictions and published help claims are unchanged.
+The admin can import complete translations by physical page; there is no external
+translation provider or automatic content generation. No new marketing claim is added.
+
+Validation: 29 targeted backend cases (SQLite) and 37 frontend cases passed, including
+catalog authorization, admin imports, source identity, stale revisions, CSRF and edition
+isolation. Type checking and lint are included. Only the two reviewed changed evidence
+digests are refreshed; the gate and unrelated evidence remain intact. See
+SHEET_TRANSLATION_AR.md for operational and verification limits.
+
+## Study Plan server-authorized trial — 25 October 2026
+
+Reviewed the App route change and the five affected public product/identity/audience/private-content entries. Public product, academic placement and private/public boundaries remain unchanged: the existing authenticated/subscription ProtectedRoute still encloses Study Plan, and only its coming-soon branch delegates to a server-authorized trial entry. The trial requires an explicit versioned capability response from the existing account-protected V2 exams endpoint. A generic successful response, denied pilot, missing capability or malformed envelope cannot unlock it. No browser storage or query-string toggle enables the trial.
+
+The ordinary student sees coming soon; the private inventory is corrected to that state and stays non-publicDocumentable. Trial users see a reading-only preview with an initial estimate, incomplete-content warnings, unplaced work and explicit non-persistence. It does not advertise automatic completion, a mastery percentage, a full adaptive plan, or exam-grade outcomes. Reviewed App's changed digest only; public copy requires no factual change. Targeted route/registry/translation/API checks pass. Full public evidence tests and production build remain required; the verifier is not disabled.
+
+
+## Focus tab interaction fixes — 27 October 2026
+
+Reviewed the CatalogFocusWorkspace.jsx diff against the notes and Active Study
+help entries that cite it. Its only change is to scope popover keyboard/pointer
+listeners to the visible reader and respect an already-handled Escape event.
+Reading, annotation persistence, sharing, quiz restrictions and the study-mode
+entry paths are unchanged. Existing published copy and capability dates remain
+valid. Only this reviewed source digest is refreshed; the verifier stays enabled.
+
+Validation: 23 targeted tab/scroll/reader/ink/video unit checks and targeted lint
+passed. Added browser regressions for hidden-reader picker events, modal focus,
+picker cleanup on tab switch and thumbnail column changes. Browser execution
+remains unverified because the local Playwright browser is unavailable; the
+previous attempt to download it returned an unavailable-site response.
+
+
+## Lockin team discussion beside Focus — 28 October 2026
+
+Reviewed the additive i18n labels and the one-line CatalogFocusWorkspace diff.
+StudyDock now receives the existing reader root for its team-panel portal. No
+annotation ownership, PDF permissions, study progression or public claim changes.
+The team room reuses authorized team messages and code-based invitations; it
+does not claim a persistent friendship graph. The existing real Focus reader
+opens the authorized sheet, with an optional team panel; no iframe, duplicate PDF
+reader or relaxed framing/security policy is introduced. Only these reviewed
+evidence digests are refreshed. Lockin launch remains controlled by the server.
+
+
+## Lockin native room styling — 28 October 2026
+
+Reviewed the additive live-status label in i18n.js against published help text.
+This change adds presentation labels only. The existing Lockin, Focus, notes and
+Active Study capability wording and all API contracts remain intact. The room
+now uses the app palette, a decorative clock ring, segmented chat/member views,
+compact invitations and responsive setup. A sheet change clears the page-range
+inputs before submitting the same authorized version-2 contract. No independent
+friendship system or new production rollout is claimed. Only the reviewed i18n
+evidence digest is refreshed; verification stays enabled.
+
+
+## Lockin release resilience — 28 October 2026
+
+Reviewed additive translations for unsaved notes and manual code copying. Existing
+public capability claims and verification dates are unchanged; only the reviewed
+i18n digest is refreshed. Session APIs, launch gate, permissions and private
+annotation data are unchanged.
+
+Backend follow-up: reviewed the one-line initialization of the optional session
+participant in _live_lock_in_payload. Solo responses previously raised an
+UnboundLocalError; they now follow the existing non-team note branch. No
+authorization, accounting, scoring or published capability statement changed.
+
+
+## Lockin studio redesign — 28 October 2026
+
+Reviewed the two additive composer placeholder translations in i18n.js. They
+shorten the visible prompt only; the existing accessible label and all published
+capability/help text are unchanged. No session, membership, friendship, note,
+Focus, permission or rollout capability was added. Only the reviewed i18n
+evidence digest is refreshed; verification remains enabled.
+
+
+## Error handling review — 28 October 2026
+
+Read the affected published Arabic feature requirements and help answers, including
+reader-unavailable, notes-not-synced and active-start-error. The matching English
+answers remain factually applicable. Changed list pages only pass the existing
+error object to ErrorPanel; catalog, question availability, Review scheduling,
+XP, access requirements and published routes retain their behavior. The reader
+changes classify local-save failures and remove a false out-of-space diagnosis;
+they do not change annotation scope, synchronization ownership or source PDFs.
+The translation catalog only adds error/recovery strings. No new product
+capability, outbound-delivery claim, AI promise or automatic-sync guarantee was
+added to public copy. In particular the existing advice to preserve unsynced
+work and not clear browser data remains correct.
+
+Only changed paths already present in evidenceDigests were refreshed following
+this review. The public verifier and publication allowlist remain mandatory and
+unchanged; public text and its last substantive verification dates are retained.
+Validation and runtime limits for this change are recorded in ERROR_HANDLING_FIXES.md.

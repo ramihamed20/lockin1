@@ -108,6 +108,7 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
   /** @type {import("react").MutableRefObject<null | { minX: number, minY: number, width: number, height: number, scale: number, documentProxy: any }>} */
   const detailPendingRef = useRef(null);
   const detailRetireRafRef = useRef(null);
+  const detailWakeTokenRef = useRef(wakeToken);
   const detailStateRef = useRef(null);
   detailStateRef.current = { documentProxy, pageNumber, pageAspectRatio, renderZoom, qualityScale, shouldRender, paneActive, priority };
 
@@ -270,8 +271,13 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
   }, [renderController, updateDetail]);
 
   useEffect(() => {
+    // Cached bounds do not prove the bitmap survived backgrounding on iOS.
+    if (detailWakeTokenRef.current !== wakeToken) {
+      detailWakeTokenRef.current = wakeToken;
+      releaseDetail();
+    }
     updateDetail();
-  }, [documentProxy, paneActive, qualityScale, renderRevision, renderZoom, shouldRender, updateDetail, wakeToken]);
+  }, [documentProxy, paneActive, qualityScale, releaseDetail, renderRevision, renderZoom, shouldRender, updateDetail, wakeToken]);
 
   useEffect(() => releaseDetail, [releaseDetail]);
 
@@ -316,6 +322,9 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
     // us (mobile browsers reclaim them); coming back repaints every live page.
     const woken = wakeTokenRef.current !== wakeToken;
     wakeTokenRef.current = wakeToken;
+    // Keep the old bitmap invalid until its replacement actually finishes.
+    // A resume revision can cancel this first attempt before it paints.
+    if (woken) renderedRef.current = { documentProxy: null, qualityScale: 0 };
     if (!woken && renderedRef.current.documentProxy === documentProxy
       && renderedRef.current.qualityScale >= qualityScale
       && canvasRefs.current[visibleCanvasRef.current]?.width > 0) return undefined;
@@ -352,7 +361,10 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
           nextCanvas.width = Math.ceil(viewport.width);
           nextCanvas.height = Math.ceil(viewport.height);
           const nextContext = nextCanvas.getContext("2d", { alpha: false });
-          if (!nextContext || isCancelled()) return;
+          if (isCancelled()) return;
+          if (!nextContext || nextContext.isContextLost?.()) {
+            throw new Error("PDF page canvas is unavailable");
+          }
           renderTask = pdfPage.render({ canvasContext: nextContext, viewport });
           renderTask.onContinue = (continueRendering) => {
             if (!pdfRenderGenerationIsCurrent(renderController, renderGeneration, isCancelled())) {
@@ -423,6 +435,7 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
           onPageOutcome?.(pageNumber, false);
         } catch (error) {
           if (!isCancelled() && error?.name !== "RenderingCancelledException") {
+            renderedRef.current = { documentProxy: null, qualityScale: 0 };
             console.error("Could not render PDF page", error);
             // A blank page shell with no explanation looks like missing
             // content. The reader is told, and offered the page again.
@@ -510,7 +523,7 @@ export function ContinuousA4Pdf({
   const [primaryPage, setPrimaryPage] = useState(1);
   const [renderScale, setRenderScale] = useState(zoom);
   const [renderRevision, setRenderRevision] = useState(0);
-  // Bumped each time this tab returns to the screen, see A4PdfCanvas.
+  // Bumped when a kept pane or the browser page returns, see A4PdfCanvas.
   const paneActive = useWorkspacePaneActive();
   const [wakeToken, setWakeToken] = useState(0);
   const wasPaneActiveRef = useRef(paneActive);
@@ -540,7 +553,7 @@ export function ContinuousA4Pdf({
   const renderResumeRafRef = useRef(null);
   const scrollTimerRef = useRef(null);
   const scrollingRef = useRef(false);
-  const suspensionRef = useRef({ activity: false, pinch: false, scroll: false, zoom: false, pane: false });
+  const suspensionRef = useRef({ activity: false, pinch: false, scroll: false, zoom: false, pane: false, visibility: false });
   const renderControllerRef = useRef({ suspended: false, generation: 0, scrolling: false, deferred: new Set(), viewportListeners: new Set() });
   // Pages that keep an on-screen detail canvas re-measure when the view settles.
   const notifyViewportSettled = useCallback(() => {
@@ -700,6 +713,39 @@ export function ContinuousA4Pdf({
   }, [paneActive, setRenderSuspension]);
 
   useEffect(() => {
+    let pageHidden = false;
+    let backgrounded = false;
+    const syncVisibility = () => {
+      const next = pageHidden || document.visibilityState === "hidden";
+      if (next === backgrounded) return;
+      backgrounded = next;
+      // Cancel pending continuations before Safari freezes animation frames.
+      // Preserve page geometry and reading position while the app is away.
+      setRenderSuspension("visibility", next);
+      if (next) {
+        // The app is hidden: release PDF raster allocations before another
+        // media app needs GPU memory. Page geometry and annotations stay put.
+        documentRootRef.current?.querySelectorAll(".workspace-v2-a4-canvas, .workspace-v2-a4-detail-canvas").forEach((element) => {
+          const canvas = /** @type {HTMLCanvasElement} */ (element);
+          canvas.width = 0;
+          canvas.height = 0;
+        });
+      } else setWakeToken((token) => token + 1);
+    };
+    const hidePage = () => { pageHidden = true; syncVisibility(); };
+    const showPage = () => { pageHidden = false; syncVisibility(); };
+    document.addEventListener("visibilitychange", syncVisibility);
+    window.addEventListener("pagehide", hidePage);
+    window.addEventListener("pageshow", showPage);
+    syncVisibility();
+    return () => {
+      document.removeEventListener("visibilitychange", syncVisibility);
+      window.removeEventListener("pagehide", hidePage);
+      window.removeEventListener("pageshow", showPage);
+    };
+  }, [documentRootRef, setRenderSuspension]);
+
+  useEffect(() => {
     if (Math.abs(renderScaleRef.current - zoom) < .001) {
       setRenderSuspension("zoom", false);
       return undefined;
@@ -819,6 +865,7 @@ export function ContinuousA4Pdf({
   useEffect(() => {
     let cancelled = false;
     let loadingTask;
+    let finishPdfRead = () => {};
     async function load() {
       const measureLoad = import.meta.env.VITE_WORKSPACE_BENCHMARK === "1";
       const started = measureLoad ? window.performance.now() : 0;
@@ -829,10 +876,13 @@ export function ContinuousA4Pdf({
         setFailedPages(new Set());
         setDefaultPageAspectRatio(A4_PAGE_RATIO);
         setPageAspectRatios(new Map());
-        const [pdfjs, { pdfDocumentSource, downloadedPdfSource, isPdfNetworkFailure, rememberOpenedPdf }] = await Promise.all([loadPdfLibrary(), import("../../offline/pdfSource.js")]);
+        const [pdfjs, { pdfDocumentSource, downloadedPdfSource, isPdfNetworkFailure, rememberOpenedPdf, beginReaderPdfLoad }] = await Promise.all([loadPdfLibrary(), import("../../offline/pdfSource.js")]);
         const libraryReady = measureLoad ? window.performance.now() : 0;
+        if (cancelled) return;
+        finishPdfRead = beginReaderPdfLoad(pdfUrl);
         // A downloaded PDF arrives as its stored bytes, read for this open only.
         const source = await pdfDocumentSource(pdfUrl, assetPath);
+        let usingStoredBytes = "data" in source;
         if (cancelled) return;
         const sourceReady = measureLoad ? window.performance.now() : 0;
         loadingTask = pdfjs.getDocument(source);
@@ -847,6 +897,7 @@ export function ContinuousA4Pdf({
           void loadingTask.destroy();
           loadingTask = pdfjs.getDocument(stored);
           nextDocument = await loadingTask.promise;
+          usingStoredBytes = true;
         }
         if (cancelled) return;
         const parsed = measureLoad ? window.performance.now() : 0;
@@ -862,7 +913,7 @@ export function ContinuousA4Pdf({
         applyMeasuredGeometry(geometry);
         setDocumentProxy(nextDocument);
         // Reuse PDF.js's transport, then save all bytes in the background.
-        void rememberOpenedPdf(pdfUrl, nextDocument).catch(() => undefined);
+        if (!usingStoredBytes) void rememberOpenedPdf(pdfUrl, nextDocument).catch(() => undefined);
         onPageCount(nextDocument.numPages);
         setStatus("");
       } catch (error) {
@@ -876,6 +927,7 @@ export function ContinuousA4Pdf({
     load();
     return () => {
       cancelled = true;
+      finishPdfRead();
       renderQueueRef.current?.clear();
       loadingTask?.destroy();
     };

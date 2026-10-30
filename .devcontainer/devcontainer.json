@@ -1,0 +1,37 @@
+{
+  "name": "Lockin · Phone Preview",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "forwardPorts": [
+    5173
+  ],
+  "portsAttributes": {
+    "5173": {
+      "label": "Lockin (private phone preview)",
+      "onAutoForward": "openBrowser",
+      "visibility": "private"
+    },
+    "5432": {
+      "onAutoForward": "ignore"
+    },
+    "8000": {
+      "onAutoForward": "ignore"
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/bootstrap.sh",
+  "postStartCommand": "bash .devcontainer/start.sh",
+  "customizations": {
+    "codespaces": {
+      "openFiles": [
+        "docs/CODESPACES_PHONE_AR.md"
+      ]
+    },
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  }
+}

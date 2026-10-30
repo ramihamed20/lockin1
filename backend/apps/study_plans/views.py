@@ -54,17 +54,21 @@ class StudyPlanView(APIView):
         start = query.validated_data["from"]
         end = query.validated_data["to"]
         user = _user(request)
+        from .task_progress import reconcile_review_tasks
+
+        reconcile_review_tasks(user)
         profile = profile_for(user)
         items = list(
             StudyPlanItem.objects.filter(
                 user=user,
                 scheduled_date__range=(start, end),
-            )
+                status__in=("planned", "completed"),
+            ).select_related("catalog_document", "review_item", "planner_run")
         )
         today = plan_today(profile)
         overdue = StudyPlanItem.objects.filter(
             user=user, status="planned", scheduled_date__lt=today
-        )
+        ).select_related("catalog_document", "review_item", "planner_run")
         completed_count = 0
         planned_minutes = 0
         completed_minutes = 0
@@ -78,8 +82,39 @@ class StudyPlanView(APIView):
             if item.scheduled_date == today:
                 today_count += 1
                 today_minutes += item.duration_minutes
+        from datetime import timedelta
+
+        from django.db.models import Sum
+
+        from .availability import available_minutes
+        from .evidence import remaining_minutes
+        from .models import StudyEvidence
+
+        spent = {
+            row["occurred_on"]: row["total"]
+            for row in StudyEvidence.objects.filter(
+                user=user,
+                occurred_on__range=(start, end),
+            )
+            .values("occurred_on")
+            .annotate(total=Sum("reserved_minutes"))
+        }
+        day_loads = {}
+        for offset in range((end - start).days + 1):
+            date = start + timedelta(days=offset)
+            capacity = available_minutes(profile, date)
+            total = sum(
+                remaining_minutes(item) for item in items if item.scheduled_date == date
+            ) + spent.get(date, 0)
+            day_loads[str(date)] = {
+                "available": capacity,
+                "planned": total,
+                "remaining": max(0, capacity - total),
+                "overflow": max(0, total - capacity),
+            }
         return Response(
             {
+                "day_loads": day_loads,
                 "from": start,
                 "to": end,
                 "count": len(items),
@@ -132,7 +167,9 @@ class StudyPlanItemCollectionView(APIView):
 
 class StudyPlanItemDetailView(APIView):
     def _item(self, request: Request, item_id: UUID) -> StudyPlanItem:
-        return get_object_or_404(StudyPlanItem, id=item_id, user=_user(request))
+        return get_object_or_404(
+            StudyPlanItem.objects.exclude(status="superseded"), id=item_id, user=_user(request)
+        )
 
     @transaction.atomic
     def patch(self, request: Request, item_id: UUID) -> Response:
@@ -147,22 +184,33 @@ class StudyPlanItemDetailView(APIView):
             raise PlanChanged()
         if not changes:
             raise ValidationError("Provide at least one field to update.")
+        if item.activity == "questions" and "status" in changes:
+            raise ValidationError(
+                {"status": "Question coverage is completed by recorded answers only."}
+            )
         previous_status = item.status
         previous_date = item.scheduled_date
         previous_minutes = item.duration_minutes
         for field, value in changes.items():
             setattr(item, field, value)
+        if item.activity != "review" and item.duration_minutes < 5:
+            raise ValidationError({"duration_minutes": "Study sessions need at least 5 minutes."})
         if item.scheduled_date != previous_date:
             item.generated_slot = None
         if item.status == StudyPlanItem.Status.COMPLETED and item.scheduled_date > plan_today(
             profile_for(user)
         ):
-            raise ValidationError({"status": "Future sessions cannot be completed yet."})
+            raise ValidationError(
+                {"status": "Future sessions cannot be completed yet."}, code="future_session"
+            )
         # Only a move or a longer session can push a day past its cap; legacy days
         # that already exceed it must still allow completing or renaming a task.
         if item.scheduled_date != previous_date or item.duration_minutes > previous_minutes:
             validate_day(user, item.scheduled_date, item.duration_minutes, exclude=item.pk)
+        if previous_status == "completed" and item.status == "planned":
+            item.completed_page_end = None
         if item.status != previous_status:
+            item.status_changed_at = timezone.now()
             item.completed_at = (
                 timezone.now() if item.status == StudyPlanItem.Status.COMPLETED else None
             )

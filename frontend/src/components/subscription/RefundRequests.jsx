@@ -63,7 +63,7 @@ export function RefundRequests({ payments = [], onChanged, finance = false }) {
     {error && <p className="form-alert error" role="alert">{error}</p>}
     {notice && <p className="form-alert success" role="status">{notice}</p>}
     {finance && <label className="field"><span>عرض الطلبات</span><select value={scope} onChange={(e) => { setScope(e.target.value); setPage(1); }}><option value="open">طلبات تحتاج إجراء</option><option value="all">كل الطلبات والسجل</option></select></label>}
-    {list.loading ? <LoadingPanel /> : list.error ? <ErrorPanel message={list.error} onRetry={list.reload} /> : (list.data?.results || []).map((item) => <Claim key={item.id} item={item} finance={finance} onChanged={() => { list.reload(); onChanged?.(); }} />)}
+    {list.loading ? <LoadingPanel /> : list.error ? <ErrorPanel message={list.errorDetails || list.error} onRetry={list.reload} /> : (list.data?.results || []).map((item) => <Claim key={item.id} item={item} finance={finance} onChanged={() => { list.reload(); onChanged?.(); }} />)}
     {list.data && (list.data.next || list.data.previous) && <nav aria-label="صفحات طلبات الاسترداد"><button className="btn btn-outline" type="button" disabled={!list.data.previous || list.loading} onClick={() => setPage(page - 1)}>السابق</button><span> {page} </span><button className="btn btn-outline" type="button" disabled={!list.data.next || list.loading} onClick={() => setPage(page + 1)}>التالي</button></nav>}
   </section>;
 }

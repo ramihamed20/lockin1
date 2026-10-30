@@ -139,6 +139,10 @@ export const focusApi = {
     );
   },
 
+  async getLockInAvailability() {
+    return objectPayload(await request("/focus/lock-in/availability"), "Lockin availability could not be checked.");
+  },
+
   async getLockIn() {
     return objectPayload(
       await request("/focus/lock-in"),
@@ -146,7 +150,7 @@ export const focusApi = {
     );
   },
 
-  async startLockIn({ documentVersionId = null, clientInstanceId, sessionType, plannedDurationSeconds = null, breakDurationSeconds = null, teamId = null, teamName = "", anonymous = false, goal = "", topic = "", note = "", tasks = [] }) {
+  async startLockIn({ documentVersionId = null, clientInstanceId, sessionType, plannedDurationSeconds = null, breakDurationSeconds = null, teamId = null, teamName = "", anonymous = false, goal = "", topic = "", note = "", tasks = [], experienceVersion = 1, edition = "university", pageStart = 1, pageEnd = null }) {
     if (typeof clientInstanceId !== "string" || !clientInstanceId || typeof sessionType !== "string") {
       throw new ApiError(0, null, "A stable session ID and session type are required.", "invalid_request");
     }
@@ -158,6 +162,9 @@ export const focusApi = {
       note,
       tasks
     };
+    if (experienceVersion === 2) {
+      Object.assign(body, { experience_version: 2, edition, page_start: pageStart, page_end: pageEnd });
+    }
     if (teamId) body.team_id = teamId;
     if (teamName) body.team_name = teamName;
     if (anonymous) body.anonymous = true;

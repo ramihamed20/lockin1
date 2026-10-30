@@ -113,7 +113,7 @@ export function canAccessRoute(userOrSession, path, operationsSession) {
     // This client-side route guard only establishes authentication. Django's
     // Focus API remains the authority for Lock In entitlement decisions.
     /^\/lock-in(?:\/[^/]+)?$/.test(currentPath) ||
-    /^\/review\/(?:bank(?:\/[^/]+)?|weekly|biweekly\/[^/]+(?:\/test)?)$/.test(currentPath) ||
+    /^\/review\/(?:bank(?:\/[^/]+)?|weekly|source\/[0-9a-f-]{36}|biweekly\/[^/]+(?:\/test)?)$/.test(currentPath) ||
     /^\/analysis\/[^/]+$/.test(currentPath) ||
     /^\/questions\/(?:quizzes|attempts|results)\/[^/]+$/.test(currentPath) ||
     // A question source, one of its subjects, and one of that subject's

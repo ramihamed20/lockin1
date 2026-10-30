@@ -197,3 +197,11 @@ class LibraryView(APIView):
                 }
             )
         return Response({"enabled": True, "documents": results})
+
+
+class ReviewRecoveryView(APIView):
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
+    def get(self, request: Request, item_id: UUID) -> Response:
+        from .focus_links import review_recovery_links
+
+        return Response(review_recovery_links(actor(request), item_id))

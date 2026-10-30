@@ -57,6 +57,7 @@ from .sheet_summary_views import (
     SheetSummaryCollectionView,
     SheetSummaryDetailView,
 )
+from .translation_views import AdminSheetTranslationView, DocumentTranslationView
 from .views import (
     ArchiveLearningObjectView,
     CatalogAddedSubjectCollectionView,
@@ -72,6 +73,7 @@ from .views import (
     PublicLearningObjectDetailView,
     PublicLearningObjectListView,
     PublishLearningObjectView,
+    RecentCatalogWorkspacesView,
     RejectLearningObjectView,
     SubmitLearningObjectView,
     TransferLearningObjectView,
@@ -80,6 +82,19 @@ from .views import (
 app_name = "content"
 
 urlpatterns = [
+    path(
+        "operations/admin/content/sheets/<uuid:sheet_id>/translations",
+        AdminSheetTranslationView.as_view(),
+        name="admin-sheet-translations",
+    ),
+    path(
+        "catalog/documents/<uuid:document_id>/translation",
+        DocumentTranslationView.as_view(),
+        name="document-translation",
+    ),
+    path(
+        "catalog/workspaces/recent", RecentCatalogWorkspacesView.as_view(), name="recent-workspaces"
+    ),
     # Keep the structural UUID route before the two-slug alias resolver: UUIDs
     # are valid slugs, so the broader pattern would otherwise shadow workspace
     # GET/PATCH requests and return 404/405 before authorization is evaluated.

@@ -5,6 +5,8 @@ import { personalSheetsApi } from "../../api/personalSheets.js";
 import { useI18n } from "../../components/I18nProvider.jsx";
 import { requestFocusVideo } from "./focusVideo.js";
 import { personalTabId, sheetTabId } from "./workspaceTabs.js";
+import { revealWorkspaceTab } from "./workspaceTabScroll.js";
+import { useWorkspacePaneActive } from "./workspacePane.js";
 
 const SHEET_PICKER_EVENT = "lockin:workspace-sheet-picker";
 
@@ -75,14 +77,34 @@ function SheetPicker({ materials, openIds, onPick, onClose }) {
   const backRef = useRef(() => {});
   backRef.current = () => { if (subject) setSubject(null); else closeRef.current(); };
   useEffect(() => {
-    const escape = (event) => { if (event.key === "Escape") { event.stopPropagation(); backRef.current(); } };
+    const escape = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        backRef.current();
+      }
+      if (event.key === "Tab") {
+        const buttons = [...(panelRef.current?.querySelectorAll("button:not(:disabled)") || [])];
+        const first = buttons[0];
+        const last = buttons.at(-1);
+        const outside = !panelRef.current?.contains(document.activeElement);
+        if (event.shiftKey && (document.activeElement === first || outside)) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && (document.activeElement === last || outside)) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }
+    };
     document.addEventListener("keydown", escape, true);
     return () => document.removeEventListener("keydown", escape, true);
   }, []);
   // The first step starts on its first subject; the second on "back", which is
   // there at once while the student's own sheets are still loading.
   useEffect(() => {
-    panelRef.current?.querySelector(subject ? ".workspace-tabs-picker-back" : ".workspace-tabs-picker-list button")?.focus();
+    const panel = panelRef.current;
+    (panel?.querySelector(subject ? ".workspace-tabs-picker-back" : ".workspace-tabs-picker-list button") || panel?.querySelector("button"))?.focus({ preventScroll: true });
   }, [subject]);
   const published = useMemo(() => (subject ? subjectSheets(subject) : []), [subject]);
   const own = usePersonalChoices(subject);
@@ -140,35 +162,66 @@ function SheetChoice({ choice, open, onPick }) {
  */
 export default function WorkspaceTabBar({ tabs, activeId, materials, portalRef, onSelect, onClose, onNewWhiteboard, onOpenSheet }) {
   const { t } = useI18n();
+  const paneActive = useWorkspacePaneActive();
   const [menuOpen, setMenuOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState(null);
   const addRef = useRef(null);
   const menuRef = useRef(null);
+  const scrollerRef = useRef(null);
+  const activeTabRef = useRef(null);
   const portalTarget = portalRef?.current || null;
   const openIds = useMemo(() => new Set(tabs.map((tab) => tab.id)), [tabs]);
 
+  // Each kept reader has its own strip. Reveal its selected document when
+  // opened/selected and when rotation or split view changes the available room.
+  useLayoutEffect(() => {
+    const scroller = scrollerRef.current;
+    const tab = activeTabRef.current;
+    if (!paneActive || !scroller || !tab) return undefined;
+    const reveal = () => revealWorkspaceTab(scroller, tab);
+    reveal();
+    const observer = new globalThis.ResizeObserver(reveal);
+    observer.observe(scroller);
+    observer.observe(tab);
+    return () => observer.disconnect();
+  }, [activeId, tabs, paneActive]);
+
   useEffect(() => {
+    if (paneActive) return;
+    setMenuOpen(false);
+    setPickerOpen(false);
+  }, [paneActive]);
+
+  useEffect(() => {
+    if (!paneActive) return undefined;
     const open = () => { setMenuOpen(false); setPickerOpen(true); };
     globalThis.addEventListener?.(SHEET_PICKER_EVENT, open);
     return () => globalThis.removeEventListener?.(SHEET_PICKER_EVENT, open);
-  }, []);
+  }, [paneActive]);
 
   useEffect(() => {
-    if (!menuOpen) return undefined;
+    if (!paneActive || !menuOpen) return undefined;
     const close = (event) => {
       if (menuRef.current?.contains(event.target) || addRef.current?.contains(event.target)) return;
       setMenuOpen(false);
     };
-    const escape = (event) => { if (event.key === "Escape") { setMenuOpen(false); addRef.current?.focus(); } };
+    const escape = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        setMenuOpen(false);
+        addRef.current?.focus({ preventScroll: true });
+      }
+    };
     document.addEventListener("pointerdown", close, true);
-    document.addEventListener("keydown", escape);
+    document.addEventListener("keydown", escape, true);
     menuRef.current?.querySelector("button")?.focus({ preventScroll: true });
     return () => {
       document.removeEventListener("pointerdown", close, true);
-      document.removeEventListener("keydown", escape);
+      document.removeEventListener("keydown", escape, true);
     };
-  }, [menuOpen]);
+  }, [menuOpen, paneActive]);
 
   // Fit the measured menu to this workspace pane, including split view.
   useLayoutEffect(() => {
@@ -239,11 +292,11 @@ export default function WorkspaceTabBar({ tabs, activeId, materials, portalRef, 
   </div>;
 
   return <div className="workspace-tabs" role="tablist" aria-label={t("workspaceTabs.label")} data-single={tabs.length === 1 ? "" : undefined}>
-    <div className="workspace-tabs-scroller">
+    <div ref={scrollerRef} className="workspace-tabs-scroller">
       {tabs.map((tab) => {
         const active = tab.id === activeId;
         const label = tabLabel(tab, t);
-        return <div key={tab.id} className={`workspace-tab${active ? " is-active" : ""}`} data-tab-kind={tab.kind}>
+        return <div key={tab.id} ref={active ? activeTabRef : undefined} className={`workspace-tab${active ? " is-active" : ""}`} data-tab-kind={tab.kind}>
           <button type="button" role="tab" aria-selected={active} title={label} onClick={() => { if (!active) onSelect(tab); }}>
             {tab.kind === "whiteboard" ? <NotebookPen size={14} aria-hidden="true" /> : tab.kind === "personal" ? <Folder size={14} aria-hidden="true" /> : <FileText size={14} aria-hidden="true" />}
             <span dir="auto">{label}</span>
@@ -253,7 +306,7 @@ export default function WorkspaceTabBar({ tabs, activeId, materials, portalRef, 
       })}
     </div>
     <button ref={addRef} type="button" className={`workspace-tabs-add${menuOpen ? " is-active" : ""}`} aria-label={t("workspaceTabs.newTab")} title={t("workspaceTabs.newTab")} aria-haspopup="menu" aria-expanded={menuOpen} onClick={toggleMenu}><Plus size={16} /></button>
-    {menu && portalTarget && createPortal(menu, portalTarget)}
-    {pickerOpen && portalTarget && createPortal(<SheetPicker materials={materials} openIds={openIds} onClose={() => { setPickerOpen(false); restoreFocus(); }} onPick={(choice) => { setPickerOpen(false); onOpenSheet(choice); }} />, portalTarget)}
+    {paneActive && menu && portalTarget && createPortal(menu, portalTarget)}
+    {paneActive && pickerOpen && portalTarget && createPortal(<SheetPicker materials={materials} openIds={openIds} onClose={() => { setPickerOpen(false); restoreFocus(); }} onPick={(choice) => { setPickerOpen(false); onOpenSheet(choice); }} />, portalTarget)}
   </div>;
 }

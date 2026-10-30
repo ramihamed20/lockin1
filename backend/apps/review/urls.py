@@ -6,6 +6,7 @@ from .views import (
     ReviewBankSubjectView,
     ReviewBankView,
     ReviewQueueView,
+    ReviewSourceView,
     WeeklyRecallAnswerView,
     WeeklyRecallView,
 )
@@ -13,6 +14,7 @@ from .views import (
 app_name = "review"
 
 urlpatterns = [
+    path("review-bank/items/<uuid:item_id>/source", ReviewSourceView.as_view(), name="source"),
     path("question-attempts", QuestionAttemptView.as_view(), name="attempt"),
     path("review-queue", ReviewQueueView.as_view(), name="queue"),
     path("review-bank", ReviewBankView.as_view(), name="bank"),

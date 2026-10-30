@@ -245,3 +245,47 @@ test("an unfinished live stroke repaints after a tab return and commits once", a
   await page.getByRole("button", { name: "Redo (Ctrl+Shift+Z)" }).click();
   await expect(ink).toHaveCount(1);
 });
+
+// Hidden readers retain their documents, but must not own global menus/keys.
+test("only the visible reader opens a sheet picker and keeps keyboard focus inside it", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(ROUTE);
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await page.evaluate(() => { location.hash = "/materials/catalog/biochemistry-1/sheets/vitamin-2/workspace"; });
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await expect(page.locator(".workspace-pane.is-kept")).toHaveCount(1);
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent("lockin:workspace-sheet-picker")));
+  // Count includes hidden readers: a visible-only assertion misses the bug.
+  await expect(page.locator(".workspace-tabs-picker")).toHaveCount(1);
+  const picker = page.getByRole("dialog", { name: "Open sheet" });
+  const first = picker.locator("button").first();
+  const last = picker.locator("button").last();
+  await last.focus();
+  await page.keyboard.press("Tab");
+  await expect(first).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(last).toBeFocused();
+  await picker.getByRole("button", { name: /Biochemistry 1/ }).click();
+  await page.keyboard.press("Escape");
+  await expect(picker).toHaveAttribute("data-step", "subjects");
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".workspace-tabs-picker")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "New tab" })).toBeFocused();
+  // Reopening the old sheet must not resurrect its hidden picker.
+  await tabs(page).first().click();
+  await expect(page.locator(".workspace-tabs-picker")).toHaveCount(0);
+});
+
+test("switching away dismisses a picker without letting its Escape handler steal focus", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  await page.goto(ROUTE);
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent("lockin:workspace-sheet-picker")));
+  await expect(page.locator(".workspace-tabs-picker")).toHaveCount(1);
+  await page.evaluate(() => { location.hash = "/materials/catalog/biochemistry-1/sheets/vitamin-2/workspace"; });
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await expect(page.locator(".workspace-tabs-picker")).toHaveCount(0);
+  await tabs(page).first().click();
+  await expect(page.locator(".workspace-tabs-picker")).toHaveCount(0);
+});

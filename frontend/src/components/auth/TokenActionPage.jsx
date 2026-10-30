@@ -121,7 +121,7 @@ export function TokenActionPage({ type, onAccountChanged }) {
     <main className="auth-v2 auth-v2-token" dir={direction}>
       <header className="auth-v2-topbar">
         <div className="auth-v2-brand" aria-label="Lock-in">
-          <img src={assetPath("/icons/lockin-light-192-v2.png")} alt={t("token.logoAlt")} width="38" height="38" />
+          <img src={assetPath("/icons/lockin-logo.svg")} alt={t("token.logoAlt")} width="38" height="38" />
           <div><strong>Lock-in</strong><span>{t("token.accountSecurity")}</span></div>
         </div>
       </header>

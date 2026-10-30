@@ -1,3 +1,7 @@
+import { currentAppLocale } from "../lib/i18n.js";
+import { localSaveError } from "../lib/userErrors.js";
+import { StudyDock } from "../components/lock-in/StudyDock.jsx";
+import { SheetTranslationPanel } from "../workspace/catalog/SheetTranslationPanel.jsx";
 import { lazy, Suspense, startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
@@ -60,6 +64,7 @@ import { marksStorageSlug, snapshotFromReader } from "../workspace/catalog/annot
 import { useMarksSet } from "../workspace/catalog/useMarksSet.js";
 import { noteCardHeight, NOTE_CARD_WIDTH } from "../workspace/catalog/noteCardLayout.js";
 import { AnnotationSharePanel } from "../workspace/catalog/AnnotationSharePanel.jsx";
+import { usePlannedSourceNavigation } from "../workspace/knowledge/usePlannedSourceNavigation.js";
 import StartRescue from "../rescue/StartRescue.jsx";
 import { RESCUE_ENABLED } from "../rescue/model.js";
 import { KNOWLEDGE_FIXTURE_TOOLS, STUDY_TOOLS_ENABLED, COMING_SOON_STUDY_TOOLS, availableStudyTools } from "../workspace/knowledge/model.js";
@@ -405,6 +410,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   // A catalog sheet shares under its own document; a copy of someone's marks
   // shares under the catalog document it was copied from.
   const shareDocumentId = whiteboard || summaryMode || personal ? "" : (catalogDocument?.id || "");
+  const [translationOpen, setTranslationOpen] = useState(false);
   const [knowledgeOpen, setKnowledgeOpen] = useState(false);
   const [knowledgeVisited, setKnowledgeVisited] = useState(false);
   const [knowledgeSaveStatus, setKnowledgeSaveStatus] = useState("");
@@ -855,7 +861,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   // marks; a PDF the student uploaded themselves has nothing to share it with.
   const [marksOpen, setMarksOpen] = useState(false);
   const [entryModePreference, setEntryModePreference] = useState(preferredMode);
-  const [activeDifficulty, setActiveDifficulty] = useState("medium");
+  const [activeDifficulty, setActiveDifficulty] = useState(["easy", "medium", "hard"].includes(searchParams.get("studyDifficulty")) ? searchParams.get("studyDifficulty") : "medium");
   const [activeCustomization, setActiveCustomization] = useState({ studyMode: "standard", pagesPerCheckpoint: 3, questionsPerCheckpoint: 5 });
   const [deletePageConfirmOpen, setDeletePageConfirmOpen] = useState(false);
   const [activeStudy, setActiveStudy] = useState(null);
@@ -1337,7 +1343,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     return () => window.removeEventListener("resize", closeOnWidthChange);
   }, [sideOpen]);
   useEffect(() => {
-    if (!openSurface || openSurface === "notes") return undefined;
+    if (!paneActive || !openSurface || openSurface === "notes") return undefined;
     const dismissPopover = (event) => {
       if (event.target.closest?.(".workspace-v2-toolbar, .workspace-v2-tool-options, .workspace-v2-action-popover, .workspace-v2-settings-popover, .workspace-v2-page-dock")) return;
       setOpenSurface(null);
@@ -1346,7 +1352,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     // toggle. Escape is the other half of that contract for a keyboard, and it
     // hands focus back to the control that owns the panel.
     const dismissOnEscape = (event) => {
-      if (event.key !== "Escape") return;
+      if (event.key !== "Escape" || event.defaultPrevented) return;
       event.stopPropagation();
       const owner = openSurface.startsWith("tool:")
         ? `[data-workspace-tool="${openSurface.slice(5)}"]`
@@ -1373,7 +1379,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       document.removeEventListener("pointerdown", dismissPopover);
       document.removeEventListener("keydown", dismissOnEscape);
     };
-  }, [openSurface]);
+  }, [openSurface, paneActive]);
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) return undefined;
@@ -1818,9 +1824,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         setSaveErrorReason("");
         markDocumentDirty(target);
         if (!target) scheduleServerSync();
-      } catch {
+      } catch (error) {
         setSaveState("error");
-        setSaveErrorReason(translateRef.current("focus.outOfSpace"));
+        setSaveErrorReason(localSaveError(error, currentAppLocale()));
       }
       return;
     }
@@ -1847,7 +1853,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       // The signatures are deliberately not advanced, so the next save retries
       // exactly the pages that failed.
       setSaveState("error");
-      setSaveErrorReason(error?.message || translateRef.current("focus.marksNotSaved"));
+      setSaveErrorReason(localSaveError(error, currentAppLocale()));
     }
   }, [markDocumentDirty, materialSlug, minimumPdfZoom, ownerKey, scheduleServerSync, storageSlug]);
 
@@ -2047,9 +2053,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       try {
         const result = await sync.refresh({
           pageCount,
-          local: { annotations: annotationsRef.current, notes: notesRef.current, virtualPages: virtualPagesRef.current }
+          getLocal: () => ({ annotations: annotationsRef.current, notes: notesRef.current, virtualPages: virtualPagesRef.current })
         });
-        if (disposed) return;
+        if (disposed || serverSyncRef.current !== sync) return;
         if (result.documentChanged) {
           setFocusMessage(translateRef.current("focus.thisSheetWasUpdatedYour"));
           onDocumentChanged();
@@ -2201,7 +2207,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
 
   useEffect(() => {
     const sessionId = focusPayload?.session?.id;
-    if (!sessionId || !isUnfinished(focusPayload)) return undefined;
+    if (!sessionId || !isUnfinished(focusPayload) || focusPayload.session.experience_version === 2) return undefined;
     const refresh = () => { if (!document.hidden) focusApi.getLockInSession(sessionId).then(setFocusPayload).catch(() => {}); };
     document.addEventListener("visibilitychange", refresh);
     return () => document.removeEventListener("visibilitychange", refresh);
@@ -5130,6 +5136,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const [summaryBusy, setSummaryBusy] = useState(false);
   const [summaryError, setSummaryError] = useState("");
   const [summaryPanelId, setSummaryPanelId] = useState("");
+  const requestedSummaryId = searchParams.get("summary") || "";
+  const openedSummaryLink = useRef("");
+  const requestedSourcePage = Number(searchParams.get("sourcePage"));
+  const requestedSourceVersion = searchParams.get("sourceVersion") || "";
+  const openedSourcePage = useRef("");
   const [summaryPanelOpen, setSummaryPanelOpen] = useState(true);
   const [summaryReceiveDismissed, setSummaryReceiveDismissed] = useState(false);
   const shownSummaryIds = useMemo(() => new Set(sheetSummaries.summaries.filter((item) => item.visible).map((item) => item.id)), [sheetSummaries.summaries]);
@@ -5238,6 +5249,41 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       || virtualPagesRef.current.find((item) => item.summary === summary.id && item.afterPage >= accessiblePageStart);
     if (target) jumpToPagePosition(target.id);
   }
+
+  useEffect(() => {
+    if (!requestedSummaryId) { openedSummaryLink.current = ""; return undefined; }
+    if (!paneActive || !sheetSummaries.loaded || !workspaceReady) return undefined;
+    const key = `${shareDocumentId}:${requestedSummaryId}`;
+    if (openedSummaryLink.current === key) return undefined;
+    const summary = sheetSummaries.summaries.find(item => item.id === requestedSummaryId);
+    if (!summary) return undefined;
+    if (!summary.visible) {
+      openedSummaryLink.current = key;
+      setSummaryDialogOpen(true);
+      return undefined;
+    }
+    if (summary.mode === "pen" && !virtualPages.some(item => item.summary === summary.id)) return undefined;
+    const frame = requestAnimationFrame(() => { openedSummaryLink.current = key; continueSummary(summary); });
+    return () => cancelAnimationFrame(frame);
+    // Open a requested summary once after its pages and saved state are ready.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedSummaryId, paneActive, sheetSummaries.loaded, sheetSummaries.summaries, workspaceReady, shareDocumentId, virtualPages]);
+
+  useEffect(() => {
+    if (!Number.isInteger(requestedSourcePage) || requestedSourcePage < 1 || !paneActive || !workspaceReady) return undefined;
+    const key = `${shareDocumentId}:${requestedSourcePage}`;
+    if (openedSourcePage.current === key) return undefined;
+    if (requestedSourceVersion && requestedSourceVersion !== catalogDocument?.versionId) {
+      openedSourcePage.current = key;
+      setFocusMessage(translateRef.current("review.sourceUpdated"));
+      return undefined;
+    }
+    if (requestedSourcePage < accessiblePageStart || requestedSourcePage > accessiblePageCount) return undefined;
+    const frame = requestAnimationFrame(() => { openedSourcePage.current = key; jumpToPagePosition(requestedSourcePage); });
+    return () => cancelAnimationFrame(frame);
+    // Source navigation respects the reader's existing accessible page bounds.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedSourcePage, requestedSourceVersion, catalogDocument?.versionId, paneActive, workspaceReady, shareDocumentId, accessiblePageStart, accessiblePageCount]);
 
   /** Builds the PDF, marks the summary received and hands the file over. */
   async function receiveSummary(summary) {
@@ -5488,6 +5534,17 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       setBookmarkBusy(false);
     }
   }
+
+  usePlannedSourceNavigation({ search: searchParams, source: catalogDocument, limit: accessiblePageCount,
+    ready: workspaceReady && pdfDocumentReady && paneActive && (!modeDialogOpen || searchParams.get("studyActivity") === "active_study"),
+    onActive: difficulty => { setActiveDifficulty(difficulty); setModeDialogOpen(true); },
+    onRead: jumpToPagePosition, onUnavailable: () => setFocusMessage(t("knowledge.lockedSource")),
+    onExplain: questionId => {
+      if (!STUDY_TOOLS_ENABLED || COMING_SOON_STUDY_TOOLS.includes("explain")) return;
+      setKnowledgeVisited(true); setKnowledgeOpen(true);
+      setKnowledgeNavigation({ requestId: globalThis.crypto.randomUUID(), question_id: questionId });
+    },
+  });
 
   function commitPageJump() {
     const target = Number.parseInt(pageJumpDraft, 10);
@@ -6057,6 +6114,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
             </div>
             <input ref={imageInputRef} className="workspace-v2-file-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={!workspaceReady} onChange={addImage} tabIndex={-1} aria-hidden="true" />
             <div className="workspace-v2-toolbar-actions" aria-label={t("focus.workspaceControls")}>
+              {focusPayload?.session?.experience_version === 2 && <StudyDock payload={focusPayload} onChange={setFocusPayload} active={paneActive} portalRef={rootRef} />}
               {RESCUE_ENABLED && shareDocumentId && user?.id && rescueSource.managed_file_id && <StartRescue
                 key={user.id + "/" + shareDocumentId}
                 userId={user.id} source={rescueSource} page={page} pageLimit={accessiblePageCount}
@@ -6094,7 +6152,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
 
           <StudyMenu activeStudy={activeStudy} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} knowledgeNavigation={knowledgeNavigation} knowledgeOpen={knowledgeOpen} openStudyTool={openStudyTool} personal={personal} popover={popover} setMarksOpen={setMarksOpen} setModeDialogOpen={setModeDialogOpen} setOpenSurface={setOpenSurface} setSummaryDialogOpen={setSummaryDialogOpen} shareDocumentId={shareDocumentId} sheetSummaries={sheetSummaries} studyMode={studyMode} studyTools={studyTools} summariesEnabled={summariesEnabled} t={t} whiteboard={whiteboard} workspaceReady={workspaceReady} />
 
-          <MoreMenu openZoomWindow={openZoomWindow} activeVirtualPageId={activeVirtualPageId} allCoversRevealed={allCoversRevealed} annotationsHidden={annotationsHidden} bookmarkBusy={bookmarkBusy} bookmarked={bookmarked} chooseWritingTool={chooseWritingTool} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} coverIds={coverIds} deleteBlankPage={deleteBlankPage} documentSearch={documentSearch} exportBusy={exportBusy} openNewWhiteboard={openNewWhiteboard} page={page} personal={personal} popover={popover} searchDocumentProxy={searchDocumentProxy} selectTool={selectTool} setActiveTool={setActiveTool} setAnnotationsHidden={setAnnotationsHidden} setExportForShare={setExportForShare} setExportRangeEnd={setExportRangeEnd} setExportRangeStart={setExportRangeStart} setMarksOpen={setMarksOpen} setOpenSurface={setOpenSurface} setSelectedIds={setSelectedIds} shareDocumentId={shareDocumentId} sheet={sheet} sheetEdition={sheetEdition} singleTab={singleTab} studyInProgress={studyInProgress} studyRangeLabel={studyRangeLabel} summaryMode={summaryMode} t={t} toggleAllCovers={toggleAllCovers} toggleBookmark={toggleBookmark} whiteboard={whiteboard} workspaceReady={workspaceReady} />
+          <MoreMenu openTranslation={() => setTranslationOpen(true)} openZoomWindow={openZoomWindow} activeVirtualPageId={activeVirtualPageId} allCoversRevealed={allCoversRevealed} annotationsHidden={annotationsHidden} bookmarkBusy={bookmarkBusy} bookmarked={bookmarked} chooseWritingTool={chooseWritingTool} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} coverIds={coverIds} deleteBlankPage={deleteBlankPage} documentSearch={documentSearch} exportBusy={exportBusy} openNewWhiteboard={openNewWhiteboard} page={page} personal={personal} popover={popover} searchDocumentProxy={searchDocumentProxy} selectTool={selectTool} setActiveTool={setActiveTool} setAnnotationsHidden={setAnnotationsHidden} setExportForShare={setExportForShare} setExportRangeEnd={setExportRangeEnd} setExportRangeStart={setExportRangeStart} setMarksOpen={setMarksOpen} setOpenSurface={setOpenSurface} setSelectedIds={setSelectedIds} shareDocumentId={shareDocumentId} sheet={sheet} sheetEdition={sheetEdition} singleTab={singleTab} studyInProgress={studyInProgress} studyRangeLabel={studyRangeLabel} summaryMode={summaryMode} t={t} toggleAllCovers={toggleAllCovers} toggleBookmark={toggleBookmark} whiteboard={whiteboard} workspaceReady={workspaceReady} />
 
           <ExportMenu accessiblePageCount={accessiblePageCount} exportBusy={exportBusy} exportForShare={exportForShare} exportRangeEnd={exportRangeEnd} exportRangeStart={exportRangeStart} exportStudyDocument={exportStudyDocument} popover={popover} setExportRangeEnd={setExportRangeEnd} setExportRangeStart={setExportRangeStart} setOpenSurface={setOpenSurface} studyMode={studyMode} t={t} workspaceReady={workspaceReady} />
 
@@ -6160,7 +6218,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
           <ZoomBar fitPdfWidth={fitPdfWidth} minimumAllowedZoom={minimumAllowedZoom} minimumPdfZoom={minimumPdfZoom} sheet={sheet} t={t} workspaceReady={workspaceReady} zoom={zoom} zoomByStep={zoomByStep} zoomToFitMultiple={zoomToFitMultiple} />
           {workspaceReady && zoomWindow && <ZoomWindow region={zoomWindow} onRegionChange={setZoomWindow} pageAspect={pageAspectFor(zoomWindow.page)} annotations={annotationsHidden ? NO_ANNOTATIONS : (annotationsByPage.get(zoomWindow.page) || NO_ANNOTATIONS)} pdfDocument={searchDocumentProxy} pen={zoomWindowPen} onCommit={commitZoomWindowStroke} onClose={() => setZoomWindow(null)} onHeightChange={setZoomWindowHeight} />}
           {sheet.pdfUrl && <output className={`workspace-v4-zoom-hud${zoomHud.visible ? " is-visible" : ""}`} aria-live="polite" aria-label={t("focus.currentZoom", { percent: Math.round(zoom * 100) })}><strong>{Math.round(zoom * 100)}%</strong><span>{zoomHud.label && !zoomHud.label.endsWith("%") ? zoomHud.label : pdfZoomModeRef.current === "fit" ? t("focus.fitWidth") : t("focus.zoom")}</span></output>}
-          {saveState === "error" && <p className="workspace-v2-save-warning" role="alert"><Zap size={14} aria-hidden="true" />{t("focus.thisDeviceCannotStoreMore")}</p>}
+          {saveState === "error" && <p className="workspace-v2-save-warning" role="alert"><Zap size={14} aria-hidden="true" />{saveErrorReason || t("errors.localSaveFailed")}</p>}
           {focusMessage && !sideOpen && <p className="workspace-v2-toast" aria-hidden="true">{focusMessage}</p>}
           {workspaceReady && renderSelectionToolbar()}
           {workspaceReady && renderExportSheet()}
@@ -6202,6 +6260,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       </div>}
       {knowledgeVisited && shareDocumentId && user?.id && <Suspense fallback={null}><KnowledgeWorkspace key={`${user.id}/${shareDocumentId}`} userId={user.id} documentId={shareDocumentId} title={sheet.title} page={page} pageLimit={accessiblePageCount} onSaveState={setKnowledgeSaveStatus} navigation={knowledgeNavigation} visible={knowledgeOpen && paneActive} onClose={() => setKnowledgeOpen(false)} onRead={(target) => { if (target >= accessiblePageStart && target <= accessiblePageCount) jumpToPagePosition(target); }} /></Suspense>}
       {studyMode === "active" && activeStudy?.study_mode === "pomodoro" && activeStudy?.status === "active" && <PomodoroStudy key={`${user?.id}:${activeStudy.id}`} userId={user?.id || ownerKey} run={activeStudy} page={page} virtualPage={activeVirtualPageId !== null} active={paneActive && workspaceReady && !modeDialogOpen && !activeExitOpen} blocked={Boolean(activeQuiz)} deferSetup={knowledgeOpen || marksOpen || sideOpen} busy={activeStudyBusy} onStartTest={openPomodoroQuiz} onOpenTest={openActiveQuiz} onSaveClock={(clock) => focusApi.savePomodoroClock(activeStudy.id, clock)} />}
+      {translationOpen && shareDocumentId && paneActive && workspaceReady && !activeQuiz && !modeDialogOpen && <SheetTranslationPanel
+        documentId={shareDocumentId} page={page} onClose={() => { setTranslationOpen(false); rootRef.current?.querySelector('[data-workspace-surface="more"]')?.focus(); }} />}
       {summariesEnabled && paneActive && workspaceReady && !activeQuiz && shownKeyboardSummaries.length > 0 && <SummaryTextPanel
         summaries={shownKeyboardSummaries} activeId={summaryPanelId} onActive={setSummaryPanelId} page={page}
         open={summaryPanelOpen} onToggle={() => setSummaryPanelOpen((value) => !value)}

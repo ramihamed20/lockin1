@@ -31,14 +31,10 @@ import { FINAL_PWA_LAUNCH_STATES, resolvePwaLaunchState } from "./launchState.js
 const PwaLifecycleContext = createContext(null);
 
 function initialLaunchState(platform, installSnapshot) {
-  return resolvePwaLaunchState({
-    ...platform,
-    installedMemory: hasInstalledPwaMemory(),
-    dismissed: hasActivePwaDismissal(),
-    serviceWorkerStatus: import.meta.env.PROD && "serviceWorker" in navigator ? "checking" : "unsupported",
-    documentReady: document.readyState === "complete",
-    promptAvailable: Boolean(installSnapshot.prompt)
-  });
+  // Installation is optional: first-time readers reach sign-in immediately.
+  // The same guidance remains available through an explicit Settings action.
+  if (platform.standalone || installSnapshot.installed || hasInstalledPwaMemory()) return "installed";
+  return hasActivePwaDismissal() ? "dismissed" : "ready";
 }
 
 function useDocumentReady() {
@@ -80,7 +76,7 @@ function PwaLaunchScreen({ status, platform, busy, error, onInstall, onContinue 
     <section className="pwa-launch-screen" role="dialog" aria-modal="true" aria-labelledby="pwa-launch-title">
       <div className="pwa-launch-shell">
         <header className="pwa-launch-brand" aria-label={t("app.name")}>
-          <img src={assetPath("/icons/lockin-light-192-v2.png")} alt="" draggable="false" />
+          <img src={assetPath("/icons/lockin-logo.svg")} alt="" draggable="false" />
           <strong>lock-in</strong>
         </header>
 
@@ -188,14 +184,8 @@ export function PwaLifecycleProvider({ children }) {
 
     setLaunchStatus((current) => {
       if (current === "installed" && installSnapshot.prompt && !platform.standalone) {
-        return resolvePwaLaunchState({
-          ...platform,
-          installedMemory: false,
-          dismissed: false,
-          serviceWorkerStatus,
-          documentReady,
-          promptAvailable: true
-        });
+        // A stale installation memory must not open a dialog over the reader.
+        return "ready";
       }
       if (FINAL_PWA_LAUNCH_STATES.has(current)) return current;
       return resolvePwaLaunchState({
@@ -254,8 +244,17 @@ export function PwaLifecycleProvider({ children }) {
 
   const lifecycleValue = useMemo(() => ({
     offlineReady,
-    serviceWorkerStatus
-  }), [offlineReady, serviceWorkerStatus]);
+    serviceWorkerStatus,
+    installed: launchStatus === "installed",
+    openInstall: () => {
+      setInstallError("");
+      const next = resolvePwaLaunchState({
+        ...platform, installedMemory: false, dismissed: false,
+        serviceWorkerStatus, documentReady, promptAvailable: Boolean(installSnapshot.prompt)
+      });
+      setLaunchStatus(next === "ready" ? "manual-install" : next);
+    }
+  }), [offlineReady, serviceWorkerStatus, launchStatus, platform, documentReady, installSnapshot.prompt]);
 
   return (
     <PwaLifecycleContext.Provider value={lifecycleValue}>

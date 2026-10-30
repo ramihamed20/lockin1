@@ -42,6 +42,13 @@ def profile_payload(profile: StudyPlanProfile) -> dict[str, Any]:
         "weekdays": profile.weekdays,
         "subjects": profile.subjects,
         "timezone": profile.timezone,
+        "review_minutes": profile.review_minutes,
+        "weekly_minutes": profile.weekly_minutes,
+        "date_minutes": profile.date_minutes,
+        "habit_baseline_minutes": profile.habit_baseline_minutes,
+        "habit_block_minutes": profile.habit_block_minutes,
+        "study_rhythm": profile.study_rhythm,
+        "gradual_growth": profile.gradual_growth,
         "revision": 0 if profile._state.adding else profile.revision,
         "configured": not profile._state.adding,
     }
@@ -104,7 +111,7 @@ def preview_plan(user: User, start: date) -> dict[str, Any]:
         )
     progress = beginner_progress(user, today)
     existing = list(
-        StudyPlanItem.objects.filter(
+        StudyPlanItem.objects.exclude(status="superseded").filter(
             user=user,
             scheduled_date__range=(start, start + timedelta(days=6)),
         )
@@ -113,7 +120,10 @@ def preview_plan(user: User, start: date) -> dict[str, Any]:
     skipped = 0
     for offset in range(7):
         day = start + timedelta(days=offset)
-        if day < today or day.weekday() not in profile.weekdays:
+        from .availability import available_minutes
+
+        daily_capacity = available_minutes(profile, day)
+        if day < today or not daily_capacity:
             continue
         daily = [item for item in existing if item.scheduled_date == day]
         # Keep an existing generated day intact, including edited/completed work.
@@ -125,7 +135,7 @@ def preview_plan(user: User, start: date) -> dict[str, Any]:
             [progress["session_minutes"]]
             if profile.mode == "beginning"
             else _durations(
-                max(0, profile.daily_minutes - sum(item.duration_minutes for item in daily)),
+                max(0, daily_capacity - sum(item.duration_minutes for item in daily)),
                 profile.session_minutes,
             )
         )
@@ -177,7 +187,7 @@ def generate_plan(user: User, start: date, token: str) -> dict[str, Any]:
 
 
 def validate_day(user: User, day: date, minutes: int, exclude: Any = None) -> None:
-    items = StudyPlanItem.objects.filter(user=user, scheduled_date=day)
+    items = StudyPlanItem.objects.filter(user=user, scheduled_date=day).exclude(status="superseded")
     if exclude is not None:
         items = items.exclude(pk=exclude)
     if (
@@ -185,5 +195,6 @@ def validate_day(user: User, day: date, minutes: int, exclude: Any = None) -> No
         or (items.aggregate(total=Sum("duration_minutes"))["total"] or 0) + minutes > 480
     ):
         raise ValidationError(
-            {"duration_minutes": "A day can contain at most 480 minutes and 48 sessions."}
+            {"duration_minutes": "A day can contain at most 480 minutes and 48 sessions."},
+            code="day_limit_exceeded",
         )

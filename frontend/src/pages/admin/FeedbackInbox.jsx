@@ -67,7 +67,7 @@ export default function FeedbackInbox({ canManage }) {
         </select>
       </label>
       {data.loading ? <LoadingPanel />
-        : data.error ? <ErrorPanel message={data.error} onRetry={data.reload} />
+        : data.error ? <ErrorPanel message={data.errorDetails || data.error} onRetry={data.reload} />
         : (
           <section className="panel list-panel">
             <div className="panel-title"><h2>Student suggestions</h2><span>{data.data.count}</span></div>
