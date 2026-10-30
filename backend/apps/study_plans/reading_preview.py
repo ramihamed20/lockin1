@@ -191,7 +191,8 @@ def reading_plan_preview(
     active_units: list[WorkUnit] = []
     positive_capacity = [day.minutes for day in capacities if day.minutes > 0]
     block_limit = min(
-        profile.session_minutes, max(positive_capacity, default=profile.session_minutes)
+        profile.session_minutes, habit["suggested_block_minutes"],
+        max(positive_capacity, default=profile.session_minutes)
     )
     for subject in snapshot["subjects"]:
         deadline = min(

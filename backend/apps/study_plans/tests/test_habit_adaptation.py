@@ -2,8 +2,6 @@ from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
-from django.utils import timezone
-
 from apps.focus.models import FocusSession
 
 from ..adaptive_habits import adaptive_capacity, difficulty_multiplier, habit_snapshot

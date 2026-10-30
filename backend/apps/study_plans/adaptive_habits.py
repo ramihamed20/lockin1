@@ -11,8 +11,6 @@ from statistics import median
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from django.utils import timezone
-
 from apps.accounts.models import User
 from apps.focus.models import FocusSession, FocusSessionParticipant
 
