@@ -8,11 +8,10 @@ from apps.focus.models import FocusSession
 from ..adaptive_habits import adaptive_capacity, difficulty_multiplier, habit_snapshot
 from ..models import StudySheetDifficulty
 from ..services import plan_today
-from . import test_foundation as fixtures
+from .test_foundation import curriculum
 from .test_reading_preview import preview, setup_plan
 
 
-curriculum = fixtures.curriculum
 pytestmark = pytest.mark.django_db
 
 
