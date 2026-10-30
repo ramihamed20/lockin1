@@ -13,13 +13,13 @@ export default function StudyPlanEntry({ user }) {
   useEffect(() => {
     const controller = new AbortController();
     setState({ status: "loading", exams: [] });
-    studyPlanApi.getExams({ signal: controller.signal }).then(exams => {
+    studyPlanApi.getExams({ signal: controller.signal, user }).then(exams => {
       if (!controller.signal.aborted) setState({ status: "pilot", exams });
     }).catch(error => {
       if (!controller.signal.aborted) setState({ status: error.status === 403 ? "closed" : "error", exams: [] });
     });
     return () => controller.abort();
-  }, [user.id, attempt]);
+  }, [user, attempt]);
   if (state.status === "loading") return <LoadingPanel variant="list" />;
   if (state.status === "pilot") return <StudyPlan user={user} examPeriods={state.exams} />;
   return <>

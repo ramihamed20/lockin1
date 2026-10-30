@@ -1,4 +1,6 @@
 import { ApiError, request } from "./client.js";
+import { isConnectivityError } from "../offline/queue.js";
+import { rememberPlan, restorePlan, submitPlanProgress } from "../offline/studyPlan.js";
 
 function objectPayload(payload, message) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
@@ -14,20 +16,24 @@ const previewTask = task => task && typeof task.key === "string" && typeof task.
   && Number.isInteger(task.estimated_minutes) && task.estimated_minutes > 0 && task.estimated_minutes <= 480;
 
 export const studyPlanApi = {
-  /** @param {{signal?: AbortSignal}} [options] */
-  async getExams({ signal } = {}) {
-    const payload = objectPayload(await request("/study-plan/v2/exams", { signal }), "The exam response was incomplete.");
+  /** @param {{signal?: AbortSignal, user?: any}} [options] */
+  async getExams({ signal, user } = {}) {
+    let raw;
+    try { raw = await request("/study-plan/v2/exams", { signal }); }
+    catch (error) { const saved = isConnectivityError(error) && await restorePlan(user, "exams"); if (saved) return saved.payload.results; throw error; }
+    const payload = objectPayload(raw, "The exam response was incomplete.");
     if (payload.enabled !== true || payload.schema_version !== 1 || !Array.isArray(payload.results)
       || payload.results.some(exam => typeof exam.id !== "string" || typeof exam.title !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(exam.starts_on) || !["tentative", "confirmed"].includes(exam.status))) {
       throw new ApiError(500, payload, "The exam response was incomplete.", "invalid_response");
     }
+    await rememberPlan(user, "exams", payload);
     return payload.results;
   },
 
-  /** @param {string} periodId @param {string} edition @param {{signal?: AbortSignal, includeReviews?: boolean, reportId?: string}} [options] */
-  async previewReading(periodId, edition, { signal, includeReviews = false, reportId } = {}) {
+  /** @param {string} periodId @param {string} edition @param {{signal?: AbortSignal, includeReviews?: boolean, reportId?: string, includeActiveStudy?: boolean, replan?: boolean, difficulty?: string}} [options] */
+  async previewReading(periodId, edition, { signal, includeReviews = false, reportId, includeActiveStudy = false, replan = false, difficulty = "medium" } = {}) {
     const payload = objectPayload(await request(`/study-plan/v2/exams/${encodeURIComponent(periodId)}/reading-preview`, {
-      method: "POST", body: { edition, ...(includeReviews ? { include_reviews: true } : {}), ...(reportId ? { report_id: reportId } : {}) }, signal
+      method: "POST", body: { edition, ...(includeActiveStudy ? { include_active_study: true } : {}), ...(replan ? { replan: true } : {}), ...(difficulty !== "medium" ? { difficulty } : {}), ...(includeReviews ? { include_reviews: true } : {}), ...(reportId ? { report_id: reportId } : {}) }, signal
     }), "The reading preview was incomplete.");
     if (!["reading_only_preview", "reading_and_review_preview"].includes(payload.kind) || payload.persisted !== false
       || (payload.kind === "reading_and_review_preview" && (!nonnegativeInteger(payload.required_review_minutes) || !nonnegativeInteger(payload.scheduled_review_minutes) || payload.scheduled_review_minutes > payload.required_review_minutes))
@@ -53,17 +59,24 @@ export const studyPlanApi = {
     return payload;
   },
 
-  async getPlan({ from, to }) {
+  async getPlan({ from, to, user }) {
     const params = new URLSearchParams({ from, to });
+    let raw;
+    try { raw = await request(`/study-plan?${params.toString()}`); }
+    catch (error) { const saved = isConnectivityError(error) && await restorePlan(user, `week:${from}`); if (saved) return { ...saved.payload, offline: true, saved_at: saved.savedAt }; throw error; }
     const payload = objectPayload(
-      await request(`/study-plan?${params.toString()}`),
+      raw,
       "The study-plan response was incomplete."
     );
     if (!Array.isArray(payload.results) || !payload.summary || typeof payload.count !== "number") {
       throw new ApiError(500, payload, "The study-plan response was incomplete.", "invalid_response");
     }
+    await rememberPlan(user, `week:${from}`, payload);
     return payload;
   },
+
+  reportTaskProgress(userId, itemId, body) { return submitPlanProgress(userId, `/study-plan/items/${encodeURIComponent(itemId)}/progress`, body); },
+  reportReading(userId, periodId, body) { return submitPlanProgress(userId, `/study-plan/v2/exams/${encodeURIComponent(periodId)}/reading-progress`, body); },
 
   async createItem(item) {
     return objectPayload(

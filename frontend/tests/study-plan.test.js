@@ -94,3 +94,15 @@ test("rest days have no capacity and modes without availability do not invent on
   for (const mode of ["beginning", "custom"]) assert.equal(dayWorkload({ ...profile, mode }, items, "2026-10-23"), null);
   assert.equal(dayWorkload({ ...profile, configured: false }, items, "2026-10-23"), null);
 });
+
+test("per-day time overrides weekly time and accepts an explicit rest day", () => {
+  const profile = { configured: true, mode: "normal", daily_minutes: 30, weekdays: [0],
+    weekly_minutes: { 0: 90, 1: 45 }, date_minutes: { "2026-10-26": 0 } };
+  assert.equal(dayWorkload(profile, [], "2026-10-26").available, 0);
+  assert.equal(dayWorkload(profile, [], "2026-10-27").available, 45);
+  const draft = profileDraft({ ...profile, subjects: [], session_minutes: 25, timezone: "Africa/Tripoli" });
+  draft.weekly_minutes[0] = "120";
+  draft.weekly_minutes[2] = "";
+  assert.deepEqual(profileRequest(draft).weekly_minutes, { 0: 120, 1: 45 });
+  assert.equal(profile.weekly_minutes[0], 90);
+});

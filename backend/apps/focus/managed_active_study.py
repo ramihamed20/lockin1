@@ -529,6 +529,8 @@ def start(
             run=existing, plan=plan, total_pdf_pages=plan_total_pages
         ), False
     ranges = cast(list[dict[str, int]], plan["page_ranges"])
+    from .planning import source_anchor
+
     try:
         # A nested atomic block, so losing the race rolls back only this insert
         # and leaves the caller's transaction usable. The read above cannot lock
@@ -548,6 +550,10 @@ def start(
                 page_count=plan_total_pages,
                 unlocked_pages=ranges[0]["end_page"],
                 study_mode=study_mode,
+                planning_source={
+                    **source_anchor(sheet, edition),
+                    "bank_revision": content.revision,
+                },
                 plan_signature={
                     **_signature(plan),
                     **(
@@ -1060,7 +1066,10 @@ def submit(
         else ceil(attempt.total * 2 / 3)
     )
     attempt.score, attempt.passed, attempt.submitted_at = score, passed, timezone.now()
-    attempt.save(update_fields=("score", "passed", "submitted_at"))
+    from .planning import scoring_anchor
+
+    attempt.source_evidence = scoring_anchor(run, attempt)
+    attempt.save(update_fields=("score", "passed", "submitted_at", "source_evidence"))
     run.last_score = score
     if attempt.kind == ActiveStudyAttempt.Kind.CHECKPOINT:
         run.checkpoint_attempts += 1

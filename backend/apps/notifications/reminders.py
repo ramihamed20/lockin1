@@ -175,6 +175,22 @@ def _briefing(reminder: StudyReminder, now: datetime) -> dict[str, str] | None:
         user=user, now=now, zone_name=reminder.timezone
     ):
         return None
+    from apps.study_plans.reminders import daily_plan_briefing
+
+    plan = daily_plan_briefing(user=user, today=local.date())
+    if plan:
+        return {
+            "template_key": "study.reminder",
+            "title": "خطتك الدراسية اليوم" if arabic else "Your study plan today",
+            "body": (
+                f"لديك {plan['count']} مهام، نحو {plan['minutes']} دقيقة. ابدأ خطوتك التالية."
+                if arabic
+                else (
+                    f"{plan['count']} tasks, about {plan['minutes']} minutes. Start your next step."
+                )
+            ),
+            "target_route": "/study-plan",
+        }
     return {
         "template_key": "study.reminder",
         "title": "حان وقت الدراسة" if arabic else "Time to study",

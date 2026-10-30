@@ -6,6 +6,7 @@ import { flushPendingOperations, pendingOfflineOperations } from "./queue.js";
 // Registers the Focus and Review operation handlers with the shared queue.
 import "./focusSync.js";
 import "./rescueSync.js";
+import "./studyPlan.js";
 import { refreshReviewSnapshot } from "./review.js";
 import { captureOfflineSession, currentOfflineUserId, mutateOfflineCache } from "./sessionScope.js";
 

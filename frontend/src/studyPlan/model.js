@@ -79,6 +79,8 @@ export function profileDraft(profile) {
     mode: profile.mode, daily_minutes: profile.daily_minutes, session_minutes: profile.session_minutes,
     weekdays: profile.configured ? [...profile.weekdays] : [...DEFAULT_STUDY_DAYS],
     subjectList: [...profile.subjects], subjects: "",
+    review_minutes: profile.review_minutes ?? 2,
+    weekly_minutes: { ...(profile.weekly_minutes || {}) }, date_minutes: { ...(profile.date_minutes || {}) },
     timezone: profile.configured ? profile.timezone : Intl.DateTimeFormat().resolvedOptions().timeZone || "Africa/Tripoli"
   };
 }
@@ -86,7 +88,9 @@ export function profileDraft(profile) {
 /** `subjects` is the free-text box; anything still typed there is saved too. */
 export function profileRequest(draft) {
   const { subjectList = [], ...rest } = draft;
-  return { ...rest, daily_minutes: Number(draft.daily_minutes), session_minutes: Number(draft.session_minutes),
+  return { ...rest, daily_minutes: Number(draft.daily_minutes), session_minutes: Number(draft.session_minutes), review_minutes: Number(draft.review_minutes ?? 2),
+    weekly_minutes: Object.fromEntries(Object.entries(draft.weekly_minutes || {}).filter(([, value]) => value !== "").map(([key, value]) => [key, Number(value)])),
+    date_minutes: Object.fromEntries(Object.entries(draft.date_minutes || {}).map(([key, value]) => [key, Number(value)])),
     subjects: mergeSubjects(subjectList, parseSubjects(draft.subjects || "")) };
 }
 
@@ -107,7 +111,7 @@ export function rebaseTaskDraft(draft, previous, latest) {
 export function dayWorkload(profile, items, stamp) {
   if (!profile?.configured || profile.mode !== "normal") return null;
   const weekday = (fromStamp(stamp).getDay() + 6) % 7;
-  const available = profile.weekdays.includes(weekday) ? profile.daily_minutes : 0;
+  const available = profile.date_minutes?.[stamp] ?? profile.weekly_minutes?.[weekday] ?? (profile.weekdays.includes(weekday) ? profile.daily_minutes : 0);
   const planned = items.filter(item => item.scheduled_date === stamp)
     .reduce((minutes, item) => minutes + item.duration_minutes, 0);
   return { available, planned, remaining: Math.max(0, available - planned),

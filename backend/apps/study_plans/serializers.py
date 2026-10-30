@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -45,7 +46,8 @@ class StudyPlanItemUpdateSerializer(StrictSerializer):
         max_length=120, trim_whitespace=True, allow_blank=True, required=False
     )
     scheduled_date = serializers.DateField(required=False)
-    duration_minutes = serializers.IntegerField(min_value=5, max_value=480, required=False)
+    duration_minutes = serializers.IntegerField(min_value=1, max_value=480, required=False)
+    pinned = serializers.BooleanField(required=False)
     status = serializers.ChoiceField(choices=StudyPlanItem.Status.choices, required=False)
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
@@ -71,6 +73,11 @@ def study_plan_item_payload(item: StudyPlanItem) -> dict[str, object]:
         "generated": item.generated_slot is not None,
         "plan_mode": item.plan_mode,
         "activity": item.activity,
+        "pinned": item.pinned,
+        "completed_page_end": item.completed_page_end,
+        "priority_reasons": item.priority_reasons,
+        "difficulty": item.difficulty,
+        "period_id": str(item.planner_run.period_id) if item.planner_run is not None else None,
         "planning_key": item.planning_key,
         "page_start": item.page_start,
         "page_end": item.page_end,
@@ -90,6 +97,30 @@ class StudyPlanProfileWriteSerializer(StrictSerializer):
         child=serializers.CharField(max_length=120, trim_whitespace=True), max_length=12
     )
     timezone = serializers.CharField(max_length=80)
+
+    review_minutes = serializers.IntegerField(min_value=1, max_value=15, required=False)
+    weekly_minutes = serializers.DictField(
+        child=serializers.IntegerField(min_value=0, max_value=240), required=False
+    )
+    date_minutes = serializers.DictField(
+        child=serializers.IntegerField(min_value=0, max_value=240), required=False
+    )
+
+    def validate_weekly_minutes(self, value: dict[str, int]) -> dict[str, int]:
+        if any(key not in {str(i) for i in range(7)} for key in value):
+            raise serializers.ValidationError("Choose weekdays 0–6.")
+        return value
+
+    def validate_date_minutes(self, value: dict[str, int]) -> dict[str, int]:
+        if len(value) > 366:
+            raise serializers.ValidationError("Use at most 366 day exceptions.")
+        for key in value:
+            try:
+                if date.fromisoformat(key).isoformat() != key:
+                    raise ValueError
+            except ValueError as error:
+                raise serializers.ValidationError("Use dates in YYYY-MM-DD format.") from error
+        return value
 
     def validate_weekdays(self, value: list[int]) -> list[int]:
         if len(set(value)) != len(value):
@@ -128,6 +159,9 @@ class StudyPlanGenerateSerializer(StudyPlanPreviewSerializer):
 
 class ReadingPlanPreviewSerializer(StrictSerializer):
     include_reviews = serializers.BooleanField(default=False)
+    include_active_study = serializers.BooleanField(default=False)
+    replan = serializers.BooleanField(default=False)
+    difficulty = serializers.ChoiceField(choices=("easy", "medium", "hard"), default="medium")
     report_id = serializers.UUIDField(required=False, allow_null=True)
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
@@ -154,7 +188,11 @@ def task_start_url(item: StudyPlanItem) -> str | None:
             and review.state == "active_review"
         ):
             return f"/review/bank/{quote(review.subject_key, safe='')}?item={review.pk}"
-    if item.activity == "reading" and item.catalog_document_id and item.source_file_id:
+    if (
+        item.activity in ("reading", "active_study")
+        and item.catalog_document_id
+        and item.source_file_id
+    ):
         doc = item.catalog_document
         if (
             doc
@@ -164,7 +202,30 @@ def task_start_url(item: StudyPlanItem) -> str | None:
         ):
             return (
                 f"/materials/catalog/{doc.material_slug}/sheets/{doc.sheet_slug}/workspace"
-                f"?studyPage={item.page_start}&studyVersion={item.content_version_id}"
+                f"?studyPage={max(item.page_start or 1, (item.completed_page_end or 0) + 1)}"
+                f"&studyVersion={item.content_version_id}"
                 f"&studyFile={item.source_file_id}"
+                + (
+                    f"&studyActivity=active_study&studyDifficulty={item.difficulty}"
+                    if item.activity == "active_study"
+                    else ""
+                )
             )
     return None
+
+
+class ReadingEvidenceSerializer(StrictSerializer):
+    client_request_id = serializers.UUIDField()
+    version_id = serializers.UUIDField()
+    file_id = serializers.UUIDField()
+    edition = serializers.ChoiceField(choices=("university", "lockin"))
+    page_start = serializers.IntegerField(min_value=1, max_value=10000)
+    page_end = serializers.IntegerField(min_value=1, max_value=10000)
+    minutes = serializers.IntegerField(min_value=0, max_value=480, default=0)
+
+
+class TaskProgressSerializer(StrictSerializer):
+    client_request_id = serializers.UUIDField()
+    expected_revision = serializers.IntegerField(min_value=1)
+    page_end = serializers.IntegerField(min_value=1, max_value=10000)
+    minutes = serializers.IntegerField(min_value=0, max_value=480, default=0)

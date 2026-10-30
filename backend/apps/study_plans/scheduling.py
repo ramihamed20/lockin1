@@ -1,4 +1,4 @@
-"""Pure scheduling preview, not wired to production generation.
+"""Pure deterministic scheduling preview.
 
 Inputs must already be authorized and version-anchored. Capacity is net of
 breaks/buffer, dates are local to the student. Units are atomic, remaining work.
@@ -18,6 +18,8 @@ class WorkUnit:
     deadline: date
     priority: int = 0
     requires: tuple[str, ...] = ()
+    category: str = ""
+    subject: str = ""
 
 
 @dataclass(frozen=True)
@@ -74,6 +76,8 @@ def build_schedule_preview(
     capacities: tuple[DayCapacity, ...],
     fixed: tuple[FixedWork, ...] = (),
     completed_keys: frozenset[str] = frozenset(),
+    *,
+    balanced: bool = False,
 ) -> SchedulePreview:
     """Preserve fixed work; explain every unplaced unit.
 
@@ -115,27 +119,62 @@ def build_schedule_preview(
     finished = set(completed_keys)
     assignments: list[Assignment] = []
     loads: list[DayLoad] = []
+    category_load: dict[str, int] = {}
+    subject_load: dict[str, int] = {}
+    weights = {"reading": 0.55, "active_study": 0.25, "review": 0.20}
     for capacity in days:
         reserved = reserved_minutes[capacity.day]
         remaining = max(0, capacity.minutes - reserved)
         slots = max(0, 48 - reserved_counts[capacity.day])
         allocated = 0
-        unplaced: list[WorkUnit] = []
-        for unit in pending:
-            if (
-                slots
-                and unit.earliest <= capacity.day <= unit.deadline
-                and unit.minutes <= remaining
-                and all(key in finished for key in unit.requires)
-            ):
+        if balanced:
+            while slots:
+                choices = [
+                    unit
+                    for unit in pending
+                    if unit.earliest <= capacity.day <= unit.deadline
+                    and unit.minutes <= remaining
+                    and all(key in finished for key in unit.requires)
+                ]
+                if not choices:
+                    break
+                # Earliest exam remains authoritative; within that deadline,
+                # balance accumulated time rather than reserve all reviews first.
+                unit = min(
+                    choices,
+                    key=lambda unit: (
+                        unit.deadline,
+                        category_load.get(unit.category, 0) / weights.get(unit.category, 1),
+                        subject_load.get(unit.subject, 0),
+                        -unit.priority,
+                        unit.key,
+                    ),
+                )
                 assignments.append(Assignment(unit.key, capacity.day, unit.minutes))
                 finished.add(unit.key)
                 remaining -= unit.minutes
                 allocated += unit.minutes
                 slots -= 1
-            else:
-                unplaced.append(unit)
-        pending = unplaced
+                category_load[unit.category] = category_load.get(unit.category, 0) + unit.minutes
+                subject_load[unit.subject] = subject_load.get(unit.subject, 0) + unit.minutes
+                pending.remove(unit)
+        else:
+            unplaced: list[WorkUnit] = []
+            for unit in pending:
+                if (
+                    slots
+                    and unit.earliest <= capacity.day <= unit.deadline
+                    and unit.minutes <= remaining
+                    and all(key in finished for key in unit.requires)
+                ):
+                    assignments.append(Assignment(unit.key, capacity.day, unit.minutes))
+                    finished.add(unit.key)
+                    remaining -= unit.minutes
+                    allocated += unit.minutes
+                    slots -= 1
+                else:
+                    unplaced.append(unit)
+            pending = unplaced
         loads.append(
             DayLoad(
                 capacity.day,

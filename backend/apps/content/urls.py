@@ -92,7 +92,6 @@ urlpatterns = [
         DocumentTranslationView.as_view(),
         name="document-translation",
     ),
-
     path(
         "catalog/workspaces/recent", RecentCatalogWorkspacesView.as_view(), name="recent-workspaces"
     ),

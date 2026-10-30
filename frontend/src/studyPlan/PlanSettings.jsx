@@ -42,6 +42,9 @@ export default function PlanSettings({ profile, materials = [], onSave, onCancel
             </label>)}
           </fieldset>
           {invalidDays && <p role="alert" className="plan-error">{t("plan.noDay")}</p>}
+          {draft.mode === "normal" && <details className="plan-advanced"><summary>{t("smart.weeklyTime")}</summary><div className="plan-weekly-time">
+            {["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((key, index) => <label key={key}>{t(`plan.${key}`)}<input type="number" min="0" max="240" placeholder={String(draft.weekdays.includes(index) ? draft.daily_minutes : 0)} value={draft.weekly_minutes[index] ?? ""} onChange={event => change("weekly_minutes", { ...draft.weekly_minutes, [index]: event.target.value })} /></label>)}
+          </div><label>{t("smart.reviewMinutes")}<input type="number" min="1" max="15" required value={draft.review_minutes} onChange={event => change("review_minutes", event.target.value)} /></label><small>{t("smart.weeklyTimeHint")}</small></details>}
           <div className="plan-subjects">
             <div className="plan-subjects-heading"><strong>{t("plan.yourSubjects")}</strong><small>{t("plan.subjectCount", { count: chosen.length, limit: MAX_SUBJECTS })}</small></div>
             {(materials.length > 0 || own.length > 0) && <div className="plan-chips" role="group" aria-label={t("plan.yourSubjects")}>
@@ -55,6 +58,7 @@ export default function PlanSettings({ profile, materials = [], onSave, onCancel
                 <span dir="auto">{subject}</span><Icon name="x" size={16} />
               </button>)}
             </div>}
+            {chosen.length > 1 && <details className="plan-advanced"><summary>{t("smart.subjectOrder")}</summary><ol className="plan-subject-order">{chosen.map((subject, index) => <li key={subject}><span dir="auto">{subject}</span>{[-1, 1].map(direction => <button key={direction} type="button" className="btn btn-soft" disabled={index + direction < 0 || index + direction >= chosen.length} aria-label={t(direction < 0 ? "smart.moveEarlier" : "smart.moveLater", { subject })} onClick={() => { const ordered = [...chosen]; [ordered[index], ordered[index + direction]] = [ordered[index + direction], ordered[index]]; change("subjectList", ordered); }}>{direction < 0 ? "↑" : "↓"}</button>)}</li>)}</ol></details>}
             <div className="plan-subject-add">
               <label htmlFor="plan-subjects">{t("plan.subjects")}<input id="plan-subjects" value={draft.subjects} maxLength={1452} placeholder={t("plan.otherSubject")} disabled={full} onChange={event => change("subjects", event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); addTyped(); } }} aria-describedby="plan-subject-hint" /></label>
               <button type="button" className="btn btn-soft" disabled={full || !draft.subjects.trim()} onClick={addTyped}>{t("plan.addSubject")}</button>

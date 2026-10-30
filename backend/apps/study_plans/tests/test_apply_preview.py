@@ -126,8 +126,8 @@ def test_review_time_is_reserved_and_scored_completion_is_applied_once(curriculu
     profile = setup_plan(curriculum)
     review = due(curriculum)
     value = preview(curriculum, include_reviews=True).json()
-    assert value["scheduled_review_minutes"] == 5
-    assert value["days"][0]["allocated_minutes"] == 30
+    assert value["scheduled_review_minutes"] == 2
+    assert value["days"][0]["allocated_minutes"] == 27
     assert apply(curriculum, value, include_reviews=True).status_code == 200
     task = StudyPlanItem.objects.get(review_item=review)
     ReviewAnswerLog.objects.create(

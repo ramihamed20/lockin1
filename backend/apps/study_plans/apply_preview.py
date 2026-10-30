@@ -27,6 +27,9 @@ def apply_preview(
     edition: str,
     include_reviews: bool = False,
     report_id: UUID | None = None,
+    include_active_study: bool = False,
+    replan: bool = False,
+    difficulty: str = "medium",
 ) -> dict[str, Any]:
     User.objects.select_for_update().get(pk=user.pk)
     digest = hashlib.sha256(
@@ -37,6 +40,9 @@ def apply_preview(
                 "edition": edition,
                 "reviews": include_reviews,
                 "report": str(report_id) if report_id else None,
+                "active": include_active_study,
+                "replan": replan,
+                "difficulty": difficulty,
             },
             sort_keys=True,
         ).encode()
@@ -55,15 +61,45 @@ def apply_preview(
         edition=edition,
         include_reviews=include_reviews,
         report_id=report_id,
+        include_active_study=include_active_study,
+        replan=replan,
+        difficulty=difficulty,
     )
     if not constant_time_compare(preview_token, preview["apply_token"]):
         raise PlanChanged()
     tasks = preview["assignments"]
-    if not tasks or len(tasks) > 3000:
+    replaced = list(
+        StudyPlanItem.objects.filter(
+            user=user,
+            pk__in=preview.get("replace_item_ids", []),
+            status="planned",
+            pinned=False,
+            planner_run__period=period,
+        )
+    )
+    if (not tasks and not replaced) or len(tasks) > 3000:
         raise ValidationError({"preview": "Apply between 1 and 3000 activities at a time."})
     run = PlannerRun.objects.create(
         user=user, period=period, client_request_id=client_request_id, request_digest=digest
     )
+    history = [
+        {
+            "id": str(item.pk),
+            "title": item.title,
+            "date": str(item.scheduled_date),
+            "minutes": item.duration_minutes,
+            "activity": item.activity,
+            "key": item.planning_key,
+            "revision": item.revision,
+        }
+        for item in replaced
+    ]
+    if replaced:
+        StudyPlanItem.objects.filter(pk__in=[item.pk for item in replaced]).update(
+            status="superseded",
+            planning_key=None,
+            generated_slot=None,
+        )
     items = [
         StudyPlanItem(
             user=user,
@@ -77,6 +113,8 @@ def apply_preview(
             title=task["title"][:180],
             subject=task.get("subject_title", "")[:120],
             activity=task["activity"],
+            difficulty=task.get("difficulty", difficulty),
+            priority_reasons=task.get("priority_reasons", []),
             edition=edition,
             page_start=task.get("page_start"),
             page_end=task.get("page_end"),
@@ -94,7 +132,9 @@ def apply_preview(
         "item_ids": [str(item.pk) for item in items],
         "unscheduled_count": len(preview["unscheduled"]),
         "issues_count": len(preview["issues"]),
-        "first_date": tasks[0]["scheduled_date"],
+        "first_date": tasks[0]["scheduled_date"] if tasks else preview["today"],
+        "replaced_count": len(replaced),
+        "previous_tasks": history,
     }
     run.save(update_fields=["result"])
     return dict(run.result)

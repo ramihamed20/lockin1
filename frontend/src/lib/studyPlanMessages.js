@@ -1,5 +1,24 @@
 export const studyPlanMessages = {
   en: {
+    "smart.subjectOrder": "Preferred subject order", "smart.moveEarlier": "Move {subject} earlier", "smart.moveLater": "Move {subject} later",
+    "smart.reviewMinutes": "Minutes per review question",
+    "smart.estimate": "{rate} min/page · {count} reported samples",
+    "smart.reason.unread_pages": "Pages you have not confirmed reading",
+    "smart.reason.exam_preparation": "Preparation for your exam",
+    "smart.reason.due_review": "Review due within your preparation period",
+    "smart.reason.report_mistake": "An error from your study report",
+    "smart.reason.retrieval_after_reading": "Check recall after reading",
+    "smart.reason.recent_checkpoint_failure": "Practise a checkpoint you recently missed",
+
+    "smart.weeklyTime": "Time for each day", "smart.weeklyTimeHint": "Minutes available for study. Leave blank to use your usual time; 0 is a rest day.",
+    "smart.readingProgress": "Your reading progress", "smart.firstPage": "First page read", "smart.lastPage": "Last page read", "smart.actualMinutes": "Minutes spent (optional)",
+    "smart.readingNote": "Confirm only pages you read. Time improves estimates; it does not measure understanding.", "smart.confirmPages": "Confirm pages read", "smart.recordProgress": "Record progress",
+    "smart.includeActive": "Include Active Study checkpoints", "smart.difficulty": "Question difficulty", "smart.easy": "Easy", "smart.medium": "Medium", "smart.hard": "Hard",
+    "smart.replan": "Rearrange unfinished tasks; keep completed and pinned work", "smart.replacing": "This replaces {count} unfinished tasks. Their previous plan is retained.",
+    "smart.activeRange": "Active Study · pages {first}–{last}", "smart.pending": "Progress is stored on this device and waiting for confirmation. It has not changed the saved plan yet.", "smart.progressSaved": "Progress saved. Refresh the preview to plan the remaining pages.",
+    "smart.pin": "Keep this date", "smart.unpin": "Allow rearranging", "smart.offlineSnapshot": "Saved plan from {date}. Progress can be queued; other changes need a connection.",
+    "smart.dayTime": "Time available on {date}", "smart.updateTime": "Update time", "smart.activeUnavailable": "Active Study is unavailable for this sheet or edition.",
+
     "plan.examStale": "Your settings changed on another device. Refresh the plan before previewing again.",
     "plan.examAccessError": "We could not check access to the study-plan trial.",
     "plan.examRetry": "Try again",
@@ -86,6 +105,25 @@ export const studyPlanMessages = {
     "plan.weekProgress": "This week: {done} of {total} min done", "plan.dayAllDone": "all sessions done"
   },
   ar: {
+    "smart.subjectOrder": "ترتيب المواد المفضل", "smart.moveEarlier": "تقديم {subject}", "smart.moveLater": "تأخير {subject}",
+    "smart.reviewMinutes": "دقائق سؤال المراجعة",
+    "smart.estimate": "{rate} دقيقة للصفحة · {count} عينات مسجلة",
+    "smart.reason.unread_pages": "صفحات لم تؤكد قراءتها بعد",
+    "smart.reason.exam_preparation": "استعدادًا لامتحانك",
+    "smart.reason.due_review": "مراجعة تستحق خلال فترة التحضير",
+    "smart.reason.report_mistake": "خطأ من تقرير دراستك",
+    "smart.reason.retrieval_after_reading": "قياس الاسترجاع بعد القراءة",
+    "smart.reason.recent_checkpoint_failure": "تدريب على اختبار تعثرت فيه مؤخرًا",
+
+    "smart.weeklyTime": "وقت كل يوم", "smart.weeklyTimeHint": "الدقائق المتاحة للدراسة. اتركها فارغة لاستخدام وقتك المعتاد؛ 0 يعني يوم راحة.",
+    "smart.readingProgress": "تقدمك في القراءة", "smart.firstPage": "أول صفحة قرأتها", "smart.lastPage": "آخر صفحة قرأتها", "smart.actualMinutes": "الدقائق المستغرقة (اختياري)",
+    "smart.readingNote": "أكد الصفحات التي قرأتها فقط. الوقت يحسّن التقدير ولا يقيس الفهم.", "smart.confirmPages": "تأكيد الصفحات المقروءة", "smart.recordProgress": "تسجيل التقدم",
+    "smart.includeActive": "إضافة اختبارات Active Study", "smart.difficulty": "صعوبة الأسئلة", "smart.easy": "سهل", "smart.medium": "متوسط", "smart.hard": "صعب",
+    "smart.replan": "إعادة توزيع المهام غير المكتملة مع حفظ المنجز والمثبت", "smart.replacing": "سيُعاد توزيع {count} مهمة غير مكتملة، مع الاحتفاظ بخطتها السابقة.",
+    "smart.activeRange": "دراسة نشطة · الصفحات {first}–{last}", "smart.pending": "حُفظ التقدم على هذا الجهاز وبانتظار التأكيد. لم يغيّر الخطة المحفوظة بعد.", "smart.progressSaved": "حُفظ تقدمك. حدّث المعاينة لتخطيط الصفحات المتبقية.",
+    "smart.pin": "تثبيت الموعد", "smart.unpin": "السماح بإعادة التوزيع", "smart.offlineSnapshot": "خطة محفوظة بتاريخ {date}. يمكن تسجيل التقدم للمزامنة؛ بقية التعديلات تحتاج اتصالًا.",
+    "smart.dayTime": "الوقت المتاح في {date}", "smart.updateTime": "تحديث الوقت", "smart.activeUnavailable": "الدراسة النشطة غير متاحة لهذا الشيت أو النسخة.",
+
     "plan.examStale": "تغيّرت إعداداتك على جهاز آخر. حدّث الخطة قبل إعداد معاينة جديدة.",
     "plan.examAccessError": "تعذّر التحقق من الوصول إلى تجربة الخطة.",
     "plan.examRetry": "إعادة المحاولة",

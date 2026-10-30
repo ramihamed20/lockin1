@@ -11,7 +11,12 @@ from rest_framework.views import APIView
 
 from .learning_snapshot import exam_payload, student_exam_periods, student_learning_snapshot
 from .reading_preview import reading_plan_preview
-from .serializers import PlanApplySerializer, ReadingPlanPreviewSerializer
+from .serializers import (
+    PlanApplySerializer,
+    ReadingEvidenceSerializer,
+    ReadingPlanPreviewSerializer,
+    TaskProgressSerializer,
+)
 from .views import _user
 
 
@@ -93,3 +98,48 @@ class StudentPlanApplyView(StudyPlanV2View):
             else get_object_or_404(student_exam_periods(user=user), pk=period_id)
         )
         return Response(apply_preview(user=user, period=period, **serializer.validated_data))
+
+
+class StudentReadingProgressView(StudyPlanV2View):
+    @extend_schema(request=ReadingEvidenceSerializer, responses={200: OpenApiTypes.OBJECT})
+    def post(self, request: Request, period_id: UUID) -> Response:
+        from .evidence import report_progress
+        from .serializers import ReadingEvidenceSerializer
+
+        user = _user(request)
+        period = get_object_or_404(student_exam_periods(user=user), pk=period_id)
+        serializer = ReadingEvidenceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(
+            report_progress(
+                user=user, task=None, data={**serializer.validated_data, "period": period}
+            )
+        )
+
+
+class StudentTaskProgressView(StudyPlanV2View):
+    @extend_schema(request=TaskProgressSerializer, responses={200: OpenApiTypes.OBJECT})
+    def post(self, request: Request, item_id: UUID) -> Response:
+        from .evidence import report_progress
+        from .models import StudyPlanItem
+        from .serializers import TaskProgressSerializer
+
+        user = _user(request)
+        task = get_object_or_404(
+            StudyPlanItem.objects.select_related("planner_run"),
+            user=user,
+            pk=item_id,
+            planner_run__isnull=False,
+        )
+        if task.planner_run is None:
+            from rest_framework.exceptions import NotFound
+
+            raise NotFound()
+        period = get_object_or_404(student_exam_periods(user=user), pk=task.planner_run.period_id)
+        serializer = TaskProgressSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(
+            report_progress(
+                user=user, task=task, data={**serializer.validated_data, "period": period}
+            )
+        )

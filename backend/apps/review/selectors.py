@@ -41,7 +41,6 @@ def planning_review_summary(
     )
 
 
-
 def due_review_count(*, user: User, now: datetime) -> int:
     """Count usable, active personal mistakes without exposing question content."""
     return (

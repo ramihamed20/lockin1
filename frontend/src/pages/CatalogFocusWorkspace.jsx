@@ -861,7 +861,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   // marks; a PDF the student uploaded themselves has nothing to share it with.
   const [marksOpen, setMarksOpen] = useState(false);
   const [entryModePreference, setEntryModePreference] = useState(preferredMode);
-  const [activeDifficulty, setActiveDifficulty] = useState("medium");
+  const [activeDifficulty, setActiveDifficulty] = useState(["easy", "medium", "hard"].includes(searchParams.get("studyDifficulty")) ? searchParams.get("studyDifficulty") : "medium");
   const [activeCustomization, setActiveCustomization] = useState({ studyMode: "standard", pagesPerCheckpoint: 3, questionsPerCheckpoint: 5 });
   const [deletePageConfirmOpen, setDeletePageConfirmOpen] = useState(false);
   const [activeStudy, setActiveStudy] = useState(null);
@@ -5536,7 +5536,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   }
 
   usePlannedSourceNavigation({ search: searchParams, source: catalogDocument, limit: accessiblePageCount,
-    ready: workspaceReady && pdfDocumentReady && paneActive && !modeDialogOpen,
+    ready: workspaceReady && pdfDocumentReady && paneActive && (!modeDialogOpen || searchParams.get("studyActivity") === "active_study"),
+    onActive: difficulty => { setActiveDifficulty(difficulty); setModeDialogOpen(true); },
     onRead: jumpToPagePosition, onUnavailable: () => setFocusMessage(t("knowledge.lockedSource")),
     onExplain: questionId => {
       if (!STUDY_TOOLS_ENABLED || COMING_SOON_STUDY_TOOLS.includes("explain")) return;

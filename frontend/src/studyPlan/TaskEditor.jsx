@@ -34,7 +34,7 @@ export default function TaskEditor({ item, day, subjects = [], onSave, onCancel,
         <div className="plan-field-grid">
           <label>{t("plan.date")}<input type="date" required value={draft.scheduledDate} onChange={event => change("scheduledDate", event.target.value)} /></label>
           <div className="plan-minutes-field">
-            <label>{t("plan.minutes")}<input type="number" min="5" max="480" required value={draft.durationMinutes} onChange={event => change("durationMinutes", event.target.value)} /></label>
+            <label>{t("plan.minutes")}<input type="number" min={item?.activity === "review" ? "1" : "5"} max="480" required value={draft.durationMinutes} onChange={event => change("durationMinutes", event.target.value)} /></label>
             <div className="plan-chips" role="group" aria-label={t("plan.quickMinutes")}>
               {QUICK_MINUTES.map(minutes => <button key={minutes} type="button" className="plan-chip" aria-pressed={Number(draft.durationMinutes) === minutes} onClick={() => change("durationMinutes", minutes)}>{t("studyPlan.minutesValue", { count: minutes })}</button>)}
             </div>

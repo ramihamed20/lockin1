@@ -5,6 +5,8 @@ from .v2_views import (
     StudentLearningSnapshotView,
     StudentPlanApplyView,
     StudentReadingPlanPreviewView,
+    StudentReadingProgressView,
+    StudentTaskProgressView,
 )
 from .views import (
     StudyPlanGenerateView,
@@ -18,6 +20,16 @@ from .views import (
 app_name = "study_plans"
 
 urlpatterns = [
+    path(
+        "study-plan/v2/exams/<uuid:period_id>/reading-progress",
+        StudentReadingProgressView.as_view(),
+        name="v2-reading-progress",
+    ),
+    path(
+        "study-plan/items/<uuid:item_id>/progress",
+        StudentTaskProgressView.as_view(),
+        name="task-progress",
+    ),
     path(
         "study-plan/v2/exams/<uuid:period_id>/apply",
         StudentPlanApplyView.as_view(),

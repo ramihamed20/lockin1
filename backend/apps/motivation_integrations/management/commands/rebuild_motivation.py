@@ -87,6 +87,8 @@ class Command(BaseCommand):
         for session in sessions.iterator(chunk_size=1_000):
             if session.experience_version == 2 and session.team_id:
                 for participant in session.participants.filter(credited_at__isnull=False):
+                    if participant.credited_at is None:
+                        continue
                     _focus_completed(
                         FocusSessionCompleted(
                             session_id=session.id,

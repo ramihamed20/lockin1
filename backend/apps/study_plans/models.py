@@ -30,6 +30,9 @@ class StudyPlanProfile(models.Model):
     weekdays = models.JSONField(default=default_weekdays)
     subjects = models.JSONField(default=list)
     timezone = models.CharField(max_length=80, default="Africa/Tripoli")
+    review_minutes = models.PositiveSmallIntegerField(default=2)
+    weekly_minutes = models.JSONField(default=dict, blank=True)
+    date_minutes = models.JSONField(default=dict, blank=True)
     revision = models.PositiveIntegerField(default=1)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -81,6 +84,7 @@ class StudyPlanItem(models.Model):
     class Status(models.TextChoices):
         PLANNED = "planned", "Planned"
         COMPLETED = "completed", "Completed"
+        SUPERSEDED = "superseded", "Replaced by a newer plan"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
@@ -99,6 +103,10 @@ class StudyPlanItem(models.Model):
     review_item = models.ForeignKey(
         "review.ReviewItem", on_delete=models.RESTRICT, null=True, blank=True
     )
+    pinned = models.BooleanField(default=False)
+    completed_page_end = models.PositiveIntegerField(null=True, blank=True)
+    difficulty = models.CharField(max_length=8, default="medium")
+    priority_reasons = models.JSONField(default=list, blank=True)
     title = models.CharField(max_length=180)
     subject = models.CharField(max_length=120, blank=True)
     # Additive anchors. Legacy rows stay manual and retain their original text.
@@ -184,7 +192,10 @@ class StudyPlanItem(models.Model):
                 name="study_generated_slot_unique",
             ),
             models.CheckConstraint(
-                condition=Q(duration_minutes__gte=5) & Q(duration_minutes__lte=480),
+                condition=(
+                    Q(duration_minutes__gte=5) | Q(activity="review", duration_minutes__gte=1)
+                )
+                & Q(duration_minutes__lte=480),
                 name="study_plan_duration_valid",
             ),
         ]
@@ -208,3 +219,58 @@ class StudyPlanItem(models.Model):
                 raise ValidationError({"content_version": "Choose content from this subject."})
         if subject is not None and self.user_id and subject.cohort_id != self.user.cohort_id:
             raise ValidationError({"catalog_subject": "Choose a subject from this cohort."})
+
+
+class StudyEvidence(models.Model):
+    """Explicit reading/time reports; never inferred from a PDF position or timer."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    task = models.ForeignKey(StudyPlanItem, null=True, blank=True, on_delete=models.SET_NULL)
+    content_version = models.ForeignKey(
+        "content.LearningObjectVersion", null=True, blank=True, on_delete=models.PROTECT
+    )
+    source_file = models.ForeignKey(
+        "files.ManagedFile", null=True, blank=True, on_delete=models.PROTECT
+    )
+    edition = models.CharField(max_length=16, default="university")
+    activity = models.CharField(max_length=16, default="reading")
+    page_start = models.PositiveIntegerField(null=True, blank=True)
+    page_end = models.PositiveIntegerField(null=True, blank=True)
+    minutes = models.PositiveSmallIntegerField(default=0)
+    reserved_minutes = models.PositiveSmallIntegerField(default=0)
+    client_request_id = models.UUIDField()
+    request_digest = models.CharField(max_length=64)
+    result = models.JSONField(default=dict)
+    occurred_on = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("user", "client_request_id"), name="study_evidence_request_unique"
+            ),
+            models.CheckConstraint(
+                condition=Q(minutes__lte=480), name="study_evidence_minutes_valid"
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(page_start__isnull=True, page_end__isnull=True)
+                    | Q(
+                        content_version__isnull=False,
+                        source_file__isnull=False,
+                        page_start__gte=1,
+                        page_end__gte=F("page_start"),
+                    )
+                ),
+                name="study_evidence_pages_valid",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=("user", "content_version", "source_file"), name="study_evidence_target_idx"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.client_request_id}"

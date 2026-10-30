@@ -11,6 +11,7 @@ from .models import StudyPlanItem
 @transaction.atomic
 def reconcile_review_tasks(user: User) -> None:
     User.objects.select_for_update().get(pk=user.pk)
+    reconcile_active_tasks(user)
     pending = list(
         StudyPlanItem.objects.filter(
             user=user,
@@ -38,6 +39,53 @@ def reconcile_review_tasks(user: User) -> None:
             task.updated_at = scored_at
             task.revision += 1
             changed.append(task)
+    if changed:
+        StudyPlanItem.objects.bulk_update(
+            changed, ["status", "completed_at", "updated_at", "revision"], batch_size=200
+        )
+
+
+def reconcile_active_tasks(user: User) -> None:
+    from datetime import datetime
+
+    from apps.focus.planning import scored_checkpoints
+
+    tasks = list(
+        StudyPlanItem.objects.filter(
+            user=user,
+            activity="active_study",
+            status="planned",
+            planning_key__isnull=False,
+        )[:3000]
+    )
+    if not tasks:
+        return
+    scores = scored_checkpoints(
+        user=user, version_ids=list({str(task.content_version_id) for task in tasks})
+    )
+    changed = []
+    for task in tasks:
+        candidates = [
+            score
+            for score in scores
+            if score["study_source_version"] == str(task.content_version_id)
+            and score["study_source_file"] == str(task.source_file_id)
+            and score["edition"] == task.edition
+            and score["difficulty"] == task.difficulty
+            and score["page_start"] == task.page_start
+            and score["page_end"] == task.page_end
+            and str(score.get("bank_revision")) == (task.planning_key or "::").split(":")[-2]
+        ]
+        if not candidates or not candidates[0]["passed"]:
+            continue
+        stamp = datetime.fromisoformat(candidates[0]["submitted_at"])
+        if stamp <= (task.status_changed_at or task.created_at):
+            continue
+        task.status = "completed"
+        task.completed_at = stamp
+        task.updated_at = stamp
+        task.revision += 1
+        changed.append(task)
     if changed:
         StudyPlanItem.objects.bulk_update(
             changed, ["status", "completed_at", "updated_at", "revision"], batch_size=200

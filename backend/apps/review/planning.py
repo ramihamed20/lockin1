@@ -1,8 +1,10 @@
 """Read-only review targets, resolved from the planner's authorized syllabus."""
 
+from datetime import date, datetime, time
 from typing import Any
 from urllib.parse import quote
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from django.db.models import F, Max, Q
 from django.utils import timezone
@@ -16,7 +18,12 @@ from .models import MistakeEvent, ReviewAnswerLog, ReviewItem
 
 
 def planning_review_targets(
-    *, user: User, subjects: list[dict[str, Any]], report_id: UUID | None = None
+    *,
+    user: User,
+    subjects: list[dict[str, Any]],
+    report_id: UUID | None = None,
+    due_before: date | None = None,
+    zone: ZoneInfo | None = None,
 ) -> tuple[list[dict[str, Any]], bool]:
     report = None
     if report_id:
@@ -53,7 +60,15 @@ def planning_review_targets(
             ).values("review_item_id")
         )
     else:
-        items = items.filter(next_review_at__lte=timezone.now())
+        items = items.filter(
+            next_review_at__lte=(
+                datetime.combine(
+                    due_before, time.max, tzinfo=zone or timezone.get_current_timezone()
+                )
+                if due_before
+                else timezone.now()
+            )
+        )
     rows = list(
         items.select_related("question__published_version").order_by(
             "next_review_at", "-mistake_count", "id"
@@ -81,6 +96,9 @@ def planning_review_targets(
                 "subject_id": target["subject_id"],
                 "subject_title": target["title"],
                 "activity": "review",
+                "due_on": item.next_review_at.astimezone(zone or timezone.get_current_timezone())
+                .date()
+                .isoformat(),
                 "priority_reasons": ["report_mistake" if report else "due_review"],
                 "mistake_count": item.mistake_count,
                 "start_url": f"/review/bank/{quote(item.subject_key, safe='')}?item={item.pk}",

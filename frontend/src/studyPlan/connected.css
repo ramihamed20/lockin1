@@ -9,3 +9,15 @@
 .plan-apply-success { border-inline-start: 3px solid var(--accent); padding: 12px; background: var(--surface); border-radius: 8px; }
 
 .plan-capacity-warning { border-inline-start: 3px solid var(--danger); padding: 12px; background: var(--surface); border-radius: 8px; }
+
+.plan-reading-progress { padding: 16px; margin-block: 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+.plan-reading-progress small { display: block; margin-block: 10px; color: var(--muted); }
+.plan-weekly-time { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr)); gap: 12px; margin-block: 14px; }
+.plan-weekly-time label, .plan-day-capacity label { display: grid; gap: 6px; min-inline-size: 0; }
+.plan-weekly-time input, .plan-day-capacity input { inline-size: 100%; min-inline-size: 0; min-block-size: 44px; }
+.plan-day-capacity { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-block: 16px; }
+.plan-day-capacity label { flex: 1 1 180px; }
+
+.plan-subject-order { padding-inline-start: 22px; }
+.plan-subject-order li { display: flex; align-items: center; gap: 8px; margin-block: 8px; }
+.plan-subject-order li span { flex: 1; min-inline-size: 0; overflow-wrap: anywhere; }

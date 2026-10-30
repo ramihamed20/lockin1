@@ -56,7 +56,7 @@ export const connectedMessages = {
     "connected.all": "Until the exam",
     "connected.more": "Show {count} more",
     "connected.estimates": "Time estimates and coverage",
-    "connected.scope": "Reviews reserve time first. Only current, syllabus-linked Review Bank items are included. Review estimates start at 5 minutes per question; other question reviews need additional time.",
+    "connected.scope": "Reading, selected Active Study checkpoints and syllabus-linked reviews share your available time. Upcoming review dates are respected. Review time uses your selected minutes per question; time estimates remain approximate.",
     "connected.apply": "Save this plan",
     "connected.confirmApply": "Confirm and save",
     "connected.applyHint": "Your completed activities and manual commitments are kept.",
@@ -64,7 +64,7 @@ export const connectedMessages = {
     "connected.applied": "{count} activities saved. You can start from your plan below.",
     "connected.changed": "Your plan, progress or settings changed. Preview again before saving.",
     "connected.applyError": "We could not confirm saving. Retry with this preview; the same request cannot create duplicate activities.",
-    "connected.completionNote": "Reading and manual completion are self-reported. Linked reviews update from scored answers. Planned minutes are estimates; no extra XP is awarded."
+    "connected.completionNote": "Reading and manual completion are self-reported. Linked reviews and verified Active Study checkpoints update from scored results. Planned minutes are estimates; no extra XP is awarded."
   },
   "ar": {
     "connected.recall": "استرجاع بالكتابة",
@@ -123,7 +123,7 @@ export const connectedMessages = {
     "connected.all": "حتى الامتحان",
     "connected.more": "اعرض {count} أخرى",
     "connected.estimates": "تقدير الوقت ونطاق الخطة",
-    "connected.scope": "تحجز المراجعات وقتها أولًا. تشمل أسئلة بنك المراجعة المرتبطة بالمنهج والإصدار الحالي فقط. تقدير المراجعة المبدئي 5 دقائق للسؤال؛ بقية الأسئلة تحتاج وقتًا إضافيًا.",
+    "connected.scope": "تتوزع القراءة واختبارات الدراسة النشطة والمراجعات المرتبطة بالمنهج ضمن وقتك المتاح، مع مراعاة مواعيد استحقاق المراجعة. يُحسب وقت المراجعة بالدقائق التي حددتها للسؤال؛ الدقائق تقديرية.",
     "connected.apply": "احفظ هذه الخطة",
     "connected.confirmApply": "تأكيد وحفظ",
     "connected.applyHint": "تُحفظ إنجازاتك والتزاماتك اليدوية.",
@@ -131,6 +131,6 @@ export const connectedMessages = {
     "connected.applied": "حُفظ {count} نشاطًا. يمكنك البدء من خطتك أدناه.",
     "connected.changed": "تغيّرت الخطة أو تقدمك أو إعداداتك. أنشئ معاينة جديدة قبل الحفظ.",
     "connected.applyError": "تعذّر تأكيد الحفظ. أعد المحاولة بهذه المعاينة؛ الطلب نفسه لا ينشئ أنشطة مكررة.",
-    "connected.completionNote": "إنجاز القراءة والمهام اليدوية تسجيل شخصي. المراجعات المرتبطة تتحدّث من نتائج الإجابات. الدقائق تقديرية ولا تُمنح نقاط إضافية."
+    "connected.completionNote": "إنجاز القراءة والمهام اليدوية تسجيل شخصي. المراجعات واختبارات الدراسة النشطة الموثقة تتحدّث من النتائج. الدقائق تقديرية ولا تُمنح نقاط إضافية."
   }
 };
