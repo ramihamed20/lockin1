@@ -1,6 +1,7 @@
 """Seed an isolated Codespaces exam for the existing seed_demo curriculum only."""
 
 from datetime import timedelta
+from typing import Any
 
 from django.conf import settings
 from django.core.management import BaseCommand, CommandError
@@ -21,7 +22,7 @@ from apps.study_plans.models import StudyPlanProfile, StudySheetDifficulty
 class Command(BaseCommand):
     help = "Create a disposable, cohort-scoped Study Plan demo after seed_demo."
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         if getattr(settings, "ENVIRONMENT", "") not in {
             "development", "development-demo", "demo", "testing"
         }:
