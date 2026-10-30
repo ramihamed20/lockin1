@@ -17,6 +17,7 @@ from apps.progress.selectors import planning_reading_progress
 from apps.review.selectors import planning_review_summary
 
 from .exam_models import ExamPeriod, ExamSchedule
+from .models import StudySheetDifficulty
 from .services import plan_today, profile_for
 
 
@@ -104,6 +105,9 @@ def student_learning_snapshot(*, user: User, period: ExamPeriod) -> dict[str, An
         for scope in scopes
     }
     sheets = {sheet.pk: sheet for values in selected.values() for sheet in values}
+    difficulty_levels = dict(
+        StudySheetDifficulty.objects.filter(sheet_id__in=sheets).values_list("sheet_id", "level")
+    )
     version_ids = [
         sheet.published_version_id
         for sheet in sheets.values()
@@ -153,6 +157,7 @@ def student_learning_snapshot(*, user: User, period: ExamPeriod) -> dict[str, An
                 "sheet_id": str(sheet.id),
                 "version_id": str(version.id),
                 "title": version.title,
+                "difficulty_level": difficulty_levels.get(sheet.pk, 3),
                 "editions": editions,
             }
             entries.append(

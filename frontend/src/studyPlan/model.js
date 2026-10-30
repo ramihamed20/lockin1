@@ -80,6 +80,10 @@ export function profileDraft(profile) {
     weekdays: profile.configured ? [...profile.weekdays] : [...DEFAULT_STUDY_DAYS],
     subjectList: [...profile.subjects], subjects: "",
     review_minutes: profile.review_minutes ?? 2,
+    habit_baseline_minutes: profile.habit_baseline_minutes ?? "",
+    habit_block_minutes: profile.habit_block_minutes ?? "",
+    study_rhythm: profile.study_rhythm || "mixed",
+    gradual_growth: profile.gradual_growth ?? true,
     weekly_minutes: { ...(profile.weekly_minutes || {}) }, date_minutes: { ...(profile.date_minutes || {}) },
     timezone: profile.configured ? profile.timezone : Intl.DateTimeFormat().resolvedOptions().timeZone || "Africa/Tripoli"
   };
@@ -89,6 +93,8 @@ export function profileDraft(profile) {
 export function profileRequest(draft) {
   const { subjectList = [], ...rest } = draft;
   return { ...rest, daily_minutes: Number(draft.daily_minutes), session_minutes: Number(draft.session_minutes), review_minutes: Number(draft.review_minutes ?? 2),
+    habit_baseline_minutes: draft.habit_baseline_minutes === "" || draft.habit_baseline_minutes == null ? null : Number(draft.habit_baseline_minutes),
+    habit_block_minutes: draft.habit_block_minutes === "" || draft.habit_block_minutes == null ? null : Number(draft.habit_block_minutes),
     weekly_minutes: Object.fromEntries(Object.entries(draft.weekly_minutes || {}).filter(([, value]) => value !== "").map(([key, value]) => [key, Number(value)])),
     date_minutes: Object.fromEntries(Object.entries(draft.date_minutes || {}).map(([key, value]) => [key, Number(value)])),
     subjects: mergeSubjects(subjectList, parseSubjects(draft.subjects || "")) };

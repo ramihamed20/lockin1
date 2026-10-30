@@ -33,6 +33,15 @@ class StudyPlanProfile(models.Model):
     review_minutes = models.PositiveSmallIntegerField(default=2)
     weekly_minutes = models.JSONField(default=dict, blank=True)
     date_minutes = models.JSONField(default=dict, blank=True)
+    # An optional starting assessment; missing values are never guessed to be measured time.
+    habit_baseline_minutes = models.PositiveSmallIntegerField(null=True, blank=True)
+    habit_block_minutes = models.PositiveSmallIntegerField(null=True, blank=True)
+    study_rhythm = models.CharField(
+        max_length=12,
+        choices=(("mixed", "Flexible"), ("fragmented", "Short sessions"), ("continuous", "Long sessions")),
+        default="mixed",
+    )
+    gradual_growth = models.BooleanField(default=True)
     revision = models.PositiveIntegerField(default=1)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -50,6 +59,28 @@ class StudyPlanProfile(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id}:{self.mode}"
+
+
+class StudySheetDifficulty(models.Model):
+    """Admin-rated workload signal, scoped to one sheet and not a mastery claim."""
+
+    sheet = models.OneToOneField(
+        "content.LearningObject", primary_key=True, on_delete=models.CASCADE,
+        related_name="study_difficulty",
+    )
+    level = models.PositiveSmallIntegerField(default=3)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(level__gte=1, level__lte=5),
+                name="study_sheet_difficulty_1_to_5",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.sheet_id}: difficulty {self.level}"
 
 
 class PlannerRun(models.Model):

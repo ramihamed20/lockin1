@@ -45,6 +45,10 @@ def profile_payload(profile: StudyPlanProfile) -> dict[str, Any]:
         "review_minutes": profile.review_minutes,
         "weekly_minutes": profile.weekly_minutes,
         "date_minutes": profile.date_minutes,
+        "habit_baseline_minutes": profile.habit_baseline_minutes,
+        "habit_block_minutes": profile.habit_block_minutes,
+        "study_rhythm": profile.study_rhythm,
+        "gradual_growth": profile.gradual_growth,
         "revision": 0 if profile._state.adding else profile.revision,
         "configured": not profile._state.adding,
     }

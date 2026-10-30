@@ -16,7 +16,8 @@ from apps.accounts.models import User
 from apps.content.models import CatalogDocument
 from apps.review.planning import planning_review_targets
 
-from .availability import available_minutes, preference_priority
+from .availability import preference_priority
+from .adaptive_habits import adaptive_capacity, difficulty_multiplier, habit_snapshot
 from .evidence import reading_estimate, remaining_minutes
 from .exam_models import ExamPeriod
 from .learning_snapshot import student_learning_snapshot
@@ -47,6 +48,7 @@ def reading_plan_preview(
     if profile._state.adding or profile.mode != "normal":
         raise ValidationError({"profile": "Save a Normal plan with your available time first."})
     today = plan_today(profile)
+    habit = habit_snapshot(user=user, profile=profile, today=today)
     exam_dates = {
         date.fromisoformat(exam["scheduled_on"])
         for subject in snapshot["subjects"]
@@ -61,7 +63,7 @@ def reading_plan_preview(
     capacities = tuple(
         DayCapacity(
             today + timedelta(days=i),
-            available_minutes(profile, today + timedelta(days=i))
+            adaptive_capacity(profile, today + timedelta(days=i), today, habit)
             if today + timedelta(days=i) not in exam_dates
             else 0,
         )
@@ -198,8 +200,10 @@ def reading_plan_preview(
         ) - timedelta(days=1)
         estimate = subject_estimates[subject["subject_id"]]
         rate = estimate["minutes_per_page"]
-        block_pages = max(1, int(block_limit // rate))
         for sheet in subject["sheets"]:
+            level = sheet.get("difficulty_level", 3)
+            sheet_rate = round(rate * difficulty_multiplier(level), 2)
+            block_pages = max(1, int(block_limit // sheet_rate))
             base = {
                 "subject_id": subject["subject_id"],
                 "sheet_id": sheet["sheet_id"],
@@ -275,7 +279,7 @@ def reading_plan_preview(
                 units.append(
                     WorkUnit(
                         key,
-                        max(5, ceil((last - first + 1) * rate)),
+                        max(5, ceil((last - first + 1) * sheet_rate)),
                         earliest,
                         deadline,
                         priority=preference_priority(profile, subject["title"]) * 100 - first,
@@ -295,6 +299,8 @@ def reading_plan_preview(
                     "page_end": last,
                     "activity": "reading",
                     "estimate": estimate,
+                    "difficulty_level": level,
+                    "estimated_minutes_per_page": sheet_rate,
                     "priority_reasons": ["unread_pages", "exam_preparation"],
                     "deadline": str(deadline),
                     "deadline_source": subject["deadline_source"],
@@ -355,6 +361,21 @@ def reading_plan_preview(
         }
         for item in result.assignments
     ]
+    # The average is an estimate for the activities covered by this preview,
+    # not a promise that all Normal/Final question banks have been included.
+    preparation_days = sum(day.minutes > 0 for day in capacities)
+    required_minutes = sum(unit.minutes for unit in units) + sum(
+        unit.minutes for unit in review_units
+    ) + sum(item.minutes for item in fixed)
+    habit = {
+        **habit,
+        "target_today_minutes": capacities[0].minutes,
+        "required_daily_minutes": ceil(required_minutes / preparation_days)
+        if preparation_days else None,
+        "preparation_days": preparation_days,
+        "estimated_workload_minutes": required_minutes,
+        "estimate_scope": "reading_active_review_only",
+    }
     payload = {
         "schema_version": 1,
         "kind": "reading_and_review_preview" if include_reviews else "reading_only_preview",
@@ -372,6 +393,7 @@ def reading_plan_preview(
         "include_active_study": include_active_study,
         "difficulty": difficulty,
         "subject_estimates": subject_estimates,
+        "habit": habit,
         "review_minutes_per_question": profile.review_minutes,
         "report_id": str(report_id) if report_id else None,
         "review_truncated": truncated,

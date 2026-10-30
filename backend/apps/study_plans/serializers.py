@@ -105,6 +105,16 @@ class StudyPlanProfileWriteSerializer(StrictSerializer):
     date_minutes = serializers.DictField(
         child=serializers.IntegerField(min_value=0, max_value=240), required=False
     )
+    habit_baseline_minutes = serializers.IntegerField(
+        min_value=10, max_value=240, allow_null=True, required=False
+    )
+    habit_block_minutes = serializers.IntegerField(
+        min_value=10, max_value=120, allow_null=True, required=False
+    )
+    study_rhythm = serializers.ChoiceField(
+        choices=("mixed", "fragmented", "continuous"), required=False
+    )
+    gradual_growth = serializers.BooleanField(required=False)
 
     def validate_weekly_minutes(self, value: dict[str, int]) -> dict[str, int]:
         if any(key not in {str(i) for i in range(7)} for key in value):

@@ -18,6 +18,14 @@ export default function LearningPreview({ preview, t, userId, periodId, onProgre
   const content = task => <><strong dir="auto">{task.title}</strong><span>{task.activity === "review" ? t("connected.reviewTask") : task.activity === "active_study" ? t("smart.activeRange", { first: task.page_start, last: task.page_end }) : t("plan.examPageRange", { first: task.page_start, last: task.page_end })} · {t("studyPlan.minutesValue", { count: task.estimated_minutes })}</span>{task.priority_reasons?.[0] && <small>{t(`smart.reason.${task.priority_reasons[0]}`)}</small>}{task.start_url && <Link className="btn btn-soft" to={task.start_url}>{t("plan.start")}</Link>}</>;
   return <div className="plan-exam-result">
     <dl className="plan-exam-totals"><div><dt>{t("connected.required")}</dt><dd>{t("studyPlan.minutesValue", { count: preview.required_reading_minutes + (preview.required_review_minutes || 0) + (preview.required_active_study_minutes || 0) })}</dd></div><div><dt>{t("connected.scheduled")}</dt><dd>{t("studyPlan.minutesValue", { count: preview.scheduled_reading_minutes + (preview.scheduled_review_minutes || 0) + (preview.scheduled_active_study_minutes || 0) })}</dd></div><div><dt>{t("plan.examUnplaced")}</dt><dd>{preview.unscheduled.length}</dd></div></dl>
+    {preview.habit && <section className="plan-habit-assessment" aria-label={t("smart.habitTitle")}>
+      <strong>{t("smart.habitSnapshot")}</strong>
+      <p>{preview.habit.baseline_minutes !== null ? t("smart.habitCurrent", { minutes: preview.habit.baseline_minutes }) : t("smart.habitUnknown")}</p>
+      <p>{t("smart.habitSource." + preview.habit.source)}</p>
+      <p>{t("smart.habitToday", { minutes: preview.habit.target_today_minutes })}</p>
+      {preview.habit.required_daily_minutes !== null && <p>{t("smart.habitRequired", { minutes: preview.habit.required_daily_minutes })}</p>}
+      <p className="plan-note">{t("smart.habitCaveat")}</p>
+    </section>}
     {!!preview.existing_activity_count && <p className="plan-note">{t("connected.alreadyPlanned", { count: preview.existing_activity_count })}</p>}
     {!!unplaced && <p className="plan-capacity-warning" role="status">{t("connected.shortfall", { minutes: unplaced })}</p>}
     {!!preview.issues.length && <div className="plan-exam-warning" role="status"><strong>{t("plan.examIncomplete")}</strong><ul>{preview.issues.map((issue, index) => <li key={index}><bdi>{issue.title}</bdi> · {t(issue.reason === "active_study_unavailable" ? "smart.activeUnavailable" : issue.reason === "existing_task_needs_rescheduling" ? "connected.reschedule" : issue.reason === "page_count_unknown" ? "plan.examPagesUnknown" : issue.reason === "partial_reading_needs_confirmation" ? "plan.examPartial" : "plan.examEditionMissing")} {issue.reason === "partial_reading_needs_confirmation" && issue.version_id && <button className="btn btn-soft" type="button" onClick={() => setConfirming(issue)}>{t("smart.confirmPages")}</button>}</li>)}</ul></div>}

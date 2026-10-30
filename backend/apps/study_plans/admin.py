@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from .exam_models import ExamPeriod, ExamSchedule, ExamSyllabusScope
+from .models import StudySheetDifficulty
 
 
 class ExamScheduleInline(admin.TabularInline):  # type: ignore[type-arg]
@@ -27,3 +28,10 @@ class ExamSyllabusScopeAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
     list_display = ("period", "subject", "include_future_sheets")
     list_filter = ("period", "include_future_sheets")
     filter_horizontal = ("sheets",)
+
+
+@admin.register(StudySheetDifficulty)
+class StudySheetDifficultyAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
+    list_display = ("sheet", "level", "updated_at")
+    list_filter = ("level",)
+    search_fields = ("sheet__current_version__title", "sheet__published_version__title")
