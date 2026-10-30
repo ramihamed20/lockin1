@@ -28,6 +28,10 @@ jobs:
             ref: codex/lockin-mode-launch
             spec: e2e/lock-in-live.spec.js
             grep: "Live session fits (ipad|phone)|Arabic live timer"
+          - label: study-plan
+            ref: codex/lockin0.1.5
+            spec: e2e/study-plan-adaptive.spec.js
+            grep: "study-plan visual preview"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -67,7 +71,7 @@ jobs:
       - name: Expose selected PNG previews
         if: always()
         run: |
-          find frontend/test-results frontend/output -type f -name '*.png' \( -iname '*phone*settings*' -o -iname '*ipad-ar-settings*' -o -iname '*rank-mode-390*' -o -iname '*rank-mode-820*' -o -iname '*lockin-live-phone*' -o -iname '*lockin-live-ipad*' \) 2>/dev/null | sort | head -n 3 | while read -r file; do
+          find frontend/test-results frontend/output -type f -name '*.png' \( -iname '*phone*settings*' -o -iname '*ipad-ar-settings*' -o -iname '*rank-mode-390*' -o -iname '*rank-mode-820*' -o -iname '*lockin-live-phone*' -o -iname '*lockin-live-ipad*' -o -iname '*study-plan-visual*' \) 2>/dev/null | sort | head -n 3 | while read -r file; do
             echo "PREVIEW_IMAGE_BEGIN:${file}"
             base64 -w76 "$file"
             echo "PREVIEW_IMAGE_END"

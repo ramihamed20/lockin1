@@ -91,3 +91,24 @@ test("subject preference order is saved without changing the study tasks", async
   await expect.poll(() => writes.some(row => row.path.endsWith("/profile"))).toBe(true);
   expect(writes.find(row => row.path.endsWith("/profile")).body.subjects).toEqual(["Physiology", "Anatomy"]);
 });
+
+
+// The screenshot suite runs real Study Plan V2 components against deterministic
+// API fixtures. No account, content, or exam information from production is used.
+for (const [label, width, height, locale] of [
+  ["phone-ar", 390, 844, "ar"],
+  ["ipad-en", 820, 1180, "en"]
+]) {
+  test(`study-plan visual preview ${label}`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height });
+    await setup(page, locale);
+    const panel = page.locator(".plan-exam-panel");
+    await panel.locator('button[type="submit"]').click();
+    await expect(panel.locator(".plan-exam-task-list")).toContainText("Anatomy sheet");
+    await page.screenshot({
+      path: testInfo.outputPath(`study-plan-visual-${label}.png`),
+      fullPage: true,
+      animations: "disabled"
+    });
+  });
+}
