@@ -16,8 +16,8 @@ from apps.accounts.models import User
 from apps.content.models import CatalogDocument
 from apps.review.planning import planning_review_targets
 
-from .availability import preference_priority
 from .adaptive_habits import adaptive_capacity, difficulty_multiplier, habit_snapshot
+from .availability import preference_priority
 from .evidence import reading_estimate, remaining_minutes
 from .exam_models import ExamPeriod
 from .learning_snapshot import student_learning_snapshot

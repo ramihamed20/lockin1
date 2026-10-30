@@ -38,7 +38,11 @@ class StudyPlanProfile(models.Model):
     habit_block_minutes = models.PositiveSmallIntegerField(null=True, blank=True)
     study_rhythm = models.CharField(
         max_length=12,
-        choices=(("mixed", "Flexible"), ("fragmented", "Short sessions"), ("continuous", "Long sessions")),
+        choices=(
+            ("mixed", "Flexible"),
+            ("fragmented", "Short sessions"),
+            ("continuous", "Long sessions"),
+        ),
         default="mixed",
     )
     gradual_growth = models.BooleanField(default=True)
