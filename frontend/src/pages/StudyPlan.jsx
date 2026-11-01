@@ -162,7 +162,7 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
           await studyPlanApi.saveProfile(draft, profile.revision); await load(true); setSettings(false); setPreview(null); setMessage("plan.saved");
         })} />}
         {profile.configured && !settings && <>
-        <nav className="plan-journey" style={{ "--plan-stages": stages.length }} aria-label={t("plan.flow.navigation")}>
+        <nav className="plan-journey" data-stages={stages.length} aria-label={t("plan.flow.navigation")}>
           <span className="plan-journey-counter">{t("plan.flow.count", { current: stageIndex + 1, total: stages.length })}</span>
           <div className="plan-journey-steps">{stages.map((name, index) => <button key={name} type="button" disabled={Boolean(busy) || Boolean(editor) || Boolean(progressTask)} className={activeStage === name ? "is-active" : ""} aria-current={activeStage === name ? "step" : undefined} onClick={() => showStage(name)}>
             <span className="plan-journey-number">{index + 1}</span><span>{t("plan.flow." + name)}</span>
