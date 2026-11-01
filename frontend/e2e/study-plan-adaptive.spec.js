@@ -115,3 +115,27 @@ for (const [label, width, height, locale] of [
     });
   });
 }
+
+
+// Real client screenshots of each wizard stage. Use deterministic API fixtures
+// so previews contain no real student information.
+for (const [label, width, height, locale] of [
+  ["phone-ar", 390, 844, "ar"],
+  ["ipad-en", 820, 1180, "en"]
+]) {
+  test(`study-plan wizard preview ${label}`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height });
+    await setup(page, locale);
+    await page.locator(".plan-heading button").click();
+    const wizard = page.locator(".plan-settings");
+    await expect(wizard.locator(".plan-wizard-steps > button")).toHaveCount(4);
+    for (const stage of ["mode", "pace", "schedule", "review"]) {
+      await expect(wizard.locator(".plan-wizard-current")).toBeVisible();
+      await wizard.screenshot({
+        path: testInfo.outputPath(`study-plan-wizard-${label}-${stage}.png`),
+        animations: "disabled"
+      });
+      if (stage !== "review") await wizard.locator(".plan-wizard-next").click();
+    }
+  });
+}
