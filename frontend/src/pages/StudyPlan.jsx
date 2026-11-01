@@ -162,7 +162,7 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
           </div><div className="plan-actions">{next && <Link className="btn btn-primary plan-start-link" aria-label={next?.start_url ? t("plan.start") : nextMaterial ? t("plan.studySubject", { subject: nextMaterial.title }) : t("plan.openMaterials")} to={next?.start_url || (nextMaterial ? `/materials/catalog/${encodeURIComponent(nextMaterial.slug)}` : "/materials")}>{t("plan.start")}<Icon name="chevron-right" size={18} /></Link>}{canGenerate && <button type="button" className={`btn ${next ? "btn-soft" : "btn-primary"}`} disabled={Boolean(busy)} onClick={() => { setStage("week"); void previewWeek(); }}>{t("plan.preview")}</button>}<button type="button" className={`btn ${next || canGenerate ? "btn-soft" : "btn-primary"}`} disabled={Boolean(busy) || plan.offline} onClick={() => openEditor()}>{t("plan.add")}</button></div>
         </section>
         <section className="plan-today-list" aria-labelledby="plan-today-title">
-          <div className="plan-day-heading"><h3 id="plan-today-title">{t("plan.flow.todayTasks")}</h3><button type="button" className="plan-day-add" disabled={Boolean(busy) || plan.offline} onClick={() => openEditor()}><Icon name="plus" size={18} />{t("plan.add")}</button></div>
+          <h3 id="plan-today-title">{t("plan.flow.todayTasks")}</h3>
           {loading ? <LoadingPanel variant="list" /> : items.some(item => item.scheduled_date === today) ? tasks(items.filter(item => item.scheduled_date === today)) : <p className="plan-empty-day">{t("plan.emptyDay")}</p>}
         </section></section>}
         {activeStage === "progress" && <section className="plan-stage-panel plan-stage-progress">
