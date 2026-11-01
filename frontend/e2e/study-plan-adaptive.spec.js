@@ -47,6 +47,7 @@ for (const [width, height, locale] of [[320,740,"ar"],[820,1180,"en"]]) {
   test(`partial reading, day exceptions and pins work at ${width}px in ${locale}`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     const writes = await setup(page, locale);
+    await page.locator(".plan-journey-steps button").filter({ hasText: locale === "ar" ? "جدولي" : "My week" }).click();
     const tasks = page.locator(".plan-task-list");
     await tasks.getByRole("button", { name: locale === "ar" ? "تسجيل التقدم" : "Record progress" }).click();
     const form = page.locator(".plan-reading-progress");
@@ -66,6 +67,7 @@ for (const [width, height, locale] of [[320,740,"ar"],[820,1180,"en"]]) {
 }
 test("replan previews and applies the selected active-study configuration", async ({ page }) => {
   const writes = await setup(page, "en");
+  await page.locator(".plan-journey-steps button").filter({ hasText: "Exam plan" }).click();
   const panel = page.locator(".plan-exam-panel");
   await panel.getByLabel("Rearrange unfinished tasks; keep completed and pinned work").check();
   await panel.getByLabel("Question difficulty").selectOption("hard");
@@ -105,6 +107,7 @@ for (const [label, width, height, locale] of [
   test(`study-plan visual preview ${label}`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height });
     await setup(page, locale);
+    await page.locator(".plan-journey-steps button").filter({ hasText: locale === "ar" ? "الامتحان" : "Exam plan" }).click();
     const panel = page.locator(".plan-exam-panel");
     await panel.locator('button[type="submit"]').click();
     await expect(panel.locator(".plan-exam-task-list")).toContainText("Anatomy sheet");
