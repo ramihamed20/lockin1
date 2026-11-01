@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 
 from apps.audit.models import AuditRecord
-from apps.content.assistance_import import subject_for
+from apps.content.assistance_import import ImportSerializer, subject_for
 from apps.content.models import SavedStudyAssistanceIdea, StudyAssistanceIdea
 
 from .helpers import published_pdf
@@ -193,3 +193,35 @@ def test_mixed_subject_file_is_rejected_as_a_whole(context):
     response = admin(document).post(endpoint(document), {"payload": data}, format="json")
     assert response.status_code == 400, response.content
     assert StudyAssistanceIdea.objects.count() == 0
+
+
+def test_import_accepts_up_to_40_cards_with_required_nullable_page():
+    data = {
+        "schema_version": 1,
+        "subject_id": str(uuid4()),
+        "edition": "university",
+        "view": "study",
+        "sheets": [
+            {
+                "sheet_id": str(uuid4()),
+                "source_version_id": str(uuid4()),
+                "cards": [
+                    {
+                        "key": f"card-{i}",
+                        "page": None if i == 0 else i,
+                        "kind": "fact",
+                        "teaser": "Hint",
+                        "question": "Title",
+                        "explanation": "Short information.",
+                    }
+                    for i in range(40)
+                ],
+            }
+        ],
+    }
+    assert ImportSerializer(data=data).is_valid()
+    data["sheets"][0]["cards"].append({**data["sheets"][0]["cards"][0], "key": "extra"})
+    assert not ImportSerializer(data=data).is_valid()
+    data["sheets"][0]["cards"].pop()
+    del data["sheets"][0]["cards"][0]["page"]
+    assert not ImportSerializer(data=data).is_valid()

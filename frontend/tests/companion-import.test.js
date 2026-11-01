@@ -6,7 +6,7 @@ test('prompts retain the selected subject, sheet versions, variety and concise l
  const ctx={subject_id:'subject',edition:'lockin',view:'summary'};
  const sheets=[{sheet_id:'a',source_version_id:'v1',title:'Sheet A',page_count:10},{sheet_id:'b',source_version_id:'v2',title:'Sheet B',page_count:20}];
  const prompt=buildCompanionPrompt(ctx,sheets);
- for(const value of ['Starmo','Starsea','v1','v2','600','fact','memory','20 distinct','ONLY the PDFs'])assert.ok(prompt.includes(value));
+ for(const value of ['Starmo','Starsea','v1','v2','600','fact','memory','up to 40 cards per sheet','no fixed target or minimum','MUST have page','Only genuinely general information','ONLY the PDFs'])assert.ok(prompt.includes(value));
  assert.throws(()=>buildCompanionPrompt(ctx,[]));
  assert.equal(parseCompanionJson('\uFEFF{"schema_version":1,"sheets":[{}]}').sheets.length,1);
  assert.throws(()=>parseCompanionJson('[]'));

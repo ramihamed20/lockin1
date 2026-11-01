@@ -43,7 +43,7 @@ class CardSerializer(StrictSerializer):
 class SheetSerializer(StrictSerializer):
     sheet_id = serializers.UUIDField()
     source_version_id = serializers.UUIDField()
-    cards = CardSerializer(many=True, allow_empty=False, max_length=200)  # type: ignore[call-arg]
+    cards = CardSerializer(many=True, allow_empty=False, max_length=40)  # type: ignore[call-arg]
 
     def validate_cards(self, cards: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if len({card["key"] for card in cards}) != len(cards):
