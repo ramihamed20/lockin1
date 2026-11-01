@@ -128,8 +128,8 @@ export default function PlanSettings({ profile, materials = [], onSave, onCancel
             {draft.mode === "normal" && <div className="plan-advanced plan-wizard-weekly"><strong>{t("smart.weeklyTime")}</strong><div className="plan-weekly-time">
             {["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((key, index) => <label key={key}>{t(`plan.${key}`)}<input type="number" min="0" max="240" placeholder={String(draft.weekdays.includes(index) ? draft.daily_minutes : 0)} value={draft.weekly_minutes[index] ?? ""} onChange={event => change("weekly_minutes", { ...draft.weekly_minutes, [index]: event.target.value })} /></label>)}
           </div><label>{t("smart.reviewMinutes")}<input type="number" min="1" max="15" required value={draft.review_minutes} onChange={event => change("review_minutes", event.target.value)} /></label><small>{t("smart.weeklyTimeHint")}</small></div>}
-            <label>{t("plan.timezone")}<input required maxLength={80} dir="ltr" value={draft.timezone} onChange={event => change("timezone", event.target.value)} /></label>
           </details>
+          <label className="plan-wizard-timezone">{t("plan.timezone")}<input required maxLength={80} dir="ltr" value={draft.timezone} onChange={event => change("timezone", event.target.value)} /></label>
           <p className="plan-note">{t("plan.preserve")}</p>
         </div>}
       </fieldset>
