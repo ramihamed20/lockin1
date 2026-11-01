@@ -98,6 +98,10 @@ export const studyPlanMessages = {
     "plan.wizard.unsetSubjects": "You can add subjects later",
     "plan.wizard.advanced": "More options",
     "plan.wizard.manualCopy": "You will add each study session to your calendar yourself. You can change its time, day and subject whenever you like.",
+    "plan.wizard.findSubject": "Find a subject",
+    "plan.wizard.findSubjectHint": "Search your subjects",
+    "plan.wizard.showMore": "Show all {count} subjects",
+    "plan.wizard.showLess": "Show fewer subjects",
 
     "plan.beginning": "Beginning", "plan.normal": "Normal", "plan.custom": "Custom",
     "plan.beginningHint": "Start with 10 minutes. Build up gently.",
@@ -241,6 +245,10 @@ export const studyPlanMessages = {
     "plan.wizard.unsetSubjects": "تقدر تضيف المواد لاحقًا",
     "plan.wizard.advanced": "خيارات إضافية",
     "plan.wizard.manualCopy": "تقدر تضيف كل جلسة بنفسك وتحدد وقتها ويومها ومادتها، وتعدلها لاحقًا في أي وقت.",
+    "plan.wizard.findSubject": "ابحث عن مادة",
+    "plan.wizard.findSubjectHint": "اسم المادة",
+    "plan.wizard.showMore": "عرض كل المواد ({count})",
+    "plan.wizard.showLess": "عرض مواد أقل",
 
     "plan.beginning": "بداية", "plan.normal": "عادي", "plan.custom": "مخصص",
     "plan.beginningHint": "ابدأ بعشر دقائق، وتدرّج بهدوء.",
