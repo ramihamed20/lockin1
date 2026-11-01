@@ -2343,3 +2343,39 @@ html.ix-hover .question-player-card .choices button:not(:disabled):hover { borde
 .plan-habit-assessment .plan-wizard-options[open] > .plan-field-grid { margin-block: 14px; }
 .plan-habit-assessment .plan-habit-growth { display: flex; flex-direction: row; align-items: center; gap: 10px; margin-block-start: 10px; }
 .plan-habit-assessment .plan-habit-growth input { flex: 0 0 auto; }
+
+
+/* Study Plan: one clear destination at a time, rather than a dashboard of forms. */
+.study-plan-v2 .plan-journey,
+.study-plan-v2 .plan-stage-heading,
+.study-plan-v2 .plan-stage-panel,
+.study-plan-v2 .plan-journey-footer,
+.study-plan-v2 > .plan-exam-panel { grid-column: 1 / -1; }
+.plan-journey { display: grid; gap: 12px; padding: 15px 18px; border-radius: 22px; background: var(--surface); }
+.plan-journey-counter { color: var(--muted); font-size: 12px; font-weight: 500; }
+.plan-journey-steps { display: grid; grid-template-columns: repeat(var(--plan-stages, 4), minmax(0, 1fr)); gap: 8px; }
+.plan-journey-steps button { display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 48px; padding: 8px; gap: 8px; border: 1px solid transparent; border-radius: 14px; background: transparent; color: var(--muted); font: inherit; font-size: 13px; font-weight: 550; cursor: pointer; }
+.plan-journey-steps button.is-active { color: var(--accent-text); background: var(--accent-soft); border-color: var(--accent-border); }
+.plan-journey-number { flex: 0 0 23px; display: grid; place-items: center; width: 23px; height: 23px; border-radius: 50%; background: var(--surface-3); color: var(--text); font-variant-numeric: tabular-nums; font-size: 12px; }
+.plan-journey-steps button.is-active .plan-journey-number { background: var(--accent); color: var(--on-accent); }
+.plan-stage-heading { font-size: 1.12rem; font-weight: 650; outline: none; }
+.plan-stage-panel { display: grid; gap: 18px; min-width: 0; }
+.plan-stage-today .plan-today-list { display: grid; gap: 18px; padding: 24px; background: var(--surface); border-radius: 24px; }
+.plan-today-list .plan-task-list { margin: 0; }
+.plan-stage-panel .plan-stats, .plan-stage-panel .plan-week { width: 100%; }
+.plan-stage-progress .plan-overdue { margin: 0; }
+.plan-journey-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding-block: 4px 10px; }
+.plan-journey-footer > :last-child { margin-inline-start: auto; }
+:dir(rtl) .plan-journey-footer svg { transform: scaleX(-1); }
+@media (max-width: 600px) {
+  .plan-journey { padding: 12px; border-radius: 18px; gap: 10px; }
+  .plan-journey-steps { gap: 4px; }
+  .plan-journey-steps button { display: grid; justify-items: center; align-content: center; gap: 5px; min-height: 60px; padding: 6px 2px; font-size: 11px; text-align: center; }
+  .plan-journey-number { width: 22px; height: 22px; }
+  .plan-stage-today .plan-today-list { padding: 18px 14px; border-radius: 20px; }
+  .plan-journey-footer .btn { flex: 1 1 auto; justify-content: center; min-width: 0; }
+}
+@media (max-width: 359px) {
+  .plan-journey-steps button { font-size: 10px; }
+  .plan-journey-number { width: 19px; height: 19px; }
+}
