@@ -64,12 +64,12 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
   useEffect(() => { if (preview) previewAnchor.current?.focus(); }, [preview]);
   const hasShownStage = useRef(false);
   useEffect(() => {
-    if (!plan?.profile?.configured || settings) return;
+    if (!configured || settings) return;
     if (!hasShownStage.current) { hasShownStage.current = true; return; }
     const heading = stageAnchor.current;
     heading?.focus({ preventScroll: true });
-    heading?.scrollIntoView({ behavior: "instant", block: "start" });
-  }, [stage, plan?.profile?.configured, settings]);
+    heading?.scrollIntoView({ behavior: "auto", block: "start" });
+  }, [stage, configured, settings]);
   useEffect(() => {
     const strip = dayStrip.current;
     if (!strip) return;
