@@ -53,6 +53,10 @@ jobs:
       - name: Exercise real UI in Chromium at device sizes
         working-directory: frontend
         run: pnpm exec playwright test "${{ matrix.spec }}" --grep "${{ matrix.grep }}" --workers=1
+      - name: Full Study Plan interactions across setup, calendar and exam
+        if: matrix.label == 'study-plan'
+        working-directory: frontend
+        run: pnpm exec playwright test e2e/study-plan.spec.js e2e/study-plan-pilot.spec.js e2e/study-plan-adaptive.spec.js --workers=1
       - name: Collect snapshots even when an assertion fails
         if: always()
         run: |
