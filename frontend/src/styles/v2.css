@@ -123,8 +123,10 @@
   /* Keep the settings navigation's geometry independent of the selected panel.
      Tall panels must scroll the page, never resize the navigation alongside them. */
   .settings-v2-nav {
-    block-size: calc(100dvh - 88px - var(--safe-top, 0px) - var(--safe-bottom, 0px));
+    /* The shell's stable viewport token avoids Safari dynamic toolbar jumps. */
+    block-size: calc(var(--app-viewport-height, 100vh) - 88px - var(--safe-top, 0px) - var(--safe-bottom, 0px));
     min-block-size: 0;
+    align-self: start;
     grid-auto-rows: max-content;
     overflow-y: auto;
     overscroll-behavior: contain;
