@@ -247,3 +247,9 @@ Only changed paths already present in evidenceDigests were refreshed following
 this review. The public verifier and publication allowlist remain mandatory and
 unchanged; public text and its last substantive verification dates are retained.
 Validation and runtime limits for this change are recorded in ERROR_HANDLING_FIXES.md.
+
+## 2026-11-01 — study companion translations
+
+Rechecked `custom-active-study` and `first-year-subjects` against their existing evidence. The only `i18n.js` changes add the study companion's independent Arabic/English keys; the existing claims and labels are unchanged. Updated that file's evidence digest.
+
+Reviewed the reader diff: it adds a lazy decorative overlay and excludes its controls from reader keyboard shortcuts. Existing PDF navigation, annotation tools, export, page ranges and Active Study transitions are unchanged. Their evidence digest was renewed after this review and the scoped regression checks.

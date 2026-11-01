@@ -57,6 +57,12 @@ from .sheet_summary_views import (
     SheetSummaryCollectionView,
     SheetSummaryDetailView,
 )
+from .study_assistance_views import (
+    AdminStudyAssistanceDetailView,
+    AdminStudyAssistanceView,
+    DocumentStudyAssistanceView,
+    StudyAssistanceSavedView,
+)
 from .translation_views import AdminSheetTranslationView, DocumentTranslationView
 from .views import (
     ArchiveLearningObjectView,
@@ -82,6 +88,26 @@ from .views import (
 app_name = "content"
 
 urlpatterns = [
+    path(
+        "catalog/documents/<uuid:document_id>/assistance",
+        DocumentStudyAssistanceView.as_view(),
+        name="document-study-assistance",
+    ),
+    path(
+        "catalog/documents/<uuid:document_id>/assistance/<uuid:idea_id>/saved",
+        StudyAssistanceSavedView.as_view(),
+        name="study-assistance-saved",
+    ),
+    path(
+        "operations/admin/content/sheets/<uuid:sheet_id>/assistance",
+        AdminStudyAssistanceView.as_view(),
+        name="admin-study-assistance",
+    ),
+    path(
+        "operations/admin/content/sheets/<uuid:sheet_id>/assistance/<uuid:idea_id>",
+        AdminStudyAssistanceDetailView.as_view(),
+        name="admin-study-assistance-detail",
+    ),
     path(
         "operations/admin/content/sheets/<uuid:sheet_id>/translations",
         AdminSheetTranslationView.as_view(),

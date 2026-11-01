@@ -72,6 +72,7 @@ import { useMcqExplainLinks } from "../workspace/knowledge/useMcqExplainLinks.js
 import { createKnowledgeStore } from "../workspace/knowledge/storage.js";
 import { knowledgeApi } from "../api/knowledge.js";
 const KnowledgeWorkspace = lazy(() => import("../workspace/knowledge/KnowledgeWorkspace.jsx"));
+const StudyCompanion = lazy(() => import("../workspace/assistance/StudyCompanion.jsx"));
 import { MySummaryDialog, SummaryReceiveCard, SummaryTextPanel } from "../workspace/summary/MySummary.jsx";
 import { useSheetSummaries } from "../workspace/summary/useSheetSummaries.js";
 import { sheetSummariesApi } from "../api/sheetSummaries.js";
@@ -2269,7 +2270,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.target?.closest?.(".knowledge-panel")) return;
+      if (event.target?.closest?.(".knowledge-panel, .study-companion")) return;
       if (isTypingTarget(event.target)) return;
       const commandKey = event.ctrlKey || event.metaKey;
       if (event.key === "Escape" && coverSelecting) {
@@ -6254,6 +6255,13 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
           {focusMessage && <p className="workspace-v2-status" role="status">{focusMessage}</p>}
         </aside>
       </div>
+      {!whiteboard && !personal && catalogDocument?.id && user?.id && <Suspense fallback={null}><StudyCompanion
+        key={[user.id, catalogDocument.id, documentScope?.edition, documentScope?.view].join("/")}
+        userId={user.id} documentId={catalogDocument.id} versionId={catalogDocument.versionId}
+        edition={documentScope?.edition || "university"} view={documentScope?.view || "study"}
+        page={activeVirtualPageId === null ? page : 0} pageStart={accessiblePageStart} pageLimit={accessiblePageCount}
+        active={paneActive && workspaceReady && !activeQuiz && !modeDialogOpen && !activeExitOpen && !knowledgeOpen && !marksOpen && !sideOpen && !summaryDialogOpen && !openSurface && !exportBusy}
+        portalRoot={isDocumentFullscreen ? rootRef.current : null} /></Suspense>}
       <span className="workspace-v2-visually-hidden" role="status" aria-live="polite">{saveLabel}{focusMessage ? ` · ${focusMessage}` : ""}</span>
       {studyMode === "active" && activeStudy?.study_mode !== "pomodoro" && activeStudy?.status === "active" && (["reading", "checkpoint", "final"].includes(activeStudy.stage) || ACTIVE_RESULT_STAGES.has(activeStudy.stage)) && <div className="workspace-v2-checkpoint-dock" role="status" aria-live="polite">
         <button type="button" className={`workspace-v2-checkpoint-button${activeStudyButtonReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeStudyButtonReady} aria-label={activeStudyButtonReady ? t(activeStudy.stage.startsWith("final") ? "activeStudy.openFinal" : "activeStudy.openCheckpoint") : t("activeStudy.reachToUnlock", { page: accessiblePageCount })}>{!activeStudy.stage.startsWith("final") && activeStudy.number_of_parts > 1 && <span className="workspace-v9-step-part" aria-hidden="true">{t("activeStudy.pageRange", { start: activeStudy.current_page_range?.start_page, end: activeStudy.current_page_range?.end_page })}</span>}{activeStudyButtonReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t(activeStudy.stage.startsWith("final") ? "activeStudy.finalExam" : "activeStudy.checkpoint")}</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t("activeStudy.reachPage", { page: accessiblePageCount })}</span></>}</button>

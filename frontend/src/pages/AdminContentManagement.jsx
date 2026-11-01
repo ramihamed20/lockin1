@@ -1,3 +1,5 @@
+import { StudyAssistancePanel } from "./admin/StudyAssistancePanel.jsx";
+import { useI18n } from "../components/I18nProvider.jsx";
 import { SheetTranslationEditor } from "./admin/SheetTranslationEditor.jsx";
 import { bankPageNumbers } from "../lib/activeStudyPages.js";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -336,6 +338,7 @@ function EditionTabs({ sheet, edition, onChange }) {
 }
 
 function SheetRow({ sheet, sheets, index, subject, canManage, canManageQuestions = false, onChanged }) {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [pending, setPending] = useState(""); const [error, setError] = useState(null); const [confirm, setConfirm] = useState(null); const [replacement, setReplacement] = useState(null); const [summaryReplacement, setSummaryReplacement] = useState(null); const [position, setPosition] = useState(sheet.position); const [title, setTitle] = useState(sheet.title); const [manageTab, setManageTab] = useState("overview"); const [edition, setEdition] = useState("university");
   // Rows stay mounted while the list refreshes, so the editable copy follows the
@@ -363,7 +366,7 @@ function SheetRow({ sheet, sheets, index, subject, canManage, canManageQuestions
           <summary>Open control center <Icon name="chevron-right" size={17} /></summary>
           <HierarchyBreadcrumb subject={subject} sheetTitle={sheet.title} />
           <TabList className="admin-sheet-control-tabs" label="Sheet control center" variant="tint" value={manageTab} onChange={setManageTab}>
-            {[['overview', 'Overview'], ['files', 'Files'], ['translation', 'Arabic translation'], ['questions', 'Questions'], ['active-study', 'Active Study'], ['all-questions', 'All Questions'], ['publication', 'Publication'], ['danger', 'Danger Zone']].map(([key, label]) => <Tab key={key} value={key}>{label}</Tab>)}
+            {[['overview', 'Overview'], ['files', 'Files'], ['translation', 'Arabic translation'], ['questions', 'Questions'], ['active-study', 'Active Study'], ['all-questions', 'All Questions'], ['study-assistance', t('studyCompanion.admin.title')], ['publication', 'Publication'], ['danger', 'Danger Zone']].map(([key, label]) => <Tab key={key} value={key}>{label}</Tab>)}
           </TabList>
           <div className="admin-sheet-control">
             {manageTab === "overview" && <section className="admin-control-section" aria-labelledby={`sheet-overview-${sheet.id}`}>
@@ -419,6 +422,7 @@ function SheetRow({ sheet, sheets, index, subject, canManage, canManageQuestions
               <AllQuestionsPanel sheet={sheet} canManageQuestions={canManageQuestions} onSaved={onChanged} />
             </section>}
 
+            {manageTab === "study-assistance" && <StudyAssistancePanel sheet={sheet} />}
             {manageTab === "publication" && <section className="admin-control-section" aria-label="Publication status">
               <div className="admin-visibility-state"><span className={`stat-icon ${sheet.workflow_status === "published" ? "is-ready" : ""}`}><Icon name={sheet.workflow_status === "published" ? "eye" : "eye-off"} /></span><div><strong>{studentVisibility}</strong><small>{readiness.issues.length ? `${readiness.issues.length} issue${readiness.issues.length === 1 ? "" : "s"} to resolve` : "No known publication blockers"}</small></div></div>
               {readiness.issues.length > 0 && <ul className="admin-blocking-list">{readiness.issues.map((issue) => <li key={issue.code}><strong>{issue.label}</strong><span>{issue.detail}</span></li>)}</ul>}

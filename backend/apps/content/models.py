@@ -11,6 +11,71 @@ from apps.files.models import ManagedFile
 from .editions import UNIVERSITY
 
 
+class StudyAssistanceIdea(models.Model):
+    """Reviewed help for one immutable PDF version, edition and reader view."""
+
+    class Kind(models.TextChoices):
+        UNDERSTAND = "understand", "Understand"
+        MEMORY = "memory", "Memory aid"
+        ORGANIZE = "organize", "Organize"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    source_version = models.ForeignKey(
+        "LearningObjectVersion", on_delete=models.CASCADE, related_name="study_assistance_ideas"
+    )
+    edition = models.CharField(max_length=16, default=UNIVERSITY)
+    view = models.CharField(max_length=16, default="study")
+    page = models.PositiveIntegerField(null=True, blank=True)
+    kind = models.CharField(max_length=16, choices=Kind.choices, default=Kind.UNDERSTAND)
+    teaser = models.CharField(max_length=240)
+    question = models.TextField(max_length=1000)
+    explanation = models.TextField(max_length=5000)
+    followup_question = models.TextField(max_length=1000)
+    followup_answer = models.TextField(max_length=3000)
+    position = models.PositiveIntegerField(default=0)
+    is_published = models.BooleanField(default=False)
+    revision = models.PositiveBigIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("position", "created_at", "id")
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(page__isnull=True) | Q(page__gte=1),
+                name="content_assistance_positive_page",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=("source_version", "edition", "view", "is_published", "page"),
+                name="content_assistance_scope_idx",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.source_version_id}:{self.edition}:{self.view}: {self.question[:80]}"
+
+
+class SavedStudyAssistanceIdea(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    idea = models.ForeignKey(
+        StudyAssistanceIdea, on_delete=models.CASCADE, related_name="student_saves"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("user", "idea"), name="content_saved_assistance_unique"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.idea_id}"
+
+
 class CatalogSubject(models.Model):
     """A flat, cohort-owned Catalog branch exposed by Materials and Content Studio."""
 
