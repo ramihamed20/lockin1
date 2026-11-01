@@ -121,6 +121,30 @@ for (const config of [{ name: "phone-ar", width: 320, height: 740, locale: "ar" 
   });
 }
 
+// Switching between short and long settings panels must never stretch or
+// collapse the adjacent navigation on wide layouts, including iPad landscape.
+for (const viewport of [{ width: 1440, height: 900 }, { width: 1180, height: 820 }]) {
+  test(`settings sidebar keeps its height across sections at ${viewport.width}px`, async ({ page }) => {
+    await server(page, "en");
+    await page.setViewportSize(viewport);
+    await page.goto("/#/settings?section=account");
+
+    const nav = page.locator(".settings-v2-nav");
+    await expect(nav).toBeVisible();
+    await expect(page.locator("#settings-account")).toBeVisible();
+    const startHeight = await nav.evaluate(element => element.getBoundingClientRect().height);
+    expect(startHeight).toBeGreaterThan(0);
+
+    for (const section of ["appearance", "devices", "billing", "notifications", "updates", "privacy", "account"]) {
+      await page.evaluate(id => { window.location.hash = `#/settings?section=${id}`; }, section);
+      await expect(page.locator(`.settings-v2[data-active-section="${section}"]`)).toBeVisible();
+      await expect(page.locator(`#settings-${section}-heading`)).toBeVisible();
+      const height = await nav.evaluate(element => element.getBoundingClientRect().height);
+      expect(Math.abs(height - startHeight), `Navigation height changed in ${section}`).toBeLessThan(1);
+    }
+  });
+}
+
 test("a desktop-mode iPad changes only its current session illustration", async ({ page }) => {
   await server(page, "ar");
   await page.addInitScript(() => {
