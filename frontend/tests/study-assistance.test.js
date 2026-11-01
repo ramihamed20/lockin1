@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   assistanceForPage, assistanceScopeKey, companionPreferenceKey, companionPreferences,
-  normalizeAssistanceIdea, writingDuration, writingGraphemes
+  normalizeAssistanceIdea, savedAssistanceForRange, writingDuration, writingGraphemes
 } from "../src/lib/studyAssistance.js";
 
 const row = (changes = {}) => ({
@@ -10,6 +10,13 @@ const row = (changes = {}) => ({
   teaser: "Help with this point", question: "Why?", explanation: "Because.",
   followup_question: "Another question?", followup_answer: "Its solution.", saved: false,
   ...changes
+});
+
+test("saved ideas remain available on an empty page within the accessible range", () => {
+  const rows = [row({ page: 2, saved: true }), row({ page: 5, saved: true }), row({ page: null, saved: true }), row({ page: 3, saved: false })];
+  assert.deepEqual(savedAssistanceForRange(rows, 2, 3).map((item) => item.page), [2, null]);
+  assert.deepEqual(savedAssistanceForRange(rows, 4, 4).map((item) => item.page), [null]);
+  assert.deepEqual(savedAssistanceForRange([], 1, 10), []);
 });
 
 test("help is shown only on a real, accessible PDF page, with whole-sheet ideas included", () => {

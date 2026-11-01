@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { Bookmark, ChevronLeft, MoreHorizontal, Settings, Sparkles, X } from "lucide-react";
 import { useI18n } from "../../components/I18nProvider.jsx";
 import { studyAssistanceApi } from "../../api/studyAssistance.js";
-import { assistanceForPage, assistanceScopeKey, readCompanionPreferences, saveCompanionPreferences } from "../../lib/studyAssistance.js";
+import { assistanceForPage, assistanceScopeKey, readCompanionPreferences, saveCompanionPreferences, savedAssistanceForRange } from "../../lib/studyAssistance.js";
 import { TypedExplanation } from "./TypedExplanation.jsx";
 import { CompanionCharacter, companionCharacters } from "./CompanionCharacter.jsx";
 import { useCompanionMotion } from "./useCompanionMotion.js";
@@ -64,6 +64,7 @@ export default function StudyCompanion({ userId, documentId, versionId, edition 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [savedList, setSavedList] = useState({ key: "", ideas: [], loading: false, failed: false });
+  const [savedAvailability, setSavedAvailability] = useState({ key: "", ideas: [] });
   const rootRef = useRef(null), petRef = useRef(null), saveRequest = useRef(0);
   const key = assistanceScopeKey(userId, documentId, edition, view, versionId, page);
   const validPage = Number.isInteger(page) && page >= pageStart && page <= pageLimit && page > 0;
@@ -84,6 +85,17 @@ export default function StudyCompanion({ userId, documentId, versionId, edition 
     return () => controller.abort();
   }, [documentId, enabled, key, page, versionId, view]);
   useEffect(() => {
+    if (!enabled || data.key !== key || ideas.length || preferences.hidden) return undefined;
+    const controller = new AbortController();
+    studyAssistanceApi.list(documentId, { view, saved: true, signal: controller.signal }).then((body) => {
+      if (!controller.signal.aborted) setSavedAvailability({
+        key,
+        ideas: (!versionId || body.versionId === versionId) ? savedAssistanceForRange(body.results, pageStart, pageLimit) : []
+      });
+    }, () => { if (!controller.signal.aborted) setSavedAvailability({ key, ideas: [] }); });
+    return () => controller.abort();
+  }, [data.key, documentId, enabled, ideas.length, key, pageLimit, pageStart, preferences.hidden, versionId, view]);
+  useEffect(() => {
     if (!surface) return undefined;
     function outside(event) { if (!rootRef.current?.contains(event.target)) setSurface(""); }
     function escape(event) { if (event.key === "Escape") { event.stopPropagation(); setSurface(""); petRef.current?.focus(); } }
@@ -97,7 +109,7 @@ export default function StudyCompanion({ userId, documentId, versionId, edition 
     const controller = new AbortController();
     setSavedList({ key, ideas: [], loading: true, failed: false });
     studyAssistanceApi.list(documentId, { view, saved: true, signal: controller.signal }).then((body) => {
-      if (!controller.signal.aborted) setSavedList({ key, loading: false, failed: false, ideas: (!versionId || body.versionId === versionId) ? body.results.filter((row) => row.page === null || (row.page >= pageStart && row.page <= pageLimit)) : [] });
+      if (!controller.signal.aborted) setSavedList({ key, loading: false, failed: false, ideas: (!versionId || body.versionId === versionId) ? savedAssistanceForRange(body.results, pageStart, pageLimit) : [] });
     }, () => { if (!controller.signal.aborted) setSavedList({ key, ideas: [], loading: false, failed: true }); });
     return () => controller.abort();
   }, [documentId, enabled, key, pageLimit, pageStart, surface, versionId, view]);
@@ -111,6 +123,7 @@ export default function StudyCompanion({ userId, documentId, versionId, edition 
       if (requestId === saveRequest.current) {
         setData((current) => ({ ...current, ideas: current.ideas.map((row) => row.id === saved.id ? saved : row) }));
         setReviewIdea((current) => current?.id === saved.id ? saved : current);
+        if (!saved.saved) setSavedAvailability((current) => ({ ...current, ideas: current.ideas.filter((row) => row.id !== saved.id) }));
         if (saved.saved) characterMotion.saved();
       }
     } catch {
@@ -123,11 +136,12 @@ export default function StudyCompanion({ userId, documentId, versionId, edition 
     setReviewIdea(row); setSurface("idea"); setError("");
   }
 
-  if (!enabled || (!ideas.length && !preferences.hidden)) return null;
+  const hasSavedOnEmptyPage = savedAvailability.key === key && savedAvailability.ideas.length > 0;
+  if (!enabled || (!ideas.length && !preferences.hidden && !hasSavedOnEmptyPage)) return null;
   const target = portalRoot || document.body;
   if (preferences.hidden) return createPortal(<button type="button" className="study-companion-restore" onClick={() => setPreferences((current) => ({ ...current, hidden: false }))}><Sparkles size={16} aria-hidden="true" />{t("studyCompanion.show")}</button>, target);
   return createPortal(<div ref={rootRef} dir={direction} className={"study-companion" + (motion ? " has-motion" : "")} data-motion-state={motion ? characterMotion.state : "idle"} onPointerDown={(event) => event.stopPropagation()}>
-    <button type="button" className="study-companion-pet" ref={petRef} onClick={() => { setError(""); setSurface(surface === "idea" ? "" : "idea"); }} aria-label={t("studyCompanion.open")} aria-expanded={surface === "idea"}><CompanionCharacter character={preferences.character} state={characterMotion.state} sequenceKey={characterMotion.sequenceKey} motion={motion} /></button>
+    <button type="button" className="study-companion-pet" ref={petRef} onClick={() => { setError(""); const targetSurface = idea ? "idea" : "saved"; setSurface(surface === targetSurface ? "" : targetSurface); }} aria-label={t(idea ? "studyCompanion.open" : "studyCompanion.savedIdeas")} aria-expanded={surface === "idea" || surface === "saved"}><CompanionCharacter character={preferences.character} state={characterMotion.state} sequenceKey={characterMotion.sequenceKey} motion={motion} /></button>
     <button type="button" className="study-companion-preferences" onClick={() => setSurface(surface === "settings" ? "" : "settings")} aria-label={t("studyCompanion.settings")} aria-expanded={surface === "settings"}><Settings size={15} aria-hidden="true" /></button>
     {!surface && idea && <div className="study-companion-bubble"><button type="button" onClick={() => setSurface("idea")}><Sparkles size={14} aria-hidden="true" /><strong dir="auto">{idea.teaser}</strong></button>{ideas.length > 1 && <button type="button" className="study-companion-next" onClick={() => { setSelected((selected + 1) % ideas.length); setError(""); }}><MoreHorizontal size={15} aria-hidden="true" />{t("studyCompanion.nextIdea")}</button>}</div>}
     {surface === "idea" && idea && <IdeaExplanation key={key + "/" + idea.id} idea={idea} motion={motion} busy={busy} error={error} onSave={() => void saveIdea()} onClose={close} onMotionPhase={characterMotion.phase} />}

@@ -16,6 +16,12 @@ export function assistanceForPage(rows, page, start = 1, end = Infinity) {
     .filter((row) => row && (row.page === null || row.page === page));
 }
 
+export function savedAssistanceForRange(rows, start = 1, end = Infinity) {
+  return (Array.isArray(rows) ? rows : [])
+    .map(normalizeAssistanceIdea)
+    .filter((row) => row && row.saved && (row.page === null || (row.page >= start && row.page <= end)));
+}
+
 export function assistanceScopeKey(userId, documentId, edition, view, versionId, page) {
   return JSON.stringify([userId, documentId, edition, view, versionId, page]);
 }
