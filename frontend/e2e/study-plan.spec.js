@@ -364,8 +364,8 @@ test("editing a session keeps navigation locked until its draft is closed", asyn
   await page.goto("/#/study-plan");
   await page.locator(".plan-hero").getByRole("button", { name: "Add session", exact: true }).click();
   await page.getByLabel("What will you study?", { exact: true }).fill("Unfinished notes");
-  await expect(page.locator(".plan-journey-steps button")).toBeDisabled();
+  await expect(page.locator(".plan-journey-steps button").first()).toBeDisabled();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page.locator(".plan-journey-steps button").first()).toBeEnabled();
-  await expect(page.locator(".plan-task-list")).not.toContainText("Unfinished notes");
+  await expect(page.getByText("Unfinished notes")).toHaveCount(0);
 });
