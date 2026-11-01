@@ -91,6 +91,27 @@ test("wizard reveals one step at a time, validates days and preserves earlier an
   await expect(page.locator(".plan-hero")).toBeVisible();
 });
 
+test("long subject catalogs stay compact and can be searched before saving", async ({ page }) => {
+  const materials = Array.from({ length: 10 }, (_, index) => ({
+    slug: `subject-${index + 1}`, title: `Subject ${index + 1}`, sheets: []
+  }));
+  await planner(page, { materials });
+  await page.goto("/#/study-plan");
+  await page.locator(".plan-wizard-next").click();
+  await page.locator(".plan-wizard-next").click();
+  const choices = page.getByRole("group", { name: "Your subjects" });
+  await expect(choices.getByRole("button")).toHaveCount(6);
+  await page.getByLabel("Find a subject").fill("Subject 9");
+  await expect(choices.getByRole("button")).toHaveCount(1);
+  await choices.getByRole("button", { name: "Subject 9" }).click();
+  await page.getByLabel("Find a subject").fill("");
+  await expect(choices.getByRole("button", { name: "Subject 9" })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Show all 10 subjects" }).click();
+  await expect(choices.getByRole("button")).toHaveCount(10);
+  await saveWizard(page);
+  await expect(page.locator(".plan-hero")).toBeVisible();
+});
+
 test("Beginning and Normal persist preferences, preview sessions and retain completion after reload", async ({ page }) => {
   await planner(page);
   await page.goto("/#/study-plan");
