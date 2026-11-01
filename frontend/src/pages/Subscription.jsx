@@ -43,6 +43,7 @@ function paidOffers(catalog) {
 }
 
 const MAX_CARDS = 5;
+const CHECKOUT_STEPS = ["subscription.stepPlan", "subscription.stepReview", "subscription.stepPay"];
 
 function addMonths(date, count) {
   const next = new Date(date);
@@ -274,11 +275,19 @@ export default function Subscription({ onPoliciesAccepted }) {
   // Survives re-renders and failed submissions; cleared only once an attempt
   // has actually been accepted. See submitPayment.
   const paymentAttemptKey = useRef("");
+  const [checkoutStep, setCheckoutStep] = useState(0);
+  const stepHeading = useRef(null);
+  const previousStep = useRef(0);
   const offers = useMemo(() => details.data ? paidOffers(details.data.catalog) : [], [details.data]);
   const coveredOffers = useMemo(() => details.data ? lydOffers(details.data.catalog).length - offers.length : 0, [details.data, offers]);
   const comingSoon = useMemo(() => details.data ? comingSoonOffers(details.data.catalog) : [], [details.data]);
-  const effectivePlan = selectedPlan || offers[0]?.plan.id || "";
+  const effectivePlan = offers.find(({ plan }) => plan.id === selectedPlan)?.plan.id || offers[0]?.plan.id || "";
   const review = subscriptionSession.manualPaymentReview;
+
+  useEffect(() => {
+    if (previousStep.current !== checkoutStep) stepHeading.current?.focus();
+    previousStep.current = checkoutStep;
+  }, [checkoutStep]);
 
   // The payment history and the plan catalogue are loaded once, when the screen
   // opens. The access session keeps re-reading the review state on its own, so
@@ -348,7 +357,7 @@ export default function Subscription({ onPoliciesAccepted }) {
 
   async function submitPayment(event) {
     event.preventDefault();
-    if (!effectivePlan || submitting || !accepted) return;
+    if (checkoutStep !== 2 || !effectivePlan || !canSubmit || submitting || !accepted || !codesReady(codes, oneCardOnly)) return;
     setSubmitting(true);
     setError("");
     setNotice("");
@@ -372,6 +381,8 @@ export default function Subscription({ onPoliciesAccepted }) {
       subscriptionSession.setAuthoritativeSubscription(result.subscription);
       setCodes([""]);
       setPayInInstallments(false);
+      setAccepted(false);
+      setCheckoutStep(0);
       setNotice(t("subscription.submitted"));
       details.reload();
     } catch (requestError) {
@@ -395,6 +406,7 @@ export default function Subscription({ onPoliciesAccepted }) {
         {/* While an installment holds access back, the review banner's "your
             access is on" is not true; the installment panel says what is. */}
         {!installmentHold && <ReviewBanner review={review} t={t} />}
+        {notice && <p className="form-alert success" role="status">{notice}</p>}
 
         <InstallmentPlan plan={installmentPlan} pendingManualReview={pendingManualReview} locale={locale} t={t} onPay={payInstallment} />
 
@@ -437,7 +449,6 @@ export default function Subscription({ onPoliciesAccepted }) {
             <div className="subscription-payment-unavailable">
               <h2>{t("subscription.nothingToBuyTitle")}</h2>
               <p>{t("subscription.nothingToBuyBody")}</p>
-              {notice && <p className="form-alert success" role="status">{notice}</p>}
             </div>
           ) : !catalog.manualPaymentAvailable || !offers.length ? (
             <EmptyState title={t("subscription.noOffers")} text={t("subscription.noOffersBody")} />
@@ -447,8 +458,21 @@ export default function Subscription({ onPoliciesAccepted }) {
               <p>{pendingManualReview ? t("subscription.pendingPaymentBody") : t("subscription.renewalNotYetBody")}</p>
             </div>
           ) : (
-            <form className="subscription-checkout subscription-quick-checkout" onSubmit={submitPayment}>
-              <h2 className="subscription-v2-heading" id="subscription-plan-heading">{t("subscription.choosePlan")}</h2>
+            <form className="subscription-checkout subscription-guided-checkout" onSubmit={submitPayment} aria-busy={submitting}>
+              <ol className="subscription-stepper" aria-label={t("subscription.stepsLabel")}>
+                {CHECKOUT_STEPS.map((label, index) => (
+                  <li className={index === checkoutStep ? "is-current" : index < checkoutStep ? "is-done" : ""} key={label}>
+                    <button type="button" aria-current={index === checkoutStep ? "step" : undefined} disabled={submitting || index > checkoutStep} onClick={() => setCheckoutStep(index)}>
+                      <span className="subscription-stepper-index" aria-hidden="true">{index < checkoutStep ? "✓" : index + 1}</span>
+                      <span>{t(label)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+              <h2 className="subscription-v2-heading subscription-stage-heading" id="subscription-plan-heading" ref={stepHeading} tabIndex={-1}>
+                {t(CHECKOUT_STEPS[checkoutStep])}
+              </h2>
+              {checkoutStep === 0 && <>
               <fieldset className="subscription-plan-options">
                 <legend className="visually-hidden">{t("subscription.choosePlan")}</legend>
                 <div className="subscription-plan-grid">
@@ -456,7 +480,7 @@ export default function Subscription({ onPoliciesAccepted }) {
                     const copy = offerCopy(plan, version, locale);
                     return (
                     <label className={effectivePlan === plan.id ? "selected" : ""} key={plan.id}>
-                      <input type="radio" name="subscription-plan" value={plan.id} aria-label={copy.title} checked={effectivePlan === plan.id} onChange={() => { setSelectedPlan(plan.id); setCodes([""]); setPayInInstallments(false); setError(""); }} />
+                      <input type="radio" name="subscription-plan" value={plan.id} aria-label={copy.title} checked={effectivePlan === plan.id} onChange={() => { setSelectedPlan(plan.id); setCodes([""]); setPayInInstallments(false); setAccepted(false); setError(""); }} />
                       <span className="subscription-plan-copy">
                         <strong>{copy.title}</strong>
                         <small>{copy.description}</small>
@@ -472,8 +496,27 @@ export default function Subscription({ onPoliciesAccepted }) {
                   })}
                 </div>
               </fieldset>
+              <div className="subscription-step-actions">
+                <button className="btn btn-primary" type="button" onClick={() => setCheckoutStep(1)} disabled={!selectedOffer}>{t("subscription.continueToDetails")}</button>
+              </div>
+              </>}
 
-              {selectedOffer && <div className="subscription-pay-box">
+              {checkoutStep > 0 && selectedOffer && <>
+                <div className="subscription-order-summary">
+                  <div className="subscription-order-plan">
+                    <span>{t("subscription.selectedPlan")}</span>
+                    <h3>{offerCopy(selectedOffer.plan, selectedOffer.version, locale).title}</h3>
+                    <p>{offerCopy(selectedOffer.plan, selectedOffer.version, locale).description}</p>
+                    {selectedOffer.version.fixed_period_ends_at && <p>{t("subscription.accessEnd", { date: formatDate(selectedOffer.version.fixed_period_ends_at, { dateStyle: "long" }) })}</p>}
+                  </div>
+                  <div className="subscription-order-price">
+                    <span>{installmentMode ? t("subscription.dueNow") : t("subscription.total")}</span>
+                    <b>{money(dueNowMinor, selectedOffer.price.currency, selectedOffer.price.currency_exponent, locale)}</b>
+                    {installmentMode && <small>{t("subscription.ofTotal", { total: money(selectedOffer.price.amount_minor, selectedOffer.price.currency, selectedOffer.price.currency_exponent, locale) })}</small>}
+                  </div>
+                  <button type="button" className="btn btn-quiet compact subscription-change-plan" disabled={submitting} onClick={() => setCheckoutStep(0)}>{t("subscription.changePlan")}</button>
+                </div>
+              {checkoutStep === 1 && <div className="subscription-review-step">
                 {installmentsOffered && (
                   <fieldset className="subscription-pay-toggle">
                     <legend className="visually-hidden">{t("subscription.howToPay")}</legend>
@@ -492,18 +535,26 @@ export default function Subscription({ onPoliciesAccepted }) {
                     {installmentAmounts.map((value, index) => <li key={index}><b>{money(value, selectedOffer.price.currency, selectedOffer.price.currency_exponent, locale)}</b><small>{index === 0 ? t("subscription.installmentNow") : formatDate(addMonths(new Date(), index), { dateStyle: "medium" })}</small></li>)}
                   </ol>
                 )}
-                <p lang="ar" dir="rtl">بداية الوصول بعد اعتماد الدفع. {selectedOffer.version.fixed_period_ends_at ? `تنتهي الخطة في ${formatDate(selectedOffer.version.fixed_period_ends_at, { dateStyle: "long" })}.` : "تسري المدة المبينة للخطة بعد اعتماد الدفع."} لا يوجد تجديد تلقائي. أعمالك تبقى محفوظة بعد الانتهاء مع توقف الوصول المدفوع إليها.</p>
-                <label lang="ar" dir="rtl"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} required /> قرأت <a className="policy-link" href="#/terms">الشروط</a> و<a className="policy-link" href="#/privacy">الخصوصية</a> و<a className="policy-link" href="#/refunds">الاسترداد</a> وأوافق عليها، وتتوفر الأهلية أو موافقة الممثل القانوني حيث يلزم.</label>
+                <p className="subscription-stage-note">{t("subscription.accessTerms")}</p>
+                <div className="subscription-step-actions">
+                  <button className="btn btn-soft" type="button" onClick={() => setCheckoutStep(0)}>{t("subscription.back")}</button>
+                  <button className="btn btn-primary" type="button" onClick={() => setCheckoutStep(2)}>{t("subscription.continueToPayment")}</button>
+                </div>
+              </div>}
+              {checkoutStep === 2 && <fieldset className="subscription-pay-box subscription-payment-fields" disabled={submitting}>
+                <legend className="visually-hidden">{t("subscription.payLibyana")}</legend>
+                <p className="subscription-stage-note">{t("subscription.cardInstructions", { amount: money(dueNowMinor, selectedOffer.price.currency, selectedOffer.price.currency_exponent, locale) })}</p>
                 <RechargeCodeFields codes={codes} setCodes={setCodes} oneCardOnly={oneCardOnly} idPrefix="libyana-code" t={t} />
+                <label className="subscription-policy-consent"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} required /><span>{t("subscription.policyConsent")} <a className="policy-link" href="#/terms">{t("subscription.termsLink")}</a>{locale === "ar" ? "، " : ", "}<a className="policy-link" href="#/privacy">{t("subscription.privacyLink")}</a> {t("subscription.policyEligibility")}</span></label>
                 {error && <p className="form-alert error" role="alert">{error}</p>}
-                {notice && <p className="form-alert success" role="status">{notice}</p>}
+                <div className="subscription-step-actions">
+                <button className="btn btn-soft" type="button" onClick={() => setCheckoutStep(1)}>{t("subscription.back")}</button>
                 <button className="btn btn-primary libyana-submit" type="submit" disabled={submitting || !accepted || !codesReady(codes, oneCardOnly)}>
                   {submitting ? t("subscription.submitting") : t("subscription.payAmount", { amount: money(dueNowMinor, selectedOffer.price.currency, selectedOffer.price.currency_exponent, locale) })}
                 </button>
-                <p className="subscription-terms-note">
-                  {t("subscription.agreeToTerms")} <a href="#/terms">{t("subscription.termsLink")}</a>
-                </p>
-              </div>}
+                </div>
+              </fieldset>}
+              </>}
             </form>
           )}
         </section>

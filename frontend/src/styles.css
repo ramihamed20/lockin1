@@ -5783,7 +5783,7 @@ a.streak-card:hover:where(html.ix-hover *) {
   justify-self: start;
 }
 
-/* One screen: plan, how to pay, card, pay. */
+/* Recharge entry, shared by the guided checkout payment stage. */
 .subscription-pay-box {
   display: grid;
   gap: var(--space-3);
@@ -6522,7 +6522,7 @@ a.streak-card:hover:where(html.ix-hover *) {
   font-weight: 700;
 }
 
-.subscription-order-plan h2 {
+.subscription-order-plan h3 {
   margin: var(--space-1) 0;
   font-size: var(--text-xl);
 }
@@ -6581,6 +6581,44 @@ a.streak-card:hover:where(html.ix-hover *) {
 .subscription-step-actions .btn {
   min-width: 180px;
   min-height: 48px;
+}
+
+.subscription-guided-checkout {
+  max-width: 52rem;
+  margin-inline: auto;
+}
+
+.subscription-stage-heading {
+  scroll-margin-top: calc(90px + var(--safe-top, 0px));
+}
+
+.subscription-stage-note {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.subscription-payment-fields {
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.subscription-policy-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding-block: var(--space-2);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.subscription-policy-consent input {
+  flex: 0 0 auto;
+  margin-block-start: 4px;
 }
 
 /* iPad portrait and landscape: two plan columns keep every price visible
