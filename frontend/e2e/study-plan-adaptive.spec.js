@@ -82,12 +82,15 @@ test("subject preference order is saved without changing the study tasks", async
   const writes = await setup(page, "en");
   await page.locator(".plan-heading button").click();
   const settings = page.locator(".plan-settings");
+  await settings.locator(".plan-wizard-next").click();
+  await settings.locator(".plan-wizard-next").click();
   // Add a second subject, then move it ahead of the first.
   await settings.locator("#plan-subjects").fill("Physiology");
   await settings.getByRole("button", { name: "Add", exact: true }).click();
   await settings.getByText("Preferred subject order", { exact: true }).click();
   await settings.getByRole("button", { name: "Move Physiology earlier" }).click();
-  await settings.locator('button[type="submit"]').click();
+  await settings.locator(".plan-wizard-next").click();
+  await settings.locator(".plan-wizard-next").click();
   await expect.poll(() => writes.some(row => row.path.endsWith("/profile"))).toBe(true);
   expect(writes.find(row => row.path.endsWith("/profile")).body.subjects).toEqual(["Physiology", "Anatomy"]);
 });
