@@ -8,6 +8,7 @@ const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 async function openFixture(page, width, height) {
   await withoutServiceWorker(page);
   await page.addInitScript(() => localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now())));
+  await page.route("**/e2e-fixtures/pdf/**", (route) => route.fulfill({ path: "e2e/fixtures/pdf/sheet-41.pdf", contentType: "application/pdf" }));
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (await fulfillAccessContract(route, path)) return;
