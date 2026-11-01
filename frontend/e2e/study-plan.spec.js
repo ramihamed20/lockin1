@@ -67,6 +67,8 @@ async function saveWizard(page) {
 }
 
 
+async function selectStage(page, title) { await page.locator(".plan-journey-steps button").filter({ hasText: title }).click(); }
+
 test("wizard reveals one step at a time, validates days and preserves earlier answers", async ({ page }) => {
   await planner(page);
   await page.goto("/#/study-plan");
@@ -179,8 +181,11 @@ test("students pick their own subjects, use quick choices and pull an overdue se
     { id: "done", title: "Read the lecture", subject: "Oral Histology", scheduled_date: "2026-10-12", duration_minutes: 30, status: "completed", generated: false, revision: 1 }
   ] });
   await page.goto("/#/study-plan");
+  await selectStage(page, "Progress");
   await expect(page.getByRole("progressbar", { name: "This week: 30 of 60 min done" })).toBeVisible();
+  await selectStage(page, "My week");
   await expect(page.getByRole("button", { name: /Monday, October 12, 2026 · all sessions done/ })).toBeVisible();
+  await selectStage(page, "Progress");
   await page.getByText("Still on your list · 1").click();
   await page.getByRole("button", { name: "Move to today", exact: true }).click();
   await expect(page.getByText("Moved to today.")).toBeVisible();
@@ -198,7 +203,8 @@ test("students pick their own subjects, use quick choices and pull an overdue se
   const saved = page.waitForRequest(request => request.url().endsWith("/study-plan/profile"));
   await saveWizard(page);
   expect((await saved).postDataJSON().subjects).toEqual(["Oral Histology", "Pharmacology"]);
-  await page.getByRole("button", { name: "Add session", exact: true }).click();
+  await selectStage(page, "Today");
+  await page.locator(".plan-hero").getByRole("button", { name: "Add session", exact: true }).click();
   await page.getByRole("button", { name: "Pharmacology", exact: true }).click();
   await page.getByRole("button", { name: "Review my mistakes", exact: true }).click();
   await page.getByRole("button", { name: "45 min", exact: true }).click();
@@ -219,6 +225,7 @@ for (const [width, height, locale] of [[320,740,"ar"],[390,844,"en"],[820,1180,"
     await expect(page.locator("html")).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
     await expect(page.locator(".plan-week")).toHaveCount(0);
     await saveWizard(page);
+    await selectStage(page, locale === "ar" ? "جدولي" : "My week");
     const strip = page.locator(".plan-day-strip");
     const selected = strip.locator('[aria-pressed="true"]');
     await expect.poll(async () => {
@@ -238,7 +245,9 @@ for (const [width, height, locale] of [[320,740,"ar"],[390,844,"en"],[820,1180,"
 test("moving an overdue session from another week returns to today", async ({page}) => {
   await planner(page,{configured:true,items:[{id:"late",title:"Overdue anatomy",subject:"Anatomy",scheduled_date:"2026-10-01",duration_minutes:25,status:"planned",generated:false,revision:1}]});
   await page.goto("/#/study-plan");
+  await selectStage(page,"My week");
   await page.getByRole("button",{name:"Next week",exact:true}).click();
+  await selectStage(page,"Progress");
   await page.getByText("Still on your list · 1").click();
   await page.getByRole("button",{name:"Move to today",exact:true}).click();
   await expect(page.locator(".plan-week .plan-task-list")).toContainText("Overdue anatomy");
@@ -280,6 +289,7 @@ for (const locale of ["ar", "en"]) {
     await page.setViewportSize({ width: 1440, height: 900 });
     await planner(page, { configured: true, locale });
     await page.goto("/#/study-plan");
+    await selectStage(page, locale === "ar" ? "جدولي" : "My week");
     const strip = page.locator(".plan-day-strip");
     await expect(strip).toBeVisible();
     for (const width of [320, 820, 390]) {
@@ -303,16 +313,19 @@ test("settings focus on configuration and return without changing study tasks", 
   ] });
   await page.goto("/#/study-plan");
   await expect(page.locator(".plan-task-list li").first()).toContainText("Pending task");
-  const week = await page.locator(".plan-week").boundingBox();
-  const stats = await page.locator(".plan-stats").boundingBox();
-  expect(week.y).toBeLessThan(stats.y);
+  await selectStage(page, "My week");
+  await expect(page.locator(".plan-week")).toBeVisible();
+  await selectStage(page, "Progress");
+  await expect(page.locator(".plan-stats")).toBeVisible();
   await page.getByRole("button", { name: "Plan settings", exact: true }).click();
   await expect(page.locator(".plan-week")).toHaveCount(0);
   await expect(page.locator(".plan-stats")).toHaveCount(0);
   await page.getByRole("radio", { name: "Custom", exact: true }).check();
   await page.getByRole("button", { name: "Back to plan", exact: true }).click();
+  await selectStage(page, "Today");
   await expect(page.locator(".plan-task-list li")).toHaveCount(2);
   await expect(page.locator(".plan-task-list li").last()).toContainText("Completed task");
+  await selectStage(page, "My week");
   const strip = page.locator(".plan-day-strip");
   await expect.poll(async () => {
     const [container, selected] = await Promise.all([strip.boundingBox(), strip.locator('[aria-pressed="true"]').boundingBox()]);
@@ -323,6 +336,7 @@ test("settings focus on configuration and return without changing study tasks", 
 test("the selected day's add action keeps the chosen date", async ({ page }) => {
   await planner(page, { configured: true });
   await page.goto("/#/study-plan");
+  await selectStage(page, "My week");
   await page.locator(".plan-day-strip button").first().click();
   await page.getByRole("button", { name: "Add a session for the selected day", exact: true }).click();
   await expect(page.getByLabel("Date", { exact: true })).toHaveValue("2026-10-12");
