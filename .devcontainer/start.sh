@@ -16,6 +16,7 @@ if ! docker compose exec -T backend python manage.py seed_demo >/tmp/lockin-code
   exit 1
 fi
 docker compose exec -T backend python manage.py seed_codespace_exam
+docker compose exec -T backend python manage.py seed_codespace_histology
 docker compose ps
 name="${CODESPACE_NAME:-}"
 if [[ -n "$name" ]]; then

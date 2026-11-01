@@ -10,9 +10,15 @@
 3. يبدأ إعداد Docker وPostgreSQL وDjango وReact وتحميل بيانات تجريبية تلقائيًا.
 4. في تبويب **PORTS** افتح منفذ **5173 — Lockin (private phone preview)** ثم **Open in Browser**.
 5. تسجيل الدخول بحساب تجريبي فقط: **student@lockin.local** وكلمة المرور **Student123!**
-6. افتح **Study Plan** أو الرابط `/#/study-plan`. ستحصل على 3 مواد و12 شيتًا تقريبيًا وامتحان تجريبي. قد تختلف أعداد الشيتات إذا تغيّر محتوى seed_demo.
+6. افتح **Study Plan** أو الرابط `/#/study-plan`. ستحصل على 4 مواد و13 شيتًا تقريبًا، بينها Intro Histology - Tripoli بشيت PDF من 4 صفحات و8 أسئلة تجريبية، وامتحان تجريبي. قد تختلف أعداد الشيتات إذا تغيّر محتوى seed_demo.
 
 **مهم:** منفذ 5173 يجب أن يبقى **Private**. لا تضف حسابك الحقيقي أو أسرار موقع الإنتاج. على الأجهزة المحمولة قد تكون واجهة VS Code ثقيلة؛ بعد بدء Codespace افتح رابط المنفذ مباشرة في Safari.
+
+### شيت Intro Histology - طرابلس
+
+بعد تسجيل الدخول بحساب الطالب التجريبي، افتح `/#/materials/catalog/codespace-tripoli-intro-histology` ثم `Intro Histology - Tripoli (Demo Sheet 01)`، أو افتح Study Plan لاختبار تخطيط قراءة الشيت والأسئلة. الشيت مُنشأ للتجربة فقط وليس من محاضرات جامعة طرابلس.
+
+إذا كنت تستخدم Codespace موجودًا سابقًا، نفّذ `git pull` على نفس البرانش ثم `docker compose exec -T backend python manage.py seed_codespace_histology`، أو أعد تشغيل `bash .devcontainer/start.sh`.
 
 ## حالة الأعطال
 
