@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { fulfillAccessContract, studentSession } from "./fixtures/productionApi.js";
 
+async function selectStage(page, text) {
+  await page.locator(".plan-journey-steps button").filter({ hasText: text }).click();
+}
 const exams = [
   { id: "exam-one", title: "Dental midterm", starts_on: "2027-01-02", status: "tentative" },
   { id: "exam-two", title: "Practical exam", starts_on: "2027-01-09", status: "confirmed" }
@@ -49,7 +52,8 @@ for (const [width, height, locale] of [[320,740,"ar"],[390,844,"en"],[820,1180,"
     const mutations = await mock(page, { locale });
     await page.setViewportSize({ width, height });
     await page.goto("/#/study-plan");
-    const panel = page.locator(".plan-exam-panel");
+    await selectStage(page, /Exam plan|الامتحان/);
+  const panel = page.locator(".plan-exam-panel");
     await expect(panel).toBeVisible();
     await expect(panel.locator(".plan-exam-status")).toContainText(locale === "ar" ? "مبدئي" : "Tentative");
     await panel.locator("button[type=submit]").click();
@@ -84,6 +88,7 @@ test("exam discovery errors do not block the weekly plan and can be retried", as
 test("pilot with no assigned exams gets a truthful empty state", async ({ page }) => {
   await mock(page, { periods: [] });
   await page.goto("/#/study-plan");
+  await selectStage(page, "Exam plan");
   await expect(page.locator(".plan-exam-panel")).toContainText("No upcoming exam has been assigned");
   await expect(page.locator(".plan-exam-panel select")).toHaveCount(0);
 });
@@ -91,6 +96,7 @@ test("preview errors keep the choices and allow a deliberate retry", async ({ pa
   let calls = 0;
   await mock(page, { onPreview: (_route, send) => { calls++; return send(result(), calls === 1 ? 400 : 200); } });
   await page.goto("/#/study-plan");
+  await selectStage(page, /Exam plan|الامتحان/);
   const panel = page.locator(".plan-exam-panel");
   await panel.locator("select").first().selectOption("exam-two");
   await panel.locator("button[type=submit]").click();
@@ -107,6 +113,7 @@ test("changing the exam discards results and rejects a stale in-flight preview",
     return send(result("Current exam"));
   } });
   await page.goto("/#/study-plan");
+  await selectStage(page, /Exam plan|الامتحان/);
   const panel = page.locator(".plan-exam-panel");
   await panel.locator("button[type=submit]").click();
   await expect.poll(() => Boolean(oldReply)).toBe(true);
@@ -121,6 +128,7 @@ test("changing the exam discards results and rejects a stale in-flight preview",
 test("a preview computed with different settings is discarded until plan refresh", async ({ page }) => {
   await mock(page, { onPreview: (_route, send) => send({ ...result(), profile_revision: 2 }) });
   await page.goto("/#/study-plan");
+  await selectStage(page, /Exam plan|الامتحان/);
   const panel = page.locator(".plan-exam-panel");
   await panel.locator("button[type=submit]").click();
   await expect(panel.getByRole("alert")).toContainText("settings changed");
@@ -146,6 +154,7 @@ test("confirming a preview saves linked tasks and a lost acknowledgement retries
   await page.route("**/api/v1/study-plan?**", route => route.fulfill({ contentType: "application/json", body: JSON.stringify({ profile: { configured: true, mode: "normal", revision: 1, daily_minutes: 60, session_minutes: 25, weekdays: [0,1,2,3,5,6], subjects: [], timezone: "Africa/Tripoli" }, today: "2026-10-25", results: saved ? [task] : [], count: saved ? 1 : 0, overdue: [], overdue_count: 0, progress: {}, summary: { planned_count: saved ? 1 : 0, completed_count: 0, planned_minutes: saved ? 25 : 0, completed_minutes: 0, today_minutes: saved ? 25 : 0 } }) }));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/#/study-plan");
+  await selectStage(page, /Exam plan|الامتحان/);
   const panel = page.locator(".plan-exam-panel");
   await panel.locator("button[type=submit]").click();
   await panel.getByRole("button", { name: "Save this plan", exact: true }).click();
@@ -158,6 +167,7 @@ test("confirming a preview saves linked tasks and a lost acknowledgement retries
     await confirm.getByRole("button", { name: "Confirm and save", exact: true }).click();
   }
   await expect(panel.locator(".plan-apply-success")).toContainText("1 activities saved");
+  await selectStage(page, "My week");
   await expect(page.locator(".plan-task-list")).toContainText(task.title);
   await expect(page.locator(".plan-task-list").getByRole("link", { name: "Start studying", exact: true })).toHaveAttribute("href", `#${task.start_url}`);
   expect(intents.size).toBe(1);
@@ -167,6 +177,7 @@ test("confirming a preview saves linked tasks and a lost acknowledgement retries
 test("a stale apply requires a new preview while retaining exam choices", async ({ page }) => {
   await mock(page, { onPreview: (_route, send) => send(savedPreview()), onApply: (_route, send) => send({ detail: "Plan changed" }, 409) });
   await page.goto("/#/study-plan");
+  await selectStage(page, /Exam plan|الامتحان/);
   const panel = page.locator(".plan-exam-panel");
   await panel.locator("button[type=submit]").click();
   await panel.getByRole("button", { name: "Save this plan", exact: true }).click();
