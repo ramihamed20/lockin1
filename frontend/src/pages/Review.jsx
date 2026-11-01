@@ -1,3 +1,4 @@
+import { SearchableDirectory } from "../components/learning/SearchableDirectory.jsx";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { COMING_SOON_STUDY_TOOLS, STUDY_TOOLS_ENABLED } from "../workspace/knowledge/model.js";
 const ReviewRecovery = lazy(() => import("../workspace/knowledge/ReviewRecovery.jsx"));
@@ -142,7 +143,7 @@ export function ReviewBank({ user = null }) {
         <div><p className="eyebrow">{t("review.activeReview")}</p><h2 id="review-bank-overview-title" dir="auto">{bank.data.active_count ? t("review.questionsToReview", { count: bank.data.active_count }) : t("review.caughtUpTitle")}</h2><p dir="auto">{bank.data.active_count ? t("review.masteredCopy", { count: bank.data.mastered_this_week }) : t("review.caughtUpBankText")}</p></div>
         <Link className="btn btn-soft" to="/review">{t("review.backToCenter")}</Link>
       </section>
-      {bank.data.subjects.length ? <section className="review-bank-subjects" aria-label={t("review.bankSubjectsLabel")}>{bank.data.subjects.map((subject) => <SubjectRow key={subject.subject_key} subject={subject} />)}</section> : <EmptyState title={t("review.caughtUpTitle")} text={t("review.caughtUpText")} />}
+      {bank.data.subjects.length ? <SearchableDirectory items={bank.data.subjects} getTitle={subject => subject.subject_label_snapshot}>{visible => <section className="review-bank-subjects" aria-label={t("review.bankSubjectsLabel")}>{visible.map(subject => <SubjectRow key={subject.subject_key} subject={subject} />)}</section>}</SearchableDirectory> : <EmptyState title={t("review.caughtUpTitle")} text={t("review.caughtUpText")} />}
     </Page>
   );
 }

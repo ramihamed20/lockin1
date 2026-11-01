@@ -1,3 +1,4 @@
+import { SearchableDirectory } from "../components/learning/SearchableDirectory.jsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { catalogWorkspaceApi } from "../api/catalogWorkspace.js";
@@ -98,8 +99,9 @@ function ExamCategory({ user = null }) {
     <Page width="reading" title={t(category.titleKey)} headingHandled>
       <section className="question-directory" aria-labelledby="question-category-heading">
         <QuestionDirectoryHeader id="question-category-heading" title={t(category.titleKey)} backTo="/questions" backLabel={t("route.questions")} breadcrumbs={<QuestionBreadcrumbs category={category} />} />
+<SearchableDirectory key={category.id} items={materials}>{visible => (
         <section className="material-grid catalog-material-grid" aria-label={t("questions.subjectsLabel")}>
-          {materials.map((material) => (
+          {visible.map((material) => (
             <CatalogTile
               key={material.slug}
               title={material.title}
@@ -109,6 +111,7 @@ function ExamCategory({ user = null }) {
             />
           ))}
         </section>
+)}</SearchableDirectory>
       </section>
     </Page>
   );
@@ -139,8 +142,9 @@ function ExamSubjectSheets({ user = null }) {
     <Page width="reading" title={material.title} headingHandled>
       <section className="question-directory" aria-labelledby="question-subject-heading">
         <QuestionDirectoryHeader id="question-subject-heading" title={material.title} backTo={`/questions/categories/${category.id}`} backLabel={t(category.titleKey)} breadcrumbs={<QuestionBreadcrumbs category={category} material={material} />} />
+<SearchableDirectory key={material.slug} items={material.sheets}>{visible => (
         <section className="material-grid catalog-material-grid" aria-label={t("questions.sheetsLabel")}>
-          {material.sheets.map((sheet) => (
+          {visible.map((sheet) => (
             <CatalogTile
               key={sheet.id}
               title={sheet.title}
@@ -151,6 +155,7 @@ function ExamSubjectSheets({ user = null }) {
             />
           ))}
         </section>
+)}</SearchableDirectory>
       </section>
     </Page>
   );

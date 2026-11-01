@@ -1,3 +1,4 @@
+import { SearchableDirectory } from "../components/learning/SearchableDirectory.jsx";
 import { useEffect, useState } from "react";
 import { catalogWorkspaceApi } from "../api/catalogWorkspace.js";
 import { Link, useLocation, useParams } from "react-router-dom";
@@ -32,9 +33,11 @@ export default function Materials({ user = null }) {
         {materials.length === 0
           ? <EmptyState icon="study" title={t("materials.noCohortMaterialsTitle")} text={t("materials.noCohortMaterialsText")} />
           : (
+<SearchableDirectory items={materials}>{visible => (
             <section className="material-grid catalog-material-grid" aria-label={t("materials.catalogLabel")}>
-              {materials.map((material) => <CatalogMaterialCard key={material.slug} material={material} />)}
+              {visible.map((material) => <CatalogMaterialCard key={material.slug} material={material} />)}
             </section>
+)}</SearchableDirectory>
           )}
         {canAddSubjects(user) && <AddFirstYearSubject onChange={refresh} />}
       </section>
@@ -164,11 +167,13 @@ export function CatalogMaterialSheets({ user = null }) {
         <PersonalSheetsBranch material={material} user={user} />
         {material.sheets.length
           ? (
+<SearchableDirectory key={material.slug} items={material.sheets}>{visible => (
             <section className="sheet-grid catalog-sheet-grid" aria-label={t("materials.sheetsOf", { name: material.title })}>
-              {material.sheets.map((sheet) => (
+              {visible.map((sheet) => (
                 <CatalogSheetCard key={sheet.slug} material={material} sheet={sheet} to={`/materials/catalog/${material.slug}/sheets/${sheet.slug}`} />
               ))}
             </section>
+)}</SearchableDirectory>
           )
           : <EmptyState icon="study" title={t("materials.noSheetsTitle")} text={t("materials.noSheetsText")} />}
       </section>
