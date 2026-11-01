@@ -52,11 +52,29 @@ jobs:
         working-directory: frontend
         run: pnpm install --frozen-lockfile
       - name: Build real client with e2e API fixtures
+        if: matrix.label != 'focus-horizontal'
         working-directory: frontend
         run: pnpm run build:e2e
       - name: Exercise real UI in Chromium at device sizes
+        if: matrix.label != 'focus-horizontal'
         working-directory: frontend
         run: pnpm exec playwright test "${{ matrix.spec }}" --grep "${{ matrix.grep }}" --workers=1
+      # A visual-only Focus capture uses the unchanged reader source in Vite
+      # development mode. Public-knowledge release verification remains enabled
+      # for all production builds; this test never publishes a dist bundle.
+      - name: Capture actual Focus reader in development
+        if: matrix.label == 'focus-horizontal'
+        working-directory: frontend
+        run: |
+          pnpm run fixtures:pdf
+          LOCKIN_E2E_CATALOG=1 pnpm exec vite --host 127.0.0.1 --port 5050 > /tmp/lockin-focus-preview.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:5050 >/dev/null; then break; fi
+            sleep 1
+          done
+          PLAYWRIGHT_EXTERNAL_SERVER=1 PLAYWRIGHT_BASE_URL=http://127.0.0.1:5050 pnpm exec playwright test "${{ matrix.spec }}" --grep "${{ matrix.grep }}" --workers=1
       - name: Full Study Plan interactions across setup, calendar and exam
         if: matrix.label == 'study-plan'
         working-directory: frontend
