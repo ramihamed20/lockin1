@@ -18,6 +18,9 @@ class StudyAssistanceIdea(models.Model):
         UNDERSTAND = "understand", "Understand"
         MEMORY = "memory", "Memory aid"
         ORGANIZE = "organize", "Organize"
+        FACT = "fact", "Side fact"
+        SIMPLIFY = "simplify", "Simplify"
+        CONNECTION = "connection", "Connection"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     source_version = models.ForeignKey(
@@ -30,8 +33,8 @@ class StudyAssistanceIdea(models.Model):
     teaser = models.CharField(max_length=240)
     question = models.TextField(max_length=1000)
     explanation = models.TextField(max_length=5000)
-    followup_question = models.TextField(max_length=1000)
-    followup_answer = models.TextField(max_length=3000)
+    followup_question = models.TextField(max_length=1000, blank=True)
+    followup_answer = models.TextField(max_length=3000, blank=True)
     position = models.PositiveIntegerField(default=0)
     is_published = models.BooleanField(default=False)
     revision = models.PositiveBigIntegerField(default=1)

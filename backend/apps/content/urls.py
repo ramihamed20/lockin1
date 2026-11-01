@@ -30,6 +30,7 @@ from .annotation_share_views import (
     AnnotationShareNoticesView,
     AnnotationShareReportView,
 )
+from .assistance_import_views import AdminAssistanceImportView
 from .personal_sheet_views import (
     PersonalSheetCollectionView,
     PersonalSheetDeleteView,
@@ -88,6 +89,11 @@ from .views import (
 app_name = "content"
 
 urlpatterns = [
+    path(
+        "operations/admin/content/sheets/<uuid:sheet_id>/assistance/import",
+        AdminAssistanceImportView.as_view(),
+        name="admin-assistance-import",
+    ),
     path(
         "catalog/documents/<uuid:document_id>/assistance",
         DocumentStudyAssistanceView.as_view(),

@@ -88,3 +88,6 @@
 
 .study-companion-ready-note { display: grid; gap: 8px; margin-block-end: 16px; color: var(--muted); font-size: 13px; line-height: 1.7; }
 .study-companion-ready-note p { margin: 0; }
+
+.study-companion-card-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 16px; }
+.study-companion-card-nav button { min-height: 44px; padding: 8px 12px; border: 0; border-radius: var(--radius-full); color: var(--accent-text); background: var(--surface-2); }

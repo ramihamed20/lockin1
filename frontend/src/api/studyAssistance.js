@@ -25,6 +25,14 @@ export const studyAssistanceApi = {
 };
 
 export const studyAssistanceAdminApi = {
+  async importContext(sheetId, edition, view, signal) {
+    return objectPayload(await request(adminPath(sheetId) + "/import" + buildQueryString({ edition, view }), { signal }), "Import context could not be loaded.");
+  },
+  async importCards(sheetId, payload, publish = false, previewToken = "") {
+    return objectPayload(await request(adminPath(sheetId) + "/import", {
+      method: "POST", body: { payload, publish, ...(previewToken ? { preview_token: previewToken } : {}) }, allowOfflineQueue: false
+    }), "Cards could not be imported.");
+  },
   /** @param {string} sheetId @param {{edition?: string, view?: string, signal?: AbortSignal}} [options] */
   async list(sheetId, options = {}) {
     const { edition = "university", view = "study", signal } = options;

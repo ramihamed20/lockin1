@@ -120,6 +120,8 @@ def write_idea(
         for key, value in changes.items():
             if key != "expected_revision":
                 setattr(idea, key, value)
+        if bool(idea.followup_question.strip()) != bool(idea.followup_answer.strip()):
+            raise AssistanceRuleError("Provide both follow-up fields, or neither.")
         validate_page(
             idea.page,
             scope_page_count(version=version, edition=idea.edition, view=idea.view),

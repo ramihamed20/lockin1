@@ -1,4 +1,6 @@
 import "./study-assistance-admin.css";
+import { CompanionImportPanel } from "./CompanionImportPanel.jsx";
+import { companionImportCopy } from "../../lib/companionImport.js";
 import { useEffect, useState } from "react";
 import { useI18n } from "../../components/I18nProvider.jsx";
 import { studyAssistanceAdminApi } from "../../api/studyAssistance.js";
@@ -9,7 +11,9 @@ const TEXT_FIELDS = /** @type {Array<[string, number, number]>} */ ([
 ]);
 
 export function StudyAssistancePanel({ sheet }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const [reloadVersion, setReloadVersion] = useState(0);
+  const importCopy = companionImportCopy[locale] || companionImportCopy.en;
   const [edition, setEdition] = useState("university"), [view, setView] = useState("study");
   const [data, setData] = useState({ key: "", results: [], version_id: "", available: false, page_count: null });
   const [draft, setDraft] = useState(emptyIdea);
@@ -25,7 +29,7 @@ export function StudyAssistancePanel({ sheet }) {
     return () => controller.abort();
   // The request is scoped by sheet/edition/view; translation changes do not reload a draft.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, sheet.id, edition, view]);
+  }, [key, sheet.id, edition, view, reloadVersion]);
   const ready = !loading && data.key === key && data.available;
   const rows = data.key === key ? data.results : [];
   function change(name, value) { setDraft((current) => ({ ...current, [name]: value })); setMessage(""); }
@@ -61,6 +65,7 @@ export function StudyAssistancePanel({ sheet }) {
     {message && <p className="form-alert success" role="status">{message}</p>}
     {!loading && data.key === key && !data.available && <p className="form-alert">{t("studyCompanion.admin.addPdf")}</p>}
     {ready && <>
+      <CompanionImportPanel key={key} sheet={sheet} edition={edition} view={view} onImported={() => setReloadVersion(value => value + 1)} />
       <div className="admin-assistance-list">{rows.length ? rows.map((row) => <button type="button" key={row.id} disabled={pending} onClick={() => { setDraft({ ...row, page: row.page ?? "" }); setError(""); setMessage(""); }} aria-pressed={draft.id === row.id}><span dir="auto">{row.question}</span><small>{row.page === null ? t("studyCompanion.admin.sheetWide") : t("studyCompanion.admin.page") + " " + row.page} · {t(row.is_published ? "studyCompanion.admin.published" : "studyCompanion.admin.draft")}</small></button>) : <p>{t("studyCompanion.admin.empty")}</p>}</div>
       <button type="button" className="btn btn-soft" disabled={pending} onClick={() => { setDraft({ ...emptyIdea(), position: rows.length ? Math.max(...rows.map((row) => row.position)) + 1 : 0 }); setError(""); setMessage(""); }}>{t("studyCompanion.admin.new")}</button>
       <form onSubmit={save} className="admin-assistance-form">
@@ -68,10 +73,10 @@ export function StudyAssistancePanel({ sheet }) {
         <fieldset disabled={pending}>
           <div className="admin-assistance-scopes">
             <label className="field"><span>{t("studyCompanion.admin.page")}</span><input type="number" min="1" max={data.page_count || 10000} value={draft.page} onChange={(event) => change("page", event.target.value)} /><small>{t("studyCompanion.admin.pageHint")}</small></label>
-            <label className="field"><span>{t("studyCompanion.admin.kind")}</span><select value={draft.kind} onChange={(event) => change("kind", event.target.value)}>{["understand", "memory", "organize"].map((kind) => <option key={kind} value={kind}>{t("studyCompanion.admin." + kind)}</option>)}</select></label>
+            <label className="field"><span>{t("studyCompanion.admin.kind")}</span><select value={draft.kind} onChange={(event) => change("kind", event.target.value)}>{["understand", "memory", "organize", "fact", "simplify", "connection"].map((kind) => <option key={kind} value={kind}>{importCopy.kinds[kind]}</option>)}</select></label>
           </div>
           <label className="field"><span>{t("studyCompanion.admin.teaser")}</span><input value={draft.teaser} required maxLength={240} dir="auto" onChange={(event) => change("teaser", event.target.value)} /></label>
-          {TEXT_FIELDS.map(([name, limit, lines]) => <label key={name} className="field"><span>{t("studyCompanion.admin." + name)}</span><textarea required value={draft[name]} rows={lines} maxLength={limit} dir="auto" onChange={(event) => change(name, event.target.value)} /></label>)}
+          {TEXT_FIELDS.map(([name, limit, lines]) => <label key={name} className="field"><span>{t("studyCompanion.admin." + name)}</span><textarea required={name === "question" || name === "explanation"} value={draft[name]} rows={lines} maxLength={limit} dir="auto" onChange={(event) => change(name, event.target.value)} /></label>)}
           <div className="admin-assistance-scopes">
             <label className="field"><span>{t("studyCompanion.admin.position")}</span><input type="number" min="0" max="1000000" value={draft.position} onChange={(event) => change("position", event.target.value)} required /></label>
             <label className="field"><span>{t("studyCompanion.admin.publication")}</span><select value={draft.is_published ? "published" : "draft"} onChange={(event) => change("is_published", event.target.value === "published")}><option value="draft">{t("studyCompanion.admin.draft")}</option><option value="published">{t("studyCompanion.admin.published")}</option></select></label>

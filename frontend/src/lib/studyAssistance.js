@@ -1,12 +1,15 @@
-const KINDS = new Set(["understand", "memory", "organize"]);
+const KINDS = new Set(["understand", "memory", "organize", "fact", "simplify", "connection"]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const TEXT_FIELDS = ["teaser", "question", "explanation", "followup_question", "followup_answer"];
+const TEXT_FIELDS = ["teaser", "question", "explanation"];
 
 export function normalizeAssistanceIdea(value) {
   if (!value || typeof value !== "object" || !UUID.test(value.id || "")) return null;
   if (!KINDS.has(value.kind) || !TEXT_FIELDS.every((key) => typeof value[key] === "string" && value[key].trim())) return null;
   if (value.page !== null && (!Number.isInteger(value.page) || value.page < 1)) return null;
-  return { ...value, saved: value.saved === true };
+  const followup_question = value.followup_question || "";
+  const followup_answer = value.followup_answer || "";
+  if (typeof followup_question !== "string" || typeof followup_answer !== "string" || Boolean(followup_question.trim()) !== Boolean(followup_answer.trim())) return null;
+  return { ...value, followup_question, followup_answer, saved: value.saved === true };
 }
 
 export function assistanceForPage(rows, page, start = 1, end = Infinity) {

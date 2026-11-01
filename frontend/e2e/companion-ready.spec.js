@@ -14,6 +14,10 @@ for(const locale of ['en','ar']) test(`general companion works without prepared 
  await expect(page.locator('.study-companion-followup')).toBeVisible();
  await page.locator('.study-companion-followup > button').click();
  await expect(page.locator('.study-companion-followup .study-companion-text')).toBeVisible();
+ await page.locator('.study-companion-card-nav').getByRole('button').last().click();
+ await expect(page.locator('.study-companion-card-nav span')).toHaveText('2 / 10');
+ await page.locator('.study-companion-card-nav').getByRole('button').first().click();
+ await expect(page.locator('.study-companion-card-nav span')).toHaveText('1 / 10');
  await page.locator('.study-companion-panel header button').click();
  await page.locator('.study-companion-preferences').click();
  await page.locator('.study-companion-characters button').last().click();

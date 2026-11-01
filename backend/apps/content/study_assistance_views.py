@@ -56,8 +56,12 @@ class AdminAssistanceSerializer(StrictSerializer):
     teaser = serializers.CharField(max_length=240)
     question = serializers.CharField(max_length=1000)
     explanation = serializers.CharField(max_length=5000)
-    followup_question = serializers.CharField(max_length=1000)
-    followup_answer = serializers.CharField(max_length=3000)
+    followup_question = serializers.CharField(
+        max_length=1000, required=False, default="", allow_blank=True
+    )
+    followup_answer = serializers.CharField(
+        max_length=3000, required=False, default="", allow_blank=True
+    )
     position = serializers.IntegerField(min_value=0, max_value=1000000, default=0)
     is_published = serializers.BooleanField(default=False)
     expected_revision = serializers.IntegerField(min_value=1, required=False)
