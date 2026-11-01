@@ -31,7 +31,7 @@ jobs:
           - label: study-plan
             ref: codex/lockin0.1.5
             spec: e2e/study-plan-adaptive.spec.js
-            grep: "study-plan visual preview"
+            grep: "study-plan (visual|wizard) preview"
     steps:
       - uses: actions/checkout@v4
         with:
