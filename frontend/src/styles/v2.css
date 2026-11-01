@@ -120,7 +120,17 @@
   .settings-payment > summary .ui-row-chevron { display: none; }
 }
 @media (min-width: 1100px) {
-  .settings-v2-nav { max-block-size: calc(100dvh - 100px - var(--safe-top, 0px)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding-block-end: 12px; }
+  /* Keep the settings navigation's geometry independent of the selected panel.
+     Tall panels must scroll the page, never resize the navigation alongside them. */
+  .settings-v2-nav {
+    block-size: calc(100dvh - 88px - var(--safe-top, 0px) - var(--safe-bottom, 0px));
+    min-block-size: 0;
+    grid-auto-rows: max-content;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    padding-block-end: 12px;
+  }
   .settings-v2-nav .settings-v2-avatar { inline-size: 44px; block-size: 44px; flex-basis: 44px; }
   .settings-v2-nav .settings-v2-profile .ui-row { padding-inline: 12px; gap: 10px; }
   .settings-v2-nav .settings-v2-profile .ui-row-body > strong { font-size: var(--text-base); }
