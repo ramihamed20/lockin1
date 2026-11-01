@@ -112,6 +112,14 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
   const activeStage = stages.includes(stage) ? stage : "today";
   const stageIndex = stages.indexOf(activeStage);
   const today = plan?.today || dateStamp();
+  function showStage(name) {
+    if (name === "today") {
+      setDay(today);
+      if (start !== weekOf(today)) setStart(weekOf(today));
+      setPreview(null);
+    }
+    setStage(name);
+  }
   const items = plan?.results || [];
   const title = item => item.generated && item.title === "Study session" ? t("plan.sessionTitle") : item.title;
   const next = items.find(item => item.status === "planned" && item.scheduled_date >= today);
@@ -156,7 +164,7 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
         {profile.configured && !settings && <>
         <nav className="plan-journey" style={{ "--plan-stages": stages.length }} aria-label={t("plan.flow.navigation")}>
           <span className="plan-journey-counter">{t("plan.flow.count", { current: stageIndex + 1, total: stages.length })}</span>
-          <div className="plan-journey-steps">{stages.map((name, index) => <button key={name} type="button" disabled={Boolean(busy) || Boolean(editor) || Boolean(progressTask)} className={activeStage === name ? "is-active" : ""} aria-current={activeStage === name ? "step" : undefined} onClick={() => setStage(name)}>
+          <div className="plan-journey-steps">{stages.map((name, index) => <button key={name} type="button" disabled={Boolean(busy) || Boolean(editor) || Boolean(progressTask)} className={activeStage === name ? "is-active" : ""} aria-current={activeStage === name ? "step" : undefined} onClick={() => showStage(name)}>
             <span className="plan-journey-number">{index + 1}</span><span>{t("plan.flow." + name)}</span>
           </button>)}</div>
         </nav>
@@ -206,8 +214,8 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
           setEditor(null); await load(true); setMessage("plan.saved");
         })} /></div>}
         <footer className="plan-journey-footer" aria-label={t("plan.flow.navigation")}>
-          {stageIndex > 0 && <button type="button" className="btn btn-soft" disabled={Boolean(busy) || Boolean(editor) || Boolean(progressTask)} onClick={() => setStage(stages[stageIndex - 1])}><Icon name="chevron-left" size={17}/>{t("plan.flow.back", { stage: t("plan.flow." + stages[stageIndex - 1]) })}</button>}
-          {stageIndex < stages.length - 1 && <button type="button" className="btn btn-primary" disabled={Boolean(busy) || Boolean(editor) || Boolean(progressTask)} onClick={() => setStage(stages[stageIndex + 1])}>{t("plan.flow.next", { stage: t("plan.flow." + stages[stageIndex + 1]) })}<Icon name="chevron-right" size={17}/></button>}
+          {stageIndex > 0 && <button type="button" className="btn btn-soft" disabled={Boolean(busy) || Boolean(editor) || Boolean(progressTask)} onClick={() => showStage(stages[stageIndex - 1])}><Icon name="chevron-left" size={17}/>{t("plan.flow.back", { stage: t("plan.flow." + stages[stageIndex - 1]) })}</button>}
+          {stageIndex < stages.length - 1 && <button type="button" className="btn btn-primary" disabled={Boolean(busy) || Boolean(editor) || Boolean(progressTask)} onClick={() => showStage(stages[stageIndex + 1])}>{t("plan.flow.next", { stage: t("plan.flow." + stages[stageIndex + 1]) })}<Icon name="chevron-right" size={17}/></button>}
         </footer>
         <ConfirmDialog open={Boolean(deleting)} busy={Boolean(busy)} title={t("plan.deleteTitle")} message={deleting ? title(deleting) : ""} onCancel={() => setDeleting(null)} onConfirm={() => action("delete", async () => { await studyPlanApi.deleteItem(deleting.id, deleting.revision); setDeleting(null); setEditor(null); await load(true); setMessage("plan.saved"); })} />
         </>}
