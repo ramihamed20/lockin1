@@ -95,6 +95,7 @@ test("summary, map, explanation and reader share a persistent optional workspace
   await expect(panel.locator(".knowledge-map-node")).toHaveCSS("left", "70px");
   await panel.locator(".knowledge-map-node").press("Control+z");
   await expect(panel.locator(".knowledge-map-node")).toHaveCSS("left", "60px");
+  await panel.locator(".map-options > summary").click();
   await panel.getByRole("button", { name: "Recall", exact: true }).click();
   await expect(panel.locator(".knowledge-map-node")).toHaveText("…");
   await panel.getByRole("button", { name: "Reveal", exact: true }).click();
@@ -261,4 +262,47 @@ test("concept comparison and corrected explanation stay linked to the student's 
   await panel.getByRole("button", { name: "Add my explanation to my summary", exact: true }).click();
   await page.getByRole("alertdialog", { name: "Add my explanation to my summary" }).getByRole("button", { name: "Add my explanation to my summary", exact: true }).click();
   await expect(panel.getByLabel("In your own words")).toHaveValue(/My corrected understanding/);
+});
+
+for (const viewport of [{ width: 390, height: 844 }, { width: 820, height: 1180 }, { width: 1180, height: 820 }]) {
+  test(`map creation, linking and persistence at ${viewport.width}`, async ({ page }) => {
+    test.setTimeout(90000); await page.setViewportSize(viewport);
+    const { artifacts } = await prepare(page); const panel = await open(page, false, "map");
+    await panel.getByRole("button", { name: "Start my map", exact: true }).click();
+    const map = panel.locator(".knowledge-map"), input = map.getByRole("textbox", { name: "New idea" });
+    await input.fill("Nutrition"); await input.press("Enter");
+    await map.getByRole("button", { name: "Add a branch", exact: true }).click();
+    await input.fill("Diffusion"); await input.press("Enter");
+    await expect(map.locator(".knowledge-map-node")).toHaveCount(2);
+    await expect(map.locator("path[data-edge]")).toHaveCount(1);
+    await map.locator(".map-simple-actions").getByRole("button", { name: "Add concept" }).click();
+    await input.fill("Oxygen"); await input.press("Enter");
+    await map.getByRole("button", { name: "Link an idea" }).click();
+    await map.locator(".knowledge-map-node").filter({ hasText: "Diffusion" }).click();
+    await expect(map.locator("path[data-edge]")).toHaveCount(2);
+    await expect.poll(() => [...artifacts.values()].find(record => record.kind === "map")?.content?.edges?.length).toBe(2);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await map.locator(".map-options > summary").click();
+    await expect(map.locator(".map-options")).toHaveAttribute("open");
+    await page.keyboard.press("Escape");
+    await expect(map.locator(".map-options")).not.toHaveAttribute("open");
+    await expect(panel).toBeVisible();
+    const resumed = await open(page, true, "map");
+    await expect(resumed.locator(".knowledge-map-node")).toHaveCount(3);
+    await expect(resumed.locator("path[data-edge]")).toHaveCount(2);
+  });
+}
+
+test("Arabic map uses RTL controls without overflowing", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  await prepare(page, true);
+  const panel = await open(page, false, "map");
+  await panel.getByRole("button", { name: "ابدأ خريطتي", exact: true }).click();
+  const map = panel.locator(".knowledge-map");
+  const input = map.getByRole("textbox", { name: "فكرة جديدة" });
+  await input.fill("التغذية"); await input.press("Enter");
+  await map.getByRole("button", { name: "إضافة فرع", exact: true }).click();
+  await input.fill("الانتشار"); await input.press("Enter");
+  await expect(map.locator("path[data-edge]")).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

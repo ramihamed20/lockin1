@@ -1,3 +1,4 @@
+import { X, RefreshCw, FileText, Network, Lightbulb, BookOpen } from "lucide-react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useI18n } from "../../components/I18nProvider.jsx";
@@ -186,33 +187,33 @@ export default function KnowledgeWorkspace({ userId, documentId, title, page, pa
     if (event.key === "Escape") { event.stopPropagation(); close(); return; }
     if (record && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z" && !["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName)) { event.preventDefault(); event.stopPropagation(); step(!event.shiftKey); return; }
     if (mobile && event.key === "Tab") {
-      const focusable = [...panel.current.querySelectorAll("button, input, select, textarea, a[href], [tabindex='0']")].filter((element) => !element.disabled && element.getClientRects().length);
+      const focusable = [...panel.current.querySelectorAll("button, input, select, textarea, summary, a[href], [tabindex='0']")].filter((element) => !element.disabled && element.getClientRects().length);
       if (event.shiftKey && (document.activeElement === focusable[0] || document.activeElement === panel.current.querySelector("h2"))) { event.preventDefault(); focusable[focusable.length - 1]?.focus(); }
       else if (!event.shiftKey && document.activeElement === focusable[focusable.length - 1]) { event.preventDefault(); focusable[0]?.focus(); }
     }
   }
   keyHandler.current = keyDown;
-  return <div className="knowledge-panel" ref={panel} hidden={!visible} role="dialog" tabIndex={-1} aria-modal={mobile ? "true" : undefined} aria-label={t("knowledge.tools")}>
-    <header className="knowledge-panel-header"><div><h2 tabIndex={-1}>{t("knowledge.tools")}</h2><p dir="auto">{title} · {t("knowledge.page", { page })}</p></div><button type="button" onClick={close}>{t("common.close")}</button></header>
+  return <div className={`knowledge-panel${tool === "map" ? " is-map-view" : ""}`} ref={panel} hidden={!visible} role="dialog" tabIndex={-1} aria-modal={mobile ? "true" : undefined} aria-label={t("knowledge.tools")}>
+    <header className="knowledge-panel-header"><div><h2 tabIndex={-1}>{t(tool === "map" ? "knowledge.map" : "knowledge.tools")}</h2>{tool !== "map" && <p dir="auto">{title} · {t("knowledge.page", { page })}</p>}</div><button type="button" aria-label={t("common.close")} onClick={close}>{tool === "map" ? <X size={20} aria-hidden="true" /> : t("common.close")}</button></header>
     {visible && (workspace.loading ? <p role="status">{t("common.loading")}</p> : !workspace.bootstrap?.enabled ? <p role="status">{t(workspace.error ? "knowledge.load_error" : "knowledge.disabled")}{workspace.error && <button type="button" onClick={workspace.refresh}>{t("common.tryAgain")}</button>}</p> : <>
       <nav className="knowledge-nav" aria-label={t("knowledge.tools")}>
-        {["summary", "map", "explain", "knowledge"].filter((key) => key === "knowledge" || flags[key]).map((key) => <button key={key} type="button" aria-pressed={tool === key} onClick={() => { setTool(key); setConceptId(""); }}>{t(`knowledge.${key}`)}</button>)}
+        {["summary", "map", "explain", "knowledge"].filter((key) => key === "knowledge" || flags[key]).map((key) => <button key={key} type="button" aria-pressed={tool === key} onClick={() => { setTool(key); setConceptId(""); }} aria-label={t(`knowledge.${key}`)} title={t(`knowledge.${key}`)}>{tool === "map" ? (() => { const Icon = { summary: FileText, map: Network, explain: Lightbulb, knowledge: BookOpen }[key]; return <Icon size={20} aria-hidden="true" />; })() : t(`knowledge.${key}`)}</button>)}
       </nav>
-      <div className="knowledge-save" role="status" data-status={workspace.status}><span><i aria-hidden="true" />{t(`knowledge.status_${workspace.status}`)}</span><button type="button" onClick={() => { void workspace.sync(); }}>{t("knowledge.sync")}</button></div>
+      <div className="knowledge-save" role="status" data-status={workspace.status}><span><i aria-hidden="true" /><span className={tool === "map" && !["unsaved", "conflict"].includes(workspace.status) ? "knowledge-visually-hidden" : undefined}>{t(`knowledge.status_${workspace.status}`)}</span></span><button type="button" aria-label={t("knowledge.sync")} title={t("knowledge.sync")} onClick={() => { void workspace.sync(); }}>{tool === "map" ? <RefreshCw size={17} aria-hidden="true" /> : t("knowledge.sync")}</button></div>
       {workspace.error && <p role="alert">{t(`knowledge.${workspace.error}`)} {workspace.error === "load_error" && <button type="button" onClick={workspace.refresh}>{t("common.tryAgain")}</button>}</p>}
       {workspace.status === "unsaved" && <div className="knowledge-toolbar"><button type="button" onClick={() => downloadKnowledge(workspace.records.filter((item) => item.content), { source, ui: workspace.ui, attempts: workspace.attempts })}>{t("knowledge.exportUnsaved")}</button><button type="button" onClick={() => setDiscarding(true)}>{t("knowledge.discardUnsaved")}</button></div>}
       {message && <p role="status">{t(message)}</p>}
-      <LearningFlow page={page} pageLimit={pageLimit} questions={workspace.bootstrap.questions || []} flags={flags} t={t} onRead={read} onWrite={() => setTool("summary")} onExplain={question => workspace.editUI({ tool: "explain", explainState: { selected: question.id, difficulty: question.difficulty, conceptIds: question.concept_ids || [question.concept_id] } })} />
+      {tool !== "map" && <LearningFlow page={page} pageLimit={pageLimit} questions={workspace.bootstrap.questions || []} flags={flags} t={t} onRead={read} onWrite={() => setTool("summary")} onExplain={question => workspace.editUI({ tool: "explain", explainState: { selected: question.id, difficulty: question.difficulty, conceptIds: question.concept_ids || [question.concept_id] } })} />}
       {(tool === "summary" || tool === "map") && <>
         {current.length === 0 ? <div className="knowledge-start">
-          <p className="knowledge-empty">{t(tool === "map" ? "knowledge.emptyNotebook" : "knowledge.emptySummary")}</p>
+          {tool !== "map" && <p className="knowledge-empty">{t("knowledge.emptySummary")}</p>}
           {tool === "summary" && <ol className="knowledge-steps"><li>{t("knowledge.step_read")}</li><li>{t("knowledge.step_write")}</li><li>{t("knowledge.step_check")}</li></ol>}
           <button type="button" className="knowledge-start-button" disabled={workspace.status === "unsaved"} onClick={() => create()}>{t(tool === "map" ? "knowledge.startMap" : "knowledge.startSummary")}</button>
         </div> : <div className="knowledge-doc-bar">{current.length > 1 && <label>{t("knowledge.notebook")}<select value={record?.id || ""} onChange={(event) => setActiveIds((old) => ({ ...old, [tool]: event.target.value }))}><option value="" disabled>{t("knowledge.chooseDocument")}</option>{current.map((item) => <option value={item.id} key={item.id}>{item.title || t(`knowledge.${item.kind}`)} · {item.page_start}–{item.page_end}</option>)}</select></label>}<button type="button" className="knowledge-new" disabled={workspace.status === "unsaved"} onClick={() => create()}>+ {t("knowledge.newDocument")}</button></div>}
         {record && !record.content ? <p role="status">{t("common.loading")}</p> : record ? <>
           {(workspace.status === "conflict" || workspace.error === "local_conflict") && !stale && <button type="button" onClick={async () => { try { const copy = await workspace.saveCopy(record, t("knowledge.copyTitle", { title: record.title || t(`knowledge.${record.kind}`) })); setActiveIds((old) => ({ ...old, [record.kind]: copy.id })); } catch { setMessage("knowledge.exportFailed"); } }}>{t("knowledge.keepBoth")}</button>}
           {stale && <p className="knowledge-warning" role="status">{t("knowledge.staleSource")}</p>}
-          <label className="knowledge-title-field">{t("knowledge.title")}<input dir="auto" value={record.title} maxLength={220} placeholder={t(tool === "map" ? "knowledge.untitledMap" : "knowledge.untitledSummary")} onChange={(event) => edit({ ...record, title: event.target.value })} /></label>
+          {tool === "map" ? <details className="map-doc-title"><summary>{t("knowledge.title")}</summary><label className="knowledge-title-field">{t("knowledge.title")}<input dir="auto" value={record.title} maxLength={220} placeholder={t("knowledge.untitledMap")} onChange={(event) => edit({ ...record, title: event.target.value })} /></label></details> : <label className="knowledge-title-field">{t("knowledge.title")}<input dir="auto" value={record.title} maxLength={220} placeholder={t(tool === "map" ? "knowledge.untitledMap" : "knowledge.untitledSummary")} onChange={(event) => edit({ ...record, title: event.target.value })} /></label>}
           <div className="knowledge-toolbar is-compact">
             <button type="button" disabled={!history.current.get(record.id)?.length} onClick={() => step(true)}><span aria-hidden="true">↶ </span>{t("knowledge.undo")}</button>
             <button type="button" disabled={!redo.current.get(record.id)?.length} onClick={() => step(false)}><span aria-hidden="true">↷ </span>{t("knowledge.redo")}</button>
