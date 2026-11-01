@@ -131,7 +131,7 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
   async function previewWeek() {
     await action("preview", async () => { const result = await studyPlanApi.previewWeek(start); setPreview({ ...result, start }); });
   }
-  function openEditor(item = null) { setEditor({ item, key: item?.id || globalThis.crypto.randomUUID() }); setPreview(null); }
+  function openEditor(item = null, selectedDay = day) { setEditor({ item, selectedDay, key: item?.id || globalThis.crypto.randomUUID() }); setPreview(null); }
   function tasks(values, { overdue = false } = {}) {
     return <ul className="plan-task-list">{[...values].sort((a, b) => Number(a.status === "completed") - Number(b.status === "completed")).map(item => <li key={item.id} className={item.status === "completed" ? "is-complete" : ""}>
       <button className="plan-check" type="button" aria-pressed={item.status === "completed"} aria-label={t(item.status === "completed" ? "studyPlan.reopenNamed" : "studyPlan.completeNamed", { name: title(item) })} disabled={Boolean(busy) || plan.offline || item.scheduled_date > today || item.activity === "questions"} title={item.scheduled_date > today ? t("plan.future") : undefined} onClick={() => action(item.id, async () => {
@@ -156,7 +156,7 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
         {profile.configured && !settings && <>
         <nav className="plan-journey" style={{ "--plan-stages": stages.length }} aria-label={t("plan.flow.navigation")}>
           <span className="plan-journey-counter">{t("plan.flow.count", { current: stageIndex + 1, total: stages.length })}</span>
-          <div className="plan-journey-steps">{stages.map((name, index) => <button key={name} type="button" disabled={Boolean(busy)} className={activeStage === name ? "is-active" : ""} aria-current={activeStage === name ? "step" : undefined} onClick={() => setStage(name)}>
+          <div className="plan-journey-steps">{stages.map((name, index) => <button key={name} type="button" disabled={Boolean(busy) || Boolean(editor) || Boolean(progressTask)} className={activeStage === name ? "is-active" : ""} aria-current={activeStage === name ? "step" : undefined} onClick={() => setStage(name)}>
             <span className="plan-journey-number">{index + 1}</span><span>{t("plan.flow." + name)}</span>
           </button>)}</div>
         </nav>
@@ -167,7 +167,7 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
           <div><div className="plan-hero-top"><span className="plan-book-mark" aria-hidden="true"><Icon name="book-open" size={25} /></span><span className="plan-mode-label">{t(`plan.${profile.mode}`)}</span></div><p className="plan-eyebrow">{t("plan.next")}</p><h2 id="plan-next-title" dir="auto">{next ? title(next) : t("plan.emptyTitle")}</h2><p className="plan-session-meta">{next ? <><Icon name="clock" size={16} />{t("studyPlan.minutesValue", { count: next.duration_minutes })}<span aria-hidden="true">·</span>{displayDate(next.scheduled_date, { weekday: "long", day: "numeric", month: "short" })}</> : t("plan.emptyHint")}</p>
           {profile.mode === "beginning" && <p>{t("plan.beginnerProgress", { days: plan.progress.completed_days, minutes: plan.progress.session_minutes })}</p>}
           {profile.mode === "beginning" && plan.progress.ready_for_normal && <p>{t("plan.ready")} <button type="button" className="plan-text-button" onClick={() => { setInitialMode("normal"); setSettings(true); }}>{t("plan.switch")}</button></p>}
-          </div><div className="plan-actions">{next && <Link className="btn btn-primary plan-start-link" aria-label={next?.start_url ? t("plan.start") : nextMaterial ? t("plan.studySubject", { subject: nextMaterial.title }) : t("plan.openMaterials")} to={next?.start_url || (nextMaterial ? `/materials/catalog/${encodeURIComponent(nextMaterial.slug)}` : "/materials")}>{t("plan.start")}<Icon name="chevron-right" size={18} /></Link>}{canGenerate && <button type="button" className={`btn ${next ? "btn-soft" : "btn-primary"}`} disabled={Boolean(busy)} onClick={() => { setStage("week"); void previewWeek(); }}>{t("plan.preview")}</button>}<button type="button" className={`btn ${next || canGenerate ? "btn-soft" : "btn-primary"}`} disabled={Boolean(busy) || plan.offline} onClick={() => openEditor()}>{t("plan.add")}</button></div>
+          </div><div className="plan-actions">{next && <Link className="btn btn-primary plan-start-link" aria-label={next?.start_url ? t("plan.start") : nextMaterial ? t("plan.studySubject", { subject: nextMaterial.title }) : t("plan.openMaterials")} to={next?.start_url || (nextMaterial ? `/materials/catalog/${encodeURIComponent(nextMaterial.slug)}` : "/materials")}>{t("plan.start")}<Icon name="chevron-right" size={18} /></Link>}{canGenerate && <button type="button" className={`btn ${next ? "btn-soft" : "btn-primary"}`} disabled={Boolean(busy)} onClick={() => { setStage("week"); void previewWeek(); }}>{t("plan.preview")}</button>}<button type="button" className={`btn ${next || canGenerate ? "btn-soft" : "btn-primary"}`} disabled={Boolean(busy) || plan.offline} onClick={() => openEditor(null, today)}>{t("plan.add")}</button></div>
         </section>
         <section className="plan-today-list" aria-labelledby="plan-today-title">
           <h3 id="plan-today-title">{t("plan.flow.todayTasks")}</h3>
@@ -200,14 +200,14 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
         {profile.mode === "normal" && <DayCapacityEditor key={`${day}:${profile.revision}`} day={day} profile={profile} disabled={Boolean(busy) || plan.offline} onSave={minutes => action("capacity", async () => { const { configured: ignored, revision, ...fields } = profile; void ignored; await studyPlanApi.saveProfile({ ...fields, date_minutes: { ...profile.date_minutes, [day]: minutes } }, revision); await load(true); })} />}
         </section>}
         {progressTask && <ReadingProgress key={progressTask.id} userId={user.id} task={progressTask} onCancel={() => setProgressTask(null)} onSaved={async result => { setProgressTask(null); setMessage(result.pending ? "smart.pending" : "smart.progressSaved"); if (!result.pending) await load(true); }} />}
-        {editor && <div ref={editorAnchor}><TaskEditor key={editor.key} item={editor.item} day={day} subjects={subjectChoices} busy={Boolean(busy)} onCancel={() => setEditor(null)} onDelete={() => setDeleting(editor.item)} onSave={draft => action("save", async () => {
+        {editor && <div ref={editorAnchor}><TaskEditor key={editor.key} item={editor.item} day={editor.selectedDay} subjects={subjectChoices} busy={Boolean(busy)} onCancel={() => setEditor(null)} onDelete={() => setDeleting(editor.item)} onSave={draft => action("save", async () => {
           if (editor.item) await studyPlanApi.updateItem(editor.item.id, { title: draft.title, subject: draft.subject, scheduled_date: draft.scheduledDate, duration_minutes: draft.durationMinutes, expected_revision: editor.item.revision });
           else await studyPlanApi.createItem({ ...draft, clientRequestId: editor.key });
           setEditor(null); await load(true); setMessage("plan.saved");
         })} /></div>}
         <footer className="plan-journey-footer" aria-label={t("plan.flow.navigation")}>
-          {stageIndex > 0 && <button type="button" className="btn btn-soft" disabled={Boolean(busy)} onClick={() => setStage(stages[stageIndex - 1])}><Icon name="chevron-left" size={17}/>{t("plan.flow.back", { stage: t("plan.flow." + stages[stageIndex - 1]) })}</button>}
-          {stageIndex < stages.length - 1 && <button type="button" className="btn btn-primary" disabled={Boolean(busy)} onClick={() => setStage(stages[stageIndex + 1])}>{t("plan.flow.next", { stage: t("plan.flow." + stages[stageIndex + 1]) })}<Icon name="chevron-right" size={17}/></button>}
+          {stageIndex > 0 && <button type="button" className="btn btn-soft" disabled={Boolean(busy) || Boolean(editor) || Boolean(progressTask)} onClick={() => setStage(stages[stageIndex - 1])}><Icon name="chevron-left" size={17}/>{t("plan.flow.back", { stage: t("plan.flow." + stages[stageIndex - 1]) })}</button>}
+          {stageIndex < stages.length - 1 && <button type="button" className="btn btn-primary" disabled={Boolean(busy) || Boolean(editor) || Boolean(progressTask)} onClick={() => setStage(stages[stageIndex + 1])}>{t("plan.flow.next", { stage: t("plan.flow." + stages[stageIndex + 1]) })}<Icon name="chevron-right" size={17}/></button>}
         </footer>
         <ConfirmDialog open={Boolean(deleting)} busy={Boolean(busy)} title={t("plan.deleteTitle")} message={deleting ? title(deleting) : ""} onCancel={() => setDeleting(null)} onConfirm={() => action("delete", async () => { await studyPlanApi.deleteItem(deleting.id, deleting.revision); setDeleting(null); setEditor(null); await load(true); setMessage("plan.saved"); })} />
         </>}
