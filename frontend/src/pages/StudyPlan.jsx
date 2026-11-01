@@ -79,7 +79,7 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
     const observer = new window.ResizeObserver(revealSelected);
     observer.observe(strip);
     return () => observer.disconnect();
-  }, [day, loading, settings, configured]);
+  }, [day, loading, settings, configured, stage]);
   const fail = error => setActionError(error);
   async function action(key, work) {
     if (busy) return;
@@ -146,7 +146,7 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
           await studyPlanApi.saveProfile(draft, profile.revision); await load(true); setSettings(false); setPreview(null); setMessage("plan.saved");
         })} />}
         {profile.configured && !settings && <>
-        <nav className="plan-journey" aria-label={t("plan.flow.navigation")}>
+        <nav className="plan-journey" style={{ "--plan-stages": stages.length }} aria-label={t("plan.flow.navigation")}>
           <span className="plan-journey-counter">{t("plan.flow.count", { current: stageIndex + 1, total: stages.length })}</span>
           <div className="plan-journey-steps">{stages.map((name, index) => <button key={name} type="button" disabled={Boolean(busy)} className={activeStage === name ? "is-active" : ""} aria-current={activeStage === name ? "step" : undefined} onClick={() => setStage(name)}>
             <span className="plan-journey-number">{index + 1}</span><span>{t("plan.flow." + name)}</span>
@@ -183,6 +183,7 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
             <p>{t(workload.overflow ? "plan.dayOverBudget" : "plan.dayRemaining", workload)}</p>
           </div>}
           {loading ? <LoadingPanel variant="list" /> : items.some(item => item.scheduled_date === day) ? tasks(items.filter(item => item.scheduled_date === day)) : <p className="plan-empty-day">{t("plan.emptyDay")}</p>}
+          {canGenerate && <div className="plan-actions"><button type="button" className="btn btn-soft" disabled={Boolean(busy)} onClick={previewWeek}><Icon name="calendar" size={17} />{t("plan.preview")}</button></div>}
         </section>
         {preview && <section className="plan-preview" aria-labelledby="plan-preview-title"><h2 id="plan-preview-title" ref={previewAnchor} tabIndex={-1}>{t("plan.previewTitle")}</h2><p>{t(preview.count ? "plan.previewHint" : "plan.previewEmpty", { count: preview.count, minutes: preview.minutes })}</p>
           <ul>{weekDays(preview.start).filter(stamp => preview.items.some(item => item.scheduled_date === stamp)).map(stamp => <li key={stamp}><strong>{displayDate(stamp, { weekday: "long", day: "numeric", month: "short" })}</strong><span>{preview.items.filter(item => item.scheduled_date === stamp).map(item => `${item.subject || t("plan.sessionTitle")} (${item.duration_minutes})`).join(" · ")}</span></li>)}</ul>
