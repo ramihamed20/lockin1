@@ -78,14 +78,94 @@ PAGES = (
 
 # Source page, prompt, four options (correct answer first), explanation.
 QUESTIONS = (
-    (1, "What does histology study?", ("Microscopic tissue structure", "Only organ function", "Only bone fractures", "Only blood pressure"), "Histology studies microscopic tissue structure."),
-    (1, "How many basic tissue types are commonly described?", ("Four", "Two", "Six", "Ten"), "Epithelial, connective, muscle and nervous are the four basic types."),
-    (2, "Which tissue covers and lines many body surfaces?", ("Epithelial tissue", "Muscle tissue", "Nervous tissue", "Bone tissue"), "Epithelium covers surfaces and lines cavities."),
-    (2, "Which side of an epithelial cell faces a lumen?", ("Apical", "Basal", "Periosteal", "Deep dermal"), "The apical surface faces the lumen or exterior."),
-    (3, "Which component gives many connective tissues tensile strength?", ("Collagen fibers", "Neuronal axons", "Epithelial cilia", "Hemoglobin"), "Collagen is a major tensile-strength fiber."),
-    (3, "What is the primary specialization of muscle tissue?", ("Contraction", "Signal storage", "Mineral filtration", "Light detection"), "Muscle tissue contracts to generate force."),
-    (4, "Which stain commonly colors nuclei blue-purple?", ("Hematoxylin", "Eosin", "Oil red O", "Sudan black"), "Hematoxylin commonly stains nuclei blue to purple."),
-    (4, "What is the best first magnification for exploring a new slide?", ("Low power", "Maximum oil immersion", "Maximum zoom immediately", "No objective lens"), "Low power helps orient the specimen."),
+    (
+        1,
+        "What does histology study?",
+        (
+            "Microscopic tissue structure",
+            "Only organ function",
+            "Only bone fractures",
+            "Only blood pressure",
+        ),
+        "Histology studies microscopic tissue structure.",
+    ),
+    (
+        1,
+        "How many basic tissue types are commonly described?",
+        (
+            "Four",
+            "Two",
+            "Six",
+            "Ten",
+        ),
+        "Epithelial, connective, muscle and nervous are the four basic types.",
+    ),
+    (
+        2,
+        "Which tissue covers and lines many body surfaces?",
+        (
+            "Epithelial tissue",
+            "Muscle tissue",
+            "Nervous tissue",
+            "Bone tissue",
+        ),
+        "Epithelium covers surfaces and lines cavities.",
+    ),
+    (
+        2,
+        "Which side of an epithelial cell faces a lumen?",
+        (
+            "Apical",
+            "Basal",
+            "Periosteal",
+            "Deep dermal",
+        ),
+        "The apical surface faces the lumen or exterior.",
+    ),
+    (
+        3,
+        "Which component gives many connective tissues tensile strength?",
+        (
+            "Collagen fibers",
+            "Neuronal axons",
+            "Epithelial cilia",
+            "Hemoglobin",
+        ),
+        "Collagen is a major tensile-strength fiber.",
+    ),
+    (
+        3,
+        "What is the primary specialization of muscle tissue?",
+        (
+            "Contraction",
+            "Signal storage",
+            "Mineral filtration",
+            "Light detection",
+        ),
+        "Muscle tissue contracts to generate force.",
+    ),
+    (
+        4,
+        "Which stain commonly colors nuclei blue-purple?",
+        (
+            "Hematoxylin",
+            "Eosin",
+            "Oil red O",
+            "Sudan black",
+        ),
+        "Hematoxylin commonly stains nuclei blue to purple.",
+    ),
+    (
+        4,
+        "What is the best first magnification for exploring a new slide?",
+        (
+            "Low power",
+            "Maximum oil immersion",
+            "Maximum zoom immediately",
+            "No objective lens",
+        ),
+        "Low power helps orient the specimen.",
+    ),
 )
 
 
@@ -260,7 +340,9 @@ def sample_pdf() -> bytes:
     return bytes(data)
 
 
-def ensure_node(parent: EducationNode, kind: str, slug: str, title: str, position: int) -> EducationNode:
+def ensure_node(
+    parent: EducationNode, kind: str, slug: str, title: str, position: int
+) -> EducationNode:
     node = EducationNode.objects.filter(parent=parent, slug=slug).first()
     if node is None:
         node = EducationNode(parent=parent, kind=kind, slug=slug)
@@ -281,12 +363,16 @@ class Command(BaseCommand):
 
     def handle(self, *args: Any, **options: Any) -> None:
         if (
-            getattr(settings, "ENVIRONMENT", "") not in {"development", "development-demo", "demo", "testing"}
+            getattr(settings, "ENVIRONMENT", "") not in {
+                "development", "development-demo", "demo", "testing"
+            }
             or not settings.DEBUG
         ):
             raise CommandError("Only an isolated development demo can be seeded.")
         try:
-            student = User.objects.select_related("cohort__program").get(email="student@lockin.local")
+            student = User.objects.select_related("cohort__program").get(
+                email="student@lockin.local"
+            )
             creator = User.objects.get(email="creator@lockin.local")
             semester = EducationNode.objects.get(
                 slug="fall-2026", kind=EducationNode.Kind.SEMESTER
@@ -401,7 +487,9 @@ class Command(BaseCommand):
 
         # Publish page-specific help so the animated character is visible immediately
         # in this isolated reader. This is curated education content, not model AI.
-        for position, (page, kind, teaser, question, explanation, followup_question, followup_answer) in enumerate(
+        for position, (
+            page, kind, teaser, question, explanation, followup_question, followup_answer,
+        ) in enumerate(
             ASSISTANCE_IDEAS, 1
         ):
             StudyAssistanceIdea.objects.get_or_create(

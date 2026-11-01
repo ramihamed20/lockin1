@@ -75,8 +75,17 @@ class CodespaceHistologyTests(TestCase):
             self.assertTrue(all(row["page"] == page for row in page_ideas))
             self.assertTrue(all(row["question"] and row["explanation"] for row in page_ideas))
 
-        counts = (LearningObject.objects.count(), QuestionVersion.objects.count(), StudyAssistanceIdea.objects.count())
+        counts = (
+            LearningObject.objects.count(),
+            QuestionVersion.objects.count(),
+            StudyAssistanceIdea.objects.count(),
+        )
         call_command("seed_codespace_histology", verbosity=0)
         self.assertEqual(
-            counts, (LearningObject.objects.count(), QuestionVersion.objects.count(), StudyAssistanceIdea.objects.count()),
+            counts,
+            (
+                LearningObject.objects.count(),
+                QuestionVersion.objects.count(),
+                StudyAssistanceIdea.objects.count(),
+            ),
         )
