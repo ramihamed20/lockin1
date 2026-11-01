@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { studyPlanApi } from "../api/studyPlan.js";
 import { ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
@@ -19,6 +19,7 @@ const DAY_MARK = { done: "✓", planned: "•" };
 
 export default function StudyPlan({ user, examPeriods = null, examNotice = null, onRetryExams = null }) {
   const { t } = useI18n();
+  const [searchParams] = useSearchParams();
   const { materials } = useCatalogMaterials(user);
   const [start, setStart] = useState(() => weekOf());
   const [day, setDay] = useState(() => dateStamp());
@@ -29,7 +30,7 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState("");
   const [settings, setSettings] = useState(false);
-  const [stage, setStage] = useState("today");
+  const [stage, setStage] = useState(() => searchParams.has("report") ? "exam" : "today");
   const [initialMode, setInitialMode] = useState("");
   const [editor, setEditor] = useState(null);
   const [progressTask, setProgressTask] = useState(null);
@@ -153,7 +154,7 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
           </button>)}</div>
         </nav>
         <h2 className="plan-stage-heading" tabIndex={-1} ref={stageAnchor}>{t("plan.flow." + activeStage)}</h2>
-        {activeStage === "exam" && examPeriods && <ReadingPlanPanel userId={user.id} key={user.id} exams={examPeriods} profile={profile} disabled={Boolean(busy) && busy !== "exam-apply"} onApplying={value => setBusy(value ? "exam-apply" : "")} onApplied={async receipt => { setDay(receipt.first_date); if (weekOf(receipt.first_date) !== start) setStart(weekOf(receipt.first_date)); else await load(true); }} onRefresh={() => load(true)} onSetup={() => { setInitialMode("normal"); setSettings(true); }} />}
+        {activeStage === "exam" && examPeriods && <ReadingPlanPanel userId={user.id} key={user.id} exams={examPeriods} profile={profile} disabled={Boolean(busy) && busy !== "exam-apply"} onApplying={value => setBusy(value ? "exam-apply" : "")} onApplied={async receipt => { setDay(receipt.first_date); if (weekOf(receipt.first_date) !== start) setStart(weekOf(receipt.first_date)); else await load(true); }} onRefresh={() => load(true)} onViewWeek={() => setStage("week")} onSetup={() => { setInitialMode("normal"); setSettings(true); }} />}
         {activeStage === "today" && <section className="plan-stage-panel plan-stage-today">
         <section className="plan-hero" aria-labelledby="plan-next-title">
           <div><div className="plan-hero-top"><span className="plan-book-mark" aria-hidden="true"><Icon name="book-open" size={25} /></span><span className="plan-mode-label">{t(`plan.${profile.mode}`)}</span></div><p className="plan-eyebrow">{t("plan.next")}</p><h2 id="plan-next-title" dir="auto">{next ? title(next) : t("plan.emptyTitle")}</h2><p className="plan-session-meta">{next ? <><Icon name="clock" size={16} />{t("studyPlan.minutesValue", { count: next.duration_minutes })}<span aria-hidden="true">·</span>{displayDate(next.scheduled_date, { weekday: "long", day: "numeric", month: "short" })}</> : t("plan.emptyHint")}</p>
