@@ -2336,3 +2336,10 @@ html.ix-hover .question-player-card .choices button:not(:disabled):hover { borde
   border: 0; color: var(--accent-text); background: transparent;
   font: inherit; font-size: var(--text-sm); font-weight: 600; cursor: pointer;
 }
+
+
+.plan-habit-assessment { display: grid; gap: 18px; }
+.plan-habit-assessment .plan-note { margin: 0; }
+.plan-habit-assessment .plan-wizard-options[open] > .plan-field-grid { margin-block: 14px; }
+.plan-habit-assessment .plan-habit-growth { display: flex; flex-direction: row; align-items: center; gap: 10px; margin-block-start: 10px; }
+.plan-habit-assessment .plan-habit-growth input { flex: 0 0 auto; }
