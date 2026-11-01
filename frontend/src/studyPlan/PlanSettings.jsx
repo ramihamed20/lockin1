@@ -35,8 +35,8 @@ export default function PlanSettings({ profile, materials = [], onSave, onCancel
   return <section className="plan-settings" aria-labelledby="plan-settings-title">
     <h2 id="plan-settings-title">{t(profile.configured ? "plan.settings" : "plan.choose")}</h2>
     <nav className="plan-wizard-progress" aria-label={t("plan.wizard.progress")}>
-      <span>{t("plan.wizard.count", { current: activeIndex + 1, total: steps.length })}</span>
-      <div className="plan-wizard-steps">{steps.map((name, index) => <button key={name} type="button" disabled={busy || index >= activeIndex} aria-current={index === activeIndex ? "step" : undefined} onClick={() => { setInvalidDays(false); setStepIndex(index); }}>
+      <span aria-live="polite">{t("plan.wizard.count", { current: activeIndex + 1, total: steps.length })}</span>
+      <div className="plan-wizard-steps">{steps.map((name, index) => <button key={name} type="button" disabled={busy || index > activeIndex} aria-current={index === activeIndex ? "step" : undefined} onClick={() => { setInvalidDays(false); setStepIndex(index); }}>
         <span className="plan-wizard-number">{index < activeIndex ? <Icon name="check" size={13} /> : index + 1}</span>
         <span>{t("plan.wizard." + name)}</span>
       </button>)}</div>
@@ -105,7 +105,7 @@ export default function PlanSettings({ profile, materials = [], onSave, onCancel
             <small id="plan-subject-hint">{t("plan.subjectsHint")}</small>
           </div>
         </>}
-        {currentStep === "manual" && <div className="plan-wizard-manual"><Icon name="calendar-plus" size={24} /><p>{t("plan.wizard.manualCopy")}</p></div>}
+        {currentStep === "manual" && <div className="plan-wizard-manual"><Icon name="calendar" size={24} /><p>{t("plan.wizard.manualCopy")}</p></div>}
         {currentStep === "review" && <div className="plan-wizard-review">
           <h3>{t("plan.wizard.summary")}</h3>
           <dl>
