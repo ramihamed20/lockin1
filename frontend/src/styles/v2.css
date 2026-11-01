@@ -2325,3 +2325,14 @@ html.ix-hover .question-player-card .choices button:not(:disabled):hover { borde
   .plan-wizard-actions > .btn { padding-inline: 10px; font-size: 12px; min-inline-size: 0; }
   .plan-wizard-actions > .plan-wizard-next { flex-basis: 90px; }
 }
+
+
+/* Avoid presenting the entire catalog while choosing a study-plan subject. */
+.plan-material-search { max-inline-size: 420px; }
+.plan-material-search input[type=search] { min-block-size: 44px; }
+.plan-show-subjects {
+  display: inline-flex; align-items: center; justify-content: flex-start; gap: 8px;
+  justify-self: start; min-block-size: 44px; padding: 7px 4px;
+  border: 0; color: var(--accent-text); background: transparent;
+  font: inherit; font-size: var(--text-sm); font-weight: 600; cursor: pointer;
+}
