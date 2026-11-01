@@ -381,7 +381,7 @@ LOGGING = {
     },
 }
 
-KNOWLEDGE_ENABLED = env_bool("KNOWLEDGE_ENABLED", False)
+KNOWLEDGE_ENABLED = env_bool("KNOWLEDGE_ENABLED", True)
 KNOWLEDGE_AI_ENABLED = False
 
 # Optional behavioral starts remain off until device validation and owner activation.
