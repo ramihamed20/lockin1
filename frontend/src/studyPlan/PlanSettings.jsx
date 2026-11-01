@@ -115,9 +115,9 @@ export default function PlanSettings({ profile, materials = [], onSave, onCancel
             {draft.mode !== "custom" && <div><dt>{t("plan.subjects")}</dt><dd dir="auto">{mergeSubjects(chosen, parseSubjects(draft.subjects)).join(" · ") || t("plan.wizard.unsetSubjects")}</dd></div>}
           </dl>
           <details className="plan-advanced plan-wizard-options"><summary>{t("plan.wizard.advanced")}</summary>
-            {draft.mode === "normal" && {draft.mode === "normal" && <details className="plan-advanced"><summary>{t("smart.weeklyTime")}</summary><div className="plan-weekly-time">
+            {draft.mode === "normal" && <div className="plan-advanced plan-wizard-weekly"><strong>{t("smart.weeklyTime")}</strong><div className="plan-weekly-time">
             {["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((key, index) => <label key={key}>{t(`plan.${key}`)}<input type="number" min="0" max="240" placeholder={String(draft.weekdays.includes(index) ? draft.daily_minutes : 0)} value={draft.weekly_minutes[index] ?? ""} onChange={event => change("weekly_minutes", { ...draft.weekly_minutes, [index]: event.target.value })} /></label>)}
-          </div><label>{t("smart.reviewMinutes")}<input type="number" min="1" max="15" required value={draft.review_minutes} onChange={event => change("review_minutes", event.target.value)} /></label><small>{t("smart.weeklyTimeHint")}</small></details>}}
+          </div><label>{t("smart.reviewMinutes")}<input type="number" min="1" max="15" required value={draft.review_minutes} onChange={event => change("review_minutes", event.target.value)} /></label><small>{t("smart.weeklyTimeHint")}</small></div>}
             <label>{t("plan.timezone")}<input required maxLength={80} dir="ltr" value={draft.timezone} onChange={event => change("timezone", event.target.value)} /></label>
           </details>
           <p className="plan-note">{t("plan.preserve")}</p>
