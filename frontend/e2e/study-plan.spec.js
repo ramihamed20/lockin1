@@ -190,6 +190,7 @@ test("students pick their own subjects, use quick choices and pull an overdue se
   await page.getByRole("button", { name: "Move to today", exact: true }).click();
   await expect(page.getByText("Moved to today.")).toBeVisible();
   expect(state.getItems().find(item => item.id === "late").scheduled_date).toBe(TODAY);
+  await selectStage(page, "Today");
   await expect(page.getByRole("link", { name: "Study Dental Anatomy", exact: true })).toHaveAttribute("href", /materials\/catalog\/dental-anatomy$/);
   await page.getByRole("button", { name: "Plan settings", exact: true }).click();
   await page.getByRole("radio", { name: "Normal", exact: true }).check();
@@ -340,4 +341,31 @@ test("the selected day's add action keeps the chosen date", async ({ page }) => 
   await page.locator(".plan-day-strip button").first().click();
   await page.getByRole("button", { name: "Add a session for the selected day", exact: true }).click();
   await expect(page.getByLabel("Date", { exact: true })).toHaveValue("2026-10-12");
+});
+
+
+test("Today stage resets a browsed week and always creates a session on today", async ({ page }) => {
+  await planner(page, { configured: true, items: [
+    { id: "today-item", title: "Anatomy for today", subject: "Anatomy", scheduled_date: TODAY,
+      duration_minutes: 25, status: "planned", revision: 1 }
+  ] });
+  await page.goto("/#/study-plan");
+  await selectStage(page, "My week");
+  await page.getByRole("button", { name: "Next week", exact: true }).click();
+  await expect(page.locator(".plan-day-strip button[aria-pressed=true]")).not.toHaveAttribute("aria-label", /Friday, October 16/);
+  await selectStage(page, "Today");
+  await expect(page.locator(".plan-today-list")).toContainText("Anatomy for today");
+  await page.locator(".plan-hero").getByRole("button", { name: "Add session", exact: true }).click();
+  await expect(page.getByLabel("Date", { exact: true })).toHaveValue(TODAY);
+});
+
+test("editing a session keeps navigation locked until its draft is closed", async ({ page }) => {
+  await planner(page, { configured: true });
+  await page.goto("/#/study-plan");
+  await page.locator(".plan-hero").getByRole("button", { name: "Add session", exact: true }).click();
+  await page.getByLabel("What will you study?", { exact: true }).fill("Unfinished notes");
+  await expect(page.locator(".plan-journey-steps button")).toBeDisabled();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.locator(".plan-journey-steps button").first()).toBeEnabled();
+  await expect(page.locator(".plan-task-list")).not.toContainText("Unfinished notes");
 });
