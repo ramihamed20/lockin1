@@ -69,6 +69,7 @@ test("replan previews and applies the selected active-study configuration", asyn
   const writes = await setup(page, "en");
   await page.locator(".plan-journey-steps button").filter({ hasText: "Exam plan" }).click();
   const panel = page.locator(".plan-exam-panel");
+  await panel.locator(".plan-exam-options summary").click();
   await panel.getByLabel("Rearrange unfinished tasks; keep completed and pinned work").check();
   await panel.getByLabel("Question difficulty").selectOption("hard");
   await panel.locator('button[type="submit"]').click();
@@ -139,6 +140,30 @@ for (const [label, width, height, locale] of [
         animations: "disabled"
       });
       if (stage !== "review") await wizard.locator(".plan-wizard-next").click();
+    }
+  });
+}
+
+
+// Capture the actual page across all stages on phone and tablet.
+for (const [label, width, height, locale] of [
+  ["phone-ar", 390, 844, "ar"],
+  ["ipad-en", 820, 1180, "en"]
+]) {
+  test(`study-plan journey preview ${label}`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height });
+    await setup(page, locale);
+    const names = ["today", "week", "exam", "progress"];
+    const namesByLocale = locale === "ar" ? ["اليوم", "جدولي", "الامتحان", "تقدّمي"] : ["Today", "My week", "Exam plan", "Progress"];
+    for (let index = 0; index < names.length; index++) {
+      await page.locator(".plan-journey-steps button").filter({ hasText: namesByLocale[index] }).click();
+      await expect(page.locator(".plan-stage-heading")).toHaveText(namesByLocale[index]);
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(`study-plan-journey-${label}-${names[index]}.png`),
+        fullPage: true,
+        animations: "disabled"
+      });
     }
   });
 }
