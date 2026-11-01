@@ -2275,3 +2275,51 @@ html.ix-hover .question-player-card .choices button:not(:disabled):hover { borde
   .plan-exam-form { display: grid; grid-template-columns: minmax(0, 1fr); }
   .plan-exam-totals { gap: 16px; }
 }
+
+
+/* Guided Study Plan setup. Only one short decision is visible at a time. */
+.plan-settings { inline-size: 100%; max-inline-size: 780px; margin-inline: auto; }
+.plan-wizard-progress { display: grid; gap: 12px; margin-block-start: 18px; }
+.plan-wizard-progress > span { font-size: 12px; color: var(--muted); font-weight: 600; }
+.plan-wizard-steps { display: flex; gap: 6px; align-items: stretch; }
+.plan-wizard-steps > button {
+  flex: 1 1 0; min-inline-size: 0; display: grid; place-content: start center; justify-items: center;
+  gap: 8px; min-block-size: 77px; padding: 8px 3px; border: 0; border-block-start: 2px solid var(--separator);
+  color: var(--muted); background: transparent; font: inherit; font-size: 12px; cursor: pointer;
+  text-align: center; overflow-wrap: anywhere;
+}
+.plan-wizard-steps > button[aria-current=step] { color: var(--text); border-block-start-color: var(--accent); font-weight: 700; }
+.plan-wizard-steps > button:disabled:not([aria-current=step]) { opacity: .45; cursor: default; }
+.plan-wizard-steps > button[aria-current=step]:disabled { opacity: 1; }
+.plan-wizard-number {
+  inline-size: 26px; block-size: 26px; display: grid; place-items: center;
+  border-radius: 50%; color: var(--text); background: var(--surface-2); font-size: 12px; font-weight: 700;
+}
+.plan-wizard-steps > button[aria-current=step] .plan-wizard-number { color: var(--on-accent); background: var(--accent); }
+.plan-wizard-steps > button:not(:disabled):not([aria-current=step]) .plan-wizard-number { color: var(--accent-text); background: var(--accent-soft); }
+.plan-wizard-review { display: grid; gap: 16px; }
+.plan-wizard-review h3 { font-size: 1.1rem; margin: 0; }
+.plan-wizard-review dl { display: grid; gap: 0; margin: 0; background: var(--surface-2); border-radius: 16px; padding: 6px 16px; }
+.plan-wizard-review dl > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); align-items: center; gap: 12px; padding: 12px 0; }
+.plan-wizard-review dl > div + div { border-block-start: 1px solid var(--separator); }
+.plan-wizard-review dt { color: var(--muted); font-size: var(--text-sm); }
+.plan-wizard-review dd { margin: 0; min-inline-size: 0; overflow-wrap: anywhere; text-align: end; font-size: var(--text-sm); font-weight: 650; }
+.plan-wizard-options { border-block-start: 1px solid var(--separator); padding-block-start: 8px; }
+.plan-wizard-options > summary { color: var(--accent-text); font-size: var(--text-sm); }
+.plan-wizard-options > label { margin-block-start: 18px; }
+.plan-wizard-weekly { display: grid; gap: 12px; margin-block-start: 12px; }
+.plan-wizard-weekly strong { font-size: var(--text-sm); }
+.plan-wizard-manual { min-block-size: 190px; display: grid; place-content: center; justify-items: center; gap: 16px; padding: 26px; border-radius: 18px; text-align: center; background: var(--surface-2); }
+.plan-wizard-manual svg { color: var(--accent-text); }
+.plan-wizard-manual p { max-inline-size: 360px; }
+.plan-wizard-actions .plan-wizard-next { flex: 1 1 170px; justify-content: center; }
+:dir(rtl) .plan-wizard-actions svg { transform: scaleX(-1); }
+@media(max-width:600px) {
+  .plan-wizard-steps { gap: 3px; }
+  .plan-wizard-steps > button { font-size: 10px; min-block-size: 68px; gap: 7px; }
+  .plan-wizard-number { inline-size: 24px; block-size: 24px; }
+  .plan-wizard-review dl { padding-inline: 12px; }
+  .plan-wizard-actions { flex-wrap: nowrap; gap: 5px; }
+  .plan-wizard-actions > .btn { padding-inline: 10px; font-size: 12px; min-inline-size: 0; }
+  .plan-wizard-actions > .plan-wizard-next { flex-basis: 90px; }
+}
