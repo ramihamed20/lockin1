@@ -79,14 +79,17 @@ export default function PlanSettings({ profile, materials = [], onSave, onCancel
         {currentStep === "pace" && draft.mode === "normal" && <section className="plan-advanced plan-habit-assessment" aria-label={t("smart.habitTitle")}>
           <strong>{t("smart.habitTitle")}</strong>
           <p className="plan-note">{t("smart.habitIntro")}</p>
-          <div className="plan-field-grid">
-            <label>{t("smart.habitBaseline")}<input type="number" min="10" max="240" placeholder="60" value={draft.habit_baseline_minutes} onChange={event => change("habit_baseline_minutes", event.target.value)} /></label>
-            <label>{t("smart.habitBlock")}<input type="number" min="10" max="120" placeholder="25" value={draft.habit_block_minutes} onChange={event => change("habit_block_minutes", event.target.value)} /></label>
-            <label>{t("smart.habitRhythm")}<select value={draft.study_rhythm} onChange={event => change("study_rhythm", event.target.value)}>
-              {["mixed", "fragmented", "continuous"].map(value => <option key={value} value={value}>{t("smart.rhythm." + value)}</option>)}
-            </select></label>
-          </div>
-          <label><input type="checkbox" checked={draft.gradual_growth} onChange={event => change("gradual_growth", event.target.checked)} />{t("smart.habitGrowth")}</label>
+          <label>{t("smart.habitBaseline")}<input type="number" min="10" max="240" placeholder="60" value={draft.habit_baseline_minutes} onChange={event => change("habit_baseline_minutes", event.target.value)} /></label>
+          <details className="plan-advanced plan-habit-extra">
+            <summary>{t("plan.wizard.advanced")}</summary>
+            <div className="plan-field-grid">
+              <label>{t("smart.habitBlock")}<input type="number" min="10" max="120" placeholder="25" value={draft.habit_block_minutes} onChange={event => change("habit_block_minutes", event.target.value)} /></label>
+              <label>{t("smart.habitRhythm")}<select value={draft.study_rhythm} onChange={event => change("study_rhythm", event.target.value)}>
+                {["mixed", "fragmented", "continuous"].map(value => <option key={value} value={value}>{t("smart.rhythm." + value)}</option>)}
+              </select></label>
+            </div>
+            <label><input type="checkbox" checked={draft.gradual_growth} onChange={event => change("gradual_growth", event.target.checked)} />{t("smart.habitGrowth")}</label>
+          </details>
         </section>}
         {currentStep === "pace" && draft.mode === "normal" && <div className="plan-field-grid">
           <label>{t("plan.daily")}<input type="number" min="10" max="240" required value={draft.daily_minutes} onChange={event => change("daily_minutes", event.target.value)} /></label>
