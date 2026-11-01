@@ -6,7 +6,7 @@ export const companionCharacters = {
   girl: { still: new URL("../../assets/study-companion/girl.png", import.meta.url).href }
 };
 
-/** One articulated puppet; mouth, eyes, arms, head and tail share a blended timeline. */
+/** One articulated puppet; original artwork, arms, head and tail share a blended timeline. */
 export function CompanionCharacter({ character = "boy", state = "idle", sequenceKey = "", motion = true }) {
   const asset = companionCharacters[character] || companionCharacters.boy;
   const [loaded, setLoaded] = useState({ url: "", image: null });
@@ -31,12 +31,7 @@ export function CompanionCharacter({ character = "boy", state = "idle", sequence
     const canvas = canvasRef.current;
     const player = createOriginalCompanionPlayer(canvas, loaded.image, character);
     playerRef.current = player;
-    function gaze(event) {
-      const r = canvas.getBoundingClientRect();
-      player?.setGaze((event.clientX - r.left - r.width / 2) / Math.max(1, r.width), (event.clientY - r.top - r.height * .4) / Math.max(1, r.height));
-    }
-    document.addEventListener("pointermove", gaze, { passive: true });
-    return () => { document.removeEventListener("pointermove", gaze); player?.destroy(); playerRef.current = null; };
+    return () => { player?.destroy(); playerRef.current = null; };
   }, [animated, character, loaded]);
   useEffect(() => { playerRef.current?.setState(state); }, [state, sequenceKey, animated, character, loaded]);
   return <span className={"study-companion-character" + (animated ? " is-animated is-rigged" : "")} data-state={animated ? state : "idle"} aria-hidden="true">

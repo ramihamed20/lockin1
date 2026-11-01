@@ -39,16 +39,17 @@ test("interrupts blend from the current expression without a first-frame jump", 
   assert.deepEqual(blendExpression(from, to, 1), to);
 });
 
-test("destroy cancels the only RAF and a queued stale callback cannot restart it", () => {
+test("renderer preserves original character pixels and destroys the only RAF safely", () => {
   const previous = { window: globalThis.window, document: globalThis.document, requestAnimationFrame: globalThis.requestAnimationFrame, cancelAnimationFrame: globalThis.cancelAnimationFrame };
   const pending = new Map(); let serial = 0, draws = 0;
-  const context = new Proxy({}, { get: (_, key) => key === "getImageData" ? () => ({ data: new Uint8ClampedArray(235 * 240 * 4) }) : key === "drawImage" ? () => draws++ : () => {} });
+  const artwork = {};
+  const context = new Proxy({}, { get: (_, key) => ["getImageData", "fillRect"].includes(key) ? () => { throw new Error("Original character pixels must not be repainted"); } : key === "drawImage" ? (source) => { assert.equal(source, artwork); draws++; } : () => {} });
   try {
     globalThis.window = { Path2D: class { rect() {} moveTo() {} lineTo() {} closePath() {} } };
     globalThis.document = { createElement: () => ({ getContext: () => context }) };
     globalThis.requestAnimationFrame = cb => { pending.set(++serial, cb); return serial; };
     globalThis.cancelAnimationFrame = id => pending.delete(id);
-    const player = createOriginalCompanionPlayer({ width: 512, height: 512, getContext: () => context }, {}, "girl");
+    const player = createOriginalCompanionPlayer({ width: 512, height: 512, getContext: () => context }, artwork, "girl");
     assert.equal(pending.size, 1);
     const run = time => { const [id, cb] = pending.entries().next().value; pending.delete(id); cb(time); };
     run(0); const count = draws;
