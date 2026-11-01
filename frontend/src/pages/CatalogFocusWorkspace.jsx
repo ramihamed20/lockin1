@@ -167,6 +167,7 @@ import {
 } from "../workspace/catalog/catalogWorkspaceState.js";
 import { COPY_OFFSET, MOVE_THRESHOLD_PX, clampSelectionDelta, contextToolbarPosition, editableTarget, expandSelectionGroups, hitTestAnnotations, isDoubleTap, reorderSelection } from "../workspace/selection/selectionController.js";
 import { A4_PAGE_WIDTH, ContinuousA4Pdf } from "../workspace/catalog/ContinuousA4Pdf.jsx";
+import { horizontalSwipeTarget } from "../workspace/catalog/horizontalPageLayout.js";
 import { WORKSPACE_PAGE_BACKGROUNDS, addSummaryPages, composeWorkspacePages, createVirtualPageId, insertVirtualPage, isVirtualPageKey, removeSummaryPages, removeVirtualPage, sanitizeVirtualPages } from "../workspace/catalog/virtualPages.js";
 import { canvasesToPdf, renderWorkspacePage } from "../workspace/catalog/workspaceExport.js";
 import { canShareFile, createExportHandle, exportFileNameFor, formatFileSize, isAppleTouchDevice, shareExportFile, triggerDownload } from "../workspace/catalog/exportDelivery.js";
@@ -663,6 +664,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const [rememberLastPosition, setRememberLastPosition] = useState(initialRememberLastPosition);
   const [rememberZoomLevel, setRememberZoomLevel] = useState(initialRememberZoomLevel);
   const [showPageNumber, setShowPageNumber] = useState(storedWorkspaceSettings.showPageNumber !== false);
+  const [pageDirection, setPageDirection] = useState(storedWorkspaceSettings.pageDirection === "horizontal" ? "horizontal" : "vertical");
   const [keepScreenAwake, setKeepScreenAwake] = useState(storedWorkspaceSettings.keepScreenAwake === true);
   const [zoomHud, setZoomHud] = useState({ visible: false, label: "" });
   // Whether the student has chosen what draws. Until they do, the device
@@ -1257,8 +1259,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     try { window.localStorage.setItem(TOOL_MEMORY_KEY, JSON.stringify(toolMemoryRef.current)); } catch { /* Tool memory is a best-effort local preference. */ }
   }, [activeColor, activeTool, brushOpacity, brushSize, highlighterOpacity, penProfile, pencilOpacity, pressureSensitivity, shapeStyle, strokeSmoothing]);
   useEffect(() => {
-    try { window.localStorage.setItem(WORKSPACE_SETTINGS_KEY, JSON.stringify({ autoImproveHandwriting, scribbleToErase, drawAndHold, eraserSize, eraserMode, circleToErase, rememberLastPosition, rememberZoomLevel, showPageNumber, keepScreenAwake, shapeFill, shapeFillColor, shapeDashed, shapeSnapGrid, shapeAngle, includeWorkspacePages })); } catch { /* Workspace preferences remain available in memory. */ }
-  }, [autoImproveHandwriting, circleToErase, drawAndHold, eraserMode, eraserSize, keepScreenAwake, rememberLastPosition, rememberZoomLevel, scribbleToErase, showPageNumber, shapeFill, shapeFillColor, shapeDashed, shapeSnapGrid, shapeAngle, includeWorkspacePages]);
+    try { window.localStorage.setItem(WORKSPACE_SETTINGS_KEY, JSON.stringify({ autoImproveHandwriting, scribbleToErase, drawAndHold, eraserSize, eraserMode, circleToErase, rememberLastPosition, rememberZoomLevel, showPageNumber, pageDirection, keepScreenAwake, shapeFill, shapeFillColor, shapeDashed, shapeSnapGrid, shapeAngle, includeWorkspacePages })); } catch { /* Workspace preferences remain available in memory. */ }
+  }, [autoImproveHandwriting, circleToErase, drawAndHold, eraserMode, eraserSize, keepScreenAwake, rememberLastPosition, rememberZoomLevel, scribbleToErase, showPageNumber, pageDirection, shapeFill, shapeFillColor, shapeDashed, shapeSnapGrid, shapeAngle, includeWorkspacePages]);
   useEffect(() => () => {
     const gesture = gestureRef.current;
     if (gesture.pinchRafId !== null) cancelAnimationFrame(gesture.pinchRafId);
@@ -1641,6 +1643,17 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   }, [applyPendingReaderAnchor]);
 
   const resetReaderToPageOne = useCallback(() => placeReaderAt(1), [placeReaderAt]);
+
+  function changePageDirection(next) {
+    if (!sheet?.pdfUrl || (next !== "horizontal" && next !== "vertical") || next === pageDirection) return;
+    const anchor = captureReaderAnchor();
+    stopScrollMomentum();
+    setPageDirection(next);
+    // Wait for the new column/row geometry before locating the same page.
+    requestAnimationFrame(() => requestAnimationFrame(() => placeReaderAt({
+      page: anchor.page, virtualPageId: anchor.virtualPageId, pageOffset: null, left: null
+    })));
+  }
 
   /** The page on screen and how far into it the reader is, zoom-independent. */
   const captureReaderAnchor = useCallback(() => {
@@ -3333,6 +3346,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       top: stage.scrollTop,
       direction,
       bounds: readerScrollBounds(),
+      startPageKey: activePageKey,
       limits,
       // Store the inverse rubber-band value once, so an in-flight spring is
       // part of the new drag's origin instead of being cleared first.
@@ -4073,13 +4087,30 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       if (gesture.panRafId !== null) cancelAnimationFrame(gesture.panRafId);
       gesture.panRafId = null;
       if (!pendingDirection) applyPanPosition(completedPan);
+      const horizontalTarget = pageDirection === "horizontal" && sheet?.pdfUrl
+        && zoomRef.current <= minimumPdfZoom() * 1.12 && gesture.touches.size === 0
+        ? horizontalSwipeTarget(
+          Array.from(stageRef.current?.querySelectorAll(".workspace-v2-a4-page") || [], (element) => Number(element.dataset.workspacePage)),
+          completedPan.startPageKey,
+          event.clientX - completedPan.x,
+          event.clientY - completedPan.y,
+          stageRef.current?.clientWidth
+        )
+        : null;
       gesture.pan = null;
       gesture.mode = INTERACTION_STATE.IDLE;
       const hasElasticOffset = !pendingDirection && (Math.abs(completedPan.elasticX) > .1 || Math.abs(completedPan.elasticY) > .1);
       const releaseVelocity = pendingDirection
         ? { x: 0, y: 0, speed: 0 }
         : lockedGestureVelocity(completedPan.direction, estimateReleaseScrollVelocity(completedPan.samples, event.timeStamp));
-      if (hasElasticOffset) startPanSpringBack(completedPan.elasticX, completedPan.elasticY, releaseVelocity);
+      if (horizontalTarget !== null) {
+        // Paged swipes advance exactly one accessible page; cancel the normal
+        // free-pan momentum before restoring the page centre.
+        documentRef.current?.classList.remove("is-live-panning");
+        if (documentRef.current) documentRef.current.style.transform = "";
+        endScrollActivity();
+        requestAnimationFrame(() => jumpToPagePosition(horizontalTarget));
+      } else if (hasElasticOffset) startPanSpringBack(completedPan.elasticX, completedPan.elasticY, releaseVelocity);
       else {
         documentRef.current?.classList.remove("is-live-panning");
         if (documentRef.current) documentRef.current.style.transform = "";
@@ -4356,9 +4387,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       : targetTop - paddingTop;
     const left = point
       ? targetLeft + (Math.min(1000, Math.max(0, point.x)) / 1000) * targetBounds.width - stage.clientWidth * 0.5
-      : stage.scrollLeft;
+      : pageDirection === "horizontal" && sheet?.pdfUrl
+        ? centeredScrollLeft({ scrollLeft: stage.scrollLeft, pageLeft: targetBounds.left, viewportLeft: stageBounds.left, viewportWidth: stage.clientWidth, pageWidth: targetBounds.width, scrollWidth: stage.scrollWidth })
+        : stage.scrollLeft;
     stage.scrollTo({
-      top: Math.max(0, top),
+      top: pageDirection === "horizontal" && !point ? 0 : Math.max(0, top),
       left: Math.max(0, left),
       behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"
     });
@@ -6162,10 +6195,23 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
 
           <ToolOptionsPanel favoritesStrip={favoritePensStrip("is-panel")} activeColor={activeColor} activePenOption={activePenOption} activeTool={activeTool} activeToolLabel={activeToolLabel} activeToolOpacity={activeToolOpacity} brushSize={brushSize} changePenProfile={changePenProfile} chooseAnnotationColor={chooseAnnotationColor} circleToErase={circleToErase} clearPageAnnotations={clearPageAnnotations} commitCustomColor={commitCustomColor} customColorDraft={customColorDraft} customColorEditorOpen={customColorEditorOpen} customColorSet={customColorSet} deleteCustomColor={deleteCustomColor} displayedToolOptions={displayedToolOptions} drawAndHold={drawAndHold} eraserMode={eraserMode} eraserSize={eraserSize} favoriteColors={favoriteColors} inkToolActive={inkToolActive} lassoMode={lassoMode} pageAnnotations={pageAnnotations} paletteColors={paletteColors} penProfile={penProfile} recentColors={recentColors} selectedAnnotations={selectedAnnotations} setBrushSize={setBrushSize} setCircleToErase={setCircleToErase} setCustomColorDraft={setCustomColorDraft} setCustomColorEditorOpen={setCustomColorEditorOpen} setDrawAndHold={setDrawAndHold} setEraserMode={setEraserMode} setEraserSize={setEraserSize} setLassoMode={setLassoMode} setShapeAngle={setShapeAngle} setShapeDashed={setShapeDashed} setShapeFill={setShapeFill} setShapeFillColor={setShapeFillColor} setShapeSnapGrid={setShapeSnapGrid} setShapeStyle={setShapeStyle} shapeAngle={shapeAngle} shapeDashed={shapeDashed} shapeFill={shapeFill} shapeFillColor={shapeFillColor} shapeSnapGrid={shapeSnapGrid} shapeStyle={shapeStyle} showColorPalette={showColorPalette} t={t} toggleFavoriteColor={toggleFavoriteColor} toolOptionsOpen={toolOptionsOpen} toolOptionsRef={toolOptionsRef} updateActiveToolOpacity={updateActiveToolOpacity} workspaceReady={workspaceReady} />
 
-          <SettingsPopover activeVirtualPage={activeVirtualPage} activeVirtualPageId={activeVirtualPageId} addBlankPage={addBlankPage} annotationsHidden={annotationsHidden} applyRestoredBackup={applyRestoredBackup} autoImproveHandwriting={autoImproveHandwriting} backupBusy={backupBusy} backupInputRef={backupInputRef} changeDrawingInput={changeDrawingInput} changeVirtualPageBackground={changeVirtualPageBackground} circleToErase={circleToErase} clearPageAnnotations={clearPageAnnotations} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} deleteBlankPage={deleteBlankPage} drawAndHold={drawAndHold} drawingInput={drawingInput} exportBusy={exportBusy} exportStudyDocument={exportStudyDocument} exportWorkspaceBackup={exportWorkspaceBackup} includeWorkspacePages={includeWorkspacePages} keepScreenAwake={keepScreenAwake} page={page} pageAnnotations={pageAnnotations} pdfDocumentReady={pdfDocumentReady} pendingImport={pendingImport} popover={popover} readWorkspaceBackup={readWorkspaceBackup} rememberLastPosition={rememberLastPosition} rememberZoomLevel={rememberZoomLevel} saveErrorReason={saveErrorReason} saveState={saveState} scribbleToErase={scribbleToErase} setActiveTool={setActiveTool} setAnnotationsHidden={setAnnotationsHidden} setAutoImproveHandwriting={setAutoImproveHandwriting} setCircleToErase={setCircleToErase} setDrawAndHold={setDrawAndHold} setIncludeWorkspacePages={setIncludeWorkspacePages} setKeepScreenAwake={setKeepScreenAwake} setPendingImport={setPendingImport} setRememberLastPosition={setRememberLastPosition} setRememberZoomLevel={setRememberZoomLevel} setScribbleToErase={setScribbleToErase} setSelectedIds={setSelectedIds} setSettingsTab={setSettingsTab} setShowPageNumber={setShowPageNumber} settingsTab={settingsTab} sheet={sheet} showPageNumber={showPageNumber} t={t} wakeLockSupported={wakeLockSupported} workspaceReady={workspaceReady} />
+          <SettingsPopover pageDirection={pageDirection} changePageDirection={changePageDirection} activeVirtualPage={activeVirtualPage} activeVirtualPageId={activeVirtualPageId} addBlankPage={addBlankPage} annotationsHidden={annotationsHidden} applyRestoredBackup={applyRestoredBackup} autoImproveHandwriting={autoImproveHandwriting} backupBusy={backupBusy} backupInputRef={backupInputRef} changeDrawingInput={changeDrawingInput} changeVirtualPageBackground={changeVirtualPageBackground} circleToErase={circleToErase} clearPageAnnotations={clearPageAnnotations} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} deleteBlankPage={deleteBlankPage} drawAndHold={drawAndHold} drawingInput={drawingInput} exportBusy={exportBusy} exportStudyDocument={exportStudyDocument} exportWorkspaceBackup={exportWorkspaceBackup} includeWorkspacePages={includeWorkspacePages} keepScreenAwake={keepScreenAwake} page={page} pageAnnotations={pageAnnotations} pdfDocumentReady={pdfDocumentReady} pendingImport={pendingImport} popover={popover} readWorkspaceBackup={readWorkspaceBackup} rememberLastPosition={rememberLastPosition} rememberZoomLevel={rememberZoomLevel} saveErrorReason={saveErrorReason} saveState={saveState} scribbleToErase={scribbleToErase} setActiveTool={setActiveTool} setAnnotationsHidden={setAnnotationsHidden} setAutoImproveHandwriting={setAutoImproveHandwriting} setCircleToErase={setCircleToErase} setDrawAndHold={setDrawAndHold} setIncludeWorkspacePages={setIncludeWorkspacePages} setKeepScreenAwake={setKeepScreenAwake} setPendingImport={setPendingImport} setRememberLastPosition={setRememberLastPosition} setRememberZoomLevel={setRememberZoomLevel} setScribbleToErase={setScribbleToErase} setSelectedIds={setSelectedIds} setSettingsTab={setSettingsTab} setShowPageNumber={setShowPageNumber} settingsTab={settingsTab} sheet={sheet} showPageNumber={showPageNumber} t={t} wakeLockSupported={wakeLockSupported} workspaceReady={workspaceReady} />
 
           <div
             className={`workspace-v2-document-stage is-tool-${activeTool}`}
+            data-page-direction={sheet.pdfUrl ? pageDirection : undefined}
+            tabIndex={sheet.pdfUrl ? 0 : undefined}
+            aria-label={sheet.pdfUrl ? t("focus.documentReader") : undefined}
+            onKeyDown={(event) => {
+              if (!sheet.pdfUrl || pageDirection !== "horizontal" || isTypingTarget(event.target) || isStageControl(event.target) || event.altKey || event.ctrlKey || event.metaKey) return;
+              const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+              if (!step) return;
+              const keys = Array.from(event.currentTarget.querySelectorAll(".workspace-v2-a4-page"), (element) => Number(element.dataset.workspacePage));
+              const index = keys.indexOf(activePageKey);
+              if (index < 0 || !keys[index + step]) return;
+              event.preventDefault();
+              jumpToPagePosition(keys[index + step]);
+            }}
             ref={stageRef}
             inert={workspaceReady ? undefined : ""}
             onPointerDown={beginWorkspacePointer}
@@ -6175,7 +6221,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
             onLostPointerCapture={lostWorkspacePointer}
             onPointerLeave={() => { hideStylusHover(); hideEraserHitbox(); }}
           >
-            {sheet.pdfUrl ? <ContinuousA4Pdf pdfUrl={sheet.pdfUrl} pageCount={pageCount} visiblePageStart={accessiblePageStart} visiblePageCount={accessiblePageCount} zoom={zoom} stageRef={stageRef} documentRootRef={documentRef} onPageCount={syncPdfPageCount} onDocumentReady={markPdfDocumentReady} onDocumentLoaded={handlePdfDocumentLoaded} onCurrentPageChange={handleCurrentWorkspacePage} virtualPages={readerVirtualPages} renderPageOverlay={renderPdfPageOverlay} onPdfPageRendered={recordPdfPageRender} documentFooter={whiteboard ? <div className="workspace-whiteboard-footer"><button type="button" onClick={addWhiteboardPage}><Plus size={18} /><span>{t("workspaceTabs.addPage")}</span></button></div> : null} /> : <article ref={documentRef} className="workspace-v2-document" onDoubleClick={smartZoom} style={cssVars({ "--workspace-document-width": `${PAGE_WIDTH * zoom}px`, "--workspace-document-min-height": `${760 * zoom}px`, "--workspace-document-max-width": "none" })}>
+            {sheet.pdfUrl ? <ContinuousA4Pdf pageDirection={pageDirection} pdfUrl={sheet.pdfUrl} pageCount={pageCount} visiblePageStart={accessiblePageStart} visiblePageCount={accessiblePageCount} zoom={zoom} stageRef={stageRef} documentRootRef={documentRef} onPageCount={syncPdfPageCount} onDocumentReady={markPdfDocumentReady} onDocumentLoaded={handlePdfDocumentLoaded} onCurrentPageChange={handleCurrentWorkspacePage} virtualPages={readerVirtualPages} renderPageOverlay={renderPdfPageOverlay} onPdfPageRendered={recordPdfPageRender} documentFooter={whiteboard ? <div className="workspace-whiteboard-footer"><button type="button" onClick={addWhiteboardPage}><Plus size={18} /><span>{t("workspaceTabs.addPage")}</span></button></div> : null} /> : <article ref={documentRef} className="workspace-v2-document" onDoubleClick={smartZoom} style={cssVars({ "--workspace-document-width": `${PAGE_WIDTH * zoom}px`, "--workspace-document-min-height": `${760 * zoom}px`, "--workspace-document-max-width": "none" })}>
               <svg className={annotationLayerClass} viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-label={t("focus.documentAnnotations")}>
                 <AnnotationVisuals annotations={annotationsHidden ? [] : pageAnnotations} prefix={`document-${page}`} includeHitTargets={activeTool === "select" && !annotationsHidden} revealedIds={revealedCoverIds} />
                 <DraftAnnotationLayer ref={draftLayerRef} latest={draftAnnotationRef} />
