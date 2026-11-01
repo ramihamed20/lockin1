@@ -79,11 +79,13 @@ export default function ReadingPlanPanel({ exams, profile, disabled, onSetup, on
         <label>{t("plan.examEdition")}<select value={edition} disabled={blocked} onChange={event => setEdition(event.target.value)}><option value="university">{t("plan.examUniversity")}</option><option value="lockin">{t("plan.examLockin")}</option></select></label>
         <button className="btn btn-primary" type="submit" disabled={blocked || state.status === "loading" || !selected}>{t(state.status === "loading" ? "plan.examLoading" : "connected.preview")}</button>
       </form>
+      <details className="plan-exam-options"><summary>{t("plan.flow.options")}</summary><div className="plan-exam-options-body">
       <label className="plan-connected-review"><input type="checkbox" checked={includeReviews} disabled={blocked || Boolean(reportId)} onChange={event => setIncludeReviews(event.target.checked)} />{t("connected.includeReviews")}</label>
       <label className="plan-connected-review"><input type="checkbox" checked={includeQuestions} disabled={blocked} onChange={event => setIncludeQuestions(event.target.checked)} />{t("smart.includeQuestions")}</label>
       <label className="plan-connected-review"><input type="checkbox" checked={includeActiveStudy} disabled={blocked} onChange={event => setIncludeActiveStudy(event.target.checked)} />{t("smart.includeActive")}</label>
       {includeActiveStudy && <label>{t("smart.difficulty")}<select value={difficulty} disabled={blocked} onChange={event => setDifficulty(event.target.value)}>{["easy", "medium", "hard"].map(value => <option key={value} value={value}>{t(`smart.${value}`)}</option>)}</select></label>}
       <label className="plan-connected-review"><input type="checkbox" checked={replan} disabled={blocked} onChange={event => setReplan(event.target.checked)} />{t("smart.replan")}</label>
+      </div></details>
       {selected && <p className="plan-exam-status">{dateLabel(selected.starts_on)} · {t(selected.status === "confirmed" ? "plan.examConfirmed" : "plan.examTentative")}</p>}
       {result && <p className="plan-apply-success" role="status">{t("connected.applied", { count: result.created_count })}</p>}
       {progressNotice && <p role="status">{t(progressNotice)}</p>}
