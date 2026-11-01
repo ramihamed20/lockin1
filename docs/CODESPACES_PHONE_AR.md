@@ -20,7 +20,22 @@
 
 عند فتح الشيت في **Focus Workspace** تظهر شخصية المساعد على طرف الشاشة تلقائيًا؛ اضغط عليها لقراءة الشرح ثم سؤال التحقق، ويمكنك تغيير الشخصية وحفظ الأفكار من الإعدادات. الأجوبة مُعدّة مسبقًا وليست محادثة AI حية.
 
-إذا كنت تستخدم Codespace موجودًا سابقًا، نفّذ `git pull` على نفس البرانش ثم `docker compose exec -T backend python manage.py seed_codespace_histology`، أو أعد تشغيل `bash .devcontainer/start.sh`.
+إذا كنت تستخدم Codespace موجودًا سابقًا، تأكّد أولًا أنك على الفرع الصحيح ثم حدّث **الكود والـ Docker والبيانات** (لأن `git pull` وحده لا يعيد تجهيز قاعدة البيانات):
+
+```bash
+git fetch origin codex/lockin0.1.5
+git switch codex/lockin0.1.5 || git switch --track origin/codex/lockin0.1.5
+git pull --ff-only origin codex/lockin0.1.5
+bash .devcontainer/start.sh
+```
+
+ثم حدّث صفحة المتصفح. للتأكد من النسخة نفّذ `git rev-parse --short HEAD`؛ يجب أن يتطابق مع آخر commit في صفحة الفرع على GitHub. عند فشل `git pull` بسبب تعديلات محلية لا تستخدم `reset --hard`؛ احتفظ بالتعديلات أولًا.
+
+إذا لم تظهر شخصية المساعد بعد التحديث، افتح الشيت من **Materials → Intro Histology** في **Focus Workspace** (وليس مجرد معاينة Study Plan)، وألغِ خيار إخفاء الشخصية إن كان مُفعّلًا في إعداداتها. المساعد يحتاج فتح صفحة PDF فعلية وشروحات منشورة — وقد أضفنا 12 شرحًا في الشيت التجريبي.
+
+### التحديث السريع لاحقًا
+
+بعد ما تسحب هذا الإصدار مرة، يمكنك تحديث النسخة التجريبية بأمر واحد `bash .devcontainer/refresh.sh`. الأمر لا يحذف التعديلات المحلية؛ إذا كانت موجودة سيطلب منك حفظها أولًا.
 
 ## حالة الأعطال
 
