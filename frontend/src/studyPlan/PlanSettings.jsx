@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useI18n } from "../components/I18nProvider.jsx";
 import { Icon } from "../lib/icons.jsx";
 import { MAX_SUBJECTS, hasSubject, mergeSubjects, parseSubjects, profileDraft, profileRequest, toggleSubject } from "./model.js";
@@ -9,10 +9,18 @@ export default function PlanSettings({ profile, materials = [], onSave, onCancel
   const [invalidDays, setInvalidDays] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const formRef = useRef(null);
+  const settingsRef = useRef(null);
+  const stepHeadingRef = useRef(null);
+  const hasNavigated = useRef(false);
   const steps = draft.mode === "normal" ? ["mode", "pace", "schedule", "review"] :
     draft.mode === "beginning" ? ["mode", "schedule", "review"] : ["mode", "manual", "review"];
   const activeIndex = Math.min(stepIndex, steps.length - 1);
   const currentStep = steps[activeIndex];
+  useEffect(() => {
+    if (!hasNavigated.current) return;
+    stepHeadingRef.current?.focus({ preventScroll: true });
+    settingsRef.current?.scrollIntoView({ block: "start" });
+  }, [activeIndex]);
   function nextStep() {
     if (currentStep === "schedule" && draft.mode !== "custom" && !draft.weekdays.length) {
       setInvalidDays(true);
@@ -20,9 +28,10 @@ export default function PlanSettings({ profile, materials = [], onSave, onCancel
     }
     setInvalidDays(false);
     if (!formRef.current?.reportValidity()) return;
+    hasNavigated.current = true;
     setStepIndex(index => Math.min(index + 1, steps.length - 1));
   }
-  function goBack() { setInvalidDays(false); setStepIndex(index => Math.max(0, index - 1)); }
+  function goBack() { setInvalidDays(false); hasNavigated.current = true; setStepIndex(index => Math.max(0, index - 1)); }
   const change = (key, value) => setDraft(current => ({ ...current, [key]: value }));
   const chosen = draft.subjectList;
   const full = chosen.length >= MAX_SUBJECTS;
@@ -32,15 +41,16 @@ export default function PlanSettings({ profile, materials = [], onSave, onCancel
     if (!typed.length) return;
     setDraft(current => ({ ...current, subjectList: mergeSubjects(current.subjectList, typed), subjects: "" }));
   }
-  return <section className="plan-settings" aria-labelledby="plan-settings-title">
+  return <section ref={settingsRef} className="plan-settings" aria-labelledby="plan-settings-title">
     <h2 id="plan-settings-title">{t(profile.configured ? "plan.settings" : "plan.choose")}</h2>
     <nav className="plan-wizard-progress" aria-label={t("plan.wizard.progress")}>
       <span aria-live="polite">{t("plan.wizard.count", { current: activeIndex + 1, total: steps.length })}</span>
-      <div className="plan-wizard-steps">{steps.map((name, index) => <button key={name} type="button" disabled={busy || index > activeIndex} aria-current={index === activeIndex ? "step" : undefined} onClick={() => { setInvalidDays(false); setStepIndex(index); }}>
+      <div className="plan-wizard-steps">{steps.map((name, index) => <button key={name} type="button" disabled={busy || index > activeIndex} aria-current={index === activeIndex ? "step" : undefined} onClick={() => { setInvalidDays(false); hasNavigated.current = true; setStepIndex(index); }}>
         <span className="plan-wizard-number">{index < activeIndex ? <Icon name="check" size={13} /> : index + 1}</span>
         <span>{t("plan.wizard." + name)}</span>
       </button>)}</div>
     </nav>
+    <h3 className="plan-wizard-current" ref={stepHeadingRef} tabIndex={-1}>{t("plan.wizard." + currentStep)}</h3>
     <form ref={formRef} onSubmit={event => {
       event.preventDefault();
       if (currentStep !== "review") { nextStep(); return; }
