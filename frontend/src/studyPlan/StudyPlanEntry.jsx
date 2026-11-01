@@ -1,29 +1,31 @@
 import { useEffect, useState } from "react";
 import { studyPlanApi } from "../api/studyPlan.js";
-import { FeatureComingSoon } from "../components/FeatureComingSoon.jsx";
-import { LoadingPanel } from "../components/ui/index.jsx";
-import { useI18n } from "../components/I18nProvider.jsx";
 import StudyPlan from "../pages/StudyPlan.jsx";
 
-/** A closed product route can open only after the server authorizes this pilot account. */
+/** The weekly plan stays available even when exam planning is not enabled. */
 export default function StudyPlanEntry({ user }) {
-  const { t } = useI18n();
-  const [state, setState] = useState({ status: "loading", exams: [] });
+  const [state, setState] = useState({ status: "loading", exams: null });
   const [attempt, setAttempt] = useState(0);
+
   useEffect(() => {
     const controller = new AbortController();
-    setState({ status: "loading", exams: [] });
+    setState({ status: "loading", exams: null });
     studyPlanApi.getExams({ signal: controller.signal, user }).then(exams => {
-      if (!controller.signal.aborted) setState({ status: "pilot", exams });
+      if (!controller.signal.aborted) setState({ status: "ready", exams });
     }).catch(error => {
-      if (!controller.signal.aborted) setState({ status: error.status === 403 ? "closed" : "error", exams: [] });
+      if (!controller.signal.aborted) {
+        setState({ status: error?.status === 403 ? "closed" : "error", exams: null });
+      }
     });
     return () => controller.abort();
   }, [user, attempt]);
-  if (state.status === "loading") return <LoadingPanel variant="list" />;
-  if (state.status === "pilot") return <StudyPlan user={user} examPeriods={state.exams} />;
-  return <>
-    <FeatureComingSoon featureId="study-plan" />
-    {state.status === "error" && <div className="plan-pilot-retry" role="status"><p>{t("plan.examAccessError")}</p><button className="btn btn-soft" type="button" onClick={() => setAttempt(value => value + 1)}>{t("plan.examRetry")}</button></div>}
-  </>;
+
+  const examNotice = state.status === "closed" ? "plan.examDenied"
+    : state.status === "error" ? "plan.examAccessError" : null;
+  return <StudyPlan
+    user={user}
+    examPeriods={state.status === "ready" ? state.exams : null}
+    examNotice={examNotice}
+    onRetryExams={() => setAttempt(current => current + 1)}
+  />;
 }

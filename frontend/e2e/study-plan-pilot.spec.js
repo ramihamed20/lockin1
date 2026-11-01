@@ -62,14 +62,24 @@ for (const [width, height, locale] of [[320,740,"ar"],[390,844,"en"],[820,1180,"
     if (width === 320) await page.screenshot({ path: testInfo.outputPath("reading-preview-phone.png"), fullPage: true });
   });
 }
-test("non-pilot account stays on coming soon without loading the plan", async ({ page }) => {
+test("non-pilot account can use the weekly plan without exam permissions", async ({ page }) => {
   await mock(page, { examStatus: 403 });
-  let loadedPlan = false;
-  page.on("request", req => { if (new URL(req.url()).pathname === "/api/v1/study-plan") loadedPlan = true; });
   await page.goto("/#/study-plan");
-  await expect(page.locator('.feature-coming-soon[data-feature-id="study-plan"]')).toBeVisible();
-  await expect(page.locator(".study-plan-v2")).toHaveCount(0);
-  expect(loadedPlan).toBe(false);
+  await expect(page.locator(".study-plan-v2 .plan-hero")).toBeVisible();
+  await expect(page.locator(".plan-exam-panel")).toHaveCount(0);
+  await expect(page.locator(".plan-pilot-retry")).toBeVisible();
+  await expect(page.locator(".feature-coming-soon")).toHaveCount(0);
+});
+
+test("exam discovery errors do not block the weekly plan and can be retried", async ({ page }) => {
+  let attempts = 0;
+  await mock(page, { examStatus: 503 });
+  page.on("request", req => { if (new URL(req.url()).pathname === "/api/v1/study-plan/v2/exams") attempts += 1; });
+  await page.goto("/#/study-plan");
+  await expect(page.locator(".study-plan-v2 .plan-hero")).toBeVisible();
+  await expect(page.locator(".plan-pilot-retry")).toBeVisible();
+  await page.locator(".plan-pilot-retry button").click();
+  await expect.poll(() => attempts).toBeGreaterThanOrEqual(2);
 });
 test("pilot with no assigned exams gets a truthful empty state", async ({ page }) => {
   await mock(page, { periods: [] });

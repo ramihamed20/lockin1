@@ -23,7 +23,6 @@ async function mockStudent(page, locale = "en") {
 }
 
 const features = [
-  { id: "study-plan", route: "/study-plan" },
   { id: "community", route: "/community" }
 ];
 
@@ -32,9 +31,6 @@ async function expectComingSoon(page, feature) {
   await expect(surface).toBeVisible();
   await expect(surface).toContainText("Coming soon");
   await expect(surface.locator(".feature-coming-soon-icon svg")).toBeVisible();
-  if (feature.id === "study-plan") {
-    await expect(page.locator(".study-plan-v2")).toHaveCount(0);
-  }
 }
 
 // The rail carries only the primary destinations; scheduled features are
@@ -87,20 +83,3 @@ test("direct feature routes, including nested Community links, are all guarded",
   }
 });
 
-for (const locale of ["ar", "en"]) {
-  test(`Study Plan is coming soon without loading planner data (${locale})`, async ({ page }) => {
-    await mockStudent(page, locale);
-    await page.addInitScript(locale => localStorage.setItem("lock-in.locale", locale), locale);
-    const plannerRequests = [];
-    page.on("request", request => {
-      const path = new URL(request.url()).pathname;
-      if (path.startsWith("/api/v1/study-plan") && path !== "/api/v1/study-plan/v2/exams") plannerRequests.push(request.url());
-    });
-    await page.goto("/#/study-plan");
-    const surface = page.locator('.feature-coming-soon[data-feature-id="study-plan"]');
-    await expect(surface).toBeVisible();
-    await expect(surface).toContainText(locale === "ar" ? "قريبًا" : "Coming soon");
-    await expect(page.locator(".study-plan-v2")).toHaveCount(0);
-    expect(plannerRequests).toEqual([]);
-  });
-}
