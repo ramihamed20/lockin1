@@ -685,7 +685,9 @@ html.ix-hover .workspace-v2 .workspace-v2-settings-popover > header button:hover
   inset-inline-end: max(12px, env(safe-area-inset-right));
   display: flex;
   width: min(392px, calc(100% - 24px));
-  height: auto;
+  /* Fixed viewport-bounded panel: short and long settings tabs share one
+     height; only the panel's inner content is allowed to scroll. */
+  height: calc(100% - var(--workspace-toolbar-height, 84px) - 20px - env(safe-area-inset-bottom));
   max-height: calc(100% - var(--workspace-toolbar-height, 84px) - 20px - env(safe-area-inset-bottom));
   flex-direction: column;
   overflow: hidden;
@@ -924,7 +926,10 @@ html.ix-hover .workspace-v8-selection-toolbar button:not(:disabled):hover,
     bottom: max(8px, env(safe-area-inset-bottom));
     inset-inline: max(6px, env(safe-area-inset-left)) max(6px, env(safe-area-inset-right));
     width: auto;
-    max-height: min(74dvh, calc(100% - var(--workspace-toolbar-height, 56px) - 16px));
+    /* Small viewport units avoid jumps when mobile Safari chrome retracts.
+       The bottom sheet stays the same height as its tabs are switched. */
+    height: min(74svh, calc(100% - var(--workspace-toolbar-height, 56px) - 16px));
+    max-height: min(74svh, calc(100% - var(--workspace-toolbar-height, 56px) - 16px));
     border-radius: 20px;
   }
   .workspace-v8-export-sheet { bottom: calc(max(8px, env(safe-area-inset-bottom)) + 4px); width: calc(100% - 12px); padding: 10px; }
