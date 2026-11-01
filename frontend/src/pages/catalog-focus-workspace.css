@@ -238,7 +238,7 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2-a4-live-layer { position: absolute; overflow-anchor: none; transform-origin: 0 0; }
 .workspace-v2-a4-live-layer.is-live-pinching { will-change: transform; }
 .workspace-v2-a4-document { position: absolute; top: 0; left: 0; display: grid; justify-items: center; width: max-content; gap: var(--workspace-a4-page-gap); padding: 0; overflow-anchor: none; transform-origin: 0 0; }
-.workspace-v2-a4-document.is-horizontal { display: flex; align-items: flex-start; }
+.workspace-v2-a4-document.is-horizontal { display: flex; align-items: flex-start; direction: ltr; }
 .workspace-v2-a4-page { position: relative; flex: 0 0 auto; overflow: hidden; overflow-anchor: none; color: #11162a; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.24); contain: layout paint style; content-visibility: auto; }
 .workspace-v2-a4-page.is-virtual.is-background-lined { background-image: repeating-linear-gradient(to bottom, transparent 0 39px, #dbe5ef 39px 40px); }
 .workspace-v2-a4-page.is-virtual.is-background-grid { background-image: linear-gradient(to right, #e5ebf1 1px, transparent 1px), linear-gradient(to bottom, #e5ebf1 1px, transparent 1px); background-size: 40px 40px; }
