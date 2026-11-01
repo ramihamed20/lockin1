@@ -2279,7 +2279,9 @@ html.ix-hover .question-player-card .choices button:not(:disabled):hover { borde
 
 /* Guided Study Plan setup. Only one short decision is visible at a time. */
 .plan-settings { inline-size: 100%; max-inline-size: 780px; margin-inline: auto; }
+.plan-settings { scroll-margin-block-start: 86px; }
 .plan-wizard-progress { display: grid; gap: 12px; margin-block-start: 18px; }
+.plan-wizard-current { margin: 16px 0 0; font-size: 1.05rem; font-weight: 650; outline: none; }
 .plan-wizard-progress > span { font-size: 12px; color: var(--muted); font-weight: 600; }
 .plan-wizard-steps { display: flex; gap: 6px; align-items: stretch; }
 .plan-wizard-steps > button {
@@ -2313,7 +2315,7 @@ html.ix-hover .question-player-card .choices button:not(:disabled):hover { borde
 .plan-wizard-manual svg { color: var(--accent-text); }
 .plan-wizard-manual p { max-inline-size: 360px; }
 .plan-wizard-actions .plan-wizard-next { flex: 1 1 170px; justify-content: center; }
-:dir(rtl) .plan-wizard-actions svg { transform: scaleX(-1); }
+/* Directional icons already mirror through the shared Icon component. */
 @media(max-width:600px) {
   .plan-wizard-steps { gap: 3px; }
   .plan-wizard-steps > button { font-size: 10px; min-block-size: 68px; gap: 7px; }
