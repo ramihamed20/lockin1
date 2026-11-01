@@ -62,7 +62,14 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
   useEffect(() => { void load(); return () => { sequence.current += 1; }; }, [load]);
   useEffect(() => { if (editor) editorAnchor.current?.querySelector("input")?.focus(); }, [editor]);
   useEffect(() => { if (preview) previewAnchor.current?.focus(); }, [preview]);
-  useEffect(() => { if (plan?.profile?.configured && !settings) stageAnchor.current?.focus({ preventScroll: true }); }, [stage]);
+  const hasShownStage = useRef(false);
+  useEffect(() => {
+    if (!plan?.profile?.configured || settings) return;
+    if (!hasShownStage.current) { hasShownStage.current = true; return; }
+    const heading = stageAnchor.current;
+    heading?.focus({ preventScroll: true });
+    heading?.scrollIntoView({ behavior: "instant", block: "start" });
+  }, [stage, plan?.profile?.configured, settings]);
   useEffect(() => {
     const strip = dayStrip.current;
     if (!strip) return;
