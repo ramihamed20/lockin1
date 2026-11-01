@@ -6200,6 +6200,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
           <div
             className={`workspace-v2-document-stage is-tool-${activeTool}`}
             data-page-direction={sheet.pdfUrl ? pageDirection : undefined}
+            role={sheet.pdfUrl ? "application" : undefined}
             tabIndex={sheet.pdfUrl ? 0 : undefined}
             aria-label={sheet.pdfUrl ? t("focus.documentReader") : undefined}
             onKeyDown={(event) => {
