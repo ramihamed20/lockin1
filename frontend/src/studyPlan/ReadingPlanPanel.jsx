@@ -10,7 +10,7 @@ import LearningPreview from "./LearningPreview.jsx";
 import "./connected.css";
 
 const dateLabel = stamp => formatDate(fromStamp(stamp), { day: "numeric", month: "short" });
-export default function ReadingPlanPanel({ exams, profile, disabled, onSetup, onRefresh, onApplied, onApplying, userId }) {
+export default function ReadingPlanPanel({ exams, profile, disabled, onSetup, onRefresh, onApplied, onApplying, onViewWeek, userId }) {
   const { t } = useI18n();
   const [search] = useSearchParams();
   const reportId = search.get("report") || "";
@@ -87,7 +87,7 @@ export default function ReadingPlanPanel({ exams, profile, disabled, onSetup, on
       <label className="plan-connected-review"><input type="checkbox" checked={replan} disabled={blocked} onChange={event => setReplan(event.target.checked)} />{t("smart.replan")}</label>
       </div></details>
       {selected && <p className="plan-exam-status">{dateLabel(selected.starts_on)} · {t(selected.status === "confirmed" ? "plan.examConfirmed" : "plan.examTentative")}</p>}
-      {result && <p className="plan-apply-success" role="status">{t("connected.applied", { count: result.created_count })}</p>}
+      {result && <div className="plan-exam-complete" role="status"><p className="plan-apply-success">{t("connected.applied", { count: result.created_count })}</p><button type="button" className="btn btn-primary" onClick={onViewWeek}>{t("plan.flow.openWeek")}<Icon name="chevron-right" size={17} /></button></div>}
       {progressNotice && <p role="status">{t(progressNotice)}</p>}
       {applyError && <p role="alert">{t(applyError)}</p>}
       {["error", "denied"].includes(state.status) && <p role="alert">{t(state.status === "denied" ? "plan.examDenied" : "plan.examError")}</p>}
