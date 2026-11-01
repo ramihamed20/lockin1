@@ -7,6 +7,8 @@ export default function PlanSettings({ profile, materials = [], onSave, onCancel
   const { t } = useI18n();
   const [draft, setDraft] = useState(() => ({ ...profileDraft(profile), ...(initialMode ? { mode: initialMode } : {}) }));
   const [invalidDays, setInvalidDays] = useState(false);
+  const [subjectSearch, setSubjectSearch] = useState("");
+  const [showAllSubjects, setShowAllSubjects] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const formRef = useRef(null);
   const settingsRef = useRef(null);
@@ -36,6 +38,11 @@ export default function PlanSettings({ profile, materials = [], onSave, onCancel
   const chosen = draft.subjectList;
   const full = chosen.length >= MAX_SUBJECTS;
   const own = chosen.filter(subject => !materials.some(material => hasSubject([material.title], subject)));
+  const searchTerm = subjectSearch.trim().toLocaleLowerCase();
+  const visibleMaterials = materials.filter((material, index) =>
+    searchTerm ? material.title?.toLocaleLowerCase().includes(searchTerm) :
+      showAllSubjects || index < 6 || hasSubject(chosen, material.title)
+  );
   function addTyped() {
     const typed = parseSubjects(draft.subjects);
     if (!typed.length) return;
@@ -96,8 +103,11 @@ export default function PlanSettings({ profile, materials = [], onSave, onCancel
 
           <div className="plan-subjects">
             <div className="plan-subjects-heading"><strong>{t("plan.yourSubjects")}</strong><small>{t("plan.subjectCount", { count: chosen.length, limit: MAX_SUBJECTS })}</small></div>
-            {(materials.length > 0 || own.length > 0) && <div className="plan-chips" role="group" aria-label={t("plan.yourSubjects")}>
-              {materials.map(material => {
+            {materials.length > 6 && <label className="plan-material-search">{t("plan.wizard.findSubject")}
+              <input type="search" value={subjectSearch} onChange={event => setSubjectSearch(event.target.value)} placeholder={t("plan.wizard.findSubjectHint")} />
+            </label>}
+            {(visibleMaterials.length > 0 || own.length > 0) && <div className="plan-chips" role="group" aria-label={t("plan.yourSubjects")}>
+              {visibleMaterials.map(material => {
                 const on = hasSubject(chosen, material.title);
                 return <button key={material.slug} type="button" className="plan-chip" aria-pressed={on} disabled={!on && full} onClick={() => change("subjectList", toggleSubject(chosen, material.title))}>
                   {on && <Icon name="check" size={16} />}<span dir="auto">{material.title}</span>
@@ -107,6 +117,7 @@ export default function PlanSettings({ profile, materials = [], onSave, onCancel
                 <span dir="auto">{subject}</span><Icon name="x" size={16} />
               </button>)}
             </div>}
+            {materials.length > 6 && !searchTerm && <button className="plan-show-subjects" type="button" aria-expanded={showAllSubjects} onClick={() => setShowAllSubjects(value => !value)}>{t(showAllSubjects ? "plan.wizard.showLess" : "plan.wizard.showMore", { count: materials.length })}<Icon name={showAllSubjects ? "chevron-up" : "chevron-down"} size={15} /></button>}
             {chosen.length > 1 && <details className="plan-advanced"><summary>{t("smart.subjectOrder")}</summary><ol className="plan-subject-order">{chosen.map((subject, index) => <li key={subject}><span dir="auto">{subject}</span>{[-1, 1].map(direction => <button key={direction} type="button" className="btn btn-soft" disabled={index + direction < 0 || index + direction >= chosen.length} aria-label={t(direction < 0 ? "smart.moveEarlier" : "smart.moveLater", { subject })} onClick={() => { const ordered = [...chosen]; [ordered[index], ordered[index + direction]] = [ordered[index + direction], ordered[index]]; change("subjectList", ordered); }}>{direction < 0 ? "↑" : "↓"}</button>)}</li>)}</ol></details>}
             <div className="plan-subject-add">
               <label htmlFor="plan-subjects">{t("plan.subjects")}<input id="plan-subjects" value={draft.subjects} maxLength={1452} placeholder={t("plan.otherSubject")} disabled={full} onChange={event => change("subjects", event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); addTyped(); } }} aria-describedby="plan-subject-hint" /></label>
