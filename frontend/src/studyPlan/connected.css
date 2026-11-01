@@ -27,3 +27,8 @@
 .plan-exam-options-body { display: grid; gap: 12px; padding-block: 14px 4px; }
 .plan-exam-options-body .plan-connected-review { margin-block: 0; }
 .plan-exam-options-body > label:not(.plan-connected-review) { max-inline-size: 420px; }
+
+.plan-exam-complete { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-block: 14px; }
+.plan-exam-complete .plan-apply-success { flex: 1 1 210px; }
+.plan-exam-complete > .btn { min-height: 44px; gap: 8px; }
+:dir(rtl) .plan-exam-complete .btn svg { transform: scaleX(-1); }
