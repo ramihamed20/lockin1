@@ -2353,7 +2353,8 @@ html.ix-hover .question-player-card .choices button:not(:disabled):hover { borde
 .study-plan-v2 > .plan-exam-panel { grid-column: 1 / -1; }
 .plan-journey { display: grid; gap: 12px; padding: 15px 18px; border-radius: 22px; background: var(--surface); }
 .plan-journey-counter { color: var(--muted); font-size: 12px; font-weight: 500; }
-.plan-journey-steps { display: grid; grid-template-columns: repeat(var(--plan-stages, 4), minmax(0, 1fr)); gap: 8px; }
+.plan-journey-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.plan-journey[data-stages="3"] .plan-journey-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .plan-journey-steps button { display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 48px; padding: 8px; gap: 8px; border: 1px solid transparent; border-radius: 14px; background: transparent; color: var(--muted); font: inherit; font-size: 13px; font-weight: 550; cursor: pointer; }
 .plan-journey-steps button.is-active { color: var(--accent-text); background: var(--accent-soft); border-color: var(--accent-border); }
 .plan-journey-number { flex: 0 0 23px; display: grid; place-items: center; width: 23px; height: 23px; border-radius: 50%; background: var(--surface-3); color: var(--text); font-variant-numeric: tabular-nums; font-size: 12px; }
