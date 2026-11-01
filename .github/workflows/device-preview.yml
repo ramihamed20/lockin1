@@ -32,6 +32,10 @@ jobs:
             ref: codex/lockin0.1.5
             spec: e2e/study-plan-adaptive.spec.js
             grep: "study-plan (visual|wizard|journey) preview"
+          - label: focus-horizontal
+            ref: codex/lockin0.1.5
+            spec: e2e/focus-horizontal-page-preview.spec.js
+            grep: "horizontal PDF real UI preview"
     steps:
       - uses: actions/checkout@v4
         with:
