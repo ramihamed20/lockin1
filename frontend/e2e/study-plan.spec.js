@@ -66,6 +66,31 @@ async function saveWizard(page) {
   await page.locator(".plan-wizard-next").click();
 }
 
+
+test("wizard reveals one step at a time, validates days and preserves earlier answers", async ({ page }) => {
+  await planner(page);
+  await page.goto("/#/study-plan");
+  await expect(page.locator(".plan-wizard-steps > button")).toHaveCount(4);
+  await expect(page.getByLabel("Minutes per day", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Subjects", { exact: true })).toHaveCount(0);
+  await page.locator(".plan-wizard-next").click();
+  await page.getByLabel("Minutes per day", { exact: true }).fill("75");
+  await page.locator(".plan-wizard-next").click();
+  while (await page.locator(".plan-weekdays input:checked").count()) {
+    await page.locator(".plan-weekdays input:checked").first().locator("..").click();
+  }
+  await page.locator(".plan-wizard-next").click();
+  await expect(page.locator(".plan-error[role=alert]")).toContainText("Choose at least one study day.");
+  await page.locator(".plan-weekdays label").first().click();
+  await page.getByLabel("Subjects", { exact: true }).fill("Anatomy");
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(page.getByLabel("Minutes per day", { exact: true })).toHaveValue("75");
+  await page.locator(".plan-wizard-next").click();
+  await expect(page.getByLabel("Subjects", { exact: true })).toHaveValue("Anatomy");
+  await saveWizard(page);
+  await expect(page.locator(".plan-hero")).toBeVisible();
+});
+
 test("Beginning and Normal persist preferences, preview sessions and retain completion after reload", async ({ page }) => {
   await planner(page);
   await page.goto("/#/study-plan");
