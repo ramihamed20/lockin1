@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useI18n } from "../components/I18nProvider.jsx";
 import { Icon } from "../lib/icons.jsx";
 import { MAX_SUBJECTS, hasSubject, mergeSubjects, parseSubjects, profileDraft, profileRequest, toggleSubject } from "./model.js";
@@ -7,6 +7,22 @@ export default function PlanSettings({ profile, materials = [], onSave, onCancel
   const { t } = useI18n();
   const [draft, setDraft] = useState(() => ({ ...profileDraft(profile), ...(initialMode ? { mode: initialMode } : {}) }));
   const [invalidDays, setInvalidDays] = useState(false);
+  const [stepIndex, setStepIndex] = useState(0);
+  const formRef = useRef(null);
+  const steps = draft.mode === "normal" ? ["mode", "pace", "schedule", "review"] :
+    draft.mode === "beginning" ? ["mode", "schedule", "review"] : ["mode", "manual", "review"];
+  const activeIndex = Math.min(stepIndex, steps.length - 1);
+  const currentStep = steps[activeIndex];
+  function nextStep() {
+    if (currentStep === "schedule" && draft.mode !== "custom" && !draft.weekdays.length) {
+      setInvalidDays(true);
+      return;
+    }
+    setInvalidDays(false);
+    if (!formRef.current?.reportValidity()) return;
+    setStepIndex(index => Math.min(index + 1, steps.length - 1));
+  }
+  function goBack() { setInvalidDays(false); setStepIndex(index => Math.max(0, index - 1)); }
   const change = (key, value) => setDraft(current => ({ ...current, [key]: value }));
   const chosen = draft.subjectList;
   const full = chosen.length >= MAX_SUBJECTS;
@@ -18,7 +34,19 @@ export default function PlanSettings({ profile, materials = [], onSave, onCancel
   }
   return <section className="plan-settings" aria-labelledby="plan-settings-title">
     <h2 id="plan-settings-title">{t(profile.configured ? "plan.settings" : "plan.choose")}</h2>
-    <form onSubmit={event => { event.preventDefault(); const invalid = draft.mode !== "custom" && !draft.weekdays.length; setInvalidDays(invalid); if (!invalid) void onSave(profileRequest({ ...draft, weekdays: draft.weekdays.length ? draft.weekdays : [0, 1, 2, 3, 4] })); }}>
+    <nav className="plan-wizard-progress" aria-label={t("plan.wizard.progress")}>
+      <span>{t("plan.wizard.count", { current: activeIndex + 1, total: steps.length })}</span>
+      <div className="plan-wizard-steps">{steps.map((name, index) => <button key={name} type="button" disabled={busy || index >= activeIndex} aria-current={index === activeIndex ? "step" : undefined} onClick={() => { setInvalidDays(false); setStepIndex(index); }}>
+        <span className="plan-wizard-number">{index < activeIndex ? <Icon name="check" size={13} /> : index + 1}</span>
+        <span>{t("plan.wizard." + name)}</span>
+      </button>)}</div>
+    </nav>
+    <form ref={formRef} onSubmit={event => {
+      event.preventDefault();
+      if (currentStep !== "review") { nextStep(); return; }
+      void onSave(profileRequest({ ...draft, weekdays: draft.weekdays.length ? draft.weekdays : [0, 1, 2, 3, 4] }));
+    }}>
+      {currentStep === "mode" && <>
       <fieldset className="plan-modes" disabled={busy}>
         <legend className="visually-hidden">{t("plan.choose")}</legend>
         {["beginning", "normal", "custom"].map(mode => <label key={mode} aria-label={t(`plan.${mode}`)} className={draft.mode === mode ? "is-selected" : ""}>
@@ -27,10 +55,11 @@ export default function PlanSettings({ profile, materials = [], onSave, onCancel
         </label>)}
       </fieldset>
       <p className="plan-mode-description">{t(`plan.${draft.mode}Hint`)}</p>
+      </>}
       <fieldset className="plan-settings-fields" disabled={busy}>
         <legend className="visually-hidden">{t("plan.settings")}</legend>
-        {draft.mode === "beginning" && <p className="plan-note">{t("plan.beginnerRule")}</p>}
-        {draft.mode === "normal" && <section className="plan-advanced plan-habit-assessment" aria-label={t("smart.habitTitle")}>
+        {currentStep === "schedule" && draft.mode === "beginning" && <p className="plan-note">{t("plan.beginnerRule")}</p>}
+        {currentStep === "pace" && draft.mode === "normal" && <section className="plan-advanced plan-habit-assessment" aria-label={t("smart.habitTitle")}>
           <strong>{t("smart.habitTitle")}</strong>
           <p className="plan-note">{t("smart.habitIntro")}</p>
           <div className="plan-field-grid">
@@ -42,11 +71,11 @@ export default function PlanSettings({ profile, materials = [], onSave, onCancel
           </div>
           <label><input type="checkbox" checked={draft.gradual_growth} onChange={event => change("gradual_growth", event.target.checked)} />{t("smart.habitGrowth")}</label>
         </section>}
-        {draft.mode === "normal" && <div className="plan-field-grid">
+        {currentStep === "pace" && draft.mode === "normal" && <div className="plan-field-grid">
           <label>{t("plan.daily")}<input type="number" min="10" max="240" required value={draft.daily_minutes} onChange={event => change("daily_minutes", event.target.value)} /></label>
           <label>{t("plan.session")}<input type="number" min="10" max="120" required value={draft.session_minutes} onChange={event => change("session_minutes", event.target.value)} /></label>
         </div>}
-        {draft.mode !== "custom" && <>
+        {currentStep === "schedule" && draft.mode !== "custom" && <>
           <fieldset className="plan-weekdays"><legend>{t("plan.days")}</legend>
             {["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((day, index) => <label key={day}>
               <input type="checkbox" checked={draft.weekdays.includes(index)} onChange={event => { change("weekdays", event.target.checked ? [...draft.weekdays, index].sort() : draft.weekdays.filter(value => value !== index)); }} />
@@ -54,9 +83,7 @@ export default function PlanSettings({ profile, materials = [], onSave, onCancel
             </label>)}
           </fieldset>
           {invalidDays && <p role="alert" className="plan-error">{t("plan.noDay")}</p>}
-          {draft.mode === "normal" && <details className="plan-advanced"><summary>{t("smart.weeklyTime")}</summary><div className="plan-weekly-time">
-            {["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((key, index) => <label key={key}>{t(`plan.${key}`)}<input type="number" min="0" max="240" placeholder={String(draft.weekdays.includes(index) ? draft.daily_minutes : 0)} value={draft.weekly_minutes[index] ?? ""} onChange={event => change("weekly_minutes", { ...draft.weekly_minutes, [index]: event.target.value })} /></label>)}
-          </div><label>{t("smart.reviewMinutes")}<input type="number" min="1" max="15" required value={draft.review_minutes} onChange={event => change("review_minutes", event.target.value)} /></label><small>{t("smart.weeklyTimeHint")}</small></details>}
+
           <div className="plan-subjects">
             <div className="plan-subjects-heading"><strong>{t("plan.yourSubjects")}</strong><small>{t("plan.subjectCount", { count: chosen.length, limit: MAX_SUBJECTS })}</small></div>
             {(materials.length > 0 || own.length > 0) && <div className="plan-chips" role="group" aria-label={t("plan.yourSubjects")}>
@@ -78,10 +105,29 @@ export default function PlanSettings({ profile, materials = [], onSave, onCancel
             <small id="plan-subject-hint">{t("plan.subjectsHint")}</small>
           </div>
         </>}
-        <details className="plan-advanced"><summary>{t("plan.timezone")}</summary><label>{t("plan.timezone")}<input required maxLength={80} dir="ltr" value={draft.timezone} onChange={event => change("timezone", event.target.value)} /></label></details>
-        <p className="plan-note">{t("plan.preserve")}</p>
+        {currentStep === "manual" && <div className="plan-wizard-manual"><Icon name="calendar-plus" size={24} /><p>{t("plan.wizard.manualCopy")}</p></div>}
+        {currentStep === "review" && <div className="plan-wizard-review">
+          <h3>{t("plan.wizard.summary")}</h3>
+          <dl>
+            <div><dt>{t("plan.wizard.mode")}</dt><dd>{t("plan." + draft.mode)}</dd></div>
+            {draft.mode === "normal" && <div><dt>{t("plan.daily")}</dt><dd>{t("studyPlan.minutesValue", { count: Number(draft.daily_minutes) || 0 })}</dd></div>}
+            {draft.mode !== "custom" && <div><dt>{t("plan.days")}</dt><dd>{t("plan.wizard.studyDays", { count: draft.weekdays.length })}</dd></div>}
+            {draft.mode !== "custom" && <div><dt>{t("plan.subjects")}</dt><dd dir="auto">{mergeSubjects(chosen, parseSubjects(draft.subjects)).join(" · ") || t("plan.wizard.unsetSubjects")}</dd></div>}
+          </dl>
+          <details className="plan-advanced plan-wizard-options"><summary>{t("plan.wizard.advanced")}</summary>
+            {draft.mode === "normal" && {draft.mode === "normal" && <details className="plan-advanced"><summary>{t("smart.weeklyTime")}</summary><div className="plan-weekly-time">
+            {["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((key, index) => <label key={key}>{t(`plan.${key}`)}<input type="number" min="0" max="240" placeholder={String(draft.weekdays.includes(index) ? draft.daily_minutes : 0)} value={draft.weekly_minutes[index] ?? ""} onChange={event => change("weekly_minutes", { ...draft.weekly_minutes, [index]: event.target.value })} /></label>)}
+          </div><label>{t("smart.reviewMinutes")}<input type="number" min="1" max="15" required value={draft.review_minutes} onChange={event => change("review_minutes", event.target.value)} /></label><small>{t("smart.weeklyTimeHint")}</small></details>}}
+            <label>{t("plan.timezone")}<input required maxLength={80} dir="ltr" value={draft.timezone} onChange={event => change("timezone", event.target.value)} /></label>
+          </details>
+          <p className="plan-note">{t("plan.preserve")}</p>
+        </div>}
       </fieldset>
-      <div className="plan-actions"><button className="btn btn-primary" type="submit" disabled={busy}>{t("plan.save")}</button>{profile.configured && <button className="btn btn-soft" type="button" disabled={busy} onClick={onCancel}>{t("plan.cancel")}</button>}</div>
+      <div className="plan-actions plan-wizard-actions">
+        {activeIndex > 0 && <button className="btn btn-soft" type="button" disabled={busy} onClick={goBack}><Icon name="chevron-left" size={16} />{t("plan.wizard.back")}</button>}
+        <button className="btn btn-primary plan-wizard-next" type="submit" disabled={busy}>{t(currentStep === "review" ? "plan.save" : "plan.wizard.next")}<Icon name={currentStep === "review" ? "check" : "chevron-right"} size={16} /></button>
+        {profile.configured && <button className="btn btn-soft" type="button" disabled={busy} onClick={onCancel}>{t("plan.cancel")}</button>}
+      </div>
     </form>
   </section>;
 }
