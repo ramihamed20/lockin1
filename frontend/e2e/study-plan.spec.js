@@ -57,12 +57,22 @@ async function planner(page, { configured = false, locale = "en", materials = []
   return { reject: value => { rejectSave = value; }, getItems: () => items, changeItem: (id, changes) => { Object.assign(items.find(item => item.id === id), changes); stalePreview = true; } };
 }
 
+async function saveWizard(page) {
+  const steps = page.locator(".plan-wizard-steps > button");
+  for (let index = 0; index < 4; index += 1) {
+    if (await steps.last().getAttribute("aria-current") === "step") break;
+    await page.locator(".plan-wizard-next").click();
+  }
+  await page.locator(".plan-wizard-next").click();
+}
+
 test("Beginning and Normal persist preferences, preview sessions and retain completion after reload", async ({ page }) => {
   await planner(page);
   await page.goto("/#/study-plan");
   await page.getByRole("radio", { name: "Beginning", exact: true }).check();
+  await page.locator(".plan-wizard-next").click();
   await expect(page.getByText(/Every 3 completed study days/)).toBeVisible();
-  await page.getByRole("button", { name: "Save plan", exact: true }).click();
+  await saveWizard(page);
   await expect(page.getByText("3 completed days · new sessions: 15 min")).toBeVisible();
   await page.getByRole("button", { name: "Preview this week" }).click();
   await expect(page.getByRole("heading", { name: "Your week, before you add it" })).toBeVisible();
@@ -72,8 +82,9 @@ test("Beginning and Normal persist preferences, preview sessions and retain comp
   await expect(page.getByRole("button", { name: "Reopen Study session", exact: true })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Plan settings", exact: true }).click();
   await page.getByRole("radio", { name: "Normal", exact: true }).check();
+  await page.locator(".plan-wizard-next").click();
   await page.getByLabel("Minutes per day", { exact: true }).fill("90");
-  await page.getByRole("button", { name: "Save plan", exact: true }).click();
+  await saveWizard(page);
   await expect(page.getByRole("button", { name: "Reopen Study session", exact: true })).toBeVisible();
 });
 
@@ -81,7 +92,7 @@ test("Custom can create, reschedule and delete a task with an accessible confirm
   await planner(page);
   await page.goto("/#/study-plan");
   await page.getByRole("radio", { name: "Custom", exact: true }).check();
-  await page.getByRole("button", { name: "Save plan", exact: true }).click();
+  await saveWizard(page);
   await page.getByRole("button", { name: "Add session", exact: true }).click();
   await page.getByLabel("What will you study?", { exact: true }).fill("Review anatomy");
   await page.getByRole("button", { name: "Save session", exact: true }).click();
@@ -103,13 +114,16 @@ test("a rejected settings save keeps the student's draft for retry", async ({ pa
   const state = await planner(page);
   state.reject(true);
   await page.goto("/#/study-plan");
+  await page.locator(".plan-wizard-next").click();
+  await page.locator(".plan-wizard-next").click();
   await page.getByLabel("Subjects", { exact: true }).fill("Anatomy, Physiology");
-  await page.getByRole("button", { name: "Save plan", exact: true }).click();
+  await saveWizard(page);
   await expect(page.getByRole("alert").filter({ hasText: "Timezone: Choose a valid timezone." })).toBeVisible();
   await expect(page.getByRole("alert")).toContainText("planner-field-error");
+  await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(page.getByLabel("Subjects", { exact: true })).toHaveValue("Anatomy, Physiology");
   state.reject(false);
-  await page.getByRole("button", { name: "Save plan", exact: true }).click();
+  await saveWizard(page);
   await expect(page.locator(".plan-hero")).toBeVisible();
 });
 
@@ -128,13 +142,15 @@ test("students pick their own subjects, use quick choices and pull an overdue se
   await expect(page.getByRole("link", { name: "Study Dental Anatomy", exact: true })).toHaveAttribute("href", /materials\/catalog\/dental-anatomy$/);
   await page.getByRole("button", { name: "Plan settings", exact: true }).click();
   await page.getByRole("radio", { name: "Normal", exact: true }).check();
+  await page.locator(".plan-wizard-next").click();
+  await page.locator(".plan-wizard-next").click();
   await page.getByRole("group", { name: "Your subjects" }).getByRole("button", { name: "Oral Histology", exact: true }).click();
   await page.getByLabel("Subjects", { exact: true }).fill("Pharmacology");
   await page.keyboard.press("Enter");
   await expect(page.getByRole("button", { name: "Remove Pharmacology", exact: true })).toBeVisible();
   await expect(page.getByText("2 of 12 chosen")).toBeVisible();
   const saved = page.waitForRequest(request => request.url().endsWith("/study-plan/profile"));
-  await page.getByRole("button", { name: "Save plan", exact: true }).click();
+  await saveWizard(page);
   expect((await saved).postDataJSON().subjects).toEqual(["Oral Histology", "Pharmacology"]);
   await page.getByRole("button", { name: "Add session", exact: true }).click();
   await page.getByRole("button", { name: "Pharmacology", exact: true }).click();
@@ -156,7 +172,7 @@ for (const [width, height, locale] of [[320,740,"ar"],[390,844,"en"],[820,1180,"
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await expect(page.locator("html")).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
     await expect(page.locator(".plan-week")).toHaveCount(0);
-    await page.getByRole("button", { name: locale === "ar" ? "حفظ الخطة" : "Save plan", exact: true }).click();
+    await saveWizard(page);
     const strip = page.locator(".plan-day-strip");
     const selected = strip.locator('[aria-pressed="true"]');
     await expect.poll(async () => {
