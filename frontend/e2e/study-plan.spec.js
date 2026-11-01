@@ -186,8 +186,7 @@ test("students pick their own subjects, use quick choices and pull an overdue se
   await expect(page.getByRole("progressbar", { name: "This week: 30 of 60 min done" })).toBeVisible();
   await selectStage(page, "My week");
   await expect(page.getByRole("button", { name: /Monday, October 12, 2026 · all sessions done/ })).toBeVisible();
-  await selectStage(page, "Progress");
-  await page.getByText("Still on your list · 1").click();
+  await selectStage(page, "Catch up");
   await page.getByRole("button", { name: "Move to today", exact: true }).click();
   await expect(page.getByText("Moved to today.")).toBeVisible();
   expect(state.getItems().find(item => item.id === "late").scheduled_date).toBe(TODAY);
@@ -249,8 +248,7 @@ test("moving an overdue session from another week returns to today", async ({pag
   await page.goto("/#/study-plan");
   await selectStage(page,"My week");
   await page.getByRole("button",{name:"Next week",exact:true}).click();
-  await selectStage(page,"Progress");
-  await page.getByText("Still on your list · 1").click();
+  await selectStage(page,"Catch up");
   await page.getByRole("button",{name:"Move to today",exact:true}).click();
   await expect(page.locator(".plan-week .plan-task-list")).toContainText("Overdue anatomy");
   await expect(page.locator(".plan-day-strip button[aria-pressed=true]")).toHaveAttribute("aria-label",/Friday, October 16/);
@@ -369,4 +367,37 @@ test("editing a session keeps navigation locked until its draft is closed", asyn
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page.locator(".plan-journey-steps button").first()).toBeEnabled();
   await expect(page.getByText("Unfinished notes")).toHaveCount(0);
+});
+
+
+test("subject sections link to the original activity and browser Back restores the section", async ({ page }) => {
+  await planner(page, { configured: true, materials: MATERIALS, items: [
+    { id: "read", title: "Read Oral Histology", subject: "Oral Histology", scheduled_date: TODAY, duration_minutes: 25, status: "planned", revision: 1, activity: "reading", start_url: "/materials/catalog/oral-histology?plan_item=read&edition=lockin" },
+    { id: "questions", title: "Answer Anatomy", subject: "Dental Anatomy", scheduled_date: TODAY, duration_minutes: 15, status: "planned", revision: 1, activity: "questions", start_url: "/questions/categories/anatomy?plan_item=questions" }
+  ] });
+  await page.goto("/#/study-plan");
+  await expect(page.locator(".plan-daily-summary")).toContainText("40 min remaining today");
+  await selectStage(page, "My subjects");
+  await page.getByRole("button", { name: /Oral Histology.*1 upcoming/ }).click();
+  await expect(page.locator(".plan-subjects .plan-task-list")).toContainText("Read Oral Histology");
+  await expect(page.locator(".plan-subjects .plan-task-list a")).toHaveAttribute("href", "#/materials/catalog/oral-histology?plan_item=read&edition=lockin");
+  await selectStage(page, "Catch up");
+  await expect(page.locator(".plan-catchup")).toContainText("no overdue");
+  await page.goBack();
+  await expect(page.locator(".plan-subjects")).toBeVisible();
+  await page.reload();
+  await expect(page.locator(".plan-subjects")).toBeVisible();
+});
+
+test("returning from study refreshes completion without generating or changing tasks", async ({ page }) => {
+  const state = await planner(page, { configured: true, items: [
+    { id: "read", title: "Read anatomy", subject: "Anatomy", scheduled_date: TODAY, duration_minutes: 25, status: "planned", revision: 1 }
+  ] });
+  await page.goto("/#/study-plan");
+  await expect(page.locator(".plan-daily-summary")).toContainText("0 of 1 completed");
+  state.changeItem("read", { status: "completed", revision: 2 });
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.locator(".plan-daily-summary")).toContainText("1 of 1 completed");
+  await expect(page.locator(".plan-daily-summary")).toContainText("0 min remaining");
+  expect(state.getItems()).toHaveLength(1);
 });

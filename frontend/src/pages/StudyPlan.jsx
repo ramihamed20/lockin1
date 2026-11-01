@@ -7,6 +7,8 @@ import { useI18n } from "../components/I18nProvider.jsx";
 import { Icon } from "../lib/icons.jsx";
 import { formatDate } from "../lib/i18n.js";
 import { useCatalogMaterials } from "../hooks/useCatalogMaterials.js";
+import { nextSession, subjectSections, taskDestination } from "../studyPlan/sections.js";
+import "../studyPlan/sections.css";
 import ReadingProgress from "../studyPlan/ReadingProgress.jsx";
 import DayCapacityEditor from "../studyPlan/DayCapacityEditor.jsx";
 import PlanSettings from "../studyPlan/PlanSettings.jsx";
@@ -19,7 +21,7 @@ const DAY_MARK = { done: "✓", planned: "•" };
 
 export default function StudyPlan({ user, examPeriods = null, examNotice = null, onRetryExams = null }) {
   const { t } = useI18n();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { materials } = useCatalogMaterials(user);
   const [start, setStart] = useState(() => weekOf());
   const [day, setDay] = useState(() => dateStamp());
@@ -30,7 +32,13 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState("");
   const [settings, setSettings] = useState(false);
-  const [stage, setStage] = useState(() => searchParams.has("report") ? "exam" : "today");
+  const stage = searchParams.get("section") || (searchParams.has("report") ? "exam" : "today");
+  const [subject, setSubject] = useState("");
+  function setStage(name) {
+    const params = new URLSearchParams(searchParams);
+    params.set("section", name);
+    setSearchParams(params);
+  }
   const [initialMode, setInitialMode] = useState("");
   const [editor, setEditor] = useState(null);
   const [progressTask, setProgressTask] = useState(null);
@@ -88,6 +96,18 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
     observer.observe(strip);
     return () => observer.disconnect();
   }, [day, loading, settings, configured, stage]);
+  useEffect(() => {
+    if (!configured || busy || editor || progressTask || settings) return;
+    let refreshing = false;
+    const refresh = () => {
+      if (document.visibilityState === "hidden" || refreshing) return;
+      refreshing = true;
+      void load(true).finally(() => { refreshing = false; });
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => { window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); };
+  }, [configured, busy, editor, progressTask, settings, load]);
   const fail = error => setActionError(error);
   async function action(key, work) {
     if (busy) return;
@@ -108,9 +128,8 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
   }
   function changeWeek(next) { setStart(next); setDay(next === weekOf(plan.today) ? plan.today : next); setPreview(null); }
   const profile = plan?.profile;
-  const stages = examPeriods ? ["today", "week", "exam", "progress"] : ["today", "week", "progress"];
+  const stages = ["today", "week", "subjects", "catchup", ...(examPeriods ? ["exam"] : []), "progress"];
   const activeStage = stages.includes(stage) ? stage : "today";
-  const stageIndex = stages.indexOf(activeStage);
   const today = plan?.today || dateStamp();
   function showStage(name) {
     if (name === "today") {
@@ -122,7 +141,12 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
   }
   const items = plan?.results || [];
   const title = item => item.generated && item.title === "Study session" ? t("plan.sessionTitle") : item.title;
-  const next = items.find(item => item.status === "planned" && item.scheduled_date >= today);
+  const next = nextSession(items, today);
+  const subjects = subjectSections(profile?.subjects || [], items, plan?.overdue || [], materials);
+  const selectedSubject = subjects.find(group => group.name === subject);
+  const todayItems = items.filter(item => item.scheduled_date === today);
+  const todayDone = todayItems.filter(item => item.status === "completed").length;
+  const todayRemaining = todayItems.filter(item => item.status === "planned").reduce((sum, item) => sum + item.duration_minutes, 0);
   const canGenerate = !plan?.offline && profile?.configured && profile.mode !== "custom" && start >= weekOf(today);
   const nextMaterial = materialFor(next?.subject || next?.title, materials);
   const progress = weekProgress(plan?.summary);
@@ -145,7 +169,7 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
       <button className="plan-check" type="button" aria-pressed={item.status === "completed"} aria-label={t(item.status === "completed" ? "studyPlan.reopenNamed" : "studyPlan.completeNamed", { name: title(item) })} disabled={Boolean(busy) || plan.offline || item.scheduled_date > today || item.activity === "questions"} title={item.scheduled_date > today ? t("plan.future") : undefined} onClick={() => action(item.id, async () => {
         await studyPlanApi.updateItem(item.id, { status: item.status === "completed" ? "planned" : "completed", expected_revision: item.revision }); await load(true); setMessage("plan.saved");
       })}><Icon name={item.status === "completed" ? "check" : "circle"} size={21} /></button>
-      <div><strong dir="auto">{title(item)}</strong>{item.activity === "active_study" && <small>{t("smart.activeRange", { first: item.page_start, last: item.page_end })}</small>}<small>{item.subject && item.subject !== item.title ? <><bdi>{item.subject}</bdi>{" · "}</> : ""}{t("studyPlan.minutesValue", { count: item.duration_minutes })}{item.scheduled_date !== day ? ` · ${displayDate(item.scheduled_date, { month: "short", day: "numeric" })}` : ""}</small>{item.start_url && item.status === "planned" && <Link className="plan-text-button" to={item.start_url}>{t("plan.start")}</Link>}{item.activity === "reading" && item.status === "planned" && item.scheduled_date <= today && item.period_id && <button type="button" className="plan-text-button" disabled={Boolean(busy)} onClick={() => setProgressTask(item)}>{t("smart.recordProgress")}</button>}{!plan.offline && item.planning_key && item.status === "planned" && <button type="button" className="plan-text-button" aria-pressed={Boolean(item.pinned)} disabled={Boolean(busy)} onClick={() => action(item.id, async () => { await studyPlanApi.updateItem(item.id, { pinned: !item.pinned, expected_revision: item.revision }); await load(true); })}>{t(item.pinned ? "smart.unpin" : "smart.pin")}</button>}{overdue && !plan.offline && <button type="button" className="plan-text-button plan-move" disabled={Boolean(busy)} onClick={() => moveToToday(item)}>{t("plan.moveToday")}</button>}</div>
+      <div><strong dir="auto">{title(item)}</strong>{["reading", "questions", "review", "active_study"].includes(item.activity) && <small className="plan-activity-label">{t("plan.sections.activity." + item.activity)}</small>}{item.activity === "active_study" && <small>{t("smart.activeRange", { first: item.page_start, last: item.page_end })}</small>}<small>{item.subject && item.subject !== item.title ? <><bdi>{item.subject}</bdi>{" · "}</> : ""}{t("studyPlan.minutesValue", { count: item.duration_minutes })}{item.scheduled_date !== day ? ` · ${displayDate(item.scheduled_date, { month: "short", day: "numeric" })}` : ""}</small>{item.status === "planned" && <Link className="plan-text-button" to={taskDestination(item, materials)}>{t("plan.start")}</Link>}{item.activity === "reading" && item.status === "planned" && item.scheduled_date <= today && item.period_id && <button type="button" className="plan-text-button" disabled={Boolean(busy)} onClick={() => setProgressTask(item)}>{t("smart.recordProgress")}</button>}{!plan.offline && item.planning_key && item.status === "planned" && <details className="plan-task-options"><summary>{t("plan.sections.options")}</summary><button type="button" className="plan-text-button" aria-pressed={Boolean(item.pinned)} disabled={Boolean(busy)} onClick={() => action(item.id, async () => { await studyPlanApi.updateItem(item.id, { pinned: !item.pinned, expected_revision: item.revision }); await load(true); })}>{t(item.pinned ? "smart.unpin" : "smart.pin")}</button></details>}{overdue && !plan.offline && <button type="button" className="plan-text-button plan-move" disabled={Boolean(busy)} onClick={() => moveToToday(item)}>{t("plan.moveToday")}</button>}</div>
       <button className="plan-edit" type="button" disabled={Boolean(busy) || plan.offline} aria-label={t("plan.editNamed", { title: title(item) })} onClick={() => openEditor(item)}><Icon name="pencil" size={18} /></button>
     </li>)}</ul>;
   }
@@ -162,31 +186,50 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
           await studyPlanApi.saveProfile(draft, profile.revision); await load(true); setSettings(false); setPreview(null); setMessage("plan.saved");
         })} />}
         {profile.configured && !settings && <>
-        <nav className="plan-journey" data-stages={stages.length} aria-label={t("plan.flow.navigation")}>
-          <span className="plan-journey-counter">{t("plan.flow.count", { current: stageIndex + 1, total: stages.length })}</span>
-          <div className="plan-journey-steps">{stages.map((name, index) => <button key={name} type="button" disabled={Boolean(busy) || Boolean(editor) || Boolean(progressTask)} className={activeStage === name ? "is-active" : ""} aria-current={activeStage === name ? "step" : undefined} onClick={() => showStage(name)}>
-            <span className="plan-journey-number">{index + 1}</span><span>{t("plan.flow." + name)}</span>
+        <nav className="plan-journey plan-section-nav" aria-label={t("plan.sections.navigation")}>
+          <div className="plan-journey-steps">{stages.map(name => <button key={name} type="button" disabled={Boolean(busy) || Boolean(editor) || Boolean(progressTask)} className={activeStage === name ? "is-active" : ""} aria-current={activeStage === name ? "page" : undefined} onClick={() => showStage(name)}>
+            <span>{t("plan.flow." + name)}</span>{name === "catchup" && plan.overdue_count > 0 && <b>{plan.overdue_count}</b>}
           </button>)}</div>
         </nav>
         <h2 className="plan-stage-heading" tabIndex={-1} ref={stageAnchor}>{t("plan.flow." + activeStage)}</h2>
         {activeStage === "exam" && examPeriods && <ReadingPlanPanel userId={user.id} key={user.id} exams={examPeriods} profile={profile} disabled={Boolean(busy) && busy !== "exam-apply"} onApplying={value => setBusy(value ? "exam-apply" : "")} onApplied={async receipt => { setDay(receipt.first_date); if (weekOf(receipt.first_date) !== start) setStart(weekOf(receipt.first_date)); else await load(true); }} onRefresh={() => load(true)} onViewWeek={() => setStage("week")} onSetup={() => { setInitialMode("normal"); setSettings(true); }} />}
         {activeStage === "today" && <section className="plan-stage-panel plan-stage-today">
+        <div className="plan-daily-summary" role="status"><strong>{t("plan.sections.todayProgress", { done: todayDone, total: todayItems.length })}</strong><span>{t("plan.sections.remainingTime", { minutes: todayRemaining })}</span></div>
+        {plan.overdue_count > 0 && <button type="button" className="plan-catchup-notice" onClick={() => showStage("catchup")}>{t("plan.overdueCount", { count: plan.overdue_count })}<Icon name="chevron-right" size={17} /></button>}
         <section className="plan-hero" aria-labelledby="plan-next-title">
-          <div><div className="plan-hero-top"><span className="plan-book-mark" aria-hidden="true"><Icon name="book-open" size={25} /></span><span className="plan-mode-label">{t(`plan.${profile.mode}`)}</span></div><p className="plan-eyebrow">{t("plan.next")}</p><h2 id="plan-next-title" dir="auto">{next ? title(next) : t("plan.emptyTitle")}</h2><p className="plan-session-meta">{next ? <><Icon name="clock" size={16} />{t("studyPlan.minutesValue", { count: next.duration_minutes })}<span aria-hidden="true">·</span>{displayDate(next.scheduled_date, { weekday: "long", day: "numeric", month: "short" })}</> : t("plan.emptyHint")}</p>
+          <div><div className="plan-hero-top"><span className="plan-book-mark" aria-hidden="true"><Icon name="book-open" size={25} /></span></div><p className="plan-eyebrow">{t("plan.next")}</p><h2 id="plan-next-title" dir="auto">{next ? title(next) : t("plan.emptyTitle")}</h2><p className="plan-session-meta">{next ? <><Icon name="clock" size={16} />{t("studyPlan.minutesValue", { count: next.duration_minutes })}<span aria-hidden="true">·</span>{displayDate(next.scheduled_date, { weekday: "long", day: "numeric", month: "short" })}</> : t("plan.emptyHint")}</p>
           {profile.mode === "beginning" && <p>{t("plan.beginnerProgress", { days: plan.progress.completed_days, minutes: plan.progress.session_minutes })}</p>}
           {profile.mode === "beginning" && plan.progress.ready_for_normal && <p>{t("plan.ready")} <button type="button" className="plan-text-button" onClick={() => { setInitialMode("normal"); setSettings(true); }}>{t("plan.switch")}</button></p>}
-          </div><div className="plan-actions">{next && <Link className="btn btn-primary plan-start-link" aria-label={next?.start_url ? t("plan.start") : nextMaterial ? t("plan.studySubject", { subject: nextMaterial.title }) : t("plan.openMaterials")} to={next?.start_url || (nextMaterial ? `/materials/catalog/${encodeURIComponent(nextMaterial.slug)}` : "/materials")}>{t("plan.start")}<Icon name="chevron-right" size={18} /></Link>}{canGenerate && <button type="button" className={`btn ${next ? "btn-soft" : "btn-primary"}`} disabled={Boolean(busy)} onClick={() => { setStage("week"); void previewWeek(); }}>{t("plan.preview")}</button>}<button type="button" className={`btn ${next || canGenerate ? "btn-soft" : "btn-primary"}`} disabled={Boolean(busy) || plan.offline} onClick={() => openEditor(null, today)}>{t("plan.add")}</button></div>
+          </div><div className="plan-actions">{next && <Link className="btn btn-primary plan-start-link" aria-label={next?.start_url ? t("plan.start") : nextMaterial ? t("plan.studySubject", { subject: nextMaterial.title }) : t("plan.openMaterials")} to={taskDestination(next, materials)}>{t("plan.start")}<Icon name="chevron-right" size={18} /></Link>}{canGenerate && <button type="button" className={`btn ${next ? "btn-soft" : "btn-primary"}`} disabled={Boolean(busy)} onClick={() => { setStage("week"); void previewWeek(); }}>{t("plan.preview")}</button>}<button type="button" className={`btn ${next || canGenerate ? "btn-soft" : "btn-primary"}`} disabled={Boolean(busy) || plan.offline} onClick={() => openEditor(null, today)}>{t("plan.add")}</button></div>
         </section>
         <section className="plan-today-list" aria-labelledby="plan-today-title">
           <h3 id="plan-today-title">{t("plan.flow.todayTasks")}</h3>
           {loading ? <LoadingPanel variant="list" /> : items.some(item => item.scheduled_date === today) ? tasks(items.filter(item => item.scheduled_date === today)) : <p className="plan-empty-day">{t("plan.emptyDay")}</p>}
         </section></section>}
+        {activeStage === "subjects" && <section className="plan-stage-panel plan-subjects">
+          <p className="plan-note">{t("plan.sections.subjectScope")}</p>
+          <div className="plan-subject-grid">{subjects.map(group => <button type="button" key={group.name} className="plan-subject-card" aria-pressed={group.name === subject} onClick={() => setSubject(group.name)}>
+            <strong dir="auto">{group.name}</strong><span>{t("plan.sections.subjectTasks", { count: group.items.filter(item => item.status === "planned").length })}</span>
+            {group.overdue.length > 0 && <small>{t("plan.overdueCount", { count: group.overdue.length })}</small>}
+          </button>)}</div>
+          {!subjects.length && <p>{t("plan.sections.noSubjects")}</p>}
+          {selectedSubject && <section aria-label={selectedSubject.name}>
+            <h3 dir="auto">{selectedSubject.name}</h3>
+            {selectedSubject.material && <Link className="btn btn-soft" to={`/materials/catalog/${encodeURIComponent(selectedSubject.material.slug)}`}>{t("plan.openMaterials")}</Link>}
+            {selectedSubject.items.length ? tasks(selectedSubject.items) : <p className="plan-empty-day">{t("plan.emptyDay")}</p>}
+            {selectedSubject.overdue.length > 0 && <button type="button" className="btn btn-soft" onClick={() => showStage("catchup")}>{t("plan.flow.catchup")}</button>}
+          </section>}
+        </section>}
+        {activeStage === "catchup" && <section className="plan-stage-panel plan-catchup">
+          <p className="plan-note">{t("plan.overdueHint")}</p>
+          {plan.overdue.length ? tasks(plan.overdue, { overdue: true }) : <p>{t("plan.sections.noOverdue")}</p>}
+        </section>}
         {activeStage === "progress" && <section className="plan-stage-panel plan-stage-progress">
         <div className="plan-stats" aria-label={t("studyPlan.summaryLabel")}>
           <div><span>{t("plan.completed")}</span><strong dir="ltr">{plan.summary.completed_count} / {plan.summary.planned_count}</strong></div><div><span>{t("plan.planned")}</span><strong>{t("studyPlan.minutesValue", { count: plan.summary.planned_minutes })}</strong></div><div><span>{t("plan.today")}</span><strong>{t("studyPlan.minutesValue", { count: plan.summary.today_minutes })}</strong></div>
           {progress.total > 0 && <div className="plan-progress"><div className="plan-progress-ring" aria-hidden="true"><svg viewBox="0 0 100 100"><circle className="plan-ring-track" cx="50" cy="50" r="42" /><circle className="plan-ring-value" cx="50" cy="50" r="42" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - progress.percent} /></svg><strong dir="ltr">{Math.round(progress.percent)}<small>%</small></strong></div><div className="plan-progress-copy"><strong>{t("plan.week")}</strong><span>{t("plan.weekProgress", { done: progress.done, total: progress.total })}</span><progress max={100} value={progress.percent} aria-label={t("plan.weekProgress", { done: progress.done, total: progress.total })}>{progress.percent}%</progress></div></div>}
         </div>
-        {plan.overdue_count > 0 && <details className="plan-overdue"><summary>{t("plan.overdue")} · {plan.overdue_count}</summary><p>{t("plan.overdueHint")}</p>{tasks(plan.overdue, { overdue: true })}</details>}
+
         <p className="plan-note">{t("connected.completionNote")}</p>
         </section>}
         {activeStage === "week" && <section className="plan-stage-panel plan-stage-week">
@@ -213,10 +256,6 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
           else await studyPlanApi.createItem({ ...draft, clientRequestId: editor.key });
           setEditor(null); await load(true); setMessage("plan.saved");
         })} /></div>}
-        <footer className="plan-journey-footer" aria-label={t("plan.flow.navigation")}>
-          {stageIndex > 0 && <button type="button" className="btn btn-soft" disabled={Boolean(busy) || Boolean(editor) || Boolean(progressTask)} onClick={() => showStage(stages[stageIndex - 1])}><Icon name="chevron-left" size={17}/>{t("plan.flow.back", { stage: t("plan.flow." + stages[stageIndex - 1]) })}</button>}
-          {stageIndex < stages.length - 1 && <button type="button" className="btn btn-primary" disabled={Boolean(busy) || Boolean(editor) || Boolean(progressTask)} onClick={() => showStage(stages[stageIndex + 1])}>{t("plan.flow.next", { stage: t("plan.flow." + stages[stageIndex + 1]) })}<Icon name="chevron-right" size={17}/></button>}
-        </footer>
         <ConfirmDialog open={Boolean(deleting)} busy={Boolean(busy)} title={t("plan.deleteTitle")} message={deleting ? title(deleting) : ""} onCancel={() => setDeleting(null)} onConfirm={() => action("delete", async () => { await studyPlanApi.deleteItem(deleting.id, deleting.revision); setDeleting(null); setEditor(null); await load(true); setMessage("plan.saved"); })} />
         </>}
       </>}

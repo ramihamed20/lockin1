@@ -1,5 +1,20 @@
 export const studyPlanMessages = {
   en: {
+    "plan.sections.options": "Options",
+    "plan.sections.navigation": "Plan sections",
+    "plan.flow.subjects": "My subjects",
+    "plan.flow.catchup": "Catch up",
+    "plan.sections.subjectScope": "Sessions in the selected week, plus overdue work.",
+    "plan.sections.subjectTasks": "{count} upcoming sessions this week",
+    "plan.sections.noSubjects": "Choose your subjects in plan settings to organize your work.",
+    "plan.sections.noOverdue": "You have no overdue sessions.",
+    "plan.sections.todayProgress": "Today: {done} of {total} completed",
+    "plan.sections.remainingTime": "{minutes} min remaining today",
+    "plan.sections.activity.reading": "Reading",
+    "plan.sections.activity.questions": "Questions",
+    "plan.sections.activity.review": "Review mistakes",
+    "plan.sections.activity.active_study": "Active Study",
+
     "smart.planChanged": "Your exam plan may need an update: new content, a changed date or overdue work. Preview a new plan before applying changes.",
     "smart.includeQuestions": "Include unanswered sheet and past-exam questions",
     "smart.questionsCount": "{count} questions to answer",
@@ -159,6 +174,21 @@ export const studyPlanMessages = {
     "plan.weekProgress": "This week: {done} of {total} min done", "plan.dayAllDone": "all sessions done"
   },
   ar: {
+    "plan.sections.options": "خيارات",
+    "plan.sections.navigation": "أقسام خطتي",
+    "plan.flow.subjects": "موادي",
+    "plan.flow.catchup": "المتأخرات",
+    "plan.sections.subjectScope": "جلسات الأسبوع المختار، مع المهام المتأخرة.",
+    "plan.sections.subjectTasks": "جلسات هذا الأسبوع المتبقية: {count}",
+    "plan.sections.noSubjects": "اختر موادك من إعدادات الخطة لترتيب مهامك.",
+    "plan.sections.noOverdue": "لا توجد جلسات متأخرة.",
+    "plan.sections.todayProgress": "اليوم: أنجزت {done} من {total}",
+    "plan.sections.remainingTime": "متبقي اليوم {minutes} دقيقة",
+    "plan.sections.activity.reading": "قراءة",
+    "plan.sections.activity.questions": "أسئلة",
+    "plan.sections.activity.review": "مراجعة الأخطاء",
+    "plan.sections.activity.active_study": "Active Study",
+
     "smart.planChanged": "خطتك تحتاج مراجعة: ربما أضيف محتوى، أو تغير موعد، أو توجد مهام متأخرة. عاين التحديث قبل تطبيقه.",
     "smart.includeQuestions": "إضافة أسئلة الشيت والسنوات السابقة غير المحلولة",
     "smart.questionsCount": "{count} أسئلة للحل",

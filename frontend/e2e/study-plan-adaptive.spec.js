@@ -60,6 +60,7 @@ for (const [width, height, locale] of [[320,740,"ar"],[820,1180,"en"]]) {
     await capacity.locator("input").fill("20");
     await capacity.locator('button[type="submit"]').click();
     await expect.poll(() => writes.some(row => row.body.date_minutes?.[today] === 20)).toBe(true);
+    await tasks.getByText(locale === "ar" ? "خيارات" : "Options", { exact: true }).click();
     await tasks.getByRole("button", { name: locale === "ar" ? "تثبيت الموعد" : "Keep this date" }).click();
     await expect(tasks.getByRole("button", { name: locale === "ar" ? "السماح بإعادة التوزيع" : "Allow rearranging" })).toHaveAttribute("aria-pressed", "true");
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
