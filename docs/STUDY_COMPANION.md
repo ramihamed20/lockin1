@@ -43,3 +43,16 @@ Validation (2026-11-01):
 - Browser QA uses the actual React components in a disposable mock-content harness: both original characters, speaking/thinking gestures, progressive explanation, subsequent question, answer disclosure and confirmed saving. The harness is excluded from the commit.
 
 PostgreSQL and physical iPad/WebKit verification remain release checks. SQLite results do not establish row-lock behavior. This change is for the `codex/lockin0.1.5` source branch; applying the migration and publishing staff-authored ideas are needed before the companion appears in a deployed reader.
+
+
+## Private Codespaces pilot: Intro Histology (Tripoli)
+
+The development-only \`seed_codespace_histology\` command publishes 12 reviewed
+\`StudyAssistanceIdea\` rows (three for each of four PDF pages) for the
+\`codespace-tripoli-intro-histology\` demo material. Run the command after
+\`seed_demo\` and \`seed_codespace_exam\`; \`.devcontainer/start.sh\` runs it
+automatically for a new Codespace. It is idempotent and refuses production
+settings. Open the sample PDF in Focus Workspace with \`student@lockin.local\`
+to see either original animated companion (boy/girl), contextual explanation,
+follow-up question, and saved-idea controls. No AI key or provider is needed;
+the sample content is not an official university sheet.

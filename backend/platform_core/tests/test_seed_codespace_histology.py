@@ -7,10 +7,12 @@ from django.test import TestCase, override_settings
 from pypdf import PdfReader
 
 from apps.accounts.models import User
-from apps.content.models import CatalogDocument, CatalogSubject, LearningObject
+from apps.content.models import CatalogDocument, CatalogSubject, LearningObject, StudyAssistanceIdea
+from apps.content.study_assistance import student_ideas
 from apps.questions.models import QuestionVersion
 from apps.study_plans.exam_models import ExamSyllabusScope
 from platform_core.management.commands.seed_codespace_histology import (
+    ASSISTANCE_IDEAS,
     MATERIAL_SLUG,
     PDF_NAME,
     QUESTIONS,
@@ -58,8 +60,23 @@ class CodespaceHistologyTests(TestCase):
         self.assertEqual(set(questions.values_list("source_page", flat=True)), {1, 2, 3, 4})
         self.assertTrue(all(q.options.count() == 4 for q in questions))
         self.assertTrue(ExamSyllabusScope.objects.filter(subject=subject).exists())
-        counts = (LearningObject.objects.count(), QuestionVersion.objects.count())
+        ideas = StudyAssistanceIdea.objects.filter(
+            source_version=document.version, edition="university",
+            view="study", is_published=True,
+        )
+        self.assertEqual(ideas.count(), len(ASSISTANCE_IDEAS))
+        self.assertEqual(len(ASSISTANCE_IDEAS), 12)
+        for page in range(1, 5):
+            page_ideas = student_ideas(
+                user=student, document=document,
+                view="study", page=page, saved_only=False,
+            )
+            self.assertEqual(len(page_ideas), 3)
+            self.assertTrue(all(row["page"] == page for row in page_ideas))
+            self.assertTrue(all(row["question"] and row["explanation"] for row in page_ideas))
+
+        counts = (LearningObject.objects.count(), QuestionVersion.objects.count(), StudyAssistanceIdea.objects.count())
         call_command("seed_codespace_histology", verbosity=0)
         self.assertEqual(
-            counts, (LearningObject.objects.count(), QuestionVersion.objects.count()),
+            counts, (LearningObject.objects.count(), QuestionVersion.objects.count(), StudyAssistanceIdea.objects.count()),
         )

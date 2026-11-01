@@ -16,6 +16,7 @@ from apps.content.models import (
     LearningObject,
     LearningObjectAsset,
     LearningObjectVersion,
+    StudyAssistanceIdea,
 )
 from apps.education.models import EducationNode
 from apps.files.models import ManagedFile
@@ -85,6 +86,108 @@ QUESTIONS = (
     (3, "What is the primary specialization of muscle tissue?", ("Contraction", "Signal storage", "Mineral filtration", "Light detection"), "Muscle tissue contracts to generate force."),
     (4, "Which stain commonly colors nuclei blue-purple?", ("Hematoxylin", "Eosin", "Oil red O", "Sudan black"), "Hematoxylin commonly stains nuclei blue to purple."),
     (4, "What is the best first magnification for exploring a new slide?", ("Low power", "Maximum oil immersion", "Maximum zoom immediately", "No objective lens"), "Low power helps orient the specimen."),
+)
+
+
+# Page, kind, teaser, question, explanation, follow-up question and answer.
+# These ideas are reviewed against PAGES above; they are not live AI responses.
+ASSISTANCE_IDEAS = (
+    (
+        1, "understand", "What does Histology really study?",
+        "Why is histology different from looking at organs with the naked eye?",
+        "Histology studies the microscopic arrangement of cells and tissues. "
+        "A microscope helps us see structures that cannot be resolved by the naked eye.",
+        "What tool lets us examine these details?",
+        "A microscope.",
+    ),
+    (
+        1, "memory", "Remember the four tissue families",
+        "Which four basic tissues organize the human body?",
+        "The four basic tissue types are epithelial, connective, muscular and nervous. "
+        "Recognizing their distinctive cells and matrix is a starting point for histology.",
+        "Name the tissue specialized for contraction.",
+        "Muscular tissue.",
+    ),
+    (
+        1, "organize", "Cells + matrix = tissue structure",
+        "Why should you look beyond the cells in a tissue?",
+        "The extracellular matrix surrounding the cells also contributes to tissue "
+        "structure and function. The proportion of cells and matrix can differ by tissue.",
+        "What is the material outside the cells called?",
+        "Extracellular matrix.",
+    ),
+    (
+        2, "understand", "Find the apical surface",
+        "How do you identify the apical surface of epithelium?",
+        "The apical surface faces a lumen or the outside environment. "
+        "The basal surface faces the underlying basement membrane.",
+        "Which side attaches to the basement membrane?",
+        "The basal surface.",
+    ),
+    (
+        2, "memory", "Simple vs. stratified",
+        "What is the difference between simple and stratified epithelium?",
+        "Simple epithelium has one cell layer. Stratified epithelium "
+        "has more than one layer. This is a useful first distinction on a slide.",
+        "Which one has multiple layers?",
+        "Stratified epithelium.",
+    ),
+    (
+        2, "organize", "Think: cover, absorb, secrete",
+        "What are three functions of epithelial tissue?",
+        "Epithelial tissue forms surface and cavity linings as well as many glands. "
+        "Its functions include protection, absorption and secretion.",
+        "Does epithelium generally have a large extracellular matrix?",
+        "No. The cells are tightly packed, with relatively little extracellular matrix.",
+    ),
+    (
+        3, "understand", "Why collagen matters",
+        "How does collagen help connective tissue?",
+        "Collagen fibers provide tensile strength in many connective tissues. "
+        "The extracellular matrix is an important part of their structure.",
+        "What provides tensile strength in many connective tissues?",
+        "Collagen fibers.",
+    ),
+    (
+        3, "memory", "Muscle = movement through contraction",
+        "What is the key specialization of muscle tissue?",
+        "Muscle tissue is specialized to contract and generate force. "
+        "That ability distinguishes it from the other basic tissue types.",
+        "What produces force in muscle tissue?",
+        "Contraction.",
+    ),
+    (
+        3, "organize", "Neurons and their supporting cells",
+        "What two kinds of cells are noted for nervous tissue here?",
+        "Nervous tissue contains neurons and supporting glial cells. "
+        "Neurons transmit electrical and chemical signals.",
+        "Which cells transmit signals?",
+        "Neurons.",
+    ),
+    (
+        4, "understand", "How a histology slide is made",
+        "Which preparation steps commonly precede microscopic examination?",
+        "Tissue is commonly fixed, embedded, sectioned and stained. "
+        "These steps help make the microscopic structures visible.",
+        "Why is tissue stained?",
+        "To help different structures become visible and distinguishable.",
+    ),
+    (
+        4, "memory", "Hematoxylin vs. eosin",
+        "What are the common colors produced by hematoxylin and eosin?",
+        "Hematoxylin commonly stains nuclei blue to purple; eosin "
+        "commonly stains many cytoplasmic proteins pink.",
+        "Which one commonly makes nuclei blue-purple?",
+        "Hematoxylin.",
+    ),
+    (
+        4, "organize", "Start low, then inspect",
+        "Why should you begin studying a slide at low power?",
+        "Low magnification makes it easier to find the tissue and establish its "
+        "orientation. Then look for cell shape, arrangement, matrix and boundaries.",
+        "Name one useful structure to assess after orienting the slide.",
+        "Cell shape, cell arrangement, extracellular matrix or tissue boundaries.",
+    ),
 )
 
 
@@ -295,6 +398,23 @@ class Command(BaseCommand):
         if alias.version_id != version.id or alias.managed_file_id != file.id:
             raise CommandError("Demo document alias points at another file.")
         StudySheetDifficulty.objects.get_or_create(sheet=sheet, defaults={"level": 2})
+
+        # Publish page-specific help so the animated character is visible immediately
+        # in this isolated reader. This is curated education content, not model AI.
+        for position, (page, kind, teaser, question, explanation, followup_question, followup_answer) in enumerate(
+            ASSISTANCE_IDEAS, 1
+        ):
+            StudyAssistanceIdea.objects.get_or_create(
+                source_version=version, edition="university", view="study",
+                page=page, position=position,
+                defaults={
+                    "kind": kind, "teaser": teaser, "question": question,
+                    "explanation": explanation,
+                    "followup_question": followup_question,
+                    "followup_answer": followup_answer,
+                    "is_published": True,
+                },
+            )
 
         for page, prompt, answers, explanation in QUESTIONS:
             existing = QuestionVersion.objects.filter(
