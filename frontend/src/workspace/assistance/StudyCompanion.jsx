@@ -1,3 +1,4 @@
+import { generalCompanionIdeas, companionReadyCopy } from "../../lib/companionTips.js";
 import "./study-companion.css";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -21,7 +22,7 @@ function useReducedMotion() {
   return reduced;
 }
 
-function IdeaExplanation({ idea, motion, busy, error, onSave, onClose, onMotionPhase }) {
+function IdeaExplanation({ idea, motion, busy, error, onSave, onClose, onMotionPhase, readyCopy, onRetry, loadFailed }) {
   const { t } = useI18n();
   const [explaining, setExplaining] = useState(false);
   const [complete, setComplete] = useState(false);
@@ -37,6 +38,7 @@ function IdeaExplanation({ idea, motion, busy, error, onSave, onClose, onMotionP
   return <section className="study-companion-panel" role="dialog" aria-modal="false" aria-labelledby={id}>
     <header><span><Sparkles size={17} aria-hidden="true" />{t("studyCompanion.name")}</span><button type="button" ref={closeRef} onClick={onClose} aria-label={t("studyCompanion.close")}><X size={18} /></button></header>
     <div className="study-companion-lesson">
+      {idea.general && <div className="study-companion-ready-note"><p>{readyCopy.general}</p><p role="status">{loadFailed ? readyCopy.failed : readyCopy.empty}</p><button type="button" className="btn btn-soft" onClick={onRetry}>{readyCopy.retry}</button></div>}
       <h2 id={id} dir="auto">{idea.question}</h2>
       {!explaining && <button type="button" className="btn btn-primary study-companion-explain" onClick={() => setExplaining(true)}><Sparkles size={16} aria-hidden="true" />{t("studyCompanion.explain")}</button>}
       {explaining && <TypedExplanation text={idea.explanation} animate={motion} onComplete={() => setComplete(true)} />}
@@ -45,7 +47,7 @@ function IdeaExplanation({ idea, motion, busy, error, onSave, onClose, onMotionP
         <button type="button" aria-expanded={solution} aria-controls={id + "-solution"} onClick={() => { setSolutionComplete(false); setSolution((value) => !value); }}><span dir="auto">{idea.followup_question}</span><ChevronLeft size={16} aria-hidden="true" /></button>
         {solution && <div id={id + "-solution"}><TypedExplanation text={idea.followup_answer} animate={motion} onComplete={() => setSolutionComplete(true)} /></div>}
       </div>}
-      <div className="study-companion-save"><button type="button" className="btn btn-soft" disabled={busy} aria-busy={busy} aria-pressed={idea.saved} onClick={onSave}><Bookmark size={15} fill={idea.saved ? "currentColor" : "none"} aria-hidden="true" />{t(busy ? "studyCompanion.saving" : idea.saved ? "studyCompanion.saved" : "studyCompanion.save")}</button></div>
+      {!idea.general && <div className="study-companion-save"><button type="button" className="btn btn-soft" disabled={busy} aria-busy={busy} aria-pressed={idea.saved} onClick={onSave}><Bookmark size={15} fill={idea.saved ? "currentColor" : "none"} aria-hidden="true" />{t(busy ? "studyCompanion.saving" : idea.saved ? "studyCompanion.saved" : "studyCompanion.save")}</button></div>}
       {error && <p className="study-companion-error" role="alert">{error}</p>}
       <span className="study-companion-status" role="status">{explaining ? t(complete ? "studyCompanion.complete" : "studyCompanion.typing") : ""}</span>
     </div>
@@ -54,7 +56,9 @@ function IdeaExplanation({ idea, motion, busy, error, onSave, onClose, onMotionP
 
 /** Independent overlay; it never owns PDF navigation, annotations or quiz state. */
 export default function StudyCompanion({ userId, documentId, versionId, edition = "university", view = "study", page, pageStart = 1, pageLimit = Infinity, active = true, portalRoot = null }) {
-  const { t, direction } = useI18n();
+  const { t, direction, locale } = useI18n();
+  const readyCopy = companionReadyCopy[locale] || companionReadyCopy.en;
+  const [retry, setRetry] = useState(0);
   const reduced = useReducedMotion();
   const [preferences, setPreferences] = useState(() => readCompanionPreferences(userId));
   const [data, setData] = useState({ key: "", ideas: [] });
@@ -64,37 +68,33 @@ export default function StudyCompanion({ userId, documentId, versionId, edition 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [savedList, setSavedList] = useState({ key: "", ideas: [], loading: false, failed: false });
-  const [savedAvailability, setSavedAvailability] = useState({ key: "", ideas: [] });
+  const loadedScope = useRef("");
   const rootRef = useRef(null), petRef = useRef(null), saveRequest = useRef(0);
   const key = assistanceScopeKey(userId, documentId, edition, view, versionId, page);
   const validPage = Number.isInteger(page) && page >= pageStart && page <= pageLimit && page > 0;
   const enabled = Boolean(active && userId && documentId && validPage);
-  const ideas = useMemo(() => data.key === key ? assistanceForPage(data.ideas, page, pageStart, pageLimit) : [], [data, key, page, pageStart, pageLimit]);
+  const ideas = useMemo(() => {
+    if (data.key !== key) return [];
+    const prepared = assistanceForPage(data.ideas, page, pageStart, pageLimit);
+    return prepared.length ? prepared : generalCompanionIdeas(locale);
+  }, [data, key, page, pageStart, pageLimit, locale]);
   const idea = reviewIdea || ideas[selected] || ideas[0];
   const motion = preferences.motion && !reduced;
   const characterMotion = useCompanionMotion(key + "/" + (idea?.id || ""), surface, motion && enabled && Boolean(idea));
 
   useEffect(() => { saveCompanionPreferences(userId, preferences); }, [preferences, userId]);
   useEffect(() => {
-    setSurface(""); setReviewIdea(null); setSelected(0); setError(""); setBusy(false); saveRequest.current += 1;
-    if (!enabled) return undefined;
+    if (loadedScope.current !== key) {
+      setSurface(""); setReviewIdea(null); setSelected(0); setError(""); setBusy(false); saveRequest.current += 1;
+      loadedScope.current = key;
+    }
+    if (!enabled) { setSurface(""); return undefined; }
     const controller = new AbortController();
     studyAssistanceApi.list(documentId, { page, view, signal: controller.signal }).then((body) => {
-      if (!controller.signal.aborted && (!versionId || body.versionId === versionId)) setData({ key, ideas: body.results });
-    }, () => { if (!controller.signal.aborted) setData({ key, ideas: [] }); });
+      if (!controller.signal.aborted) setData({ key, ideas: (!versionId || body.versionId === versionId) ? body.results : [], failed: false });
+    }, () => { if (!controller.signal.aborted) setData({ key, ideas: [], failed: true }); });
     return () => controller.abort();
-  }, [documentId, enabled, key, page, versionId, view]);
-  useEffect(() => {
-    if (!enabled || data.key !== key || ideas.length || preferences.hidden) return undefined;
-    const controller = new AbortController();
-    studyAssistanceApi.list(documentId, { view, saved: true, signal: controller.signal }).then((body) => {
-      if (!controller.signal.aborted) setSavedAvailability({
-        key,
-        ideas: (!versionId || body.versionId === versionId) ? savedAssistanceForRange(body.results, pageStart, pageLimit) : []
-      });
-    }, () => { if (!controller.signal.aborted) setSavedAvailability({ key, ideas: [] }); });
-    return () => controller.abort();
-  }, [data.key, documentId, enabled, ideas.length, key, pageLimit, pageStart, preferences.hidden, versionId, view]);
+  }, [documentId, enabled, key, page, versionId, view, retry]);
   useEffect(() => {
     if (!surface) return undefined;
     function outside(event) { if (!rootRef.current?.contains(event.target)) setSurface(""); }
@@ -112,10 +112,10 @@ export default function StudyCompanion({ userId, documentId, versionId, edition 
       if (!controller.signal.aborted) setSavedList({ key, loading: false, failed: false, ideas: (!versionId || body.versionId === versionId) ? savedAssistanceForRange(body.results, pageStart, pageLimit) : [] });
     }, () => { if (!controller.signal.aborted) setSavedList({ key, ideas: [], loading: false, failed: true }); });
     return () => controller.abort();
-  }, [documentId, enabled, key, pageLimit, pageStart, surface, versionId, view]);
+  }, [documentId, enabled, key, pageLimit, pageStart, surface, versionId, view, retry]);
 
   async function saveIdea() {
-    if (busy || !idea) return;
+    if (busy || !idea || idea.general) return;
     const requestId = ++saveRequest.current;
     setBusy(true); setError("");
     try {
@@ -123,7 +123,6 @@ export default function StudyCompanion({ userId, documentId, versionId, edition 
       if (requestId === saveRequest.current) {
         setData((current) => ({ ...current, ideas: current.ideas.map((row) => row.id === saved.id ? saved : row) }));
         setReviewIdea((current) => current?.id === saved.id ? saved : current);
-        if (!saved.saved) setSavedAvailability((current) => ({ ...current, ideas: current.ideas.filter((row) => row.id !== saved.id) }));
         if (saved.saved) characterMotion.saved();
       }
     } catch {
@@ -136,16 +135,15 @@ export default function StudyCompanion({ userId, documentId, versionId, edition 
     setReviewIdea(row); setSurface("idea"); setError("");
   }
 
-  const hasSavedOnEmptyPage = savedAvailability.key === key && savedAvailability.ideas.length > 0;
-  if (!enabled || (!ideas.length && !preferences.hidden && !hasSavedOnEmptyPage)) return null;
+  if (!enabled) return null;
   const target = portalRoot || document.body;
   if (preferences.hidden) return createPortal(<button type="button" className="study-companion-restore" onClick={() => setPreferences((current) => ({ ...current, hidden: false }))}><Sparkles size={16} aria-hidden="true" />{t("studyCompanion.show")}</button>, target);
   return createPortal(<div ref={rootRef} dir={direction} className={"study-companion" + (motion ? " has-motion" : "")} data-motion-state={motion ? characterMotion.state : "idle"} onPointerDown={(event) => event.stopPropagation()}>
     <button type="button" className="study-companion-pet" ref={petRef} onClick={() => { setError(""); const targetSurface = idea ? "idea" : "saved"; setSurface(surface === targetSurface ? "" : targetSurface); }} aria-label={t(idea ? "studyCompanion.open" : "studyCompanion.savedIdeas")} aria-expanded={surface === "idea" || surface === "saved"}><CompanionCharacter character={preferences.character} state={characterMotion.state} sequenceKey={characterMotion.sequenceKey} motion={motion} /></button>
     <button type="button" className="study-companion-preferences" onClick={() => setSurface(surface === "settings" ? "" : "settings")} aria-label={t("studyCompanion.settings")} aria-expanded={surface === "settings"}><Settings size={15} aria-hidden="true" /></button>
     {!surface && idea && <div className="study-companion-bubble"><button type="button" onClick={() => setSurface("idea")}><Sparkles size={14} aria-hidden="true" /><strong dir="auto">{idea.teaser}</strong></button>{ideas.length > 1 && <button type="button" className="study-companion-next" onClick={() => { setSelected((selected + 1) % ideas.length); setError(""); }}><MoreHorizontal size={15} aria-hidden="true" />{t("studyCompanion.nextIdea")}</button>}</div>}
-    {surface === "idea" && idea && <IdeaExplanation key={key + "/" + idea.id} idea={idea} motion={motion} busy={busy} error={error} onSave={() => void saveIdea()} onClose={close} onMotionPhase={characterMotion.phase} />}
+    {surface === "idea" && idea && <IdeaExplanation key={key + "/" + idea.id} idea={idea} motion={motion} busy={busy} error={error} onSave={() => void saveIdea()} onClose={close} onMotionPhase={characterMotion.phase} readyCopy={readyCopy} loadFailed={Boolean(data.failed)} onRetry={() => setRetry(value => value + 1)} />}
     {surface === "settings" && <section className="study-companion-options" aria-label={t("studyCompanion.settings")}><header><strong>{t("studyCompanion.settings")}</strong><button type="button" onClick={close} aria-label={t("studyCompanion.close")}><X size={17} /></button></header><div className="study-companion-characters">{[["boy", boy], ["girl", girl]].map(([value, image]) => <button type="button" key={value} aria-pressed={preferences.character === value} onClick={() => setPreferences((current) => ({ ...current, character: value }))}><img src={image} alt="" /><span>{t("studyCompanion." + value)}</span></button>)}</div><button type="button" aria-pressed={preferences.motion} onClick={() => setPreferences((current) => ({ ...current, motion: !current.motion }))}>{t("studyCompanion.motion")}<span>{t(preferences.motion ? "studyCompanion.on" : "studyCompanion.off")}</span></button><button type="button" onClick={() => setSurface("saved")}><Bookmark size={16} aria-hidden="true" />{t("studyCompanion.savedIdeas")}</button><button type="button" onClick={() => { setSurface(""); setPreferences((current) => ({ ...current, hidden: true })); }}>{t("studyCompanion.hide")}</button></section>}
-    {surface === "saved" && <section className="study-companion-options" aria-label={t("studyCompanion.savedIdeas")}><header><strong>{t("studyCompanion.savedIdeas")}</strong><button type="button" onClick={close} aria-label={t("studyCompanion.close")}><X size={17} /></button></header>{savedList.key !== key || savedList.loading ? <p role="status">{t("studyCompanion.loading")}</p> : savedList.failed ? <p role="alert">{t("studyCompanion.loadFailed")}</p> : savedList.ideas.length ? savedList.ideas.map((row) => <button type="button" key={row.id} onClick={() => chooseSaved(row)} dir="auto">{row.question}</button>) : <p>{t("studyCompanion.noSaved")}</p>}</section>}
+    {surface === "saved" && <section className="study-companion-options" aria-label={t("studyCompanion.savedIdeas")}><header><strong>{t("studyCompanion.savedIdeas")}</strong><button type="button" onClick={close} aria-label={t("studyCompanion.close")}><X size={17} /></button></header>{savedList.key !== key || savedList.loading ? <p role="status">{t("studyCompanion.loading")}</p> : savedList.failed ? <div><p role="alert">{t("studyCompanion.loadFailed")}</p><button type="button" className="btn btn-soft" onClick={() => setRetry(value => value + 1)}>{readyCopy.retry}</button></div> : savedList.ideas.length ? savedList.ideas.map((row) => <button type="button" key={row.id} onClick={() => chooseSaved(row)} dir="auto">{row.question}</button>) : <p>{t("studyCompanion.noSaved")}</p>}</section>}
   </div>, target);
 }

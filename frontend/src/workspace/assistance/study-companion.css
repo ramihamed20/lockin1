@@ -85,3 +85,6 @@
   .study-companion-character .study-companion-still { visibility: visible; }
   .study-companion-rig { display: none; }
 }
+
+.study-companion-ready-note { display: grid; gap: 8px; margin-block-end: 16px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+.study-companion-ready-note p { margin: 0; }
