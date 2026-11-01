@@ -121,27 +121,56 @@ for (const config of [{ name: "phone-ar", width: 320, height: 740, locale: "ar" 
   });
 }
 
-// Switching between short and long settings panels must never stretch or
-// collapse the adjacent navigation on wide layouts, including iPad landscape.
-for (const viewport of [{ width: 1440, height: 900 }, { width: 1180, height: 820 }]) {
-  test(`settings sidebar keeps its height across sections at ${viewport.width}px`, async ({ page }) => {
+// The settings sidebar and the detail column share a fixed desktop frame.
+// Long sections must scroll inside the detail column instead of stretching the
+// sidebar, including touch-enabled iPad landscape and the desktop breakpoint.
+for (const viewport of [{ width: 1440, height: 900 }, { width: 1180, height: 820 }, { width: 1100, height: 720 }]) {
+  test(`settings columns remain stable across short and long sections at ${viewport.width}px`, async ({ page }) => {
     await server(page, "en");
     await page.setViewportSize(viewport);
     await page.goto("/#/settings?section=account");
 
-    const nav = page.locator(".settings-v2-nav");
+    const frame = page.locator(".settings-v2");
+    const nav = frame.locator(".settings-v2-nav");
+    const detail = frame.locator(".settings-v2-detail");
     await expect(nav).toBeVisible();
-    await expect(page.locator("#settings-account")).toBeVisible();
-    const startHeight = await nav.evaluate(element => element.getBoundingClientRect().height);
-    expect(startHeight).toBeGreaterThan(0);
+    await expect(detail).toBeVisible();
+    const heights = await frame.evaluate(element => {
+      const height = node => node.getBoundingClientRect().height;
+      return {
+        frame: height(element),
+        sidebar: height(element.querySelector(".settings-v2-nav")),
+        detail: height(element.querySelector(".settings-v2-detail"))
+      };
+    });
+    expect(heights.frame).toBeGreaterThan(300);
+    expect(Math.abs(heights.sidebar - heights.detail)).toBeLessThan(2);
+    expect(await detail.evaluate(element => getComputedStyle(element).overflowY)).toBe("auto");
 
     for (const section of ["appearance", "devices", "billing", "notifications", "updates", "privacy", "account"]) {
       await page.evaluate(id => { window.location.hash = `#/settings?section=${id}`; }, section);
-      await expect(page.locator(`.settings-v2[data-active-section="${section}"]`)).toBeVisible();
+      await expect(frame).toHaveAttribute("data-active-section", section);
       await expect(page.locator(`#settings-${section}-heading`)).toBeVisible();
-      const height = await nav.evaluate(element => element.getBoundingClientRect().height);
-      expect(Math.abs(height - startHeight), `Navigation height changed in ${section}`).toBeLessThan(1);
+      const current = await frame.evaluate(element => {
+        const height = node => node.getBoundingClientRect().height;
+        return {
+          frame: height(element),
+          sidebar: height(element.querySelector(".settings-v2-nav")),
+          detail: height(element.querySelector(".settings-v2-detail"))
+        };
+      });
+      for (const name of Object.keys(heights)) {
+        expect(Math.abs(current[name] - heights[name]), `${name} changed in ${section}`).toBeLessThan(1);
+      }
     }
+
+    // A long section scrolls inside its panel, without moving the left list.
+    await page.evaluate(() => { window.location.hash = "#/settings?section=appearance"; });
+    await expect(page.locator("#settings-appearance")).toBeVisible();
+    const before = await nav.evaluate(element => element.scrollTop);
+    await detail.evaluate(element => { element.scrollTop = element.scrollHeight; });
+    expect(await nav.evaluate(element => element.scrollTop)).toBe(before);
+    await expect(frame).toHaveAttribute("data-active-section", "appearance");
   });
 }
 
