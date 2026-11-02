@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useWorkspacePaneActive } from "./workspacePane.js";
+import { useWorkspacePaneVisible } from "./workspacePane.js";
 import { assetPath } from "../../lib/utils.js";
 import { boundedOutputScale, pdfPageAspectRatio } from "../document/coordinateTransforms.js";
 import { WORKSPACE_RENDER } from "../config.js";
@@ -89,7 +89,7 @@ async function measureEveryPage(documentProxy, isCancelled) {
 const A4PdfCanvas = memo(
 /** @param {{ documentProxy: any, pageNumber: number, pageAspectRatio: number, renderZoom: number, shouldRender: boolean, evictionDelayMs?: number, renderRevision: number, wakeToken?: number, renderController: { suspended: boolean, generation: number, scrolling: boolean, deferred: Set<() => void>, viewportListeners: Set<() => void> }, priority: number, renderQueue: PdfRenderQueue, onPageGeometry?: (pageNumber: number, width: number, height: number) => void, onPageRendered?: (duration: number) => void, onPageOutcome?: (pageNumber: number, failed: boolean) => void }} props */
 function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, shouldRender, evictionDelayMs = CANVAS_EVICTION_MS, renderRevision, wakeToken = 0, renderController, priority, renderQueue, onPageGeometry, onPageRendered, onPageOutcome }) {
-  const paneActive = useWorkspacePaneActive();
+  const paneActive = useWorkspacePaneVisible();
   const canvasRefs = useRef([null, null]);
   const visibleCanvasRef = useRef(0);
   const renderedRef = useRef({ documentProxy: null, qualityScale: 0 });
@@ -528,7 +528,7 @@ export function ContinuousA4Pdf({
   const [renderScale, setRenderScale] = useState(zoom);
   const [renderRevision, setRenderRevision] = useState(0);
   // Bumped when a kept pane or the browser page returns, see A4PdfCanvas.
-  const paneActive = useWorkspacePaneActive();
+  const paneActive = useWorkspacePaneVisible();
   const [wakeToken, setWakeToken] = useState(0);
   const wasPaneActiveRef = useRef(paneActive);
   useEffect(() => {
