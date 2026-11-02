@@ -1167,8 +1167,8 @@ export function ContinuousA4Pdf({
       const offset = pageRect.top - desiredTop;
       // Only correct the blank strip above page one. Negative offsets represent
       // deliberate reading/scrolling and must remain untouched.
-      if (offset > 1 && offset <= Math.max(96, stageRect.height * .18)) {
-        stage.scrollTop += offset;
+      if (Math.abs(offset) > 1 && offset >= -24 && offset <= Math.max(96, stageRect.height * .18)) {
+        stage.scrollTop = Math.max(0, stage.scrollTop + offset);
       }
     };
     animationFrame = requestAnimationFrame(() => {
