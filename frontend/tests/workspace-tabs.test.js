@@ -143,3 +143,17 @@ test("split view provides independently mounted visible PDF panes with a draggab
   assert.match(drag, /splitDropZone\(nextEvent\.clientX, nextEvent\.clientY\)/);
   assert.match(drag, /window\.addEventListener\("pointermove", pointer/);
 });
+
+test("a visible second PDF keeps rendering, while hidden tab buffers stay suspended", async () => {
+  const [reader, ink, host, css] = await Promise.all([
+    readFile(new URL("../src/workspace/catalog/ContinuousA4Pdf.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/workspace/ink/LiveAnnotationCanvas.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/workspace/catalog/WorkspaceKeepAlive.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/workspace/catalog/workspace-split.css", import.meta.url), "utf8")
+  ]);
+  assert.match(host, /WorkspacePaneVisibleContext.Provider value=\\{visible\\}/);
+  assert.match(reader, /useWorkspacePaneVisible/);
+  assert.match(ink, /useWorkspacePaneVisible/);
+  assert.doesNotMatch(css, /\\.workspace-split-layout\\.is-split @media/);
+  assert.match(css, /\\.workspace-split-layout\\.is-split > \\.workspace-pane\\.is-secondary/);
+});
