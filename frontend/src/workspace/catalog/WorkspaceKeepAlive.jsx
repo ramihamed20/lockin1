@@ -93,9 +93,9 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
         const viewport = stage.getBoundingClientRect();
         const pageTop = firstPage.getBoundingClientRect().top;
         const extra = pageTop - viewport.top;
-        if (viewport.height > 0 && extra > 1 &&
+        if (viewport.height > 0 && Math.abs(extra) > 1 && extra >= -24 &&
             extra < Math.max(120, viewport.height * .2)) {
-          stage.scrollTop += extra;
+          stage.scrollTop = Math.max(0, stage.scrollTop + extra);
         }
       }
     };
