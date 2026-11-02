@@ -49,7 +49,7 @@
   min-width: 0; gap: 2px;
 }
 .workspace-split-layout.is-split .workspace-v3-document-context { max-width: 120px; }
-.workspace-split-layout.is-split .workspace-v3-quick-colors { display: none; }
+.workspace-split-layout.is-split .workspace-v3-quick-colors { gap: 1px; padding-inline: 3px; }
 .workspace-split-layout.is-split .workspace-tabs-scroller { max-width: 100%; }
 .workspace-split-layout.is-split .workspace-tab-split { opacity: 1; }
 .workspace-tab-split {
