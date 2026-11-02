@@ -320,6 +320,11 @@ test("split screen shows two independent PDF sheets and resizes on iPad and phon
   const layout = page.locator(".workspace-split-layout.is-split");
   await expect(layout).toBeVisible();
   await expect(page.locator(".workspace-pane.is-secondary .workspace-v3-document-context strong")).toHaveText("Vitamin -2");
+  await expect(page.locator(".workspace-pane.is-secondary .workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
+  const firstPageBefore = await page.locator(".workspace-pane.is-active .workspace-v2-page-number").textContent();
+  const secondPageBefore = await page.locator(".workspace-pane.is-secondary .workspace-v2-page-number").textContent();
+  expect(firstPageBefore).toBeTruthy();
+  expect(secondPageBefore).toBeTruthy();
   await expect(page.locator(".workspace-pane.is-secondary")).not.toHaveAttribute("inert", "");
   await expect(page.locator(".workspace-pane.is-active")).not.toHaveAttribute("inert", "");
   const divider = page.getByRole("separator", { name: "Resize PDF split" });
@@ -342,4 +347,17 @@ test("split screen shows two independent PDF sheets and resizes on iPad and phon
   await page.getByRole("button", { name: "Close split view" }).click();
   await expect(layout).toHaveCount(0);
   await expect(page.locator(".workspace-pane.is-kept")).toHaveCount(1);
+  // Left-side drops should reverse the pane order without changing the open tabs.
+  await page.setViewportSize({ width: 1180, height: 820 });
+  const sourceLeft = await onScreen(page, '.workspace-tab').filter({ hasText: 'Vitamin -2' }).locator('[role="tab"]').boundingBox();
+  const stageLeft = await onScreen(page, '.workspace-v2-document-stage').boundingBox();
+  await page.mouse.move(sourceLeft.x + sourceLeft.width / 2, sourceLeft.y + sourceLeft.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(stageLeft.x + stageLeft.width * .22, stageLeft.y + stageLeft.height * .45, { steps: 15 });
+  await expect(page.locator(".workspace-tab-drop-highlight.is-start")).toBeVisible();
+  await page.mouse.up();
+  await expect(page.locator(".workspace-split-layout[data-secondary-side='start'].is-split")).toBeVisible();
+  const leftPane = await page.locator(".workspace-pane.is-secondary").boundingBox();
+  const rightPane = await page.locator(".workspace-pane.is-active").boundingBox();
+  expect(leftPane.x).toBeLessThan(rightPane.x);
 });
