@@ -134,6 +134,12 @@ test("split view provides independently mounted visible PDF panes with a draggab
   assert.match(host, /WorkspacePaneActiveContext\.Provider value=\{focused\}/);
   assert.match(host, /aria-hidden=\{visible \? undefined : "true"\}/);
   assert.match(host, /inert=\{visible \? undefined : ""\}/);
-  assert.match(bar, /toggleSplit\(tab\.id\)/);
+  assert.match(bar, /startDrag\(event, tab, label\)/);
+  assert.match(bar, /<WorkspaceTabDragPreview preview=\{preview\} \/>/);
+  assert.match(host, /data-secondary-side=\{secondarySide\}/);
   assert.match(styles, /@media \(max-width: 640px\)/);
+  assert.match(styles, /workspace-tab-drop-highlight/);
+  const drag = await readFile(new URL("../src/workspace/catalog/WorkspaceTabDrag.jsx", import.meta.url), "utf8");
+  assert.match(drag, /splitDropZone\(nextEvent\.clientX, nextEvent\.clientY\)/);
+  assert.match(drag, /window\.addEventListener\("pointermove", pointer/);
 });
