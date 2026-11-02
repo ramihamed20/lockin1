@@ -6,6 +6,20 @@ import { withoutServiceWorker } from "./helpers/serviceWorker.js";
 const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 const SECOND_ROUTE = "/materials/catalog/biochemistry-1/sheets/vitamin-2/workspace";
 
+async function expectTopAlignedPages(page, count, tolerance = 4) {
+  await expect.poll(async () => page.evaluate(({ expected, maxError }) => {
+    const panes = [...document.querySelectorAll(".workspace-pane[data-split-slot]")].slice(0, expected);
+    if (panes.length !== expected) return false;
+    const offsets = panes.map((pane) => {
+      const stage = pane.querySelector(".workspace-v2-document-stage");
+      const pdfPage = pane.querySelector(".workspace-v2-a4-page");
+      return stage && pdfPage ? pdfPage.getBoundingClientRect().top - stage.getBoundingClientRect().top : Number.NaN;
+    });
+    return offsets.every((offset) => Number.isFinite(offset) && Math.abs(offset - 12) <= maxError);
+  }, { expected: count, maxError: tolerance }), { timeout: 15000 }).toBe(true);
+}
+
+
 async function openTwoSheets(page, width, height) {
   await withoutServiceWorker(page);
   await page.addInitScript(() => localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now())));
@@ -91,6 +105,7 @@ for (const viewport of [
         return [selector, { x:r.x, y:r.y, width:r.width, height:r.height, position:style.position, display:style.display, transform:style.transform, zIndex:style.zIndex }];
       });
     })));
+    await expectTopAlignedPages(page, 2);
     await page.screenshot({ path: `output/playwright/pdf-split-${viewport.name}-after.png`, fullPage: false });
     const seam = page.locator('.workspace-split-divider[data-axis="primary"]');
     await seam.locator('.workspace-split-ratio-toggle').click();
@@ -164,6 +179,7 @@ test("one original shared toolbar controls two, three and four PDF cells", async
       await expect(primary).toHaveAttribute("aria-valuenow", "70");
       await expect(secondary).toHaveAttribute("aria-valuenow", "60");
     }
+    await expectTopAlignedPages(page, n);
     await page.waitForTimeout(450);
     await page.screenshot({ path: `output/playwright/pdf-grid-ipad-${suffix}.png`, fullPage: false });
   }
