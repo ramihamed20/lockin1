@@ -115,10 +115,25 @@ test("a tab kept open behind the visible one stays mounted but inert", async () 
   ]);
   // Each kept reader renders against the address it was opened at.
   assert.match(hostSource, /<Routes location=\{active \? location : pane\.location\}>/);
-  assert.match(hostSource, /inert=\{active \? undefined : ""\}/);
+  assert.match(hostSource, /inert=\{visible \? undefined : ""\}/);
   // Only the reader on screen takes shortcuts, claims the tab, names the page and counts reading.
   assert.match(workspace, /if \(!paneActive \|\| !workspaceReady\) return undefined;\r?\n    window\.addEventListener\("keydown"/);
   assert.match(workspace, /if \(!showWorkspaceTabs \|\| !paneActive\) return;/);
   assert.match(title, /if \(!active\) return;/);
   assert.match(reading, /const enabled = requested && paneActive;/);
+});
+
+test("split view provides independently mounted visible PDF panes with a draggable divider", async () => {
+  const [host, bar, styles] = await Promise.all([
+    readFile(new URL("../src/workspace/catalog/WorkspaceKeepAlive.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/workspace/catalog/WorkspaceTabBar.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/workspace/catalog/workspace-split.css", import.meta.url), "utf8")
+  ]);
+  assert.match(host, /className="workspace-split-divider"/);
+  assert.match(host, /setPointerCapture\(event\.pointerId\)/);
+  assert.match(host, /WorkspacePaneActiveContext\.Provider value=\{focused\}/);
+  assert.match(host, /aria-hidden=\{visible \? undefined : "true"\}/);
+  assert.match(host, /inert=\{visible \? undefined : ""\}/);
+  assert.match(bar, /toggleSplit\(tab\.id\)/);
+  assert.match(styles, /@media \(max-width: 640px\)/);
 });
