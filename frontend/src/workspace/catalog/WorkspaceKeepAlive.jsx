@@ -1,195 +1,209 @@
-/* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex -- The ARIA separator is keyboard-operable (arrow keys) and pointer draggable. */
+/* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex -- An ARIA grid pane may be selected by pointer; dividers accept arrows and pointer drag. */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { ownerStorageKey } from "../storage/workspaceSnapshot.js";
 import { FocusVideoPlayer } from "./FocusVideoPlayer.jsx";
 import { WorkspacePaneActiveContext, WorkspacePaneVisibleContext, WorkspaceSplitContext } from "./workspacePane.js";
 import { personalTabId, sheetTabId, useWorkspaceTabs, whiteboardTabId, workspaceTabRoute } from "./workspaceTabs.js";
-import "./workspace-split.css";
 import { currentAppLocale } from "../../lib/i18n.js";
+import "./workspace-split.css";
 
-/** Maximum number of background PDF readers retained besides visible panes. */
 export const KEPT_WORKSPACE_PANES = 4;
-
-/** @type {{ pattern: RegExp, toId: (parts: string[]) => string }[]} */
+export const MAX_VISIBLE_WORKSPACE_SHEETS = 4;
 const PATTERNS = [
-  { pattern: /^\/whiteboards\/([^/]+)\/workspace$/, toId: ([boardId]) => whiteboardTabId(boardId) },
-  { pattern: /^\/materials\/catalog\/([^/]+)\/mine\/([^/]+)\/workspace$/, toId: ([, sheetId]) => personalTabId(sheetId) },
-  { pattern: /^\/materials\/catalog\/([^/]+)\/sheets\/([^/]+)\/workspace$/, toId: ([materialSlug, sheetSlug]) => sheetTabId(materialSlug, sheetSlug) }
+  { pattern: /^\\/whiteboards\\/([^/]+)\\/workspace$/, toId: ([boardId]) => whiteboardTabId(boardId) },
+  { pattern: /^\\/materials\\/catalog\\/([^/]+)\\/mine\\/([^/]+)\\/workspace$/, toId: ([, sheetId]) => personalTabId(sheetId) },
+  { pattern: /^\\/materials\\/catalog\\/([^/]+)\\/sheets\\/([^/]+)\\/workspace$/, toId: ([materialSlug, sheetSlug]) => sheetTabId(materialSlug, sheetSlug) }
 ];
 
-/** The workspace tab a reader address belongs to, or "" for a Sheet Summary. */
+/** The selected tab id for a reader route, or "" outside a reader. */
 export function workspaceTabIdForPath(pathname) {
   for (const { pattern, toId } of PATTERNS) {
     const match = pattern.exec(pathname);
     if (match) {
-      try {
-        return toId(match.slice(1).map(decodeURIComponent));
-      } catch {
-        return "";
-      }
+      try { return toId(match.slice(1).map(decodeURIComponent)); }
+      catch { return ""; }
     }
   }
   return "";
 }
 
-const clampPercent = (value) => Math.max(28, Math.min(72, value));
+const clampPercent = (number) => Math.max(28, Math.min(72, number));
+/** Each array position is a grid slot (left, top-right, bottom-right, bottom-left). */
+export function nextSplitSlots(slots, primaryId, addedId, side = "end") {
+  if (!primaryId || !addedId) return slots;
+  const old = slots.length ? slots : [primaryId];
+  if (old.includes(addedId) || old.length >= MAX_VISIBLE_WORKSPACE_SHEETS) return old;
+  if (old.length === 1 && side === "start") return [addedId, old[0]];
+  if (old.length > 1 && side === "start") return [addedId, ...old];
+  return [...old, addedId];
+}
 
-/**
- * Retains isolated PDF readers as tabs and, optionally, renders two together.
- * The focused pane receives global shortcuts; either visible pane may be
- * touched, drawn on, scrolled and zoomed without changing the other's state.
- */
+/** Never remount another PDF when the student focuses its pane. */
 export function WorkspaceKeepAlive({ user = null, Workspace }) {
   const location = useLocation();
   const navigate = useNavigate();
   const ownerKey = useMemo(() => ownerStorageKey(user), [user]);
   const [tabs] = useWorkspaceTabs(ownerKey);
-  const [splitId, setSplitId] = useState("");
+  const [slots, setSlots] = useState([]);
   const [splitPercent, setSplitPercent] = useState(50);
-  const [secondarySide, setSecondarySide] = useState("end");
   const [focusedPath, setFocusedPath] = useState(location.pathname);
-  const previousPrimaryPath = useRef(location.pathname);
+  const [toolbarHost, setToolbarHost] = useState(null);
+  const previousPrimary = useRef(location.pathname);
   const layoutRef = useRef(null);
-  /** @type {import("react").MutableRefObject<Map<string, { location: any, seen: number }>>} */
+  /** @type {import("react").MutableRefObject<Map<string, {location: any, seen: number}>>} */
   const panesRef = useRef(new Map());
   const clockRef = useRef(0);
 
   const primaryId = workspaceTabIdForPath(location.pathname);
-  // If a student selects the second reader as the main route, exchange the
-  // two instead of showing the same PDF twice.
+  const openIds = new Set(tabs.tabs.map((tab) => tab.id));
+  // A route selected from the shared toolbar replaces the old main slot if
+  // that route wasn't visible yet. Selecting a displayed sheet preserves slots.
+  const previousId = workspaceTabIdForPath(previousPrimary.current);
+  const resolvedSlots = slots.length > 1 && primaryId
+    ? slots.map((id) => !slots.includes(primaryId) && id === previousId ? primaryId : id)
+      .filter((id, index, all) => openIds.has(id) && all.indexOf(id) === index).slice(0, MAX_VISIBLE_WORKSPACE_SHEETS)
+    : [];
+  const liveSlots = resolvedSlots.length > 1 && resolvedSlots.includes(primaryId) ? resolvedSlots : [];
+  const isMulti = liveSlots.length > 1;
+  const selectedPaths = liveSlots.map((id) => workspaceTabRoute(tabs.tabs.find((tab) => tab.id === id))).filter(Boolean);
+  const visiblePaths = new Set([location.pathname, ...selectedPaths]);
+
   useEffect(() => {
-    const previous = previousPrimaryPath.current;
-    if (splitId && primaryId === splitId && previous !== location.pathname) {
-      const previousId = workspaceTabIdForPath(previous);
-      setSplitId(previousId && previousId !== primaryId ? previousId : "");
-    }
-    previousPrimaryPath.current = location.pathname;
+    if (slots.length > 1) setSlots((previous) => {
+      const currentId = workspaceTabIdForPath(location.pathname);
+      const oldId = workspaceTabIdForPath(previousPrimary.current);
+      const changed = previous.map((id) => !previous.includes(currentId) && id === oldId ? currentId : id)
+        .filter((id, index, all) => openIds.has(id) && all.indexOf(id) === index);
+      return changed.length > 1 ? changed : [];
+    });
+    previousPrimary.current = location.pathname;
     setFocusedPath(location.pathname);
-  }, [location.pathname, primaryId, splitId]);
+  // The tab ids are stable across render; the event syncs when a tab closes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, tabs.tabs]);
 
-  useEffect(() => {
-    if (splitId && !tabs.tabs.some((tab) => tab.id === splitId)) setSplitId("");
-  }, [splitId, tabs.tabs]);
-
-  // Swapping to the second tab must not flash back to a single viewport
-  // while the route effect exchanges the pair.
-  const previousId = workspaceTabIdForPath(previousPrimaryPath.current);
-  const displayedSplitId = splitId === primaryId && previousId !== primaryId ? previousId : splitId;
-  const splitTab = tabs.tabs.find((tab) => tab.id === displayedSplitId && tab.id !== primaryId);
-  const splitPath = splitTab ? workspaceTabRoute(splitTab) : "";
-  const visiblePaths = new Set([location.pathname, ...(splitPath ? [splitPath] : [])]);
-  const openTabIds = new Set(tabs.tabs.map((tab) => tab.id));
   const panes = panesRef.current;
   clockRef.current += 1;
   panes.set(location.pathname, { location, seen: clockRef.current });
-  if (splitPath && !panes.has(splitPath)) {
-    // A tab which has not yet been selected can still be opened beside the
-    // current one. It starts in Normal Study, without changing the main URL.
-    panes.set(splitPath, {
-      location: { ...location, pathname: splitPath, search: "", state: { studyMode: "normal" }, key: `split-${splitId}` },
+  for (const id of liveSlots) {
+    const tab = tabs.tabs.find((item) => item.id === id);
+    if (!tab) continue;
+    const path = workspaceTabRoute(tab);
+    if (!panes.has(path)) panes.set(path, {
+      location: { ...location, pathname: path, search: "", state: { studyMode: tab.mode || "normal" }, key: `split-${id}` },
       seen: clockRef.current
     });
   }
-  for (const [path] of panes) {
-    if (!visiblePaths.has(path) && !openTabIds.has(workspaceTabIdForPath(path))) panes.delete(path);
-  }
-  const kept = [...panes.entries()]
-    .filter(([path]) => !visiblePaths.has(path))
-    .sort((a, b) => b[1].seen - a[1].seen);
+  for (const [path] of panes) if (!visiblePaths.has(path) && !openIds.has(workspaceTabIdForPath(path))) panes.delete(path);
+  const kept = [...panes.entries()].filter(([path]) => !visiblePaths.has(path)).sort((a,b) => b[1].seen - a[1].seen);
   kept.slice(KEPT_WORKSPACE_PANES).forEach(([path]) => panes.delete(path));
 
-  function dropSplit(tabId, side) {
-    if (!tabs.tabs.some((tab) => tab.id === tabId) || tabs.tabs.length < 2) return;
-    setSplitPercent(50);
-    setSecondarySide(side === "start" ? "start" : "end");
-    if (tabId === primaryId) {
-      // The currently selected sheet may be dragged too. Leave its nearest
-      // already-open neighbour in the main pane and dock this sheet beside it.
-      const index = tabs.tabs.findIndex((tab) => tab.id === tabId);
+  function dockSheet(id, side = "end") {
+    if (!openIds.has(id) || tabs.tabs.length < 2 || !primaryId) return;
+    if (id === primaryId && !isMulti) {
+      const index = tabs.tabs.findIndex((tab) => tab.id === id);
       const anchor = tabs.tabs[index + 1] || tabs.tabs[index - 1];
       if (!anchor) return;
-      const anchorPath = workspaceTabRoute(anchor);
-      setSplitId(tabId);
-      setFocusedPath(anchorPath);
-      navigate(anchorPath, { state: { studyMode: anchor.mode || "normal" } });
+      // Keep the selected sheet as one of two grid slots.
+      setSlots(side === "start" ? [id, anchor.id] : [anchor.id, id]);
+      navigate(workspaceTabRoute(anchor), { state: { studyMode: anchor.mode || "normal" } });
     } else {
-      setSplitId(tabId);
-      setFocusedPath(location.pathname);
+      setSlots((old) => nextSplitSlots(old, primaryId, id, side));
     }
+    setSplitPercent(50);
   }
 
+  function closeSplit() { setSlots([]); setFocusedPath(location.pathname); }
   function resizeFromPointer(event) {
     const rect = layoutRef.current?.getBoundingClientRect();
     if (!rect) return;
     const stacked = window.matchMedia("(max-width: 640px)").matches;
     const offset = stacked ? event.clientY - rect.top : event.clientX - rect.left;
     const size = stacked ? rect.height : rect.width;
-    if (size > 0) setSplitPercent(clampPercent((secondarySide === "start" ? 100 - offset * 100 / size : offset * 100 / size)));
+    if (size > 0) setSplitPercent(clampPercent(offset * 100 / size));
   }
 
-  const entries = [...panes.entries()].sort(([a], [b]) => {
-    const order = (path) => path === location.pathname ? 0 : path === splitPath ? 1 : 2;
+  const entries = [...panes.entries()].sort(([a],[b]) => {
+    const order = (path) => visiblePaths.has(path) ? selectedPaths.indexOf(path) : 100;
     return order(a) - order(b);
   });
   const paneNodes = entries.map(([path, pane]) => {
-    const active = path === location.pathname;
+    const primary = path === location.pathname;
     const visible = visiblePaths.has(path);
-    const focused = visible && (focusedPath === path || (!visiblePaths.has(focusedPath) && active));
-    return (
-      <div
-        key={path}
-        className={active ? "workspace-pane is-active" : visible ? "workspace-pane is-secondary" : "workspace-pane is-kept"}
-        aria-hidden={visible ? undefined : "true"}
-        inert={visible ? undefined : ""}
-        onPointerDownCapture={() => { if (visible && !focused) setFocusedPath(path); }}
-      >
-        <WorkspacePaneVisibleContext.Provider value={visible}>
-          <WorkspacePaneActiveContext.Provider value={focused}>
-          <Routes location={active ? location : pane.location}>
+    const focused = visible && (focusedPath === path || (!visiblePaths.has(focusedPath) && primary));
+    const slot = isMulti ? selectedPaths.indexOf(path) : -1;
+    const id = workspaceTabIdForPath(path);
+    const tab = tabs.tabs.find((item) => item.id === id);
+    const ar = currentAppLocale() === "ar";
+    return <div key={path}
+      className={primary ? "workspace-pane is-active" : visible ? "workspace-pane is-secondary" : "workspace-pane is-kept"}
+      data-split-slot={visible && isMulti ? slot : undefined}
+      data-focused={focused ? "true" : undefined}
+      aria-hidden={visible ? undefined : "true"}
+      inert={visible ? undefined : ""}
+      onPointerDownCapture={() => { if (visible && !focused) setFocusedPath(path); }}
+    >
+      <WorkspacePaneVisibleContext.Provider value={visible}>
+        <WorkspacePaneActiveContext.Provider value={focused}>
+          <Routes location={primary ? location : pane.location}>
             <Route path="/materials/catalog/:materialSlug/mine/:sheetId/workspace" element={<Workspace user={user} variant="personal" />} />
             <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug/summary" element={<Workspace user={user} variant="summary" />} />
             <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug/workspace" element={<Workspace user={user} />} />
             <Route path="/whiteboards/:boardId/workspace" element={<Workspace user={user} variant="whiteboard" />} />
           </Routes>
-          </WorkspacePaneActiveContext.Provider>
-        </WorkspacePaneVisibleContext.Provider>
-      </div>
-    );
+        </WorkspacePaneActiveContext.Provider>
+      </WorkspacePaneVisibleContext.Provider>
+      {isMulti && visible && <div className="workspace-split-pane-heading" data-current={focused ? "" : undefined}>
+        <button type="button" className="workspace-split-pane-select"
+          onClick={() => setFocusedPath(path)}
+          aria-pressed={focused}
+          aria-label={ar ? `اختيار ${tab?.title || "الشيت"}` : `Select ${tab?.title || "sheet"}`}>
+          <span className="workspace-split-active-dot" aria-hidden="true" />
+          <span dir="auto">{tab?.title || (tab?.kind === "whiteboard" ? "Whiteboard" : id)}</span>
+        </button>
+        <button type="button" className="workspace-split-pane-remove"
+          onClick={() => { setSlots((old) => old.filter((item) => item !== id)); if (focused) setFocusedPath(location.pathname); }}
+          aria-label={ar ? "إزالة الشيت من التقسيم" : "Remove sheet from split"} title={ar ? "إزالة من التقسيم" : "Remove from split"}>×</button>
+      </div>}
+    </div>;
   });
 
-  const splitStyle = splitPath ? /** @type {import("react").CSSProperties} */ ({ "--workspace-split-primary": `${splitPercent}%` }) : undefined;
-  const readers = <WorkspaceSplitContext.Provider value={{ splitId: splitPath ? displayedSplitId : "", dropSplit, closeSplit: () => setSplitId("") }}>
-    <div className={`workspace-split-layout${splitPath ? " is-split" : ""}`} data-secondary-side={secondarySide} ref={layoutRef} style={splitStyle}>
+  const splitStyle = isMulti ? /** @type {import("react").CSSProperties} */ ({ "--workspace-split-primary": `${splitPercent}%` }) : undefined;
+  const ar = currentAppLocale() === "ar";
+  const readers = <WorkspaceSplitContext.Provider value={{
+    splitId: isMulti ? liveSlots[1] : "", splitIds: liveSlots, isMulti,
+    toolbarHost, dropSplit: dockSheet, closeSplit,
+    focusSheet: (id) => { const tab = tabs.tabs.find((item) => item.id === id); if (tab) setFocusedPath(workspaceTabRoute(tab)); }
+  }}>
+    <div ref={layoutRef} className={`workspace-split-layout${isMulti ? " is-split" : ""}`}
+      data-pane-count={isMulti ? liveSlots.length : 1} style={splitStyle}>
       {paneNodes}
-      {splitPath && <div
-        role="separator"
-        className="workspace-split-divider"
-        aria-label={currentAppLocale() === "ar" ? "تغيير حجم تقسيم PDF" : "Resize PDF split"}
-        aria-orientation={typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches ? "horizontal" : "vertical"}
-        aria-valuemin={28}
-        aria-valuemax={72}
-        aria-valuenow={Math.round(splitPercent)}
-        tabIndex={0}
-        onPointerDown={(event) => {
-          if (event.target instanceof Element && event.target.closest("button")) return;
-          event.preventDefault();
-          event.currentTarget.setPointerCapture(event.pointerId);
-          resizeFromPointer(event);
-        }}
-        onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) resizeFromPointer(event); }}
-        onKeyDown={(event) => {
-          const delta = ["ArrowRight", "ArrowDown"].includes(event.key) ? 5 : ["ArrowLeft", "ArrowUp"].includes(event.key) ? -5 : 0;
-          if (!delta) return;
-          event.preventDefault();
-          setSplitPercent((size) => clampPercent(size + delta));
-        }}
-      >
-        <span className="workspace-split-grip" aria-hidden="true" />
-        <button type="button" className="workspace-split-close" onClick={() => setSplitId("")} aria-label={currentAppLocale() === "ar" ? "إغلاق تقسيم الشاشة" : "Close split view"} title={currentAppLocale() === "ar" ? "إغلاق تقسيم الشاشة" : "Close split view"}>×</button>
-      </div>}
+      {isMulti && <>
+        <div className="workspace-split-shared-chrome workspace-v2">
+          <div className="workspace-v2-body"><section className="workspace-v2-reader" ref={setToolbarHost} /></div>
+        </div>
+        {liveSlots.length === 2 && <div role="separator" className="workspace-split-divider" aria-label={ar ? "تغيير حجم تقسيم PDF" : "Resize PDF split"}
+          aria-orientation={typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches ? "horizontal" : "vertical"}
+          aria-valuemin={28} aria-valuemax={72} aria-valuenow={Math.round(splitPercent)} tabIndex={0}
+          onPointerDown={(event) => {
+            if (event.target instanceof Element && event.target.closest("button")) return;
+            event.preventDefault();
+            event.currentTarget.setPointerCapture(event.pointerId);
+            resizeFromPointer(event);
+          }}
+          onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) resizeFromPointer(event); }}
+          onKeyDown={(event) => {
+            const delta = ["ArrowRight", "ArrowDown"].includes(event.key) ? 5 : ["ArrowLeft", "ArrowUp"].includes(event.key) ? -5 : 0;
+            if (delta) { event.preventDefault(); setSplitPercent((n) => clampPercent(n + delta)); }
+          }}
+        ><span className="workspace-split-grip" aria-hidden="true" />
+          <button type="button" className="workspace-split-close" onClick={closeSplit}
+            aria-label={ar ? "إغلاق تقسيم الشاشة" : "Close split view"}
+            title={ar ? "إغلاق تقسيم الشاشة" : "Close split view"}>×</button>
+        </div>}
+      </>}
     </div>
   </WorkspaceSplitContext.Provider>;
-  // The player remains outside both readers, so it does not restart on resize.
   return <>{readers}<FocusVideoPlayer /></>;
 }
