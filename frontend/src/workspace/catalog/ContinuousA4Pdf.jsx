@@ -1178,7 +1178,7 @@ export function ContinuousA4Pdf({
       cancelAnimationFrame(animationFrame);
       cancelAnimationFrame(secondFrame);
     };
-  }, [isSplitPane, isHorizontal, pageGeometryReady, stageRef, stageViewport, zoom]);
+  }, [documentRootRef, isSplitPane, isHorizontal, pageGeometryReady, stageRef, stageViewport, zoom]);
 
   return (
     <div className="workspace-v2-a4-zoom-surface" style={surfaceStyle}>
