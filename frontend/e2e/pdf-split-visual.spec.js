@@ -129,11 +129,14 @@ test("one original shared toolbar controls two, three and four PDF cells", async
     await expect(page.locator(".workspace-pane .workspace-v2-toolbar")).toHaveCount(0);
     for (let i = 0; i < n; i++) {
       const pane = page.locator(`.workspace-pane[data-split-slot="${i}"]`);
-      await expect(pane.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20000 });
+      const canvas = pane.locator(".workspace-v2-a4-canvas.is-visible").first();
+      await expect(canvas).toBeVisible({ timeout: 20000 });
+      await expect.poll(() => canvas.evaluate((node) => node.width * node.height), { timeout: 20000 }).toBeGreaterThan(1000);
       const box = await pane.boundingBox();
       expect(box.width).toBeGreaterThan(130);
       expect(box.height).toBeGreaterThan(130);
     }
+    await page.waitForTimeout(450);
     await page.screenshot({ path: `output/playwright/pdf-grid-ipad-${suffix}.png`, fullPage: false });
   }
   const first = await page.locator('.workspace-pane[data-split-slot="0"]').boundingBox();
