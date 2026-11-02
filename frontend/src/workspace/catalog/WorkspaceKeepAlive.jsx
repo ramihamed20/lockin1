@@ -70,18 +70,26 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
   const visiblePaths = new Set([location.pathname, ...selectedPaths]);
 
   useEffect(() => {
-    if (slots.length > 1) setSlots((previous) => {
+    // Only an actual route change should change focus. Tab metadata updates
+    // (for example a study mode selection) must NOT steal focus from a cell.
+    setSlots((previous) => {
+      if (previous.length < 2) return previous;
       const currentId = workspaceTabIdForPath(location.pathname);
       const oldId = workspaceTabIdForPath(previousPrimary.current);
-      const changed = previous.map((id) => !previous.includes(currentId) && id === oldId ? currentId : id)
-        .filter((id, index, all) => openIds.has(id) && all.indexOf(id) === index);
-      return changed.length > 1 ? changed : [];
+      if (previous.includes(currentId) || !previous.includes(oldId)) return previous;
+      return previous.map((id) => id === oldId ? currentId : id);
     });
     previousPrimary.current = location.pathname;
     setFocusedPath(location.pathname);
-  // The tab ids are stable across render; the event syncs when a tab closes.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname, tabs.tabs]);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    setSlots((previous) => {
+      if (!previous.length) return previous;
+      const remaining = previous.filter((id) => tabs.tabs.some((tab) => tab.id === id));
+      return remaining.length === previous.length ? previous : (remaining.length > 1 ? remaining : []);
+    });
+  }, [tabs.tabs]);
 
   const panes = panesRef.current;
   clockRef.current += 1;
