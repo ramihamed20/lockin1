@@ -17,10 +17,13 @@ pytestmark = pytest.mark.django_db
 def make_question(data, *, source="ai-sheet", index=1):
     question = Question.objects.create(owner=data["admin"])
     version = QuestionVersion.objects.create(
-        question=question, version_number=1,
+        question=question,
+        version_number=1,
         academic_node=data["sheet"].published_version.academic_node,
-        source_learning_object=data["sheet"], question_type="single_choice",
-        prompt=f"Question {index}", created_by=data["admin"],
+        source_learning_object=data["sheet"],
+        question_type="single_choice",
+        prompt=f"Question {index}",
+        created_by=data["admin"],
         metadata={"source": source},
     )
     question.current_version = version
@@ -36,8 +39,12 @@ def test_question_inventory_and_scheduled_exam_questions(curriculum):
     first = make_question(curriculum, index=1)
     exam = make_question(curriculum, source="exam", index=2)
     QuestionAnswer.objects.create(
-        user=curriculum["user"], question=first, version=first.published_version,
-        selected_option_ids=[], is_correct=False, answered_at=timezone.now(),
+        user=curriculum["user"],
+        question=first,
+        version=first.published_version,
+        selected_option_ids=[],
+        is_correct=False,
+        answered_at=timezone.now(),
     )
     response = preview(curriculum, include_questions=True)
     assert response.status_code == 200, response.json()
@@ -63,8 +70,12 @@ def test_question_tasks_complete_from_answers_without_awarding_xp(curriculum):
     assert preview(curriculum, include_questions=True).json()["required_question_minutes"] == 0
 
     QuestionAnswer.objects.create(
-        user=curriculum["user"], question=question, version=question.published_version,
-        selected_option_ids=[], is_correct=False, answered_at=timezone.now() + timedelta(seconds=1),
+        user=curriculum["user"],
+        question=question,
+        version=question.published_version,
+        selected_option_ids=[],
+        is_correct=False,
+        answered_at=timezone.now() + timedelta(seconds=1),
     )
     from .test_api import authenticated_client
 
@@ -85,7 +96,9 @@ def test_later_published_questions_append_only_new_question_ids(curriculum):
     second = make_question(curriculum, index=2)
     new_preview = preview(curriculum, include_questions=True).json()
     pending = [
-        qid for task in new_preview["assignments"] if task["activity"] == "questions"
+        qid
+        for task in new_preview["assignments"]
+        if task["activity"] == "questions"
         for qid in task["question_ids"]
     ]
     assert str(second.pk) in pending

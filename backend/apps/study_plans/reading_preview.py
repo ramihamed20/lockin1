@@ -192,8 +192,9 @@ def reading_plan_preview(
     active_units: list[WorkUnit] = []
     positive_capacity = [day.minutes for day in capacities if day.minutes > 0]
     block_limit = min(
-        profile.session_minutes, habit["suggested_block_minutes"],
-        max(positive_capacity, default=profile.session_minutes)
+        profile.session_minutes,
+        habit["suggested_block_minutes"],
+        max(positive_capacity, default=profile.session_minutes),
     )
     for subject in snapshot["subjects"]:
         deadline = min(
@@ -345,8 +346,13 @@ def reading_plan_preview(
         from .question_preview import add_question_units
 
         question_inventory = add_question_units(
-            user=user, snapshot=snapshot, today=today, period=period,
-            anchored=anchored, units=units, targets=targets,
+            user=user,
+            snapshot=snapshot,
+            today=today,
+            period=period,
+            anchored=anchored,
+            units=units,
+            targets=targets,
             limit=MAX_UNITS - len(fixed) - len(review_units),
         )
     expired = [unit for unit in units if unit.deadline < today or unit.earliest > unit.deadline]
@@ -375,18 +381,22 @@ def reading_plan_preview(
     # The average is an estimate for the activities covered by this preview,
     # not a promise that all Normal/Final question banks have been included.
     preparation_days = sum(day.minutes > 0 for day in capacities)
-    required_minutes = sum(unit.minutes for unit in units) + sum(
-        unit.minutes for unit in review_units
-    ) + sum(item.minutes for item in fixed)
+    required_minutes = (
+        sum(unit.minutes for unit in units)
+        + sum(unit.minutes for unit in review_units)
+        + sum(item.minutes for item in fixed)
+    )
     habit = {
         **habit,
         "target_today_minutes": capacities[0].minutes,
         "required_daily_minutes": ceil(required_minutes / preparation_days)
-        if preparation_days else None,
+        if preparation_days
+        else None,
         "preparation_days": preparation_days,
         "estimated_workload_minutes": required_minutes,
         "estimate_scope": (
-            "reading_active_review_catalog_questions" if include_questions
+            "reading_active_review_catalog_questions"
+            if include_questions
             else "reading_active_review_only"
         ),
     }
@@ -472,7 +482,8 @@ def reading_plan_preview(
             item.minutes for item in units if targets[item.key]["activity"] == "questions"
         ),
         "scheduled_question_minutes": sum(
-            item.minutes for item in result.assignments
+            item.minutes
+            for item in result.assignments
             if targets[item.key]["activity"] == "questions"
         ),
         "required_review_minutes": sum(item.minutes for item in review_units),

@@ -35,7 +35,9 @@ def habit_snapshot(*, user: User, profile: StudyPlanProfile, today: date) -> dic
         reading_days[row["occurred_on"]] += row["minutes"]
     # Finished solo sessions only; team time is credited to its own participant.
     sessions = FocusSession.objects.filter(
-        user=user, lock_in_live=False, status=FocusSession.Status.COMPLETED,
+        user=user,
+        lock_in_live=False,
+        status=FocusSession.Status.COMPLETED,
         started_at__gte=first_instant,
     ).values("started_at", "active_duration_seconds")[:2000]
     block_samples: list[int] = []
@@ -46,7 +48,8 @@ def habit_snapshot(*, user: User, profile: StudyPlanProfile, today: date) -> dic
         focus_days[row["started_at"].astimezone(zone).date()] += minutes
         block_samples.append(minutes)
     participants = FocusSessionParticipant.objects.filter(
-        user=user, session__lock_in_live=True,
+        user=user,
+        session__lock_in_live=True,
         session__status=FocusSession.Status.COMPLETED,
         joined_at__gte=first_instant,
     ).values("joined_at", "active_microseconds")[:2000]

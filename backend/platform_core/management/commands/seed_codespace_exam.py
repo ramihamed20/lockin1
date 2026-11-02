@@ -24,16 +24,17 @@ class Command(BaseCommand):
 
     def handle(self, *args: Any, **options: Any) -> None:
         if getattr(settings, "ENVIRONMENT", "") not in {
-            "development", "development-demo", "demo", "testing"
+            "development",
+            "development-demo",
+            "demo",
+            "testing",
         }:
             raise CommandError("The Codespace seed is forbidden outside development.")
         try:
             student = User.objects.get(email="student@lockin.local")
             institution = EducationNode.objects.get(slug="lockin-demo-university")
             semester = EducationNode.objects.get(slug="fall-2026")
-            year = EducationNode.objects.get(
-                slug="year-2", kind=EducationNode.Kind.ACADEMIC_YEAR
-            )
+            year = EducationNode.objects.get(slug="year-2", kind=EducationNode.Kind.ACADEMIC_YEAR)
         except (User.DoesNotExist, EducationNode.DoesNotExist) as error:
             raise CommandError("Run seed_demo first.") from error
 
@@ -42,7 +43,8 @@ class Command(BaseCommand):
             defaults={"name_en": "Codespace Dentistry", "name_ar": "طب الأسنان"},
         )
         cohort, _ = StudentCohort.objects.get_or_create(
-            program=program, code="year-2",
+            program=program,
+            code="year-2",
             defaults={"name_en": "Second Year (demo)", "name_ar": "السنة الثانية"},
         )
         cohort.content_nodes.add(year)
@@ -52,15 +54,20 @@ class Command(BaseCommand):
         student.preferred_language = User.Language.ARABIC
         student.save(
             update_fields=[
-                "cohort", "profile_completion_required", "welcome_completed_at",
-                "preferred_language", "updated_at",
+                "cohort",
+                "profile_completion_required",
+                "welcome_completed_at",
+                "preferred_language",
+                "updated_at",
             ]
         )
         profile, _ = StudyPlanProfile.objects.get_or_create(
             user=student,
             defaults={
-                "mode": StudyPlanProfile.Mode.NORMAL, "daily_minutes": 120,
-                "session_minutes": 25, "weekdays": list(range(7)),
+                "mode": StudyPlanProfile.Mode.NORMAL,
+                "daily_minutes": 120,
+                "session_minutes": 25,
+                "weekdays": list(range(7)),
                 "habit_baseline_minutes": 60,
             },
         )
@@ -72,7 +79,8 @@ class Command(BaseCommand):
                 ("oral-anatomy", "Oral Anatomy"),
                 ("dental-materials", "Dental Materials"),
                 ("oral-pathology", "Oral Pathology"),
-            ), 1
+            ),
+            1,
         ):
             node = EducationNode.objects.get(parent=semester, slug=slug)
             subject, _ = CatalogSubject.objects.get_or_create(
@@ -88,12 +96,14 @@ class Command(BaseCommand):
             if subject.cohort_id != cohort.pk:
                 raise CommandError("The demo subject is assigned to another cohort.")
             subjects.append(subject)
-            sheets = LearningObject.objects.filter(
-                published_version__academic_node__path__startswith=node.path,
-                published_version__isnull=False,
-                archived_at__isnull=True,
-            ).select_related("published_version").prefetch_related(
-                "published_version__assets"
+            sheets = (
+                LearningObject.objects.filter(
+                    published_version__academic_node__path__startswith=node.path,
+                    published_version__isnull=False,
+                    archived_at__isnull=True,
+                )
+                .select_related("published_version")
+                .prefetch_related("published_version__assets")
             )
             for sheet in sheets:
                 version = sheet.published_version
@@ -113,7 +123,8 @@ class Command(BaseCommand):
                     file.pdf_page_count = 1
                     file.save(update_fields=["pdf_page_count"])
                 CatalogDocument.objects.get_or_create(
-                    version=version, edition="university",
+                    version=version,
+                    edition="university",
                     defaults={
                         "material_slug": subject.material_slug,
                         "sheet_slug": f"sheet-{str(sheet.pk)[:8]}",
@@ -121,7 +132,8 @@ class Command(BaseCommand):
                     },
                 )
                 StudySheetDifficulty.objects.get_or_create(
-                    sheet=sheet, defaults={"level": 2 + sheets_count % 4},
+                    sheet=sheet,
+                    defaults={"level": 2 + sheets_count % 4},
                 )
                 sheets_count += 1
                 # Existing demo questions were authored per lesson but not
@@ -138,7 +150,8 @@ class Command(BaseCommand):
                     question_count += 1
 
         exam, created = ExamPeriod.objects.get_or_create(
-            title="Codespace Midterm Preview", cohort=cohort,
+            title="Codespace Midterm Preview",
+            cohort=cohort,
             defaults={
                 "institution": institution,
                 "kind": ExamPeriod.Kind.MIDTERM,
@@ -149,10 +162,14 @@ class Command(BaseCommand):
         )
         for offset, subject in zip((0, 4, 9), subjects, strict=True):
             ExamSyllabusScope.objects.get_or_create(
-                period=exam, subject=subject, defaults={"include_future_sheets": True},
+                period=exam,
+                subject=subject,
+                defaults={"include_future_sheets": True},
             )
             ExamSchedule.objects.get_or_create(
-                period=exam, subject=subject, exam_type=ExamSchedule.ExamType.THEORY,
+                period=exam,
+                subject=subject,
+                exam_type=ExamSchedule.ExamType.THEORY,
                 defaults={
                     "scheduled_on": exam.starts_on + timedelta(days=offset),
                     "status": ExamPeriod.Status.CONFIRMED,

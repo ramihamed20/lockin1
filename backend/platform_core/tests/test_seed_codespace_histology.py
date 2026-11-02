@@ -40,11 +40,13 @@ class CodespaceHistologyTests(TestCase):
         call_command("seed_codespace_histology", verbosity=0)
         student = User.objects.get(email="student@lockin.local")
         subject = CatalogSubject.objects.get(
-            cohort=student.cohort, material_slug=MATERIAL_SLUG,
+            cohort=student.cohort,
+            material_slug=MATERIAL_SLUG,
         )
         self.assertEqual(subject.title, "Intro Histology - Tripoli (Demo)")
         document = CatalogDocument.objects.get(
-            material_slug=MATERIAL_SLUG, sheet_slug=SHEET_SLUG,
+            material_slug=MATERIAL_SLUG,
+            sheet_slug=SHEET_SLUG,
         )
         sheet = document.version.learning_object
         self.assertEqual(sheet.published_version_id, document.version_id)
@@ -61,15 +63,20 @@ class CodespaceHistologyTests(TestCase):
         self.assertTrue(all(q.options.count() == 4 for q in questions))
         self.assertTrue(ExamSyllabusScope.objects.filter(subject=subject).exists())
         ideas = StudyAssistanceIdea.objects.filter(
-            source_version=document.version, edition="university",
-            view="study", is_published=True,
+            source_version=document.version,
+            edition="university",
+            view="study",
+            is_published=True,
         )
         self.assertEqual(ideas.count(), len(ASSISTANCE_IDEAS))
         self.assertEqual(len(ASSISTANCE_IDEAS), 12)
         for page in range(1, 5):
             page_ideas = student_ideas(
-                user=student, document=document,
-                view="study", page=page, saved_only=False,
+                user=student,
+                document=document,
+                view="study",
+                page=page,
+                saved_only=False,
             )
             self.assertEqual(len(page_ideas), 3)
             self.assertTrue(all(row["page"] == page for row in page_ideas))

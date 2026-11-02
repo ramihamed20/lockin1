@@ -70,9 +70,7 @@ class SavedStudyAssistanceIdea(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(
-                fields=("user", "idea"), name="content_saved_assistance_unique"
-            )
+            models.UniqueConstraint(fields=("user", "idea"), name="content_saved_assistance_unique")
         ]
 
     def __str__(self) -> str:

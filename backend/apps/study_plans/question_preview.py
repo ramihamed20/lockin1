@@ -18,50 +18,64 @@ from .scheduling import WorkUnit
 
 
 def add_question_units(
-    *, user: User, snapshot: dict[str, Any], today: date, period: ExamPeriod,
-    anchored: list[StudyPlanItem], units: list[WorkUnit],
-    targets: dict[str, dict[str, Any]], limit: int,
+    *,
+    user: User,
+    snapshot: dict[str, Any],
+    today: date,
+    period: ExamPeriod,
+    anchored: list[StudyPlanItem],
+    units: list[WorkUnit],
+    targets: dict[str, dict[str, Any]],
+    limit: int,
 ) -> dict[str, Any]:
     sheets = {
         sheet["sheet_id"]: (subject, sheet)
-        for subject in snapshot["subjects"] for sheet in subject["sheets"]
+        for subject in snapshot["subjects"]
+        for sheet in subject["sheets"]
     }
     if not sheets:
         return {
-            "available": 0, "answered": 0, "remaining": 0, "by_source": {},
+            "available": 0,
+            "answered": 0,
+            "remaining": 0,
+            "by_source": {},
             "fingerprint": hashlib.sha256(b"").hexdigest(),
         }
     slugs = {
         str(subject_id): slug
         for subject_id, slug in CatalogSubject.objects.filter(
-            pk__in=[s["subject_id"] for s in snapshot["subjects"]], cohort=user.cohort,
+            pk__in=[s["subject_id"] for s in snapshot["subjects"]],
+            cohort=user.cohort,
         ).values_list("id", "material_slug")
     }
     published = list(
         Question.objects.filter(
-            published_version__isnull=False, retired_at__isnull=True,
+            published_version__isnull=False,
+            retired_at__isnull=True,
             published_version__source_learning_object_id__in=sheets,
             published_version__source_learning_object__archived_at__isnull=True,
-        ).order_by("id").values(
-            "id", "published_version_id", "published_version__source_learning_object_id",
+        )
+        .order_by("id")
+        .values(
+            "id",
+            "published_version_id",
+            "published_version__source_learning_object_id",
             "published_version__metadata",
         )[:10001]
     )
     if len(published) > 10000:
         raise ValidationError({"questions": "The available bank exceeds the preview limit."})
     fingerprint = hashlib.sha256(
-        ",".join(
-            f"{row['id']}:{row['published_version_id']}" for row in published
-        ).encode()
+        ",".join(f"{row['id']}:{row['published_version_id']}" for row in published).encode()
     ).hexdigest()
     answered = {
-        str(qid) for qid in QuestionAnswer.objects.filter(
+        str(qid)
+        for qid in QuestionAnswer.objects.filter(
             user=user, question_id__in=[row["id"] for row in published]
         ).values_list("question_id", flat=True)
     }
     reserved = {
-        str(qid) for item in anchored if item.activity == "questions"
-        for qid in item.question_ids
+        str(qid) for item in anchored if item.activity == "questions" for qid in item.question_ids
     }
     groups: dict[tuple[str, str], list[str]] = defaultdict(list)
     sources = {
@@ -72,7 +86,8 @@ def add_question_units(
         sheet_id = str(question["published_version__source_learning_object_id"])
         metadata = question["published_version__metadata"] or {}
         source = (
-            "exam" if isinstance(metadata, dict) and metadata.get("source") == "exam"
+            "exam"
+            if isinstance(metadata, dict) and metadata.get("source") == "exam"
             else "ai-sheet"
         )
         qid = str(question["id"])
@@ -91,11 +106,13 @@ def add_question_units(
         ) - timedelta(days=1)
         # All new reading chunks for the same sheet precede its questions.
         prerequisite = tuple(
-            unit.key for unit in units
+            unit.key
+            for unit in units
             if unit.category == "reading" and targets[unit.key].get("sheet_id") == sheet_id
         )
         saved_reading = [
-            item.scheduled_date for item in anchored
+            item.scheduled_date
+            for item in anchored
             if item.activity == "reading"
             and str(item.content_version_id) == sheet["version_id"]
             and item.status == "planned"
@@ -111,23 +128,37 @@ def add_question_units(
             if len(units) >= limit:
                 raise ValidationError({"questions": "This plan exceeds its size limit."})
             requires = (*prerequisite, *((preceding,) if preceding else ()))
-            units.append(WorkUnit(
-                key, max(5, ceil(len(batch) * 2.5)), earliest, deadline,
-                priority=2, requires=requires, category="questions",
-                subject=subject["subject_id"],
-            ))
+            units.append(
+                WorkUnit(
+                    key,
+                    max(5, ceil(len(batch) * 2.5)),
+                    earliest,
+                    deadline,
+                    priority=2,
+                    requires=requires,
+                    category="questions",
+                    subject=subject["subject_id"],
+                )
+            )
             material = slugs.get(subject["subject_id"])
             category = "years" if source == "exam" else "ai-sheet"
             targets[key] = {
-                "sheet_id": sheet_id, "title": sheet["title"],
-                "subject_id": subject["subject_id"], "subject_title": subject["title"],
-                "version_id": sheet["version_id"], "activity": "questions",
-                "question_source": source, "question_ids": batch,
-                "question_count": len(batch), "page_start": None, "page_end": None,
+                "sheet_id": sheet_id,
+                "title": sheet["title"],
+                "subject_id": subject["subject_id"],
+                "subject_title": subject["title"],
+                "version_id": sheet["version_id"],
+                "activity": "questions",
+                "question_source": source,
+                "question_ids": batch,
+                "question_count": len(batch),
+                "page_start": None,
+                "page_end": None,
                 "priority_reasons": ["unanswered_questions"],
                 "start_url": (
                     f"/questions/categories/{category}/subjects/{material}/sheets/{sheet_id}"
-                    if material else None
+                    if material
+                    else None
                 ),
             }
             preceding = key
@@ -140,14 +171,18 @@ def add_question_units(
     }
 
 
-
 def published_question_fingerprint(sheet_ids: list[str]) -> str:
     """Snapshot only published question identity/revisions, without question bodies."""
-    pairs = Question.objects.filter(
-        published_version__isnull=False, retired_at__isnull=True,
-        published_version__source_learning_object_id__in=sheet_ids,
-        published_version__source_learning_object__archived_at__isnull=True,
-    ).order_by("id").values_list("id", "published_version_id")[:10001]
+    pairs = (
+        Question.objects.filter(
+            published_version__isnull=False,
+            retired_at__isnull=True,
+            published_version__source_learning_object_id__in=sheet_ids,
+            published_version__source_learning_object__archived_at__isnull=True,
+        )
+        .order_by("id")
+        .values_list("id", "published_version_id")[:10001]
+    )
     rows = list(pairs)
     if len(rows) > 10000:
         raise ValidationError({"questions": "The available bank exceeds the preview limit."})

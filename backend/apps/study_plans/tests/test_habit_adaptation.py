@@ -40,7 +40,9 @@ def test_completed_focus_session_history_calibrates_without_inventing_attention(
     for delta, minutes in [(1, 30), (2, 60), (3, 90)]:
         at = datetime.combine(today - timedelta(days=delta), time(12), tzinfo=zone)
         FocusSession.objects.create(
-            user=curriculum["user"], status="completed", started_at=at,
+            user=curriculum["user"],
+            status="completed",
+            started_at=at,
             ended_at=at + timedelta(minutes=minutes),
             active_duration_seconds=minutes * 60,
         )

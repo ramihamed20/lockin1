@@ -69,7 +69,9 @@ class StudySheetDifficulty(models.Model):
     """Admin-rated workload signal, scoped to one sheet and not a mastery claim."""
 
     sheet = models.OneToOneField(
-        "content.LearningObject", primary_key=True, on_delete=models.CASCADE,
+        "content.LearningObject",
+        primary_key=True,
+        on_delete=models.CASCADE,
         related_name="study_difficulty",
     )
     level = models.PositiveSmallIntegerField(default=3)
@@ -146,7 +148,8 @@ class StudyPlanItem(models.Model):
     question_source = models.CharField(
         max_length=12,
         choices=(("ai-sheet", "Sheet questions"), ("exam", "Past exams")),
-        default="", blank=True,
+        default="",
+        blank=True,
     )
     priority_reasons = models.JSONField(default=list, blank=True)
     title = models.CharField(max_length=180)

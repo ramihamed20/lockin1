@@ -173,7 +173,9 @@ QUESTIONS = (
 # These ideas are reviewed against PAGES above; they are not live AI responses.
 ASSISTANCE_IDEAS = (
     (
-        1, "understand", "What does Histology really study?",
+        1,
+        "understand",
+        "What does Histology really study?",
         "Why is histology different from looking at organs with the naked eye?",
         "Histology studies the microscopic arrangement of cells and tissues. "
         "A microscope helps us see structures that cannot be resolved by the naked eye.",
@@ -181,7 +183,9 @@ ASSISTANCE_IDEAS = (
         "A microscope.",
     ),
     (
-        1, "memory", "Remember the four tissue families",
+        1,
+        "memory",
+        "Remember the four tissue families",
         "Which four basic tissues organize the human body?",
         "The four basic tissue types are epithelial, connective, muscular and nervous. "
         "Recognizing their distinctive cells and matrix is a starting point for histology.",
@@ -189,7 +193,9 @@ ASSISTANCE_IDEAS = (
         "Muscular tissue.",
     ),
     (
-        1, "organize", "Cells + matrix = tissue structure",
+        1,
+        "organize",
+        "Cells + matrix = tissue structure",
         "Why should you look beyond the cells in a tissue?",
         "The extracellular matrix surrounding the cells also contributes to tissue "
         "structure and function. The proportion of cells and matrix can differ by tissue.",
@@ -197,7 +203,9 @@ ASSISTANCE_IDEAS = (
         "Extracellular matrix.",
     ),
     (
-        2, "understand", "Find the apical surface",
+        2,
+        "understand",
+        "Find the apical surface",
         "How do you identify the apical surface of epithelium?",
         "The apical surface faces a lumen or the outside environment. "
         "The basal surface faces the underlying basement membrane.",
@@ -205,7 +213,9 @@ ASSISTANCE_IDEAS = (
         "The basal surface.",
     ),
     (
-        2, "memory", "Simple vs. stratified",
+        2,
+        "memory",
+        "Simple vs. stratified",
         "What is the difference between simple and stratified epithelium?",
         "Simple epithelium has one cell layer. Stratified epithelium "
         "has more than one layer. This is a useful first distinction on a slide.",
@@ -213,7 +223,9 @@ ASSISTANCE_IDEAS = (
         "Stratified epithelium.",
     ),
     (
-        2, "organize", "Think: cover, absorb, secrete",
+        2,
+        "organize",
+        "Think: cover, absorb, secrete",
         "What are three functions of epithelial tissue?",
         "Epithelial tissue forms surface and cavity linings as well as many glands. "
         "Its functions include protection, absorption and secretion.",
@@ -221,7 +233,9 @@ ASSISTANCE_IDEAS = (
         "No. The cells are tightly packed, with relatively little extracellular matrix.",
     ),
     (
-        3, "understand", "Why collagen matters",
+        3,
+        "understand",
+        "Why collagen matters",
         "How does collagen help connective tissue?",
         "Collagen fibers provide tensile strength in many connective tissues. "
         "The extracellular matrix is an important part of their structure.",
@@ -229,7 +243,9 @@ ASSISTANCE_IDEAS = (
         "Collagen fibers.",
     ),
     (
-        3, "memory", "Muscle = movement through contraction",
+        3,
+        "memory",
+        "Muscle = movement through contraction",
         "What is the key specialization of muscle tissue?",
         "Muscle tissue is specialized to contract and generate force. "
         "That ability distinguishes it from the other basic tissue types.",
@@ -237,7 +253,9 @@ ASSISTANCE_IDEAS = (
         "Contraction.",
     ),
     (
-        3, "organize", "Neurons and their supporting cells",
+        3,
+        "organize",
+        "Neurons and their supporting cells",
         "What two kinds of cells are noted for nervous tissue here?",
         "Nervous tissue contains neurons and supporting glial cells. "
         "Neurons transmit electrical and chemical signals.",
@@ -245,7 +263,9 @@ ASSISTANCE_IDEAS = (
         "Neurons.",
     ),
     (
-        4, "understand", "How a histology slide is made",
+        4,
+        "understand",
+        "How a histology slide is made",
         "Which preparation steps commonly precede microscopic examination?",
         "Tissue is commonly fixed, embedded, sectioned and stained. "
         "These steps help make the microscopic structures visible.",
@@ -253,7 +273,9 @@ ASSISTANCE_IDEAS = (
         "To help different structures become visible and distinguishable.",
     ),
     (
-        4, "memory", "Hematoxylin vs. eosin",
+        4,
+        "memory",
+        "Hematoxylin vs. eosin",
         "What are the common colors produced by hematoxylin and eosin?",
         "Hematoxylin commonly stains nuclei blue to purple; eosin "
         "commonly stains many cytoplasmic proteins pink.",
@@ -261,7 +283,9 @@ ASSISTANCE_IDEAS = (
         "Hematoxylin.",
     ),
     (
-        4, "organize", "Start low, then inspect",
+        4,
+        "organize",
+        "Start low, then inspect",
         "Why should you begin studying a slide at low power?",
         "Low magnification makes it easier to find the tissue and establish its "
         "orientation. Then look for cell shape, arrangement, matrix and boundaries.",
@@ -274,7 +298,8 @@ ASSISTANCE_IDEAS = (
 def sample_pdf() -> bytes:
     """Create a four-page educational PDF without nonstandard dependencies."""
     objects = [
-        b"", b"",
+        b"",
+        b"",
         b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
         b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
     ]
@@ -313,15 +338,18 @@ def sample_pdf() -> bytes:
             ).encode("ascii")
         )
         objects.append(
-            b"<< /Length " + str(len(stream)).encode("ascii")
-            + b" >>\nstream\n" + stream + b"endstream"
+            b"<< /Length "
+            + str(len(stream)).encode("ascii")
+            + b" >>\nstream\n"
+            + stream
+            + b"endstream"
         )
         children.append(f"{page_ref} 0 R")
 
     objects[0] = b"<< /Type /Catalog /Pages 2 0 R >>"
-    objects[1] = (
-        f"<< /Type /Pages /Kids [{' '.join(children)}] /Count {len(children)} >>"
-    ).encode("ascii")
+    objects[1] = (f"<< /Type /Pages /Kids [{' '.join(children)}] /Count {len(children)} >>").encode(
+        "ascii"
+    )
     data = bytearray(b"%PDF-1.4\n")
     offsets = []
     for index, body in enumerate(objects, 1):
@@ -363,9 +391,8 @@ class Command(BaseCommand):
 
     def handle(self, *args: Any, **options: Any) -> None:
         if (
-            getattr(settings, "ENVIRONMENT", "") not in {
-                "development", "development-demo", "demo", "testing"
-            }
+            getattr(settings, "ENVIRONMENT", "")
+            not in {"development", "development-demo", "demo", "testing"}
             or not settings.DEBUG
         ):
             raise CommandError("Only an isolated development demo can be seeded.")
@@ -374,28 +401,33 @@ class Command(BaseCommand):
                 email="student@lockin.local"
             )
             creator = User.objects.get(email="creator@lockin.local")
-            semester = EducationNode.objects.get(
-                slug="fall-2026", kind=EducationNode.Kind.SEMESTER
-            )
-            exam = ExamPeriod.objects.get(
-                title="Codespace Midterm Preview", cohort=student.cohort
-            )
+            semester = EducationNode.objects.get(slug="fall-2026", kind=EducationNode.Kind.SEMESTER)
+            exam = ExamPeriod.objects.get(title="Codespace Midterm Preview", cohort=student.cohort)
         except (User.DoesNotExist, EducationNode.DoesNotExist, ExamPeriod.DoesNotExist) as error:
             raise CommandError("Run seed_demo and seed_codespace_exam first.") from error
         if student.cohort is None or student.cohort.program.code != "codespace-dentistry":
             raise CommandError("Refusing to modify a non-demo cohort.")
 
         subject_node = ensure_node(
-            semester, EducationNode.Kind.SUBJECT, "intro-histology-tripoli",
-            "Intro Histology (Tripoli Demo)", 4,
+            semester,
+            EducationNode.Kind.SUBJECT,
+            "intro-histology-tripoli",
+            "Intro Histology (Tripoli Demo)",
+            4,
         )
         unit = ensure_node(
-            subject_node, EducationNode.Kind.UNIT, "histology-introduction",
-            "Introduction to Histology", 1,
+            subject_node,
+            EducationNode.Kind.UNIT,
+            "histology-introduction",
+            "Introduction to Histology",
+            1,
         )
         lesson = ensure_node(
-            unit, EducationNode.Kind.LESSON, "demo-sheet-01",
-            "Intro Histology - Demo Sheet 01", 1,
+            unit,
+            EducationNode.Kind.LESSON,
+            "demo-sheet-01",
+            "Intro Histology - Demo Sheet 01",
+            1,
         )
         subject, _ = CatalogSubject.objects.get_or_create(
             cohort=student.cohort,
@@ -418,14 +450,20 @@ class Command(BaseCommand):
         file = ManagedFile.objects.filter(owner=creator, original_name=PDF_NAME).first()
         if file is None:
             file = ManagedFile.objects.create(
-                owner=creator, original_name=PDF_NAME, kind="pdf",
-                content_type="application/pdf", size_bytes=len(payload),
-                checksum_sha256=checksum, pdf_page_count=len(PAGES),
-                validation_status="ready", scan_status="not_configured",
+                owner=creator,
+                original_name=PDF_NAME,
+                kind="pdf",
+                content_type="application/pdf",
+                size_bytes=len(payload),
+                checksum_sha256=checksum,
+                pdf_page_count=len(PAGES),
+                validation_status="ready",
+                scan_status="not_configured",
                 blob=ContentFile(payload, name=PDF_NAME),
             )
         elif (
-            file.checksum_sha256 != checksum or not file.blob.name
+            file.checksum_sha256 != checksum
+            or not file.blob.name
             or not file.blob.storage.exists(file.blob.name)
         ):
             file.blob.save(PDF_NAME, ContentFile(payload), save=False)
@@ -434,24 +472,42 @@ class Command(BaseCommand):
             file.pdf_page_count = len(PAGES)
             file.validation_status = "ready"
             file.scan_status = "not_configured"
-            file.save(update_fields=[
-                "blob", "checksum_sha256", "size_bytes", "pdf_page_count",
-                "validation_status", "scan_status",
-            ])
+            file.save(
+                update_fields=[
+                    "blob",
+                    "checksum_sha256",
+                    "size_bytes",
+                    "pdf_page_count",
+                    "validation_status",
+                    "scan_status",
+                ]
+            )
 
-        version = LearningObjectVersion.objects.filter(
-            academic_node=lesson, created_by=creator, title=SHEET_TITLE,
-        ).select_related("learning_object").first()
+        version = (
+            LearningObjectVersion.objects.filter(
+                academic_node=lesson,
+                created_by=creator,
+                title=SHEET_TITLE,
+            )
+            .select_related("learning_object")
+            .first()
+        )
         if version is None:
             sheet = LearningObject.objects.create(
-                owner=creator, workflow_status=LearningObject.WorkflowStatus.PUBLISHED,
+                owner=creator,
+                workflow_status=LearningObject.WorkflowStatus.PUBLISHED,
                 published_at=timezone.now(),
             )
             version = LearningObjectVersion.objects.create(
-                learning_object=sheet, version_number=1, academic_node=lesson,
-                content_type="pdf", title=SHEET_TITLE, page_count=len(PAGES),
+                learning_object=sheet,
+                version_number=1,
+                academic_node=lesson,
+                content_type="pdf",
+                title=SHEET_TITLE,
+                page_count=len(PAGES),
                 summary="Four short pages introducing tissues (training material only).",
-                language="en", allow_download=True,
+                language="en",
+                allow_download=True,
                 metadata={"tags": ["demo", "tripoli", "histology"], "demo": True},
                 created_by=creator,
             )
@@ -461,8 +517,10 @@ class Command(BaseCommand):
                 version.page_count = len(PAGES)
                 version.save(update_fields=["page_count"])
         LearningObjectAsset.objects.update_or_create(
-            version=version, role=LearningObjectAsset.Role.PRIMARY,
-            position=0, defaults={"managed_file": file},
+            version=version,
+            role=LearningObjectAsset.Role.PRIMARY,
+            position=0,
+            defaults={"managed_file": file},
         )
         changes = []
         if sheet.current_version_id != version.pk:
@@ -478,7 +536,8 @@ class Command(BaseCommand):
             sheet.save(update_fields=changes)
 
         alias, _ = CatalogDocument.objects.get_or_create(
-            material_slug=MATERIAL_SLUG, sheet_slug=SHEET_SLUG,
+            material_slug=MATERIAL_SLUG,
+            sheet_slug=SHEET_SLUG,
             defaults={"version": version, "edition": "university", "managed_file": file},
         )
         if alias.version_id != version.id or alias.managed_file_id != file.id:
@@ -488,15 +547,24 @@ class Command(BaseCommand):
         # Publish page-specific help so the animated character is visible immediately
         # in this isolated reader. This is curated education content, not model AI.
         for position, (
-            page, kind, teaser, question, explanation, followup_question, followup_answer,
-        ) in enumerate(
-            ASSISTANCE_IDEAS, 1
-        ):
+            page,
+            kind,
+            teaser,
+            question,
+            explanation,
+            followup_question,
+            followup_answer,
+        ) in enumerate(ASSISTANCE_IDEAS, 1):
             StudyAssistanceIdea.objects.get_or_create(
-                source_version=version, edition="university", view="study",
-                page=page, position=position,
+                source_version=version,
+                edition="university",
+                view="study",
+                page=page,
+                position=position,
                 defaults={
-                    "kind": kind, "teaser": teaser, "question": question,
+                    "kind": kind,
+                    "teaser": teaser,
+                    "question": question,
                     "explanation": explanation,
                     "followup_question": followup_question,
                     "followup_answer": followup_answer,
@@ -506,30 +574,41 @@ class Command(BaseCommand):
 
         for page, prompt, answers, explanation in QUESTIONS:
             existing = QuestionVersion.objects.filter(
-                academic_node=lesson, source_learning_object=sheet,
-                created_by=creator, prompt=prompt,
+                academic_node=lesson,
+                source_learning_object=sheet,
+                created_by=creator,
+                prompt=prompt,
             ).first()
             if existing is not None:
                 continue
             question = Question.objects.create(
-                owner=creator, workflow_status=Question.WorkflowStatus.PUBLISHED,
+                owner=creator,
+                workflow_status=Question.WorkflowStatus.PUBLISHED,
                 published_at=timezone.now(),
             )
             qversion = QuestionVersion.objects.create(
-                question=question, version_number=1, academic_node=lesson,
+                question=question,
+                version_number=1,
+                academic_node=lesson,
                 source_learning_object=sheet,
                 question_type=QuestionVersion.QuestionType.SINGLE_CHOICE,
-                prompt=prompt, explanation=explanation, source_page=page,
+                prompt=prompt,
+                explanation=explanation,
+                source_page=page,
                 difficulty=(
-                    QuestionVersion.Difficulty.EASY if page < 3
+                    QuestionVersion.Difficulty.EASY
+                    if page < 3
                     else QuestionVersion.Difficulty.MEDIUM
                 ),
-                language="en", metadata={"source": "ai-sheet", "demo": True},
+                language="en",
+                metadata={"source": "ai-sheet", "demo": True},
                 created_by=creator,
             )
             for index, answer in enumerate(answers):
                 QuestionOption.objects.create(
-                    version=qversion, position=index, text=answer,
+                    version=qversion,
+                    position=index,
+                    text=answer,
                     is_correct=index == 0,
                 )
             question.current_version = qversion
@@ -537,17 +616,22 @@ class Command(BaseCommand):
             question.save(update_fields=["current_version", "published_version"])
 
         ExamSyllabusScope.objects.get_or_create(
-            period=exam, subject=subject, defaults={"include_future_sheets": True},
+            period=exam,
+            subject=subject,
+            defaults={"include_future_sheets": True},
         )
         ExamSchedule.objects.get_or_create(
-            period=exam, subject=subject,
+            period=exam,
+            subject=subject,
             exam_type=ExamSchedule.ExamType.THEORY,
             defaults={
                 "scheduled_on": exam.starts_on + timedelta(days=6),
                 "status": ExamPeriod.Status.CONFIRMED,
             },
         )
-        self.stdout.write(self.style.SUCCESS(
-            f"Tripoli Histology demo: {len(PAGES)} PDF pages, {len(QUESTIONS)} MCQs. "
-            f"Open /#/materials/catalog/{MATERIAL_SLUG} as student@lockin.local."
-        ))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Tripoli Histology demo: {len(PAGES)} PDF pages, {len(QUESTIONS)} MCQs. "
+                f"Open /#/materials/catalog/{MATERIAL_SLUG} as student@lockin.local."
+            )
+        )

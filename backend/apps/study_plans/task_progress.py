@@ -93,7 +93,6 @@ def reconcile_active_tasks(user: User) -> None:
         )
 
 
-
 def reconcile_question_tasks(user: User) -> None:
     """Mark coverage complete only from actual recorded QuestionAnswer rows."""
     from apps.questions.models import QuestionAnswer
@@ -107,9 +106,10 @@ def reconcile_question_tasks(user: User) -> None:
         return
     ids = {qid for task in tasks for qid in task.question_ids}
     recorded = dict(
-        (str(qid), when) for qid, when in QuestionAnswer.objects.filter(
-            user=user, question_id__in=ids
-        ).values_list("question_id", "answered_at")
+        (str(qid), when)
+        for qid, when in QuestionAnswer.objects.filter(user=user, question_id__in=ids).values_list(
+            "question_id", "answered_at"
+        )
     )
     changed = []
     for task in tasks:
@@ -125,6 +125,7 @@ def reconcile_question_tasks(user: User) -> None:
         changed.append(task)
     if changed:
         StudyPlanItem.objects.bulk_update(
-            changed, ["status", "completed_at", "status_changed_at", "revision"],
+            changed,
+            ["status", "completed_at", "status_changed_at", "revision"],
             batch_size=200,
         )

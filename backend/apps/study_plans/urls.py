@@ -43,7 +43,8 @@ urlpatterns = [
     ),
     path(
         "study-plan/v2/exams/<uuid:period_id>/changes",
-        StudentPlanChangesView.as_view(), name="v2-changes",
+        StudentPlanChangesView.as_view(),
+        name="v2-changes",
     ),
     path("study-plan/v2/exams", StudentExamListView.as_view(), name="v2-exams"),
     path(
