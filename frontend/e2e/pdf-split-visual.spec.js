@@ -7,16 +7,27 @@ const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 const SECOND_ROUTE = "/materials/catalog/biochemistry-1/sheets/vitamin-2/workspace";
 
 async function expectTopAlignedPages(page, count, tolerance = 4) {
-  await expect.poll(async () => page.evaluate(({ expected, maxError }) => {
+  const collect = async () => page.evaluate((expected) => {
     const panes = [...document.querySelectorAll(".workspace-pane[data-split-slot]")].slice(0, expected);
-    if (panes.length !== expected) return false;
-    const offsets = panes.map((pane) => {
+    return panes.map((pane) => {
       const stage = pane.querySelector(".workspace-v2-document-stage");
       const pdfPage = pane.querySelector(".workspace-v2-a4-page");
-      return stage && pdfPage ? pdfPage.getBoundingClientRect().top - stage.getBoundingClientRect().top : Number.NaN;
+      const layer = pane.querySelector(".workspace-v2-a4-live-layer");
+      if (!stage || !pdfPage) return null;
+      return {
+        offset: pdfPage.getBoundingClientRect().top - stage.getBoundingClientRect().top,
+        scrollTop: stage.scrollTop,
+        stageHeight: stage.clientHeight,
+        layerTop: layer?.getBoundingClientRect().top - stage.getBoundingClientRect().top
+      };
     });
-    return offsets.every((offset) => Number.isFinite(offset) && Math.abs(offset - 12) <= maxError);
-  }, { expected: count, maxError: tolerance }), { timeout: 15000 }).toBe(true);
+  }, count);
+  await expect.poll(async () => {
+    const data = await collect();
+    if (data.length !== count || data.some((item) => !item)) return 999;
+    return Math.max(...data.map((item) => Math.abs(item.offset - 12)));
+  }, { timeout: 15000 }).toBeLessThanOrEqual(tolerance);
+  console.log("TOP_ALIGNED_PAGES", count, JSON.stringify(await collect()));
 }
 
 
@@ -105,6 +116,7 @@ for (const viewport of [
         return [selector, { x:r.x, y:r.y, width:r.width, height:r.height, position:style.position, display:style.display, transform:style.transform, zIndex:style.zIndex }];
       });
     })));
+    await page.screenshot({ path: `output/playwright/pdf-split-${viewport.name}-before-align-assert.png`, fullPage: false });
     await expectTopAlignedPages(page, 2);
     await page.screenshot({ path: `output/playwright/pdf-split-${viewport.name}-after.png`, fullPage: false });
     const seam = page.locator('.workspace-split-divider[data-axis="primary"]');
