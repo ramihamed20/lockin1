@@ -10,6 +10,7 @@ import "./workspace-split.css";
 
 export const KEPT_WORKSPACE_PANES = 4;
 export const MAX_VISIBLE_WORKSPACE_SHEETS = 4;
+/** @type {{pattern:RegExp, toId:(parts:string[])=>string}[]} */
 const PATTERNS = [
   { pattern: /^\/whiteboards\/([^/]+)\/workspace$/, toId: ([boardId]) => whiteboardTabId(boardId) },
   { pattern: /^\/materials\/catalog\/([^/]+)\/mine\/([^/]+)\/workspace$/, toId: ([, sheetId]) => personalTabId(sheetId) },
