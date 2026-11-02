@@ -65,3 +65,49 @@
 .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v4-pen-profiles .workspace-v4-nib { color: var(--fx-text-2); filter: none; }
 .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v4-pen-profiles button.is-active .workspace-v4-nib { color: var(--fx-text); }
 .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v4-nib svg { width: 28px; height: 30px; }
+
+/* Open adjustment rows: full-width tracks, quiet labels and inline values. */
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink {
+  border-radius: 22px;
+  box-shadow: 0 16px 40px -12px rgb(0 0 0 / .38), 0 2px 8px rgb(0 0 0 / .1);
+}
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v7-panel-body { border-radius: 0 0 22px 22px; padding-inline: 14px; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-tool-options-title { padding-inline: 16px; }
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v7-panel-body > .workspace-v7-adjust {
+  padding: 4px 2px 2px;
+  margin: 2px 0 4px;
+  border-top: 0 !important;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  gap: 0;
+}
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-tool-range {
+  display: flex; flex-direction: column; align-items: stretch;
+  min-height: 58px; gap: 0; padding: 0;
+  border: 0; border-radius: 0; background: transparent;
+}
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-range-heading {
+  display: flex; align-items: center; justify-content: space-between;
+  min-height: 14px; gap: 12px; font-size: .72rem;
+}
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-range-heading > span { font-size: .72rem; color: var(--fx-text-2); }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-range-heading output {
+  position: static; inset: auto; transform: none;
+  width: auto; font-size: .72rem; font-weight: 500;
+  color: var(--fx-text); white-space: nowrap;
+}
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-range-control { display: block; padding: 0 8px; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-tool-range input { display: block; height: 44px; min-height: 44px; --ink-track-direction: to right; }
+[dir="rtl"] .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-tool-range input { --ink-track-direction: to left; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-tool-range input::-webkit-slider-runnable-track {
+  height: 4px; background: linear-gradient(var(--ink-track-direction), var(--fx-text-2) 0 var(--workspace-range-progress), var(--fx-fill-strong) var(--workspace-range-progress) 100%);
+}
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-tool-range input::-webkit-slider-thumb {
+  width: 16px; height: 16px; margin-top: -6px;
+  background: var(--fx-text); border: 2px solid var(--workspace-panel);
+  box-shadow: 0 1px 5px rgb(0 0 0 / .22);
+}
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-tool-range input::-moz-range-track { height: 4px; background: var(--fx-fill-strong); }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-tool-range input::-moz-range-progress { height: 4px; background: var(--fx-text-2); }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-tool-range input::-moz-range-thumb { width: 12px; height: 12px; background: var(--fx-text); border: 2px solid var(--workspace-panel); box-shadow: 0 1px 5px rgb(0 0 0 / .22); }

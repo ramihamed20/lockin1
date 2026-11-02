@@ -75,6 +75,7 @@ for (const viewport of [{width:390,height:844},{width:1180,height:820}]) {
   await more.click();await expect(more).toHaveAttribute('aria-expanded','true');
   await expect(panel.locator('.workspace-v4-pen-gestures')).toBeVisible();
   await more.click();
+  await expect.poll(()=>panel.evaluate(node=>node.getAnimations({subtree:true}).filter(animation=>Number.isFinite(animation.effect?.getComputedTiming().endTime)).every(animation=>animation.playState==='finished'))).toBe(true);
   await page.screenshot({path:testInfo.outputPath(`compact-pen-${viewport.width}.png`)});
  });
 }
