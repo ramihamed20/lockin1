@@ -124,6 +124,6 @@ export function WorkspaceTabDragPreview({ preview }) {
         <span dir="auto">{preview.label}</span>
       </div>
     </div>,
-    document.body
+    document.fullscreenElement || document.body
   );
 }
