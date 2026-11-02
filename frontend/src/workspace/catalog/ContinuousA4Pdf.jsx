@@ -1163,7 +1163,7 @@ export function ContinuousA4Pdf({
       const pageRect = firstPage.getBoundingClientRect();
       const stageRect = stage.getBoundingClientRect();
       if (pageRect.height <= 0 || stageRect.height <= 0) return;
-      const desiredTop = stageRect.top + 12;
+      const desiredTop = stageRect.top;
       const offset = pageRect.top - desiredTop;
       // Only correct the blank strip above page one. Negative offsets represent
       // deliberate reading/scrolling and must remain untouched.
