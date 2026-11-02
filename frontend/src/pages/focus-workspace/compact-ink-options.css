@@ -111,3 +111,10 @@
 .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-tool-range input::-moz-range-track { height: 4px; background: var(--fx-fill-strong); }
 .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-tool-range input::-moz-range-progress { height: 4px; background: var(--fx-text-2); }
 .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-tool-range input::-moz-range-thumb { width: 12px; height: 12px; background: var(--fx-text); border: 2px solid var(--workspace-panel); box-shadow: 0 1px 5px rgb(0 0 0 / .22); }
+/* Give the opacity caption breathing room; the legacy inset divider touched it. */
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v7-adjust > .workspace-v2-tool-range + .workspace-v2-tool-range {
+  box-shadow: none;
+  padding-block-start: 4px;
+  min-height: 62px;
+}
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-range-heading > span { font-weight: 500; line-height: 1.1; }
