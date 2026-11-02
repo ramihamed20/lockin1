@@ -61,11 +61,15 @@ for (const viewport of [
     })));
     await page.screenshot({ path: `output/playwright/pdf-split-${viewport.name}-drag-attempt.png`, fullPage: false });
     await expect(page.locator(".workspace-tab-drop-highlight.is-end")).toBeVisible({ timeout: 10000 });
+    const purple = await page.locator(".workspace-tab-drop-highlight").boundingBox();
+    const globalToolbar = await page.locator(".workspace-pane.is-active .workspace-v2-toolbar").boundingBox();
+    expect(purple.y).toBeGreaterThanOrEqual(globalToolbar.y + globalToolbar.height - 1);
     await page.screenshot({ path: `output/playwright/pdf-split-${viewport.name}-dragging.png`, fullPage: false });
     await page.mouse.up();
 
     await expect(page.locator(".workspace-split-layout.is-split")).toBeVisible({ timeout: 15000 });
-    await expect(page.locator(".workspace-pane.is-secondary .workspace-split-pane-select")).toContainText("Vitamin -2");
+    await expect(page.locator(".workspace-pane.is-secondary .workspace-split-pane-remove")).toHaveAttribute("aria-label", /Vitamin -2/);
+    await expect(page.locator(".workspace-split-pane-heading")).toHaveCount(0);
     await expect(page.locator(".workspace-split-shared-chrome .workspace-v2-toolbar")).toHaveCount(1);
     await expect(page.locator(".workspace-pane .workspace-v2-toolbar")).toHaveCount(0);
     await expect(page.locator(".workspace-pane.is-secondary .workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 25000 });
@@ -88,6 +92,18 @@ for (const viewport of [
       });
     })));
     await page.screenshot({ path: `output/playwright/pdf-split-${viewport.name}-after.png`, fullPage: false });
+    const seam = page.locator('.workspace-split-divider[data-axis="primary"]');
+    await seam.locator('.workspace-split-ratio-toggle').click();
+    await seam.getByRole("button", { name: "70/30" }).click();
+    await expect(seam).toHaveAttribute("aria-valuenow", "70");
+    const bigger = await page.locator('.workspace-pane[data-split-slot="0"]').boundingBox();
+    const smaller = await page.locator('.workspace-pane[data-split-slot="1"]').boundingBox();
+    const amount = viewport.name === "phone"
+      ? bigger.height / (bigger.height + smaller.height)
+      : bigger.width / (bigger.width + smaller.width);
+    expect(amount).toBeGreaterThan(.65);
+    expect(amount).toBeLessThan(.75);
+    await page.screenshot({ path: `output/playwright/pdf-split-${viewport.name}-70-30.png`, fullPage: false });
   });
 }
 
@@ -136,6 +152,18 @@ test("one original shared toolbar controls two, three and four PDF cells", async
       expect(box.width).toBeGreaterThan(130);
       expect(box.height).toBeGreaterThan(130);
     }
+    if (n >= 3) {
+      const primary = layout.locator('.workspace-split-divider[data-axis="primary"]');
+      const secondary = layout.locator('.workspace-split-divider[data-axis="secondary"]');
+      await expect(primary).toBeVisible();
+      await expect(secondary).toBeVisible();
+      await primary.locator(".workspace-split-ratio-toggle").click();
+      await primary.getByRole("button", { name: "70/30" }).click();
+      await secondary.locator(".workspace-split-ratio-toggle").click();
+      await secondary.getByRole("button", { name: "60/40" }).click();
+      await expect(primary).toHaveAttribute("aria-valuenow", "70");
+      await expect(secondary).toHaveAttribute("aria-valuenow", "60");
+    }
     await page.waitForTimeout(450);
     await page.screenshot({ path: `output/playwright/pdf-grid-ipad-${suffix}.png`, fullPage: false });
   }
@@ -146,7 +174,7 @@ test("one original shared toolbar controls two, three and four PDF cells", async
   expect(first.x).toBeLessThan(rightTop.x);
   expect(rightBottom.y).toBeGreaterThan(rightTop.y);
   expect(leftBottom.y).toBeGreaterThan(first.y);
-  await page.locator('.workspace-pane[data-split-slot="2"] .workspace-split-pane-select').click();
+  await page.locator('.workspace-pane[data-split-slot="2"] .workspace-v2-document-stage').click({ position: { x: 22, y: 70 }, force: true });
   await expect(page.locator('.workspace-pane[data-split-slot="2"]')).toHaveAttribute("data-focused", "true");
   await expect(page.locator(".workspace-split-shared-chrome .workspace-v2-toolbar")).toHaveCount(1);
   await expect(page.getByRole("combobox", { name: /Sheet for Active Study/ })).toBeVisible();
