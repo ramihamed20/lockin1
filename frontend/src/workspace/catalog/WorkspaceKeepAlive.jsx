@@ -187,7 +187,7 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
           aria-orientation={typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches ? "horizontal" : "vertical"}
           aria-valuemin={28} aria-valuemax={72} aria-valuenow={Math.round(splitPercent)} tabIndex={0}
           onPointerDown={(event) => {
-            if (event.target instanceof Element && event.target.closest("button")) return;
+            if (event.target === event.currentTarget.querySelector("button")) return;
             event.preventDefault();
             event.currentTarget.setPointerCapture(event.pointerId);
             resizeFromPointer(event);
