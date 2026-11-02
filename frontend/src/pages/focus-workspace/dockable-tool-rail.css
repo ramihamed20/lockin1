@@ -41,3 +41,6 @@
 .workspace-v2 .workspace-tool-dock[data-dock-edge]:not([data-dock-edge="top"]) { mask-image: none; }
 /* Absolute grid children must use the header's padding box, not column 2/3. */
 .workspace-v2 .workspace-v2-toolbar[data-tool-dock]:not([data-tool-dock="top"]) > .workspace-tool-dock { grid-area: auto !important; justify-self: start; align-self: start; margin: 0; right: auto; bottom: auto; }
+/* Keep pen/highlighter glyphs clear of the former ink-colour badge. */
+.workspace-v2 .workspace-tool-dock .workspace-v3-tool-button:is([data-workspace-tool="pen"], [data-workspace-tool="highlighter"]) > .workspace-v3-tool-swatch { display: none; }
+.workspace-v2 .workspace-v2-toolbar .workspace-v3-tool-button.is-active:is([data-workspace-tool="pen"], [data-workspace-tool="highlighter"])::after { display: none; }
