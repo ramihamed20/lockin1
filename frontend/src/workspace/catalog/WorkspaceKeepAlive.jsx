@@ -254,7 +254,6 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
   });
 
   const splitStyle = isMulti ? /** @type {import("react").CSSProperties} */ ({ "--workspace-split-primary": `${splitPercent}%`, "--workspace-split-secondary": `${splitRowsPercent}%` }) : undefined;
-  const ar = currentAppLocale() === "ar";
   const readers = <WorkspaceSplitContext.Provider value={{
     splitId: isMulti ? liveSlots[1] : "", splitIds: liveSlots, isMulti,
     toolbarHost, dropSplit: dockSheet, closeSplit,
