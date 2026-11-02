@@ -1,0 +1,80 @@
+/* Focus PDF split view: each pane owns a complete isolated PDF reader. */
+.workspace-split-layout:not(.is-split) { display: contents; }
+.workspace-split-layout:not(.is-split) > .workspace-pane.is-kept {
+  position: fixed; inset: 0; visibility: hidden; pointer-events: none;
+}
+.workspace-split-layout.is-split {
+  position: fixed; inset: 0; z-index: var(--z-immersive, 80);
+  display: flex; flex-direction: row; overflow: hidden;
+  background: var(--workspace-bg, #080d19);
+}
+.workspace-split-layout.is-split > .workspace-pane {
+  position: relative; min-width: 0; min-height: 0; overflow: hidden;
+  transform: translateZ(0); /* Constrain the reader's fixed viewport to its pane. */
+}
+.workspace-split-layout.is-split > .workspace-pane.is-active {
+  flex: 0 0 calc(var(--workspace-split-primary, 50%) - 6px);
+}
+.workspace-split-layout.is-split > .workspace-pane.is-secondary { flex: 1 1 0; }
+.workspace-split-layout.is-split > .workspace-pane.is-kept {
+  position: absolute; inset: 0; visibility: hidden; pointer-events: none;
+}
+.workspace-split-layout.is-split > .workspace-pane > .workspace-v2 {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+}
+.workspace-split-divider {
+  position: relative; z-index: 4; flex: 0 0 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--surface, #17213a) 93%, transparent);
+  border-inline: 1px solid var(--separator, rgba(155, 170, 205, .22));
+  cursor: col-resize; touch-action: none; user-select: none;
+}
+.workspace-split-divider:hover, .workspace-split-divider:focus-visible {
+  background: color-mix(in srgb, var(--purple, #9474ff) 22%, var(--surface, #17213a));
+}
+.workspace-split-grip {
+  width: 4px; height: 48px; border-radius: 9px;
+  background: var(--workspace-chrome-muted, #95a4c1);
+}
+.workspace-split-close {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  display: grid; place-items: center; height: 28px; width: 28px;
+  padding: 0; border: 1px solid var(--separator, #343c52);
+  border-radius: 999px; background: var(--surface, #20283b);
+  color: var(--text, #f4f6ff); font: 20px/1 system-ui, sans-serif;
+  box-shadow: 0 2px 9px rgba(0,0,0,.12); cursor: pointer;
+}
+.workspace-split-close:hover { background: var(--surface-2, #30374a); }
+.workspace-split-layout.is-split .workspace-v2-toolbar {
+  min-width: 0; gap: 2px;
+}
+.workspace-split-layout.is-split .workspace-v3-document-context { max-width: 120px; }
+.workspace-split-layout.is-split .workspace-v3-quick-colors { display: none; }
+.workspace-split-layout.is-split .workspace-tabs-scroller { max-width: 100%; }
+.workspace-split-layout.is-split .workspace-tab-split { opacity: 1; }
+.workspace-tab-split {
+  display: grid; place-items: center; flex: 0 0 24px;
+  height: 26px; width: 24px; padding: 0; border: 0; border-radius: 7px;
+  color: var(--fx-text-3, #9aa5ba); background: transparent;
+  cursor: pointer;
+}
+.workspace-tab-split:hover, .workspace-tab-split.is-split {
+  color: var(--fx-accent, #8e61ff); background: var(--fx-fill-strong, rgba(130,130,180,.13));
+}
+.workspace-tab-split:focus-visible, .workspace-split-divider:focus-visible {
+  outline: 2px solid var(--fx-accent, #8e61ff); outline-offset: -2px;
+}
+@media (max-width: 640px) {
+  .workspace-split-layout.is-split { flex-direction: column; }
+  .workspace-split-layout.is-split > .workspace-pane.is-active {
+    flex-basis: calc(var(--workspace-split-primary, 50%) - 6px);
+  }
+  .workspace-split-divider {
+    flex-basis: 12px; cursor: row-resize;
+    border-inline: 0;
+    border-block: 1px solid var(--separator, rgba(155, 170, 205, .22));
+  }
+  .workspace-split-grip { width: 48px; height: 4px; }
+  .workspace-split-close { top: 50%; left: auto; right: 12px; transform: translateY(-50%); }
+  .workspace-split-layout.is-split .workspace-v2-toolbar { min-height: 44px; }
+}
