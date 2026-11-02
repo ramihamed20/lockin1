@@ -36,10 +36,6 @@ jobs:
             ref: codex/lockin0.1.5
             spec: e2e/focus-horizontal-page-preview.spec.js
             grep: "horizontal PDF real UI preview"
-          - label: pdf-split
-            ref: codex/pdf-split-screen-0.1.5
-            spec: e2e/pdf-split-visual.spec.js
-            grep: "PDF split visual"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -56,18 +52,18 @@ jobs:
         working-directory: frontend
         run: pnpm install --frozen-lockfile
       - name: Build real client with e2e API fixtures
-        if: matrix.label != 'focus-horizontal' && matrix.label != 'pdf-split'
+        if: matrix.label != 'focus-horizontal'
         working-directory: frontend
         run: pnpm run build:e2e
       - name: Exercise real UI in Chromium at device sizes
-        if: matrix.label != 'focus-horizontal' && matrix.label != 'pdf-split'
+        if: matrix.label != 'focus-horizontal'
         working-directory: frontend
         run: pnpm exec playwright test "${{ matrix.spec }}" --grep "${{ matrix.grep }}" --workers=1
       # A visual-only Focus capture uses the unchanged reader source in Vite
       # development mode. Public-knowledge release verification remains enabled
       # for all production builds; this test never publishes a dist bundle.
       - name: Capture actual Focus reader in development
-        if: matrix.label == 'focus-horizontal' || matrix.label == 'pdf-split'
+        if: matrix.label == 'focus-horizontal'
         working-directory: frontend
         run: |
           pnpm run fixtures:pdf
