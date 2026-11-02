@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import { ownerStorageKey } from "../storage/workspaceSnapshot.js";
 import { FocusVideoPlayer } from "./FocusVideoPlayer.jsx";
-import { WorkspacePaneActiveContext, WorkspaceSplitContext } from "./workspacePane.js";
+import { WorkspacePaneActiveContext, WorkspacePaneVisibleContext, WorkspaceSplitContext } from "./workspacePane.js";
 import { personalTabId, sheetTabId, useWorkspaceTabs, whiteboardTabId, workspaceTabRoute } from "./workspaceTabs.js";
 import "./workspace-split.css";
 
@@ -44,6 +44,7 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
   const [tabs] = useWorkspaceTabs(ownerKey);
   const [splitId, setSplitId] = useState("");
   const [splitPercent, setSplitPercent] = useState(50);
+  const [secondarySide, setSecondarySide] = useState("end");
   const [focusedPath, setFocusedPath] = useState(location.pathname);
   const previousPrimaryPath = useRef(location.pathname);
   const layoutRef = useRef(null);
@@ -87,12 +88,11 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
     .sort((a, b) => b[1].seen - a[1].seen);
   kept.slice(KEPT_WORKSPACE_PANES).forEach(([path]) => panes.delete(path));
 
-  function toggleSplit(tabId) {
-    if (!tabs.tabs.some((tab) => tab.id === tabId) || tabId === primaryId) {
-      setSplitId("");
-      return;
-    }
-    setSplitId((previous) => previous === tabId ? "" : tabId);
+  function dropSplit(tabId, side) {
+    if (!tabs.tabs.some((tab) => tab.id === tabId) || tabId === primaryId) return;
+    setSplitPercent(50);
+    setSecondarySide(side === "start" ? "start" : "end");
+    setSplitId(tabId);
     setFocusedPath(location.pathname);
   }
 
@@ -102,7 +102,7 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
     const stacked = window.matchMedia("(max-width: 640px)").matches;
     const offset = stacked ? event.clientY - rect.top : event.clientX - rect.left;
     const size = stacked ? rect.height : rect.width;
-    if (size > 0) setSplitPercent(clampPercent(offset * 100 / size));
+    if (size > 0) setSplitPercent(clampPercent((secondarySide === "start" ? 100 - offset * 100 / size : offset * 100 / size)));
   }
 
   const entries = [...panes.entries()].sort(([a], [b]) => {
@@ -121,20 +121,22 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
         inert={visible ? undefined : ""}
         onPointerDownCapture={() => { if (visible && !focused) setFocusedPath(path); }}
       >
-        <WorkspacePaneActiveContext.Provider value={focused}>
+        <WorkspacePaneVisibleContext.Provider value={visible}>
+          <WorkspacePaneActiveContext.Provider value={focused}>
           <Routes location={active ? location : pane.location}>
             <Route path="/materials/catalog/:materialSlug/mine/:sheetId/workspace" element={<Workspace user={user} variant="personal" />} />
             <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug/summary" element={<Workspace user={user} variant="summary" />} />
             <Route path="/materials/catalog/:materialSlug/sheets/:sheetSlug/workspace" element={<Workspace user={user} />} />
             <Route path="/whiteboards/:boardId/workspace" element={<Workspace user={user} variant="whiteboard" />} />
           </Routes>
-        </WorkspacePaneActiveContext.Provider>
+          </WorkspacePaneActiveContext.Provider>
+        </WorkspacePaneVisibleContext.Provider>
       </div>
     );
   });
 
-  const readers = <WorkspaceSplitContext.Provider value={{ splitId: splitPath ? splitId : "", toggleSplit }}>
-    <div className={`workspace-split-layout${splitPath ? " is-split" : ""}`} ref={layoutRef} style={splitPath ? { "--workspace-split-primary": `${splitPercent}%` } : undefined}>
+  const readers = <WorkspaceSplitContext.Provider value={{ splitId: splitPath ? splitId : "", dropSplit, closeSplit: () => setSplitId("") }}>
+    <div className={`workspace-split-layout${splitPath ? " is-split" : ""}`} data-secondary-side={secondarySide} ref={layoutRef} style={splitPath ? { "--workspace-split-primary": `${splitPercent}%` } : undefined}>
       {paneNodes}
       {splitPath && <div
         role="separator"
