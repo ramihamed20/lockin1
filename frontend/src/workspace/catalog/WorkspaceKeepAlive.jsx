@@ -130,6 +130,12 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
     const remaining = liveSlots.filter((item) => item !== id);
     if (remaining.length < 2) {
       closeSplit();
+      // Removing the primary of a two-way view should leave the other
+      // document on screen, never redisplay the sheet that was removed.
+      if (id === primaryId && remaining.length === 1) {
+        const nextTab = tabs.tabs.find((item) => item.id === remaining[0]);
+        if (nextTab) navigate(workspaceTabRoute(nextTab), { state: { studyMode: nextTab.mode || "normal" } });
+      }
       return;
     }
     if (id === primaryId) {
