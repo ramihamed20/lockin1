@@ -4136,7 +4136,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       const horizontalTarget = pageDirection === "horizontal" && sheet?.pdfUrl
         && zoomRef.current <= minimumPdfZoom() * 1.12 && gesture.touches.size === 0
         ? horizontalSwipeTarget(
-          Array.from(stageRef.current?.querySelectorAll(".workspace-v2-a4-page") || [], (element) => Number(element.dataset.workspacePage)),
+          Array.from(stageRef.current?.querySelectorAll(".workspace-v2-a4-page") || [], (element) => Number(element.getAttribute("data-workspace-page"))),
           completedPan.startPageKey,
           event.clientX - completedPan.x,
           event.clientY - completedPan.y,
@@ -6269,7 +6269,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
               if (!sheet.pdfUrl || pageDirection !== "horizontal" || isTypingTarget(event.target) || isStageControl(event.target) || event.altKey || event.ctrlKey || event.metaKey) return;
               const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
               if (!step) return;
-              const keys = Array.from(event.currentTarget.querySelectorAll(".workspace-v2-a4-page"), (element) => Number(element.dataset.workspacePage));
+              const keys = Array.from(event.currentTarget.querySelectorAll(".workspace-v2-a4-page"), (element) => Number(element.getAttribute("data-workspace-page")));
               const index = keys.indexOf(activePageKey);
               if (index < 0 || !keys[index + step]) return;
               event.preventDefault();
@@ -6284,7 +6284,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
             onLostPointerCapture={lostWorkspacePointer}
             onPointerLeave={() => { hideStylusHover(); hideEraserHitbox(); }}
           >
-            {sheet.pdfUrl ? <ContinuousA4Pdf pageDirection={pageDirection} pdfUrl={sheet.pdfUrl} pageCount={pageCount} visiblePageStart={accessiblePageStart} visiblePageCount={accessiblePageCount} zoom={zoom} stageRef={stageRef} documentRootRef={documentRef} onPageCount={syncPdfPageCount} onDocumentReady={markPdfDocumentReady} onDocumentLoaded={handlePdfDocumentLoaded} onCurrentPageChange={handleCurrentWorkspacePage} virtualPages={readerVirtualPages} renderPageOverlay={renderPdfPageOverlay} onPdfPageRendered={recordPdfPageRender} documentFooter={whiteboard ? <div className="workspace-whiteboard-footer"><button type="button" onClick={addWhiteboardPage}><Plus size={18} /><span>{t("workspaceTabs.addPage")}</span></button></div> : null} /> : <article ref={documentRef} className="workspace-v2-document" onDoubleClick={smartZoom} style={cssVars({ "--workspace-document-width": `${PAGE_WIDTH * zoom}px`, "--workspace-document-min-height": `${760 * zoom}px`, "--workspace-document-max-width": "none" })}>
+            {sheet.pdfUrl ? <ContinuousA4Pdf pageDirection={pageDirection === "horizontal" ? "horizontal" : "vertical"} pdfUrl={sheet.pdfUrl} pageCount={pageCount} visiblePageStart={accessiblePageStart} visiblePageCount={accessiblePageCount} zoom={zoom} stageRef={stageRef} documentRootRef={documentRef} onPageCount={syncPdfPageCount} onDocumentReady={markPdfDocumentReady} onDocumentLoaded={handlePdfDocumentLoaded} onCurrentPageChange={handleCurrentWorkspacePage} virtualPages={readerVirtualPages} renderPageOverlay={renderPdfPageOverlay} onPdfPageRendered={recordPdfPageRender} documentFooter={whiteboard ? <div className="workspace-whiteboard-footer"><button type="button" onClick={addWhiteboardPage}><Plus size={18} /><span>{t("workspaceTabs.addPage")}</span></button></div> : null} /> : <article ref={documentRef} className="workspace-v2-document" onDoubleClick={smartZoom} style={cssVars({ "--workspace-document-width": `${PAGE_WIDTH * zoom}px`, "--workspace-document-min-height": `${760 * zoom}px`, "--workspace-document-max-width": "none" })}>
               <svg className={annotationLayerClass} viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-label={t("focus.documentAnnotations")}>
                 <AnnotationVisuals annotations={annotationsHidden ? [] : pageAnnotations} prefix={`document-${page}`} includeHitTargets={activeTool === "select" && !annotationsHidden} revealedIds={revealedCoverIds} />
                 <DraftAnnotationLayer ref={draftLayerRef} latest={draftAnnotationRef} />

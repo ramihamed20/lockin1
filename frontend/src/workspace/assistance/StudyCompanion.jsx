@@ -63,7 +63,7 @@ export default function StudyCompanion({ userId, documentId, versionId, edition 
   const [retry, setRetry] = useState(0);
   const reduced = useReducedMotion();
   const [preferences, setPreferences] = useCompanionPreferences(userId);
-  const [data, setData] = useState({ key: "", ideas: [] });
+  const [data, setData] = useState({ key: "", ideas: [], failed: false });
   const [selected, setSelected] = useState(0);
   const [surface, setSurface] = useState("");
   const [reviewIdea, setReviewIdea] = useState(null);

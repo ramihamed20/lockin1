@@ -39,7 +39,7 @@ export function LockInBar({ onBack, backLabel, backIcon = "back", children = nul
   </header>;
 }
 
-function TeamPhotoInput({ imageUrl, file, onChange, busy = false }) {
+function TeamPhotoInput({ imageUrl = null, file = null, onChange, busy = false }) {
   const { t } = useI18n();
   const [preview, setPreview] = useState("");
   useEffect(() => {
@@ -79,7 +79,7 @@ function AnonymousRow({ id, checked, onChange }) {
   </div>;
 }
 
-function NavRow({ icon: RowIcon, title, hint, onClick, value = null }) {
+function NavRow({ icon: RowIcon, title, hint = null, onClick, value = null }) {
   return <li>
     <button className="ui-row" type="button" onClick={onClick}>
       {RowIcon && <span className="ui-row-icon" aria-hidden="true"><RowIcon /></span>}
@@ -372,7 +372,7 @@ export default function LockInLobby({ bootstrap, onExit, onSolo, onTeamStart, on
   async function create(event) {
     event.preventDefault(); setBusy(true); setError("");
     try { const result = await focusApi.createLockInTeam({ name: name.trim(), max_members: Number(maximum), anonymous }); openTeam(result.team);
-      if (imageFile) { const uploaded = await focusApi.uploadLockInTeamImage(result.team.id, imageFile); teamMutationRef.current++; setTeam(uploaded.team); setImageFile(null); }
+      if (imageFile) { const uploaded = await focusApi.uploadLockInTeamImage(/** @type {{id: string}} */ (result.team).id, imageFile); teamMutationRef.current++; setTeam(uploaded.team); setImageFile(null); }
       await onRefresh(); }
     catch (failure) { setError(failure.message || t("lockIn.error")); }
     finally { setBusy(false); }

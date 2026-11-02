@@ -3,7 +3,7 @@ import { useI18n } from "../I18nProvider.jsx";
 import { directorySearchMessages, filterDirectory } from "../../lib/directorySearch.js";
 import "./searchable-directory.css";
 
-export function SearchableDirectory({ items, getTitle, children }) {
+export function SearchableDirectory({ items, getTitle = (item) => item.title, children }) {
   const { locale } = useI18n();
   const copy = directorySearchMessages[locale] || directorySearchMessages.en;
   const [query, setQuery] = useState("");

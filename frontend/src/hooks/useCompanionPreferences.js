@@ -26,5 +26,5 @@ export function useCompanionPreferences(userId) {
   useEffect(() => {
     if (stored.userId === userId) saveCompanionPreferences(userId, stored.value);
   }, [stored, userId]);
-  return [preferences, update];
+  return /** @type {[typeof preferences, typeof update]} */ ([preferences, update]);
 }
