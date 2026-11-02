@@ -158,8 +158,9 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
     );
   });
 
+  const splitStyle = splitPath ? /** @type {import("react").CSSProperties} */ ({ "--workspace-split-primary": `${splitPercent}%` }) : undefined;
   const readers = <WorkspaceSplitContext.Provider value={{ splitId: splitPath ? displayedSplitId : "", dropSplit, closeSplit: () => setSplitId("") }}>
-    <div className={`workspace-split-layout${splitPath ? " is-split" : ""}`} data-secondary-side={secondarySide} ref={layoutRef} style={splitPath ? { "--workspace-split-primary": `${splitPercent}%` } : undefined}>
+    <div className={`workspace-split-layout${splitPath ? " is-split" : ""}`} data-secondary-side={secondarySide} ref={layoutRef} style={splitStyle}>
       {paneNodes}
       {splitPath && <div
         role="separator"
@@ -171,7 +172,7 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
         aria-valuenow={Math.round(splitPercent)}
         tabIndex={0}
         onPointerDown={(event) => {
-          if (event.target.closest("button")) return;
+          if (event.target instanceof Element && event.target.closest("button")) return;
           event.preventDefault();
           event.currentTarget.setPointerCapture(event.pointerId);
           resizeFromPointer(event);
