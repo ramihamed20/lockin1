@@ -151,9 +151,9 @@ test("a visible second PDF keeps rendering, while hidden tab buffers stay suspen
     readFile(new URL("../src/workspace/catalog/WorkspaceKeepAlive.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/workspace/catalog/workspace-split.css", import.meta.url), "utf8")
   ]);
-  assert.match(host, /WorkspacePaneVisibleContext.Provider value=\\{visible\\}/);
+  assert.match(host, /WorkspacePaneVisibleContext\.Provider value=\{visible\}/);
   assert.match(reader, /useWorkspacePaneVisible/);
   assert.match(ink, /useWorkspacePaneVisible/);
-  assert.doesNotMatch(css, /\\.workspace-split-layout\\.is-split @media/);
-  assert.match(css, /\\.workspace-split-layout\\.is-split > \\.workspace-pane\\.is-secondary/);
+  assert.doesNotMatch(css, /\.workspace-split-layout\.is-split @media/);
+  assert.match(css, /\.workspace-split-layout\.is-split > \.workspace-pane\.is-secondary/);
 });
