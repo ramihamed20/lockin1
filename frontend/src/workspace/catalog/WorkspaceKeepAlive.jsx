@@ -6,6 +6,7 @@ import { FocusVideoPlayer } from "./FocusVideoPlayer.jsx";
 import { WorkspacePaneActiveContext, WorkspacePaneVisibleContext, WorkspaceSplitContext } from "./workspacePane.js";
 import { personalTabId, sheetTabId, useWorkspaceTabs, whiteboardTabId, workspaceTabRoute } from "./workspaceTabs.js";
 import { currentAppLocale } from "../../lib/i18n.js";
+import { X } from "lucide-react";
 import "./workspace-split.css";
 
 export const KEPT_WORKSPACE_PANES = 4;
@@ -29,7 +30,8 @@ export function workspaceTabIdForPath(pathname) {
   return "";
 }
 
-const clampPercent = (number) => Math.max(28, Math.min(72, number));
+const clampPercent = (number) => Math.max(20, Math.min(80, number));
+const SIZE_PRESETS = [30, 40, 50, 60, 70];
 /** Each array position is a grid slot (left, top-right, bottom-right, bottom-left). */
 export function nextSplitSlots(slots, primaryId, addedId, side = "end") {
   if (!primaryId || !addedId) return slots;
@@ -48,6 +50,8 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
   const [tabs] = useWorkspaceTabs(ownerKey);
   const [slots, setSlots] = useState(/** @type {string[]} */ ([]));
   const [splitPercent, setSplitPercent] = useState(50);
+  const [splitRowsPercent, setSplitRowsPercent] = useState(50);
+  const [ratioMenu, setRatioMenu] = useState("");
   const [focusedPath, setFocusedPath] = useState(location.pathname);
   const [toolbarHost, setToolbarHost] = useState(/** @type {Element|null} */ (null));
   const previousPrimary = useRef(location.pathname);
@@ -120,7 +124,8 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
     } else {
       setSlots((old) => nextSplitSlots(old, primaryId, id, side));
     }
-    setSplitPercent(50);
+    if (!isMulti) { setSplitPercent(50); setSplitRowsPercent(50); }
+    setRatioMenu("");
   }
 
   // Removing the URL-owning pane must promote a remaining sheet to the main
@@ -152,14 +157,62 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
     setSlots(remaining);
   }
 
-  function closeSplit() { setSlots([]); setFocusedPath(location.pathname); }
-  function resizeFromPointer(event) {
-    const rect = layoutRef.current?.getBoundingClientRect();
-    if (!rect) return;
+  function closeSplit() { setSlots([]); setRatioMenu(""); setFocusedPath(location.pathname); }
+  function splitAxisIsRows(axis) {
     const stacked = window.matchMedia("(max-width: 640px)").matches;
-    const offset = stacked ? event.clientY - rect.top : event.clientX - rect.left;
-    const size = stacked ? rect.height : rect.width;
-    if (size > 0) setSplitPercent(clampPercent(offset * 100 / size));
+    return axis === "primary" ? (stacked && liveSlots.length !== 4) : (!stacked || liveSlots.length === 4);
+  }
+  function resizeFromPointer(event, axis) {
+    const rects = [...(layoutRef.current?.querySelectorAll(".workspace-pane[data-split-slot]") || [])]
+      .map((node) => node.getBoundingClientRect());
+    if (rects.length < 2) return;
+    const rows = splitAxisIsRows(axis);
+    const start = Math.min(...rects.map((rect) => rows ? rect.top : rect.left));
+    const end = Math.max(...rects.map((rect) => rows ? rect.bottom : rect.right));
+    const current = rows ? event.clientY : event.clientX;
+    if (end > start) {
+      const set = axis === "primary" ? setSplitPercent : setSplitRowsPercent;
+      set(clampPercent((current - start) * 100 / (end - start)));
+    }
+  }
+  function splitDivider(axis) {
+    const primary = axis === "primary";
+    const percent = primary ? splitPercent : splitRowsPercent;
+    const set = primary ? setSplitPercent : setSplitRowsPercent;
+    const ar = currentAppLocale() === "ar";
+    const rows = splitAxisIsRows(axis);
+    return <div key={axis} role="separator"
+      className="workspace-split-divider"
+      data-axis={axis}
+      aria-label={ar ? (primary ? "تغيير حجم تقسيم الشيتات" : "تغيير ارتفاع الشيتات") : (primary ? "Resize sheet columns" : "Resize sheet rows")}
+      aria-orientation={rows ? "horizontal" : "vertical"}
+      aria-valuemin={20} aria-valuemax={80} aria-valuenow={Math.round(percent)}
+      tabIndex={0}
+      onPointerDown={(event) => {
+        if (event.target instanceof Element && event.target.closest("button")) return;
+        event.preventDefault();
+        event.currentTarget.setPointerCapture(event.pointerId);
+        setRatioMenu("");
+        resizeFromPointer(event, axis);
+      }}
+      onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) resizeFromPointer(event, axis); }}
+      onKeyDown={(event) => {
+        const delta = ["ArrowRight", "ArrowDown"].includes(event.key) ? 5 : ["ArrowLeft", "ArrowUp"].includes(event.key) ? -5 : 0;
+        if (delta) { event.preventDefault(); set((value) => clampPercent(value + delta)); }
+        if (event.key === "Escape") setRatioMenu("");
+      }}
+    >
+      <span className="workspace-split-grip" aria-hidden="true" />
+      <button type="button" className="workspace-split-ratio-toggle" aria-label={ar ? "اختيار نسبة التقسيم" : "Choose split ratio"}
+        title={ar ? "نسب تقسيم جاهزة" : "Split size presets"}
+        aria-expanded={ratioMenu === axis}
+        onClick={() => setRatioMenu((opened) => opened === axis ? "" : axis)}>{Math.round(percent)}%</button>
+      {ratioMenu === axis && <div className="workspace-split-ratio-presets" role="group" aria-label={ar ? "نسب تقسيم الشيتات" : "Sheet split presets"}>
+        {SIZE_PRESETS.map((value) => <button key={value} type="button" className={Math.round(percent) === value ? "is-selected" : ""}
+          aria-label={`${value}/${100 - value}`} aria-pressed={Math.round(percent) === value}
+          onClick={() => { set(value); setRatioMenu(""); }} >{value}/{100 - value}</button>)}
+      </div>}
+    </div>;
   }
 
   const entries = [...panes.entries()].sort(([a],[b]) => {
@@ -179,8 +232,9 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
       data-split-slot={visible && isMulti ? slot : undefined}
       data-focused={focused ? "true" : undefined}
       aria-hidden={visible ? undefined : "true"}
+      aria-label={visible && isMulti ? (tab?.title || (ar ? "شيت" : "Sheet")) : undefined}
       inert={visible ? undefined : ""}
-      onPointerDownCapture={(event) => { if (event.target === event.currentTarget.querySelector(".workspace-split-pane-remove")) return; if (visible && !focused) setFocusedPath(path); }}
+      onPointerDownCapture={(event) => { if (event.target instanceof Element && event.target.closest(".workspace-split-pane-remove")) return; if (visible && !focused) setFocusedPath(path); }}
     >
       <WorkspacePaneVisibleContext.Provider value={visible}>
         <WorkspacePaneActiveContext.Provider value={focused}>
@@ -192,22 +246,14 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
           </Routes>
         </WorkspacePaneActiveContext.Provider>
       </WorkspacePaneVisibleContext.Provider>
-      {isMulti && visible && <div className="workspace-split-pane-heading" data-current={focused ? "" : undefined}>
-        <button type="button" className="workspace-split-pane-select"
-          onClick={() => setFocusedPath(path)}
-          aria-pressed={focused}
-          aria-label={ar ? `اختيار ${tab?.title || "الشيت"}` : `Select ${tab?.title || "sheet"}`}>
-          <span className="workspace-split-active-dot" aria-hidden="true" />
-          <span dir="auto">{tab?.title || (tab?.kind === "whiteboard" ? "Whiteboard" : id)}</span>
-        </button>
-        <button type="button" className="workspace-split-pane-remove"
-          onClick={() => removeSplitSheet(id)}
-          aria-label={ar ? "إزالة الشيت من التقسيم" : "Remove sheet from split"} title={ar ? "إزالة من التقسيم" : "Remove from split"}>×</button>
-      </div>}
+      {isMulti && visible && <button type="button" className="workspace-split-pane-remove"
+        onClick={() => removeSplitSheet(id)}
+        aria-label={ar ? `إزالة ${tab?.title || "الشيت"} من التقسيم` : `Remove ${tab?.title || "sheet"} from split`}
+        title={ar ? "إزالة من التقسيم" : "Remove from split"}><X size={15} strokeWidth={1.9} aria-hidden="true" /></button>}
     </div>;
   });
 
-  const splitStyle = isMulti ? /** @type {import("react").CSSProperties} */ ({ "--workspace-split-primary": `${splitPercent}%` }) : undefined;
+  const splitStyle = isMulti ? /** @type {import("react").CSSProperties} */ ({ "--workspace-split-primary": `${splitPercent}%`, "--workspace-split-secondary": `${splitRowsPercent}%` }) : undefined;
   const ar = currentAppLocale() === "ar";
   const readers = <WorkspaceSplitContext.Provider value={{
     splitId: isMulti ? liveSlots[1] : "", splitIds: liveSlots, isMulti,
@@ -221,25 +267,8 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
         <div className="workspace-split-shared-chrome workspace-v2">
           <div className="workspace-v2-body"><section className="workspace-v2-reader" ref={setToolbarHost} /></div>
         </div>
-        {liveSlots.length === 2 && <div role="separator" className="workspace-split-divider" aria-label={ar ? "تغيير حجم تقسيم PDF" : "Resize PDF split"}
-          aria-orientation={typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches ? "horizontal" : "vertical"}
-          aria-valuemin={28} aria-valuemax={72} aria-valuenow={Math.round(splitPercent)} tabIndex={0}
-          onPointerDown={(event) => {
-            if (event.target === event.currentTarget.querySelector("button")) return;
-            event.preventDefault();
-            event.currentTarget.setPointerCapture(event.pointerId);
-            resizeFromPointer(event);
-          }}
-          onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) resizeFromPointer(event); }}
-          onKeyDown={(event) => {
-            const delta = ["ArrowRight", "ArrowDown"].includes(event.key) ? 5 : ["ArrowLeft", "ArrowUp"].includes(event.key) ? -5 : 0;
-            if (delta) { event.preventDefault(); setSplitPercent((n) => clampPercent(n + delta)); }
-          }}
-        ><span className="workspace-split-grip" aria-hidden="true" />
-          <button type="button" className="workspace-split-close" onClick={closeSplit}
-            aria-label={ar ? "إغلاق تقسيم الشاشة" : "Close split view"}
-            title={ar ? "إغلاق تقسيم الشاشة" : "Close split view"}>×</button>
-        </div>}
+        {splitDivider("primary")}
+        {liveSlots.length >= 3 && splitDivider("secondary")}
       </>}
     </div>
   </WorkspaceSplitContext.Provider>;
