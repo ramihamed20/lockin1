@@ -123,6 +123,29 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
     setSplitPercent(50);
   }
 
+  // Removing the URL-owning pane must promote a remaining sheet to the main
+  // route. Otherwise the grid disappears because its primary id is no longer
+  // among the displayed slots.
+  function removeSplitSheet(id) {
+    const remaining = liveSlots.filter((item) => item !== id);
+    if (remaining.length < 2) {
+      closeSplit();
+      return;
+    }
+    if (id === primaryId) {
+      const nextId = remaining.includes(workspaceTabIdForPath(focusedPath))
+        ? workspaceTabIdForPath(focusedPath) : remaining[0];
+      const nextTab = tabs.tabs.find((item) => item.id === nextId);
+      if (nextTab) {
+        setFocusedPath(workspaceTabRoute(nextTab));
+        navigate(workspaceTabRoute(nextTab), { state: { studyMode: nextTab.mode || "normal" } });
+      }
+    } else if (workspaceTabIdForPath(focusedPath) === id) {
+      setFocusedPath(location.pathname);
+    }
+    setSlots(remaining);
+  }
+
   function closeSplit() { setSlots([]); setFocusedPath(location.pathname); }
   function resizeFromPointer(event) {
     const rect = layoutRef.current?.getBoundingClientRect();
@@ -172,7 +195,7 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
           <span dir="auto">{tab?.title || (tab?.kind === "whiteboard" ? "Whiteboard" : id)}</span>
         </button>
         <button type="button" className="workspace-split-pane-remove"
-          onClick={() => { setSlots((old) => old.filter((item) => item !== id)); if (focused) setFocusedPath(location.pathname); }}
+          onClick={() => removeSplitSheet(id)}
           aria-label={ar ? "إزالة الشيت من التقسيم" : "Remove sheet from split"} title={ar ? "إزالة من التقسيم" : "Remove from split"}>×</button>
       </div>}
     </div>;
