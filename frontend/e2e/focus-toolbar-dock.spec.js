@@ -61,6 +61,7 @@ for (const language of ['en', 'ar']) {
     await rail(page).locator('[data-workspace-tool="pen"]').click();
     await expect(page.locator('.workspace-v2-tool-options')).toBeVisible();
     await expect(page.locator('.workspace-v4-pen-profiles')).toBeVisible();
+    await expect(page.locator('.workspace-v2-tool-options')).toHaveAttribute('data-notch-side','left');
     if (language === 'en') await expect.poll(() => page.locator('.workspace-v2-tool-options').evaluate(panel => { const p=panel.getBoundingClientRect(); const d=document.querySelector('.workspace-pane.is-active .workspace-tool-dock').getBoundingClientRect(); return p.left >= d.right + 19 || p.right <= d.left - 19; })).toBe(true);
     await page.keyboard.press('Escape');
     await expect(page.locator('.workspace-v2-tool-options')).toBeHidden();

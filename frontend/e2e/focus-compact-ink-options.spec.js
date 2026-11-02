@@ -50,6 +50,8 @@ for (const viewport of [{width:390,height:844},{width:1180,height:820}]) {
   const panel=page.locator('.workspace-v2-tool-options.is-compact-ink');
   await expect(panel).toBeVisible();
   await expect.poll(()=>panel.evaluate(node=>{const p=node.getBoundingClientRect();const bar=node.closest('.workspace-v2-reader').querySelector('.workspace-v2-toolbar').getBoundingClientRect();return p.top-bar.bottom;})).toBeGreaterThanOrEqual(19);
+  await expect(panel).toHaveAttribute('data-notch-side','top');
+  await expect.poll(()=>panel.evaluate(node=>{ const p=node.getBoundingClientRect(); const b=node.closest('.workspace-v2-reader').querySelector('[data-workspace-tool="pen"]').getBoundingClientRect(); const offset=parseFloat(node.style.getPropertyValue('--workspace-notch-offset')); return Math.abs(p.left+offset-(b.left+b.width/2)); })).toBeLessThanOrEqual(16);
   const profiles=panel.locator('.workspace-v4-pen-profiles');
   await expect(profiles.getByRole('button')).toHaveCount(5);
   await expect(profiles).toHaveText('');

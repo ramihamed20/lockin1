@@ -1090,6 +1090,15 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     if (!panel || !reader || !source) return undefined;
     panel.scrollTop = 0;
     const resetScroll = window.requestAnimationFrame(() => { panel.scrollTop = 0; });
+    const pointNotch = (side) => {
+      const box = panel.getBoundingClientRect();
+      const button = source.getBoundingClientRect();
+      const verticalEdge = side === "left" || side === "right";
+      const size = verticalEdge ? box.height : box.width;
+      const target = verticalEdge ? button.top + button.height / 2 - box.top : button.left + button.width / 2 - box.left;
+      panel.dataset.notchSide = side;
+      panel.style.setProperty("--workspace-notch-offset", `${Math.max(16, Math.min(size - 16, target))}px`);
+    };
     const position = () => {
       const dock = source.closest(".workspace-tool-dock");
       if (dock && dock.dataset.dockEdge !== "top") {
@@ -1109,6 +1118,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         panel.style.maxHeight = `${window.innerHeight - 16}px`;
         panel.style.left = `${Math.max(8, Math.min(window.innerWidth - width - 8, desiredLeft))}px`;
         panel.style.top = `${Math.max(8, Math.min(window.innerHeight - height - 8, desiredTop))}px`;
+        pointNotch(vertical ? (desiredLeft > sourceBounds.left ? "left" : "right") : (desiredTop > sourceBounds.top ? "top" : "bottom"));
         return;
       }
       if (window.innerWidth <= 560 || window.innerHeight < 600) {
@@ -1118,6 +1128,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         const sourceBounds = source.getBoundingClientRect();
         const toolCentre = sourceBounds.left + sourceBounds.width / 2 - panelBounds.left;
         panel.style.setProperty("--workspace-popover-origin", `${Math.max(18, Math.min(panelBounds.width - 18, toolCentre))}px`);
+        pointNotch("top");
         return;
       }
       const readerBounds = reader.getBoundingClientRect();
@@ -1128,12 +1139,18 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       const center = Math.max(half + 8, Math.min(readerBounds.width - half - 8, desired));
       panel.style.left = `${center}px`;
       panel.style.setProperty("--workspace-popover-origin", `${Math.max(0, Math.min(width, desired - center + width / 2))}px`);
+      pointNotch("top");
     };
     position();
+    const notchObserver = new window.ResizeObserver(position);
+    notchObserver.observe(panel);
     window.addEventListener("resize", position, { passive: true });
     return () => {
       window.cancelAnimationFrame(resetScroll);
+      notchObserver.disconnect();
       window.removeEventListener("resize", position);
+      delete panel.dataset.notchSide;
+      panel.style.removeProperty("--workspace-notch-offset");
       for (const property of ["position", "transform", "max-height", "top", "left"]) panel.style.removeProperty(property);
     };
   }, [toolOptionsOpen]);

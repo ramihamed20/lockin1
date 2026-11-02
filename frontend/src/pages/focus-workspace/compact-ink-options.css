@@ -51,7 +51,17 @@
 .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-colors { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 /* A separate card, with visible air between it and the tools. */
 .workspace-v2 .workspace-v2-toolbar[data-tool-dock="top"] ~ .workspace-v2-tool-options.is-compact-ink { top: calc(var(--workspace-toolbar-height, 54px) + 20px); }
-.workspace-v2 .workspace-v2-tool-options.is-compact-ink::before { display: none; }
+/* Small directional tip; the 20px card-to-dock gap remains intact. */
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink::before {
+  content: ''; display: block; position: absolute; inset: auto;
+  width: 12px; height: 7px; border: 0; border-radius: 0;
+  background: inherit; transform: none; pointer-events: none;
+  top: -7px; left: calc(var(--workspace-notch-offset, 50%) - 6px);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink[data-notch-side="bottom"]::before { top: auto; bottom: -7px; clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink[data-notch-side="left"]::before { top: calc(var(--workspace-notch-offset) - 6px); left: -7px; width: 7px; height: 12px; clip-path: polygon(0 50%, 100% 0, 100% 100%); }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink[data-notch-side="right"]::before { top: calc(var(--workspace-notch-offset) - 6px); left: auto; right: -7px; width: 7px; height: 12px; clip-path: polygon(0 0, 100% 50%, 0 100%); }
 .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v4-pen-profiles .workspace-v4-nib { color: var(--fx-text-2); filter: none; }
 .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v4-pen-profiles button.is-active .workspace-v4-nib { color: var(--fx-text); }
 .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v4-nib svg { width: 28px; height: 30px; }
