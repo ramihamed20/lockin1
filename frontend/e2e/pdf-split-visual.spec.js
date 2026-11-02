@@ -169,4 +169,6 @@ test("one original shared toolbar controls two, three and four PDF cells", async
   await expect(page.locator(".workspace-pane[data-split-slot]")).toHaveCount(2);
   await page.locator('.workspace-pane[data-split-slot="0"] .workspace-split-pane-remove').click();
   await expect(page.locator(".workspace-split-layout.is-split")).toHaveCount(0);
+  await expect(page).toHaveURL(/\/sheets\/range-probe\/workspace$/);
+  await expect(page.locator(".workspace-pane.is-active .workspace-v3-document-context strong")).toHaveText("Range probe");
 });
