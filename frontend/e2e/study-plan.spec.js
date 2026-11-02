@@ -110,7 +110,7 @@ test("long subject catalogs stay compact and can be searched before saving", asy
   await expect(choices.getByRole("button", { name: "Subject 9" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".plan-show-subjects")).toBeVisible();
   await page.locator(".plan-show-subjects").click();
-  await expect(choices.getByRole("button", { name: /^Subject \\d+$/ })).toHaveCount(10);
+  await expect(choices.getByRole("button", { name: /^Subject \d+$/ })).toHaveCount(10);
   await saveWizard(page);
   await expect(page.locator(".plan-hero")).toBeVisible();
 });
