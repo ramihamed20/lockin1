@@ -20,7 +20,8 @@ export function useWorkspacePaneActive() {
  * Both readers remain isolated; the currently focused pane alone receives
  * global keyboard commands and foreground study effects.
  */
-export const WorkspaceSplitContext = createContext({ splitId: "", splitIds: [], isMulti: false, toolbarHost: /** @type {Element|null} */ (null), dropSplit: (_tabId, _side) => {}, closeSplit: () => {}, focusSheet: (_tabId) => {} });
+/** @type {import("react").Context<{splitId:string,splitIds:string[],isMulti:boolean,toolbarHost:Element|null,dropSplit:(id:string,side:string)=>void,closeSplit:()=>void,focusSheet:(id:string)=>void}>} */
+export const WorkspaceSplitContext = createContext({ splitId: "", splitIds: [], isMulti: false, toolbarHost: null, dropSplit: (_tabId, _side) => {}, closeSplit: () => {}, focusSheet: (_tabId) => {} });
 
 export function useWorkspaceSplit() {
   return useContext(WorkspaceSplitContext);
