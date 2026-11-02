@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex -- The ARIA separator is keyboard-operable (arrow keys) and pointer draggable. */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { ownerStorageKey } from "../storage/workspaceSnapshot.js";
