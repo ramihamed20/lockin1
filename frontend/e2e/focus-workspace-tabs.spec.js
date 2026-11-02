@@ -307,7 +307,16 @@ test("split screen shows two independent PDF sheets and resizes on iPad and phon
   await tabs(page).first().click();
   await expect(page).toHaveURL(/\/sheets\/vitamin-1\/workspace$/);
 
-  await onScreen(page, '[aria-label="Open Vitamin -2 beside current sheet"]').click();
+  // Drag the open tab into the right half of the PDF, as on an iPad.
+  const source = await onScreen(page, '.workspace-tab').filter({ hasText: 'Vitamin -2' }).locator('[role="tab"]').boundingBox();
+  const stage = await onScreen(page, '.workspace-v2-document-stage').boundingBox();
+  await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(source.x + source.width / 2 + 25, source.y + 36, { steps: 4 });
+  await page.mouse.move(stage.x + stage.width * .77, stage.y + stage.height * .4, { steps: 12 });
+  await expect(page.locator('.workspace-tab-drop-highlight.is-end')).toBeVisible();
+  await expect(page.locator('.workspace-tab-drag-ghost')).toContainText('Vitamin -2');
+  await page.mouse.up();
   const layout = page.locator(".workspace-split-layout.is-split");
   await expect(layout).toBeVisible();
   await expect(page.locator(".workspace-pane.is-secondary .workspace-v3-document-context strong")).toHaveText("Vitamin -2");
