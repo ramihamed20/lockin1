@@ -40,6 +40,10 @@ jobs:
             sleep 1
           done
           PLAYWRIGHT_EXTERNAL_SERVER=1 PLAYWRIGHT_BASE_URL=http://127.0.0.1:5050 pnpm exec playwright test e2e/pdf-split-visual.spec.js --workers=1 --retries=0
+      - name: Focus tab and video isolation unit tests
+        if: always()
+        working-directory: frontend
+        run: node --test tests/workspace-tabs.test.js tests/focus-video.test.js
       - name: Upload real screenshots
         if: always()
         uses: actions/upload-artifact@v4
