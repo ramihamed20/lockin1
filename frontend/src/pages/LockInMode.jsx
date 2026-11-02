@@ -500,7 +500,7 @@ function ReferencePdfViewer({ material, session, currentUserId, onMore, onNotes,
       setAnnotationSync("Choose a PNG, JPEG or WebP image under 2 MB.");
       return;
     }
-    const reader = new FileReader();
+    const reader = new window.FileReader();
     reader.onerror = () => setAnnotationSync("Could not read this image.");
     reader.onload = () => {
       if (typeof reader.result !== "string") return;
@@ -784,18 +784,18 @@ export default function LockInMode({ user }) {
   // An interrupted legacy session restores its last device draft before
   // attempting server sync. A late read must not overwrite newer typing.
   const activeNoteSessionId = state.payload?.session?.lock_in_live ? "" : state.payload?.session?.id;
+  const serverNoteBody = state.payload?.note?.body || "";
   useEffect(() => {
     if (!user?.id || !activeNoteSessionId) return;
     let cancelled = false;
-    const serverBody = state.payload?.note?.body || "";
     void readLegacyNoteDraft(user.id, activeNoteSessionId).then((stored) => {
-      if (cancelled || stored === null || stored === serverBody || latestNoteBodyRef.current !== serverBody) return;
+      if (cancelled || stored === null || stored === serverNoteBody || latestNoteBodyRef.current !== serverNoteBody) return;
       latestNoteBodyRef.current = stored;
       setNoteBody(stored);
       setNoteRetryNonce((value) => value + 1);
     }).catch(() => {});
     return () => { cancelled = true; };
-  }, [user?.id, activeNoteSessionId]);
+  }, [user?.id, activeNoteSessionId, serverNoteBody]);
 
   const updateNoteDraft = useCallback((body) => {
     latestNoteBodyRef.current = body;

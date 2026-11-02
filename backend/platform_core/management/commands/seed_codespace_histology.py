@@ -581,13 +581,13 @@ class Command(BaseCommand):
             ).first()
             if existing is not None:
                 continue
-            question = Question.objects.create(
+            question_record = Question.objects.create(
                 owner=creator,
                 workflow_status=Question.WorkflowStatus.PUBLISHED,
                 published_at=timezone.now(),
             )
             qversion = QuestionVersion.objects.create(
-                question=question,
+                question=question_record,
                 version_number=1,
                 academic_node=lesson,
                 source_learning_object=sheet,
@@ -611,9 +611,9 @@ class Command(BaseCommand):
                     text=answer,
                     is_correct=index == 0,
                 )
-            question.current_version = qversion
-            question.published_version = qversion
-            question.save(update_fields=["current_version", "published_version"])
+            question_record.current_version = qversion
+            question_record.published_version = qversion
+            question_record.save(update_fields=["current_version", "published_version"])
 
         ExamSyllabusScope.objects.get_or_create(
             period=exam,

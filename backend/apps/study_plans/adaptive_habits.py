@@ -29,10 +29,10 @@ def habit_snapshot(*, user: User, profile: StudyPlanProfile, today: date) -> dic
     first_instant = datetime.combine(first_day, time.min, tzinfo=zone)
     reading_days: dict[date, int] = defaultdict(int)
     focus_days: dict[date, int] = defaultdict(int)
-    for row in StudyEvidence.objects.filter(
+    for evidence_row in StudyEvidence.objects.filter(
         user=user, occurred_on__gte=first_day, occurred_on__lte=today, minutes__gt=0
     ).values("occurred_on", "minutes")[:2000]:
-        reading_days[row["occurred_on"]] += row["minutes"]
+        reading_days[evidence_row["occurred_on"]] += evidence_row["minutes"]
     # Finished solo sessions only; team time is credited to its own participant.
     sessions = FocusSession.objects.filter(
         user=user,
@@ -41,11 +41,11 @@ def habit_snapshot(*, user: User, profile: StudyPlanProfile, today: date) -> dic
         started_at__gte=first_instant,
     ).values("started_at", "active_duration_seconds")[:2000]
     block_samples: list[int] = []
-    for row in sessions:
-        minutes = min(240, row["active_duration_seconds"] // 60)
+    for session_row in sessions:
+        minutes = min(240, session_row["active_duration_seconds"] // 60)
         if minutes < 1:
             continue
-        focus_days[row["started_at"].astimezone(zone).date()] += minutes
+        focus_days[session_row["started_at"].astimezone(zone).date()] += minutes
         block_samples.append(minutes)
     participants = FocusSessionParticipant.objects.filter(
         user=user,
@@ -53,11 +53,11 @@ def habit_snapshot(*, user: User, profile: StudyPlanProfile, today: date) -> dic
         session__status=FocusSession.Status.COMPLETED,
         joined_at__gte=first_instant,
     ).values("joined_at", "active_microseconds")[:2000]
-    for row in participants:
-        minutes = min(240, row["active_microseconds"] // 60_000_000)
+    for participant_row in participants:
+        minutes = min(240, participant_row["active_microseconds"] // 60_000_000)
         if minutes < 1:
             continue
-        focus_days[row["joined_at"].astimezone(zone).date()] += minutes
+        focus_days[participant_row["joined_at"].astimezone(zone).date()] += minutes
         block_samples.append(minutes)
 
     # Both sources can describe the same period. Use the larger daily total,
@@ -107,12 +107,13 @@ def adaptive_capacity(
     require activity evidence. Zero/rest-day overrides always win.
     """
     limit = available_minutes(profile, day)
-    baseline = habit["baseline_minutes"]
-    if limit == 0 or not profile.gradual_growth or baseline is None or day < today:
+    baseline_value = habit["baseline_minutes"]
+    if limit == 0 or not profile.gradual_growth or baseline_value is None or day < today:
         return limit
+    baseline = int(baseline_value)
     week = max(0, (day - today).days // 7)
-    observed = habit["sample_days"]
-    recent = habit["recent_active_days"]
+    observed = int(habit["sample_days"])
+    recent = int(habit["recent_active_days"])
     if observed >= 7 and recent < 3:
         suggested = floor(baseline * 0.95)
     elif observed >= 3 and recent >= 3:
