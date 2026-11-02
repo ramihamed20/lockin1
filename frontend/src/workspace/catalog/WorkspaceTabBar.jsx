@@ -1,12 +1,13 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight, FileText, Folder, NotebookPen, Plus, X, Youtube } from "lucide-react";
+import { ChevronLeft, ChevronRight, Columns2, FileText, Folder, NotebookPen, Plus, X, Youtube } from "lucide-react";
 import { personalSheetsApi } from "../../api/personalSheets.js";
 import { useI18n } from "../../components/I18nProvider.jsx";
+import { currentAppLocale } from "../../lib/i18n.js";
 import { requestFocusVideo } from "./focusVideo.js";
 import { personalTabId, sheetTabId } from "./workspaceTabs.js";
 import { revealWorkspaceTab } from "./workspaceTabScroll.js";
-import { useWorkspacePaneActive } from "./workspacePane.js";
+import { useWorkspacePaneActive, useWorkspaceSplit } from "./workspacePane.js";
 
 const SHEET_PICKER_EVENT = "lockin:workspace-sheet-picker";
 
@@ -163,6 +164,7 @@ function SheetChoice({ choice, open, onPick }) {
 export default function WorkspaceTabBar({ tabs, activeId, materials, portalRef, onSelect, onClose, onNewWhiteboard, onOpenSheet }) {
   const { t } = useI18n();
   const paneActive = useWorkspacePaneActive();
+  const { splitId, toggleSplit } = useWorkspaceSplit();
   const [menuOpen, setMenuOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState(null);
@@ -301,6 +303,7 @@ export default function WorkspaceTabBar({ tabs, activeId, materials, portalRef, 
             {tab.kind === "whiteboard" ? <NotebookPen size={14} aria-hidden="true" /> : tab.kind === "personal" ? <Folder size={14} aria-hidden="true" /> : <FileText size={14} aria-hidden="true" />}
             <span dir="auto">{label}</span>
           </button>
+          {tabs.length > 1 && (!active || splitId === tab.id) && <button type="button" className={`workspace-tab-split${splitId === tab.id ? " is-split" : ""}`} aria-label={currentAppLocale() === "ar" ? (splitId === tab.id ? `إغلاق تقسيم الشاشة` : `فتح ${label} بجانب الشيت الحالي`) : (splitId === tab.id ? "Close split view" : `Open ${label} beside current sheet`)} aria-pressed={splitId === tab.id} title={currentAppLocale() === "ar" ? "تقسيم الشاشة" : "Split screen"} onClick={() => toggleSplit(tab.id)}><Columns2 size={15} aria-hidden="true" /></button>}
           {tabs.length > 1 && <button type="button" className="workspace-tab-close" aria-label={t("workspaceTabs.closeTab", { name: label })} title={t("workspaceTabs.closeTab", { name: label })} onClick={() => onClose(tab)}><X size={13} /></button>}
         </div>;
       })}
