@@ -289,3 +289,48 @@ test("switching away dismisses a picker without letting its Escape handler steal
   await tabs(page).first().click();
   await expect(page.locator(".workspace-tabs-picker")).toHaveCount(0);
 });
+
+test("split screen shows two independent PDF sheets and resizes on iPad and phone", async ({ page }) => {
+  test.setTimeout(90_000);
+  await mockAuthenticatedWorkspace(page);
+  await page.setViewportSize({ width: 1180, height: 820 });
+  await page.goto(ROUTE);
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await expect(onScreen(page, ".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
+
+  await page.getByRole("button", { name: "New tab" }).click();
+  await page.getByRole("menuitem", { name: /Open sheet/ }).click();
+  const picker = page.getByRole("dialog", { name: "Open sheet" });
+  await picker.getByRole("button", { name: /Biochemistry 1/ }).click();
+  await picker.getByRole("button", { name: /Vitamin -2/ }).click();
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await tabs(page).first().click();
+  await expect(page).toHaveURL(/\/sheets\/vitamin-1\/workspace$/);
+
+  await onScreen(page, '[aria-label="Open Vitamin -2 beside current sheet"]').click();
+  const layout = page.locator(".workspace-split-layout.is-split");
+  await expect(layout).toBeVisible();
+  await expect(page.locator(".workspace-pane.is-secondary .workspace-v3-document-context strong")).toHaveText("Vitamin -2");
+  await expect(page.locator(".workspace-pane.is-secondary")).not.toHaveAttribute("inert", "");
+  await expect(page.locator(".workspace-pane.is-active")).not.toHaveAttribute("inert", "");
+  const divider = page.getByRole("separator", { name: "Resize PDF split" });
+  const initial = await page.locator(".workspace-pane.is-active").boundingBox();
+  await divider.focus();
+  await page.keyboard.press("ArrowRight");
+  const resized = await page.locator(".workspace-pane.is-active").boundingBox();
+  expect(resized.width).toBeGreaterThan(initial.width);
+
+  // Both panes retain separate scroll containers and can take focus.
+  await page.locator(".workspace-pane.is-secondary .workspace-v2-document-stage").click({ position: { x: 25, y: 80 } });
+  await expect(page.locator(".workspace-pane.is-secondary .workspace-v2")).toBeVisible();
+  await expect(onScreen(page, ".workspace-v2")).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(layout).toBeVisible();
+  const top = await page.locator(".workspace-pane.is-active").boundingBox();
+  const bottom = await page.locator(".workspace-pane.is-secondary").boundingBox();
+  expect(bottom.y).toBeGreaterThan(top.y);
+  await page.getByRole("button", { name: "Close split view" }).click();
+  await expect(layout).toHaveCount(0);
+  await expect(page.locator(".workspace-pane.is-kept")).toHaveCount(1);
+});
