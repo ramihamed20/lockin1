@@ -76,7 +76,7 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
   // Each PDF reader restores its own scroll position after loading/fit.
   // A restored first page can land at a different vertical inset in a narrow
   // pane. Reconcile *after* both readers have settled, including late PDF.js
-  // geometry, so the white page edges line up at the same 12px top gutter.
+  // geometry, so the white page edges line up at the same top edge.
   // Never reposition a page the student has deliberately scrolled upwards.
   const slotIdentity = liveSlots.join("|");
   useEffect(() => {
@@ -92,7 +92,7 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
         if (!stage || !firstPage) continue;
         const viewport = stage.getBoundingClientRect();
         const pageTop = firstPage.getBoundingClientRect().top;
-        const extra = pageTop - viewport.top - 12;
+        const extra = pageTop - viewport.top;
         if (viewport.height > 0 && extra > 1 &&
             extra < Math.max(120, viewport.height * .2)) {
           stage.scrollTop += extra;
