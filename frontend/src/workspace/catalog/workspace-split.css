@@ -13,9 +13,11 @@
   transform: translateZ(0); /* Constrain the reader's fixed viewport to its pane. */
 }
 .workspace-split-layout.is-split > .workspace-pane.is-active {
-  flex: 0 0 calc(var(--workspace-split-primary, 50%) - 6px);
+  order: 0; flex: 0 0 calc(var(--workspace-split-primary, 50%) - 6px);
 }
-.workspace-split-layout.is-split > .workspace-pane.is-secondary { flex: 1 1 0; }
+.workspace-split-layout.is-split > .workspace-pane.is-secondary { order: 2; flex: 1 1 0; }
+.workspace-split-layout.is-split[data-secondary-side="start"] > .workspace-pane.is-active { order: 2; }
+.workspace-split-layout.is-split[data-secondary-side="start"] > .workspace-pane.is-secondary { order: 0; }
 .workspace-split-layout.is-split > .workspace-pane.is-kept {
   position: absolute; inset: 0; visibility: hidden; pointer-events: none;
 }
@@ -23,7 +25,7 @@
   position: absolute; inset: 0; width: 100%; height: 100%;
 }
 .workspace-split-divider {
-  position: relative; z-index: 4; flex: 0 0 12px;
+  position: relative; z-index: 4; order: 1; flex: 0 0 12px;
   display: flex; align-items: center; justify-content: center;
   background: color-mix(in srgb, var(--surface, #17213a) 93%, transparent);
   border-inline: 1px solid var(--separator, rgba(155, 170, 205, .22));
@@ -51,20 +53,7 @@
 .workspace-split-layout.is-split .workspace-v3-document-context { max-width: 120px; }
 .workspace-split-layout.is-split .workspace-v3-quick-colors { gap: 1px; padding-inline: 3px; }
 .workspace-split-layout.is-split .workspace-tabs-scroller { max-width: 100%; }
-.workspace-split-layout.is-split .workspace-tab-split { opacity: 1; }
-.workspace-tab-split {
-  display: grid; place-items: center; flex: 0 0 24px;
-  height: 26px; width: 24px; padding: 0; border: 0; border-radius: 7px;
-  color: var(--fx-text-3, #9aa5ba); background: transparent;
-  cursor: pointer;
-}
-.workspace-tab-split:hover, .workspace-tab-split.is-split {
-  color: var(--fx-accent, #8e61ff); background: var(--fx-fill-strong, rgba(130,130,180,.13));
-}
-.workspace-tab-split:focus-visible, .workspace-split-divider:focus-visible {
-  outline: 2px solid var(--fx-accent, #8e61ff); outline-offset: -2px;
-}
-@media (max-width: 640px) {
+.workspace-split-layout.is-split @media (max-width: 640px) {
   .workspace-split-layout.is-split { flex-direction: column; }
   .workspace-split-layout.is-split > .workspace-pane.is-active {
     flex-basis: calc(var(--workspace-split-primary, 50%) - 6px);
@@ -77,4 +66,75 @@
   .workspace-split-grip { width: 48px; height: 4px; }
   .workspace-split-close { top: 50%; left: auto; right: 12px; transform: translateY(-50%); }
   .workspace-split-layout.is-split .workspace-v2-toolbar { min-height: 44px; }
+}
+
+/* A tab behaves like a draggable document, but still remains a normal
+   clickable/keyboard-accessible tab unless the pointer actually moves. */
+.workspace-tab > button[role="tab"] { cursor: grab; touch-action: pan-x; }
+.workspace-tab > button[role="tab"]:active, .workspace-tab.is-dragging > button[role="tab"] { cursor: grabbing; }
+.workspace-tab.is-dragging { opacity: .5; }
+.workspace-tab-drag-overlay { position: fixed; inset: 0; z-index: 2147483000; pointer-events: none; overflow: hidden; }
+.workspace-tab-drag-ghost {
+  position: fixed; display: flex; align-items: center; gap: 9px;
+  max-width: min(260px, 68vw); min-height: 46px; padding: 10px 15px;
+  border: 1px solid color-mix(in srgb, var(--fx-accent, #8e61ff) 35%, #fff);
+  border-radius: 15px; color: var(--fx-text, #182239);
+  background: var(--fx-panel, #fff);
+  box-shadow: 0 14px 46px rgba(0,0,0,.24);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  transform: translate3d(-35%, -120%, 0) rotate(-2deg);
+  animation: workspace-tab-ghost-enter 160ms cubic-bezier(.2,.9,.25,1) both;
+}
+.workspace-tab-drag-ghost span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font: 600 13px/1.25 system-ui, sans-serif; }
+.workspace-tab-drop-highlight {
+  position: fixed; top: 5%; bottom: 3%; width: calc(50% - 13px);
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--fx-accent, #8e61ff);
+  border-radius: 21px; color: var(--fx-accent, #8e61ff);
+  background: color-mix(in srgb, var(--fx-accent, #8e61ff) 12%, transparent);
+  box-shadow: inset 0 0 80px rgba(100,80,200,.08), 0 0 0 9999px rgba(0,0,0,.035);
+  animation: workspace-tab-drop-enter 190ms cubic-bezier(.2,.85,.2,1) both;
+}
+.workspace-tab-drop-highlight.is-start { left: 7px; }
+.workspace-tab-drop-highlight.is-end { right: 7px; }
+.workspace-tab-drop-highlight span {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 10px 16px; border-radius: 999px; background: var(--fx-panel, #fff);
+  font: 600 13px/1.25 system-ui, sans-serif;
+}
+.workspace-split-layout.is-split > .workspace-pane.is-secondary {
+  animation: workspace-split-pane-reveal 260ms cubic-bezier(.2,.8,.2,1) both;
+}
+.workspace-split-layout.is-split > .workspace-split-divider {
+  animation: workspace-split-divider-reveal 230ms ease-out both;
+}
+@keyframes workspace-tab-ghost-enter {
+  from { opacity: .55; transform: translate3d(-35%, -105%, 0) scale(.92) rotate(0); }
+  to { opacity: 1; transform: translate3d(-35%, -120%, 0) scale(1) rotate(-2deg); }
+}
+@keyframes workspace-tab-drop-enter {
+  from { opacity: .3; transform: scale(.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes workspace-split-pane-reveal {
+  from { opacity: .3; transform: scale(.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes workspace-split-divider-reveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (max-width: 640px) {
+  .workspace-tab-drop-highlight {
+    left: 7px !important; right: 7px !important; width: auto;
+    height: calc(50% - 14px); top: auto; bottom: auto;
+  }
+  .workspace-tab-drop-highlight.is-start { top: 7px; }
+  .workspace-tab-drop-highlight.is-end { bottom: 7px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-tab-drag-ghost, .workspace-tab-drop-highlight,
+  .workspace-split-layout.is-split > .workspace-pane.is-secondary,
+  .workspace-split-layout.is-split > .workspace-split-divider { animation: none; }
 }
