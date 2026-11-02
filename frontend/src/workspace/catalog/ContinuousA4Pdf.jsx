@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useWorkspacePaneVisible } from "./workspacePane.js";
+import { useWorkspacePaneVisible, useWorkspaceSplit } from "./workspacePane.js";
 import { assetPath } from "../../lib/utils.js";
 import { boundedOutputScale, pdfPageAspectRatio } from "../document/coordinateTransforms.js";
 import { WORKSPACE_RENDER } from "../config.js";
@@ -529,6 +529,7 @@ export function ContinuousA4Pdf({
   const [renderRevision, setRenderRevision] = useState(0);
   // Bumped when a kept pane or the browser page returns, see A4PdfCanvas.
   const paneActive = useWorkspacePaneVisible();
+  const { isMulti: isSplitPane } = useWorkspaceSplit();
   const [wakeToken, setWakeToken] = useState(0);
   const wasPaneActiveRef = useRef(paneActive);
   useEffect(() => {
@@ -1145,6 +1146,39 @@ export function ContinuousA4Pdf({
     stage.scrollLeft = rightToLeft ? nextLeft - overflow : nextLeft;
     stage.scrollTop = Math.max(0, stage.scrollTop + (stageViewport.height - previous.viewport.height) / 2);
   }, [isHorizontal, pageDirection, pageGeometryReady, pages, slotWidth, stageRef, stageViewport, zoom]);
+
+  // A split pane is shorter and often has a different fitted zoom than its
+  // neighbour. Each reader keeps its own scroll position, so the first PDF
+  // page could land 20–50px below the top while the adjacent page starts
+  // immediately below the shared toolbar. Align only a page that is already
+  // near the beginning; never pull a student back from a later reading point.
+  useLayoutEffect(() => {
+    if (!isSplitPane || isHorizontal || !pageGeometryReady) return undefined;
+    let animationFrame = 0;
+    let secondFrame = 0;
+    const alignNearStart = () => {
+      const stage = stageRef.current;
+      const firstPage = documentRootRef.current?.querySelector(".workspace-v2-a4-page");
+      if (!stage || !firstPage) return;
+      const pageRect = firstPage.getBoundingClientRect();
+      const stageRect = stage.getBoundingClientRect();
+      if (pageRect.height <= 0 || stageRect.height <= 0) return;
+      const desiredTop = stageRect.top + 12;
+      const offset = pageRect.top - desiredTop;
+      // Only correct the blank strip above page one. Negative offsets represent
+      // deliberate reading/scrolling and must remain untouched.
+      if (offset > 1 && offset <= Math.max(96, stageRect.height * .18)) {
+        stage.scrollTop += offset;
+      }
+    };
+    animationFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(alignNearStart);
+    });
+    return () => {
+      cancelAnimationFrame(animationFrame);
+      cancelAnimationFrame(secondFrame);
+    };
+  }, [isSplitPane, isHorizontal, pageGeometryReady, stageRef, stageViewport, zoom]);
 
   return (
     <div className="workspace-v2-a4-zoom-surface" style={surfaceStyle}>
