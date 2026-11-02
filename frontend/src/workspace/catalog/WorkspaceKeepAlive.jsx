@@ -5,6 +5,7 @@ import { FocusVideoPlayer } from "./FocusVideoPlayer.jsx";
 import { WorkspacePaneActiveContext, WorkspacePaneVisibleContext, WorkspaceSplitContext } from "./workspacePane.js";
 import { personalTabId, sheetTabId, useWorkspaceTabs, whiteboardTabId, workspaceTabRoute } from "./workspaceTabs.js";
 import "./workspace-split.css";
+import { currentAppLocale } from "../../lib/i18n.js";
 
 /** Maximum number of background PDF readers retained besides visible panes. */
 export const KEPT_WORKSPACE_PANES = 4;
@@ -162,7 +163,7 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
       {splitPath && <div
         role="separator"
         className="workspace-split-divider"
-        aria-label="Resize PDF split"
+        aria-label={currentAppLocale() === "ar" ? "تغيير حجم تقسيم PDF" : "Resize PDF split"}
         aria-orientation={typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches ? "horizontal" : "vertical"}
         aria-valuemin={28}
         aria-valuemax={72}
@@ -183,7 +184,7 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
         }}
       >
         <span className="workspace-split-grip" aria-hidden="true" />
-        <button type="button" className="workspace-split-close" onClick={() => setSplitId("")} aria-label="Close split view" title="Close split view">×</button>
+        <button type="button" className="workspace-split-close" onClick={() => setSplitId("")} aria-label={currentAppLocale() === "ar" ? "إغلاق تقسيم الشاشة" : "Close split view"} title={currentAppLocale() === "ar" ? "إغلاق تقسيم الشاشة" : "Close split view"}>×</button>
       </div>}
     </div>
   </WorkspaceSplitContext.Provider>;
