@@ -336,12 +336,18 @@ class LockInTeamMessageSerializer(serializers.ModelSerializer[FocusTeamMessage])
 
 
 class LockInTeamSerializer(serializers.ModelSerializer[FocusTeam]):
+    image_url = serializers.SerializerMethodField()
+
+    def get_image_url(self, team: FocusTeam) -> str | None:
+        return f"/api/v1/files/{team.image_id}/view" if team.image_id else None
+
     class Meta:
         model = FocusTeam
         fields = (
             "id",
             "name",
             "invite_code",
+            "image_url",
             "max_members",
             "joining_locked",
             "closed_at",

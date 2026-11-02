@@ -8,6 +8,7 @@ from .paper_workspace_views import (
     PaperWorkspaceYouTubeSearchView,
 )
 from .rescue_views import RescueSessionView, RescueSuggestionsView
+from .social_views import InviteFriendView, TeamInvitationResponseView, TeamInvitationsView
 from .views import (
     ActiveStudyContinueView,
     ActiveStudyQuizView,
@@ -27,6 +28,7 @@ from .views import (
     LockInTaskToggleView,
     LockInTeamActionView,
     LockInTeamDetailView,
+    LockInTeamImageView,
     LockInTeamJoinView,
     LockInTeamMessagesView,
     LockInTeamsView,
@@ -41,6 +43,12 @@ from .views import (
 app_name = "focus"
 
 urlpatterns = [
+    path("focus/lock-in/invitations", TeamInvitationsView.as_view()),
+    path(
+        "focus/lock-in/invitations/<uuid:invitation_id>/<str:action>",
+        TeamInvitationResponseView.as_view(),
+    ),
+    path("focus/lock-in/teams/<uuid:team_id>/invitations", InviteFriendView.as_view()),
     path("focus/rescue/suggestions", RescueSuggestionsView.as_view()),
     path("focus/rescue/sessions/<uuid:session_id>", RescueSessionView.as_view()),
     path("focus/active-study/start", ActiveStudyStartView.as_view()),
@@ -92,6 +100,7 @@ urlpatterns = [
     path("focus/lock-in", LockInBootstrapView.as_view()),
     path("focus/lock-in/teams", LockInTeamsView.as_view()),
     path("focus/lock-in/leaderboard", LockInLeaderboardView.as_view()),
+    path("focus/lock-in/teams/<uuid:team_id>/image", LockInTeamImageView.as_view()),
     path("focus/lock-in/teams/join", LockInTeamJoinView.as_view()),
     path("focus/lock-in/teams/<uuid:team_id>", LockInTeamDetailView.as_view()),
     path("focus/lock-in/teams/<uuid:team_id>/messages", LockInTeamMessagesView.as_view()),

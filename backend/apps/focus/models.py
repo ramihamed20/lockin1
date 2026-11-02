@@ -22,6 +22,13 @@ def focus_invite_expiry() -> "datetime":
 class FocusTeam(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=80)
+    image = models.ForeignKey(
+        "files.ManagedFile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="focus_team_images",
+    )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="owned_focus_teams"
     )
@@ -745,3 +752,36 @@ class FocusInviteWindow(models.Model):
 
     def __str__(self) -> str:
         return str(self.user_id)
+
+
+class FocusTeamInvitation(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        ACCEPTED = "accepted", "Accepted"
+        DECLINED = "declined", "Declined"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    team = models.ForeignKey(FocusTeam, on_delete=models.CASCADE, related_name="direct_invitations")
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="sent_focus_invitations"
+    )
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="focus_invitations"
+    )
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING)
+    expires_at = models.DateTimeField(default=focus_invite_expiry)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("team", "recipient"), name="focus_team_recipient_invite_unique"
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(sender=models.F("recipient")), name="focus_team_invite_not_self"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.team_id}:{self.recipient_id}:{self.status}"

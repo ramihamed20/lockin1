@@ -60,21 +60,23 @@ for (const [name, viewport] of Object.entries({
     await page.setViewportSize(viewport);
     await page.goto("/#/lock-in");
     await expect(page.getByRole("heading", { name: "Lock-in Mode" })).toBeVisible();
-    await expect(page.locator(".sidebar")).toHaveCount(0);
+    await expect(page.locator(".app-shell")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "End Lockin", exact: true })).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     await screenshot(page, `lockin-${name}.png`);
     expect(overflow).toBeLessThanOrEqual(0);
   });
 }
 
-test("sidebar enters the dedicated Lockin surface", async ({ page }) => {
+test("sidebar opens the standalone Lockin screen", async ({ page }) => {
   await connect(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/#/dashboard");
   await page.locator(".sidebar .rail-expand").click();
   await page.locator(".mobile-drawer.open").getByRole("link", { name: "Lock-in Mode" }).click();
   await expect(page.getByRole("heading", { name: "Lock-in Mode" })).toBeVisible();
-  await expect(page.locator(".sidebar")).toHaveCount(0);
+  await expect(page.locator(".app-shell")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "End Lockin", exact: true })).toBeVisible();
 });
 
 test("create anonymous team and show host controls", async ({ page }) => {
@@ -114,7 +116,7 @@ test("Join Team accepts digits and shows an inline error", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Join", exact: true })).toBeDisabled();
   await code.fill("482731");
   await page.getByRole("button", { name: "Join", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("Team not found.");
+  await expect(page.getByRole("alert")).toContainText("No team matches this code. Check it and try again.");
 });
 
 test("team members do not see host controls", async ({ page }) => {
@@ -198,5 +200,15 @@ for (const width of [390, 820]) {
     await expect(page.getByLabel("To page", { exact: true })).toHaveValue("");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await screenshot(page, `lockin-setup-touch-${width}.png`);
+  });
+}
+
+for (const setup of [false, true]) {
+  test(`End Lockin returns to the site from ${setup ? "setup" : "home"}`, async ({ page }) => {
+    await connect(page);
+    await page.goto("/#/lock-in");
+    if (setup) await page.getByRole("button", { name: /^Solo/ }).click();
+    await page.getByRole("button", { name: "End Lockin", exact: true }).click();
+    await expect(page).toHaveURL(/#\/dashboard$/);
   });
 }

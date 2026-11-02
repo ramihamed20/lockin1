@@ -1,5 +1,6 @@
 from django.urls import path
 
+from .friend_views import FriendRequestView, FriendResponseView, FriendSearchView, FriendsView
 from .policy_views import PersonalDataExportView, PolicyAcceptanceView, PolicyMetadataView
 from .views import (
     AccountDeletionConfirmView,
@@ -35,6 +36,10 @@ from .views import (
 app_name = "accounts"
 
 urlpatterns = [
+    path("account/friends", FriendsView.as_view()),
+    path("account/friends/search", FriendSearchView.as_view()),
+    path("account/friends/requests", FriendRequestView.as_view()),
+    path("account/friends/requests/<uuid:request_id>/<str:action>", FriendResponseView.as_view()),
     path("account/data-export", PersonalDataExportView.as_view(), name="data-export"),
     path("policies", PolicyMetadataView.as_view(), name="policies"),
     path("account/policies", PolicyAcceptanceView.as_view(), name="accept-policies"),

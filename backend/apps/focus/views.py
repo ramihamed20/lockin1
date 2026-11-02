@@ -5,15 +5,18 @@ from typing import Any, cast
 from uuid import UUID
 
 from django.conf import settings
+from django.core.files.uploadedfile import UploadedFile
+from django.db import transaction
 from django.db.models import Count, IntegerField, OuterRef, Prefetch, Q, Subquery, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
 from rest_framework.generics import ListAPIView
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -31,6 +34,7 @@ from apps.content.policies import can_view_learning_object, is_version_available
 from apps.education.policies import is_content_administrator
 from apps.entitlements.services import require_entitlement
 from apps.files.models import ManagedFile
+from apps.files.services import FileValidationError, create_managed_file
 
 from .active_study import (
     ActiveStudyRuleError,
@@ -48,6 +52,7 @@ from .domain_types import AnnotationMutation, WorkspaceStateInput
 from .integrations import resolve_annotation_document, resolve_focus_document
 from .invite_limits import check_invite_attempt
 from .launch import launch_available, require_launch, study_target
+from .leaderboard import rankings
 from .live_accounting import participant_seconds, settle_expired_session
 from .managed_active_study import (
     ManagedActiveStudyRuleError,
@@ -1096,18 +1101,23 @@ class LockInTeamsView(APIView):
 
 
 class LockInLeaderboardView(APIView):
-    @extend_schema(operation_id="lock_in_leaderboard", responses={200: OpenApiTypes.OBJECT})
+    @extend_schema(
+        operation_id="lock_in_leaderboard",
+        parameters=[
+            OpenApiParameter("period", str, enum=["weekly", "all_time"]),
+            OpenApiParameter("metric", str, enum=["time", "sheets", "accuracy", "continuous"]),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def get(self, request: Request) -> Response:
         user = _authorize(request)
         period = request.query_params.get("period", "weekly")
         if period not in {"weekly", "all_time"}:
             raise ValidationError({"period": "Choose weekly or all time."})
-        return Response(
-            {
-                "solo": _solo_rankings_payload(period, cohort_id=user.cohort_id),
-                "teams": _team_rankings_payload(period, cohort_id=user.cohort_id),
-            }
-        )
+        metric = request.query_params.get("metric", "time")
+        if metric not in {"time", "sheets", "accuracy", "continuous"}:
+            raise ValidationError({"metric": "Choose time, sheets, accuracy or continuous."})
+        return Response(rankings(period=period, metric=metric, cohort_id=user.cohort_id))
 
 
 class LockInTeamJoinView(APIView):
@@ -1511,3 +1521,39 @@ class FocusAnnotationsView(APIView):
                 "replayed": result.replayed,
             }
         )
+
+
+class LockInTeamImageView(APIView):
+    parser_classes = [MultiPartParser, FormParser]
+
+    @extend_schema(
+        operation_id="lock_in_team_image",
+        request={
+            "multipart/form-data": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {"file": {"type": "string", "format": "binary"}},
+            }
+        },
+        responses={201: OpenApiTypes.OBJECT},
+    )
+    def post(self, request: Request, team_id: UUID) -> Response:
+        user = _authorize(request)
+        upload = request.FILES.get("file")
+        if not isinstance(upload, UploadedFile):
+            raise ValidationError({"file": "Choose a JPEG, PNG or WebP image."})
+        with transaction.atomic():
+            team = (
+                FocusTeam.objects.select_for_update()
+                .filter(pk=team_id, owner=user, closed_at__isnull=True)
+                .first()
+            )
+            if team is None:
+                raise PermissionDenied("Only the team host can change its picture.")
+            try:
+                image = create_managed_file(owner=user, upload=upload, kind=ManagedFile.Kind.AVATAR)
+            except FileValidationError as error:
+                raise ValidationError({"file": str(error)}) from error
+            team.image = image
+            team.save(update_fields=("image", "updated_at"))
+        return Response({"team": _team_payload(user=user, team=team)}, status=201)

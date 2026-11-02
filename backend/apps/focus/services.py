@@ -25,6 +25,7 @@ from .models import (
     FocusSessionParticipant,
     FocusSessionTask,
     FocusTeam,
+    FocusTeamInvitation,
     FocusTeamMembership,
     FocusTeamMessage,
     FocusWorkspaceSnapshot,
@@ -117,7 +118,11 @@ def create_focus_team(
 
 @transaction.atomic
 def join_focus_team(
-    *, user: User, invite_code: str, anonymous: bool = False
+    *,
+    user: User,
+    invite_code: str,
+    anonymous: bool = False,
+    direct_invitation_id: UUID | None = None,
 ) -> tuple[FocusTeam, bool]:
     try:
         team = FocusTeam.objects.select_for_update().get(invite_code=invite_code.strip().upper())
@@ -129,7 +134,18 @@ def join_focus_team(
         raise FocusSessionStateError("This team has ended.")
     if FocusTeamMembership.objects.filter(team=team, user=user).exists():
         raise FocusSessionStateError("You are already in this team.")
-    if team.invite_expires_at <= timezone.now():
+    direct_valid = (
+        direct_invitation_id is not None
+        and FocusTeamInvitation.objects.filter(
+            pk=direct_invitation_id,
+            team=team,
+            recipient=user,
+            sender_id=team.owner_id,
+            status="pending",
+            expires_at__gt=timezone.now(),
+        ).exists()
+    )
+    if team.invite_expires_at <= timezone.now() and not direct_valid:
         raise FocusSessionStateError("This invite code expired. Ask the host for a new code.")
     if team.joining_locked:
         raise FocusSessionStateError("Joining is locked.")

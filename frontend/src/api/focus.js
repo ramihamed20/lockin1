@@ -205,9 +205,16 @@ export const focusApi = {
     );
   },
 
-  async getLockInLeaderboard(period = "weekly") {
+  async getLockInLeaderboard(period = "weekly", metric = "time") {
     if (!["weekly", "all_time"].includes(period)) throw new ApiError(0, null, "Unsupported period.", "invalid_request");
-    return objectPayload(await request(`/focus/lock-in/leaderboard?period=${period}`), "Leaderboard could not be loaded.");
+    if (!["time", "sheets", "accuracy", "continuous"].includes(metric)) throw new ApiError(0, null, "Unsupported ranking.", "invalid_request");
+    return objectPayload(await request(`/focus/lock-in/leaderboard?period=${period}&metric=${metric}`), "Leaderboard could not be loaded.");
+  },
+
+  async uploadLockInTeamImage(teamId, file) {
+    const body = new FormData();
+    body.append("file", file);
+    return objectPayload(await request(`/focus/lock-in/teams/${teamId}/image`, { method: "POST", body }), "The team picture could not be saved.");
   },
 
   async getLockInTeam(teamId) {

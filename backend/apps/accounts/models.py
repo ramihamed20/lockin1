@@ -384,3 +384,35 @@ class AccountDeletionRequest(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id}:{self.status}"
+
+
+class Friendship(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        ACCEPTED = "accepted", "Accepted"
+        DECLINED = "declined", "Declined"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    first = models.ForeignKey(User, on_delete=models.CASCADE, related_name="friendships_first")
+    second = models.ForeignKey(User, on_delete=models.CASCADE, related_name="friendships_second")
+    requested_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name="friend_requests")
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=("first", "second"), name="accounts_friend_pair_unique"),
+            models.CheckConstraint(
+                condition=models.Q(first__lt=models.F("second")),
+                name="accounts_friend_pair_ordered",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(requested_by=models.F("first"))
+                | models.Q(requested_by=models.F("second")),
+                name="accounts_friend_requester_in_pair",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.first_id}:{self.second_id}:{self.status}"
