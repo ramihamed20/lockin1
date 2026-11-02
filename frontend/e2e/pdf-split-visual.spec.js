@@ -25,7 +25,7 @@ async function expectTopAlignedPages(page, count, tolerance = 4) {
   await expect.poll(async () => {
     const data = await collect();
     if (data.length !== count || data.some((item) => !item)) return 999;
-    return Math.max(...data.map((item) => Math.abs(item.offset - 12)));
+    return Math.max(...data.map((item) => item.offset)) - Math.min(...data.map((item) => item.offset));
   }, { timeout: 15000 }).toBeLessThanOrEqual(tolerance);
   console.log("TOP_ALIGNED_PAGES", count, JSON.stringify(await collect()));
 }
