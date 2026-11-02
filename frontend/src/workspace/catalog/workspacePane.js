@@ -20,7 +20,7 @@ export function useWorkspacePaneActive() {
  * Both readers remain isolated; the currently focused pane alone receives
  * global keyboard commands and foreground study effects.
  */
-export const WorkspaceSplitContext = createContext({ splitId: "", dropSplit: () => {}, closeSplit: () => {} });
+export const WorkspaceSplitContext = createContext({ splitId: "", dropSplit: (_tabId, _side) => {}, closeSplit: () => {} });
 
 export function useWorkspaceSplit() {
   return useContext(WorkspaceSplitContext);
