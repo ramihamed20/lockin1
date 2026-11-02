@@ -45,10 +45,10 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
   const navigate = useNavigate();
   const ownerKey = useMemo(() => ownerStorageKey(user), [user]);
   const [tabs] = useWorkspaceTabs(ownerKey);
-  const [slots, setSlots] = useState([]);
+  const [slots, setSlots] = useState(/** @type {string[]} */ ([]));
   const [splitPercent, setSplitPercent] = useState(50);
   const [focusedPath, setFocusedPath] = useState(location.pathname);
-  const [toolbarHost, setToolbarHost] = useState(null);
+  const [toolbarHost, setToolbarHost] = useState(/** @type {Element|null} */ (null));
   const previousPrimary = useRef(location.pathname);
   const layoutRef = useRef(null);
   /** @type {import("react").MutableRefObject<Map<string, {location: any, seen: number}>>} */
