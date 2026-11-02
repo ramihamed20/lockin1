@@ -306,7 +306,7 @@ test("Catalog Focus Workspace uses a compact contextual toolbar and persistent c
   assert.doesNotMatch(continuousPdf, /key=\{[^}\n]*zoom/);
   assert.match(continuousPdf, /PdfRenderQueue/);
   assert.match(continuousPdf, /SCROLL_SETTLE_MS/);
-  assert.match(continuousPdf, /rootMargin: "160% 0px"/);
+  assert.match(continuousPdf, /rootMargin: isHorizontal \? "0px 160%" : "160% 0px"/);
   assert.doesNotMatch(workspace, /button type="button" disabled aria-describedby="workspace-quick-actions-status"/);
   assert.match(styles, /inset: 0/);
   assert.match(styles, /height: var\(--app-viewport-height, 100dvh\)/);

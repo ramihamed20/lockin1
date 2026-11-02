@@ -1826,7 +1826,7 @@
   "evidenceDigests": {
     "frontend/src/App.jsx": "5963445a5e2ee3ceb186f23049606e1cc7618ccef34ecc6697e39524f37d4659",
     "frontend/src/lib/materialCatalog.js": "3bf3c59c161ca2952e33bf6086429d5b11c68f6ca13797f047b1914b9ecfe1a4",
-    "frontend/tests/materials-catalog.test.js": "fdcaf2c2e40b77cf07400c75e80aa90999ddeb0b6f895d7718424b7da49b7430",
+    "frontend/tests/materials-catalog.test.js": "65aa509996cee4be92a01a67d1565ebaeb73eb13cf0ba891aed0340e3e6ed811",
     "frontend/src/lib/i18n.js": "d06fc402815fbd21f78748c6a92ce0a639551f97bbfe6df319e0f5e345e34448",
     "frontend/src/pages/Materials.jsx": "12c6013b3aa37dcd6805e7262c895c0d6b1691a9a86e9c753f4be7265843cd96",
     "frontend/src/components/learning/CatalogSheetCard.jsx": "0bce127fc2679e5599d10951b9bbeefa6aaec2827e5222877b36d4695240d713",
